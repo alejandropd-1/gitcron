@@ -1,0 +1,6 @@
+{
+  "name": "GitCron",
+  "description": "A high-fidelity modern Git desktop client clone with visualized commit graph and advanced repository management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Undo, Redo, Download, Upload, GitBranch, Archive, Terminal, Search,
   Settings, HelpCircle, Folder, Cloud, Tag, Layers,
   ChevronRight, FileText, Trash2, Zap, AlertCircle, FolderOpen, Plus, X,
   ArrowLeft, RotateCcw, Github, LogOut, Minus,
   Sparkles, Copy, Lock, Globe, Loader2, UserCircle2,
+  GitMerge, TreePine, ArrowUp, ArrowDown, ChevronDown, Check,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGitStore, Commit, GitFile } from '@/lib/git-store';
@@ -54,14 +55,17 @@ export default function GitCronPage() {
     selectedFile, setSelectedFile, currentDiff, setCurrentDiff,
     stashes, tags, submodules,
     githubToken, githubUser,
+    branchTracking, worktrees, pullRequests,
   } = useGitStore();
 
   const {
     commitChanges, mergeBranch, revertCommit, stashChanges,
-    discardFileChanges, stageFile,
-    checkoutBranch, createBranch, pushChanges, pullChanges,
+    discardFileChanges, stageFile, stageFiles, removeIndexLock,
+    checkoutBranch, checkoutBranchSmart, createBranch, pushChanges, pullChanges,
     openTerminal, stashApply, stashDrop,
     connectGitHub, disconnectGitHub, loginWithGitHubDevice, bootstrapGitHub,
+    addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
+    deleteFile, copyFilePath,
   } = useGitActions();
 
   const {
@@ -71,6 +75,9 @@ export default function GitCronPage() {
 
   const [activeTab, setActiveTab] = useState('Graph');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hash?: string } | null>(null);
+  const [fileContextMenu, setFileContextMenu] = useState<{ x: number; y: number; file: GitFile } | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [checkoutConflict, setCheckoutConflict] = useState<{ branch: string; error: string } | null>(null);
   const [showNewBranch, setShowNewBranch] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const [newBranchFrom, setNewBranchFrom] = useState<string | undefined>(undefined);
@@ -96,7 +103,10 @@ export default function GitCronPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const handleClick = () => setContextMenu(null);
+    const handleClick = () => {
+      setContextMenu(null);
+      setFileContextMenu(null);
+    };
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
   }, []);
@@ -115,6 +125,18 @@ export default function GitCronPage() {
   const handleSelectFile = async (file: GitFile) => {
     setSelectedFile(file);
     await loadDiff(file.path, file.staged);
+  };
+
+  /**
+   * Try to checkout a branch. If git complains about uncommitted changes,
+   * open the conflict modal so the user can decide (stash + retry or cancel).
+   */
+  const handleCheckoutAttempt = async (branch: string) => {
+    if (branch === currentBranch) return; // already on it
+    const r = await checkoutBranch(branch);
+    if (!r.success && r.conflict) {
+      setCheckoutConflict({ branch, error: r.error ?? 'Conflicto al cambiar de branch' });
+    }
   };
 
   const handleCloseDiff = () => {
@@ -241,27 +263,51 @@ export default function GitCronPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* COLUMN 1: SIDEBAR (branches, remotes, stash, tags, submodules) */}
         <aside className="w-60 bg-[#041425] flex flex-col shrink-0 overflow-y-auto">
+          {/* LOCAL — folder tree + ahead/behind chips */}
           <SidebarSection title="LOCAL" count={branches.length || undefined}>
             {branches.length === 0 && !repoPath && (
               <p className="px-4 py-2 text-xs text-[#9eacc0] italic">Abrí un repo para ver branches</p>
             )}
-            {branches.map((b) => (
-              <SidebarItem
-                key={b}
-                icon={<Folder size={16} />}
-                text={b}
-                active={b === currentBranch}
-                onClick={() => checkoutBranch(b)}
-              />
-            ))}
+            <BranchTree
+              branches={branches}
+              currentBranch={currentBranch}
+              tracking={branchTracking}
+              onCheckout={(b) => handleCheckoutAttempt(b)}
+            />
           </SidebarSection>
 
+          {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
           <SidebarSection title="REMOTE" count={remoteBranches.length || undefined}>
-            {remoteBranches.map((b) => (
-              <SidebarItem key={b} icon={<Cloud size={16} />} text={b} />
-            ))}
+            <RemoteBranchTree branches={remoteBranches} />
           </SidebarSection>
 
+          {/* PULL REQUESTS — only when logged in to GitHub */}
+          {githubUser && (
+            <SidebarSection title="PULL REQUESTS" count={pullRequests.length || undefined}>
+              {pullRequests.length === 0 && (
+                <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">Sin PRs abiertas</p>
+              )}
+              {pullRequests.map((pr) => (
+                <button
+                  key={pr.number}
+                  onClick={() => window.api?.shellOpenPath(pr.url)}
+                  title={`Abrir #${pr.number} en GitHub`}
+                  className="w-full text-left px-4 py-1.5 flex items-start gap-2 text-sm hover:bg-[#172d45] text-[#9eacc0] hover:text-[#d9e7fc] transition-colors"
+                >
+                  <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-[#9eacc0]' : 'text-[#a3f185]')} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-mono text-[#697789]">#{pr.number}</span>
+                      {pr.draft && <span className="text-[9px] text-[#697789] uppercase">draft</span>}
+                    </div>
+                    <p className="text-xs truncate">{pr.title}</p>
+                  </div>
+                </button>
+              ))}
+            </SidebarSection>
+          )}
+
+          {/* STASH */}
           <SidebarSection title="STASH" count={stashes.length || undefined}>
             {stashes.length === 0 && repoPath && (
               <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">Sin stashes</p>
@@ -271,6 +317,7 @@ export default function GitCronPage() {
             ))}
           </SidebarSection>
 
+          {/* TAGS */}
           <SidebarSection title="TAGS" count={tags.length || undefined}>
             {tags.length === 0 && repoPath && (
               <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">Sin tags</p>
@@ -278,12 +325,35 @@ export default function GitCronPage() {
             {tags.map((t) => <SidebarItem key={t} icon={<Tag size={16} />} text={t} />)}
           </SidebarSection>
 
-          <SidebarSection title="SUBMODULES" count={submodules.length || undefined}>
-            {submodules.length === 0 && repoPath && (
-              <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">Sin submódulos</p>
-            )}
-            {submodules.map((sm) => <SidebarItem key={sm.path} icon={<Layers size={16} />} text={sm.path} />)}
-          </SidebarSection>
+          {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
+          {worktrees.length > 1 && (
+            <SidebarSection title="WORKTREES" count={worktrees.length}>
+              {worktrees.map((wt) => {
+                const name = wt.path.split(/[/\\]/).pop() || wt.path;
+                return (
+                  <button
+                    key={wt.path}
+                    onClick={() => window.api?.shellOpenPath(wt.path)}
+                    title={wt.path}
+                    className="w-full text-left px-4 py-1.5 flex items-center gap-3 text-sm hover:bg-[#172d45] text-[#9eacc0] hover:text-[#d9e7fc] transition-colors"
+                  >
+                    <TreePine size={14} className="shrink-0 text-[#5ed8ff]" />
+                    <span className="truncate flex-1">{name}</span>
+                    {wt.branch && (
+                      <span className="text-[10px] font-mono text-[#697789] shrink-0">{wt.branch}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </SidebarSection>
+          )}
+
+          {/* SUBMODULES — only render section if there are any */}
+          {submodules.length > 0 && (
+            <SidebarSection title="SUBMODULES" count={submodules.length}>
+              {submodules.map((sm) => <SidebarItem key={sm.path} icon={<Layers size={16} />} text={sm.path} />)}
+            </SidebarSection>
+          )}
         </aside>
 
         {/* COLUMN 2: CENTER (Commit graph OR diff viewer) */}
@@ -372,16 +442,13 @@ export default function GitCronPage() {
           ) : (
             /* Graph tab — default */
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 px-4 flex justify-between items-center text-[11px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
-                <div className="flex gap-4">
-                  <span>Branch / Tag</span>
-                  <span>Graph</span>
-                  <span>Description</span>
-                </div>
-                <div className="flex gap-12 mr-2">
-                  <span>Date</span>
-                  <span>Author</span>
-                  <span>Commit</span>
+              <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[11px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
+                <div className="w-[220px] shrink-0 text-right pr-3">Branch / Tag</div>
+                <div className="w-[88px] shrink-0 text-left">Graph</div>
+                <div className="flex-1">Commit message</div>
+                <div className="flex items-center gap-3 pr-3 text-right shrink-0">
+                  <span className="w-20">Date</span>
+                  <span className="w-16">Commit</span>
                 </div>
               </div>
 
@@ -394,6 +461,7 @@ export default function GitCronPage() {
                     commits={commits}
                     selectedHash={selectedCommit?.hash}
                     currentBranch={currentBranch}
+                    workingTreeFiles={modifiedFiles}
                     onSelect={setSelectedCommit}
                     onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
                   />
@@ -476,8 +544,14 @@ export default function GitCronPage() {
               isLoading={isLoading}
               onSelectFile={handleSelectFile}
               onStage={(path, stage) => stageFile(path, stage)}
+              onStageMany={(paths, stage) => stageFiles(paths, stage)}
               onDiscard={(path) => discardFileChanges(path)}
               onCommit={commitChanges}
+              onFileContextMenu={(e, file) => {
+                e.preventDefault();
+                setFileContextMenu({ x: e.clientX, y: e.clientY, file });
+              }}
+              onRequestResetAll={() => setShowResetConfirm(true)}
             />
           )}
         </aside>
@@ -488,11 +562,24 @@ export default function GitCronPage() {
         {error && (
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 p-3 bg-[#9f0519] text-[#ffa8a3] rounded-lg shadow-2xl flex items-center gap-3 z-50 border border-[#ffa8a3]/20 max-w-xl"
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 p-3 bg-[#9f0519] text-[#ffa8a3] rounded-lg shadow-2xl flex items-start gap-3 z-50 border border-[#ffa8a3]/20 max-w-xl"
           >
-            <AlertCircle size={20} className="shrink-0" />
-            <span className="text-sm font-medium">{error}</span>
-            <button onClick={() => setError(null)} className="ml-4 hover:opacity-70 shrink-0">
+            <AlertCircle size={20} className="shrink-0 mt-0.5" />
+            <span className="text-sm font-medium flex-1">{error}</span>
+            {/* Recovery action when git index is locked */}
+            {error.toLowerCase().includes('index.lock') && (
+              <button
+                onClick={async () => {
+                  const ok = await removeIndexLock();
+                  if (ok) setError(null);
+                }}
+                className="shrink-0 px-3 py-1 text-xs font-bold bg-[#ffa8a3]/20 hover:bg-[#ffa8a3]/30 text-[#ffa8a3] rounded transition-colors"
+                title="Borra .git/index.lock y refresca el estado"
+              >
+                Eliminar lock
+              </button>
+            )}
+            <button onClick={() => setError(null)} className="hover:opacity-70 shrink-0">
               <X size={16} />
             </button>
           </motion.div>
@@ -751,6 +838,126 @@ export default function GitCronPage() {
         )}
       </AnimatePresence>
 
+      {/* ──────────── CHECKOUT CONFLICT MODAL ──────────── */}
+      <AnimatePresence>
+        {checkoutConflict && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            onClick={() => setCheckoutConflict(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[520px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <AlertCircle size={22} className="text-[#fd9d1a] shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-bold text-[#d9e7fc] mb-1">Cambios sin commitear</h3>
+                  <p className="text-sm text-[#9eacc0] leading-relaxed">
+                    No se puede pasar a <code className="text-[#a3f185] bg-[#020f1e] px-1 rounded">{checkoutConflict.branch}</code>{' '}
+                    porque tenés cambios que serían sobrescritos. ¿Qué hacés?
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-[#020f1e] border border-[#3c495a]/15 rounded p-3 mb-4 text-[11px] font-mono text-[#697789] max-h-32 overflow-y-auto">
+                {checkoutConflict.error}
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setCheckoutConflict(null)}
+                  className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    const branch = checkoutConflict.branch;
+                    setCheckoutConflict(null);
+                    await checkoutBranchSmart(branch, { stashFirst: true });
+                  }}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
+                >
+                  <Archive size={14} />
+                  Stash y cambiar
+                </button>
+              </div>
+              <p className="text-[10px] text-[#697789] mt-3 text-center">
+                "Stash y cambiar" guarda tus cambios actuales en la pila de stash y hace el checkout.
+                Después podés recuperarlos desde la sección STASH.
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── RESET ALL CONFIRMATION ──────────── */}
+      <AnimatePresence>
+        {showResetConfirm && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            className="fixed top-14 left-1/2 -translate-x-1/2 z-50 bg-[#9f0519]/95 backdrop-blur-md border border-[#ffa8a3]/30 rounded-lg shadow-2xl px-4 py-3 flex items-center gap-4 max-w-2xl"
+          >
+            <AlertCircle size={20} className="text-[#ffa8a3] shrink-0" />
+            <span className="text-sm text-[#ffdad6]">
+              Esto va a <strong>descartar TODOS los cambios</strong> (staged, unstaged y archivos untracked). ¿Seguro?
+            </span>
+            <button
+              onClick={async () => {
+                const ok = await resetAll();
+                if (ok) setShowResetConfirm(false);
+              }}
+              disabled={isLoading}
+              className="shrink-0 px-3 py-1.5 text-xs font-bold bg-[#ff716c] hover:bg-[#ffa8a3] text-[#490006] rounded transition-colors disabled:opacity-50"
+            >
+              Reset All
+            </button>
+            <button
+              onClick={() => setShowResetConfirm(false)}
+              className="shrink-0 px-3 py-1.5 text-xs font-medium text-[#ffdad6] hover:text-white"
+            >
+              Cancelar
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── FILE CONTEXT MENU ──────────── */}
+      <AnimatePresence>
+        {fileContextMenu && (
+          <FileContextMenu
+            x={fileContextMenu.x}
+            y={fileContextMenu.y}
+            file={fileContextMenu.file}
+            onStage={() => { stageFile(fileContextMenu.file.path, !fileContextMenu.file.staged); setFileContextMenu(null); }}
+            onDiscard={() => { discardFileChanges(fileContextMenu.file.path); setFileContextMenu(null); }}
+            onStashFile={() => { stashFile(fileContextMenu.file.path); setFileContextMenu(null); }}
+            onIgnore={async () => {
+              const r = await addToGitignore(fileContextMenu.file.path);
+              if (r.success && r.alreadyIgnored) {
+                setError(`"${fileContextMenu.file.path}" ya estaba en .gitignore`);
+              }
+              setFileContextMenu(null);
+            }}
+            onOpenInEditor={() => { openInDefault(fileContextMenu.file.path); setFileContextMenu(null); }}
+            onShowInFolder={() => { showInFolder(fileContextMenu.file.path); setFileContextMenu(null); }}
+            onCopyPath={() => { copyFilePath(fileContextMenu.file.path); setFileContextMenu(null); }}
+            onDelete={async () => {
+              const file = fileContextMenu.file;
+              setFileContextMenu(null);
+              if (confirm(`¿Eliminar "${file.path}" del disco?`)) {
+                await deleteFile(file.path);
+              }
+            }}
+            onClose={() => setFileContextMenu(null)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* ──────────── CONTEXT MENU ──────────── */}
       <AnimatePresence>
         {contextMenu && (
@@ -819,6 +1026,225 @@ function SidebarItem({ icon, text, active, onClick }: { icon: React.ReactNode; t
       {active && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#a3f185]" />}
       <span className={cn('shrink-0', active ? 'text-[#a3f185]' : 'text-[#9eacc0] group-hover:text-[#d9e7fc]')}>{icon}</span>
       <span className="truncate">{text}</span>
+    </div>
+  );
+}
+
+/* ──────────── BRANCH TREE (folder grouping) ──────────── */
+
+interface BranchNode {
+  name: string;           // leaf name (last segment)
+  fullPath: string;       // full branch name
+}
+
+interface BranchFolder {
+  prefix: string;
+  branches: BranchNode[];
+}
+
+function buildBranchTree(branches: string[]): { root: BranchNode[]; folders: BranchFolder[] } {
+  const root: BranchNode[] = [];
+  const folderMap = new Map<string, BranchNode[]>();
+
+  for (const fullPath of branches) {
+    const slash = fullPath.indexOf('/');
+    if (slash === -1) {
+      root.push({ name: fullPath, fullPath });
+    } else {
+      const prefix = fullPath.slice(0, slash);
+      const leaf = fullPath.slice(slash + 1);
+      if (!folderMap.has(prefix)) folderMap.set(prefix, []);
+      folderMap.get(prefix)!.push({ name: leaf, fullPath });
+    }
+  }
+
+  // Sort root: main/master first, then alphabetic
+  root.sort((a, b) => {
+    const priority = (n: string) => (n === 'main' ? 0 : n === 'master' ? 1 : 2);
+    return priority(a.name) - priority(b.name) || a.name.localeCompare(b.name);
+  });
+
+  const folders: BranchFolder[] = Array.from(folderMap.entries())
+    .map(([prefix, branches]) => ({ prefix, branches: branches.sort((a, b) => a.name.localeCompare(b.name)) }))
+    .sort((a, b) => a.prefix.localeCompare(b.prefix));
+
+  return { root, folders };
+}
+
+function BranchTree({
+  branches, currentBranch, tracking, onCheckout,
+}: {
+  branches: string[];
+  currentBranch: string;
+  tracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
+  onCheckout: (b: string) => void;
+}) {
+  const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
+
+  return (
+    <div>
+      {root.map((b) => (
+        <BranchRow
+          key={b.fullPath}
+          name={b.name}
+          fullPath={b.fullPath}
+          tracking={tracking[b.fullPath]}
+          isActive={b.fullPath === currentBranch}
+          onCheckout={onCheckout}
+          indent={false}
+        />
+      ))}
+      {folders.map((f) => (
+        <BranchFolderView
+          key={f.prefix}
+          folder={f}
+          currentBranch={currentBranch}
+          tracking={tracking}
+          onCheckout={onCheckout}
+        />
+      ))}
+    </div>
+  );
+}
+
+function BranchFolderView({
+  folder, currentBranch, tracking, onCheckout,
+}: {
+  folder: BranchFolder;
+  currentBranch: string;
+  tracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
+  onCheckout: (b: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+  return (
+    <div>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-4 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
+      >
+        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        <Folder size={14} className="text-[#9eacc0] shrink-0" />
+        <span className="truncate flex-1 text-left">{folder.prefix}</span>
+        <span className="text-[10px] text-[#697789]">{folder.branches.length}</span>
+      </button>
+      {isOpen && (
+        <div className="relative">
+          {/* Vertical guide line */}
+          <div className="absolute left-[1.4rem] top-0 bottom-0 w-px bg-[#3c495a]/40" />
+          {folder.branches.map((b) => (
+            <BranchRow
+              key={b.fullPath}
+              name={b.name}
+              fullPath={b.fullPath}
+              tracking={tracking[b.fullPath]}
+              isActive={b.fullPath === currentBranch}
+              onCheckout={onCheckout}
+              indent={true}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BranchRow({
+  name, fullPath, tracking, isActive, onCheckout, indent,
+}: {
+  name: string;
+  fullPath: string;
+  tracking?: { ahead: number; behind: number; gone: boolean; upstream: string | null };
+  isActive: boolean;
+  onCheckout: (b: string) => void;
+  indent: boolean;
+}) {
+  return (
+    <div
+      onDoubleClick={() => onCheckout(fullPath)}
+      title={`Doble click para cambiar a ${fullPath}`}
+      className={cn(
+        'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
+        indent ? 'pl-9' : 'pl-4',
+        isActive ? 'bg-[#a3f185]/10 text-[#a3f185]' : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
+      )}
+    >
+      {isActive ? (
+        <Check size={13} strokeWidth={3} className="text-[#a3f185] shrink-0" />
+      ) : (
+        <GitBranch size={13} className="shrink-0 text-[#697789]" />
+      )}
+      <span className="truncate flex-1 text-sm">{name}</span>
+
+      {/* Ahead / behind chips */}
+      {tracking && !tracking.gone && (tracking.ahead > 0 || tracking.behind > 0) && (
+        <span className="flex items-center gap-1 text-[10px] font-mono shrink-0">
+          {tracking.ahead > 0 && (
+            <span className="flex items-center text-[#a3f185]">
+              {tracking.ahead}
+              <ArrowUp size={10} strokeWidth={3} />
+            </span>
+          )}
+          {tracking.behind > 0 && (
+            <span className="flex items-center text-[#fd9d1a]">
+              {tracking.behind}
+              <ArrowDown size={10} strokeWidth={3} />
+            </span>
+          )}
+        </span>
+      )}
+      {tracking?.gone && (
+        <span className="text-[9px] text-[#ff716c] uppercase shrink-0" title="Upstream eliminado">gone</span>
+      )}
+    </div>
+  );
+}
+
+/* Remote branches: similar tree grouped by 'origin/...' */
+function RemoteBranchTree({ branches }: { branches: string[] }) {
+  const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
+  return (
+    <div>
+      {root.map((b) => (
+        <div key={b.fullPath} className="px-4 py-1 flex items-center gap-2 text-sm text-[#9eacc0]">
+          <Cloud size={13} className="shrink-0 text-[#5ed8ff]" />
+          <span className="truncate text-xs">{b.name}</span>
+        </div>
+      ))}
+      {folders.map((f) => (
+        <RemoteFolderView key={f.prefix} folder={f} />
+      ))}
+    </div>
+  );
+}
+
+function RemoteFolderView({ folder }: { folder: BranchFolder }) {
+  const [isOpen, setIsOpen] = useState(true);
+  return (
+    <div>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-4 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
+      >
+        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        <Cloud size={14} className="text-[#5ed8ff] shrink-0" />
+        <span className="truncate flex-1 text-left">{folder.prefix}</span>
+        <span className="text-[10px] text-[#697789]">{folder.branches.length}</span>
+      </button>
+      {isOpen && (
+        <div className="relative">
+          <div className="absolute left-[1.4rem] top-0 bottom-0 w-px bg-[#3c495a]/40" />
+          {folder.branches.map((b) => (
+            <div
+              key={b.fullPath}
+              className="pl-9 pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] transition-colors"
+              title={b.fullPath}
+            >
+              <GitBranch size={13} className="shrink-0 text-[#697789]" />
+              <span className="truncate text-xs">{b.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -906,7 +1332,8 @@ function FileRow({
 
 function StagingPanel({
   files, selectedFile, repoPath, commitMessage, setCommitMessage, isLoading,
-  onSelectFile, onStage, onDiscard, onCommit,
+  onSelectFile, onStage, onStageMany, onDiscard, onCommit,
+  onFileContextMenu, onRequestResetAll,
 }: {
   files: GitFile[];
   selectedFile: GitFile | null;
@@ -916,14 +1343,19 @@ function StagingPanel({
   isLoading: boolean;
   onSelectFile: (f: GitFile) => void;
   onStage: (path: string, stage: boolean) => void;
+  onStageMany: (paths: string[], stage: boolean) => void;
   onDiscard: (path: string) => void;
   onCommit: () => void;
+  onFileContextMenu: (e: React.MouseEvent, file: GitFile) => void;
+  onRequestResetAll: () => void;
 }) {
   const unstaged = files.filter((f) => !f.staged);
   const staged = files.filter((f) => f.staged);
 
-  const stageAll = () => unstaged.forEach((f) => onStage(f.path, true));
-  const unstageAll = () => staged.forEach((f) => onStage(f.path, false));
+  // CRITICAL: batch stage/unstage to avoid parallel writes to .git/index
+  // which cause "index.lock: File exists" errors.
+  const stageAll = () => onStageMany(unstaged.map((f) => f.path), true);
+  const unstageAll = () => onStageMany(staged.map((f) => f.path), false);
 
   if (!repoPath) {
     return (
@@ -942,14 +1374,25 @@ function StagingPanel({
           <span className="text-[11px] font-bold text-[#9eacc0] uppercase tracking-wider">
             Unstaged ({unstaged.length})
           </span>
-          {unstaged.length > 0 && (
-            <button
-              onClick={stageAll}
-              className="text-[10px] text-[#a3f185] hover:text-white px-2 py-0.5 rounded border border-[#a3f185]/40 hover:bg-[#a3f185]/10 transition-colors"
-            >
-              Stage all
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {files.length > 0 && (
+              <button
+                onClick={onRequestResetAll}
+                className="p-1 text-[#9eacc0] hover:text-[#ff716c] hover:bg-[#ff716c]/10 rounded transition-colors"
+                title="Descartar TODOS los cambios (reset --hard)"
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
+            {unstaged.length > 0 && (
+              <button
+                onClick={stageAll}
+                className="text-[10px] text-[#a3f185] hover:text-white px-2 py-0.5 rounded border border-[#a3f185]/40 hover:bg-[#a3f185]/10 transition-colors"
+              >
+                Stage all
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto min-h-0">
           {unstaged.length === 0 ? (
@@ -965,6 +1408,7 @@ function StagingPanel({
                   onClick={() => onSelectFile(file)}
                   onAction={() => onStage(file.path, true)}
                   onDiscard={() => onDiscard(file.path)}
+                  onContextMenu={(e) => onFileContextMenu(e, file)}
                 />
               ))}
             </div>
@@ -1001,6 +1445,7 @@ function StagingPanel({
                   onClick={() => onSelectFile(file)}
                   onAction={() => onStage(file.path, false)}
                   onDiscard={() => onDiscard(file.path)}
+                  onContextMenu={(e) => onFileContextMenu(e, file)}
                 />
               ))}
             </div>
@@ -1029,7 +1474,7 @@ function StagingPanel({
 }
 
 function StagingFileRow({
-  file, selected, direction, onClick, onAction, onDiscard,
+  file, selected, direction, onClick, onAction, onDiscard, onContextMenu,
 }: {
   file: GitFile;
   selected: boolean;
@@ -1037,6 +1482,7 @@ function StagingFileRow({
   onClick: () => void;
   onAction: () => void;
   onDiscard: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
   return (
@@ -1044,6 +1490,7 @@ function StagingFileRow({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}
+      onContextMenu={onContextMenu}
       className={cn(
         'flex items-center gap-2 px-2 py-1.5 rounded group transition-colors cursor-pointer',
         selected ? 'bg-[#a3f185]/15' : 'hover:bg-[#3c495a]/50',
@@ -1775,6 +2222,38 @@ function CloneRepoModal({
           </button>
         </div>
       </motion.div>
+    </motion.div>
+  );
+}
+
+function FileContextMenu({
+  x, y, file,
+  onStage, onDiscard, onStashFile, onIgnore,
+  onOpenInEditor, onShowInFolder, onCopyPath, onDelete, onClose,
+}: {
+  x: number; y: number; file: GitFile;
+  onStage: () => void; onDiscard: () => void; onStashFile: () => void;
+  onIgnore: () => void; onOpenInEditor: () => void; onShowInFolder: () => void;
+  onCopyPath: () => void; onDelete: () => void; onClose: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+      className="fixed bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-lg shadow-2xl py-1 z-[100] w-60"
+      style={{ left: x, top: y }}
+    >
+      <ContextMenuItem onClick={onStage} text={file.staged ? 'Unstage' : 'Stage'} />
+      <ContextMenuItem onClick={onIgnore} text="Agregar a .gitignore" />
+      <ContextMenuItem onClick={onStashFile} text="Stashear este archivo" />
+      <div className="h-px bg-[#3c495a]/20 my-1" />
+      <ContextMenuItem onClick={onOpenInEditor} text="Abrir en editor" />
+      <ContextMenuItem onClick={onShowInFolder} text="Mostrar en carpeta" />
+      <ContextMenuItem onClick={onCopyPath} text="Copiar path" textSecondary="Ctrl+C" />
+      <div className="h-px bg-[#3c495a]/20 my-1" />
+      <ContextMenuItem onClick={onDiscard} text="Descartar cambios" />
+      <ContextMenuItem onClick={onDelete} text="Eliminar archivo" />
+      <div className="h-px bg-[#3c495a]/20 my-1" />
+      <ContextMenuItem onClick={onClose} text="Cerrar" />
     </motion.div>
   );
 }

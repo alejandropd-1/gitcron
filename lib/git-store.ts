@@ -1,83 +1,105 @@
 import { create } from 'zustand';
+import type { StashEntry, SubmoduleEntry, GitHubUser } from '@/types/electron';
 
 export interface Commit {
   hash: string;
+  shortHash: string;
   message: string;
-  author: string;
+  authorName: string;
+  authorEmail: string;
   date: string;
-  avatar?: string;
   parents: string[];
+  refs?: string[];
 }
 
 export interface GitFile {
   path: string;
-  status: 'modified' | 'added' | 'deleted' | 'untracked';
+  status: 'modified' | 'added' | 'deleted' | 'untracked' | 'renamed';
   staged: boolean;
+  oldPath?: string;
 }
 
 interface GitStore {
+  repoPath: string | null;
+  repoName: string | null;
   currentBranch: string;
   branches: string[];
+  remoteBranches: string[];
   commits: Commit[];
   modifiedFiles: GitFile[];
+  stashes: StashEntry[];
+  tags: string[];
+  submodules: SubmoduleEntry[];
   commitMessage: string;
   selectedCommit: Commit | null;
+  selectedFile: GitFile | null;
+  currentDiff: string;
   isLoading: boolean;
   error: string | null;
+  // GitHub auth
+  githubToken: string | null;
+  githubUser: GitHubUser | null;
 
-  // Actions
+  setRepoPath: (path: string | null) => void;
+  setRepoName: (name: string | null) => void;
   setCurrentBranch: (branch: string) => void;
   setCommitMessage: (message: string) => void;
   setSelectedCommit: (commit: Commit | null) => void;
+  setSelectedFile: (file: GitFile | null) => void;
+  setCurrentDiff: (diff: string) => void;
   setModifiedFiles: (files: GitFile[]) => void;
   setCommits: (commits: Commit[]) => void;
   setBranches: (branches: string[]) => void;
+  setRemoteBranches: (branches: string[]) => void;
+  setStashes: (stashes: StashEntry[]) => void;
+  setTags: (tags: string[]) => void;
+  setSubmodules: (submodules: SubmoduleEntry[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setGithubToken: (token: string | null) => void;
+  setGithubUser: (user: GitHubUser | null) => void;
 }
 
 export const useGitStore = create<GitStore>((set) => ({
-  currentBranch: 'main',
-  branches: ['main', 'feature/ui-refresh', 'fix/bug-123'],
-  commits: [
-    {
-      hash: '371838',
-      message: 'Update styling for top navigation and add new icons',
-      author: 'Alejandro Delgado',
-      date: '1 hour ago',
-      parents: ['a9b4f2'],
-    },
-    {
-      hash: 'a9b4f2',
-      message: 'Refactor component hierarchy and shared models',
-      author: 'S. Chen',
-      date: '3 hours ago',
-      parents: ['7c21e5'],
-    },
-    {
-      hash: '7c21e5',
-      message: 'Merge pull request #42 from feature/auth',
-      author: 'Alejandro Delgado',
-      date: 'Yesterday',
-      parents: ['old-hash'],
-    },
-  ],
-  modifiedFiles: [
-    { path: 'src/components/TopAppBar.tsx', status: 'modified', staged: true },
-    { path: 'src/icons/NavigationIcons.json', status: 'added', staged: false },
-    { path: 'src/styles/old_nav.css', status: 'deleted', staged: false },
-  ],
+  repoPath: null,
+  repoName: null,
+  currentBranch: '',
+  branches: [],
+  remoteBranches: [],
+  commits: [],
+  modifiedFiles: [],
+  stashes: [],
+  tags: [],
+  submodules: [],
   commitMessage: '',
   selectedCommit: null,
+  selectedFile: null,
+  currentDiff: '',
   isLoading: false,
   error: null,
+  // Token starts null. It's hydrated asynchronously on app mount via
+  // bootstrapGitHub() -> window.api.storageGet(). We DO NOT use localStorage:
+  // tokens live encrypted at-rest via Electron's safeStorage (OS keychain).
+  githubToken: null,
+  githubUser: null,
 
+  setRepoPath: (repoPath) => set({ repoPath }),
+  setRepoName: (repoName) => set({ repoName }),
   setCurrentBranch: (currentBranch) => set({ currentBranch }),
   setCommitMessage: (commitMessage) => set({ commitMessage }),
   setSelectedCommit: (selectedCommit) => set({ selectedCommit }),
+  setSelectedFile: (selectedFile) => set({ selectedFile }),
+  setCurrentDiff: (currentDiff) => set({ currentDiff }),
   setModifiedFiles: (modifiedFiles) => set({ modifiedFiles }),
   setCommits: (commits) => set({ commits }),
   setBranches: (branches) => set({ branches }),
+  setRemoteBranches: (remoteBranches) => set({ remoteBranches }),
+  setStashes: (stashes) => set({ stashes }),
+  setTags: (tags) => set({ tags }),
+  setSubmodules: (submodules) => set({ submodules }),
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
+  // Pure state setter — persistence is handled by hooks via IPC (safeStorage)
+  setGithubToken: (githubToken) => set({ githubToken }),
+  setGithubUser: (githubUser) => set({ githubUser }),
 }));

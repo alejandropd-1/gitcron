@@ -7,9 +7,9 @@ contextBridge.exposeInMainWorld('api', {
   githubAuth: (token: string) => ipcRenderer.invoke('github:auth', token),
   githubDeviceStart: () => ipcRenderer.invoke('github:device-start'),
   githubDevicePoll: (deviceCode: string) => ipcRenderer.invoke('github:device-poll', deviceCode),
-  openRepo: () => ipcRenderer.invoke('git:open-repo'),
+  openRepo: (defaultPath?: string) => ipcRenderer.invoke('git:open-repo', defaultPath),
   openPath: (dirPath: string) => ipcRenderer.invoke('git:open-path', dirPath),
-  pickFolder: (title?: string) => ipcRenderer.invoke('fs:pick-folder', title),
+  pickFolder: (title?: string, defaultPath?: string) => ipcRenderer.invoke('fs:pick-folder', title, defaultPath),
   gitInit: (parentPath: string, name: string, withInitialCommit?: boolean) =>
     ipcRenderer.invoke('git:init', parentPath, name, withInitialCommit ?? true),
   gitClone: (url: string, parentPath: string, folderName: string, token?: string) =>
@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('github:create-repo', token, name, isPrivate, description),
   githubListUserRepos: (token: string) =>
     ipcRenderer.invoke('github:list-user-repos', token),
-  gitLog: (repoPath: string) => ipcRenderer.invoke('git:log', repoPath),
+  gitLog: (repoPath: string, opts?: { allBranches?: boolean }) => ipcRenderer.invoke('git:log', repoPath, opts),
   gitStatus: (repoPath: string) => ipcRenderer.invoke('git:status', repoPath),
   gitBranches: (repoPath: string) => ipcRenderer.invoke('git:branches', repoPath),
   gitCheckout: (repoPath: string, branch: string) =>
@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:push-branch', repoPath, branch, token),
   gitPush: (repoPath: string, token?: string) => ipcRenderer.invoke('git:push', repoPath, token),
   gitPull: (repoPath: string, token?: string) => ipcRenderer.invoke('git:pull', repoPath, token),
+  gitFetch: (repoPath: string, token?: string) => ipcRenderer.invoke('git:fetch', repoPath, token),
   gitStage: (repoPath: string, filePath: string) =>
     ipcRenderer.invoke('git:stage', repoPath, filePath),
   gitUnstage: (repoPath: string, filePath: string) =>

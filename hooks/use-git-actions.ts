@@ -19,6 +19,7 @@ export const useGitActions = () => {
     setGithubUser,
     setLanguage,
     setFontSize,
+    setDefaultFolder,
   } = useGitStore();
 
   const { refreshLog, refreshStatus, refreshBranches, refreshStashes } = useRepoLoader();
@@ -601,6 +602,35 @@ export const useGitActions = () => {
     }
   };
 
+  /** Update auto-fetch preferences (enabled/interval) and persist them. */
+  const setAutoFetchPrefs = async (enabled: boolean, intervalMinutes: number) => {
+    useGitStore.getState().setAutoFetchEnabled(enabled);
+    useGitStore.getState().setAutoFetchIntervalMinutes(intervalMinutes);
+    if (!window.api) return;
+    await window.api.storageSet('autoFetch', JSON.stringify({ enabled, intervalMinutes })).catch(() => {});
+  };
+
+  /** Change default folder for open/clone dialogs and persist. */
+  const changeDefaultFolder = async (folder: string | null) => {
+    setDefaultFolder(folder);
+    if (!window.api) return;
+    if (folder) {
+      await window.api.storageSet('defaultFolder', folder).catch(() => {});
+    } else {
+      await window.api.storageDelete('defaultFolder').catch(() => {});
+    }
+  };
+
+  /** Open a folder picker, save the choice as the new default. */
+  const pickDefaultFolder = async () => {
+    if (!window.api) return;
+    const current = useGitStore.getState().defaultFolder;
+    const r = await window.api.pickFolder('Seleccionar carpeta default', current ?? undefined);
+    if (r.success && r.data) {
+      await changeDefaultFolder(r.data);
+    }
+  };
+
   /** Hydrate language pref + GitHub auth from storage on mount. */
   const bootstrapPreferences = async () => {
     if (!window.api) return;
@@ -611,6 +641,22 @@ export const useGitActions = () => {
     const fr = await window.api.storageGet('fontSize');
     if (fr.success && (fr.data === 'compact' || fr.data === 'normal' || fr.data === 'large')) {
       setFontSize(fr.data as FontSize);
+    }
+    const df = await window.api.storageGet('defaultFolder');
+    if (df.success && typeof df.data === 'string' && df.data.length > 0) {
+      setDefaultFolder(df.data);
+    }
+    const af = await window.api.storageGet('autoFetch');
+    if (af.success && typeof af.data === 'string') {
+      try {
+        const parsed = JSON.parse(af.data) as { enabled?: unknown; intervalMinutes?: unknown };
+        if (typeof parsed.enabled === 'boolean') {
+          useGitStore.getState().setAutoFetchEnabled(parsed.enabled);
+        }
+        if (typeof parsed.intervalMinutes === 'number' && parsed.intervalMinutes > 0) {
+          useGitStore.getState().setAutoFetchIntervalMinutes(parsed.intervalMinutes);
+        }
+      } catch { /* ignore corrupted prefs */ }
     }
   };
 
@@ -746,5 +792,8 @@ export const useGitActions = () => {
     bootstrapPreferences,
     changeLanguage,
     changeFontSize,
+    changeDefaultFolder,
+    pickDefaultFolder,
+    setAutoFetchPrefs,
   };
 };

@@ -117,14 +117,14 @@ export interface ElectronAPI {
   githubAuth: (token: string) => Promise<GitResult<GitHubUser>>;
   githubDeviceStart: () => Promise<GitResult<DeviceCodeInfo>>;
   githubDevicePoll: (deviceCode: string) => Promise<GitResult<{ accessToken?: string; pending?: boolean }>>;
-  openRepo: () => Promise<GitResult<RepoInfo>>;
+  openRepo: (defaultPath?: string) => Promise<GitResult<RepoInfo>>;
   openPath: (dirPath: string) => Promise<GitResult<RepoInfo>>;
-  pickFolder: (title?: string) => Promise<GitResult<string>>;
+  pickFolder: (title?: string, defaultPath?: string) => Promise<GitResult<string>>;
   gitInit: (parentPath: string, name: string, withInitialCommit?: boolean) => Promise<GitResult<RepoInfo>>;
   gitClone: (url: string, parentPath: string, folderName: string, token?: string) => Promise<GitResult<RepoInfo>>;
   githubCreateRepo: (token: string, name: string, isPrivate: boolean, description?: string) => Promise<GitResult<CreatedRepoInfo>>;
   githubListUserRepos: (token: string) => Promise<GitResult<GitHubRepoInfo[]>>;
-  gitLog: (repoPath: string) => Promise<GitResult<CommitData[]>>;
+  gitLog: (repoPath: string, opts?: { allBranches?: boolean }) => Promise<GitResult<CommitData[]>>;
   gitStatus: (repoPath: string) => Promise<GitResult<StatusFile[]>>;
   gitBranches: (repoPath: string) => Promise<GitResult<BranchData>>;
   gitCheckout: (repoPath: string, branch: string) => Promise<GitResult>;
@@ -138,6 +138,7 @@ export interface ElectronAPI {
   gitPushBranch: (repoPath: string, branch: string, token?: string) => Promise<GitResult>;
   gitPush: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;
   gitPull: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;
+  gitFetch: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;
   gitStage: (repoPath: string, filePath: string) => Promise<GitResult>;
   gitUnstage: (repoPath: string, filePath: string) => Promise<GitResult>;
   gitStageBatch: (repoPath: string, filePaths: string[]) => Promise<GitResult>;

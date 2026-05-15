@@ -60,7 +60,8 @@ export const useRepoLoader = () => {
     if (!window.api) { setError('Electron API no disponible'); return; }
     setLoading(true); setError(null);
     try {
-      const result = await window.api.openRepo();
+      const defaultFolder = useGitStore.getState().defaultFolder ?? undefined;
+      const result = await window.api.openRepo(defaultFolder);
       if (result.success && result.data) await applyRepoInfo(result.data);
       else setError(result.error ?? 'No se pudo abrir el repositorio');
     } catch (err: any) {
@@ -132,7 +133,8 @@ export const useRepoLoader = () => {
   /** Pick a parent folder via native dialog. Returns the chosen path or null. */
   const pickFolder = async (title?: string): Promise<string | null> => {
     if (!window.api) return null;
-    const r = await window.api.pickFolder(title);
+    const defaultFolder = useGitStore.getState().defaultFolder ?? undefined;
+    const r = await window.api.pickFolder(title, defaultFolder);
     if (r.success && r.data) return r.data;
     return null;
   };
@@ -191,12 +193,15 @@ export const useRepoLoader = () => {
     return r.success && r.data ? r.data : [];
   };
 
-  const refreshLog = async (path?: string) => {
+  const refreshLog = async (path?: string, opts?: { allBranches?: boolean }) => {
     const hasExplicitPath = path !== undefined;
     const target = path ?? repoPath;
     if (!target || !window.api) return;
     try {
-      const result = await window.api.gitLog(target);
+      const state = useGitStore.getState();
+      const repoEntry = state.openRepos.find((r) => r.path === target);
+      const allBranches = opts?.allBranches ?? repoEntry?.graphShowAllBranches ?? true;
+      const result = await window.api.gitLog(target, { allBranches });
       if (result.success && result.data) {
         const commits = result.data as CommitData[];
         if (hasExplicitPath) updateRepoByPath(target, { commits });

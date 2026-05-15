@@ -198,9 +198,9 @@ gitCronos/
 ## Roadmap
 
 ### Tier 1
-- [ ] Auto-fetch in the background with configurable intervals.
-- [ ] Default folder for open / clone dialogs.
-- [ ] Filter graph commits by branch.
+- [x] Auto-fetch in the background with configurable intervals.
+- [x] Default folder for open / clone dialogs.
+- [x] Filter graph commits by branch.
 
 ### Tier 2
 - [ ] Electron builder packaging and distribution setup.
@@ -222,7 +222,7 @@ gitCronos/
 
 ## Current version
 
-`v0.1.4` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v0.1.5` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

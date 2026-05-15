@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useGitStore, Commit, GitFile, type RepoState, type FontSize } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
+import { useAutoFetch } from '@/hooks/use-auto-fetch';
 import { DiffViewer } from '@/components/DiffViewer';
 import { CommitGraph } from '@/components/CommitGraph';
 import { useT } from '@/hooks/use-translation';
@@ -107,12 +108,16 @@ function RepoTabs({
               title={t('repoTabs.switchTo', { repo: repo.name })}
               className="min-w-0 flex-1 h-full px-3 flex items-center gap-2 text-left"
             >
-              <span
-                className={cn(
-                  'w-1.5 h-1.5 rounded-full shrink-0',
-                  isActive ? 'bg-[#a3f185] shadow-[0_0_10px_rgba(163,241,133,0.5)]' : 'bg-[#3c495a]',
-                )}
-              />
+              {repo.isLoading ? (
+                <Loader2 size={10} className="shrink-0 animate-spin text-[#a3f185]" />
+              ) : (
+                <span
+                  className={cn(
+                    'w-1.5 h-1.5 rounded-full shrink-0',
+                    isActive ? 'bg-[#a3f185] shadow-[0_0_10px_rgba(163,241,133,0.5)]' : 'bg-[#3c495a]',
+                  )}
+                />
+              )}
               <span className="truncate text-xs font-semibold">{repo.name}</span>
               <span className="text-[10px] text-[#697789] font-mono truncate max-w-20 hidden md:block">
                 {repo.currentBranch || '-'}
@@ -141,6 +146,99 @@ function RepoTabs({
         <Plus size={14} />
       </button>
     </div>
+  );
+}
+
+const AUTO_FETCH_INTERVALS = [5, 10, 30, 60] as const;
+
+function AutoFetchSection({
+  setAutoFetchPrefs,
+}: {
+  setAutoFetchPrefs: (enabled: boolean, intervalMinutes: number) => Promise<void> | void;
+}) {
+  const t = useT();
+  const autoFetchEnabled = useGitStore((s) => s.autoFetchEnabled);
+  const autoFetchIntervalMinutes = useGitStore((s) => s.autoFetchIntervalMinutes);
+  const lastFetchTime = useGitStore((s) => s.lastFetchTime);
+
+  const lastSyncLabel = lastFetchTime
+    ? new Date(lastFetchTime).toLocaleTimeString()
+    : t('settings.autoFetchNever');
+
+  return (
+    <section>
+      <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+        <RotateCcw size={12} /> {t('settings.autoFetch')}
+      </h4>
+      <p className="text-xs text-[#9eacc0] mb-3">{t('settings.autoFetchDesc')}</p>
+      <div className="flex items-center gap-2 mb-3">
+        <button
+          type="button"
+          onClick={() => setAutoFetchPrefs(!autoFetchEnabled, autoFetchIntervalMinutes)}
+          className={cn(
+            'px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors',
+            autoFetchEnabled
+              ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
+              : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc]',
+          )}
+        >
+          {autoFetchEnabled && <Check size={14} strokeWidth={3} />}
+          <span className="font-medium">
+            {autoFetchEnabled ? t('settings.autoFetchEnabled') : t('settings.autoFetchDisabled')}
+          </span>
+        </button>
+        <span className="text-xs text-[#697789] ml-2">
+          {t('settings.autoFetchLastSync')}: {lastSyncLabel}
+        </span>
+      </div>
+      <div className={cn('grid grid-cols-4 gap-2', !autoFetchEnabled && 'opacity-40 pointer-events-none')}>
+        {AUTO_FETCH_INTERVALS.map((mins) => (
+          <button
+            key={mins}
+            type="button"
+            onClick={() => setAutoFetchPrefs(true, mins)}
+            className={cn(
+              'px-3 py-2 rounded border text-sm flex items-center justify-center gap-2 transition-colors',
+              autoFetchIntervalMinutes === mins
+                ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
+                : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc] hover:border-[#3c495a]/30',
+            )}
+          >
+            {mins} min
+            {autoFetchIntervalMinutes === mins && <Check size={12} strokeWidth={3} />}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function FetchIndicator({ onClick }: { onClick: () => void | Promise<void> }) {
+  const t = useT();
+  const isFetchingRemote = useGitStore((s) => s.isFetchingRemote);
+  const lastFetchTime = useGitStore((s) => s.lastFetchTime);
+  const autoFetchEnabled = useGitStore((s) => s.autoFetchEnabled);
+  const tooltip = isFetchingRemote
+    ? t('autoFetch.fetching')
+    : lastFetchTime
+      ? `${t('autoFetch.lastSync')}: ${new Date(lastFetchTime).toLocaleTimeString()}`
+      : autoFetchEnabled
+        ? t('autoFetch.idle')
+        : t('autoFetch.disabled');
+  return (
+    <button
+      type="button"
+      onClick={() => onClick()}
+      title={tooltip}
+      className={cn(
+        'h-7 w-7 rounded flex items-center justify-center transition-colors',
+        isFetchingRemote
+          ? 'text-[#a3f185]'
+          : 'text-[#697789] hover:text-[#d9e7fc] hover:bg-[#3c495a]/20',
+      )}
+    >
+      <RotateCcw size={13} className={cn(isFetchingRemote && 'animate-spin')} />
+    </button>
   );
 }
 
@@ -232,7 +330,8 @@ export default function GitCronPage() {
     checkoutBranch, checkoutBranchSmart, createBranch, pushChanges, pullChanges,
     openTerminal, stashApply, stashDrop, stashClear,
     connectGitHub, disconnectGitHub, loginWithGitHubDevice, bootstrapGitHub,
-    bootstrapPreferences, changeLanguage, changeFontSize,
+    bootstrapPreferences, changeLanguage, changeFontSize, changeDefaultFolder, pickDefaultFolder,
+    setAutoFetchPrefs,
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch,
@@ -242,12 +341,18 @@ export default function GitCronPage() {
   const t = useT();
   const language = useGitStore((s) => s.language);
   const fontSize = useGitStore((s) => s.fontSize);
+  const defaultFolder = useGitStore((s) => s.defaultFolder);
   const appFontSizePx = FONT_SIZE_OPTIONS.find((option) => option.key === fontSize)?.px ?? 15;
 
   const {
-    openRepo, restoreLastRepo, closeRepo, loadAll, loadDiff,
+    openRepo, restoreLastRepo, closeRepo, loadAll, loadDiff, refreshLog,
     pickFolder, initRepo, cloneRepo, createGitHubRepo, listUserGitHubRepos,
   } = useRepoLoader();
+
+  const graphShowAllBranches = useGitStore((s) => s.getActiveRepo()?.graphShowAllBranches ?? true);
+  const updateActiveRepo = useGitStore((s) => s.updateActiveRepo);
+
+  const { runFetchCycle } = useAutoFetch();
 
   const [activeTab, setActiveTab] = useState('Graph');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hash?: string } | null>(null);
@@ -668,6 +773,7 @@ export default function GitCronPage() {
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
           <ToolbarButton icon={<Download />} onClick={pullChanges} title={t('toolbar.pull')} label={t('toolbar.pull')} disabled={!repoPath || isLoading} />
           <ToolbarButton icon={<Upload />} onClick={pushChanges} title={t('toolbar.push')} label={t('toolbar.push')} disabled={!repoPath || isLoading} />
+          <FetchIndicator onClick={runFetchCycle} />
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
           <ToolbarButton
             icon={<GitBranch />}
@@ -984,7 +1090,45 @@ export default function GitCronPage() {
           ) : (
             /* Graph tab — default */
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
+              <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-20 border-b border-[#3c495a]/15 px-3 py-1.5 flex items-center justify-end gap-2 shrink-0">
+                <div className="inline-flex rounded border border-[#3c495a]/30 overflow-hidden" title={t('graph.filterTooltip')}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!repoPath) return;
+                      if (graphShowAllBranches) return;
+                      updateActiveRepo({ graphShowAllBranches: true });
+                      refreshLog(repoPath, { allBranches: true });
+                    }}
+                    className={cn(
+                      'px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold transition-colors',
+                      graphShowAllBranches
+                        ? 'bg-[#a3f185]/15 text-[#a3f185]'
+                        : 'bg-[#041425] text-[#9eacc0] hover:text-[#d9e7fc]',
+                    )}
+                  >
+                    {t('graph.allBranches')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!repoPath) return;
+                      if (!graphShowAllBranches) return;
+                      updateActiveRepo({ graphShowAllBranches: false });
+                      refreshLog(repoPath, { allBranches: false });
+                    }}
+                    className={cn(
+                      'px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold transition-colors border-l border-[#3c495a]/30',
+                      !graphShowAllBranches
+                        ? 'bg-[#a3f185]/15 text-[#a3f185]'
+                        : 'bg-[#041425] text-[#9eacc0] hover:text-[#d9e7fc]',
+                    )}
+                  >
+                    {t('graph.currentBranch')}
+                  </button>
+                </div>
+              </div>
+              <div className="sticky top-[34px] bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
                 <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
                 <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
                 <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
@@ -1336,6 +1480,41 @@ export default function GitCronPage() {
                     })}
                   </div>
                 </section>
+
+                {/* ── Default folder ── */}
+                <section>
+                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <Folder size={12} /> {t('settings.defaultFolder')}
+                  </h4>
+                  <p className="text-xs text-[#9eacc0] mb-3">{t('settings.defaultFolderDesc')}</p>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="flex-1 px-3 py-2 rounded border bg-[#041425] border-[#3c495a]/15 text-sm font-mono truncate"
+                      title={defaultFolder ?? ''}
+                    >
+                      <span className={defaultFolder ? 'text-[#d9e7fc]' : 'text-[#697789]'}>
+                        {defaultFolder ?? t('settings.defaultFolderNone')}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => pickDefaultFolder()}
+                      className="px-3 py-2 rounded border bg-[#041425] border-[#3c495a]/30 text-sm text-[#d9e7fc] hover:bg-[#3c495a]/30 transition-colors"
+                    >
+                      {t('settings.defaultFolderChange')}
+                    </button>
+                    {defaultFolder && (
+                      <button
+                        onClick={() => changeDefaultFolder(null)}
+                        className="px-3 py-2 rounded border bg-[#041425] border-[#3c495a]/15 text-sm text-[#9eacc0] hover:text-[#ffa8a3] hover:border-[#ffa8a3]/30 transition-colors"
+                      >
+                        {t('settings.defaultFolderClear')}
+                      </button>
+                    )}
+                  </div>
+                </section>
+
+                {/* ── Auto-fetch ── */}
+                <AutoFetchSection setAutoFetchPrefs={setAutoFetchPrefs} />
 
                 <section>
                   <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">

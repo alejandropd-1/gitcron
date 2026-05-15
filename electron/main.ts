@@ -317,11 +317,12 @@ ipcMain.handle('git:open-path', async (_event, dirPath: string) => {
   }
 });
 
-ipcMain.handle('git:open-repo', async () => {
+ipcMain.handle('git:open-repo', async (_event, defaultPath?: string) => {
   try {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory'],
       title: 'Seleccionar repositorio Git',
+      defaultPath: defaultPath || undefined,
     });
 
     if (result.canceled || result.filePaths.length === 0) {
@@ -356,10 +357,11 @@ ipcMain.handle('git:open-repo', async () => {
 });
 
 // ─── Pick a folder (any folder, doesn't have to be a repo) ─────────────
-ipcMain.handle('fs:pick-folder', async (_event, title?: string) => {
+ipcMain.handle('fs:pick-folder', async (_event, title?: string, defaultPath?: string) => {
   const result = await dialog.showOpenDialog({
     properties: ['openDirectory', 'createDirectory'],
     title: title ?? 'Seleccionar carpeta',
+    defaultPath: defaultPath || undefined,
   });
   if (result.canceled || result.filePaths.length === 0) {
     return { success: false, error: 'No se seleccionó carpeta' };
@@ -478,17 +480,15 @@ ipcMain.handle('github:list-user-repos', async (_event, token: string) => {
   }
 });
 
-ipcMain.handle('git:log', async (_event, targetPath: string) => {
+ipcMain.handle('git:log', async (_event, targetPath: string, opts?: { allBranches?: boolean }) => {
   try {
     const g = simpleGit(targetPath);
     // Use --decorate to get branch/tag refs at each commit
-    const raw = await g.raw([
-      'log',
-      '--all',
-      '--max-count=500',
-      '--date-order',
-      '--pretty=format:%H%x1f%P%x1f%an%x1f%ae%x1f%aI%x1f%s%x1f%D',
-    ]);
+    const allBranches = opts?.allBranches !== false;
+    const args = ['log'];
+    if (allBranches) args.push('--all');
+    args.push('--max-count=500', '--date-order', '--pretty=format:%H%x1f%P%x1f%an%x1f%ae%x1f%aI%x1f%s%x1f%D');
+    const raw = await g.raw(args);
 
     const commits: CommitData[] = raw
       .split('\n')
@@ -868,6 +868,20 @@ ipcMain.handle('git:pull', async (_event, targetPath: string, token?: string) =>
         summary: `${r.summary.changes} changed, ${r.summary.insertions} insertions, ${r.summary.deletions} deletions`,
       },
     };
+  } catch (error: any) {
+    const isAuth = /authentication|credentials|ssh|permission denied|403|401/i.test(error.message);
+    return {
+      success: false,
+      error: error.message,
+      data: { success: false, authRequired: isAuth, error: error.message },
+    };
+  }
+});
+
+ipcMain.handle('git:fetch', async (_event, targetPath: string, token?: string) => {
+  try {
+    await withGitHubToken(targetPath, token, (g) => g.fetch(['--all', '--prune']));
+    return { success: true };
   } catch (error: any) {
     const isAuth = /authentication|credentials|ssh|permission denied|403|401/i.test(error.message);
     return {

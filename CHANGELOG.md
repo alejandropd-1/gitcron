@@ -4,6 +4,31 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v0.1.5] - 2026-05-15 - Tier 2: per-repo status, auto-fetch, branch filter, default folder
+
+### Auto-fetch in background
+- Added a configurable background fetch loop (`git fetch --all --prune`) that updates remote-tracking refs and ahead/behind counts without interrupting the user's view.
+- Toggle, interval picker (5 / 10 / 30 / 60 minutes), and "last sync" timestamp live in Settings.
+- New `git:fetch` IPC handler (separate from `git:pull`; never merges).
+- Subtle indicator in the topbar that spins while fetching and shows the last sync on hover; click to fetch all open repos now.
+- Preferences persisted in encrypted storage as `autoFetch`.
+
+### Filter commits by branch
+- Added a per-repo toggle in the Graph header to switch between "All branches" and "Current branch" (omits `--all` from `git log` when set to current).
+- The toggle state lives in `RepoState` so each tab remembers its own preference and re-runs the log when toggled.
+
+### Per-repo `isLoading`, `error`, `success`
+- Moved the loading/error/success fields from the global store into `RepoState` so a slow operation on repo A no longer shows a spinner or error banner on repo B.
+- Legacy top-level fields are kept as mirrors of the active repo for backward compatibility.
+- Repo tabs now show a per-repo spinner when that tab's `isLoading` is true.
+
+### Default folder for open/clone
+- Added a configurable starting folder for the native open/clone dialogs (per-user preference, persisted in encrypted storage as `defaultFolder`).
+- Settings UI with current path, Change, and Clear actions.
+- Both `git:open-repo` and `fs:pick-folder` accept a `defaultPath` argument; rendered defaults flow from the store at call time.
+
+---
+
 ## [v0.1.4] - 2026-05-15 - Multi-repo, graph polish, topbar, and preferences
 
 ### Multi-repo tabs

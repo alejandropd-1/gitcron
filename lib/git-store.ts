@@ -43,6 +43,11 @@ export interface RepoState {
   selectedCommit: Commit | null;
   selectedFile: GitFile | null;
   currentDiff: string;
+  graphShowAllBranches: boolean;
+  isLoading: boolean;
+  error: string | null;
+  success: string | null;
+  lastFetchError: string | null;
 }
 
 interface GitStore {
@@ -83,6 +88,11 @@ interface GitStore {
   // Preferences
   language: Lang;
   fontSize: FontSize;
+  defaultFolder: string | null;
+  autoFetchEnabled: boolean;
+  autoFetchIntervalMinutes: number;
+  lastFetchTime: number | null;
+  isFetchingRemote: boolean;
 
   setRepoPath: (path: string | null) => void;
   setRepoName: (name: string | null) => void;
@@ -108,6 +118,11 @@ interface GitStore {
   setGithubUser: (user: GitHubUser | null) => void;
   setLanguage: (lang: Lang) => void;
   setFontSize: (size: FontSize) => void;
+  setDefaultFolder: (folder: string | null) => void;
+  setAutoFetchEnabled: (enabled: boolean) => void;
+  setAutoFetchIntervalMinutes: (minutes: number) => void;
+  setLastFetchTime: (ts: number | null) => void;
+  setFetchingRemote: (fetching: boolean) => void;
 }
 
 type EmptyRepoFields = Omit<RepoState, 'path' | 'name'>;
@@ -129,6 +144,11 @@ function createEmptyRepoFields(): EmptyRepoFields {
     selectedCommit: null,
     selectedFile: null,
     currentDiff: '',
+    graphShowAllBranches: true,
+    isLoading: false,
+    error: null,
+    success: null,
+    lastFetchError: null,
   };
 }
 
@@ -171,6 +191,9 @@ function legacyFromRepo(repo: RepoState | null) {
     selectedCommit: repo.selectedCommit,
     selectedFile: repo.selectedFile,
     currentDiff: repo.currentDiff,
+    isLoading: repo.isLoading,
+    error: repo.error,
+    success: repo.success,
   };
 }
 
@@ -274,6 +297,11 @@ export const useGitStore = create<GitStore>((set, get) => ({
   githubUser: null,
   language: 'es',
   fontSize: 'compact',
+  defaultFolder: null,
+  autoFetchEnabled: true,
+  autoFetchIntervalMinutes: 10,
+  lastFetchTime: null,
+  isFetchingRemote: false,
 
   setRepoPath: (repoPath) => set((state) => {
     if (!repoPath) {
@@ -315,12 +343,29 @@ export const useGitStore = create<GitStore>((set, get) => ({
   setBranchTracking: (branchTracking) => get().updateActiveRepo({ branchTracking }),
   setWorktrees: (worktrees) => get().updateActiveRepo({ worktrees }),
   setPullRequests: (pullRequests) => get().updateActiveRepo({ pullRequests }),
-  setLoading: (isLoading) => set({ isLoading }),
-  setError: (error) => set({ error }),
-  setSuccess: (success) => set({ success }),
+  setLoading: (isLoading) => {
+    const state = get();
+    if (state.activeRepoIdx >= 0) state.updateActiveRepo({ isLoading });
+    else set({ isLoading });
+  },
+  setError: (error) => {
+    const state = get();
+    if (state.activeRepoIdx >= 0) state.updateActiveRepo({ error });
+    else set({ error });
+  },
+  setSuccess: (success) => {
+    const state = get();
+    if (state.activeRepoIdx >= 0) state.updateActiveRepo({ success });
+    else set({ success });
+  },
   // Pure state setter — persistence is handled by hooks via IPC (safeStorage)
   setGithubToken: (githubToken) => set({ githubToken }),
   setLanguage: (language) => set({ language }),
   setFontSize: (fontSize) => set({ fontSize }),
+  setDefaultFolder: (defaultFolder) => set({ defaultFolder }),
+  setAutoFetchEnabled: (autoFetchEnabled) => set({ autoFetchEnabled }),
+  setAutoFetchIntervalMinutes: (autoFetchIntervalMinutes) => set({ autoFetchIntervalMinutes }),
+  setLastFetchTime: (lastFetchTime) => set({ lastFetchTime }),
+  setFetchingRemote: (isFetchingRemote) => set({ isFetchingRemote }),
   setGithubUser: (githubUser) => set({ githubUser }),
 }));

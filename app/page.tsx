@@ -8,7 +8,7 @@ import {
   ArrowLeft, RotateCcw, Github, LogOut, Minus,
   Sparkles, Copy, Lock, Globe, Loader2, UserCircle2,
   GitMerge, TreePine, ArrowUp, ArrowDown, ChevronDown, Check,
-  Type,
+  Type, Filter,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGitStore, Commit, GitFile, type RepoState, type FontSize } from '@/lib/git-store';
@@ -783,6 +783,7 @@ export default function GitCronPage() {
             title={t('toolbar.newBranch')} label={t('toolbar.branch')} disabled={!repoPath}
           />
           <ToolbarButton icon={<Archive />} onClick={stashChanges} title={t('toolbar.stash')} label={t('toolbar.stash')} disabled={!repoPath || isLoading} />
+          <FetchIndicator onClick={runFetchCycle} />
         </div>
 
         <div className="flex items-center justify-end gap-1 min-w-0">
@@ -799,7 +800,6 @@ export default function GitCronPage() {
             )}
           </div>
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
-          <FetchIndicator onClick={runFetchCycle} />
           <ToolbarButton icon={<Settings />} onClick={() => setShowSettings(true)} title={t('toolbar.settings')} />
           <ToolbarButton icon={<HelpCircle />} onClick={() => setShowHelp(true)} title={t('toolbar.help')} />
           <div className="flex items-center gap-2 ml-2 pl-2">
@@ -1094,41 +1094,44 @@ export default function GitCronPage() {
             /* Graph tab — default */
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-20 border-b border-[#3c495a]/15 px-3 py-1.5 flex items-center justify-end gap-2 shrink-0">
-                <div className="inline-flex rounded border border-[#3c495a]/30 overflow-hidden" title={t('graph.filterTooltip')}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!repoPath) return;
-                      if (graphShowAllBranches) return;
-                      updateActiveRepo({ graphShowAllBranches: true });
-                      refreshLog(repoPath, { allBranches: true });
-                    }}
-                    className={cn(
-                      'px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold transition-colors',
-                      graphShowAllBranches
-                        ? 'bg-[#a3f185]/15 text-[#a3f185]'
-                        : 'bg-[#041425] text-[#9eacc0] hover:text-[#d9e7fc]',
-                    )}
-                  >
-                    {t('graph.allBranches')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!repoPath) return;
-                      if (!graphShowAllBranches) return;
-                      updateActiveRepo({ graphShowAllBranches: false });
-                      refreshLog(repoPath, { allBranches: false });
-                    }}
-                    className={cn(
-                      'px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold transition-colors border-l border-[#3c495a]/30',
-                      !graphShowAllBranches
-                        ? 'bg-[#a3f185]/15 text-[#a3f185]'
-                        : 'bg-[#041425] text-[#9eacc0] hover:text-[#d9e7fc]',
-                    )}
-                  >
-                    {t('graph.currentBranch')}
-                  </button>
+                <div className="flex items-center gap-1.5">
+                  <Filter size={11} className="text-[#697789] shrink-0" />
+                  <div className="inline-flex rounded border border-[#3c495a]/30 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const path = useGitStore.getState().getActiveRepo()?.path;
+                        if (!path || graphShowAllBranches) return;
+                        updateActiveRepo({ graphShowAllBranches: true });
+                        refreshLog(path, { allBranches: true });
+                      }}
+                      className={cn(
+                        'px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold transition-colors',
+                        graphShowAllBranches
+                          ? 'bg-[#a3f185]/15 text-[#a3f185]'
+                          : 'bg-[#041425] text-[#9eacc0] hover:text-[#d9e7fc]',
+                      )}
+                    >
+                      {t('graph.allBranches')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const path = useGitStore.getState().getActiveRepo()?.path;
+                        if (!path || !graphShowAllBranches) return;
+                        updateActiveRepo({ graphShowAllBranches: false });
+                        refreshLog(path, { allBranches: false });
+                      }}
+                      className={cn(
+                        'px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold transition-colors border-l border-[#3c495a]/30',
+                        !graphShowAllBranches
+                          ? 'bg-[#a3f185]/15 text-[#a3f185]'
+                          : 'bg-[#041425] text-[#9eacc0] hover:text-[#d9e7fc]',
+                      )}
+                    >
+                      {t('graph.currentBranch')}
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="sticky top-[34px] bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">

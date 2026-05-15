@@ -53,7 +53,7 @@ export default function GitCronPage() {
     repoPath, repoName,
     currentBranch, branches, remoteBranches,
     commits, modifiedFiles, commitMessage, setCommitMessage,
-    selectedCommit, setSelectedCommit, isLoading, error, setError,
+    selectedCommit, setSelectedCommit, isLoading, error, setError, success, setSuccess,
     selectedFile, setSelectedFile, currentDiff, setCurrentDiff,
     stashes, tags, submodules,
     githubToken, githubUser,
@@ -146,6 +146,13 @@ export default function GitCronPage() {
   }, []);
 
   useEffect(() => { if (showNewBranch) newBranchInputRef.current?.focus(); }, [showNewBranch]);
+
+  // Auto-dismiss success toast after 3 seconds
+  useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => setSuccess(null), 3000);
+    return () => clearTimeout(timer);
+  }, [success]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreateBranch = async () => {
     const name = newBranchName.trim();
@@ -565,6 +572,30 @@ export default function GitCronPage() {
         <aside className="w-80 bg-[#041425] flex flex-col shrink-0 overflow-hidden">
           {selectedCommit ? (
             <div className="flex flex-col h-full">
+              {/* WIP banner: visible when commit is selected but there are unsaved changes */}
+              {modifiedFiles.length > 0 && (
+                <div className="px-3 py-2 bg-[#fd9d1a]/10 border-b border-[#fd9d1a]/20 flex items-center gap-2 shrink-0">
+                  <Archive size={13} className="text-[#fd9d1a] shrink-0" />
+                  <span className="text-[11px] text-[#d9e7fc] flex-1">
+                    {modifiedFiles.length} cambio{modifiedFiles.length !== 1 ? 's' : ''} sin commitear
+                  </span>
+                  <button
+                    onClick={stashChanges}
+                    disabled={isLoading}
+                    className="text-[10px] font-bold text-[#fd9d1a] hover:text-[#052900] hover:bg-[#fd9d1a] px-2 py-0.5 rounded border border-[#fd9d1a]/40 transition-colors disabled:opacity-50"
+                    title="Guardar los cambios actuales en el stash"
+                  >
+                    Stash
+                  </button>
+                  <button
+                    onClick={() => setSelectedCommit(null)}
+                    className="text-[10px] text-[#9eacc0] hover:text-[#d9e7fc] px-2 py-0.5 rounded border border-[#3c495a]/15 transition-colors"
+                    title="Ir al staging area"
+                  >
+                    Ver cambios →
+                  </button>
+                </div>
+              )}
               <div className="p-4 border-b border-[#3c495a]/15">
                 <div className="flex justify-between items-start mb-2">
                   <div className="text-[12px] font-mono text-[#a3f185]">commit: {selectedCommit.shortHash}</div>
@@ -646,6 +677,22 @@ export default function GitCronPage() {
           )}
         </aside>
       </div>
+
+      {/* ──────────── SUCCESS TOAST (auto-dismiss 3s) ──────────── */}
+      <AnimatePresence>
+        {success && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-3 bg-[#a3f185]/20 backdrop-blur-md text-[#a3f185] rounded-lg shadow-2xl flex items-center gap-3 z-50 border border-[#a3f185]/40 max-w-xl"
+          >
+            <Check size={18} className="shrink-0" />
+            <span className="text-sm font-medium">{success}</span>
+            <button onClick={() => setSuccess(null)} className="ml-3 hover:opacity-70 shrink-0 text-[#a3f185]">
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ──────────── ERROR TOAST ──────────── */}
       <AnimatePresence>

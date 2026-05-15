@@ -43,6 +43,7 @@ interface GitStore {
   currentDiff: string;
   isLoading: boolean;
   error: string | null;
+  success: string | null;
   // GitHub auth
   githubToken: string | null;
   githubUser: GitHubUser | null;
@@ -68,6 +69,7 @@ interface GitStore {
   setPullRequests: (prs: PullRequestEntry[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setSuccess: (message: string | null) => void;
   setGithubToken: (token: string | null) => void;
   setGithubUser: (user: GitHubUser | null) => void;
   setLanguage: (lang: Lang) => void;
@@ -93,6 +95,7 @@ export const useGitStore = create<GitStore>((set) => ({
   currentDiff: '',
   isLoading: false,
   error: null,
+  success: null,
   // Token starts null. It's hydrated asynchronously on app mount via
   // bootstrapGitHub() -> window.api.storageGet(). We DO NOT use localStorage:
   // tokens live encrypted at-rest via Electron's safeStorage (OS keychain).
@@ -119,6 +122,7 @@ export const useGitStore = create<GitStore>((set) => ({
   setPullRequests: (pullRequests) => set({ pullRequests }),
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
+  setSuccess: (success) => set({ success }),
   // Pure state setter — persistence is handled by hooks via IPC (safeStorage)
   setGithubToken: (githubToken) => set({ githubToken }),
   setLanguage: (language) => set({ language }),

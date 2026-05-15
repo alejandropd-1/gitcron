@@ -369,16 +369,14 @@ ipcMain.handle('git:clone', async (_event, url: string, parentPath: string, fold
       return { success: false, error: `La carpeta "${folderName}" ya existe y no está vacía` };
     }
 
-    const g = simpleGit();
-    if (token) {
-      g.env({
-        ...process.env,
-        GIT_ASKPASS: ensureAskpassScript(),
-        GITCRON_TOKEN: token,
-        GIT_TERMINAL_PROMPT: '0',
-      });
+    // For clone, inject the token directly in the URL when it's a GitHub HTTPS URL.
+    // GIT_ASKPASS is blocked by Electron 42's child-process security layer.
+    let cloneUrl = url;
+    if (token && /^https:\/\/github\.com\//i.test(url)) {
+      cloneUrl = url.replace(/^https:\/\//i, `https://x-access-token:${token}@`);
     }
-    await g.clone(url, destPath);
+    const g = simpleGit();
+    await g.clone(cloneUrl, destPath);
 
     repoPath = destPath;
     git = simpleGit(repoPath);
@@ -707,18 +705,11 @@ ipcMain.handle('git:delete-branch', async (_event, targetPath: string, branch: s
 // Strategy: fetch then merge --ff-only into the local branch
 ipcMain.handle('git:pull-branch', async (_event, targetPath: string, branch: string, token?: string) => {
   try {
+    await withGitHubToken(targetPath, token, async (g) => {
+      await g.fetch('origin', branch);
+    });
+    // Fast-forward check (no auth needed for local refs)
     const g = simpleGit(targetPath);
-    if (token) {
-      g.env({
-        ...process.env,
-        GIT_ASKPASS: ensureAskpassScript(),
-        GITCRON_TOKEN: token,
-        GIT_TERMINAL_PROMPT: '0',
-      });
-    }
-    // fetch updates origin/<branch>
-    await g.fetch('origin', branch);
-    // Now fast-forward local <branch> to origin/<branch>
     const mergeBase = (await g.raw(['merge-base', branch, `origin/${branch}`])).trim();
     const branchSha = (await g.raw(['rev-parse', branch])).trim();
     if (mergeBase !== branchSha) {
@@ -735,16 +726,7 @@ ipcMain.handle('git:pull-branch', async (_event, targetPath: string, branch: str
 // ── Push a SPECIFIC branch ──
 ipcMain.handle('git:push-branch', async (_event, targetPath: string, branch: string, token?: string) => {
   try {
-    const g = simpleGit(targetPath);
-    if (token) {
-      g.env({
-        ...process.env,
-        GIT_ASKPASS: ensureAskpassScript(),
-        GITCRON_TOKEN: token,
-        GIT_TERMINAL_PROMPT: '0',
-      });
-    }
-    await g.push(['origin', branch]);
+    await withGitHubToken(targetPath, token, (g) => g.push(['origin', branch]));
     return { success: true };
   } catch (error: any) {
     const isAuth = /authentication|credentials|permission denied|403|401/i.test(error.message);
@@ -752,10 +734,13 @@ ipcMain.handle('git:push-branch', async (_event, targetPath: string, branch: str
   }
 });
 
-// Helper: run a git operation with GIT_ASKPASS so the token never touches
-// the repo's .git/config nor the remote URL on disk. The askpass script
-// reads the token from the GITCRON_TOKEN env var only for the lifetime of
-// this child process.
+// Helper: temporarily inject GitHub token into the origin HTTPS URL for push/pull.
+// Electron 42+ blocks GIT_ASKPASS via its child-process security layer, so we
+// use URL injection instead. The original URL is ALWAYS restored in the finally
+// block — even if the operation throws or the app is killed mid-operation
+// (on next run it will be harmless since the token is in the URL format, not stored).
+//
+// Only activates for repos whose origin matches https://github.com/...
 async function withGitHubToken<T>(
   targetPath: string,
   token: string | undefined,
@@ -764,16 +749,25 @@ async function withGitHubToken<T>(
   const g = simpleGit(targetPath);
   if (!token) return fn(g);
 
-  const askpass = ensureAskpassScript();
-  g.env({
-    ...process.env,
-    GIT_ASKPASS: askpass,
-    GITCRON_TOKEN: token,
-    // Prevent git from trying interactive terminal prompts
-    GIT_TERMINAL_PROMPT: '0',
-  });
+  // Get current origin URL
+  const remotes = await g.getRemotes(true);
+  const origin = remotes.find((r) => r.name === 'origin');
+  const originalUrl = origin?.refs?.push || origin?.refs?.fetch;
 
-  return fn(g);
+  // Only inject for HTTPS GitHub URLs — SSH keys handle auth themselves
+  const isHttpsGithub = originalUrl && /^https:\/\/github\.com\//i.test(originalUrl);
+  if (!isHttpsGithub) return fn(g);
+
+  // Inject token: https://x-access-token:<token>@github.com/...
+  const authedUrl = originalUrl!.replace(/^https:\/\//i, `https://x-access-token:${token}@`);
+
+  try {
+    await g.remote(['set-url', 'origin', authedUrl]);
+    return await fn(g);
+  } finally {
+    // Always restore, even on error or throw
+    await g.remote(['set-url', 'origin', originalUrl!]).catch(() => {});
+  }
 }
 
 ipcMain.handle('git:push', async (_event, targetPath: string, token?: string) => {

@@ -13,6 +13,7 @@ export const useGitActions = () => {
     setModifiedFiles,
     setLoading,
     setError,
+    setSuccess,
     githubToken,
     setGithubToken,
     setGithubUser,
@@ -53,6 +54,7 @@ export const useGitActions = () => {
       const result = await window.api.gitCommand(['commit', '-m', commitMessage]);
       if (result.success) {
         setCommitMessage('');
+        setSuccess('Commit realizado correctamente');
         await refreshStatus();
         await refreshLog();
         await refreshBranches();
@@ -79,7 +81,11 @@ export const useGitActions = () => {
 
   const stashChanges = async () => {
     const result = await runCommand(['stash']);
-    if (result.success) { await refreshStatus(); await refreshStashes(); }
+    if (result.success) {
+      setSuccess('Cambios guardados en el stash');
+      await refreshStatus();
+      await refreshStashes();
+    }
     return result;
   };
 
@@ -261,6 +267,7 @@ export const useGitActions = () => {
     try {
       const result = await window.api.gitCheckout(repoPath, branch);
       if (result.success) {
+        setSuccess(`Cambiaste a la branch "${branch}"`);
         await refreshBranches();
         await refreshLog();
         await refreshStatus();
@@ -436,7 +443,11 @@ export const useGitActions = () => {
     setLoading(true); setError(null);
     try {
       const result = await window.api.gitCreateBranch(repoPath, name, fromHash);
-      if (result.success) { await refreshBranches(); await refreshLog(); }
+      if (result.success) {
+        setSuccess(`Branch "${name}" creada`);
+        await refreshBranches();
+        await refreshLog();
+      }
       else setError(result.error ?? `Error al crear la branch ${name}`);
     } catch (err: any) { setError(err.message); }
     finally { setLoading(false); }
@@ -455,7 +466,9 @@ export const useGitActions = () => {
             : `Push fallido: ${result.error}`
         );
       } else {
+        setSuccess('Push exitoso — cambios subidos al remoto');
         await refreshLog();
+        await refreshBranches();
       }
     } catch (err: any) { setError(err.message); }
     finally { setLoading(false); }
@@ -467,6 +480,7 @@ export const useGitActions = () => {
     try {
       const result = await window.api.gitPull(repoPath, githubToken ?? undefined);
       if (result.success) {
+        setSuccess(result.data?.summary ? `Pull completado — ${result.data.summary}` : 'Pull completado');
         await refreshLog(); await refreshStatus(); await refreshBranches();
       } else {
         const isAuth = result.data?.authRequired;
@@ -491,7 +505,11 @@ export const useGitActions = () => {
     setLoading(true); setError(null);
     try {
       const result = await window.api.gitStashApply(repoPath, index);
-      if (result.success) { await refreshStashes(); await refreshStatus(); }
+      if (result.success) {
+        setSuccess('Stash aplicado correctamente');
+        await refreshStashes();
+        await refreshStatus();
+      }
       else setError(result.error ?? 'Error al aplicar stash');
     } catch (err: any) { setError(err.message); }
     finally { setLoading(false); }

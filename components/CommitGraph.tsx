@@ -164,6 +164,7 @@ export function CommitGraph({
   selectedHash,
   currentBranch,
   workingTreeFiles,
+  filterText,
   onSelect,
   onContextMenu,
 }: {
@@ -171,10 +172,24 @@ export function CommitGraph({
   selectedHash?: string;
   currentBranch?: string;
   workingTreeFiles?: GitFile[];
+  filterText?: string;
   onSelect: (commit: Commit) => void;
   onContextMenu: (e: React.MouseEvent, commit: Commit) => void;
 }) {
-  const { rows, totalLanes } = useMemo(() => computeGraph(commits), [commits]);
+  const filter = filterText?.trim().toLowerCase() ?? '';
+  const filteredCommits = useMemo(() => {
+    if (!filter) return commits;
+    return commits.filter(
+      (c) =>
+        c.message.toLowerCase().includes(filter) ||
+        c.shortHash.toLowerCase().startsWith(filter) ||
+        c.hash.toLowerCase().startsWith(filter) ||
+        c.authorName.toLowerCase().includes(filter) ||
+        c.authorEmail.toLowerCase().includes(filter),
+    );
+  }, [commits, filter]);
+
+  const { rows, totalLanes } = useMemo(() => computeGraph(filteredCommits), [filteredCommits]);
   const graphWidth = PADDING_LEFT + Math.max(totalLanes, 1) * LANE_W + 8;
 
   const stagedCount = workingTreeFiles?.filter((f) => f.staged).length ?? 0;

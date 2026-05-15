@@ -96,6 +96,8 @@ export default function GitCronPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [filterText, setFilterText] = useState('');
+  const filterInputRef = useRef<HTMLInputElement>(null);
   const [showInitRepo, setShowInitRepo] = useState(false);
   const [showCloneRepo, setShowCloneRepo] = useState(false);
   const [tokenInput, setTokenInput] = useState('');
@@ -123,6 +125,24 @@ export default function GitCronPage() {
     };
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
+  }, []);
+
+  // Ctrl+Alt+F focuses the filter input
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        filterInputRef.current?.focus();
+        filterInputRef.current?.select();
+      }
+      // Escape clears filter when input is focused
+      if (e.key === 'Escape' && document.activeElement === filterInputRef.current) {
+        setFilterText('');
+        filterInputRef.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
   useEffect(() => { if (showNewBranch) newBranchInputRef.current?.focus(); }, [showNewBranch]);
@@ -215,7 +235,7 @@ export default function GitCronPage() {
           <button
             onClick={openRepo}
             title={t('toolbar.openRepo')}
-            className="flex items-center gap-1.5 font-bold text-[#a3f185] text-lg hover:opacity-75 transition-opacity"
+            className="flex items-center gap-1.5 font-bold text-[#a3f185] text-base hover:opacity-75 transition-opacity"
           >
             <FolderOpen size={16} />
             {repoName ?? 'GitCron'}
@@ -247,9 +267,21 @@ export default function GitCronPage() {
           <div className="relative w-full">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9eacc0]" />
             <input
+              ref={filterInputRef}
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
               className="w-full bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded px-8 py-1 text-sm focus:outline-none focus:border-[#a3f185]/50"
               placeholder={t('toolbar.filter')}
             />
+            {filterText && (
+              <button
+                onClick={() => setFilterText('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#9eacc0] hover:text-[#d9e7fc] transition-colors"
+                title="Limpiar filtro (Esc)"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -411,7 +443,7 @@ export default function GitCronPage() {
             <div className="flex-1 flex flex-col items-center justify-center gap-8 text-[#9eacc0] p-8">
               <div className="text-center">
                 <FolderOpen size={56} className="mx-auto opacity-20 mb-4" />
-                <p className="text-xl font-bold text-[#d9e7fc] mb-1">Bienvenido a GitCron</p>
+                <p className="text-lg font-bold text-[#d9e7fc] mb-1">Bienvenido a GitCron</p>
                 <p className="text-sm">Elegí cómo empezar:</p>
               </div>
 
@@ -479,6 +511,7 @@ export default function GitCronPage() {
               commits={commits}
               selectedHash={selectedCommit?.hash}
               currentBranch={currentBranch}
+              filterText={filterText}
               onSelect={setSelectedCommit}
               onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
               isLoading={isLoading}
@@ -494,7 +527,14 @@ export default function GitCronPage() {
               <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[11px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
                 <div className="w-[220px] shrink-0 text-right pr-3">Branch / Tag</div>
                 <div className="w-[88px] shrink-0 text-left">Graph</div>
-                <div className="flex-1">Commit message</div>
+                <div className="flex-1 flex items-center gap-2">
+                  Commit message
+                  {filterText.trim() && (
+                    <span className="text-[10px] normal-case px-1.5 py-0.5 rounded bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/30">
+                      filtro activo
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-3 pr-3 text-right shrink-0">
                   <span className="w-20">Date</span>
                   <span className="w-16">Commit</span>
@@ -511,6 +551,7 @@ export default function GitCronPage() {
                     selectedHash={selectedCommit?.hash}
                     currentBranch={currentBranch}
                     workingTreeFiles={modifiedFiles}
+                    filterText={filterText}
                     onSelect={setSelectedCommit}
                     onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
                   />
@@ -611,7 +652,7 @@ export default function GitCronPage() {
         {error && (
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 p-3 bg-[#9f0519] text-[#ffa8a3] rounded-lg shadow-2xl flex items-start gap-3 z-50 border border-[#ffa8a3]/20 max-w-xl"
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 p-3 bg-[#9f0519] text-[#ffdad6] rounded-lg shadow-2xl flex items-start gap-3 z-50 border border-[#ffa8a3]/20 max-w-xl"
           >
             <AlertCircle size={20} className="shrink-0 mt-0.5" />
             <span className="text-sm font-medium flex-1">{error}</span>
@@ -622,7 +663,7 @@ export default function GitCronPage() {
                   const ok = await removeIndexLock();
                   if (ok) setError(null);
                 }}
-                className="shrink-0 px-3 py-1 text-xs font-bold bg-[#ffa8a3]/20 hover:bg-[#ffa8a3]/30 text-[#ffa8a3] rounded transition-colors"
+                className="shrink-0 px-3 py-1 text-xs font-bold bg-[#ffa8a3]/20 hover:bg-[#ffa8a3]/30 text-[#ffdad6] rounded transition-colors"
                 title="Borra .git/index.lock y refresca el estado"
               >
                 Eliminar lock
@@ -1088,7 +1129,7 @@ export default function GitCronPage() {
             initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
             className="fixed top-14 left-1/2 -translate-x-1/2 z-50 bg-[#9f0519]/95 backdrop-blur-md border border-[#ffa8a3]/30 rounded-lg shadow-2xl px-4 py-3 flex items-center gap-4 max-w-2xl"
           >
-            <AlertCircle size={20} className="text-[#ffa8a3] shrink-0" />
+            <AlertCircle size={20} className="text-[#ffdad6] shrink-0" />
             <span className="text-sm text-[#ffdad6]">
               {t('resetAll.warning')}
             </span>
@@ -1098,7 +1139,7 @@ export default function GitCronPage() {
                 if (ok) setShowResetConfirm(false);
               }}
               disabled={isLoading}
-              className="shrink-0 px-3 py-1.5 text-xs font-bold bg-[#ff716c] hover:bg-[#ffa8a3] text-[#490006] rounded transition-colors disabled:opacity-50"
+              className="shrink-0 px-3 py-1.5 text-xs font-bold bg-[#ff716c] hover:bg-[#ff8a86] text-white rounded transition-colors disabled:opacity-50"
             >
               {t('resetAll.button')}
             </button>
@@ -1580,7 +1621,7 @@ function StagingPanel({
             {unstaged.length > 0 && (
               <button
                 onClick={stageAll}
-                className="text-[10px] text-[#a3f185] hover:text-white px-2 py-0.5 rounded border border-[#a3f185]/40 hover:bg-[#a3f185]/10 transition-colors"
+                className="text-[10px] text-[#a3f185] hover:text-[#052900] px-2 py-0.5 rounded border border-[#a3f185]/40 hover:bg-[#a3f185] transition-colors"
               >
                 Stage all
               </button>
@@ -1618,7 +1659,7 @@ function StagingPanel({
           {staged.length > 0 && (
             <button
               onClick={unstageAll}
-              className="text-[10px] text-[#9eacc0] hover:text-white px-2 py-0.5 rounded border border-[#9eacc0]/40 hover:bg-[#9eacc0]/10 transition-colors"
+              className="text-[10px] text-[#9eacc0] hover:text-[#020f1e] px-2 py-0.5 rounded border border-[#9eacc0]/40 hover:bg-[#9eacc0] transition-colors"
             >
               Unstage all
             </button>
@@ -1768,25 +1809,43 @@ function ContextMenu({
  * Useful for skimming the full commit log of the current branch.
  */
 function HistoryView({
-  commits, selectedHash, currentBranch, onSelect, onContextMenu, isLoading,
+  commits, selectedHash, currentBranch, filterText, onSelect, onContextMenu, isLoading,
 }: {
   commits: Commit[];
   selectedHash?: string;
   currentBranch?: string;
+  filterText?: string;
   onSelect: (c: Commit) => void;
   onContextMenu: (e: React.MouseEvent, c: Commit) => void;
   isLoading: boolean;
 }) {
+  const filter = filterText?.trim().toLowerCase() ?? '';
+  const filtered = filter
+    ? commits.filter(
+        (c) =>
+          c.message.toLowerCase().includes(filter) ||
+          c.shortHash.startsWith(filter) ||
+          c.authorName.toLowerCase().includes(filter),
+      )
+    : commits;
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 px-4 text-[11px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
-        Historial · {commits.length} commits
+        {filter
+          ? `${filtered.length} de ${commits.length} commits`
+          : `Historial · ${commits.length} commits`}
       </div>
       <div className="flex-1 overflow-y-auto">
         {commits.length === 0 && isLoading && (
           <p className="px-4 py-8 text-center text-[#9eacc0] text-sm">Cargando commits...</p>
         )}
-        {commits.map((commit) => {
+        {filter && filtered.length === 0 && (
+          <p className="px-4 py-8 text-center text-[#9eacc0] text-sm">
+            Sin resultados para &quot;{filter}&quot;
+          </p>
+        )}
+        {filtered.map((commit) => {
           const isSelected = selectedHash === commit.hash;
           return (
             <div
@@ -1865,7 +1924,7 @@ function CommitTabView({
     <div className="flex-1 overflow-y-auto p-8">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-[#d9e7fc] mb-2">Workspace</h2>
+          <h2 className="text-xl font-bold text-[#d9e7fc] mb-2">Workspace</h2>
           <p className="text-sm text-[#9eacc0]">
             Resumen de lo que tenés sin commitear. Hacé clic en cualquier archivo de la columna derecha
             para ver su diff con colores acá en el centro.
@@ -1877,7 +1936,7 @@ function CommitTabView({
             <div className="w-16 h-16 rounded-full bg-[#a3f185]/10 flex items-center justify-center mx-auto mb-4">
               <FileText size={28} className="text-[#a3f185]" />
             </div>
-            <p className="text-lg font-semibold text-[#d9e7fc] mb-1">Working tree limpio</p>
+            <p className="text-base font-semibold text-[#d9e7fc] mb-1">Working tree limpio</p>
             <p className="text-sm text-[#9eacc0]">No hay cambios sin commitear.</p>
           </div>
         ) : (
@@ -1928,7 +1987,7 @@ function StatCard({ label, value, accent }: { label: string; value: number; acce
       )}
     >
       <p className="text-xs text-[#9eacc0] uppercase tracking-wider mb-1">{label}</p>
-      <p className={cn('text-3xl font-bold', accent === 'primary' ? 'text-[#a3f185]' : 'text-[#d9e7fc]')}>
+      <p className={cn('text-2xl font-bold', accent === 'primary' ? 'text-[#a3f185]' : 'text-[#d9e7fc]')}>
         {value}
       </p>
     </div>
@@ -1984,7 +2043,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-4 border-b border-[#3c495a]/15 flex items-center justify-between shrink-0">
-          <h2 className="font-bold text-[#a3f185] flex items-center gap-2 text-lg">
+          <h2 className="font-bold text-[#a3f185] flex items-center gap-2 text-base">
             <HelpCircle size={18} /> {t('help.title')}
           </h2>
           <button onClick={onClose} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={18} /></button>
@@ -2477,7 +2536,7 @@ function ProfileMenu({
               {user.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.login} className="w-16 h-16 rounded-full border border-[#a3f185]/30" />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-lg font-bold text-[#052900]">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-base font-bold text-[#052900]">
                   {userInitials(user)}
                 </div>
               )}
@@ -2753,7 +2812,7 @@ function ContextMenuItem({ onClick, text, textSecondary }: { onClick: () => void
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className="w-full flex items-center justify-between px-4 py-1.5 text-sm hover:bg-[#a3f185] text-[#d9e7fc] hover:text-white transition-colors"
+      className="w-full flex items-center justify-between px-4 py-1.5 text-sm hover:bg-[#a3f185]/20 text-[#d9e7fc] hover:text-[#a3f185] transition-colors"
     >
       <span>{text}</span>
       {textSecondary && <span className="text-[10px] opacity-50">{textSecondary}</span>}

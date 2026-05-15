@@ -1,7 +1,39 @@
+# Dependencies
 node_modules/
+
+# Next.js build output
 .next/
+out/
+
+# Electron compiled output (rebuilt via `pnpm run build:electron`)
+dist/
+
+# electron-builder release
+release/
+
+# TypeScript build cache
+tsconfig.tsbuildinfo
+
+# Coverage
 coverage/
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Logs
 *.log
+npm-debug.log*
+
+# Environment variables
 .env*
 !.env.example
+
+# Claude Code — session data, worktrees and personal memory (not project files)
+.claude/
+
+# Claude Code agent skills (tool-specific internal files)
+.agents/
+
+# VS Code workspace file (optional — delete this line if querés commitearla)
+*.code-workspace

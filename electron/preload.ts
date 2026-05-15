@@ -24,12 +24,44 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:checkout', repoPath, branch),
   gitCreateBranch: (repoPath: string, name: string, fromHash?: string) =>
     ipcRenderer.invoke('git:create-branch', repoPath, name, fromHash),
+  gitMergeBranch: (repoPath: string, sourceBranch: string) =>
+    ipcRenderer.invoke('git:merge-branch', repoPath, sourceBranch),
+  gitRebase: (repoPath: string, ontoBranch: string) =>
+    ipcRenderer.invoke('git:rebase', repoPath, ontoBranch),
+  gitFastForward: (repoPath: string, branch: string, toRef: string) =>
+    ipcRenderer.invoke('git:fast-forward', repoPath, branch, toRef),
+  gitRenameBranch: (repoPath: string, oldName: string, newName: string) =>
+    ipcRenderer.invoke('git:rename-branch', repoPath, oldName, newName),
+  gitDeleteBranch: (repoPath: string, branch: string, force?: boolean) =>
+    ipcRenderer.invoke('git:delete-branch', repoPath, branch, force ?? false),
+  gitPullBranch: (repoPath: string, branch: string, token?: string) =>
+    ipcRenderer.invoke('git:pull-branch', repoPath, branch, token),
+  gitPushBranch: (repoPath: string, branch: string, token?: string) =>
+    ipcRenderer.invoke('git:push-branch', repoPath, branch, token),
   gitPush: (repoPath: string, token?: string) => ipcRenderer.invoke('git:push', repoPath, token),
   gitPull: (repoPath: string, token?: string) => ipcRenderer.invoke('git:pull', repoPath, token),
   gitStage: (repoPath: string, filePath: string) =>
     ipcRenderer.invoke('git:stage', repoPath, filePath),
   gitUnstage: (repoPath: string, filePath: string) =>
     ipcRenderer.invoke('git:unstage', repoPath, filePath),
+  gitStageBatch: (repoPath: string, filePaths: string[]) =>
+    ipcRenderer.invoke('git:stage-batch', repoPath, filePaths),
+  gitUnstageBatch: (repoPath: string, filePaths: string[]) =>
+    ipcRenderer.invoke('git:unstage-batch', repoPath, filePaths),
+  gitRemoveLock: (repoPath: string) =>
+    ipcRenderer.invoke('git:remove-lock', repoPath),
+  gitAddToGitignore: (repoPath: string, filePath: string) =>
+    ipcRenderer.invoke('git:add-to-gitignore', repoPath, filePath),
+  gitResetAll: (repoPath: string) =>
+    ipcRenderer.invoke('git:reset-all', repoPath),
+  gitStashFile: (repoPath: string, filePath: string) =>
+    ipcRenderer.invoke('git:stash-file', repoPath, filePath),
+  shellShowInFolder: (repoPath: string, relativeFilePath: string) =>
+    ipcRenderer.invoke('shell:show-in-folder', repoPath, relativeFilePath),
+  shellOpenItem: (repoPath: string, relativeFilePath: string) =>
+    ipcRenderer.invoke('shell:open-item', repoPath, relativeFilePath),
+  fsDeleteFile: (repoPath: string, relativeFilePath: string) =>
+    ipcRenderer.invoke('fs:delete-file', repoPath, relativeFilePath),
   gitDiff: (repoPath: string, filePath: string, staged?: boolean) =>
     ipcRenderer.invoke('git:diff', repoPath, filePath, staged ?? false),
   gitStashList: (repoPath: string) => ipcRenderer.invoke('git:stash-list', repoPath),
@@ -39,6 +71,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:stash-drop', repoPath, index),
   gitTags: (repoPath: string) => ipcRenderer.invoke('git:tags', repoPath),
   gitSubmodules: (repoPath: string) => ipcRenderer.invoke('git:submodules', repoPath),
+  gitWorktrees: (repoPath: string) => ipcRenderer.invoke('git:worktrees', repoPath),
+  githubListPRs: (token: string, repoPath: string) => ipcRenderer.invoke('github:list-prs', token, repoPath),
   terminalOpen: (repoPath: string) => ipcRenderer.invoke('terminal:open', repoPath),
   shellOpenPath: (targetPath: string) => ipcRenderer.invoke('shell:open-path', targetPath),
   storageSet: (key: string, value: string) => ipcRenderer.invoke('storage:set', key, value),

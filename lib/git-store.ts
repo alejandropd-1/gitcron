@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import type { StashEntry, SubmoduleEntry, GitHubUser } from '@/types/electron';
+import type {
+  StashEntry, SubmoduleEntry, GitHubUser,
+  BranchTrackingInfo, WorktreeEntry, PullRequestEntry,
+} from '@/types/electron';
+import type { Lang } from '@/lib/i18n';
 
 export interface Commit {
   hash: string;
@@ -30,6 +34,9 @@ interface GitStore {
   stashes: StashEntry[];
   tags: string[];
   submodules: SubmoduleEntry[];
+  branchTracking: Record<string, BranchTrackingInfo>;
+  worktrees: WorktreeEntry[];
+  pullRequests: PullRequestEntry[];
   commitMessage: string;
   selectedCommit: Commit | null;
   selectedFile: GitFile | null;
@@ -39,6 +46,8 @@ interface GitStore {
   // GitHub auth
   githubToken: string | null;
   githubUser: GitHubUser | null;
+  // Preferences
+  language: Lang;
 
   setRepoPath: (path: string | null) => void;
   setRepoName: (name: string | null) => void;
@@ -54,10 +63,14 @@ interface GitStore {
   setStashes: (stashes: StashEntry[]) => void;
   setTags: (tags: string[]) => void;
   setSubmodules: (submodules: SubmoduleEntry[]) => void;
+  setBranchTracking: (tracking: Record<string, BranchTrackingInfo>) => void;
+  setWorktrees: (worktrees: WorktreeEntry[]) => void;
+  setPullRequests: (prs: PullRequestEntry[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setGithubToken: (token: string | null) => void;
   setGithubUser: (user: GitHubUser | null) => void;
+  setLanguage: (lang: Lang) => void;
 }
 
 export const useGitStore = create<GitStore>((set) => ({
@@ -71,6 +84,9 @@ export const useGitStore = create<GitStore>((set) => ({
   stashes: [],
   tags: [],
   submodules: [],
+  branchTracking: {},
+  worktrees: [],
+  pullRequests: [],
   commitMessage: '',
   selectedCommit: null,
   selectedFile: null,
@@ -82,6 +98,7 @@ export const useGitStore = create<GitStore>((set) => ({
   // tokens live encrypted at-rest via Electron's safeStorage (OS keychain).
   githubToken: null,
   githubUser: null,
+  language: 'es',
 
   setRepoPath: (repoPath) => set({ repoPath }),
   setRepoName: (repoName) => set({ repoName }),
@@ -97,9 +114,13 @@ export const useGitStore = create<GitStore>((set) => ({
   setStashes: (stashes) => set({ stashes }),
   setTags: (tags) => set({ tags }),
   setSubmodules: (submodules) => set({ submodules }),
+  setBranchTracking: (branchTracking) => set({ branchTracking }),
+  setWorktrees: (worktrees) => set({ worktrees }),
+  setPullRequests: (pullRequests) => set({ pullRequests }),
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
   // Pure state setter — persistence is handled by hooks via IPC (safeStorage)
   setGithubToken: (githubToken) => set({ githubToken }),
+  setLanguage: (language) => set({ language }),
   setGithubUser: (githubUser) => set({ githubUser }),
 }));

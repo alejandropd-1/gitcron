@@ -1,1 +1,48 @@
 @import "tailwindcss";
+
+/* ──────────── Scrollbars (matching "The Compiled Soul" palette) ──────────── */
+
+/* WebKit-based browsers (Chrome, Electron, Safari) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020f1e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #172d45;
+  border-radius: 8px;
+  /* Inset border creates the "padded" look that floats on the navy track */
+  border: 2px solid #020f1e;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3c495a;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #a3f185;
+}
+
+::-webkit-scrollbar-corner {
+  background: #020f1e;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #172d45 #020f1e;
+}
+
+/* Thinner variant for sidebars and small panels: add `class="scrollbar-thin"` */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  border-width: 1px;
+}

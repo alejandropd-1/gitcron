@@ -3,7 +3,7 @@
 import { useGitStore } from '@/lib/git-store';
 import type {
   CommitData, StatusFile, BranchData, StashEntry, SubmoduleEntry,
-  RepoInfo, GitHubRepoInfo,
+  RepoInfo, GitHubRepoInfo, WorktreeEntry, PullRequestEntry,
 } from '@/types/electron';
 
 export const useRepoLoader = () => {
@@ -19,6 +19,10 @@ export const useRepoLoader = () => {
     setStashes,
     setTags,
     setSubmodules,
+    setBranchTracking,
+    setWorktrees,
+    setPullRequests,
+    githubToken,
     setCurrentDiff,
     setLoading,
     setError,
@@ -134,8 +138,27 @@ export const useRepoLoader = () => {
         setBranches(data.local);
         setRemoteBranches(data.remote);
         setCurrentBranch(data.current);
+        if (data.tracking) setBranchTracking(data.tracking);
       }
     } catch (err: any) { console.error('refreshBranches error:', err); }
+  };
+
+  const refreshWorktrees = async (path?: string) => {
+    const target = path ?? repoPath;
+    if (!target || !window.api) return;
+    try {
+      const result = await window.api.gitWorktrees(target);
+      if (result.success && result.data) setWorktrees(result.data as WorktreeEntry[]);
+    } catch (err: any) { console.error('refreshWorktrees error:', err); }
+  };
+
+  const refreshPullRequests = async (path?: string) => {
+    const target = path ?? repoPath;
+    if (!target || !window.api || !githubToken) return;
+    try {
+      const result = await window.api.githubListPRs(githubToken, target);
+      if (result.success && result.data) setPullRequests(result.data as PullRequestEntry[]);
+    } catch (err: any) { console.error('refreshPullRequests error:', err); }
   };
 
   const refreshStashes = async (path?: string) => {
@@ -184,6 +207,8 @@ export const useRepoLoader = () => {
       refreshStashes(target),
       refreshTags(target),
       refreshSubmodules(target),
+      refreshWorktrees(target),
+      refreshPullRequests(target),
     ]);
   };
 
@@ -200,6 +225,8 @@ export const useRepoLoader = () => {
     refreshStashes,
     refreshTags,
     refreshSubmodules,
+    refreshWorktrees,
+    refreshPullRequests,
     loadDiff,
     loadAll,
   };

@@ -6,6 +6,7 @@ import { simpleGit, SimpleGit } from 'simple-git';
 import { Octokit } from '@octokit/rest';
 import type {
   StatusFile, CommitData, BranchData, RepoInfo, StashEntry, SubmoduleEntry, GitHubUser,
+  BranchTrackingInfo, WorktreeEntry, PullRequestEntry,
 } from '../types/electron';
 
 const isDev = !app.isPackaged;
@@ -167,7 +168,21 @@ ipcMain.handle('git:command', async (_event, args: string[]) => {
 
     switch (command) {
       case 'status': result = await git.status(); break;
-      case 'commit': result = await git.commit(args.slice(1)); break;
+      case 'commit': {
+        // The renderer sends ['commit', '-m', message]. simple-git's
+        // git.commit() treats an array as multiple message lines, so passing
+        // args.slice(1) made the message become "-m\n<actual text>". Extract
+        // the real message and pass it as a plain string.
+        const mIdx = args.indexOf('-m');
+        const message = mIdx >= 0 && args[mIdx + 1] !== undefined
+          ? args[mIdx + 1]
+          : args.slice(1).filter((a) => a !== '-m').join('\n');
+        if (!message || !message.trim()) {
+          throw new Error('Mensaje de commit vacío');
+        }
+        result = await git.commit(message);
+        break;
+      }
       case 'merge': result = await git.merge(args.slice(1)); break;
       case 'revert':
         result = await git.revert(args[1], args.slice(2).reduce((acc, curr) => ({ ...acc, [curr]: true }), {}));
@@ -499,12 +514,98 @@ ipcMain.handle('git:branches', async (_event, targetPath: string) => {
     const g = simpleGit(targetPath);
     const local = await g.branchLocal();
     const remotes = await g.branch(['-r']);
+
+    // Use `git for-each-ref` to get ahead/behind for ALL local branches in one shot.
+    // Format: <name>|<upstream>|<track>   where track looks like "[ahead 1, behind 3]" or "[gone]" or ""
+    const tracking: Record<string, BranchTrackingInfo> = {};
+    try {
+      const raw = await g.raw([
+        'for-each-ref',
+        '--format=%(refname:short)|%(upstream:short)|%(upstream:track)',
+        'refs/heads',
+      ]);
+      for (const line of raw.split('\n').filter((l) => l.trim())) {
+        const [name, upstream, track] = line.split('|');
+        let ahead = 0;
+        let behind = 0;
+        const aheadMatch = track?.match(/ahead (\d+)/);
+        const behindMatch = track?.match(/behind (\d+)/);
+        if (aheadMatch) ahead = parseInt(aheadMatch[1], 10);
+        if (behindMatch) behind = parseInt(behindMatch[1], 10);
+        tracking[name] = {
+          upstream: upstream || null,
+          ahead,
+          behind,
+          gone: !!track?.includes('gone'),
+        };
+      }
+    } catch {
+      /* ignore - tracking is best-effort */
+    }
+
     const branchData: BranchData = {
       local: local.all,
       remote: remotes.all,
       current: local.current,
+      tracking,
     };
     return { success: true, data: branchData };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ── git worktree list ──
+ipcMain.handle('git:worktrees', async (_event, targetPath: string) => {
+  try {
+    const raw = await simpleGit(targetPath).raw(['worktree', 'list', '--porcelain']);
+    const worktrees: WorktreeEntry[] = [];
+    let current: Partial<WorktreeEntry> | null = null;
+    for (const line of raw.split('\n')) {
+      if (line.startsWith('worktree ')) {
+        if (current && current.path) worktrees.push(current as WorktreeEntry);
+        current = { path: line.slice('worktree '.length).trim() };
+      } else if (current && line.startsWith('HEAD ')) {
+        current.head = line.slice('HEAD '.length).trim();
+      } else if (current && line.startsWith('branch ')) {
+        current.branch = line.slice('branch '.length).trim().replace('refs/heads/', '');
+      } else if (current && line.trim() === 'bare') {
+        current.bare = true;
+      } else if (current && line.trim() === 'detached') {
+        current.detached = true;
+      }
+    }
+    if (current && current.path) worktrees.push(current as WorktreeEntry);
+    return { success: true, data: worktrees };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ── List open PRs from GitHub (parses origin URL to find owner/repo) ──
+ipcMain.handle('github:list-prs', async (_event, token: string, targetPath: string) => {
+  try {
+    const g = simpleGit(targetPath);
+    const remotes = await g.getRemotes(true);
+    const origin = remotes.find((r) => r.name === 'origin');
+    const url = origin?.refs?.fetch || origin?.refs?.push || '';
+    // Match https://github.com/owner/repo(.git) or git@github.com:owner/repo(.git)
+    const match = url.match(/github\.com[:/]+([^/]+)\/([^/]+?)(?:\.git)?\/?$/);
+    if (!match) {
+      return { success: true, data: [] as PullRequestEntry[] };
+    }
+    const [, owner, repo] = match;
+    const octokit = new Octokit({ auth: token });
+    const { data } = await octokit.rest.pulls.list({ owner, repo, state: 'open', per_page: 30 });
+    const prs: PullRequestEntry[] = data.map((pr) => ({
+      number: pr.number,
+      title: pr.title,
+      author: pr.user?.login ?? '',
+      branch: pr.head.ref,
+      url: pr.html_url,
+      draft: pr.draft ?? false,
+    }));
+    return { success: true, data: prs };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
@@ -527,6 +628,127 @@ ipcMain.handle('git:create-branch', async (_event, targetPath: string, name: str
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
+  }
+});
+
+// ── Merge a branch INTO the current branch ──
+ipcMain.handle('git:merge-branch', async (_event, targetPath: string, sourceBranch: string) => {
+  try {
+    const g = simpleGit(targetPath);
+    const result = await g.merge([sourceBranch]);
+    return { success: true, data: result };
+  } catch (error: any) {
+    // simple-git throws on merge conflict — extract useful info
+    const msg = error.message || String(error);
+    const isConflict = /conflict|automatic merge failed/i.test(msg);
+    return { success: false, error: msg, data: { conflict: isConflict } };
+  }
+});
+
+// ── Rebase the current branch onto another ──
+ipcMain.handle('git:rebase', async (_event, targetPath: string, ontoBranch: string) => {
+  try {
+    const g = simpleGit(targetPath);
+    const result = await g.rebase([ontoBranch]);
+    return { success: true, data: result };
+  } catch (error: any) {
+    const msg = error.message || String(error);
+    const isConflict = /conflict|could not apply/i.test(msg);
+    return { success: false, error: msg, data: { conflict: isConflict } };
+  }
+});
+
+// ── Fast-forward: bring a branch up to a target (only if no divergence) ──
+// Strategy: checkout the target branch, then `git merge --ff-only <from>`
+// We avoid touching the current branch state if possible.
+ipcMain.handle('git:fast-forward', async (_event, targetPath: string, branch: string, toRef: string) => {
+  try {
+    const g = simpleGit(targetPath);
+    // Use git update-ref directly: this works without switching branches
+    // First make sure the merge would be fast-forward
+    const mergeBase = (await g.raw(['merge-base', branch, toRef])).trim();
+    const branchSha = (await g.raw(['rev-parse', branch])).trim();
+    if (mergeBase !== branchSha) {
+      return { success: false, error: 'No se puede hacer fast-forward: las branches divergieron' };
+    }
+    // Safe to fast-forward
+    await g.raw(['update-ref', `refs/heads/${branch}`, toRef]);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ── Rename a branch (works for the current branch too) ──
+ipcMain.handle('git:rename-branch', async (_event, targetPath: string, oldName: string, newName: string) => {
+  try {
+    await simpleGit(targetPath).raw(['branch', '-m', oldName, newName]);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ── Delete a local branch. `force=true` uses -D (even if unmerged) ──
+ipcMain.handle('git:delete-branch', async (_event, targetPath: string, branch: string, force: boolean = false) => {
+  try {
+    const flag = force ? '-D' : '-d';
+    await simpleGit(targetPath).raw(['branch', flag, branch]);
+    return { success: true };
+  } catch (error: any) {
+    const msg = error.message || String(error);
+    // Detect "not fully merged" so renderer can offer force delete
+    const notMerged = /not fully merged|not yet merged/i.test(msg);
+    return { success: false, error: msg, data: { notMerged } };
+  }
+});
+
+// ── Pull from origin for a SPECIFIC branch (without checkout) ──
+// Strategy: fetch then merge --ff-only into the local branch
+ipcMain.handle('git:pull-branch', async (_event, targetPath: string, branch: string, token?: string) => {
+  try {
+    const g = simpleGit(targetPath);
+    if (token) {
+      g.env({
+        ...process.env,
+        GIT_ASKPASS: ensureAskpassScript(),
+        GITCRON_TOKEN: token,
+        GIT_TERMINAL_PROMPT: '0',
+      });
+    }
+    // fetch updates origin/<branch>
+    await g.fetch('origin', branch);
+    // Now fast-forward local <branch> to origin/<branch>
+    const mergeBase = (await g.raw(['merge-base', branch, `origin/${branch}`])).trim();
+    const branchSha = (await g.raw(['rev-parse', branch])).trim();
+    if (mergeBase !== branchSha) {
+      return { success: false, error: 'Las branches divergieron — hacé checkout y resolvé manualmente' };
+    }
+    await g.raw(['update-ref', `refs/heads/${branch}`, `origin/${branch}`]);
+    return { success: true };
+  } catch (error: any) {
+    const isAuth = /authentication|credentials|permission denied|403|401/i.test(error.message);
+    return { success: false, error: error.message, data: { authRequired: isAuth } };
+  }
+});
+
+// ── Push a SPECIFIC branch ──
+ipcMain.handle('git:push-branch', async (_event, targetPath: string, branch: string, token?: string) => {
+  try {
+    const g = simpleGit(targetPath);
+    if (token) {
+      g.env({
+        ...process.env,
+        GIT_ASKPASS: ensureAskpassScript(),
+        GITCRON_TOKEN: token,
+        GIT_TERMINAL_PROMPT: '0',
+      });
+    }
+    await g.push(['origin', branch]);
+    return { success: true };
+  } catch (error: any) {
+    const isAuth = /authentication|credentials|permission denied|403|401/i.test(error.message);
+    return { success: false, error: error.message, data: { authRequired: isAuth } };
   }
 });
 
@@ -601,6 +823,145 @@ ipcMain.handle('git:unstage', async (_event, targetPath: string, filePath: strin
   try {
     await simpleGit(targetPath).raw(['restore', '--staged', filePath]);
     return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Batch stage/unstage: single git command for N files.
+// Critical for "Stage all" — running N parallel `git add` commands
+// causes index.lock collisions because they all try to write to .git/index.
+ipcMain.handle('git:stage-batch', async (_event, targetPath: string, filePaths: string[]) => {
+  try {
+    if (!filePaths || filePaths.length === 0) return { success: true };
+    await simpleGit(targetPath).add(filePaths);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('git:unstage-batch', async (_event, targetPath: string, filePaths: string[]) => {
+  try {
+    if (!filePaths || filePaths.length === 0) return { success: true };
+    await simpleGit(targetPath).raw(['restore', '--staged', ...filePaths]);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ── Add a path to the repo's .gitignore (creates the file if needed) ──
+ipcMain.handle('git:add-to-gitignore', async (_event, targetPath: string, filePath: string) => {
+  try {
+    const gitignorePath = path.join(targetPath, '.gitignore');
+    let current = '';
+    if (fs.existsSync(gitignorePath)) {
+      current = fs.readFileSync(gitignorePath, 'utf-8');
+    }
+    // Check if the path is already there (line-by-line, ignoring blanks/comments)
+    const lines = current.split('\n').map((l) => l.trim());
+    if (lines.includes(filePath)) {
+      return { success: true, data: { alreadyIgnored: true } };
+    }
+    // Append with proper newline handling
+    const needsNewline = current.length > 0 && !current.endsWith('\n');
+    const updated = current + (needsNewline ? '\n' : '') + filePath + '\n';
+    fs.writeFileSync(gitignorePath, updated);
+
+    // If the file is currently tracked, also untrack it so the .gitignore takes effect
+    try {
+      const g = simpleGit(targetPath);
+      const status = await g.status();
+      const isTracked = !status.not_added.includes(filePath);
+      if (isTracked) {
+        // --cached preserves the working copy, just untracks
+        await g.raw(['rm', '--cached', '--ignore-unmatch', filePath]);
+      }
+    } catch {
+      /* if the file wasn't tracked we silently skip */
+    }
+
+    return { success: true, data: { alreadyIgnored: false } };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ── Reset ALL changes: discards working tree + staged + untracked ──
+// Equivalent to: git reset --hard HEAD && git clean -fd
+ipcMain.handle('git:reset-all', async (_event, targetPath: string) => {
+  try {
+    const g = simpleGit(targetPath);
+    await g.reset(['--hard', 'HEAD']);
+    await g.clean('f', ['-d']);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ── Stash a single file (or set of files) ──
+ipcMain.handle('git:stash-file', async (_event, targetPath: string, filePath: string) => {
+  try {
+    await simpleGit(targetPath).stash(['push', '--include-untracked', '--', filePath]);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ── Show a file in OS file explorer (highlights it) ──
+ipcMain.handle('shell:show-in-folder', async (_event, targetPath: string, relativeFilePath: string) => {
+  try {
+    const fullPath = path.join(targetPath, relativeFilePath);
+    shell.showItemInFolder(fullPath);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ── Open a file with the OS default program ──
+ipcMain.handle('shell:open-item', async (_event, targetPath: string, relativeFilePath: string) => {
+  try {
+    const fullPath = path.join(targetPath, relativeFilePath);
+    const err = await shell.openPath(fullPath);
+    if (err) return { success: false, error: err };
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ── Delete a file from disk (rejects directory traversal) ──
+ipcMain.handle('fs:delete-file', async (_event, targetPath: string, relativeFilePath: string) => {
+  try {
+    // Defensive: keep us inside the repo dir
+    const resolved = path.resolve(targetPath, relativeFilePath);
+    if (!resolved.startsWith(path.resolve(targetPath))) {
+      return { success: false, error: 'Path traversal blocked' };
+    }
+    if (!fs.existsSync(resolved)) {
+      return { success: false, error: 'El archivo ya no existe' };
+    }
+    fs.unlinkSync(resolved);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Remove a stuck .git/index.lock file. Useful when a previous operation
+// crashed or was interrupted, leaving the lock behind.
+ipcMain.handle('git:remove-lock', async (_event, targetPath: string) => {
+  try {
+    const lockPath = path.join(targetPath, '.git', 'index.lock');
+    if (fs.existsSync(lockPath)) {
+      fs.unlinkSync(lockPath);
+      return { success: true, data: { removed: true } };
+    }
+    return { success: true, data: { removed: false } };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

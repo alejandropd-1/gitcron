@@ -15,6 +15,8 @@ import { useGitActions } from '@/hooks/use-git-actions';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
 import { DiffViewer } from '@/components/DiffViewer';
 import { CommitGraph } from '@/components/CommitGraph';
+import { useT } from '@/hooks/use-translation';
+import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 function formatDate(iso: string): string {
@@ -64,9 +66,15 @@ export default function GitCronPage() {
     checkoutBranch, checkoutBranchSmart, createBranch, pushChanges, pullChanges,
     openTerminal, stashApply, stashDrop,
     connectGitHub, disconnectGitHub, loginWithGitHubDevice, bootstrapGitHub,
+    bootstrapPreferences, changeLanguage,
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, copyFilePath,
+    mergeIntoCurrent, rebaseOnto, fastForwardBranch,
+    renameBranch, deleteBranch, pullSpecificBranch, pushSpecificBranch,
   } = useGitActions();
+
+  const t = useT();
+  const language = useGitStore((s) => s.language);
 
   const {
     openRepo, loadAll, loadDiff,
@@ -78,10 +86,15 @@ export default function GitCronPage() {
   const [fileContextMenu, setFileContextMenu] = useState<{ x: number; y: number; file: GitFile } | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [checkoutConflict, setCheckoutConflict] = useState<{ branch: string; error: string } | null>(null);
+  const [branchMenu, setBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
+  const [renameModal, setRenameModal] = useState<{ oldName: string; newName: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ branch: string; notMerged?: boolean } | null>(null);
+  const [mergeNeedsCheckout, setMergeNeedsCheckout] = useState<{ sourceBranch: string; targetBranch: string } | null>(null);
   const [showNewBranch, setShowNewBranch] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const [newBranchFrom, setNewBranchFrom] = useState<string | undefined>(undefined);
   const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showInitRepo, setShowInitRepo] = useState(false);
   const [showCloneRepo, setShowCloneRepo] = useState(false);
@@ -96,9 +109,9 @@ export default function GitCronPage() {
     if (repoPath) loadAll(repoPath);
   }, [repoPath]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Hydrate GitHub auth from encrypted OS keychain (safeStorage) on app mount.
-  // This replaces the old localStorage hydration.
+  // Hydrate preferences (language) + GitHub auth from encrypted OS keychain.
   useEffect(() => {
+    bootstrapPreferences();
     bootstrapGitHub();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -106,6 +119,7 @@ export default function GitCronPage() {
     const handleClick = () => {
       setContextMenu(null);
       setFileContextMenu(null);
+      setBranchMenu(null);
     };
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
@@ -125,6 +139,33 @@ export default function GitCronPage() {
   const handleSelectFile = async (file: GitFile) => {
     setSelectedFile(file);
     await loadDiff(file.path, file.staged);
+  };
+
+  /**
+   * Merge a branch into the current one. Validates the user is on the right
+   * branch first; if not, offers a checkout-then-merge flow.
+   */
+  const handleMergeBranchIntoCurrent = async (sourceBranch: string) => {
+    if (sourceBranch === currentBranch) {
+      setError('No podés mergear una branch en sí misma');
+      return;
+    }
+    // Already on target branch — just merge
+    const r = await mergeIntoCurrent(sourceBranch);
+    if (r.success) {
+      // Auto-confirm via the existing error toast pattern (use a positive message)
+      // The error state is repurposed as a generic notification slot.
+    }
+  };
+
+  /** Helper: merge `source` into `target`. Requires being on `target` first. */
+  const performMerge = async (sourceBranch: string, targetBranch: string) => {
+    // If we're not on the target branch, prompt user
+    if (currentBranch !== targetBranch) {
+      setMergeNeedsCheckout({ sourceBranch, targetBranch });
+      return;
+    }
+    await mergeIntoCurrent(sourceBranch);
   };
 
   /**
@@ -173,24 +214,28 @@ export default function GitCronPage() {
         <div className="flex items-center gap-6 h-full">
           <button
             onClick={openRepo}
-            title="Abrir repositorio"
+            title={t('toolbar.openRepo')}
             className="flex items-center gap-1.5 font-bold text-[#a3f185] text-lg hover:opacity-75 transition-opacity"
           >
             <FolderOpen size={16} />
             {repoName ?? 'GitCron'}
           </button>
           <nav className="flex h-full gap-1">
-            {['Commit', 'Graph', 'History'].map((tab) => (
+            {[
+              { key: 'Commit', label: t('tab.commit') },
+              { key: 'Graph', label: t('tab.graph') },
+              { key: 'History', label: t('tab.history') },
+            ].map((tab) => (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
                 className={cn(
                   'px-3 h-full flex items-center text-sm transition-colors relative',
-                  activeTab === tab ? 'text-[#a3f185]' : 'text-[#9eacc0] hover:text-[#d9e7fc]',
+                  activeTab === tab.key ? 'text-[#a3f185]' : 'text-[#9eacc0] hover:text-[#d9e7fc]',
                 )}
               >
-                {tab}
-                {activeTab === tab && (
+                {tab.label}
+                {activeTab === tab.key && (
                   <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#a3f185]" />
                 )}
               </button>
@@ -203,33 +248,33 @@ export default function GitCronPage() {
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9eacc0]" />
             <input
               className="w-full bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded px-8 py-1 text-sm focus:outline-none focus:border-[#a3f185]/50"
-              placeholder="Filter (Ctrl + Alt + F)"
+              placeholder={t('toolbar.filter')}
             />
           </div>
         </div>
 
         <div className="flex items-center gap-1">
-          <ToolbarButton icon={<Undo />} onClick={() => {}} title="Undo" />
-          <ToolbarButton icon={<Redo />} onClick={() => {}} title="Redo" />
+          <ToolbarButton icon={<Undo />} onClick={() => {}} title={t('toolbar.undo')} />
+          <ToolbarButton icon={<Redo />} onClick={() => {}} title={t('toolbar.redo')} />
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
-          <ToolbarButton icon={<Download />} onClick={pullChanges} title="Pull" label="Pull" disabled={!repoPath || isLoading} />
-          <ToolbarButton icon={<Upload />} onClick={pushChanges} title="Push" label="Push" disabled={!repoPath || isLoading} />
+          <ToolbarButton icon={<Download />} onClick={pullChanges} title={t('toolbar.pull')} label={t('toolbar.pull')} disabled={!repoPath || isLoading} />
+          <ToolbarButton icon={<Upload />} onClick={pushChanges} title={t('toolbar.push')} label={t('toolbar.push')} disabled={!repoPath || isLoading} />
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
           <ToolbarButton
             icon={<GitBranch />}
             onClick={() => { setNewBranchFrom(undefined); setShowNewBranch(true); }}
-            title="Nueva branch" label="Branch" disabled={!repoPath}
+            title={t('toolbar.newBranch')} label={t('toolbar.branch')} disabled={!repoPath}
           />
-          <ToolbarButton icon={<Archive />} onClick={stashChanges} title="Stash" label="Stash" disabled={!repoPath || isLoading} />
-          <ToolbarButton icon={<Terminal />} onClick={openTerminal} title="Abrir terminal en el repo" disabled={!repoPath} />
+          <ToolbarButton icon={<Archive />} onClick={stashChanges} title={t('toolbar.stash')} label={t('toolbar.stash')} disabled={!repoPath || isLoading} />
+          <ToolbarButton icon={<Terminal />} onClick={openTerminal} title={t('toolbar.terminal')} disabled={!repoPath} />
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
-          <ToolbarButton icon={<Settings />} onClick={() => setShowSettings(true)} title="Settings" />
-          <ToolbarButton icon={<HelpCircle />} onClick={() => setShowHelp(true)} title="Ayuda" />
+          <ToolbarButton icon={<Settings />} onClick={() => setShowSettings(true)} title={t('toolbar.settings')} />
+          <ToolbarButton icon={<HelpCircle />} onClick={() => setShowHelp(true)} title={t('toolbar.help')} />
           <div className="flex items-center gap-2 ml-2 pl-2">
             {githubUser ? (
               <button
-                onClick={() => setShowSettings(true)}
-                title={`Conectado como ${githubUser.login}`}
+                onClick={() => setShowProfile(true)}
+                title={t('toolbar.connectedAs', { user: githubUser.login })}
                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
               >
                 {githubUser.avatarUrl ? (
@@ -248,8 +293,8 @@ export default function GitCronPage() {
               </button>
             ) : (
               <button
-                onClick={() => setShowSettings(true)}
-                title="Conectar GitHub"
+                onClick={() => setShowProfile(true)}
+                title={t('toolbar.connectGitHub')}
                 className="w-7 h-7 rounded-full flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#172d45] transition-colors"
               >
                 <UserCircle2 size={22} strokeWidth={1.5} />
@@ -264,28 +309,32 @@ export default function GitCronPage() {
         {/* COLUMN 1: SIDEBAR (branches, remotes, stash, tags, submodules) */}
         <aside className="w-60 bg-[#041425] flex flex-col shrink-0 overflow-y-auto">
           {/* LOCAL — folder tree + ahead/behind chips */}
-          <SidebarSection title="LOCAL" count={branches.length || undefined}>
+          <SidebarSection title={t('sidebar.local')} count={branches.length || undefined}>
             {branches.length === 0 && !repoPath && (
-              <p className="px-4 py-2 text-xs text-[#9eacc0] italic">Abrí un repo para ver branches</p>
+              <p className="px-4 py-2 text-xs text-[#9eacc0] italic">{t('sidebar.noBranches')}</p>
             )}
             <BranchTree
               branches={branches}
               currentBranch={currentBranch}
               tracking={branchTracking}
               onCheckout={(b) => handleCheckoutAttempt(b)}
+              onContextMenu={(e, b) => {
+                e.preventDefault();
+                setBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
+              }}
             />
           </SidebarSection>
 
           {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
-          <SidebarSection title="REMOTE" count={remoteBranches.length || undefined}>
+          <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined}>
             <RemoteBranchTree branches={remoteBranches} />
           </SidebarSection>
 
           {/* PULL REQUESTS — only when logged in to GitHub */}
           {githubUser && (
-            <SidebarSection title="PULL REQUESTS" count={pullRequests.length || undefined}>
+            <SidebarSection title={t('sidebar.pullRequests')} count={pullRequests.length || undefined}>
               {pullRequests.length === 0 && (
-                <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">Sin PRs abiertas</p>
+                <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">{t('sidebar.noPRs')}</p>
               )}
               {pullRequests.map((pr) => (
                 <button
@@ -308,9 +357,9 @@ export default function GitCronPage() {
           )}
 
           {/* STASH */}
-          <SidebarSection title="STASH" count={stashes.length || undefined}>
+          <SidebarSection title={t('sidebar.stash')} count={stashes.length || undefined}>
             {stashes.length === 0 && repoPath && (
-              <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">Sin stashes</p>
+              <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">{t('sidebar.noStashes')}</p>
             )}
             {stashes.map((s) => (
               <StashItem key={s.index} stash={s} onApply={() => stashApply(s.index)} onDrop={() => stashDrop(s.index)} />
@@ -318,16 +367,16 @@ export default function GitCronPage() {
           </SidebarSection>
 
           {/* TAGS */}
-          <SidebarSection title="TAGS" count={tags.length || undefined}>
+          <SidebarSection title={t('sidebar.tags')} count={tags.length || undefined}>
             {tags.length === 0 && repoPath && (
-              <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">Sin tags</p>
+              <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">{t('sidebar.noTags')}</p>
             )}
             {tags.map((t) => <SidebarItem key={t} icon={<Tag size={16} />} text={t} />)}
           </SidebarSection>
 
           {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
           {worktrees.length > 1 && (
-            <SidebarSection title="WORKTREES" count={worktrees.length}>
+            <SidebarSection title={t('sidebar.worktrees')} count={worktrees.length}>
               {worktrees.map((wt) => {
                 const name = wt.path.split(/[/\\]/).pop() || wt.path;
                 return (
@@ -350,7 +399,7 @@ export default function GitCronPage() {
 
           {/* SUBMODULES — only render section if there are any */}
           {submodules.length > 0 && (
-            <SidebarSection title="SUBMODULES" count={submodules.length}>
+            <SidebarSection title={t('sidebar.submodules')} count={submodules.length}>
               {submodules.map((sm) => <SidebarItem key={sm.path} icon={<Layers size={16} />} text={sm.path} />)}
             </SidebarSection>
           )}
@@ -617,7 +666,7 @@ export default function GitCronPage() {
                 className="w-full bg-[#041425] border border-[#3c495a]/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#a3f185]/50 mb-4"
               />
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setShowNewBranch(false)} className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]">Cancelar</button>
+                <button onClick={() => setShowNewBranch(false)} className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]">{t('modal.cancel')}</button>
                 <button
                   onClick={handleCreateBranch}
                   disabled={!newBranchName.trim() || isLoading}
@@ -631,7 +680,27 @@ export default function GitCronPage() {
         )}
       </AnimatePresence>
 
-      {/* ──────────── SETTINGS / GITHUB AUTH MODAL ──────────── */}
+      {/* ──────────── PROFILE DROPDOWN ──────────── */}
+      <AnimatePresence>
+        {showProfile && (
+          <ProfileMenu
+            user={githubUser}
+            isLoading={isLoading}
+            tokenInput={tokenInput}
+            setTokenInput={setTokenInput}
+            authMode={authMode}
+            setAuthMode={setAuthMode}
+            deviceCodeInfo={deviceCodeInfo}
+            isLoggingIn={isLoggingIn}
+            onClose={() => setShowProfile(false)}
+            onLogin={handleLoginWithGitHub}
+            onConnectToken={handleConnectGitHub}
+            onLogout={() => { disconnectGitHub(); setShowProfile(false); }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── SETTINGS (preferencias) ──────────── */}
       <AnimatePresence>
         {showSettings && (
           <motion.div
@@ -644,149 +713,88 @@ export default function GitCronPage() {
               className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[480px]"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-[#a3f185] flex items-center gap-2"><Settings size={16} /> Configuración</h3>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-bold text-[#a3f185] flex items-center gap-2 text-base">
+                  <Settings size={16} /> {t('settings.title')}
+                </h3>
                 <button onClick={() => setShowSettings(false)} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={16} /></button>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-sm font-bold text-[#d9e7fc] mb-3 flex items-center gap-2">
-                    <Github size={14} /> Cuenta de GitHub
+              <div className="space-y-5">
+                {/* ── Language ── */}
+                <section>
+                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <Globe size={12} /> {t('settings.language')}
                   </h4>
-
-                  {githubUser ? (
-                    <div className="bg-[#041425] border border-[#a3f185]/30 rounded p-3 flex items-center gap-3">
-                      <img src={githubUser.avatarUrl} alt={githubUser.login} className="w-12 h-12 rounded-full" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{githubUser.name ?? githubUser.login}</p>
-                        <p className="text-xs text-[#9eacc0] truncate">@{githubUser.login}</p>
-                        {githubUser.email && <p className="text-[10px] text-[#9eacc0] truncate">{githubUser.email}</p>}
-                      </div>
+                  <p className="text-xs text-[#9eacc0] mb-3">{t('settings.languageDesc')}</p>
+                  <div className="flex gap-2">
+                    {LANGS.map((l) => (
                       <button
-                        onClick={disconnectGitHub}
-                        className="p-2 hover:bg-[#ff716c]/20 text-[#9eacc0] hover:text-[#ff716c] rounded transition-colors"
-                        title="Desconectar"
+                        key={l.code}
+                        onClick={() => changeLanguage(l.code as Lang)}
+                        className={cn(
+                          'flex-1 px-3 py-2 rounded border text-sm flex items-center justify-center gap-2 transition-colors',
+                          language === l.code
+                            ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
+                            : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc] hover:border-[#3c495a]/30',
+                        )}
                       >
-                        <LogOut size={14} />
+                        <span className="text-base">{l.flag}</span>
+                        <span className="font-medium">{l.label}</span>
+                        {language === l.code && <Check size={14} strokeWidth={3} className="ml-1" />}
                       </button>
-                    </div>
-                  ) : deviceCodeInfo ? (
-                    /* Mostrar código mientras espera autorización */
-                    <div className="bg-[#041425] border border-[#a3f185]/40 rounded p-4 text-center">
-                      <p className="text-sm text-[#d9e7fc] mb-3">
-                        Se abrió tu navegador. Ingresá este código en GitHub:
-                      </p>
-                      <div className="flex items-center justify-center gap-2 mb-3">
-                        <code className="text-3xl font-mono font-bold text-[#a3f185] bg-[#020f1e] px-4 py-2 rounded border border-[#a3f185]/30 tracking-widest">
-                          {deviceCodeInfo.userCode}
-                        </code>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(deviceCodeInfo.userCode)}
-                          className="p-2 hover:bg-[#3c495a] rounded text-[#9eacc0] hover:text-[#a3f185]"
-                          title="Copiar"
-                        >
-                          <FileText size={14} />
-                        </button>
-                      </div>
-                      <p className="text-xs text-[#9eacc0] mb-2">
-                        Si el navegador no se abrió:{' '}
-                        <button
-                          onClick={() => window.api?.shellOpenPath(deviceCodeInfo.verificationUri)}
-                          className="text-[#a3f185] underline"
-                        >
-                          {deviceCodeInfo.verificationUri}
-                        </button>
-                      </p>
-                      <div className="flex items-center justify-center gap-2 text-xs text-[#9eacc0] mt-3">
-                        <div className="w-3 h-3 border-2 border-[#a3f185] border-t-transparent rounded-full animate-spin" />
-                        Esperando autorización...
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Tabs OAuth / Token */}
-                      <div className="flex gap-1 mb-3 bg-[#041425] rounded p-1">
-                        <button
-                          onClick={() => setAuthMode('oauth')}
-                          className={cn(
-                            'flex-1 px-3 py-1.5 text-xs font-bold rounded transition-colors',
-                            authMode === 'oauth'
-                              ? 'bg-[#a3f185] text-white'
-                              : 'text-[#9eacc0] hover:text-[#d9e7fc]',
-                          )}
-                        >
-                          Login con GitHub
-                        </button>
-                        <button
-                          onClick={() => setAuthMode('token')}
-                          className={cn(
-                            'flex-1 px-3 py-1.5 text-xs font-bold rounded transition-colors',
-                            authMode === 'token'
-                              ? 'bg-[#a3f185] text-white'
-                              : 'text-[#9eacc0] hover:text-[#d9e7fc]',
-                          )}
-                        >
-                          Token manual
-                        </button>
-                      </div>
+                    ))}
+                  </div>
+                </section>
 
-                      {authMode === 'oauth' ? (
-                        <>
-                          <p className="text-xs text-[#9eacc0] mb-3 leading-relaxed">
-                            Al hacer click, se abre GitHub en tu navegador (donde ya estás logueado con tu cuenta).
-                            Solo tenés que confirmar el acceso para GitCron.
-                          </p>
-                          <button
-                            onClick={handleLoginWithGitHub}
-                            disabled={isLoggingIn}
-                            className="w-full py-2.5 bg-[#24292e] hover:bg-[#373e47] border border-[#444c56] disabled:opacity-50 text-white text-sm font-bold rounded transition-colors flex items-center justify-center gap-2"
-                          >
-                            <Github size={16} />
-                            {isLoggingIn ? 'Iniciando...' : 'Continuar con GitHub'}
-                          </button>
-                          <p className="text-[10px] text-[#697789] mt-2">
-                            GitCron usa el flujo OAuth Device Flow (sin servidor, sin contraseñas).
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-xs text-[#9eacc0] mb-2">
-                            Si preferís usar un Personal Access Token:{' '}
-                            <button
-                              onClick={() => window.api?.shellOpenPath('https://github.com/settings/tokens/new?scopes=repo&description=GitCron')}
-                              className="text-[#a3f185] underline hover:opacity-80"
-                            >
-                              generá uno acá
-                            </button>
-                            {' '}con scope <code className="bg-[#041425] px-1 rounded">repo</code>.
-                          </p>
-                          <input
-                            type="password"
-                            value={tokenInput}
-                            onChange={(e) => setTokenInput(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleConnectGitHub(); }}
-                            placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                            className="w-full bg-[#041425] border border-[#3c495a]/15 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-[#a3f185]/50 mb-2"
-                          />
-                          <button
-                            onClick={handleConnectGitHub}
-                            disabled={!tokenInput.trim() || isLoading}
-                            className="w-full py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded transition-colors"
-                          >
-                            {isLoading ? 'Verificando...' : 'Conectar con token'}
-                          </button>
-                        </>
-                      )}
-                    </>
-                  )}
-                </div>
+                {/* ── Theme ── */}
+                <section>
+                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <Sparkles size={12} /> {t('settings.theme')}
+                  </h4>
+                  <div className="flex gap-2">
+                    <div className="flex-1 px-3 py-2 rounded border bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185] text-sm flex items-center gap-2 cursor-default">
+                      <Check size={14} strokeWidth={3} />
+                      {t('settings.themeDark')}
+                    </div>
+                    <div className="flex-1 px-3 py-2 rounded border bg-[#041425] border-[#3c495a]/15 text-[#697789] text-sm flex items-center justify-center cursor-not-allowed">
+                      {t('settings.themeLight')}
+                    </div>
+                  </div>
+                </section>
 
-                <div className="text-[11px] text-[#697789] border-t border-[#3c495a]/15 pt-3 leading-relaxed">
-                  La autenticación se guarda localmente en tu máquina (localStorage). Se usa para hacer
-                  push/pull a tus repos de github.com vía HTTPS. Tu Gmail/contraseña nunca pasa por GitCron —
-                  GitHub maneja toda la autorización en tu navegador.
-                </div>
+                {/* ── Security ── */}
+                <section>
+                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <Lock size={12} /> {t('settings.security')}
+                  </h4>
+                  <p className="text-[11px] text-[#9eacc0] mb-2 leading-relaxed">
+                    {t('settings.dataLocation')}
+                  </p>
+                  <button
+                    onClick={() => window.api?.shellOpenPath('https://github.com/anthropics/gitcron/blob/main/SECURITY.md')}
+                    className="w-full text-left px-3 py-2 bg-[#041425] border border-[#3c495a]/15 hover:border-[#3c495a]/30 rounded text-sm text-[#9eacc0] hover:text-[#d9e7fc] flex items-center gap-2 transition-colors"
+                  >
+                    <FileText size={14} />
+                    {t('settings.viewSecurity')}
+                  </button>
+                </section>
+
+                {/* ── About ── */}
+                <section>
+                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <HelpCircle size={12} /> {t('settings.about')}
+                  </h4>
+                  <div className="bg-[#041425] border border-[#3c495a]/15 rounded p-3 text-xs">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-[#9eacc0]">GitCron</span>
+                      <span className="text-[#a3f185] font-mono">v0.1.0</span>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-[#697789]">
+                      <span>Electron + Next.js + simple-git</span>
+                    </div>
+                  </div>
+                </section>
               </div>
             </motion.div>
           </motion.div>
@@ -835,6 +843,184 @@ export default function GitCronPage() {
             isLoading={isLoading}
             githubConnected={!!githubUser}
           />
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── BRANCH CONTEXT MENU ──────────── */}
+      <AnimatePresence>
+        {branchMenu && (
+          <BranchContextMenu
+            x={branchMenu.x}
+            y={branchMenu.y}
+            branch={branchMenu.branch}
+            currentBranch={currentBranch}
+            tracking={branchTracking[branchMenu.branch]}
+            onMerge={() => { performMerge(branchMenu.branch, currentBranch); setBranchMenu(null); }}
+            onRebase={() => { rebaseOnto(branchMenu.branch); setBranchMenu(null); }}
+            onFastForward={() => { fastForwardBranch(branchMenu.branch, `origin/${branchMenu.branch}`); setBranchMenu(null); }}
+            onPull={() => { pullSpecificBranch(branchMenu.branch); setBranchMenu(null); }}
+            onPush={() => { pushSpecificBranch(branchMenu.branch); setBranchMenu(null); }}
+            onCheckout={() => { handleCheckoutAttempt(branchMenu.branch); setBranchMenu(null); }}
+            onRename={() => { setRenameModal({ oldName: branchMenu.branch, newName: branchMenu.branch }); setBranchMenu(null); }}
+            onDelete={() => { setDeleteConfirm({ branch: branchMenu.branch }); setBranchMenu(null); }}
+            onCopyName={() => { navigator.clipboard.writeText(branchMenu.branch); setBranchMenu(null); }}
+            onCreateFrom={() => { setNewBranchFrom(branchMenu.branch); setShowNewBranch(true); setBranchMenu(null); }}
+            onClose={() => setBranchMenu(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── MERGE: needs checkout to target branch first ──────────── */}
+      <AnimatePresence>
+        {mergeNeedsCheckout && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            onClick={() => setMergeNeedsCheckout(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[520px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <GitMerge size={22} className="text-[#a3f185] shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-bold text-[#d9e7fc] mb-1">Cambiar a {mergeNeedsCheckout.targetBranch} para mergear</h3>
+                  <p className="text-sm text-[#9eacc0] leading-relaxed">
+                    Para mergear <code className="text-[#a3f185] bg-[#020f1e] px-1 rounded">{mergeNeedsCheckout.sourceBranch}</code> en{' '}
+                    <code className="text-[#a3f185] bg-[#020f1e] px-1 rounded">{mergeNeedsCheckout.targetBranch}</code>,
+                    primero hay que estar en esa branch.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setMergeNeedsCheckout(null)}
+                  className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    const { sourceBranch, targetBranch } = mergeNeedsCheckout;
+                    setMergeNeedsCheckout(null);
+                    const co = await checkoutBranch(targetBranch);
+                    if (co.success) {
+                      await mergeIntoCurrent(sourceBranch);
+                    } else if (co.conflict) {
+                      setCheckoutConflict({ branch: targetBranch, error: co.error ?? '' });
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
+                >
+                  <GitMerge size={14} />
+                  Checkout {mergeNeedsCheckout.targetBranch} y mergear
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── RENAME BRANCH MODAL ──────────── */}
+      <AnimatePresence>
+        {renameModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            onClick={() => setRenameModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-96"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-[#a3f185] flex items-center gap-2"><GitBranch size={16} /> Renombrar branch</h3>
+                <button onClick={() => setRenameModal(null)} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={16} /></button>
+              </div>
+              <p className="text-xs text-[#9eacc0] mb-2">Renombrando:</p>
+              <p className="text-sm text-[#d9e7fc] font-mono bg-[#020f1e] px-3 py-1.5 rounded mb-3">{renameModal.oldName}</p>
+              <input
+                autoFocus
+                value={renameModal.newName}
+                onChange={(e) => setRenameModal({ ...renameModal, newName: e.target.value })}
+                onKeyDown={(e) => { if (e.key === 'Escape') setRenameModal(null); }}
+                placeholder="nuevo-nombre"
+                className="w-full bg-[#020f1e] border border-[#3c495a]/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#a3f185]/50 mb-4"
+              />
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setRenameModal(null)} className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]">{t('modal.cancel')}</button>
+                <button
+                  onClick={async () => {
+                    const newName = renameModal.newName.trim();
+                    if (!newName || newName === renameModal.oldName) { setRenameModal(null); return; }
+                    const ok = await renameBranch(renameModal.oldName, newName);
+                    if (ok) setRenameModal(null);
+                  }}
+                  disabled={!renameModal.newName.trim() || renameModal.newName === renameModal.oldName || isLoading}
+                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
+                >
+                  Renombrar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── DELETE BRANCH CONFIRM ──────────── */}
+      <AnimatePresence>
+        {deleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            onClick={() => setDeleteConfirm(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[480px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <Trash2 size={20} className="text-[#ff716c] shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-bold text-[#d9e7fc] mb-1">Eliminar branch</h3>
+                  <p className="text-sm text-[#9eacc0]">
+                    ¿Eliminar <code className="text-[#a3f185] bg-[#020f1e] px-1 rounded">{deleteConfirm.branch}</code>?
+                  </p>
+                  {deleteConfirm.notMerged && (
+                    <p className="text-xs text-[#fd9d1a] mt-2 leading-relaxed">
+                      ⚠ Esta branch tiene commits que no fueron mergeados a ninguna otra branch.
+                      Si la borrás, esos commits se pierden (a menos que recuperes via reflog).
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]">{t('modal.cancel')}</button>
+                <button
+                  onClick={async () => {
+                    const r = await deleteBranch(deleteConfirm.branch, deleteConfirm.notMerged === true);
+                    if (r.success) {
+                      setDeleteConfirm(null);
+                    } else if (r.notMerged && !deleteConfirm.notMerged) {
+                      // Re-show modal in "force" mode
+                      setDeleteConfirm({ branch: deleteConfirm.branch, notMerged: true });
+                    } else {
+                      setDeleteConfirm(null);
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-[#ff716c] hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
+                >
+                  {deleteConfirm.notMerged ? 'Forzar eliminación' : 'Eliminar'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -904,7 +1090,7 @@ export default function GitCronPage() {
           >
             <AlertCircle size={20} className="text-[#ffa8a3] shrink-0" />
             <span className="text-sm text-[#ffdad6]">
-              Esto va a <strong>descartar TODOS los cambios</strong> (staged, unstaged y archivos untracked). ¿Seguro?
+              {t('resetAll.warning')}
             </span>
             <button
               onClick={async () => {
@@ -914,13 +1100,13 @@ export default function GitCronPage() {
               disabled={isLoading}
               className="shrink-0 px-3 py-1.5 text-xs font-bold bg-[#ff716c] hover:bg-[#ffa8a3] text-[#490006] rounded transition-colors disabled:opacity-50"
             >
-              Reset All
+              {t('resetAll.button')}
             </button>
             <button
               onClick={() => setShowResetConfirm(false)}
               className="shrink-0 px-3 py-1.5 text-xs font-medium text-[#ffdad6] hover:text-white"
             >
-              Cancelar
+              {t('modal.cancel')}
             </button>
           </motion.div>
         )}
@@ -1072,12 +1258,13 @@ function buildBranchTree(branches: string[]): { root: BranchNode[]; folders: Bra
 }
 
 function BranchTree({
-  branches, currentBranch, tracking, onCheckout,
+  branches, currentBranch, tracking, onCheckout, onContextMenu,
 }: {
   branches: string[];
   currentBranch: string;
   tracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
   onCheckout: (b: string) => void;
+  onContextMenu: (e: React.MouseEvent, branch: string) => void;
 }) {
   const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
 
@@ -1091,6 +1278,7 @@ function BranchTree({
           tracking={tracking[b.fullPath]}
           isActive={b.fullPath === currentBranch}
           onCheckout={onCheckout}
+          onContextMenu={onContextMenu}
           indent={false}
         />
       ))}
@@ -1101,6 +1289,7 @@ function BranchTree({
           currentBranch={currentBranch}
           tracking={tracking}
           onCheckout={onCheckout}
+          onContextMenu={onContextMenu}
         />
       ))}
     </div>
@@ -1108,12 +1297,13 @@ function BranchTree({
 }
 
 function BranchFolderView({
-  folder, currentBranch, tracking, onCheckout,
+  folder, currentBranch, tracking, onCheckout, onContextMenu,
 }: {
   folder: BranchFolder;
   currentBranch: string;
   tracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
   onCheckout: (b: string) => void;
+  onContextMenu: (e: React.MouseEvent, branch: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
   return (
@@ -1139,6 +1329,7 @@ function BranchFolderView({
               tracking={tracking[b.fullPath]}
               isActive={b.fullPath === currentBranch}
               onCheckout={onCheckout}
+              onContextMenu={onContextMenu}
               indent={true}
             />
           ))}
@@ -1149,19 +1340,21 @@ function BranchFolderView({
 }
 
 function BranchRow({
-  name, fullPath, tracking, isActive, onCheckout, indent,
+  name, fullPath, tracking, isActive, onCheckout, onContextMenu, indent,
 }: {
   name: string;
   fullPath: string;
   tracking?: { ahead: number; behind: number; gone: boolean; upstream: string | null };
   isActive: boolean;
   onCheckout: (b: string) => void;
+  onContextMenu: (e: React.MouseEvent, branch: string) => void;
   indent: boolean;
 }) {
   return (
     <div
       onDoubleClick={() => onCheckout(fullPath)}
-      title={`Doble click para cambiar a ${fullPath}`}
+      onContextMenu={(e) => onContextMenu(e, fullPath)}
+      title={`Doble click: checkout · Click derecho: opciones`}
       className={cn(
         'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
         indent ? 'pl-9' : 'pl-4',
@@ -1778,6 +1971,7 @@ function FlowStep({ n, done, children }: { n: number; done: boolean; children: R
  * Modal con secciones colapsables.
  */
 function HelpModal({ onClose }: { onClose: () => void }) {
+  const t = useT();
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -1791,7 +1985,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
       >
         <div className="px-6 py-4 border-b border-[#3c495a]/15 flex items-center justify-between shrink-0">
           <h2 className="font-bold text-[#a3f185] flex items-center gap-2 text-lg">
-            <HelpCircle size={18} /> Ayuda — Cómo funciona GitCron
+            <HelpCircle size={18} /> {t('help.title')}
           </h2>
           <button onClick={onClose} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={18} /></button>
         </div>
@@ -1972,6 +2166,7 @@ function InitRepoModal({
   isLoading: boolean;
   githubConnected: boolean;
 }) {
+  const t = useT();
   const [parent, setParent] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [withGitHub, setWithGitHub] = useState(false);
@@ -2043,7 +2238,7 @@ function InitRepoModal({
         </div>
 
         <div className="flex gap-2 justify-end mt-6">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]">Cancelar</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]">{t('modal.cancel')}</button>
           <button
             onClick={async () => {
               if (!parent || !canSubmit) return;
@@ -2072,6 +2267,7 @@ function CloneRepoModal({
   isLoading: boolean;
   githubConnected: boolean;
 }) {
+  const t = useT();
   const [tab, setTab] = useState<'url' | 'my-repos'>(githubConnected ? 'my-repos' : 'url');
   const [url, setUrl] = useState('');
   const [parent, setParent] = useState<string | null>(null);
@@ -2207,7 +2403,7 @@ function CloneRepoModal({
         </div>
 
         <div className="flex gap-2 justify-end mt-6">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]">Cancelar</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]">{t('modal.cancel')}</button>
           <button
             onClick={async () => {
               if (!url.trim() || !parent || !folderName.trim()) return;
@@ -2222,6 +2418,301 @@ function CloneRepoModal({
           </button>
         </div>
       </motion.div>
+    </motion.div>
+  );
+}
+
+/**
+ * ProfileMenu — modal con foco en la cuenta de GitHub.
+ *
+ * Cuando NO está logueado:
+ *   - Tabs: OAuth Device Flow / Token manual
+ *   - Si hay device code activo: muestra el código + spinner de espera
+ *
+ * Cuando SÍ está logueado:
+ *   - Header con avatar + name + @login + email
+ *   - Acciones: ver perfil, copiar @user, cerrar sesión
+ */
+function ProfileMenu({
+  user, isLoading, tokenInput, setTokenInput, authMode, setAuthMode,
+  deviceCodeInfo, isLoggingIn, onClose, onLogin, onConnectToken, onLogout,
+}: {
+  user: { login: string; name: string | null; avatarUrl: string; email: string | null } | null;
+  isLoading: boolean;
+  tokenInput: string;
+  setTokenInput: (v: string) => void;
+  authMode: 'oauth' | 'token';
+  setAuthMode: (m: 'oauth' | 'token') => void;
+  deviceCodeInfo: { userCode: string; verificationUri: string } | null;
+  isLoggingIn: boolean;
+  onClose: () => void;
+  onLogin: () => Promise<void>;
+  onConnectToken: () => Promise<void>;
+  onLogout: () => void;
+}) {
+  const t = useT();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+        className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[480px]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-bold text-[#a3f185] flex items-center gap-2 text-base">
+            <Github size={16} /> {t('toolbar.profile')}
+          </h3>
+          <button onClick={onClose} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={16} /></button>
+        </div>
+
+        {user ? (
+          /* ── Logged in ── */
+          <div className="space-y-4">
+            <div className="bg-[#041425] border border-[#a3f185]/30 rounded-lg p-4 flex items-center gap-4">
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.login} className="w-16 h-16 rounded-full border border-[#a3f185]/30" />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-lg font-bold text-[#052900]">
+                  {userInitials(user)}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-[#d9e7fc] truncate">{user.name ?? user.login}</p>
+                <p className="text-xs text-[#a3f185] truncate">@{user.login}</p>
+                {user.email && <p className="text-[10px] text-[#9eacc0] truncate mt-0.5">{user.email}</p>}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <button
+                onClick={() => window.api?.shellOpenPath(`https://github.com/${user.login}`)}
+                className="w-full text-left px-3 py-2 rounded bg-[#041425] border border-[#3c495a]/15 hover:border-[#3c495a]/30 text-sm text-[#9eacc0] hover:text-[#d9e7fc] flex items-center gap-2 transition-colors"
+              >
+                <Github size={14} />
+                {t('profile.viewOnGitHub')}
+              </button>
+              <button
+                onClick={() => navigator.clipboard.writeText(`@${user.login}`)}
+                className="w-full text-left px-3 py-2 rounded bg-[#041425] border border-[#3c495a]/15 hover:border-[#3c495a]/30 text-sm text-[#9eacc0] hover:text-[#d9e7fc] flex items-center gap-2 transition-colors"
+              >
+                <Copy size={14} />
+                {t('profile.copyUsername', { user: user.login })}
+              </button>
+            </div>
+
+            <button
+              onClick={onLogout}
+              className="w-full px-3 py-2.5 rounded border border-[#ff716c]/30 hover:border-[#ff716c]/60 bg-[#ff716c]/10 hover:bg-[#ff716c]/20 text-[#ff716c] text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+            >
+              <LogOut size={14} />
+              {t('profile.signOut')}
+            </button>
+          </div>
+        ) : deviceCodeInfo ? (
+          /* ── Waiting for OAuth authorization ── */
+          <div className="bg-[#041425] border border-[#a3f185]/40 rounded-lg p-5 text-center">
+            <p className="text-sm text-[#d9e7fc] mb-4">
+              {t('profile.deviceCodeShown')}
+            </p>
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <code className="text-3xl font-mono font-bold text-[#a3f185] bg-[#020f1e] px-4 py-2 rounded border border-[#a3f185]/30 tracking-widest">
+                {deviceCodeInfo.userCode}
+              </code>
+              <button
+                onClick={() => navigator.clipboard.writeText(deviceCodeInfo.userCode)}
+                className="p-2 hover:bg-[#3c495a] rounded text-[#9eacc0] hover:text-[#a3f185]"
+                title="Copy"
+              >
+                <Copy size={14} />
+              </button>
+            </div>
+            <p className="text-xs text-[#9eacc0] mb-3">
+              {t('profile.browserNotOpened')}{' '}
+              <button
+                onClick={() => window.api?.shellOpenPath(deviceCodeInfo.verificationUri)}
+                className="text-[#a3f185] underline"
+              >
+                {deviceCodeInfo.verificationUri}
+              </button>
+            </p>
+            <div className="flex items-center justify-center gap-2 text-xs text-[#9eacc0]">
+              <Loader2 size={14} className="animate-spin text-[#a3f185]" />
+              {t('profile.waitingAuth')}
+            </div>
+          </div>
+        ) : (
+          /* ── Not logged in: tabs OAuth / token ── */
+          <div className="space-y-4">
+            <div className="bg-[#041425] border border-[#3c495a]/15 rounded p-3">
+              <p className="font-semibold text-sm text-[#d9e7fc] mb-1">{t('profile.notConnected')}</p>
+              <p className="text-xs text-[#9eacc0] leading-relaxed">{t('profile.notConnectedDesc')}</p>
+            </div>
+
+            <div className="flex gap-1 bg-[#041425] rounded p-1">
+              <button
+                onClick={() => setAuthMode('oauth')}
+                className={cn(
+                  'flex-1 px-3 py-1.5 text-xs font-bold rounded transition-colors',
+                  authMode === 'oauth'
+                    ? 'bg-gradient-to-br from-[#a3f185] to-[#68b24f] text-[#052900]'
+                    : 'text-[#9eacc0] hover:text-[#d9e7fc]',
+                )}
+              >
+                {t('profile.tabOAuth')}
+              </button>
+              <button
+                onClick={() => setAuthMode('token')}
+                className={cn(
+                  'flex-1 px-3 py-1.5 text-xs font-bold rounded transition-colors',
+                  authMode === 'token'
+                    ? 'bg-gradient-to-br from-[#a3f185] to-[#68b24f] text-[#052900]'
+                    : 'text-[#9eacc0] hover:text-[#d9e7fc]',
+                )}
+              >
+                {t('profile.tabToken')}
+              </button>
+            </div>
+
+            {authMode === 'oauth' ? (
+              <>
+                <p className="text-xs text-[#9eacc0] leading-relaxed">
+                  {t('profile.oauthDesc')}
+                </p>
+                <button
+                  onClick={onLogin}
+                  disabled={isLoggingIn}
+                  className="w-full py-2.5 bg-[#24292e] hover:bg-[#373e47] border border-[#444c56] disabled:opacity-50 text-white text-sm font-bold rounded transition-colors flex items-center justify-center gap-2"
+                >
+                  <Github size={16} />
+                  {isLoggingIn ? t('profile.starting') : t('profile.continueWithGitHub')}
+                </button>
+                <p className="text-[10px] text-[#697789] text-center">
+                  {t('profile.oauthFooter')}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-[#9eacc0] leading-relaxed">
+                  {t('profile.tokenInputDesc')}{' '}
+                  <button
+                    onClick={() => window.api?.shellOpenPath('https://github.com/settings/tokens/new?scopes=repo&description=GitCron')}
+                    className="text-[#a3f185] underline hover:opacity-80"
+                  >
+                    {t('profile.tokenGenerate')}
+                  </button>
+                  {' '}{t('profile.tokenScope')} <code className="bg-[#041425] px-1 rounded">repo</code>.
+                </p>
+                <input
+                  type="password"
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') onConnectToken(); }}
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  className="w-full bg-[#041425] border border-[#3c495a]/15 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-[#a3f185]/50"
+                />
+                <button
+                  onClick={onConnectToken}
+                  disabled={!tokenInput.trim() || isLoading}
+                  className="w-full py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded transition-colors"
+                >
+                  {isLoading ? t('profile.tokenVerifying') : t('profile.tokenConnect')}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function BranchContextMenu({
+  x, y, branch, currentBranch, tracking,
+  onMerge, onRebase, onFastForward, onPull, onPush,
+  onCheckout, onRename, onDelete, onCopyName, onCreateFrom, onClose,
+}: {
+  x: number; y: number; branch: string; currentBranch: string;
+  tracking?: { ahead: number; behind: number; gone: boolean; upstream: string | null };
+  onMerge: () => void; onRebase: () => void; onFastForward: () => void;
+  onPull: () => void; onPush: () => void; onCheckout: () => void;
+  onRename: () => void; onDelete: () => void; onCopyName: () => void;
+  onCreateFrom: () => void; onClose: () => void;
+}) {
+  const isCurrent = branch === currentBranch;
+  const hasUpstream = !!tracking?.upstream;
+  const canPush = hasUpstream && (tracking?.ahead ?? 0) > 0;
+  const canPull = hasUpstream && (tracking?.behind ?? 0) > 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+      className="fixed bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-lg shadow-2xl py-1 z-[100] w-72"
+      style={{ left: x, top: y }}
+    >
+      {/* Active branch indicator */}
+      <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-[#697789] border-b border-[#3c495a]/15 truncate">
+        {branch}
+      </div>
+
+      {/* Integration */}
+      {!isCurrent && (
+        <ContextMenuItem
+          onClick={onMerge}
+          text={`Merge "${branch}" en "${currentBranch}"`}
+        />
+      )}
+      {!isCurrent && (
+        <ContextMenuItem
+          onClick={onRebase}
+          text={`Rebase "${currentBranch}" sobre "${branch}"`}
+        />
+      )}
+      {!isCurrent && tracking?.upstream && tracking.behind > 0 && tracking.ahead === 0 && (
+        <ContextMenuItem
+          onClick={onFastForward}
+          text={`Fast-forward a origin/${branch}`}
+          textSecondary={`↓${tracking.behind}`}
+        />
+      )}
+
+      {!isCurrent && <div className="h-px bg-[#3c495a]/15 my-1" />}
+
+      <ContextMenuItem
+        onClick={onCheckout}
+        text={isCurrent ? '(branch actual)' : 'Checkout (cambiar a esta)'}
+      />
+
+      <div className="h-px bg-[#3c495a]/15 my-1" />
+
+      {/* Remote sync */}
+      <ContextMenuItem
+        onClick={onPull}
+        text="Pull"
+        textSecondary={canPull ? `↓${tracking?.behind}` : hasUpstream ? '✓' : '—'}
+      />
+      <ContextMenuItem
+        onClick={onPush}
+        text="Push"
+        textSecondary={canPush ? `↑${tracking?.ahead}` : hasUpstream ? '✓' : '—'}
+      />
+
+      <div className="h-px bg-[#3c495a]/15 my-1" />
+
+      {/* Manage */}
+      <ContextMenuItem onClick={onCreateFrom} text="Crear nueva branch desde acá" />
+      <ContextMenuItem onClick={onRename} text="Renombrar..." />
+      {!isCurrent && (
+        <ContextMenuItem onClick={onDelete} text="Eliminar" />
+      )}
+
+      <div className="h-px bg-[#3c495a]/15 my-1" />
+      <ContextMenuItem onClick={onCopyName} text="Copiar nombre" textSecondary="Ctrl+C" />
+      <ContextMenuItem onClick={onClose} text="Cerrar" />
     </motion.div>
   );
 }

@@ -35,7 +35,8 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 ### History and graph
 - SVG commit graph with stable branch colors.
 - Current branch always highlighted in neon green.
-- Branch / tag chips with local, remote, tag, and current-state cues.
+- Branch / tag chips with local, remote, tag, and current-state cues. Long names truncate with ellipsis; commits with more than 3 refs show a `+N` badge.
+- Filter toggle in the graph header: **All branches** (default) or **Current branch** (`git log` without `--all`). State is per-repo tab.
 - WIP row at the top when the working tree is dirty.
 - History tab for a flat chronological view.
 - Commit tab for a staging-focused workflow summary.
@@ -71,6 +72,9 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Resizable app columns: sidebar / center / details.
 - Resizable graph columns: Branch/Tag, Graph, Date, Commit.
 - Reworked topbar layout with repo navigation on the left, Git actions centered, and tools on the right.
+- Auto-fetch: background `git fetch --all --prune` on a configurable interval (5 / 10 / 30 / 60 min). Toggle and last-sync time in Settings. Manual trigger via the fetch button next to Stash.
+- Default folder: configurable starting directory for open and clone dialogs, saved in encrypted storage.
+- Per-repo loading state: each tab shows its own spinner and error — a slow operation on repo A never blocks repo B.
 - Text size setting in Settings: `Compact`, `Normal`, `Large`.
 - Spanish and English UI strings.
 

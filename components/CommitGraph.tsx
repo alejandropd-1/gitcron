@@ -23,6 +23,20 @@ const ROW_H = 36;
 const DOT_R = 9;
 const PADDING_LEFT = 10;
 
+export interface CommitGraphColumnWidths {
+  refs: number;
+  graph: number;
+  date: number;
+  hash: number;
+}
+
+const DEFAULT_COLUMN_WIDTHS: CommitGraphColumnWidths = {
+  refs: 260,
+  graph: 88,
+  date: 80,
+  hash: 64,
+};
+
 // Ordered palette — used both for branch hashing and fallback lane colors
 const BRANCH_PALETTE = [
   '#5ed8ff', // cyan      (for common branches like "master"/"main" variants)
@@ -218,6 +232,7 @@ export function CommitGraph({
   currentBranch,
   workingTreeFiles,
   filterText,
+  columnWidths = DEFAULT_COLUMN_WIDTHS,
   onSelect,
   onContextMenu,
 }: {
@@ -226,6 +241,7 @@ export function CommitGraph({
   currentBranch?: string;
   workingTreeFiles?: GitFile[];
   filterText?: string;
+  columnWidths?: CommitGraphColumnWidths;
   onSelect: (commit: Commit) => void;
   onContextMenu: (e: React.MouseEvent, commit: Commit) => void;
 }) {
@@ -247,6 +263,7 @@ export function CommitGraph({
     [filteredCommits, currentBranch],
   );
   const graphWidth = PADDING_LEFT + Math.max(totalLanes, 1) * LANE_W + 8;
+  const graphColumnWidth = Math.max(columnWidths.graph, graphWidth);
 
   const stagedCount = workingTreeFiles?.filter((f) => f.staged).length ?? 0;
   const unstagedCount = workingTreeFiles?.filter((f) => !f.staged).length ?? 0;
@@ -275,6 +292,8 @@ export function CommitGraph({
           stagedCount={stagedCount}
           unstagedCount={unstagedCount}
           graphWidth={graphWidth}
+          graphColumnWidth={graphColumnWidth}
+          columnWidths={columnWidths}
           laneColor={currentBranchLaneColor}
         />
       )}
@@ -284,6 +303,8 @@ export function CommitGraph({
           row={row}
           index={i}
           graphWidth={graphWidth}
+          graphColumnWidth={graphColumnWidth}
+          columnWidths={columnWidths}
           selected={selectedHash === row.commit.hash}
           currentBranch={currentBranch}
           onSelect={onSelect}
@@ -295,11 +316,13 @@ export function CommitGraph({
 }
 
 function GraphRowView({
-  row, index, graphWidth, selected, currentBranch, onSelect, onContextMenu,
+  row, index, graphWidth, graphColumnWidth, columnWidths, selected, currentBranch, onSelect, onContextMenu,
 }: {
   row: GraphRow;
   index: number;
   graphWidth: number;
+  graphColumnWidth: number;
+  columnWidths: CommitGraphColumnWidths;
   selected: boolean;
   currentBranch?: string;
   onSelect: (c: Commit) => void;
@@ -327,12 +350,26 @@ function GraphRowView({
       {selected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#a3f185]" />}
 
       {/* ── Column 1: BRANCH / TAG labels — 260px ── */}
-      <div className="w-[260px] shrink-0 flex items-center justify-end gap-1 pl-3 pr-3 overflow-hidden">
+      <div
+        className="shrink-0 flex items-center justify-end gap-1 pl-3 pr-3 overflow-hidden"
+        style={{ width: columnWidths.refs }}
+      >
         {refs.map((ref, ri) => <RefChip key={ri} ref={ref} />)}
       </div>
 
       {/* ── Column 2: SVG graph lanes ── */}
-      <svg width={graphWidth} height={ROW_H} className="shrink-0" style={{ overflow: 'visible' }}>
+      <div className="shrink-0 overflow-hidden relative" style={{ width: graphColumnWidth }}>
+        <div
+          className="absolute top-1 bottom-1 pointer-events-none"
+          style={{
+            left: PADDING_LEFT + row.lane * LANE_W,
+            right: 0,
+            backgroundColor: `${row.laneColor}18`,
+            borderRight: `2px solid ${row.laneColor}`,
+            opacity: selected ? 0.6 : 0.42,
+          }}
+        />
+      <svg width={graphWidth} height={ROW_H} className="block relative z-10" style={{ overflow: 'visible' }}>
         {/* Pass-through lanes */}
         {row.activeLanes.map(({ lane, color }) => (
           <line
@@ -402,9 +439,10 @@ function GraphRowView({
           {initials(row.commit.authorName)}
         </text>
       </svg>
+      </div>
 
       {/* ── Column 3: Description ── */}
-      <div className="flex-1 min-w-0 flex items-center gap-3 pl-2 pr-3">
+      <div className="flex-1 min-w-0 flex items-center gap-3 pl-4 pr-3">
         <span className={cn('truncate text-sm', selected ? 'text-[#d9e7fc]' : 'text-[#d9e7fc] group-hover:text-[#d9e7fc]')}>
           {mainMessage}
         </span>
@@ -414,11 +452,14 @@ function GraphRowView({
       </div>
 
       {/* ── Right meta ── */}
-      <div className="flex items-center gap-3 text-[11px] font-mono shrink-0 pr-3 text-[#697789]">
-        <span className="w-20 text-right truncate">{formatDate(row.commit.date)}</span>
+      <div className="flex items-center text-[11px] font-mono shrink-0 pr-3 text-[#697789]">
+        <span className="text-right truncate" style={{ width: columnWidths.date }}>{formatDate(row.commit.date)}</span>
         <span
-          className={cn('w-16 text-right', selected ? 'text-[#a3f185]' : '')}
-          style={!selected ? { color: row.laneColor, opacity: 0.8 } : undefined}
+          className={cn('text-right', selected ? 'text-[#a3f185]' : '')}
+          style={{
+            width: columnWidths.hash,
+            ...(!selected ? { color: row.laneColor, opacity: 0.8 } : undefined),
+          }}
         >
           {row.commit.shortHash}
         </span>
@@ -453,14 +494,21 @@ function RefChip({ ref }: { ref: ParsedRef }) {
 }
 
 function WIPRow({
-  stagedCount, unstagedCount, graphWidth, laneColor,
-}: { stagedCount: number; unstagedCount: number; graphWidth: number; laneColor: string }) {
+  stagedCount, unstagedCount, graphWidth, graphColumnWidth, columnWidths, laneColor,
+}: {
+  stagedCount: number;
+  unstagedCount: number;
+  graphWidth: number;
+  graphColumnWidth: number;
+  columnWidths: CommitGraphColumnWidths;
+  laneColor: string;
+}) {
   return (
     <div
       className="flex items-center relative bg-[#a3f185]/5 border-l-2 border-[#a3f185]/40"
       style={{ height: ROW_H }}
     >
-      <div className="w-[260px] shrink-0 flex items-center justify-end pr-3">
+      <div className="shrink-0 flex items-center justify-end pr-3" style={{ width: columnWidths.refs }}>
         {stagedCount > 0 && (
           <span
             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium"
@@ -471,16 +519,18 @@ function WIPRow({
         )}
       </div>
 
-      <svg width={graphWidth} height={ROW_H} className="shrink-0" style={{ overflow: 'visible' }}>
-        <line
-          x1={PADDING_LEFT} y1={ROW_H / 2} x2={PADDING_LEFT} y2={ROW_H}
-          stroke={laneColor} strokeWidth={2} strokeDasharray="3 3" opacity={0.6}
-        />
-        <circle
-          cx={PADDING_LEFT} cy={ROW_H / 2} r={DOT_R - 1}
-          fill="none" stroke={laneColor} strokeWidth={2} strokeDasharray="2 2" opacity={0.8}
-        />
-      </svg>
+      <div className="shrink-0 overflow-visible" style={{ width: graphColumnWidth }}>
+        <svg width={graphWidth} height={ROW_H} className="block" style={{ overflow: 'visible' }}>
+          <line
+            x1={PADDING_LEFT} y1={ROW_H / 2} x2={PADDING_LEFT} y2={ROW_H}
+            stroke={laneColor} strokeWidth={2} strokeDasharray="3 3" opacity={0.6}
+          />
+          <circle
+            cx={PADDING_LEFT} cy={ROW_H / 2} r={DOT_R - 1}
+            fill="none" stroke={laneColor} strokeWidth={2} strokeDasharray="2 2" opacity={0.8}
+          />
+        </svg>
+      </div>
 
       <div className="flex-1 min-w-0 flex items-center gap-2 pl-2">
         <span className="text-sm text-[#a3f185] font-mono">// WIP</span>

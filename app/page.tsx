@@ -19,6 +19,22 @@ import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
+const GRAPH_COLUMN_DEFAULTS = {
+  refs: 260,
+  graph: 88,
+  date: 80,
+  hash: 64,
+};
+
+const GRAPH_COLUMN_LIMITS = {
+  refs: { min: 160, max: 520 },
+  graph: { min: 56, max: 260 },
+  date: { min: 64, max: 150 },
+  hash: { min: 56, max: 120 },
+};
+
+type GraphColumnKey = keyof typeof GRAPH_COLUMN_DEFAULTS;
+
 function formatDate(iso: string): string {
   if (!iso) return '';
   const d = new Date(iso);
@@ -177,6 +193,19 @@ function RepoStartChooser({
   );
 }
 
+function GraphColumnHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      className="group w-0 self-stretch -my-2 shrink-0 cursor-col-resize relative overflow-visible"
+      title="Arrastrar para redimensionar columna"
+    >
+      <div className="absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-[#3c495a]/20 group-hover:bg-[#a3f185]/45 group-active:bg-[#a3f185]/70 transition-colors" />
+      <div className="absolute inset-y-0 -left-1.5 -right-1.5 bg-transparent group-hover:bg-[#a3f185]/35 group-active:bg-[#a3f185]/60 transition-colors" />
+    </div>
+  );
+}
+
 export default function GitCronPage() {
   const {
     openRepos, activeRepoIdx, setActiveRepoIdx,
@@ -227,10 +256,17 @@ export default function GitCronPage() {
   // ── Resizable column widths ──
   const [sidebarW, setSidebarW] = useState(240);
   const [detailsW, setDetailsW] = useState(320);
+  const [graphColumns, setGraphColumns] = useState(GRAPH_COLUMN_DEFAULTS);
   const dragRef = useRef<{
     col: 'sidebar' | 'details';
     startX: number;
     startW: number;
+  } | null>(null);
+  const graphDragRef = useRef<{
+    col: GraphColumnKey;
+    startX: number;
+    startW: number;
+    direction: 1 | -1;
   } | null>(null);
 
   const startColDrag = (col: 'sidebar' | 'details') => (e: React.MouseEvent) => {
@@ -263,6 +299,36 @@ export default function GitCronPage() {
     document.addEventListener('mouseup', onUp);
   };
 
+  const startGraphColDrag = (col: GraphColumnKey, direction: 1 | -1 = 1) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    graphDragRef.current = {
+      col,
+      startX: e.clientX,
+      startW: graphColumns[col],
+      direction,
+    };
+    const onMove = (ev: MouseEvent) => {
+      if (!graphDragRef.current) return;
+      const { col: activeCol, startX, startW, direction: dragDirection } = graphDragRef.current;
+      const delta = (ev.clientX - startX) * dragDirection;
+      const limits = GRAPH_COLUMN_LIMITS[activeCol];
+      const width = Math.max(limits.min, Math.min(limits.max, startW + delta));
+
+      setGraphColumns((prev) => {
+        const next = { ...prev, [activeCol]: width };
+        localStorage.setItem('gitcron:graphColumns', JSON.stringify(next));
+        return next;
+      });
+    };
+    const onUp = () => {
+      graphDragRef.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -286,11 +352,29 @@ export default function GitCronPage() {
   useEffect(() => {
     const savedSidebarW = localStorage.getItem('gitcron:sidebarW');
     const savedDetailsW = localStorage.getItem('gitcron:detailsW');
+    const savedGraphColumns = localStorage.getItem('gitcron:graphColumns');
     const parsedSidebarW = savedSidebarW ? parseInt(savedSidebarW, 10) : NaN;
     const parsedDetailsW = savedDetailsW ? parseInt(savedDetailsW, 10) : NaN;
 
     if (!Number.isNaN(parsedSidebarW)) setSidebarW(parsedSidebarW);
     if (!Number.isNaN(parsedDetailsW)) setDetailsW(parsedDetailsW);
+    if (savedGraphColumns) {
+      try {
+        const parsed = JSON.parse(savedGraphColumns) as Partial<typeof GRAPH_COLUMN_DEFAULTS>;
+        setGraphColumns((prev) => {
+          const next = { ...prev };
+          (Object.keys(GRAPH_COLUMN_DEFAULTS) as GraphColumnKey[]).forEach((key) => {
+            const value = parsed[key];
+            if (typeof value !== 'number' || Number.isNaN(value)) return;
+            const limits = GRAPH_COLUMN_LIMITS[key];
+            next[key] = Math.max(limits.min, Math.min(limits.max, value));
+          });
+          return next;
+        });
+      } catch {
+        localStorage.removeItem('gitcron:graphColumns');
+      }
+    }
   }, []);
 
   // Repo-scoped local UI should not survive tab switches or closing a repo.
@@ -819,9 +903,11 @@ export default function GitCronPage() {
             /* Graph tab — default */
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[11px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
-                <div className="w-[260px] shrink-0 text-right pl-3 pr-3">Branch / Tag</div>
-                <div className="w-[88px] shrink-0 text-left">Graph</div>
-                <div className="flex-1 flex items-center gap-2">
+                <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
+                <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
+                <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
+                <GraphColumnHandle onMouseDown={startGraphColDrag('graph')} />
+                <div className="flex-1 flex items-center gap-2 pl-5">
                   Commit message
                   {filterText.trim() && (
                     <span className="text-[10px] normal-case px-1.5 py-0.5 rounded bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/30">
@@ -829,9 +915,11 @@ export default function GitCronPage() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-3 pr-3 text-right shrink-0">
-                  <span className="w-20">Date</span>
-                  <span className="w-16">Commit</span>
+                <GraphColumnHandle onMouseDown={startGraphColDrag('date', -1)} />
+                <div className="flex items-center pr-3 text-right shrink-0">
+                  <span style={{ width: graphColumns.date }}>Date</span>
+                  <GraphColumnHandle onMouseDown={startGraphColDrag('date')} />
+                  <span style={{ width: graphColumns.hash }}>Commit</span>
                 </div>
               </div>
 
@@ -846,6 +934,7 @@ export default function GitCronPage() {
                     currentBranch={currentBranch}
                     workingTreeFiles={modifiedFiles}
                     filterText={filterText}
+                    columnWidths={graphColumns}
                     onSelect={setSelectedCommit}
                     onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
                   />

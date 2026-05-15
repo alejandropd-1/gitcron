@@ -5,6 +5,8 @@ import type {
 } from '@/types/electron';
 import type { Lang } from '@/lib/i18n';
 
+export type FontSize = 'compact' | 'normal' | 'large';
+
 export interface Commit {
   hash: string;
   shortHash: string;
@@ -80,6 +82,7 @@ interface GitStore {
   githubUser: GitHubUser | null;
   // Preferences
   language: Lang;
+  fontSize: FontSize;
 
   setRepoPath: (path: string | null) => void;
   setRepoName: (name: string | null) => void;
@@ -104,6 +107,7 @@ interface GitStore {
   setGithubToken: (token: string | null) => void;
   setGithubUser: (user: GitHubUser | null) => void;
   setLanguage: (lang: Lang) => void;
+  setFontSize: (size: FontSize) => void;
 }
 
 type EmptyRepoFields = Omit<RepoState, 'path' | 'name'>;
@@ -269,6 +273,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   githubToken: null,
   githubUser: null,
   language: 'es',
+  fontSize: 'compact',
 
   setRepoPath: (repoPath) => set((state) => {
     if (!repoPath) {
@@ -316,5 +321,6 @@ export const useGitStore = create<GitStore>((set, get) => ({
   // Pure state setter — persistence is handled by hooks via IPC (safeStorage)
   setGithubToken: (githubToken) => set({ githubToken }),
   setLanguage: (language) => set({ language }),
+  setFontSize: (fontSize) => set({ fontSize }),
   setGithubUser: (githubUser) => set({ githubUser }),
 }));

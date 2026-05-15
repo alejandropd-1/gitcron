@@ -8,9 +8,10 @@ import {
   ArrowLeft, RotateCcw, Github, LogOut, Minus,
   Sparkles, Copy, Lock, Globe, Loader2, UserCircle2,
   GitMerge, TreePine, ArrowUp, ArrowDown, ChevronDown, Check,
+  Type,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useGitStore, Commit, GitFile, type RepoState } from '@/lib/git-store';
+import { useGitStore, Commit, GitFile, type RepoState, type FontSize } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
 import { DiffViewer } from '@/components/DiffViewer';
@@ -34,6 +35,12 @@ const GRAPH_COLUMN_LIMITS = {
 };
 
 type GraphColumnKey = keyof typeof GRAPH_COLUMN_DEFAULTS;
+
+const FONT_SIZE_OPTIONS: Array<{ key: FontSize; px: number }> = [
+  { key: 'compact', px: 15 },
+  { key: 'normal', px: 16 },
+  { key: 'large', px: 17 },
+];
 
 function formatDate(iso: string): string {
   if (!iso) return '';
@@ -225,7 +232,7 @@ export default function GitCronPage() {
     checkoutBranch, checkoutBranchSmart, createBranch, pushChanges, pullChanges,
     openTerminal, stashApply, stashDrop, stashClear,
     connectGitHub, disconnectGitHub, loginWithGitHubDevice, bootstrapGitHub,
-    bootstrapPreferences, changeLanguage,
+    bootstrapPreferences, changeLanguage, changeFontSize,
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch,
@@ -234,6 +241,8 @@ export default function GitCronPage() {
 
   const t = useT();
   const language = useGitStore((s) => s.language);
+  const fontSize = useGitStore((s) => s.fontSize);
+  const appFontSizePx = FONT_SIZE_OPTIONS.find((option) => option.key === fontSize)?.px ?? 15;
 
   const {
     openRepo, restoreLastRepo, closeRepo, loadAll, loadDiff,
@@ -351,6 +360,10 @@ export default function GitCronPage() {
   useEffect(() => {
     if (repoPath) loadAll(repoPath);
   }, [repoPath]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${appFontSizePx}px`;
+  }, [appFontSizePx]);
 
   // Read persisted split widths only on the client to avoid SSR hydration mismatches.
   useEffect(() => {
@@ -971,7 +984,7 @@ export default function GitCronPage() {
           ) : (
             /* Graph tab — default */
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[11px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
+              <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
                 <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
                 <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
                 <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
@@ -986,7 +999,7 @@ export default function GitCronPage() {
                 </div>
                 <GraphColumnHandle onMouseDown={startGraphColDrag('date', -1)} />
                 <div className="flex items-center pr-3 text-right shrink-0">
-                  <span style={{ width: graphColumns.date }}>Date</span>
+                  <span className="pr-3" style={{ width: graphColumns.date }}>Date</span>
                   <GraphColumnHandle onMouseDown={startGraphColDrag('date')} />
                   <span style={{ width: graphColumns.hash }}>Commit</span>
                 </div>
@@ -1293,6 +1306,37 @@ export default function GitCronPage() {
                 </section>
 
                 {/* ── Theme ── */}
+                <section>
+                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <Type size={12} /> {t('settings.fontSize')}
+                  </h4>
+                  <p className="text-xs text-[#9eacc0] mb-3">{t('settings.fontSizeDesc')}</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {FONT_SIZE_OPTIONS.map((option) => {
+                      const labelKey = option.key === 'compact'
+                        ? 'settings.fontCompact'
+                        : option.key === 'normal'
+                          ? 'settings.fontNormal'
+                          : 'settings.fontLarge';
+                      return (
+                        <button
+                          key={option.key}
+                          onClick={() => changeFontSize(option.key)}
+                          className={cn(
+                            'px-3 py-2 rounded border text-sm flex items-center justify-center gap-2 transition-colors',
+                            fontSize === option.key
+                              ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
+                              : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc] hover:border-[#3c495a]/30',
+                          )}
+                        >
+                          <span className="font-medium">{t(labelKey)}</span>
+                          {fontSize === option.key && <Check size={14} strokeWidth={3} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
                 <section>
                   <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Sparkles size={12} /> {t('settings.theme')}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useGitStore } from '@/lib/git-store';
+import { useGitStore, type FontSize } from '@/lib/git-store';
 import { useRepoLoader } from './use-repo-loader';
 import type { Lang } from '@/lib/i18n';
 
@@ -18,6 +18,7 @@ export const useGitActions = () => {
     setGithubToken,
     setGithubUser,
     setLanguage,
+    setFontSize,
   } = useGitStore();
 
   const { refreshLog, refreshStatus, refreshBranches, refreshStashes } = useRepoLoader();
@@ -592,12 +593,24 @@ export const useGitActions = () => {
     }
   };
 
+  /** Change UI font size and persist to encrypted storage. */
+  const changeFontSize = async (size: FontSize) => {
+    setFontSize(size);
+    if (window.api) {
+      await window.api.storageSet('fontSize', size).catch(() => {});
+    }
+  };
+
   /** Hydrate language pref + GitHub auth from storage on mount. */
   const bootstrapPreferences = async () => {
     if (!window.api) return;
     const lr = await window.api.storageGet('language');
     if (lr.success && (lr.data === 'es' || lr.data === 'en')) {
       setLanguage(lr.data as Lang);
+    }
+    const fr = await window.api.storageGet('fontSize');
+    if (fr.success && (fr.data === 'compact' || fr.data === 'normal' || fr.data === 'large')) {
+      setFontSize(fr.data as FontSize);
     }
   };
 
@@ -732,5 +745,6 @@ export const useGitActions = () => {
     bootstrapGitHub,
     bootstrapPreferences,
     changeLanguage,
+    changeFontSize,
   };
 };

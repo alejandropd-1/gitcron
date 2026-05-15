@@ -428,6 +428,10 @@ export const useGitActions = () => {
     try {
       const r = await window.api.gitPushBranch(repoPath, branch, githubToken ?? undefined);
       if (r.success) {
+        const wasNewBranch = (r.data as any)?.setUpstream;
+        setSuccess(wasNewBranch
+          ? `Branch "${branch}" publicada en origin`
+          : `Push de "${branch}" exitoso`);
         await refreshLog(); await refreshBranches();
       } else {
         const isAuth = (r.data as any)?.authRequired;
@@ -466,7 +470,10 @@ export const useGitActions = () => {
             : `Push fallido: ${result.error}`
         );
       } else {
-        setSuccess('Push exitoso — cambios subidos al remoto');
+        const wasNewBranch = (result.data as any)?.setUpstream;
+        setSuccess(wasNewBranch
+          ? 'Branch publicada en origin — upstream configurado automáticamente'
+          : 'Push exitoso — cambios subidos al remoto');
         await refreshLog();
         await refreshBranches();
       }

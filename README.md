@@ -31,15 +31,15 @@ Cliente git de escritorio construido con tecnologías web modernas. Diseñado pa
 - **Crear** un repo nuevo (inicializa con README + .gitignore + initial commit)
 - **Clonar** desde cualquier URL o desde tus repos de GitHub con un click
 - **Crear en GitHub + clonar** en un solo paso (requiere login)
-- **Multi-repo** _(en desarrollo)_: solapas en el header para tener varios repos abiertos y cambiar entre ellos sin perder estado
+- **Multi-repo** _(en desarrollo — ver Roadmap)_: solapas para tener varios repos abiertos simultáneamente
 
 ### Visualización del historial
 - **Commit graph** estilo árbol: líneas de colores, divergencias y merges con curvas bezier
 - **Columna Branch/Tag** con chips coloridos e iconos (local 🖥, remoto ☁, tag 🏷, activa ✓)
-- **Fila WIP** al tope cuando hay cambios sin commitear
+- **Fila WIP** al tope cuando hay cambios sin commitear (con contador de staged/unstaged)
 - **Iniciales del autor** dentro de cada dot del grafo
 - **Vista History**: lista cronológica plana, más cómoda para escanear mensajes largos
-- **Vista Commit**: resumen del staging area con flujo paso a paso
+- **Vista Commit**: resumen del staging area con flujo paso a paso y stats de cambios
 
 ### Staging y commits
 - **Columnas separadas** Unstaged ↑ / Staged ↓ — click `+` mueve archivos entre secciones
@@ -48,28 +48,37 @@ Cliente git de escritorio construido con tecnologías web modernas. Diseñado pa
 - **Commit** real con mensaje, autor y fecha
 - **Reset All** con banner de confirmación antes de ejecutar
 - **Recovery automático** de `index.lock` con botón en el toast de error
+- **Banner WIP** en el panel de commit details cuando hay cambios sin commitear
 
 ### Branches
 - **Sidebar** con árbol de branches agrupadas en carpetas por prefijo (`feature/`, `claude/`, etc.)
 - **Ahead/behind counts** por branch (cuántos commits adelante/atrás del remote)
-- **Checkout** via doble click o menú contextual (con detección de conflictos)
-- **Crear, renombrar, eliminar** branches
-- **Merge** de una branch en otra con detección de conflictos
+- **Checkout** via doble click o menú contextual (con detección de conflictos y opción stash-and-switch)
+- **Crear, renombrar, eliminar** branches (con confirmación si no está mergeada)
+- **Merge** de una branch en otra (con opción de checkout automático previo)
 - **Rebase** de la branch actual sobre otra
+- **Fast-forward** cuando no hay divergencia
 - **Stash** de archivos individuales o de todo el working tree
+- **Limpiar todos los stashes** con confirmación inline
 
 ### Integración con GitHub
 - **OAuth Device Flow** — login vía navegador sin contraseñas ni tokens manuales (igual que `gh auth login`)
 - **Token personal** como alternativa manual (PAT)
-- **Pull / Push** con autenticación inyectada vía `GIT_ASKPASS` (el token nunca toca `.git/config`)
+- **Pull / Push** con autenticación via URL injection temporal (Electron 42 bloquea `GIT_ASKPASS`)
+- **Auto `--set-upstream`**: primer push de una branch nueva se publica automáticamente en origin
 - **Lista de PRs** abiertas del repo actual en el sidebar (requiere login)
 - **Crear repo** en GitHub directamente desde la app
 - **Clonar repos privados** de tu cuenta con un click
 
 ### Menús contextuales
-- **Click derecho en commit**: merge, revert, checkout, crear branch, copiar SHA
-- **Click derecho en branch**: merge into current, rebase, fast-forward, checkout, rename, delete, copy name
+- **Click derecho en commit**: merge, revert, checkout, crear branch desde el commit, copiar SHA
+- **Click derecho en branch**: merge into current, rebase, fast-forward, checkout, create from here, rename, delete, pull, push, copy name
 - **Click derecho en archivo**: stage/unstage, add to .gitignore, stash file, abrir en editor, mostrar en carpeta, copiar path, descartar, eliminar
+
+### Feedback y UX
+- **Toasts de éxito** (verde, auto-dismiss 3s): commit, push, pull, stash, checkout, create branch
+- **Toasts de error** (rojo): con botón "Eliminar lock" cuando corresponde
+- **Filtro de commits**: search bar con `Ctrl+Alt+F`, filtra por mensaje / hash / autor / email en Graph y History
 
 ### Diseño e internacionalización
 - Tema oscuro (navy profundo) basado en el design system **"The Compiled Soul"**
@@ -94,13 +103,13 @@ Cliente git de escritorio construido con tecnologías web modernas. Diseñado pa
 │  hooks/use-repo-loader     carga de datos del repo          │
 │  hooks/use-translation     i18n reactivo al idioma          │
 │  lib/git-store             estado global (Zustand)          │
-│  lib/i18n                  diccionarios ES/EN               │
+│  lib/i18n                  diccionarios ES/EN (~250 strings) │
 └────────────────────────┬────────────────────────────────────┘
                          │  IPC (contextBridge tipado)
 ┌────────────────────────▼────────────────────────────────────┐
 │  Main process (Electron)                                     │
 │                                                              │
-│  electron/main.ts          40+ handlers IPC                 │
+│  electron/main.ts          50+ handlers IPC                 │
 │  electron/preload.ts       bridge seguro al renderer        │
 │                                                              │
 │  Grupos de handlers:                                         │
@@ -130,7 +139,7 @@ Ver [`SECURITY.md`](SECURITY.md) para el análisis completo. Resumen:
 | Aspecto | Implementación |
 |---|---|
 | **Token de GitHub** | Cifrado en disco via `safeStorage` (DPAPI en Windows, Keychain en macOS) |
-| **Token en git** | Nunca toca `.git/config` — se usa `GIT_ASKPASS` con env vars por proceso |
+| **Token en git** | URL injection temporal durante push/pull (GIT_ASKPASS bloqueado por Electron 42) |
 | **CSP** | `Content-Security-Policy` en `<head>` — bloquea scripts y conexiones a dominios no permitidos |
 | **Context isolation** | `contextIsolation: true` + `nodeIntegration: false` — el renderer no accede a Node |
 | **Spawn seguro** | Terminal con `spawn` + args array, `shell: false` — sin interpolación de comandos |
@@ -150,8 +159,6 @@ Ver [`SECURITY.md`](SECURITY.md) para el análisis completo. Resumen:
 ```bash
 git clone <repo>
 cd gitCronos
-
-# Con pnpm (recomendado)
 pnpm install
 ```
 
@@ -161,19 +168,15 @@ pnpm install
 pnpm run electron:dev
 ```
 
-Levanta en paralelo:
-1. **Next.js** en `http://localhost:3000` (hot reload del frontend)
-2. **tsup** en modo watch (recompila `electron/main.ts` y `preload.ts` al cambiar)
-3. **Electron** cargando desde localhost:3000
-
 > **Nota**: cuando cambies archivos en `electron/`, Electron necesita reiniciarse (`Ctrl+C` + `electron:dev`). El frontend tiene hot reload automático.
 
 ### Build para producción
 
 ```bash
-pnpm run package:win    # → release/GitCron Setup x.x.x.exe + portable
-pnpm run package:mac    # → release/GitCron-x.x.x.dmg
-pnpm run package:linux  # → release/GitCron-x.x.x.AppImage + .deb
+# Requiere configurar electron-builder primero (ver Roadmap > Tier 3)
+pnpm run package:win
+pnpm run package:mac
+pnpm run package:linux
 ```
 
 ### Auditoría de dependencias
@@ -196,7 +199,7 @@ gitCronos/
 │   ├── CommitGraph.tsx     # Grafo SVG de commits con lanes de color
 │   └── DiffViewer.tsx      # Visor de diffs unificados
 ├── electron/
-│   ├── main.ts             # Main process: 40+ handlers IPC
+│   ├── main.ts             # Main process: 50+ handlers IPC
 │   └── preload.ts          # Context bridge tipado y seguro
 ├── hooks/
 │   ├── use-git-actions.ts  # Commit, merge, push, pull, stash, etc.
@@ -230,21 +233,42 @@ Basado en el sistema de diseño del portfolio `DESIGN.MD`:
 
 ## Roadmap
 
-### En desarrollo
-- [ ] **Multi-repo**: solapas en el header para tener varios repos abiertos simultáneamente. Cada solapa muestra el nombre del repo y permite cambiar entre ellos manteniendo el estado de cada uno por separado (branch activa, commit seleccionado, etc.)
-- [ ] **Branch context menu** completo (merge con checkout automático, rebase, fast-forward, pull/push por branch)
+### ⬜ Tier 1 — Crítico (próximo)
 
-### Próximas features
-- [ ] Light theme
-- [ ] Auto-fetch en segundo plano
-- [ ] Notificaciones del OS al terminar operaciones largas
-- [ ] Carpeta default configurable para dialog open/clone
-- [ ] Code signing para distribución (.exe firmado → sin SmartScreen warning)
-- [ ] Auto-update via GitHub Releases
-- [ ] Multi-cuenta GitHub (personal + work)
-- [ ] GitLab / Bitbucket (mismo OAuth Device Flow)
-- [ ] Atajos de teclado configurables
-- [ ] Panel de Pull Requests con diff y review inline
+- [ ] **Multi-repo con solapas**: refactor del store para soportar múltiples repos abiertos simultáneamente. Cada solapa = instancia independiente con su propio estado (branches, commits, staging). Persistencia de repos abiertos en safeStorage.
+
+### ⬜ Tier 2 — Importante
+
+- [ ] **Auto-fetch en segundo plano**: `git fetch --all` cada N minutos (configurable en Settings). Actualiza automáticamente los `ahead/behind` counts en el sidebar.
+- [ ] **Filtro de commits por branch**: actualmente el search filtra por texto; agregar filtro para ver solo commits de una branch específica.
+- [ ] **Carpeta default configurable** para los dialogs de open/clone (guardar en safeStorage).
+
+### ⬜ Tier 3 — Producción / distribución
+
+- [ ] **Setup electron-builder**: agregar `electron-builder` + `cross-env` a devDependencies, configurar sección `"build"` en `package.json`, scripts `package:win/mac/linux`, crear `build-resources/icon.ico`.
+- [ ] **Code signing**: certificado EV (~300 USD/año) para Windows NSIS → elimina SmartScreen warning. Apple Developer Account (~99 USD/año) para macOS DMG.
+- [ ] **Auto-update via electron-updater**: descarga y aplica updates desde GitHub Releases. Requiere releases firmados.
+
+### ⬜ Tier 4 — Mejoras de UX
+
+- [ ] **Notificaciones del OS**: `new Notification()` cuando termina un push/pull largo (en segundo plano).
+- [ ] **Atajos de teclado configurables**: `Ctrl+S` = commit, `Ctrl+P` = push, etc. Modal de listado editable.
+- [ ] **Light theme**: segundo set de paleta CSS (mucho trabajo; requiere variables Tailwind o dark/light class toggle).
+
+### ⬜ Tier 5 — Futuro
+
+- [ ] **Multi-cuenta GitHub**: personal + work. Requiere multi-token storage y selector de cuenta por repo.
+- [ ] **GitLab / Bitbucket**: OAuth Device Flow específico de cada proveedor.
+- [ ] **Panel de PRs con diff inline**: ver los cambios de una PR dentro de la app, con comentarios.
+- [ ] **Amend commit**: reescribir el último commit (mensaje o archivos) con `git commit --amend`.
+- [ ] **Squash / interactive rebase**: desde la UI, sin terminal.
+- [ ] **Cherry pick desde context menu**: ya tiene el item de menú, falta implementar el IPC.
+
+---
+
+## Versión actual
+
+**v0.1.2** — ver [`CHANGELOG.md`](CHANGELOG.md) para el historial completo de cambios.
 
 ---
 

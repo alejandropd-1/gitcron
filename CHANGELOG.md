@@ -5,6 +5,16 @@ Formato: `[v0.x.x]` con fecha y descripción de cada feature/fix.
 
 ---
 
+## [v0.1.2] — 2026-05-15 — Fix push en branches nuevas
+
+### Fix de git push sin upstream
+
+- **Auto `--set-upstream` en primer push**: cuando una branch fue creada localmente pero nunca se publicó en `origin`, git fallaba con _"The current branch has no upstream branch"_. Ahora `git:push` y `git:push-branch` detectan ese error y reintentan automáticamente con `git push --set-upstream origin <branch>`, configurando el tracking silenciosamente.
+- Toast de éxito diferenciado: "Branch publicada en origin — upstream configurado automáticamente" vs "Push exitoso — cambios subidos al remoto"
+- Aplica tanto al botón **Push** del toolbar como al **Push** del context menu de la branch
+
+---
+
 ## [v0.1.1] — 2026-05-15 — Polish, feedback y fixes de seguridad
 
 ### Mejoras de UX

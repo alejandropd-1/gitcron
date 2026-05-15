@@ -726,8 +726,21 @@ ipcMain.handle('git:pull-branch', async (_event, targetPath: string, branch: str
 // ── Push a SPECIFIC branch ──
 ipcMain.handle('git:push-branch', async (_event, targetPath: string, branch: string, token?: string) => {
   try {
-    await withGitHubToken(targetPath, token, (g) => g.push(['origin', branch]));
-    return { success: true };
+    let setUpstream = false;
+    await withGitHubToken(targetPath, token, async (g) => {
+      try {
+        await g.push(['origin', branch]);
+      } catch (firstErr: any) {
+        // Branch nueva sin upstream → auto-set-upstream
+        if (/no upstream branch|has no upstream|does not have a local branch/i.test(firstErr.message)) {
+          await g.push(['--set-upstream', 'origin', branch]);
+          setUpstream = true;
+        } else {
+          throw firstErr;
+        }
+      }
+    });
+    return { success: true, data: { setUpstream } };
   } catch (error: any) {
     const isAuth = /authentication|credentials|permission denied|403|401/i.test(error.message);
     return { success: false, error: error.message, data: { authRequired: isAuth } };
@@ -772,8 +785,27 @@ async function withGitHubToken<T>(
 
 ipcMain.handle('git:push', async (_event, targetPath: string, token?: string) => {
   try {
-    await withGitHubToken(targetPath, token, (g) => g.push());
-    return { success: true, data: { success: true } };
+    let setUpstream = false;
+    await withGitHubToken(targetPath, token, async (g) => {
+      try {
+        await g.push();
+      } catch (firstErr: any) {
+        // Branch nueva sin upstream → auto-set-upstream en origin
+        if (/no upstream branch|has no upstream|does not have a local branch/i.test(firstErr.message)) {
+          const status = await simpleGit(targetPath).status();
+          const branch = status.current;
+          if (!branch) throw firstErr;
+          await g.push(['--set-upstream', 'origin', branch]);
+          setUpstream = true;
+        } else {
+          throw firstErr;
+        }
+      }
+    });
+    return {
+      success: true,
+      data: { success: true, setUpstream },
+    };
   } catch (error: any) {
     const isAuth = /authentication|credentials|ssh|permission denied|403|401/i.test(error.message);
     return {

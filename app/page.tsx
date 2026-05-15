@@ -121,6 +121,62 @@ function RepoTabs({
   );
 }
 
+function RepoStartChooser({
+  githubUser,
+  onOpenExisting,
+  onCreateNew,
+  onCloneRepo,
+  onConnectGitHub,
+}: {
+  githubUser: { login: string } | null;
+  onOpenExisting: () => void | Promise<void>;
+  onCreateNew: () => void;
+  onCloneRepo: () => void;
+  onConnectGitHub: () => void;
+}) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-8 text-[#9eacc0] p-8">
+      <div className="text-center">
+        <FolderOpen size={56} className="mx-auto opacity-20 mb-4" />
+        <p className="text-lg font-bold text-[#d9e7fc] mb-1">Bienvenido a GitCron</p>
+        <p className="text-sm">Elegi como empezar:</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 max-w-3xl">
+        <EmptyStateCard
+          icon={<FolderOpen size={28} />}
+          title="Abrir existente"
+          desc="Selecciona una carpeta que ya sea un repo git"
+          onClick={onOpenExisting}
+        />
+        <EmptyStateCard
+          icon={<Sparkles size={28} />}
+          title="Crear nuevo"
+          desc="Inicializar un repo nuevo en tu maquina"
+          onClick={onCreateNew}
+          highlighted
+        />
+        <EmptyStateCard
+          icon={<Download size={28} />}
+          title="Clonar de GitHub"
+          desc="Bajar un repo existente desde una URL"
+          onClick={onCloneRepo}
+        />
+      </div>
+
+      {!githubUser && (
+        <button
+          onClick={onConnectGitHub}
+          className="text-xs text-[#9eacc0] hover:text-[#a3f185] underline transition-colors flex items-center gap-1.5"
+        >
+          <Github size={12} />
+          Conecta tu cuenta de GitHub para clonar repos privados
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function GitCronPage() {
   const {
     openRepos, activeRepoIdx, setActiveRepoIdx,
@@ -214,6 +270,7 @@ export default function GitCronPage() {
   const filterInputRef = useRef<HTMLInputElement>(null);
   const [showInitRepo, setShowInitRepo] = useState(false);
   const [showCloneRepo, setShowCloneRepo] = useState(false);
+  const [showRepoChooser, setShowRepoChooser] = useState(false);
   const [tokenInput, setTokenInput] = useState('');
   const [authMode, setAuthMode] = useState<'oauth' | 'token'>('oauth');
   const [deviceCodeInfo, setDeviceCodeInfo] = useState<{ userCode: string; verificationUri: string } | null>(null);
@@ -374,9 +431,34 @@ export default function GitCronPage() {
     }
   };
 
+  const handleOpenRepoChooser = () => {
+    setSelectedCommit(null);
+    setSelectedFile(null);
+    setCurrentDiff('');
+    setShowRepoChooser(true);
+  };
+
+  const handleOpenExistingFromChooser = async () => {
+    await openRepo();
+    if (useGitStore.getState().repoPath) {
+      setShowRepoChooser(false);
+    }
+  };
+
+  const handleCreateRepoFromChooser = () => {
+    setShowRepoChooser(false);
+    setShowInitRepo(true);
+  };
+
+  const handleCloneRepoFromChooser = () => {
+    setShowRepoChooser(false);
+    setShowCloneRepo(true);
+  };
+
   const handleSelectRepoTab = async (idx: number) => {
     const repo = openRepos[idx];
     if (!repo || idx === activeRepoIdx) return;
+    setShowRepoChooser(false);
     setActiveRepoIdx(idx);
     if (window.api) {
       await Promise.all([
@@ -388,6 +470,7 @@ export default function GitCronPage() {
 
   const handleCloseRepoTab = async (idx: number) => {
     await closeRepo(idx);
+    setShowRepoChooser(false);
   };
 
   return (
@@ -397,7 +480,7 @@ export default function GitCronPage() {
         activeIdx={activeRepoIdx}
         onSelect={handleSelectRepoTab}
         onClose={handleCloseRepoTab}
-        onOpen={openRepo}
+        onOpen={handleOpenRepoChooser}
       />
       {/* ──────────── TOP NAV ──────────── */}
       <header className="h-12 border-b border-[#3c495a]/15 bg-[#041425]/85 backdrop-blur-xl flex items-center justify-between px-4 shrink-0">
@@ -650,7 +733,7 @@ export default function GitCronPage() {
 
         {/* COLUMN 2: CENTER (Commit graph OR diff viewer) */}
         <main className="flex-1 bg-[#020f1e] overflow-hidden relative flex flex-col">
-          {!repoPath ? (
+          {!repoPath || showRepoChooser ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-8 text-[#9eacc0] p-8">
               <div className="text-center">
                 <FolderOpen size={56} className="mx-auto opacity-20 mb-4" />
@@ -663,20 +746,20 @@ export default function GitCronPage() {
                   icon={<FolderOpen size={28} />}
                   title="Abrir existente"
                   desc="Seleccioná una carpeta que ya sea un repo git"
-                  onClick={openRepo}
+                  onClick={handleOpenExistingFromChooser}
                 />
                 <EmptyStateCard
                   icon={<Sparkles size={28} />}
                   title="Crear nuevo"
                   desc="Inicializar un repo nuevo en tu máquina"
-                  onClick={() => setShowInitRepo(true)}
+                  onClick={handleCreateRepoFromChooser}
                   highlighted
                 />
                 <EmptyStateCard
                   icon={<Download size={28} />}
                   title="Clonar de GitHub"
                   desc="Bajar un repo existente desde una URL"
-                  onClick={() => setShowCloneRepo(true)}
+                  onClick={handleCloneRepoFromChooser}
                 />
               </div>
 

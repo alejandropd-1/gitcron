@@ -31,13 +31,15 @@ Cliente git de escritorio construido con tecnologías web modernas. Diseñado pa
 - **Crear** un repo nuevo (inicializa con README + .gitignore + initial commit)
 - **Clonar** desde cualquier URL o desde tus repos de GitHub con un click
 - **Crear en GitHub + clonar** en un solo paso (requiere login)
+- **Último repo recordado**: al reiniciar la app, se reabre automáticamente el último repo sin dialog
 - **Multi-repo** _(en desarrollo — ver Roadmap)_: solapas para tener varios repos abiertos simultáneamente
 
 ### Visualización del historial
 - **Commit graph** estilo árbol: líneas de colores, divergencias y merges con curvas bezier
-- **Columna Branch/Tag** con chips coloridos e iconos (local 🖥, remoto ☁, tag 🏷, activa ✓)
+- **Colores estables por branch**: cada branch tiene siempre el mismo color derivado de su nombre (hash); la branch activa siempre en verde
+- **Columna Branch/Tag** (260px) con chips coloridos e iconos (local 🖥, remoto ☁, tag 🏷, activa ✓); los chips de remote comparten color con su local
 - **Fila WIP** al tope cuando hay cambios sin commitear (con contador de staged/unstaged)
-- **Iniciales del autor** dentro de cada dot del grafo
+- **Iniciales del autor** dentro de cada dot del grafo, coloreado por lane/branch
 - **Vista History**: lista cronológica plana, más cómoda para escanear mensajes largos
 - **Vista Commit**: resumen del staging area con flujo paso a paso y stats de cambios
 
@@ -76,9 +78,10 @@ Cliente git de escritorio construido con tecnologías web modernas. Diseñado pa
 - **Click derecho en archivo**: stage/unstage, add to .gitignore, stash file, abrir en editor, mostrar en carpeta, copiar path, descartar, eliminar
 
 ### Feedback y UX
-- **Toasts de éxito** (verde, auto-dismiss 3s): commit, push, pull, stash, checkout, create branch
+- **Toasts de éxito** (verde, auto-dismiss 3s): commit, push, pull, stash, checkout, create branch, merge, rebase, fast-forward
 - **Toasts de error** (rojo): con botón "Eliminar lock" cuando corresponde
 - **Filtro de commits**: search bar con `Ctrl+Alt+F`, filtra por mensaje / hash / autor / email en Graph y History
+- **Columnas resizables**: arrastrá el borde entre sidebar↔centro y centro↔detalles para ajustar el ancho. Los tamaños persisten entre reinicios.
 
 ### Diseño e internacionalización
 - Tema oscuro (navy profundo) basado en el design system **"The Compiled Soul"**
@@ -268,7 +271,7 @@ Basado en el sistema de diseño del portfolio `DESIGN.MD`:
 
 ## Versión actual
 
-**v0.1.2** — ver [`CHANGELOG.md`](CHANGELOG.md) para el historial completo de cambios.
+**v0.1.3** — ver [`CHANGELOG.md`](CHANGELOG.md) para el historial completo de cambios.
 
 ---
 

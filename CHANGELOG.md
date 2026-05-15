@@ -5,6 +5,39 @@ Formato: `[v0.x.x]` con fecha y descripción de cada feature/fix.
 
 ---
 
+## [v0.1.3] — 2026-05-15 — Restauración de repo, columnas resizables y colores de branch
+
+### Último repo recordado al reiniciar
+
+- **Nuevo IPC `git:open-path`**: abre una ruta conocida sin dialog (para restauración silenciosa)
+- Al abrir cualquier repo (dialog, init, clone, crear en GitHub), la ruta se guarda en `safeStorage` (cifrado OS)
+- Al iniciar la app, `restoreLastRepo()` la reabre automáticamente sin intervención del usuario
+- Si la carpeta fue movida o borrada → no muestra error, vuelve al empty state normalmente
+
+### Columnas resizables con drag handle
+
+- **Drag handles** (1px, área ampliada) entre el sidebar y el centro, y entre el centro y el panel de detalles
+- Cursor `col-resize` al pasar por el borde; borde se vuelve verde neón al hover/drag
+- Sidebar: rango 160–400px (default 240px)
+- Panel de detalles: rango 240–560px (default 320px)
+- Los anchos se guardan en `localStorage` y se restauran entre reinicios
+
+### Colores estables por nombre de branch en el commit graph
+
+- **Hash por nombre**: cada branch siempre muestra el mismo color, derivado de un hash de su nombre
+- La branch activa (current) siempre en `#a3f185` (neon green)
+- Las ramas remote del mismo nombre comparten color con su local (`origin/main` = mismo color que `main`)
+- El shortHash de cada commit se muestra en el color de su lane/branch
+- Columna Branch/Tag expandida a **260px** para evitar truncado de chips
+
+### Notificaciones de éxito completadas
+
+- Toast verde para: merge, rebase, fast-forward (faltaban en la sesión anterior)
+- Detección de "Already up to date" en merge: toast diferenciado `"X ya estaba integrada — nada para mergear"`
+- El IPC `git:merge-branch` ahora devuelve `alreadyUpToDate: true` cuando no había nada para mergear
+
+---
+
 ## [v0.1.2] — 2026-05-15 — Fix push en branches nuevas
 
 ### Fix de git push sin upstream

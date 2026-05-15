@@ -354,7 +354,16 @@ function GraphRowView({
         className="shrink-0 flex items-center justify-end gap-1 pl-3 pr-3 overflow-hidden"
         style={{ width: columnWidths.refs }}
       >
-        {refs.map((ref, ri) => <RefChip key={ri} ref={ref} />)}
+        {refs.slice(0, 3).map((ref, ri) => <RefChip key={ri} ref={ref} />)}
+        {refs.length > 3 && (
+          <span
+            className="inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium shrink-0 whitespace-nowrap"
+            style={{ backgroundColor: '#9eacc033', borderColor: '#9eacc044', color: '#9eacc0' }}
+            title={refs.slice(3).map((r) => r.raw).join(', ')}
+          >
+            +{refs.length - 3}
+          </span>
+        )}
       </div>
 
       {/* ── Column 2: SVG graph lanes ── */}
@@ -478,7 +487,7 @@ function RefChip({ ref }: { ref: ParsedRef }) {
 
   return (
     <span
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium whitespace-nowrap max-w-[180px]"
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium whitespace-nowrap max-w-[120px] overflow-hidden"
       style={{
         backgroundColor: `${hex}${bgOpacity}`,
         borderColor: `${hex}${borderOpacity}`,
@@ -486,9 +495,9 @@ function RefChip({ ref }: { ref: ParsedRef }) {
       }}
       title={ref.raw}
     >
-      {ref.isCurrent && <Check size={10} strokeWidth={3} />}
-      {Icon && !ref.isCurrent && <Icon size={10} />}
-      <span className="truncate">{ref.name}</span>
+      {ref.isCurrent && <Check size={10} strokeWidth={3} className="shrink-0" />}
+      {Icon && !ref.isCurrent && <Icon size={10} className="shrink-0" />}
+      <span className="truncate min-w-0">{ref.name}</span>
     </span>
   );
 }

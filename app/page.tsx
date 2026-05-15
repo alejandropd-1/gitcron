@@ -562,7 +562,7 @@ export default function GitCronPage() {
             /* Graph tab — default */
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[11px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
-                <div className="w-[220px] shrink-0 text-right pl-4 pr-3">Branch / Tag</div>
+                <div className="w-[260px] shrink-0 text-right pl-3 pr-3">Branch / Tag</div>
                 <div className="w-[88px] shrink-0 text-left">Graph</div>
                 <div className="flex-1 flex items-center gap-2">
                   Commit message

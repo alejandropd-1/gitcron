@@ -634,7 +634,9 @@ ipcMain.handle('git:merge-branch', async (_event, targetPath: string, sourceBran
   try {
     const g = simpleGit(targetPath);
     const result = await g.merge([sourceBranch]);
-    return { success: true, data: result };
+    // Detect "Already up to date." — git exits 0 but nothing changed
+    const alreadyUpToDate = /already up.to.date/i.test(result.result ?? '');
+    return { success: true, data: { ...result, alreadyUpToDate } };
   } catch (error: any) {
     // simple-git throws on merge conflict — extract useful info
     const msg = error.message || String(error);

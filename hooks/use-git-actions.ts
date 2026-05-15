@@ -326,6 +326,10 @@ export const useGitActions = () => {
     try {
       const r = await window.api.gitMergeBranch(repoPath, sourceBranch);
       if (r.success) {
+        const alreadyUpToDate = (r.data as any)?.alreadyUpToDate;
+        setSuccess(alreadyUpToDate
+          ? `"${sourceBranch}" ya estaba integrada — nada para mergear`
+          : `Merge de "${sourceBranch}" completado`);
         await refreshLog(); await refreshStatus(); await refreshBranches();
         return { success: true };
       }
@@ -346,6 +350,7 @@ export const useGitActions = () => {
     try {
       const r = await window.api.gitRebase(repoPath, ontoBranch);
       if (r.success) {
+        setSuccess(`Rebase sobre "${ontoBranch}" completado`);
         await refreshLog(); await refreshStatus(); await refreshBranches();
         return { success: true };
       }
@@ -364,6 +369,7 @@ export const useGitActions = () => {
     try {
       const r = await window.api.gitFastForward(repoPath, branch, toRef);
       if (r.success) {
+        setSuccess(`"${branch}" actualizada (fast-forward)`);
         await refreshLog(); await refreshBranches();
         return { success: true as const };
       }

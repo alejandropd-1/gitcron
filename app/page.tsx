@@ -231,13 +231,16 @@ function FetchIndicator({ onClick }: { onClick: () => void | Promise<void> }) {
       onClick={() => onClick()}
       title={tooltip}
       className={cn(
-        'h-7 w-7 rounded flex items-center justify-center transition-colors',
-        isFetchingRemote
-          ? 'text-[#a3f185]'
-          : 'text-[#697789] hover:text-[#d9e7fc] hover:bg-[#3c495a]/20',
+        'flex flex-col items-center justify-center p-1.5 rounded transition-colors group',
+        'hover:bg-[#3c495a]',
       )}
     >
-      <RotateCcw size={13} className={cn(isFetchingRemote && 'animate-spin')} />
+      <div className={cn(
+        'w-5 h-5 flex items-center justify-center',
+        isFetchingRemote ? 'text-[#a3f185]' : 'text-[#9eacc0] group-hover:text-[#a3f185]',
+      )}>
+        <RotateCcw size={16} className={cn(isFetchingRemote && 'animate-spin')} />
+      </div>
     </button>
   );
 }
@@ -773,7 +776,6 @@ export default function GitCronPage() {
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
           <ToolbarButton icon={<Download />} onClick={pullChanges} title={t('toolbar.pull')} label={t('toolbar.pull')} disabled={!repoPath || isLoading} />
           <ToolbarButton icon={<Upload />} onClick={pushChanges} title={t('toolbar.push')} label={t('toolbar.push')} disabled={!repoPath || isLoading} />
-          <FetchIndicator onClick={runFetchCycle} />
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
           <ToolbarButton
             icon={<GitBranch />}
@@ -797,6 +799,7 @@ export default function GitCronPage() {
             )}
           </div>
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
+          <FetchIndicator onClick={runFetchCycle} />
           <ToolbarButton icon={<Settings />} onClick={() => setShowSettings(true)} title={t('toolbar.settings')} />
           <ToolbarButton icon={<HelpCircle />} onClick={() => setShowHelp(true)} title={t('toolbar.help')} />
           <div className="flex items-center gap-2 ml-2 pl-2">

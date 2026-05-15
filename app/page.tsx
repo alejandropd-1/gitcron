@@ -337,11 +337,15 @@ export default function GitCronPage() {
   const [showInitRepo, setShowInitRepo] = useState(false);
   const [showCloneRepo, setShowCloneRepo] = useState(false);
   const [showRepoChooser, setShowRepoChooser] = useState(false);
+  const [showSearchPopover, setShowSearchPopover] = useState(false);
+  const [searchPopoverPos, setSearchPopoverPos] = useState<{ top: number; right: number } | null>(null);
   const [tokenInput, setTokenInput] = useState('');
   const [authMode, setAuthMode] = useState<'oauth' | 'token'>('oauth');
   const [deviceCodeInfo, setDeviceCodeInfo] = useState<{ userCode: string; verificationUri: string } | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const newBranchInputRef = useRef<HTMLInputElement>(null);
+  const searchPopoverRef = useRef<HTMLDivElement>(null);
+  const searchButtonRef = useRef<HTMLDivElement>(null);
 
   // Auto-load repo data
   useEffect(() => {
@@ -413,18 +417,63 @@ export default function GitCronPage() {
     const handleKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'f') {
         e.preventDefault();
-        filterInputRef.current?.focus();
-        filterInputRef.current?.select();
+        setShowSearchPopover(true);
       }
-      // Escape clears filter when input is focused
+      // Escape clears filter first, then closes search when pressed again.
       if (e.key === 'Escape' && document.activeElement === filterInputRef.current) {
-        setFilterText('');
-        filterInputRef.current?.blur();
+        if (filterText) {
+          setFilterText('');
+        } else {
+          setShowSearchPopover(false);
+          filterInputRef.current?.blur();
+        }
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, []);
+  }, [filterText]);
+
+  useEffect(() => {
+    if (!showSearchPopover) return;
+    const buttonRect = searchButtonRef.current?.getBoundingClientRect();
+    if (buttonRect) {
+      setSearchPopoverPos({
+        top: buttonRect.bottom + 8,
+        right: Math.max(12, window.innerWidth - buttonRect.right),
+      });
+    }
+    filterInputRef.current?.focus();
+    filterInputRef.current?.select();
+  }, [showSearchPopover]);
+
+  useEffect(() => {
+    if (!showSearchPopover) return;
+    const handlePointerDown = (e: MouseEvent) => {
+      if (searchPopoverRef.current?.contains(e.target as Node)) return;
+      if (searchButtonRef.current?.contains(e.target as Node)) return;
+      setShowSearchPopover(false);
+    };
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, [showSearchPopover]);
+
+  useEffect(() => {
+    if (!showSearchPopover) return;
+    const updatePosition = () => {
+      const buttonRect = searchButtonRef.current?.getBoundingClientRect();
+      if (!buttonRect) return;
+      setSearchPopoverPos({
+        top: buttonRect.bottom + 8,
+        right: Math.max(12, window.innerWidth - buttonRect.right),
+      });
+    };
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [showSearchPopover]);
 
   useEffect(() => { if (showNewBranch) newBranchInputRef.current?.focus(); }, [showNewBranch]);
 
@@ -567,17 +616,17 @@ export default function GitCronPage() {
         onOpen={handleOpenRepoChooser}
       />
       {/* ──────────── TOP NAV ──────────── */}
-      <header className="h-12 border-b border-[#3c495a]/15 bg-[#041425]/85 backdrop-blur-xl flex items-center justify-between px-4 shrink-0">
-        <div className="flex items-center gap-6 h-full">
+      <header className="h-12 border-b border-[#3c495a]/15 bg-[#041425]/85 backdrop-blur-xl grid grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] items-center px-4 shrink-0">
+        <div className="flex items-center gap-6 h-full min-w-0">
           <button
             onClick={openRepo}
             title={t('toolbar.openRepo')}
-            className="flex items-center gap-1.5 font-bold text-[#a3f185] text-base hover:opacity-75 transition-opacity"
+            className="flex items-center gap-1.5 font-bold text-[#a3f185] text-base hover:opacity-75 transition-opacity min-w-0"
           >
             <FolderOpen size={16} />
-            {repoName ?? 'GitCron'}
+            <span className="truncate">{repoName ?? 'GitCron'}</span>
           </button>
-          <nav className="flex h-full gap-1">
+          <nav className="flex h-full gap-1 shrink-0">
             {[
               { key: 'Commit', label: t('tab.commit') },
               { key: 'Graph', label: t('tab.graph') },
@@ -600,29 +649,7 @@ export default function GitCronPage() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-4 flex-1 max-w-2xl px-8">
-          <div className="relative w-full">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9eacc0]" />
-            <input
-              ref={filterInputRef}
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-              className="w-full bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded px-8 py-1 text-sm focus:outline-none focus:border-[#a3f185]/50"
-              placeholder={t('toolbar.filter')}
-            />
-            {filterText && (
-              <button
-                onClick={() => setFilterText('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#9eacc0] hover:text-[#d9e7fc] transition-colors"
-                title="Limpiar filtro (Esc)"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-center gap-1 px-3">
           <ToolbarButton icon={<Undo />} onClick={() => {}} title={t('toolbar.undo')} />
           <ToolbarButton icon={<Redo />} onClick={() => {}} title={t('toolbar.redo')} />
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
@@ -635,7 +662,21 @@ export default function GitCronPage() {
             title={t('toolbar.newBranch')} label={t('toolbar.branch')} disabled={!repoPath}
           />
           <ToolbarButton icon={<Archive />} onClick={stashChanges} title={t('toolbar.stash')} label={t('toolbar.stash')} disabled={!repoPath || isLoading} />
+        </div>
+
+        <div className="flex items-center justify-end gap-1 min-w-0">
           <ToolbarButton icon={<Terminal />} onClick={openTerminal} title={t('toolbar.terminal')} disabled={!repoPath} />
+          <div className="relative" ref={searchButtonRef}>
+            <ToolbarButton
+              icon={<Search />}
+              onClick={() => setShowSearchPopover((v) => !v)}
+              title={t('toolbar.filter')}
+              disabled={!repoPath}
+            />
+            {filterText && (
+              <span className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-full bg-[#a3f185] shadow-[0_0_8px_rgba(163,241,133,0.7)]" />
+            )}
+          </div>
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
           <ToolbarButton icon={<Settings />} onClick={() => setShowSettings(true)} title={t('toolbar.settings')} />
           <ToolbarButton icon={<HelpCircle />} onClick={() => setShowHelp(true)} title={t('toolbar.help')} />
@@ -674,6 +715,34 @@ export default function GitCronPage() {
       </header>
 
       {/* ──────────── MAIN 3-COLUMN LAYOUT ──────────── */}
+      {showSearchPopover && searchPopoverPos && (
+        <div
+          ref={searchPopoverRef}
+          className="fixed w-[360px] rounded-md border border-[#3c495a]/25 bg-[#081a2d]/98 backdrop-blur-xl shadow-2xl shadow-black/40 p-2 z-[200]"
+          style={{ top: searchPopoverPos.top, right: searchPopoverPos.right }}
+        >
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9eacc0]" />
+            <input
+              ref={filterInputRef}
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              className="w-full bg-[#12273c]/95 border border-[#3c495a]/20 rounded px-8 py-2 text-sm text-[#d9e7fc] focus:outline-none focus:border-[#a3f185]/55"
+              placeholder={t('toolbar.filter')}
+            />
+            {filterText && (
+              <button
+                onClick={() => setFilterText('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#9eacc0] hover:text-[#d9e7fc] transition-colors"
+                title="Limpiar filtro (Esc)"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
         {/* COLUMN 1: SIDEBAR */}
         <aside

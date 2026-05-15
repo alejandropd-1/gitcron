@@ -28,10 +28,14 @@ export const useRepoLoader = () => {
     setError,
   } = useGitStore();
 
-  const applyRepoInfo = (info: RepoInfo) => {
+  const applyRepoInfo = async (info: RepoInfo) => {
     setRepoPath(info.path);
     setRepoName(info.name);
     setCurrentBranch(info.currentBranch);
+    // Persist last path so it survives restarts
+    if (window.api) {
+      await window.api.storageSet('lastRepoPath', info.path).catch(() => {});
+    }
   };
 
   const openRepo = async () => {
@@ -39,11 +43,23 @@ export const useRepoLoader = () => {
     setLoading(true); setError(null);
     try {
       const result = await window.api.openRepo();
-      if (result.success && result.data) applyRepoInfo(result.data);
+      if (result.success && result.data) await applyRepoInfo(result.data);
       else setError(result.error ?? 'No se pudo abrir el repositorio');
     } catch (err: any) {
       setError(err.message ?? 'Error al abrir el repositorio');
     } finally { setLoading(false); }
+  };
+
+  /** Restore the last opened repo on startup — no dialog. Silently ignores errors. */
+  const restoreLastRepo = async () => {
+    if (!window.api) return;
+    const saved = await window.api.storageGet('lastRepoPath').catch(() => null);
+    if (!saved?.success || !saved.data) return;
+    try {
+      const result = await window.api.openPath(saved.data);
+      if (result.success && result.data) await applyRepoInfo(result.data);
+      // If folder moved/deleted → silently show empty state; user picks manually
+    } catch { /* ignore */ }
   };
 
   /** Pick a parent folder via native dialog. Returns the chosen path or null. */
@@ -61,7 +77,7 @@ export const useRepoLoader = () => {
     try {
       const r = await window.api.gitInit(parentPath, name, withInitialCommit);
       if (r.success && r.data) {
-        applyRepoInfo(r.data);
+        await applyRepoInfo(r.data);
         return { success: true as const };
       }
       setError(r.error ?? 'Error al inicializar el repo');
@@ -76,7 +92,7 @@ export const useRepoLoader = () => {
     try {
       const r = await window.api.gitClone(url, parentPath, folderName, token);
       if (r.success && r.data) {
-        applyRepoInfo(r.data);
+        await applyRepoInfo(r.data);
         return { success: true as const };
       }
       const isAuth = (r.data as any)?.authRequired;
@@ -214,6 +230,7 @@ export const useRepoLoader = () => {
 
   return {
     openRepo,
+    restoreLastRepo,
     pickFolder,
     initRepo,
     cloneRepo,

@@ -277,6 +277,32 @@ ipcMain.handle('github:auth', async (_event, token: string) => {
   }
 });
 
+// ── Open a specific path directly (no dialog) — used to restore last repo ──
+ipcMain.handle('git:open-path', async (_event, dirPath: string) => {
+  try {
+    if (!fs.existsSync(dirPath)) {
+      return { success: false, error: `La carpeta ya no existe: ${dirPath}` };
+    }
+    const testGit = simpleGit(dirPath);
+    const isRepo = await testGit.checkIsRepo();
+    if (!isRepo) {
+      return { success: false, error: `"${path.basename(dirPath)}" ya no es un repositorio git` };
+    }
+    repoPath = dirPath;
+    git = simpleGit(repoPath);
+    const status = await git.status();
+    const info: RepoInfo = {
+      path: repoPath,
+      name: path.basename(repoPath),
+      currentBranch: status.current ?? 'HEAD',
+      isGitRepo: true,
+    };
+    return { success: true, data: info };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('git:open-repo', async () => {
   try {
     const result = await dialog.showOpenDialog({

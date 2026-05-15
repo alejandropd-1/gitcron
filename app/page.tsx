@@ -77,7 +77,7 @@ export default function GitCronPage() {
   const language = useGitStore((s) => s.language);
 
   const {
-    openRepo, loadAll, loadDiff,
+    openRepo, restoreLastRepo, loadAll, loadDiff,
     pickFolder, initRepo, cloneRepo, createGitHubRepo, listUserGitHubRepos,
   } = useRepoLoader();
 
@@ -94,6 +94,57 @@ export default function GitCronPage() {
   const [showNewBranch, setShowNewBranch] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const [newBranchFrom, setNewBranchFrom] = useState<string | undefined>(undefined);
+  // ── Resizable column widths ──
+  const [sidebarW, setSidebarW] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gitcron:sidebarW');
+      return saved ? parseInt(saved, 10) : 240;
+    }
+    return 240;
+  });
+  const [detailsW, setDetailsW] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gitcron:detailsW');
+      return saved ? parseInt(saved, 10) : 320;
+    }
+    return 320;
+  });
+  const dragRef = useRef<{
+    col: 'sidebar' | 'details';
+    startX: number;
+    startW: number;
+  } | null>(null);
+
+  const startColDrag = (col: 'sidebar' | 'details') => (e: React.MouseEvent) => {
+    e.preventDefault();
+    dragRef.current = {
+      col,
+      startX: e.clientX,
+      startW: col === 'sidebar' ? sidebarW : detailsW,
+    };
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const delta = ev.clientX - dragRef.current.startX;
+      if (dragRef.current.col === 'sidebar') {
+        const w = Math.max(160, Math.min(400, dragRef.current.startW + delta));
+        setSidebarW(w);
+        localStorage.setItem('gitcron:sidebarW', String(w));
+      } else {
+        // details grows to the LEFT so delta is inverted
+        const w = Math.max(240, Math.min(560, dragRef.current.startW - delta));
+        setDetailsW(w);
+        localStorage.setItem('gitcron:detailsW', String(w));
+      }
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -112,10 +163,11 @@ export default function GitCronPage() {
     if (repoPath) loadAll(repoPath);
   }, [repoPath]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Hydrate preferences (language) + GitHub auth from encrypted OS keychain.
+  // Hydrate preferences (language) + GitHub auth + last opened repo on startup.
   useEffect(() => {
     bootstrapPreferences();
     bootstrapGitHub();
+    restoreLastRepo(); // silently tries to reopen the last repo; no-op if none saved
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -346,8 +398,11 @@ export default function GitCronPage() {
 
       {/* ──────────── MAIN 3-COLUMN LAYOUT ──────────── */}
       <div className="flex flex-1 overflow-hidden">
-        {/* COLUMN 1: SIDEBAR (branches, remotes, stash, tags, submodules) */}
-        <aside className="w-60 bg-[#041425] flex flex-col shrink-0 overflow-y-auto">
+        {/* COLUMN 1: SIDEBAR */}
+        <aside
+          className="bg-[#041425] flex flex-col shrink-0 overflow-y-auto"
+          style={{ width: sidebarW }}
+        >
           {/* LOCAL — folder tree + ahead/behind chips */}
           <SidebarSection title={t('sidebar.local')} count={branches.length || undefined}>
             {branches.length === 0 && !repoPath && (
@@ -474,6 +529,15 @@ export default function GitCronPage() {
           )}
         </aside>
 
+        {/* ── Drag handle: sidebar ↔ center ── */}
+        <div
+          onMouseDown={startColDrag('sidebar')}
+          className="w-1 shrink-0 cursor-col-resize hover:bg-[#a3f185]/40 active:bg-[#a3f185]/60 transition-colors bg-transparent group relative"
+          title="Arrastrar para redimensionar"
+        >
+          <div className="absolute inset-y-0 -left-1 -right-1" /> {/* wider hit area */}
+        </div>
+
         {/* COLUMN 2: CENTER (Commit graph OR diff viewer) */}
         <main className="flex-1 bg-[#020f1e] overflow-hidden relative flex flex-col">
           {!repoPath ? (
@@ -598,8 +662,20 @@ export default function GitCronPage() {
           )}
         </main>
 
+        {/* ── Drag handle: center ↔ details ── */}
+        <div
+          onMouseDown={startColDrag('details')}
+          className="w-1 shrink-0 cursor-col-resize hover:bg-[#a3f185]/40 active:bg-[#a3f185]/60 transition-colors bg-transparent relative"
+          title="Arrastrar para redimensionar"
+        >
+          <div className="absolute inset-y-0 -left-1 -right-1" />
+        </div>
+
         {/* COLUMN 3: COMMIT DETAILS + FILE CHANGES + COMMIT BOX */}
-        <aside className="w-80 bg-[#041425] flex flex-col shrink-0 overflow-hidden">
+        <aside
+          className="bg-[#041425] flex flex-col shrink-0 overflow-hidden"
+          style={{ width: detailsW }}
+        >
           {selectedCommit ? (
             <div className="flex flex-col h-full">
               {/* WIP banner: visible when commit is selected but there are unsaved changes */}

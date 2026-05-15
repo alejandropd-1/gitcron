@@ -118,6 +118,7 @@ export interface ElectronAPI {
   githubDeviceStart: () => Promise<GitResult<DeviceCodeInfo>>;
   githubDevicePoll: (deviceCode: string) => Promise<GitResult<{ accessToken?: string; pending?: boolean }>>;
   openRepo: () => Promise<GitResult<RepoInfo>>;
+  openPath: (dirPath: string) => Promise<GitResult<RepoInfo>>;
   pickFolder: (title?: string) => Promise<GitResult<string>>;
   gitInit: (parentPath: string, name: string, withInitialCommit?: boolean) => Promise<GitResult<RepoInfo>>;
   gitClone: (url: string, parentPath: string, folderName: string, token?: string) => Promise<GitResult<RepoInfo>>;

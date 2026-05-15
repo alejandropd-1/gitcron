@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   githubDeviceStart: () => ipcRenderer.invoke('github:device-start'),
   githubDevicePoll: (deviceCode: string) => ipcRenderer.invoke('github:device-poll', deviceCode),
   openRepo: () => ipcRenderer.invoke('git:open-repo'),
+  openPath: (dirPath: string) => ipcRenderer.invoke('git:open-path', dirPath),
   pickFolder: (title?: string) => ipcRenderer.invoke('fs:pick-folder', title),
   gitInit: (parentPath: string, name: string, withInitialCommit?: boolean) =>
     ipcRenderer.invoke('git:init', parentPath, name, withInitialCommit ?? true),

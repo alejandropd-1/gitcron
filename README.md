@@ -1,163 +1,130 @@
-# GitCron — Advanced Git Client
+# GitCron - Advanced Git Client
 
-Cliente git de escritorio construido con tecnologías web modernas. Diseñado para manejar repositorios git de forma visual, intuitiva y segura, directamente desde tu máquina sin depender de servicios externos ni suscripciones.
+Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 ---
 
-## Stack tecnológico
+## Stack
 
-| Capa | Tecnología |
+| Layer | Tech |
 |---|---|
-| **Framework UI** | [Next.js 15](https://nextjs.org/) — App Router, SSG |
-| **UI Library** | [React 19](https://react.dev/) — Hooks, Suspense |
-| **Desktop runtime** | [Electron 42](https://www.electronjs.org/) — IPC bridge, safeStorage, dialog |
-| **State management** | [Zustand 5](https://zustand-demo.pmnd.rs/) — stores modulares |
-| **Git operations** | [simple-git 3](https://github.com/steveukx/git-js) — wrapper sobre git CLI |
-| **GitHub API** | [@octokit/rest 22](https://github.com/octokit/rest.js) — REST API + OAuth |
-| **Animations** | [Motion (Framer Motion 12)](https://motion.dev/) |
-| **Icons** | [Lucide React](https://lucide.dev/) |
-| **Styling** | [Tailwind CSS 4](https://tailwindcss.com/) — design system "The Compiled Soul" |
-| **Typography** | [Inter](https://rsms.me/inter/) + JetBrains Mono (diff/código) |
-| **Language** | TypeScript 5.9 strict |
-| **Package manager** | pnpm (recomendado) / npm |
-| **Bundler Electron** | tsup |
+| UI framework | Next.js 15 |
+| UI library | React 19 |
+| Desktop runtime | Electron 42 |
+| State | Zustand 5 |
+| Language | TypeScript 5.9 |
+| Git backend | simple-git 3 |
+| GitHub API | Octokit REST 22 |
+| Styling | Tailwind CSS 4 |
+| Motion | Motion |
+| Icons | Lucide React |
 
 ---
 
-## Características
+## What GitCron does today
 
-### Gestión de repositorios
-- **Abrir** cualquier carpeta git existente vía dialog nativo del OS
-- **Crear** un repo nuevo (inicializa con README + .gitignore + initial commit)
-- **Clonar** desde cualquier URL o desde tus repos de GitHub con un click
-- **Crear en GitHub + clonar** en un solo paso (requiere login)
-- **Último repo recordado**: al reiniciar la app, se reabre automáticamente el último repo sin dialog
-- **Multi-repo** _(en desarrollo — ver Roadmap)_: solapas para tener varios repos abiertos simultáneamente
+### Repositories
+- Open any existing Git repo from a native OS dialog.
+- Create a new repo locally.
+- Clone from any Git URL or from your GitHub repos.
+- Create a GitHub repo and clone it in one flow.
+- Multi-repo tabs: keep several repos open at once.
+- Restore open repos and the active tab automatically on app launch.
+- Use the `+` tab action to open the same central chooser for open / create / clone.
 
-### Visualización del historial
-- **Commit graph** estilo árbol: líneas de colores, divergencias y merges con curvas bezier
-- **Colores estables por branch**: cada branch tiene siempre el mismo color derivado de su nombre (hash); la branch activa siempre en verde
-- **Columna Branch/Tag** (260px) con chips coloridos e iconos (local 🖥, remoto ☁, tag 🏷, activa ✓); los chips de remote comparten color con su local
-- **Fila WIP** al tope cuando hay cambios sin commitear (con contador de staged/unstaged)
-- **Iniciales del autor** dentro de cada dot del grafo, coloreado por lane/branch
-- **Vista History**: lista cronológica plana, más cómoda para escanear mensajes largos
-- **Vista Commit**: resumen del staging area con flujo paso a paso y stats de cambios
+### History and graph
+- SVG commit graph with stable branch colors.
+- Current branch always highlighted in neon green.
+- Branch / tag chips with local, remote, tag, and current-state cues.
+- WIP row at the top when the working tree is dirty.
+- History tab for a flat chronological view.
+- Commit tab for a staging-focused workflow summary.
 
-### Staging y commits
-- **Columnas separadas** Unstaged ↑ / Staged ↓ — click `+` mueve archivos entre secciones
-- **Stage all / Unstage all** con una operación batch (evita conflictos de `index.lock`)
-- **Click en archivo** → diff viewer con colores (verde = añadido, rojo = eliminado, números de línea)
-- **Commit** real con mensaje, autor y fecha
-- **Reset All** con banner de confirmación antes de ejecutar
-- **Recovery automático** de `index.lock` con botón en el toast de error
-- **Banner WIP** en el panel de commit details cuando hay cambios sin commitear
+### Staging and commits
+- Separate unstaged and staged sections.
+- Batch stage / unstage to avoid `index.lock` races.
+- Diff viewer for staged and unstaged files.
+- Real commits with author, date, refs, and commit details.
+- Reset all with confirmation.
+- Recovery action for `index.lock` errors.
 
 ### Branches
-- **Sidebar** con árbol de branches agrupadas en carpetas por prefijo (`feature/`, `claude/`, etc.)
-- **Ahead/behind counts** por branch (cuántos commits adelante/atrás del remote)
-- **Checkout** via doble click o menú contextual (con detección de conflictos y opción stash-and-switch)
-- **Crear, renombrar, eliminar** branches (con confirmación si no está mergeada)
-- **Merge** de una branch en otra (con opción de checkout automático previo)
-- **Rebase** de la branch actual sobre otra
-- **Fast-forward** cuando no hay divergencia
-- **Stash** de archivos individuales o de todo el working tree
-- **Limpiar todos los stashes** con confirmación inline
+- Branch tree grouped by prefixes like `feature/` or `claude/`.
+- Ahead / behind counts in the sidebar.
+- Checkout with conflict detection.
+- Merge, rebase, fast-forward, rename, delete, and create branch flows.
+- Per-file stash and full working-tree stash.
+- Clear-all stash action with confirmation.
 
-### Integración con GitHub
-- **OAuth Device Flow** — login vía navegador sin contraseñas ni tokens manuales (igual que `gh auth login`)
-- **Token personal** como alternativa manual (PAT)
-- **Pull / Push** con autenticación via URL injection temporal (Electron 42 bloquea `GIT_ASKPASS`)
-- **Auto `--set-upstream`**: primer push de una branch nueva se publica automáticamente en origin
-- **Lista de PRs** abiertas del repo actual en el sidebar (requiere login)
-- **Crear repo** en GitHub directamente desde la app
-- **Clonar repos privados** de tu cuenta con un click
+### GitHub
+- OAuth Device Flow login, similar to `gh auth login`.
+- Manual personal access token fallback.
+- Authenticated push / pull via temporary URL injection.
+- Automatic `--set-upstream` on the first push of a new branch.
+- Pull requests list in the sidebar for the current repo.
+- Private repo clone support after login.
 
-### Menús contextuales
-- **Click derecho en commit**: merge, revert, checkout, crear branch desde el commit, copiar SHA
-- **Click derecho en branch**: merge into current, rebase, fast-forward, checkout, create from here, rename, delete, pull, push, copy name
-- **Click derecho en archivo**: stage/unstage, add to .gitignore, stash file, abrir en editor, mostrar en carpeta, copiar path, descartar, eliminar
-
-### Feedback y UX
-- **Toasts de éxito** (verde, auto-dismiss 3s): commit, push, pull, stash, checkout, create branch, merge, rebase, fast-forward
-- **Toasts de error** (rojo): con botón "Eliminar lock" cuando corresponde
-- **Filtro de commits**: search bar con `Ctrl+Alt+F`, filtra por mensaje / hash / autor / email en Graph y History
-- **Columnas resizables**: arrastrá el borde entre sidebar↔centro y centro↔detalles para ajustar el ancho. Los tamaños persisten entre reinicios.
-
-### Diseño e internacionalización
-- Tema oscuro (navy profundo) basado en el design system **"The Compiled Soul"**
-- Glassmorphism en header y modales (`backdrop-blur`)
-- Separación visual via tonal depth — sin bordes 1px entre columnas
-- Scrollbars estilizados según la paleta
-- **Idioma**: 🇦🇷 Español (default) / 🇺🇸 English — toggle en Settings, persiste entre sesiones
-- ~250 strings traducidos en ambos idiomas
+### UX
+- Success and error toasts for the main Git actions.
+- Search moved to a toolbar button with `Ctrl + Alt + F`.
+- Search opens in a floating popover instead of living permanently in the topbar.
+- Resizable app columns: sidebar / center / details.
+- Resizable graph columns: Branch/Tag, Graph, Date, Commit.
+- Reworked topbar layout with repo navigation on the left, Git actions centered, and tools on the right.
+- Text size setting in Settings: `Compact`, `Normal`, `Large`.
+- Spanish and English UI strings.
 
 ---
 
-## Arquitectura
+## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Renderer (Next.js + React)                                  │
-│                                                              │
-│  app/page.tsx              UI principal (3 columnas)        │
-│  components/CommitGraph    grafo SVG con lanes de colores   │
-│  components/DiffViewer     visor de diffs unificados        │
-│  hooks/use-git-actions     acciones git (commit, merge...)  │
-│  hooks/use-repo-loader     carga de datos del repo          │
-│  hooks/use-translation     i18n reactivo al idioma          │
-│  lib/git-store             estado global (Zustand)          │
-│  lib/i18n                  diccionarios ES/EN (~250 strings) │
-└────────────────────────┬────────────────────────────────────┘
-                         │  IPC (contextBridge tipado)
-┌────────────────────────▼────────────────────────────────────┐
-│  Main process (Electron)                                     │
-│                                                              │
-│  electron/main.ts          50+ handlers IPC                 │
-│  electron/preload.ts       bridge seguro al renderer        │
-│                                                              │
-│  Grupos de handlers:                                         │
-│    git:*          operaciones git via simple-git            │
-│    github:*       Octokit REST + OAuth Device Flow          │
-│    storage:*      safeStorage cifrado por OS                │
-│    shell:*        abrir archivo, mostrar en carpeta         │
-│    fs:*           operaciones de filesystem                 │
-│    terminal:open  abrir terminal en el repo                 │
-└─────────────────────────────────────────────────────────────┘
+Renderer:
+- `app/page.tsx` drives the main three-column UI, tabs, modals, and topbar.
+- `components/CommitGraph.tsx` renders the SVG graph and graph-table rows.
+- `components/DiffViewer.tsx` renders unified diffs.
+- `hooks/use-git-actions.ts` contains repo actions like commit, push, pull, merge, stash, and preferences persistence.
+- `hooks/use-repo-loader.ts` loads repo data and restores persisted repos.
+- `lib/git-store.ts` holds the Zustand store.
+
+Main process:
+- `electron/main.ts` exposes typed IPC handlers for Git, GitHub, storage, shell, and filesystem actions.
+- `electron/preload.ts` exposes the safe renderer bridge via `window.api`.
+
+Data flow:
+
+```text
+UI -> hook -> window.api.* -> IPC -> Electron main -> simple-git / Octokit
+UI <- Zustand update <- hook / IPC response
 ```
 
-### Flujo de datos
-
-```
-UI Action → hook → window.api.method() → IPC → main.ts → simple-git / Octokit
-                                                                ↓
-UI re-render ← Zustand store update ← IPC response ←──────────┘
-```
+State model:
+- Multi-repo is now first-class in the store.
+- `openRepos: RepoState[]` stores the per-repo state.
+- `activeRepoIdx: number` points to the visible repo.
+- Legacy fields like `repoPath`, `branches`, `commits`, `modifiedFiles`, and `commitMessage` still exist as mirrors of the active repo to keep the rest of the app stable during the transition.
 
 ---
 
-## Seguridad
+## Security
 
-Ver [`SECURITY.md`](SECURITY.md) para el análisis completo. Resumen:
+See [SECURITY.md](/C:/www/gitCronos/SECURITY.md) for the full hardening notes. Short version:
 
-| Aspecto | Implementación |
-|---|---|
-| **Token de GitHub** | Cifrado en disco via `safeStorage` (DPAPI en Windows, Keychain en macOS) |
-| **Token en git** | URL injection temporal durante push/pull (GIT_ASKPASS bloqueado por Electron 42) |
-| **CSP** | `Content-Security-Policy` en `<head>` — bloquea scripts y conexiones a dominios no permitidos |
-| **Context isolation** | `contextIsolation: true` + `nodeIntegration: false` — el renderer no accede a Node |
-| **Spawn seguro** | Terminal con `spawn` + args array, `shell: false` — sin interpolación de comandos |
-| **Path traversal** | Validado en `fs:delete-file` — confinado dentro del directorio del repo |
+- GitHub tokens are stored with Electron `safeStorage`.
+- Push / pull auth uses temporary URL injection because Electron 42 blocks `GIT_ASKPASS` propagation.
+- `contextIsolation` is enabled and `nodeIntegration` is disabled.
+- Child processes use `shell: false`.
+- Filesystem actions validate repo boundaries to avoid path traversal issues.
 
 ---
 
-## Instalación y desarrollo
+## Development
 
-### Requisitos
-- Node.js >= 22 LTS
-- pnpm (recomendado) o npm
-- Git instalado en el sistema y disponible en PATH
+Requirements:
+- Node.js 22+
+- pnpm recommended
+- Git available in `PATH`
 
-### Setup
+Setup:
 
 ```bash
 git clone <repo>
@@ -165,116 +132,100 @@ cd gitCronos
 pnpm install
 ```
 
-### Modo desarrollo
+Run in development:
 
 ```bash
 pnpm run electron:dev
 ```
 
-> **Nota**: cuando cambies archivos en `electron/`, Electron necesita reiniciarse (`Ctrl+C` + `electron:dev`). El frontend tiene hot reload automático.
+Notes:
+- Do not use `npm run dev` for normal app work. That only starts Next.js without Electron.
+- Changes in `electron/main.ts` or `electron/preload.ts` require a full restart.
+- React-side changes hot reload normally.
 
-### Build para producción
-
-```bash
-# Requiere configurar electron-builder primero (ver Roadmap > Tier 3)
-pnpm run package:win
-pnpm run package:mac
-pnpm run package:linux
-```
-
-### Auditoría de dependencias
+Type check:
 
 ```bash
-pnpm audit --audit-level=moderate
+./node_modules/.bin/tsc.cmd --noEmit
 ```
 
 ---
 
-## Estructura del proyecto
+## Project structure
 
-```
+```text
 gitCronos/
-├── app/
-│   ├── layout.tsx          # Root layout (fuente Inter, CSP header)
-│   ├── page.tsx            # UI principal — 3 columnas, todos los modales
-│   └── globals.css         # Tailwind + scrollbars estilizados
-├── components/
-│   ├── CommitGraph.tsx     # Grafo SVG de commits con lanes de color
-│   └── DiffViewer.tsx      # Visor de diffs unificados
-├── electron/
-│   ├── main.ts             # Main process: 50+ handlers IPC
-│   └── preload.ts          # Context bridge tipado y seguro
-├── hooks/
-│   ├── use-git-actions.ts  # Commit, merge, push, pull, stash, etc.
-│   ├── use-repo-loader.ts  # Carga asíncrona del estado del repo
-│   └── use-translation.ts  # Hook i18n reactivo al idioma actual
-├── lib/
-│   ├── git-store.ts        # Store Zustand — estado global completo
-│   ├── i18n.ts             # Diccionarios ES/EN (~250 strings)
-│   └── utils.ts            # cn() helper de Tailwind
-├── types/
-│   └── electron.d.ts       # Interfaces TypeScript del bridge IPC
-├── SECURITY.md             # Hardening de seguridad detallado
-├── CHANGELOG.md            # Historial de cambios por versión
-└── README.md               # Este archivo
+|- app/
+|  |- layout.tsx
+|  |- page.tsx
+|  `- globals.css
+|- components/
+|  |- CommitGraph.tsx
+|  `- DiffViewer.tsx
+|- electron/
+|  |- main.ts
+|  `- preload.ts
+|- hooks/
+|  |- use-git-actions.ts
+|  |- use-repo-loader.ts
+|  `- use-translation.ts
+|- lib/
+|  |- git-store.ts
+|  |- i18n.ts
+|  `- utils.ts
+|- types/
+|  `- electron.d.ts
+|- SECURITY.md
+|- CHANGELOG.md
+`- README.md
 ```
 
 ---
 
-## Design system — "The Compiled Soul"
+## Design system
 
-Basado en el sistema de diseño del portfolio `DESIGN.MD`:
-
-- **Paleta base**: `#020f1e` (navy) → `#a3f185` (neon green) → `#fd9d1a` (flame) → `#5ed8ff` (cyan)
-- **Sin bordes duros** para separar secciones — la jerarquía la da el tono del fondo
-- **Ghost borders** al 15% cuando son estrictamente necesarios por accesibilidad
-- **Glassmorphism**: header y modales con `backdrop-blur-xl`
-- **Gradientes** en CTAs primarios: `from-[#a3f185] to-[#68b24f]`
-- **Tipografía** Inter (interfaz) + JetBrains Mono (código, hashes, diff)
+"The Compiled Soul" uses:
+- Deep navy base: `#020f1e`
+- Primary neon green: `#a3f185`
+- Warning orange: `#fd9d1a`
+- Accent cyan: `#5ed8ff`
+- Glassy headers and modals
+- Soft tonal separation instead of heavy borders
+- Inter for UI and JetBrains Mono for code-ish surfaces
 
 ---
 
 ## Roadmap
 
-### ⬜ Tier 1 — Crítico (próximo)
+### Tier 1
+- [ ] Auto-fetch in the background with configurable intervals.
+- [ ] Default folder for open / clone dialogs.
+- [ ] Filter graph commits by branch.
 
-- [ ] **Multi-repo con solapas**: refactor del store para soportar múltiples repos abiertos simultáneamente. Cada solapa = instancia independiente con su propio estado (branches, commits, staging). Persistencia de repos abiertos en safeStorage.
+### Tier 2
+- [ ] Electron builder packaging and distribution setup.
+- [ ] Windows / macOS signing.
+- [ ] Auto-update flow.
 
-### ⬜ Tier 2 — Importante
+### Tier 3
+- [ ] OS notifications for long push / pull operations.
+- [ ] Configurable keyboard shortcuts.
+- [ ] Light theme.
 
-- [ ] **Auto-fetch en segundo plano**: `git fetch --all` cada N minutos (configurable en Settings). Actualiza automáticamente los `ahead/behind` counts en el sidebar.
-- [ ] **Filtro de commits por branch**: actualmente el search filtra por texto; agregar filtro para ver solo commits de una branch específica.
-- [ ] **Carpeta default configurable** para los dialogs de open/clone (guardar en safeStorage).
-
-### ⬜ Tier 3 — Producción / distribución
-
-- [ ] **Setup electron-builder**: agregar `electron-builder` + `cross-env` a devDependencies, configurar sección `"build"` en `package.json`, scripts `package:win/mac/linux`, crear `build-resources/icon.ico`.
-- [ ] **Code signing**: certificado EV (~300 USD/año) para Windows NSIS → elimina SmartScreen warning. Apple Developer Account (~99 USD/año) para macOS DMG.
-- [ ] **Auto-update via electron-updater**: descarga y aplica updates desde GitHub Releases. Requiere releases firmados.
-
-### ⬜ Tier 4 — Mejoras de UX
-
-- [ ] **Notificaciones del OS**: `new Notification()` cuando termina un push/pull largo (en segundo plano).
-- [ ] **Atajos de teclado configurables**: `Ctrl+S` = commit, `Ctrl+P` = push, etc. Modal de listado editable.
-- [ ] **Light theme**: segundo set de paleta CSS (mucho trabajo; requiere variables Tailwind o dark/light class toggle).
-
-### ⬜ Tier 5 — Futuro
-
-- [ ] **Multi-cuenta GitHub**: personal + work. Requiere multi-token storage y selector de cuenta por repo.
-- [ ] **GitLab / Bitbucket**: OAuth Device Flow específico de cada proveedor.
-- [ ] **Panel de PRs con diff inline**: ver los cambios de una PR dentro de la app, con comentarios.
-- [ ] **Amend commit**: reescribir el último commit (mensaje o archivos) con `git commit --amend`.
-- [ ] **Squash / interactive rebase**: desde la UI, sin terminal.
-- [ ] **Cherry pick desde context menu**: ya tiene el item de menú, falta implementar el IPC.
+### Future
+- [ ] Multi-account GitHub support.
+- [ ] GitLab / Bitbucket support.
+- [ ] Pull request diff view.
+- [ ] Amend, squash, and cherry-pick workflows from the UI.
 
 ---
 
-## Versión actual
+## Current version
 
-**v0.1.3** — ver [`CHANGELOG.md`](CHANGELOG.md) para el historial completo de cambios.
+`v0.1.4` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 
-## Licencia
+## License
 
-Uso personal. Sin distribución pública por ahora.
+Personal-use project for now.

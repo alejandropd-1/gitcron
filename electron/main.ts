@@ -1092,3 +1092,13 @@ ipcMain.handle('git:stash-drop', async (_event, targetPath: string, stashIndex: 
     return { success: false, error: error.message };
   }
 });
+
+// Drop ALL stashes at once (git stash clear)
+ipcMain.handle('git:stash-clear', async (_event, targetPath: string) => {
+  try {
+    await simpleGit(targetPath).stash(['clear']);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});

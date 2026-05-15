@@ -64,7 +64,7 @@ export default function GitCronPage() {
     commitChanges, mergeBranch, revertCommit, stashChanges,
     discardFileChanges, stageFile, stageFiles, removeIndexLock,
     checkoutBranch, checkoutBranchSmart, createBranch, pushChanges, pullChanges,
-    openTerminal, stashApply, stashDrop,
+    openTerminal, stashApply, stashDrop, stashClear,
     connectGitHub, disconnectGitHub, loginWithGitHubDevice, bootstrapGitHub,
     bootstrapPreferences, changeLanguage,
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
@@ -85,6 +85,7 @@ export default function GitCronPage() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hash?: string } | null>(null);
   const [fileContextMenu, setFileContextMenu] = useState<{ x: number; y: number; file: GitFile } | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showStashClearConfirm, setShowStashClearConfirm] = useState(false);
   const [checkoutConflict, setCheckoutConflict] = useState<{ branch: string; error: string } | null>(null);
   const [branchMenu, setBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
   const [renameModal, setRenameModal] = useState<{ oldName: string; newName: string } | null>(null);
@@ -396,7 +397,36 @@ export default function GitCronPage() {
           )}
 
           {/* STASH */}
-          <SidebarSection title={t('sidebar.stash')} count={stashes.length || undefined}>
+          <SidebarSection
+            title={t('sidebar.stash')}
+            count={stashes.length || undefined}
+            extra={stashes.length > 1 ? (
+              showStashClearConfirm ? (
+                <div className="flex items-center gap-1 ml-1">
+                  <button
+                    onClick={async () => { await stashClear(); setShowStashClearConfirm(false); }}
+                    className="text-[9px] px-1.5 py-0.5 rounded bg-[#ff716c] text-white font-bold"
+                  >
+                    Sí, limpiar
+                  </button>
+                  <button
+                    onClick={() => setShowStashClearConfirm(false)}
+                    className="text-[9px] px-1.5 py-0.5 rounded bg-[#3c495a] text-[#9eacc0]"
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowStashClearConfirm(true)}
+                  className="text-[9px] text-[#9eacc0] hover:text-[#ff716c] transition-colors ml-1 font-medium"
+                  title="Eliminar todos los stashes"
+                >
+                  limpiar todo
+                </button>
+              )
+            ) : undefined}
+          >
             {stashes.length === 0 && repoPath && (
               <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">{t('sidebar.noStashes')}</p>
             )}
@@ -532,7 +562,7 @@ export default function GitCronPage() {
             /* Graph tab — default */
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[11px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
-                <div className="w-[220px] shrink-0 text-right pr-3">Branch / Tag</div>
+                <div className="w-[220px] shrink-0 text-right pl-4 pr-3">Branch / Tag</div>
                 <div className="w-[88px] shrink-0 text-left">Graph</div>
                 <div className="flex-1 flex items-center gap-2">
                   Commit message
@@ -1270,18 +1300,25 @@ function ToolbarButton({
   );
 }
 
-function SidebarSection({ title, children, count }: { title: string; children: React.ReactNode; count?: number }) {
+function SidebarSection({
+  title, children, count, extra,
+}: {
+  title: string; children: React.ReactNode; count?: number; extra?: React.ReactNode;
+}) {
   const [isOpen, setIsOpen] = useState(true);
   return (
     <div className="mt-2">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-1 px-4 py-1 text-[11px] font-bold text-[#9eacc0] hover:text-[#d9e7fc]"
-      >
-        <ChevronRight size={14} className={cn('transition-transform', isOpen && 'rotate-90')} />
-        <span className="flex-1 text-left">{title}</span>
+      <div className="w-full flex items-center gap-1 px-4 py-1 text-[11px] font-bold text-[#9eacc0]">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center gap-1 flex-1 text-left hover:text-[#d9e7fc] transition-colors"
+        >
+          <ChevronRight size={14} className={cn('transition-transform', isOpen && 'rotate-90')} />
+          <span className="flex-1 text-left">{title}</span>
+        </button>
         {count !== undefined && <span className="bg-[#3c495a] text-[9px] px-1.5 rounded-full">{count}</span>}
-      </button>
+        {extra}
+      </div>
       {isOpen && <div>{children}</div>}
     </div>
   );

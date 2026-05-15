@@ -5,6 +5,43 @@ Formato: `[v0.x.x]` con fecha y descripción de cada feature/fix.
 
 ---
 
+## [v0.1.1] — 2026-05-15 — Polish, feedback y fixes de seguridad
+
+### Mejoras de UX
+
+- **Notificaciones de éxito (toast verde, auto-dismiss 3s)**: commit, push, pull, stash, stash apply, checkout, create branch
+- **Search bar funcional**: filtra commits en Graph y History por mensaje, shortHash, autor y email. `Ctrl+Alt+F` enfoca, `Esc` limpia. Badge "filtro activo" en el header. Contador "X de Y commits" en History.
+- **Banner WIP en commit details**: cuando hay un commit seleccionado Y hay cambios sin commitear, aparece una barra naranja con botones "Stash" y "Ver cambios →"
+- **Botón "limpiar todo" en STASH**: aparece cuando hay más de 1 stash. Click → confirmación inline (Sí/No) antes de ejecutar `git stash clear`
+- **Padding izquierdo en columna Branch/Tag del graph**: las chips de branches ya no quedan pegadas al borde del sidebar
+
+### Reducción de tipografía (DESIGN.MD — "chicas las fuentes")
+
+- `text-xl` → `text-lg` (título de empty state "Bienvenido a GitCron")
+- `text-2xl` → `text-xl` (título de Commit tab "Workspace")
+- `text-3xl` → `text-2xl` (stats cards del Commit tab)
+- `text-lg` → `text-base` (4 títulos de modal — via script)
+
+### Fix de contraste (accesibilidad WCAG)
+
+- Toast de error: `text-[#ffa8a3]` → `text-[#ffdad6]` (más visible sobre rojo oscuro)
+- Botón Reset All: hover pastel `#ffa8a3` → `#ff8a86` (mantiene legibilidad)
+- "Stage all": `hover:text-white` → `hover:text-[#052900]` (verde oscuro sobre verde claro ✓)
+- "Unstage all": `hover:text-white` → `hover:text-[#020f1e]` (navy sobre gris ✓)
+- Context menus: `hover:bg-[#a3f185] hover:text-white` → `hover:bg-[#a3f185]/20 hover:text-[#a3f185]` (sutil, legible)
+
+### Fix crítico de autenticación
+
+- **GIT_ASKPASS bloqueado por Electron 42**: Electron 42 bloquea `GIT_ASKPASS` en procesos hijos por seguridad. Revertido a URL injection temporal (`https://x-access-token:TOKEN@github.com/...`) con `try/finally` garantizando restauración. Aplica a `git:push`, `git:pull`, `git:pull-branch`, `git:push-branch`, `git:clone`.
+
+### Nuevas acciones
+
+- `git:stash-clear` — elimina todos los stashes a la vez (`git stash clear`)
+- `stashClear()` en `use-git-actions.ts` con toast de confirmación
+- `SidebarSection` acepta prop `extra` para contenido adicional en el header
+
+---
+
 ## [v0.1.0] — 2026-05-14 — Release inicial
 
 ### Infraestructura

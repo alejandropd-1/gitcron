@@ -276,7 +276,7 @@ function GraphRowView({
       {selected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#a3f185]" />}
 
       {/* ── Column 1: BRANCH / TAG labels ── */}
-      <div className="w-[220px] shrink-0 flex items-center justify-end gap-1 pr-2 overflow-hidden">
+      <div className="w-[220px] shrink-0 flex items-center justify-end gap-1 pl-4 pr-3 overflow-hidden">
         {refs.map((ref, ri) => <RefChip key={ri} ref={ref} laneColor={row.laneColor} />)}
       </div>
 
@@ -424,7 +424,7 @@ function WIPRow({
       style={{ height: ROW_H }}
       title={`${unstagedCount} unstaged · ${stagedCount} staged`}
     >
-      <div className="w-[220px] shrink-0 flex items-center justify-end pr-2">
+      <div className="w-[220px] shrink-0 flex items-center justify-end pl-4 pr-3">
         {stagedCount > 0 && (
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-[#a3f185]/50 bg-[#a3f185]/20 text-[#a3f185] text-[10px] font-medium">
             + {stagedCount}

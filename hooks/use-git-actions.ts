@@ -515,6 +515,21 @@ export const useGitActions = () => {
     finally { setLoading(false); }
   };
 
+  const stashClear = async () => {
+    if (!window.api || !repoPath) return false;
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitStashClear(repoPath);
+      if (r.success) {
+        setSuccess('Todos los stashes eliminados');
+        await refreshStashes();
+        return true;
+      }
+      setError(r.error ?? 'Error al limpiar stashes');
+      return false;
+    } finally { setLoading(false); }
+  };
+
   const stashDrop = async (index: number) => {
     if (!window.api || !repoPath) return;
     setLoading(true); setError(null);
@@ -684,6 +699,7 @@ export const useGitActions = () => {
     openTerminal,
     stashApply,
     stashDrop,
+    stashClear,
     connectGitHub,
     disconnectGitHub,
     loginWithGitHubDevice,

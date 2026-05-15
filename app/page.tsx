@@ -169,20 +169,8 @@ export default function GitCronPage() {
   const [newBranchName, setNewBranchName] = useState('');
   const [newBranchFrom, setNewBranchFrom] = useState<string | undefined>(undefined);
   // ── Resizable column widths ──
-  const [sidebarW, setSidebarW] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('gitcron:sidebarW');
-      return saved ? parseInt(saved, 10) : 240;
-    }
-    return 240;
-  });
-  const [detailsW, setDetailsW] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('gitcron:detailsW');
-      return saved ? parseInt(saved, 10) : 320;
-    }
-    return 320;
-  });
+  const [sidebarW, setSidebarW] = useState(240);
+  const [detailsW, setDetailsW] = useState(320);
   const dragRef = useRef<{
     col: 'sidebar' | 'details';
     startX: number;
@@ -236,6 +224,17 @@ export default function GitCronPage() {
   useEffect(() => {
     if (repoPath) loadAll(repoPath);
   }, [repoPath]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Read persisted split widths only on the client to avoid SSR hydration mismatches.
+  useEffect(() => {
+    const savedSidebarW = localStorage.getItem('gitcron:sidebarW');
+    const savedDetailsW = localStorage.getItem('gitcron:detailsW');
+    const parsedSidebarW = savedSidebarW ? parseInt(savedSidebarW, 10) : NaN;
+    const parsedDetailsW = savedDetailsW ? parseInt(savedDetailsW, 10) : NaN;
+
+    if (!Number.isNaN(parsedSidebarW)) setSidebarW(parsedSidebarW);
+    if (!Number.isNaN(parsedDetailsW)) setDetailsW(parsedDetailsW);
+  }, []);
 
   // Repo-scoped local UI should not survive tab switches or closing a repo.
   useEffect(() => {

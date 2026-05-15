@@ -651,6 +651,7 @@ export const useGitActions = () => {
 
     const deadline = Date.now() + expiresIn * 1000;
     let pollInterval = Math.max(interval, 5) * 1000;
+    let transientPollFailures = 0;
 
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, pollInterval));
@@ -668,6 +669,17 @@ export const useGitActions = () => {
         }
         return { success: false, error: 'Token obtenido pero no se pudo leer el usuario' };
       }
+      const isTransientNetworkError = !!poll.error && /fetch failed|network|timed out|ECONN|ENOTFOUND|EAI_AGAIN/i.test(poll.error);
+      if (isTransientNetworkError) {
+        transientPollFailures += 1;
+        if (transientPollFailures >= 3) {
+          const msg = `Login fallido por red: ${poll.error}`;
+          setError(msg);
+          return { success: false, error: msg };
+        }
+        continue;
+      }
+      transientPollFailures = 0;
       // Slow down if requested
       if (poll.error === 'slow_down') pollInterval += 5000;
       // Stop on permanent failures

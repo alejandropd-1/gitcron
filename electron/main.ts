@@ -213,13 +213,26 @@ ipcMain.handle('github:test', async (_event, { token, owner, repo }) => {
 // Uses the GitHub CLI's public OAuth Client ID for personal-use device flow.
 // This works without a client secret and is the same flow `gh auth login` uses.
 const GITHUB_CLIENT_ID = '178c6fc778ccc68e1d6a';
+const GITHUB_OAUTH_HEADERS = {
+  'Accept': 'application/json',
+  'Content-Type': 'application/x-www-form-urlencoded',
+  'User-Agent': 'GitCron',
+};
+
+function formatFetchError(error: unknown): string {
+  const err = error as { message?: string; cause?: { message?: string; code?: string } };
+  const message = err?.message ?? 'Unknown error';
+  const causeMessage = err?.cause?.message;
+  const causeCode = err?.cause?.code;
+  return [message, causeCode, causeMessage].filter(Boolean).join(' - ');
+}
 
 ipcMain.handle('github:device-start', async () => {
   try {
     const response = await fetch('https://github.com/login/device/code', {
       method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_id: GITHUB_CLIENT_ID, scope: 'repo read:user user:email' }),
+      headers: GITHUB_OAUTH_HEADERS,
+      body: new URLSearchParams({ client_id: GITHUB_CLIENT_ID, scope: 'repo read:user user:email' }),
     });
     const data: any = await response.json();
     if (data.error) return { success: false, error: data.error_description || data.error };
@@ -234,7 +247,7 @@ ipcMain.handle('github:device-start', async () => {
       },
     };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: formatFetchError(error) };
   }
 });
 
@@ -242,8 +255,8 @@ ipcMain.handle('github:device-poll', async (_event, deviceCode: string) => {
   try {
     const response = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      headers: GITHUB_OAUTH_HEADERS,
+      body: new URLSearchParams({
         client_id: GITHUB_CLIENT_ID,
         device_code: deviceCode,
         grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
@@ -258,7 +271,7 @@ ipcMain.handle('github:device-poll', async (_event, deviceCode: string) => {
     }
     return { success: true, data: { accessToken: data.access_token } };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: formatFetchError(error) };
   }
 });
 

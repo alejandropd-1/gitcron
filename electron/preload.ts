@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('api', {
-  gitCommand: (args: string[]) => ipcRenderer.invoke('git:command', args),
+  gitCommand: (repoPath: string, args: string[]) => ipcRenderer.invoke('git:command', repoPath, args),
   githubTest: (token: string, owner: string, repo: string) =>
     ipcRenderer.invoke('github:test', { token, owner, repo }),
   githubAuth: (token: string) => ipcRenderer.invoke('github:auth', token),

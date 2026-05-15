@@ -160,14 +160,15 @@ function ensureAskpassScript(): string {
 
 // --- IPC Handlers ---
 
-ipcMain.handle('git:command', async (_event, args: string[]) => {
+ipcMain.handle('git:command', async (_event, targetPath: string, args: string[]) => {
   try {
-    console.log('Executing git command:', args);
+    console.log('Executing git command:', targetPath, args);
+    const scopedGit = simpleGit(targetPath);
     let result;
     const command = args[0];
 
     switch (command) {
-      case 'status': result = await git.status(); break;
+      case 'status': result = await scopedGit.status(); break;
       case 'commit': {
         // The renderer sends ['commit', '-m', message]. simple-git's
         // git.commit() treats an array as multiple message lines, so passing
@@ -180,18 +181,18 @@ ipcMain.handle('git:command', async (_event, args: string[]) => {
         if (!message || !message.trim()) {
           throw new Error('Mensaje de commit vacío');
         }
-        result = await git.commit(message);
+        result = await scopedGit.commit(message);
         break;
       }
-      case 'merge': result = await git.merge(args.slice(1)); break;
+      case 'merge': result = await scopedGit.merge(args.slice(1)); break;
       case 'revert':
-        result = await git.revert(args[1], args.slice(2).reduce((acc, curr) => ({ ...acc, [curr]: true }), {}));
+        result = await scopedGit.revert(args[1], args.slice(2).reduce((acc, curr) => ({ ...acc, [curr]: true }), {}));
         break;
-      case 'stash': result = await git.stash(args.slice(1)); break;
-      case 'restore': result = await git.raw(['restore', args[1]]); break;
-      default: result = await git.raw(args);
+      case 'stash': result = await scopedGit.stash(args.slice(1)); break;
+      case 'restore': result = await scopedGit.raw(['restore', args[1]]); break;
+      default: result = await scopedGit.raw(args);
     }
-    return { success: true, data: result };
+    return { success: true, data: typeof result === 'string' ? result : JSON.stringify(result) };
   } catch (error: any) {
     console.error('Git Command Error:', error);
     return { success: false, error: error.message };

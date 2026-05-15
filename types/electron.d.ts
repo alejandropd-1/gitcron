@@ -112,7 +112,7 @@ export interface GitHubUser {
 }
 
 export interface ElectronAPI {
-  gitCommand: (args: string[]) => Promise<GitResult>;
+  gitCommand: (repoPath: string, args: string[]) => Promise<GitResult<string>>;
   githubTest: (token: string, owner: string, repo: string) => Promise<GitResult>;
   githubAuth: (token: string) => Promise<GitResult<GitHubUser>>;
   githubDeviceStart: () => Promise<GitResult<DeviceCodeInfo>>;

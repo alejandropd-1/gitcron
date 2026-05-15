@@ -26,11 +26,12 @@ export const useGitActions = () => {
     setLoading(true);
     setError(null);
     try {
+      if (!repoPath) return { success: false, error: 'no repo' };
       if (!window.api) {
         await new Promise((resolve) => setTimeout(resolve, 300));
         return { success: true };
       }
-      return await window.api.gitCommand(args);
+      return await window.api.gitCommand(repoPath, args);
     } catch (err: any) {
       setError(err.message || 'Unknown error');
       return { success: false, error: err.message };
@@ -51,7 +52,7 @@ export const useGitActions = () => {
         setModifiedFiles(modifiedFiles.filter((f) => !f.staged));
         return;
       }
-      const result = await window.api.gitCommand(['commit', '-m', commitMessage]);
+      const result = await window.api.gitCommand(repoPath, ['commit', '-m', commitMessage]);
       if (result.success) {
         setCommitMessage('');
         setSuccess('Commit realizado correctamente');
@@ -96,7 +97,7 @@ export const useGitActions = () => {
     }
     setLoading(true); setError(null);
     try {
-      const result = await window.api.gitCommand(['restore', filePath]);
+      const result = await window.api.gitCommand(repoPath, ['restore', filePath]);
       if (result.success) await refreshStatus();
       else setError(result.error ?? 'Error al descartar cambios');
       return result;
@@ -302,7 +303,7 @@ export const useGitActions = () => {
       setLoading(true); setError(null);
       try {
         // Stash includes untracked so nothing is lost
-        const stashed = await window.api.gitCommand(['stash', 'push', '--include-untracked', '-m', `GitCron auto-stash before checkout to ${branch}`]);
+        const stashed = await window.api.gitCommand(repoPath, ['stash', 'push', '--include-untracked', '-m', `GitCron auto-stash before checkout to ${branch}`]);
         if (!stashed.success) {
           setError(stashed.error ?? 'No se pudo stashear antes del checkout');
           return { success: false as const, error: stashed.error };

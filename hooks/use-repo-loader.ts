@@ -8,34 +8,52 @@ import type {
 
 export const useRepoLoader = () => {
   const {
+    openRepos,
     repoPath,
-    setRepoPath,
-    setRepoName,
-    setCurrentBranch,
     setCommits,
     setModifiedFiles,
     setBranches,
     setRemoteBranches,
+    setCurrentBranch,
     setStashes,
     setTags,
     setSubmodules,
     setBranchTracking,
     setWorktrees,
     setPullRequests,
+    updateRepoByPath,
+    addOrActivateRepo,
+    setActiveRepoIdx,
+    closeRepo: closeRepoInStore,
     githubToken,
     setCurrentDiff,
     setLoading,
     setError,
   } = useGitStore();
 
-  const applyRepoInfo = async (info: RepoInfo) => {
-    setRepoPath(info.path);
-    setRepoName(info.name);
-    setCurrentBranch(info.currentBranch);
-    // Persist last path so it survives restarts
-    if (window.api) {
-      await window.api.storageSet('lastRepoPath', info.path).catch(() => {});
+  const persistOpenRepos = async () => {
+    if (!window.api) return;
+    const state = useGitStore.getState();
+    const paths = state.openRepos.map((repo) => repo.path);
+    const activePath = state.openRepos[state.activeRepoIdx]?.path ?? null;
+
+    await window.api.storageSet('openRepoPaths', JSON.stringify(paths)).catch(() => {});
+    if (activePath) {
+      await Promise.all([
+        window.api.storageSet('activeRepoPath', activePath).catch(() => {}),
+        window.api.storageSet('lastRepoPath', activePath).catch(() => {}),
+      ]);
+    } else {
+      await Promise.all([
+        window.api.storageDelete('activeRepoPath').catch(() => {}),
+        window.api.storageDelete('lastRepoPath').catch(() => {}),
+      ]);
     }
+  };
+
+  const applyRepoInfo = async (info: RepoInfo) => {
+    addOrActivateRepo(info);
+    await persistOpenRepos();
   };
 
   const openRepo = async () => {
@@ -53,6 +71,50 @@ export const useRepoLoader = () => {
   /** Restore the last opened repo on startup — no dialog. Silently ignores errors. */
   const restoreLastRepo = async () => {
     if (!window.api) return;
+    const savedPaths = await window.api.storageGet('openRepoPaths').catch(() => null);
+    if (savedPaths?.success && typeof savedPaths.data === 'string') {
+      let paths: string[] = [];
+      let hasRepoList = false;
+      try {
+        const rawPaths = savedPaths.data;
+        const parsed = JSON.parse(rawPaths);
+        if (Array.isArray(parsed)) {
+          hasRepoList = true;
+          paths = parsed.filter((path): path is string => typeof path === 'string' && path.length > 0);
+        }
+      } catch { /* fall back to lastRepoPath */ }
+
+      if (hasRepoList) {
+        if (paths.length === 0) {
+          await persistOpenRepos();
+          return;
+        }
+
+        const activeSaved = await window.api.storageGet('activeRepoPath').catch(() => null);
+        const activePath = activeSaved?.success ? activeSaved.data : null;
+        const opened: RepoInfo[] = [];
+
+        for (const path of paths) {
+          try {
+            const result = await window.api.openPath(path);
+            if (result.success && result.data) {
+              addOrActivateRepo(result.data);
+              opened.push(result.data);
+            }
+          } catch { /* ignore moved/deleted repos */ }
+        }
+
+        if (opened.length > 0) {
+          const activeIdx = activePath
+            ? opened.findIndex((repo) => repo.path === activePath)
+            : -1;
+          if (activeIdx >= 0) setActiveRepoIdx(activeIdx);
+          await persistOpenRepos();
+        }
+        return;
+      }
+    }
+
     const saved = await window.api.storageGet('lastRepoPath').catch(() => null);
     if (!saved?.success || !saved.data) return;
     try {
@@ -60,6 +122,11 @@ export const useRepoLoader = () => {
       if (result.success && result.data) await applyRepoInfo(result.data);
       // If folder moved/deleted → silently show empty state; user picks manually
     } catch { /* ignore */ }
+  };
+
+  const closeRepo = async (idx: number) => {
+    closeRepoInStore(idx);
+    await persistOpenRepos();
   };
 
   /** Pick a parent folder via native dialog. Returns the chosen path or null. */
@@ -125,92 +192,158 @@ export const useRepoLoader = () => {
   };
 
   const refreshLog = async (path?: string) => {
+    const hasExplicitPath = path !== undefined;
     const target = path ?? repoPath;
     if (!target || !window.api) return;
     try {
       const result = await window.api.gitLog(target);
       if (result.success && result.data) {
-        setCommits(result.data as CommitData[]);
+        const commits = result.data as CommitData[];
+        if (hasExplicitPath) updateRepoByPath(target, { commits });
+        else setCommits(commits);
       }
     } catch (err: any) { console.error('refreshLog error:', err); }
   };
 
   const refreshStatus = async (path?: string) => {
+    const hasExplicitPath = path !== undefined;
     const target = path ?? repoPath;
     if (!target || !window.api) return;
     try {
       const result = await window.api.gitStatus(target);
-      if (result.success && result.data) setModifiedFiles(result.data as StatusFile[]);
+      if (result.success && result.data) {
+        const modifiedFiles = result.data as StatusFile[];
+        if (hasExplicitPath) updateRepoByPath(target, { modifiedFiles });
+        else setModifiedFiles(modifiedFiles);
+      }
     } catch (err: any) { console.error('refreshStatus error:', err); }
   };
 
   const refreshBranches = async (path?: string) => {
+    const hasExplicitPath = path !== undefined;
     const target = path ?? repoPath;
     if (!target || !window.api) return;
     try {
       const result = await window.api.gitBranches(target);
       if (result.success && result.data) {
         const data = result.data as BranchData;
-        setBranches(data.local);
-        setRemoteBranches(data.remote);
-        setCurrentBranch(data.current);
-        if (data.tracking) setBranchTracking(data.tracking);
+        if (hasExplicitPath) {
+          updateRepoByPath(target, {
+            branches: data.local,
+            remoteBranches: data.remote,
+            currentBranch: data.current,
+            ...(data.tracking ? { branchTracking: data.tracking } : {}),
+          });
+        } else {
+          setBranches(data.local);
+          setRemoteBranches(data.remote);
+          setCurrentBranch(data.current);
+          if (data.tracking) setBranchTracking(data.tracking);
+        }
       }
     } catch (err: any) { console.error('refreshBranches error:', err); }
   };
 
   const refreshWorktrees = async (path?: string) => {
+    const hasExplicitPath = path !== undefined;
     const target = path ?? repoPath;
     if (!target || !window.api) return;
     try {
       const result = await window.api.gitWorktrees(target);
-      if (result.success && result.data) setWorktrees(result.data as WorktreeEntry[]);
+      if (result.success && result.data) {
+        const worktrees = result.data as WorktreeEntry[];
+        if (hasExplicitPath) updateRepoByPath(target, { worktrees });
+        else setWorktrees(worktrees);
+      }
     } catch (err: any) { console.error('refreshWorktrees error:', err); }
   };
 
   const refreshPullRequests = async (path?: string) => {
+    const hasExplicitPath = path !== undefined;
     const target = path ?? repoPath;
     if (!target || !window.api || !githubToken) return;
     try {
       const result = await window.api.githubListPRs(githubToken, target);
-      if (result.success && result.data) setPullRequests(result.data as PullRequestEntry[]);
+      if (result.success && result.data) {
+        const pullRequests = result.data as PullRequestEntry[];
+        if (hasExplicitPath) updateRepoByPath(target, { pullRequests });
+        else setPullRequests(pullRequests);
+      }
     } catch (err: any) { console.error('refreshPullRequests error:', err); }
   };
 
   const refreshStashes = async (path?: string) => {
+    const hasExplicitPath = path !== undefined;
     const target = path ?? repoPath;
     if (!target || !window.api) return;
     try {
       const result = await window.api.gitStashList(target);
-      if (result.success && result.data) setStashes(result.data as StashEntry[]);
+      if (result.success && result.data) {
+        const stashes = result.data as StashEntry[];
+        if (hasExplicitPath) updateRepoByPath(target, { stashes });
+        else setStashes(stashes);
+      }
     } catch (err: any) { console.error('refreshStashes error:', err); }
   };
 
   const refreshTags = async (path?: string) => {
+    const hasExplicitPath = path !== undefined;
     const target = path ?? repoPath;
     if (!target || !window.api) return;
     try {
       const result = await window.api.gitTags(target);
-      if (result.success && result.data) setTags(result.data as string[]);
+      if (result.success && result.data) {
+        const tags = result.data as string[];
+        if (hasExplicitPath) updateRepoByPath(target, { tags });
+        else setTags(tags);
+      }
     } catch (err: any) { console.error('refreshTags error:', err); }
   };
 
   const refreshSubmodules = async (path?: string) => {
+    const hasExplicitPath = path !== undefined;
     const target = path ?? repoPath;
     if (!target || !window.api) return;
     try {
       const result = await window.api.gitSubmodules(target);
-      if (result.success && result.data) setSubmodules(result.data as SubmoduleEntry[]);
+      if (result.success && result.data) {
+        const submodules = result.data as SubmoduleEntry[];
+        if (hasExplicitPath) updateRepoByPath(target, { submodules });
+        else setSubmodules(submodules);
+      }
     } catch (err: any) { console.error('refreshSubmodules error:', err); }
   };
 
-  const loadDiff = async (filePath: string, staged: boolean = false) => {
-    if (!repoPath || !window.api) return;
+  const loadDiff = async (filePath: string, staged: boolean = false, path?: string) => {
+    const hasExplicitPath = path !== undefined;
+    const target = path ?? repoPath;
+    if (!target || !window.api) return;
+    const targetRepo = openRepos.find((repo) => repo.path === target);
+    const selectedFile = targetRepo?.modifiedFiles.find((file) => (
+      file.path === filePath && file.staged === staged
+    )) ?? targetRepo?.modifiedFiles.find((file) => file.path === filePath);
     try {
-      const result = await window.api.gitDiff(repoPath, filePath, staged);
-      if (result.success) setCurrentDiff((result.data as string) ?? '');
-      else { setCurrentDiff(''); setError(result.error ?? 'Error al cargar el diff'); }
-    } catch (err: any) { setCurrentDiff(''); console.error('loadDiff error:', err); }
+      const result = await window.api.gitDiff(target, filePath, staged);
+      if (result.success) {
+        const currentDiff = (result.data as string) ?? '';
+        if (hasExplicitPath) {
+          updateRepoByPath(target, {
+            currentDiff,
+            ...(selectedFile ? { selectedFile } : {}),
+          });
+        } else {
+          setCurrentDiff(currentDiff);
+        }
+      } else {
+        if (hasExplicitPath) updateRepoByPath(target, { currentDiff: '' });
+        else setCurrentDiff('');
+        setError(result.error ?? 'Error al cargar el diff');
+      }
+    } catch (err: any) {
+      if (hasExplicitPath) updateRepoByPath(target, { currentDiff: '' });
+      else setCurrentDiff('');
+      console.error('loadDiff error:', err);
+    }
   };
 
   const loadAll = async (path?: string) => {
@@ -231,6 +364,7 @@ export const useRepoLoader = () => {
   return {
     openRepo,
     restoreLastRepo,
+    closeRepo,
     pickFolder,
     initRepo,
     cloneRepo,

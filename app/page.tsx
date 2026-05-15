@@ -10,7 +10,7 @@ import {
   GitMerge, TreePine, ArrowUp, ArrowDown, ChevronDown, Check,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useGitStore, Commit, GitFile } from '@/lib/git-store';
+import { useGitStore, Commit, GitFile, type RepoState } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
 import { DiffViewer } from '@/components/DiffViewer';
@@ -48,8 +48,82 @@ function userInitials(user: { name?: string | null; login?: string; email?: stri
   return '?';
 }
 
+function RepoTabs({
+  repos,
+  activeIdx,
+  onSelect,
+  onClose,
+  onOpen,
+}: {
+  repos: RepoState[];
+  activeIdx: number;
+  onSelect: (idx: number) => void | Promise<void>;
+  onClose: (idx: number) => void | Promise<void>;
+  onOpen: () => void | Promise<void>;
+}) {
+  const t = useT();
+  if (repos.length === 0) return null;
+
+  return (
+    <div className="h-10 bg-[#020f1e] border-b border-[#3c495a]/15 flex items-end gap-1 px-3 pt-1 shrink-0 overflow-x-auto overflow-y-hidden">
+      {repos.map((repo, idx) => {
+        const isActive = idx === activeIdx;
+        return (
+          <div
+            key={repo.path}
+            className={cn(
+              'group h-8 min-w-0 max-w-56 rounded-t-md flex items-center border transition-colors',
+              isActive
+                ? 'bg-[#041425] border-[#3c495a]/20 border-b-[#041425] text-[#d9e7fc]'
+                : 'bg-[#06182a] border-[#3c495a]/10 text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#0b2035]',
+            )}
+          >
+            <button
+              type="button"
+              onClick={() => onSelect(idx)}
+              title={t('repoTabs.switchTo', { repo: repo.name })}
+              className="min-w-0 flex-1 h-full px-3 flex items-center gap-2 text-left"
+            >
+              <span
+                className={cn(
+                  'w-1.5 h-1.5 rounded-full shrink-0',
+                  isActive ? 'bg-[#a3f185] shadow-[0_0_10px_rgba(163,241,133,0.5)]' : 'bg-[#3c495a]',
+                )}
+              />
+              <span className="truncate text-xs font-semibold">{repo.name}</span>
+              <span className="text-[10px] text-[#697789] font-mono truncate max-w-20 hidden md:block">
+                {repo.currentBranch || '-'}
+              </span>
+            </button>
+            <button
+              type="button"
+              title={t('repoTabs.close', { repo: repo.name })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose(idx);
+              }}
+              className="mr-1 p-0.5 rounded text-[#697789] hover:text-[#ff716c] hover:bg-[#ff716c]/10 opacity-70 group-hover:opacity-100 transition"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        );
+      })}
+      <button
+        type="button"
+        onClick={onOpen}
+        title={t('repoTabs.openAnother')}
+        className="h-8 w-8 mb-0 rounded-t-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#06182a] border border-transparent hover:border-[#3c495a]/15 transition-colors shrink-0"
+      >
+        <Plus size={14} />
+      </button>
+    </div>
+  );
+}
+
 export default function GitCronPage() {
   const {
+    openRepos, activeRepoIdx, setActiveRepoIdx,
     repoPath, repoName,
     currentBranch, branches, remoteBranches,
     commits, modifiedFiles, commitMessage, setCommitMessage,
@@ -77,7 +151,7 @@ export default function GitCronPage() {
   const language = useGitStore((s) => s.language);
 
   const {
-    openRepo, restoreLastRepo, loadAll, loadDiff,
+    openRepo, restoreLastRepo, closeRepo, loadAll, loadDiff,
     pickFolder, initRepo, cloneRepo, createGitHubRepo, listUserGitHubRepos,
   } = useRepoLoader();
 
@@ -163,6 +237,20 @@ export default function GitCronPage() {
     if (repoPath) loadAll(repoPath);
   }, [repoPath]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Repo-scoped local UI should not survive tab switches or closing a repo.
+  useEffect(() => {
+    setContextMenu(null);
+    setFileContextMenu(null);
+    setBranchMenu(null);
+    setCheckoutConflict(null);
+    setRenameModal(null);
+    setDeleteConfirm(null);
+    setMergeNeedsCheckout(null);
+    setShowNewBranch(false);
+    setNewBranchName('');
+    setNewBranchFrom(undefined);
+  }, [repoPath]);
+
   // Hydrate preferences (language) + GitHub auth + last opened repo on startup.
   useEffect(() => {
     bootstrapPreferences();
@@ -218,7 +306,7 @@ export default function GitCronPage() {
 
   const handleSelectFile = async (file: GitFile) => {
     setSelectedFile(file);
-    await loadDiff(file.path, file.staged);
+    await loadDiff(file.path, file.staged, repoPath ?? undefined);
   };
 
   /**
@@ -287,8 +375,31 @@ export default function GitCronPage() {
     }
   };
 
+  const handleSelectRepoTab = async (idx: number) => {
+    const repo = openRepos[idx];
+    if (!repo || idx === activeRepoIdx) return;
+    setActiveRepoIdx(idx);
+    if (window.api) {
+      await Promise.all([
+        window.api.storageSet('activeRepoPath', repo.path).catch(() => {}),
+        window.api.storageSet('lastRepoPath', repo.path).catch(() => {}),
+      ]);
+    }
+  };
+
+  const handleCloseRepoTab = async (idx: number) => {
+    await closeRepo(idx);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-[#020f1e] text-[#d9e7fc] font-sans overflow-hidden select-none">
+      <RepoTabs
+        repos={openRepos}
+        activeIdx={activeRepoIdx}
+        onSelect={handleSelectRepoTab}
+        onClose={handleCloseRepoTab}
+        onOpen={openRepo}
+      />
       {/* ──────────── TOP NAV ──────────── */}
       <header className="h-12 border-b border-[#3c495a]/15 bg-[#041425]/85 backdrop-blur-xl flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-6 h-full">

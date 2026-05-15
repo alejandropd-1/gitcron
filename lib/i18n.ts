@@ -41,6 +41,9 @@ const es: Dict = {
   'tab.commit': 'Commit',
   'tab.graph': 'Graph',
   'tab.history': 'History',
+  'repoTabs.switchTo': 'Cambiar a {{repo}}',
+  'repoTabs.close': 'Cerrar {{repo}}',
+  'repoTabs.openAnother': 'Abrir otro repositorio',
 
   // ── Sidebar sections ──
   'sidebar.local': 'LOCAL',
@@ -333,6 +336,9 @@ const en: Dict = {
   'tab.commit': 'Commit',
   'tab.graph': 'Graph',
   'tab.history': 'History',
+  'repoTabs.switchTo': 'Switch to {{repo}}',
+  'repoTabs.close': 'Close {{repo}}',
+  'repoTabs.openAnother': 'Open another repository',
 
   // ── Sidebar ──
   'sidebar.local': 'LOCAL',

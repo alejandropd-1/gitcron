@@ -16,6 +16,30 @@ let repoPath: string | null = null;
 let git: SimpleGit = simpleGit();
 
 /**
+ * Git config flags applied to every token-authed operation:
+ *
+ *   credential.helper=               → empty value disables ALL credential
+ *                                      helpers (including Windows Credential
+ *                                      Manager / macOS Keychain / libsecret).
+ *                                      Prevents the auth'd URL from leaking
+ *                                      into the OS credential store as a
+ *                                      ghost "x-access-token" account.
+ *   core.askpass=true                → no-op askpass: if git ever asks for
+ *                                      credentials, return empty (fail fast)
+ *                                      instead of opening a GUI prompt.
+ */
+const NO_CREDENTIAL_HELPER_CONFIG = [
+  'credential.helper=',
+  'core.askpass=true',
+];
+
+/** Env vars that prevent git from prompting on tty/console during auth. */
+const NO_PROMPT_ENV = {
+  GIT_TERMINAL_PROMPT: '0',
+  GCM_INTERACTIVE: 'never', // Git Credential Manager: never prompt
+};
+
+/**
  * Redact any GitHub-token-in-URL pattern from a string before logging.
  * Matches `https://x-access-token:<TOKEN>@host/...` produced by withGitHubToken
  * and replaces the token with `[REDACTED]`. Safe to call with any value —
@@ -446,12 +470,18 @@ ipcMain.handle('git:clone', async (_event, url: string, parentPath: string, fold
     // For clone, inject the token directly in the URL when it's a GitHub HTTPS URL.
     // GIT_ASKPASS is blocked by Electron 42's child-process security layer.
     let cloneUrl = url;
-    if (token && /^https:\/\/github\.com\//i.test(url)) {
+    const isAuthClone = token && /^https:\/\/github\.com\//i.test(url);
+    if (isAuthClone) {
       // URL-encode the token so chars like '@' or ':' don't break URL parsing
       const encodedToken = encodeURIComponent(token);
       cloneUrl = url.replace(/^https:\/\//i, `https://x-access-token:${encodedToken}@`);
     }
-    const g = simpleGit();
+    // When we inject a token, disable the OS credential helper for THIS clone
+    // so the auth'd URL never gets cached in Windows Credential Manager /
+    // macOS Keychain / libsecret as a ghost 'x-access-token' account.
+    const g = isAuthClone
+      ? simpleGit({ config: NO_CREDENTIAL_HELPER_CONFIG }).env(NO_PROMPT_ENV)
+      : simpleGit();
     await g.clone(cloneUrl, destPath);
 
     repoPath = destPath;
@@ -835,11 +865,20 @@ async function withGitHubToken<T>(
   token: string | undefined,
   fn: (g: SimpleGit) => Promise<T>,
 ): Promise<T> {
-  const g = simpleGit(targetPath);
-  if (!token) return fn(g);
+  if (!token) return fn(simpleGit(targetPath));
+
+  // Build a simple-git instance that runs every command with credential
+  // helpers disabled. This prevents the auth'd URL from leaking into the
+  // OS credential store and avoids GUI prompts on auth failure.
+  const g = simpleGit({ baseDir: targetPath, config: NO_CREDENTIAL_HELPER_CONFIG });
+  g.env(NO_PROMPT_ENV);
+
+  // We still need a vanilla instance to read/write the remote URL (without
+  // the no-helper config affecting unrelated git plumbing).
+  const plain = simpleGit(targetPath);
 
   // Get current origin URL
-  const remotes = await g.getRemotes(true);
+  const remotes = await plain.getRemotes(true);
   const origin = remotes.find((r) => r.name === 'origin');
   const originalUrl = origin?.refs?.push || origin?.refs?.fetch;
 
@@ -853,11 +892,11 @@ async function withGitHubToken<T>(
   const authedUrl = originalUrl!.replace(/^https:\/\//i, `https://x-access-token:${encodedToken}@`);
 
   try {
-    await g.remote(['set-url', 'origin', authedUrl]);
+    await plain.remote(['set-url', 'origin', authedUrl]);
     return await fn(g);
   } finally {
     // Always restore, even on error or throw
-    await g.remote(['set-url', 'origin', originalUrl!]).catch(() => {});
+    await plain.remote(['set-url', 'origin', originalUrl!]).catch(() => {});
   }
 }
 

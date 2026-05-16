@@ -4,7 +4,18 @@ Changes are listed from newest to oldest.
 
 ---
 
-## [v0.1.7] - 2026-05-16 - Codebase cleanup, security hardening, credential isolation
+## [v0.1.7] - 2026-05-16 - Amend, cherry-pick, codebase cleanup, security hardening, credential isolation
+
+### Amend last commit
+- New IPC handler `git:amend(repoPath, newMessage?)` in `electron/main.ts`. Runs `git commit --amend -m <new>` when a message is provided, or `--amend --no-edit` to fold staged changes without rewording. Refuses to amend when HEAD does not exist yet.
+- New action `amendLastCommit(newMessage?)` in `hooks/use-git-actions.ts` that wraps the IPC, shows a success toast, and refreshes log/status/branches so any staged changes that got folded into the amended commit disappear from the UI.
+- New **Amend** button in the staging panel next to **Commit Changes**, styled in orange to flag that this rewrites history.
+- Modal that shows the current commit message (read-only), a textarea for the new message (empty = keep the existing one), and a warning about needing a force-push if the commit was already shared.
+
+### Cherry-pick from context menu
+- New IPC handler `git:cherry-pick(repoPath, hash)` with a 7-40 hex regex validation and conflict detection in the error stream. Returns `{ conflict: true }` so the renderer can show the appropriate guidance.
+- New action `cherryPickCommit(hash, shortHash?)` mirrors the `mergeIntoCurrent` conflict-handling pattern (status is refreshed on conflict so the user sees the conflicted files immediately).
+- New **"Cherry-pick este commit"** entry in the commit context menu — right-click any commit in the graph or the history view.
 
 ### Codebase cleanup (Fallow)
 - Ran Fallow (`fallow dead-code`) over the project and removed everything it flagged as truly unreachable:

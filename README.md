@@ -46,6 +46,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Batch stage / unstage to avoid `index.lock` races.
 - Diff viewer for staged and unstaged files.
 - Real commits with author, date, refs, and commit details.
+- Amend last commit: reword the message or fold staged changes into the previous commit, with a warning if the commit was already pushed.
 - Reset all with confirmation.
 - Recovery action for `index.lock` errors.
 
@@ -54,6 +55,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Ahead / behind counts in the sidebar.
 - Checkout with conflict detection.
 - Merge, rebase, fast-forward, rename, delete, and create branch flows.
+- Cherry-pick a single commit onto the current branch from the commit context menu, with conflict-aware feedback.
 - Per-file stash and full working-tree stash.
 - Clear-all stash action with confirmation.
 
@@ -224,10 +226,12 @@ gitCronos/
 - [x] Light theme (experimental).
 
 ### Future
+- [x] Amend last commit (v0.1.7).
+- [x] Cherry-pick from context menu (v0.1.7).
 - [ ] Multi-account GitHub support.
 - [ ] GitLab / Bitbucket support.
 - [ ] Pull request diff view.
-- [ ] Amend, squash, and cherry-pick workflows from the UI.
+- [ ] Squash / interactive rebase workflows from the UI.
 
 ---
 

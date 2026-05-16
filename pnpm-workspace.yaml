@@ -1,7 +1,7 @@
 allowBuilds:
-  '@google/genai': true
   '@tailwindcss/oxide': true
   esbuild: true
+  fallow: false
   protobufjs: true
   re2: true
   sharp: true

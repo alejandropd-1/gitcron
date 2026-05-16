@@ -1,4 +1,4 @@
-export interface GitResult<T = unknown> {
+interface GitResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -60,7 +60,7 @@ export interface PullRequestEntry {
   draft: boolean;
 }
 
-export interface RemoteOpResult {
+interface RemoteOpResult {
   success: boolean;
   error?: string;
   authRequired?: boolean;
@@ -80,7 +80,7 @@ export interface SubmoduleEntry {
   describe?: string;
 }
 
-export interface DeviceCodeInfo {
+interface DeviceCodeInfo {
   deviceCode: string;
   userCode: string;
   verificationUri: string;
@@ -97,7 +97,7 @@ export interface GitHubRepoInfo {
   updatedAt: string | null;
 }
 
-export interface CreatedRepoInfo {
+interface CreatedRepoInfo {
   cloneUrl: string;
   htmlUrl: string;
   fullName: string;
@@ -111,7 +111,7 @@ export interface GitHubUser {
   email: string | null;
 }
 
-export interface ElectronAPI {
+interface ElectronAPI {
   gitCommand: (repoPath: string, args: string[]) => Promise<GitResult<string>>;
   githubTest: (token: string, owner: string, repo: string) => Promise<GitResult>;
   githubAuth: (token: string) => Promise<GitResult<GitHubUser>>;

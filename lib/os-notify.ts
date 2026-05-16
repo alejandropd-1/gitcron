@@ -71,13 +71,3 @@ export async function notify(title: string, options?: NotifyOptions): Promise<vo
   }
 }
 
-/** Check if notifications are theoretically available in this runtime. */
-export function notificationsSupported(): boolean {
-  return typeof window !== 'undefined' && 'Notification' in window;
-}
-
-/** Current permission state. */
-export function notificationsPermission(): NotificationPermission | 'unsupported' {
-  if (!notificationsSupported()) return 'unsupported';
-  return Notification.permission;
-}

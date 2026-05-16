@@ -56,29 +56,6 @@ export function defaultShortcutsMap(): Record<ShortcutId, string> {
 }
 
 /**
- * Normalize a key combo into a stable string form.
- * Order: Ctrl, Shift, Alt, Meta, then the main key.
- * Letter keys are uppercase; symbol keys use their literal char.
- */
-export function normalizeKeys(parts: string[]): string {
-  const set = new Set(parts.map((p) => p.trim()));
-  const result: string[] = [];
-  if (set.has('Ctrl') || set.has('Control')) result.push('Ctrl');
-  if (set.has('Shift')) result.push('Shift');
-  if (set.has('Alt')) result.push('Alt');
-  if (set.has('Meta') || set.has('Cmd') || set.has('Command')) result.push('Meta');
-
-  // Find the main key (anything not a modifier)
-  for (const p of set) {
-    if (['Ctrl', 'Control', 'Shift', 'Alt', 'Meta', 'Cmd', 'Command'].includes(p)) continue;
-    const key = p.length === 1 ? p.toUpperCase() : p;
-    result.push(key);
-    break;
-  }
-  return result.join('+');
-}
-
-/**
  * Convert a browser KeyboardEvent into a normalized shortcut string.
  * Returns null if only modifiers are pressed.
  */
@@ -104,13 +81,4 @@ export function eventToShortcut(e: KeyboardEvent): string | null {
 /** Pretty-print for UI: "Ctrl + Shift + P" */
 export function formatShortcut(keys: string): string {
   return keys.split('+').join(' + ');
-}
-
-/**
- * Check if a KeyboardEvent matches a shortcut string.
- */
-export function matchesShortcut(e: KeyboardEvent, shortcut: string): boolean {
-  const actual = eventToShortcut(e);
-  if (!actual) return false;
-  return actual === shortcut;
 }

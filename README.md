@@ -237,7 +237,7 @@ gitCronos/
 
 ## Current version
 
-`v0.1.7` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v0.1.8` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

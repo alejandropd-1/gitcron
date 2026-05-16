@@ -4,6 +4,40 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v0.1.8] - 2026-05-16 - UI polish, sidebar hierarchy, filter dropdown, app icon
+
+### Sidebar hierarchy (GitKraken-style)
+- LOCAL and REMOTE section headers now use `Monitor` and `Cloud` icons in cyan `#5ed8ff`.
+- Section header padding reduced (`px-2`) so the chevron and icon sit at the leftmost position.
+- Root branch items aligned to `pl-[26px]` so their branch icon lines up exactly with the section header icon (chevron 12px + gap 8px from the `px-2` baseline).
+- Folder children (`claude/`, `origin/`) aligned to `pl-[46px]` so their icon lines up with the parent folder's icon.
+- Removed the duplicate cyan cloud icon from `RemoteFolderView` (origin); cloud now lives only in the REMOTE header.
+- Removed vertical guide lines (`border-l`) from both LOCAL and REMOTE folder children — pure padding hierarchy as in GitKraken.
+
+### Branch filter dropdown
+- Moved the "All branches / Current branch" segmented toggle from the graph's sticky header to a dropdown menu in the topbar, next to Terminal.
+- Filter button only renders when the Graph tab is active. A small green dot appears on the icon when the "Current branch" filter is on, as a visual indicator.
+- Dropdown uses `header relative z-50` + `dropdown z-50` so it always renders above the graph content (was clipping behind it before).
+- Eliminated the now-empty 34px gap at the top of the graph (`sticky top-[34px]` → `sticky top-0`).
+
+### Theme transition
+- Added `transition: filter 0.35s ease, background-color 0.35s ease` to `html.light body` so the dark ↔ light switch animates smoothly instead of snapping.
+
+### App icon
+- `public/favicon.ico` (Windows-friendly multi-size) and `public/gitcron-icon.png` shipped.
+- Electron `BrowserWindow` resolves the icon with a `.ico` first / `.png` fallback strategy.
+- Next.js `metadata.icons` now references `favicon.ico` (replaces the default `N` Next.js favicon in the window title bar).
+
+### Stability
+- Native `File / Edit / View / Window` menu removed in production via `Menu.setApplicationMenu(null)`. Dev keeps a minimal menu for DevTools toggle.
+- Spinner-stuck-on-tab race condition fixed: `use-repo-loader.ts` now captures `prevPath` before switching active repo and clears its `isLoading` in the `finally` block via `updateRepoByPath(prevPath, { isLoading: false })`.
+- `git -c credential.helper=` removed (Git 2.35.2+ blocks it as CVE-2022-24765 hardening). Replaced with `GIT_ASKPASS=echo` and `GIT_CREDENTIAL_HELPER=''` env vars — same effect, no security warning.
+
+### Context menu
+- Items now use `text-left` so labels align to the left edge instead of centering.
+
+---
+
 ## [v0.1.7] - 2026-05-16 - Amend, cherry-pick, codebase cleanup, security hardening, credential isolation
 
 ### Amend last commit

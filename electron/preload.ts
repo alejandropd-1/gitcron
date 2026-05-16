@@ -52,6 +52,10 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:unstage-batch', repoPath, filePaths),
   gitRemoveLock: (repoPath: string) =>
     ipcRenderer.invoke('git:remove-lock', repoPath),
+  gitAmend: (repoPath: string, newMessage?: string) =>
+    ipcRenderer.invoke('git:amend', repoPath, newMessage),
+  gitCherryPick: (repoPath: string, hash: string) =>
+    ipcRenderer.invoke('git:cherry-pick', repoPath, hash),
   gitAddToGitignore: (repoPath: string, filePath: string) =>
     ipcRenderer.invoke('git:add-to-gitignore', repoPath, filePath),
   gitResetAll: (repoPath: string) =>

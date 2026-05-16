@@ -386,6 +386,53 @@ export const useGitActions = () => {
     } finally { setLoading(false); }
   };
 
+  /**
+   * Amend the last commit. If `newMessage` is provided, replaces the commit
+   * message; otherwise the existing message is kept (`--no-edit`). Any staged
+   * changes at the time of the call are folded into the amended commit.
+   */
+  const amendLastCommit = async (newMessage?: string) => {
+    if (!window.api || !repoPath) return { success: false as const };
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitAmend(repoPath, newMessage);
+      if (r.success) {
+        setSuccess(t('success.amend'));
+        // After amend, the working tree may have lost its staged changes
+        // (they were folded into the commit). Refresh everything.
+        await refreshLog(); await refreshStatus(); await refreshBranches();
+        return { success: true as const, data: r.data };
+      }
+      setError(r.error ?? 'No se pudo enmendar el commit');
+      return { success: false as const, error: r.error };
+    } finally { setLoading(false); }
+  };
+
+  /**
+   * Cherry-pick a single commit (by full or short hash) onto the current
+   * branch. On conflict, the working tree is left in the cherry-pick state
+   * and the user must resolve manually + run `git cherry-pick --continue`
+   * or `--abort` from the terminal.
+   */
+  const cherryPickCommit = async (hash: string, shortHash?: string): Promise<{ success: boolean; conflict?: boolean; error?: string }> => {
+    if (!window.api || !repoPath) return { success: false, error: 'no api' };
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitCherryPick(repoPath, hash);
+      if (r.success) {
+        setSuccess(t('success.cherryPick', { hash: shortHash ?? hash.slice(0, 7) }));
+        await refreshLog(); await refreshStatus(); await refreshBranches();
+        return { success: true };
+      }
+      const conflict = (r.data as any)?.conflict;
+      setError(conflict
+        ? `Conflictos al hacer cherry-pick. Resolvé los archivos y usá "git cherry-pick --continue" en terminal.`
+        : (r.error ?? 'Error al hacer cherry-pick'));
+      if (conflict) await refreshStatus();
+      return { success: false, conflict, error: r.error };
+    } finally { setLoading(false); }
+  };
+
   const renameBranch = async (oldName: string, newName: string) => {
     if (!window.api || !repoPath) return false;
     setLoading(true); setError(null);
@@ -854,6 +901,8 @@ export const useGitActions = () => {
     mergeIntoCurrent,
     rebaseOnto,
     fastForwardBranch,
+    amendLastCommit,
+    cherryPickCommit,
     renameBranch,
     deleteBranch,
     pullSpecificBranch,

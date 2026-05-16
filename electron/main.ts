@@ -1138,6 +1138,56 @@ ipcMain.handle('git:remove-lock', async (_event, targetPath: string) => {
   }
 });
 
+// Amend the last commit. If `newMessage` is provided, replaces the message;
+// otherwise keeps the existing one (`--no-edit`). Staged changes (if any) are
+// folded into the amended commit either way. Refuses to amend a commit that
+// has already been pushed unless the caller has accepted the risk (the UI
+// shows a confirmation modal mentioning that pushed commits should not be
+// amended without force-pushing).
+ipcMain.handle('git:amend', async (_event, targetPath: string, newMessage?: string) => {
+  try {
+    const g = simpleGit(targetPath);
+    // Need at least one commit to amend.
+    try {
+      await g.revparse(['HEAD']);
+    } catch {
+      return { success: false, error: 'No hay commits que enmendar' };
+    }
+    const args = ['commit', '--amend'];
+    if (newMessage && newMessage.trim()) {
+      args.push('-m', newMessage.trim());
+    } else {
+      args.push('--no-edit');
+    }
+    await g.raw(args);
+    // Return the new HEAD sha for the caller to display
+    const newSha = (await g.revparse(['HEAD'])).trim();
+    return { success: true, data: { hash: newSha, shortHash: newSha.slice(0, 7) } };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
+// Cherry-pick a single commit onto the current branch. Returns { success,
+// conflict? } so the renderer can react: a conflict leaves the working tree
+// with conflicted files that the user must resolve and then `git
+// cherry-pick --continue` (or abort) from the terminal. We don't auto-commit
+// on conflict because the user might want to inspect the merge first.
+ipcMain.handle('git:cherry-pick', async (_event, targetPath: string, hash: string) => {
+  try {
+    if (!/^[0-9a-f]{7,40}$/i.test(hash)) {
+      return { success: false, error: 'Hash inválido' };
+    }
+    const g = simpleGit(targetPath);
+    await g.raw(['cherry-pick', hash]);
+    return { success: true };
+  } catch (error: any) {
+    const msg = sanitizeForLog(error.message || String(error));
+    const isConflict = /conflict|after resolving|could not apply/i.test(msg);
+    return { success: false, error: msg, data: { conflict: isConflict } };
+  }
+});
+
 ipcMain.handle('git:diff', async (_event, targetPath: string, filePath: string, staged: boolean = false) => {
   try {
     const g = simpleGit(targetPath);

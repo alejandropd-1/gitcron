@@ -364,6 +364,21 @@ const es: Dict = {
   'success.merge': '"{{branch}}" mergeada correctamente',
   'success.mergeUpToDate': '"{{branch}}" ya estaba integrada — nada para mergear',
   'success.fastForward': '"{{branch}}" actualizada (fast-forward)',
+  'success.amend': 'Último commit enmendado correctamente',
+  'success.cherryPick': 'Cherry-pick de {{hash}} aplicado',
+
+  // ── Amend modal ──
+  'amend.title': 'Enmendar último commit',
+  'amend.desc': 'Reemplazá el mensaje del último commit o dejá el actual si solo querés agregar los archivos staged.',
+  'amend.warning': '⚠ Si ya pusheaste este commit al remoto, vas a necesitar un force-push después. No enmendes commits compartidos con otros.',
+  'amend.currentMessage': 'Mensaje actual',
+  'amend.newMessage': 'Nuevo mensaje (vacío = mantener actual)',
+  'amend.button': 'Enmendar',
+  'amend.cancel': 'Cancelar',
+  'amend.toolbarLabel': 'Amend',
+
+  // ── Commit context menu ──
+  'commitMenu.cherryPick': 'Cherry-pick este commit',
 };
 
 const en: Dict = {
@@ -711,6 +726,21 @@ const en: Dict = {
   'success.merge': '"{{branch}}" merged successfully',
   'success.mergeUpToDate': '"{{branch}}" was already up to date — nothing to merge',
   'success.fastForward': '"{{branch}}" updated (fast-forward)',
+  'success.amend': 'Last commit amended successfully',
+  'success.cherryPick': 'Cherry-pick of {{hash}} applied',
+
+  // ── Amend modal ──
+  'amend.title': 'Amend last commit',
+  'amend.desc': 'Replace the last commit message, or keep the existing one if you only want to fold in staged changes.',
+  'amend.warning': '⚠ If this commit was already pushed, you will need a force-push afterwards. Do not amend commits shared with others.',
+  'amend.currentMessage': 'Current message',
+  'amend.newMessage': 'New message (empty = keep current)',
+  'amend.button': 'Amend',
+  'amend.cancel': 'Cancel',
+  'amend.toolbarLabel': 'Amend',
+
+  // ── Commit context menu ──
+  'commitMenu.cherryPick': 'Cherry-pick this commit',
 };
 
 const dicts: Record<Lang, Dict> = { es, en };

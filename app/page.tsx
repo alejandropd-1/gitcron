@@ -453,7 +453,7 @@ export default function GitCronPage() {
     setAutoFetchPrefs, setOsNotifications, rebindShortcut, resetShortcutsToDefaults, changeTheme,
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, copyFilePath,
-    mergeIntoCurrent, rebaseOnto, fastForwardBranch,
+    mergeIntoCurrent, rebaseOnto, fastForwardBranch, amendLastCommit, cherryPickCommit,
     renameBranch, deleteBranch, pullSpecificBranch, pushSpecificBranch,
   } = useGitActions();
 
@@ -512,6 +512,9 @@ export default function GitCronPage() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hash?: string } | null>(null);
   const [fileContextMenu, setFileContextMenu] = useState<{ x: number; y: number; file: GitFile } | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showAmend, setShowAmend] = useState(false);
+  const [amendNewMessage, setAmendNewMessage] = useState('');
+  const [amendCurrentMessage, setAmendCurrentMessage] = useState('');
   const [showStashClearConfirm, setShowStashClearConfirm] = useState(false);
   const [checkoutConflict, setCheckoutConflict] = useState<{ branch: string; error: string } | null>(null);
   const [branchMenu, setBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
@@ -1439,6 +1442,7 @@ export default function GitCronPage() {
               onStageMany={(paths, stage) => stageFiles(paths, stage)}
               onDiscard={(path) => discardFileChanges(path)}
               onCommit={commitChanges}
+              onRequestAmend={() => setShowAmend(true)}
               onFileContextMenu={(e, file) => {
                 e.preventDefault();
                 setFileContextMenu({ x: e.clientX, y: e.clientY, file });
@@ -2062,6 +2066,77 @@ export default function GitCronPage() {
         )}
       </AnimatePresence>
 
+      {/* ──────────── AMEND LAST COMMIT ──────────── */}
+      <AnimatePresence>
+        {showAmend && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            onClick={() => setShowAmend(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[520px] max-h-[80vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-[#fd9d1a] flex items-center gap-2 text-base">
+                  <RotateCcw size={16} /> {t('amend.title')}
+                </h3>
+                <button onClick={() => setShowAmend(false)} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={16} /></button>
+              </div>
+              <p className="text-xs text-[#9eacc0] mb-3">{t('amend.desc')}</p>
+              <div className="bg-[#fd9d1a]/10 border border-[#fd9d1a]/30 rounded p-2 text-xs text-[#ffd89e] mb-4">
+                {t('amend.warning')}
+              </div>
+              <div className="space-y-3 flex-1 overflow-y-auto scrollbar-thin">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-[#9eacc0] block mb-1">
+                    {t('amend.currentMessage')}
+                  </label>
+                  <div className="bg-[#041425] border border-[#3c495a]/15 rounded p-2 text-sm text-[#9eacc0] font-mono whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+                    {commits[0]?.message || '(sin commits)'}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-[#9eacc0] block mb-1">
+                    {t('amend.newMessage')}
+                  </label>
+                  <textarea
+                    autoFocus
+                    value={amendNewMessage}
+                    onChange={(e) => setAmendNewMessage(e.target.value)}
+                    placeholder={commits[0]?.message || ''}
+                    className="w-full bg-[#041425] border border-[#3c495a]/15 rounded p-2 text-sm text-[#d9e7fc] h-24 focus:outline-none focus:border-[#fd9d1a]/40 resize-none"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4 shrink-0">
+                <button
+                  onClick={async () => {
+                    const r = await amendLastCommit(amendNewMessage.trim() || undefined);
+                    if (r.success) {
+                      setShowAmend(false);
+                      setAmendNewMessage('');
+                    }
+                  }}
+                  disabled={isLoading || !repoPath || commits.length === 0}
+                  className="flex-1 py-2 bg-gradient-to-br from-[#fd9d1a] to-[#c87d10] hover:from-[#feab33] hover:to-[#d68f1f] disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-[#2a1500] rounded transition-colors"
+                >
+                  {isLoading ? '...' : t('amend.button')}
+                </button>
+                <button
+                  onClick={() => { setShowAmend(false); setAmendNewMessage(''); }}
+                  className="px-4 py-2 bg-[#041425] border border-[#3c495a]/30 hover:text-[#d9e7fc] text-sm text-[#9eacc0] rounded transition-colors"
+                >
+                  {t('amend.cancel')}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ──────────── FILE CONTEXT MENU ──────────── */}
       <AnimatePresence>
         {fileContextMenu && (
@@ -2100,6 +2175,12 @@ export default function GitCronPage() {
           <ContextMenu
             x={contextMenu.x} y={contextMenu.y}
             onMerge={() => { contextMenu.hash && mergeBranch(contextMenu.hash); setContextMenu(null); }}
+            onCherryPick={() => {
+              if (contextMenu.hash) {
+                void cherryPickCommit(contextMenu.hash, contextMenu.hash.slice(0, 7));
+              }
+              setContextMenu(null);
+            }}
             onRevert={() => { contextMenu.hash && revertCommit(contextMenu.hash); setContextMenu(null); }}
             onCheckout={() => { contextMenu.hash && checkoutBranch(contextMenu.hash); setContextMenu(null); }}
             onCreateBranch={() => { setNewBranchFrom(contextMenu.hash); setShowNewBranch(true); setContextMenu(null); }}
@@ -2482,7 +2563,7 @@ function FileRow({
 
 function StagingPanel({
   files, selectedFile, repoPath, commitMessage, setCommitMessage, isLoading,
-  onSelectFile, onStage, onStageMany, onDiscard, onCommit,
+  onSelectFile, onStage, onStageMany, onDiscard, onCommit, onRequestAmend,
   onFileContextMenu, onRequestResetAll,
 }: {
   files: GitFile[];
@@ -2496,6 +2577,7 @@ function StagingPanel({
   onStageMany: (paths: string[], stage: boolean) => void;
   onDiscard: (path: string) => void;
   onCommit: () => void;
+  onRequestAmend: () => void;
   onFileContextMenu: (e: React.MouseEvent, file: GitFile) => void;
   onRequestResetAll: () => void;
 }) {
@@ -2611,13 +2693,24 @@ function StagingPanel({
           value={commitMessage}
           onChange={(e) => setCommitMessage(e.target.value)}
         />
-        <button
-          onClick={onCommit}
-          disabled={isLoading || !commitMessage.trim() || staged.length === 0}
-          className="w-full mt-2 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-[#052900] rounded transition-colors"
-        >
-          {isLoading ? 'Commiteando...' : `Commit Changes${staged.length > 0 ? ` (${staged.length})` : ''}`}
-        </button>
+        <div className="flex gap-2 mt-2">
+          <button
+            onClick={onCommit}
+            disabled={isLoading || !commitMessage.trim() || staged.length === 0}
+            className="flex-1 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-[#052900] rounded transition-colors"
+          >
+            {isLoading ? 'Commiteando...' : `Commit Changes${staged.length > 0 ? ` (${staged.length})` : ''}`}
+          </button>
+          <button
+            onClick={onRequestAmend}
+            disabled={isLoading || !repoPath}
+            title="Enmendar el último commit (cambiar mensaje o agregar archivos staged)"
+            className="px-3 py-2 bg-[#041425] border border-[#3c495a]/30 hover:border-[#fd9d1a]/50 hover:text-[#fd9d1a] disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium text-[#9eacc0] rounded transition-colors flex items-center gap-1"
+          >
+            <RotateCcw size={12} />
+            Amend
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2696,12 +2789,13 @@ function StagingFileRow({
 }
 
 function ContextMenu({
-  x, y, onMerge, onRevert, onCheckout, onCreateBranch, onCopySha, onClose,
+  x, y, onMerge, onRevert, onCheckout, onCreateBranch, onCherryPick, onCopySha, onClose,
 }: {
   x: number; y: number;
   onMerge: () => void; onRevert: () => void; onCheckout: () => void;
-  onCreateBranch: () => void; onCopySha: () => void; onClose: () => void;
+  onCreateBranch: () => void; onCherryPick: () => void; onCopySha: () => void; onClose: () => void;
 }) {
+  const t = useT();
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
@@ -2709,6 +2803,7 @@ function ContextMenu({
       style={{ left: x, top: y }}
     >
       <ContextMenuItem onClick={onMerge} text="Merge into current branch" />
+      <ContextMenuItem onClick={onCherryPick} text={t('commitMenu.cherryPick')} />
       <ContextMenuItem onClick={onRevert} text="Revert commit" />
       <div className="h-px bg-[#3c495a] my-1" />
       <ContextMenuItem onClick={onCheckout} text="Checkout" />

@@ -898,7 +898,17 @@ export default function GitCronPage() {
             title={t('toolbar.openRepo')}
             className="flex items-center gap-1.5 font-bold text-[#a3f185] text-base hover:opacity-75 transition-opacity min-w-0"
           >
-            <FolderOpen size={16} />
+            {/* App icon — shown when no repo is open, replaced by folder icon when a repo is active */}
+            {repoName ? (
+              <FolderOpen size={16} />
+            ) : (
+              <img
+                src="/gitcron-icon.png"
+                alt="GitCron"
+                className="w-5 h-5 rounded object-cover"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            )}
             <span className="truncate">{repoName ?? 'GitCron'}</span>
           </button>
           <nav className="flex h-full gap-1 shrink-0">
@@ -2356,9 +2366,7 @@ function BranchFolderView({
         <span className="text-[10px] text-[#697789]">{folder.branches.length}</span>
       </button>
       {isOpen && (
-        <div className="relative">
-          {/* Vertical guide line */}
-          <div className="absolute left-[1.4rem] top-0 bottom-0 w-px bg-[#3c495a]/40" />
+        <div className="relative ml-4 border-l border-[#3c495a]/40">
           {folder.branches.map((b) => (
             <BranchRow
               key={b.fullPath}
@@ -2395,7 +2403,7 @@ function BranchRow({
       title={`Doble click: checkout · Click derecho: opciones`}
       className={cn(
         'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
-        indent ? 'pl-9' : 'pl-4',
+        indent ? 'pl-3' : 'pl-4',
         isActive ? 'bg-[#a3f185]/10 text-[#a3f185]' : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
       )}
     >
@@ -3823,10 +3831,10 @@ function ContextMenuItem({ onClick, text, textSecondary }: { onClick: () => void
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className="w-full flex items-center justify-between px-4 py-1.5 text-sm hover:bg-[#a3f185]/20 text-[#d9e7fc] hover:text-[#a3f185] transition-colors"
+      className="w-full flex items-center justify-between px-4 py-1.5 text-sm text-left hover:bg-[#a3f185]/20 text-[#d9e7fc] hover:text-[#a3f185] transition-colors"
     >
-      <span>{text}</span>
-      {textSecondary && <span className="text-[10px] opacity-50">{textSecondary}</span>}
+      <span className="text-left">{text}</span>
+      {textSecondary && <span className="text-[10px] opacity-50 ml-4 shrink-0">{textSecondary}</span>}
     </button>
   );
 }

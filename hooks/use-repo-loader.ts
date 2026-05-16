@@ -58,6 +58,12 @@ export const useRepoLoader = () => {
 
   const openRepo = async () => {
     if (!window.api) { setError('Electron API no disponible'); return; }
+    // Capture the currently active repo path BEFORE the dialog opens.
+    // applyRepoInfo / addOrActivateRepo will switch the active repo to the
+    // newly opened one, so the finally-block's setLoading(false) would
+    // clear the *new* repo's spinner, leaving the *previous* repo with
+    // isLoading: true permanently. Capturing here lets us reset both.
+    const prevPath = useGitStore.getState().repoPath;
     setLoading(true); setError(null);
     try {
       const defaultFolder = useGitStore.getState().defaultFolder ?? undefined;
@@ -66,7 +72,10 @@ export const useRepoLoader = () => {
       else setError(result.error ?? 'No se pudo abrir el repositorio');
     } catch (err: any) {
       setError(err.message ?? 'Error al abrir el repositorio');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+      if (prevPath) updateRepoByPath(prevPath, { isLoading: false });
+    }
   };
 
   /** Restore the last opened repo on startup — no dialog. Silently ignores errors. */
@@ -142,6 +151,7 @@ export const useRepoLoader = () => {
   /** Initialize a brand new repo at parentPath/name. */
   const initRepo = async (parentPath: string, name: string, withInitialCommit = true) => {
     if (!window.api) return { success: false as const, error: 'Electron API no disponible' };
+    const prevPath = useGitStore.getState().repoPath;
     setLoading(true); setError(null);
     try {
       const r = await window.api.gitInit(parentPath, name, withInitialCommit);
@@ -151,12 +161,16 @@ export const useRepoLoader = () => {
       }
       setError(r.error ?? 'Error al inicializar el repo');
       return { success: false as const, error: r.error };
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+      if (prevPath) updateRepoByPath(prevPath, { isLoading: false });
+    }
   };
 
   /** Clone an existing repo. token is optional (used for private GH repos). */
   const cloneRepo = async (url: string, parentPath: string, folderName: string, token?: string) => {
     if (!window.api) return { success: false as const, error: 'Electron API no disponible' };
+    const prevPath = useGitStore.getState().repoPath;
     setLoading(true); setError(null);
     try {
       const r = await window.api.gitClone(url, parentPath, folderName, token);
@@ -171,7 +185,10 @@ export const useRepoLoader = () => {
           : `Clone fallido: ${r.error}`,
       );
       return { success: false as const, error: r.error };
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+      if (prevPath) updateRepoByPath(prevPath, { isLoading: false });
+    }
   };
 
   /** Create a repo on GitHub. Returns the clone URL (caller decides if to clone). */

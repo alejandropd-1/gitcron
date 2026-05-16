@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, Menu } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
@@ -60,10 +60,34 @@ function sanitizeForLog(value: unknown): string {
 }
 
 function createWindow() {
+  // Remove the default native menu bar (File / Edit / View / Window).
+  // GitCron uses a custom in-app topbar for all actions.
+  // On macOS we keep a minimal menu so Cmd+Q and system clipboard shortcuts work.
+  if (process.platform === 'darwin') {
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      { role: 'appMenu' },
+      { role: 'editMenu' },  // gives Cmd+C / Cmd+V / Cmd+Z
+    ]));
+  } else {
+    Menu.setApplicationMenu(null);
+  }
+
+  // Resolve the app icon. In dev it lives next to this source file; in
+  // production it lives in the resources folder beside the packaged app.
+  const iconExt = process.platform === 'win32' ? '.ico'
+    : process.platform === 'linux' ? '.png'
+    : '.png'; // macOS uses .icns but BrowserWindow accepts .png too
+  const iconName = `gitcron-icon${iconExt}`;
+  const iconPath = isDev
+    ? path.join(__dirname, '../../public', iconName)
+    : path.join(process.resourcesPath, iconName);
+  const iconExists = fs.existsSync(iconPath);
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     backgroundColor: '#041425',
+    ...(iconExists ? { icon: iconPath } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,

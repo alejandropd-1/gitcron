@@ -2366,7 +2366,7 @@ function BranchFolderView({
         <span className="text-[10px] text-[#697789]">{folder.branches.length}</span>
       </button>
       {isOpen && (
-        <div className="relative ml-[22px] border-l border-[#3c495a]/50">
+        <div>
           {folder.branches.map((b) => (
             <BranchRow
               key={b.fullPath}
@@ -2403,7 +2403,7 @@ function BranchRow({
       title={`Doble click: checkout · Click derecho: opciones`}
       className={cn(
         'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
-        indent ? 'pl-4' : 'pl-4',
+        indent ? 'pl-9' : 'pl-4',
         isActive ? 'bg-[#a3f185]/10 text-[#a3f185]' : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
       )}
     >

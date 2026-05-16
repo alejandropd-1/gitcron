@@ -79,13 +79,13 @@ function createWindow() {
     Menu.setApplicationMenu(null);
   }
 
-  // Resolve the app icon.
-  // In dev: always use the .png from public/ (works on all platforms).
-  // In production: prefer .ico on Windows, .png elsewhere.
-  const prodIconExt = process.platform === 'win32' ? '.ico' : '.png';
-  const devIconPath = path.join(__dirname, '../../public/gitcron-icon.png');
-  const prodIconPath = path.join(process.resourcesPath, `gitcron-icon${prodIconExt}`);
-  const iconPath = isDev ? devIconPath : prodIconPath;
+  // Resolve the app icon. Prefer .ico on Windows (better DPI scaling),
+  // fall back to .png. In dev, files live in public/.
+  const publicDir = path.join(__dirname, '../../public');
+  const resourcesDir = isDev ? publicDir : process.resourcesPath;
+  const icoPath = path.join(resourcesDir, 'favicon.ico');
+  const pngPath = path.join(resourcesDir, 'gitcron-icon.png');
+  const iconPath = fs.existsSync(icoPath) ? icoPath : pngPath;
   const iconExists = fs.existsSync(iconPath);
 
   mainWindow = new BrowserWindow({

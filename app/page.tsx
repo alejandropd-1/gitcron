@@ -2231,7 +2231,7 @@ function SidebarSection({
   const [isOpen, setIsOpen] = useState(true);
   return (
     <div className="mt-2">
-      <div className="w-full flex items-center gap-1 px-4 py-1 text-[11px] font-bold text-[#9eacc0]">
+      <div className="w-full flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-[#9eacc0]">
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="flex items-center gap-1 flex-1 text-left hover:text-[#d9e7fc] transition-colors"
@@ -2358,7 +2358,7 @@ function BranchFolderView({
     <div>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
+        className="w-full pl-5 pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <Folder size={14} className="text-[#9eacc0] shrink-0" />
@@ -2403,7 +2403,7 @@ function BranchRow({
       title={`Doble click: checkout · Click derecho: opciones`}
       className={cn(
         'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
-        indent ? 'pl-9' : 'pl-4',
+        indent ? 'pl-9' : 'pl-5',
         isActive ? 'bg-[#a3f185]/10 text-[#a3f185]' : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
       )}
     >
@@ -2462,7 +2462,7 @@ function RemoteFolderView({ folder }: { folder: BranchFolder }) {
     <div>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
+        className="w-full pl-5 pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <Cloud size={14} className="text-[#5ed8ff] shrink-0" />

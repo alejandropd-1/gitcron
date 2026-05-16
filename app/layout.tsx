@@ -22,7 +22,10 @@ export const metadata: Metadata = {
   title: 'GitCron - Advanced Git Client',
   description: 'Technical dark Git management platform',
   icons: {
-    icon: '/gitcron-icon.png',
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/gitcron-icon.png', type: 'image/png' },
+    ],
     apple: '/gitcron-icon.png',
   },
 };

@@ -94,6 +94,7 @@ interface GitStore {
   lastFetchTime: number | null;
   isFetchingRemote: boolean;
   osNotificationsEnabled: boolean;
+  shortcuts: Record<string, string>;
 
   setRepoPath: (path: string | null) => void;
   setRepoName: (name: string | null) => void;
@@ -125,6 +126,9 @@ interface GitStore {
   setLastFetchTime: (ts: number | null) => void;
   setFetchingRemote: (fetching: boolean) => void;
   setOsNotificationsEnabled: (enabled: boolean) => void;
+  setShortcuts: (shortcuts: Record<string, string>) => void;
+  updateShortcut: (id: string, keys: string) => void;
+  resetShortcuts: () => void;
 }
 
 type EmptyRepoFields = Omit<RepoState, 'path' | 'name'>;
@@ -305,6 +309,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   lastFetchTime: null,
   isFetchingRemote: false,
   osNotificationsEnabled: true,
+  shortcuts: {},
 
   setRepoPath: (repoPath) => set((state) => {
     if (!repoPath) {
@@ -371,5 +376,8 @@ export const useGitStore = create<GitStore>((set, get) => ({
   setLastFetchTime: (lastFetchTime) => set({ lastFetchTime }),
   setFetchingRemote: (isFetchingRemote) => set({ isFetchingRemote }),
   setOsNotificationsEnabled: (osNotificationsEnabled) => set({ osNotificationsEnabled }),
+  setShortcuts: (shortcuts) => set({ shortcuts }),
+  updateShortcut: (id, keys) => set((s) => ({ shortcuts: { ...s.shortcuts, [id]: keys } })),
+  resetShortcuts: () => set({ shortcuts: {} }),
   setGithubUser: (githubUser) => set({ githubUser }),
 }));

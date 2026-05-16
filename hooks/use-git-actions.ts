@@ -642,6 +642,21 @@ export const useGitActions = () => {
     await window.api.storageSet('osNotifications', enabled ? '1' : '0').catch(() => {});
   };
 
+  /** Rebind a single shortcut. Persists the full map. */
+  const rebindShortcut = async (id: string, keys: string) => {
+    useGitStore.getState().updateShortcut(id, keys);
+    if (!window.api) return;
+    const all = useGitStore.getState().shortcuts;
+    await window.api.storageSet('shortcuts', JSON.stringify(all)).catch(() => {});
+  };
+
+  /** Reset all shortcuts to defaults. Removes the persisted override. */
+  const resetShortcutsToDefaults = async () => {
+    useGitStore.getState().resetShortcuts();
+    if (!window.api) return;
+    await window.api.storageDelete('shortcuts').catch(() => {});
+  };
+
   /** Change default folder for open/clone dialogs and persist. */
   const changeDefaultFolder = async (folder: string | null) => {
     setDefaultFolder(folder);
@@ -693,6 +708,15 @@ export const useGitActions = () => {
     const osN = await window.api.storageGet('osNotifications');
     if (osN.success && typeof osN.data === 'string') {
       useGitStore.getState().setOsNotificationsEnabled(osN.data === '1');
+    }
+    const sc = await window.api.storageGet('shortcuts');
+    if (sc.success && typeof sc.data === 'string') {
+      try {
+        const parsed = JSON.parse(sc.data) as Record<string, string>;
+        if (parsed && typeof parsed === 'object') {
+          useGitStore.getState().setShortcuts(parsed);
+        }
+      } catch { /* ignore corrupted prefs */ }
     }
   };
 
@@ -832,5 +856,7 @@ export const useGitActions = () => {
     pickDefaultFolder,
     setAutoFetchPrefs,
     setOsNotifications,
+    rebindShortcut,
+    resetShortcutsToDefaults,
   };
 };

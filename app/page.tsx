@@ -12,6 +12,13 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import pkg from '../package.json';
+import {
+  DEFAULT_SHORTCUTS,
+  defaultShortcutsMap,
+  eventToShortcut,
+  formatShortcut,
+} from '@/lib/shortcuts';
+import { useShortcuts } from '@/hooks/use-shortcuts';
 import { useGitStore, Commit, GitFile, type RepoState, type FontSize } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
@@ -214,6 +221,81 @@ function AutoFetchSection({
   );
 }
 
+function ShortcutsSection({
+  rebindShortcut,
+  resetShortcutsToDefaults,
+}: {
+  rebindShortcut: (id: string, keys: string) => Promise<void> | void;
+  resetShortcutsToDefaults: () => Promise<void> | void;
+}) {
+  const t = useT();
+  const shortcuts = useGitStore((s) => s.shortcuts);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const defaults = useMemo(() => defaultShortcutsMap(), []);
+  const merged: Record<string, string> = { ...defaults, ...(shortcuts ?? {}) };
+
+  // Listen for keys while capturing
+  useEffect(() => {
+    if (!editingId) return;
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === 'Escape') {
+        setEditingId(null);
+        return;
+      }
+      const combo = eventToShortcut(e);
+      if (!combo) return; // ignore modifier-only press
+      rebindShortcut(editingId, combo);
+      setEditingId(null);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [editingId, rebindShortcut]);
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider flex items-center gap-2">
+          <Type size={12} /> {t('settings.shortcuts')}
+        </h4>
+        <button
+          type="button"
+          onClick={() => resetShortcutsToDefaults()}
+          className="text-[10px] uppercase tracking-wider font-bold text-[#9eacc0] hover:text-[#a3f185] transition-colors"
+        >
+          {t('settings.shortcutsReset')}
+        </button>
+      </div>
+      <p className="text-xs text-[#9eacc0] mb-3">{t('settings.shortcutsDesc')}</p>
+      <div className="bg-[#041425] border border-[#3c495a]/15 rounded divide-y divide-[#3c495a]/15 max-h-[280px] overflow-y-auto">
+        {DEFAULT_SHORTCUTS.map((s) => {
+          const current = merged[s.id];
+          const isEditing = editingId === s.id;
+          return (
+            <div key={s.id} className="flex items-center justify-between px-3 py-2 text-xs">
+              <span className="text-[#9eacc0]">{t(s.descriptionKey)}</span>
+              <button
+                type="button"
+                onClick={() => setEditingId(isEditing ? null : s.id)}
+                className={cn(
+                  'px-2 py-1 rounded font-mono text-[10px] border transition-colors min-w-[100px] text-center',
+                  isEditing
+                    ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185] animate-pulse'
+                    : 'bg-[#020f1e] border-[#3c495a]/30 text-[#d9e7fc] hover:border-[#a3f185]/40',
+                )}
+              >
+                {isEditing ? t('settings.shortcutsCapture') : formatShortcut(current)}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function OsNotificationsSection({
   setOsNotifications,
 }: {
@@ -368,7 +450,7 @@ export default function GitCronPage() {
     openTerminal, stashApply, stashDrop, stashClear,
     connectGitHub, disconnectGitHub, loginWithGitHubDevice, bootstrapGitHub,
     bootstrapPreferences, changeLanguage, changeFontSize, changeDefaultFolder, pickDefaultFolder,
-    setAutoFetchPrefs, setOsNotifications,
+    setAutoFetchPrefs, setOsNotifications, rebindShortcut, resetShortcutsToDefaults,
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch,
@@ -392,6 +474,40 @@ export default function GitCronPage() {
   const { runFetchCycle } = useAutoFetch();
 
   const [activeTab, setActiveTab] = useState('Graph');
+
+  // Global keyboard shortcuts. Handlers fire only if the user is NOT typing in
+  // an input (except Ctrl+Enter for commit). The keys are user-configurable in
+  // Settings → Keyboard shortcuts.
+  useShortcuts({
+    commit: () => { if (commitMessage.trim() && repoPath) void commitChanges(); },
+    push: () => { if (repoPath) void pushChanges(); },
+    pull: () => { if (repoPath) void pullChanges(); },
+    newBranch: () => { if (repoPath) { setNewBranchFrom(undefined); setShowNewBranch(true); } },
+    search: () => setShowSearchPopover(true),
+    fetchNow: () => { if (repoPath) void runFetchCycle(); },
+    settings: () => setShowSettings(true),
+    help: () => setShowHelp(true),
+    closeRepo: () => {
+      const idx = useGitStore.getState().activeRepoIdx;
+      if (idx >= 0) useGitStore.getState().closeRepo(idx);
+    },
+    nextRepo: () => {
+      const s = useGitStore.getState();
+      if (s.openRepos.length > 1) {
+        s.setActiveRepoIdx((s.activeRepoIdx + 1) % s.openRepos.length);
+      }
+    },
+    prevRepo: () => {
+      const s = useGitStore.getState();
+      if (s.openRepos.length > 1) {
+        const idx = (s.activeRepoIdx - 1 + s.openRepos.length) % s.openRepos.length;
+        s.setActiveRepoIdx(idx);
+      }
+    },
+    graphTab: () => setActiveTab('Graph'),
+    historyTab: () => setActiveTab('History'),
+    commitTab: () => setActiveTab('Commit'),
+  });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hash?: string } | null>(null);
   const [fileContextMenu, setFileContextMenu] = useState<{ x: number; y: number; file: GitFile } | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -1556,6 +1672,10 @@ export default function GitCronPage() {
                 {/* ── Auto-fetch ── */}
                 <AutoFetchSection setAutoFetchPrefs={setAutoFetchPrefs} />
                 <OsNotificationsSection setOsNotifications={setOsNotifications} />
+                <ShortcutsSection
+                  rebindShortcut={rebindShortcut}
+                  resetShortcutsToDefaults={resetShortcutsToDefaults}
+                />
 
                 <section>
                   <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">

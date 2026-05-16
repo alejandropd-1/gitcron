@@ -15,6 +15,26 @@ let mainWindow: BrowserWindow | null = null;
 let repoPath: string | null = null;
 let git: SimpleGit = simpleGit();
 
+/**
+ * Redact any GitHub-token-in-URL pattern from a string before logging.
+ * Matches `https://x-access-token:<TOKEN>@host/...` produced by withGitHubToken
+ * and replaces the token with `[REDACTED]`. Safe to call with any value —
+ * non-strings are stringified first.
+ */
+function sanitizeForLog(value: unknown): string {
+  let str: string;
+  try {
+    str = typeof value === 'string'
+      ? value
+      : value instanceof Error
+        ? `${value.name}: ${value.message}`
+        : JSON.stringify(value);
+  } catch {
+    str = String(value);
+  }
+  return str.replace(/(x-access-token:)[^@]+@/g, '$1[REDACTED]@');
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -24,6 +44,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
     },
     titleBarStyle: 'hiddenInset',
   });
@@ -75,7 +97,7 @@ function readEncryptedStorage(): Record<string, string> {
     const json = safeStorage.decryptString(buf);
     return JSON.parse(json);
   } catch (err) {
-    console.error('readEncryptedStorage error:', err);
+    console.error('readEncryptedStorage error:', sanitizeForLog(err));
     return {};
   }
 }
@@ -162,7 +184,7 @@ function ensureAskpassScript(): string {
 
 ipcMain.handle('git:command', async (_event, targetPath: string, args: string[]) => {
   try {
-    console.log('Executing git command:', targetPath, args);
+    console.log('Executing git command:', targetPath, sanitizeForLog(args));
     const scopedGit = simpleGit(targetPath);
     let result;
     const command = args[0];
@@ -194,7 +216,7 @@ ipcMain.handle('git:command', async (_event, targetPath: string, args: string[])
     }
     return { success: true, data: typeof result === 'string' ? result : JSON.stringify(result) };
   } catch (error: any) {
-    console.error('Git Command Error:', error);
+    console.error('Git Command Error:', sanitizeForLog(error));
     return { success: false, error: error.message };
   }
 });
@@ -415,7 +437,9 @@ ipcMain.handle('git:clone', async (_event, url: string, parentPath: string, fold
     // GIT_ASKPASS is blocked by Electron 42's child-process security layer.
     let cloneUrl = url;
     if (token && /^https:\/\/github\.com\//i.test(url)) {
-      cloneUrl = url.replace(/^https:\/\//i, `https://x-access-token:${token}@`);
+      // URL-encode the token so chars like '@' or ':' don't break URL parsing
+      const encodedToken = encodeURIComponent(token);
+      cloneUrl = url.replace(/^https:\/\//i, `https://x-access-token:${encodedToken}@`);
     }
     const g = simpleGit();
     await g.clone(cloneUrl, destPath);
@@ -814,7 +838,9 @@ async function withGitHubToken<T>(
   if (!isHttpsGithub) return fn(g);
 
   // Inject token: https://x-access-token:<token>@github.com/...
-  const authedUrl = originalUrl!.replace(/^https:\/\//i, `https://x-access-token:${token}@`);
+  // URL-encode the token so chars like '@' or ':' don't break URL parsing
+  const encodedToken = encodeURIComponent(token);
+  const authedUrl = originalUrl!.replace(/^https:\/\//i, `https://x-access-token:${encodedToken}@`);
 
   try {
     await g.remote(['set-url', 'origin', authedUrl]);

@@ -196,6 +196,10 @@ const es: Dict = {
   'autoFetch.idle': 'Auto-fetch activo — click para sincronizar ahora',
   'autoFetch.disabled': 'Auto-fetch desactivado — click para sincronizar ahora',
   'autoFetch.lastSync': 'Última sincronización',
+  'settings.osNotifications': 'Notificaciones del sistema',
+  'settings.osNotificationsDesc': 'Avisos del SO cuando push/pull tarda más de 3s, cuando la ventana no está en foco, o cuando auto-fetch detecta nuevos commits remotos.',
+  'settings.osNotificationsEnabled': 'Activadas',
+  'settings.osNotificationsDisabled': 'Desactivadas',
   'settings.theme': 'Tema',
   'settings.themeDark': 'Oscuro',
   'settings.themeLight': 'Claro (próximamente)',
@@ -336,6 +340,11 @@ const es: Dict = {
   'error.renameFailed': 'Error al renombrar',
   'error.deleteBranchFailed': 'Error al eliminar branch',
   'error.pullDivergedManual': 'Pull fallido: las branches divergieron. Hacé checkout y resolvé manualmente.',
+
+  // ── Success toasts ──
+  'success.merge': '"{{branch}}" mergeada correctamente',
+  'success.mergeUpToDate': '"{{branch}}" ya estaba integrada — nada para mergear',
+  'success.fastForward': '"{{branch}}" actualizada (fast-forward)',
 };
 
 const en: Dict = {
@@ -515,6 +524,10 @@ const en: Dict = {
   'autoFetch.idle': 'Auto-fetch active — click to sync now',
   'autoFetch.disabled': 'Auto-fetch disabled — click to sync now',
   'autoFetch.lastSync': 'Last sync',
+  'settings.osNotifications': 'System notifications',
+  'settings.osNotificationsDesc': 'OS-level alerts when push/pull takes longer than 3s, when the window is not focused, or when auto-fetch detects new remote commits.',
+  'settings.osNotificationsEnabled': 'Enabled',
+  'settings.osNotificationsDisabled': 'Disabled',
   'settings.theme': 'Theme',
   'settings.themeDark': 'Dark',
   'settings.themeLight': 'Light (coming soon)',
@@ -655,6 +668,11 @@ const en: Dict = {
   'error.renameFailed': 'Error renaming',
   'error.deleteBranchFailed': 'Error deleting branch',
   'error.pullDivergedManual': 'Pull failed: branches diverged. Checkout and resolve manually.',
+
+  // ── Success toasts ──
+  'success.merge': '"{{branch}}" merged successfully',
+  'success.mergeUpToDate': '"{{branch}}" was already up to date — nothing to merge',
+  'success.fastForward': '"{{branch}}" updated (fast-forward)',
 };
 
 const dicts: Record<Lang, Dict> = { es, en };

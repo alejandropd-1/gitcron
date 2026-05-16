@@ -3,6 +3,8 @@
 import { useGitStore, type FontSize } from '@/lib/git-store';
 import { useRepoLoader } from './use-repo-loader';
 import type { Lang } from '@/lib/i18n';
+import { tNow as t } from './use-translation';
+import { notify } from '@/lib/os-notify';
 
 export const useGitActions = () => {
   const {
@@ -70,7 +72,10 @@ export const useGitActions = () => {
 
   const mergeBranch = async (branchName: string) => {
     const result = await runCommand(['merge', branchName]);
-    if (result.success) { await refreshLog(); await refreshStatus(); await refreshBranches(); }
+    if (result.success) {
+      setSuccess(t('success.merge', { branch: branchName }));
+      await refreshLog(); await refreshStatus(); await refreshBranches();
+    }
     else setError(`Conflicto al mergear ${branchName}: ${result.error}`);
     return result;
   };
@@ -331,8 +336,8 @@ export const useGitActions = () => {
       if (r.success) {
         const alreadyUpToDate = (r.data as any)?.alreadyUpToDate;
         setSuccess(alreadyUpToDate
-          ? `"${sourceBranch}" ya estaba integrada — nada para mergear`
-          : `Merge de "${sourceBranch}" completado`);
+          ? t('success.mergeUpToDate', { branch: sourceBranch })
+          : t('success.merge', { branch: sourceBranch }));
         await refreshLog(); await refreshStatus(); await refreshBranches();
         return { success: true };
       }
@@ -372,7 +377,7 @@ export const useGitActions = () => {
     try {
       const r = await window.api.gitFastForward(repoPath, branch, toRef);
       if (r.success) {
-        setSuccess(`"${branch}" actualizada (fast-forward)`);
+        setSuccess(t('success.fastForward', { branch }));
         await refreshLog(); await refreshBranches();
         return { success: true as const };
       }
@@ -468,21 +473,32 @@ export const useGitActions = () => {
 
   const pushChanges = async () => {
     if (!window.api || !repoPath) return;
+    const startedAt = Date.now();
     setLoading(true); setError(null);
     try {
       const result = await window.api.gitPush(repoPath, githubToken ?? undefined);
       if (!result.success) {
         const isAuth = result.data?.authRequired;
-        setError(
-          isAuth
-            ? 'Push fallido: autenticación requerida. Configurá tu token de GitHub en Settings.'
-            : `Push fallido: ${result.error}`
-        );
+        const errMsg = isAuth
+          ? 'Push fallido: autenticación requerida. Configurá tu token de GitHub en Settings.'
+          : `Push fallido: ${result.error}`;
+        setError(errMsg);
+        // Notify only if window unfocused (don't bother user otherwise)
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+          notify('GitCron — Push fallido', { body: errMsg });
+        }
       } else {
         const wasNewBranch = (result.data as any)?.setUpstream;
-        setSuccess(wasNewBranch
+        const msg = wasNewBranch
           ? 'Branch publicada en origin — upstream configurado automáticamente'
-          : 'Push exitoso — cambios subidos al remoto');
+          : 'Push exitoso — cambios subidos al remoto';
+        setSuccess(msg);
+        // Notify when push took > 3s OR the window is not focused
+        const elapsed = Date.now() - startedAt;
+        const unfocused = typeof document !== 'undefined' && document.visibilityState !== 'visible';
+        if (elapsed > 3000 || unfocused) {
+          notify('GitCron — Push completado', { body: msg });
+        }
         await refreshLog();
         await refreshBranches();
       }
@@ -492,19 +508,28 @@ export const useGitActions = () => {
 
   const pullChanges = async () => {
     if (!window.api || !repoPath) return;
+    const startedAt = Date.now();
     setLoading(true); setError(null);
     try {
       const result = await window.api.gitPull(repoPath, githubToken ?? undefined);
       if (result.success) {
-        setSuccess(result.data?.summary ? `Pull completado — ${result.data.summary}` : 'Pull completado');
+        const msg = result.data?.summary ? `Pull completado — ${result.data.summary}` : 'Pull completado';
+        setSuccess(msg);
+        const elapsed = Date.now() - startedAt;
+        const unfocused = typeof document !== 'undefined' && document.visibilityState !== 'visible';
+        if (elapsed > 3000 || unfocused) {
+          notify('GitCron — Pull completado', { body: msg });
+        }
         await refreshLog(); await refreshStatus(); await refreshBranches();
       } else {
         const isAuth = result.data?.authRequired;
-        setError(
-          isAuth
-            ? 'Pull fallido: autenticación requerida. Configurá tu token de GitHub en Settings.'
-            : `Pull fallido: ${result.error}`
-        );
+        const errMsg = isAuth
+          ? 'Pull fallido: autenticación requerida. Configurá tu token de GitHub en Settings.'
+          : `Pull fallido: ${result.error}`;
+        setError(errMsg);
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+          notify('GitCron — Pull fallido', { body: errMsg });
+        }
       }
     } catch (err: any) { setError(err.message); }
     finally { setLoading(false); }
@@ -610,6 +635,13 @@ export const useGitActions = () => {
     await window.api.storageSet('autoFetch', JSON.stringify({ enabled, intervalMinutes })).catch(() => {});
   };
 
+  /** Toggle OS-level notifications globally. Persists to encrypted storage. */
+  const setOsNotifications = async (enabled: boolean) => {
+    useGitStore.getState().setOsNotificationsEnabled(enabled);
+    if (!window.api) return;
+    await window.api.storageSet('osNotifications', enabled ? '1' : '0').catch(() => {});
+  };
+
   /** Change default folder for open/clone dialogs and persist. */
   const changeDefaultFolder = async (folder: string | null) => {
     setDefaultFolder(folder);
@@ -657,6 +689,10 @@ export const useGitActions = () => {
           useGitStore.getState().setAutoFetchIntervalMinutes(parsed.intervalMinutes);
         }
       } catch { /* ignore corrupted prefs */ }
+    }
+    const osN = await window.api.storageGet('osNotifications');
+    if (osN.success && typeof osN.data === 'string') {
+      useGitStore.getState().setOsNotificationsEnabled(osN.data === '1');
     }
   };
 
@@ -795,5 +831,6 @@ export const useGitActions = () => {
     changeDefaultFolder,
     pickDefaultFolder,
     setAutoFetchPrefs,
+    setOsNotifications,
   };
 };

@@ -93,6 +93,7 @@ interface GitStore {
   autoFetchIntervalMinutes: number;
   lastFetchTime: number | null;
   isFetchingRemote: boolean;
+  osNotificationsEnabled: boolean;
 
   setRepoPath: (path: string | null) => void;
   setRepoName: (name: string | null) => void;
@@ -123,6 +124,7 @@ interface GitStore {
   setAutoFetchIntervalMinutes: (minutes: number) => void;
   setLastFetchTime: (ts: number | null) => void;
   setFetchingRemote: (fetching: boolean) => void;
+  setOsNotificationsEnabled: (enabled: boolean) => void;
 }
 
 type EmptyRepoFields = Omit<RepoState, 'path' | 'name'>;
@@ -302,6 +304,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   autoFetchIntervalMinutes: 10,
   lastFetchTime: null,
   isFetchingRemote: false,
+  osNotificationsEnabled: true,
 
   setRepoPath: (repoPath) => set((state) => {
     if (!repoPath) {
@@ -367,5 +370,6 @@ export const useGitStore = create<GitStore>((set, get) => ({
   setAutoFetchIntervalMinutes: (autoFetchIntervalMinutes) => set({ autoFetchIntervalMinutes }),
   setLastFetchTime: (lastFetchTime) => set({ lastFetchTime }),
   setFetchingRemote: (isFetchingRemote) => set({ isFetchingRemote }),
+  setOsNotificationsEnabled: (osNotificationsEnabled) => set({ osNotificationsEnabled }),
   setGithubUser: (githubUser) => set({ githubUser }),
 }));

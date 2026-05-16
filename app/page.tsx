@@ -11,6 +11,7 @@ import {
   Type, Filter,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import pkg from '../package.json';
 import { useGitStore, Commit, GitFile, type RepoState, type FontSize } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
@@ -213,6 +214,39 @@ function AutoFetchSection({
   );
 }
 
+function OsNotificationsSection({
+  setOsNotifications,
+}: {
+  setOsNotifications: (enabled: boolean) => Promise<void> | void;
+}) {
+  const t = useT();
+  const osNotificationsEnabled = useGitStore((s) => s.osNotificationsEnabled);
+
+  return (
+    <section>
+      <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+        <AlertCircle size={12} /> {t('settings.osNotifications')}
+      </h4>
+      <p className="text-xs text-[#9eacc0] mb-3">{t('settings.osNotificationsDesc')}</p>
+      <button
+        type="button"
+        onClick={() => setOsNotifications(!osNotificationsEnabled)}
+        className={cn(
+          'px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors',
+          osNotificationsEnabled
+            ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
+            : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc]',
+        )}
+      >
+        {osNotificationsEnabled && <Check size={14} strokeWidth={3} />}
+        <span className="font-medium">
+          {osNotificationsEnabled ? t('settings.osNotificationsEnabled') : t('settings.osNotificationsDisabled')}
+        </span>
+      </button>
+    </section>
+  );
+}
+
 function FetchIndicator({ onClick }: { onClick: () => void | Promise<void> }) {
   const t = useT();
   const isFetchingRemote = useGitStore((s) => s.isFetchingRemote);
@@ -334,7 +368,7 @@ export default function GitCronPage() {
     openTerminal, stashApply, stashDrop, stashClear,
     connectGitHub, disconnectGitHub, loginWithGitHubDevice, bootstrapGitHub,
     bootstrapPreferences, changeLanguage, changeFontSize, changeDefaultFolder, pickDefaultFolder,
-    setAutoFetchPrefs,
+    setAutoFetchPrefs, setOsNotifications,
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch,
@@ -1521,6 +1555,7 @@ export default function GitCronPage() {
 
                 {/* ── Auto-fetch ── */}
                 <AutoFetchSection setAutoFetchPrefs={setAutoFetchPrefs} />
+                <OsNotificationsSection setOsNotifications={setOsNotifications} />
 
                 <section>
                   <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -1562,7 +1597,7 @@ export default function GitCronPage() {
                   <div className="bg-[#041425] border border-[#3c495a]/15 rounded p-3 text-xs">
                     <div className="flex justify-between mb-1">
                       <span className="text-[#9eacc0]">GitCron</span>
-                      <span className="text-[#a3f185] font-mono">v0.1.0</span>
+                      <span className="text-[#a3f185] font-mono">v{pkg.version}</span>
                     </div>
                     <div className="flex justify-between text-[10px] text-[#697789]">
                       <span>Electron + Next.js + simple-git</span>

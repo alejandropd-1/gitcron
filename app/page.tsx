@@ -1036,7 +1036,7 @@ export default function GitCronPage() {
           style={{ width: sidebarW }}
         >
           {/* LOCAL — folder tree + ahead/behind chips */}
-          <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} />}>
+          <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-[#5ed8ff]" />}>
             {branches.length === 0 && !repoPath && (
               <p className="px-4 py-2 text-xs text-[#9eacc0] italic">{t('sidebar.noBranches')}</p>
             )}
@@ -1053,7 +1053,7 @@ export default function GitCronPage() {
           </SidebarSection>
 
           {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
-          <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} />}>
+          <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} className="text-[#5ed8ff]" />}>
             <RemoteBranchTree branches={remoteBranches} />
           </SidebarSection>
 
@@ -2359,7 +2359,7 @@ function BranchFolderView({
     <div>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full pl-5 pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
+        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <Folder size={14} className="text-[#9eacc0] shrink-0" />
@@ -2404,7 +2404,7 @@ function BranchRow({
       title={`Doble click: checkout · Click derecho: opciones`}
       className={cn(
         'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
-        indent ? 'pl-9' : 'pl-5',
+        indent ? 'pl-10' : 'pl-[26px]',
         isActive ? 'bg-[#a3f185]/10 text-[#a3f185]' : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
       )}
     >
@@ -2445,7 +2445,7 @@ function RemoteBranchTree({ branches }: { branches: string[] }) {
   return (
     <div>
       {root.map((b) => (
-        <div key={b.fullPath} className="pl-5 pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0]">
+        <div key={b.fullPath} className="pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0]">
           <Cloud size={13} className="shrink-0 text-[#5ed8ff]" />
           <span className="truncate text-xs">{b.name}</span>
         </div>
@@ -2463,10 +2463,10 @@ function RemoteFolderView({ folder }: { folder: BranchFolder }) {
     <div>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full pl-5 pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
+        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <Cloud size={14} className="text-[#5ed8ff] shrink-0" />
+        <Folder size={13} className="text-[#9eacc0] shrink-0" />
         <span className="truncate flex-1 text-left">{folder.prefix}</span>
         <span className="text-[10px] text-[#697789]">{folder.branches.length}</span>
       </button>
@@ -2475,7 +2475,7 @@ function RemoteFolderView({ folder }: { folder: BranchFolder }) {
           {folder.branches.map((b) => (
             <div
               key={b.fullPath}
-              className="pl-9 pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] transition-colors"
+              className="pl-10 pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] transition-colors"
               title={b.fullPath}
             >
               <GitBranch size={13} className="shrink-0 text-[#697789]" />

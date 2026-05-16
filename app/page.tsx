@@ -450,7 +450,7 @@ export default function GitCronPage() {
     openTerminal, stashApply, stashDrop, stashClear,
     connectGitHub, disconnectGitHub, loginWithGitHubDevice, bootstrapGitHub,
     bootstrapPreferences, changeLanguage, changeFontSize, changeDefaultFolder, pickDefaultFolder,
-    setAutoFetchPrefs, setOsNotifications, rebindShortcut, resetShortcutsToDefaults,
+    setAutoFetchPrefs, setOsNotifications, rebindShortcut, resetShortcutsToDefaults, changeTheme,
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch,
@@ -461,6 +461,7 @@ export default function GitCronPage() {
   const language = useGitStore((s) => s.language);
   const fontSize = useGitStore((s) => s.fontSize);
   const defaultFolder = useGitStore((s) => s.defaultFolder);
+  const theme = useGitStore((s) => s.theme);
   const appFontSizePx = FONT_SIZE_OPTIONS.find((option) => option.key === fontSize)?.px ?? 15;
 
   const {
@@ -1681,14 +1682,34 @@ export default function GitCronPage() {
                   <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Sparkles size={12} /> {t('settings.theme')}
                   </h4>
+                  <p className="text-xs text-[#697789] mb-2 italic">{t('settings.themeLightWarning')}</p>
                   <div className="flex gap-2">
-                    <div className="flex-1 px-3 py-2 rounded border bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185] text-sm flex items-center gap-2 cursor-default">
-                      <Check size={14} strokeWidth={3} />
+                    <button
+                      type="button"
+                      onClick={() => changeTheme('dark')}
+                      className={cn(
+                        'flex-1 px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors',
+                        theme === 'dark'
+                          ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
+                          : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc]',
+                      )}
+                    >
+                      {theme === 'dark' && <Check size={14} strokeWidth={3} />}
                       {t('settings.themeDark')}
-                    </div>
-                    <div className="flex-1 px-3 py-2 rounded border bg-[#041425] border-[#3c495a]/15 text-[#697789] text-sm flex items-center justify-center cursor-not-allowed">
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => changeTheme('light')}
+                      className={cn(
+                        'flex-1 px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors',
+                        theme === 'light'
+                          ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
+                          : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc]',
+                      )}
+                    >
+                      {theme === 'light' && <Check size={14} strokeWidth={3} />}
                       {t('settings.themeLight')}
-                    </div>
+                    </button>
                   </div>
                 </section>
 

@@ -1,5 +1,27 @@
 @import "tailwindcss";
 
+/* ──────────── Light theme (experimental) ──────────── */
+/*
+ * GitCron is designed around a dark palette ("The Compiled Soul"). The light
+ * theme is implemented as a global color inversion + hue rotation, applied
+ * only when <html class="light"> is present. This gives a usable light mode
+ * without rewriting every hardcoded hex in the components. Elements that need
+ * to keep their original colors (user avatars, branch colors in the graph)
+ * are marked with `data-keep-color` and are inverted back to compensate.
+ */
+html.light {
+  background: #f5f5f7;
+}
+html.light body {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+html.light img,
+html.light video,
+html.light [data-keep-color],
+html.light [data-keep-color] * {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+
 /* ──────────── Scrollbars (matching "The Compiled Soul" palette) ──────────── */
 
 /* WebKit-based browsers (Chrome, Electron, Safari) */

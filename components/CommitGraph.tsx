@@ -378,7 +378,7 @@ function GraphRowView({
             opacity: selected ? 0.6 : 0.42,
           }}
         />
-      <svg width={graphWidth} height={ROW_H} className="block relative z-10" style={{ overflow: 'visible' }}>
+      <svg width={graphWidth} height={ROW_H} className="block relative z-10" style={{ overflow: 'visible' }} data-keep-color>
         {/* Pass-through lanes */}
         {row.activeLanes.map(({ lane, color }) => (
           <line
@@ -529,7 +529,7 @@ function WIPRow({
       </div>
 
       <div className="shrink-0 overflow-visible" style={{ width: graphColumnWidth }}>
-        <svg width={graphWidth} height={ROW_H} className="block" style={{ overflow: 'visible' }}>
+        <svg width={graphWidth} height={ROW_H} className="block" style={{ overflow: 'visible' }} data-keep-color>
           <line
             x1={PADDING_LEFT} y1={ROW_H / 2} x2={PADDING_LEFT} y2={ROW_H}
             stroke={laneColor} strokeWidth={2} strokeDasharray="3 3" opacity={0.6}

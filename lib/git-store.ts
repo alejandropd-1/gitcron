@@ -6,6 +6,7 @@ import type {
 import type { Lang } from '@/lib/i18n';
 
 export type FontSize = 'compact' | 'normal' | 'large';
+export type Theme = 'dark' | 'light';
 
 export interface Commit {
   hash: string;
@@ -95,6 +96,7 @@ interface GitStore {
   isFetchingRemote: boolean;
   osNotificationsEnabled: boolean;
   shortcuts: Record<string, string>;
+  theme: Theme;
 
   setRepoPath: (path: string | null) => void;
   setRepoName: (name: string | null) => void;
@@ -129,6 +131,7 @@ interface GitStore {
   setShortcuts: (shortcuts: Record<string, string>) => void;
   updateShortcut: (id: string, keys: string) => void;
   resetShortcuts: () => void;
+  setTheme: (theme: Theme) => void;
 }
 
 type EmptyRepoFields = Omit<RepoState, 'path' | 'name'>;
@@ -310,6 +313,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   isFetchingRemote: false,
   osNotificationsEnabled: true,
   shortcuts: {},
+  theme: 'dark',
 
   setRepoPath: (repoPath) => set((state) => {
     if (!repoPath) {
@@ -379,5 +383,6 @@ export const useGitStore = create<GitStore>((set, get) => ({
   setShortcuts: (shortcuts) => set({ shortcuts }),
   updateShortcut: (id, keys) => set((s) => ({ shortcuts: { ...s.shortcuts, [id]: keys } })),
   resetShortcuts: () => set({ shortcuts: {} }),
+  setTheme: (theme) => set({ theme }),
   setGithubUser: (githubUser) => set({ githubUser }),
 }));

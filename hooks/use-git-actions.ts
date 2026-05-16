@@ -1,6 +1,6 @@
 'use client';
 
-import { useGitStore, type FontSize } from '@/lib/git-store';
+import { useGitStore, type FontSize, type Theme } from '@/lib/git-store';
 import { useRepoLoader } from './use-repo-loader';
 import type { Lang } from '@/lib/i18n';
 import { tNow as t } from './use-translation';
@@ -657,6 +657,17 @@ export const useGitActions = () => {
     await window.api.storageDelete('shortcuts').catch(() => {});
   };
 
+  /** Change theme and persist. Also applies it to the <html> element. */
+  const changeTheme = async (theme: Theme) => {
+    useGitStore.getState().setTheme(theme);
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.remove('dark', 'light');
+      document.documentElement.classList.add(theme);
+    }
+    if (!window.api) return;
+    await window.api.storageSet('theme', theme).catch(() => {});
+  };
+
   /** Change default folder for open/clone dialogs and persist. */
   const changeDefaultFolder = async (folder: string | null) => {
     setDefaultFolder(folder);
@@ -717,6 +728,14 @@ export const useGitActions = () => {
           useGitStore.getState().setShortcuts(parsed);
         }
       } catch { /* ignore corrupted prefs */ }
+    }
+    const th = await window.api.storageGet('theme');
+    if (th.success && (th.data === 'dark' || th.data === 'light')) {
+      useGitStore.getState().setTheme(th.data as Theme);
+      if (typeof document !== 'undefined') {
+        document.documentElement.classList.remove('dark', 'light');
+        document.documentElement.classList.add(th.data);
+      }
     }
   };
 
@@ -858,5 +877,6 @@ export const useGitActions = () => {
     setOsNotifications,
     rebindShortcut,
     resetShortcutsToDefaults,
+    changeTheme,
   };
 };

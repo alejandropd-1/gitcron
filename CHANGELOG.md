@@ -4,6 +4,35 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v0.1.6] - 2026-05-15 - OS notifications, configurable shortcuts, light theme, polish
+
+### Dynamic version (Feature 0)
+- The version shown in Settings is now read from `package.json` at build time (`import pkg from '../package.json'`), so a single `version` bump propagates everywhere.
+
+### Merge / fast-forward toasts (Feature 6)
+- `mergeBranch` now shows a success toast (was missing).
+- Unified merge/FF/up-to-date messages into reusable i18n keys: `success.merge`, `success.mergeUpToDate`, `success.fastForward` in ES and EN.
+
+### OS notifications (Feature 7)
+- New `lib/os-notify.ts` wraps the browser/Electron `Notification` API with permission handling and a global enable/disable toggle.
+- Notifications fire on push/pull completion when the operation took more than 3 seconds OR the GitCron window is not focused.
+- Push/pull authentication errors also notify when the window is unfocused.
+- Auto-fetch now diffs the per-branch `behind` count before and after the cycle; if any branch gained remote commits, it sends a notification with the count and affected branches.
+- Settings: new "Notificaciones del sistema" section with a single on/off toggle. Persisted in encrypted storage as `osNotifications`.
+
+### Configurable keyboard shortcuts (Feature 8)
+- New central shortcut system in `lib/shortcuts.ts` with 14 default bindings: `commit` (Ctrl+Enter), `push` (Ctrl+P), `pull` (Ctrl+Shift+P), `newBranch` (Ctrl+B), `search` (Ctrl+Alt+F), `fetchNow` (Ctrl+R), `settings` (Ctrl+,), `help` (F1), `closeRepo` (Ctrl+W), `nextRepo` (Ctrl+Tab), `prevRepo` (Ctrl+Shift+Tab), `graphTab` (Ctrl+G), `historyTab` (Ctrl+H), `commitTab` (Ctrl+Shift+C).
+- New `hooks/use-shortcuts.ts` registers one global `keydown` listener, normalizes the combo via `eventToShortcut`, and dispatches the matching action. Skips events from inputs/textareas (except `Ctrl+Enter` for the commit textarea).
+- Settings: new "Atajos de teclado" section with a table per binding. Click to capture, press the new combo to save, `Esc` cancels. "Restaurar valores por defecto" button clears the overrides.
+- Persisted in encrypted storage as `shortcuts` (JSON map of id → keys).
+
+### Light theme — experimental (Feature 9)
+- Added a Theme preference (`dark` | `light`) persisted in encrypted storage as `theme` and applied as a class on `<html>`.
+- Implementation: rather than rewriting every hardcoded hex across the components, light mode uses a global CSS filter inversion (`filter: invert(0.92) hue-rotate(180deg)`) on `<body>`. Elements that must keep their original colors (GitHub avatars, branch lane colors in the SVG graph) are marked with `data-keep-color` and double-inverted to compensate.
+- Settings: the Theme placeholder is now a working toggle. A short note marks light mode as experimental.
+
+---
+
 ## [v0.1.5] - 2026-05-15 - Tier 2: per-repo status, auto-fetch, branch filter, default folder + polish
 
 ### Polish and fixes (post-v0.1.5)

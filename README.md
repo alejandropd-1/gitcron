@@ -76,6 +76,9 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Default folder: configurable starting directory for open and clone dialogs, saved in encrypted storage.
 - Per-repo loading state: each tab shows its own spinner and error — a slow operation on repo A never blocks repo B.
 - Text size setting in Settings: `Compact`, `Normal`, `Large`.
+- OS notifications: native alerts when push/pull takes >3s or the window is unfocused, and when auto-fetch detects new remote commits.
+- Configurable keyboard shortcuts: 14 actions (commit, push, pull, branch, fetch, search, etc.) editable from Settings with click-to-capture rebind.
+- Theme toggle in Settings: dark (default) and experimental light mode.
 - Spanish and English UI strings.
 
 ---
@@ -212,9 +215,9 @@ gitCronos/
 - [ ] Auto-update flow.
 
 ### Tier 3
-- [ ] OS notifications for long push / pull operations.
-- [ ] Configurable keyboard shortcuts.
-- [ ] Light theme.
+- [x] OS notifications for long push / pull operations.
+- [x] Configurable keyboard shortcuts.
+- [x] Light theme (experimental).
 
 ### Future
 - [ ] Multi-account GitHub support.
@@ -226,7 +229,7 @@ gitCronos/
 
 ## Current version
 
-`v0.1.5` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v0.1.6` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

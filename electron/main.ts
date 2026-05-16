@@ -79,15 +79,13 @@ function createWindow() {
     Menu.setApplicationMenu(null);
   }
 
-  // Resolve the app icon. In dev it lives next to this source file; in
-  // production it lives in the resources folder beside the packaged app.
-  const iconExt = process.platform === 'win32' ? '.ico'
-    : process.platform === 'linux' ? '.png'
-    : '.png'; // macOS uses .icns but BrowserWindow accepts .png too
-  const iconName = `gitcron-icon${iconExt}`;
-  const iconPath = isDev
-    ? path.join(__dirname, '../../public', iconName)
-    : path.join(process.resourcesPath, iconName);
+  // Resolve the app icon.
+  // In dev: always use the .png from public/ (works on all platforms).
+  // In production: prefer .ico on Windows, .png elsewhere.
+  const prodIconExt = process.platform === 'win32' ? '.ico' : '.png';
+  const devIconPath = path.join(__dirname, '../../public/gitcron-icon.png');
+  const prodIconPath = path.join(process.resourcesPath, `gitcron-icon${prodIconExt}`);
+  const iconPath = isDev ? devIconPath : prodIconPath;
   const iconExists = fs.existsSync(iconPath);
 
   mainWindow = new BrowserWindow({

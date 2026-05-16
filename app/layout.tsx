@@ -21,6 +21,10 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'GitCron - Advanced Git Client',
   description: 'Technical dark Git management platform',
+  icons: {
+    icon: '/gitcron-icon.png',
+    apple: '/gitcron-icon.png',
+  },
 };
 
 /**

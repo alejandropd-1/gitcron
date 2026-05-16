@@ -26,25 +26,39 @@ export const metadata: Metadata = {
 /**
  * Content Security Policy
  *
+ *   In DEV we need `'unsafe-eval'` for Webpack/Turbopack HMR and `'unsafe-inline'`
+ *   for the Next.js inline bootstrap script. We accept that surface in dev because
+ *   the devTools are open anyway and the localhost connect-src/ws-src is needed.
+ *
+ *   In PROD (packaged Electron build) we drop `'unsafe-eval'` and the localhost
+ *   connect/ws origins. `'unsafe-inline'` for scripts stays because Next.js
+ *   still injects a bootstrap script tag in the static export; the proper fix
+ *   is nonce-based CSP but Next 15 static export doesn't emit nonces yet.
+ *
  *   default-src 'self'                  → only allow local resources by default
- *   script-src                          → allow Next.js inline scripts; in dev we also need
- *                                         'unsafe-eval' for HMR/webpack. We accept this in
- *                                         dev because devTools are open anyway. For a
- *                                         packaged production build, tighten further.
- *   style-src 'self' 'unsafe-inline'    → Tailwind injects styles inline
- *   img-src                             → allow GitHub avatars + local + data URIs
- *   connect-src                         → fetches go to GitHub API only (and localhost in dev)
+ *   img-src                             → GitHub avatars + local + data URIs
+ *   connect-src                         → GitHub API; + localhost only in dev
  *   font-src 'self' data:               → Inter + JetBrains Mono fonts (bundled)
  *   object-src 'none'                   → block <object>, <embed>, plugins
  *   base-uri 'self'                     → can't be hijacked with <base>
  *   frame-ancestors 'none'              → can't be iframed
  */
+const isDev = process.env.NODE_ENV !== 'production';
+
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+  : "script-src 'self' 'unsafe-inline'";
+
+const connectSrc = isDev
+  ? "connect-src 'self' http://localhost:* ws://localhost:* https://api.github.com https://github.com"
+  : "connect-src 'self' https://api.github.com https://github.com";
+
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  scriptSrc,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://avatars.githubusercontent.com https://*.githubusercontent.com",
-  "connect-src 'self' http://localhost:* ws://localhost:* https://api.github.com https://github.com",
+  connectSrc,
   "font-src 'self' data:",
   "object-src 'none'",
   "base-uri 'self'",

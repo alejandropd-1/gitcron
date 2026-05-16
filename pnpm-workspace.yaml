@@ -6,3 +6,9 @@ allowBuilds:
   re2: true
   sharp: true
   unrs-resolver: true
+
+# Security overrides — force-bump vulnerable transitive deps.
+# GHSA-qx2v-qp2m-jg93: postcss < 8.5.10 has XSS via unescaped </style>.
+# next@15.5.18 pins postcss to an older minor; this override lifts it.
+overrides:
+  postcss: '>=8.5.10'

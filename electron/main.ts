@@ -120,7 +120,7 @@ ipcMain.handle('storage:set', async (_event, key: string, value: string) => {
     writeEncryptedStorage(data);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -136,7 +136,7 @@ ipcMain.handle('storage:delete', async (_event, key: string) => {
     writeEncryptedStorage(data);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -217,7 +217,7 @@ ipcMain.handle('git:command', async (_event, targetPath: string, args: string[])
     return { success: true, data: typeof result === 'string' ? result : JSON.stringify(result) };
   } catch (error: any) {
     console.error('Git Command Error:', sanitizeForLog(error));
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -227,7 +227,7 @@ ipcMain.handle('github:test', async (_event, { token, owner, repo }) => {
     const { data } = await octokit.rest.pulls.list({ owner, repo, state: 'open' });
     return { success: true, data };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -246,7 +246,17 @@ function formatFetchError(error: unknown): string {
   const message = err?.message ?? 'Unknown error';
   const causeMessage = err?.cause?.message;
   const causeCode = err?.cause?.code;
-  return [message, causeCode, causeMessage].filter(Boolean).join(' - ');
+  return sanitizeForLog([message, causeCode, causeMessage].filter(Boolean).join(' - '));
+}
+
+/**
+ * Safely extract a sanitized error message from any thrown value.
+ * Replaces `error.message` in every IPC return path so tokens never leak
+ * through git CLI error output (e.g. "fatal: unable to access https://x-access-token:abc@github.com/...").
+ */
+function errMsg(error: unknown): string {
+  const e = error as { message?: string };
+  return sanitizeForLog(e?.message ?? String(error));
 }
 
 ipcMain.handle('github:device-start', async () => {
@@ -309,7 +319,7 @@ ipcMain.handle('github:auth', async (_event, token: string) => {
     };
     return { success: true, data: user };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -335,7 +345,7 @@ ipcMain.handle('git:open-path', async (_event, dirPath: string) => {
     };
     return { success: true, data: info };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -374,7 +384,7 @@ ipcMain.handle('git:open-repo', async (_event, defaultPath?: string) => {
     };
     return { success: true, data: repoInfo };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -421,7 +431,7 @@ ipcMain.handle('git:init', async (_event, parentPath: string, name: string, with
     };
     return { success: true, data: info };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -456,7 +466,7 @@ ipcMain.handle('git:clone', async (_event, url: string, parentPath: string, fold
     return { success: true, data: info };
   } catch (error: any) {
     const isAuth = /authentication|credentials|ssh|permission denied|403|401|could not read|not found/i.test(error.message);
-    return { success: false, error: error.message, data: { authRequired: isAuth } };
+    return { success: false, error: errMsg(error), data: { authRequired: isAuth } };
   }
 });
 
@@ -475,7 +485,7 @@ ipcMain.handle('github:create-repo', async (_event, token: string, name: string,
       data: { cloneUrl: data.clone_url, htmlUrl: data.html_url, fullName: data.full_name, name: data.name },
     };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -500,7 +510,7 @@ ipcMain.handle('github:list-user-repos', async (_event, token: string) => {
       })),
     };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -539,7 +549,7 @@ ipcMain.handle('git:log', async (_event, targetPath: string, opts?: { allBranche
 
     return { success: true, data: commits };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -567,7 +577,7 @@ ipcMain.handle('git:status', async (_event, targetPath: string) => {
 
     return { success: true, data: Array.from(seen.values()) };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -613,7 +623,7 @@ ipcMain.handle('git:branches', async (_event, targetPath: string) => {
     };
     return { success: true, data: branchData };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -640,7 +650,7 @@ ipcMain.handle('git:worktrees', async (_event, targetPath: string) => {
     if (current && current.path) worktrees.push(current as WorktreeEntry);
     return { success: true, data: worktrees };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -669,7 +679,7 @@ ipcMain.handle('github:list-prs', async (_event, token: string, targetPath: stri
     }));
     return { success: true, data: prs };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -678,7 +688,7 @@ ipcMain.handle('git:checkout', async (_event, targetPath: string, branch: string
     await simpleGit(targetPath).checkout(branch);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -689,7 +699,7 @@ ipcMain.handle('git:create-branch', async (_event, targetPath: string, name: str
     else await g.checkoutLocalBranch(name);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -703,7 +713,7 @@ ipcMain.handle('git:merge-branch', async (_event, targetPath: string, sourceBran
     return { success: true, data: { ...result, alreadyUpToDate } };
   } catch (error: any) {
     // simple-git throws on merge conflict — extract useful info
-    const msg = error.message || String(error);
+    const msg = sanitizeForLog(error.message || String(error));
     const isConflict = /conflict|automatic merge failed/i.test(msg);
     return { success: false, error: msg, data: { conflict: isConflict } };
   }
@@ -716,7 +726,7 @@ ipcMain.handle('git:rebase', async (_event, targetPath: string, ontoBranch: stri
     const result = await g.rebase([ontoBranch]);
     return { success: true, data: result };
   } catch (error: any) {
-    const msg = error.message || String(error);
+    const msg = sanitizeForLog(error.message || String(error));
     const isConflict = /conflict|could not apply/i.test(msg);
     return { success: false, error: msg, data: { conflict: isConflict } };
   }
@@ -739,7 +749,7 @@ ipcMain.handle('git:fast-forward', async (_event, targetPath: string, branch: st
     await g.raw(['update-ref', `refs/heads/${branch}`, toRef]);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -749,7 +759,7 @@ ipcMain.handle('git:rename-branch', async (_event, targetPath: string, oldName: 
     await simpleGit(targetPath).raw(['branch', '-m', oldName, newName]);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -760,7 +770,7 @@ ipcMain.handle('git:delete-branch', async (_event, targetPath: string, branch: s
     await simpleGit(targetPath).raw(['branch', flag, branch]);
     return { success: true };
   } catch (error: any) {
-    const msg = error.message || String(error);
+    const msg = sanitizeForLog(error.message || String(error));
     // Detect "not fully merged" so renderer can offer force delete
     const notMerged = /not fully merged|not yet merged/i.test(msg);
     return { success: false, error: msg, data: { notMerged } };
@@ -785,7 +795,7 @@ ipcMain.handle('git:pull-branch', async (_event, targetPath: string, branch: str
     return { success: true };
   } catch (error: any) {
     const isAuth = /authentication|credentials|permission denied|403|401/i.test(error.message);
-    return { success: false, error: error.message, data: { authRequired: isAuth } };
+    return { success: false, error: errMsg(error), data: { authRequired: isAuth } };
   }
 });
 
@@ -809,7 +819,7 @@ ipcMain.handle('git:push-branch', async (_event, targetPath: string, branch: str
     return { success: true, data: { setUpstream } };
   } catch (error: any) {
     const isAuth = /authentication|credentials|permission denied|403|401/i.test(error.message);
-    return { success: false, error: error.message, data: { authRequired: isAuth } };
+    return { success: false, error: errMsg(error), data: { authRequired: isAuth } };
   }
 });
 
@@ -878,8 +888,8 @@ ipcMain.handle('git:push', async (_event, targetPath: string, token?: string) =>
     const isAuth = /authentication|credentials|ssh|permission denied|403|401/i.test(error.message);
     return {
       success: false,
-      error: error.message,
-      data: { success: false, authRequired: isAuth, error: error.message },
+      error: errMsg(error),
+      data: { success: false, authRequired: isAuth, error: errMsg(error) },
     };
   }
 });
@@ -898,8 +908,8 @@ ipcMain.handle('git:pull', async (_event, targetPath: string, token?: string) =>
     const isAuth = /authentication|credentials|ssh|permission denied|403|401/i.test(error.message);
     return {
       success: false,
-      error: error.message,
-      data: { success: false, authRequired: isAuth, error: error.message },
+      error: errMsg(error),
+      data: { success: false, authRequired: isAuth, error: errMsg(error) },
     };
   }
 });
@@ -912,8 +922,8 @@ ipcMain.handle('git:fetch', async (_event, targetPath: string, token?: string) =
     const isAuth = /authentication|credentials|ssh|permission denied|403|401/i.test(error.message);
     return {
       success: false,
-      error: error.message,
-      data: { success: false, authRequired: isAuth, error: error.message },
+      error: errMsg(error),
+      data: { success: false, authRequired: isAuth, error: errMsg(error) },
     };
   }
 });
@@ -923,7 +933,7 @@ ipcMain.handle('git:stage', async (_event, targetPath: string, filePath: string)
     await simpleGit(targetPath).add(filePath);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -932,7 +942,7 @@ ipcMain.handle('git:unstage', async (_event, targetPath: string, filePath: strin
     await simpleGit(targetPath).raw(['restore', '--staged', filePath]);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -945,7 +955,7 @@ ipcMain.handle('git:stage-batch', async (_event, targetPath: string, filePaths: 
     await simpleGit(targetPath).add(filePaths);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -955,7 +965,7 @@ ipcMain.handle('git:unstage-batch', async (_event, targetPath: string, filePaths
     await simpleGit(targetPath).raw(['restore', '--staged', ...filePaths]);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -992,7 +1002,7 @@ ipcMain.handle('git:add-to-gitignore', async (_event, targetPath: string, filePa
 
     return { success: true, data: { alreadyIgnored: false } };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1005,7 +1015,7 @@ ipcMain.handle('git:reset-all', async (_event, targetPath: string) => {
     await g.clean('f', ['-d']);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1015,7 +1025,7 @@ ipcMain.handle('git:stash-file', async (_event, targetPath: string, filePath: st
     await simpleGit(targetPath).stash(['push', '--include-untracked', '--', filePath]);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1026,7 +1036,7 @@ ipcMain.handle('shell:show-in-folder', async (_event, targetPath: string, relati
     shell.showItemInFolder(fullPath);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1038,25 +1048,39 @@ ipcMain.handle('shell:open-item', async (_event, targetPath: string, relativeFil
     if (err) return { success: false, error: err };
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
 // ── Delete a file from disk (rejects directory traversal) ──
 ipcMain.handle('fs:delete-file', async (_event, targetPath: string, relativeFilePath: string) => {
   try {
-    // Defensive: keep us inside the repo dir
-    const resolved = path.resolve(targetPath, relativeFilePath);
-    if (!resolved.startsWith(path.resolve(targetPath))) {
+    // Defensive: keep us inside the repo dir. Use path.relative to detect
+    // both ".." traversal and absolute paths that resolve outside the root.
+    const repoRoot = path.resolve(targetPath);
+    const resolved = path.resolve(repoRoot, relativeFilePath);
+    const rel = path.relative(repoRoot, resolved);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
       return { success: false, error: 'Path traversal blocked' };
     }
-    if (!fs.existsSync(resolved)) {
+
+    // TOCTOU-resistant delete: use lstat (no symlink follow) + check it's a
+    // regular file, then unlink. We accept a tiny race window between lstat
+    // and unlink but never follow a symlink that could point outside the repo.
+    let stat: fs.Stats;
+    try {
+      stat = fs.lstatSync(resolved);
+    } catch {
       return { success: false, error: 'El archivo ya no existe' };
+    }
+    if (!stat.isFile()) {
+      // Refuse to delete directories, symlinks, sockets, etc.
+      return { success: false, error: 'Solo se pueden eliminar archivos comunes' };
     }
     fs.unlinkSync(resolved);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1071,7 +1095,7 @@ ipcMain.handle('git:remove-lock', async (_event, targetPath: string) => {
     }
     return { success: true, data: { removed: false } };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1103,7 +1127,7 @@ ipcMain.handle('git:diff', async (_event, targetPath: string, filePath: string, 
 
     return { success: true, data: diff };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1119,7 +1143,7 @@ ipcMain.handle('git:stash-list', async (_event, targetPath: string) => {
     }));
     return { success: true, data: stashes };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1128,7 +1152,7 @@ ipcMain.handle('git:tags', async (_event, targetPath: string) => {
     const tags = await simpleGit(targetPath).tags();
     return { success: true, data: tags.all };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1144,7 +1168,7 @@ ipcMain.handle('git:submodules', async (_event, targetPath: string) => {
     }
     return { success: true, data: submodules };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1176,7 +1200,7 @@ ipcMain.handle('terminal:open', async (_event, targetPath: string) => {
     }
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1185,7 +1209,7 @@ ipcMain.handle('shell:open-path', async (_event, targetPath: string) => {
     await shell.openPath(targetPath);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1194,7 +1218,7 @@ ipcMain.handle('git:stash-apply', async (_event, targetPath: string, stashIndex:
     await simpleGit(targetPath).stash(['apply', `stash@{${stashIndex}}`]);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1203,7 +1227,7 @@ ipcMain.handle('git:stash-drop', async (_event, targetPath: string, stashIndex: 
     await simpleGit(targetPath).stash(['drop', `stash@{${stashIndex}}`]);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });
 
@@ -1213,6 +1237,6 @@ ipcMain.handle('git:stash-clear', async (_event, targetPath: string) => {
     await simpleGit(targetPath).stash(['clear']);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg(error) };
   }
 });

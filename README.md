@@ -116,11 +116,15 @@ State model:
 
 See [SECURITY.md](/C:/www/gitCronos/SECURITY.md) for the full hardening notes. Short version:
 
-- GitHub tokens are stored with Electron `safeStorage`.
-- Push / pull auth uses temporary URL injection because Electron 42 blocks `GIT_ASKPASS` propagation.
-- `contextIsolation` is enabled and `nodeIntegration` is disabled.
-- Child processes use `shell: false`.
-- Filesystem actions validate repo boundaries to avoid path traversal issues.
+- GitHub tokens are stored with Electron `safeStorage` (OS keychain / DPAPI / libsecret).
+- Push / pull auth uses temporary URL injection because Electron 42 blocks `GIT_ASKPASS` propagation. The token is URL-encoded before injection.
+- Every token-authed git op runs with `-c credential.helper= -c core.askpass=true` plus `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`, so the auth'd URL never gets cached in the OS credential store.
+- `BrowserWindow` runs with `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, and explicit `webSecurity: true`.
+- Content-Security-Policy is strict in production builds (`'unsafe-eval'` and `localhost` connect-src are dev-only).
+- Error messages are sanitized before logging or returning to the renderer — token-bearing URLs from git CLI output get redacted via `sanitizeForLog()`.
+- Child processes use `shell: false` with arg arrays (no command injection surface).
+- Filesystem actions validate repo boundaries via `path.relative()` and use `lstatSync()` + `isFile()` guards to avoid path traversal and symlink-escape attacks.
+- `pnpm audit` reports zero known vulnerabilities (postcss CVE pinned via workspace override).
 
 ---
 
@@ -229,7 +233,7 @@ gitCronos/
 
 ## Current version
 
-`v0.1.6` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v0.1.7` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

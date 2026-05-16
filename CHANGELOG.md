@@ -4,6 +4,40 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v0.1.7] - 2026-05-16 - Codebase cleanup, security hardening, credential isolation
+
+### Codebase cleanup (Fallow)
+- Ran Fallow (`fallow dead-code`) over the project and removed everything it flagged as truly unreachable:
+  - Deleted `hooks/use-mobile.ts` (zero importers).
+  - Removed unused exports `notificationsSupported`, `notificationsPermission` from `lib/os-notify.ts`.
+  - Removed unused exports `normalizeKeys`, `matchesShortcut` from `lib/shortcuts.ts`.
+  - Unexported 5 internal-only types from `types/electron.d.ts` (`ElectronAPI`, `GitResult`, `RemoteOpResult`, `DeviceCodeInfo`, `CreatedRepoInfo`) — they are only referenced inside the same file.
+- Removed 6 unused dependencies from `package.json`: `@google/genai`, `@hookform/resolvers`, `class-variance-authority`, `electron-is-dev`, `@tailwindcss/typography`, `firebase-tools`. Lockfile shrank by ~4700 lines.
+- Cleaned the matching `@google/genai` entry from `pnpm-workspace.yaml`'s `allowBuilds`.
+- Added `fallow` as a dev dependency and `.fallowrc.json` config so the analyzer can be re-run anytime.
+
+### Security hardening — round 1
+- **`sandbox: true` + explicit `webSecurity: true`** added to `BrowserWindow.webPreferences`. The preload only uses `contextBridge` + `ipcRenderer` so it remains fully sandbox-compatible.
+- **URL-encoded GitHub tokens** before injecting them into clone/push URLs. `encodeURIComponent(token)` protects against tokens containing `@`, `:`, `/` or other URL-special characters that would break URL parsing.
+- **`sanitizeForLog()` helper** that strips `x-access-token:<TOKEN>@` patterns from any string/Error before it reaches `console.log/error`. Applied to the three existing logging call sites in `electron/main.ts`.
+
+### Security hardening — round 2
+- **Generalized `errMsg()` helper** applied to all 48 IPC return paths that previously did `error: error.message`. Any token-bearing URL that leaks into git CLI output (e.g. `fatal: unable to access https://x-access-token:abc@github.com/...`) is now redacted before reaching the renderer.
+- **Production-strict CSP** in `app/layout.tsx`: drops `'unsafe-eval'` from `script-src` and removes `localhost`/`ws://localhost` from `connect-src` when `NODE_ENV === 'production'`. Dev keeps the relaxed rules for HMR/Turbopack.
+- **TOCTOU-resistant `fs:delete-file`** in `electron/main.ts`: uses `path.relative()` for traversal detection (catches both `..` segments and absolute paths) and switches to `lstatSync()` + `isFile()` guard so symlinks pointing outside the repo cannot be followed.
+- **postcss override** in `pnpm-workspace.yaml` to force `>=8.5.10` (fixes GHSA-qx2v-qp2m-jg93, XSS via unescaped `</style>` in stringify output). `pnpm audit` now reports zero vulnerabilities.
+
+### Credential helper isolation
+- GitCron's token-in-URL trick was leaking into the OS credential store (Windows Credential Manager, macOS Keychain, libsecret) as a ghost `x-access-token` account that polluted the GitHub account selector on other git operations.
+- Fix: every token-authed git invocation now runs with `-c credential.helper= -c core.askpass=true` via simple-git's `config` option, plus env vars `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`.
+- Applied to `withGitHubToken` (push, pull, fetch, push-branch, pull-branch) and to `git:clone` when a token is injected.
+- `withGitHubToken` keeps a separate "plain" `simpleGit` instance for reading/writing the origin URL so the no-helper config doesn't bleed into unrelated git plumbing.
+
+### Settings modal polish
+- Wider (560px) with `max-h-[90vh]`, scrollable body, sticky header. Long preference lists (shortcuts table, auto-fetch interval grid) no longer overflow the viewport.
+
+---
+
 ## [v0.1.6] - 2026-05-15 - OS notifications, configurable shortcuts, light theme, polish
 
 ### Dynamic version (Feature 0)

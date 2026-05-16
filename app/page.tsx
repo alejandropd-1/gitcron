@@ -8,7 +8,7 @@ import {
   ArrowLeft, RotateCcw, Github, LogOut, Minus,
   Sparkles, Copy, Lock, Globe, Loader2, UserCircle2,
   GitMerge, TreePine, ArrowUp, ArrowDown, ChevronDown, Check,
-  Type, Filter,
+  Type, Filter, Monitor,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import pkg from '../package.json';
@@ -1036,7 +1036,7 @@ export default function GitCronPage() {
           style={{ width: sidebarW }}
         >
           {/* LOCAL — folder tree + ahead/behind chips */}
-          <SidebarSection title={t('sidebar.local')} count={branches.length || undefined}>
+          <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} />}>
             {branches.length === 0 && !repoPath && (
               <p className="px-4 py-2 text-xs text-[#9eacc0] italic">{t('sidebar.noBranches')}</p>
             )}
@@ -1053,7 +1053,7 @@ export default function GitCronPage() {
           </SidebarSection>
 
           {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
-          <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined}>
+          <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} />}>
             <RemoteBranchTree branches={remoteBranches} />
           </SidebarSection>
 
@@ -2224,9 +2224,9 @@ function ToolbarButton({
 }
 
 function SidebarSection({
-  title, children, count, extra,
+  title, children, count, extra, icon,
 }: {
-  title: string; children: React.ReactNode; count?: number; extra?: React.ReactNode;
+  title: string; children: React.ReactNode; count?: number; extra?: React.ReactNode; icon?: React.ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(true);
   return (
@@ -2234,10 +2234,11 @@ function SidebarSection({
       <div className="w-full flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-[#9eacc0]">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1 flex-1 text-left hover:text-[#d9e7fc] transition-colors"
+          className="flex items-center gap-1.5 flex-1 text-left hover:text-[#d9e7fc] transition-colors"
         >
-          <ChevronRight size={14} className={cn('transition-transform', isOpen && 'rotate-90')} />
-          <span className="flex-1 text-left">{title}</span>
+          <ChevronRight size={12} className={cn('transition-transform shrink-0', isOpen && 'rotate-90')} />
+          {icon && <span className="shrink-0">{icon}</span>}
+          <span className="flex-1 text-left tracking-wider">{title}</span>
         </button>
         {count !== undefined && <span className="bg-[#3c495a] text-[9px] px-1.5 rounded-full">{count}</span>}
         {extra}
@@ -2444,7 +2445,7 @@ function RemoteBranchTree({ branches }: { branches: string[] }) {
   return (
     <div>
       {root.map((b) => (
-        <div key={b.fullPath} className="px-4 py-1 flex items-center gap-2 text-sm text-[#9eacc0]">
+        <div key={b.fullPath} className="pl-5 pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0]">
           <Cloud size={13} className="shrink-0 text-[#5ed8ff]" />
           <span className="truncate text-xs">{b.name}</span>
         </div>
@@ -2470,8 +2471,7 @@ function RemoteFolderView({ folder }: { folder: BranchFolder }) {
         <span className="text-[10px] text-[#697789]">{folder.branches.length}</span>
       </button>
       {isOpen && (
-        <div className="relative">
-          <div className="absolute left-[1.4rem] top-0 bottom-0 w-px bg-[#3c495a]/40" />
+        <div>
           {folder.branches.map((b) => (
             <div
               key={b.fullPath}

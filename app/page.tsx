@@ -903,7 +903,7 @@ export default function GitCronPage() {
         onOpen={handleOpenRepoChooser}
       />
       {/* ──────────── TOP NAV ──────────── */}
-      <header className="h-12 border-b border-[#3c495a]/15 bg-[#041425]/85 backdrop-blur-xl grid grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] items-center px-4 shrink-0">
+      <header className="h-12 border-b border-[#3c495a]/15 bg-[#041425]/85 backdrop-blur-xl grid grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] items-center px-4 shrink-0 relative z-50">
         <div className="flex items-center gap-6 h-full min-w-0">
           <button
             onClick={openRepo}
@@ -1346,7 +1346,7 @@ export default function GitCronPage() {
           ) : (
             /* Graph tab — default */
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="sticky top-[34px] bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
+              <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
                 <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
                 <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
                 <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>

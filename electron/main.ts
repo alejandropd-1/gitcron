@@ -16,27 +16,34 @@ let repoPath: string | null = null;
 let git: SimpleGit = simpleGit();
 
 /**
- * Git config flags applied to every token-authed operation:
+ * Git does NOT allow setting credential.helper= via `-c` on the command line
+ * since git 2.35.2 (CVE-2022-24765 hardening). Using it produces:
+ *   "Configuring credential.helper is not permitted without enabling
+ *    allowUnsafeCredentialHelper"
  *
- *   credential.helper=               → empty value disables ALL credential
- *                                      helpers (including Windows Credential
- *                                      Manager / macOS Keychain / libsecret).
- *                                      Prevents the auth'd URL from leaking
- *                                      into the OS credential store as a
- *                                      ghost "x-access-token" account.
- *   core.askpass=true                → no-op askpass: if git ever asks for
- *                                      credentials, return empty (fail fast)
- *                                      instead of opening a GUI prompt.
+ * Instead we achieve the same goal through environment variables:
+ *
+ *   GIT_ASKPASS=echo          → git runs `echo` when it needs a username or
+ *                               password; `echo` with no args returns an empty
+ *                               line, so every credential prompt returns empty.
+ *                               This prevents GCM and OS keychains from being
+ *                               consulted, so the auth'd URL is never cached.
+ *   GIT_CREDENTIAL_HELPER=''  → explicit empty string tells git not to use
+ *                               any helper for this invocation (works in all
+ *                               git versions without the CVE restriction).
+ *   GIT_TERMINAL_PROMPT=0     → disables interactive terminal prompts.
+ *   GCM_INTERACTIVE=never     → GCM-specific: never open the GUI dialog.
+ *
+ * No config array is needed; everything goes through the env.
  */
-const NO_CREDENTIAL_HELPER_CONFIG = [
-  'credential.helper=',
-  'core.askpass=true',
-];
+const NO_CREDENTIAL_HELPER_CONFIG: string[] = []; // nothing — handled via env
 
-/** Env vars that prevent git from prompting on tty/console during auth. */
+/** Env vars that prevent git from caching credentials or opening prompts. */
 const NO_PROMPT_ENV = {
   GIT_TERMINAL_PROMPT: '0',
-  GCM_INTERACTIVE: 'never', // Git Credential Manager: never prompt
+  GCM_INTERACTIVE: 'never',    // Git Credential Manager: never open GUI
+  GIT_ASKPASS: 'echo',         // return empty string for any credential prompt
+  GIT_CREDENTIAL_HELPER: '',   // disable credential helpers for this invocation
 };
 
 /**

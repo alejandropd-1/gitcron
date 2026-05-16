@@ -609,6 +609,8 @@ export default function GitCronPage() {
   const [showCloneRepo, setShowCloneRepo] = useState(false);
   const [showRepoChooser, setShowRepoChooser] = useState(false);
   const [showSearchPopover, setShowSearchPopover] = useState(false);
+  const [showBranchFilterDropdown, setShowBranchFilterDropdown] = useState(false);
+  const branchFilterRef = useRef<HTMLDivElement>(null);
   const [searchPopoverPos, setSearchPopoverPos] = useState<{ top: number; right: number } | null>(null);
   const [tokenInput, setTokenInput] = useState('');
   const [authMode, setAuthMode] = useState<'oauth' | 'token'>('oauth');
@@ -731,6 +733,16 @@ export default function GitCronPage() {
     window.addEventListener('mousedown', handlePointerDown);
     return () => window.removeEventListener('mousedown', handlePointerDown);
   }, [showSearchPopover]);
+
+  useEffect(() => {
+    if (!showBranchFilterDropdown) return;
+    const handlePointerDown = (e: MouseEvent) => {
+      if (branchFilterRef.current?.contains(e.target as Node)) return;
+      setShowBranchFilterDropdown(false);
+    };
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, [showBranchFilterDropdown]);
 
   useEffect(() => {
     if (!showSearchPopover) return;
@@ -952,6 +964,83 @@ export default function GitCronPage() {
 
         <div className="flex items-center justify-end gap-1 min-w-0">
           <ToolbarButton icon={<Terminal />} onClick={openTerminal} title={t('toolbar.terminal')} disabled={!repoPath} />
+
+          {/* Branch filter dropdown — only visible when Graph tab is active */}
+          {activeTab === 'Graph' && repoPath && (
+            <div className="relative" ref={branchFilterRef}>
+              <button
+                type="button"
+                onClick={() => setShowBranchFilterDropdown((v) => !v)}
+                title={graphShowAllBranches ? t('graph.allBranches') : t('graph.currentBranch')}
+                className={cn(
+                  'flex flex-col items-center justify-center p-1.5 rounded transition-colors group',
+                  'hover:bg-[#3c495a]',
+                  !graphShowAllBranches && 'text-[#a3f185]',
+                )}
+              >
+                <div className={cn(
+                  'w-5 h-5 flex items-center justify-center',
+                  !graphShowAllBranches ? 'text-[#a3f185]' : 'text-[#9eacc0] group-hover:text-[#a3f185]',
+                )}>
+                  <Filter size={15} />
+                </div>
+                {!graphShowAllBranches && (
+                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[#a3f185] shadow-[0_0_6px_rgba(163,241,133,0.7)]" />
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showBranchFilterDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    className="absolute right-0 top-full mt-1 bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/30 rounded-lg shadow-2xl py-1 z-50 w-44"
+                    onClick={() => setShowBranchFilterDropdown(false)}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const path = useGitStore.getState().getActiveRepo()?.path;
+                        if (!path) return;
+                        updateActiveRepo({ graphShowAllBranches: true });
+                        refreshLog(path, { allBranches: true });
+                      }}
+                      className={cn(
+                        'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors',
+                        graphShowAllBranches
+                          ? 'text-[#a3f185]'
+                          : 'text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#3c495a]/30',
+                      )}
+                    >
+                      {graphShowAllBranches && <Check size={12} strokeWidth={3} className="shrink-0" />}
+                      {!graphShowAllBranches && <span className="w-3 shrink-0" />}
+                      {t('graph.allBranches')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const path = useGitStore.getState().getActiveRepo()?.path;
+                        if (!path) return;
+                        updateActiveRepo({ graphShowAllBranches: false });
+                        refreshLog(path, { allBranches: false });
+                      }}
+                      className={cn(
+                        'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors',
+                        !graphShowAllBranches
+                          ? 'text-[#a3f185]'
+                          : 'text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#3c495a]/30',
+                      )}
+                    >
+                      {!graphShowAllBranches && <Check size={12} strokeWidth={3} className="shrink-0" />}
+                      {graphShowAllBranches && <span className="w-3 shrink-0" />}
+                      {t('graph.currentBranch')}
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
           <div className="relative" ref={searchButtonRef}>
             <ToolbarButton
               icon={<Search />}
@@ -1257,47 +1346,6 @@ export default function GitCronPage() {
           ) : (
             /* Graph tab — default */
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-20 border-b border-[#3c495a]/15 px-3 py-1.5 flex items-center justify-end gap-2 shrink-0">
-                <div className="flex items-center gap-1.5">
-                  <Filter size={11} className="text-[#697789] shrink-0" />
-                  <div className="inline-flex rounded border border-[#3c495a]/30 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const path = useGitStore.getState().getActiveRepo()?.path;
-                        if (!path || graphShowAllBranches) return;
-                        updateActiveRepo({ graphShowAllBranches: true });
-                        refreshLog(path, { allBranches: true });
-                      }}
-                      className={cn(
-                        'px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold transition-colors',
-                        graphShowAllBranches
-                          ? 'bg-[#a3f185]/15 text-[#a3f185]'
-                          : 'bg-[#041425] text-[#9eacc0] hover:text-[#d9e7fc]',
-                      )}
-                    >
-                      {t('graph.allBranches')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const path = useGitStore.getState().getActiveRepo()?.path;
-                        if (!path || !graphShowAllBranches) return;
-                        updateActiveRepo({ graphShowAllBranches: false });
-                        refreshLog(path, { allBranches: false });
-                      }}
-                      className={cn(
-                        'px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold transition-colors border-l border-[#3c495a]/30',
-                        !graphShowAllBranches
-                          ? 'bg-[#a3f185]/15 text-[#a3f185]'
-                          : 'bg-[#041425] text-[#9eacc0] hover:text-[#d9e7fc]',
-                      )}
-                    >
-                      {t('graph.currentBranch')}
-                    </button>
-                  </div>
-                </div>
-              </div>
               <div className="sticky top-[34px] bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
                 <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
                 <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />

@@ -1569,17 +1569,17 @@ export default function GitCronPage() {
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[480px]"
+              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl w-[560px] max-h-[90vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[#3c495a]/15 shrink-0">
                 <h3 className="font-bold text-[#a3f185] flex items-center gap-2 text-base">
                   <Settings size={16} /> {t('settings.title')}
                 </h3>
                 <button onClick={() => setShowSettings(false)} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={16} /></button>
               </div>
 
-              <div className="space-y-5">
+              <div className="space-y-5 px-6 py-5 overflow-y-auto scrollbar-thin flex-1">
                 {/* ── Language ── */}
                 <section>
                   <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">

@@ -2404,7 +2404,7 @@ function BranchRow({
       title={`Doble click: checkout · Click derecho: opciones`}
       className={cn(
         'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
-        indent ? 'pl-10' : 'pl-[26px]',
+        indent ? 'pl-[46px]' : 'pl-[26px]',
         isActive ? 'bg-[#a3f185]/10 text-[#a3f185]' : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
       )}
     >
@@ -2475,7 +2475,7 @@ function RemoteFolderView({ folder }: { folder: BranchFolder }) {
           {folder.branches.map((b) => (
             <div
               key={b.fullPath}
-              className="pl-10 pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] transition-colors"
+              className="pl-[46px] pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] transition-colors"
               title={b.fullPath}
             >
               <GitBranch size={13} className="shrink-0 text-[#697789]" />

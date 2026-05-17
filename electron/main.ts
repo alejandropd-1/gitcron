@@ -39,16 +39,37 @@ let git: SimpleGit = simpleGit();
 const NO_CREDENTIAL_HELPER_CONFIG: string[] = []; // nothing — handled via env
 
 /**
- * Env vars that prevent git from caching credentials or opening prompts.
- * NOTE: GIT_ASKPASS and GIT_CREDENTIAL_HELPER are intentionally excluded —
- * git 2.35.2+ (CVE-2022-24765) blocks both unless allowUnsafeAskPass /
- * allowUnsafeCredentialHelper are explicitly enabled. GIT_TERMINAL_PROMPT=0
- * is sufficient to block interactive prompts without triggering that guard.
+ * Returns env vars that prevent git from caching credentials or opening prompts.
+ *
+ * Strategy: point GIT_CONFIG_GLOBAL to a temporary .gitconfig that sets
+ * `credential.helper =` (empty). Git reads this from its own config file,
+ * which is NOT blocked by the CVE-2022-24765 restrictions that block:
+ *   - `-c credential.helper=`    (git 2.35.2+ requires allowUnsafeCredentialHelper)
+ *   - `GIT_ASKPASS=echo`         (git 2.35.2+ requires allowUnsafeAskPass)
+ *
+ * The temp file is written once per process and cleaned up on exit.
  */
-const NO_PROMPT_ENV = {
-  GIT_TERMINAL_PROMPT: '0',
-  GCM_INTERACTIVE: 'never',    // Git Credential Manager: never open GUI
-};
+let _noCredHelperConfig: string | null = null;
+
+function getNoPromptEnv(): Record<string, string> {
+  if (!_noCredHelperConfig) {
+    const tmpPath = path.join(app.getPath('temp'), 'gitcron-no-cred.gitconfig');
+    try {
+      fs.writeFileSync(tmpPath, '[credential]\n\thelper =\n[core]\n\taskpass =\n', 'utf-8');
+      _noCredHelperConfig = tmpPath;
+      // Clean up on exit
+      app.on('quit', () => { try { fs.unlinkSync(tmpPath); } catch { /* ok */ } });
+    } catch {
+      // If we can't write the temp file, fall back to just terminal prompt suppression
+      _noCredHelperConfig = '';
+    }
+  }
+  return {
+    GIT_TERMINAL_PROMPT: '0',
+    GCM_INTERACTIVE: 'never',
+    ...(_noCredHelperConfig ? { GIT_CONFIG_GLOBAL: _noCredHelperConfig } : {}),
+  };
+}
 
 /**
  * Redact any GitHub-token-in-URL pattern from a string before logging.
@@ -569,7 +590,7 @@ ipcMain.handle('git:clone', async (_event, url: string, parentPath: string, fold
     // so the auth'd URL never gets cached in Windows Credential Manager /
     // macOS Keychain / libsecret as a ghost 'x-access-token' account.
     const g = isAuthClone
-      ? simpleGit({ config: NO_CREDENTIAL_HELPER_CONFIG }).env(NO_PROMPT_ENV)
+      ? simpleGit({ config: NO_CREDENTIAL_HELPER_CONFIG }).env(getNoPromptEnv())
       : simpleGit();
     await g.clone(cloneUrl, destPath);
 
@@ -960,7 +981,7 @@ async function withGitHubToken<T>(
   // helpers disabled. This prevents the auth'd URL from leaking into the
   // OS credential store and avoids GUI prompts on auth failure.
   const g = simpleGit({ baseDir: targetPath, config: NO_CREDENTIAL_HELPER_CONFIG });
-  g.env(NO_PROMPT_ENV);
+  g.env(getNoPromptEnv());
 
   // We still need a vanilla instance to read/write the remote URL (without
   // the no-helper config affecting unrelated git plumbing).

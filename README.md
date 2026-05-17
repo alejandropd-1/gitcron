@@ -234,6 +234,8 @@ gitCronos/
 - [ ] GitLab / Bitbucket support.
 - [ ] Pull request diff view.
 - [ ] Interactive rebase (reorder / drop / reword).
+- [ ] Upgrade Next.js beyond 15.4.x (currently pinned — verify Electron + Tailwind 4 compatibility before bumping).
+- [ ] Pull request diff view.
 
 ---
 

@@ -32,7 +32,15 @@
       "dist/**",
       "out/**",
       "public/**",
-      "package.json"
+      "package.json",
+      "node_modules/**",
+      "!node_modules/.cache/**",
+      "!node_modules/.bin/**",
+      "!node_modules/**/test/**",
+      "!node_modules/**/tests/**",
+      "!node_modules/**/*.md",
+      "!node_modules/**/*.ts",
+      "!node_modules/**/LICENSE*"
     ],
     "extraResources": [
       { "from": "public/favicon.ico", "to": "favicon.ico" },

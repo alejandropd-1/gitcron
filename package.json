@@ -1,6 +1,6 @@
 {
   "name": "gitcron",
-  "version": "0.1.8",
+  "version": "1.0.0",
   "private": true,
   "main": "dist/main.js",
   "scripts": {
@@ -13,7 +13,53 @@
     "clean": "next clean",
     "test": "vitest run",
     "test:ui": "vitest --ui",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "package:build": "next build && npm run build:electron",
+    "package": "npm run package:build && electron-builder",
+    "package:win": "npm run package:build && electron-builder --win",
+    "package:mac": "npm run package:build && electron-builder --mac",
+    "package:linux": "npm run package:build && electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.alejandropd.gitcron",
+    "productName": "GitCron",
+    "copyright": "Copyright © 2026 Alejandro Delgado",
+    "directories": {
+      "output": "release",
+      "buildResources": "build-resources"
+    },
+    "files": [
+      "dist/**",
+      "out/**",
+      "public/**",
+      "package.json"
+    ],
+    "extraResources": [
+      { "from": "public/favicon.ico", "to": "favicon.ico" },
+      { "from": "public/gitcron-icon.png", "to": "gitcron-icon.png" }
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "public/favicon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "public/favicon.ico",
+      "uninstallerIcon": "public/favicon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "icon": "public/gitcron-icon.png",
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": [{ "target": "AppImage", "arch": ["x64"] }],
+      "icon": "public/gitcron-icon.png",
+      "category": "Development"
+    }
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1",
@@ -37,6 +83,7 @@
     "@vitest/ui": "^4.1.6",
     "concurrently": "^9.2.1",
     "electron": "^42.0.1",
+    "electron-builder": "^26.8.1",
     "eslint": "9.39.1",
     "eslint-config-next": "16.0.8",
     "fallow": "^2.74.0",

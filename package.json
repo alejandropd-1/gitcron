@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:electron": "tsup electron/main.ts electron/preload.ts --external electron --format cjs --outDir dist",
+    "build:electron": "tsup",
     "electron:dev": "concurrently \"next dev\" \"npm run build:electron -- --watch\" \"wait-on http://localhost:3000 && electron .\"",
     "start": "next start",
     "lint": "eslint .",

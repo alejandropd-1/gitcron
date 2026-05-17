@@ -38,12 +38,16 @@ let git: SimpleGit = simpleGit();
  */
 const NO_CREDENTIAL_HELPER_CONFIG: string[] = []; // nothing — handled via env
 
-/** Env vars that prevent git from caching credentials or opening prompts. */
+/**
+ * Env vars that prevent git from caching credentials or opening prompts.
+ * NOTE: GIT_ASKPASS and GIT_CREDENTIAL_HELPER are intentionally excluded —
+ * git 2.35.2+ (CVE-2022-24765) blocks both unless allowUnsafeAskPass /
+ * allowUnsafeCredentialHelper are explicitly enabled. GIT_TERMINAL_PROMPT=0
+ * is sufficient to block interactive prompts without triggering that guard.
+ */
 const NO_PROMPT_ENV = {
   GIT_TERMINAL_PROMPT: '0',
   GCM_INTERACTIVE: 'never',    // Git Credential Manager: never open GUI
-  GIT_ASKPASS: 'echo',         // return empty string for any credential prompt
-  GIT_CREDENTIAL_HELPER: '',   // disable credential helpers for this invocation
 };
 
 /**

@@ -364,6 +364,7 @@ const es: Dict = {
   'success.merge': '"{{branch}}" mergeada correctamente',
   'success.mergeUpToDate': '"{{branch}}" ya estaba integrada — nada para mergear',
   'success.fastForward': '"{{branch}}" actualizada (fast-forward)',
+  'success.squash': '{{n}} commits combinados en uno',
   'success.amend': 'Último commit enmendado correctamente',
   'success.cherryPick': 'Cherry-pick de {{hash}} aplicado',
 
@@ -726,6 +727,7 @@ const en: Dict = {
   'success.merge': '"{{branch}}" merged successfully',
   'success.mergeUpToDate': '"{{branch}}" was already up to date — nothing to merge',
   'success.fastForward': '"{{branch}}" updated (fast-forward)',
+  'success.squash': '{{n}} commits squashed into one',
   'success.amend': 'Last commit amended successfully',
   'success.cherryPick': 'Cherry-pick of {{hash}} applied',
 

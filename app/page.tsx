@@ -456,7 +456,7 @@ export default function GitCronPage() {
     setAutoFetchPrefs, setOsNotifications, rebindShortcut, resetShortcutsToDefaults, changeTheme,
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, copyFilePath,
-    mergeIntoCurrent, rebaseOnto, fastForwardBranch, amendLastCommit, cherryPickCommit,
+    mergeIntoCurrent, rebaseOnto, fastForwardBranch, amendLastCommit, cherryPickCommit, squashCommits,
     renameBranch, deleteBranch, pullSpecificBranch, pushSpecificBranch,
   } = useGitActions();
 
@@ -518,6 +518,9 @@ export default function GitCronPage() {
   const [showAmend, setShowAmend] = useState(false);
   const [amendNewMessage, setAmendNewMessage] = useState('');
   const [amendCurrentMessage, setAmendCurrentMessage] = useState('');
+  const [showSquash, setShowSquash] = useState(false);
+  const [squashN, setSquashN] = useState(2);
+  const [squashMessage, setSquashMessage] = useState('');
   const [commitFiles, setCommitFiles] = useState<GitFile[]>([]);
   const [commitFilesLoading, setCommitFilesLoading] = useState(false);
   const [showStashClearConfirm, setShowStashClearConfirm] = useState(false);
@@ -1547,6 +1550,7 @@ export default function GitCronPage() {
               onDiscard={(path) => discardFileChanges(path)}
               onCommit={commitChanges}
               onRequestAmend={() => setShowAmend(true)}
+              onRequestSquash={() => setShowSquash(true)}
               onFileContextMenu={(e, file) => {
                 e.preventDefault();
                 setFileContextMenu({ x: e.clientX, y: e.clientY, file });
@@ -2241,6 +2245,71 @@ export default function GitCronPage() {
         )}
       </AnimatePresence>
 
+      {/* ──────────── SQUASH COMMITS ──────────── */}
+      <AnimatePresence>
+        {showSquash && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowSquash(false)}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[520px]" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-[#fd9d1a] flex items-center gap-2 text-base">
+                  <Layers size={16} /> Combinar últimos commits (Squash)
+                </h3>
+                <button onClick={() => setShowSquash(false)} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={16} /></button>
+              </div>
+              <div className="bg-[#fd9d1a]/10 border border-[#fd9d1a]/30 rounded p-2 text-xs text-[#ffd89e] mb-4">
+                ⚠ Si ya pusheaste alguno de estos commits al remoto, vas a necesitar un force-push después. No hagas squash de commits compartidos con otros.
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-[#9eacc0] block mb-2">Combinar los últimos</label>
+                  <div className="flex gap-2">
+                    {[2, 3, 4, 5].map((n) => (
+                      <button key={n} onClick={() => setSquashN(n)} className={cn('flex-1 py-2 rounded border text-sm font-bold transition-colors', squashN === n ? 'bg-[#fd9d1a]/15 border-[#fd9d1a]/50 text-[#fd9d1a]' : 'bg-[#041425] border-[#3c495a]/30 text-[#9eacc0] hover:text-[#d9e7fc]')}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 bg-[#041425] border border-[#3c495a]/15 rounded p-2 max-h-32 overflow-y-auto">
+                    {commits.slice(0, squashN).map((c, i) => (
+                      <div key={c.hash} className="flex items-center gap-2 py-0.5 text-xs">
+                        <span className="font-mono text-[#697789] shrink-0">{c.shortHash}</span>
+                        <span className={cn('truncate', i === 0 ? 'text-[#d9e7fc]' : 'text-[#9eacc0]')}>{c.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-[#9eacc0] block mb-1">Nuevo mensaje del commit</label>
+                  <textarea
+                    autoFocus
+                    value={squashMessage}
+                    onChange={(e) => setSquashMessage(e.target.value)}
+                    placeholder={commits[0]?.message ?? ''}
+                    className="w-full bg-[#041425] border border-[#3c495a]/15 rounded p-2 text-sm text-[#d9e7fc] h-20 focus:outline-none focus:border-[#fd9d1a]/40 resize-none"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={async () => {
+                    const msg = squashMessage.trim() || commits[0]?.message || '';
+                    const r = await squashCommits(squashN, msg);
+                    if (r.success) { setShowSquash(false); setSquashMessage(''); setSquashN(2); }
+                  }}
+                  disabled={isLoading || !repoPath || commits.length < 2}
+                  className="flex-1 py-2 bg-gradient-to-br from-[#fd9d1a] to-[#c87d10] hover:from-[#feab33] hover:to-[#d68f1f] disabled:opacity-40 text-sm font-bold text-[#2a1500] rounded transition-colors"
+                >
+                  {isLoading ? '...' : `Combinar ${squashN} commits`}
+                </button>
+                <button onClick={() => { setShowSquash(false); setSquashMessage(''); setSquashN(2); }} className="px-4 py-2 bg-[#041425] border border-[#3c495a]/30 hover:text-[#d9e7fc] text-sm text-[#9eacc0] rounded transition-colors">
+                  Cancelar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ──────────── FILE CONTEXT MENU ──────────── */}
       <AnimatePresence>
         {fileContextMenu && (
@@ -2665,7 +2734,7 @@ function FileRow({
 
 function StagingPanel({
   files, selectedFile, repoPath, commitMessage, setCommitMessage, isLoading,
-  onSelectFile, onStage, onStageMany, onDiscard, onCommit, onRequestAmend,
+  onSelectFile, onStage, onStageMany, onDiscard, onCommit, onRequestAmend, onRequestSquash,
   onFileContextMenu, onRequestResetAll,
 }: {
   files: GitFile[];
@@ -2680,6 +2749,7 @@ function StagingPanel({
   onDiscard: (path: string) => void;
   onCommit: () => void;
   onRequestAmend: () => void;
+  onRequestSquash: () => void;
   onFileContextMenu: (e: React.MouseEvent, file: GitFile) => void;
   onRequestResetAll: () => void;
 }) {
@@ -2806,11 +2876,20 @@ function StagingPanel({
           <button
             onClick={onRequestAmend}
             disabled={isLoading || !repoPath}
-            title="Enmendar el último commit (cambiar mensaje o agregar archivos staged)"
+            title="Enmendar el último commit"
             className="px-3 py-2 bg-[#041425] border border-[#3c495a]/30 hover:border-[#fd9d1a]/50 hover:text-[#fd9d1a] disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium text-[#9eacc0] rounded transition-colors flex items-center gap-1"
           >
             <RotateCcw size={12} />
             Amend
+          </button>
+          <button
+            onClick={onRequestSquash}
+            disabled={isLoading || !repoPath}
+            title="Combinar los últimos N commits en uno (Squash)"
+            className="px-3 py-2 bg-[#041425] border border-[#3c495a]/30 hover:border-[#fd9d1a]/50 hover:text-[#fd9d1a] disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium text-[#9eacc0] rounded transition-colors flex items-center gap-1"
+          >
+            <Layers size={12} />
+            Squash
           </button>
         </div>
       </div>

@@ -56,6 +56,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:amend', repoPath, newMessage),
   gitCherryPick: (repoPath: string, hash: string) =>
     ipcRenderer.invoke('git:cherry-pick', repoPath, hash),
+  gitSquash: (repoPath: string, n: number, message: string) =>
+    ipcRenderer.invoke('git:squash', repoPath, n, message),
   gitShowFiles: (repoPath: string, hash: string) =>
     ipcRenderer.invoke('git:show-files', repoPath, hash),
   gitDiffAtCommit: (repoPath: string, filePath: string, hash: string) =>

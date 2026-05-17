@@ -414,6 +414,22 @@ export const useGitActions = () => {
    * and the user must resolve manually + run `git cherry-pick --continue`
    * or `--abort` from the terminal.
    */
+  /** Squash the last N local commits into one with a new message. */
+  const squashCommits = async (n: number, message: string): Promise<{ success: boolean; error?: string }> => {
+    if (!window.api || !repoPath) return { success: false, error: 'no api' };
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitSquash(repoPath, n, message);
+      if (r.success) {
+        setSuccess(t('success.squash', { n: String(n) }));
+        await refreshLog(); await refreshStatus(); await refreshBranches();
+        return { success: true };
+      }
+      setError(r.error ?? 'No se pudo hacer squash');
+      return { success: false, error: r.error };
+    } finally { setLoading(false); }
+  };
+
   const cherryPickCommit = async (hash: string, shortHash?: string): Promise<{ success: boolean; conflict?: boolean; error?: string }> => {
     if (!window.api || !repoPath) return { success: false, error: 'no api' };
     setLoading(true); setError(null);
@@ -903,6 +919,7 @@ export const useGitActions = () => {
     fastForwardBranch,
     amendLastCommit,
     cherryPickCommit,
+    squashCommits,
     renameBranch,
     deleteBranch,
     pullSpecificBranch,

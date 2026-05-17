@@ -146,6 +146,7 @@ interface ElectronAPI {
   gitRemoveLock: (repoPath: string) => Promise<GitResult<{ removed: boolean }>>;
   gitAmend: (repoPath: string, newMessage?: string) => Promise<GitResult<{ hash: string; shortHash: string }>>;
   gitCherryPick: (repoPath: string, hash: string) => Promise<GitResult>;
+  gitSquash: (repoPath: string, n: number, message: string) => Promise<GitResult<{ hash: string; shortHash: string }>>;
   gitShowFiles: (repoPath: string, hash: string) => Promise<GitResult<StatusFile[]>>;
   gitDiffAtCommit: (repoPath: string, filePath: string, hash: string) => Promise<GitResult<string>>;
   gitAddToGitignore: (repoPath: string, filePath: string) => Promise<GitResult<{ alreadyIgnored: boolean }>>;

@@ -1217,6 +1217,29 @@ ipcMain.handle('git:cherry-pick', async (_event, targetPath: string, hash: strin
   }
 });
 
+// Squash the last N commits into one using `git reset --soft HEAD~N` + `git commit -m`.
+// Only works on commits that haven't been pushed (or the caller handles the force-push warning).
+ipcMain.handle('git:squash', async (_event, targetPath: string, n: number, message: string) => {
+  try {
+    if (n < 2 || n > 100) return { success: false, error: 'N debe estar entre 2 y 100' };
+    if (!message.trim()) return { success: false, error: 'El mensaje del commit no puede estar vacío' };
+    const g = simpleGit(targetPath);
+    // Verify there are at least N commits
+    const log = await g.log({ maxCount: n + 1 });
+    if ((log.total ?? log.all.length) < n) {
+      return { success: false, error: `No hay ${n} commits para combinar` };
+    }
+    // Soft-reset to HEAD~N: stages everything from those N commits
+    await g.raw(['reset', '--soft', `HEAD~${n}`]);
+    // Commit with the provided message
+    await g.commit(message.trim());
+    const newSha = (await g.revparse(['HEAD'])).trim();
+    return { success: true, data: { hash: newSha, shortHash: newSha.slice(0, 7) } };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
 // Returns the list of files changed in a specific commit (for the commit detail panel).
 // Uses `git diff-tree` which is fast and doesn't require a worktree checkout.
 ipcMain.handle('git:show-files', async (_event, targetPath: string, hash: string) => {

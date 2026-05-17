@@ -66,6 +66,48 @@ function sanitizeForLog(value: unknown): string {
   return str.replace(/(x-access-token:)[^@]+@/g, '$1[REDACTED]@');
 }
 
+function createSplash(): BrowserWindow {
+  const splash = new BrowserWindow({
+    width: 420,
+    height: 280,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    backgroundColor: '#00000000',
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+  });
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#020f1e; border:1px solid #3c495a55; border-radius:16px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  height:100vh; font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;
+  color:#d9e7fc; overflow:hidden; -webkit-app-region:drag;
+}
+.logo { font-size:42px; font-weight:800; color:#a3f185; letter-spacing:-1px; }
+.sub  { font-size:13px; color:#9eacc0; margin-top:6px; letter-spacing:0.5px; }
+.bar  { width:200px; height:3px; background:#172d45; border-radius:4px; margin-top:32px; overflow:hidden; }
+.fill {
+  height:100%; background:linear-gradient(90deg,#a3f185,#68b24f);
+  border-radius:4px; animation:load 1.4s ease-in-out forwards;
+}
+@keyframes load { from{width:0%} to{width:100%} }
+</style></head>
+<body>
+  <div class="logo">GitCron</div>
+  <div class="sub">Advanced Git Client</div>
+  <div class="bar"><div class="fill"></div></div>
+</body></html>`;
+
+  splash.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+  return splash;
+}
+
 function createWindow() {
   // Remove the default native menu bar (File / Edit / View / Window).
   // GitCron uses a custom in-app topbar for all actions.
@@ -73,14 +115,13 @@ function createWindow() {
   if (process.platform === 'darwin') {
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       { role: 'appMenu' },
-      { role: 'editMenu' },  // gives Cmd+C / Cmd+V / Cmd+Z
+      { role: 'editMenu' },
     ]));
   } else {
     Menu.setApplicationMenu(null);
   }
 
-  // Resolve the app icon. Prefer .ico on Windows (better DPI scaling),
-  // fall back to .png. In dev, files live in public/.
+  // Resolve the app icon.
   const publicDir = path.join(__dirname, '../../public');
   const resourcesDir = isDev ? publicDir : process.resourcesPath;
   const icoPath = path.join(resourcesDir, 'favicon.ico');
@@ -88,10 +129,14 @@ function createWindow() {
   const iconPath = fs.existsSync(icoPath) ? icoPath : pngPath;
   const iconExists = fs.existsSync(iconPath);
 
+  // Show splash while the renderer loads.
+  const splash = createSplash();
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     backgroundColor: '#041425',
+    show: false,        // hidden until ready-to-show
     ...(iconExists ? { icon: iconPath } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -109,13 +154,24 @@ function createWindow() {
 
   mainWindow.loadURL(url);
 
+  // Close splash and show main window maximized once ready.
+  mainWindow.once('ready-to-show', () => {
+    splash.destroy();
+    mainWindow!.maximize();
+    mainWindow!.show();
+  });
+
+  // DevTools toggle in dev only: Ctrl+Shift+I (Win/Linux) or Cmd+Option+I (macOS).
   if (isDev) {
-    mainWindow.webContents.openDevTools();
+    mainWindow.webContents.on('before-input-event', (_event, input) => {
+      const trigger = process.platform === 'darwin'
+        ? input.meta && input.alt && input.key === 'I'
+        : input.control && input.shift && input.key === 'I';
+      if (trigger) mainWindow?.webContents.toggleDevTools();
+    });
   }
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
+  mainWindow.on('closed', () => { mainWindow = null; });
 }
 
 app.on('ready', createWindow);

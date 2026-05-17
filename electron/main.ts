@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, Menu, protocol, net } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
@@ -175,7 +175,7 @@ function createWindow() {
 
   const url = isDev
     ? 'http://localhost:3000'
-    : `file://${path.join(__dirname, '../out/index.html')}`;
+    : 'app://./index.html';   // served via custom protocol registered in app.on('ready')
 
   mainWindow.loadURL(url);
 
@@ -202,6 +202,16 @@ function createWindow() {
 // Single-instance lock: if a second instance is launched (e.g. user
 // double-clicks the icon while the app is already open), focus the
 // existing window and quit the new instance immediately.
+// Register a custom 'app://' protocol so that Next.js absolute asset paths
+// (/_next/static/...) resolve correctly when the app is loaded from the
+// filesystem. Without this, file:// treats them as root-relative and they 404.
+// Must be called before app is ready.
+if (!isDev) {
+  protocol.registerSchemesAsPrivileged([
+    { scheme: 'app', privileges: { secure: true, standard: true, supportFetchAPI: true } },
+  ]);
+}
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
@@ -213,7 +223,20 @@ if (!gotLock) {
     }
   });
 
-  app.on('ready', createWindow);
+  app.on('ready', () => {
+    // Register the 'app://' protocol to serve the Next.js static export.
+    // app://./index.html → out/index.html
+    // app://./_next/static/... → out/_next/static/...
+    if (!isDev) {
+      const outDir = path.join(__dirname, '../out');
+      protocol.handle('app', (request) => {
+        const url = request.url.replace('app://.', '');
+        const filePath = path.join(outDir, decodeURIComponent(url.split('?')[0]));
+        return net.fetch(`file://${filePath}`);
+      });
+    }
+    createWindow();
+  });
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();

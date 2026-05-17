@@ -12,12 +12,9 @@ const nextConfig: NextConfig = {
   },
   // Static export for Electron packaging (generates out/).
   // In dev the Next.js dev server is used, so output stays default.
-  ...(isProd ? {
-    output: 'export',
-    // Use relative asset paths so file:// protocol works in Electron.
-    // Without this, _next/static/... loads as absolute from filesystem root.
-    assetPrefix: './',
-  } : {}),
+  // Asset paths stay absolute (default) — Electron uses a custom 'app://'
+  // protocol handler that resolves them correctly (see electron/main.ts).
+  ...(isProd ? { output: 'export' } : {}),
   images: {
     // Static export doesn't support the Next.js image optimization server.
     unoptimized: true,

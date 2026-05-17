@@ -14,7 +14,12 @@ const nextConfig: NextConfig = {
   // In dev the Next.js dev server is used, so output stays default.
   // Asset paths stay absolute (default) — Electron uses a custom 'app://'
   // protocol handler that resolves them correctly (see electron/main.ts).
-  ...(isProd ? { output: 'export' } : {}),
+  ...(isProd ? {
+    output: 'export',
+    // trailingSlash ensures pages are exported as dir/index.html instead of dir.html,
+    // which works more reliably with the app:// protocol handler's index.html fallback.
+    trailingSlash: true,
+  } : {}),
   images: {
     // Static export doesn't support the Next.js image optimization server.
     unoptimized: true,

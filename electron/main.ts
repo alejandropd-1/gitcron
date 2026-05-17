@@ -167,7 +167,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true,
+      // sandbox: true removed — it prevents contextBridge.exposeInMainWorld
+      // from working correctly in ASAR-packaged builds (window.api stays undefined).
+      // contextIsolation + nodeIntegration:false is the canonical Electron security model.
       webSecurity: true,
     },
     titleBarStyle: 'hiddenInset',
@@ -231,8 +233,13 @@ if (!gotLock) {
       const outDir = path.join(__dirname, '../out');
       protocol.handle('app', (request) => {
         const url = request.url.replace('app://.', '');
-        const filePath = path.join(outDir, decodeURIComponent(url.split('?')[0]));
-        return net.fetch(`file://${filePath}`);
+        const clean = decodeURIComponent(url.split('?')[0]);
+        const filePath = path.join(outDir, clean);
+        // Fallback to index.html for SPA routes that have no physical file in out/
+        const resolved = fs.existsSync(filePath) && fs.statSync(filePath).isFile()
+          ? filePath
+          : path.join(outDir, 'index.html');
+        return net.fetch(`file://${resolved}`);
       });
     }
     createWindow();

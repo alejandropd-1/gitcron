@@ -9,7 +9,8 @@ export default defineConfig([
     outDir: 'dist',
     target: 'es2017',
     bundle: true,
-    noExternal: [/.*/],   // bundle every import, including node_modules
+    // Bundle everything except 'electron' (provided by the Electron runtime)
+    noExternal: [/^(?!electron$).+/],
     external: ['electron'],
     platform: 'node',
     minify: false,

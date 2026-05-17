@@ -515,6 +515,8 @@ export default function GitCronPage() {
   const [showAmend, setShowAmend] = useState(false);
   const [amendNewMessage, setAmendNewMessage] = useState('');
   const [amendCurrentMessage, setAmendCurrentMessage] = useState('');
+  const [commitFiles, setCommitFiles] = useState<GitFile[]>([]);
+  const [commitFilesLoading, setCommitFilesLoading] = useState(false);
   const [showStashClearConfirm, setShowStashClearConfirm] = useState(false);
   const [checkoutConflict, setCheckoutConflict] = useState<{ branch: string; error: string } | null>(null);
   const [branchMenu, setBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
@@ -624,6 +626,22 @@ export default function GitCronPage() {
   useEffect(() => {
     if (repoPath) loadAll(repoPath);
   }, [repoPath]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load files changed in selected commit
+  useEffect(() => {
+    if (!selectedCommit || !repoPath || !window.api) {
+      setCommitFiles([]);
+      return;
+    }
+    setCommitFilesLoading(true);
+    window.api.gitShowFiles(repoPath, selectedCommit.hash)
+      .then((r) => {
+        if (r.success && r.data) setCommitFiles(r.data as GitFile[]);
+        else setCommitFiles([]);
+      })
+      .catch(() => setCommitFiles([]))
+      .finally(() => setCommitFilesLoading(false));
+  }, [selectedCommit?.hash, repoPath]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     document.documentElement.style.fontSize = `${appFontSizePx}px`;
@@ -1451,20 +1469,45 @@ export default function GitCronPage() {
               <div className="flex-1 overflow-y-auto">
                 <div className="px-4 py-2 border-b border-[#3c495a]/15 flex justify-between items-center bg-[#0d2134]">
                   <span className="text-[11px] font-bold text-[#9eacc0] uppercase tracking-wider">
-                    Changed files ({modifiedFiles.length})
+                    {commitFilesLoading
+                      ? 'Cargando archivos...'
+                      : `Changed files (${commitFiles.length})`}
                   </span>
                 </div>
                 <div className="p-1">
-                  {modifiedFiles.map((file) => (
-                    <FileRow
+                  {commitFiles.map((file) => (
+                    <button
                       key={file.path}
-                      file={file}
-                      selected={selectedFile?.path === file.path}
-                      onClick={() => handleSelectFile(file)}
-                      onDiscard={() => discardFileChanges(file.path)}
-                      onStage={(stage) => stageFile(file.path, stage)}
-                    />
+                      onClick={async () => {
+                        if (!repoPath || !window.api) return;
+                        const r = await window.api.gitDiffAtCommit(repoPath, file.path, selectedCommit!.hash);
+                        if (r.success && r.data) {
+                          useGitStore.getState().setCurrentDiff(r.data);
+                          useGitStore.getState().setSelectedFile(file);
+                        }
+                      }}
+                      className={cn(
+                        'w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors',
+                        selectedFile?.path === file.path
+                          ? 'bg-[#a3f185]/10 text-[#a3f185]'
+                          : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
+                      )}
+                    >
+                      <span className={cn(
+                        'text-[10px] font-bold w-4 shrink-0',
+                        file.status === 'added' ? 'text-[#a3f185]' :
+                        file.status === 'deleted' ? 'text-[#ff716c]' :
+                        file.status === 'renamed' ? 'text-[#5ed8ff]' :
+                        'text-[#fd9d1a]',
+                      )}>
+                        {file.status === 'added' ? 'A' : file.status === 'deleted' ? 'D' : file.status === 'renamed' ? 'R' : 'M'}
+                      </span>
+                      <span className="truncate text-xs">{file.path}</span>
+                    </button>
                   ))}
+                  {!commitFilesLoading && commitFiles.length === 0 && (
+                    <p className="px-4 py-4 text-xs text-[#697789] text-center">Sin archivos en este commit</p>
+                  )}
                 </div>
               </div>
 

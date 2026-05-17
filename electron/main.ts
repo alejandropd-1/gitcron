@@ -1217,6 +1217,52 @@ ipcMain.handle('git:cherry-pick', async (_event, targetPath: string, hash: strin
   }
 });
 
+// Returns the list of files changed in a specific commit (for the commit detail panel).
+// Uses `git diff-tree` which is fast and doesn't require a worktree checkout.
+ipcMain.handle('git:show-files', async (_event, targetPath: string, hash: string) => {
+  try {
+    if (!/^[0-9a-f]{7,40}$/i.test(hash)) {
+      return { success: false, error: 'Hash inválido' };
+    }
+    const g = simpleGit(targetPath);
+    // diff-tree -r: recursive, shows files not just top-level dirs
+    // --name-status: shows M/A/D/R + path (same format as git status)
+    // --no-commit-id: don't print the commit hash in the output
+    const raw = await g.raw(['diff-tree', '--no-commit-id', '-r', '--name-status', hash]);
+    const files = raw.trim().split('\n').filter(Boolean).map((line) => {
+      const parts = line.split('\t');
+      const statusChar = parts[0]?.[0] ?? 'M'; // first char handles R100 → R
+      const filePath = parts[2] ?? parts[1] ?? ''; // renamed: old\tnew; else: path
+      const oldPath = parts[2] ? parts[1] : undefined;
+      const statusMap: Record<string, string> = {
+        M: 'modified', A: 'added', D: 'deleted', R: 'renamed', C: 'modified', U: 'modified',
+      };
+      return {
+        path: filePath,
+        status: (statusMap[statusChar] ?? 'modified') as 'modified' | 'added' | 'deleted' | 'renamed',
+        staged: true,  // all files in a commit are "staged" conceptually
+        oldPath,
+      };
+    });
+    return { success: true, data: files };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
+// Returns the diff for a specific file AT a specific commit hash.
+ipcMain.handle('git:diff-at-commit', async (_event, targetPath: string, filePath: string, hash: string) => {
+  try {
+    const g = simpleGit(targetPath);
+    const diff = await g.raw(['show', `${hash}:${filePath}`]).catch(() => null);
+    // Use diff between commit and its parent for the actual diff
+    const diffOutput = await g.raw(['diff', `${hash}^`, hash, '--', filePath]).catch(() => '');
+    return { success: true, data: diffOutput };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
 ipcMain.handle('git:diff', async (_event, targetPath: string, filePath: string, staged: boolean = false) => {
   try {
     const g = simpleGit(targetPath);

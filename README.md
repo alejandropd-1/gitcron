@@ -255,7 +255,7 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 ## Current version
 
-`v1.0.0` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v1.0.1` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

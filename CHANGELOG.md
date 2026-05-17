@@ -4,6 +4,17 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.0.1] - 2026-05-17 - Packaging stability fixes
+
+### Critical fixes for packaged app
+- **"Electron API no disponible" on every IPC call**: `tsup.config.ts` preload entry had `noExternal: [/.*/]` which matched everything including `electron`, causing tsup to bundle the electron package into `preload.js`. The bundled electron silently crashed the preload at runtime, leaving `window.api` undefined in both dev and packaged modes. Fixed by using the same exclusion regex as the main entry: `/^(?!electron$).+/`. Preload size dropped from 9.33 KB → 6.29 KB.
+- **`sandbox: true` removed** from `BrowserWindow.webPreferences`. In combination with ASAR packaging and the bundled preload, sandbox mode prevented `contextBridge.exposeInMainWorld` from working correctly. `contextIsolation: true` + `nodeIntegration: false` is the canonical Electron security model and sufficient.
+- **`app://` protocol SPA fallback**: the custom protocol handler now falls back to `out/index.html` for any path that doesn't resolve to a real file, enabling client-side routing to work correctly in the packaged app.
+- **`trailingSlash: true`** added to `next.config.ts` static export so pages are generated as `page/index.html` (more compatible with the index.html fallback strategy).
+- **Branch `06-Architectural`** created from `main` for these stability changes.
+
+---
+
 ## [v1.0.0] - 2026-05-17 - First distributable release
 
 ### Packaging

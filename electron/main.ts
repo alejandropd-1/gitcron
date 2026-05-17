@@ -199,15 +199,30 @@ function createWindow() {
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
-app.on('ready', createWindow);
+// Single-instance lock: if a second instance is launched (e.g. user
+// double-clicks the icon while the app is already open), focus the
+// existing window and quit the new instance immediately.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
+  app.on('ready', createWindow);
 
-app.on('activate', () => {
-  if (mainWindow === null) createWindow();
-});
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit();
+  });
+
+  app.on('activate', () => {
+    if (mainWindow === null) createWindow();
+  });
+}
 
 // ─── Encrypted storage (OS-level) ─────────────────────────────────────
 // Uses Electron's safeStorage which leverages:

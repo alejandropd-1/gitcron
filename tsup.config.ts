@@ -17,13 +17,13 @@ export default defineConfig([
     sourcemap: false,
   },
   {
-    // Preload — also bundle all deps, external only electron.
+    // Preload — bundle all deps except 'electron' (must be required at runtime).
     entry: ['electron/preload.ts'],
     format: ['cjs'],
     outDir: 'dist',
     target: 'es2017',
     bundle: true,
-    noExternal: [/.*/],
+    noExternal: [/^(?!electron$).+/],
     external: ['electron'],
     platform: 'node',
     minify: false,

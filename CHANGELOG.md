@@ -4,6 +4,46 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.0.0] - 2026-05-17 - First distributable release
+
+### Packaging
+- `electron-builder` v26 configured for Windows (NSIS installer), macOS (DMG) and Linux (AppImage).
+- `pnpm package:win` generates `release/GitCron Setup 1.0.0.exe`.
+- `next.config.ts` outputs `export` mode in production (static `out/`) so electron-builder can bundle the renderer. Dev server still uses the default Next.js mode.
+- App icon uses `public/gitcron-icon.png` (512×512) for all platforms.
+
+### Startup experience
+- **Splash screen**: frameless 420×280 window with the GitCron logo and an animated green progress bar appears while the renderer loads. No extra file — the HTML is inlined.
+- **Maximized on start**: the window fills the screen on first launch.
+- **No auto DevTools**: DevTools no longer open automatically. In dev mode toggle with `Ctrl+Shift+I` (Win/Linux) or `Cmd+Option+I` (macOS).
+
+### Credential caching fix
+- `GIT_ASKPASS=echo` was blocked by git 2.35.2+ (same CVE-2022-24765 that blocked `credential.helper=`).
+- New approach: write a temp `.gitconfig` at startup with `credential.helper =` and `core.askpass =`, then point `GIT_CONFIG_GLOBAL` to it for every token-authed operation. Git reads its own config files without restrictions, so the empty helper takes effect cleanly.
+
+### Commit detail panel
+- Clicking a commit in the graph or history now shows the **files changed in that commit** (via `git diff-tree --no-commit-id -r --name-status`), not the current working tree.
+- Each file shows a colored status badge (A/M/D/R). Clicking a file loads the diff at that specific commit (`git diff <hash>^ <hash> -- <file>`).
+
+### Squash commits
+- New **Squash** button next to Amend in the staging panel.
+- Modal lets you select 2–5 commits to combine, shows a live preview, and accepts a new message (defaults to the current HEAD message).
+- Implementation: `git reset --soft HEAD~N` + `git commit -m <message>`. Warns about force-push if commits were already shared.
+
+### Tests
+- Vitest v4 set up with 2 test files and 14 passing unit tests.
+- `lib/__tests__/shortcuts.test.ts`: `eventToShortcut`, `formatShortcut`, `defaultShortcutsMap`.
+- `lib/__tests__/os-notify.test.ts`: token URL sanitization regex.
+- Scripts: `pnpm test` (run), `pnpm test:ui` (browser UI), `pnpm test:watch`.
+
+### Codebase refactor
+- `app/page.tsx` reduced from 3,931 → 3,081 lines (−22%) by extracting:
+  - `components/ContextMenus.tsx` — `CommitContextMenu`, `BranchContextMenu`, `FileContextMenu`, `ContextMenuItem`
+  - `components/HelpModal.tsx` — `HelpModal`, `StatusBadge`, `FlowStep`
+  - `components/RepoModals.tsx` — `EmptyStateCard`, `InitRepoModal`, `CloneRepoModal`, `ProfileMenu`
+
+---
+
 ## [v0.1.8] - 2026-05-16 - UI polish, sidebar hierarchy, filter dropdown, app icon
 
 ### Sidebar hierarchy (GitKraken-style)

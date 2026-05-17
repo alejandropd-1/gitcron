@@ -45,8 +45,9 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Separate unstaged and staged sections.
 - Batch stage / unstage to avoid `index.lock` races.
 - Diff viewer for staged and unstaged files.
-- Real commits with author, date, refs, and commit details.
+- Real commits with author, date, refs, and commit details. Clicking a commit shows the files changed **in that commit** with colored status badges (A/M/D/R) and per-file diffs.
 - Amend last commit: reword the message or fold staged changes into the previous commit, with a warning if the commit was already pushed.
+- Squash last N commits (2–5) into one with a custom message.
 - Reset all with confirmation.
 - Recovery action for `index.lock` errors.
 
@@ -216,8 +217,8 @@ gitCronos/
 - [x] Filter graph commits by branch.
 
 ### Tier 2
-- [ ] Electron builder packaging and distribution setup.
-- [ ] Windows / macOS signing.
+- [x] Electron builder packaging — Windows (NSIS), macOS (DMG), Linux (AppImage).
+- [ ] Windows / macOS code signing.
 - [ ] Auto-update flow.
 
 ### Tier 3
@@ -228,16 +229,31 @@ gitCronos/
 ### Future
 - [x] Amend last commit (v0.1.7).
 - [x] Cherry-pick from context menu (v0.1.7).
+- [x] Squash last N commits (v1.0.0).
 - [ ] Multi-account GitHub support.
 - [ ] GitLab / Bitbucket support.
 - [ ] Pull request diff view.
-- [ ] Squash / interactive rebase workflows from the UI.
+- [ ] Interactive rebase (reorder / drop / reword).
+
+---
+
+## Installation
+
+Download the latest release from [GitHub Releases](https://github.com/alejandropd-1/gitcron/releases).
+
+| Platform | File |
+|---|---|
+| Windows | `GitCron Setup 1.0.0.exe` |
+| macOS | `GitCron-1.0.0.dmg` *(build with `pnpm package:mac`)* |
+| Linux | `GitCron-1.0.0.AppImage` *(build with `pnpm package:linux`)* |
+
+> **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
 ---
 
 ## Current version
 
-`v0.1.8` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v1.0.0` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

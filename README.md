@@ -219,7 +219,7 @@ gitCronos/
 ### Tier 2
 - [x] Electron builder packaging — Windows (NSIS), macOS (DMG), Linux (AppImage).
 - [ ] Windows / macOS code signing.
-- [ ] Auto-update flow.
+- [x] Auto-update flow.
 
 ### Tier 3
 - [x] OS notifications for long push / pull operations.
@@ -253,9 +253,38 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 ---
 
+## Auto-update
+
+GitCron checks for updates silently 3 seconds after the main window appears. If a new version is available on [GitHub Releases](https://github.com/alejandropd-1/gitcron/releases), a native dialog asks whether to download it. A second dialog appears once the download finishes, letting you install immediately or on next close.
+
+- **No update:** no dialog, no toast.
+- **Manual check:** open Settings → *Buscar actualizaciones* / *Check for updates*.
+- **Platforms:** Windows (NSIS) and Linux (AppImage) auto-update without code signing. macOS auto-update is inactive until the app is signed.
+
+---
+
+## Publishing a release
+
+Requirements: `GH_TOKEN` env var with **`repo` scope** (the repository is private).
+
+```bash
+# Windows
+pnpm publish:win
+
+# macOS  (must build on macOS)
+pnpm publish:mac
+
+# Linux
+pnpm publish:linux
+```
+
+`electron-builder` uploads a draft release to GitHub. Publish it manually from the GitHub Releases page after verifying the installer. The `latest.yml` / `latest-mac.yml` / `latest-linux.yml` metadata files must be included in the release for auto-update to work.
+
+---
+
 ## Current version
 
-`v1.0.1` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v1.1.0` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

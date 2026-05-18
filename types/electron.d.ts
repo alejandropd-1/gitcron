@@ -169,6 +169,9 @@ interface ElectronAPI {
   storageSet: (key: string, value: string) => Promise<GitResult>;
   storageGet: (key: string) => Promise<GitResult<string | null>>;
   storageDelete: (key: string) => Promise<GitResult>;
+  checkForUpdate: () => Promise<GitResult>;
+  onUpdateNotAvailable: (cb: () => void) => () => void;
+  onUpdateError: (cb: (msg: string) => void) => () => void;
 }
 
 declare global {

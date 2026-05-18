@@ -4,6 +4,31 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.1.0] - 2026-05-18 - Auto-update con electron-updater
+
+### Auto-update
+- Chequeo silencioso de actualizaciones 3 s después del splash al iniciar la app (solo en producción, no en dev).
+- Diálogo nativo cuando hay versión nueva disponible — botones **Descargar** / **Después**.
+- `autoDownload = false`: la descarga solo arranca tras confirmación del usuario.
+- Diálogo nativo cuando la descarga termina — botones **Instalar ahora** / **Más tarde**.
+- `autoInstallOnAppQuit = true`: si el usuario elige "más tarde", la actualización se instala al cerrar la app.
+- Sin update disponible → sin dialog, sin toast (modo silencioso).
+- Nuevo handler IPC `app:check-update` para trigger manual desde el renderer.
+- Botón **"Buscar actualizaciones"** en Settings → muestra spinner y toast con el resultado.
+- Todos los errores del updater pasan por `sanitizeForLog()` y llegan al renderer con `errMsg()`.
+- Los textos de los diálogos nativos se adaptan al idioma guardado en safeStorage (ES/EN).
+
+### Publishing
+- Nuevos scripts: `pnpm publish:win`, `pnpm publish:mac`, `pnpm publish:linux`.
+- `electron-builder.publish` configurado con provider `github` (`alejandropd-1/gitcron`, repo privado).
+- Requiere env `GH_TOKEN` con scope **`repo` completo** (el repo es privado).
+- Los scripts crean un draft release en GitHub — publicarlo manualmente desde la UI de Releases.
+
+### Limitaciones
+- macOS auto-update queda inactivo hasta que se agregue code-signing. Los releases DMG siguen siendo descargables manualmente.
+
+---
+
 ## [v1.0.1] - 2026-05-17 - Packaging stability fixes
 
 ### Critical fixes for packaged app

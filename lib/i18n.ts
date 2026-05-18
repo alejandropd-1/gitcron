@@ -227,8 +227,13 @@ const es: Dict = {
   'settings.about': 'Acerca de GitCron',
   'settings.version': 'Versión',
   'settings.checkUpdates': 'Buscar actualizaciones',
+  'settings.checkUpdatesDesc': 'Buscar nuevas versiones de GitCron',
+  'settings.checkUpdatesButton': 'Buscar ahora',
   'settings.openExternal': 'Abrir en navegador',
   'settings.dataLocation': 'Tus datos se guardan en: %APPDATA%/GitCron (cifrados via OS)',
+  'update.toastChecking': 'Buscando actualizaciones...',
+  'update.toastNotAvailable': 'Ya tenés la última versión',
+  'update.toastError': 'Error al buscar actualizaciones: {{error}}',
 
   // ── Profile Menu ──
   'profile.notConnected': 'No estás conectado',
@@ -590,8 +595,13 @@ const en: Dict = {
   'settings.about': 'About GitCron',
   'settings.version': 'Version',
   'settings.checkUpdates': 'Check for updates',
+  'settings.checkUpdatesDesc': 'Look for new versions of GitCron',
+  'settings.checkUpdatesButton': 'Check now',
   'settings.openExternal': 'Open in browser',
   'settings.dataLocation': 'Your data is stored at: %APPDATA%/GitCron (OS-encrypted)',
+  'update.toastChecking': 'Checking for updates...',
+  'update.toastNotAvailable': 'You already have the latest version',
+  'update.toastError': 'Failed to check for updates: {{error}}',
 
   // ── Profile ──
   'profile.notConnected': 'Not signed in',

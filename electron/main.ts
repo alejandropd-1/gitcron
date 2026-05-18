@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { spawn } from 'child_process';
 import { simpleGit, SimpleGit } from 'simple-git';
 import { Octokit } from '@octokit/rest';
+import { autoUpdater } from 'electron-updater';
 import type {
   StatusFile, CommitData, BranchData, RepoInfo, StashEntry, SubmoduleEntry, GitHubUser,
   BranchTrackingInfo, WorktreeEntry, PullRequestEntry,
@@ -13,6 +14,7 @@ const isDev = !app.isPackaged;
 
 let mainWindow: BrowserWindow | null = null;
 let repoPath: string | null = null;
+let manualUpdateCheck = false;
 let git: SimpleGit = simpleGit();
 
 /**
@@ -186,6 +188,15 @@ function createWindow() {
     splash.destroy();
     mainWindow!.maximize();
     mainWindow!.show();
+    // Silent update check 3 s after the app is visible (not in dev).
+    if (!isDev) {
+      setTimeout(() => {
+        manualUpdateCheck = false;
+        autoUpdater.checkForUpdates().catch((e) =>
+          console.error('[updater] silent check error:', sanitizeForLog(e))
+        );
+      }, 3000);
+    }
   });
 
   // DevTools toggle in dev only: Ctrl+Shift+I (Win/Linux) or Cmd+Option+I (macOS).
@@ -243,6 +254,7 @@ if (!gotLock) {
       });
     }
     createWindow();
+    if (!isDev) setupAutoUpdater();
   });
 
   app.on('window-all-closed', () => {
@@ -437,6 +449,123 @@ function errMsg(error: unknown): string {
   const e = error as { message?: string };
   return sanitizeForLog(e?.message ?? String(error));
 }
+
+// ─── Auto-update ──────────────────────────────────────────────────────
+
+const UPDATE_DIALOG_STRINGS: Record<string, Record<string, string>> = {
+  es: {
+    availableTitle:     'Actualización disponible',
+    availableDetail:    'GitCron {newVersion} está disponible (tenés la {currentVersion}). ¿Querés descargarla ahora?',
+    availableDownload:  'Descargar',
+    availableLater:     'Después',
+    downloadedTitle:    'Actualización lista',
+    downloadedDetail:   'La actualización se descargó. ¿Querés reiniciar para instalarla?',
+    downloadedInstall:  'Instalar ahora',
+    downloadedLater:    'Más tarde',
+  },
+  en: {
+    availableTitle:     'Update available',
+    availableDetail:    'GitCron {newVersion} is available (you have {currentVersion}). Download it now?',
+    availableDownload:  'Download',
+    availableLater:     'Later',
+    downloadedTitle:    'Update ready',
+    downloadedDetail:   'The update has been downloaded. Restart to install?',
+    downloadedInstall:  'Install now',
+    downloadedLater:    'Later',
+  },
+};
+
+function getUpdateDialogLang(): Record<string, string> {
+  try {
+    const lang = readEncryptedStorage()['language'] ?? 'es';
+    return UPDATE_DIALOG_STRINGS[lang] ?? UPDATE_DIALOG_STRINGS['es'];
+  } catch {
+    return UPDATE_DIALOG_STRINGS['es'];
+  }
+}
+
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = {
+    info:  (msg: unknown) => console.log('[updater]', sanitizeForLog(msg)),
+    warn:  (msg: unknown) => console.warn('[updater]', sanitizeForLog(msg)),
+    error: (msg: unknown) => console.error('[updater]', sanitizeForLog(msg)),
+    debug: (_msg: unknown) => {},
+    transports: {},
+  } as unknown as typeof autoUpdater.logger;
+
+  autoUpdater.on('update-available', async (info) => {
+    const s = getUpdateDialogLang();
+    const currentVersion = app.getVersion();
+    const newVersion = info.version;
+    const detail = s.availableDetail
+      .replace('{newVersion}', newVersion)
+      .replace('{currentVersion}', currentVersion);
+
+    const { response } = await dialog.showMessageBox({
+      type: 'info',
+      title: s.availableTitle,
+      message: `GitCron ${newVersion}`,
+      detail,
+      buttons: [s.availableDownload, s.availableLater],
+      defaultId: 0,
+      cancelId: 1,
+    });
+
+    manualUpdateCheck = false;
+
+    if (response === 0) {
+      autoUpdater.downloadUpdate().catch((e) =>
+        console.error('[updater] download error:', sanitizeForLog(e))
+      );
+    }
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    if (manualUpdateCheck) {
+      mainWindow?.webContents.send('update:not-available');
+    }
+    manualUpdateCheck = false;
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('[updater] error:', sanitizeForLog(err));
+    if (manualUpdateCheck) {
+      mainWindow?.webContents.send('update:error', errMsg(err));
+    }
+    manualUpdateCheck = false;
+  });
+
+  autoUpdater.on('update-downloaded', async () => {
+    const s = getUpdateDialogLang();
+    const { response } = await dialog.showMessageBox({
+      type: 'info',
+      title: s.downloadedTitle,
+      message: s.downloadedTitle,
+      detail: s.downloadedDetail,
+      buttons: [s.downloadedInstall, s.downloadedLater],
+      defaultId: 0,
+      cancelId: 1,
+    });
+
+    if (response === 0) {
+      autoUpdater.quitAndInstall();
+    }
+  });
+}
+
+ipcMain.handle('app:check-update', async () => {
+  if (isDev) return { success: false, error: 'Updater disabled in dev mode' };
+  try {
+    manualUpdateCheck = true;
+    await autoUpdater.checkForUpdates();
+    return { success: true };
+  } catch (error) {
+    manualUpdateCheck = false;
+    return { success: false, error: errMsg(error) };
+  }
+});
 
 ipcMain.handle('github:device-start', async () => {
   try {

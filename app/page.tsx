@@ -624,6 +624,7 @@ export default function GitCronPage() {
   const [authMode, setAuthMode] = useState<'oauth' | 'token'>('oauth');
   const [deviceCodeInfo, setDeviceCodeInfo] = useState<{ userCode: string; verificationUri: string } | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const newBranchInputRef = useRef<HTMLInputElement>(null);
   const searchPopoverRef = useRef<HTMLDivElement>(null);
   const searchButtonRef = useRef<HTMLDivElement>(null);
@@ -794,6 +795,35 @@ export default function GitCronPage() {
     const timer = setTimeout(() => setSuccess(null), 3000);
     return () => clearTimeout(timer);
   }, [success]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Wire up auto-update IPC events from the main process.
+  useEffect(() => {
+    if (!window.api?.onUpdateNotAvailable) return;
+    const unsubNotAvailable = window.api.onUpdateNotAvailable(() => {
+      setIsCheckingUpdate(false);
+      setSuccess(t('update.toastNotAvailable'));
+    });
+    const unsubError = window.api.onUpdateError((msg: string) => {
+      setIsCheckingUpdate(false);
+      setError(t('update.toastError', { error: msg }));
+    });
+    return () => {
+      unsubNotAvailable();
+      unsubError();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCheckForUpdate = async () => {
+    if (isCheckingUpdate) return;
+    setIsCheckingUpdate(true);
+    setSuccess(t('update.toastChecking'));
+    const result = await window.api.checkForUpdate();
+    if (!result.success) {
+      setIsCheckingUpdate(false);
+      setError(result.error ?? t('update.toastError', { error: 'unknown' }));
+    }
+    // On success the IPC listeners (onUpdateNotAvailable / onUpdateError) handle the rest.
+  };
 
   const handleCreateBranch = async () => {
     const name = newBranchName.trim();
@@ -1856,6 +1886,26 @@ export default function GitCronPage() {
                       <span>Electron + Next.js + simple-git</span>
                     </div>
                   </div>
+                </section>
+
+                {/* ── Updates ── */}
+                <section>
+                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <RotateCcw size={12} /> {t('settings.checkUpdates')}
+                  </h4>
+                  <p className="text-xs text-[#9eacc0] mb-3">{t('settings.checkUpdatesDesc')}</p>
+                  <button
+                    type="button"
+                    onClick={handleCheckForUpdate}
+                    disabled={isCheckingUpdate}
+                    className="px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:border-[#a3f185]/40 hover:text-[#a3f185] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isCheckingUpdate
+                      ? <Loader2 size={14} className="animate-spin" />
+                      : <RotateCcw size={14} />
+                    }
+                    <span className="font-medium">{t('settings.checkUpdatesButton')}</span>
+                  </button>
                 </section>
               </div>
             </motion.div>

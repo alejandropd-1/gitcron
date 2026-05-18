@@ -92,4 +92,15 @@ contextBridge.exposeInMainWorld('api', {
   storageSet: (key: string, value: string) => ipcRenderer.invoke('storage:set', key, value),
   storageGet: (key: string) => ipcRenderer.invoke('storage:get', key),
   storageDelete: (key: string) => ipcRenderer.invoke('storage:delete', key),
+  checkForUpdate: () => ipcRenderer.invoke('app:check-update'),
+  onUpdateNotAvailable: (cb: () => void) => {
+    const handler = () => cb();
+    ipcRenderer.on('update:not-available', handler);
+    return () => ipcRenderer.removeListener('update:not-available', handler);
+  },
+  onUpdateError: (cb: (msg: string) => void) => {
+    const handler = (_e: unknown, msg: string) => cb(msg);
+    ipcRenderer.on('update:error', handler);
+    return () => ipcRenderer.removeListener('update:error', handler);
+  },
 });

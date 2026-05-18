@@ -1,6 +1,6 @@
 {
   "name": "gitcron",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "private": true,
   "main": "dist/main.js",
   "scripts": {
@@ -18,7 +18,10 @@
     "package": "npm run package:build && electron-builder",
     "package:win": "npm run package:build && electron-builder --win",
     "package:mac": "npm run package:build && electron-builder --mac",
-    "package:linux": "npm run package:build && electron-builder --linux"
+    "package:linux": "npm run package:build && electron-builder --linux",
+    "publish:win": "npm run package:build && electron-builder --win --publish always",
+    "publish:mac": "npm run package:build && electron-builder --mac --publish always",
+    "publish:linux": "npm run package:build && electron-builder --linux --publish always"
   },
   "build": {
     "appId": "com.alejandropd.gitcron",
@@ -35,11 +38,24 @@
       "package.json"
     ],
     "extraResources": [
-      { "from": "public/favicon.ico", "to": "favicon.ico" },
-      { "from": "public/gitcron-icon.png", "to": "gitcron-icon.png" }
+      {
+        "from": "public/favicon.ico",
+        "to": "favicon.ico"
+      },
+      {
+        "from": "public/gitcron-icon.png",
+        "to": "gitcron-icon.png"
+      }
     ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "public/gitcron-icon.png"
     },
     "nsis": {
@@ -49,20 +65,44 @@
       "createStartMenuShortcut": true
     },
     "mac": {
-      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
       "icon": "public/gitcron-icon.png",
       "category": "public.app-category.developer-tools"
     },
     "linux": {
-      "target": [{ "target": "AppImage", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "public/gitcron-icon.png",
       "category": "Development"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "alejandropd-1",
+        "repo": "gitcron",
+        "private": true
+      }
+    ]
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1",
     "autoprefixer": "^10.4.21",
     "clsx": "^2.1.1",
+    "electron-updater": "^6.8.3",
     "lucide-react": "^0.553.0",
     "motion": "^12.38.0",
     "next": "^15.4.9",

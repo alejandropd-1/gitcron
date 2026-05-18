@@ -1666,6 +1666,18 @@ ipcMain.handle('shell:open-path', async (_event, targetPath: string) => {
   }
 });
 
+ipcMain.handle('shell:open-external', async (_event, url: string) => {
+  try {
+    if (!/^https?:\/\//i.test(url)) {
+      return { success: false, error: 'Only http(s) URLs allowed' };
+    }
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
 ipcMain.handle('git:stash-apply', async (_event, targetPath: string, stashIndex: number) => {
   try {
     await simpleGit(targetPath).stash(['apply', `stash@{${stashIndex}}`]);

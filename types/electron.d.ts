@@ -166,6 +166,7 @@ interface ElectronAPI {
   githubListPRs: (token: string, repoPath: string) => Promise<GitResult<PullRequestEntry[]>>;
   terminalOpen: (repoPath: string) => Promise<GitResult>;
   shellOpenPath: (targetPath: string) => Promise<GitResult>;
+  shellOpenExternal: (url: string) => Promise<GitResult>;
   storageSet: (key: string, value: string) => Promise<GitResult>;
   storageGet: (key: string) => Promise<GitResult<string | null>>;
   storageDelete: (key: string) => Promise<GitResult>;

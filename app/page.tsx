@@ -1025,10 +1025,10 @@ export default function GitCronPage() {
         </div>
 
         <div className="flex items-center justify-end gap-1 min-w-0">
-          {/* Version / download progress — fixed slot so icons never shift */}
-          <div className="w-28 flex items-center mr-1">
+          {/* Version tag + GitHub icon / download progress */}
+          <div className="flex items-center gap-1.5 mr-1">
             {downloadProgress !== null ? (
-              <div className="flex items-center gap-1.5 w-full">
+              <div className="w-32 flex items-center gap-1.5">
                 <Download size={11} className="shrink-0 text-[#a3f185]" />
                 <div className="flex-1 h-1 bg-[#3c495a]/40 rounded-full overflow-hidden">
                   <div
@@ -1041,9 +1041,19 @@ export default function GitCronPage() {
                 </span>
               </div>
             ) : (
-              <span className="text-[10px] font-mono text-[#a3f185]/50 select-none">
-                v{pkg.version}
-              </span>
+              <>
+                <button
+                  type="button"
+                  onClick={() => window.api.shellOpenExternal('https://github.com/alejandropd-1/gitcron/releases/')}
+                  title="GitHub Releases"
+                  className="w-8 h-8 flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#172d45] rounded transition-colors"
+                >
+                  <Github size={16} />
+                </button>
+                <span className="text-[10px] font-mono font-bold text-[#052900] bg-[#a3f185] border border-[#68b24f] rounded px-2 py-0.5 select-none">
+                  v{pkg.version}
+                </span>
+              </>
             )}
           </div>
           <ToolbarButton icon={<Terminal />} onClick={openTerminal} title={t('toolbar.terminal')} disabled={!repoPath} />
@@ -1907,12 +1917,30 @@ export default function GitCronPage() {
                     <HelpCircle size={12} /> {t('settings.about')}
                   </h4>
                   <div className="bg-[#041425] border border-[#3c495a]/15 rounded p-3 text-xs">
-                    <div className="flex justify-between mb-1">
+                    <div className="flex justify-between items-center mb-1">
                       <span className="text-[#9eacc0]">GitCron</span>
                       <span className="text-[#a3f185] font-mono">v{pkg.version}</span>
                     </div>
                     <div className="flex justify-between text-[10px] text-[#697789]">
                       <span>Electron + Next.js + simple-git</span>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-[#3c495a]/15 flex flex-col gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => window.api.shellOpenExternal('https://github.com/alejandropd-1/gitcron/releases/')}
+                        className="flex items-center gap-2 text-[#9eacc0] hover:text-[#a3f185] transition-colors text-left"
+                      >
+                        <Github size={12} />
+                        <span>{t('settings.viewReleases')}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => window.api.shellOpenExternal('https://aledesign.dev/')}
+                        className="flex items-center gap-2 text-[#697789] hover:text-[#a3f185] transition-colors text-left text-[10px]"
+                      >
+                        <Sparkles size={11} />
+                        <span>{t('settings.developedBy')}</span>
+                      </button>
                     </div>
                   </div>
                 </section>

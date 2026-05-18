@@ -89,6 +89,7 @@ contextBridge.exposeInMainWorld('api', {
   githubListPRs: (token: string, repoPath: string) => ipcRenderer.invoke('github:list-prs', token, repoPath),
   terminalOpen: (repoPath: string) => ipcRenderer.invoke('terminal:open', repoPath),
   shellOpenPath: (targetPath: string) => ipcRenderer.invoke('shell:open-path', targetPath),
+  shellOpenExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
   storageSet: (key: string, value: string) => ipcRenderer.invoke('storage:set', key, value),
   storageGet: (key: string) => ipcRenderer.invoke('storage:get', key),
   storageDelete: (key: string) => ipcRenderer.invoke('storage:delete', key),

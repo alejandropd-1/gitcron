@@ -174,6 +174,9 @@ interface ElectronAPI {
   onUpdateNotAvailable: (cb: () => void) => () => void;
   onUpdateError: (cb: (msg: string) => void) => () => void;
   onDownloadProgress: (cb: (info: { percent: number; transferred: number; total: number }) => void) => () => void;
+  repoWatch: (targetPath: string) => Promise<GitResult>;
+  repoUnwatch: (targetPath: string) => Promise<GitResult>;
+  onRepoFsChange: (cb: (repoPath: string) => void) => () => void;
 }
 
 declare global {

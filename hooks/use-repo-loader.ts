@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useGitStore } from '@/lib/git-store';
 import type {
   CommitData, StatusFile, BranchData, StashEntry, SubmoduleEntry,
@@ -382,6 +383,31 @@ export const useRepoLoader = () => {
       refreshPullRequests(target),
     ]);
   };
+
+  // Watch working-tree for changes so UNSTAGED updates without a manual git action.
+  const fsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!repoPath || !window.api) return;
+    const target = repoPath;
+
+    window.api.repoWatch(target);
+
+    const unsubFsChange = window.api.onRepoFsChange((changedPath) => {
+      if (changedPath !== target) return;
+      if (fsDebounceRef.current) clearTimeout(fsDebounceRef.current);
+      fsDebounceRef.current = setTimeout(() => refreshStatus(target), 150);
+    });
+
+    const onFocus = () => refreshStatus(target);
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      unsubFsChange();
+      window.removeEventListener('focus', onFocus);
+      window.api?.repoUnwatch(target);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repoPath]);
 
   return {
     openRepo,

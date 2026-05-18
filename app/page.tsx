@@ -1056,6 +1056,7 @@ export default function GitCronPage() {
               </>
             )}
           </div>
+          <div className="w-px h-4 bg-[#3c495a] mx-1" />
           <ToolbarButton icon={<Terminal />} onClick={openTerminal} title={t('toolbar.terminal')} disabled={!repoPath} />
 
           {/* Branch filter dropdown — only visible when Graph tab is active */}
@@ -2978,7 +2979,7 @@ function StagingPanel({
             disabled={isLoading || !commitMessage.trim() || staged.length === 0}
             className="flex-1 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-[#052900] rounded transition-colors"
           >
-            {isLoading ? 'Commiteando...' : `Commit Changes${staged.length > 0 ? ` (${staged.length})` : ''}`}
+            {isLoading ? 'Commiteando...' : `Commit ${staged.length > 0 ? ` (${staged.length})` : ''}`}
           </button>
           <button
             onClick={onRequestAmend}

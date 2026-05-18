@@ -103,4 +103,9 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('update:error', handler);
     return () => ipcRenderer.removeListener('update:error', handler);
   },
+  onDownloadProgress: (cb: (info: { percent: number; transferred: number; total: number }) => void) => {
+    const handler = (_e: unknown, info: { percent: number; transferred: number; total: number }) => cb(info);
+    ipcRenderer.on('update:download-progress', handler);
+    return () => ipcRenderer.removeListener('update:download-progress', handler);
+  },
 });

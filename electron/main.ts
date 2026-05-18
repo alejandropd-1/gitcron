@@ -522,6 +522,16 @@ function setupAutoUpdater() {
     }
   });
 
+  autoUpdater.on('download-progress', (progress) => {
+    const pct = Math.round(progress.percent);
+    mainWindow?.setProgressBar(pct / 100);
+    mainWindow?.webContents.send('update:download-progress', {
+      percent: pct,
+      transferred: progress.transferred,
+      total: progress.total,
+    });
+  });
+
   autoUpdater.on('update-not-available', () => {
     if (manualUpdateCheck) {
       mainWindow?.webContents.send('update:not-available');
@@ -538,6 +548,7 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('update-downloaded', async () => {
+    mainWindow?.setProgressBar(-1);
     const s = getUpdateDialogLang();
     const { response } = await dialog.showMessageBox({
       type: 'info',

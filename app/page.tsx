@@ -625,6 +625,7 @@ export default function GitCronPage() {
   const [deviceCodeInfo, setDeviceCodeInfo] = useState<{ userCode: string; verificationUri: string } | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const newBranchInputRef = useRef<HTMLInputElement>(null);
   const searchPopoverRef = useRef<HTMLDivElement>(null);
   const searchButtonRef = useRef<HTMLDivElement>(null);
@@ -801,15 +802,22 @@ export default function GitCronPage() {
     if (!window.api?.onUpdateNotAvailable) return;
     const unsubNotAvailable = window.api.onUpdateNotAvailable(() => {
       setIsCheckingUpdate(false);
+      setDownloadProgress(null);
       setSuccess(t('update.toastNotAvailable'));
     });
     const unsubError = window.api.onUpdateError((msg: string) => {
       setIsCheckingUpdate(false);
+      setDownloadProgress(null);
       setError(t('update.toastError', { error: msg }));
+    });
+    const unsubProgress = window.api.onDownloadProgress(({ percent }) => {
+      setIsCheckingUpdate(false);
+      setDownloadProgress(percent);
     });
     return () => {
       unsubNotAvailable();
       unsubError();
+      unsubProgress();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1017,6 +1025,27 @@ export default function GitCronPage() {
         </div>
 
         <div className="flex items-center justify-end gap-1 min-w-0">
+          {/* Version / download progress — fixed slot so icons never shift */}
+          <div className="w-28 flex items-center mr-1">
+            {downloadProgress !== null ? (
+              <div className="flex items-center gap-1.5 w-full">
+                <Download size={11} className="shrink-0 text-[#a3f185]" />
+                <div className="flex-1 h-1 bg-[#3c495a]/40 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#a3f185] rounded-full transition-all duration-300"
+                    style={{ width: `${downloadProgress}%` }}
+                  />
+                </div>
+                <span className="text-[10px] font-mono text-[#a3f185] w-7 text-right shrink-0">
+                  {downloadProgress}%
+                </span>
+              </div>
+            ) : (
+              <span className="text-[10px] font-mono text-[#a3f185]/50 select-none">
+                v{pkg.version}
+              </span>
+            )}
+          </div>
           <ToolbarButton icon={<Terminal />} onClick={openTerminal} title={t('toolbar.terminal')} disabled={!repoPath} />
 
           {/* Branch filter dropdown — only visible when Graph tab is active */}

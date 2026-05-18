@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import { simpleGit, SimpleGit } from 'simple-git';
 import { Octokit } from '@octokit/rest';
 import { autoUpdater } from 'electron-updater';
+import chokidar, { FSWatcher } from 'chokidar';
 import type {
   StatusFile, CommitData, BranchData, RepoInfo, StashEntry, SubmoduleEntry, GitHubUser,
   BranchTrackingInfo, WorktreeEntry, PullRequestEntry,
@@ -16,6 +17,8 @@ let mainWindow: BrowserWindow | null = null;
 let repoPath: string | null = null;
 let manualUpdateCheck = false;
 let git: SimpleGit = simpleGit();
+
+const repoWatchers = new Map<string, FSWatcher>();
 
 /**
  * Git does NOT allow setting credential.helper= via `-c` on the command line
@@ -38,7 +41,9 @@ let git: SimpleGit = simpleGit();
  *
  * No config array is needed; everything goes through the env.
  */
-const NO_CREDENTIAL_HELPER_CONFIG: string[] = []; // nothing — handled via env
+// safe.allowUnsafeConfigPaths=true is required when GIT_CONFIG_GLOBAL points to a
+// temp-dir path (CVE-2022-24765 considers it unsafe without this opt-in).
+const NO_CREDENTIAL_HELPER_CONFIG: string[] = ['safe.allowUnsafeConfigPaths=true'];
 
 /**
  * Returns env vars that prevent git from caching credentials or opening prompts.
@@ -1692,4 +1697,58 @@ ipcMain.handle('git:stash-clear', async (_event, targetPath: string) => {
   } catch (error: any) {
     return { success: false, error: errMsg(error) };
   }
+});
+
+// ── File-system watchers ──────────────────────────────────────────────────────
+// Watch a repo directory for working-tree changes so the renderer can refresh
+// the UNSTAGED panel without requiring a manual git action.
+
+const IGNORED_PATTERNS = [
+  /(^|[/\\])\.git([/\\]|$)/,
+  /(^|[/\\])node_modules([/\\]|$)/,
+  /(^|[/\\])\.next([/\\]|$)/,
+  /(^|[/\\])dist([/\\]|$)/,
+  /(^|[/\\])release([/\\]|$)/,
+  /(^|[/\\])out([/\\]|$)/,
+];
+
+ipcMain.handle('repo:watch', (_event, targetPath: string) => {
+  if (repoWatchers.has(targetPath)) return { success: true };
+  try {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const watcher = chokidar.watch(targetPath, {
+      ignored: IGNORED_PATTERNS,
+      ignoreInitial: true,
+      persistent: true,
+      awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
+    });
+    const emit = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        mainWindow?.webContents.send('repo:fs-change', { repoPath: targetPath });
+      }, 250);
+    };
+    watcher.on('add', emit).on('change', emit).on('unlink', emit)
+           .on('addDir', emit).on('unlinkDir', emit);
+    repoWatchers.set(targetPath, watcher);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
+ipcMain.handle('repo:unwatch', async (_event, targetPath: string) => {
+  const watcher = repoWatchers.get(targetPath);
+  if (watcher) {
+    await watcher.close();
+    repoWatchers.delete(targetPath);
+  }
+  return { success: true };
+});
+
+app.on('before-quit', async () => {
+  for (const [, watcher] of repoWatchers) {
+    await watcher.close().catch(() => {});
+  }
+  repoWatchers.clear();
 });

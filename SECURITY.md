@@ -19,11 +19,11 @@ Notas sobre el modelo de amenazas, lo que ya está protegido y lo que falta si a
 - El archivo cifrado vive en `app.getPath('userData')/storage.enc` con permisos `0600`.
 - La clave de cifrado la maneja el OS y está atada al usuario logueado — otros usuarios de la misma máquina no pueden descifrarla.
 
-### 3. Token NUNCA toca `git config` durante push/pull
-- Antes: inyectábamos el token en la URL de `origin` (`https://x-access-token:TOKEN@github.com/...`) y la restaurábamos después. Ventana de exposición + riesgo de quedar en `.git/config` si crasheaba.
-- Ahora: usamos **`GIT_ASKPASS`** — un script helper que git invoca para pedir credenciales. El script lee el token desde la variable de entorno `GITCRON_TOKEN`, que solo existe durante el child process de git.
-- Resultado: el token nunca toca disco fuera del storage cifrado, ni queda en `git reflog`, ni en `.git/config`, ni en logs de git.
-- Adicionalmente seteamos `GIT_TERMINAL_PROMPT=0` para que git no muestre prompts en terminal.
+### 3. Token y credential cache durante push/pull
+- **URL injection acotada**: `withGitHubToken()` inyecta el token en la URL de `origin` (`https://x-access-token:TOKEN@github.com/...`) solo durante la operación, y la restaura en el `finally` aunque la op falle. (El enfoque `GIT_ASKPASS` que usamos antes está bloqueado por la capa de seguridad de Electron 42 — ver CHANGELOG v1.0.0.)
+- **Sin caché en OS keychain**: cada invocación de git va con `-c credential.helper= -c core.askpass=` (valores vacíos — no requieren `allowUnsafeCredentialHelper` por CVE-2022-24765). Eso evita que GCM o el keychain del SO almacenen la URL autenticada. Hasta v1.1.4 lo hacíamos con un `.gitconfig` temporal apuntado por `GIT_CONFIG_GLOBAL`, pero git-for-windows ≥2.40 bloqueaba ese path con `allowUnsafeConfigPaths` — se eliminó en v1.1.5 a favor del approach directo.
+- **Prompts deshabilitados**: `GIT_TERMINAL_PROMPT=0` (no prompts de terminal) y `GCM_INTERACTIVE=never` (GCM nunca abre su diálogo nativo).
+- **Logs sanitizados**: cualquier output que pase por `sanitizeForLog()` reemplaza `x-access-token:<TOKEN>@` con `[REDACTED]@` antes de loguearse o devolverse al renderer.
 
 ### 4. Content Security Policy (CSP)
 - Agregada en `app/layout.tsx` via meta tag.
@@ -82,7 +82,7 @@ pnpm run electron:dev
 | Atacante remoto explotando la app | Casi cero | No hay ports abiertos, no es servidor web |
 | Malware en tu máquina lee el token | Baja con DPAPI | safeStorage usa cifrado del OS atado a tu usuario |
 | Dependencia maliciosa (supply chain) | Real pero baja | CSP limita exfiltración. Auditá con `pnpm audit` regularmente |
-| Token leak via git config | Eliminado | GIT_ASKPASS — token nunca toca disco |
+| Token leak via git config | Mitigado | URL injection acotada + `credential.helper=` vacío — el token está en el proceso, no en `.git/config` ni en OS keychain |
 | Command injection en spawn | Eliminado | `shell: false` + args array |
 
 ## 🚧 Pendiente para producción / distribución pública

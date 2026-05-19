@@ -43,6 +43,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 
 ### Staging and commits
 - Separate unstaged and staged sections.
+- **Auto-refresh of the UNSTAGED panel** when files change on disk: a `chokidar` watcher in the main process emits `repo:fs-change` over IPC (debounced 250 ms in main + 150 ms in renderer). A window `focus` listener provides a fallback when the watcher misses an event. Watches ignore `.git`, `node_modules`, `.next`, `dist`, `release`, and `out`.
 - Batch stage / unstage to avoid `index.lock` races.
 - Diff viewer for staged and unstaged files.
 - Real commits with author, date, refs, and commit details. Clicking a commit shows the files changed **in that commit** with colored status badges (A/M/D/R) and per-file diffs.
@@ -121,7 +122,7 @@ See [SECURITY.md](/C:/www/gitCronos/SECURITY.md) for the full hardening notes. S
 
 - GitHub tokens are stored with Electron `safeStorage` (OS keychain / DPAPI / libsecret).
 - Push / pull auth uses temporary URL injection because Electron 42 blocks `GIT_ASKPASS` propagation. The token is URL-encoded before injection.
-- Every token-authed git op runs with `-c credential.helper= -c core.askpass=true` plus `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`, so the auth'd URL never gets cached in the OS credential store.
+- Every token-authed git op runs with `-c credential.helper= -c core.askpass=` plus `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`, so the auth'd URL never gets cached in the OS credential store. Empty values bypass the CVE-2022-24765 restrictions (only non-empty values are blocked without `allowUnsafeCredentialHelper`), so no temp `GIT_CONFIG_GLOBAL` file is needed — that approach broke on git-for-windows ≥2.40 with `allowUnsafeConfigPaths` errors and was removed in v1.1.5.
 - `BrowserWindow` runs with `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, and explicit `webSecurity: true`.
 - Content-Security-Policy is strict in production builds (`'unsafe-eval'` and `localhost` connect-src are dev-only).
 - Error messages are sanitized before logging or returning to the renderer — token-bearing URLs from git CLI output get redacted via `sanitizeForLog()`.
@@ -284,7 +285,7 @@ pnpm publish:linux
 
 ## Current version
 
-`v1.1.0` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v1.1.5` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

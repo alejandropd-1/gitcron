@@ -1904,7 +1904,7 @@ export default function GitCronPage() {
                     {t('settings.dataLocation')}
                   </p>
                   <button
-                    onClick={() => window.api?.shellOpenPath('https://github.com/anthropics/gitcron/blob/main/SECURITY.md')}
+                    onClick={() => window.api?.shellOpenPath('https://github.com/alejandropd-1/gitcron/blob/main/SECURITY.md')}
                     className="w-full text-left px-3 py-2 bg-[#041425] border border-[#3c495a]/15 hover:border-[#3c495a]/30 rounded text-sm text-[#9eacc0] hover:text-[#d9e7fc] flex items-center gap-2 transition-colors"
                   >
                     <FileText size={14} />

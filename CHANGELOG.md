@@ -4,7 +4,15 @@ Changes are listed from newest to oldest.
 
 ---
 
-Solo para probar
+## Unreleased
+
+### Docs
+
+- Documented the remaining security tradeoff in the authenticated Git flow: token-bearing `origin` URLs are restored in `finally`, but a crash during the operation could leave the temporary URL in `.git/config`.
+- Refreshed README release instructions and installer filenames for `v1.1.7`; removed an outdated duplicate roadmap item.
+- Updated SECURITY.md to distinguish current mitigations from the next recommended hardening step: avoid writing token-bearing remotes at all.
+
+---
 
 ## [v1.1.7] - 2026-05-18 - Fix push (simple-git unsafe guard)
 

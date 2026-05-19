@@ -22,6 +22,7 @@ Notas sobre el modelo de amenazas, lo que ya está protegido y lo que falta si a
 ### 3. Token y credential cache durante push/pull
 - **URL injection acotada**: `withGitHubToken()` inyecta el token en la URL de `origin` (`https://x-access-token:TOKEN@github.com/...`) solo durante la operación, y la restaura en el `finally` aunque la op falle. (El enfoque `GIT_ASKPASS` que usamos antes está bloqueado por la capa de seguridad de Electron 42 — ver CHANGELOG v1.0.0.)
 - **Sin caché en OS keychain**: cada invocación de git va con `-c safe.allowUnsafeCredentialHelper=true -c credential.helper= -c core.askpass=`. Eso evita que GCM o el keychain del SO almacenen la URL autenticada. `safe.allowUnsafeCredentialHelper=true` autoriza el override vacío en git-for-windows ≥2.40; además, las instancias autenticadas de `simple-git` habilitan `unsafe.allowUnsafeCredentialHelper` y `unsafe.allowUnsafeAskPass` para que su guard interno deje pasar esos `-c`. Hasta v1.1.4 usábamos un `.gitconfig` temporal apuntado por `GIT_CONFIG_GLOBAL`, pero git-for-windows también bloqueaba ese path con `allowUnsafeConfigPaths` — el approach se eliminó en v1.1.5 y se afinó en v1.1.6.
+- **Riesgo residual conocido**: si GitCron o el sistema operativo se cae justo después de `remote set-url` y antes del `finally`, el token podría quedar en `.git/config`. No se observó en la prueba de `v1.1.7`, pero después de un push/pull/fetch interrumpido conviene revisar `git remote -v` y quitar cualquier URL con `x-access-token`.
 - **Prompts deshabilitados**: `GIT_TERMINAL_PROMPT=0` (no prompts de terminal) y `GCM_INTERACTIVE=never` (GCM nunca abre su diálogo nativo).
 - **Logs sanitizados**: cualquier output que pase por `sanitizeForLog()` reemplaza `x-access-token:<TOKEN>@` con `[REDACTED]@` antes de loguearse o devolverse al renderer.
 
@@ -34,44 +35,35 @@ Notas sobre el modelo de amenazas, lo que ya está protegido y lo que falta si a
 ### 5. Electron baseline secure
 - `contextIsolation: true` ✅
 - `nodeIntegration: false` ✅
-- `sandbox` no está habilitado pero podría agregarse en `webPreferences` para extra protección
+- `sandbox: true` y `webSecurity: true` en `webPreferences`
 - DevTools solo en dev (`if (isDev)`) ✅
 - Preload usa `contextBridge.exposeInMainWorld` (no expone toda la API Node) ✅
 
 ## ⚠️ Vulnerabilidades conocidas en dependencias
 
-`npm audit` reporta 2 moderate severity:
-- **postcss < 8.5.10** (transitivo via `next`) — XSS en el stringify de CSS.
-- No es explotable en nuestro contexto (no procesamos CSS de fuentes no confiables).
-- El fix oficial requiere downgrade breaking de Next.js. Decidimos no aplicarlo.
+Estado actual en `v1.1.7`:
+- `pnpm audit --audit-level moderate` no reporta vulnerabilidades conocidas.
+- El override de `postcss >=8.5.10` queda en `pnpm-workspace.yaml` para evitar la regresión del CVE transitivo previo.
 
 Para revisar en el futuro:
 ```bash
-npm audit --audit-level=moderate
-# o con pnpm:
 pnpm audit --audit-level=moderate
 ```
 
-## 🔄 Recomendación: migrar a pnpm
+## 🔄 Package manager
 
-El proyecto ya tiene `pnpm-lock.yaml`. Recomendaciones para usarlo:
+El proyecto usa `pnpm` como package manager recomendado.
 
 ```bash
-# Instalar pnpm si no lo tenés
-npm install -g pnpm
-
-# En el proyecto:
-rm -rf node_modules package-lock.json
-pnpm install
-
-# Usar siempre pnpm a partir de ahora:
+corepack enable
+corepack prepare pnpm@latest --activate
 pnpm run electron:dev
 ```
 
 **Ventajas de pnpm para seguridad:**
 - **Strict dependency tree**: las dependencias no listadas explícitamente no son accesibles. Esto previene ciertos ataques de supply chain donde una dependencia "huérfana" puede ser importada.
 - **Content-addressable store**: cada paquete se guarda una sola vez en `~/.pnpm-store/` y se hardlinkea. Más fácil auditar.
-- **`pnpm audit`** funciona igual que `npm audit`.
+- **`pnpm audit`** permite revisar vulnerabilidades desde el mismo lockfile usado por la app.
 
 ## 🛡️ Modelo de amenazas actual
 
@@ -82,31 +74,31 @@ pnpm run electron:dev
 | Atacante remoto explotando la app | Casi cero | No hay ports abiertos, no es servidor web |
 | Malware en tu máquina lee el token | Baja con DPAPI | safeStorage usa cifrado del OS atado a tu usuario |
 | Dependencia maliciosa (supply chain) | Real pero baja | CSP limita exfiltración. Auditá con `pnpm audit` regularmente |
-| Token leak via git config | Mitigado | URL injection acotada + `credential.helper=` vacío autorizado en Git y `simple-git` — el token está en el proceso, no en `.git/config` ni en OS keychain |
+| Token leak via git config | Mitigado con riesgo residual | URL injection acotada + `credential.helper=` vacío autorizado en Git y `simple-git`; riesgo si la app crashea antes de restaurar `origin` |
 | Command injection en spawn | Eliminado | `shell: false` + args array |
 
 ## 🚧 Pendiente para producción / distribución pública
 
-Si en algún momento publicás la app:
+La app ya se está publicando en GitHub Releases. Para endurecerla antes de una distribución más amplia:
 
 1. **Code signing**
    - Windows: certificado EV (~300 USD/año), evita el SmartScreen warning
    - macOS: Apple Developer Account (~99 USD/año) + notarización
    - Sin firma → los usuarios ven warnings (la app funciona igual)
 
-2. **CSP más estricto en producción**
-   - Quitar `'unsafe-eval'` del `script-src` (solo necesario para HMR en dev)
-   - Considerar generar nonces para scripts inline
+2. **Token handling más robusto**
+   - Reemplazar el `remote set-url` temporal con un flujo que no escriba URLs con token en `.git/config`.
+   - Evaluar una alternativa con credential helper aislado, GCM del sistema, o un askpass compatible con Electron sin persistencia.
 
-3. **Habilitar `sandbox: true`** en `webPreferences`
-   - Aísla aún más el renderer del sistema operativo
+3. **Mantener `sandbox: true` y CSP estricta**
+   - Ya están habilitados en producción; revisar regresiones después de upgrades de Electron/Next.
 
 4. **ASAR integrity checks** en electron-builder
    - Detecta si alguien modificó el bundle después de la instalación
    - Activar con `asarIntegrity: true` en electron-builder config
 
 5. **Auto-update con firma**
-   - `electron-updater` con `provider: 'github'` (releases firmados)
+   - `electron-updater` ya usa GitHub Releases; sumar releases firmados cuando haya code signing.
 
 6. **Telemetría/error tracking opcional** (con opt-in)
    - Sentry, etc. — pero respetando privacidad
@@ -122,10 +114,11 @@ Si en algún momento publicás la app:
 ## 📋 Checklist rápido antes de cualquier release
 
 ```
-[ ] pnpm audit --audit-level=high → 0 vulns
+[ ] pnpm audit --audit-level=moderate → 0 vulns
 [ ] npx electron-builder@latest --check
 [ ] CSP verificado en DevTools Console (no warnings)
-[ ] Token NO aparece en .git/config tras push/pull
+[ ] Token NO aparece en .git/config tras push/pull/fetch normal
+[ ] Si la app se cerró durante auth, revisar `git remote -v` antes de seguir
 [ ] storage.enc existe y NO es legible sin la sesión del usuario
 [ ] DevTools cerradas en build de prod
 [ ] Sin console.log de tokens, passwords, o paths sensibles

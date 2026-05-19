@@ -4,7 +4,14 @@ Changes are listed from newest to oldest.
 
 ---
 
-## [v1.1.4] - 2026-05-18 - Fix push + UNSTAGED auto-refresh
+## [v1.1.5] - 2026-05-18 - Fix push (sin GIT_CONFIG_GLOBAL)
+
+### Fixes
+- **El fix de v1.1.4 no resolvía el push en git-for-windows ≥2.40**. El error "Use of `GIT_CONFIG_GLOBAL` is not permitted without enabling `allowUnsafeConfigPaths`" seguía apareciendo aunque se pasara `-c safe.allowUnsafeConfigPaths=true`. Resolución: **eliminar el approach de `GIT_CONFIG_GLOBAL` + gitconfig temporal por completo** y pasar `-c credential.helper= -c core.askpass=` directamente. Los valores vacíos siempre son aceptados (CVE-2022-24765 solo bloquea valores no vacíos), no requieren `safe.allowUnsafeConfigPaths` ni `allowUnsafeCredentialHelper`. Se borra la lógica del temp file y la limpieza al `quit`.
+
+---
+
+## [v1.1.4] - 2026-05-18 - Fix push + UNSTAGED auto-refresh (push fix incompleto)
 
 ### Fixes
 - **Push fallido por `GIT_CONFIG_GLOBAL`**: se agrega `safe.allowUnsafeConfigPaths=true` al config de simple-git en `withGitHubToken()`. Git ≥2.35.2 (CVE-2022-24765) consideraba "unsafe" la ruta del `.gitconfig` temporal usado para deshabilitar credential helpers; ahora el flag autoriza el path.

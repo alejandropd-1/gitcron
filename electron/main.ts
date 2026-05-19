@@ -21,60 +21,32 @@ let git: SimpleGit = simpleGit();
 const repoWatchers = new Map<string, FSWatcher>();
 
 /**
- * Git does NOT allow setting credential.helper= via `-c` on the command line
- * since git 2.35.2 (CVE-2022-24765 hardening). Using it produces:
- *   "Configuring credential.helper is not permitted without enabling
- *    allowUnsafeCredentialHelper"
+ * Disable credential helper and askpass for token-authed operations.
  *
- * Instead we achieve the same goal through environment variables:
+ * CVE-2022-24765 (git ≥2.35.2) blocks `-c credential.helper=<NON-EMPTY>` and
+ * `-c core.askpass=<NON-EMPTY>` unless `allowUnsafeCredentialHelper` is set.
+ * BUT empty values (`credential.helper=` and `core.askpass=`) are always
+ * allowed — they just disable the helper for that invocation.
  *
- *   GIT_ASKPASS=echo          → git runs `echo` when it needs a username or
- *                               password; `echo` with no args returns an empty
- *                               line, so every credential prompt returns empty.
- *                               This prevents GCM and OS keychains from being
- *                               consulted, so the auth'd URL is never cached.
- *   GIT_CREDENTIAL_HELPER=''  → explicit empty string tells git not to use
- *                               any helper for this invocation (works in all
- *                               git versions without the CVE restriction).
- *   GIT_TERMINAL_PROMPT=0     → disables interactive terminal prompts.
- *   GCM_INTERACTIVE=never     → GCM-specific: never open the GUI dialog.
+ * Previous approach (GIT_CONFIG_GLOBAL → temp gitconfig file) broke on
+ * git-for-windows ≥2.40 with: "Use of GIT_CONFIG_GLOBAL is not permitted
+ * without enabling allowUnsafeConfigPaths". The `-c safe.allowUnsafeConfigPaths=true`
+ * workaround is not honored by every git build, so we drop GIT_CONFIG_GLOBAL
+ * entirely and pass the empty config keys directly.
  *
- * No config array is needed; everything goes through the env.
+ * Env vars still complement the config:
+ *   GIT_TERMINAL_PROMPT=0  → no interactive terminal prompts
+ *   GCM_INTERACTIVE=never  → GCM never opens its GUI dialog
  */
-// safe.allowUnsafeConfigPaths=true is required when GIT_CONFIG_GLOBAL points to a
-// temp-dir path (CVE-2022-24765 considers it unsafe without this opt-in).
-const NO_CREDENTIAL_HELPER_CONFIG: string[] = ['safe.allowUnsafeConfigPaths=true'];
-
-/**
- * Returns env vars that prevent git from caching credentials or opening prompts.
- *
- * Strategy: point GIT_CONFIG_GLOBAL to a temporary .gitconfig that sets
- * `credential.helper =` (empty). Git reads this from its own config file,
- * which is NOT blocked by the CVE-2022-24765 restrictions that block:
- *   - `-c credential.helper=`    (git 2.35.2+ requires allowUnsafeCredentialHelper)
- *   - `GIT_ASKPASS=echo`         (git 2.35.2+ requires allowUnsafeAskPass)
- *
- * The temp file is written once per process and cleaned up on exit.
- */
-let _noCredHelperConfig: string | null = null;
+const NO_CREDENTIAL_HELPER_CONFIG: string[] = [
+  'credential.helper=',
+  'core.askpass=',
+];
 
 function getNoPromptEnv(): Record<string, string> {
-  if (!_noCredHelperConfig) {
-    const tmpPath = path.join(app.getPath('temp'), 'gitcron-no-cred.gitconfig');
-    try {
-      fs.writeFileSync(tmpPath, '[credential]\n\thelper =\n[core]\n\taskpass =\n', 'utf-8');
-      _noCredHelperConfig = tmpPath;
-      // Clean up on exit
-      app.on('quit', () => { try { fs.unlinkSync(tmpPath); } catch { /* ok */ } });
-    } catch {
-      // If we can't write the temp file, fall back to just terminal prompt suppression
-      _noCredHelperConfig = '';
-    }
-  }
   return {
     GIT_TERMINAL_PROMPT: '0',
     GCM_INTERACTIVE: 'never',
-    ...(_noCredHelperConfig ? { GIT_CONFIG_GLOBAL: _noCredHelperConfig } : {}),
   };
 }
 

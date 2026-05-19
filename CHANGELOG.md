@@ -1,4 +1,4 @@
-# Changelog - GitCron
+# Changelog - GitCron TEST 2
 
 Changes are listed from newest to oldest.
 

@@ -1,4 +1,4 @@
-# GitCron - Advanced Git Client TEST 2
+# GitCron - Advanced Git Client TEST 3
 
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 

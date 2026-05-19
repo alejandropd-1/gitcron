@@ -1873,49 +1873,52 @@ export default function GitCronPage() {
         {pullDecision && (
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 p-3 bg-[#12273c]/98 backdrop-blur-md text-[#d9e7fc] rounded-lg shadow-2xl flex items-start gap-3 z-50 border border-[#f4b942]/35 max-w-2xl"
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-3 bg-[#12273c]/98 backdrop-blur-md text-[#d9e7fc] rounded-lg shadow-2xl flex items-center gap-3 z-50 border border-[#f4b942]/30 w-[min(calc(100vw-2rem),760px)]"
           >
-            <AlertCircle size={20} className="shrink-0 mt-0.5 text-[#f4b942]" />
+            <AlertCircle size={20} className="shrink-0 text-[#f4b942]" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#ffd98a]">
+              <p className="text-sm font-semibold text-[#ffd98a] leading-tight">
                 {pullDecision.mode === 'diverged'
-                  ? `"${pullDecision.branch}" divergió: ${pullDecision.ahead}↑ ${pullDecision.behind}↓`
-                  : `"${pullDecision.branch}" está ${pullDecision.behind} commit${pullDecision.behind === 1 ? '' : 's'} detrás`}
+                  ? `"${pullDecision.branch}" tiene cambios locales y remotos`
+                  : `"${pullDecision.branch}" tiene cambios remotos pendientes`}
               </p>
-              <p className="text-xs text-[#9eacc0] mt-0.5">
+              <p className="text-xs text-[#9eacc0] mt-0.5 leading-snug">
                 {pullDecision.mode === 'diverged'
                   ? pullDecision.source === 'push'
-                    ? 'Push pausado: integrá los cambios remotos antes. Rebase mantiene el historial lineal.'
-                    : 'Integrá los cambios remotos. Rebase mantiene el historial lineal.'
-                  : 'Podés traer esos cambios sin crear un merge commit.'}
+                    ? `Push pausado: primero integrá ${pullDecision.behind} remoto${pullDecision.behind === 1 ? '' : 's'} con tus ${pullDecision.ahead} local${pullDecision.ahead === 1 ? '' : 'es'}.`
+                    : `Hay ${pullDecision.behind} remoto${pullDecision.behind === 1 ? '' : 's'} y ${pullDecision.ahead} local${pullDecision.ahead === 1 ? '' : 'es'} por combinar.`
+                  : `Traé ${pullDecision.behind} commit${pullDecision.behind === 1 ? '' : 's'} sin crear un commit extra.`}
               </p>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {pullDecision.mode === 'behind' && (
-                  <button
-                    type="button"
-                    onClick={() => void handlePullDecision('ff-only')}
-                    className="px-3 py-1 text-xs font-bold bg-[#a3f185]/20 hover:bg-[#a3f185]/30 text-[#a3f185] rounded transition-colors"
-                  >
-                    Fast-forward
-                  </button>
-                )}
-                {pullDecision.mode === 'diverged' && (
-                  <button
-                    type="button"
-                    onClick={() => void handlePullDecision('rebase')}
-                    className="px-3 py-1 text-xs font-bold bg-[#a3f185]/20 hover:bg-[#a3f185]/30 text-[#a3f185] rounded transition-colors"
-                  >
-                    Pull con rebase
-                  </button>
-                )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {pullDecision.mode === 'behind' && (
                 <button
                   type="button"
-                  onClick={() => void handlePullDecision('merge')}
-                  className="px-3 py-1 text-xs font-bold bg-[#f4b942]/15 hover:bg-[#f4b942]/25 text-[#ffd98a] rounded transition-colors"
+                  onClick={() => void handlePullDecision('ff-only')}
+                  className="px-3 py-1.5 text-xs font-bold bg-[#a3f185]/20 hover:bg-[#a3f185]/30 text-[#a3f185] rounded transition-colors whitespace-nowrap"
+                  title="Trae los commits remotos sin crear un commit de merge"
                 >
-                  Pull con merge
+                  Fast-forward
                 </button>
-              </div>
+              )}
+              {pullDecision.mode === 'diverged' && (
+                <button
+                  type="button"
+                  onClick={() => void handlePullDecision('rebase')}
+                  className="px-3 py-1.5 text-xs font-bold bg-[#a3f185]/20 hover:bg-[#a3f185]/30 text-[#a3f185] rounded transition-colors whitespace-nowrap"
+                  title="Recomendado: trae lo remoto y reaplica tus commits locales arriba"
+                >
+                  Pull con rebase
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void handlePullDecision('merge')}
+                className="px-3 py-1.5 text-xs font-bold bg-[#f4b942]/15 hover:bg-[#f4b942]/25 text-[#ffd98a] rounded transition-colors whitespace-nowrap"
+                title="Trae lo remoto creando un commit de merge si hace falta"
+              >
+                Pull con merge
+              </button>
             </div>
             <button onClick={() => setPullDecision(null)} className="hover:opacity-70 shrink-0 text-[#ffd98a]">
               <X size={16} />
@@ -2967,13 +2970,13 @@ function BranchRow({
       {tracking && !tracking.gone && (tracking.ahead > 0 || tracking.behind > 0) && (
         <span className="flex items-center gap-1 text-[10px] font-mono shrink-0">
           {tracking.ahead > 0 && (
-            <span className="flex items-center text-[#a3f185]">
+            <span className="flex items-center text-[#a3f185]" title={`${tracking.ahead} commit${tracking.ahead === 1 ? '' : 's'} local${tracking.ahead === 1 ? '' : 'es'} pendiente${tracking.ahead === 1 ? '' : 's'} de push`}>
               {tracking.ahead}
               <ArrowUp size={10} strokeWidth={3} />
             </span>
           )}
           {tracking.behind > 0 && (
-            <span className="flex items-center text-[#fd9d1a]">
+            <span className="flex items-center text-[#fd9d1a]" title={`${tracking.behind} commit${tracking.behind === 1 ? '' : 's'} remoto${tracking.behind === 1 ? '' : 's'} pendiente${tracking.behind === 1 ? '' : 's'} de pull`}>
               {tracking.behind}
               <ArrowDown size={10} strokeWidth={3} />
             </span>

@@ -6,11 +6,27 @@ Changes are listed from newest to oldest.
 
 ## Unreleased
 
+No changes yet.
+
+---
+
+## [v1.2.0] - 2026-05-19 - PR diff view + auth hardening
+
+### Features
+
+- Added an in-app Pull Request diff view: clicking a PR in the sidebar now loads its unified diff through GitHub, shows PR metadata, branch/base info, changed-file chips, and opens GitHub only via the explicit external-link action.
+
+### Security
+
+- Removed token-bearing temporary `origin` URLs from authenticated push/pull/fetch. GitCron now authenticates GitHub HTTPS remotes with a process-scoped `http.https://github.com/.extraheader` and leaves `.git/config` untouched.
+- Updated authenticated clone to use the same extraheader flow, so private clones keep a clean `origin` URL without `x-access-token`.
+- Extended log sanitization to redact `AUTHORIZATION: basic ...` values in addition to token-in-URL patterns.
+
 ### Docs
 
-- Documented the remaining security tradeoff in the authenticated Git flow: token-bearing `origin` URLs are restored in `finally`, but a crash during the operation could leave the temporary URL in `.git/config`.
-- Refreshed README release instructions and installer filenames for `v1.1.7`; removed an outdated duplicate roadmap item.
-- Updated SECURITY.md to distinguish current mitigations from the next recommended hardening step: avoid writing token-bearing remotes at all.
+- Added README version/platform/runtime badges and refreshed release filenames for `v1.2.0`.
+- Marked Pull request diff view and token-bearing temporary `origin` removal as completed in the roadmap.
+- Updated SECURITY.md to document the extraheader auth flow and remove the old crash-window residual risk.
 
 ---
 

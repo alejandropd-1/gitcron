@@ -8,7 +8,7 @@ import {
   ArrowLeft, RotateCcw, Github, LogOut, Minus,
   Sparkles, Copy, Lock, Globe, Loader2, UserCircle2,
   GitMerge, TreePine, ArrowUp, ArrowDown, ChevronDown, Check,
-  Type, Filter, Monitor,
+  Type, Filter, Monitor, ExternalLink, FileDiff,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import pkg from '../package.json';
@@ -31,6 +31,7 @@ import { CommitGraph } from '@/components/CommitGraph';
 import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import type { PullRequestDiffData, PullRequestEntry } from '@/types/electron';
 
 const GRAPH_COLUMN_DEFAULTS = {
   refs: 260,
@@ -523,6 +524,9 @@ export default function GitCronPage() {
   const [squashMessage, setSquashMessage] = useState('');
   const [commitFiles, setCommitFiles] = useState<GitFile[]>([]);
   const [commitFilesLoading, setCommitFilesLoading] = useState(false);
+  const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestEntry | null>(null);
+  const [pullRequestDiff, setPullRequestDiff] = useState<PullRequestDiffData | null>(null);
+  const [pullRequestDiffLoading, setPullRequestDiffLoading] = useState(false);
   const [showStashClearConfirm, setShowStashClearConfirm] = useState(false);
   const [checkoutConflict, setCheckoutConflict] = useState<{ branch: string; error: string } | null>(null);
   const [branchMenu, setBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
@@ -843,8 +847,39 @@ export default function GitCronPage() {
   };
 
   const handleSelectFile = async (file: GitFile) => {
+    setSelectedPullRequest(null);
+    setPullRequestDiff(null);
     setSelectedFile(file);
     await loadDiff(file.path, file.staged, repoPath ?? undefined);
+  };
+
+  const handleSelectPullRequest = async (pr: PullRequestEntry) => {
+    if (!repoPath || !githubToken || !window.api) return;
+    setSelectedCommit(null);
+    setSelectedFile(null);
+    setCurrentDiff('');
+    setSelectedPullRequest(pr);
+    setPullRequestDiff(null);
+    setPullRequestDiffLoading(true);
+    try {
+      const result = await window.api.githubGetPRDiff(githubToken, repoPath, pr.number);
+      if (result.success && result.data) {
+        setPullRequestDiff(result.data as PullRequestDiffData);
+      } else {
+        setError(result.error ?? t('prDiff.loadError'));
+      }
+    } catch (err: any) {
+      setError(err?.message ?? t('prDiff.loadError'));
+    } finally {
+      setPullRequestDiffLoading(false);
+    }
+  };
+
+  const handleSelectCommit = (commit: Commit) => {
+    setSelectedPullRequest(null);
+    setPullRequestDiff(null);
+    setPullRequestDiffLoading(false);
+    setSelectedCommit(commit);
   };
 
   /**
@@ -889,6 +924,9 @@ export default function GitCronPage() {
   const handleCloseDiff = () => {
     setSelectedFile(null);
     setCurrentDiff('');
+    setSelectedPullRequest(null);
+    setPullRequestDiff(null);
+    setPullRequestDiffLoading(false);
   };
 
   const handleConnectGitHub = async () => {
@@ -917,6 +955,8 @@ export default function GitCronPage() {
     setSelectedCommit(null);
     setSelectedFile(null);
     setCurrentDiff('');
+    setSelectedPullRequest(null);
+    setPullRequestDiff(null);
     setShowRepoChooser(true);
   };
 
@@ -941,6 +981,9 @@ export default function GitCronPage() {
     const repo = openRepos[idx];
     if (!repo || idx === activeRepoIdx) return;
     setShowRepoChooser(false);
+    setSelectedPullRequest(null);
+    setPullRequestDiff(null);
+    setPullRequestDiffLoading(false);
     setActiveRepoIdx(idx);
     if (window.api) {
       await Promise.all([
@@ -1247,21 +1290,44 @@ export default function GitCronPage() {
                 <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">{t('sidebar.noPRs')}</p>
               )}
               {pullRequests.map((pr) => (
-                <button
+                <div
                   key={pr.number}
-                  onClick={() => window.api?.shellOpenPath(pr.url)}
-                  title={`Abrir #${pr.number} en GitHub`}
-                  className="w-full text-left px-4 py-1.5 flex items-start gap-2 text-sm hover:bg-[#172d45] text-[#9eacc0] hover:text-[#d9e7fc] transition-colors"
+                  className={cn(
+                    'group flex items-stretch text-sm transition-colors',
+                    selectedPullRequest?.number === pr.number
+                      ? 'bg-[#a3f185]/10 text-[#d9e7fc]'
+                      : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
+                  )}
                 >
-                  <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-[#9eacc0]' : 'text-[#a3f185]')} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] font-mono text-[#697789]">#{pr.number}</span>
-                      {pr.draft && <span className="text-[9px] text-[#697789] uppercase">draft</span>}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectPullRequest(pr)}
+                    title={t('prDiff.view', { number: String(pr.number) })}
+                    className="flex-1 min-w-0 text-left px-4 py-1.5 flex items-start gap-2"
+                  >
+                    <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-[#9eacc0]' : 'text-[#a3f185]')} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-mono text-[#697789]">#{pr.number}</span>
+                        {pr.draft && <span className="text-[9px] text-[#697789] uppercase">{t('sidebar.draft')}</span>}
+                      </div>
+                      <p className="text-xs truncate">{pr.title}</p>
+                      <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-[#697789]">
+                        <span className="truncate">{pr.branch}</span>
+                        <span className="text-[#a3f185]">+{pr.additions}</span>
+                        <span className="text-[#ff716c]">-{pr.deletions}</span>
+                      </div>
                     </div>
-                    <p className="text-xs truncate">{pr.title}</p>
-                  </div>
-                </button>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.api?.shellOpenExternal(pr.url)}
+                    title={t('sidebar.openInGitHub', { number: String(pr.number) })}
+                    className="w-8 shrink-0 flex items-center justify-center text-[#697789] hover:text-[#a3f185] opacity-0 group-hover:opacity-100 transition"
+                  >
+                    <ExternalLink size={12} />
+                  </button>
+                </div>
               ))}
             </SidebarSection>
           )}
@@ -1395,6 +1461,78 @@ export default function GitCronPage() {
                 </button>
               )}
             </div>
+          ) : selectedPullRequest ? (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#3c495a]/15 bg-[#041425] shrink-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={handleCloseDiff}
+                    className="flex items-center gap-1.5 text-xs text-[#9eacc0] hover:text-[#a3f185] transition-colors"
+                  >
+                    <ArrowLeft size={14} /> {t('prDiff.back')}
+                  </button>
+                  <span className="text-[#697789]">/</span>
+                  <span className="text-xs font-mono text-[#a3f185]">PR #{selectedPullRequest.number}</span>
+                  <div className="flex-1" />
+                  {selectedPullRequest.draft && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#697789]/20 text-[#9eacc0] uppercase">
+                      {t('sidebar.draft')}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => window.api?.shellOpenExternal(selectedPullRequest.url)}
+                    className="flex items-center gap-1.5 text-xs text-[#9eacc0] hover:text-[#a3f185] transition-colors"
+                  >
+                    <ExternalLink size={13} /> {t('prDiff.open')}
+                  </button>
+                </div>
+                <div className="flex items-start gap-3">
+                  <FileDiff size={18} className="text-[#5ed8ff] shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <h2 className="font-semibold text-[#d9e7fc] truncate">{selectedPullRequest.title}</h2>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[#9eacc0]">
+                      <span>@{selectedPullRequest.author}</span>
+                      <span className="text-[#697789]">·</span>
+                      <span className="font-mono text-[#5ed8ff]">{selectedPullRequest.branch}</span>
+                      <span className="text-[#697789]">→</span>
+                      <span className="font-mono text-[#d9e7fc]">{selectedPullRequest.baseBranch}</span>
+                      <span className="text-[#697789]">·</span>
+                      <span>{t('prDiff.changedFiles', { count: String(pullRequestDiff?.changedFiles ?? selectedPullRequest.changedFiles) })}</span>
+                      <span className="font-mono text-[#a3f185]">+{pullRequestDiff?.additions ?? selectedPullRequest.additions}</span>
+                      <span className="font-mono text-[#ff716c]">-{pullRequestDiff?.deletions ?? selectedPullRequest.deletions}</span>
+                    </div>
+                  </div>
+                </div>
+                {!!pullRequestDiff?.files.length && (
+                  <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+                    {pullRequestDiff.files.slice(0, 18).map((file) => (
+                      <span
+                        key={file.filename}
+                        title={file.previousFilename ? `${file.previousFilename} → ${file.filename}` : file.filename}
+                        className="shrink-0 max-w-[220px] truncate rounded border border-[#3c495a]/20 bg-[#020f1e] px-2 py-1 text-[10px] font-mono text-[#9eacc0]"
+                      >
+                        {file.filename}
+                      </span>
+                    ))}
+                    {pullRequestDiff.files.length > 18 && (
+                      <span className="shrink-0 rounded border border-[#3c495a]/20 bg-[#020f1e] px-2 py-1 text-[10px] font-mono text-[#697789]">
+                        +{pullRequestDiff.files.length - 18}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              {pullRequestDiffLoading ? (
+                <div className="flex-1 flex items-center justify-center text-[#9eacc0] text-sm">
+                  <Loader2 size={16} className="animate-spin mr-2 text-[#a3f185]" />
+                  {t('prDiff.loading')}
+                </div>
+              ) : (
+                <DiffViewer diff={pullRequestDiff?.diff ?? ''} filePath={t('prDiff.unifiedDiff', { number: String(selectedPullRequest.number) })} />
+              )}
+            </div>
           ) : selectedFile ? (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="flex items-center gap-2 px-4 py-2 border-b border-[#3c495a]/15 bg-[#041425] shrink-0">
@@ -1428,7 +1566,7 @@ export default function GitCronPage() {
               selectedHash={selectedCommit?.hash}
               currentBranch={currentBranch}
               filterText={filterText}
-              onSelect={setSelectedCommit}
+              onSelect={handleSelectCommit}
               onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
               isLoading={isLoading}
             />
@@ -1473,7 +1611,7 @@ export default function GitCronPage() {
                     workingTreeFiles={modifiedFiles}
                     filterText={filterText}
                     columnWidths={graphColumns}
-                    onSelect={setSelectedCommit}
+                    onSelect={handleSelectCommit}
                     onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
                   />
                 )}

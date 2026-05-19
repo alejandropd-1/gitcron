@@ -598,6 +598,53 @@ export const useGitActions = () => {
     finally { setLoading(false); }
   };
 
+  const pullWithDecision = async (mode: 'ff-only' | 'rebase' | 'merge') => {
+    if (!window.api || !repoPath) return { success: false, error: 'no api' };
+    const startedAt = Date.now();
+    setLoading(true); setError(null);
+    try {
+      const result = mode === 'ff-only'
+        ? await window.api.gitPullFastForward(repoPath, githubToken ?? undefined)
+        : mode === 'rebase'
+          ? await window.api.gitPullRebase(repoPath, githubToken ?? undefined)
+          : await window.api.gitPullMerge(repoPath, githubToken ?? undefined);
+
+      if (result.success) {
+        const label = mode === 'ff-only'
+          ? 'Fast-forward completado'
+          : mode === 'rebase'
+            ? 'Pull con rebase completado'
+            : 'Pull con merge completado';
+        const msg = result.data?.summary ? `${label} — ${result.data.summary}` : label;
+        setSuccess(msg);
+        const elapsed = Date.now() - startedAt;
+        const unfocused = typeof document !== 'undefined' && document.visibilityState !== 'visible';
+        if (elapsed > 3000 || unfocused) {
+          notify('GitCron — Pull completado', { body: msg });
+        }
+        await refreshLog(); await refreshStatus(); await refreshBranches();
+        return { success: true };
+      }
+
+      const isAuth = result.data?.authRequired;
+      const isConflict = result.data?.conflict;
+      const errMsg = isAuth
+        ? 'Pull fallido: autenticación requerida. Configurá tu token de GitHub en Settings.'
+        : isConflict
+          ? 'Pull dejó conflictos. Resolvé los archivos marcados y continuá el rebase/merge desde Git.'
+          : `Pull fallido: ${result.error}`;
+      setError(errMsg);
+      if (isConflict) await refreshStatus();
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        notify('GitCron — Pull fallido', { body: errMsg });
+      }
+      return { success: false, conflict: isConflict, error: result.error };
+    } catch (err: any) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally { setLoading(false); }
+  };
+
   const openTerminal = async () => {
     if (!window.api || !repoPath) return;
     const result = await window.api.terminalOpen(repoPath);
@@ -926,6 +973,7 @@ export const useGitActions = () => {
     pushSpecificBranch,
     pushChanges,
     pullChanges,
+    pullWithDecision,
     openTerminal,
     stashApply,
     stashDrop,

@@ -82,6 +82,7 @@ interface RemoteOpResult {
   success: boolean;
   error?: string;
   authRequired?: boolean;
+  conflict?: boolean;
   summary?: string;
 }
 
@@ -156,6 +157,9 @@ interface ElectronAPI {
   gitPushBranch: (repoPath: string, branch: string, token?: string) => Promise<GitResult>;
   gitPush: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;
   gitPull: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;
+  gitPullFastForward: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;
+  gitPullRebase: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;
+  gitPullMerge: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;
   gitFetch: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;
   gitStage: (repoPath: string, filePath: string) => Promise<GitResult>;
   gitUnstage: (repoPath: string, filePath: string) => Promise<GitResult>;

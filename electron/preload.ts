@@ -41,6 +41,12 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:push-branch', repoPath, branch, token),
   gitPush: (repoPath: string, token?: string) => ipcRenderer.invoke('git:push', repoPath, token),
   gitPull: (repoPath: string, token?: string) => ipcRenderer.invoke('git:pull', repoPath, token),
+  gitPullFastForward: (repoPath: string, token?: string) =>
+    ipcRenderer.invoke('git:pull-ff-only', repoPath, token),
+  gitPullRebase: (repoPath: string, token?: string) =>
+    ipcRenderer.invoke('git:pull-rebase', repoPath, token),
+  gitPullMerge: (repoPath: string, token?: string) =>
+    ipcRenderer.invoke('git:pull-merge', repoPath, token),
   gitFetch: (repoPath: string, token?: string) => ipcRenderer.invoke('git:fetch', repoPath, token),
   gitStage: (repoPath: string, filePath: string) =>
     ipcRenderer.invoke('git:stage', repoPath, filePath),

@@ -49,6 +49,14 @@ const GRAPH_COLUMN_LIMITS = {
 
 type GraphColumnKey = keyof typeof GRAPH_COLUMN_DEFAULTS;
 
+type PullDecisionToast = {
+  source: 'push' | 'pull';
+  branch: string;
+  ahead: number;
+  behind: number;
+  mode: 'behind' | 'diverged';
+};
+
 const FONT_SIZE_OPTIONS: Array<{ key: FontSize; px: number }> = [
   { key: 'compact', px: 15 },
   { key: 'normal', px: 16 },
@@ -499,6 +507,7 @@ export default function GitCronPage() {
     deleteFile, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch, amendLastCommit, cherryPickCommit, squashCommits,
     renameBranch, deleteBranch, pullSpecificBranch, pushSpecificBranch,
+    pullWithDecision,
   } = useGitActions();
 
   const t = useT();
@@ -519,14 +528,43 @@ export default function GitCronPage() {
   const { runFetchCycle } = useAutoFetch();
 
   const [activeTab, setActiveTab] = useState('Graph');
+  const [pullDecision, setPullDecision] = useState<PullDecisionToast | null>(null);
+
+  const showPullDecisionIfNeeded = (source: 'push' | 'pull') => {
+    const tracking = currentBranch ? branchTracking[currentBranch] : undefined;
+    if (!currentBranch || !tracking?.upstream || tracking.gone || tracking.behind <= 0) return false;
+
+    setError(null);
+    setSuccess(null);
+    setPullDecision({
+      source,
+      branch: currentBranch,
+      ahead: tracking.ahead,
+      behind: tracking.behind,
+      mode: tracking.ahead > 0 ? 'diverged' : 'behind',
+    });
+    return true;
+  };
+
+  const handlePushIntent = () => {
+    if (!repoPath) return;
+    if (showPullDecisionIfNeeded('push')) return;
+    void pushChanges();
+  };
+
+  const handlePullIntent = () => {
+    if (!repoPath) return;
+    if (showPullDecisionIfNeeded('pull')) return;
+    void pullChanges();
+  };
 
   // Global keyboard shortcuts. Handlers fire only if the user is NOT typing in
   // an input (except Ctrl+Enter for commit). The keys are user-configurable in
   // Settings → Keyboard shortcuts.
   useShortcuts({
     commit: () => { if (commitMessage.trim() && repoPath) void commitChanges(); },
-    push: () => { if (repoPath) void pushChanges(); },
-    pull: () => { if (repoPath) void pullChanges(); },
+    push: handlePushIntent,
+    pull: handlePullIntent,
     newBranch: () => { if (repoPath) { setNewBranchFrom(undefined); setShowNewBranch(true); } },
     search: () => setShowSearchPopover(true),
     fetchNow: () => { if (repoPath) void runFetchCycle(); },
@@ -1038,6 +1076,11 @@ export default function GitCronPage() {
     setShowRepoChooser(false);
   };
 
+  const handlePullDecision = async (mode: 'ff-only' | 'rebase' | 'merge') => {
+    setPullDecision(null);
+    await pullWithDecision(mode);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-[#020f1e] text-[#d9e7fc] font-sans overflow-hidden select-none">
       <RepoTabs
@@ -1095,8 +1138,8 @@ export default function GitCronPage() {
           <ToolbarButton icon={<Undo />} onClick={() => {}} title={t('toolbar.undo')} />
           <ToolbarButton icon={<Redo />} onClick={() => {}} title={t('toolbar.redo')} />
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
-          <ToolbarButton icon={<Download />} onClick={pullChanges} title={t('toolbar.pull')} label={t('toolbar.pull')} disabled={!repoPath || isLoading} />
-          <ToolbarButton icon={<Upload />} onClick={pushChanges} title={t('toolbar.push')} label={t('toolbar.push')} disabled={!repoPath || isLoading} />
+          <ToolbarButton icon={<Download />} onClick={handlePullIntent} title={t('toolbar.pull')} label={t('toolbar.pull')} disabled={!repoPath || isLoading} />
+          <ToolbarButton icon={<Upload />} onClick={handlePushIntent} title={t('toolbar.push')} label={t('toolbar.push')} disabled={!repoPath || isLoading} />
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
           <ToolbarButton
             icon={<GitBranch />}
@@ -1820,6 +1863,62 @@ export default function GitCronPage() {
             <span className="text-sm font-medium">{success}</span>
             <button onClick={() => setSuccess(null)} className="ml-3 hover:opacity-70 shrink-0 text-[#a3f185]">
               <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── PULL DECISION TOAST ──────────── */}
+      <AnimatePresence>
+        {pullDecision && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 p-3 bg-[#12273c]/98 backdrop-blur-md text-[#d9e7fc] rounded-lg shadow-2xl flex items-start gap-3 z-50 border border-[#f4b942]/35 max-w-2xl"
+          >
+            <AlertCircle size={20} className="shrink-0 mt-0.5 text-[#f4b942]" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#ffd98a]">
+                {pullDecision.mode === 'diverged'
+                  ? `"${pullDecision.branch}" divergió: ${pullDecision.ahead}↑ ${pullDecision.behind}↓`
+                  : `"${pullDecision.branch}" está ${pullDecision.behind} commit${pullDecision.behind === 1 ? '' : 's'} detrás`}
+              </p>
+              <p className="text-xs text-[#9eacc0] mt-0.5">
+                {pullDecision.mode === 'diverged'
+                  ? pullDecision.source === 'push'
+                    ? 'Push pausado: integrá los cambios remotos antes. Rebase mantiene el historial lineal.'
+                    : 'Integrá los cambios remotos. Rebase mantiene el historial lineal.'
+                  : 'Podés traer esos cambios sin crear un merge commit.'}
+              </p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {pullDecision.mode === 'behind' && (
+                  <button
+                    type="button"
+                    onClick={() => void handlePullDecision('ff-only')}
+                    className="px-3 py-1 text-xs font-bold bg-[#a3f185]/20 hover:bg-[#a3f185]/30 text-[#a3f185] rounded transition-colors"
+                  >
+                    Fast-forward
+                  </button>
+                )}
+                {pullDecision.mode === 'diverged' && (
+                  <button
+                    type="button"
+                    onClick={() => void handlePullDecision('rebase')}
+                    className="px-3 py-1 text-xs font-bold bg-[#a3f185]/20 hover:bg-[#a3f185]/30 text-[#a3f185] rounded transition-colors"
+                  >
+                    Pull con rebase
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void handlePullDecision('merge')}
+                  className="px-3 py-1 text-xs font-bold bg-[#f4b942]/15 hover:bg-[#f4b942]/25 text-[#ffd98a] rounded transition-colors"
+                >
+                  Pull con merge
+                </button>
+              </div>
+            </div>
+            <button onClick={() => setPullDecision(null)} className="hover:opacity-70 shrink-0 text-[#ffd98a]">
+              <X size={16} />
             </button>
           </motion.div>
         )}

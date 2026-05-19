@@ -1258,6 +1258,44 @@ ipcMain.handle('git:pull', async (_event, targetPath: string, token?: string) =>
   }
 });
 
+async function runExplicitPull(
+  targetPath: string,
+  token: string | undefined,
+  args: string[],
+): Promise<{ success: boolean; data?: { success: boolean; summary?: string; conflict?: boolean; authRequired?: boolean; error?: string }; error?: string }> {
+  try {
+    const output = await withGitHubToken(targetPath, token, (g) => g.raw(['pull', ...args]));
+    return {
+      success: true,
+      data: {
+        success: true,
+        summary: output.trim() || 'Already up to date.',
+      },
+    };
+  } catch (error: any) {
+    const msg = errMsg(error);
+    const isAuth = /authentication|credentials|ssh|permission denied|403|401/i.test(msg);
+    const isConflict = /conflict|could not apply|automatic merge failed|fix conflicts/i.test(msg);
+    return {
+      success: false,
+      error: msg,
+      data: { success: false, authRequired: isAuth, conflict: isConflict, error: msg },
+    };
+  }
+}
+
+ipcMain.handle('git:pull-ff-only', async (_event, targetPath: string, token?: string) => (
+  runExplicitPull(targetPath, token, ['--ff-only'])
+));
+
+ipcMain.handle('git:pull-rebase', async (_event, targetPath: string, token?: string) => (
+  runExplicitPull(targetPath, token, ['--rebase'])
+));
+
+ipcMain.handle('git:pull-merge', async (_event, targetPath: string, token?: string) => (
+  runExplicitPull(targetPath, token, ['--no-rebase'])
+));
+
 ipcMain.handle('git:fetch', async (_event, targetPath: string, token?: string) => {
   try {
     await withGitHubToken(targetPath, token, (g) => g.fetch(['--all', '--prune']));

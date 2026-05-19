@@ -23,22 +23,22 @@ const repoWatchers = new Map<string, FSWatcher>();
 /**
  * Disable credential helper and askpass for token-authed operations.
  *
- * CVE-2022-24765 (git ≥2.35.2) blocks `-c credential.helper=<NON-EMPTY>` and
- * `-c core.askpass=<NON-EMPTY>` unless `allowUnsafeCredentialHelper` is set.
- * BUT empty values (`credential.helper=` and `core.askpass=`) are always
- * allowed — they just disable the helper for that invocation.
+ * git-for-windows ≥2.40 blocks ANY `-c credential.helper=...` (even an empty
+ * value) with "Configuring credential.helper is not permitted without enabling
+ * allowUnsafeCredentialHelper". Upstream git is more permissive — it only
+ * blocks NON-empty values — but on Windows we must explicitly opt in via
+ * `safe.allowUnsafeCredentialHelper=true` before our empty override is honored.
  *
- * Previous approach (GIT_CONFIG_GLOBAL → temp gitconfig file) broke on
- * git-for-windows ≥2.40 with: "Use of GIT_CONFIG_GLOBAL is not permitted
- * without enabling allowUnsafeConfigPaths". The `-c safe.allowUnsafeConfigPaths=true`
- * workaround is not honored by every git build, so we drop GIT_CONFIG_GLOBAL
- * entirely and pass the empty config keys directly.
+ * Same story for `GIT_CONFIG_GLOBAL`: git-for-windows blocks it unless
+ * `safe.allowUnsafeConfigPaths=true` is set. We don't use GIT_CONFIG_GLOBAL
+ * anymore (removed in v1.1.5), so that flag is no longer needed.
  *
- * Env vars still complement the config:
+ * Env vars complement the config:
  *   GIT_TERMINAL_PROMPT=0  → no interactive terminal prompts
  *   GCM_INTERACTIVE=never  → GCM never opens its GUI dialog
  */
 const NO_CREDENTIAL_HELPER_CONFIG: string[] = [
+  'safe.allowUnsafeCredentialHelper=true',
   'credential.helper=',
   'core.askpass=',
 ];

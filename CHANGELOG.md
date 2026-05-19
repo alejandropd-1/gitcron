@@ -4,7 +4,14 @@ Changes are listed from newest to oldest.
 
 ---
 
-## [v1.1.5] - 2026-05-18 - Fix push (sin GIT_CONFIG_GLOBAL)
+## [v1.1.6] - 2026-05-18 - Fix push (safe.allowUnsafeCredentialHelper)
+
+### Fixes
+- v1.1.5 cambió el approach a `-c credential.helper= -c core.askpass=` (valores vacíos), que funcionaba en MSYS bash pero no en el git-for-windows que usa Electron. Error: "Configuring credential.helper is not permitted without enabling allowUnsafeCredentialHelper". Git-for-windows bloquea `-c credential.helper=...` **incluso con valor vacío**, a diferencia del upstream que solo bloquea valores no vacíos. Fix: agregar `safe.allowUnsafeCredentialHelper=true` al config array para autorizar el override vacío.
+
+---
+
+## [v1.1.5] - 2026-05-18 - Fix push (sin GIT_CONFIG_GLOBAL, push fix incompleto)
 
 ### Fixes
 - **El fix de v1.1.4 no resolvía el push en git-for-windows ≥2.40**. El error "Use of `GIT_CONFIG_GLOBAL` is not permitted without enabling `allowUnsafeConfigPaths`" seguía apareciendo aunque se pasara `-c safe.allowUnsafeConfigPaths=true`. Resolución: **eliminar el approach de `GIT_CONFIG_GLOBAL` + gitconfig temporal por completo** y pasar `-c credential.helper= -c core.askpass=` directamente. Los valores vacíos siempre son aceptados (CVE-2022-24765 solo bloquea valores no vacíos), no requieren `safe.allowUnsafeConfigPaths` ni `allowUnsafeCredentialHelper`. Se borra la lógica del temp file y la limpieza al `quit`.

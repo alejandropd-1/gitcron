@@ -1,4 +1,4 @@
-# GitCron - Advanced Git Client TEST
+# GitCron - Advanced Git Client TEST 2
 
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
@@ -21,24 +21,25 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 
 ## Stack
 
-| Layer | Tech |
-|---|---|
-| UI framework | Next.js 15 |
-| UI library | React 19 |
-| Desktop runtime | Electron 42 |
-| State | Zustand 5 |
-| Language | TypeScript 5.9 |
-| Git backend | simple-git 3 |
-| GitHub API | Octokit REST 22 |
-| Styling | Tailwind CSS 4 |
-| Motion | Motion |
-| Icons | Lucide React |
+| Layer           | Tech            |
+| --------------- | --------------- |
+| UI framework    | Next.js 15      |
+| UI library      | React 19        |
+| Desktop runtime | Electron 42     |
+| State           | Zustand 5       |
+| Language        | TypeScript 5.9  |
+| Git backend     | simple-git 3    |
+| GitHub API      | Octokit REST 22 |
+| Styling         | Tailwind CSS 4  |
+| Motion          | Motion          |
+| Icons           | Lucide React    |
 
 ---
 
 ## What GitCron does today
 
 ### Repositories
+
 - Open any existing Git repo from a native OS dialog.
 - Create a new repo locally.
 - Clone from any Git URL or from your GitHub repos.
@@ -48,6 +49,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Use the `+` tab action to open the same central chooser for open / create / clone.
 
 ### History and graph
+
 - SVG commit graph with stable branch colors.
 - Current branch always highlighted in neon green.
 - Branch / tag chips with local, remote, tag, and current-state cues. Long names truncate with ellipsis; commits with more than 3 refs show a `+N` badge.
@@ -57,6 +59,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Commit tab for a staging-focused workflow summary.
 
 ### Staging and commits
+
 - Separate unstaged and staged sections.
 - **Auto-refresh of the UNSTAGED panel** when files change on disk: a `chokidar` watcher in the main process emits `repo:fs-change` over IPC (debounced 250 ms in main + 150 ms in renderer). A window `focus` listener provides a fallback when the watcher misses an event. Watches ignore `.git`, `node_modules`, `.next`, `dist`, `release`, and `out`.
 - Batch stage / unstage to avoid `index.lock` races.
@@ -68,6 +71,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Recovery action for `index.lock` errors.
 
 ### Branches
+
 - Branch tree grouped by prefixes like `feature/` or `claude/`.
 - Ahead / behind counts in the sidebar.
 - Checkout with conflict detection.
@@ -77,6 +81,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Clear-all stash action with confirmation.
 
 ### GitHub
+
 - OAuth Device Flow login, similar to `gh auth login`.
 - Manual personal access token fallback.
 - Authenticated push / pull / fetch via a process-scoped GitHub authorization header, without writing token-bearing `origin` URLs.
@@ -85,6 +90,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Private repo clone support after login.
 
 ### UX
+
 - Success and error toasts for the main Git actions.
 - Search moved to a toolbar button with `Ctrl + Alt + F`.
 - Search opens in a floating popover instead of living permanently in the topbar.
@@ -105,6 +111,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 ## Architecture
 
 Renderer:
+
 - `app/page.tsx` drives the main three-column UI, tabs, modals, and topbar.
 - `components/CommitGraph.tsx` renders the SVG graph and graph-table rows.
 - `components/DiffViewer.tsx` renders unified diffs.
@@ -113,6 +120,7 @@ Renderer:
 - `lib/git-store.ts` holds the Zustand store.
 
 Main process:
+
 - `electron/main.ts` exposes typed IPC handlers for Git, GitHub, storage, shell, and filesystem actions.
 - `electron/preload.ts` exposes the safe renderer bridge via `window.api`.
 
@@ -124,6 +132,7 @@ UI <- Zustand update <- hook / IPC response
 ```
 
 State model:
+
 - Multi-repo is now first-class in the store.
 - `openRepos: RepoState[]` stores the per-repo state.
 - `activeRepoIdx: number` points to the visible repo.
@@ -150,6 +159,7 @@ See [SECURITY.md](/C:/www/gitCronos/SECURITY.md) for the full hardening notes. S
 ## Development
 
 Requirements:
+
 - Node.js 22+
 - pnpm recommended
 - Git available in `PATH`
@@ -169,6 +179,7 @@ pnpm run electron:dev
 ```
 
 Notes:
+
 - Do not use `npm run dev` for normal app work. That only starts Next.js without Electron.
 - Changes in `electron/main.ts` or `electron/preload.ts` require a full restart.
 - React-side changes hot reload normally.
@@ -215,6 +226,7 @@ gitCronos/
 ## Design system
 
 "The Compiled Soul" uses:
+
 - Deep navy base: `#020f1e`
 - Primary neon green: `#a3f185`
 - Warning orange: `#fd9d1a`
@@ -228,21 +240,25 @@ gitCronos/
 ## Roadmap
 
 ### Tier 1
+
 - [x] Auto-fetch in the background with configurable intervals.
 - [x] Default folder for open / clone dialogs.
 - [x] Filter graph commits by branch.
 
 ### Tier 2
+
 - [x] Electron builder packaging — Windows (NSIS), macOS (DMG), Linux (AppImage).
 - [ ] Windows / macOS code signing.
 - [x] Auto-update flow.
 
 ### Tier 3
+
 - [x] OS notifications for long push / pull operations.
 - [x] Configurable keyboard shortcuts.
 - [x] Light theme (experimental).
 
 ### Future
+
 - [x] Amend last commit (v0.1.7).
 - [x] Cherry-pick from context menu (v0.1.7).
 - [x] Squash last N commits (v1.0.0).
@@ -259,11 +275,11 @@ gitCronos/
 
 Download the latest release from [GitHub Releases](https://github.com/alejandropd-1/gitcron/releases).
 
-| Platform | File |
-|---|---|
-| Windows | `GitCron Setup 1.2.0.exe` |
-| macOS | `GitCron-1.2.0.dmg` *(build on macOS with `pnpm package:mac`)* |
-| Linux | `GitCron-1.2.0.AppImage` *(build on Linux with `pnpm package:linux`)* |
+| Platform | File                                                                  |
+| -------- | --------------------------------------------------------------------- |
+| Windows  | `GitCron Setup 1.2.0.exe`                                             |
+| macOS    | `GitCron-1.2.0.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.2.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -274,7 +290,7 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 GitCron checks for updates silently 3 seconds after the main window appears. If a new version is available on [GitHub Releases](https://github.com/alejandropd-1/gitcron/releases), a native dialog asks whether to download it. A second dialog appears once the download finishes, letting you install immediately or on next close.
 
 - **No update:** no dialog, no toast.
-- **Manual check:** open Settings → *Buscar actualizaciones* / *Check for updates*.
+- **Manual check:** open Settings → _Buscar actualizaciones_ / _Check for updates_.
 - **Platforms:** Windows (NSIS) and Linux (AppImage) auto-update without code signing. macOS auto-update is inactive until the app is signed.
 
 ---
@@ -284,6 +300,7 @@ GitCron checks for updates silently 3 seconds after the main window appears. If 
 Requirements: `GH_TOKEN` env var with permission to create GitHub Releases and upload assets. For this public repo, `public_repo` is enough for a classic token; `repo` also works.
 
 Before publishing:
+
 - Bump `package.json`.
 - Add a top entry in `CHANGELOG.md`.
 - Update the current version and security notes in this README and `SECURITY.md` when behavior changed.

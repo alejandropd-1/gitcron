@@ -14,8 +14,6 @@ Changes are listed from newest to oldest.
 
 ---
 
-Solo para probar
-
 ## [v1.1.7] - 2026-05-18 - Fix push (simple-git unsafe guard)
 
 ### Fixes

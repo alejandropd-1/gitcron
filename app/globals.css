@@ -13,7 +13,9 @@
    The filter on <body> is the cheapest property to animate — it runs on the
    compositor, avoids layout/paint, and covers the whole page in one pass. */
 body {
-  transition: filter 0.35s ease, background-color 0.35s ease;
+  transition:
+    filter 1.85s ease,
+    background-color 1.5s ease-in-out;
 }
 
 .app-titlebar {
@@ -26,7 +28,7 @@ body {
 
 [data-keep-color],
 [data-keep-color] * {
-  transition: filter 0.35s ease;
+  transition: filter 0.55s ease;
 }
 
 html.light {

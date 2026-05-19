@@ -110,7 +110,7 @@ function RepoTabs({
           data-keep-color
           className="w-4 h-4 rounded-sm"
         />
-        <span className="text-sm font-bold text-[#a3f185] tracking-tight">GitCron</span>
+        <span className="text-sm font-bold text-[#5ed8ff] tracking-tight">GitCron</span>
         </div>
         {repos.map((repo, idx) => {
           const isActive = idx === activeIdx;

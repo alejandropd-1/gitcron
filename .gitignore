@@ -38,3 +38,4 @@ npm-debug.log*
 # VS Code workspace file (optional — delete this line if querés commitearla)
 *.code-workspace
 .fallow/
+.codegraph/codegraph.db

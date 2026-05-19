@@ -1,4 +1,4 @@
-# Changelog - GitCron TEST 3
+# Changelog - GitCron
 
 Changes are listed from newest to oldest.
 
@@ -7,6 +7,22 @@ Changes are listed from newest to oldest.
 ## Unreleased
 
 No changes yet.
+
+---
+
+## [v1.3.0] - 2026-05-19 - Pull decisions + branch sync guidance
+
+### Features
+
+- Added a branch-sync decision toast for the current branch when Pull or Push is triggered while the branch is behind or diverged.
+- Behind-only branches now offer explicit in-app actions for `Fast-forward` or `Pull con merge`.
+- Diverged branches now offer explicit in-app actions for `Pull con rebase` or `Pull con merge`, so the user can choose how to integrate local and remote history before pushing.
+- Added hover explanations to the ahead / behind chips in the branch sidebar so `↑` and `↓` counts read as clear branch status instead of raw Git shorthand.
+
+### Docs
+
+- Bumped the app version to `v1.3.0` in `package.json` and refreshed the README badge, installer filenames, and current-version notes.
+- Added future roadmap entries for a visual merge/rebase conflict resolver and local AI workflows via LM Studio.
 
 ---
 

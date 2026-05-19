@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.2.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.3.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -74,6 +74,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 
 - Branch tree grouped by prefixes like `feature/` or `claude/`.
 - Ahead / behind counts in the sidebar.
+- Ahead / behind chips now explain themselves on hover, and Pull / Push open a decision toast when the current branch is behind or diverged.
 - Checkout with conflict detection.
 - Merge, rebase, fast-forward, rename, delete, and create branch flows.
 - Cherry-pick a single commit onto the current branch from the commit context menu, with conflict-aware feedback.
@@ -266,6 +267,8 @@ gitCronos/
 - [ ] GitLab / Bitbucket support.
 - [x] Pull request diff view (v1.2.0).
 - [ ] Interactive rebase (reorder / drop / reword).
+- [ ] Visual conflict resolver for merge/rebase: compare both sides of a conflicted file and accept A / B per block before writing the merged result.
+- [ ] Local AI via LM Studio for commit messages, changelog drafting, project-history notes, and other offline writing helpers.
 - [ ] Upgrade Next.js beyond 15.4.x (currently pinned — verify Electron + Tailwind 4 compatibility before bumping).
 - [x] Remove token-bearing temporary `origin` URLs from authenticated Git operations (v1.2.0).
 
@@ -277,9 +280,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.2.0.exe`                                             |
-| macOS    | `GitCron-1.2.0.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.2.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.3.0.exe`                                             |
+| macOS    | `GitCron-1.3.0.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.3.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -325,7 +328,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-`v1.2.0` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v1.3.0` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

@@ -4,6 +4,20 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.1.4] - 2026-05-18 - Fix push + UNSTAGED auto-refresh
+
+### Fixes
+- **Push fallido por `GIT_CONFIG_GLOBAL`**: se agrega `safe.allowUnsafeConfigPaths=true` al config de simple-git en `withGitHubToken()`. Git ≥2.35.2 (CVE-2022-24765) consideraba "unsafe" la ruta del `.gitconfig` temporal usado para deshabilitar credential helpers; ahora el flag autoriza el path.
+
+### UX
+- **Panel UNSTAGED se refresca solo** al editar archivos en el working tree:
+  - Watcher de FS con `chokidar` en el main process (ignora `.git`, `node_modules`, `.next`, `dist`, `release`, `out`).
+  - Evento IPC `repo:fs-change` con debounce 250 ms en main + 150 ms en renderer.
+  - Listener de `focus` en la ventana como defensa en profundidad.
+  - Cleanup automático al cambiar de repo o cerrar la app.
+
+---
+
 ## [v1.1.0] - 2026-05-18 - Auto-update con electron-updater
 
 ### Auto-update

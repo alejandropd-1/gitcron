@@ -123,6 +123,7 @@ See [SECURITY.md](/C:/www/gitCronos/SECURITY.md) for the full hardening notes. S
 - GitHub tokens are stored with Electron `safeStorage` (OS keychain / DPAPI / libsecret).
 - Push / pull auth uses temporary URL injection because Electron 42 blocks `GIT_ASKPASS` propagation. The token is URL-encoded before injection.
 - Every token-authed git op runs with `-c safe.allowUnsafeCredentialHelper=true -c credential.helper= -c core.askpass=` plus `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`, so the auth'd URL never gets cached in the OS credential store. `safe.allowUnsafeCredentialHelper=true` is required by git-for-windows ≥2.40, while `simple-git` also needs its own `unsafe.allowUnsafeCredentialHelper` / `unsafe.allowUnsafeAskPass` options before it will pass those `-c` overrides through. The earlier `GIT_CONFIG_GLOBAL` temp-file approach (≤v1.1.4) was replaced because git-for-windows also blocks unsafe config paths.
+- Known residual risk: the token is written into `origin` only for the lifetime of a push / pull / fetch and restored in a `finally` block. If the app or OS crashes in that narrow window, the authenticated URL could remain in `.git/config`. Check `git remote -v` after interrupted auth operations; the next hardening target is to avoid writing token-bearing remotes at all.
 - `BrowserWindow` runs with `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, and explicit `webSecurity: true`.
 - Content-Security-Policy is strict in production builds (`'unsafe-eval'` and `localhost` connect-src are dev-only).
 - Error messages are sanitized before logging or returning to the renderer — token-bearing URLs from git CLI output get redacted via `sanitizeForLog()`.
@@ -236,7 +237,7 @@ gitCronos/
 - [ ] Pull request diff view.
 - [ ] Interactive rebase (reorder / drop / reword).
 - [ ] Upgrade Next.js beyond 15.4.x (currently pinned — verify Electron + Tailwind 4 compatibility before bumping).
-- [ ] Pull request diff view.
+- [ ] Remove token-bearing temporary `origin` URLs from authenticated Git operations.
 
 ---
 
@@ -246,9 +247,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File |
 |---|---|
-| Windows | `GitCron Setup 1.0.0.exe` |
-| macOS | `GitCron-1.0.0.dmg` *(build with `pnpm package:mac`)* |
-| Linux | `GitCron-1.0.0.AppImage` *(build with `pnpm package:linux`)* |
+| Windows | `GitCron Setup 1.1.7.exe` |
+| macOS | `GitCron-1.1.7.dmg` *(build on macOS with `pnpm package:mac`)* |
+| Linux | `GitCron-1.1.7.AppImage` *(build on Linux with `pnpm package:linux`)* |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -266,7 +267,13 @@ GitCron checks for updates silently 3 seconds after the main window appears. If 
 
 ## Publishing a release
 
-Requirements: `GH_TOKEN` env var with **`repo` scope** (the repository is private).
+Requirements: `GH_TOKEN` env var with permission to create GitHub Releases and upload assets. For this public repo, `public_repo` is enough for a classic token; `repo` also works.
+
+Before publishing:
+- Bump `package.json`.
+- Add a top entry in `CHANGELOG.md`.
+- Update the current version and security notes in this README and `SECURITY.md` when behavior changed.
+- Run `./node_modules/.bin/tsc.cmd --noEmit`, `pnpm run build:electron`, and `pnpm audit --audit-level moderate`.
 
 ```bash
 # Windows
@@ -281,6 +288,8 @@ pnpm publish:linux
 
 `electron-builder` uploads a draft release to GitHub. Publish it manually from the GitHub Releases page after verifying the installer. The `latest.yml` / `latest-mac.yml` / `latest-linux.yml` metadata files must be included in the release for auto-update to work.
 
+After publishing, install the update from GitCron and run one authenticated push from the app to validate the release path.
+
 ---
 
 ## Current version
@@ -291,4 +300,4 @@ pnpm publish:linux
 
 ## License
 
-Personal-use project for now.
+No formal open-source license has been published yet. Treat the code as source-available until a license is added.

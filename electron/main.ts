@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, Menu, protocol
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
-import { simpleGit, SimpleGit } from 'simple-git';
+import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
 import { Octokit } from '@octokit/rest';
 import { autoUpdater } from 'electron-updater';
 import chokidar, { FSWatcher } from 'chokidar';
@@ -42,6 +42,14 @@ const NO_CREDENTIAL_HELPER_CONFIG: string[] = [
   'credential.helper=',
   'core.askpass=',
 ];
+
+const NO_CREDENTIAL_HELPER_OPTIONS: Partial<SimpleGitOptions> = {
+  config: NO_CREDENTIAL_HELPER_CONFIG,
+  unsafe: {
+    allowUnsafeCredentialHelper: true,
+    allowUnsafeAskPass: true,
+  },
+};
 
 function getNoPromptEnv(): Record<string, string> {
   return {
@@ -752,7 +760,7 @@ ipcMain.handle('git:clone', async (_event, url: string, parentPath: string, fold
     // so the auth'd URL never gets cached in Windows Credential Manager /
     // macOS Keychain / libsecret as a ghost 'x-access-token' account.
     const g = isAuthClone
-      ? simpleGit({ config: NO_CREDENTIAL_HELPER_CONFIG }).env(getNoPromptEnv())
+      ? simpleGit(NO_CREDENTIAL_HELPER_OPTIONS).env(getNoPromptEnv())
       : simpleGit();
     await g.clone(cloneUrl, destPath);
 
@@ -1142,7 +1150,7 @@ async function withGitHubToken<T>(
   // Build a simple-git instance that runs every command with credential
   // helpers disabled. This prevents the auth'd URL from leaking into the
   // OS credential store and avoids GUI prompts on auth failure.
-  const g = simpleGit({ baseDir: targetPath, config: NO_CREDENTIAL_HELPER_CONFIG });
+  const g = simpleGit({ ...NO_CREDENTIAL_HELPER_OPTIONS, baseDir: targetPath });
   g.env(getNoPromptEnv());
 
   // We still need a vanilla instance to read/write the remote URL (without

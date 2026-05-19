@@ -6,11 +6,20 @@ Changes are listed from newest to oldest.
 
 Solo para probar
 
+## [v1.1.7] - 2026-05-18 - Fix push (simple-git unsafe guard)
+
+### Fixes
+
+- El error "Configuring credential.helper is not permitted without enabling allowUnsafeCredentialHelper" también lo podía lanzar `simple-git@3.36.0` antes de ejecutar Git: su guard interno bloquea `credential.helper` y `core.askpass` salvo que se habiliten `unsafe.allowUnsafeCredentialHelper` y `unsafe.allowUnsafeAskPass` en la instancia. Las instancias autenticadas de clone/push/pull/fetch ahora usan una opción compartida con ambos permisos `unsafe`, manteniendo el URL token temporal y sin volver a `GIT_CONFIG_GLOBAL`.
+- Bump de versión a `v1.1.7` para publicar el fix como release nuevo sobre el draft de GitHub.
+
+---
+
 ## [v1.1.6] - 2026-05-18 - Fix push (safe.allowUnsafeCredentialHelper)
 
 ### Fixes
 
-- v1.1.5 cambió el approach a `-c credential.helper= -c core.askpass=` (valores vacíos), que funcionaba en MSYS bash pero no en el git-for-windows que usa Electron. Error: "Configuring credential.helper is not permitted without enabling allowUnsafeCredentialHelper". Git-for-windows bloquea `-c credential.helper=...` **incluso con valor vacío**, a diferencia del upstream que solo bloquea valores no vacíos. Fix: agregar `safe.allowUnsafeCredentialHelper=true` al config array para autorizar el override vacío.
+- v1.1.5 cambió el approach a `-c credential.helper= -c core.askpass=` (valores vacíos), que funcionaba en MSYS bash pero no en el git-for-windows que usa Electron. Error: "Configuring credential.helper is not permitted without enabling allowUnsafeCredentialHelper". Git-for-windows bloquea `-c credential.helper=...` **incluso con valor vacío**, a diferencia del upstream que solo bloquea valores no vacíos. Fix: agregar `safe.allowUnsafeCredentialHelper=true` al config array para autorizar el override vacío en Git.
 
 ---
 

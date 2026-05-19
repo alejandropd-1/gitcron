@@ -21,7 +21,7 @@ Notas sobre el modelo de amenazas, lo que ya está protegido y lo que falta si a
 
 ### 3. Token y credential cache durante push/pull
 - **URL injection acotada**: `withGitHubToken()` inyecta el token en la URL de `origin` (`https://x-access-token:TOKEN@github.com/...`) solo durante la operación, y la restaura en el `finally` aunque la op falle. (El enfoque `GIT_ASKPASS` que usamos antes está bloqueado por la capa de seguridad de Electron 42 — ver CHANGELOG v1.0.0.)
-- **Sin caché en OS keychain**: cada invocación de git va con `-c safe.allowUnsafeCredentialHelper=true -c credential.helper= -c core.askpass=`. Eso evita que GCM o el keychain del SO almacenen la URL autenticada. El flag `allowUnsafeCredentialHelper` es necesario en git-for-windows ≥2.40, que bloquea `-c credential.helper=` incluso con valor vacío (a diferencia del upstream, que solo bloquea valores no vacíos). Hasta v1.1.4 usábamos un `.gitconfig` temporal apuntado por `GIT_CONFIG_GLOBAL`, pero git-for-windows también bloqueaba ese path con `allowUnsafeConfigPaths` — el approach se eliminó en v1.1.5 y se afinó en v1.1.6.
+- **Sin caché en OS keychain**: cada invocación de git va con `-c safe.allowUnsafeCredentialHelper=true -c credential.helper= -c core.askpass=`. Eso evita que GCM o el keychain del SO almacenen la URL autenticada. `safe.allowUnsafeCredentialHelper=true` autoriza el override vacío en git-for-windows ≥2.40; además, las instancias autenticadas de `simple-git` habilitan `unsafe.allowUnsafeCredentialHelper` y `unsafe.allowUnsafeAskPass` para que su guard interno deje pasar esos `-c`. Hasta v1.1.4 usábamos un `.gitconfig` temporal apuntado por `GIT_CONFIG_GLOBAL`, pero git-for-windows también bloqueaba ese path con `allowUnsafeConfigPaths` — el approach se eliminó en v1.1.5 y se afinó en v1.1.6.
 - **Prompts deshabilitados**: `GIT_TERMINAL_PROMPT=0` (no prompts de terminal) y `GCM_INTERACTIVE=never` (GCM nunca abre su diálogo nativo).
 - **Logs sanitizados**: cualquier output que pase por `sanitizeForLog()` reemplaza `x-access-token:<TOKEN>@` con `[REDACTED]@` antes de loguearse o devolverse al renderer.
 
@@ -82,7 +82,7 @@ pnpm run electron:dev
 | Atacante remoto explotando la app | Casi cero | No hay ports abiertos, no es servidor web |
 | Malware en tu máquina lee el token | Baja con DPAPI | safeStorage usa cifrado del OS atado a tu usuario |
 | Dependencia maliciosa (supply chain) | Real pero baja | CSP limita exfiltración. Auditá con `pnpm audit` regularmente |
-| Token leak via git config | Mitigado | URL injection acotada + `credential.helper=` vacío — el token está en el proceso, no en `.git/config` ni en OS keychain |
+| Token leak via git config | Mitigado | URL injection acotada + `credential.helper=` vacío autorizado en Git y `simple-git` — el token está en el proceso, no en `.git/config` ni en OS keychain |
 | Command injection en spawn | Eliminado | `shell: false` + args array |
 
 ## 🚧 Pendiente para producción / distribución pública

@@ -84,6 +84,15 @@ const es: Dict = {
   'staging.unstageFile': 'Unstagear este archivo',
   'staging.discardChanges': 'Descartar cambios',
 
+  // ── Pull request diff ──
+  'prDiff.view': 'Ver diff de PR #{{number}}',
+  'prDiff.back': 'Volver al graph',
+  'prDiff.open': 'Abrir en GitHub',
+  'prDiff.loading': 'Cargando diff del pull request...',
+  'prDiff.loadError': 'Error al cargar el diff del pull request',
+  'prDiff.changedFiles': '{{count}} archivos',
+  'prDiff.unifiedDiff': 'Pull request #{{number}}',
+
   // ── Empty state ──
   'empty.welcome': 'Bienvenido a GitCron',
   'empty.choose': 'Elegí cómo empezar:',
@@ -453,6 +462,15 @@ const en: Dict = {
   'staging.stageFile': 'Stage this file',
   'staging.unstageFile': 'Unstage this file',
   'staging.discardChanges': 'Discard changes',
+
+  // ── Pull request diff ──
+  'prDiff.view': 'View PR #{{number}} diff',
+  'prDiff.back': 'Back to graph',
+  'prDiff.open': 'Open on GitHub',
+  'prDiff.loading': 'Loading pull request diff...',
+  'prDiff.loadError': 'Failed to load pull request diff',
+  'prDiff.changedFiles': '{{count}} files',
+  'prDiff.unifiedDiff': 'Pull request #{{number}}',
 
   // ── Empty state ──
   'empty.welcome': 'Welcome to GitCron',

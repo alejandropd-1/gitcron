@@ -3,9 +3,12 @@ import { describe, it, expect } from 'vitest';
 // sanitizeForLog is not exported from os-notify, but we can test the pattern directly.
 // This mirrors the regex used inside sanitizeForLog in electron/main.ts.
 const REDACT_PATTERN = /(x-access-token:)[^@]+@/g;
+const AUTH_HEADER_PATTERN = /(AUTHORIZATION:\s*basic\s+)[A-Za-z0-9+/=]+/gi;
 
 function sanitize(str: string) {
-  return str.replace(REDACT_PATTERN, '$1[REDACTED]@');
+  return str
+    .replace(REDACT_PATTERN, '$1[REDACTED]@')
+    .replace(AUTH_HEADER_PATTERN, '$1[REDACTED]');
 }
 
 describe('token URL sanitization (mirrors electron/main.ts sanitizeForLog)', () => {
@@ -37,5 +40,12 @@ describe('token URL sanitization (mirrors electron/main.ts sanitizeForLog)', () 
     expect(result).not.toContain('T1');
     expect(result).not.toContain('T2');
     expect(result.match(/\[REDACTED\]/g)?.length).toBe(2);
+  });
+
+  it('redacts GitHub authorization extraheader values', () => {
+    const msg = 'git -c http.https://github.com/.extraheader=AUTHORIZATION: basic eC1hY2Nlc3MtdG9rZW46Z2hwX1NFQ1JFVA== push';
+    const result = sanitize(msg);
+    expect(result).toContain('AUTHORIZATION: basic [REDACTED]');
+    expect(result).not.toContain('Z2hwX1NFQ1JFVA');
   });
 });

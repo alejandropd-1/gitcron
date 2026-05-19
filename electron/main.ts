@@ -8,7 +8,7 @@ import { autoUpdater } from 'electron-updater';
 import chokidar, { FSWatcher } from 'chokidar';
 import type {
   StatusFile, CommitData, BranchData, RepoInfo, StashEntry, SubmoduleEntry, GitHubUser,
-  BranchTrackingInfo, WorktreeEntry, PullRequestEntry,
+  BranchTrackingInfo, WorktreeEntry, PullRequestEntry, PullRequestDiffData, PullRequestDiffFile,
 } from '../types/electron';
 
 const isDev = !app.isPackaged;
@@ -51,6 +51,17 @@ const NO_CREDENTIAL_HELPER_OPTIONS: Partial<SimpleGitOptions> = {
   },
 };
 
+function getGitHubAuthOptions(token: string): Partial<SimpleGitOptions> {
+  const basic = Buffer.from(`x-access-token:${token}`, 'utf8').toString('base64');
+  return {
+    ...NO_CREDENTIAL_HELPER_OPTIONS,
+    config: [
+      ...NO_CREDENTIAL_HELPER_CONFIG,
+      `http.https://github.com/.extraheader=AUTHORIZATION: basic ${basic}`,
+    ],
+  };
+}
+
 function getNoPromptEnv(): Record<string, string> {
   return {
     GIT_TERMINAL_PROMPT: '0',
@@ -60,8 +71,8 @@ function getNoPromptEnv(): Record<string, string> {
 
 /**
  * Redact any GitHub-token-in-URL pattern from a string before logging.
- * Matches `https://x-access-token:<TOKEN>@host/...` produced by withGitHubToken
- * and replaces the token with `[REDACTED]`. Safe to call with any value —
+ * Matches token-in-URL and token-in-extraheader patterns and replaces the token
+ * with `[REDACTED]`. Safe to call with any value —
  * non-strings are stringified first.
  */
 function sanitizeForLog(value: unknown): string {
@@ -75,7 +86,9 @@ function sanitizeForLog(value: unknown): string {
   } catch {
     str = String(value);
   }
-  return str.replace(/(x-access-token:)[^@]+@/g, '$1[REDACTED]@');
+  return str
+    .replace(/(x-access-token:)[^@]+@/g, '$1[REDACTED]@')
+    .replace(/(AUTHORIZATION:\s*basic\s+)[A-Za-z0-9+/=]+/gi, '$1[REDACTED]');
 }
 
 function createSplash(): BrowserWindow {
@@ -315,46 +328,6 @@ ipcMain.handle('storage:delete', async (_event, key: string) => {
     return { success: false, error: errMsg(error) };
   }
 });
-
-// ─── GIT_ASKPASS helper script ────────────────────────────────────────
-// Git invokes GIT_ASKPASS like: `script "Username for 'https://...': "`.
-// Our script reads the token from the GITCRON_TOKEN env var and prints either
-// the username ("x-access-token") or the token, depending on what git asks for.
-// This way the token NEVER touches .git/config or the remote URL on disk.
-
-let askpassScriptPath: string | null = null;
-
-function ensureAskpassScript(): string {
-  if (askpassScriptPath && fs.existsSync(askpassScriptPath)) return askpassScriptPath;
-
-  const dir = app.getPath('userData');
-  fs.mkdirSync(dir, { recursive: true });
-
-  if (process.platform === 'win32') {
-    const p = path.join(dir, 'gitcron-askpass.cmd');
-    const content =
-      '@echo off\r\n' +
-      'echo %1 | findstr /i "Username" >nul\r\n' +
-      'if %errorlevel%==0 (\r\n' +
-      '  echo x-access-token\r\n' +
-      ') else (\r\n' +
-      '  echo %GITCRON_TOKEN%\r\n' +
-      ')\r\n';
-    fs.writeFileSync(p, content);
-    askpassScriptPath = p;
-  } else {
-    const p = path.join(dir, 'gitcron-askpass.sh');
-    const content =
-      '#!/bin/sh\n' +
-      'case "$1" in\n' +
-      '  *Username*) echo "x-access-token" ;;\n' +
-      '  *)          echo "$GITCRON_TOKEN" ;;\n' +
-      'esac\n';
-    fs.writeFileSync(p, content, { mode: 0o700 });
-    askpassScriptPath = p;
-  }
-  return askpassScriptPath;
-}
 
 // --- IPC Handlers ---
 
@@ -747,22 +720,13 @@ ipcMain.handle('git:clone', async (_event, url: string, parentPath: string, fold
       return { success: false, error: `La carpeta "${folderName}" ya existe y no está vacía` };
     }
 
-    // For clone, inject the token directly in the URL when it's a GitHub HTTPS URL.
-    // GIT_ASKPASS is blocked by Electron 42's child-process security layer.
-    let cloneUrl = url;
     const isAuthClone = token && /^https:\/\/github\.com\//i.test(url);
-    if (isAuthClone) {
-      // URL-encode the token so chars like '@' or ':' don't break URL parsing
-      const encodedToken = encodeURIComponent(token);
-      cloneUrl = url.replace(/^https:\/\//i, `https://x-access-token:${encodedToken}@`);
-    }
-    // When we inject a token, disable the OS credential helper for THIS clone
-    // so the auth'd URL never gets cached in Windows Credential Manager /
-    // macOS Keychain / libsecret as a ghost 'x-access-token' account.
+    // Token auth uses an in-process http.extraheader, not a token-bearing URL,
+    // so the cloned repo's origin remains the clean HTTPS URL on disk.
     const g = isAuthClone
-      ? simpleGit(NO_CREDENTIAL_HELPER_OPTIONS).env(getNoPromptEnv())
+      ? simpleGit(getGitHubAuthOptions(token)).env(getNoPromptEnv())
       : simpleGit();
-    await g.clone(cloneUrl, destPath);
+    await g.clone(url, destPath);
 
     repoPath = destPath;
     git = simpleGit(repoPath);
@@ -964,30 +928,92 @@ ipcMain.handle('git:worktrees', async (_event, targetPath: string) => {
   }
 });
 
+async function getGitHubOwnerRepoFromOrigin(targetPath: string): Promise<{ owner: string; repo: string } | null> {
+  const g = simpleGit(targetPath);
+  const remotes = await g.getRemotes(true);
+  const origin = remotes.find((r) => r.name === 'origin');
+  const url = origin?.refs?.fetch || origin?.refs?.push || '';
+  const match = url.match(/github\.com[:/]+([^/]+)\/([^/]+?)(?:\.git)?\/?$/);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2] };
+}
+
 // ── List open PRs from GitHub (parses origin URL to find owner/repo) ──
 ipcMain.handle('github:list-prs', async (_event, token: string, targetPath: string) => {
   try {
-    const g = simpleGit(targetPath);
-    const remotes = await g.getRemotes(true);
-    const origin = remotes.find((r) => r.name === 'origin');
-    const url = origin?.refs?.fetch || origin?.refs?.push || '';
-    // Match https://github.com/owner/repo(.git) or git@github.com:owner/repo(.git)
-    const match = url.match(/github\.com[:/]+([^/]+)\/([^/]+?)(?:\.git)?\/?$/);
-    if (!match) {
+    const remote = await getGitHubOwnerRepoFromOrigin(targetPath);
+    if (!remote) {
       return { success: true, data: [] as PullRequestEntry[] };
     }
-    const [, owner, repo] = match;
+    const { owner, repo } = remote;
     const octokit = new Octokit({ auth: token });
     const { data } = await octokit.rest.pulls.list({ owner, repo, state: 'open', per_page: 30 });
-    const prs: PullRequestEntry[] = data.map((pr) => ({
+    const prs: PullRequestEntry[] = data.map((pr) => {
+      const stats = pr as typeof pr & { additions?: number; deletions?: number; changed_files?: number };
+      return {
+        number: pr.number,
+        title: pr.title,
+        author: pr.user?.login ?? '',
+        branch: pr.head.ref,
+        baseBranch: pr.base.ref,
+        url: pr.html_url,
+        draft: pr.draft ?? false,
+        additions: stats.additions ?? 0,
+        deletions: stats.deletions ?? 0,
+        changedFiles: stats.changed_files ?? 0,
+      };
+    });
+    return { success: true, data: prs };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
+ipcMain.handle('github:get-pr-diff', async (_event, token: string, targetPath: string, number: number) => {
+  try {
+    const remote = await getGitHubOwnerRepoFromOrigin(targetPath);
+    if (!remote) {
+      return { success: false, error: 'No se pudo detectar owner/repo desde origin' };
+    }
+    const { owner, repo } = remote;
+    const octokit = new Octokit({ auth: token });
+    const [{ data: pr }, files, diffResponse] = await Promise.all([
+      octokit.rest.pulls.get({ owner, repo, pull_number: number }),
+      octokit.paginate(octokit.rest.pulls.listFiles, { owner, repo, pull_number: number, per_page: 100 }),
+      octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
+        owner,
+        repo,
+        pull_number: number,
+        headers: { accept: 'application/vnd.github.v3.diff' },
+      }),
+    ]);
+
+    const diff = typeof diffResponse.data === 'string'
+      ? diffResponse.data
+      : String(diffResponse.data ?? '');
+    const diffFiles: PullRequestDiffFile[] = files.map((file) => ({
+      filename: file.filename,
+      status: file.status,
+      additions: file.additions,
+      deletions: file.deletions,
+      changes: file.changes,
+      previousFilename: file.previous_filename,
+    }));
+    const data: PullRequestDiffData = {
       number: pr.number,
       title: pr.title,
       author: pr.user?.login ?? '',
       branch: pr.head.ref,
+      baseBranch: pr.base.ref,
       url: pr.html_url,
       draft: pr.draft ?? false,
-    }));
-    return { success: true, data: prs };
+      additions: pr.additions ?? 0,
+      deletions: pr.deletions ?? 0,
+      changedFiles: pr.changed_files ?? diffFiles.length,
+      diff,
+      files: diffFiles,
+    };
+    return { success: true, data };
   } catch (error: any) {
     return { success: false, error: errMsg(error) };
   }
@@ -1133,13 +1159,9 @@ ipcMain.handle('git:push-branch', async (_event, targetPath: string, branch: str
   }
 });
 
-// Helper: temporarily inject GitHub token into the origin HTTPS URL for push/pull.
-// Electron 42+ blocks GIT_ASKPASS via its child-process security layer, so we
-// use URL injection instead. The original URL is ALWAYS restored in the finally
-// block — even if the operation throws or the app is killed mid-operation
-// (on next run it will be harmless since the token is in the URL format, not stored).
-//
-// Only activates for repos whose origin matches https://github.com/...
+// Helper: authenticate GitHub HTTPS remotes without writing token-bearing URLs.
+// The token is passed through a process-scoped http.extraheader config while
+// credential helpers and interactive prompts stay disabled.
 async function withGitHubToken<T>(
   targetPath: string,
   token: string | undefined,
@@ -1147,37 +1169,18 @@ async function withGitHubToken<T>(
 ): Promise<T> {
   if (!token) return fn(simpleGit(targetPath));
 
-  // Build a simple-git instance that runs every command with credential
-  // helpers disabled. This prevents the auth'd URL from leaking into the
-  // OS credential store and avoids GUI prompts on auth failure.
-  const g = simpleGit({ ...NO_CREDENTIAL_HELPER_OPTIONS, baseDir: targetPath });
-  g.env(getNoPromptEnv());
-
-  // We still need a vanilla instance to read/write the remote URL (without
-  // the no-helper config affecting unrelated git plumbing).
+  // Read the remote with a vanilla instance so auth config never affects local
+  // plumbing. SSH and non-GitHub remotes keep their native auth behavior.
   const plain = simpleGit(targetPath);
-
-  // Get current origin URL
   const remotes = await plain.getRemotes(true);
   const origin = remotes.find((r) => r.name === 'origin');
   const originalUrl = origin?.refs?.push || origin?.refs?.fetch;
-
-  // Only inject for HTTPS GitHub URLs — SSH keys handle auth themselves
   const isHttpsGithub = originalUrl && /^https:\/\/github\.com\//i.test(originalUrl);
-  if (!isHttpsGithub) return fn(g);
+  if (!isHttpsGithub) return fn(simpleGit(targetPath));
 
-  // Inject token: https://x-access-token:<token>@github.com/...
-  // URL-encode the token so chars like '@' or ':' don't break URL parsing
-  const encodedToken = encodeURIComponent(token);
-  const authedUrl = originalUrl!.replace(/^https:\/\//i, `https://x-access-token:${encodedToken}@`);
-
-  try {
-    await plain.remote(['set-url', 'origin', authedUrl]);
-    return await fn(g);
-  } finally {
-    // Always restore, even on error or throw
-    await plain.remote(['set-url', 'origin', originalUrl!]).catch(() => {});
-  }
+  const g = simpleGit({ ...getGitHubAuthOptions(token), baseDir: targetPath });
+  g.env(getNoPromptEnv());
+  return fn(g);
 }
 
 ipcMain.handle('git:push', async (_event, targetPath: string, token?: string) => {

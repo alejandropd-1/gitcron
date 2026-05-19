@@ -56,8 +56,26 @@ export interface PullRequestEntry {
   title: string;
   author: string;
   branch: string;
+  baseBranch: string;
   url: string;
   draft: boolean;
+  additions: number;
+  deletions: number;
+  changedFiles: number;
+}
+
+export interface PullRequestDiffFile {
+  filename: string;
+  status: string;
+  additions: number;
+  deletions: number;
+  changes: number;
+  previousFilename?: string;
+}
+
+export interface PullRequestDiffData extends PullRequestEntry {
+  diff: string;
+  files: PullRequestDiffFile[];
 }
 
 interface RemoteOpResult {
@@ -164,6 +182,7 @@ interface ElectronAPI {
   gitSubmodules: (repoPath: string) => Promise<GitResult<SubmoduleEntry[]>>;
   gitWorktrees: (repoPath: string) => Promise<GitResult<WorktreeEntry[]>>;
   githubListPRs: (token: string, repoPath: string) => Promise<GitResult<PullRequestEntry[]>>;
+  githubGetPRDiff: (token: string, repoPath: string, number: number) => Promise<GitResult<PullRequestDiffData>>;
   terminalOpen: (repoPath: string) => Promise<GitResult>;
   shellOpenPath: (targetPath: string) => Promise<GitResult>;
   shellOpenExternal: (url: string) => Promise<GitResult>;

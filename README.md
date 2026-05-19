@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.1.7-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.2.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -79,9 +79,9 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 ### GitHub
 - OAuth Device Flow login, similar to `gh auth login`.
 - Manual personal access token fallback.
-- Authenticated push / pull via temporary URL injection.
+- Authenticated push / pull / fetch via a process-scoped GitHub authorization header, without writing token-bearing `origin` URLs.
 - Automatic `--set-upstream` on the first push of a new branch.
-- Pull requests list in the sidebar for the current repo.
+- Pull requests list in the sidebar for the current repo, with an in-app unified diff view.
 - Private repo clone support after login.
 
 ### UX
@@ -136,9 +136,8 @@ State model:
 See [SECURITY.md](/C:/www/gitCronos/SECURITY.md) for the full hardening notes. Short version:
 
 - GitHub tokens are stored with Electron `safeStorage` (OS keychain / DPAPI / libsecret).
-- Push / pull auth uses temporary URL injection because Electron 42 blocks `GIT_ASKPASS` propagation. The token is URL-encoded before injection.
-- Every token-authed git op runs with `-c safe.allowUnsafeCredentialHelper=true -c credential.helper= -c core.askpass=` plus `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`, so the auth'd URL never gets cached in the OS credential store. `safe.allowUnsafeCredentialHelper=true` is required by git-for-windows ≥2.40, while `simple-git` also needs its own `unsafe.allowUnsafeCredentialHelper` / `unsafe.allowUnsafeAskPass` options before it will pass those `-c` overrides through. The earlier `GIT_CONFIG_GLOBAL` temp-file approach (≤v1.1.4) was replaced because git-for-windows also blocks unsafe config paths.
-- Known residual risk: the token is written into `origin` only for the lifetime of a push / pull / fetch and restored in a `finally` block. If the app or OS crashes in that narrow window, the authenticated URL could remain in `.git/config`. Check `git remote -v` after interrupted auth operations; the next hardening target is to avoid writing token-bearing remotes at all.
+- Push / pull / fetch auth uses a process-scoped `http.https://github.com/.extraheader` authorization header instead of changing `origin`, so token-bearing remote URLs are not written to `.git/config`.
+- Every token-authed git op runs with `-c safe.allowUnsafeCredentialHelper=true -c credential.helper= -c core.askpass=` plus `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`, so the auth'd operation never gets cached in the OS credential store. `safe.allowUnsafeCredentialHelper=true` is required by git-for-windows ≥2.40, while `simple-git` also needs its own `unsafe.allowUnsafeCredentialHelper` / `unsafe.allowUnsafeAskPass` options before it will pass those `-c` overrides through. The earlier `GIT_CONFIG_GLOBAL` temp-file approach (≤v1.1.4) was replaced because git-for-windows also blocks unsafe config paths.
 - `BrowserWindow` runs with `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, and explicit `webSecurity: true`.
 - Content-Security-Policy is strict in production builds (`'unsafe-eval'` and `localhost` connect-src are dev-only).
 - Error messages are sanitized before logging or returning to the renderer — token-bearing URLs from git CLI output get redacted via `sanitizeForLog()`.
@@ -249,10 +248,10 @@ gitCronos/
 - [x] Squash last N commits (v1.0.0).
 - [ ] Multi-account GitHub support.
 - [ ] GitLab / Bitbucket support.
-- [ ] Pull request diff view.
+- [x] Pull request diff view (v1.2.0).
 - [ ] Interactive rebase (reorder / drop / reword).
 - [ ] Upgrade Next.js beyond 15.4.x (currently pinned — verify Electron + Tailwind 4 compatibility before bumping).
-- [ ] Remove token-bearing temporary `origin` URLs from authenticated Git operations.
+- [x] Remove token-bearing temporary `origin` URLs from authenticated Git operations (v1.2.0).
 
 ---
 
@@ -262,9 +261,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File |
 |---|---|
-| Windows | `GitCron Setup 1.1.7.exe` |
-| macOS | `GitCron-1.1.7.dmg` *(build on macOS with `pnpm package:mac`)* |
-| Linux | `GitCron-1.1.7.AppImage` *(build on Linux with `pnpm package:linux`)* |
+| Windows | `GitCron Setup 1.2.0.exe` |
+| macOS | `GitCron-1.2.0.dmg` *(build on macOS with `pnpm package:mac`)* |
+| Linux | `GitCron-1.2.0.AppImage` *(build on Linux with `pnpm package:linux`)* |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -309,7 +308,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-`v1.1.7` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v1.2.0` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

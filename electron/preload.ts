@@ -87,6 +87,8 @@ contextBridge.exposeInMainWorld('api', {
   gitSubmodules: (repoPath: string) => ipcRenderer.invoke('git:submodules', repoPath),
   gitWorktrees: (repoPath: string) => ipcRenderer.invoke('git:worktrees', repoPath),
   githubListPRs: (token: string, repoPath: string) => ipcRenderer.invoke('github:list-prs', token, repoPath),
+  githubGetPRDiff: (token: string, repoPath: string, number: number) =>
+    ipcRenderer.invoke('github:get-pr-diff', token, repoPath, number),
   terminalOpen: (repoPath: string) => ipcRenderer.invoke('terminal:open', repoPath),
   shellOpenPath: (targetPath: string) => ipcRenderer.invoke('shell:open-path', targetPath),
   shellOpenExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),

@@ -160,7 +160,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    backgroundColor: '#041425',
+    frame: false,
+    backgroundColor: '#020f1e',
     show: false,        // hidden until ready-to-show
     ...(iconExists ? { icon: iconPath } : {}),
     webPreferences: {
@@ -172,7 +173,6 @@ function createWindow() {
       // contextIsolation + nodeIntegration:false is the canonical Electron security model.
       webSecurity: true,
     },
-    titleBarStyle: 'hiddenInset',
   });
 
   const url = isDev
@@ -534,6 +534,28 @@ ipcMain.handle('app:check-update', async () => {
     manualUpdateCheck = false;
     return { success: false, error: errMsg(error) };
   }
+});
+
+ipcMain.handle('window:minimize', async () => {
+  if (!mainWindow) return { success: false, error: 'Window unavailable' };
+  mainWindow.minimize();
+  return { success: true };
+});
+
+ipcMain.handle('window:toggle-maximize', async () => {
+  if (!mainWindow) return { success: false, error: 'Window unavailable' };
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow.maximize();
+  }
+  return { success: true, data: { maximized: mainWindow.isMaximized() } };
+});
+
+ipcMain.handle('window:close', async () => {
+  if (!mainWindow) return { success: false, error: 'Window unavailable' };
+  mainWindow.close();
+  return { success: true };
 });
 
 ipcMain.handle('github:device-start', async () => {

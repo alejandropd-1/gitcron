@@ -8,7 +8,7 @@ import {
   ArrowLeft, RotateCcw, Github, LogOut, Minus,
   Sparkles, Copy, Lock, Globe, Loader2, UserCircle2,
   GitMerge, TreePine, ArrowUp, ArrowDown, ChevronDown, Check,
-  Type, Filter, Monitor, ExternalLink, FileDiff,
+  Type, Filter, Monitor, ExternalLink, FileDiff, Maximize2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import pkg from '../package.json';
@@ -101,62 +101,102 @@ function RepoTabs({
   if (repos.length === 0) return null;
 
   return (
-    <div className="h-10 bg-[#020f1e] border-b border-[#3c495a]/15 flex items-end gap-1 px-3 pt-1 shrink-0 overflow-x-auto overflow-y-hidden">
-      {repos.map((repo, idx) => {
-        const isActive = idx === activeIdx;
-        return (
-          <div
-            key={repo.path}
-            className={cn(
-              'group h-8 min-w-0 max-w-56 rounded-t-md flex items-center border transition-colors',
-              isActive
-                ? 'bg-[#041425] border-[#3c495a]/20 border-b-[#041425] text-[#d9e7fc]'
-                : 'bg-[#06182a] border-[#3c495a]/10 text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#0b2035]',
-            )}
-          >
-            <button
-              type="button"
-              onClick={() => onSelect(idx)}
-              title={t('repoTabs.switchTo', { repo: repo.name })}
-              className="min-w-0 flex-1 h-full px-3 flex items-center gap-2 text-left"
-            >
-              {repo.isLoading ? (
-                <Loader2 size={10} className="shrink-0 animate-spin text-[#a3f185]" />
-              ) : (
-                <span
-                  className={cn(
-                    'w-1.5 h-1.5 rounded-full shrink-0',
-                    isActive ? 'bg-[#a3f185] shadow-[0_0_10px_rgba(163,241,133,0.5)]' : 'bg-[#3c495a]',
-                  )}
-                />
+    <div className="app-titlebar h-10 bg-[#020f1e] border-b border-[#3c495a]/15 flex items-stretch shrink-0 overflow-hidden">
+      <div className="min-w-0 flex-1 flex items-end gap-1 pl-2 pt-1 overflow-x-auto overflow-y-hidden">
+        <div className="app-titlebar-control h-8 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2">
+        <img
+          src="/gitcron-icon.png"
+          alt="GitCron"
+          data-keep-color
+          className="w-4 h-4 rounded-sm"
+        />
+        <span className="text-sm font-bold text-[#a3f185] tracking-tight">GitCron</span>
+        </div>
+        {repos.map((repo, idx) => {
+          const isActive = idx === activeIdx;
+          return (
+            <div
+              key={repo.path}
+              className={cn(
+                'app-titlebar-control group h-8 min-w-0 max-w-56 rounded-t-md flex items-center border transition-colors',
+                isActive
+                  ? 'bg-[#041425] border-[#3c495a]/20 border-b-[#041425] text-[#d9e7fc]'
+                  : 'bg-[#06182a] border-[#3c495a]/10 text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#0b2035]',
               )}
-              <span className="truncate text-xs font-semibold">{repo.name}</span>
-              <span className="text-[10px] text-[#697789] font-mono truncate max-w-20 hidden md:block">
-                {repo.currentBranch || '-'}
-              </span>
-            </button>
-            <button
-              type="button"
-              title={t('repoTabs.close', { repo: repo.name })}
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose(idx);
-              }}
-              className="mr-1 p-0.5 rounded text-[#697789] hover:text-[#ff716c] hover:bg-[#ff716c]/10 opacity-70 group-hover:opacity-100 transition"
             >
-              <X size={13} />
-            </button>
-          </div>
-        );
-      })}
-      <button
-        type="button"
-        onClick={onOpen}
-        title={t('repoTabs.openAnother')}
-        className="h-8 w-8 mb-0 rounded-t-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#06182a] border border-transparent hover:border-[#3c495a]/15 transition-colors shrink-0"
-      >
-        <Plus size={14} />
-      </button>
+              <button
+                type="button"
+                onClick={() => onSelect(idx)}
+                title={t('repoTabs.switchTo', { repo: repo.name })}
+                className="min-w-0 flex-1 h-full px-3 flex items-center gap-2 text-left"
+              >
+                {repo.isLoading ? (
+                  <Loader2 size={10} className="shrink-0 animate-spin text-[#a3f185]" />
+                ) : (
+                  <span
+                    className={cn(
+                      'w-1.5 h-1.5 rounded-full shrink-0',
+                      isActive ? 'bg-[#a3f185] shadow-[0_0_10px_rgba(163,241,133,0.5)]' : 'bg-[#3c495a]',
+                    )}
+                  />
+                )}
+                <span className="truncate text-xs font-semibold">{repo.name}</span>
+                <span className="text-[10px] text-[#697789] font-mono truncate max-w-20 hidden md:block">
+                  {repo.currentBranch || '-'}
+                </span>
+              </button>
+              <button
+                type="button"
+                title={t('repoTabs.close', { repo: repo.name })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose(idx);
+                }}
+                className="mr-1 p-0.5 rounded text-[#697789] hover:text-[#ff716c] hover:bg-[#ff716c]/10 opacity-70 group-hover:opacity-100 transition"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          onClick={onOpen}
+          title={t('repoTabs.openAnother')}
+          className="app-titlebar-control h-8 w-8 mb-0 rounded-t-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#06182a] border border-transparent hover:border-[#3c495a]/15 transition-colors shrink-0"
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+      <div className="app-titlebar-control h-10 self-stretch flex items-stretch shrink-0">
+        <button
+          type="button"
+          aria-label="Minimizar"
+          title="Minimizar"
+          onClick={() => window.api?.windowMinimize()}
+          className="h-full w-11 flex items-center justify-center text-[#9eacc0] bg-[#020f1e] hover:bg-[#0b2035] hover:text-[#d9e7fc] transition-colors"
+        >
+          <Minus size={14} />
+        </button>
+        <button
+          type="button"
+          aria-label="Maximizar o restaurar"
+          title="Maximizar o restaurar"
+          onClick={() => window.api?.windowToggleMaximize()}
+          className="h-full w-11 flex items-center justify-center text-[#9eacc0] bg-[#020f1e] hover:bg-[#0b2035] hover:text-[#d9e7fc] transition-colors"
+        >
+          <Maximize2 size={13} />
+        </button>
+        <button
+          type="button"
+          aria-label="Cerrar"
+          title="Cerrar"
+          onClick={() => window.api?.windowClose()}
+          className="h-full w-11 flex items-center justify-center text-[#9eacc0] bg-[#020f1e] hover:bg-[#0b2035] hover:text-[#d9e7fc] transition-colors"
+        >
+          <X size={15} />
+        </button>
+      </div>
     </div>
   );
 }

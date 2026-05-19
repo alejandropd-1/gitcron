@@ -190,6 +190,9 @@ interface ElectronAPI {
   storageGet: (key: string) => Promise<GitResult<string | null>>;
   storageDelete: (key: string) => Promise<GitResult>;
   checkForUpdate: () => Promise<GitResult>;
+  windowMinimize: () => Promise<GitResult>;
+  windowToggleMaximize: () => Promise<GitResult<{ maximized: boolean }>>;
+  windowClose: () => Promise<GitResult>;
   onUpdateNotAvailable: (cb: () => void) => () => void;
   onUpdateError: (cb: (msg: string) => void) => () => void;
   onDownloadProgress: (cb: (info: { percent: number; transferred: number; total: number }) => void) => () => void;

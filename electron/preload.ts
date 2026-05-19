@@ -96,6 +96,9 @@ contextBridge.exposeInMainWorld('api', {
   storageGet: (key: string) => ipcRenderer.invoke('storage:get', key),
   storageDelete: (key: string) => ipcRenderer.invoke('storage:delete', key),
   checkForUpdate: () => ipcRenderer.invoke('app:check-update'),
+  windowMinimize: () => ipcRenderer.invoke('window:minimize'),
+  windowToggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
+  windowClose: () => ipcRenderer.invoke('window:close'),
   onUpdateNotAvailable: (cb: () => void) => {
     const handler = () => cb();
     ipcRenderer.on('update:not-available', handler);

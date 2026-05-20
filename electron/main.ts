@@ -16,6 +16,7 @@ const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 let repoPath: string | null = null;
 let manualUpdateCheck = false;
+let updateCheckTimer: ReturnType<typeof setInterval> | null = null;
 let git: SimpleGit = simpleGit();
 
 const repoWatchers = new Map<string, FSWatcher>();
@@ -410,38 +411,6 @@ function errMsg(error: unknown): string {
 
 // ─── Auto-update ──────────────────────────────────────────────────────
 
-const UPDATE_DIALOG_STRINGS: Record<string, Record<string, string>> = {
-  es: {
-    availableTitle:     'Actualización disponible',
-    availableDetail:    'GitCron {newVersion} está disponible (tenés la {currentVersion}). ¿Querés descargarla ahora?',
-    availableDownload:  'Descargar',
-    availableLater:     'Después',
-    downloadedTitle:    'Actualización lista',
-    downloadedDetail:   'La actualización se descargó. ¿Querés reiniciar para instalarla?',
-    downloadedInstall:  'Instalar ahora',
-    downloadedLater:    'Más tarde',
-  },
-  en: {
-    availableTitle:     'Update available',
-    availableDetail:    'GitCron {newVersion} is available (you have {currentVersion}). Download it now?',
-    availableDownload:  'Download',
-    availableLater:     'Later',
-    downloadedTitle:    'Update ready',
-    downloadedDetail:   'The update has been downloaded. Restart to install?',
-    downloadedInstall:  'Install now',
-    downloadedLater:    'Later',
-  },
-};
-
-function getUpdateDialogLang(): Record<string, string> {
-  try {
-    const lang = readEncryptedStorage()['language'] ?? 'es';
-    return UPDATE_DIALOG_STRINGS[lang] ?? UPDATE_DIALOG_STRINGS['es'];
-  } catch {
-    return UPDATE_DIALOG_STRINGS['es'];
-  }
-}
-
 function setupAutoUpdater() {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -453,31 +422,13 @@ function setupAutoUpdater() {
     transports: {},
   } as unknown as typeof autoUpdater.logger;
 
-  autoUpdater.on('update-available', async (info) => {
-    const s = getUpdateDialogLang();
-    const currentVersion = app.getVersion();
-    const newVersion = info.version;
-    const detail = s.availableDetail
-      .replace('{newVersion}', newVersion)
-      .replace('{currentVersion}', currentVersion);
-
-    const { response } = await dialog.showMessageBox({
-      type: 'info',
-      title: s.availableTitle,
-      message: `GitCron ${newVersion}`,
-      detail,
-      buttons: [s.availableDownload, s.availableLater],
-      defaultId: 0,
-      cancelId: 1,
+  autoUpdater.on('update-available', (info) => {
+    mainWindow?.webContents.send('update:available', {
+      version: info.version,
+      currentVersion: app.getVersion(),
+      releaseDate: info.releaseDate,
     });
-
     manualUpdateCheck = false;
-
-    if (response === 0) {
-      autoUpdater.downloadUpdate().catch((e) =>
-        console.error('[updater] download error:', sanitizeForLog(e))
-      );
-    }
   });
 
   autoUpdater.on('download-progress', (progress) => {
@@ -505,23 +456,23 @@ function setupAutoUpdater() {
     manualUpdateCheck = false;
   });
 
-  autoUpdater.on('update-downloaded', async () => {
+  autoUpdater.on('update-downloaded', (info) => {
     mainWindow?.setProgressBar(-1);
-    const s = getUpdateDialogLang();
-    const { response } = await dialog.showMessageBox({
-      type: 'info',
-      title: s.downloadedTitle,
-      message: s.downloadedTitle,
-      detail: s.downloadedDetail,
-      buttons: [s.downloadedInstall, s.downloadedLater],
-      defaultId: 0,
-      cancelId: 1,
+    mainWindow?.webContents.send('update:downloaded', {
+      version: info.version,
+      currentVersion: app.getVersion(),
+      releaseDate: info.releaseDate,
     });
-
-    if (response === 0) {
-      autoUpdater.quitAndInstall();
-    }
   });
+
+  if (!updateCheckTimer) {
+    updateCheckTimer = setInterval(() => {
+      manualUpdateCheck = false;
+      autoUpdater.checkForUpdates().catch((e) =>
+        console.error('[updater] scheduled check error:', sanitizeForLog(e))
+      );
+    }, 30 * 60 * 1000);
+  }
 }
 
 ipcMain.handle('app:check-update', async () => {
@@ -532,6 +483,26 @@ ipcMain.handle('app:check-update', async () => {
     return { success: true };
   } catch (error) {
     manualUpdateCheck = false;
+    return { success: false, error: errMsg(error) };
+  }
+});
+
+ipcMain.handle('app:download-update', async () => {
+  if (isDev) return { success: false, error: 'Updater disabled in dev mode' };
+  try {
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
+ipcMain.handle('app:install-update', async () => {
+  if (isDev) return { success: false, error: 'Updater disabled in dev mode' };
+  try {
+    autoUpdater.quitAndInstall();
+    return { success: true };
+  } catch (error) {
     return { success: false, error: errMsg(error) };
   }
 });
@@ -1802,6 +1773,10 @@ ipcMain.handle('repo:unwatch', async (_event, targetPath: string) => {
 });
 
 app.on('before-quit', async () => {
+  if (updateCheckTimer) {
+    clearInterval(updateCheckTimer);
+    updateCheckTimer = null;
+  }
   for (const [, watcher] of repoWatchers) {
     await watcher.close().catch(() => {});
   }

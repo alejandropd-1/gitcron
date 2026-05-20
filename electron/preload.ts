@@ -102,6 +102,8 @@ contextBridge.exposeInMainWorld('api', {
   storageGet: (key: string) => ipcRenderer.invoke('storage:get', key),
   storageDelete: (key: string) => ipcRenderer.invoke('storage:delete', key),
   checkForUpdate: () => ipcRenderer.invoke('app:check-update'),
+  downloadUpdate: () => ipcRenderer.invoke('app:download-update'),
+  installUpdate: () => ipcRenderer.invoke('app:install-update'),
   windowMinimize: () => ipcRenderer.invoke('window:minimize'),
   windowToggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
   windowClose: () => ipcRenderer.invoke('window:close'),
@@ -109,6 +111,16 @@ contextBridge.exposeInMainWorld('api', {
     const handler = () => cb();
     ipcRenderer.on('update:not-available', handler);
     return () => ipcRenderer.removeListener('update:not-available', handler);
+  },
+  onUpdateAvailable: (cb: (info: { version: string; currentVersion: string; releaseDate?: string }) => void) => {
+    const handler = (_e: unknown, info: { version: string; currentVersion: string; releaseDate?: string }) => cb(info);
+    ipcRenderer.on('update:available', handler);
+    return () => ipcRenderer.removeListener('update:available', handler);
+  },
+  onUpdateDownloaded: (cb: (info: { version: string; currentVersion: string; releaseDate?: string }) => void) => {
+    const handler = (_e: unknown, info: { version: string; currentVersion: string; releaseDate?: string }) => cb(info);
+    ipcRenderer.on('update:downloaded', handler);
+    return () => ipcRenderer.removeListener('update:downloaded', handler);
   },
   onUpdateError: (cb: (msg: string) => void) => {
     const handler = (_e: unknown, msg: string) => cb(msg);

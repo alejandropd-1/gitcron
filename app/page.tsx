@@ -57,6 +57,17 @@ type PullDecisionToast = {
   mode: 'behind' | 'diverged';
 };
 
+type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error';
+
+type UpdateInfo = {
+  version: string;
+  currentVersion: string;
+  releaseDate?: string;
+};
+
+const MOCK_UPDATE_ENABLED = process.env.NEXT_PUBLIC_MOCK_UPDATE === '1';
+const MOCK_UPDATE_VERSION = '1.3.1-dev';
+
 const FONT_SIZE_OPTIONS: Array<{ key: FontSize; px: number }> = [
   { key: 'compact', px: 15 },
   { key: 'normal', px: 16 },
@@ -706,11 +717,15 @@ export default function GitCronPage() {
   const [authMode, setAuthMode] = useState<'oauth' | 'token'>('oauth');
   const [deviceCodeInfo, setDeviceCodeInfo] = useState<{ userCode: string; verificationUri: string } | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [showUpdateMenu, setShowUpdateMenu] = useState(false);
   const newBranchInputRef = useRef<HTMLInputElement>(null);
   const searchPopoverRef = useRef<HTMLDivElement>(null);
   const searchButtonRef = useRef<HTMLDivElement>(null);
+  const updateMenuRef = useRef<HTMLDivElement>(null);
+  const mockUpdateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Auto-load repo data
   useEffect(() => {
@@ -853,6 +868,16 @@ export default function GitCronPage() {
   }, [showBranchFilterDropdown]);
 
   useEffect(() => {
+    if (!showUpdateMenu) return;
+    const handlePointerDown = (e: MouseEvent) => {
+      if (updateMenuRef.current?.contains(e.target as Node)) return;
+      setShowUpdateMenu(false);
+    };
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, [showUpdateMenu]);
+
+  useEffect(() => {
     if (!showSearchPopover) return;
     const updatePosition = () => {
       const buttonRect = searchButtonRef.current?.getBoundingClientRect();
@@ -881,39 +906,138 @@ export default function GitCronPage() {
 
   // Wire up auto-update IPC events from the main process.
   useEffect(() => {
+    if (MOCK_UPDATE_ENABLED) {
+      const timer = setTimeout(() => {
+        setUpdateInfo({
+          version: MOCK_UPDATE_VERSION,
+          currentVersion: pkg.version,
+          releaseDate: new Date().toISOString(),
+        });
+        setUpdateStatus('available');
+        setDownloadProgress(0);
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+
     if (!window.api?.onUpdateNotAvailable) return;
+    const unsubAvailable = window.api.onUpdateAvailable((info) => {
+      setUpdateInfo(info);
+      setUpdateStatus('available');
+      setDownloadProgress(0);
+    });
     const unsubNotAvailable = window.api.onUpdateNotAvailable(() => {
-      setIsCheckingUpdate(false);
-      setDownloadProgress(null);
+      setUpdateStatus('idle');
+      setUpdateInfo(null);
+      setDownloadProgress(0);
       setSuccess(t('update.toastNotAvailable'));
     });
     const unsubError = window.api.onUpdateError((msg: string) => {
-      setIsCheckingUpdate(false);
-      setDownloadProgress(null);
+      setUpdateStatus((status) => status === 'downloading' ? 'available' : 'error');
+      setDownloadProgress(0);
       setError(t('update.toastError', { error: msg }));
     });
     const unsubProgress = window.api.onDownloadProgress(({ percent }) => {
-      setIsCheckingUpdate(false);
+      setUpdateStatus('downloading');
       setDownloadProgress(percent);
     });
+    const unsubDownloaded = window.api.onUpdateDownloaded((info) => {
+      setUpdateInfo(info);
+      setUpdateStatus('downloaded');
+      setDownloadProgress(100);
+      setShowUpdateMenu(false);
+    });
     return () => {
+      unsubAvailable();
       unsubNotAvailable();
       unsubError();
       unsubProgress();
+      unsubDownloaded();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCheckForUpdate = async () => {
-    if (isCheckingUpdate) return;
-    setIsCheckingUpdate(true);
+    if (updateStatus === 'checking' || updateStatus === 'downloading') return;
+    if (MOCK_UPDATE_ENABLED) {
+      setUpdateStatus('checking');
+      setSuccess(t('update.toastChecking'));
+      window.setTimeout(() => {
+        setUpdateInfo({
+          version: MOCK_UPDATE_VERSION,
+          currentVersion: pkg.version,
+          releaseDate: new Date().toISOString(),
+        });
+        setUpdateStatus('available');
+        setDownloadProgress(0);
+        setSuccess(null);
+      }, 600);
+      return;
+    }
+
+    setUpdateStatus('checking');
     setSuccess(t('update.toastChecking'));
     const result = await window.api.checkForUpdate();
     if (!result.success) {
-      setIsCheckingUpdate(false);
+      setUpdateStatus('error');
       setError(result.error ?? t('update.toastError', { error: 'unknown' }));
     }
     // On success the IPC listeners (onUpdateNotAvailable / onUpdateError) handle the rest.
   };
+
+  const handleDownloadUpdate = async () => {
+    if (updateStatus === 'downloading') return;
+    if (MOCK_UPDATE_ENABLED) {
+      if (mockUpdateTimerRef.current) clearInterval(mockUpdateTimerRef.current);
+      setUpdateInfo((info) => info ?? {
+        version: MOCK_UPDATE_VERSION,
+        currentVersion: pkg.version,
+        releaseDate: new Date().toISOString(),
+      });
+      setUpdateStatus('downloading');
+      setDownloadProgress(0);
+      mockUpdateTimerRef.current = setInterval(() => {
+        setDownloadProgress((prev) => {
+          const next = Math.min(prev + 12, 100);
+          if (next >= 100) {
+            if (mockUpdateTimerRef.current) {
+              clearInterval(mockUpdateTimerRef.current);
+              mockUpdateTimerRef.current = null;
+            }
+            setUpdateStatus('downloaded');
+            setShowUpdateMenu(false);
+          }
+          return next;
+        });
+      }, 220);
+      return;
+    }
+
+    setUpdateStatus('downloading');
+    setDownloadProgress(0);
+    const result = await window.api.downloadUpdate();
+    if (!result.success) {
+      setUpdateStatus(updateInfo ? 'available' : 'error');
+      setError(result.error ?? t('update.toastError', { error: 'unknown' }));
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    if (MOCK_UPDATE_ENABLED) {
+      setSuccess(t('update.mockInstall'));
+      setShowUpdateMenu(false);
+      return;
+    }
+
+    const result = await window.api.installUpdate();
+    if (!result.success) {
+      setError(result.error ?? t('update.toastError', { error: 'unknown' }));
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (mockUpdateTimerRef.current) clearInterval(mockUpdateTimerRef.current);
+    };
+  }, []);
 
   const handleCreateBranch = async () => {
     const name = newBranchName.trim();
@@ -1151,10 +1275,20 @@ export default function GitCronPage() {
         </div>
 
         <div className="flex items-center justify-end gap-1 min-w-0">
-          {/* Version tag + GitHub icon / download progress */}
+          {/* Version tag + GitHub icon / update status */}
           <div className="flex items-center gap-1.5 mr-1">
-            {downloadProgress !== null ? (
-              <div className="w-32 flex items-center gap-1.5">
+            {updateStatus === 'downloaded' && (
+              <button
+                type="button"
+                onClick={handleInstallUpdate}
+                className="h-7 px-2.5 rounded border border-[#a3f185]/45 bg-[#a3f185]/18 text-[10px] font-bold text-[#a3f185] hover:bg-[#a3f185]/28 transition-colors"
+                title={t('update.install')}
+              >
+                UPDATE
+              </button>
+            )}
+            {updateStatus === 'downloading' && (
+              <div className="w-28 flex items-center gap-1.5">
                 <Download size={11} className="shrink-0 text-[#a3f185]" />
                 <div className="flex-1 h-1 bg-[#3c495a]/40 rounded-full overflow-hidden">
                   <div
@@ -1166,21 +1300,96 @@ export default function GitCronPage() {
                   {downloadProgress}%
                 </span>
               </div>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => window.api.shellOpenExternal('https://github.com/alejandropd-1/gitcron/releases/')}
-                  title="GitHub Releases"
-                  className="w-8 h-8 flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#172d45] rounded transition-colors"
-                >
-                  <Github size={16} />
-                </button>
-                <span className="text-[10px] font-mono font-bold text-[#052900] bg-[#a3f185] border border-[#68b24f] rounded px-2 py-0.5 select-none">
-                  v{pkg.version}
-                </span>
-              </>
             )}
+            <button
+              type="button"
+              onClick={() => window.api.shellOpenExternal('https://github.com/alejandropd-1/gitcron/releases/')}
+              title="GitHub Releases"
+              className="w-8 h-8 flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#12273c]/70 rounded transition-colors"
+            >
+              <Github size={16} />
+            </button>
+            <div className="relative" ref={updateMenuRef}>
+              <button
+                type="button"
+                onClick={() => setShowUpdateMenu((v) => !v)}
+                className="relative text-[10px] font-mono font-bold text-[#052900] bg-[#a3f185] border border-[#68b24f] rounded px-2 py-0.5 select-none hover:brightness-110 transition"
+                title={updateInfo ? t('update.availableTitle', { version: updateInfo.version }) : t('settings.version')}
+              >
+                v{pkg.version}
+                {(updateStatus === 'available' || updateStatus === 'downloaded') && (
+                  <span className="absolute -right-1 -top-1 w-2 h-2 rounded-full bg-[#fd9d1a] ring-2 ring-[#041425] shadow-[0_0_8px_rgba(253,157,26,0.9)]" />
+                )}
+              </button>
+              <AnimatePresence>
+                {showUpdateMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-[#3c495a]/25 bg-[#12273c]/95 backdrop-blur-xl shadow-2xl shadow-black/40 p-3 z-[220]"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className={cn(
+                        'mt-1 h-2 w-2 rounded-full shrink-0',
+                        updateStatus === 'available' || updateStatus === 'downloaded'
+                          ? 'bg-[#fd9d1a] shadow-[0_0_8px_rgba(253,157,26,0.8)]'
+                          : 'bg-[#3c495a]',
+                      )} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-[#d9e7fc]">
+                          {updateInfo
+                            ? t('update.availableTitle', { version: updateInfo.version })
+                            : t('update.currentTitle')}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-[#9eacc0]">
+                          {updateInfo
+                            ? t('update.currentVersion', { version: pkg.version })
+                            : t('update.currentDesc')}
+                        </p>
+                      </div>
+                    </div>
+                    {updateStatus === 'downloading' && (
+                      <div className="mt-3 flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-[#041425]/90 rounded-full overflow-hidden">
+                          <div className="h-full bg-[#a3f185] rounded-full transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
+                        </div>
+                        <span className="text-[10px] font-mono text-[#a3f185] w-8 text-right">{downloadProgress}%</span>
+                      </div>
+                    )}
+                    <div className="mt-3 flex items-center gap-2">
+                      {updateStatus === 'available' && (
+                        <button
+                          type="button"
+                          onClick={handleDownloadUpdate}
+                          className="flex-1 px-3 py-2 rounded border border-[#a3f185]/40 bg-[#a3f185]/15 text-xs font-bold text-[#a3f185] hover:bg-[#a3f185]/25 transition-colors"
+                        >
+                          {t('update.download')}
+                        </button>
+                      )}
+                      {updateStatus === 'downloaded' && (
+                        <button
+                          type="button"
+                          onClick={handleInstallUpdate}
+                          className="flex-1 px-3 py-2 rounded border border-[#a3f185]/45 bg-[#a3f185]/18 text-xs font-bold text-[#a3f185] hover:bg-[#a3f185]/28 transition-colors"
+                        >
+                          UPDATE
+                        </button>
+                      )}
+                      {(updateStatus === 'idle' || updateStatus === 'error') && (
+                        <button
+                          type="button"
+                          onClick={handleCheckForUpdate}
+                          className="flex-1 px-3 py-2 rounded border border-[#3c495a]/25 bg-[#041425]/70 text-xs font-semibold text-[#9eacc0] hover:text-[#a3f185] hover:border-[#a3f185]/35 transition-colors"
+                        >
+                          {t('settings.checkUpdatesButton')}
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
           <ToolbarButton icon={<Terminal />} onClick={openTerminal} title={t('toolbar.terminal')} disabled={!repoPath} />
@@ -1194,7 +1403,7 @@ export default function GitCronPage() {
                 title={graphShowAllBranches ? t('graph.allBranches') : t('graph.currentBranch')}
                 className={cn(
                   'flex flex-col items-center justify-center p-1.5 rounded transition-colors group',
-                  'hover:bg-[#3c495a]',
+                  'hover:bg-[#12273c]/70',
                   !graphShowAllBranches && 'text-[#a3f185]',
                 )}
               >
@@ -1215,7 +1424,7 @@ export default function GitCronPage() {
                     initial={{ opacity: 0, scale: 0.95, y: -4 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                    className="absolute right-0 top-full mt-1 bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/30 rounded-lg shadow-2xl py-1 z-50 w-44"
+                    className="absolute right-0 top-full mt-1 bg-[#12273c]/95 backdrop-blur-xl border border-[#3c495a]/25 rounded-lg shadow-2xl shadow-black/40 py-1 z-50 w-44"
                     onClick={() => setShowBranchFilterDropdown(false)}
                   >
                     <button
@@ -1313,7 +1522,7 @@ export default function GitCronPage() {
       {showSearchPopover && searchPopoverPos && (
         <div
           ref={searchPopoverRef}
-          className="fixed w-[360px] rounded-md border border-[#3c495a]/25 bg-[#081a2d]/98 backdrop-blur-xl shadow-2xl shadow-black/40 p-2 z-[200]"
+          className="fixed w-[360px] rounded-lg border border-[#3c495a]/25 bg-[#12273c]/95 backdrop-blur-xl shadow-2xl shadow-black/40 p-2 z-[200]"
           style={{ top: searchPopoverPos.top, right: searchPopoverPos.right }}
         >
           <div className="relative">
@@ -1322,7 +1531,7 @@ export default function GitCronPage() {
               ref={filterInputRef}
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
-              className="w-full bg-[#12273c]/95 border border-[#3c495a]/20 rounded px-8 py-2 text-sm text-[#d9e7fc] focus:outline-none focus:border-[#a3f185]/55"
+              className="w-full bg-[#041425]/70 border border-[#3c495a]/20 rounded px-8 py-2 text-sm text-[#d9e7fc] focus:outline-none focus:border-[#a3f185]/55"
               placeholder={t('toolbar.filter')}
             />
             {filterText && (
@@ -2232,18 +2441,65 @@ export default function GitCronPage() {
                     <RotateCcw size={12} /> {t('settings.checkUpdates')}
                   </h4>
                   <p className="text-xs text-[#9eacc0] mb-3">{t('settings.checkUpdatesDesc')}</p>
-                  <button
-                    type="button"
-                    onClick={handleCheckForUpdate}
-                    disabled={isCheckingUpdate}
-                    className="px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:border-[#a3f185]/40 hover:text-[#a3f185] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isCheckingUpdate
-                      ? <Loader2 size={14} className="animate-spin" />
-                      : <RotateCcw size={14} />
-                    }
-                    <span className="font-medium">{t('settings.checkUpdatesButton')}</span>
-                  </button>
+                  <div className="rounded border border-[#3c495a]/15 bg-[#041425]/70 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#d9e7fc]">
+                          {updateInfo
+                            ? t('update.availableTitle', { version: updateInfo.version })
+                            : t('update.currentTitle')}
+                        </p>
+                        <p className="mt-0.5 text-xs text-[#9eacc0]">
+                          {updateInfo
+                            ? t('update.currentVersion', { version: pkg.version })
+                            : t('update.currentDesc')}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {updateStatus === 'available' && (
+                          <button
+                            type="button"
+                            onClick={handleDownloadUpdate}
+                            className="px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors bg-[#a3f185]/15 border-[#a3f185]/45 text-[#a3f185] hover:bg-[#a3f185]/25"
+                          >
+                            <Download size={14} />
+                            <span className="font-medium">{t('update.download')}</span>
+                          </button>
+                        )}
+                        {updateStatus === 'downloaded' && (
+                          <button
+                            type="button"
+                            onClick={handleInstallUpdate}
+                            className="px-3 py-2 rounded border text-sm font-bold transition-colors bg-[#a3f185]/15 border-[#a3f185]/45 text-[#a3f185] hover:bg-[#a3f185]/25"
+                          >
+                            UPDATE
+                          </button>
+                        )}
+                        {(updateStatus === 'idle' || updateStatus === 'checking' || updateStatus === 'error') && (
+                          <button
+                            type="button"
+                            onClick={handleCheckForUpdate}
+                            disabled={updateStatus === 'checking'}
+                            className="px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors bg-[#041425]/70 border-[#3c495a]/15 text-[#9eacc0] hover:border-[#a3f185]/40 hover:text-[#a3f185] disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {updateStatus === 'checking'
+                              ? <Loader2 size={14} className="animate-spin" />
+                              : <RotateCcw size={14} />
+                            }
+                            <span className="font-medium">{t('settings.checkUpdatesButton')}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {updateStatus === 'downloading' && (
+                      <div className="mt-3 flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-[#12273c] rounded-full overflow-hidden">
+                          <div className="h-full bg-[#a3f185] rounded-full transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
+                        </div>
+                        <span className="text-[10px] font-mono text-[#a3f185] w-8 text-right">{downloadProgress}%</span>
+                      </div>
+                    )}
+                  </div>
                 </section>
               </div>
             </motion.div>

@@ -245,6 +245,13 @@ const es: Dict = {
   'update.toastChecking': 'Buscando actualizaciones...',
   'update.toastNotAvailable': 'Ya tenés la última versión',
   'update.toastError': 'Error al buscar actualizaciones: {{error}}',
+  'update.availableTitle': 'GitCron {{version}} disponible',
+  'update.currentVersion': 'Tenés instalada la versión {{version}}',
+  'update.currentTitle': 'GitCron está actualizado',
+  'update.currentDesc': 'La app busca updates automáticamente en producción.',
+  'update.download': 'Descargar',
+  'update.install': 'Instalar actualización',
+  'update.mockInstall': 'Mock de update listo: en producción este botón reinicia e instala.',
 
   // ── Profile Menu ──
   'profile.notConnected': 'No estás conectado',
@@ -624,6 +631,13 @@ const en: Dict = {
   'update.toastChecking': 'Checking for updates...',
   'update.toastNotAvailable': 'You already have the latest version',
   'update.toastError': 'Failed to check for updates: {{error}}',
+  'update.availableTitle': 'GitCron {{version}} available',
+  'update.currentVersion': 'You have version {{version}} installed',
+  'update.currentTitle': 'GitCron is up to date',
+  'update.currentDesc': 'The app checks for updates automatically in production.',
+  'update.download': 'Download',
+  'update.install': 'Install update',
+  'update.mockInstall': 'Update mock ready: in production this button restarts and installs.',
 
   // ── Profile ──
   'profile.notConnected': 'Not signed in',

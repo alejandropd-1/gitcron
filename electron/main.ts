@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, Menu, protocol, net } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import { pathToFileURL } from 'url';
 import { spawn } from 'child_process';
 import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
 import { Octokit } from '@octokit/rest';
@@ -93,6 +94,13 @@ function sanitizeForLog(value: unknown): string {
 }
 
 function createSplash(): BrowserWindow {
+  const publicDir = path.join(__dirname, '../../public');
+  const resourcesDir = isDev ? publicDir : process.resourcesPath;
+  const iconPath = path.join(resourcesDir, 'gitcron-icon.png');
+  const iconUrl = fs.existsSync(iconPath)
+    ? pathToFileURL(iconPath).toString()
+    : '';
+
   const splash = new BrowserWindow({
     width: 420,
     height: 280,
@@ -110,21 +118,61 @@ function createSplash(): BrowserWindow {
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
-  background:#020f1e; border:1px solid #3c495a55; border-radius:16px;
+  background:radial-gradient(circle at 50% 22%, #173557 0%, #06192d 38%, #020f1e 100%);
+  border:1px solid #3c495a55; border-radius:18px;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  height:100vh; font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;
+  height:100vh; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   color:#d9e7fc; overflow:hidden; -webkit-app-region:drag;
+  box-shadow:0 26px 80px rgba(0,0,0,.45);
 }
-.logo { font-size:42px; font-weight:800; color:#a3f185; letter-spacing:-1px; }
-.sub  { font-size:13px; color:#9eacc0; margin-top:6px; letter-spacing:0.5px; }
-.bar  { width:200px; height:3px; background:#172d45; border-radius:4px; margin-top:32px; overflow:hidden; }
+.stage { position:relative; width:150px; height:118px; display:flex; align-items:center; justify-content:center; }
+.tile {
+  position:absolute; width:16px; height:16px; border-radius:4px;
+  background:linear-gradient(135deg, rgba(163,241,133,.95), rgba(94,216,255,.72));
+  box-shadow:0 0 18px rgba(163,241,133,.28);
+  opacity:.18; animation:tilePulse 1.6s ease-in-out infinite;
+}
+.tile:nth-child(1){ left:14px; top:18px; animation-delay:0s; }
+.tile:nth-child(2){ right:22px; top:10px; width:12px; height:12px; animation-delay:.15s; }
+.tile:nth-child(3){ left:34px; bottom:18px; width:10px; height:10px; animation-delay:.3s; }
+.tile:nth-child(4){ right:12px; bottom:28px; animation-delay:.45s; }
+.tile:nth-child(5){ left:8px; top:66px; width:9px; height:9px; animation-delay:.6s; }
+.tile:nth-child(6){ right:48px; bottom:8px; width:11px; height:11px; animation-delay:.75s; }
+.tile:nth-child(7){ left:60px; top:2px; width:8px; height:8px; animation-delay:.9s; }
+.tile:nth-child(8){ right:68px; top:74px; width:9px; height:9px; animation-delay:1.05s; }
+.mark {
+  width:70px; height:70px; border-radius:16px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(2,15,30,.42); border:1px solid rgba(163,241,133,.32);
+  box-shadow:0 18px 42px rgba(0,0,0,.28), 0 0 34px rgba(163,241,133,.18);
+  position:relative; z-index:2; overflow:hidden;
+}
+.mark::after {
+  content:""; position:absolute; inset:-40%; transform:rotate(20deg);
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.14), transparent);
+  animation:sheen 2.2s ease-in-out infinite;
+}
+.icon { width:52px; height:52px; border-radius:12px; object-fit:cover; position:relative; z-index:1; }
+.fallback { font-size:38px; font-weight:900; color:#a3f185; position:relative; z-index:1; }
+.logo { font-size:34px; font-weight:800; color:#a3f185; letter-spacing:0; margin-top:2px; }
+.sub  { font-size:12px; color:#9eacc0; margin-top:6px; letter-spacing:0.5px; }
+.bar  { width:200px; height:3px; background:#172d45; border-radius:4px; margin-top:28px; overflow:hidden; }
 .fill {
   height:100%; background:linear-gradient(90deg,#a3f185,#68b24f);
-  border-radius:4px; animation:load 1.4s ease-in-out forwards;
+  border-radius:4px; animation:load 1.4s ease-in-out infinite;
 }
-@keyframes load { from{width:0%} to{width:100%} }
+@keyframes load { 0%{width:0%; transform:translateX(-18px)} 55%{width:100%; transform:translateX(0)} 100%{width:100%; transform:translateX(18px)} }
+@keyframes tilePulse { 0%,100%{ opacity:.12; transform:translateY(4px) scale(.74); } 45%{ opacity:.78; transform:translateY(0) scale(1); } }
+@keyframes sheen { 0%,35%{ transform:translateX(-70%) rotate(20deg); opacity:0; } 55%{ opacity:1; } 80%,100%{ transform:translateX(70%) rotate(20deg); opacity:0; } }
 </style></head>
 <body>
+  <div class="stage">
+    <span class="tile"></span><span class="tile"></span><span class="tile"></span><span class="tile"></span>
+    <span class="tile"></span><span class="tile"></span><span class="tile"></span><span class="tile"></span>
+    <div class="mark">
+      ${iconUrl ? `<img class="icon" src="${iconUrl}" alt="GitCron">` : '<div class="fallback">G</div>'}
+    </div>
+  </div>
   <div class="logo">GitCron</div>
   <div class="sub">Advanced Git Client</div>
   <div class="bar"><div class="fill"></div></div>
@@ -156,6 +204,7 @@ function createWindow() {
   const iconExists = fs.existsSync(iconPath);
 
   // Show splash while the renderer loads.
+  const splashStartedAt = Date.now();
   const splash = createSplash();
 
   mainWindow = new BrowserWindow({
@@ -182,20 +231,26 @@ function createWindow() {
 
   mainWindow.loadURL(url);
 
-  // Close splash and show main window maximized once ready.
+  // Close splash and show main window maximized once ready. Keep the splash
+  // visible for a short minimum so startup never flashes through partial UI.
   mainWindow.once('ready-to-show', () => {
-    splash.destroy();
-    mainWindow!.maximize();
-    mainWindow!.show();
-    // Silent update check 3 s after the app is visible (not in dev).
-    if (!isDev) {
-      setTimeout(() => {
-        manualUpdateCheck = false;
-        autoUpdater.checkForUpdates().catch((e) =>
-          console.error('[updater] silent check error:', sanitizeForLog(e))
-        );
-      }, 3000);
-    }
+    const showMainWindow = () => {
+      if (!mainWindow) return;
+      if (!splash.isDestroyed()) splash.destroy();
+      mainWindow.maximize();
+      mainWindow.show();
+      // Silent update check 3 s after the app is visible (not in dev).
+      if (!isDev) {
+        setTimeout(() => {
+          manualUpdateCheck = false;
+          autoUpdater.checkForUpdates().catch((e) =>
+            console.error('[updater] silent check error:', sanitizeForLog(e))
+          );
+        }, 3000);
+      }
+    };
+    const remainingSplashMs = Math.max(0, 1000 - (Date.now() - splashStartedAt));
+    setTimeout(showMainWindow, remainingSplashMs);
   });
 
   // DevTools toggle in dev only: Ctrl+Shift+I (Win/Linux) or Cmd+Option+I (macOS).

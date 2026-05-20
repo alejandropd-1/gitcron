@@ -726,11 +726,22 @@ export default function GitCronPage() {
   const searchButtonRef = useRef<HTMLDivElement>(null);
   const updateMenuRef = useRef<HTMLDivElement>(null);
   const mockUpdateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [isStartupHydrated, setIsStartupHydrated] = useState(false);
+  const [isStartupGraphReady, setIsStartupGraphReady] = useState(false);
 
   // Auto-load repo data
   useEffect(() => {
-    if (repoPath) loadAll(repoPath);
-  }, [repoPath]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!repoPath) {
+      if (isStartupHydrated) setIsStartupGraphReady(true);
+      return;
+    }
+    let cancelled = false;
+    setIsStartupGraphReady(false);
+    loadAll(repoPath).finally(() => {
+      if (!cancelled) setIsStartupGraphReady(true);
+    });
+    return () => { cancelled = true; };
+  }, [repoPath, isStartupHydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load files changed in selected commit
   useEffect(() => {
@@ -797,9 +808,17 @@ export default function GitCronPage() {
 
   // Hydrate preferences (language) + GitHub auth + last opened repo on startup.
   useEffect(() => {
-    bootstrapPreferences();
-    bootstrapGitHub();
-    restoreLastRepo(); // silently tries to reopen the last repo; no-op if none saved
+    let cancelled = false;
+    const hydrateStartup = async () => {
+      bootstrapPreferences();
+      bootstrapGitHub();
+      await restoreLastRepo(); // silently tries to reopen the last repo; no-op if none saved
+      if (cancelled) return;
+      setIsStartupHydrated(true);
+      if (!useGitStore.getState().repoPath) setIsStartupGraphReady(true);
+    };
+    void hydrateStartup();
+    return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -1892,20 +1911,32 @@ export default function GitCronPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto">
-                {commits.length === 0 && isLoading && (
+                {!isStartupGraphReady && (
+                  <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-[#9eacc0] text-sm">
+                    <Loader2 size={18} className="animate-spin mb-3 text-[#a3f185]" />
+                    <p>Cargando graph...</p>
+                  </div>
+                )}
+                {isStartupGraphReady && commits.length === 0 && isLoading && (
                   <p className="px-4 py-8 text-center text-[#9eacc0] text-sm">Cargando commits...</p>
                 )}
-                {commits.length > 0 && (
-                  <CommitGraph
-                    commits={commits}
-                    selectedHash={selectedCommit?.hash}
-                    currentBranch={currentBranch}
-                    workingTreeFiles={modifiedFiles}
-                    filterText={filterText}
-                    columnWidths={graphColumns}
-                    onSelect={handleSelectCommit}
-                    onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
-                  />
+                {isStartupGraphReady && commits.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                  >
+                    <CommitGraph
+                      commits={commits}
+                      selectedHash={selectedCommit?.hash}
+                      currentBranch={currentBranch}
+                      workingTreeFiles={modifiedFiles}
+                      filterText={filterText}
+                      columnWidths={graphColumns}
+                      onSelect={handleSelectCommit}
+                      onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
+                    />
+                  </motion.div>
                 )}
               </div>
             </div>

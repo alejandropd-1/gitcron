@@ -10,6 +10,21 @@ No changes yet.
 
 ---
 
+## [v1.3.2] - 2026-05-20 - Splash polish + Graph reveal
+
+### UX
+
+- Reworked the Electron splash screen with the GitCron icon, subtle geometric fade animation, and a minimum visible duration to avoid startup flicker.
+- Added a stable startup loading state for the Graph while the initial repo restore/load completes.
+- Revealed the Graph container with a short fade-in after initial repo data is ready, avoiding the visual effect of lanes and layout settling on screen.
+
+### Docs
+
+- Bumped the app version to `v1.3.2` in `package.json`.
+- Updated the README version badge, installer filenames, startup polish note, and current-version note.
+
+---
+
 ## [v1.3.1] - 2026-05-20 - Update UX polish + dev mock
 
 ### UX

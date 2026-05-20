@@ -464,6 +464,26 @@ function errMsg(error: unknown): string {
   return sanitizeForLog(e?.message ?? String(error));
 }
 
+function normalizeSafeDirectoryPath(targetPath: string): string {
+  return path.resolve(targetPath).replace(/\\/g, '/');
+}
+
+function isDubiousOwnershipError(message: string): boolean {
+  return /detected dubious ownership|safe\.directory/i.test(message);
+}
+
+function repoAccessErrMsg(error: unknown, targetPath: string): string {
+  const message = errMsg(error);
+  if (!isDubiousOwnershipError(message)) return message;
+
+  const safePath = normalizeSafeDirectoryPath(targetPath);
+  return [
+    `Git bloqueo "${path.basename(targetPath)}" porque la carpeta pertenece a otro usuario o a Administradores.`,
+    'Esto puede pasar si el repo se clono desde una terminal elevada o con otra cuenta de Windows.',
+    `Podés confiar esta carpeta desde GitCron o correr: git config --global --add safe.directory ${safePath}`,
+  ].join('\n');
+}
+
 // ─── Auto-update ──────────────────────────────────────────────────────
 
 function setupAutoUpdater() {
@@ -670,11 +690,12 @@ ipcMain.handle('git:open-path', async (_event, dirPath: string) => {
     };
     return { success: true, data: info };
   } catch (error: any) {
-    return { success: false, error: errMsg(error) };
+    return { success: false, error: repoAccessErrMsg(error, dirPath) };
   }
 });
 
 ipcMain.handle('git:open-repo', async (_event, defaultPath?: string) => {
+  let selectedPath = '';
   try {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory'],
@@ -686,7 +707,7 @@ ipcMain.handle('git:open-repo', async (_event, defaultPath?: string) => {
       return { success: false, error: 'No se seleccionó ninguna carpeta' };
     }
 
-    const selectedPath = result.filePaths[0];
+    selectedPath = result.filePaths[0];
     const testGit = simpleGit(selectedPath);
     const isRepo = await testGit.checkIsRepo();
 
@@ -708,6 +729,30 @@ ipcMain.handle('git:open-repo', async (_event, defaultPath?: string) => {
       isGitRepo: true,
     };
     return { success: true, data: repoInfo };
+  } catch (error: any) {
+    return { success: false, error: selectedPath ? repoAccessErrMsg(error, selectedPath) : errMsg(error) };
+  }
+});
+
+ipcMain.handle('git:trust-safe-directory', async (_event, targetPath: string) => {
+  try {
+    if (!targetPath || typeof targetPath !== 'string') {
+      return { success: false, error: 'Ruta de repositorio invalida' };
+    }
+
+    const resolvedPath = path.resolve(targetPath);
+    if (!fs.existsSync(resolvedPath) || !fs.statSync(resolvedPath).isDirectory()) {
+      return { success: false, error: `La carpeta ya no existe: ${targetPath}` };
+    }
+
+    const gitMarker = path.join(resolvedPath, '.git');
+    if (!fs.existsSync(gitMarker)) {
+      return { success: false, error: `"${path.basename(resolvedPath)}" no parece un repositorio git` };
+    }
+
+    const safePath = normalizeSafeDirectoryPath(resolvedPath);
+    await simpleGit().raw(['config', '--global', '--add', 'safe.directory', safePath]);
+    return { success: true, data: { path: safePath } };
   } catch (error: any) {
     return { success: false, error: errMsg(error) };
   }

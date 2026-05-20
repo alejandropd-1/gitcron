@@ -10,6 +10,20 @@ No changes yet.
 
 ---
 
+## [v1.3.3] - 2026-05-20 - Safe directory recovery
+
+### Fixes
+
+- Added recovery for Git's `fatal: detected dubious ownership` / `safe.directory` error when opening a repo owned by another Windows account or Administrators.
+- The error toast now explains the ownership issue and offers `Confiar carpeta`, which runs `git config --global --add safe.directory <repo>` and reopens the repo.
+
+### Docs
+
+- Bumped the app version to `v1.3.3` in `package.json`.
+- Updated the README version badge, installer filenames, and current-version note.
+
+---
+
 ## [v1.3.2] - 2026-05-20 - Splash polish + Graph reveal
 
 ### UX

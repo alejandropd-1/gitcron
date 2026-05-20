@@ -166,6 +166,7 @@ interface ElectronAPI {
   gitStageBatch: (repoPath: string, filePaths: string[]) => Promise<GitResult>;
   gitUnstageBatch: (repoPath: string, filePaths: string[]) => Promise<GitResult>;
   gitRemoveLock: (repoPath: string) => Promise<GitResult<{ removed: boolean }>>;
+  gitTrustSafeDirectory: (repoPath: string) => Promise<GitResult<{ path: string }>>;
   gitAmend: (repoPath: string, newMessage?: string) => Promise<GitResult<{ hash: string; shortHash: string }>>;
   gitCherryPick: (repoPath: string, hash: string) => Promise<GitResult>;
   gitSquash: (repoPath: string, n: number, message: string) => Promise<GitResult<{ hash: string; shortHash: string }>>;

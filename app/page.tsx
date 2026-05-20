@@ -103,6 +103,20 @@ function userInitials(user: { name?: string | null; login?: string; email?: stri
   return '?';
 }
 
+function isSafeDirectoryError(message: string): boolean {
+  return /detected dubious ownership|safe\.directory/i.test(message);
+}
+
+function safeDirectoryPathFromError(message: string): string | null {
+  const repoMatch = message.match(/repository at ['"]([^'"]+)['"]/i);
+  if (repoMatch?.[1]) return repoMatch[1].trim();
+
+  const commandMatch = message.match(/safe\.directory\s+(.+?)(?:\r?\n|$)/i);
+  if (!commandMatch?.[1]) return null;
+
+  return commandMatch[1].trim().replace(/^['"`]+|['"`]+$/g, '').replace(/[.)]+$/, '');
+}
+
 function RepoTabs({
   repos,
   activeIdx,
@@ -529,7 +543,7 @@ export default function GitCronPage() {
   const appFontSizePx = FONT_SIZE_OPTIONS.find((option) => option.key === fontSize)?.px ?? 15;
 
   const {
-    openRepo, restoreLastRepo, closeRepo, loadAll, loadDiff, refreshLog,
+    openRepo, trustSafeDirectory, restoreLastRepo, closeRepo, loadAll, loadDiff, refreshLog,
     pickFolder, initRepo, cloneRepo, createGitHubRepo, listUserGitHubRepos,
   } = useRepoLoader();
 
@@ -555,6 +569,15 @@ export default function GitCronPage() {
       mode: tracking.ahead > 0 ? 'diverged' : 'behind',
     });
     return true;
+  };
+
+  const safeDirectoryTrustPath = error ? safeDirectoryPathFromError(error) : null;
+  const canTrustSafeDirectory = !!error && isSafeDirectoryError(error) && !!(safeDirectoryTrustPath || repoPath);
+
+  const handleTrustSafeDirectory = async () => {
+    const targetPath = safeDirectoryTrustPath ?? repoPath;
+    if (!targetPath) return;
+    await trustSafeDirectory(targetPath);
   };
 
   const handlePushIntent = () => {
@@ -2175,7 +2198,7 @@ export default function GitCronPage() {
             className="fixed bottom-4 left-1/2 -translate-x-1/2 p-3 bg-[#9f0519] text-[#ffdad6] rounded-lg shadow-2xl flex items-start gap-3 z-50 border border-[#ffa8a3]/20 max-w-xl"
           >
             <AlertCircle size={20} className="shrink-0 mt-0.5" />
-            <span className="text-sm font-medium flex-1">{error}</span>
+            <span className="text-sm font-medium flex-1 whitespace-pre-line">{error}</span>
             {/* Recovery action when git index is locked */}
             {error.toLowerCase().includes('index.lock') && (
               <button
@@ -2187,6 +2210,16 @@ export default function GitCronPage() {
                 title="Borra .git/index.lock y refresca el estado"
               >
                 Eliminar lock
+              </button>
+            )}
+            {canTrustSafeDirectory && (
+              <button
+                onClick={handleTrustSafeDirectory}
+                disabled={isLoading}
+                className="shrink-0 px-3 py-1 text-xs font-bold bg-[#ffa8a3]/20 hover:bg-[#ffa8a3]/30 text-[#ffdad6] rounded transition-colors disabled:opacity-50"
+                title="Agrega esta carpeta a git config --global safe.directory y vuelve a abrirla"
+              >
+                Confiar carpeta
               </button>
             )}
             <button onClick={() => setError(null)} className="hover:opacity-70 shrink-0">

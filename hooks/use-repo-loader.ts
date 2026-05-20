@@ -30,6 +30,7 @@ export const useRepoLoader = () => {
     setCurrentDiff,
     setLoading,
     setError,
+    setSuccess,
   } = useGitStore();
 
   const persistOpenRepos = async () => {
@@ -73,6 +74,35 @@ export const useRepoLoader = () => {
       else setError(result.error ?? 'No se pudo abrir el repositorio');
     } catch (err: any) {
       setError(err.message ?? 'Error al abrir el repositorio');
+    } finally {
+      setLoading(false);
+      if (prevPath) updateRepoByPath(prevPath, { isLoading: false });
+    }
+  };
+
+  const trustSafeDirectory = async (targetPath: string) => {
+    if (!window.api) { setError('Electron API no disponible'); return false; }
+    const prevPath = useGitStore.getState().repoPath;
+    setLoading(true); setError(null);
+    try {
+      const trusted = await window.api.gitTrustSafeDirectory(targetPath);
+      if (!trusted.success) {
+        setError(trusted.error ?? 'No se pudo marcar la carpeta como segura');
+        return false;
+      }
+
+      const opened = await window.api.openPath(targetPath);
+      if (opened.success && opened.data) {
+        await applyRepoInfo(opened.data);
+        setSuccess(`Carpeta confiada: ${opened.data.name}`);
+        return true;
+      }
+
+      setError(opened.error ?? 'La carpeta se marco como segura, pero no se pudo abrir');
+      return false;
+    } catch (err: any) {
+      setError(err.message ?? 'No se pudo marcar la carpeta como segura');
+      return false;
     } finally {
       setLoading(false);
       if (prevPath) updateRepoByPath(prevPath, { isLoading: false });
@@ -411,6 +441,7 @@ export const useRepoLoader = () => {
 
   return {
     openRepo,
+    trustSafeDirectory,
     restoreLastRepo,
     closeRepo,
     pickFolder,

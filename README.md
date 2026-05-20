@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.3.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.3.1-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -105,6 +105,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - OS notifications: native alerts when push/pull takes >3s or the window is unfocused, and when auto-fetch detects new remote commits.
 - Configurable keyboard shortcuts: 14 actions (commit, push, pull, branch, fetch, search, etc.) editable from Settings with click-to-capture rebind.
 - Theme toggle in Settings: dark (default) and experimental light mode.
+- Auto-update now stays inside the app UI: a version-tag dot announces updates, the tag opens the download dropdown, progress stays beside the GitHub releases icon, and `UPDATE` appears there when the download is ready.
 - Spanish and English UI strings.
 
 ---
@@ -280,9 +281,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.3.0.exe`                                             |
-| macOS    | `GitCron-1.3.0.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.3.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.3.1.exe`                                             |
+| macOS    | `GitCron-1.3.1.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.3.1.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -290,11 +291,12 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 ## Auto-update
 
-GitCron checks for updates silently 3 seconds after the main window appears. If a new version is available on [GitHub Releases](https://github.com/alejandropd-1/gitcron/releases), a native dialog asks whether to download it. A second dialog appears once the download finishes, letting you install immediately or on next close.
+GitCron checks for updates silently 3 seconds after the main window appears and then keeps checking every 30 minutes while the app is open. If a new version is available on [GitHub Releases](https://github.com/alejandropd-1/gitcron/releases), a dot appears on the version tag in the topbar. Clicking the tag opens an in-app dropdown with the new version and a download action. Download progress appears beside the GitHub releases icon, and an `UPDATE` button appears there once the update is ready to install.
 
-- **No update:** no dialog, no toast.
-- **Manual check:** open Settings → _Buscar actualizaciones_ / _Check for updates_.
+- **No update:** no dialog, no toast for silent background checks.
+- **Manual check:** open Settings → _Buscar actualizaciones_ / _Check for updates_, or click the version tag.
 - **Platforms:** Windows (NSIS) and Linux (AppImage) auto-update without code signing. macOS auto-update is inactive until the app is signed.
+- **Dev mock:** set `NEXT_PUBLIC_MOCK_UPDATE=1` before `pnpm run electron:dev` to preview the update dot, dropdown, progress bar, and `UPDATE` button without publishing a release.
 
 ---
 
@@ -328,7 +330,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-`v1.3.0` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v1.3.1` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

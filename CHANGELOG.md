@@ -10,6 +10,27 @@ No changes yet.
 
 ---
 
+## [v1.3.1] - 2026-05-20 - Update UX polish + dev mock
+
+### UX
+
+- Replaced the native Windows update dialogs with an in-app update experience driven from the version tag in the topbar.
+- Added a notification dot on the version tag when an update is available, plus a dropdown that shows the new version and a `Descargar` / `Download` action.
+- Moved update download progress and the final `UPDATE` install action next to the GitHub releases icon so the version tag remains visible.
+- Added the same update status, download action, progress bar, and `UPDATE` action to the bottom of Settings.
+- Aligned the Search and Branch Filter popovers with the toast-style blurred background treatment.
+
+### Development
+
+- Added `NEXT_PUBLIC_MOCK_UPDATE=1` support for `pnpm run electron:dev` so the update dot, dropdown, progress bar, and `UPDATE` button can be tested without publishing a release.
+
+### Docs
+
+- Bumped the app version to `v1.3.1` in `package.json`.
+- Updated the README version badge, installer filenames, auto-update behavior notes, and current-version note.
+
+---
+
 ## [v1.3.0] - 2026-05-19 - Pull decisions + branch sync guidance
 
 ### Features

@@ -287,14 +287,19 @@ export function ChronometricGraph({
         !row.commit.parents.some(parentHash => commitBranchNames.get(parentHash) === branchName)
       );
 
-      // Determine if the comment should be placed on the left side
+      // Determine if the comment should be placed on the left side.
+      // For lateral branches: all commits of the same branch must use the same side.
+      // If the commit has no resolved branch name (propagation gap), fall back to the
+      // visual lane direction so labels stay consistent with the node's position.
       const isLeft = (() => {
         if (!isLateralBranch || !branchName) {
-          // Trunk / main: alternate sides chronologically
+          // If visually displaced from main lane, honour the lane direction
+          if (branchIndex !== 0) return branchIndex > 0;
+          // Main trunk: alternate sides chronologically
           return chronologicalIndex % 2 === 0;
         }
-        // Lateral branch: use fanned/hashed side
-        return branchSidesMap.get(branchName) ?? (branchIndex >= 0);
+        // Lateral branch: use the stable side from branchSidesMap, falling back to lane direction
+        return branchSidesMap.get(branchName) ?? (branchIndex > 0);
       })();
 
       return {
@@ -1463,106 +1468,57 @@ export function ChronometricGraph({
                         if (renderBranchTag) {
                           const tagText = branchName.toUpperCase();
                           const tagBadgeWidth = tagText.length * 4.2 + 8;
-                          const gap = 6;
-                          
-                          if (isLeft) {
-                            // Left wing: comment ends at baseX
-                            const tagX = baseX - commentTextWidth - gap - tagBadgeWidth;
-                            return (
-                              <g>
-                                {/* Branch Tag */}
-                                <g transform={`translate(${tagX}, ${baseY})`}>
-                                  <rect
-                                    x={0}
-                                    y={-5.5}
-                                    width={tagBadgeWidth}
-                                    height={11}
-                                    rx={2}
-                                    fill="#031427"
-                                    stroke={node.laneColor}
-                                    strokeWidth={0.75}
-                                    opacity={0.9}
-                                  />
-                                  <text
-                                    x={tagBadgeWidth / 2}
-                                    y={0}
-                                    textAnchor="middle"
-                                    dominantBaseline="central"
-                                    fill={node.laneColor}
-                                    fontSize="6.5"
-                                    fontWeight="bold"
-                                    className="font-mono select-none pointer-events-none"
-                                    letterSpacing="0.5"
-                                  >
-                                    {tagText}
-                                  </text>
-                                </g>
-                                
-                                {/* Comment text at baseX */}
+                          const badgeY = baseY - 13;
+                          const anchor = isLeft ? "end" : "start";
+                          // Badge rect origin: left edge for right wing, shifted left for left wing
+                          const rectX = isLeft ? -tagBadgeWidth : 0;
+
+                          return (
+                            <g>
+                              {/* Branch name badge — stacked 13px above the commit comment */}
+                              <g transform={`translate(${baseX}, ${badgeY})`}>
+                                <rect
+                                  x={rectX}
+                                  y={-5.5}
+                                  width={tagBadgeWidth}
+                                  height={11}
+                                  rx={2}
+                                  fill="#031427"
+                                  stroke={node.laneColor}
+                                  strokeWidth={0.75}
+                                  opacity={0.9}
+                                />
                                 <text
-                                  x={baseX}
-                                  y={baseY}
-                                  textAnchor="end"
+                                  x={rectX + tagBadgeWidth / 2}
+                                  y={0}
+                                  textAnchor="middle"
                                   dominantBaseline="central"
                                   fill={node.laneColor}
-                                  fontSize="7"
-                                  fontWeight="medium"
+                                  fontSize="6.5"
+                                  fontWeight="bold"
                                   className="font-mono select-none pointer-events-none"
                                   letterSpacing="0.5"
                                 >
-                                  {commentText}
+                                  {tagText}
                                 </text>
                               </g>
-                            );
-                          } else {
-                            // Right wing: comment starts at baseX + tagBadgeWidth + gap. Tag at baseX.
-                            return (
-                              <g>
-                                {/* Branch Tag */}
-                                <g transform={`translate(${baseX}, ${baseY})`}>
-                                  <rect
-                                    x={0}
-                                    y={-5.5}
-                                    width={tagBadgeWidth}
-                                    height={11}
-                                    rx={2}
-                                    fill="#031427"
-                                    stroke={node.laneColor}
-                                    strokeWidth={0.75}
-                                    opacity={0.9}
-                                  />
-                                  <text
-                                    x={tagBadgeWidth / 2}
-                                    y={0}
-                                    textAnchor="middle"
-                                    dominantBaseline="central"
-                                    fill={node.laneColor}
-                                    fontSize="6.5"
-                                    fontWeight="bold"
-                                    className="font-mono select-none pointer-events-none"
-                                    letterSpacing="0.5"
-                                  >
-                                    {tagText}
-                                  </text>
-                                </g>
-                                
-                                {/* Comment text shifted to the right of tag */}
-                                <text
-                                  x={baseX + tagBadgeWidth + gap}
-                                  y={baseY}
-                                  textAnchor="start"
-                                  dominantBaseline="central"
-                                  fill={node.laneColor}
-                                  fontSize="7"
-                                  fontWeight="medium"
-                                  className="font-mono select-none pointer-events-none"
-                                  letterSpacing="0.5"
-                                >
-                                  {commentText}
-                                </text>
-                              </g>
-                            );
-                          }
+
+                              {/* Commit comment — anchored at baseX / baseY */}
+                              <text
+                                x={baseX}
+                                y={baseY}
+                                textAnchor={anchor}
+                                dominantBaseline="central"
+                                fill={node.laneColor}
+                                fontSize="7"
+                                fontWeight="medium"
+                                className="font-mono select-none pointer-events-none"
+                                letterSpacing="0.5"
+                              >
+                                {commentText}
+                              </text>
+                            </g>
+                          );
                         } else {
                           // Normal comment without branch tag
                           return (

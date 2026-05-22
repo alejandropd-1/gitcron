@@ -4,6 +4,21 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.3.5] - 2026-05-22 - Persistent login session rescue
+
+### Fixed
+
+- Robust login session preservation: updated `bootstrapGitHub` to only delete the GitHub credentials token from local secure storage (`safeStorage`) if the validation error is explicitly an authentication/credentials failure (HTTP `401 Unauthorized`). Temporary offline states or network timeouts no longer log the user out.
+- Silent avatar & profile re-connect: added an automatic, silent re-validation trigger that fetches the user profile and updates the UI avatar as soon as the application recovers its internet connection (using window `'online'` event) or when the user opens their profile menu.
+- Extended type mappings for `GitResult` to support `isAuthError` and status properties.
+
+### Docs
+
+- Bumped the app version to `v1.3.5` in `package.json`.
+- Updated the README version badge, installer filenames, and current-version note.
+
+---
+
 ## [v1.3.4] - 2026-05-21 - Intelligent Init in existing folders, GitHub Rescue & premium Force Push
 
 ### Added

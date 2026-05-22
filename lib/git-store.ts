@@ -45,6 +45,7 @@ export interface RepoState {
   selectedFile: GitFile | null;
   currentDiff: string;
   graphShowAllBranches: boolean;
+  graphMode: 'classic' | 'chronometric';
   isLoading: boolean;
   error: string | null;
   success: string | null;
@@ -154,6 +155,7 @@ function createEmptyRepoFields(): EmptyRepoFields {
     selectedFile: null,
     currentDiff: '',
     graphShowAllBranches: true,
+    graphMode: 'classic',
     isLoading: false,
     error: null,
     success: null,

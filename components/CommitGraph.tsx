@@ -38,7 +38,7 @@ const DEFAULT_COLUMN_WIDTHS: CommitGraphColumnWidths = {
 };
 
 // Ordered palette — used both for branch hashing and fallback lane colors
-const BRANCH_PALETTE = [
+export const BRANCH_PALETTE = [
   '#5ed8ff', // cyan      (for common branches like "master"/"main" variants)
   '#fd9d1a', // orange
   '#ff716c', // red
@@ -54,13 +54,13 @@ const BRANCH_PALETTE = [
 ];
 
 // Current branch always gets the primary neon green
-const CURRENT_BRANCH_COLOR = '#a3f185';
+export const CURRENT_BRANCH_COLOR = '#a3f185';
 
 /**
  * Stable color for a branch/ref name.
  * Same name → always same color, regardless of repo or session.
  */
-function colorForBranch(refName: string, currentBranch?: string): string {
+export function colorForBranch(refName: string, currentBranch?: string): string {
   // Strip remote prefix to match local ↔ remote: "origin/main" == "main"
   const clean = refName
     .replace(/^refs\/heads\//, '')
@@ -79,7 +79,7 @@ function colorForBranch(refName: string, currentBranch?: string): string {
  * Given a commit, pick the "preferred" color by looking at its refs.
  * Priority: local branch > remote branch > tag (skip) > null
  */
-function preferredColorForCommit(commit: Commit, currentBranch?: string): string | null {
+export function preferredColorForCommit(commit: Commit, currentBranch?: string): string | null {
   if (!commit.refs || commit.refs.length === 0) return null;
 
   // Skip tags and stashes
@@ -94,7 +94,7 @@ function preferredColorForCommit(commit: Commit, currentBranch?: string): string
   return colorForBranch(chosen, currentBranch);
 }
 
-function initials(name: string): string {
+export function initials(name: string): string {
   if (!name) return '?';
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -103,7 +103,7 @@ function initials(name: string): string {
 
 // ───────────────────── Graph algorithm ─────────────────────
 
-interface GraphRow {
+export interface GraphRow {
   commit: Commit;
   lane: number;
   laneColor: string;
@@ -111,7 +111,7 @@ interface GraphRow {
   activeLanes: Array<{ lane: number; color: string }>;
 }
 
-function computeGraph(commits: Commit[], currentBranch?: string): { rows: GraphRow[]; totalLanes: number } {
+export function computeGraph(commits: Commit[], currentBranch?: string): { rows: GraphRow[]; totalLanes: number } {
   const lanes: (string | null)[] = [];
   const laneColors: string[] = [];
   const commitIndex = new Map<string, number>();

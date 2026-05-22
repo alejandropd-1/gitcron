@@ -4,6 +4,26 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.4.0] - 2026-05-22 - Vista Cronométrica (Chronometric Timeline Layout)
+
+### Added
+
+- **Vista Cronométrica (Chronometric View)**: Integrated an alternative visual representation of the Git graph plotted along an ascending diagonal timeline canvas.
+- **Hybrid Time-Index Scaling**: Designed a mathematical spacing projection in `lib/chronometric-projection.ts` using **30% linear real-world time** and **70% sequential index spacing** to maintain authentic chronological separation while ensuring overlapping commits never collide during periods of dense developer activity.
+- **Fanning Lane Distribution**: Branch lanes scale outward symmetrically relative to their original semantic lanes and grow in width towards the present.
+- **Organic Tangent Connectors**: SVG parent-child connections are rendered as smooth, highway-like cubic tangent Bézier curves aligned parallel to the principal diagonal, avoiding harsh right angles.
+- **Temporal Grid Coordinates**: Intelligent diagonal coordinate grid lines that show date markers (days, months, years) dynamically.
+- **Interactive Nodes & Hover Card**: Circular commit nodes showing author initials with focus scales and a sleek details hover card that aggregates commit info (hash, message, author, date) cleanly.
+- **Segmented UI Toggle & Persistence**: A styled tab control in the main topbar next to the branch filter for instant view toggling, with automatic local persistence saved per repository.
+- **Vitest Unit Test Suite**: Written robust coverage in `lib/__tests__/chronometric-projection.test.ts` verifying projection accuracy, hybrid scaling, and lane translation.
+
+### Docs
+
+- Bumped the app version to `v1.4.0` in `package.json`.
+- Updated the README version badge, installer filenames, and current-version note.
+
+---
+
 ## [v1.3.6] - 2026-05-22 - Session rescue & Viewport-aware context menus
 
 ### Fixed

@@ -28,6 +28,7 @@ import { useRepoLoader } from '@/hooks/use-repo-loader';
 import { useAutoFetch } from '@/hooks/use-auto-fetch';
 import { DiffViewer } from '@/components/DiffViewer';
 import { CommitGraph } from '@/components/CommitGraph';
+import { ChronometricGraph } from '@/components/ChronometricGraph';
 import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -548,11 +549,31 @@ export default function GitCronPage() {
   } = useRepoLoader();
 
   const graphShowAllBranches = useGitStore((s) => s.getActiveRepo()?.graphShowAllBranches ?? true);
+  const graphMode = useGitStore((s) => s.getActiveRepo()?.graphMode ?? 'classic');
   const updateActiveRepo = useGitStore((s) => s.updateActiveRepo);
 
   const { runFetchCycle } = useAutoFetch();
 
   const [activeTab, setActiveTab] = useState('Graph');
+
+  const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
+    const activeRepo = useGitStore.getState().getActiveRepo();
+    if (!activeRepo) return;
+    
+    updateActiveRepo({ graphMode: mode });
+    
+    if (window.api) {
+      try {
+        const saved = await window.api.storageGet('repoGraphModes').catch(() => null);
+        let modes: Record<string, string> = {};
+        if (saved?.success && typeof saved.data === 'string') {
+          try { modes = JSON.parse(saved.data); } catch {}
+        }
+        modes[activeRepo.path] = mode;
+        await window.api.storageSet('repoGraphModes', JSON.stringify(modes)).catch(() => {});
+      } catch {}
+    }
+  };
   const [pullDecision, setPullDecision] = useState<PullDecisionToast | null>(null);
 
   const showPullDecisionIfNeeded = (source: 'push' | 'pull') => {
@@ -1457,7 +1478,38 @@ export default function GitCronPage() {
 
           {/* Branch filter dropdown — only visible when Graph tab is active */}
           {activeTab === 'Graph' && repoPath && (
-            <div className="relative" ref={branchFilterRef}>
+            <>
+              {/* Segmented Graph Mode Toggle */}
+              <div className="bg-[#0b1724]/90 border border-[#3c495a]/20 rounded-md flex items-center p-0.5 mr-2">
+                <button
+                  type="button"
+                  onClick={() => handleChangeGraphMode('classic')}
+                  className={cn(
+                    "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
+                    graphMode === 'classic'
+                      ? "bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
+                      : "text-[#9eacc0] hover:text-[#d9e7fc] border border-transparent"
+                  )}
+                  title="Vista Clásica (GitKraken)"
+                >
+                  Clásico
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleChangeGraphMode('chronometric')}
+                  className={cn(
+                    "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
+                    graphMode === 'chronometric'
+                      ? "bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
+                      : "text-[#9eacc0] hover:text-[#d9e7fc] border border-transparent"
+                  )}
+                  title="Vista Cronométrica (Línea Diagonal)"
+                >
+                  Cronométrico
+                </button>
+              </div>
+
+              <div className="relative" ref={branchFilterRef}>
               <button
                 type="button"
                 onClick={() => setShowBranchFilterDropdown((v) => !v)}
@@ -1530,7 +1582,8 @@ export default function GitCronPage() {
                 )}
               </AnimatePresence>
             </div>
-          )}
+          </>
+        )}
           <div className="relative" ref={searchButtonRef}>
             <ToolbarButton
               icon={<Search />}
@@ -1930,57 +1983,90 @@ export default function GitCronPage() {
             />
           ) : (
             /* Graph tab — default */
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
-                <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
-                <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
-                <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
-                <GraphColumnHandle onMouseDown={startGraphColDrag('graph')} />
-                <div className="flex-1 flex items-center gap-2 pl-5">
-                  Commit message
-                  {filterText.trim() && (
-                    <span className="text-[10px] normal-case px-1.5 py-0.5 rounded bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/30">
-                      filtro activo
-                    </span>
+            <div className="flex-1 flex flex-col overflow-hidden bg-[#020f1e]" id="chronometric-container">
+              {graphMode === 'classic' ? (
+                <>
+                  <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
+                    <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
+                    <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
+                    <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
+                    <GraphColumnHandle onMouseDown={startGraphColDrag('graph')} />
+                    <div className="flex-1 flex items-center gap-2 pl-5">
+                      Commit message
+                      {filterText.trim() && (
+                        <span className="text-[10px] normal-case px-1.5 py-0.5 rounded bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/30">
+                          filtro activo
+                        </span>
+                      )}
+                    </div>
+                    <GraphColumnHandle onMouseDown={startGraphColDrag('date', -1)} />
+                    <div className="flex items-center pr-3 text-right shrink-0">
+                      <span className="pr-3" style={{ width: graphColumns.date }}>Date</span>
+                      <GraphColumnHandle onMouseDown={startGraphColDrag('date')} />
+                      <span style={{ width: graphColumns.hash }}>Commit</span>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto">
+                    {!isStartupGraphReady && (
+                      <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-[#9eacc0] text-sm">
+                        <Loader2 size={18} className="animate-spin mb-3 text-[#a3f185]" />
+                        <p>Cargando graph...</p>
+                      </div>
+                    )}
+                    {isStartupGraphReady && commits.length === 0 && isLoading && (
+                      <p className="px-4 py-8 text-center text-[#9eacc0] text-sm">Cargando commits...</p>
+                    )}
+                    {isStartupGraphReady && commits.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.22, ease: 'easeOut' }}
+                      >
+                        <CommitGraph
+                          commits={commits}
+                          selectedHash={selectedCommit?.hash}
+                          currentBranch={currentBranch}
+                          workingTreeFiles={modifiedFiles}
+                          filterText={filterText}
+                          columnWidths={graphColumns}
+                          onSelect={handleSelectCommit}
+                          onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
+                        />
+                      </motion.div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {!isStartupGraphReady && (
+                    <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-[#9eacc0] text-sm">
+                      <Loader2 size={18} className="animate-spin mb-3 text-[#a3f185]" />
+                      <p>Cargando graph...</p>
+                    </div>
+                  )}
+                  {isStartupGraphReady && commits.length === 0 && isLoading && (
+                    <p className="px-4 py-8 text-center text-[#9eacc0] text-sm">Cargando commits...</p>
+                  )}
+                  {isStartupGraphReady && commits.length > 0 && (
+                    <motion.div
+                      className="flex-1 flex flex-col overflow-hidden"
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                    >
+                      <ChronometricGraph
+                        commits={commits}
+                        selectedHash={selectedCommit?.hash}
+                        currentBranch={currentBranch}
+                        filterText={filterText}
+                        onSelect={handleSelectCommit}
+                        onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
+                      />
+                    </motion.div>
                   )}
                 </div>
-                <GraphColumnHandle onMouseDown={startGraphColDrag('date', -1)} />
-                <div className="flex items-center pr-3 text-right shrink-0">
-                  <span className="pr-3" style={{ width: graphColumns.date }}>Date</span>
-                  <GraphColumnHandle onMouseDown={startGraphColDrag('date')} />
-                  <span style={{ width: graphColumns.hash }}>Commit</span>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                {!isStartupGraphReady && (
-                  <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-[#9eacc0] text-sm">
-                    <Loader2 size={18} className="animate-spin mb-3 text-[#a3f185]" />
-                    <p>Cargando graph...</p>
-                  </div>
-                )}
-                {isStartupGraphReady && commits.length === 0 && isLoading && (
-                  <p className="px-4 py-8 text-center text-[#9eacc0] text-sm">Cargando commits...</p>
-                )}
-                {isStartupGraphReady && commits.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.22, ease: 'easeOut' }}
-                  >
-                    <CommitGraph
-                      commits={commits}
-                      selectedHash={selectedCommit?.hash}
-                      currentBranch={currentBranch}
-                      workingTreeFiles={modifiedFiles}
-                      filterText={filterText}
-                      columnWidths={graphColumns}
-                      onSelect={handleSelectCommit}
-                      onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
-                    />
-                  </motion.div>
-                )}
-              </div>
+              )}
             </div>
           )}
         </main>

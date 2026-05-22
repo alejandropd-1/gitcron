@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.3.6-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.4.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -58,6 +58,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - WIP row at the top when the working tree is dirty.
 - History tab for a flat chronological view.
 - Commit tab for a staging-focused workflow summary.
+- **Vista Cronométrica (Chronometric View)**: Alternative diagonal visual layout that charts commits along a temporal 2D canvas. Powered by a hybrid scaling algorithm (**30% linear physical time, 70% sequential logical index**) to balance temporal perception with collision-free readability. Connector lines flow in organic tangent Bézier curves, branching lanes fan out symmetrically towards the present, and timeline grids render dynamically. Supports per-repository state persistence toggled through a segmented control toolbar.
 
 ### Staging and commits
 
@@ -119,10 +120,12 @@ Renderer:
 
 - `app/page.tsx` drives the main three-column UI, tabs, modals, and topbar.
 - `components/CommitGraph.tsx` renders the SVG graph and graph-table rows.
+- `components/ChronometricGraph.tsx` renders the custom diagonal SVG chronological graph.
 - `components/DiffViewer.tsx` renders unified diffs.
 - `hooks/use-git-actions.ts` contains repo actions like commit, push, pull, merge, stash, and preferences persistence.
 - `hooks/use-repo-loader.ts` loads repo data and restores persisted repos.
 - `lib/git-store.ts` holds the Zustand store.
+- `lib/chronometric-projection.ts` implements the mathematical hybrid time-index projection, diagonal vectors, and branching fanning algorithms.
 
 Main process:
 
@@ -206,6 +209,7 @@ gitCronos/
 |  |- page.tsx
 |  `- globals.css
 |- components/
+|  |- ChronometricGraph.tsx
 |  |- CommitGraph.tsx
 |  `- DiffViewer.tsx
 |- electron/
@@ -216,6 +220,7 @@ gitCronos/
 |  |- use-repo-loader.ts
 |  `- use-translation.ts
 |- lib/
+|  |- chronometric-projection.ts
 |  |- git-store.ts
 |  |- i18n.ts
 |  `- utils.ts
@@ -284,9 +289,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.3.6.exe`                                             |
-| macOS    | `GitCron-1.3.6.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.3.6.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.4.0.exe`                                             |
+| macOS    | `GitCron-1.4.0.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.4.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -333,7 +338,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-`v1.3.6` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v1.4.0` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

@@ -1667,7 +1667,7 @@ export function ChronometricGraph({
 
       {/* 1. Static SVG HUD Shell Overlay Layer (Frames viewport at z-10, pointer-events-none) */}
       <svg
-        className="absolute inset-0 w-full h-full pointer-events-none select-none z-10 opacity-30"
+        className="absolute inset-0 w-full h-full pointer-events-none select-none z-10 opacity-40"
         id="tcars-hud-overlay"
       >
         <defs>
@@ -1720,27 +1720,29 @@ export function ChronometricGraph({
       </svg>
 
       {/* 2. PANEL 01: NAV TELEMETRY & SYSTEM CONTEXT (Top-Left, z-20) */}
-      <div className="absolute top-4 left-4 w-[250px] bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none">
-        <div className="flex items-center justify-between border-b border-[#3c495a]/20 pb-1 mb-0.5">
+      <div className="absolute top-4 left-4 w-[250px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none relative overflow-hidden">
+        <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full bg-[#5ed8ff]/55" />
+        <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[10px] font-bold text-[#5ed8ff] tracking-wider uppercase truncate max-w-[170px]">
             {repoName || 'NO_ACTIVE_REPO'}
           </span>
-          <div className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#a3f185] hud-breath" />
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#a3f185] hud-breath" />
             <span className="text-[7.5px] font-bold text-[#a3f185] tracking-widest">ACTIVE</span>
           </div>
         </div>
         <div className="flex flex-col gap-1 text-[8.5px] text-[#9eacc0]">
           <div className="flex items-center gap-1.5">
             <Terminal size={10} className="text-[#5ed8ff]/70" />
-            <span className="truncate max-w-[210px] font-semibold text-[#d9e7fc]">
+            <span className="text-[8px] font-semibold text-[#5ed8ff]/55 shrink-0">BR //</span>
+            <span className="truncate font-semibold text-[#d9e7fc]">
               {currentBranch || 'DETACHED_HEAD'}
             </span>
           </div>
-          <div className="truncate text-[7.5px] opacity-60 pl-4 border-l border-[#3c495a]/20">
+          <div className="truncate text-[7.5px] opacity-70 pl-4 border-l border-[#3c495a]/25">
             {repoPath || 'NO_PATH_SPECIFIED'}
           </div>
-          <div className="flex items-center justify-between text-[7px] text-[#697789] uppercase tracking-wider pt-0.5 border-t border-[#3c495a]/10 mt-0.5">
+          <div className="flex items-center justify-between text-[7px] text-[#697789] uppercase tracking-wider pt-0.5 border-t border-[#3c495a]/15 mt-0.5">
             <span>MODE // CHRONO_HUD</span>
             <span>T_CORRELATION // OK</span>
           </div>
@@ -1748,47 +1750,48 @@ export function ChronometricGraph({
       </div>
 
       {/* 3. PANEL 02: SYNC & DIRTY METRICS (Top-Right, z-20) */}
-      <div className="absolute top-4 right-4 w-[250px] bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none">
-        <div className="flex items-center justify-between border-b border-[#3c495a]/20 pb-1 mb-0.5">
+      <div className="absolute top-4 right-4 w-[250px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none relative overflow-hidden">
+        <div className="absolute right-0 top-3 bottom-3 w-[2px] rounded-full bg-[#b455ff]/55" />
+        <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[9px] font-bold text-[#b455ff] tracking-wider uppercase">
             SYNC_STATE // TELEMETRY
           </span>
           <Cpu size={11} className="text-[#b455ff]/70" />
         </div>
         <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[8.5px] text-[#9eacc0]">
-          <div className="flex items-center justify-between border-b border-[#3c495a]/10 pb-0.5">
+          <div className="flex items-center justify-between border-b border-[#3c495a]/15 pb-0.5">
             <span>AHEAD //</span>
-            <span className={`font-bold ${ahead > 0 ? 'text-[#a3f185]' : 'text-[#697789]'}`}>
-              {ahead > 0 ? `▲${ahead}` : '0'}
+            <span className={`font-bold text-[9px] ${ahead > 0 ? 'text-[#a3f185]' : 'text-[#697789]'}`}>
+              {ahead > 0 ? `▲${ahead}` : '—'}
             </span>
           </div>
-          <div className="flex items-center justify-between border-b border-[#3c495a]/10 pb-0.5">
+          <div className="flex items-center justify-between border-b border-[#3c495a]/15 pb-0.5">
             <span>BEHIND //</span>
-            <span className={`font-bold ${behind > 0 ? 'text-[#fd9d1a]' : 'text-[#697789]'}`}>
-              {behind > 0 ? `▼${behind}` : '0'}
+            <span className={`font-bold text-[9px] ${behind > 0 ? 'text-[#fd9d1a]' : 'text-[#697789]'}`}>
+              {behind > 0 ? `▼${behind}` : '—'}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span>STASH_PODS //</span>
-            <span className={`font-semibold ${stashes.length > 0 ? 'text-[#5ed8ff]' : 'text-[#697789]'}`}>
-              {stashes.length}
+            <span>STASH //</span>
+            <span className={`font-semibold text-[9px] ${stashes.length > 0 ? 'text-[#5ed8ff]' : 'text-[#697789]'}`}>
+              {stashes.length || '—'}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span>DIRTY_FILES //</span>
-            <span className={`font-semibold ${modifiedFiles.length > 0 ? 'text-[#fd9d1a]' : 'text-[#697789]'}`}>
-              {modifiedFiles.length}
+            <span>DIRTY //</span>
+            <span className={`font-semibold text-[9px] ${modifiedFiles.length > 0 ? 'text-[#fd9d1a]' : 'text-[#697789]'}`}>
+              {modifiedFiles.length || '—'}
             </span>
           </div>
         </div>
         {modifiedFiles.length > 0 && (
-          <div className="mt-1 pt-1 border-t border-[#3c495a]/15 flex items-center justify-between text-[7px] text-[#697789]">
+          <div className="mt-1 pt-1 border-t border-[#3c495a]/20 flex items-center justify-between text-[7.5px] text-[#697789]">
             <div className="flex gap-1.5">
               <span>MOD: {modifiedFiles.filter(f => f.status === 'modified').length}</span>
               <span>ADD: {modifiedFiles.filter(f => f.status === 'added' || f.status === 'untracked').length}</span>
               <span>DEL: {modifiedFiles.filter(f => f.status === 'deleted').length}</span>
             </div>
-            {submodules.length > 0 && <span>SUBMODULES: {submodules.length}</span>}
+            {submodules.length > 0 && <span>SUB: {submodules.length}</span>}
           </div>
         )}
       </div>
@@ -1797,44 +1800,44 @@ export function ChronometricGraph({
       <div className="absolute bottom-4 left-4 right-4 flex flex-row items-end justify-between gap-4 pointer-events-none z-20">
         
         {/* PANEL 03: CHRONO METRICS & RADAR SCAN (Bottom-Left) */}
-        <div className="pointer-events-auto shrink-0 w-[240px] bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 rounded-md px-3 py-2.5 font-mono shadow-2xl flex items-center gap-3 select-none">
+        <div className="pointer-events-auto shrink-0 w-[240px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 font-mono shadow-2xl flex items-center gap-3 select-none">
           {/* Animated Radar Scanning Scope */}
-          <div className="relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/20 rounded-full overflow-hidden bg-[#021820]/30">
+          <div className="relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/35 rounded-full overflow-hidden bg-[#021820]/50">
             <svg width="30" height="30" className="absolute inset-0">
-              <circle cx="15" cy="15" r="14" fill="none" stroke="#a3f185" strokeWidth="0.5" opacity="0.15" />
-              <circle cx="15" cy="15" r="7" fill="none" stroke="#a3f185" strokeWidth="0.5" opacity="0.1" />
+              <circle cx="15" cy="15" r="14" fill="none" stroke="#a3f185" strokeWidth="0.75" opacity="0.28" />
+              <circle cx="15" cy="15" r="7" fill="none" stroke="#a3f185" strokeWidth="0.5" opacity="0.20" />
               {/* Sweep arm */}
               <line
                 x1="15" y1="15"
                 x2="15" y2="1"
                 stroke="#a3f185"
-                strokeWidth="0.75"
-                opacity="0.6"
+                strokeWidth="1"
+                opacity="0.85"
                 className="radar-sweep"
               />
             </svg>
           </div>
- 
+
           <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-            <div className="flex items-center justify-between border-b border-[#3c495a]/15 pb-0.5 mb-0.5">
+            <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-0.5 mb-0.5">
               <span className="text-[9px] font-bold text-[#a3f185] tracking-wider">CHRONO_DEPTH</span>
-              <Activity size={10} className="text-[#a3f185]/70" />
+              <Activity size={10} className="text-[#a3f185]/80" />
             </div>
-            <div className="flex items-center justify-between text-[8px] text-[#9eacc0]">
-              <span>NODES_LOADED //</span>
-              <span className="font-bold text-[#d9e7fc]">{filteredCommits.length}</span>
+            <div className="flex items-center justify-between text-[8.5px] text-[#9eacc0]">
+              <span>NODES //</span>
+              <span className="font-bold text-[9px] text-[#d9e7fc]">{filteredCommits.length}</span>
             </div>
-            <div className="truncate text-[7px] text-[#697789] tracking-tight uppercase">
+            <div className="truncate text-[7.5px] text-[#697789] tracking-tight uppercase mt-0.5">
               {dateRangeString}
             </div>
           </div>
         </div>
  
         {/* PANEL 04: TARGET TELEMETRY HUD (Bottom-Center) */}
-        <div className="pointer-events-auto flex-1 max-w-[400px] min-w-[200px] bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 rounded-md px-3 py-2.5 font-mono shadow-2xl select-none transition-all duration-300">
+        <div className="pointer-events-auto flex-1 max-w-[400px] min-w-[200px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 font-mono shadow-2xl select-none transition-all duration-300">
           {selectedCommit ? (
             <div className="flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
-              <div className="flex items-center justify-between border-b border-[#5ed8ff]/20 pb-1 mb-0.5">
+              <div className="flex items-center justify-between border-b border-[#5ed8ff]/25 pb-1 mb-0.5">
                 <div className="flex items-center gap-1.5">
                   <Crosshair size={11} className="text-[#5ed8ff] hud-breath" />
                   <span className="text-[9px] font-bold text-[#5ed8ff] tracking-wider uppercase">
@@ -1843,44 +1846,44 @@ export function ChronometricGraph({
                 </div>
                 <button
                   onClick={() => navigator.clipboard.writeText(selectedCommit.hash)}
-                  className="px-1.5 py-0.5 border border-[#5ed8ff]/30 hover:border-[#5ed8ff]/70 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
+                  className="px-1.5 py-0.5 border border-[#5ed8ff]/35 hover:border-[#5ed8ff]/75 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
                   title="Copy full commit SHA"
                 >
                   Copy SHA
                 </button>
               </div>
-              
-              <div className="flex flex-col gap-0.5 text-[8px] text-[#9eacc0]">
+
+              <div className="flex flex-col gap-0.5 text-[8.5px] text-[#9eacc0]">
                 <div className="flex items-center justify-between">
-                  <span>SHA_SIGN // <span className="text-[#5ed8ff] font-semibold">{selectedCommit.shortHash.toUpperCase()}</span></span>
-                  <span className="text-[7.5px] opacity-75">{new Date(selectedCommit.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).toUpperCase()}</span>
+                  <span>SHA // <span className="text-[#5ed8ff] font-bold">{selectedCommit.shortHash.toUpperCase()}</span></span>
+                  <span className="text-[7.5px] opacity-80">{new Date(selectedCommit.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).toUpperCase()}</span>
                 </div>
-                <div className="truncate text-[#d9e7fc] text-[8.5px] font-semibold border-l-2 border-[#5ed8ff]/40 pl-1.5 my-0.5">
+                <div className="truncate text-[#d9e7fc] text-[9px] font-semibold border-l-2 border-[#5ed8ff]/50 pl-1.5 my-0.5">
                   {selectedCommit.message}
                 </div>
-                <div className="flex items-center justify-between text-[7px] text-[#697789] pt-0.5 border-t border-[#3c495a]/10">
+                <div className="flex items-center justify-between text-[7.5px] text-[#697789] pt-0.5 border-t border-[#3c495a]/15">
                   <span className="truncate max-w-[140px]">AUTHOR: {selectedCommit.authorName.toUpperCase()}</span>
                   <span className="truncate max-w-[150px]">PARENT: {selectedCommit.parents[0]?.substring(0, 7).toUpperCase() || 'ROOT'}</span>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between h-[45px] opacity-75">
+            <div className="flex items-center justify-between h-[45px]">
               <div className="flex items-center gap-2">
                 <div className="relative flex items-center justify-center w-5 h-5">
-                  <div className="absolute inset-0 border border-[#3c495a]/40 rounded-full animate-ping opacity-25" />
-                  <Compass size={11} className="text-[#697789] animate-spin" style={{ animationDuration: '6s' }} />
+                  <div className="absolute inset-0 border border-[#3c495a]/50 rounded-full animate-ping opacity-30" />
+                  <Compass size={11} className="text-[#697789] animate-spin" style={{ animationDuration: '4s' }} />
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[9px] font-bold text-[#697789] tracking-wider uppercase">
                     TARGET_ACQUISITION // SCANNING
                   </span>
-                  <span className="text-[7px] text-[#697789]/75 uppercase">
-                    SELECT COMMIT NODE TO FOCUS SCANNER
+                  <span className="text-[7.5px] text-[#697789]/70 uppercase tracking-wide">
+                    SELECT A COMMIT NODE TO LOCK SCANNER
                   </span>
                 </div>
               </div>
-              <div className="text-[7px] text-[#697789] text-right font-mono select-none">
+              <div className="text-[7px] text-[#697789]/60 text-right font-mono select-none leading-relaxed">
                 GRID: ACTIVE<br />LANE_ORBITS: SECURE
               </div>
             </div>

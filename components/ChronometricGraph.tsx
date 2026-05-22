@@ -1,10 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { Commit } from '@/lib/git-store';
+import { useGitStore, type Commit } from '@/lib/git-store';
 import {
   mapLaneToBranchIndex,
   projectCommit,
+  branchToOffset,
   type ProjectionConfig,
   DEFAULT_CHRONOMETRIC_SLOPE,
 } from '@/lib/chronometric-projection';
@@ -19,6 +20,29 @@ import {
   preferredColorForCommit,
 } from './CommitGraph';
 import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+
+function getBezierPoint(
+  p0: { x: number; y: number },
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  p3: { x: number; y: number },
+  t: number
+) {
+  const mt = 1 - t;
+  const mt2 = mt * mt;
+  const mt3 = mt2 * mt;
+  const t2 = t * t;
+  const t3 = t2 * t;
+
+  const x = mt3 * p0.x + 3 * mt2 * t * p1.x + 3 * mt * t2 * p2.x + t3 * p3.x;
+  const y = mt3 * p0.y + 3 * mt2 * t * p1.y + 3 * mt * t2 * p2.y + t3 * p3.y;
+
+  const tx = 3 * mt2 * (p1.x - p0.x) + 6 * mt * t * (p2.x - p1.x) + 3 * t2 * (p3.x - p2.x);
+  const ty = 3 * mt2 * (p1.y - p0.y) + 6 * mt * t * (p2.y - p1.y) + 3 * t2 * (p3.y - p2.y);
+
+  const angle = Math.atan2(ty, tx) * (180 / Math.PI);
+  return { x, y, tx, ty, angle };
+}
 
 interface ChronometricGraphProps {
   commits: Commit[];
@@ -37,6 +61,10 @@ export function ChronometricGraph({
   onSelect,
   onContextMenu,
 }: ChronometricGraphProps) {
+  const stashes = useGitStore((state) => state.stashes);
+  const modifiedFiles = useGitStore((state) => state.modifiedFiles);
+  const branchTracking = useGitStore((state) => state.branchTracking);
+
   // 1. Filter commits if filterText is present
   const filter = filterText.trim().toLowerCase();
   const filteredCommits = useMemo(() => {
@@ -134,14 +162,307 @@ export function ChronometricGraph({
     return map;
   }, [projectedCommits]);
 
+  // Extract primary branch labels for display
+  const getBranchName = (commit: Commit) => {
+    if (!commit.refs || commit.refs.length === 0) return null;
+    const branchRefs = commit.refs.filter(
+      (r) => !r.startsWith('tag: ') && !r.includes('stash')
+    );
+    if (branchRefs.length === 0) return null;
+    return branchRefs[0]
+      .replace(/^refs\/heads\//, '')
+      .replace(/^refs\/remotes\/[^/]+\//, '')
+      .replace(/^HEAD$/, '');
+  };
+
+  // Stable map of branchIndex -> branchName
+  const branchNamesMap = useMemo(() => {
+    const map = new Map<number, string>();
+    projectedCommits.forEach((node) => {
+      const name = getBranchName(node.commit);
+      if (name) {
+        const currentName = map.get(node.branchIndex);
+        if (!currentName) {
+          map.set(node.branchIndex, name);
+        }
+      }
+    });
+    return map;
+  }, [projectedCommits]);
+
+  // Find the oldest node (minimum chronologicalIndex) for each branchIndex
+  const branchOrigins = useMemo(() => {
+    const origins = new Map<number, string>(); // branchIndex -> commitHash
+    projectedCommits.forEach((node) => {
+      const existingHash = origins.get(node.branchIndex);
+      if (!existingHash) {
+        origins.set(node.branchIndex, node.commit.hash);
+      } else {
+        const existingNode = projectedLookup.get(existingHash);
+        if (existingNode && node.chronologicalIndex < existingNode.chronologicalIndex) {
+          origins.set(node.branchIndex, node.commit.hash);
+        }
+      }
+    });
+    return origins;
+  }, [projectedCommits, projectedLookup]);
+
+
+  // Find unit direction vectors of the diagonal line
+  const xStart = config.paddingLeft;
+  const yStart = height - config.paddingBottom;
+  const xEnd = width - config.paddingRight;
+  const yEnd = config.paddingTop;
+
+  const dx = xEnd - xStart;
+  const dy = yEnd - yStart;
+  const L = Math.sqrt(dx * dx + dy * dy) || 1;
+  const ux = dx / L;
+  const uy = dy / L;
+  const nx = dy / L;
+  const ny = -dx / L;
+  const rx = -nx;
+  const ry = -ny;
+
+  // Active branch / HEAD commit node
+  const headCommitNode = useMemo(() => {
+    if (projectedCommits.length === 0) return null;
+    const active = projectedCommits.find((node) => {
+      if (!node.commit.refs) return false;
+      return node.commit.refs.some(
+        (r) => r === 'HEAD' || r === currentBranch || r === `refs/heads/${currentBranch}`
+      );
+    });
+    return active || projectedCommits[0] || null;
+  }, [projectedCommits, currentBranch]);
+
+  // Coordinates for the WIP capsule (if changes exist in modifiedFiles)
+  const wipCoords = useMemo(() => {
+    if (modifiedFiles.length === 0 || !headCommitNode) return null;
+    // Place WIP 50px ahead of HEAD commit along its lane, and offset to the right-down perpendicular direction by 25px
+    return {
+      x: headCommitNode.x + ux * 50 + rx * 25,
+      y: headCommitNode.y + uy * 50 + ry * 25,
+    };
+  }, [modifiedFiles.length, headCommitNode, ux, uy, rx, ry]);
+
+  // Coordinates for Stash pods (docked parallel on branchIndex = -3.2)
+  const stashCoords = useMemo(() => {
+    return stashes.map((stash, idx) => {
+      // Place in a dedicated "parking deck" starting from xStart + 150
+      const x = xStart + 150 + idx * 75;
+      const baseX = x;
+      // Interpolate baseY on the diagonal ruler
+      const p = (x - xStart) / (xEnd - xStart || 1);
+      const baseY = yStart + p * (yEnd - yStart);
+      
+      const offset = branchToOffset(-3.2, x, {
+        fanFactor: config.fanFactor,
+        width: config.width,
+        paddingLeft: config.paddingLeft,
+        paddingRight: config.paddingRight,
+      });
+
+      return {
+        x: baseX + offset * nx,
+        y: baseY + offset * ny,
+      };
+    });
+  }, [stashes, xStart, yStart, xEnd, yEnd, nx, ny, config]);
+
+  // Ahead/Behind tracking for the current active branch
+  const { ahead, behind } = useMemo(() => {
+    if (!currentBranch) return { ahead: 0, behind: 0 };
+    const tracking = branchTracking[currentBranch];
+    return {
+      ahead: tracking?.ahead || 0,
+      behind: tracking?.behind || 0,
+    };
+  }, [branchTracking, currentBranch]);
+
+  // Unique branch indices active in the current set of commits
+  const activeBranchIndices = useMemo(() => {
+    const indices = new Set<number>();
+    projectedCommits.forEach((node) => indices.add(node.branchIndex));
+    return Array.from(indices);
+  }, [projectedCommits]);
+
+  // Paths representing parallel orbits for each branch lane
+  const orbitPaths = useMemo(() => {
+    return activeBranchIndices.map((bIndex) => {
+      const points: string[] = [];
+      const steps = 30;
+      
+      for (let step = 0; step <= steps; step++) {
+        const ratio = step / steps;
+        const x = config.paddingLeft + ratio * (width - config.paddingLeft - config.paddingRight);
+        
+        const p = (x - xStart) / (xEnd - xStart || 1);
+        const baseX = x;
+        const baseY = yStart + p * (yEnd - yStart);
+        
+        const offset = branchToOffset(bIndex, x, {
+          fanFactor: config.fanFactor,
+          width: config.width,
+          paddingLeft: config.paddingLeft,
+          paddingRight: config.paddingRight,
+        });
+        
+        const finalX = baseX + offset * nx;
+        const finalY = baseY + offset * ny;
+        
+        points.push(`${step === 0 ? 'M' : 'L'} ${finalX.toFixed(2)} ${finalY.toFixed(2)}`);
+      }
+      
+      const matchingNode = projectedCommits.find(n => n.branchIndex === bIndex);
+      const color = matchingNode?.laneColor || '#3c495a';
+      
+      return {
+        branchIndex: bIndex,
+        pathD: points.join(' '),
+        color,
+      };
+    });
+  }, [activeBranchIndices, config, width, height, xStart, yStart, xEnd, yEnd, nx, ny, projectedCommits]);
+
+  // Satellite tags fanning out
+  const tagsWithPositions = useMemo(() => {
+    const list: Array<{
+      commitHash: string;
+      tagName: string;
+      x: number;
+      y: number;
+      satX: number;
+      satY: number;
+      color: string;
+    }> = [];
+    
+    projectedCommits.forEach((node) => {
+      if (!node.commit.refs) return;
+      const tags = node.commit.refs.filter(r => r.startsWith('tag: '));
+      tags.forEach((tagRaw, tagIndex) => {
+        const tagName = tagRaw.slice(5);
+        // Force tags to always fan out to the left-up (left) of the timeline
+        // nx, ny are negative, which points left-up in screen coordinates
+        const distance = 30 + tagIndex * 20; 
+        
+        const satX = node.x + nx * distance - ux * 8;
+        const satY = node.y + ny * distance - uy * 8;
+        
+        list.push({
+          commitHash: node.commit.hash,
+          tagName,
+          x: node.x,
+          y: node.y,
+          satX,
+          satY,
+          color: '#fd9d1a',
+        });
+      });
+    });
+    
+    return list;
+  }, [projectedCommits, nx, ny, ux, uy]);
+
+  // Find tip commits for each branch lane
+  const latestCommitsByBranch = useMemo(() => {
+    const map = new Map<number, string>();
+    projectedCommits.forEach((node) => {
+      const currentLatest = map.get(node.branchIndex);
+      if (!currentLatest) {
+        map.set(node.branchIndex, node.commit.hash);
+      } else {
+        const existingNode = projectedLookup.get(currentLatest);
+        if (existingNode && node.chronologicalIndex > existingNode.chronologicalIndex) {
+          map.set(node.branchIndex, node.commit.hash);
+        }
+      }
+    });
+    return map;
+  }, [projectedCommits, projectedLookup]);
+
+  const isLatestInBranch = (nodeHash: string, branchIndex: number) => {
+    return latestCommitsByBranch.get(branchIndex) === nodeHash;
+  };
+
+  // Coordinates for new branch fork points (start of new branches)
+  const branchForks = useMemo(() => {
+    const forks: Array<{
+      x: number;
+      y: number;
+      laneColor: string;
+      parentX: number;
+      parentY: number;
+    }> = [];
+
+    projectedCommits.forEach((node) => {
+      node.commit.parents.forEach((parentHash) => {
+        const parentNode = projectedLookup.get(parentHash);
+        if (parentNode && parentNode.branchIndex !== node.branchIndex) {
+          forks.push({
+            x: node.x,
+            y: node.y,
+            laneColor: node.laneColor,
+            parentX: parentNode.x,
+            parentY: parentNode.y,
+          });
+        }
+      });
+    });
+
+    return forks;
+  }, [projectedCommits, projectedLookup]);
+
   // 6. State for interactive hover cards
   const [hoveredHash, setHoveredHash] = useState<string | null>(null);
   const [hoveredPos, setHoveredPos] = useState<{ x: number; y: number } | null>(null);
 
   const hoveredNode = useMemo(() => {
     if (!hoveredHash) return null;
+
+    if (hoveredHash === 'wip' && wipCoords) {
+      return {
+        commit: {
+          hash: 'wip',
+          shortHash: 'WIP',
+          message: 'Cambios locales sin confirmar en tu espacio de trabajo.',
+          authorName: 'Directorio de trabajo',
+          authorEmail: '',
+          date: new Date().toISOString(),
+          parents: [],
+          refs: ['WIP'],
+        },
+        laneColor: '#ff716c',
+        x: wipCoords.x,
+        y: wipCoords.y,
+      } as any;
+    }
+
+    if (hoveredHash.startsWith('stash-')) {
+      const idx = parseInt(hoveredHash.split('-')[1]);
+      const stash = stashes[idx];
+      const pos = stashCoords[idx];
+      if (stash && pos) {
+        return {
+          commit: {
+            hash: stash.hash || `stash-${idx}`,
+            shortHash: `stash@{${idx}}`,
+            message: stash.message,
+            authorName: 'Stash temporal',
+            authorEmail: '',
+            date: stash.date || new Date().toISOString(),
+            parents: [],
+            refs: [`stash@{${idx}}`],
+          },
+          laneColor: '#9eacc0',
+          x: pos.x,
+          y: pos.y,
+        } as any;
+      }
+    }
+
     return projectedLookup.get(hoveredHash) || null;
-  }, [hoveredHash, projectedLookup]);
+  }, [hoveredHash, projectedLookup, stashes, wipCoords, stashCoords]);
 
   // Hook for 2D Canvas Navigation: Pan and Zoom
   const {
@@ -231,18 +552,7 @@ export function ChronometricGraph({
     }
   }, [filteredCommits, minTime, maxTime, width, config, height]);
 
-  // Extract primary branch labels for hover display
-  const getBranchName = (commit: Commit) => {
-    if (!commit.refs || commit.refs.length === 0) return null;
-    const branchRefs = commit.refs.filter(
-      (r) => !r.startsWith('tag: ') && !r.includes('stash')
-    );
-    if (branchRefs.length === 0) return null;
-    return branchRefs[0]
-      .replace(/^refs\/heads\//, '')
-      .replace(/^refs\/remotes\/[^/]+\//, '')
-      .replace(/^HEAD$/, '');
-  };
+
 
   // Get first parent's color or own lane color for curves
   const getConnectorColor = (conn: { color: string }) => {
@@ -257,18 +567,6 @@ export function ChronometricGraph({
       </div>
     );
   }
-
-  // Find unit direction vectors of the diagonal line
-  const xStart = config.paddingLeft;
-  const yStart = height - config.paddingBottom;
-  const xEnd = width - config.paddingRight;
-  const yEnd = config.paddingTop;
-
-  const dx = xEnd - xStart;
-  const dy = yEnd - yStart;
-  const L = Math.sqrt(dx * dx + dy * dy) || 1;
-  const ux = dx / L;
-  const uy = dy / L;
 
   // Calculate screen position for hover card
   const hoveredScreenPos = useMemo(() => {
@@ -323,178 +621,669 @@ export function ChronometricGraph({
           <g
             transform={`translate(${viewport.offsetX}, ${viewport.offsetY}) scale(${viewport.scale})`}
           >
-            {/* 1. Base Guidelines & Time Ticks */}
-            {timeTicks.map((tick, index) => (
-              <g key={`tick-${index}`} opacity={0.35}>
-                {/* Vertical dash lines matching grid marks */}
-                <line
-                  x1={tick.x}
-                  y1={config.paddingTop - 20}
-                  x2={tick.x}
-                  y2={height - config.paddingBottom + 20}
-                  stroke="#3c495a"
-                  strokeWidth={1}
-                  strokeDasharray="4 6"
+            {/* Layer 1: Instrumentation Layer */}
+            <g id="instrumentation-layer">
+              {/* Branch Orbits */}
+              {orbitPaths.map((orbit) => (
+                <path
+                  key={`orbit-${orbit.branchIndex}`}
+                  d={orbit.pathD}
+                  stroke={orbit.color}
+                  strokeWidth={0.75}
+                  strokeDasharray="3 5"
+                  fill="none"
+                  opacity={0.16}
                 />
-                {/* Visual marker point on diagonal */}
-                <circle cx={tick.x} cy={tick.y} r={3} fill="#9eacc0" />
-                {/* Dates rendered below the guideline */}
-                <text
-                  x={tick.x}
-                  y={height - config.paddingBottom + 36}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fontWeight="600"
-                  fill="#9eacc0"
-                  className="font-mono"
-                >
-                  {tick.dateStr}
-                </text>
-                <text
-                  x={tick.x}
-                  y={height - config.paddingBottom + 48}
-                  textAnchor="middle"
-                  fontSize="9"
-                  fill="#697789"
-                  className="font-mono"
-                >
-                  {tick.yearStr}
-                </text>
-              </g>
-            ))}
+              ))}
 
-            {/* 2. Base Timeline Diagonal Track (geometric background) */}
-            <line
-              x1={xStart}
-              y1={yStart}
-              x2={xEnd}
-              y2={yEnd}
-              stroke="#1e293b"
-              strokeWidth={3}
-              opacity={0.8}
-            />
+              {/* Dual metric rulers */}
+              <line
+                x1={xStart + nx * 2}
+                y1={yStart + ny * 2}
+                x2={xEnd + nx * 2}
+                y2={yEnd + ny * 2}
+                stroke="#1e293b"
+                strokeWidth={1}
+                opacity={0.6}
+              />
+              <line
+                x1={xStart - nx * 2}
+                y1={yStart - ny * 2}
+                x2={xEnd - nx * 2}
+                y2={yEnd - ny * 2}
+                stroke="#1e293b"
+                strokeWidth={1}
+                opacity={0.6}
+              />
 
-            {/* 3. Render parent-child connectives using tangent curves */}
-            {projectedCommits.map((node) => {
-              return node.connections.map((conn, ci) => {
-                const parentNode = projectedCommits[conn.toRow];
-                if (!parentNode) return null;
+              {/* Rulers tick markers */}
+              {timeTicks.map((tick, index) => (
+                <g key={`ruler-tick-${index}`}>
+                  <line
+                    x1={tick.x - nx * 5}
+                    y1={tick.y - ny * 5}
+                    x2={tick.x + nx * 5}
+                    y2={tick.y + ny * 5}
+                    stroke="#3c495a"
+                    strokeWidth={1.5}
+                    opacity={0.7}
+                  />
+                </g>
+              ))}
 
-                // Connection points
-                const cx = node.x;
-                const cy = node.y;
-                const px = parentNode.x;
-                const py = parentNode.y;
+              {/* Extreme labels */}
+              <text
+                x={xStart - 15}
+                y={yStart + 15}
+                textAnchor="end"
+                fontSize="8"
+                fill="#697789"
+                className="font-mono font-bold"
+                opacity={0.6}
+              >
+                [CHRONO_START // T_MIN]
+              </text>
+              <text
+                x={xEnd + 15}
+                y={yEnd - 15}
+                textAnchor="start"
+                fontSize="8"
+                fill="#697789"
+                className="font-mono font-bold"
+                opacity={0.6}
+              >
+                [CHRONO_END // T_MAX]
+              </text>
 
-                // If they are on different lanes or the same lane, construct parallel curves
-                // that emerge and merge parallel to the diagonal vector.
-                const dist = Math.sqrt((cx - px) ** 2 + (cy - py) ** 2) || 1;
-                // Control tension based on diagonal distance
-                const tension = dist * 0.33;
+              {/* Guidelines & Time Ticks */}
+              {timeTicks.map((tick, index) => (
+                <g key={`tick-${index}`} opacity={0.6}>
+                  {/* Dash lines */}
+                  <line
+                    x1={tick.x}
+                    y1={config.paddingTop - 20}
+                    x2={tick.x}
+                    y2={height - config.paddingBottom + 20}
+                    stroke="#1e293b"
+                    strokeWidth={0.75}
+                    strokeDasharray="4 8"
+                    opacity={0.3}
+                  />
+                  {/* Visual marker point on diagonal */}
+                  <circle cx={tick.x} cy={tick.y} r={2.5} fill="#697789" />
+                  
+                  {/* Secondary technical coordinate */}
+                  <text
+                    x={tick.x}
+                    y={height - config.paddingBottom + 25}
+                    textAnchor="middle"
+                    fontSize="8.5"
+                    fill="#697789"
+                    className="font-mono font-semibold"
+                  >
+                    {`T+${String(index).padStart(3, '0')}`}
+                  </text>
+                  
+                  {/* Dates rendered below the guideline */}
+                  <text
+                    x={tick.x}
+                    y={height - config.paddingBottom + 36}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fontWeight="600"
+                    fill="#9eacc0"
+                    className="font-mono"
+                  >
+                    {tick.dateStr}
+                  </text>
+                  <text
+                    x={tick.x}
+                    y={height - config.paddingBottom + 48}
+                    textAnchor="middle"
+                    fontSize="9"
+                    fill="#697789"
+                    className="font-mono"
+                  >
+                    {tick.yearStr}
+                  </text>
+                </g>
+              ))}
+            </g>
 
-                // CP1 goes backward (left) tangent to diagonal from the child
-                const cp1x = cx - tension * ux;
-                const cp1y = cy - tension * uy;
+            {/* Layer 2: Base Graph Layer */}
+            <g id="base-graph">
+              {/* Parent-child connectives and convergence marks */}
+              {projectedCommits.map((node) => {
+                return node.connections.map((conn, ci) => {
+                  const parentNode = projectedCommits[conn.toRow];
+                  if (!parentNode) return null;
 
-                // CP2 goes forward (right) tangent to diagonal from the parent
-                const cp2x = px + tension * ux;
-                const cp2y = py + tension * uy;
+                  const cx = node.x;
+                  const cy = node.y;
+                  const px = parentNode.x;
+                  const py = parentNode.y;
+
+                  const dist = Math.sqrt((cx - px) ** 2 + (cy - py) ** 2) || 1;
+                  const tension = dist * 0.33;
+
+                  const cp1x = cx - tension * ux;
+                  const cp1y = cy - tension * uy;
+                  const cp2x = px + tension * ux;
+                  const cp2y = py + tension * uy;
+
+                  const isMerge = node.commit.parents.length > 1 && ci > 0;
+                  
+                  let mid = null;
+                  if (isMerge) {
+                    mid = getBezierPoint(
+                      { x: cx, y: cy },
+                      { x: cp1x, y: cp1y },
+                      { x: cp2x, y: cp2y },
+                      { x: px, y: py },
+                      0.5
+                    );
+                  }
+
+                  return (
+                    <g key={`conn-group-${node.commit.hash}-${ci}`}>
+                      <path
+                        d={`M ${cx} ${cy} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${px} ${py}`}
+                        stroke={conn.color}
+                        strokeWidth={isMerge ? 1.5 : 2}
+                        strokeLinecap="round"
+                        fill="none"
+                        strokeDasharray={isMerge ? "3 3" : undefined}
+                        opacity={selectedHash === node.commit.hash || selectedHash === parentNode.commit.hash ? 0.9 : 0.45}
+                        className="transition-all duration-200"
+                      />
+                      {isMerge && mid && (
+                        <path
+                          d="M -3.5 -2.5 L 0 0 L -3.5 2.5"
+                          fill="none"
+                          stroke={conn.color}
+                          strokeWidth={1.5}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          transform={`translate(${mid.x}, ${mid.y}) rotate(${mid.angle})`}
+                          opacity={0.85}
+                        />
+                      )}
+                    </g>
+                  );
+                });
+              })}
+
+              {/* Commit Nodes */}
+              {projectedCommits.map((node) => {
+                const isSelected = selectedHash === node.commit.hash;
+                const isHovered = hoveredHash === node.commit.hash;
 
                 return (
-                  <path
-                    key={`conn-${node.commit.hash}-${ci}`}
-                    d={`M ${cx} ${cy} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${px} ${py}`}
-                    stroke={conn.color}
-                    strokeWidth={2}
-                    strokeLinecap="round"
+                  <g
+                    key={`node-${node.commit.hash}`}
+                    className="cursor-pointer"
+                    onClick={() => onSelect(node.commit)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      onContextMenu(e, node.commit);
+                    }}
+                    onMouseEnter={(e) => {
+                      setHoveredHash(node.commit.hash);
+                      setHoveredPos({
+                        x: node.x,
+                        y: node.y,
+                      });
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredHash(null);
+                      setHoveredPos(null);
+                    }}
+                  >
+                    {/* Outer selection ring */}
+                    {isSelected && (
+                      <circle
+                        cx={node.x}
+                        cy={node.y}
+                        r={15}
+                        fill="none"
+                        stroke="#a3f185"
+                        strokeWidth={1.5}
+                        opacity={0.8}
+                      />
+                    )}
+
+                    {/* Hover visual scale guide */}
+                    {isHovered && (
+                      <circle
+                        cx={node.x}
+                        cy={node.y}
+                        r={14}
+                        fill="none"
+                        stroke={node.laneColor}
+                        strokeWidth={1}
+                        opacity={0.4}
+                      />
+                    )}
+
+                    {/* Core Commit Circle */}
+                    <circle
+                      cx={node.x}
+                      cy={node.y}
+                      r={10.5}
+                      fill="#020f1e"
+                      stroke={isSelected ? '#a3f185' : node.laneColor}
+                      strokeWidth={isSelected ? 3 : 2}
+                      className="transition-all duration-150"
+                    />
+
+                    {/* Initials Text Inside Circle */}
+                    <text
+                      x={node.x}
+                      y={node.y}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize="7.5"
+                      fontWeight="700"
+                      fill={isSelected ? '#a3f185' : node.laneColor}
+                      className="font-mono select-none pointer-events-none"
+                    >
+                      {initials(node.commit.authorName)}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+
+            {/* Layer 3: Overlay Labels Layer */}
+            <g id="overlay-labels">
+              {/* Satellite Tags */}
+              {tagsWithPositions.map((tag, idx) => {
+                const badgeWidth = tag.tagName.length * 5.8 + 8;
+                return (
+                  <g key={`tag-satellite-${tag.commitHash}-${idx}`}>
+                    <line
+                      x1={tag.x}
+                      y1={tag.y}
+                      x2={tag.satX}
+                      y2={tag.satY}
+                      stroke="#697789"
+                      strokeWidth={0.75}
+                      strokeDasharray="2 2"
+                      opacity={0.5}
+                    />
+                    <circle cx={tag.satX} cy={tag.satY} r={2} fill="#fd9d1a" opacity={0.7} />
+                    <g transform={`translate(${tag.satX}, ${tag.satY})`}>
+                      <rect
+                        x={-badgeWidth - 6}
+                        y={-6.5}
+                        width={badgeWidth}
+                        height={13}
+                        rx={3}
+                        fill="#031427"
+                        stroke="#fd9d1a"
+                        strokeWidth={0.75}
+                        opacity={0.8}
+                      />
+                      <text
+                        x={-badgeWidth - 2}
+                        y={2.5}
+                        fill="#fd9d1a"
+                        fontSize="7.5"
+                        className="font-mono font-medium select-none pointer-events-none"
+                      >
+                        {tag.tagName}
+                      </text>
+                    </g>
+                  </g>
+                );
+              })}
+
+              {/* HEAD Target Reticle (Static, scales slightly on active commit) */}
+              {headCommitNode && (
+                <g key="head-reticle">
+                  <circle
+                    cx={headCommitNode.x}
+                    cy={headCommitNode.y}
+                    r={17}
                     fill="none"
-                    opacity={selectedHash === node.commit.hash || selectedHash === parentNode.commit.hash ? 0.9 : 0.45}
+                    stroke="#a3f185"
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                    opacity={0.6}
                     className="transition-all duration-200"
                   />
-                );
-              });
-            })}
+                  <circle
+                    cx={headCommitNode.x}
+                    cy={headCommitNode.y}
+                    r={13.5}
+                    fill="none"
+                    stroke="#a3f185"
+                    strokeWidth={0.75}
+                    opacity={0.7}
+                  />
+                  <line x1={headCommitNode.x} y1={headCommitNode.y - 21} x2={headCommitNode.x} y2={headCommitNode.y - 16} stroke="#a3f185" strokeWidth={1} opacity={0.8} />
+                  <line x1={headCommitNode.x} y1={headCommitNode.y + 16} x2={headCommitNode.x} y2={headCommitNode.y + 21} stroke="#a3f185" strokeWidth={1} opacity={0.8} />
+                  <line x1={headCommitNode.x - 21} y1={headCommitNode.y} x2={headCommitNode.x - 16} y2={headCommitNode.y} stroke="#a3f185" strokeWidth={1} opacity={0.8} />
+                  <line x1={headCommitNode.x + 16} y1={headCommitNode.y} x2={headCommitNode.x + 21} y2={headCommitNode.y} stroke="#a3f185" strokeWidth={1} opacity={0.8} />
+                </g>
+              )}
 
-            {/* 4. Render Commit Nodes */}
-            {projectedCommits.map((node) => {
-              const isSelected = selectedHash === node.commit.hash;
-              const isHovered = hoveredHash === node.commit.hash;
-
-              return (
+              {/* WIP Capsule (Work in Progress) */}
+              {wipCoords && headCommitNode && (
                 <g
-                  key={`node-${node.commit.hash}`}
+                  key="wip-capsule"
                   className="cursor-pointer"
-                  onClick={() => onSelect(node.commit)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    onContextMenu(e, node.commit);
-                  }}
-                  onMouseEnter={(e) => {
-                    setHoveredHash(node.commit.hash);
-                    // Set projected position as relative world coordinates
-                    setHoveredPos({
-                      x: node.x,
-                      y: node.y,
-                    });
+                  onMouseEnter={() => {
+                    setHoveredHash('wip');
+                    setHoveredPos(wipCoords);
                   }}
                   onMouseLeave={() => {
                     setHoveredHash(null);
                     setHoveredPos(null);
                   }}
                 >
-                  {/* Outer selection ring */}
-                  {isSelected && (
-                    <circle
-                      cx={node.x}
-                      cy={node.y}
-                      r={15}
-                      fill="none"
-                      stroke="#a3f185"
-                      strokeWidth={1.5}
-                      opacity={0.8}
-                    />
-                  )}
-
-                  {/* Hover visual scale guide */}
-                  {isHovered && (
-                    <circle
-                      cx={node.x}
-                      cy={node.y}
-                      r={14}
-                      fill="none"
-                      stroke={node.laneColor}
-                      strokeWidth={1}
-                      opacity={0.4}
-                    />
-                  )}
-
-                  {/* Core Commit Circle */}
-                  <circle
-                    cx={node.x}
-                    cy={node.y}
-                    r={10.5}
-                    fill="#020f1e"
-                    stroke={isSelected ? '#a3f185' : node.laneColor}
-                    strokeWidth={isSelected ? 3 : 2}
-                    className="transition-all duration-150"
+                  <line
+                    x1={headCommitNode.x}
+                    y1={headCommitNode.y}
+                    x2={wipCoords.x}
+                    y2={wipCoords.y}
+                    stroke="#ff716c"
+                    strokeWidth={1}
+                    strokeDasharray="2 3"
+                    opacity={0.5}
                   />
-
-                  {/* Initials Text Inside Circle */}
+                  <polygon
+                    points={`${wipCoords.x - 11},${wipCoords.y + 4} ${wipCoords.x - 5},${wipCoords.y - 6} ${wipCoords.x + 1},${wipCoords.y + 4}`}
+                    fill="#ff716c"
+                    opacity={0.5}
+                  />
+                  <rect
+                    x={wipCoords.x - 4}
+                    y={wipCoords.y - 9}
+                    width={85}
+                    height={18}
+                    rx={4}
+                    fill="#031427"
+                    stroke="#ff716c"
+                    strokeWidth={1}
+                    strokeDasharray="2 2"
+                    opacity={0.8}
+                  />
                   <text
-                    x={node.x}
-                    y={node.y}
-                    textAnchor="middle"
-                    dominantBaseline="central"
+                    x={wipCoords.x + 8}
+                    y={wipCoords.y + 2.5}
+                    fill="#ff716c"
                     fontSize="7.5"
-                    fontWeight="700"
-                    fill={isSelected ? '#a3f185' : node.laneColor}
+                    fontWeight="bold"
                     className="font-mono select-none pointer-events-none"
+                    letterSpacing="0.5"
                   >
-                    {initials(node.commit.authorName)}
+                    WIP [PENDING]
                   </text>
                 </g>
-              );
-            })}
+              )}
+
+              {/* Stash Pods (Grouped parallel nodes) */}
+              {stashCoords.map((stashPos, idx) => (
+                <g
+                  key={`stash-pod-${idx}`}
+                  className="cursor-pointer"
+                  onMouseEnter={() => {
+                    setHoveredHash(`stash-${idx}`);
+                    setHoveredPos(stashPos);
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredHash(null);
+                    setHoveredPos(null);
+                  }}
+                >
+                  <line
+                    x1={stashPos.x}
+                    y1={stashPos.y}
+                    x2={stashPos.x - nx * 18}
+                    y2={stashPos.y - ny * 18}
+                    stroke="#9eacc0"
+                    strokeWidth={0.75}
+                    strokeDasharray="1 3"
+                    opacity={0.4}
+                  />
+                  <rect
+                    x={stashPos.x - 22}
+                    y={stashPos.y - 8}
+                    width={44}
+                    height={16}
+                    rx={3}
+                    fill="#031427"
+                    stroke="#9eacc0"
+                    strokeWidth={0.75}
+                    opacity={0.75}
+                  />
+                  <rect
+                    x={stashPos.x - 14}
+                    y={stashPos.y + 1}
+                    width={28}
+                    height={3}
+                    fill="#3c495a"
+                    opacity={0.6}
+                  />
+                  <path
+                    d={`M ${stashPos.x - 16} ${stashPos.y - 4} L ${stashPos.x - 16} ${stashPos.y + 4} L ${stashPos.x + 16} ${stashPos.y + 4} L ${stashPos.x + 16} ${stashPos.y - 4}`}
+                    fill="none"
+                    stroke="#9eacc0"
+                    strokeWidth={0.5}
+                    opacity={0.5}
+                  />
+                  <text
+                    x={stashPos.x}
+                    y={stashPos.y - 1}
+                    textAnchor="middle"
+                    fill="#9eacc0"
+                    fontSize="6.5"
+                    fontWeight="bold"
+                    className="font-mono select-none pointer-events-none"
+                  >
+                    {`STSH@${idx}`}
+                  </text>
+                </g>
+              ))}
+
+              {/* Dynamic Telemetry Overlay Labels System (Unified Non-Overlapping Stack) */}
+              {projectedCommits.map((node) => {
+                const isHead = headCommitNode && node.commit.hash === headCommitNode.commit.hash;
+                const isBranchOrigin = branchOrigins.get(node.branchIndex) === node.commit.hash;
+
+                // 1. HEAD Node - Unified Telemetry Stack (Fixed Offset, prominent placement)
+                if (isHead && headCommitNode) {
+                  const baseLabelX = headCommitNode.x + rx * 38;
+                  const baseLabelY = headCommitNode.y + ry * 38;
+                  const lineSpacing = 11;
+
+                  // Compute line Y positions statically to prevent JSX closure optimization issues
+                  const line1Y = baseLabelY;
+                  const line2Y = line1Y + ((ahead > 0 || behind > 0) ? lineSpacing : 0);
+                  const line3Y = line2Y + lineSpacing;
+                  const line4Y = line3Y + lineSpacing;
+
+                  return (
+                    <g key={`head-telemetry-stack`} opacity={0.95}>
+                      {/* Dotted HUD connector line */}
+                      <line
+                        x1={headCommitNode.x}
+                        y1={headCommitNode.y}
+                        x2={headCommitNode.x + rx * 34}
+                        y2={headCommitNode.y + ry * 34}
+                        stroke="#a3f185"
+                        strokeWidth={1}
+                        strokeDasharray="2 2"
+                        opacity={0.85}
+                      />
+
+                      {/* Line 1: [HEAD // TARGET: ACTIVE] */}
+                      <text
+                        x={baseLabelX}
+                        y={line1Y}
+                        fill="#a3f185"
+                        fontSize="7.5"
+                        fontWeight="bold"
+                        className="font-mono select-none pointer-events-none"
+                        letterSpacing="0.5"
+                      >
+                        [HEAD // TARGET: ACTIVE]
+                      </text>
+
+                      {/* Line 2: TRACKING // Ahead/Behind (Conditional) */}
+                      {(ahead > 0 || behind > 0) && (
+                        <text
+                          x={baseLabelX}
+                          y={line2Y}
+                          fill="#a3f185"
+                          fontSize="7"
+                          fontWeight="bold"
+                          className="font-mono select-none pointer-events-none"
+                          letterSpacing="0.5"
+                          opacity={0.85}
+                        >
+                          {`TRACKING // ${ahead > 0 ? `▲${ahead}` : ''}${behind > 0 ? ` ▼${behind}` : ''}`}
+                        </text>
+                      )}
+
+                      {/* Line 3: BRANCH // Name */}
+                      <text
+                        x={baseLabelX}
+                        y={line3Y}
+                        fill={headCommitNode.laneColor}
+                        fontSize="7.5"
+                        fontWeight="bold"
+                        className="font-mono select-none pointer-events-none"
+                        letterSpacing="0.5"
+                      >
+                        {`BRANCH // ${currentBranch || 'DETACHED'}`}
+                      </text>
+
+                      {/* Line 4: COMMIT // hash & message */}
+                      <text
+                        x={baseLabelX}
+                        y={line4Y}
+                        fill={headCommitNode.laneColor}
+                        fontSize="7"
+                        fontWeight="medium"
+                        className="font-mono select-none pointer-events-none"
+                        letterSpacing="0.5"
+                        opacity={0.8}
+                      >
+                        {`C:${headCommitNode.commit.shortHash.toUpperCase()} // ${headCommitNode.commit.message.substring(0, 24)}...`}
+                      </text>
+                    </g>
+                  );
+                }
+
+                // 2. Branch Origin Nodes (Start of Branch - Staggered Placement)
+                if (isBranchOrigin) {
+                  const hasParent = node.commit.parents.length > 0;
+                  const branchName = branchNamesMap.get(node.branchIndex) || `branch-${Math.abs(node.branchIndex)}`;
+
+                  // Symmetrical Stagger: alternate offsets to eliminate horizontal overlaps
+                  const isEven = node.chronologicalIndex % 2 === 0;
+                  const offsetDist = isEven ? 32 : 72;
+
+                  // Interlocking fork triangles coordinates (Moved completely outside the 10.5px circle)
+                  const p1_A_x = node.x + rx * 25;
+                  const p1_A_y = node.y + ry * 25;
+                  const p1_B_x = node.x + rx * 20 + ux * 2.5;
+                  const p1_B_y = node.y + ry * 20 + uy * 2.5;
+                  const p1_C_x = node.x + rx * 20 - ux * 2.5;
+                  const p1_C_y = node.y + ry * 20 - uy * 2.5;
+
+                  const p2_A_x = node.x + rx * 28;
+                  const p2_A_y = node.y + ry * 28;
+                  const p2_B_x = node.x + rx * 23 + ux * 2.5;
+                  const p2_B_y = node.y + ry * 23 + uy * 2.5;
+                  const p2_C_x = node.x + rx * 23 - ux * 2.5;
+                  const p2_C_y = node.y + ry * 23 - uy * 2.5;
+
+                  return (
+                    <g key={`branch-origin-${node.commit.hash}`} opacity={0.9}>
+                      {/* Dotted HUD connector line */}
+                      <line
+                        x1={node.x}
+                        y1={node.y}
+                        x2={node.x + rx * (offsetDist - 4)}
+                        y2={node.y + ry * (offsetDist - 4)}
+                        stroke={node.laneColor}
+                        strokeWidth={0.75}
+                        strokeDasharray="2 2"
+                        opacity={0.6}
+                      />
+
+                      {/* Interlocking Triangles Demarcating branch start (Clean, crisp, external to circle) */}
+                      {hasParent && (
+                        <g opacity={0.9}>
+                          <polygon
+                            points={`${p1_A_x},${p1_A_y} ${p1_B_x},${p1_B_y} ${p1_C_x},${p1_C_y}`}
+                            fill={node.laneColor}
+                            opacity={0.4}
+                            stroke={node.laneColor}
+                            strokeWidth={0.75}
+                          />
+                          <polygon
+                            points={`${p2_A_x},${p2_A_y} ${p2_B_x},${p2_B_y} ${p2_C_x},${p2_C_y}`}
+                            fill="none"
+                            stroke={node.laneColor}
+                            strokeWidth={1}
+                          />
+                        </g>
+                      )}
+
+                      {/* Branch Name Label */}
+                      <text
+                        x={node.x + rx * offsetDist}
+                        y={node.y + ry * offsetDist + 2.5}
+                        fill={node.laneColor}
+                        fontSize="7.5"
+                        fontWeight="bold"
+                        className="font-mono select-none pointer-events-none"
+                        letterSpacing="0.5"
+                      >
+                        {`BRANCH // ${branchName}`}
+                      </text>
+                    </g>
+                  );
+                }
+
+                // 3. Normal Commit Nodes (Rest of the circles - Symmetrical Staggered Placement)
+                const isEven = node.chronologicalIndex % 2 === 0;
+                const offsetDist = isEven ? 32 : 72;
+
+                return (
+                  <g key={`commit-text-${node.commit.hash}`} opacity={0.75} className="hover:opacity-100 transition-opacity">
+                    {/* Dotted HUD connector line */}
+                    <line
+                      x1={node.x}
+                      y1={node.y}
+                      x2={node.x + rx * (offsetDist - 4)}
+                      y2={node.y + ry * (offsetDist - 4)}
+                      stroke={node.laneColor}
+                      strokeWidth={0.5}
+                      strokeDasharray="2 3"
+                      opacity={0.4}
+                    />
+
+                    {/* Commit Telemetry label */}
+                    <text
+                      x={node.x + rx * offsetDist}
+                      y={node.y + ry * offsetDist + 2.5}
+                      fill={node.laneColor}
+                      fontSize="7"
+                      fontWeight="medium"
+                      className="font-mono select-none pointer-events-none"
+                      letterSpacing="0.5"
+                    >
+                      {`C:${node.commit.shortHash.toUpperCase()} // ${node.commit.message.substring(0, 24)}...`}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
           </g>
         </svg>
 

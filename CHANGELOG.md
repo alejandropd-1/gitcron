@@ -4,6 +4,22 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.4.2] - 2026-05-22 - Instrumentación Semántica TCARS (HUD Refinements & Anti-Overlap Layout)
+
+### Added
+
+- **Symmetrical Staggered Timeline Labels (Layout Anticolisión)**: Implemented an alternating stagger layout (`32px` and `72px` perpendicular offsets) based on chronological index for all commit labels to completely eliminate overlap along the diagonal timeline.
+- **Directional HUD Separation (Left/Right Layout)**: Optimized spatial arrangement by projecting Git tags as outer satellite badges to the top-left (using the `(nx, ny)` vector normal), while committing all text telemetry lines, branch names, and hashes to the bottom-right (along `(rx, ry)`).
+- **Floating Fork Triangles (Branch Start Indicators)**: Added external double-triangles that float cleanly at a `20px` to `28px` offset to clearly demarcate where a new branch starts, completely decoupled from the 10.5px commit circles to avoid any geometric overlaps.
+- **Static HEAD Telemetry Stack**: Eliminated Next.js SWC build-time closures optimizer bug by computing HEAD vertical coordinates statically, rendering branch info, track state, and commit hash in a perfectly stacked vertical HUD list.
+
+### Docs
+
+- Bumped the app version to `v1.4.2` in `package.json`.
+- Updated the README version badge, architecture list, and features guide.
+
+---
+
 ## [v1.4.1] - 2026-05-22 - Pan & Zoom Cronométrico (Infinite Canvas Viewport)
 
 ### Added

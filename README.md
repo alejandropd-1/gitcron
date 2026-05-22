@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.4.1-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.4.2-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -62,6 +62,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Navegación Canvas en Vista Cronométrica (Pan & Zoom)**: Infinite 2D interactive viewport for the Chronometric View. Left-click and drag anywhere on the canvas to pan smoothly. Use the mouse wheel to zoom in and out, mathematically anchored to the exact cursor position (clamped between `0.25x` and `3.5x` scale). Features automatic bounds clamping to prevent the graph from sliding off-screen, and dynamic viewport auto-centering that instantly focuses the timeline on mount, repo switch, or filter changes.
 
 - **Dynamic Floating Hover Cards**: Commitment details float cleanly over the active hovered node. Using mathematical projection, card positions are updated instantly as you pan and zoom, clamped against container boundaries to prevent off-screen truncation.
+- **Instrumentación Semántica HUD (TCARS Layout)**: Modern vector-based telemetry overlays that visually resolve Git entities. Incorporates a symmetrical staggered label system (alternating 32px and 72px offsets) to eliminate text overlaps, displays branch origin indicators as external floating triangles (20px-28px offset), and projects Git tags as top-left satellite badges while keeping commit metadata on the bottom-right.
 - **Discrete Floating Navigation Controls**: Low-profile, sleek buttons (`+`, `-`, `Reset`) in the bottom-right corner for quick mouse-click zooming and viewport resetting, keeping classic mode perfectly intact without visual clutter.
 
 

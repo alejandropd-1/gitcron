@@ -1,8 +1,46 @@
 'use client';
 
+import { useRef, useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useT } from '@/hooks/use-translation';
 import type { GitFile } from '@/lib/git-store';
+
+/**
+ * Custom hook to dynamically adjust the context menu position
+ * so it never overflows the bottom or right edges of the viewport.
+ * Uses a two-pass render style (hidden first frame) to measure and
+ * reposition seamlessly without flickering.
+ */
+function useAdjustedPosition(x: number, y: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ left: x, top: y });
+  const [isMeasured, setIsMeasured] = useState(false);
+
+  useEffect(() => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const winW = window.innerWidth;
+      const winH = window.innerHeight;
+
+      let left = x;
+      let top = y;
+
+      // Adjust horizontally if it goes off-screen to the right
+      if (x + rect.width > winW) {
+        left = Math.max(8, winW - rect.width - 8);
+      }
+      // Adjust vertically if it goes off-screen to the bottom (render upwards)
+      if (y + rect.height > winH) {
+        top = Math.max(8, winH - rect.height - 8);
+      }
+
+      setCoords({ left, top });
+      setIsMeasured(true);
+    }
+  }, [x, y]);
+
+  return { ref, coords, isMeasured };
+}
 
 export function ContextMenuItem({
   onClick, text, textSecondary,
@@ -26,11 +64,19 @@ export function CommitContextMenu({
   onCreateBranch: () => void; onCherryPick: () => void; onCopySha: () => void; onClose: () => void;
 }) {
   const t = useT();
+  const { ref, coords, isMeasured } = useAdjustedPosition(x, y);
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+      ref={ref}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: isMeasured ? 1 : 0, scale: isMeasured ? 1 : 0.95 }}
       className="fixed bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-lg shadow-2xl py-1 z-[100] w-64"
-      style={{ left: x, top: y }}
+      style={{
+        left: coords.left,
+        top: coords.top,
+        visibility: isMeasured ? 'visible' : 'hidden',
+      }}
     >
       <ContextMenuItem onClick={onMerge} text="Merge into current branch" />
       <ContextMenuItem onClick={onCherryPick} text={t('commitMenu.cherryPick')} />
@@ -61,11 +107,19 @@ export function BranchContextMenu({
   const hasUpstream = !!tracking?.upstream;
   const canPush = hasUpstream && (tracking?.ahead ?? 0) > 0;
   const canPull = hasUpstream && (tracking?.behind ?? 0) > 0;
+  const { ref, coords, isMeasured } = useAdjustedPosition(x, y);
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+      ref={ref}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: isMeasured ? 1 : 0, scale: isMeasured ? 1 : 0.95 }}
       className="fixed bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-lg shadow-2xl py-1 z-[100] w-72"
-      style={{ left: x, top: y }}
+      style={{
+        left: coords.left,
+        top: coords.top,
+        visibility: isMeasured ? 'visible' : 'hidden',
+      }}
     >
       <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-[#697789] border-b border-[#3c495a]/15 truncate">{branch}</div>
       {!isCurrent && <ContextMenuItem onClick={onMerge} text={`Merge "${branch}" en "${currentBranch}"`} />}
@@ -99,11 +153,19 @@ export function FileContextMenu({
   onIgnore: () => void; onOpenInEditor: () => void; onShowInFolder: () => void;
   onCopyPath: () => void; onDelete: () => void; onClose: () => void;
 }) {
+  const { ref, coords, isMeasured } = useAdjustedPosition(x, y);
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+      ref={ref}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: isMeasured ? 1 : 0, scale: isMeasured ? 1 : 0.95 }}
       className="fixed bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-lg shadow-2xl py-1 z-[100] w-60"
-      style={{ left: x, top: y }}
+      style={{
+        left: coords.left,
+        top: coords.top,
+        visibility: isMeasured ? 'visible' : 'hidden',
+      }}
     >
       <ContextMenuItem onClick={onStage} text={file.staged ? 'Unstage' : 'Stage'} />
       <ContextMenuItem onClick={onIgnore} text="Agregar a .gitignore" />
@@ -120,3 +182,4 @@ export function FileContextMenu({
     </motion.div>
   );
 }
+

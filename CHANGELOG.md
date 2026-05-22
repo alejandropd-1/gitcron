@@ -4,17 +4,18 @@ Changes are listed from newest to oldest.
 
 ---
 
-## [v1.3.5] - 2026-05-22 - Persistent login session rescue
+## [v1.3.6] - 2026-05-22 - Session rescue & Viewport-aware context menus
 
 ### Fixed
 
 - Robust login session preservation: updated `bootstrapGitHub` to only delete the GitHub credentials token from local secure storage (`safeStorage`) if the validation error is explicitly an authentication/credentials failure (HTTP `401 Unauthorized`). Temporary offline states or network timeouts no longer log the user out.
 - Silent avatar & profile re-connect: added an automatic, silent re-validation trigger that fetches the user profile and updates the UI avatar as soon as the application recovers its internet connection (using window `'online'` event) or when the user opens their profile menu.
+- Viewport-aware context menus: implemented `useAdjustedPosition` in all context menus (Branch, Commit, and File) to dynamically detect screen boundaries (height/width) and shift/render menus upwards or leftwards to prevent them from overflowing the viewport.
 - Extended type mappings for `GitResult` to support `isAuthError` and status properties.
 
 ### Docs
 
-- Bumped the app version to `v1.3.5` in `package.json`.
+- Bumped the app version to `v1.3.6` in `package.json`.
 - Updated the README version badge, installer filenames, and current-version note.
 
 ---

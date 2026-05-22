@@ -4,6 +4,27 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.4.5] - 2026-05-22 - TCARS HUD Shell: Paneles Flotantes, Fixes de Layout y Correcciones de Labels (Iteración C3)
+
+### Added
+
+- **Floating Overlay Panels (Sidebar & Details)**: Converted the two fixed lateral columns (branch sidebar left, unstaged/staged/commit panel right) from rigid flex columns into absolute-positioned overlays that slide over the graph canvas with `translateX` transitions (300 ms). State (open/closed) and widths persist in `localStorage`. Toggle tabs sit at each panel's outer edge, always visible.
+- **HUD Offset Props (`hudLeft` / `hudRight`)**: All four TCARS panels and the zoom/reset controls now accept `hudLeft` / `hudRight` pixel offsets passed from page.tsx. When a floating panel is open, the HUD elements shift inward by exactly the panel width with a matching 0.3 s ease transition, ensuring they are never covered by the overlays.
+
+### Fixed
+
+- **Branch label side consistency (Task 3.1)**: `isLeft` now correctly uses the visual lane direction (`branchIndex > 0`) for commits whose branch name was not propagated through `commitBranchNames`. Previously those commits fell into the trunk alternating logic (`chronologicalIndex % 2`), causing nodes on the same lateral branch to flip sides randomly.
+- **Branch badge / comment vertical separation (Task 3.2)**: The branch-name badge at origin nodes is now stacked 13 px above the commit comment (`baseY - 13`) instead of placed horizontally adjacent. Removes the approximate `commentTextWidth` calculation and eliminates overlap at any zoom level.
+- **Bottom HUD strip eliminated**: Panel 04 (Target Telemetry) was previously `flex-1` inside a shared bottom flex row, stretching a dark background across the full canvas width. It is now an independent `absolute bottom-4 left-1/2 -translate-x-1/2 w-[380px]` element — fixed width, no flex expansion, no background strip.
+- **Zoom / Reset controls visibility**: Controls were hidden behind the right floating panel (z-30 > z-20 in the shared stacking context). Extracted from the flex row into their own `absolute bottom-4 right: 16+hudRight` widget that shifts left when the details panel is open.
+- **`overflow-hidden` removed from `#chronometric-container`**: Was clipping the absolute HUD panels when ChronometricGraph's height was computed via the flex-1 chain, causing Panel 01 and Panel 03 to appear stacked at the bottom of the canvas.
+
+### Docs
+
+- Updated `CHANGELOG.md` and `README.md` to reflect C3 changes.
+
+---
+
 ## [v1.4.4] - 2026-05-22 - Distribución Consistente por Rama y Tags de Origen Inline (Iteraciones C2.2 & C2.3)
 
 ### Added

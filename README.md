@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.4.4-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.4.5-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -64,9 +64,10 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Instrumentación Semántica HUD (TCARS Layout)**: Modern vector-based telemetry overlays that visually resolve Git entities. Incorporates a symmetrical staggered label system (alternating 32px and 72px offsets) to eliminate text overlaps, displays branch origin indicators as external floating triangles (20px-28px offset), and projects Git tags as top-left satellite badges while keeping commit metadata on the bottom-right.
 - **HUD / Shell TCARS System (C2 Block)**: Wraps the panned canvas inside static, curved SVG borders, orbital tactical arcs, degree ticks, and coordinates. Operates four absolute HUD panels (Navigation System, Sync & Dirty Telemetry, Chrono Metrics & Radar, and Target Telemetry with locking reticle) running smoothly at 60+ FPS on a completely decoupled overlay layer with controlled, slow-breathing animations.
 - **Distribución de Comentarios Consistente por Rama (Symmetrical Wing Alignment)**: Commits on lateral branches are grouped cleanly on a single side (left for left-splitting branches, right for right-splitting branches, and stable hashed wings for `lane = 0` checked-out lateral branches) to achieve consistent side visual alignment, preserving alternating symmetry only for the main trunk (`main`/`master`).
-- **Badge Inline de Origen de Rama (Branch Segment Origin Tags)**: Renders a high-fidelity, styled branch origin tag (e.g. `FEATURE/TCARS-HUD-SHELL`) immediately to the left of the comment text for the first commit of any lateral branch segment, with dynamic text-shifting and clean padding.
+- **Badge Inline de Origen de Rama (Branch Segment Origin Tags)**: Renders a high-fidelity, styled branch origin tag (e.g. `FEATURE/TCARS-HUD-SHELL`) stacked 13 px above the commit comment at each branch origin node, with dynamic width and lane-aware alignment (left or right) matching the branch's wing side.
 - **Propagación Retroactiva de Nombres de Rama**: Employs a lane-aware backward propagation algorithm (`commitBranchNames`) to map branch names from tips to origin commits along the first-parent line, guaranteeing exact branch metadata on all nodes.
-- **Discrete Floating Navigation Controls**: Low-profile, sleek buttons (`+`, `-`, `Reset`) in the bottom-right corner for quick mouse-click zooming and viewport resetting, keeping classic mode perfectly intact without visual clutter.
+- **Discrete Floating Navigation Controls**: Low-profile, sleek buttons (`+`, `-`, `Reset`) in the bottom-right corner for quick mouse-click zooming and viewport resetting, always visible even when floating panels are open. Shift inward with `hudRight` transition when the details panel is open.
+- **Floating Overlay Panels**: Both the branch sidebar (left) and the staging/commit panel (right) float as absolute overlays over the graph canvas with slide transitions (300 ms). Open/closed state and widths persist in `localStorage`. The four TCARS HUD panels and zoom controls shift inward to avoid being covered, animated to match the panel slide timing.
 
 
 ### Staging and commits

@@ -2,7 +2,10 @@ interface GitResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
+  isAuthError?: boolean;
+  status?: number;
 }
+
 
 export interface RepoInfo {
   path: string;

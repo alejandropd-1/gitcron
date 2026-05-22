@@ -664,7 +664,11 @@ ipcMain.handle('github:auth', async (_event, token: string) => {
     };
     return { success: true, data: user };
   } catch (error: any) {
-    return { success: false, error: errMsg(error) };
+    const status = error.status || error.response?.status;
+    const isAuthError = status === 401 ||
+                        errMsg(error).includes('Bad credentials') ||
+                        errMsg(error).includes('Unauthorized');
+    return { success: false, error: errMsg(error), isAuthError, status };
   }
 });
 

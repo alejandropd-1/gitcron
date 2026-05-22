@@ -860,9 +860,13 @@ export const useGitActions = () => {
       if (userResult.success && userResult.data) {
         setGithubUser(userResult.data);
       } else {
-        // Token was revoked/expired — clean up
-        await window.api.storageDelete('githubToken').catch(() => {});
-        setGithubToken(null);
+        // Only clean up the token if we are sure it was revoked/expired (401)
+        if (userResult.isAuthError) {
+          await window.api.storageDelete('githubToken').catch(() => {});
+          setGithubToken(null);
+        } else {
+          console.warn('Temporary network/server error while validating GitHub token on startup:', userResult.error);
+        }
       }
     }
   };

@@ -849,6 +849,20 @@ export default function GitCronPage() {
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Retry GitHub user info fetch if we have a token but no user, either on online events or when opening profile dropdown.
+  useEffect(() => {
+    if (githubToken && !githubUser) {
+      if (showProfile) {
+        void bootstrapGitHub();
+      }
+      const handleOnline = () => {
+        void bootstrapGitHub();
+      };
+      window.addEventListener('online', handleOnline);
+      return () => window.removeEventListener('online', handleOnline);
+    }
+  }, [githubToken, githubUser, showProfile, bootstrapGitHub]);
+
   useEffect(() => {
     const handleClick = () => {
       setContextMenu(null);

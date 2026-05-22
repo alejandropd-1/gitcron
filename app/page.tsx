@@ -1995,7 +1995,7 @@ export default function GitCronPage() {
             />
           ) : (
             /* Graph tab — default */
-            <div className="flex-1 flex flex-col overflow-hidden bg-[#020f1e]" id="chronometric-container">
+            <div className="flex-1 flex flex-col bg-[#020f1e]" id="chronometric-container">
               {graphMode === 'classic' ? (
                 <>
                   <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">

@@ -41,12 +41,77 @@ export function useCanvasViewport({
 
   // Expose reset callback
   const resetViewport = useCallback(() => {
-    setViewport({
-      offsetX: 0,
-      offsetY: 0,
-      scale: initialScale,
-    });
-  }, [initialScale]);
+    const container = containerRef.current;
+    if (!container) {
+      setViewport({
+        offsetX: 0,
+        offsetY: 0,
+        scale: initialScale,
+      });
+      return;
+    }
+
+    const viewportWidth = container.clientWidth || 800;
+    const viewportHeight = container.clientHeight || 520;
+
+    const initialOffsetX = viewportWidth / 2 - (worldWidth / 2) * initialScale;
+    const initialOffsetY = viewportHeight / 2 - (worldHeight / 2) * initialScale;
+
+    setViewport(
+      constrainViewport(
+        {
+          offsetX: initialOffsetX,
+          offsetY: initialOffsetY,
+          scale: initialScale,
+        },
+        worldWidth,
+        worldHeight,
+        viewportWidth,
+        viewportHeight,
+        padding
+      )
+    );
+  }, [worldWidth, worldHeight, initialScale, padding]);
+
+  const hasInitialized = useRef(false);
+
+  // Reset initialization flag when repo world dimensions change
+  useEffect(() => {
+    hasInitialized.current = false;
+  }, [worldWidth, worldHeight]);
+
+  // Dynamically center the viewport once container is measured and laid out
+  useEffect(() => {
+    if (hasInitialized.current) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const viewportWidth = container.clientWidth || 0;
+    const viewportHeight = container.clientHeight || 0;
+
+    if (viewportWidth > 0 && viewportHeight > 0) {
+      const initialOffsetX = viewportWidth / 2 - (worldWidth / 2) * initialScale;
+      const initialOffsetY = viewportHeight / 2 - (worldHeight / 2) * initialScale;
+
+      setViewport(
+        constrainViewport(
+          {
+            offsetX: initialOffsetX,
+            offsetY: initialOffsetY,
+            scale: initialScale,
+          },
+          worldWidth,
+          worldHeight,
+          viewportWidth,
+          viewportHeight,
+          padding
+        )
+      );
+      hasInitialized.current = true;
+    }
+  }, [worldWidth, worldHeight, initialScale, padding]);
+
 
   // Handles discrete zoom actions (zoom buttons)
   const zoomDiscrete = useCallback(

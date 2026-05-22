@@ -23,7 +23,16 @@ export interface ProjectionConfig {
   paddingBottom: number;
   fanFactor: number;
   totalCommits: number;
+  slope?: number;
 }
+
+/**
+ * Default visual slope (rise / run ratio) for the diagonal timeline.
+ * An angle of ~40.4 degrees in screen coordinates corresponds to a slope of 0.85.
+ * Exposing this as a configurable constant keeps the geometry highly customizable.
+ */
+export const DEFAULT_CHRONOMETRIC_SLOPE = 0.85;
+
 
 export interface ProjectedCommit {
   x: number;

@@ -5,7 +5,24 @@ import {
   branchToOffset,
   projectCommit,
   ProjectionConfig,
+  DEFAULT_CHRONOMETRIC_SLOPE,
 } from '../chronometric-projection';
+
+describe('DEFAULT_CHRONOMETRIC_SLOPE', () => {
+  it('defines a visual slope corresponding to an angle between 35° and 50°', () => {
+    expect(DEFAULT_CHRONOMETRIC_SLOPE).toBeDefined();
+    expect(typeof DEFAULT_CHRONOMETRIC_SLOPE).toBe('number');
+    
+    // Calculate angle in degrees: atan(slope) * 180 / PI
+    const angleRad = Math.atan(DEFAULT_CHRONOMETRIC_SLOPE);
+    const angleDeg = (angleRad * 180) / Math.PI;
+    
+    expect(angleDeg).toBeGreaterThanOrEqual(35);
+    expect(angleDeg).toBeLessThanOrEqual(50);
+    expect(DEFAULT_CHRONOMETRIC_SLOPE).toBe(0.85); // 40.4°
+  });
+});
+
 
 describe('mapLaneToBranchIndex', () => {
   it('maps sequential lane indices to alternating symmetrical indices', () => {

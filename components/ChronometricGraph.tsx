@@ -6,6 +6,7 @@ import {
   mapLaneToBranchIndex,
   projectCommit,
   type ProjectionConfig,
+  DEFAULT_CHRONOMETRIC_SLOPE,
 } from '@/lib/chronometric-projection';
 import {
   screenToWorld,
@@ -69,7 +70,16 @@ export function ChronometricGraph({
     return Math.max(1100, filteredCommits.length * 60);
   }, [filteredCommits]);
 
-  const height = 520;
+  // Compute height dynamically using the slope to maintain a constant visual angle of ~40.4°
+  const height = useMemo(() => {
+    const paddingLeft = 100;
+    const paddingRight = 100;
+    const paddingTop = 100;
+    const paddingBottom = 100;
+    const availableWidth = width - paddingLeft - paddingRight;
+    const rise = availableWidth * DEFAULT_CHRONOMETRIC_SLOPE;
+    return paddingTop + paddingBottom + rise;
+  }, [width]);
 
   const config: ProjectionConfig = useMemo(() => {
     return {

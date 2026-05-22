@@ -12,10 +12,13 @@ Changes are listed from newest to oldest.
 - **Arrastre por Mouse (Click & Drag Pan)**: Drag anywhere on the Chronometric Graph to pan smoothly in both vertical and horizontal planes. Event listeners are dynamically bound to the `window` during active dragging to guarantee absolute panning stability even when the cursor leaves the window bounds.
 - **Zoom Anclado al Cursor (Cursor-Anchored Scroll Wheel Zoom)**: Integrated cursor-anchored scaling by recalculating viewport offsets instantly as the user scrolls. Supports scale clamping between `0.25x` and `3.5x`.
 - **Límites de Contención (Viewport Bounds Containment)**: Implemented automatic boundaries clamping to prevent the timeline graph from completely sliding out of the viewport.
+- **Inclinación Visual Ascendente (Pronounced Diagonal Slope)**: Exposed a configurable constant `DEFAULT_CHRONOMETRIC_SLOPE = 0.85` in the math module (producing a ~40.4° rising angle in screen coordinates), transforming the horizontal timeline into a visually striking chronological ascent HUD.
+- **Auto-Centrado Dinámico de Lienzo (Dynamic Viewport Auto-Centering)**: Added an automatic viewport layout measurer to `useCanvasViewport` that instantly centers the ascending diagonal timeline horizontally and vertically on first mount, repository switch, or filter changes, while safely preserving subsequent user panning gestures.
 - **Librería Matemática Viewport (`lib/canvas-viewport.ts`)**: Built a pure, robust coordinate projection library mapping screen coordinates to canvas world coordinates (`screenToWorld`, `worldToScreen`) and resolving viewport boundary constraints.
 - **Comportamiento del Hover Card**: Computed absolute details hover card coordinates using mathematical canvas projections, ensuring that hover elements follow nodes flawlessly under zoom and pan and clamp precisely against container edges.
 - **Controles de Navegación Discretos (Discrete Floating Controls)**: Minimalist, low-profile overlay controls (`+`, `-`, `Reset`) in the bottom-right corner for mouse-driven zoom adjustments and viewport resetting.
-- **Vitest Unit Test Suite**: Comprehensive tests in `lib/__tests__/canvas-viewport.test.ts` covering coordinate projections, anchored scale calculations, limit clamp margins, and boundary constraints.
+- **Vitest Unit Test Suite**: Comprehensive tests in `lib/__tests__/canvas-viewport.test.ts` covering coordinate projections, anchored scale calculations, limit clamp margins, and boundary constraints; and added test cases in `lib/__tests__/chronometric-projection.test.ts` validating slope angle restrictions.
+
 
 ### Docs
 

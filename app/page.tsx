@@ -644,6 +644,11 @@ export default function GitCronPage() {
   const [branchMenu, setBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
   const [renameModal, setRenameModal] = useState<{ oldName: string; newName: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ branch: string; notMerged?: boolean } | null>(null);
+  const [forcePushConfirm, setForcePushConfirm] = useState<{
+    repoDir: string;
+    githubToken: string;
+    resolve: (value: boolean) => void;
+  } | null>(null);
   const [mergeNeedsCheckout, setMergeNeedsCheckout] = useState<{ sourceBranch: string; targetBranch: string } | null>(null);
   const [showNewBranch, setShowNewBranch] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
@@ -2583,15 +2588,104 @@ export default function GitCronPage() {
             onClose={() => setShowInitRepo(false)}
             onPickFolder={() => pickFolder('Elegir carpeta padre donde crear el repo')}
             onCreate={async (parent, name, withGitHub) => {
-              if (withGitHub && githubToken) {
-                // Create on GitHub first, then clone
-                const r = await createGitHubRepo(githubToken, name, true, '');
-                if (!r.success || !r.data) return false;
-                const cl = await cloneRepo(r.data.cloneUrl, parent, name, githubToken);
-                return cl.success;
+              setError(null);
+              const separator = parent.includes('\\') ? '\\' : '/';
+              const repoDir = parent.endsWith('/') || parent.endsWith('\\')
+                ? `${parent}${name}`
+                : `${parent}${separator}${name}`;
+              
+              const existsResult = await window.api.fsExistsAndNotEmpty(parent, name);
+              const existsAndNotEmpty = existsResult.success && existsResult.data;
+
+              if (existsAndNotEmpty) {
+                // Inteligente: La carpeta existe y no está vacía.
+                const r = await initRepo(parent, name, true);
+                if (!r.success) return false;
+
+                if (withGitHub && githubToken) {
+                  const gh = await createGitHubRepo(githubToken, name, true, '', false);
+                  let cloneUrl = '';
+
+                  if (!gh.success) {
+                    const isNameExistsError = gh.error && gh.error.includes('already exists');
+                    if (isNameExistsError && githubUser?.login) {
+                      cloneUrl = `https://github.com/${githubUser.login}/${name}.git`;
+                    } else {
+                      return false;
+                    }
+                  } else if (gh.data) {
+                    cloneUrl = gh.data.cloneUrl;
+                  }
+
+                  if (cloneUrl) {
+                    // Asociar el remote origin (si no existiera ya)
+                    const remoteRes = await window.api.gitCommand(repoDir, ['remote', 'add', 'origin', cloneUrl]);
+                    if (!remoteRes.success && !remoteRes.error?.includes('already exists')) {
+                      setError(remoteRes.error ?? 'Error al asociar el repositorio remoto');
+                      return false;
+                    }
+
+                    // Push de la rama local main a origin
+                    let pushRes = await window.api.gitPushBranch(repoDir, 'main', githubToken);
+                    if (!pushRes.success) {
+                      const isRejected = pushRes.error && (
+                        pushRes.error.includes('[rejected]') ||
+                        pushRes.error.includes('fetch first') ||
+                        pushRes.error.includes('non-fast-forward') ||
+                        pushRes.error.includes('remote contains work')
+                      );
+                      if (isRejected) {
+                        const shouldForce = await new Promise<boolean>((resolve) => {
+                          setForcePushConfirm({
+                            repoDir,
+                            githubToken,
+                            resolve,
+                          });
+                        });
+                        if (shouldForce) {
+                          const forcePushRes = await window.api.gitPushBranch(repoDir, 'main', githubToken, true);
+                          if (!forcePushRes.success) {
+                            setError(forcePushRes.error ?? 'Error al forzar la subida a GitHub');
+                            return false;
+                          }
+                        } else {
+                          return false;
+                        }
+                      } else {
+                        setError(pushRes.error ?? 'Error al subir los archivos a GitHub');
+                        return false;
+                      }
+                    }
+                  }
+                }
+                await loadAll(repoDir);
+                return true;
+              } else {
+                // Por defecto: Carpeta nueva o vacía.
+                if (withGitHub && githubToken) {
+                  const r = await createGitHubRepo(githubToken, name, true, '', true);
+                  let cloneUrl = '';
+
+                  if (!r.success) {
+                    const isNameExistsError = r.error && r.error.includes('already exists');
+                    if (isNameExistsError && githubUser?.login) {
+                      cloneUrl = `https://github.com/${githubUser.login}/${name}.git`;
+                    } else {
+                      return false;
+                    }
+                  } else if (r.data) {
+                    cloneUrl = r.data.cloneUrl;
+                  }
+
+                  if (cloneUrl) {
+                    const cl = await cloneRepo(cloneUrl, parent, name, githubToken);
+                    return cl.success;
+                  }
+                  return false;
+                }
+                const r = await initRepo(parent, name, true);
+                return r.success;
               }
-              const r = await initRepo(parent, name, true);
-              return r.success;
             }}
             isLoading={isLoading}
             githubConnected={!!githubUser}
@@ -2787,6 +2881,66 @@ export default function GitCronPage() {
                   className="px-4 py-2 bg-[#ff716c] hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
                 >
                   {deleteConfirm.notMerged ? 'Forzar eliminación' : 'Eliminar'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── FORCE PUSH CONFIRM MODAL ──────────── */}
+      <AnimatePresence>
+        {forcePushConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 flex items-center justify-center z-[300]"
+            onClick={() => {
+              forcePushConfirm.resolve(false);
+              setForcePushConfirm(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#152335]/98 backdrop-blur-xl border border-[#ffa8a3]/20 rounded-2xl shadow-2xl shadow-black/80 p-6 w-[480px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-4 mb-5">
+                <div className="p-3 bg-[#9f0519]/25 rounded-xl border border-[#9f0519]/40 text-[#ff8b87] shrink-0">
+                  <AlertCircle size={24} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-extrabold text-lg text-[#ffdad6] mb-2 tracking-tight">Sobreescribir repositorio remoto</h3>
+                  <p className="text-sm text-[#ccdbe8] leading-relaxed mb-3">
+                    El repositorio remoto en GitHub ya contiene commits. ¿Quieres realizar un <strong className="text-[#ff8b87] font-semibold">Force Push</strong> para sobreescribir la historia remota con tus archivos locales?
+                  </p>
+                  <div className="bg-[#020f1e]/80 border border-[#3c495a]/25 rounded-xl p-3 mb-1">
+                    <p className="text-[11px] text-[#ff8b87] uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5">
+                      ⚠️ Advertencia crítica
+                    </p>
+                    <p className="text-xs text-[#9eacc0] leading-relaxed">
+                      Esta acción reemplazará de forma permanente todos los archivos del repositorio en GitHub con el contenido de tu carpeta local. No podrás recuperar los commits previos del remoto.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    forcePushConfirm.resolve(false);
+                    setForcePushConfirm(null);
+                  }}
+                  className="px-5 py-2.5 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#1a2e44]/50 rounded-xl transition duration-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    forcePushConfirm.resolve(true);
+                    setForcePushConfirm(null);
+                  }}
+                  className="px-5 py-2.5 bg-gradient-to-br from-[#ff8b87] to-[#d63a35] hover:from-[#ff9f9c] hover:to-[#e64742] shadow-lg shadow-[#d63a35]/20 text-[#fff0ef] text-sm font-bold rounded-xl transition duration-200"
+                >
+                  Forzar subida (Force Push)
                 </button>
               </div>
             </motion.div>

@@ -14,8 +14,10 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:init', parentPath, name, withInitialCommit ?? true),
   gitClone: (url: string, parentPath: string, folderName: string, token?: string) =>
     ipcRenderer.invoke('git:clone', url, parentPath, folderName, token),
-  githubCreateRepo: (token: string, name: string, isPrivate: boolean, description?: string) =>
-    ipcRenderer.invoke('github:create-repo', token, name, isPrivate, description),
+  githubCreateRepo: (token: string, name: string, isPrivate: boolean, description?: string, autoInit?: boolean) =>
+    ipcRenderer.invoke('github:create-repo', token, name, isPrivate, description, autoInit),
+  fsExistsAndNotEmpty: (parentPath: string, name: string) =>
+    ipcRenderer.invoke('fs:exists-and-not-empty', parentPath, name),
   githubListUserRepos: (token: string) =>
     ipcRenderer.invoke('github:list-user-repos', token),
   gitLog: (repoPath: string, opts?: { allBranches?: boolean }) => ipcRenderer.invoke('git:log', repoPath, opts),
@@ -37,8 +39,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:delete-branch', repoPath, branch, force ?? false),
   gitPullBranch: (repoPath: string, branch: string, token?: string) =>
     ipcRenderer.invoke('git:pull-branch', repoPath, branch, token),
-  gitPushBranch: (repoPath: string, branch: string, token?: string) =>
-    ipcRenderer.invoke('git:push-branch', repoPath, branch, token),
+  gitPushBranch: (repoPath: string, branch: string, token?: string, force?: boolean) =>
+    ipcRenderer.invoke('git:push-branch', repoPath, branch, token, force),
   gitPush: (repoPath: string, token?: string) => ipcRenderer.invoke('git:push', repoPath, token),
   gitPull: (repoPath: string, token?: string) => ipcRenderer.invoke('git:pull', repoPath, token),
   gitPullFastForward: (repoPath: string, token?: string) =>

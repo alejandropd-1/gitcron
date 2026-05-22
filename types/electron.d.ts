@@ -141,7 +141,8 @@ interface ElectronAPI {
   pickFolder: (title?: string, defaultPath?: string) => Promise<GitResult<string>>;
   gitInit: (parentPath: string, name: string, withInitialCommit?: boolean) => Promise<GitResult<RepoInfo>>;
   gitClone: (url: string, parentPath: string, folderName: string, token?: string) => Promise<GitResult<RepoInfo>>;
-  githubCreateRepo: (token: string, name: string, isPrivate: boolean, description?: string) => Promise<GitResult<CreatedRepoInfo>>;
+  githubCreateRepo: (token: string, name: string, isPrivate: boolean, description?: string, autoInit?: boolean) => Promise<GitResult<CreatedRepoInfo>>;
+  fsExistsAndNotEmpty: (parentPath: string, name: string) => Promise<GitResult<boolean>>;
   githubListUserRepos: (token: string) => Promise<GitResult<GitHubRepoInfo[]>>;
   gitLog: (repoPath: string, opts?: { allBranches?: boolean }) => Promise<GitResult<CommitData[]>>;
   gitStatus: (repoPath: string) => Promise<GitResult<StatusFile[]>>;
@@ -154,7 +155,7 @@ interface ElectronAPI {
   gitRenameBranch: (repoPath: string, oldName: string, newName: string) => Promise<GitResult>;
   gitDeleteBranch: (repoPath: string, branch: string, force?: boolean) => Promise<GitResult<{ notMerged?: boolean }>>;
   gitPullBranch: (repoPath: string, branch: string, token?: string) => Promise<GitResult>;
-  gitPushBranch: (repoPath: string, branch: string, token?: string) => Promise<GitResult>;
+  gitPushBranch: (repoPath: string, branch: string, token?: string, force?: boolean) => Promise<GitResult>;
   gitPush: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;
   gitPull: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;
   gitPullFastForward: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;

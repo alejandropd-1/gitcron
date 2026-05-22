@@ -4,9 +4,21 @@ Changes are listed from newest to oldest.
 
 ---
 
-## Unreleased
+## [v1.3.4] - 2026-05-21 - Intelligent Init in existing folders, GitHub Rescue & premium Force Push
 
-No changes yet.
+### Added
+
+- Support for initializing Git repositories inside existing, non-empty folders (`git:init` no longer blocks on non-empty directories).
+- Intelligent flow that checks if the directory is non-empty before creation, performs a local git initialization (which commits all existing files without overwriting `README.md` or `.gitignore`), creates a bare remote repository on GitHub if checked, associates the `origin` remote, and automatically pushes the initial `main` branch.
+- Collision rescue for GitHub: if the repository already exists on the user's GitHub account during the "Create also on GitHub" flow, it catches the 422 collision gracefully, fetches the repository's clone URL, and links it as the remote `origin`.
+- Premium React-based Force Push overlay modal (`z-[300]`) styled with dark HSL glassmorphism and warning indicators, prompting the user for approval when branch history has diverged on initial push.
+- Safe `--force` push handler in `electron/main.ts` using simple-git's standard signature to bypass diverged branch history securely.
+- Added `fs:exists-and-not-empty` IPC handler to detect if folder is empty.
+
+### Docs
+
+- Bumped the app version to `v1.3.4` in `package.json`.
+- Updated the README version badge, installer filenames, and current-version note.
 
 ---
 

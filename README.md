@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.3.3-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.3.4-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -41,7 +41,8 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 ### Repositories
 
 - Open any existing Git repo from a native OS dialog.
-- Create a new repo locally.
+- Create a new repo locally, including **intelligent initialization inside non-empty folders** without losing files or overwriting local content.
+- Automatic **GitHub collision rescue**: when creating a local repository and selecting "Crear también en GitHub", if the repository already exists on GitHub, GitCron dynamically retrieves its remote URL and configures it seamlessly as `origin`.
 - Clone from any Git URL or from your GitHub repos.
 - Create a GitHub repo and clone it in one flow.
 - Multi-repo tabs: keep several repos open at once.
@@ -75,6 +76,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Branch tree grouped by prefixes like `feature/` or `claude/`.
 - Ahead / behind counts in the sidebar.
 - Ahead / behind chips now explain themselves on hover, and Pull / Push open a decision toast when the current branch is behind or diverged.
+- **Premium Force Push workflow**: when pushing a branch whose history has diverged from the remote (e.g., during initialization/pushes of overlapping repos), GitCron displays a beautifully styled, high-priority React overlay modal (`z-[300]`) requesting explicit permission before executing a safe `--force` push.
 - Checkout with conflict detection.
 - Merge, rebase, fast-forward, rename, delete, and create branch flows.
 - Cherry-pick a single commit onto the current branch from the commit context menu, with conflict-aware feedback.
@@ -282,9 +284,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.3.3.exe`                                             |
-| macOS    | `GitCron-1.3.3.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.3.3.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.3.4.exe`                                             |
+| macOS    | `GitCron-1.3.4.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.3.4.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -331,7 +333,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-`v1.3.3` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v1.3.4` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

@@ -771,12 +771,29 @@ ipcMain.handle('fs:pick-folder', async (_event, title?: string, defaultPath?: st
   return { success: true, data: result.filePaths[0] };
 });
 
+ipcMain.handle('fs:exists-and-not-empty', async (_event, parentPath: string, name: string) => {
+  try {
+    const targetPath = path.join(parentPath, name);
+    if (!fs.existsSync(targetPath)) {
+      return { success: true, data: false };
+    }
+    const stat = fs.statSync(targetPath);
+    if (!stat.isDirectory()) {
+      return { success: true, data: false };
+    }
+    const files = fs.readdirSync(targetPath);
+    return { success: true, data: files.length > 0 };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
 // ─── Init a brand new repo ─────────────────────────────────────────────
 ipcMain.handle('git:init', async (_event, parentPath: string, name: string, withInitialCommit: boolean = true) => {
   try {
     const repoDir = path.join(parentPath, name);
-    if (fs.existsSync(repoDir) && fs.readdirSync(repoDir).length > 0) {
-      return { success: false, error: `La carpeta "${name}" ya existe y no está vacía` };
+    if (fs.existsSync(repoDir) && fs.existsSync(path.join(repoDir, '.git'))) {
+      return { success: false, error: `La carpeta "${name}" ya es un repositorio de Git` };
     }
     fs.mkdirSync(repoDir, { recursive: true });
 
@@ -784,8 +801,14 @@ ipcMain.handle('git:init', async (_event, parentPath: string, name: string, with
     await g.init(['--initial-branch=main']);
 
     if (withInitialCommit) {
-      fs.writeFileSync(path.join(repoDir, 'README.md'), `# ${name}\n\nRepositorio creado con GitCron.\n`);
-      fs.writeFileSync(path.join(repoDir, '.gitignore'), `node_modules/\n.env\n.DS_Store\nThumbs.db\n`);
+      const readmePath = path.join(repoDir, 'README.md');
+      if (!fs.existsSync(readmePath)) {
+        fs.writeFileSync(readmePath, `# ${name}\n\nRepositorio creado con GitCron.\n`);
+      }
+      const gitignorePath = path.join(repoDir, '.gitignore');
+      if (!fs.existsSync(gitignorePath)) {
+        fs.writeFileSync(gitignorePath, `node_modules/\n.env\n.DS_Store\nThumbs.db\n`);
+      }
       await g.add('.');
       await g.commit('Initial commit');
     }
@@ -838,20 +861,42 @@ ipcMain.handle('git:clone', async (_event, url: string, parentPath: string, fold
 });
 
 // ─── Create a repo on GitHub (and optionally clone) ────────────────────
-ipcMain.handle('github:create-repo', async (_event, token: string, name: string, isPrivate: boolean, description?: string) => {
+ipcMain.handle('github:create-repo', async (_event, token: string, name: string, isPrivate: boolean, description?: string, autoInit: boolean = true) => {
   try {
     const octokit = new Octokit({ auth: token });
     const { data } = await octokit.rest.repos.createForAuthenticatedUser({
       name,
       private: isPrivate,
       description: description || undefined,
-      auto_init: true, // create with a README so we can clone immediately
+      auto_init: autoInit,
     });
     return {
       success: true,
       data: { cloneUrl: data.clone_url, htmlUrl: data.html_url, fullName: data.full_name, name: data.name },
     };
   } catch (error: any) {
+    const errStr = error.message || '';
+    if (errStr.includes('already exists') || error.status === 422) {
+      try {
+        const octokit = new Octokit({ auth: token });
+        const { data: userData } = await octokit.rest.users.getAuthenticated();
+        const { data: repoData } = await octokit.rest.repos.get({
+          owner: userData.login,
+          repo: name,
+        });
+        return {
+          success: true,
+          data: {
+            cloneUrl: repoData.clone_url,
+            htmlUrl: repoData.html_url,
+            fullName: repoData.full_name,
+            name: repoData.name,
+          },
+        };
+      } catch (rescueErr: any) {
+        return { success: false, error: errMsg(error) };
+      }
+    }
     return { success: false, error: errMsg(error) };
   }
 });
@@ -1229,16 +1274,19 @@ ipcMain.handle('git:pull-branch', async (_event, targetPath: string, branch: str
 });
 
 // ── Push a SPECIFIC branch ──
-ipcMain.handle('git:push-branch', async (_event, targetPath: string, branch: string, token?: string) => {
+ipcMain.handle('git:push-branch', async (_event, targetPath: string, branch: string, token?: string, force: boolean = false) => {
   try {
     let setUpstream = false;
     await withGitHubToken(targetPath, token, async (g) => {
       try {
-        await g.push(['origin', branch]);
+        const options = force ? ['--force'] : [];
+        await g.push('origin', branch, options);
       } catch (firstErr: any) {
         // Branch nueva sin upstream → auto-set-upstream
         if (/no upstream branch|has no upstream|does not have a local branch/i.test(firstErr.message)) {
-          await g.push(['--set-upstream', 'origin', branch]);
+          const options = ['--set-upstream'];
+          if (force) options.push('--force');
+          await g.push('origin', branch, options);
           setUpstream = true;
         } else {
           throw firstErr;

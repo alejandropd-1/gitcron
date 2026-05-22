@@ -223,11 +223,11 @@ export const useRepoLoader = () => {
   };
 
   /** Create a repo on GitHub. Returns the clone URL (caller decides if to clone). */
-  const createGitHubRepo = async (token: string, name: string, isPrivate: boolean, description?: string) => {
+  const createGitHubRepo = async (token: string, name: string, isPrivate: boolean, description?: string, autoInit?: boolean) => {
     if (!window.api) return { success: false as const, error: 'Electron API no disponible' };
     setLoading(true); setError(null);
     try {
-      const r = await window.api.githubCreateRepo(token, name, isPrivate, description);
+      const r = await window.api.githubCreateRepo(token, name, isPrivate, description, autoInit);
       if (r.success && r.data) return { success: true as const, data: r.data };
       setError(r.error ?? 'Error al crear repo en GitHub');
       return { success: false as const, error: r.error };

@@ -2074,6 +2074,8 @@ export default function GitCronPage() {
                         filterText={filterText}
                         onSelect={handleSelectCommit}
                         onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
+                        hudLeft={sidebarOpen ? sidebarW : 0}
+                        hudRight={detailsOpen ? detailsW : 0}
                       />
                     </motion.div>
                   )}

@@ -51,6 +51,10 @@ interface ChronometricGraphProps {
   filterText?: string;
   onSelect: (commit: Commit) => void;
   onContextMenu: (e: React.MouseEvent, commit: Commit) => void;
+  /** Pixels reserved by the left floating panel (sidebar). HUD panels shift right by this amount. */
+  hudLeft?: number;
+  /** Pixels reserved by the right floating panel (details). HUD panels shift left by this amount. */
+  hudRight?: number;
 }
 
 export function ChronometricGraph({
@@ -60,6 +64,8 @@ export function ChronometricGraph({
   filterText = '',
   onSelect,
   onContextMenu,
+  hudLeft = 0,
+  hudRight = 0,
 }: ChronometricGraphProps) {
   const stashes = useGitStore((state) => state.stashes);
   const modifiedFiles = useGitStore((state) => state.modifiedFiles);
@@ -1676,7 +1682,7 @@ export function ChronometricGraph({
       </svg>
 
       {/* 2. PANEL 01: NAV TELEMETRY & SYSTEM CONTEXT (Top-Left, z-20) */}
-      <div className="absolute top-4 left-4 w-[250px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none relative overflow-hidden">
+      <div className="absolute top-4 w-[250px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none relative overflow-hidden" style={{ left: 16 + hudLeft, transition: 'left 0.3s ease' }}>
         <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full bg-[#5ed8ff]/55" />
         <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[10px] font-bold text-[#5ed8ff] tracking-wider uppercase truncate max-w-[170px]">
@@ -1706,7 +1712,7 @@ export function ChronometricGraph({
       </div>
 
       {/* 3. PANEL 02: SYNC & DIRTY METRICS (Top-Right, z-20) */}
-      <div className="absolute top-4 right-4 w-[250px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none relative overflow-hidden">
+      <div className="absolute top-4 w-[250px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none relative overflow-hidden" style={{ right: 16 + hudRight, transition: 'right 0.3s ease' }}>
         <div className="absolute right-0 top-3 bottom-3 w-[2px] rounded-full bg-[#b455ff]/55" />
         <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[9px] font-bold text-[#b455ff] tracking-wider uppercase">
@@ -1753,7 +1759,7 @@ export function ChronometricGraph({
       </div>
 
       {/* Container flexbox to prevent bottom panels overlap in narrow viewports */}
-      <div className="absolute bottom-4 left-4 right-4 flex flex-row items-end justify-between gap-4 pointer-events-none z-20">
+      <div className="absolute bottom-4 flex flex-row items-end justify-between gap-4 pointer-events-none z-20" style={{ left: 16 + hudLeft, right: 16 + hudRight, transition: 'left 0.3s ease, right 0.3s ease' }}>
         
         {/* PANEL 03: CHRONO METRICS & RADAR SCAN (Bottom-Left) */}
         <div className="pointer-events-auto shrink-0 w-[240px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 font-mono shadow-2xl flex items-center gap-3 select-none">

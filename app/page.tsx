@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Undo, Redo, Download, Upload, GitBranch, Archive, Terminal, Search,
   Settings, HelpCircle, Folder, Cloud, Tag, Layers,
-  ChevronRight, FileText, Trash2, Zap, AlertCircle, FolderOpen, Plus, X,
+  ChevronLeft, ChevronRight, FileText, Trash2, Zap, AlertCircle, FolderOpen, Plus, X,
   ArrowLeft, RotateCcw, Github, LogOut, Minus,
   Sparkles, Copy, Lock, Globe, Loader2, UserCircle2,
   GitMerge, TreePine, ArrowUp, ArrowDown, ChevronDown, Check,
@@ -677,6 +677,9 @@ export default function GitCronPage() {
   // ── Resizable column widths ──
   const [sidebarW, setSidebarW] = useState(240);
   const [detailsW, setDetailsW] = useState(320);
+  // ── Floating panel open/closed state ──
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [detailsOpen, setDetailsOpen] = useState(true);
   const [graphColumns, setGraphColumns] = useState(GRAPH_COLUMN_DEFAULTS);
   const dragRef = useRef<{
     col: 'sidebar' | 'details';
@@ -812,16 +815,20 @@ export default function GitCronPage() {
     document.documentElement.style.fontSize = `${appFontSizePx}px`;
   }, [appFontSizePx]);
 
-  // Read persisted split widths only on the client to avoid SSR hydration mismatches.
+  // Read persisted split widths and panel open states on the client to avoid SSR hydration mismatches.
   useEffect(() => {
     const savedSidebarW = localStorage.getItem('gitcron:sidebarW');
     const savedDetailsW = localStorage.getItem('gitcron:detailsW');
     const savedGraphColumns = localStorage.getItem('gitcron:graphColumns');
+    const savedSidebarOpen = localStorage.getItem('gitcron:sidebarOpen');
+    const savedDetailsOpen = localStorage.getItem('gitcron:detailsOpen');
     const parsedSidebarW = savedSidebarW ? parseInt(savedSidebarW, 10) : NaN;
     const parsedDetailsW = savedDetailsW ? parseInt(savedDetailsW, 10) : NaN;
 
     if (!Number.isNaN(parsedSidebarW)) setSidebarW(parsedSidebarW);
     if (!Number.isNaN(parsedDetailsW)) setDetailsW(parsedDetailsW);
+    if (savedSidebarOpen !== null) setSidebarOpen(savedSidebarOpen !== 'false');
+    if (savedDetailsOpen !== null) setDetailsOpen(savedDetailsOpen !== 'false');
     if (savedGraphColumns) {
       try {
         const parsed = JSON.parse(savedGraphColumns) as Partial<typeof GRAPH_COLUMN_DEFAULTS>;
@@ -1661,11 +1668,11 @@ export default function GitCronPage() {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* COLUMN 1: SIDEBAR */}
+      <div className="flex-1 overflow-hidden relative">
+        {/* FLOATING LEFT PANEL: Sidebar — floats over the canvas, toggle via tab button */}
         <aside
-          className="bg-[#041425] flex flex-col shrink-0 overflow-y-auto"
-          style={{ width: sidebarW }}
+          className="absolute top-0 left-0 bottom-0 bg-[#041425]/97 backdrop-blur-sm flex flex-col overflow-y-auto z-30 border-r border-[#3c495a]/20 shadow-[4px_0_24px_rgba(0,0,0,0.4)] transition-transform duration-300"
+          style={{ width: sidebarW, transform: sidebarOpen ? 'translateX(0)' : `translateX(-${sidebarW}px)` }}
         >
           {/* LOCAL — folder tree + ahead/behind chips */}
           <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-[#5ed8ff]" />}>
@@ -1816,17 +1823,22 @@ export default function GitCronPage() {
           )}
         </aside>
 
-        {/* ── Drag handle: sidebar ↔ center ── */}
-        <div
-          onMouseDown={startColDrag('sidebar')}
-          className="w-1 shrink-0 cursor-col-resize hover:bg-[#a3f185]/40 active:bg-[#a3f185]/60 transition-colors bg-transparent group relative"
-          title="Arrastrar para redimensionar"
+        {/* Sidebar toggle tab */}
+        <button
+          onClick={() => {
+            const next = !sidebarOpen;
+            setSidebarOpen(next);
+            localStorage.setItem('gitcron:sidebarOpen', String(next));
+          }}
+          className="absolute top-1/2 -translate-y-1/2 z-40 w-5 h-12 bg-[#041425] border border-[#3c495a]/30 border-l-0 rounded-r-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#0b2035] transition-all duration-300 shadow-[2px_0_8px_rgba(0,0,0,0.3)]"
+          style={{ left: sidebarOpen ? sidebarW : 0 }}
+          title={sidebarOpen ? 'Ocultar sidebar' : 'Mostrar sidebar'}
         >
-          <div className="absolute inset-y-0 -left-1 -right-1" /> {/* wider hit area */}
-        </div>
+          {sidebarOpen ? <ChevronLeft size={11} /> : <ChevronRight size={11} />}
+        </button>
 
-        {/* COLUMN 2: CENTER (Commit graph OR diff viewer) */}
-        <main className="flex-1 bg-[#020f1e] overflow-hidden relative flex flex-col">
+        {/* CENTER CANVAS: Full-bleed graph, always fills the whole area */}
+        <main className="absolute inset-0 bg-[#020f1e] overflow-hidden flex flex-col">
           {!repoPath || showRepoChooser ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-8 text-[#9eacc0] p-8">
               <div className="text-center">
@@ -2071,19 +2083,24 @@ export default function GitCronPage() {
           )}
         </main>
 
-        {/* ── Drag handle: center ↔ details ── */}
-        <div
-          onMouseDown={startColDrag('details')}
-          className="w-1 shrink-0 cursor-col-resize hover:bg-[#a3f185]/40 active:bg-[#a3f185]/60 transition-colors bg-transparent relative"
-          title="Arrastrar para redimensionar"
+        {/* Details panel toggle tab */}
+        <button
+          onClick={() => {
+            const next = !detailsOpen;
+            setDetailsOpen(next);
+            localStorage.setItem('gitcron:detailsOpen', String(next));
+          }}
+          className="absolute top-1/2 -translate-y-1/2 z-40 w-5 h-12 bg-[#041425] border border-[#3c495a]/30 border-r-0 rounded-l-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#0b2035] transition-all duration-300 shadow-[-2px_0_8px_rgba(0,0,0,0.3)]"
+          style={{ right: detailsOpen ? detailsW : 0 }}
+          title={detailsOpen ? 'Ocultar panel de detalles' : 'Mostrar panel de detalles'}
         >
-          <div className="absolute inset-y-0 -left-1 -right-1" />
-        </div>
+          {detailsOpen ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
+        </button>
 
-        {/* COLUMN 3: COMMIT DETAILS + FILE CHANGES + COMMIT BOX */}
+        {/* FLOATING RIGHT PANEL: Commit details + staging — floats over the canvas */}
         <aside
-          className="bg-[#041425] flex flex-col shrink-0 overflow-hidden"
-          style={{ width: detailsW }}
+          className="absolute top-0 right-0 bottom-0 bg-[#041425]/97 backdrop-blur-sm flex flex-col overflow-hidden z-30 border-l border-[#3c495a]/20 shadow-[-4px_0_24px_rgba(0,0,0,0.4)] transition-transform duration-300"
+          style={{ width: detailsW, transform: detailsOpen ? 'translateX(0)' : `translateX(${detailsW}px)` }}
         >
           {selectedCommit ? (
             <div className="flex flex-col h-full">

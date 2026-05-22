@@ -143,6 +143,123 @@ export function ChronometricGraph({
     };
   }, [width, minTime, maxTime, filteredCommits.length]);
 
+  // Extract primary branch labels for display
+  const getBranchName = (commit: Commit) => {
+    if (!commit.refs || commit.refs.length === 0) return null;
+    const branchRefs = commit.refs.filter(
+      (r) => !r.startsWith('tag: ') && !r.includes('stash')
+    );
+    if (branchRefs.length === 0) return null;
+    return branchRefs[0]
+      .replace(/^refs\/heads\//, '')
+      .replace(/^refs\/remotes\/[^/]+\//, '')
+      .replace(/^HEAD$/, '');
+  };
+
+  // Stable map of commitHash -> branchName (propagated along lanes to cover all commits on a branch)
+  const commitBranchNames = useMemo(() => {
+    const map = new Map<string, string>();
+    const laneBranchNames: (string | null)[] = [];
+
+    // Index the commits by hash for parent lookup
+    const commitIndex = new Map<string, number>();
+    filteredCommits.forEach((c, idx) => commitIndex.set(c.hash, idx));
+
+    const lanes: (string | null)[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const commit = row.commit;
+
+      // Find the lane for this commit
+      let lane = lanes.indexOf(commit.hash);
+      if (lane === -1) {
+        lane = lanes.findIndex((s) => s === null);
+        if (lane === -1) lane = lanes.length;
+        lanes[lane] = commit.hash;
+      }
+
+      // Determine the branch name for this commit
+      let branchName = getBranchName(commit);
+      if (branchName) {
+        laneBranchNames[lane] = branchName;
+      } else {
+        branchName = laneBranchNames[lane] || null;
+      }
+
+      if (branchName) {
+        map.set(commit.hash, branchName);
+      }
+
+      // Clean up the lane for this commit
+      lanes[lane] = null;
+      const currentLaneBranchName = laneBranchNames[lane];
+      laneBranchNames[lane] = null;
+
+      // Propagate to parents
+      for (let p = 0; p < commit.parents.length; p++) {
+        const parent = commit.parents[p];
+        const parentIdx = commitIndex.get(parent);
+        if (parentIdx === undefined) continue;
+
+        let parentLane = lanes.indexOf(parent);
+        if (parentLane === -1) {
+          if (p === 0) {
+            parentLane = lane;
+            lanes[parentLane] = parent;
+            // Propagate branch name to the first parent
+            laneBranchNames[parentLane] = branchName || currentLaneBranchName;
+          } else {
+            parentLane = lanes.findIndex((s) => s === null);
+            if (parentLane === -1) parentLane = lanes.length;
+            lanes[parentLane] = parent;
+            // Additional parents are merges; they will resolve their own branch names
+            laneBranchNames[parentLane] = null;
+          }
+        }
+      }
+    }
+
+    return map;
+  }, [rows, filteredCommits]);
+
+  // Stable map of branchName -> isLeft
+  const branchSidesMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+
+    // Helper to generate a stable hash from string
+    const stableHash = (str: string) => {
+      let hash = 5381;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0;
+      }
+      return Math.abs(hash);
+    };
+
+    rows.forEach((row) => {
+      const bIndex = mapLaneToBranchIndex(row.lane);
+      const name = commitBranchNames.get(row.commit.hash);
+      if (name && name !== 'main' && name !== 'master' && !map.has(name)) {
+        if (bIndex > 0) {
+          map.set(name, true); // left
+        } else if (bIndex < 0) {
+          map.set(name, false); // right
+        }
+      }
+    });
+
+    // For any lateral branch name that wasn't fanned out, assign a side based on its stable hash
+    rows.forEach((row) => {
+      const name = commitBranchNames.get(row.commit.hash);
+      if (name && name !== 'main' && name !== 'master' && !map.has(name)) {
+        const hash = stableHash(name);
+        map.set(name, hash % 2 === 0);
+      }
+    });
+
+    return map;
+  }, [rows, commitBranchNames]);
+
   // 5. Pre-calculate projected commit coordinates
   const projectedCommits = useMemo(() => {
     const commitIndexMap = new Map<string, number>();
@@ -161,10 +278,32 @@ export function ChronometricGraph({
         config
       );
 
+      const branchName = commitBranchNames.get(row.commit.hash) || null;
+      const isLateralBranch = branchName !== null && branchName !== 'main' && branchName !== 'master';
+
+      // Check if it's the start of a branch segment (origin)
+      const isBranchOrigin = !!(
+        isLateralBranch &&
+        !row.commit.parents.some(parentHash => commitBranchNames.get(parentHash) === branchName)
+      );
+
+      // Determine if the comment should be placed on the left side
+      const isLeft = (() => {
+        if (!isLateralBranch || !branchName) {
+          // Trunk / main: alternate sides chronologically
+          return chronologicalIndex % 2 === 0;
+        }
+        // Lateral branch: use fanned/hashed side
+        return branchSidesMap.get(branchName) ?? (branchIndex >= 0);
+      })();
+
       return {
         ...row,
         chronologicalIndex,
         branchIndex,
+        branchName,
+        isBranchOrigin,
+        isLeft,
         x: proj.x,
         y: proj.y,
         baseX: proj.baseX,
@@ -172,7 +311,7 @@ export function ChronometricGraph({
         originalIndex: i, // index in the original rows array
       };
     });
-  }, [rows, filteredCommits, config]);
+  }, [rows, filteredCommits, config, commitBranchNames, branchSidesMap]);
 
   // Create a quick lookup map of commit hash -> projected node info
   const projectedLookup = useMemo(() => {
@@ -180,51 +319,6 @@ export function ChronometricGraph({
     projectedCommits.forEach((p) => map.set(p.commit.hash, p));
     return map;
   }, [projectedCommits]);
-
-  // Extract primary branch labels for display
-  const getBranchName = (commit: Commit) => {
-    if (!commit.refs || commit.refs.length === 0) return null;
-    const branchRefs = commit.refs.filter(
-      (r) => !r.startsWith('tag: ') && !r.includes('stash')
-    );
-    if (branchRefs.length === 0) return null;
-    return branchRefs[0]
-      .replace(/^refs\/heads\//, '')
-      .replace(/^refs\/remotes\/[^/]+\//, '')
-      .replace(/^HEAD$/, '');
-  };
-
-  // Stable map of branchIndex -> branchName
-  const branchNamesMap = useMemo(() => {
-    const map = new Map<number, string>();
-    projectedCommits.forEach((node) => {
-      const name = getBranchName(node.commit);
-      if (name) {
-        const currentName = map.get(node.branchIndex);
-        if (!currentName) {
-          map.set(node.branchIndex, name);
-        }
-      }
-    });
-    return map;
-  }, [projectedCommits]);
-
-  // Find the oldest node (minimum chronologicalIndex) for each branchIndex
-  const branchOrigins = useMemo(() => {
-    const origins = new Map<number, string>(); // branchIndex -> commitHash
-    projectedCommits.forEach((node) => {
-      const existingHash = origins.get(node.branchIndex);
-      if (!existingHash) {
-        origins.set(node.branchIndex, node.commit.hash);
-      } else {
-        const existingNode = projectedLookup.get(existingHash);
-        if (existingNode && node.chronologicalIndex < existingNode.chronologicalIndex) {
-          origins.set(node.branchIndex, node.commit.hash);
-        }
-      }
-    });
-    return origins;
-  }, [projectedCommits, projectedLookup]);
 
 
   // Find unit direction vectors of the diagonal line
@@ -359,14 +453,31 @@ export function ChronometricGraph({
     projectedCommits.forEach((node) => {
       if (!node.commit.refs) return;
       const tags = node.commit.refs.filter(r => r.startsWith('tag: '));
+      const isHead = headCommitNode && node.commit.hash === headCommitNode.commit.hash;
+      
       tags.forEach((tagRaw, tagIndex) => {
         const tagName = tagRaw.slice(5);
-        // Force tags to always fan out to the left-up (left) of the timeline
-        // nx, ny are negative, which points left-up in screen coordinates
-        const distance = 30 + tagIndex * 20; 
+        // Enforce a uniform perpendicular line length of exactly 35px for tags
+        const distance = 35; 
         
-        const satX = node.x + nx * distance - ux * 8;
-        const satY = node.y + ny * distance - uy * 8;
+        // Base diagonal offset along (ux, uy) fanning out by index
+        let diagOffset = tagIndex * 45 - 8;
+        if (isHead) {
+          // Offset HEAD tags by -50px along temporal diagonal to completely clear the telemetry stack
+          diagOffset += -50;
+        }
+        
+        const satX = node.x + nx * distance + ux * diagOffset;
+        let satY = node.y + ny * distance + uy * diagOffset;
+        
+        // If it's a normal commit (not HEAD) and its comment is on the left wing,
+        // shift only the bottom tag (tagIndex === 0) vertically down by 14px to place it cleanly below the comment.
+        if (!isHead) {
+          const nodeIsLeft = node.isLeft;
+          if (nodeIsLeft && tagIndex === 0) {
+            satY += 14;
+          }
+        }
         
         list.push({
           commitHash: node.commit.hash,
@@ -381,7 +492,7 @@ export function ChronometricGraph({
     });
     
     return list;
-  }, [projectedCommits, nx, ny, ux, uy]);
+  }, [projectedCommits, nx, ny, ux, uy, headCommitNode, currentBranch]);
 
   // Find tip commits for each branch lane
   const latestCommitsByBranch = useMemo(() => {
@@ -715,58 +826,84 @@ export function ChronometricGraph({
               </text>
 
               {/* Guidelines & Time Ticks */}
-              {timeTicks.map((tick, index) => (
-                <g key={`tick-${index}`} opacity={0.6}>
-                  {/* Dash lines */}
-                  <line
-                    x1={tick.x}
-                    y1={config.paddingTop - 20}
-                    x2={tick.x}
-                    y2={height - config.paddingBottom + 20}
-                    stroke="#1e293b"
-                    strokeWidth={0.75}
-                    strokeDasharray="4 8"
-                    opacity={0.3}
-                  />
-                  {/* Visual marker point on diagonal */}
-                  <circle cx={tick.x} cy={tick.y} r={2.5} fill="#697789" />
+              {timeTicks.map((tick, index) => {
+                // Check if any commit node or comment overlaps with this tick
+                const hasOverlap = projectedCommits.some(node => {
+                  const dx = Math.abs(node.x - tick.x);
+                  if (dx >= 35) return false;
                   
-                  {/* Secondary technical coordinate */}
-                  <text
-                    x={tick.x}
-                    y={height - config.paddingBottom + 25}
-                    textAnchor="middle"
-                    fontSize="8.5"
-                    fill="#697789"
-                    className="font-mono font-semibold"
-                  >
-                    {`T+${String(index).padStart(3, '0')}`}
-                  </text>
-                  
-                  {/* Dates rendered below the guideline */}
-                  <text
-                    x={tick.x}
-                    y={height - config.paddingBottom + 36}
-                    textAnchor="middle"
-                    fontSize="10"
-                    fontWeight="600"
-                    fill="#9eacc0"
-                    className="font-mono"
-                  >
-                    {tick.dateStr}
-                  </text>
-                  <text
-                    x={tick.x}
-                    y={height - config.paddingBottom + 48}
-                    textAnchor="middle"
-                    fontSize="9"
-                    fill="#697789"
-                    className="font-mono"
-                  >
-                    {tick.yearStr}
-                  </text>
-                </g>
-              ))}
+                  // Comment is on the right wing
+                  return !node.isLeft;
+                });
+
+                const yOffset = hasOverlap ? 55 : 16;
+                const dotY2 = hasOverlap ? 50 : 12;
+
+                return (
+                  <g key={`tick-${index}`} opacity={0.6}>
+                    {/* Dash lines */}
+                    <line
+                      x1={tick.x}
+                      y1={config.paddingTop - 20}
+                      x2={tick.x}
+                      y2={height - config.paddingBottom + 20}
+                      stroke="#1e293b"
+                      strokeWidth={0.75}
+                      strokeDasharray="4 8"
+                      opacity={0.3}
+                    />
+                    {/* Visual marker point on diagonal */}
+                    <circle cx={tick.x} cy={tick.y} r={2.5} fill="#697789" />
+
+                    {/* HUD Dotted Connector Line from circle to date label */}
+                    <line
+                      x1={tick.x}
+                      y1={tick.y + 4}
+                      x2={tick.x}
+                      y2={tick.y + dotY2}
+                      stroke="#697789"
+                      strokeWidth={0.75}
+                      strokeDasharray="2 2"
+                      opacity={0.6}
+                    />
+                    
+                    {/* Secondary technical coordinate */}
+                    <text
+                      x={tick.x}
+                      y={tick.y + yOffset}
+                      textAnchor="middle"
+                      fontSize="8.5"
+                      fill="#697789"
+                      className="font-mono font-semibold"
+                    >
+                      {`T+${String(index).padStart(3, '0')}`}
+                    </text>
+                    
+                    {/* Dates rendered below the guideline */}
+                    <text
+                      x={tick.x}
+                      y={tick.y + yOffset + 11}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fontWeight="600"
+                      fill="#9eacc0"
+                      className="font-mono"
+                    >
+                      {tick.dateStr}
+                    </text>
+                    <text
+                      x={tick.x}
+                      y={tick.y + yOffset + 22}
+                      textAnchor="middle"
+                      fontSize="9"
+                      fill="#697789"
+                      className="font-mono"
+                    >
+                      {tick.yearStr}
+                    </text>
+                  </g>
+                );
+              })}
             </g>
 
             {/* Layer 2: Base Graph Layer */}
@@ -823,7 +960,7 @@ export function ChronometricGraph({
                           strokeWidth={1.5}
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          transform={`translate(${mid.x}, ${mid.y}) rotate(${mid.angle})`}
+                          transform={`translate(${mid.x}, ${mid.y}) rotate(${mid.angle + 180})`}
                           opacity={0.85}
                         />
                       )}
@@ -917,7 +1054,7 @@ export function ChronometricGraph({
             <g id="overlay-labels">
               {/* Satellite Tags */}
               {tagsWithPositions.map((tag, idx) => {
-                const badgeWidth = tag.tagName.length * 5.8 + 8;
+                const badgeWidth = tag.tagName.length * 4.5 + 8;
                 return (
                   <g key={`tag-satellite-${tag.commitHash}-${idx}`}>
                     <line
@@ -933,7 +1070,7 @@ export function ChronometricGraph({
                     <circle cx={tag.satX} cy={tag.satY} r={2} fill="#fd9d1a" opacity={0.7} />
                     <g transform={`translate(${tag.satX}, ${tag.satY})`}>
                       <rect
-                        x={-badgeWidth - 6}
+                        x={-badgeWidth - 2}
                         y={-6.5}
                         width={badgeWidth}
                         height={13}
@@ -944,8 +1081,10 @@ export function ChronometricGraph({
                         opacity={0.8}
                       />
                       <text
-                        x={-badgeWidth - 2}
-                        y={2.5}
+                        x={-badgeWidth / 2 - 2}
+                        y={0}
+                        textAnchor="middle"
+                        dominantBaseline="central"
                         fill="#fd9d1a"
                         fontSize="7.5"
                         className="font-mono font-medium select-none pointer-events-none"
@@ -1109,12 +1248,15 @@ export function ChronometricGraph({
               {/* Dynamic Telemetry Overlay Labels System (Unified Non-Overlapping Stack) */}
               {projectedCommits.map((node) => {
                 const isHead = headCommitNode && node.commit.hash === headCommitNode.commit.hash;
-                const isBranchOrigin = branchOrigins.get(node.branchIndex) === node.commit.hash;
+                const isBranchOrigin = node.isBranchOrigin;
 
                 // 1. HEAD Node - Unified Telemetry Stack (Fixed Offset, prominent placement)
                 if (isHead && headCommitNode) {
-                  const baseLabelX = headCommitNode.x + rx * 38;
-                  const baseLabelY = headCommitNode.y + ry * 38;
+                  const isLeft = headCommitNode.isLeft;
+                  const vx = isLeft ? nx : rx;
+                  const vy = isLeft ? ny : ry;
+                  const baseLabelX = headCommitNode.x + vx * 38;
+                  const baseLabelY = headCommitNode.y + vy * 38;
                   const lineSpacing = 11;
 
                   // Compute line Y positions statically to prevent JSX closure optimization issues
@@ -1129,8 +1271,8 @@ export function ChronometricGraph({
                       <line
                         x1={headCommitNode.x}
                         y1={headCommitNode.y}
-                        x2={headCommitNode.x + rx * 34}
-                        y2={headCommitNode.y + ry * 34}
+                        x2={headCommitNode.x + vx * 34}
+                        y2={headCommitNode.y + vy * 34}
                         stroke="#a3f185"
                         strokeWidth={1}
                         strokeDasharray="2 2"
@@ -1141,6 +1283,7 @@ export function ChronometricGraph({
                       <text
                         x={baseLabelX}
                         y={line1Y}
+                        textAnchor={isLeft ? "end" : "start"}
                         fill="#a3f185"
                         fontSize="7.5"
                         fontWeight="bold"
@@ -1155,6 +1298,7 @@ export function ChronometricGraph({
                         <text
                           x={baseLabelX}
                           y={line2Y}
+                          textAnchor={isLeft ? "end" : "start"}
                           fill="#a3f185"
                           fontSize="7"
                           fontWeight="bold"
@@ -1170,6 +1314,7 @@ export function ChronometricGraph({
                       <text
                         x={baseLabelX}
                         y={line3Y}
+                        textAnchor={isLeft ? "end" : "start"}
                         fill={headCommitNode.laneColor}
                         fontSize="7.5"
                         fontWeight="bold"
@@ -1183,6 +1328,7 @@ export function ChronometricGraph({
                       <text
                         x={baseLabelX}
                         y={line4Y}
+                        textAnchor={isLeft ? "end" : "start"}
                         fill={headCommitNode.laneColor}
                         fontSize="7"
                         fontWeight="medium"
@@ -1190,115 +1336,253 @@ export function ChronometricGraph({
                         letterSpacing="0.5"
                         opacity={0.8}
                       >
-                        {`C:${headCommitNode.commit.shortHash.toUpperCase()} // ${headCommitNode.commit.message.substring(0, 24)}...`}
+                        {`C:${headCommitNode.commit.shortHash.toUpperCase()} // ${headCommitNode.commit.message}`}
                       </text>
                     </g>
                   );
                 }
 
-                // 2. Branch Origin Nodes (Start of Branch - Staggered Placement)
-                if (isBranchOrigin) {
-                  const hasParent = node.commit.parents.length > 0;
-                  const branchName = branchNamesMap.get(node.branchIndex) || `branch-${Math.abs(node.branchIndex)}`;
+                // Identify active branch refs for any normal commit node
+                const activeBranchRefs = node.commit.refs?.filter(r => 
+                  r.startsWith('refs/heads/') && 
+                  r !== 'HEAD' && 
+                  r !== `refs/heads/${currentBranch}` &&
+                  r !== currentBranch
+                ) || [];
+                const hasBranchRefs = activeBranchRefs.length > 0;
 
-                  // Symmetrical Stagger: alternate offsets to eliminate horizontal overlaps
-                  const isEven = node.chronologicalIndex % 2 === 0;
-                  const offsetDist = isEven ? 32 : 72;
+                // 2. Normal Commit Nodes - Symmetrical Side-Specific Placement with Anti-Collision
+                const isLeft = node.isLeft;
+                const vx = isLeft ? nx : rx;
+                const vy = isLeft ? ny : ry;
+                const offsetDist = 35; // Uniform short distance
 
-                  // Interlocking fork triangles coordinates (Moved completely outside the 10.5px circle)
-                  const p1_A_x = node.x + rx * 25;
-                  const p1_A_y = node.y + ry * 25;
-                  const p1_B_x = node.x + rx * 20 + ux * 2.5;
-                  const p1_B_y = node.y + ry * 20 + uy * 2.5;
-                  const p1_C_x = node.x + rx * 20 - ux * 2.5;
-                  const p1_C_y = node.y + ry * 20 - uy * 2.5;
+                return (
+                  <g key={`overlay-node-${node.commit.hash}`} opacity={0.85} className="hover:opacity-100 transition-opacity">
+                    {/* A. Interlocking Triangles Demarcating branch start only */}
+                    {isBranchOrigin && node.commit.parents.length > 0 && (
+                      <g opacity={0.9}>
+                        <polygon
+                          points={`${node.x + nx * 25},${node.y + ny * 25} ${node.x + nx * 20 + ux * 2.5},${node.y + ny * 20 + uy * 2.5} ${node.x + nx * 20 - ux * 2.5},${node.y + ny * 20 - uy * 2.5}`}
+                          fill={node.laneColor}
+                          opacity={0.4}
+                          stroke={node.laneColor}
+                          strokeWidth={0.75}
+                        />
+                        <polygon
+                          points={`${node.x + nx * 28},${node.y + ny * 28} ${node.x + nx * 23 + ux * 2.5},${node.y + ny * 23 + uy * 2.5} ${node.x + nx * 23 - ux * 2.5},${node.y + ny * 23 - uy * 2.5}`}
+                          fill="none"
+                          stroke={node.laneColor}
+                          strokeWidth={1}
+                        />
+                      </g>
+                    )}
 
-                  const p2_A_x = node.x + rx * 28;
-                  const p2_A_y = node.y + ry * 28;
-                  const p2_B_x = node.x + rx * 23 + ux * 2.5;
-                  const p2_B_y = node.y + ry * 23 + uy * 2.5;
-                  const p2_C_x = node.x + rx * 23 - ux * 2.5;
-                  const p2_C_y = node.y + ry * 23 - uy * 2.5;
+                    {/* B. Active Branch Ref Badge always aligned on the Left-Wing */}
+                    {hasBranchRefs && (() => {
+                      const branchNames = activeBranchRefs.map(ref => ref.replace(/^refs\/heads\//, ''));
+                      const branchLabelText = `BRANCH // ${branchNames.join(' & ').toUpperCase()}`;
+                      const badgeWidth = branchLabelText.length * 4.8 + 12;
+                      const badgeX = node.baseX + nx * 75;
+                      const badgeY = node.baseY + ny * 75;
 
-                  return (
-                    <g key={`branch-origin-${node.commit.hash}`} opacity={0.9}>
+                      return (
+                        <g opacity={0.95}>
+                           {/* Dotted HUD connector line from node to left-aligned badge */}
+                          <line
+                            x1={node.x}
+                            y1={node.y}
+                            x2={badgeX}
+                            y2={badgeY}
+                            stroke={node.laneColor}
+                            strokeWidth={0.75}
+                            strokeDasharray="2 2"
+                            opacity={0.6}
+                          />
+                          <g transform={`translate(${badgeX}, ${badgeY})`}>
+                            <rect
+                              x={-badgeWidth - 4}
+                              y={-7}
+                              width={badgeWidth}
+                              height={14}
+                              rx={2}
+                              fill="#020f1e"
+                              stroke={node.laneColor}
+                              strokeWidth={1}
+                              opacity={0.9}
+                            />
+                            <rect
+                              x={-7}
+                              y={-7}
+                              width={3}
+                              height={14}
+                              fill={node.laneColor}
+                            />
+                            <text
+                              x={-12}
+                              y={3}
+                              textAnchor="end"
+                              fill={node.laneColor}
+                              fontSize="7.5"
+                              fontWeight="bold"
+                              className="font-mono select-none pointer-events-none"
+                              letterSpacing="0.5"
+                            >
+                              {branchLabelText}
+                            </text>
+                          </g>
+                        </g>
+                      );
+                    })()}
+
+                    {/* C. Commit Telemetry Label */}
+                    <g>
                       {/* Dotted HUD connector line */}
                       <line
                         x1={node.x}
                         y1={node.y}
-                        x2={node.x + rx * (offsetDist - 4)}
-                        y2={node.y + ry * (offsetDist - 4)}
+                        x2={node.x + vx * (offsetDist - 4)}
+                        y2={node.y + vy * (offsetDist - 4)}
                         stroke={node.laneColor}
-                        strokeWidth={0.75}
-                        strokeDasharray="2 2"
-                        opacity={0.6}
+                        strokeWidth={0.5}
+                        strokeDasharray="2 3"
+                        opacity={0.4}
                       />
 
-                      {/* Interlocking Triangles Demarcating branch start (Clean, crisp, external to circle) */}
-                      {hasParent && (
-                        <g opacity={0.9}>
-                          <polygon
-                            points={`${p1_A_x},${p1_A_y} ${p1_B_x},${p1_B_y} ${p1_C_x},${p1_C_y}`}
-                            fill={node.laneColor}
-                            opacity={0.4}
-                            stroke={node.laneColor}
-                            strokeWidth={0.75}
-                          />
-                          <polygon
-                            points={`${p2_A_x},${p2_A_y} ${p2_B_x},${p2_B_y} ${p2_C_x},${p2_C_y}`}
-                            fill="none"
-                            stroke={node.laneColor}
-                            strokeWidth={1}
-                          />
-                        </g>
-                      )}
-
-                      {/* Branch Name Label */}
-                      <text
-                        x={node.x + rx * offsetDist}
-                        y={node.y + ry * offsetDist + 2.5}
-                        fill={node.laneColor}
-                        fontSize="7.5"
-                        fontWeight="bold"
-                        className="font-mono select-none pointer-events-none"
-                        letterSpacing="0.5"
-                      >
-                        {`BRANCH // ${branchName}`}
-                      </text>
+                      {/* Commit Telemetry label & Inline Branch Tag */}
+                      {(() => {
+                        const branchName = node.branchName;
+                        const renderBranchTag = node.isBranchOrigin && branchName;
+                        
+                        const commentText = `C:${node.commit.shortHash.toUpperCase()} // ${node.commit.message}`;
+                        const commentTextWidth = commentText.length * 4.2;
+                        
+                        const baseX = node.x + vx * offsetDist;
+                        const baseY = node.y + vy * offsetDist;
+                        
+                        if (renderBranchTag) {
+                          const tagText = branchName.toUpperCase();
+                          const tagBadgeWidth = tagText.length * 4.2 + 8;
+                          const gap = 6;
+                          
+                          if (isLeft) {
+                            // Left wing: comment ends at baseX
+                            const tagX = baseX - commentTextWidth - gap - tagBadgeWidth;
+                            return (
+                              <g>
+                                {/* Branch Tag */}
+                                <g transform={`translate(${tagX}, ${baseY})`}>
+                                  <rect
+                                    x={0}
+                                    y={-5.5}
+                                    width={tagBadgeWidth}
+                                    height={11}
+                                    rx={2}
+                                    fill="#031427"
+                                    stroke={node.laneColor}
+                                    strokeWidth={0.75}
+                                    opacity={0.9}
+                                  />
+                                  <text
+                                    x={tagBadgeWidth / 2}
+                                    y={0}
+                                    textAnchor="middle"
+                                    dominantBaseline="central"
+                                    fill={node.laneColor}
+                                    fontSize="6.5"
+                                    fontWeight="bold"
+                                    className="font-mono select-none pointer-events-none"
+                                    letterSpacing="0.5"
+                                  >
+                                    {tagText}
+                                  </text>
+                                </g>
+                                
+                                {/* Comment text at baseX */}
+                                <text
+                                  x={baseX}
+                                  y={baseY}
+                                  textAnchor="end"
+                                  dominantBaseline="central"
+                                  fill={node.laneColor}
+                                  fontSize="7"
+                                  fontWeight="medium"
+                                  className="font-mono select-none pointer-events-none"
+                                  letterSpacing="0.5"
+                                >
+                                  {commentText}
+                                </text>
+                              </g>
+                            );
+                          } else {
+                            // Right wing: comment starts at baseX + tagBadgeWidth + gap. Tag at baseX.
+                            return (
+                              <g>
+                                {/* Branch Tag */}
+                                <g transform={`translate(${baseX}, ${baseY})`}>
+                                  <rect
+                                    x={0}
+                                    y={-5.5}
+                                    width={tagBadgeWidth}
+                                    height={11}
+                                    rx={2}
+                                    fill="#031427"
+                                    stroke={node.laneColor}
+                                    strokeWidth={0.75}
+                                    opacity={0.9}
+                                  />
+                                  <text
+                                    x={tagBadgeWidth / 2}
+                                    y={0}
+                                    textAnchor="middle"
+                                    dominantBaseline="central"
+                                    fill={node.laneColor}
+                                    fontSize="6.5"
+                                    fontWeight="bold"
+                                    className="font-mono select-none pointer-events-none"
+                                    letterSpacing="0.5"
+                                  >
+                                    {tagText}
+                                  </text>
+                                </g>
+                                
+                                {/* Comment text shifted to the right of tag */}
+                                <text
+                                  x={baseX + tagBadgeWidth + gap}
+                                  y={baseY}
+                                  textAnchor="start"
+                                  dominantBaseline="central"
+                                  fill={node.laneColor}
+                                  fontSize="7"
+                                  fontWeight="medium"
+                                  className="font-mono select-none pointer-events-none"
+                                  letterSpacing="0.5"
+                                >
+                                  {commentText}
+                                </text>
+                              </g>
+                            );
+                          }
+                        } else {
+                          // Normal comment without branch tag
+                          return (
+                            <text
+                              x={baseX}
+                              y={baseY}
+                              textAnchor={isLeft ? "end" : "start"}
+                              dominantBaseline="central"
+                              fill={node.laneColor}
+                              fontSize="7"
+                              fontWeight="medium"
+                              className="font-mono select-none pointer-events-none"
+                              letterSpacing="0.5"
+                            >
+                              {commentText}
+                            </text>
+                          );
+                        }
+                      })()}
                     </g>
-                  );
-                }
-
-                // 3. Normal Commit Nodes (Rest of the circles - Symmetrical Staggered Placement)
-                const isEven = node.chronologicalIndex % 2 === 0;
-                const offsetDist = isEven ? 32 : 72;
-
-                return (
-                  <g key={`commit-text-${node.commit.hash}`} opacity={0.75} className="hover:opacity-100 transition-opacity">
-                    {/* Dotted HUD connector line */}
-                    <line
-                      x1={node.x}
-                      y1={node.y}
-                      x2={node.x + rx * (offsetDist - 4)}
-                      y2={node.y + ry * (offsetDist - 4)}
-                      stroke={node.laneColor}
-                      strokeWidth={0.5}
-                      strokeDasharray="2 3"
-                      opacity={0.4}
-                    />
-
-                    {/* Commit Telemetry label */}
-                    <text
-                      x={node.x + rx * offsetDist}
-                      y={node.y + ry * offsetDist + 2.5}
-                      fill={node.laneColor}
-                      fontSize="7"
-                      fontWeight="medium"
-                      className="font-mono select-none pointer-events-none"
-                      letterSpacing="0.5"
-                    >
-                      {`C:${node.commit.shortHash.toUpperCase()} // ${node.commit.message.substring(0, 24)}...`}
-                    </text>
                   </g>
                 );
               })}
@@ -1376,6 +1660,8 @@ export function ChronometricGraph({
         .radar-sweep {
           animation: radar-sweep 12s linear infinite;
           transform-origin: 15px 15px;
+        }
+        @media (max-width: 1200px) {
         }
       `}</style>
 
@@ -1507,122 +1793,127 @@ export function ChronometricGraph({
         )}
       </div>
 
-      {/* 4. PANEL 03: CHRONO METRICS & RADAR SCAN (Bottom-Left, z-20) */}
-      <div className="absolute bottom-4 left-4 w-[240px] bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex items-center gap-3 select-none">
-        {/* Animated Radar Scanning Scope */}
-        <div className="relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/20 rounded-full overflow-hidden bg-[#021820]/30">
-          <svg width="30" height="30" className="absolute inset-0">
-            <circle cx="15" cy="15" r="14" fill="none" stroke="#a3f185" strokeWidth="0.5" opacity="0.15" />
-            <circle cx="15" cy="15" r="7" fill="none" stroke="#a3f185" strokeWidth="0.5" opacity="0.1" />
-            {/* Sweep arm */}
-            <line
-              x1="15" y1="15"
-              x2="15" y2="1"
-              stroke="#a3f185"
-              strokeWidth="0.75"
-              opacity="0.6"
-              className="radar-sweep"
-            />
-          </svg>
+      {/* Container flexbox to prevent bottom panels overlap in narrow viewports */}
+      <div className="absolute bottom-4 left-4 right-4 flex flex-row items-end justify-between gap-4 pointer-events-none z-20">
+        
+        {/* PANEL 03: CHRONO METRICS & RADAR SCAN (Bottom-Left) */}
+        <div className="pointer-events-auto shrink-0 w-[240px] bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 rounded-md px-3 py-2.5 font-mono shadow-2xl flex items-center gap-3 select-none">
+          {/* Animated Radar Scanning Scope */}
+          <div className="relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/20 rounded-full overflow-hidden bg-[#021820]/30">
+            <svg width="30" height="30" className="absolute inset-0">
+              <circle cx="15" cy="15" r="14" fill="none" stroke="#a3f185" strokeWidth="0.5" opacity="0.15" />
+              <circle cx="15" cy="15" r="7" fill="none" stroke="#a3f185" strokeWidth="0.5" opacity="0.1" />
+              {/* Sweep arm */}
+              <line
+                x1="15" y1="15"
+                x2="15" y2="1"
+                stroke="#a3f185"
+                strokeWidth="0.75"
+                opacity="0.6"
+                className="radar-sweep"
+              />
+            </svg>
+          </div>
+ 
+          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+            <div className="flex items-center justify-between border-b border-[#3c495a]/15 pb-0.5 mb-0.5">
+              <span className="text-[9px] font-bold text-[#a3f185] tracking-wider">CHRONO_DEPTH</span>
+              <Activity size={10} className="text-[#a3f185]/70" />
+            </div>
+            <div className="flex items-center justify-between text-[8px] text-[#9eacc0]">
+              <span>NODES_LOADED //</span>
+              <span className="font-bold text-[#d9e7fc]">{filteredCommits.length}</span>
+            </div>
+            <div className="truncate text-[7px] text-[#697789] tracking-tight uppercase">
+              {dateRangeString}
+            </div>
+          </div>
+        </div>
+ 
+        {/* PANEL 04: TARGET TELEMETRY HUD (Bottom-Center) */}
+        <div className="pointer-events-auto flex-1 max-w-[400px] min-w-[200px] bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 rounded-md px-3 py-2.5 font-mono shadow-2xl select-none transition-all duration-300">
+          {selectedCommit ? (
+            <div className="flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between border-b border-[#5ed8ff]/20 pb-1 mb-0.5">
+                <div className="flex items-center gap-1.5">
+                  <Crosshair size={11} className="text-[#5ed8ff] hud-breath" />
+                  <span className="text-[9px] font-bold text-[#5ed8ff] tracking-wider uppercase">
+                    TARGET_LOCKED // LOCK_STABLE
+                  </span>
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(selectedCommit.hash)}
+                  className="px-1.5 py-0.5 border border-[#5ed8ff]/30 hover:border-[#5ed8ff]/70 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
+                  title="Copy full commit SHA"
+                >
+                  Copy SHA
+                </button>
+              </div>
+              
+              <div className="flex flex-col gap-0.5 text-[8px] text-[#9eacc0]">
+                <div className="flex items-center justify-between">
+                  <span>SHA_SIGN // <span className="text-[#5ed8ff] font-semibold">{selectedCommit.shortHash.toUpperCase()}</span></span>
+                  <span className="text-[7.5px] opacity-75">{new Date(selectedCommit.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).toUpperCase()}</span>
+                </div>
+                <div className="truncate text-[#d9e7fc] text-[8.5px] font-semibold border-l-2 border-[#5ed8ff]/40 pl-1.5 my-0.5">
+                  {selectedCommit.message}
+                </div>
+                <div className="flex items-center justify-between text-[7px] text-[#697789] pt-0.5 border-t border-[#3c495a]/10">
+                  <span className="truncate max-w-[140px]">AUTHOR: {selectedCommit.authorName.toUpperCase()}</span>
+                  <span className="truncate max-w-[150px]">PARENT: {selectedCommit.parents[0]?.substring(0, 7).toUpperCase() || 'ROOT'}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between h-[45px] opacity-75">
+              <div className="flex items-center gap-2">
+                <div className="relative flex items-center justify-center w-5 h-5">
+                  <div className="absolute inset-0 border border-[#3c495a]/40 rounded-full animate-ping opacity-25" />
+                  <Compass size={11} className="text-[#697789] animate-spin" style={{ animationDuration: '6s' }} />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[9px] font-bold text-[#697789] tracking-wider uppercase">
+                    TARGET_ACQUISITION // SCANNING
+                  </span>
+                  <span className="text-[7px] text-[#697789]/75 uppercase">
+                    SELECT COMMIT NODE TO FOCUS SCANNER
+                  </span>
+                </div>
+              </div>
+              <div className="text-[7px] text-[#697789] text-right font-mono select-none">
+                GRID: ACTIVE<br />LANE_ORBITS: SECURE
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-          <div className="flex items-center justify-between border-b border-[#3c495a]/15 pb-0.5 mb-0.5">
-            <span className="text-[9px] font-bold text-[#a3f185] tracking-wider">CHRONO_DEPTH</span>
-            <Activity size={10} className="text-[#a3f185]/70" />
-          </div>
-          <div className="flex items-center justify-between text-[8px] text-[#9eacc0]">
-            <span>NODES_LOADED //</span>
-            <span className="font-bold text-[#d9e7fc]">{filteredCommits.length}</span>
-          </div>
-          <div className="truncate text-[7px] text-[#697789] tracking-tight uppercase">
-            {dateRangeString}
-          </div>
+        {/* 6. Discrete Canvas Navigation Controls at bottom-right */}
+        <div className="pointer-events-auto shrink-0 bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-2xl select-none">
+          <button
+            onClick={zoomIn}
+            title="Acercar (Zoom In)"
+            className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer"
+          >
+            <ZoomIn size={12} />
+          </button>
+          <button
+            onClick={zoomOut}
+            title="Alejar (Zoom Out)"
+            className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer"
+          >
+            <ZoomOut size={12} />
+          </button>
+          <div className="w-px h-3 bg-[#3c495a]/25 mx-1" />
+          <button
+            onClick={resetViewport}
+            title="Restablecer Vista (Reset)"
+            className="px-1.5 py-0.5 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider font-semibold cursor-pointer"
+          >
+            <RotateCcw size={10} />
+            <span>Reset</span>
+          </button>
         </div>
-      </div>
 
-      {/* 5. PANEL 04: TARGET TELEMETRY HUD (Bottom-Center, z-20) */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[360px] max-w-[calc(100vw-540px)] bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl select-none transition-all duration-300">
-        {selectedCommit ? (
-          <div className="flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-[#5ed8ff]/20 pb-1 mb-0.5">
-              <div className="flex items-center gap-1.5">
-                <Crosshair size={11} className="text-[#5ed8ff] hud-breath" />
-                <span className="text-[9px] font-bold text-[#5ed8ff] tracking-wider uppercase">
-                  TARGET_LOCKED // LOCK_STABLE
-                </span>
-              </div>
-              <button
-                onClick={() => navigator.clipboard.writeText(selectedCommit.hash)}
-                className="px-1.5 py-0.5 border border-[#5ed8ff]/30 hover:border-[#5ed8ff]/70 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
-                title="Copy full commit SHA"
-              >
-                Copy SHA
-              </button>
-            </div>
-            
-            <div className="flex flex-col gap-0.5 text-[8px] text-[#9eacc0]">
-              <div className="flex items-center justify-between">
-                <span>SHA_SIGN // <span className="text-[#5ed8ff] font-semibold">{selectedCommit.shortHash.toUpperCase()}</span></span>
-                <span className="text-[7.5px] opacity-75">{new Date(selectedCommit.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).toUpperCase()}</span>
-              </div>
-              <div className="truncate text-[#d9e7fc] text-[8.5px] font-semibold border-l-2 border-[#5ed8ff]/40 pl-1.5 my-0.5">
-                {selectedCommit.message}
-              </div>
-              <div className="flex items-center justify-between text-[7px] text-[#697789] pt-0.5 border-t border-[#3c495a]/10">
-                <span className="truncate max-w-[140px]">AUTHOR: {selectedCommit.authorName.toUpperCase()}</span>
-                <span className="truncate max-w-[150px]">PARENT: {selectedCommit.parents[0]?.substring(0, 7).toUpperCase() || 'ROOT'}</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between h-[45px] opacity-75">
-            <div className="flex items-center gap-2">
-              <div className="relative flex items-center justify-center w-5 h-5">
-                <div className="absolute inset-0 border border-[#3c495a]/40 rounded-full animate-ping opacity-25" />
-                <Compass size={11} className="text-[#697789] animate-spin" style={{ animationDuration: '6s' }} />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-bold text-[#697789] tracking-wider uppercase">
-                  TARGET_ACQUISITION // SCANNING
-                </span>
-                <span className="text-[7px] text-[#697789]/75 uppercase">
-                  SELECT COMMIT NODE TO FOCUS SCANNER
-                </span>
-              </div>
-            </div>
-            <div className="text-[7px] text-[#697789] text-right font-mono select-none">
-              GRID: ACTIVE<br />LANE_ORBITS: SECURE
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 6. Discrete Canvas Navigation Controls at bottom-right (Discreto/Opcional, z-20) */}
-      <div className="absolute bottom-4 right-4 bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 z-20 shadow-2xl select-none">
-        <button
-          onClick={zoomIn}
-          title="Acercar (Zoom In)"
-          className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer"
-        >
-          <ZoomIn size={12} />
-        </button>
-        <button
-          onClick={zoomOut}
-          title="Alejar (Zoom Out)"
-          className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer"
-        >
-          <ZoomOut size={12} />
-        </button>
-        <div className="w-px h-3 bg-[#3c495a]/25 mx-1" />
-        <button
-          onClick={resetViewport}
-          title="Restablecer Vista (Reset)"
-          className="px-1.5 py-0.5 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider font-semibold cursor-pointer"
-        >
-          <RotateCcw size={10} />
-          <span>Reset</span>
-        </button>
       </div>
     </div>
   );

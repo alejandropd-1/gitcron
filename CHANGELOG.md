@@ -4,6 +4,42 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.4.4] - 2026-05-22 - Distribución Consistente por Rama y Tags de Origen Inline (Iteraciones C2.2 & C2.3)
+
+### Added
+
+- **Symmetrical Wing Comment Grouping**: Configured comments on lateral fanned branches to reside strictly on their fanning side (left wing for left branches, right wing for right branches) to form organized, clean vertical columns of text, leaving alternating symmetry strictly for the main trunk (`main`/`master`).
+- **Hashed Wing Selection for Trunk-Lanes**: Calculated a stable string hash algorithm on lateral branch names drawn directly on `lane = 0` (such as active feature branches) to deterministically assign their comments to a single wing (left/right) cleanly.
+- **High-Fidelity Inline Branch Tags**: Integrated custom-sized branch segment origin badges (e.g. `FEATURE/TCARS-HUD-SHELL`) drawn dynamically to the left of the comment text for the first commit of any lateral branch segment, shifting subsequent text columns correctly to prevent overlaps.
+- **Perfect Retro-Lane Branch Propagation**: Engineered a backward lane-aware propagation algorithm (`commitBranchNames`) that traces active branch names from HEAD/tip refs down along first-parent lanes, assigning correct names to every single intermediate node.
+- **Robust Local Origin Detection**: Swapped scroll/filtering-dependent global check hooks for a localized check (`node.isBranchOrigin`), verifying whether a lateral branch node has any parent on the same branch.
+- **Clean SVG Loop Unification**: Deprecated and purged obsolete component-level variables (`branchOrigins`, `branchNamesMap`), binding the SVG overlay map directly to `projectedCommits` precalculates (`node.isLeft`, `node.isBranchOrigin`, `node.branchName`) with flawless compilation.
+
+### Docs
+
+- Bumped the app version to `v1.4.4` in `package.json`.
+- Updated `README.md` with version badge, installation filename updates, and new fanning/inline features.
+
+---
+
+## [v1.4.3] - 2026-05-22 - Refinamientos Visuales y Distribución Espacial HUD (Iteración C2.1)
+
+### Added
+
+- **Left-Wing Active Branch Ref Badges**: Replaced oldest-commit origin logic with prominent HUD tactical branch badges rendered for any commit possessing a local branch reference (`refs/heads/*`), always aligned vertically on the left wing (`baseX + nx * 75`) with dotted connectors back to the node to ensure all branches are perfectly visible.
+- **Symmetrical Commits & Sign Corrected Direction**: Restored proper left/right comment symmetry along the chronometric diagonal based on true normal coordinates (`branchIndex > 0` for left-wing, `branchIndex < 0` for right-wing).
+- **Anti-Collision Commit-Branch Rules**: Forced comment overlays to the right wing on any node rendering a left branch badge, establishing total visual clarity and absolute separation.
+- **Uniform Dotted Connectors & HEAD Tag Offset**: Standardized all comment dotted connectors to exactly `35px` and fanned satellite tags by `tagIndex * 45` along the parallel timeline direction `(ux, uy)`. For HEAD tags, applied a `-50px` offset along the parallel direction to completely isolate tags from the HEAD telemetry stack.
+- **Snug Symmetrical Satellite Tags**: Redesigned satellite tags using exact character width estimations (`tagName.length * 4.5 + 8`), text anchoring centered (`textAnchor="middle"`), and dominant baseline centering (`dominantBaseline="central" y={0}`) for a perfect, tight `4px` padding on both edges.
+- **TypeScript & Vitest Validation**: Fully compiled with 0 type errors and passed all 26 vitest test suites successfully.
+
+### Docs
+
+- Bumped the app version to `v1.4.3` in `package.json`.
+- Updated the walkthrough for C2.1 visual and spatial refinements.
+
+---
+
 ## [v1.4.2] - 2026-05-22 - Instrumentación Semántica y HUD / Shell TCARS (Vistosa Carcasa Operacional)
 
 ### Added
@@ -15,10 +51,21 @@ Changes are listed from newest to oldest.
   - **Panel 03 (Chrono & Radar)**: Lists total nodes loaded, absolute calendar timeline span, and renders an animated sweeping circular radar scope.
   - **Panel 04 (Target Telemetry)**: Dynamically lock-identifies the selected node showing commit hash, message, parent hash, exact author, date, and copy quick actions; pulses in an active seeking loop when idle.
 - **GPU-Accelerated Micro-Animations**: Introduced custom breathing transitions (`hud-breath` at 5s cycles) and sweeping animations (`radar-sweep` at 12s cycles) completely decoupled from canvas gestures to guarantee a fluid 60+ FPS experience.
-- **Symmetrical Staggered Timeline Labels (Layout Anticolisión)**: Implemented an alternating stagger layout (`32px` and `72px` perpendicular offsets) based on chronological index for all commit labels to completely eliminate overlap along the diagonal timeline.
+- **Symmetrical Staggered Timeline Labels (Layout Anticolisión V2)**: Upgraded the layout to a highly robust 3-level stagger layout (`35px`, `70px`, and `105px` perpendicular offsets) based on chronological index modular arithmetic (`chronologicalIndex % 3`) to completely eliminate any horizontal or vertical overlap along the diagonal timeline.
+- **Temporal Separation Compression**: Reduced linear time weight to 5% and index weight to 95% in the hybrid math module (`lib/chronometric-projection.ts`) to compress overly long diagonal separations during periods of developer inactivity.
+- **Commit Message Full Rendering**: Removed message truncation (`substring(0, 24)...`) on normal and HEAD commit nodes so messages are displayed completely in this chronological view.
+- **Merge Arrow Directions**: Rotated merge arrowhead graphics by 180 degrees (`rotate(${mid.angle + 180})`) to point forward in time (upward/rightward) towards child commits.
+- **Responsive Target Telemetry Panel**: Introduced class `hud-target-panel` and media query layout rules under 1200px to reposition the bottom-center Panel 04 to the right of Panel 03, resolving card collisions on narrow screens.
 - **Directional HUD Separation (Left/Right Layout)**: Optimized spatial arrangement by projecting Git tags as outer satellite badges to the top-left (using the `(nx, ny)` vector normal), while committing all text telemetry lines, branch names, and hashes to the bottom-right (along `(rx, ry)`).
 - **Floating Fork Triangles (Branch Start Indicators)**: Added external double-triangles that float cleanly at a `20px` to `28px` offset to clearly demarcate where a new branch starts, completely decoupled from the 10.5px commit circles to avoid any geometric overlaps.
 - **Static HEAD Telemetry Stack**: Eliminated Next.js SWC build-time closures optimizer bug by computing HEAD vertical coordinates statically, rendering branch info, track state, and commit hash in a perfectly stacked vertical HUD list.
+- **Aesthetic and HUD Layout Refinements**:
+  - **Unified Flex Layout**: Wrapped Panel 03, Panel 04, and zoom controls in a bottom flex container to prevent overlap on narrow viewports.
+  - **Side-Specific Commit & HEAD Telemetry Stack**: Project commit labels on the left of the timeline for left-side branches (and alternating main lane commits), and on the right for right-side branches, with appropriate text alignments (`start`/`end`).
+  - **Left-Hand Branch Origin Badges**: Placed branch names inside tactical, high-fidelity HUD-style badges on the left of the timeline, featuring dynamic widths and right vertical highlights.
+  - **Short Uniform Connector Lines**: Enforced a clean, uniform distance of exactly 35px for all normal and HEAD commit connector dotted lines.
+  - **Compact Satellite Tags**: Recalibrated text and container bounds of tags to guarantee a perfectly symmetrical 4px padding on both sides.
+
 
 ### Docs
 

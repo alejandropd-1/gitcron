@@ -88,7 +88,7 @@ export function timeToX(
   }
 
   // 3. Weighted hybrid interpolation
-  const p = pTime * 0.3 + pIndex * 0.7;
+  const p = pTime * 0.05 + pIndex * 0.95;
 
   return paddingLeft + p * availableWidth;
 }

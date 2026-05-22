@@ -19,7 +19,7 @@ import {
   initials,
   preferredColorForCommit,
 } from './CommitGraph';
-import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Cpu, Terminal, Compass, Crosshair } from 'lucide-react';
 
 function getBezierPoint(
   p0: { x: number; y: number },
@@ -64,6 +64,10 @@ export function ChronometricGraph({
   const stashes = useGitStore((state) => state.stashes);
   const modifiedFiles = useGitStore((state) => state.modifiedFiles);
   const branchTracking = useGitStore((state) => state.branchTracking);
+  const repoName = useGitStore((state) => state.repoName);
+  const repoPath = useGitStore((state) => state.repoPath);
+  const submodules = useGitStore((state) => state.submodules);
+  const worktrees = useGitStore((state) => state.worktrees);
 
   // 1. Filter commits if filterText is present
   const filter = filterText.trim().toLowerCase();
@@ -76,6 +80,12 @@ export function ChronometricGraph({
         c.authorName.toLowerCase().includes(filter)
     );
   }, [commits, filter]);
+
+  // 1.5. Find selected commit from hash for HUD Panel 04
+  const selectedCommit = useMemo(() => {
+    if (!selectedHash) return null;
+    return commits.find((c) => c.hash === selectedHash) || null;
+  }, [commits, selectedHash]);
 
   // 2. Compute classic graph lanes to reuse lane assignment logic
   const { rows } = useMemo(
@@ -91,6 +101,15 @@ export function ChronometricGraph({
       minTime: Math.min(...timestamps),
       maxTime: Math.max(...timestamps),
     };
+  }, [filteredCommits]);
+
+  // 3.5. Format human-readable timeline date range for Panel 03
+  const dateRangeString = useMemo(() => {
+    if (filteredCommits.length === 0) return 'T_ZERO';
+    const firstDate = new Date(filteredCommits[filteredCommits.length - 1].date);
+    const lastDate = new Date(filteredCommits[0].date);
+    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+    return `${firstDate.toLocaleDateString(undefined, options).toUpperCase()} - ${lastDate.toLocaleDateString(undefined, options).toUpperCase()}`;
   }, [filteredCommits]);
 
   // 4. Calculate dynamic SVG dimensions based on commit count
@@ -1329,49 +1348,281 @@ export function ChronometricGraph({
         )}
       </div>
 
-      {/* Floating Canvas Navigation Controls at bottom-right (Discreto/Opcional) */}
-      <div className="absolute bottom-3 right-3 bg-[#031427]/90 backdrop-blur-md border border-[#3c495a]/25 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 z-10 shadow-lg select-none">
+      {/* ── C2 BLOCK: HUD / SHELL TCARS SYSTEM ── */}
+
+      {/* Inline styles for slow breathing phosphor glow and radar sweeps */}
+      <style jsx>{`
+        @keyframes hud-breath {
+          0%, 100% {
+            opacity: 0.25;
+            filter: drop-shadow(0 0 1px rgba(94, 216, 255, 0.25)) drop-shadow(0 0 2px rgba(94, 216, 255, 0.1));
+          }
+          50% {
+            opacity: 0.55;
+            filter: drop-shadow(0 0 2.5px rgba(94, 216, 255, 0.5)) drop-shadow(0 0 5px rgba(94, 216, 255, 0.2));
+          }
+        }
+        @keyframes radar-sweep {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+        .hud-breath {
+          animation: hud-breath 5s ease-in-out infinite;
+        }
+        .radar-sweep {
+          animation: radar-sweep 12s linear infinite;
+          transform-origin: 15px 15px;
+        }
+      `}</style>
+
+      {/* 1. Static SVG HUD Shell Overlay Layer (Frames viewport at z-10, pointer-events-none) */}
+      <svg
+        className="absolute inset-0 w-full h-full pointer-events-none select-none z-10 opacity-30"
+        id="tcars-hud-overlay"
+      >
+        <defs>
+          <filter id="hud-glow" x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation="1" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* Outer Circular Tactical Grid (Temporal horizons, centered) */}
+        <circle cx="50%" cy="50%" r="35%" fill="none" stroke="#b455ff" strokeWidth="0.5" strokeDasharray="2 12" opacity="0.12" filter="url(#hud-glow)" />
+        <circle cx="50%" cy="50%" r="42%" fill="none" stroke="#5ed8ff" strokeWidth="0.5" strokeDasharray="100 200" opacity="0.08" filter="url(#hud-glow)" />
+        <circle cx="50%" cy="50%" r="48%" fill="none" stroke="#a3f185" strokeWidth="0.5" strokeDasharray="1 18" opacity="0.06" />
+
+        {/* Crosshair Ticks in center of screen */}
+        <g stroke="#3c495a" strokeWidth="0.75" opacity="0.2">
+          <line x1="50%" y1="calc(50% - 16px)" x2="50%" y2="calc(50% - 8px)" />
+          <line x1="50%" y1="calc(50% + 8px)" x2="50%" y2="calc(50% + 16px)" />
+          <line x1="calc(50% - 16px)" y1="50%" x2="calc(50% - 8px)" y2="50%" />
+          <line x1="calc(50% + 8px)" y1="50%" x2="calc(50% + 16px)" y2="50%" />
+        </g>
+
+        {/* Curved HUD Corner Frames */}
+        {/* Top-Left Curve */}
+        <path d="M 8 60 L 8 16 A 8 8 0 0 1 16 8 L 285 8" fill="none" stroke="#5ed8ff" strokeWidth="1" filter="url(#hud-glow)" />
+        <rect x="8" y="8" width="12" height="3" fill="#5ed8ff" />
+        
+        {/* Top-Right Curve */}
+        <path d="M calc(100% - 285px) 8 L calc(100% - 16px) 8 A 8 8 0 0 1 calc(100% - 8px) 16 L calc(100% - 8px) 60" fill="none" stroke="#b455ff" strokeWidth="1" filter="url(#hud-glow)" />
+        <rect x="calc(100% - 20px)" y="8" width="12" height="3" fill="#b455ff" />
+
+        {/* Bottom-Left Curve */}
+        <path d="M 8 calc(100% - 60px) L 8 calc(100% - 16px) A 8 8 0 0 0 16 calc(100% - 8px) L 265 calc(100% - 8px)" fill="none" stroke="#a3f185" strokeWidth="1" filter="url(#hud-glow)" />
+        <rect x="8" y="calc(100% - 11px)" width="12" height="3" fill="#a3f185" />
+
+        {/* Bottom-Right Curve */}
+        <path d="M calc(100% - 160px) calc(100% - 8px) L calc(100% - 16px) calc(100% - 8px) A 8 8 0 0 0 calc(100% - 8px) calc(100% - 16px) L calc(100% - 8px) calc(100% - 60px)" fill="none" stroke="#fd9d1a" strokeWidth="1" filter="url(#hud-glow)" />
+        <rect x="calc(100% - 20px)" y="calc(100% - 11px)" width="12" height="3" fill="#fd9d1a" />
+
+        {/* Technical Coordinate Indicators */}
+        <text x="295" y="13" fill="#697789" fontSize="6" className="font-mono" opacity="0.5">
+          NAV_AXIS // AZIMUTH: 40.4° // DECLINATION: 0.85
+        </text>
+        <text x="calc(100% - 295px)" y="13" textAnchor="end" fill="#697789" fontSize="6" className="font-mono" opacity="0.5">
+          SYS_CORRELATION // CHRONO_V2.0 // TIMELINE: RUNNING
+        </text>
+      </svg>
+
+      {/* 2. PANEL 01: NAV TELEMETRY & SYSTEM CONTEXT (Top-Left, z-20) */}
+      <div className="absolute top-4 left-4 w-[250px] bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none">
+        <div className="flex items-center justify-between border-b border-[#3c495a]/20 pb-1 mb-0.5">
+          <span className="text-[10px] font-bold text-[#5ed8ff] tracking-wider uppercase truncate max-w-[170px]">
+            {repoName || 'NO_ACTIVE_REPO'}
+          </span>
+          <div className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#a3f185] hud-breath" />
+            <span className="text-[7.5px] font-bold text-[#a3f185] tracking-widest">ACTIVE</span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1 text-[8.5px] text-[#9eacc0]">
+          <div className="flex items-center gap-1.5">
+            <Terminal size={10} className="text-[#5ed8ff]/70" />
+            <span className="truncate max-w-[210px] font-semibold text-[#d9e7fc]">
+              {currentBranch || 'DETACHED_HEAD'}
+            </span>
+          </div>
+          <div className="truncate text-[7.5px] opacity-60 pl-4 border-l border-[#3c495a]/20">
+            {repoPath || 'NO_PATH_SPECIFIED'}
+          </div>
+          <div className="flex items-center justify-between text-[7px] text-[#697789] uppercase tracking-wider pt-0.5 border-t border-[#3c495a]/10 mt-0.5">
+            <span>MODE // CHRONO_HUD</span>
+            <span>T_CORRELATION // OK</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. PANEL 02: SYNC & DIRTY METRICS (Top-Right, z-20) */}
+      <div className="absolute top-4 right-4 w-[250px] bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none">
+        <div className="flex items-center justify-between border-b border-[#3c495a]/20 pb-1 mb-0.5">
+          <span className="text-[9px] font-bold text-[#b455ff] tracking-wider uppercase">
+            SYNC_STATE // TELEMETRY
+          </span>
+          <Cpu size={11} className="text-[#b455ff]/70" />
+        </div>
+        <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[8.5px] text-[#9eacc0]">
+          <div className="flex items-center justify-between border-b border-[#3c495a]/10 pb-0.5">
+            <span>AHEAD //</span>
+            <span className={`font-bold ${ahead > 0 ? 'text-[#a3f185]' : 'text-[#697789]'}`}>
+              {ahead > 0 ? `▲${ahead}` : '0'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between border-b border-[#3c495a]/10 pb-0.5">
+            <span>BEHIND //</span>
+            <span className={`font-bold ${behind > 0 ? 'text-[#fd9d1a]' : 'text-[#697789]'}`}>
+              {behind > 0 ? `▼${behind}` : '0'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>STASH_PODS //</span>
+            <span className={`font-semibold ${stashes.length > 0 ? 'text-[#5ed8ff]' : 'text-[#697789]'}`}>
+              {stashes.length}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>DIRTY_FILES //</span>
+            <span className={`font-semibold ${modifiedFiles.length > 0 ? 'text-[#fd9d1a]' : 'text-[#697789]'}`}>
+              {modifiedFiles.length}
+            </span>
+          </div>
+        </div>
+        {modifiedFiles.length > 0 && (
+          <div className="mt-1 pt-1 border-t border-[#3c495a]/15 flex items-center justify-between text-[7px] text-[#697789]">
+            <div className="flex gap-1.5">
+              <span>MOD: {modifiedFiles.filter(f => f.status === 'modified').length}</span>
+              <span>ADD: {modifiedFiles.filter(f => f.status === 'added' || f.status === 'untracked').length}</span>
+              <span>DEL: {modifiedFiles.filter(f => f.status === 'deleted').length}</span>
+            </div>
+            {submodules.length > 0 && <span>SUBMODULES: {submodules.length}</span>}
+          </div>
+        )}
+      </div>
+
+      {/* 4. PANEL 03: CHRONO METRICS & RADAR SCAN (Bottom-Left, z-20) */}
+      <div className="absolute bottom-4 left-4 w-[240px] bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex items-center gap-3 select-none">
+        {/* Animated Radar Scanning Scope */}
+        <div className="relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/20 rounded-full overflow-hidden bg-[#021820]/30">
+          <svg width="30" height="30" className="absolute inset-0">
+            <circle cx="15" cy="15" r="14" fill="none" stroke="#a3f185" strokeWidth="0.5" opacity="0.15" />
+            <circle cx="15" cy="15" r="7" fill="none" stroke="#a3f185" strokeWidth="0.5" opacity="0.1" />
+            {/* Sweep arm */}
+            <line
+              x1="15" y1="15"
+              x2="15" y2="1"
+              stroke="#a3f185"
+              strokeWidth="0.75"
+              opacity="0.6"
+              className="radar-sweep"
+            />
+          </svg>
+        </div>
+
+        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+          <div className="flex items-center justify-between border-b border-[#3c495a]/15 pb-0.5 mb-0.5">
+            <span className="text-[9px] font-bold text-[#a3f185] tracking-wider">CHRONO_DEPTH</span>
+            <Activity size={10} className="text-[#a3f185]/70" />
+          </div>
+          <div className="flex items-center justify-between text-[8px] text-[#9eacc0]">
+            <span>NODES_LOADED //</span>
+            <span className="font-bold text-[#d9e7fc]">{filteredCommits.length}</span>
+          </div>
+          <div className="truncate text-[7px] text-[#697789] tracking-tight uppercase">
+            {dateRangeString}
+          </div>
+        </div>
+      </div>
+
+      {/* 5. PANEL 04: TARGET TELEMETRY HUD (Bottom-Center, z-20) */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[360px] max-w-[calc(100vw-540px)] bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl select-none transition-all duration-300">
+        {selectedCommit ? (
+          <div className="flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-[#5ed8ff]/20 pb-1 mb-0.5">
+              <div className="flex items-center gap-1.5">
+                <Crosshair size={11} className="text-[#5ed8ff] hud-breath" />
+                <span className="text-[9px] font-bold text-[#5ed8ff] tracking-wider uppercase">
+                  TARGET_LOCKED // LOCK_STABLE
+                </span>
+              </div>
+              <button
+                onClick={() => navigator.clipboard.writeText(selectedCommit.hash)}
+                className="px-1.5 py-0.5 border border-[#5ed8ff]/30 hover:border-[#5ed8ff]/70 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
+                title="Copy full commit SHA"
+              >
+                Copy SHA
+              </button>
+            </div>
+            
+            <div className="flex flex-col gap-0.5 text-[8px] text-[#9eacc0]">
+              <div className="flex items-center justify-between">
+                <span>SHA_SIGN // <span className="text-[#5ed8ff] font-semibold">{selectedCommit.shortHash.toUpperCase()}</span></span>
+                <span className="text-[7.5px] opacity-75">{new Date(selectedCommit.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).toUpperCase()}</span>
+              </div>
+              <div className="truncate text-[#d9e7fc] text-[8.5px] font-semibold border-l-2 border-[#5ed8ff]/40 pl-1.5 my-0.5">
+                {selectedCommit.message}
+              </div>
+              <div className="flex items-center justify-between text-[7px] text-[#697789] pt-0.5 border-t border-[#3c495a]/10">
+                <span className="truncate max-w-[140px]">AUTHOR: {selectedCommit.authorName.toUpperCase()}</span>
+                <span className="truncate max-w-[150px]">PARENT: {selectedCommit.parents[0]?.substring(0, 7).toUpperCase() || 'ROOT'}</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between h-[45px] opacity-75">
+            <div className="flex items-center gap-2">
+              <div className="relative flex items-center justify-center w-5 h-5">
+                <div className="absolute inset-0 border border-[#3c495a]/40 rounded-full animate-ping opacity-25" />
+                <Compass size={11} className="text-[#697789] animate-spin" style={{ animationDuration: '6s' }} />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-bold text-[#697789] tracking-wider uppercase">
+                  TARGET_ACQUISITION // SCANNING
+                </span>
+                <span className="text-[7px] text-[#697789]/75 uppercase">
+                  SELECT COMMIT NODE TO FOCUS SCANNER
+                </span>
+              </div>
+            </div>
+            <div className="text-[7px] text-[#697789] text-right font-mono select-none">
+              GRID: ACTIVE<br />LANE_ORBITS: SECURE
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 6. Discrete Canvas Navigation Controls at bottom-right (Discreto/Opcional, z-20) */}
+      <div className="absolute bottom-4 right-4 bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 z-20 shadow-2xl select-none">
         <button
           onClick={zoomIn}
           title="Acercar (Zoom In)"
           className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer"
         >
-          <ZoomIn size={13} />
+          <ZoomIn size={12} />
         </button>
         <button
           onClick={zoomOut}
           title="Alejar (Zoom Out)"
           className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer"
         >
-          <ZoomOut size={13} />
+          <ZoomOut size={12} />
         </button>
         <div className="w-px h-3 bg-[#3c495a]/25 mx-1" />
         <button
           onClick={resetViewport}
           title="Restablecer Vista (Reset)"
-          className="px-1.5 py-0.5 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors flex items-center gap-1 font-mono text-[8.5px] uppercase tracking-wider font-semibold cursor-pointer"
+          className="px-1.5 py-0.5 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider font-semibold cursor-pointer"
         >
-          <RotateCcw size={11} />
+          <RotateCcw size={10} />
           <span>Reset</span>
         </button>
-      </div>
-
-      {/* Floating Mode Stats/Info Panel at bottom-left */}
-      <div className="absolute bottom-3 left-3 bg-[#031427]/80 backdrop-blur-md border border-[#3c495a]/15 px-3 py-1.5 rounded-md text-[10px] text-[#9eacc0] flex items-center gap-3 z-10 font-mono shadow-md">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#a3f185]" />
-          <span>Cronométrico</span>
-        </div>
-        <div className="w-px h-3 bg-[#3c495a]/30" />
-        <div>
-          <span>Commits: <span className="text-[#d9e7fc] font-bold">{filteredCommits.length}</span></span>
-        </div>
-        {filterText.trim() && (
-          <>
-            <div className="w-px h-3 bg-[#3c495a]/30" />
-            <span className="text-[#a3f185] font-semibold">Filtro activo</span>
-          </>
-        )}
       </div>
     </div>
   );

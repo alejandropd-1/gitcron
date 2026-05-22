@@ -60,9 +60,9 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Commit tab for a staging-focused workflow summary.
 - **Vista Cronométrica (Chronometric View)**: Alternative diagonal visual layout that charts commits along a temporal 2D canvas, using a visually striking ascending slope of ~40.4° (`DEFAULT_CHRONOMETRIC_SLOPE = 0.85`) to portray a dynamic chronological HUD. Powered by a hybrid scaling algorithm (**30% linear physical time, 70% sequential logical index**) to balance temporal perception with collision-free readability. Connector lines flow in organic tangent Bézier curves, branching lanes fan out symmetrically towards the present, and timeline grids render dynamically. SVG canvas height scales dynamically with width to maintain a constant visual incline, and the state is persisted per-repository.
 - **Navegación Canvas en Vista Cronométrica (Pan & Zoom)**: Infinite 2D interactive viewport for the Chronometric View. Left-click and drag anywhere on the canvas to pan smoothly. Use the mouse wheel to zoom in and out, mathematically anchored to the exact cursor position (clamped between `0.25x` and `3.5x` scale). Features automatic bounds clamping to prevent the graph from sliding off-screen, and dynamic viewport auto-centering that instantly focuses the timeline on mount, repo switch, or filter changes.
-
 - **Dynamic Floating Hover Cards**: Commitment details float cleanly over the active hovered node. Using mathematical projection, card positions are updated instantly as you pan and zoom, clamped against container boundaries to prevent off-screen truncation.
 - **Instrumentación Semántica HUD (TCARS Layout)**: Modern vector-based telemetry overlays that visually resolve Git entities. Incorporates a symmetrical staggered label system (alternating 32px and 72px offsets) to eliminate text overlaps, displays branch origin indicators as external floating triangles (20px-28px offset), and projects Git tags as top-left satellite badges while keeping commit metadata on the bottom-right.
+- **HUD / Shell TCARS System (C2 Block)**: Wraps the panned canvas inside static, curved SVG borders, orbital tactical arcs, degree ticks, and coordinates. Operates four absolute HUD panels (Navigation System, Sync & Dirty Telemetry, Chrono Metrics & Radar, and Target Telemetry with locking reticle) running smoothly at 60+ FPS on a completely decoupled overlay layer with controlled, slow-breathing animations.
 - **Discrete Floating Navigation Controls**: Low-profile, sleek buttons (`+`, `-`, `Reset`) in the bottom-right corner for quick mouse-click zooming and viewport resetting, keeping classic mode perfectly intact without visual clutter.
 
 
@@ -298,9 +298,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.4.0.exe`                                             |
-| macOS    | `GitCron-1.4.0.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.4.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.4.2.exe`                                             |
+| macOS    | `GitCron-1.4.2.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.4.2.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -347,7 +347,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-`v1.4.0` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v1.4.2` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

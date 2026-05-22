@@ -4,10 +4,17 @@ Changes are listed from newest to oldest.
 
 ---
 
-## [v1.4.2] - 2026-05-22 - Instrumentación Semántica TCARS (HUD Refinements & Anti-Overlap Layout)
+## [v1.4.2] - 2026-05-22 - Instrumentación Semántica y HUD / Shell TCARS (Vistosa Carcasa Operacional)
 
 ### Added
 
+- **HUD / Shell TCARS System (C2 Block)**: Integrated a static, non-interactive vector overlay layer (`z-10` and `z-20` layers) that wraps the infinite canvas in highly polished curved borders, concentric circular coordinate grids, declination angular ticks (`000°` to `315°`), and projection metrics (`AZIMUTH // 40.4°`, `DECLINATION // 0.85`).
+- **Four React Operational HUD Panels**:
+  - **Panel 01 (Nav System)**: Renders active repository name, local absolute path, current branch, and operational mode with a slow breathing status light.
+  - **Panel 02 (Sync Telemetry)**: Monitors Ahead/Behind counters, dirty files counters segmented by modification status (`MOD`, `ADD`, `DEL`), stashes count, and submodules.
+  - **Panel 03 (Chrono & Radar)**: Lists total nodes loaded, absolute calendar timeline span, and renders an animated sweeping circular radar scope.
+  - **Panel 04 (Target Telemetry)**: Dynamically lock-identifies the selected node showing commit hash, message, parent hash, exact author, date, and copy quick actions; pulses in an active seeking loop when idle.
+- **GPU-Accelerated Micro-Animations**: Introduced custom breathing transitions (`hud-breath` at 5s cycles) and sweeping animations (`radar-sweep` at 12s cycles) completely decoupled from canvas gestures to guarantee a fluid 60+ FPS experience.
 - **Symmetrical Staggered Timeline Labels (Layout Anticolisión)**: Implemented an alternating stagger layout (`32px` and `72px` perpendicular offsets) based on chronological index for all commit labels to completely eliminate overlap along the diagonal timeline.
 - **Directional HUD Separation (Left/Right Layout)**: Optimized spatial arrangement by projecting Git tags as outer satellite badges to the top-left (using the `(nx, ny)` vector normal), while committing all text telemetry lines, branch names, and hashes to the bottom-right (along `(rx, ry)`).
 - **Floating Fork Triangles (Branch Start Indicators)**: Added external double-triangles that float cleanly at a `20px` to `28px` offset to clearly demarcate where a new branch starts, completely decoupled from the 10.5px commit circles to avoid any geometric overlaps.
@@ -17,6 +24,7 @@ Changes are listed from newest to oldest.
 
 - Bumped the app version to `v1.4.2` in `package.json`.
 - Updated the README version badge, architecture list, and features guide.
+- Added comprehensive walkthrough for the C2 HUD/Shell operational capabilities in the workspace brain.
 
 ---
 

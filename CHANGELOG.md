@@ -4,6 +4,26 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.4.1] - 2026-05-22 - Pan & Zoom Cronométrico (Infinite Canvas Viewport)
+
+### Added
+
+- **Lienzo Infinito 2D (Interactive Canvas Viewport)**: Replaced the standard horizontal/vertical overflow wrapper in the Chronometric Graph with a full interactively scrollable infinite 2D canvas with customizable cursors (`cursor-grab` and `cursor-grabbing`).
+- **Arrastre por Mouse (Click & Drag Pan)**: Drag anywhere on the Chronometric Graph to pan smoothly in both vertical and horizontal planes. Event listeners are dynamically bound to the `window` during active dragging to guarantee absolute panning stability even when the cursor leaves the window bounds.
+- **Zoom Anclado al Cursor (Cursor-Anchored Scroll Wheel Zoom)**: Integrated cursor-anchored scaling by recalculating viewport offsets instantly as the user scrolls. Supports scale clamping between `0.25x` and `3.5x`.
+- **Límites de Contención (Viewport Bounds Containment)**: Implemented automatic boundaries clamping to prevent the timeline graph from completely sliding out of the viewport.
+- **Librería Matemática Viewport (`lib/canvas-viewport.ts`)**: Built a pure, robust coordinate projection library mapping screen coordinates to canvas world coordinates (`screenToWorld`, `worldToScreen`) and resolving viewport boundary constraints.
+- **Comportamiento del Hover Card**: Computed absolute details hover card coordinates using mathematical canvas projections, ensuring that hover elements follow nodes flawlessly under zoom and pan and clamp precisely against container edges.
+- **Controles de Navegación Discretos (Discrete Floating Controls)**: Minimalist, low-profile overlay controls (`+`, `-`, `Reset`) in the bottom-right corner for mouse-driven zoom adjustments and viewport resetting.
+- **Vitest Unit Test Suite**: Comprehensive tests in `lib/__tests__/canvas-viewport.test.ts` covering coordinate projections, anchored scale calculations, limit clamp margins, and boundary constraints.
+
+### Docs
+
+- Bumped the app version to `v1.4.1` in `package.json`.
+- Updated the README version badge, architecture list, and features guide.
+
+---
+
 ## [v1.4.0] - 2026-05-22 - Vista Cronométrica (Chronometric Timeline Layout)
 
 ### Added

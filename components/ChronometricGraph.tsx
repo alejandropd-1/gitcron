@@ -8,11 +8,16 @@ import {
   type ProjectionConfig,
 } from '@/lib/chronometric-projection';
 import {
+  screenToWorld,
+  worldToScreen,
+} from '@/lib/canvas-viewport';
+import { useCanvasViewport } from '@/hooks/use-canvas-viewport';
+import {
   computeGraph,
   initials,
   preferredColorForCommit,
 } from './CommitGraph';
-import { Calendar, GitCommit } from 'lucide-react';
+import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 interface ChronometricGraphProps {
   commits: Commit[];
@@ -128,6 +133,24 @@ export function ChronometricGraph({
     return projectedLookup.get(hoveredHash) || null;
   }, [hoveredHash, projectedLookup]);
 
+  // Hook for 2D Canvas Navigation: Pan and Zoom
+  const {
+    viewport,
+    containerRef,
+    isDragging,
+    handleMouseDown,
+    resetViewport,
+    zoomIn,
+    zoomOut,
+  } = useCanvasViewport({
+    worldWidth: width,
+    worldHeight: height,
+    initialScale: 1.0,
+    minScale: 0.25,
+    maxScale: 3.5,
+    padding: 120,
+  });
+
   // 7. Time ticks (date guidelines at the bottom of the graph)
   const timeTicks = useMemo(() => {
     if (filteredCommits.length === 0 || maxTime === minTime) return [];
@@ -237,16 +260,58 @@ export function ChronometricGraph({
   const ux = dx / L;
   const uy = dy / L;
 
+  // Calculate screen position for hover card
+  const hoveredScreenPos = useMemo(() => {
+    if (!hoveredPos) return null;
+    return worldToScreen({ x: hoveredPos.x, y: hoveredPos.y }, viewport);
+  }, [hoveredPos, viewport]);
+
+  // Calculate absolute coordinates for hover card clamped inside the container bounds
+  const hoveredCardStyle = useMemo(() => {
+    if (!hoveredScreenPos || !containerRef.current) return {};
+    const containerWidth = containerRef.current.clientWidth || 800;
+    const containerHeight = containerRef.current.clientHeight || 520;
+
+    const cardWidth = 310;
+    const cardHeight = 135;
+
+    // Position adjacent to the node, clamping within screen bounds to prevent overflow
+    const leftVal = hoveredScreenPos.x + 20 + cardWidth > containerWidth
+      ? Math.max(10, hoveredScreenPos.x - 20 - cardWidth)
+      : Math.max(10, hoveredScreenPos.x + 20);
+
+    const topVal = hoveredScreenPos.y + cardHeight > containerHeight - 20
+      ? Math.max(10, hoveredScreenPos.y - 10 - cardHeight)
+      : Math.max(10, hoveredScreenPos.y + 15);
+
+    return {
+      left: leftVal,
+      top: topVal,
+      fontFamily: 'var(--font-sans), Inter, sans-serif',
+    };
+  }, [hoveredScreenPos]);
+
   return (
-    <div className="flex-1 w-full h-full overflow-hidden bg-[#020f1e] flex flex-col relative select-none">
-      {/* Dynamic scrolling SVG container */}
-      <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
-        <div className="relative" style={{ width, height }}>
-          <svg
-            width={width}
-            height={height}
-            className="block"
-            style={{ overflow: 'visible' }}
+    <div
+      className="flex-1 w-full h-full overflow-hidden bg-[#020f1e] flex flex-col relative select-none"
+      id="chronometric-container"
+    >
+      {/* 2D Infinite Interactive Canvas Viewport */}
+      <div
+        ref={containerRef}
+        onMouseDown={handleMouseDown}
+        className={`flex-1 overflow-hidden relative cursor-grab ${
+          isDragging ? 'cursor-grabbing' : ''
+        }`}
+      >
+        <svg
+          width="100%"
+          height="100%"
+          className="block"
+          style={{ overflow: 'visible' }}
+        >
+          <g
+            transform={`translate(${viewport.offsetX}, ${viewport.offsetY}) scale(${viewport.scale})`}
           >
             {/* 1. Base Guidelines & Time Ticks */}
             {timeTicks.map((tick, index) => (
@@ -355,13 +420,8 @@ export function ChronometricGraph({
                     onContextMenu(e, node.commit);
                   }}
                   onMouseEnter={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const containerRect = e.currentTarget.ownerDocument.getElementById('chronometric-container')?.getBoundingClientRect();
-                    const leftOffset = containerRect ? rect.left - containerRect.left : node.x;
-                    const topOffset = containerRect ? rect.top - containerRect.top : node.y;
-
                     setHoveredHash(node.commit.hash);
-                    // Use relative coordinates for precise HTML placement
+                    // Set projected position as relative world coordinates
                     setHoveredPos({
                       x: node.x,
                       y: node.y,
@@ -425,60 +485,83 @@ export function ChronometricGraph({
                 </g>
               );
             })}
-          </svg>
+          </g>
+        </svg>
 
-          {/* 5. Custom Floating Hover Card (Geometric clarity, details on-demand) */}
-          {hoveredNode && hoveredPos && (
-            <div
-              className="absolute pointer-events-none bg-[#031427] border border-[#3c495a]/30 rounded px-3 py-2.5 shadow-2xl z-30 min-w-[280px] max-w-[340px] transition-opacity duration-150"
-              style={{
-                left: Math.min(width - 350, hoveredPos.x + 20),
-                top: hoveredPos.y > height - 160 ? hoveredPos.y - 145 : hoveredPos.y + 15,
-                fontFamily: 'var(--font-sans), Inter, sans-serif',
-              }}
-            >
-              <div className="flex items-center justify-between gap-3 mb-1.5 border-b border-[#3c495a]/15 pb-1">
-                <span className="text-[10px] uppercase font-bold text-[#697789] tracking-wider font-mono">
-                  {hoveredNode.commit.shortHash}
+        {/* 5. Custom Floating Hover Card (Geometric clarity, details on-demand, relative positioned) */}
+        {hoveredNode && hoveredScreenPos && (
+          <div
+            className="absolute pointer-events-none bg-[#031427]/95 backdrop-blur-md border border-[#3c495a]/30 rounded px-3 py-2.5 shadow-2xl z-30 min-w-[280px] max-w-[340px] transition-opacity duration-150 animate-in fade-in zoom-in-95 duration-100"
+            style={hoveredCardStyle}
+          >
+            <div className="flex items-center justify-between gap-3 mb-1.5 border-b border-[#3c495a]/15 pb-1">
+              <span className="text-[10px] uppercase font-bold text-[#697789] tracking-wider font-mono">
+                {hoveredNode.commit.shortHash}
+              </span>
+              {getBranchName(hoveredNode.commit) && (
+                <span
+                  className="text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold truncate max-w-[150px]"
+                  style={{
+                    backgroundColor: `${hoveredNode.laneColor}15`,
+                    color: hoveredNode.laneColor,
+                    border: `1px solid ${hoveredNode.laneColor}30`,
+                  }}
+                >
+                  {getBranchName(hoveredNode.commit)}
                 </span>
-                {getBranchName(hoveredNode.commit) && (
-                  <span
-                    className="text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold truncate max-w-[150px]"
-                    style={{
-                      backgroundColor: `${hoveredNode.laneColor}15`,
-                      color: hoveredNode.laneColor,
-                      border: `1px solid ${hoveredNode.laneColor}30`,
-                    }}
-                  >
-                    {getBranchName(hoveredNode.commit)}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-[#d9e7fc] font-medium line-clamp-2 mb-2 leading-relaxed">
-                {hoveredNode.commit.message}
-              </p>
-              <div className="flex items-center justify-between text-[9px] text-[#9eacc0] font-mono">
-                <span className="truncate max-w-[130px]">{hoveredNode.commit.authorName}</span>
-                <span className="flex items-center gap-1">
-                  <Calendar size={10} className="opacity-70" />
-                  {new Date(hoveredNode.commit.date).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
+              )}
             </div>
-          )}
-        </div>
+            <p className="text-xs text-[#d9e7fc] font-medium line-clamp-2 mb-2 leading-relaxed">
+              {hoveredNode.commit.message}
+            </p>
+            <div className="flex items-center justify-between text-[9px] text-[#9eacc0] font-mono">
+              <span className="truncate max-w-[130px]">{hoveredNode.commit.authorName}</span>
+              <span className="flex items-center gap-1">
+                <Calendar size={10} className="opacity-70" />
+                {new Date(hoveredNode.commit.date).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Floating Canvas Navigation Controls at bottom-right (Discreto/Opcional) */}
+      <div className="absolute bottom-3 right-3 bg-[#031427]/90 backdrop-blur-md border border-[#3c495a]/25 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 z-10 shadow-lg select-none">
+        <button
+          onClick={zoomIn}
+          title="Acercar (Zoom In)"
+          className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer"
+        >
+          <ZoomIn size={13} />
+        </button>
+        <button
+          onClick={zoomOut}
+          title="Alejar (Zoom Out)"
+          className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer"
+        >
+          <ZoomOut size={13} />
+        </button>
+        <div className="w-px h-3 bg-[#3c495a]/25 mx-1" />
+        <button
+          onClick={resetViewport}
+          title="Restablecer Vista (Reset)"
+          className="px-1.5 py-0.5 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors flex items-center gap-1 font-mono text-[8.5px] uppercase tracking-wider font-semibold cursor-pointer"
+        >
+          <RotateCcw size={11} />
+          <span>Reset</span>
+        </button>
       </div>
 
       {/* Floating Mode Stats/Info Panel at bottom-left */}
       <div className="absolute bottom-3 left-3 bg-[#031427]/80 backdrop-blur-md border border-[#3c495a]/15 px-3 py-1.5 rounded-md text-[10px] text-[#9eacc0] flex items-center gap-3 z-10 font-mono shadow-md">
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-[#a3f185]" />
-          <span>Principal</span>
+          <span>Cronométrico</span>
         </div>
         <div className="w-px h-3 bg-[#3c495a]/30" />
         <div>

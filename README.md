@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.4.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.4.1-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -59,6 +59,10 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - History tab for a flat chronological view.
 - Commit tab for a staging-focused workflow summary.
 - **Vista Cronométrica (Chronometric View)**: Alternative diagonal visual layout that charts commits along a temporal 2D canvas. Powered by a hybrid scaling algorithm (**30% linear physical time, 70% sequential logical index**) to balance temporal perception with collision-free readability. Connector lines flow in organic tangent Bézier curves, branching lanes fan out symmetrically towards the present, and timeline grids render dynamically. Supports per-repository state persistence toggled through a segmented control toolbar.
+- **Navegación Canvas en Vista Cronométrica (Pan & Zoom)**: Infinite 2D interactive viewport for the Chronometric View. Left-click and drag anywhere on the canvas to pan smoothly. Use the mouse wheel to zoom in and out, mathematically anchored to the exact cursor position (clamped between `0.25x` and `3.5x` scale). Features automatic bounds clamping to prevent the graph from sliding off-screen.
+- **Dynamic Floating Hover Cards**: Commitment details float cleanly over the active hovered node. Using mathematical projection, card positions are updated instantly as you pan and zoom, clamped against container boundaries to prevent off-screen truncation.
+- **Discrete Floating Navigation Controls**: Low-profile, sleek buttons (`+`, `-`, `Reset`) in the bottom-right corner for quick mouse-click zooming and viewport resetting, keeping classic mode perfectly intact without visual clutter.
+
 
 ### Staging and commits
 
@@ -120,12 +124,15 @@ Renderer:
 
 - `app/page.tsx` drives the main three-column UI, tabs, modals, and topbar.
 - `components/CommitGraph.tsx` renders the SVG graph and graph-table rows.
-- `components/ChronometricGraph.tsx` renders the custom diagonal SVG chronological graph.
+- `components/ChronometricGraph.tsx` renders the custom diagonal SVG chronological graph with the interactive infinite canvas and floating controls.
 - `components/DiffViewer.tsx` renders unified diffs.
 - `hooks/use-git-actions.ts` contains repo actions like commit, push, pull, merge, stash, and preferences persistence.
+- `hooks/use-canvas-viewport.ts` manages gesture listeners, active mouse-drag cycles, non-passive wheel events, and dynamic viewport bounds containment for the canvas layout.
 - `hooks/use-repo-loader.ts` loads repo data and restores persisted repos.
 - `lib/git-store.ts` holds the Zustand store.
 - `lib/chronometric-projection.ts` implements the mathematical hybrid time-index projection, diagonal vectors, and branching fanning algorithms.
+- `lib/canvas-viewport.ts` implements pure coordinate transforms (`screenToWorld`, `worldToScreen`) and cursor-anchored zoom calculations for the infinite viewport.
+
 
 Main process:
 

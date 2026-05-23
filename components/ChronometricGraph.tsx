@@ -1869,19 +1869,23 @@ export function ChronometricGraph({
       </div>
 
       {/* Responsive Bottom HUD Dock: depth, target and controls share one collision-free layout. */}
+      {/* Zoom controls — absolute in the root container, same right as the shell, never overlaps dock panels */}
+      <div
+        className="absolute flex flex-col gap-1 pointer-events-auto select-none z-20"
+        style={{ right: hudRightInset, bottom: '1rem', transition: 'right 0.3s ease' }}
+      >
+        <button onClick={zoomIn} title="Acercar (Zoom In)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+          <ZoomIn size={16} />
+        </button>
+        <button onClick={zoomOut} title="Alejar (Zoom Out)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+          <ZoomOut size={16} />
+        </button>
+        <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+          <RotateCcw size={16} />
+        </button>
+      </div>
+
       <div className="chronometric-bottom-shell" style={hudDockStyle}>
-        {/* Zoom controls pinned to bottom-right of the shell — always flush with hudRightInset */}
-        <div className="absolute right-0 bottom-0 flex flex-col gap-1 pointer-events-auto select-none z-10">
-          <button onClick={zoomIn} title="Acercar (Zoom In)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
-            <ZoomIn size={16} />
-          </button>
-          <button onClick={zoomOut} title="Alejar (Zoom Out)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
-            <ZoomOut size={16} />
-          </button>
-          <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
-            <RotateCcw size={16} />
-          </button>
-        </div>
         <div className="chronometric-bottom-dock">
           <div className="hud-depth-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex items-center gap-3 select-none">
             <div className="hud-depth-radar relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/35 rounded-full overflow-hidden bg-[#021820]/50">

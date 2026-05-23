@@ -229,6 +229,42 @@ export function ChronometricGraph({
     return map;
   }, [rows, filteredCommits]);
 
+  // Stable map of branchName -> isLeft, driven by:
+  //  1. Visual bifurcation: if the branch's first commit sits visually on the LEFT
+  //     (bIndex > 0) or RIGHT (bIndex < 0), use that side.
+  //  2. Alternation: branches that never bifurcated (always on the trunk) alternate
+  //     in their order of appearance — starting with RIGHT, since main/master are LEFT.
+  // All commits of the same branch share the same side.
+  const branchSidesMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    map.set('main', true);
+    map.set('master', true);
+
+    // Process rows oldest → newest so "order of appearance" makes chronological sense
+    const ordered = [...rows].reverse();
+
+    // First pass: lock in sides for branches with visual bifurcation
+    for (const row of ordered) {
+      const bIndex = mapLaneToBranchIndex(row.lane);
+      const name = commitBranchNames.get(row.commit.hash);
+      if (!name || map.has(name)) continue;
+      if (bIndex > 0) map.set(name, true);
+      else if (bIndex < 0) map.set(name, false);
+    }
+
+    // Second pass: alternate sides for remaining branches in order of appearance
+    // Start with RIGHT (main is LEFT, so first new branch goes RIGHT)
+    let nextSide = false;
+    for (const row of ordered) {
+      const name = commitBranchNames.get(row.commit.hash);
+      if (!name || map.has(name)) continue;
+      map.set(name, nextSide);
+      nextSide = !nextSide;
+    }
+
+    return map;
+  }, [rows, commitBranchNames]);
+
   // 5. Pre-calculate projected commit coordinates
   const projectedCommits = useMemo(() => {
     const commitIndexMap = new Map<string, number>();
@@ -257,17 +293,21 @@ export function ChronometricGraph({
       );
 
       // Determine if the comment should be placed on the left side.
-      // Rule: the label always follows the node's actual visual position relative
-      // to the main trunk diagonal. If the node is offset to the LEFT of the trunk,
-      // its label goes LEFT; if to the RIGHT, it goes RIGHT. For nodes sitting
-      // exactly on the trunk (branchIndex 0, no offset), alternate chronologically.
+      // Hybrid rule:
+      //  1. If the commit's branch has an assigned side in branchSidesMap, use it
+      //     (keeps all commits of the same branch on the same side).
+      //  2. Otherwise (no branch name, or branch not in map), follow the node's
+      //     visual offset; default LEFT when sitting exactly on the trunk.
       const isLeft = (() => {
+        if (branchName) {
+          const side = branchSidesMap.get(branchName);
+          if (side !== undefined) return side;
+        }
         const lateralOffset = proj.x - proj.baseX;
         if (Math.abs(lateralOffset) > 0.5) {
-          return lateralOffset < 0; // visually LEFT of trunk → label LEFT
+          return lateralOffset < 0;
         }
-        // On the trunk: alternate sides chronologically to avoid stacking
-        return chronologicalIndex % 2 === 0;
+        return true; // default LEFT
       })();
 
       return {
@@ -284,7 +324,7 @@ export function ChronometricGraph({
         originalIndex: i, // index in the original rows array
       };
     });
-  }, [rows, filteredCommits, config, commitBranchNames]);
+  }, [rows, filteredCommits, config, commitBranchNames, branchSidesMap]);
 
   // Create a quick lookup map of commit hash -> projected node info
   const projectedLookup = useMemo(() => {

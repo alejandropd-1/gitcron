@@ -206,7 +206,7 @@ function RepoTabs({
           <Plus size={14} />
         </button>
       </div>
-      <div className="app-titlebar-control h-10 self-stretch flex items-stretch shrink-0 pr-1">
+      <div className="app-titlebar-control h-10 self-stretch flex items-stretch shrink-0 pr-3 gap-1">
         <button
           type="button"
           aria-label="Minimizar"
@@ -1302,7 +1302,7 @@ export default function GitCronPage() {
 
   return (
     <div className="flex flex-col h-screen bg-[#020f1e] text-[#d9e7fc] font-sans overflow-hidden select-none">
-      <div className="shrink-0 px-2 pt-2 relative z-[80]">
+      <div className="shrink-0 px-3 pt-2 relative z-[80]">
         <div className="rounded-2xl border border-[#d9e7fc]/15 bg-[#06182a]/35 backdrop-blur-md shadow-[0_18px_60px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]">
           <RepoTabs
             repos={openRepos}

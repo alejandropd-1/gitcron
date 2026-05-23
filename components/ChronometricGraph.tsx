@@ -229,32 +229,21 @@ export function ChronometricGraph({
     return map;
   }, [rows, filteredCommits]);
 
-  // Stable map of branchName -> isLeft, driven by:
-  //  1. Visual bifurcation: if the branch's first commit sits visually on the LEFT
-  //     (bIndex > 0) or RIGHT (bIndex < 0), use that side.
-  //  2. Alternation: branches that never bifurcated (always on the trunk) alternate
-  //     in their order of appearance — starting with RIGHT, since main/master are LEFT.
+  // Stable map of branchName -> isLeft via PURE ALTERNATION by appearance order.
+  // Each branch alternates its label side from the previous one, so adjacent
+  // branches (even when both happen to land on the same lateral side of the
+  // trunk) get mirrored labels and never clump on a single side.
+  // main/master are pinned LEFT, so the first new branch goes RIGHT, second LEFT, etc.
   // All commits of the same branch share the same side.
   const branchSidesMap = useMemo(() => {
     const map = new Map<string, boolean>();
     map.set('main', true);
     map.set('master', true);
 
-    // Process rows oldest → newest so "order of appearance" makes chronological sense
+    // Process oldest → newest so "order of appearance" is chronological
     const ordered = [...rows].reverse();
+    let nextSide = false; // RIGHT (main/master already LEFT)
 
-    // First pass: lock in sides for branches with visual bifurcation
-    for (const row of ordered) {
-      const bIndex = mapLaneToBranchIndex(row.lane);
-      const name = commitBranchNames.get(row.commit.hash);
-      if (!name || map.has(name)) continue;
-      if (bIndex > 0) map.set(name, true);
-      else if (bIndex < 0) map.set(name, false);
-    }
-
-    // Second pass: alternate sides for remaining branches in order of appearance
-    // Start with RIGHT (main is LEFT, so first new branch goes RIGHT)
-    let nextSide = false;
     for (const row of ordered) {
       const name = commitBranchNames.get(row.commit.hash);
       if (!name || map.has(name)) continue;
@@ -292,27 +281,13 @@ export function ChronometricGraph({
         !row.commit.parents.some(parentHash => commitBranchNames.get(parentHash) === branchName)
       );
 
-      // Determine if the comment should be placed on the left side.
-      // Hybrid rule, in priority order:
-      //  1. Per-commit visual position: if the node is visually offset from the
-      //     trunk, the comment goes on that same side. This is the primary rule
-      //     because it handles bifurcations where a branch literally splits into
-      //     a lateral lane — each commit follows the line that holds it.
-      //  2. On trunk (no visual offset): use the branch's stable side from
-      //     branchSidesMap, so trunk-sitting commits of a branch stay consistent
-      //     with the rest of that branch.
-      //  3. No branch info: default LEFT.
-      const isLeft = (() => {
-        const lateralOffset = proj.x - proj.baseX;
-        if (Math.abs(lateralOffset) > 0.5) {
-          return lateralOffset < 0;
-        }
-        if (branchName) {
-          const side = branchSidesMap.get(branchName);
-          if (side !== undefined) return side;
-        }
-        return true;
-      })();
+      // Comment side: pure branch-driven alternation. All commits of the same
+      // branch get the same side, and the side comes from branchSidesMap which
+      // assigns LEFT/RIGHT alternating by order of appearance — ensuring that
+      // adjacent branches never collapse their labels onto a single side.
+      const isLeft = branchName
+        ? branchSidesMap.get(branchName) ?? true
+        : true;
 
       return {
         ...row,

@@ -1113,9 +1113,10 @@ export function ChronometricGraph({
 
             {/* Layer 3: Overlay Labels Layer */}
             <g id="overlay-labels">
-              {/* Satellite Tags */}
+              {/* Satellite Tags — same classic-view aesthetic as branch tags */}
               {tagsWithPositions.map((tag, idx) => {
-                const badgeWidth = tag.tagName.length * 4.5 + 8;
+                const TAG_COLOR = '#fd9d1a';
+                const badgeWidth = tag.tagName.length * 6 + 22;
                 return (
                   <g key={`tag-satellite-${tag.commitHash}-${idx}`}>
                     <line
@@ -1128,27 +1129,30 @@ export function ChronometricGraph({
                       strokeDasharray="2 2"
                       opacity={0.5}
                     />
-                    <circle cx={tag.satX} cy={tag.satY} r={2} fill="#fd9d1a" opacity={0.7} />
+                    <circle cx={tag.satX} cy={tag.satY} r={2} fill={TAG_COLOR} opacity={0.7} />
                     <g transform={`translate(${tag.satX}, ${tag.satY})`}>
                       <rect
                         x={-badgeWidth - 2}
-                        y={-6.5}
+                        y={-9}
                         width={badgeWidth}
-                        height={13}
-                        rx={3}
-                        fill="#031427"
-                        stroke="#fd9d1a"
-                        strokeWidth={0.75}
-                        opacity={0.8}
+                        height={18}
+                        rx={4}
+                        fill={TAG_COLOR}
+                        fillOpacity={0.2}
+                        stroke={TAG_COLOR}
+                        strokeOpacity={0.5}
+                        strokeWidth={1}
                       />
                       <text
                         x={-badgeWidth / 2 - 2}
                         y={0}
                         textAnchor="middle"
                         dominantBaseline="central"
-                        fill="#fd9d1a"
-                        fontSize="7.5"
-                        className="font-mono font-medium select-none pointer-events-none"
+                        fill={TAG_COLOR}
+                        fontSize="10"
+                        fontWeight={500}
+                        className="font-mono select-none pointer-events-none"
+                        letterSpacing="0.5"
                       >
                         {tag.tagName}
                       </text>

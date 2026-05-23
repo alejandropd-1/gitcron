@@ -1640,8 +1640,8 @@ export function ChronometricGraph({
         }
         .chronometric-bottom-dock {
           display: grid;
-          grid-template-areas: "depth target controls";
-          grid-template-columns: minmax(140px, 0.75fr) minmax(220px, 1.15fr) max-content;
+          grid-template-areas: "depth target";
+          grid-template-columns: minmax(140px, 0.75fr) minmax(220px, 1.15fr);
           align-items: end;
           justify-content: center;
           gap: clamp(0.45rem, 1cqi, 0.75rem);
@@ -1661,15 +1661,10 @@ export function ChronometricGraph({
           max-width: 380px;
           justify-self: center;
         }
-        .hud-zoom-controls {
-          grid-area: controls;
-          justify-self: end;
-          white-space: nowrap;
-        }
         @container chrono-bottom-dock (max-width: 760px) {
           .chronometric-bottom-dock {
-            grid-template-areas: "depth target controls";
-            grid-template-columns: minmax(112px, 0.7fr) minmax(190px, 1fr) max-content;
+            grid-template-areas: "depth target";
+            grid-template-columns: minmax(112px, 0.7fr) minmax(190px, 1fr);
             align-items: end;
             max-width: 100%;
           }
@@ -1707,8 +1702,8 @@ export function ChronometricGraph({
           .chronometric-bottom-dock {
             grid-template-areas:
               "target"
-              "depth controls";
-            grid-template-columns: minmax(0, 1fr) max-content;
+              "depth";
+            grid-template-columns: minmax(0, 1fr);
             gap: 0.5rem;
           }
           .hud-depth-panel {
@@ -1719,32 +1714,23 @@ export function ChronometricGraph({
           }
           .hud-target-panel {
             width: 100%;
-            grid-column: 1 / -1;
-          }
-          .hud-zoom-controls {
-            justify-self: end;
           }
         }
         @container chrono-bottom-dock (max-width: 420px) {
           .chronometric-bottom-dock {
             grid-template-areas:
               "target"
-              "controls"
               "depth";
             grid-template-columns: minmax(0, 1fr);
           }
           .hud-depth-panel .hud-depth-radar,
           .hud-depth-title,
-          .hud-target-subtitle,
-          .hud-reset-label {
+          .hud-target-subtitle {
             display: none;
           }
           .hud-depth-panel,
           .hud-target-panel {
             padding: 0.45rem 0.55rem;
-          }
-          .hud-zoom-controls {
-            justify-self: end;
           }
         }
         @media (max-width: 1200px) {
@@ -1884,6 +1870,18 @@ export function ChronometricGraph({
 
       {/* Responsive Bottom HUD Dock: depth, target and controls share one collision-free layout. */}
       <div className="chronometric-bottom-shell" style={hudDockStyle}>
+        {/* Zoom controls pinned to bottom-right of the shell — always flush with hudRightInset */}
+        <div className="absolute right-0 bottom-0 flex flex-col gap-1 pointer-events-auto select-none z-10">
+          <button onClick={zoomIn} title="Acercar (Zoom In)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+            <ZoomIn size={16} />
+          </button>
+          <button onClick={zoomOut} title="Alejar (Zoom Out)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+            <ZoomOut size={16} />
+          </button>
+          <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+            <RotateCcw size={16} />
+          </button>
+        </div>
         <div className="chronometric-bottom-dock">
           <div className="hud-depth-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex items-center gap-3 select-none">
             <div className="hud-depth-radar relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/35 rounded-full overflow-hidden bg-[#021820]/50">
@@ -1963,17 +1961,6 @@ export function ChronometricGraph({
             )}
           </div>
 
-          <div className="hud-zoom-controls pointer-events-auto flex flex-col gap-1 select-none">
-            <button onClick={zoomIn} title="Acercar (Zoom In)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
-              <ZoomIn size={16} />
-            </button>
-            <button onClick={zoomOut} title="Alejar (Zoom Out)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
-              <ZoomOut size={16} />
-            </button>
-            <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
-              <RotateCcw size={16} />
-            </button>
-          </div>
         </div>
       </div>
     </div>

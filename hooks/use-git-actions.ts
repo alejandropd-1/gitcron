@@ -275,7 +275,8 @@ export const useGitActions = () => {
     try {
       const result = await window.api.gitCheckout(repoPath, branch);
       if (result.success) {
-        setSuccess(`Cambiaste a la branch "${branch}"`);
+        const actualBranch = (result.data as any)?.checkedOut || branch;
+        setSuccess(`Cambiaste a la branch "${actualBranch}"`);
         await refreshBranches();
         await refreshLog();
         await refreshStatus();

@@ -19,7 +19,7 @@ import {
   formatShortcut,
 } from '@/lib/shortcuts';
 import { useShortcuts } from '@/hooks/use-shortcuts';
-import { CommitContextMenu, BranchContextMenu, FileContextMenu } from '@/components/ContextMenus';
+import { CommitContextMenu, BranchContextMenu, FileContextMenu, RemoteBranchContextMenu } from '@/components/ContextMenus';
 import { HelpModal, StatusBadge, FlowStep } from '@/components/HelpModal';
 import { EmptyStateCard, InitRepoModal, CloneRepoModal, ProfileMenu } from '@/components/RepoModals';
 import { useGitStore, Commit, GitFile, type RepoState, type FontSize } from '@/lib/git-store';
@@ -642,6 +642,7 @@ export default function GitCronPage() {
   const [showStashClearConfirm, setShowStashClearConfirm] = useState(false);
   const [checkoutConflict, setCheckoutConflict] = useState<{ branch: string; error: string } | null>(null);
   const [branchMenu, setBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
+  const [remoteBranchMenu, setRemoteBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
   const [renameModal, setRenameModal] = useState<{ oldName: string; newName: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ branch: string; notMerged?: boolean } | null>(null);
   const [forcePushConfirm, setForcePushConfirm] = useState<{
@@ -1633,7 +1634,14 @@ export default function GitCronPage() {
 
           {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
           <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} className="text-[#5ed8ff]" />}>
-            <RemoteBranchTree branches={remoteBranches} />
+            <RemoteBranchTree
+              branches={remoteBranches}
+              onCheckout={(b) => handleCheckoutAttempt(b)}
+              onContextMenu={(e, b) => {
+                e.preventDefault();
+                setRemoteBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
+              }}
+            />
           </SidebarSection>
 
           {/* PULL REQUESTS — only when logged in to GitHub */}
@@ -2748,6 +2756,21 @@ export default function GitCronPage() {
         )}
       </AnimatePresence>
 
+      {/* ──────────── REMOTE BRANCH CONTEXT MENU ──────────── */}
+      <AnimatePresence>
+        {remoteBranchMenu && (
+          <RemoteBranchContextMenu
+            x={remoteBranchMenu.x}
+            y={remoteBranchMenu.y}
+            branch={remoteBranchMenu.branch}
+            onCheckout={() => { handleCheckoutAttempt(remoteBranchMenu.branch); setRemoteBranchMenu(null); }}
+            onCopyName={() => { navigator.clipboard.writeText(remoteBranchMenu.branch); setRemoteBranchMenu(null); }}
+            onCreateFrom={() => { setNewBranchFrom(remoteBranchMenu.branch); setShowNewBranch(true); setRemoteBranchMenu(null); }}
+            onClose={() => setRemoteBranchMenu(null)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* ──────────── MERGE: needs checkout to target branch first ──────────── */}
       <AnimatePresence>
         {mergeNeedsCheckout && (
@@ -3479,24 +3502,47 @@ function BranchRow({
 }
 
 /* Remote branches: similar tree grouped by 'origin/...' */
-function RemoteBranchTree({ branches }: { branches: string[] }) {
+function RemoteBranchTree({
+  branches, onCheckout, onContextMenu,
+}: {
+  branches: string[];
+  onCheckout: (b: string) => void;
+  onContextMenu: (e: React.MouseEvent, branch: string) => void;
+}) {
   const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
   return (
     <div>
       {root.map((b) => (
-        <div key={b.fullPath} className="pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0]">
+        <div
+          key={b.fullPath}
+          onDoubleClick={() => onCheckout(b.fullPath)}
+          onContextMenu={(e) => onContextMenu(e, b.fullPath)}
+          title="Doble click: checkout · Click derecho: opciones"
+          className="pl-[26px] pr-3 py-1.5 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] cursor-pointer transition-colors group relative"
+        >
           <Cloud size={13} className="shrink-0 text-[#5ed8ff]" />
-          <span className="truncate text-xs">{b.name}</span>
+          <span className="truncate text-xs flex-1">{b.name}</span>
         </div>
       ))}
       {folders.map((f) => (
-        <RemoteFolderView key={f.prefix} folder={f} />
+        <RemoteFolderView
+          key={f.prefix}
+          folder={f}
+          onCheckout={onCheckout}
+          onContextMenu={onContextMenu}
+        />
       ))}
     </div>
   );
 }
 
-function RemoteFolderView({ folder }: { folder: BranchFolder }) {
+function RemoteFolderView({
+  folder, onCheckout, onContextMenu,
+}: {
+  folder: BranchFolder;
+  onCheckout: (b: string) => void;
+  onContextMenu: (e: React.MouseEvent, branch: string) => void;
+}) {
   const [isOpen, setIsOpen] = useState(true);
   return (
     <div>
@@ -3514,11 +3560,13 @@ function RemoteFolderView({ folder }: { folder: BranchFolder }) {
           {folder.branches.map((b) => (
             <div
               key={b.fullPath}
-              className="pl-[46px] pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] transition-colors"
-              title={b.fullPath}
+              onDoubleClick={() => onCheckout(b.fullPath)}
+              onContextMenu={(e) => onContextMenu(e, b.fullPath)}
+              className="pl-[46px] pr-3 py-1.5 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] transition-colors cursor-pointer group relative"
+              title={`Doble click: checkout · Click derecho: opciones\n${b.fullPath}`}
             >
-              <GitBranch size={13} className="shrink-0 text-[#697789]" />
-              <span className="truncate text-xs">{b.name}</span>
+              <GitBranch size={13} className="shrink-0 text-[#697789] group-hover:text-[#5ed8ff] transition-colors" />
+              <span className="truncate text-xs flex-1">{b.name}</span>
             </div>
           ))}
         </div>

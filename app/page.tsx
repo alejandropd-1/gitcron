@@ -48,6 +48,9 @@ const GRAPH_COLUMN_LIMITS = {
   hash: { min: 56, max: 120 },
 };
 
+const FLOATING_PANEL_INSET = 12;
+const GRAPH_SAFE_GAP = 12;
+
 type GraphColumnKey = keyof typeof GRAPH_COLUMN_DEFAULTS;
 
 type PullDecisionToast = {
@@ -680,6 +683,8 @@ export default function GitCronPage() {
   // ── Floating panel open/closed state ──
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(true);
+  const leftGraphSafe = sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
+  const rightGraphSafe = detailsOpen ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
   const [graphColumns, setGraphColumns] = useState(GRAPH_COLUMN_DEFAULTS);
   const dragRef = useRef<{
     col: 'sidebar' | 'details';
@@ -1671,9 +1676,16 @@ export default function GitCronPage() {
       <div className="flex-1 overflow-hidden relative">
         {/* FLOATING LEFT PANEL: Sidebar — floats over the canvas, toggle via tab button */}
         <aside
-          className="absolute top-0 left-0 bottom-0 bg-[#041425]/97 backdrop-blur-sm flex flex-col overflow-y-auto z-30 border-r border-[#3c495a]/20 shadow-[4px_0_24px_rgba(0,0,0,0.4)] transition-transform duration-300"
-          style={{ width: sidebarW, transform: sidebarOpen ? 'translateX(0)' : `translateX(-${sidebarW}px)` }}
+          className="absolute bg-[#041425]/90 backdrop-blur-xl flex flex-col overflow-hidden z-30 border border-[#3c495a]/25 rounded-xl shadow-[0_18px_48px_rgba(0,0,0,0.52)] transition-transform duration-300"
+          style={{
+            top: FLOATING_PANEL_INSET,
+            left: FLOATING_PANEL_INSET,
+            bottom: FLOATING_PANEL_INSET,
+            width: sidebarW,
+            transform: sidebarOpen ? 'translateX(0)' : `translateX(calc(-100% - ${FLOATING_PANEL_INSET * 2}px))`,
+          }}
         >
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin py-2">
           {/* LOCAL — folder tree + ahead/behind chips */}
           <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-[#5ed8ff]" />}>
             {branches.length === 0 && !repoPath && (
@@ -1821,6 +1833,7 @@ export default function GitCronPage() {
               {submodules.map((sm) => <SidebarItem key={sm.path} icon={<Layers size={16} />} text={sm.path} />)}
             </SidebarSection>
           )}
+          </div>
         </aside>
 
         {/* Sidebar toggle tab */}
@@ -1830,8 +1843,8 @@ export default function GitCronPage() {
             setSidebarOpen(next);
             localStorage.setItem('gitcron:sidebarOpen', String(next));
           }}
-          className="absolute top-1/2 -translate-y-1/2 z-40 w-5 h-12 bg-[#041425] border border-[#3c495a]/30 border-l-0 rounded-r-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#0b2035] transition-all duration-300 shadow-[2px_0_8px_rgba(0,0,0,0.3)]"
-          style={{ left: sidebarOpen ? sidebarW : 0 }}
+          className="absolute top-1/2 -translate-y-1/2 z-40 w-5 h-12 bg-[#041425]/95 backdrop-blur-xl border border-[#3c495a]/30 border-l-0 rounded-r-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#0b2035] transition-all duration-300 shadow-[2px_0_12px_rgba(0,0,0,0.42)]"
+          style={{ left: sidebarOpen ? FLOATING_PANEL_INSET + sidebarW - 1 : 0 }}
           title={sidebarOpen ? 'Ocultar sidebar' : 'Mostrar sidebar'}
         >
           {sidebarOpen ? <ChevronLeft size={11} /> : <ChevronRight size={11} />}
@@ -1995,9 +2008,12 @@ export default function GitCronPage() {
             />
           ) : (
             /* Graph tab — default */
-            <div className="flex-1 flex flex-col bg-[#020f1e]" id="chronometric-container">
+            <div className="flex-1 flex flex-col bg-[#020f1e]">
               {graphMode === 'classic' ? (
-                <>
+                <div
+                  className="flex-1 min-w-0 flex flex-col transition-[padding] duration-300 ease-out"
+                  style={{ paddingLeft: leftGraphSafe, paddingRight: rightGraphSafe }}
+                >
                   <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
                     <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
                     <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
@@ -2019,7 +2035,7 @@ export default function GitCronPage() {
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto">
+                  <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin">
                     {!isStartupGraphReady && (
                       <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-[#9eacc0] text-sm">
                         <Loader2 size={18} className="animate-spin mb-3 text-[#a3f185]" />
@@ -2048,9 +2064,9 @@ export default function GitCronPage() {
                       </motion.div>
                     )}
                   </div>
-                </>
+                </div>
               ) : (
-                <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 flex flex-col overflow-visible min-h-0">
                   {!isStartupGraphReady && (
                     <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-[#9eacc0] text-sm">
                       <Loader2 size={18} className="animate-spin mb-3 text-[#a3f185]" />
@@ -2062,7 +2078,7 @@ export default function GitCronPage() {
                   )}
                   {isStartupGraphReady && commits.length > 0 && (
                     <motion.div
-                      className="flex-1 flex flex-col overflow-hidden"
+                      className="flex-1 flex flex-col overflow-visible min-h-0"
                       initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.2, ease: 'easeOut' }}
@@ -2074,8 +2090,8 @@ export default function GitCronPage() {
                         filterText={filterText}
                         onSelect={handleSelectCommit}
                         onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
-                        hudLeft={sidebarOpen ? sidebarW : 0}
-                        hudRight={detailsOpen ? detailsW : 0}
+                        hudLeft={leftGraphSafe}
+                        hudRight={rightGraphSafe}
                       />
                     </motion.div>
                   )}
@@ -2092,8 +2108,8 @@ export default function GitCronPage() {
             setDetailsOpen(next);
             localStorage.setItem('gitcron:detailsOpen', String(next));
           }}
-          className="absolute top-1/2 -translate-y-1/2 z-40 w-5 h-12 bg-[#041425] border border-[#3c495a]/30 border-r-0 rounded-l-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#0b2035] transition-all duration-300 shadow-[-2px_0_8px_rgba(0,0,0,0.3)]"
-          style={{ right: detailsOpen ? detailsW : 0 }}
+          className="absolute top-1/2 -translate-y-1/2 z-40 w-5 h-12 bg-[#041425]/95 backdrop-blur-xl border border-[#3c495a]/30 border-r-0 rounded-l-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#0b2035] transition-all duration-300 shadow-[-2px_0_12px_rgba(0,0,0,0.42)]"
+          style={{ right: detailsOpen ? FLOATING_PANEL_INSET + detailsW - 1 : 0 }}
           title={detailsOpen ? 'Ocultar panel de detalles' : 'Mostrar panel de detalles'}
         >
           {detailsOpen ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
@@ -2101,8 +2117,14 @@ export default function GitCronPage() {
 
         {/* FLOATING RIGHT PANEL: Commit details + staging — floats over the canvas */}
         <aside
-          className="absolute top-0 right-0 bottom-0 bg-[#041425]/97 backdrop-blur-sm flex flex-col overflow-hidden z-30 border-l border-[#3c495a]/20 shadow-[-4px_0_24px_rgba(0,0,0,0.4)] transition-transform duration-300"
-          style={{ width: detailsW, transform: detailsOpen ? 'translateX(0)' : `translateX(${detailsW}px)` }}
+          className="absolute bg-[#041425]/90 backdrop-blur-xl flex flex-col overflow-hidden z-30 border border-[#3c495a]/25 rounded-xl shadow-[0_18px_48px_rgba(0,0,0,0.52)] transition-transform duration-300"
+          style={{
+            top: FLOATING_PANEL_INSET,
+            right: FLOATING_PANEL_INSET,
+            bottom: FLOATING_PANEL_INSET,
+            width: detailsW,
+            transform: detailsOpen ? 'translateX(0)' : `translateX(calc(100% + ${FLOATING_PANEL_INSET * 2}px))`,
+          }}
         >
           {selectedCommit ? (
             <div className="flex flex-col h-full">

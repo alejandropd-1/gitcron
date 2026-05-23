@@ -740,9 +740,17 @@ export function ChronometricGraph({
     };
   }, [hoveredScreenPos]);
 
+  const hudLeftInset = 16 + hudLeft;
+  const hudRightInset = 16 + hudRight;
+  const hudDockStyle = {
+    left: hudLeftInset,
+    right: hudRightInset,
+    transition: 'left 0.3s ease, right 0.3s ease',
+  };
+
   return (
     <div
-      className="flex-1 w-full h-full overflow-hidden bg-[#020f1e] flex flex-col relative select-none"
+      className="flex-1 w-full h-full overflow-visible bg-[#020f1e] flex flex-col relative select-none"
       id="chronometric-container"
     >
       {/* 2D Infinite Interactive Canvas Viewport */}
@@ -1623,6 +1631,72 @@ export function ChronometricGraph({
           animation: radar-sweep 12s linear infinite;
           transform-origin: 15px 15px;
         }
+        .chronometric-bottom-shell {
+          position: absolute;
+          bottom: 1rem;
+          z-index: 20;
+          pointer-events: none;
+          container: chrono-bottom-dock / inline-size;
+        }
+        .chronometric-bottom-dock {
+          display: grid;
+          grid-template-areas: "depth target controls";
+          grid-template-columns: minmax(180px, 240px) minmax(280px, 380px) max-content;
+          align-items: end;
+          justify-content: center;
+          gap: 0.75rem;
+        }
+        .hud-depth-panel {
+          grid-area: depth;
+          width: 100%;
+        }
+        .hud-target-panel {
+          grid-area: target;
+          width: min(100%, 380px);
+          justify-self: center;
+        }
+        .hud-zoom-controls {
+          grid-area: controls;
+          justify-self: end;
+        }
+        @container chrono-bottom-dock (max-width: 760px) {
+          .chronometric-bottom-dock {
+            grid-template-areas:
+              "depth controls"
+              "target target";
+            grid-template-columns: minmax(160px, 1fr) max-content;
+            align-items: end;
+          }
+          .hud-target-panel {
+            width: min(100%, 420px);
+          }
+        }
+        @container chrono-bottom-dock (max-width: 460px) {
+          .chronometric-bottom-dock {
+            grid-template-areas:
+              "controls"
+              "target"
+              "depth";
+            grid-template-columns: minmax(0, 1fr);
+            gap: 0.5rem;
+          }
+          .hud-depth-panel {
+            max-width: 240px;
+            justify-self: start;
+            padding-top: 0.45rem;
+            padding-bottom: 0.45rem;
+          }
+          .hud-depth-panel .hud-depth-radar,
+          .hud-depth-panel .hud-depth-title {
+            display: none;
+          }
+          .hud-target-panel {
+            width: 100%;
+          }
+          .hud-zoom-controls {
+            justify-self: end;
+          }
+        }
         @media (max-width: 1200px) {
         }
       `}</style>
@@ -1682,7 +1756,7 @@ export function ChronometricGraph({
       </svg>
 
       {/* 2. PANEL 01: NAV TELEMETRY & SYSTEM CONTEXT (Top-Left, z-20) */}
-      <div className="absolute top-4 w-[250px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none relative overflow-hidden" style={{ left: 16 + hudLeft, transition: 'left 0.3s ease' }}>
+      <div className="absolute top-4 w-[250px] bg-[#020b16]/68 backdrop-blur-md border border-[#3c495a]/35 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none overflow-hidden" style={{ left: hudLeftInset, transition: 'left 0.3s ease' }}>
         <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full bg-[#5ed8ff]/55" />
         <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[10px] font-bold text-[#5ed8ff] tracking-wider uppercase truncate max-w-[170px]">
@@ -1712,7 +1786,7 @@ export function ChronometricGraph({
       </div>
 
       {/* 3. PANEL 02: SYNC & DIRTY METRICS (Top-Right, z-20) */}
-      <div className="absolute top-4 w-[250px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none relative overflow-hidden" style={{ right: 16 + hudRight, transition: 'right 0.3s ease' }}>
+      <div className="absolute top-4 w-[250px] bg-[#020b16]/68 backdrop-blur-md border border-[#3c495a]/35 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none overflow-hidden" style={{ right: hudRightInset, transition: 'right 0.3s ease' }}>
         <div className="absolute right-0 top-3 bottom-3 w-[2px] rounded-full bg-[#b455ff]/55" />
         <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[9px] font-bold text-[#b455ff] tracking-wider uppercase">
@@ -1758,99 +1832,101 @@ export function ChronometricGraph({
         )}
       </div>
 
-      {/* PANEL 03: CHRONO METRICS & RADAR SCAN (Bottom-Left, standalone absolute) */}
-      <div className="absolute bottom-4 pointer-events-auto w-[240px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 font-mono shadow-2xl flex items-center gap-3 select-none z-20" style={{ left: 16 + hudLeft, transition: 'left 0.3s ease' }}>
-        <div className="relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/35 rounded-full overflow-hidden bg-[#021820]/50">
-          <svg width="30" height="30" className="absolute inset-0">
-            <circle cx="15" cy="15" r="14" fill="none" stroke="#a3f185" strokeWidth="0.75" opacity="0.28" />
-            <circle cx="15" cy="15" r="7" fill="none" stroke="#a3f185" strokeWidth="0.5" opacity="0.20" />
-            <line x1="15" y1="15" x2="15" y2="1" stroke="#a3f185" strokeWidth="1" opacity="0.85" className="radar-sweep" />
-          </svg>
-        </div>
-        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-          <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-0.5 mb-0.5">
-            <span className="text-[9px] font-bold text-[#a3f185] tracking-wider">CHRONO_DEPTH</span>
-            <Activity size={10} className="text-[#a3f185]/80" />
+      {/* Responsive Bottom HUD Dock: depth, target and controls share one collision-free layout. */}
+      <div className="chronometric-bottom-shell" style={hudDockStyle}>
+        <div className="chronometric-bottom-dock">
+          <div className="hud-depth-panel pointer-events-auto bg-[#020b16]/68 backdrop-blur-md border border-[#3c495a]/35 rounded-md px-3 py-2.5 font-mono shadow-2xl flex items-center gap-3 select-none">
+            <div className="hud-depth-radar relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/35 rounded-full overflow-hidden bg-[#021820]/50">
+              <svg width="30" height="30" className="absolute inset-0">
+                <circle cx="15" cy="15" r="14" fill="none" stroke="#a3f185" strokeWidth="0.75" opacity="0.28" />
+                <circle cx="15" cy="15" r="7" fill="none" stroke="#a3f185" strokeWidth="0.5" opacity="0.20" />
+                <line x1="15" y1="15" x2="15" y2="1" stroke="#a3f185" strokeWidth="1" opacity="0.85" className="radar-sweep" />
+              </svg>
+            </div>
+            <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+              <div className="hud-depth-title flex items-center justify-between border-b border-[#3c495a]/25 pb-0.5 mb-0.5">
+                <span className="text-[9px] font-bold text-[#a3f185] tracking-wider">CHRONO_DEPTH</span>
+                <Activity size={10} className="text-[#a3f185]/80" />
+              </div>
+              <div className="flex items-center justify-between text-[8.5px] text-[#9eacc0]">
+                <span>NODES //</span>
+                <span className="font-bold text-[9px] text-[#d9e7fc]">{filteredCommits.length}</span>
+              </div>
+              <div className="truncate text-[7.5px] text-[#697789] tracking-tight uppercase mt-0.5">
+                {dateRangeString}
+              </div>
+            </div>
           </div>
-          <div className="flex items-center justify-between text-[8.5px] text-[#9eacc0]">
-            <span>NODES //</span>
-            <span className="font-bold text-[9px] text-[#d9e7fc]">{filteredCommits.length}</span>
-          </div>
-          <div className="truncate text-[7.5px] text-[#697789] tracking-tight uppercase mt-0.5">
-            {dateRangeString}
-          </div>
-        </div>
-      </div>
 
-      {/* PANEL 04: TARGET TELEMETRY HUD (Bottom-Center, standalone absolute — no flex-1 stretch) */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto w-[380px] bg-[#020b16]/80 backdrop-blur-md border border-[#3c495a]/40 rounded-md px-3 py-2.5 font-mono shadow-2xl select-none z-20 transition-all duration-300">
-        {selectedCommit ? (
-          <div className="flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-[#5ed8ff]/25 pb-1 mb-0.5">
-              <div className="flex items-center gap-1.5">
-                <Crosshair size={11} className="text-[#5ed8ff] hud-breath" />
-                <span className="text-[9px] font-bold text-[#5ed8ff] tracking-wider uppercase">
-                  TARGET_LOCKED // LOCK_STABLE
-                </span>
+          <div className="hud-target-panel pointer-events-auto bg-[#020b16]/68 backdrop-blur-md border border-[#3c495a]/35 rounded-md px-3 py-2.5 font-mono shadow-2xl select-none transition-all duration-300">
+            {selectedCommit ? (
+              <div className="flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between border-b border-[#5ed8ff]/25 pb-1 mb-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <Crosshair size={11} className="text-[#5ed8ff] hud-breath" />
+                    <span className="text-[9px] font-bold text-[#5ed8ff] tracking-wider uppercase">
+                      TARGET_LOCKED // LOCK_STABLE
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(selectedCommit.hash)}
+                    className="px-1.5 py-0.5 border border-[#5ed8ff]/35 hover:border-[#5ed8ff]/75 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
+                    title="Copy full commit SHA"
+                  >
+                    Copy SHA
+                  </button>
+                </div>
+                <div className="flex flex-col gap-0.5 text-[8.5px] text-[#9eacc0]">
+                  <div className="flex items-center justify-between">
+                    <span>SHA // <span className="text-[#5ed8ff] font-bold">{selectedCommit.shortHash.toUpperCase()}</span></span>
+                    <span className="text-[7.5px] opacity-80">{new Date(selectedCommit.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).toUpperCase()}</span>
+                  </div>
+                  <div className="truncate text-[#d9e7fc] text-[9px] font-semibold border-l-2 border-[#5ed8ff]/50 pl-1.5 my-0.5">
+                    {selectedCommit.message}
+                  </div>
+                  <div className="flex items-center justify-between text-[7.5px] text-[#697789] pt-0.5 border-t border-[#3c495a]/15">
+                    <span className="truncate max-w-[140px]">AUTHOR: {selectedCommit.authorName.toUpperCase()}</span>
+                    <span className="truncate max-w-[150px]">PARENT: {selectedCommit.parents[0]?.substring(0, 7).toUpperCase() || 'ROOT'}</span>
+                  </div>
+                </div>
               </div>
-              <button
-                onClick={() => navigator.clipboard.writeText(selectedCommit.hash)}
-                className="px-1.5 py-0.5 border border-[#5ed8ff]/35 hover:border-[#5ed8ff]/75 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
-                title="Copy full commit SHA"
-              >
-                Copy SHA
-              </button>
-            </div>
-            <div className="flex flex-col gap-0.5 text-[8.5px] text-[#9eacc0]">
-              <div className="flex items-center justify-between">
-                <span>SHA // <span className="text-[#5ed8ff] font-bold">{selectedCommit.shortHash.toUpperCase()}</span></span>
-                <span className="text-[7.5px] opacity-80">{new Date(selectedCommit.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).toUpperCase()}</span>
+            ) : (
+              <div className="flex items-center justify-between h-[45px]">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex items-center justify-center w-5 h-5">
+                    <div className="absolute inset-0 border border-[#3c495a]/50 rounded-full animate-ping opacity-30" />
+                    <Compass size={11} className="text-[#697789] animate-spin" style={{ animationDuration: '4s' }} />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-bold text-[#697789] tracking-wider uppercase">
+                      TARGET_ACQUISITION // SCANNING
+                    </span>
+                    <span className="text-[7.5px] text-[#697789]/70 uppercase tracking-wide">
+                      SELECT A COMMIT NODE TO LOCK SCANNER
+                    </span>
+                  </div>
+                </div>
+                <div className="text-[7px] text-[#697789]/60 text-right font-mono select-none leading-relaxed">
+                  GRID: ACTIVE<br />LANE_ORBITS: SECURE
+                </div>
               </div>
-              <div className="truncate text-[#d9e7fc] text-[9px] font-semibold border-l-2 border-[#5ed8ff]/50 pl-1.5 my-0.5">
-                {selectedCommit.message}
-              </div>
-              <div className="flex items-center justify-between text-[7.5px] text-[#697789] pt-0.5 border-t border-[#3c495a]/15">
-                <span className="truncate max-w-[140px]">AUTHOR: {selectedCommit.authorName.toUpperCase()}</span>
-                <span className="truncate max-w-[150px]">PARENT: {selectedCommit.parents[0]?.substring(0, 7).toUpperCase() || 'ROOT'}</span>
-              </div>
-            </div>
+            )}
           </div>
-        ) : (
-          <div className="flex items-center justify-between h-[45px]">
-            <div className="flex items-center gap-2">
-              <div className="relative flex items-center justify-center w-5 h-5">
-                <div className="absolute inset-0 border border-[#3c495a]/50 rounded-full animate-ping opacity-30" />
-                <Compass size={11} className="text-[#697789] animate-spin" style={{ animationDuration: '4s' }} />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-bold text-[#697789] tracking-wider uppercase">
-                  TARGET_ACQUISITION // SCANNING
-                </span>
-                <span className="text-[7.5px] text-[#697789]/70 uppercase tracking-wide">
-                  SELECT A COMMIT NODE TO LOCK SCANNER
-                </span>
-              </div>
-            </div>
-            <div className="text-[7px] text-[#697789]/60 text-right font-mono select-none leading-relaxed">
-              GRID: ACTIVE<br />LANE_ORBITS: SECURE
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* 6. Discrete Canvas Navigation Controls (Bottom-Right, standalone absolute) */}
-      <div className="absolute bottom-4 pointer-events-auto bg-[#020b16]/75 backdrop-blur-md border border-[#3c495a]/25 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-2xl select-none z-20" style={{ right: 16 + hudRight, transition: 'right 0.3s ease' }}>
-        <button onClick={zoomIn} title="Acercar (Zoom In)" className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer">
-          <ZoomIn size={12} />
-        </button>
-        <button onClick={zoomOut} title="Alejar (Zoom Out)" className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer">
-          <ZoomOut size={12} />
-        </button>
-        <div className="w-px h-3 bg-[#3c495a]/25 mx-1" />
-        <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="px-1.5 py-0.5 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider font-semibold cursor-pointer">
-          <RotateCcw size={10} />
-          <span>Reset</span>
-        </button>
+          <div className="hud-zoom-controls pointer-events-auto bg-[#020b16]/64 backdrop-blur-md border border-[#3c495a]/25 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-2xl select-none">
+            <button onClick={zoomIn} title="Acercar (Zoom In)" className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer">
+              <ZoomIn size={12} />
+            </button>
+            <button onClick={zoomOut} title="Alejar (Zoom Out)" className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer">
+              <ZoomOut size={12} />
+            </button>
+            <div className="w-px h-3 bg-[#3c495a]/25 mx-1" />
+            <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="px-1.5 py-0.5 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider font-semibold cursor-pointer">
+              <RotateCcw size={10} />
+              <span>Reset</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

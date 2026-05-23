@@ -229,43 +229,6 @@ export function ChronometricGraph({
     return map;
   }, [rows, filteredCommits]);
 
-  // Stable map of branchName -> isLeft
-  const branchSidesMap = useMemo(() => {
-    const map = new Map<string, boolean>();
-
-    // Helper to generate a stable hash from string
-    const stableHash = (str: string) => {
-      let hash = 5381;
-      for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0;
-      }
-      return Math.abs(hash);
-    };
-
-    rows.forEach((row) => {
-      const bIndex = mapLaneToBranchIndex(row.lane);
-      const name = commitBranchNames.get(row.commit.hash);
-      if (name && name !== 'main' && name !== 'master' && !map.has(name)) {
-        if (bIndex > 0) {
-          map.set(name, true); // left
-        } else if (bIndex < 0) {
-          map.set(name, false); // right
-        }
-      }
-    });
-
-    // For any lateral branch name that wasn't fanned out, assign a side based on its stable hash
-    rows.forEach((row) => {
-      const name = commitBranchNames.get(row.commit.hash);
-      if (name && name !== 'main' && name !== 'master' && !map.has(name)) {
-        const hash = stableHash(name);
-        map.set(name, hash % 2 === 0);
-      }
-    });
-
-    return map;
-  }, [rows, commitBranchNames]);
-
   // 5. Pre-calculate projected commit coordinates
   const projectedCommits = useMemo(() => {
     const commitIndexMap = new Map<string, number>();
@@ -294,18 +257,17 @@ export function ChronometricGraph({
       );
 
       // Determine if the comment should be placed on the left side.
-      // For lateral branches: all commits of the same branch must use the same side.
-      // If the commit has no resolved branch name (propagation gap), fall back to the
-      // visual lane direction so labels stay consistent with the node's position.
+      // Rule: the label always follows the node's actual visual position relative
+      // to the main trunk diagonal. If the node is offset to the LEFT of the trunk,
+      // its label goes LEFT; if to the RIGHT, it goes RIGHT. For nodes sitting
+      // exactly on the trunk (branchIndex 0, no offset), alternate chronologically.
       const isLeft = (() => {
-        if (!isLateralBranch || !branchName) {
-          // If visually displaced from main lane, honour the lane direction
-          if (branchIndex !== 0) return branchIndex > 0;
-          // Main trunk: alternate sides chronologically
-          return chronologicalIndex % 2 === 0;
+        const lateralOffset = proj.x - proj.baseX;
+        if (Math.abs(lateralOffset) > 0.5) {
+          return lateralOffset < 0; // visually LEFT of trunk → label LEFT
         }
-        // Lateral branch: use the stable side from branchSidesMap, falling back to lane direction
-        return branchSidesMap.get(branchName) ?? (branchIndex > 0);
+        // On the trunk: alternate sides chronologically to avoid stacking
+        return chronologicalIndex % 2 === 0;
       })();
 
       return {
@@ -322,7 +284,7 @@ export function ChronometricGraph({
         originalIndex: i, // index in the original rows array
       };
     });
-  }, [rows, filteredCommits, config, commitBranchNames, branchSidesMap]);
+  }, [rows, filteredCommits, config, commitBranchNames]);
 
   // Create a quick lookup map of commit hash -> projected node info
   const projectedLookup = useMemo(() => {

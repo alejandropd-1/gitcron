@@ -53,14 +53,14 @@ html.light [data-keep-color] * {
 }
 
 ::-webkit-scrollbar-track {
-  background: #020f1e;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #172d45;
   border-radius: 8px;
   /* Inset border creates the "padded" look that floats on the navy track */
-  border: 2px solid #020f1e;
+  border: 2px solid transparent;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -72,13 +72,13 @@ html.light [data-keep-color] * {
 }
 
 ::-webkit-scrollbar-corner {
-  background: #020f1e;
+  background: transparent;
 }
 
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #172d45 #020f1e;
+  scrollbar-color: #172d45 transparent;
 }
 
 /* Thinner variant for sidebars and small panels: add `class="scrollbar-thin"` */

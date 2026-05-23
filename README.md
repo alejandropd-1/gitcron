@@ -62,12 +62,12 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Navegación Canvas en Vista Cronométrica (Pan & Zoom)**: Infinite 2D interactive viewport for the Chronometric View. Left-click and drag anywhere on the canvas to pan smoothly. Use the mouse wheel to zoom in and out, mathematically anchored to the exact cursor position (clamped between `0.25x` and `3.5x` scale). Features automatic bounds clamping to prevent the graph from sliding off-screen, and dynamic viewport auto-centering that instantly focuses the timeline on mount, repo switch, or filter changes.
 - **Dynamic Floating Hover Cards**: Commitment details float cleanly over the active hovered node. Using mathematical projection, card positions are updated instantly as you pan and zoom, clamped against container boundaries to prevent off-screen truncation.
 - **Instrumentación Semántica HUD (TCARS Layout)**: Modern vector-based telemetry overlays that visually resolve Git entities. Incorporates a symmetrical staggered label system (alternating 32px and 72px offsets) to eliminate text overlaps, displays branch origin indicators as external floating triangles (20px-28px offset), and projects Git tags as top-left satellite badges while keeping commit metadata on the bottom-right.
-- **HUD / Shell TCARS System (C2 Block)**: Wraps the panned canvas inside static, curved SVG borders, orbital tactical arcs, degree ticks, and coordinates. Operates four absolute HUD panels (Navigation System, Sync & Dirty Telemetry, Chrono Metrics & Radar, and Target Telemetry with locking reticle) running smoothly at 60+ FPS on a completely decoupled overlay layer with controlled, slow-breathing animations.
+- **HUD / Shell TCARS System (C2 Block)**: Wraps the panned canvas inside static, curved SVG borders, orbital tactical arcs, degree ticks, and coordinates. The top telemetry panels stay clear of the side overlays, while the bottom Chrono Depth, Target Telemetry, and zoom/reset controls live in a responsive dock that compacts on smaller graph widths.
 - **Distribución de Comentarios Consistente por Rama (Symmetrical Wing Alignment)**: Commits on lateral branches are grouped cleanly on a single side (left for left-splitting branches, right for right-splitting branches, and stable hashed wings for `lane = 0` checked-out lateral branches) to achieve consistent side visual alignment, preserving alternating symmetry only for the main trunk (`main`/`master`).
 - **Badge Inline de Origen de Rama (Branch Segment Origin Tags)**: Renders a high-fidelity, styled branch origin tag (e.g. `FEATURE/TCARS-HUD-SHELL`) stacked 13 px above the commit comment at each branch origin node, with dynamic width and lane-aware alignment (left or right) matching the branch's wing side.
 - **Propagación Retroactiva de Nombres de Rama**: Employs a lane-aware backward propagation algorithm (`commitBranchNames`) to map branch names from tips to origin commits along the first-parent line, guaranteeing exact branch metadata on all nodes.
-- **Discrete Floating Navigation Controls**: Low-profile, sleek buttons (`+`, `-`, `Reset`) in the bottom-right corner for quick mouse-click zooming and viewport resetting, always visible even when floating panels are open. Shift inward with `hudRight` transition when the details panel is open.
-- **Floating Overlay Panels**: Both the branch sidebar (left) and the staging/commit panel (right) float as absolute overlays over the graph canvas with slide transitions (300 ms). Open/closed state and widths persist in `localStorage`. The four TCARS HUD panels and zoom controls shift inward to avoid being covered, animated to match the panel slide timing.
+- **Responsive HUD Dock**: Bottom graph cards use container-aware grid areas so Chrono Depth, Target Telemetry, and zoom/reset controls stay aligned without overlap. On narrower canvases, secondary telemetry hides and the cards compact before stacking.
+- **Floating Overlay Panels**: Both the branch sidebar (left) and the staging/commit panel (right) float as absolute overlays over the graph canvas with slide transitions (300 ms). Open/closed state and widths persist in `localStorage`. Topbar panel buttons open/close each side, while graph safe areas and TCARS HUD offsets keep content from being covered.
 
 
 ### Staging and commits
@@ -110,7 +110,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Search opens in a floating popover instead of living permanently in the topbar.
 - Resizable app columns: sidebar / center / details.
 - Resizable graph columns: Branch/Tag, Graph, Date, Commit.
-- Reworked topbar layout with repo navigation on the left, Git actions centered, and tools on the right.
+- Reworked floating glass topbar: repo tabs live in the title strip, side-panel toggles sit in the main toolbar, Git actions stay centered, graph tools stay on the right, and Settings / Help / Profile live in the left sidebar footer.
 - Auto-fetch: background `git fetch --all --prune` on a configurable interval (5 / 10 / 30 / 60 min). Toggle and last-sync time in Settings. Manual trigger via the fetch button next to Stash.
 - Default folder: configurable starting directory for open and clone dialogs, saved in encrypted storage.
 - Per-repo loading state: each tab shows its own spinner and error — a slow operation on repo A never blocks repo B.
@@ -130,7 +130,7 @@ Renderer:
 
 - `app/page.tsx` drives the main three-column UI, tabs, modals, and topbar.
 - `components/CommitGraph.tsx` renders the SVG graph and graph-table rows.
-- `components/ChronometricGraph.tsx` renders the custom diagonal SVG chronological graph with the interactive infinite canvas and floating controls.
+- `components/ChronometricGraph.tsx` renders the custom diagonal SVG chronological graph with the interactive infinite canvas, TCARS HUD overlays, and responsive bottom dock.
 - `components/DiffViewer.tsx` renders unified diffs.
 - `hooks/use-git-actions.ts` contains repo actions like commit, push, pull, merge, stash, and preferences persistence.
 - `hooks/use-canvas-viewport.ts` manages gesture listeners, active mouse-drag cycles, non-passive wheel events, and dynamic viewport bounds containment for the canvas layout.
@@ -302,9 +302,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.4.4.exe`                                             |
-| macOS    | `GitCron-1.4.4.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.4.4.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.4.5.exe`                                             |
+| macOS    | `GitCron-1.4.5.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.4.5.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -351,7 +351,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-`v1.4.4` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+`v1.4.5` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
 
 ---
 

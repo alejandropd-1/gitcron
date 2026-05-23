@@ -4,11 +4,12 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Undo, Redo, Download, Upload, GitBranch, Archive, Terminal, Search,
   Settings, HelpCircle, Folder, Cloud, Tag, Layers,
-  ChevronLeft, ChevronRight, FileText, Trash2, Zap, AlertCircle, FolderOpen, Plus, X,
+  ChevronRight, FileText, Trash2, Zap, AlertCircle, FolderOpen, Plus, X,
   ArrowLeft, RotateCcw, Github, LogOut, Minus,
   Sparkles, Copy, Lock, Globe, Loader2, UserCircle2,
   GitMerge, TreePine, ArrowUp, ArrowDown, ChevronDown, Check,
   Type, Filter, Monitor, ExternalLink, FileDiff, Maximize2,
+  PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import pkg from '../package.json';
@@ -138,7 +139,7 @@ function RepoTabs({
   if (repos.length === 0) return null;
 
   return (
-    <div className="app-titlebar h-10 rounded-t-2xl bg-[#071a2c]/35 backdrop-blur-2xl border-b border-[#d9e7fc]/10 flex items-stretch shrink-0 overflow-hidden">
+    <div className="app-titlebar h-10 rounded-t-2xl bg-[#071a2c]/35 backdrop-blur-md border-b border-[#d9e7fc]/10 flex items-stretch shrink-0 overflow-hidden gap-1">
       <div className="min-w-0 flex-1 flex items-end gap-1 pl-2 pt-1.5 pb-1 overflow-x-auto overflow-y-hidden">
         <div className="app-titlebar-control h-7 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2">
         <img
@@ -514,7 +515,7 @@ function GraphColumnHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent)
 export default function GitCronPage() {
   const {
     openRepos, activeRepoIdx, setActiveRepoIdx,
-    repoPath, repoName,
+    repoPath,
     currentBranch, branches, remoteBranches,
     commits, modifiedFiles, commitMessage, setCommitMessage,
     selectedCommit, setSelectedCommit, isLoading, error, setError, success, setSuccess,
@@ -562,9 +563,9 @@ export default function GitCronPage() {
   const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
     const activeRepo = useGitStore.getState().getActiveRepo();
     if (!activeRepo) return;
-    
+
     updateActiveRepo({ graphMode: mode });
-    
+
     if (window.api) {
       try {
         const saved = await window.api.storageGet('repoGraphModes').catch(() => null);
@@ -1302,7 +1303,7 @@ export default function GitCronPage() {
   return (
     <div className="flex flex-col h-screen bg-[#020f1e] text-[#d9e7fc] font-sans overflow-hidden select-none">
       <div className="shrink-0 px-2 pt-2 relative z-[80]">
-        <div className="rounded-2xl border border-[#d9e7fc]/15 bg-[#06182a]/35 backdrop-blur-2xl shadow-[0_18px_60px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <div className="rounded-2xl border border-[#d9e7fc]/15 bg-[#06182a]/35 backdrop-blur-md shadow-[0_18px_60px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]">
           <RepoTabs
             repos={openRepos}
             activeIdx={activeRepoIdx}
@@ -1311,25 +1312,26 @@ export default function GitCronPage() {
             onOpen={handleOpenRepoChooser}
           />
       {/* ──────────── TOP NAV ──────────── */}
-      <header className="h-12 rounded-b-2xl border-t border-[#d9e7fc]/[0.06] bg-[#071a2c]/40 backdrop-blur-2xl grid grid-cols-[minmax(230px,0.8fr)_auto_minmax(420px,1.2fr)] items-center px-3 shrink-0 relative z-50">
-        <div className="flex items-center gap-5 h-full min-w-0">
+      <header className="h-12 rounded-b-2xl border-t border-[#d9e7fc]/[0.06] bg-[#071a2c]/40 backdrop-blur-md grid grid-cols-[minmax(210px,0.8fr)_auto_minmax(360px,1.2fr)] items-center px-3 shrink-0 relative z-50">
+        <div className="flex items-center gap-4 h-full min-w-0">
           <button
-            onClick={openRepo}
-            title={t('toolbar.openRepo')}
-            className="flex items-center gap-1.5 font-bold text-[#a3f185] text-base hover:opacity-75 transition-opacity min-w-0"
-          >
-            {/* App icon — shown when no repo is open, replaced by folder icon when a repo is active */}
-            {repoName ? (
-              <FolderOpen size={16} />
-            ) : (
-              <img
-                src="/gitcron-icon.png"
-                alt="GitCron"
-                className="w-5 h-5 rounded object-cover"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-              />
+            type="button"
+            onClick={() => {
+              const next = !sidebarOpen;
+              setSidebarOpen(next);
+              localStorage.setItem('gitcron:sidebarOpen', String(next));
+            }}
+            aria-label={sidebarOpen ? 'Ocultar sidebar' : 'Mostrar sidebar'}
+            aria-pressed={sidebarOpen}
+            title={sidebarOpen ? 'Ocultar sidebar' : 'Mostrar sidebar'}
+            className={cn(
+              'h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0]',
+              'flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
+              'hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
+              sidebarOpen && 'text-[#a3f185] border-[#a3f185]/25 bg-[#a3f185]/10',
             )}
-            <span className="truncate">{repoName ?? 'GitCron'}</span>
+          >
+            {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
           </button>
           <nav className="flex h-full gap-1 shrink-0">
             {[
@@ -1611,39 +1613,25 @@ export default function GitCronPage() {
             )}
           </div>
           <div className="w-px h-4 bg-[#3c495a] mx-1 shrink-0" />
-          <ToolbarButton icon={<Settings />} onClick={() => setShowSettings(true)} title={t('toolbar.settings')} />
-          <ToolbarButton icon={<HelpCircle />} onClick={() => setShowHelp(true)} title={t('toolbar.help')} />
-          <div className="flex items-center gap-2 ml-1 pl-1 shrink-0">
-            {githubUser ? (
-              <button
-                onClick={() => setShowProfile(true)}
-                title={t('toolbar.connectedAs', { user: githubUser.login })}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:opacity-80 transition-opacity"
-              >
-                {githubUser.avatarUrl ? (
-                  <img
-                    src={githubUser.avatarUrl}
-                    alt={githubUser.login}
-                    className="h-7 w-7 shrink-0 rounded-full border border-[#a3f185]/50 object-cover"
-                  />
-                ) : (
-                  <div
-                    className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-[10px] font-bold text-[#052900] border border-[#a3f185]/50"
-                  >
-                    {userInitials(githubUser)}
-                  </div>
-                )}
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowProfile(true)}
-                title={t('toolbar.connectGitHub')}
-                className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#172d45] transition-colors"
-              >
-                <UserCircle2 size={22} strokeWidth={1.5} />
-              </button>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !detailsOpen;
+              setDetailsOpen(next);
+              localStorage.setItem('gitcron:detailsOpen', String(next));
+            }}
+            aria-label={detailsOpen ? 'Ocultar panel de detalles' : 'Mostrar panel de detalles'}
+            aria-pressed={detailsOpen}
+            title={detailsOpen ? 'Ocultar panel de detalles' : 'Mostrar panel de detalles'}
+            className={cn(
+              'h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0]',
+              'flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
+              'hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
+              detailsOpen && 'text-[#a3f185] border-[#a3f185]/25 bg-[#a3f185]/10',
             )}
-          </div>
+          >
+            {detailsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+          </button>
         </div>
       </header>
         </div>
@@ -1681,7 +1669,7 @@ export default function GitCronPage() {
       <div className="flex-1 overflow-hidden relative">
         {/* FLOATING LEFT PANEL: Sidebar — floats over the canvas, toggle via tab button */}
         <aside
-          className="absolute bg-[#071a2c]/60 backdrop-blur-2xl flex flex-col overflow-hidden z-30 border border-[#d9e7fc]/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
+          className="absolute bg-[#071a2c]/60 backdrop-blur-md flex flex-col overflow-hidden z-30 border border-[#d9e7fc]/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
           style={{
             top: FLOATING_PANEL_INSET,
             left: FLOATING_PANEL_INSET,
@@ -1839,21 +1827,58 @@ export default function GitCronPage() {
             </SidebarSection>
           )}
           </div>
+          <div className="shrink-0 border-t border-[#d9e7fc]/10 bg-[#041425]/35 px-3 py-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                title={t('toolbar.settings')}
+                className="h-9 w-9 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]"
+              >
+                <Settings size={17} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowHelp(true)}
+                title={t('toolbar.help')}
+                className="h-9 w-9 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]"
+              >
+                <HelpCircle size={17} />
+              </button>
+              <div className="ml-auto">
+                {githubUser ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowProfile(true)}
+                    title={t('toolbar.connectedAs', { user: githubUser.login })}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#a3f185]/35 bg-[#a3f185]/10 hover:border-[#a3f185]/60 hover:bg-[#a3f185]/15 transition-colors"
+                  >
+                    {githubUser.avatarUrl ? (
+                      <img
+                        src={githubUser.avatarUrl}
+                        alt={githubUser.login}
+                        className="h-8 w-8 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-[10px] font-bold text-[#052900]">
+                        {userInitials(githubUser)}
+                      </div>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowProfile(true)}
+                    title={t('toolbar.connectGitHub')}
+                    className="h-10 w-10 shrink-0 rounded-full border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#d9e7fc]/10 hover:border-[#a3f185]/35 transition-colors"
+                  >
+                    <UserCircle2 size={24} strokeWidth={1.5} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </aside>
-
-        {/* Sidebar toggle tab */}
-        <button
-          onClick={() => {
-            const next = !sidebarOpen;
-            setSidebarOpen(next);
-            localStorage.setItem('gitcron:sidebarOpen', String(next));
-          }}
-          className="absolute top-1/2 -translate-y-1/2 z-40 w-5 h-12 bg-[#071a2c]/60 backdrop-blur-2xl border border-[#d9e7fc]/15 border-l-0 rounded-r-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#d9e7fc]/10 transition-all duration-300 shadow-[2px_0_16px_rgba(0,0,0,0.46),inset_0_1px_0_rgba(255,255,255,0.07)]"
-          style={{ left: sidebarOpen ? FLOATING_PANEL_INSET + sidebarW - 1 : 0 }}
-          title={sidebarOpen ? 'Ocultar sidebar' : 'Mostrar sidebar'}
-        >
-          {sidebarOpen ? <ChevronLeft size={11} /> : <ChevronRight size={11} />}
-        </button>
 
         {/* CENTER CANVAS: Full-bleed graph, always fills the whole area */}
         <main className="absolute inset-0 bg-[#020f1e] overflow-hidden flex flex-col">
@@ -2106,23 +2131,9 @@ export default function GitCronPage() {
           )}
         </main>
 
-        {/* Details panel toggle tab */}
-        <button
-          onClick={() => {
-            const next = !detailsOpen;
-            setDetailsOpen(next);
-            localStorage.setItem('gitcron:detailsOpen', String(next));
-          }}
-          className="absolute top-1/2 -translate-y-1/2 z-40 w-5 h-12 bg-[#071a2c]/60 backdrop-blur-2xl border border-[#d9e7fc]/15 border-r-0 rounded-l-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#d9e7fc]/10 transition-all duration-300 shadow-[-2px_0_16px_rgba(0,0,0,0.46),inset_0_1px_0_rgba(255,255,255,0.07)]"
-          style={{ right: detailsOpen ? FLOATING_PANEL_INSET + detailsW - 1 : 0 }}
-          title={detailsOpen ? 'Ocultar panel de detalles' : 'Mostrar panel de detalles'}
-        >
-          {detailsOpen ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
-        </button>
-
         {/* FLOATING RIGHT PANEL: Commit details + staging — floats over the canvas */}
         <aside
-          className="absolute bg-[#071a2c]/60 backdrop-blur-2xl flex flex-col overflow-hidden z-30 border border-[#d9e7fc]/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
+          className="absolute bg-[#071a2c]/60 backdrop-blur-md flex flex-col overflow-hidden z-30 border border-[#d9e7fc]/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
           style={{
             top: FLOATING_PANEL_INSET,
             right: FLOATING_PANEL_INSET,
@@ -2739,7 +2750,7 @@ export default function GitCronPage() {
               const repoDir = parent.endsWith('/') || parent.endsWith('\\')
                 ? `${parent}${name}`
                 : `${parent}${separator}${name}`;
-              
+
               const existsResult = await window.api.fsExistsAndNotEmpty(parent, name);
               const existsAndNotEmpty = existsResult.success && existsResult.data;
 
@@ -3383,13 +3394,13 @@ function ToolbarButton({
     <button
       onClick={onClick} title={title} disabled={disabled}
       className={cn(
-        'flex shrink-0 flex-col items-center justify-center p-1.5 rounded-md border border-transparent bg-[#d9e7fc]/[0.025] transition-colors group shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
-        label && 'px-3',
+        'flex shrink-0 flex-col items-center justify-center self-center rounded-md border border-transparent bg-[#d9e7fc]/[0.025] transition-colors group shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
+        label ? 'h-10 min-w-[54px] px-2.5 py-1 gap-0.5' : 'h-8 w-10 p-1.5',
         disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#d9e7fc]/[0.075] hover:border-[#d9e7fc]/15',
       )}
     >
-      <div className="w-5 h-5 text-[#9eacc0] group-hover:text-[#a3f185] flex items-center justify-center">{icon}</div>
-      {label && <span className="text-[9px] mt-0.5 font-bold uppercase tracking-tighter text-[#9eacc0]">{label}</span>}
+      <div className="w-5 h-5 shrink-0 text-[#9eacc0] group-hover:text-[#a3f185] flex items-center justify-center">{icon}</div>
+      {label && <span className="text-[9px] leading-none font-bold uppercase tracking-tighter text-[#9eacc0]">{label}</span>}
     </button>
   );
 }

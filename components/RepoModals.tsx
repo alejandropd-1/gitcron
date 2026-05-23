@@ -23,7 +23,7 @@ export function EmptyStateCard({
     <button
       onClick={onClick}
       className={cn(
-        'flex flex-col items-center gap-3 p-6 rounded-xl border backdrop-blur-2xl transition-all text-center shadow-[0_18px_50px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]',
+        'flex flex-col items-center gap-3 p-6 rounded-xl border backdrop-blur-md transition-all text-center shadow-[0_18px_50px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]',
         highlighted
           ? 'bg-[#a3f185]/15 border-[#a3f185]/45 hover:bg-[#a3f185]/20 hover:border-[#a3f185]/70'
           : 'bg-[#071a2c]/50 border-[#d9e7fc]/15 hover:border-[#a3f185]/40 hover:bg-[#d9e7fc]/[0.08]',

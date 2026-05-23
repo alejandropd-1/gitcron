@@ -379,7 +379,7 @@ export function ChronometricGraph({
       // Interpolate baseY on the diagonal ruler
       const p = (x - xStart) / (xEnd - xStart || 1);
       const baseY = yStart + p * (yEnd - yStart);
-      
+
       const offset = branchToOffset(-3.2, x, {
         fanFactor: config.fanFactor,
         width: config.width,
@@ -416,31 +416,31 @@ export function ChronometricGraph({
     return activeBranchIndices.map((bIndex) => {
       const points: string[] = [];
       const steps = 30;
-      
+
       for (let step = 0; step <= steps; step++) {
         const ratio = step / steps;
         const x = config.paddingLeft + ratio * (width - config.paddingLeft - config.paddingRight);
-        
+
         const p = (x - xStart) / (xEnd - xStart || 1);
         const baseX = x;
         const baseY = yStart + p * (yEnd - yStart);
-        
+
         const offset = branchToOffset(bIndex, x, {
           fanFactor: config.fanFactor,
           width: config.width,
           paddingLeft: config.paddingLeft,
           paddingRight: config.paddingRight,
         });
-        
+
         const finalX = baseX + offset * nx;
         const finalY = baseY + offset * ny;
-        
+
         points.push(`${step === 0 ? 'M' : 'L'} ${finalX.toFixed(2)} ${finalY.toFixed(2)}`);
       }
-      
+
       const matchingNode = projectedCommits.find(n => n.branchIndex === bIndex);
       const color = matchingNode?.laneColor || '#3c495a';
-      
+
       return {
         branchIndex: bIndex,
         pathD: points.join(' '),
@@ -460,27 +460,27 @@ export function ChronometricGraph({
       satY: number;
       color: string;
     }> = [];
-    
+
     projectedCommits.forEach((node) => {
       if (!node.commit.refs) return;
       const tags = node.commit.refs.filter(r => r.startsWith('tag: '));
       const isHead = headCommitNode && node.commit.hash === headCommitNode.commit.hash;
-      
+
       tags.forEach((tagRaw, tagIndex) => {
         const tagName = tagRaw.slice(5);
         // Enforce a uniform perpendicular line length of exactly 35px for tags
-        const distance = 35; 
-        
+        const distance = 35;
+
         // Base diagonal offset along (ux, uy) fanning out by index
         let diagOffset = tagIndex * 45 - 8;
         if (isHead) {
           // Offset HEAD tags by -50px along temporal diagonal to completely clear the telemetry stack
           diagOffset += -50;
         }
-        
+
         const satX = node.x + nx * distance + ux * diagOffset;
         let satY = node.y + ny * distance + uy * diagOffset;
-        
+
         // If it's a normal commit (not HEAD) and its comment is on the left wing,
         // shift only the bottom tag (tagIndex === 0) vertically down by 14px to place it cleanly below the comment.
         if (!isHead) {
@@ -489,7 +489,7 @@ export function ChronometricGraph({
             satY += 14;
           }
         }
-        
+
         list.push({
           commitHash: node.commit.hash,
           tagName,
@@ -501,7 +501,7 @@ export function ChronometricGraph({
         });
       });
     });
-    
+
     return list;
   }, [projectedCommits, nx, ny, ux, uy, headCommitNode, currentBranch]);
 
@@ -850,7 +850,7 @@ export function ChronometricGraph({
                 const hasOverlap = projectedCommits.some(node => {
                   const dx = Math.abs(node.x - tick.x);
                   if (dx >= 35) return false;
-                  
+
                   // Comment is on the right wing
                   return !node.isLeft;
                 });
@@ -885,7 +885,7 @@ export function ChronometricGraph({
                       strokeDasharray="2 2"
                       opacity={0.6}
                     />
-                    
+
                     {/* Secondary technical coordinate */}
                     <text
                       x={tick.x}
@@ -897,7 +897,7 @@ export function ChronometricGraph({
                     >
                       {`T+${String(index).padStart(3, '0')}`}
                     </text>
-                    
+
                     {/* Dates rendered below the guideline */}
                     <text
                       x={tick.x}
@@ -947,7 +947,7 @@ export function ChronometricGraph({
                   const cp2y = py + tension * uy;
 
                   const isMerge = node.commit.parents.length > 1 && ci > 0;
-                  
+
                   let mid = null;
                   if (isMerge) {
                     mid = getBezierPoint(
@@ -1362,9 +1362,9 @@ export function ChronometricGraph({
                 }
 
                 // Identify active branch refs for any normal commit node
-                const activeBranchRefs = node.commit.refs?.filter(r => 
-                  r.startsWith('refs/heads/') && 
-                  r !== 'HEAD' && 
+                const activeBranchRefs = node.commit.refs?.filter(r =>
+                  r.startsWith('refs/heads/') &&
+                  r !== 'HEAD' &&
                   r !== `refs/heads/${currentBranch}` &&
                   r !== currentBranch
                 ) || [];
@@ -1472,13 +1472,13 @@ export function ChronometricGraph({
                       {(() => {
                         const branchName = node.branchName;
                         const renderBranchTag = node.isBranchOrigin && branchName;
-                        
+
                         const commentText = `C:${node.commit.shortHash.toUpperCase()} // ${node.commit.message}`;
                         const commentTextWidth = commentText.length * 4.2;
-                        
+
                         const baseX = node.x + vx * offsetDist;
                         const baseY = node.y + vy * offsetDist;
-                        
+
                         if (renderBranchTag) {
                           const tagText = branchName.toUpperCase();
                           const tagBadgeWidth = tagText.length * 4.2 + 8;
@@ -1563,7 +1563,7 @@ export function ChronometricGraph({
         {/* 5. Custom Floating Hover Card (Geometric clarity, details on-demand, relative positioned) */}
         {hoveredNode && hoveredScreenPos && (
           <div
-            className="absolute pointer-events-none bg-[#071a2c]/60 backdrop-blur-2xl border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] z-30 min-w-[280px] max-w-[340px] transition-opacity duration-150 animate-in fade-in zoom-in-95 duration-100"
+            className="absolute pointer-events-none bg-[#071a2c]/60 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] z-30 min-w-[280px] max-w-[340px] transition-opacity duration-150 animate-in fade-in zoom-in-95 duration-100"
             style={hoveredCardStyle}
           >
             <div className="flex items-center justify-between gap-3 mb-1.5 border-b border-[#3c495a]/15 pb-1">
@@ -1633,7 +1633,7 @@ export function ChronometricGraph({
         }
         .chronometric-bottom-shell {
           position: absolute;
-          bottom: 1rem;
+          bottom: clamp(0.5rem, 1cqi, 1rem);
           z-index: 20;
           pointer-events: none;
           container: chrono-bottom-dock / inline-size;
@@ -1641,57 +1641,107 @@ export function ChronometricGraph({
         .chronometric-bottom-dock {
           display: grid;
           grid-template-areas: "depth target controls";
-          grid-template-columns: minmax(180px, 240px) minmax(280px, 380px) max-content;
+          grid-template-columns: minmax(140px, 0.75fr) minmax(220px, 1.15fr) max-content;
           align-items: end;
           justify-content: center;
-          gap: 0.75rem;
+          gap: clamp(0.45rem, 1cqi, 0.75rem);
+          width: 100%;
+          max-width: min(900px, 100%);
+          margin: 0 auto;
         }
         .hud-depth-panel {
           grid-area: depth;
           width: 100%;
+          min-width: 0;
         }
         .hud-target-panel {
           grid-area: target;
-          width: min(100%, 380px);
+          width: 100%;
+          min-width: 0;
+          max-width: 380px;
           justify-self: center;
         }
         .hud-zoom-controls {
           grid-area: controls;
           justify-self: end;
+          white-space: nowrap;
         }
         @container chrono-bottom-dock (max-width: 760px) {
           .chronometric-bottom-dock {
-            grid-template-areas:
-              "depth controls"
-              "target target";
-            grid-template-columns: minmax(160px, 1fr) max-content;
+            grid-template-areas: "depth target controls";
+            grid-template-columns: minmax(112px, 0.7fr) minmax(190px, 1fr) max-content;
             align-items: end;
+            max-width: 100%;
+          }
+          .hud-depth-panel,
+          .hud-target-panel {
+            padding: 0.55rem 0.65rem;
+          }
+          .hud-depth-panel {
+            gap: 0.55rem;
+          }
+          .hud-depth-radar {
+            display: none;
+          }
+          .hud-depth-date,
+          .hud-target-status {
+            display: none;
           }
           .hud-target-panel {
-            width: min(100%, 420px);
+            max-width: none;
+          }
+          .hud-target-empty {
+            height: 34px;
+          }
+          .hud-target-title {
+            font-size: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          .hud-target-subtitle {
+            font-size: 7px;
           }
         }
-        @container chrono-bottom-dock (max-width: 460px) {
+        @container chrono-bottom-dock (max-width: 560px) {
           .chronometric-bottom-dock {
             grid-template-areas:
-              "controls"
               "target"
-              "depth";
-            grid-template-columns: minmax(0, 1fr);
+              "depth controls";
+            grid-template-columns: minmax(0, 1fr) max-content;
             gap: 0.5rem;
           }
           .hud-depth-panel {
-            max-width: 240px;
+            max-width: none;
             justify-self: start;
             padding-top: 0.45rem;
             padding-bottom: 0.45rem;
           }
-          .hud-depth-panel .hud-depth-radar,
-          .hud-depth-panel .hud-depth-title {
-            display: none;
-          }
           .hud-target-panel {
             width: 100%;
+            grid-column: 1 / -1;
+          }
+          .hud-zoom-controls {
+            justify-self: end;
+          }
+        }
+        @container chrono-bottom-dock (max-width: 420px) {
+          .chronometric-bottom-dock {
+            grid-template-areas:
+              "target"
+              "controls"
+              "depth";
+            grid-template-columns: minmax(0, 1fr);
+          }
+          .hud-depth-panel .hud-depth-radar,
+          .hud-depth-title,
+          .hud-target-subtitle,
+          .hud-reset-label {
+            display: none;
+          }
+          .hud-depth-panel,
+          .hud-target-panel {
+            padding: 0.45rem 0.55rem;
           }
           .hud-zoom-controls {
             justify-self: end;
@@ -1733,7 +1783,7 @@ export function ChronometricGraph({
         {/* Top-Left Curve */}
         <path d="M 8 60 L 8 16 A 8 8 0 0 1 16 8 L 285 8" fill="none" stroke="#5ed8ff" strokeWidth="1" filter="url(#hud-glow)" />
         <rect x="8" y="8" width="12" height="3" fill="#5ed8ff" />
-        
+
         {/* Top-Right Curve */}
         <path d="M calc(100% - 285px) 8 L calc(100% - 16px) 8 A 8 8 0 0 1 calc(100% - 8px) 16 L calc(100% - 8px) 60" fill="none" stroke="#b455ff" strokeWidth="1" filter="url(#hud-glow)" />
         <rect x="calc(100% - 20px)" y="8" width="12" height="3" fill="#b455ff" />
@@ -1756,7 +1806,7 @@ export function ChronometricGraph({
       </svg>
 
       {/* 2. PANEL 01: NAV TELEMETRY & SYSTEM CONTEXT (Top-Left, z-20) */}
-      <div className="absolute top-4 w-[250px] bg-[#071a2c]/50 backdrop-blur-2xl border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-1.5 select-none overflow-hidden" style={{ left: hudLeftInset, transition: 'left 0.3s ease' }}>
+      <div className="absolute top-4 w-[250px] bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-1.5 select-none overflow-hidden" style={{ left: hudLeftInset, transition: 'left 0.3s ease' }}>
         <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full bg-[#5ed8ff]/55" />
         <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[10px] font-bold text-[#5ed8ff] tracking-wider uppercase truncate max-w-[170px]">
@@ -1786,7 +1836,7 @@ export function ChronometricGraph({
       </div>
 
       {/* 3. PANEL 02: SYNC & DIRTY METRICS (Top-Right, z-20) */}
-      <div className="absolute top-4 w-[250px] bg-[#071a2c]/50 backdrop-blur-2xl border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-1.5 select-none overflow-hidden" style={{ right: hudRightInset, transition: 'right 0.3s ease' }}>
+      <div className="absolute top-4 w-[250px] bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-1.5 select-none overflow-hidden" style={{ right: hudRightInset, transition: 'right 0.3s ease' }}>
         <div className="absolute right-0 top-3 bottom-3 w-[2px] rounded-full bg-[#b455ff]/55" />
         <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[9px] font-bold text-[#b455ff] tracking-wider uppercase">
@@ -1835,7 +1885,7 @@ export function ChronometricGraph({
       {/* Responsive Bottom HUD Dock: depth, target and controls share one collision-free layout. */}
       <div className="chronometric-bottom-shell" style={hudDockStyle}>
         <div className="chronometric-bottom-dock">
-          <div className="hud-depth-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-2xl border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex items-center gap-3 select-none">
+          <div className="hud-depth-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex items-center gap-3 select-none">
             <div className="hud-depth-radar relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/35 rounded-full overflow-hidden bg-[#021820]/50">
               <svg width="30" height="30" className="absolute inset-0">
                 <circle cx="15" cy="15" r="14" fill="none" stroke="#a3f185" strokeWidth="0.75" opacity="0.28" />
@@ -1852,13 +1902,13 @@ export function ChronometricGraph({
                 <span>NODES //</span>
                 <span className="font-bold text-[9px] text-[#d9e7fc]">{filteredCommits.length}</span>
               </div>
-              <div className="truncate text-[7.5px] text-[#697789] tracking-tight uppercase mt-0.5">
+              <div className="hud-depth-date truncate text-[7.5px] text-[#697789] tracking-tight uppercase mt-0.5">
                 {dateRangeString}
               </div>
             </div>
           </div>
 
-          <div className="hud-target-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-2xl border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] select-none transition-all duration-300">
+          <div className="hud-target-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] select-none transition-all duration-300">
             {selectedCommit ? (
               <div className="flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between border-b border-[#5ed8ff]/25 pb-1 mb-0.5">
@@ -1891,29 +1941,29 @@ export function ChronometricGraph({
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between h-[45px]">
-                <div className="flex items-center gap-2">
+              <div className="hud-target-empty flex items-center justify-between h-[45px] min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
                   <div className="relative flex items-center justify-center w-5 h-5">
                     <div className="absolute inset-0 border border-[#3c495a]/50 rounded-full animate-ping opacity-30" />
                     <Compass size={11} className="text-[#697789] animate-spin" style={{ animationDuration: '4s' }} />
                   </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[9px] font-bold text-[#697789] tracking-wider uppercase">
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="hud-target-title text-[9px] font-bold text-[#697789] tracking-wider uppercase">
                       TARGET_ACQUISITION // SCANNING
                     </span>
-                    <span className="text-[7.5px] text-[#697789]/70 uppercase tracking-wide">
+                    <span className="hud-target-subtitle text-[7.5px] text-[#697789]/70 uppercase tracking-wide">
                       SELECT A COMMIT NODE TO LOCK SCANNER
                     </span>
                   </div>
                 </div>
-                <div className="text-[7px] text-[#697789]/60 text-right font-mono select-none leading-relaxed">
+                <div className="hud-target-status text-[7px] text-[#697789]/60 text-right font-mono select-none leading-relaxed">
                   GRID: ACTIVE<br />LANE_ORBITS: SECURE
                 </div>
               </div>
             )}
           </div>
 
-          <div className="hud-zoom-controls pointer-events-auto bg-[#071a2c]/50 backdrop-blur-2xl border border-[#d9e7fc]/15 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-[0_18px_50px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.08)] select-none">
+          <div className="hud-zoom-controls pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-[0_18px_50px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.08)] select-none">
             <button onClick={zoomIn} title="Acercar (Zoom In)" className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer">
               <ZoomIn size={12} />
             </button>
@@ -1923,7 +1973,7 @@ export function ChronometricGraph({
             <div className="w-px h-3 bg-[#3c495a]/25 mx-1" />
             <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="px-1.5 py-0.5 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider font-semibold cursor-pointer">
               <RotateCcw size={10} />
-              <span>Reset</span>
+              <span className="hud-reset-label">Reset</span>
             </button>
           </div>
         </div>

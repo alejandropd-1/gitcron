@@ -1523,34 +1523,34 @@ export function ChronometricGraph({
 
                         if (renderBranchTag) {
                           const tagText = branchName.toUpperCase();
-                          const tagBadgeWidth = tagText.length * 4.2 + 8;
-                          const badgeY = baseY - 13;
+                          const tagBadgeWidth = tagText.length * 4.8 + 14;
+                          const badgeY = baseY - 16;
                           const anchor = isLeft ? "end" : "start";
                           // Badge rect origin: left edge for right wing, shifted left for left wing
                           const rectX = isLeft ? -tagBadgeWidth : 0;
 
                           return (
                             <g>
-                              {/* Branch name badge — stacked 13px above the commit comment */}
+                              {/* Branch name badge — filled with lane color, dark text for contrast */}
                               <g transform={`translate(${baseX}, ${badgeY})`}>
                                 <rect
                                   x={rectX}
-                                  y={-5.5}
+                                  y={-7}
                                   width={tagBadgeWidth}
-                                  height={11}
-                                  rx={2}
-                                  fill="#031427"
+                                  height={14}
+                                  rx={2.5}
+                                  fill={node.laneColor}
                                   stroke={node.laneColor}
                                   strokeWidth={0.75}
-                                  opacity={0.9}
+                                  opacity={0.95}
                                 />
                                 <text
                                   x={rectX + tagBadgeWidth / 2}
                                   y={0}
                                   textAnchor="middle"
                                   dominantBaseline="central"
-                                  fill={node.laneColor}
-                                  fontSize="6.5"
+                                  fill="#020f1e"
+                                  fontSize="8"
                                   fontWeight="bold"
                                   className="font-mono select-none pointer-events-none"
                                   letterSpacing="0.5"

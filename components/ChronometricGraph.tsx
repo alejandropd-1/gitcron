@@ -1531,27 +1531,28 @@ export function ChronometricGraph({
 
                           return (
                             <g>
-                              {/* Branch name badge — filled with lane color, dark text for contrast */}
+                              {/* Branch name badge — classic-view aesthetic: translucent lane fill, lane-colored border, lane-colored text */}
                               <g transform={`translate(${baseX}, ${badgeY})`}>
                                 <rect
                                   x={rectX}
                                   y={-9}
                                   width={tagBadgeWidth}
                                   height={18}
-                                  rx={3}
+                                  rx={4}
                                   fill={node.laneColor}
+                                  fillOpacity={0.2}
                                   stroke={node.laneColor}
-                                  strokeWidth={0.75}
-                                  opacity={0.95}
+                                  strokeOpacity={0.5}
+                                  strokeWidth={1}
                                 />
                                 <text
                                   x={rectX + tagBadgeWidth / 2}
                                   y={0}
                                   textAnchor="middle"
                                   dominantBaseline="central"
-                                  fill="#020f1e"
+                                  fill={node.laneColor}
                                   fontSize="10"
-                                  fontWeight="bold"
+                                  fontWeight={500}
                                   className="font-mono select-none pointer-events-none"
                                   letterSpacing="0.5"
                                 >

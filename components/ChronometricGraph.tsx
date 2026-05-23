@@ -331,6 +331,63 @@ export function ChronometricGraph({
     return map;
   }, [projectedCommits]);
 
+  // Per-node perpendicular offsetDist to prevent same-side label overlap.
+  // Each side is processed in the direction where increasing offset moves the
+  // label AWAY from the previously placed neighbour:
+  //  - LEFT  side: old → new, pushing newer labels further UP-LEFT
+  //  - RIGHT side: new → old, pushing older labels further DOWN-RIGHT
+  // Capped at MAX_OFFSET so labels never escape the visible area.
+  const labelOffsets = useMemo(() => {
+    const MIN_CLEARANCE = 12;
+    const BASE_OFFSET = 35;
+    const MAX_OFFSET = 85;
+
+    const _xStart = config.paddingLeft;
+    const _yStart = height - config.paddingBottom;
+    const _xEnd = width - config.paddingRight;
+    const _yEnd = config.paddingTop;
+    const _dx = _xEnd - _xStart;
+    const _dy = _yEnd - _yStart;
+    const _L = Math.sqrt(_dx * _dx + _dy * _dy) || 1;
+    const _ny = -_dx / _L; // negative (LEFT label moves up as offset grows)
+    const _ry = _dx / _L;  // positive (RIGHT label moves down as offset grows)
+
+    const offsets = new Map<string, number>();
+    const leftNodes = projectedCommits
+      .filter((n) => n.isLeft)
+      .sort((a, b) => a.chronologicalIndex - b.chronologicalIndex);
+    const rightNodes = projectedCommits
+      .filter((n) => !n.isLeft)
+      .sort((a, b) => b.chronologicalIndex - a.chronologicalIndex);
+
+    // LEFT side — push newer label upward when too close to previous (older) one
+    let lastLeftY = NaN;
+    for (const node of leftNodes) {
+      let offset = BASE_OFFSET;
+      const naturalY = node.y + _ny * BASE_OFFSET;
+      if (!isNaN(lastLeftY) && naturalY > lastLeftY - MIN_CLEARANCE) {
+        const needed = (lastLeftY - MIN_CLEARANCE - node.y) / _ny;
+        offset = Math.min(MAX_OFFSET, Math.max(BASE_OFFSET, needed));
+      }
+      offsets.set(node.commit.hash, offset);
+      lastLeftY = node.y + _ny * offset;
+    }
+
+    // RIGHT side — push older label downward when too close to previous (newer) one
+    let lastRightY = NaN;
+    for (const node of rightNodes) {
+      let offset = BASE_OFFSET;
+      const naturalY = node.y + _ry * BASE_OFFSET;
+      if (!isNaN(lastRightY) && naturalY < lastRightY + MIN_CLEARANCE) {
+        const needed = (lastRightY + MIN_CLEARANCE - node.y) / _ry;
+        offset = Math.min(MAX_OFFSET, Math.max(BASE_OFFSET, needed));
+      }
+      offsets.set(node.commit.hash, offset);
+      lastRightY = node.y + _ry * offset;
+    }
+
+    return offsets;
+  }, [projectedCommits, config, width, height]);
 
   // Find unit direction vectors of the diagonal line
   const xStart = config.paddingLeft;
@@ -1378,7 +1435,7 @@ export function ChronometricGraph({
                 const isLeft = node.isLeft;
                 const vx = isLeft ? nx : rx;
                 const vy = isLeft ? ny : ry;
-                const offsetDist = 35; // Uniform short distance
+                const offsetDist = labelOffsets.get(node.commit.hash) ?? 35;
 
                 return (
                   <g key={`overlay-node-${node.commit.hash}`} opacity={0.85} className="hover:opacity-100 transition-opacity">

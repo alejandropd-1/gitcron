@@ -331,6 +331,53 @@ export function ChronometricGraph({
     return map;
   }, [projectedCommits]);
 
+  // Compute per-node perpendicular offsetDist so that same-side labels never overlap.
+  // Process oldest→newest and push each label further out when it would be too close to the previous one.
+  const labelOffsets = useMemo(() => {
+    const MIN_CLEARANCE = 16; // px between label baselines
+    const BASE_OFFSET = 35;
+
+    const _xStart = config.paddingLeft;
+    const _yStart = height - config.paddingBottom;
+    const _xEnd = width - config.paddingRight;
+    const _yEnd = config.paddingTop;
+    const _dx = _xEnd - _xStart;
+    const _dy = _yEnd - _yStart;
+    const _L = Math.sqrt(_dx * _dx + _dy * _dy) || 1;
+    // ny < 0 (left labels go UP), ry > 0 (right labels go DOWN)
+    const _ny = -_dx / _L;
+    const _ry = _dx / _L;
+
+    const offsets = new Map<string, number>();
+    const sorted = [...projectedCommits].sort((a, b) => a.chronologicalIndex - b.chronologicalIndex);
+
+    let lastLeftY = NaN;
+    let lastRightY = NaN;
+
+    for (const node of sorted) {
+      const isLeft = node.isLeft;
+      const vy = isLeft ? _ny : _ry;
+      let offset = BASE_OFFSET;
+      const labelY = node.y + vy * BASE_OFFSET;
+
+      if (isLeft) {
+        if (!isNaN(lastLeftY) && labelY > lastLeftY - MIN_CLEARANCE) {
+          // Push further up: offset = (lastLeftY - MIN_CLEARANCE - node.y) / _ny
+          offset = Math.max(BASE_OFFSET, (lastLeftY - MIN_CLEARANCE - node.y) / _ny);
+        }
+        lastLeftY = node.y + _ny * offset;
+      } else {
+        if (!isNaN(lastRightY) && labelY < lastRightY + MIN_CLEARANCE) {
+          offset = Math.max(BASE_OFFSET, (lastRightY + MIN_CLEARANCE - node.y) / _ry);
+        }
+        lastRightY = node.y + _ry * offset;
+      }
+
+      offsets.set(node.commit.hash, offset);
+    }
+
+    return offsets;
+  }, [projectedCommits, config, width, height]);
 
   // Find unit direction vectors of the diagonal line
   const xStart = config.paddingLeft;
@@ -1378,7 +1425,7 @@ export function ChronometricGraph({
                 const isLeft = node.isLeft;
                 const vx = isLeft ? nx : rx;
                 const vy = isLeft ? ny : ry;
-                const offsetDist = 35; // Uniform short distance
+                const offsetDist = labelOffsets.get(node.commit.hash) ?? 35;
 
                 return (
                   <g key={`overlay-node-${node.commit.hash}`} opacity={0.85} className="hover:opacity-100 transition-opacity">

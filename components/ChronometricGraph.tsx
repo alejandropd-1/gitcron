@@ -1963,17 +1963,15 @@ export function ChronometricGraph({
             )}
           </div>
 
-          <div className="hud-zoom-controls pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-[0_18px_50px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.08)] select-none">
-            <button onClick={zoomIn} title="Acercar (Zoom In)" className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer">
-              <ZoomIn size={12} />
+          <div className="hud-zoom-controls pointer-events-auto flex flex-col gap-1 select-none">
+            <button onClick={zoomIn} title="Acercar (Zoom In)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+              <ZoomIn size={16} />
             </button>
-            <button onClick={zoomOut} title="Alejar (Zoom Out)" className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer">
-              <ZoomOut size={12} />
+            <button onClick={zoomOut} title="Alejar (Zoom Out)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+              <ZoomOut size={16} />
             </button>
-            <div className="w-px h-3 bg-[#3c495a]/25 mx-1" />
-            <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="px-1.5 py-0.5 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider font-semibold cursor-pointer">
-              <RotateCcw size={10} />
-              <span className="hud-reset-label">Reset</span>
+            <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+              <RotateCcw size={16} />
             </button>
           </div>
         </div>

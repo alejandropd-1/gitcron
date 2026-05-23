@@ -1563,7 +1563,7 @@ export function ChronometricGraph({
         {/* 5. Custom Floating Hover Card (Geometric clarity, details on-demand, relative positioned) */}
         {hoveredNode && hoveredScreenPos && (
           <div
-            className="absolute pointer-events-none bg-[#031427]/95 backdrop-blur-md border border-[#3c495a]/30 rounded px-3 py-2.5 shadow-2xl z-30 min-w-[280px] max-w-[340px] transition-opacity duration-150 animate-in fade-in zoom-in-95 duration-100"
+            className="absolute pointer-events-none bg-[#071a2c]/60 backdrop-blur-2xl border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] z-30 min-w-[280px] max-w-[340px] transition-opacity duration-150 animate-in fade-in zoom-in-95 duration-100"
             style={hoveredCardStyle}
           >
             <div className="flex items-center justify-between gap-3 mb-1.5 border-b border-[#3c495a]/15 pb-1">
@@ -1756,7 +1756,7 @@ export function ChronometricGraph({
       </svg>
 
       {/* 2. PANEL 01: NAV TELEMETRY & SYSTEM CONTEXT (Top-Left, z-20) */}
-      <div className="absolute top-4 w-[250px] bg-[#020b16]/68 backdrop-blur-md border border-[#3c495a]/35 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none overflow-hidden" style={{ left: hudLeftInset, transition: 'left 0.3s ease' }}>
+      <div className="absolute top-4 w-[250px] bg-[#071a2c]/50 backdrop-blur-2xl border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-1.5 select-none overflow-hidden" style={{ left: hudLeftInset, transition: 'left 0.3s ease' }}>
         <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full bg-[#5ed8ff]/55" />
         <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[10px] font-bold text-[#5ed8ff] tracking-wider uppercase truncate max-w-[170px]">
@@ -1786,7 +1786,7 @@ export function ChronometricGraph({
       </div>
 
       {/* 3. PANEL 02: SYNC & DIRTY METRICS (Top-Right, z-20) */}
-      <div className="absolute top-4 w-[250px] bg-[#020b16]/68 backdrop-blur-md border border-[#3c495a]/35 rounded-md px-3 py-2.5 z-20 font-mono shadow-2xl flex flex-col gap-1.5 select-none overflow-hidden" style={{ right: hudRightInset, transition: 'right 0.3s ease' }}>
+      <div className="absolute top-4 w-[250px] bg-[#071a2c]/50 backdrop-blur-2xl border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-1.5 select-none overflow-hidden" style={{ right: hudRightInset, transition: 'right 0.3s ease' }}>
         <div className="absolute right-0 top-3 bottom-3 w-[2px] rounded-full bg-[#b455ff]/55" />
         <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[9px] font-bold text-[#b455ff] tracking-wider uppercase">
@@ -1835,7 +1835,7 @@ export function ChronometricGraph({
       {/* Responsive Bottom HUD Dock: depth, target and controls share one collision-free layout. */}
       <div className="chronometric-bottom-shell" style={hudDockStyle}>
         <div className="chronometric-bottom-dock">
-          <div className="hud-depth-panel pointer-events-auto bg-[#020b16]/68 backdrop-blur-md border border-[#3c495a]/35 rounded-md px-3 py-2.5 font-mono shadow-2xl flex items-center gap-3 select-none">
+          <div className="hud-depth-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-2xl border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex items-center gap-3 select-none">
             <div className="hud-depth-radar relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/35 rounded-full overflow-hidden bg-[#021820]/50">
               <svg width="30" height="30" className="absolute inset-0">
                 <circle cx="15" cy="15" r="14" fill="none" stroke="#a3f185" strokeWidth="0.75" opacity="0.28" />
@@ -1858,7 +1858,7 @@ export function ChronometricGraph({
             </div>
           </div>
 
-          <div className="hud-target-panel pointer-events-auto bg-[#020b16]/68 backdrop-blur-md border border-[#3c495a]/35 rounded-md px-3 py-2.5 font-mono shadow-2xl select-none transition-all duration-300">
+          <div className="hud-target-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-2xl border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] select-none transition-all duration-300">
             {selectedCommit ? (
               <div className="flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between border-b border-[#5ed8ff]/25 pb-1 mb-0.5">
@@ -1913,7 +1913,7 @@ export function ChronometricGraph({
             )}
           </div>
 
-          <div className="hud-zoom-controls pointer-events-auto bg-[#020b16]/64 backdrop-blur-md border border-[#3c495a]/25 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-2xl select-none">
+          <div className="hud-zoom-controls pointer-events-auto bg-[#071a2c]/50 backdrop-blur-2xl border border-[#d9e7fc]/15 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-[0_18px_50px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.08)] select-none">
             <button onClick={zoomIn} title="Acercar (Zoom In)" className="p-1 hover:bg-[#3c495a]/20 active:bg-[#3c495a]/40 rounded text-[#9eacc0] hover:text-[#d9e7fc] transition-colors cursor-pointer">
               <ZoomIn size={12} />
             </button>

@@ -138,9 +138,9 @@ function RepoTabs({
   if (repos.length === 0) return null;
 
   return (
-    <div className="app-titlebar h-10 bg-[#020f1e] border-b border-[#3c495a]/15 flex items-stretch shrink-0 overflow-hidden">
-      <div className="min-w-0 flex-1 flex items-end gap-1 pl-2 pt-1 overflow-x-auto overflow-y-hidden">
-        <div className="app-titlebar-control h-8 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2">
+    <div className="app-titlebar h-10 rounded-t-2xl bg-[#071a2c]/35 backdrop-blur-2xl border-b border-[#d9e7fc]/10 flex items-stretch shrink-0 overflow-hidden">
+      <div className="min-w-0 flex-1 flex items-end gap-1 pl-2 pt-1.5 pb-1 overflow-x-auto overflow-y-hidden">
+        <div className="app-titlebar-control h-7 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2">
         <img
           src="/gitcron-icon.png"
           alt="GitCron"
@@ -155,17 +155,17 @@ function RepoTabs({
             <div
               key={repo.path}
               className={cn(
-                'app-titlebar-control group h-8 min-w-0 max-w-56 rounded-t-md flex items-center border transition-colors',
+                'app-titlebar-control group h-7 min-w-0 max-w-52 rounded-md flex items-center border transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
                 isActive
-                  ? 'bg-[#041425] border-[#3c495a]/20 border-b-[#041425] text-[#d9e7fc]'
-                  : 'bg-[#06182a] border-[#3c495a]/10 text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#0b2035]',
+                  ? 'bg-[#d9e7fc]/10 border-[#a3f185]/25 text-[#d9e7fc] shadow-[0_0_18px_rgba(163,241,133,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]'
+                  : 'bg-[#d9e7fc]/[0.035] border-[#d9e7fc]/10 text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#d9e7fc]/[0.07] hover:border-[#d9e7fc]/20',
               )}
             >
               <button
                 type="button"
                 onClick={() => onSelect(idx)}
                 title={t('repoTabs.switchTo', { repo: repo.name })}
-                className="min-w-0 flex-1 h-full px-3 flex items-center gap-2 text-left"
+                className="min-w-0 flex-1 h-full px-2.5 flex items-center gap-2 text-left"
               >
                 {repo.isLoading ? (
                   <Loader2 size={10} className="shrink-0 animate-spin text-[#a3f185]" />
@@ -200,18 +200,18 @@ function RepoTabs({
           type="button"
           onClick={onOpen}
           title={t('repoTabs.openAnother')}
-          className="app-titlebar-control h-8 w-8 mb-0 rounded-t-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#06182a] border border-transparent hover:border-[#3c495a]/15 transition-colors shrink-0"
+          className="app-titlebar-control h-7 w-7 mb-0 rounded-md flex items-center justify-center text-[#9eacc0] bg-[#d9e7fc]/[0.025] hover:text-[#a3f185] hover:bg-[#d9e7fc]/[0.07] border border-[#d9e7fc]/15 hover:border-[#d9e7fc]/25 transition-colors shrink-0"
         >
           <Plus size={14} />
         </button>
       </div>
-      <div className="app-titlebar-control h-10 self-stretch flex items-stretch shrink-0">
+      <div className="app-titlebar-control h-10 self-stretch flex items-stretch shrink-0 pr-1">
         <button
           type="button"
           aria-label="Minimizar"
           title="Minimizar"
           onClick={() => window.api?.windowMinimize()}
-          className="h-full w-11 flex items-center justify-center text-[#9eacc0] bg-[#020f1e] hover:bg-[#0b2035] hover:text-[#d9e7fc] transition-colors"
+          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-[#9eacc0] bg-[#d9e7fc]/[0.035] hover:bg-[#d9e7fc]/[0.09] hover:text-[#d9e7fc] transition-colors"
         >
           <Minus size={14} />
         </button>
@@ -220,7 +220,7 @@ function RepoTabs({
           aria-label="Maximizar o restaurar"
           title="Maximizar o restaurar"
           onClick={() => window.api?.windowToggleMaximize()}
-          className="h-full w-11 flex items-center justify-center text-[#9eacc0] bg-[#020f1e] hover:bg-[#0b2035] hover:text-[#d9e7fc] transition-colors"
+          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-[#9eacc0] bg-[#d9e7fc]/[0.035] hover:bg-[#d9e7fc]/[0.09] hover:text-[#d9e7fc] transition-colors"
         >
           <Maximize2 size={13} />
         </button>
@@ -229,7 +229,7 @@ function RepoTabs({
           aria-label="Cerrar"
           title="Cerrar"
           onClick={() => window.api?.windowClose()}
-          className="h-full w-11 flex items-center justify-center text-[#9eacc0] bg-[#020f1e] hover:bg-[#0b2035] hover:text-[#d9e7fc] transition-colors"
+          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-[#9eacc0] bg-[#d9e7fc]/[0.035] hover:bg-[#ff716c]/20 hover:text-[#ffdad6] transition-colors"
         >
           <X size={15} />
         </button>
@@ -428,7 +428,7 @@ function FetchIndicator({ onClick }: { onClick: () => void | Promise<void> }) {
       onClick={() => onClick()}
       title={tooltip}
       className={cn(
-        'flex flex-col items-center justify-center p-1.5 rounded transition-colors group',
+        'flex flex-col items-center justify-center p-1.5 rounded transition-colors group shrink-0',
         'hover:bg-[#3c495a]',
       )}
     >
@@ -1301,16 +1301,18 @@ export default function GitCronPage() {
 
   return (
     <div className="flex flex-col h-screen bg-[#020f1e] text-[#d9e7fc] font-sans overflow-hidden select-none">
-      <RepoTabs
-        repos={openRepos}
-        activeIdx={activeRepoIdx}
-        onSelect={handleSelectRepoTab}
-        onClose={handleCloseRepoTab}
-        onOpen={handleOpenRepoChooser}
-      />
+      <div className="shrink-0 px-2 pt-2 relative z-[80]">
+        <div className="rounded-2xl border border-[#d9e7fc]/15 bg-[#06182a]/35 backdrop-blur-2xl shadow-[0_18px_60px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]">
+          <RepoTabs
+            repos={openRepos}
+            activeIdx={activeRepoIdx}
+            onSelect={handleSelectRepoTab}
+            onClose={handleCloseRepoTab}
+            onOpen={handleOpenRepoChooser}
+          />
       {/* ──────────── TOP NAV ──────────── */}
-      <header className="h-12 border-b border-[#3c495a]/15 bg-[#041425]/85 backdrop-blur-xl grid grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] items-center px-4 shrink-0 relative z-50">
-        <div className="flex items-center gap-6 h-full min-w-0">
+      <header className="h-12 rounded-b-2xl border-t border-[#d9e7fc]/[0.06] bg-[#071a2c]/40 backdrop-blur-2xl grid grid-cols-[minmax(230px,0.8fr)_auto_minmax(420px,1.2fr)] items-center px-3 shrink-0 relative z-50">
+        <div className="flex items-center gap-5 h-full min-w-0">
           <button
             onClick={openRepo}
             title={t('toolbar.openRepo')}
@@ -1345,14 +1347,14 @@ export default function GitCronPage() {
               >
                 {tab.label}
                 {activeTab === tab.key && (
-                  <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#a3f185]" />
+                  <motion.div layoutId="activeTab" className="absolute bottom-1.5 left-2 right-2 h-0.5 rounded-full bg-[#a3f185]" />
                 )}
               </button>
             ))}
           </nav>
         </div>
 
-        <div className="flex items-center justify-center gap-1 px-3">
+        <div className="flex items-center justify-center gap-1 px-2">
           <ToolbarButton icon={<Undo />} onClick={() => {}} title={t('toolbar.undo')} />
           <ToolbarButton icon={<Redo />} onClick={() => {}} title={t('toolbar.redo')} />
           <div className="w-px h-4 bg-[#3c495a] mx-1" />
@@ -1369,8 +1371,39 @@ export default function GitCronPage() {
         </div>
 
         <div className="flex items-center justify-end gap-1 min-w-0">
+          {/* Branch filter dropdown — only visible when Graph tab is active */}
+          {activeTab === 'Graph' && repoPath && (
+            <div className="bg-[#0b1724]/90 border border-[#3c495a]/20 rounded-md flex items-center p-0.5 mr-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleChangeGraphMode('classic')}
+                className={cn(
+                  "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
+                  graphMode === 'classic'
+                    ? "bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
+                    : "text-[#9eacc0] hover:text-[#d9e7fc] border border-transparent"
+                )}
+                title="Vista Clásica (GitKraken)"
+              >
+                Clásico
+              </button>
+              <button
+                type="button"
+                onClick={() => handleChangeGraphMode('chronometric')}
+                className={cn(
+                  "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
+                  graphMode === 'chronometric'
+                    ? "bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
+                    : "text-[#9eacc0] hover:text-[#d9e7fc] border border-transparent"
+                )}
+                title="Vista Cronométrica (Línea Diagonal)"
+              >
+                Cronométrico
+              </button>
+            </div>
+          )}
           {/* Version tag + GitHub icon / update status */}
-          <div className="flex items-center gap-1.5 mr-1">
+          <div className="flex items-center gap-1.5 mr-1 shrink-0">
             {updateStatus === 'downloaded' && (
               <button
                 type="button"
@@ -1399,7 +1432,7 @@ export default function GitCronPage() {
               type="button"
               onClick={() => window.api.shellOpenExternal('https://github.com/alejandropd-1/gitcron/releases/')}
               title="GitHub Releases"
-              className="w-8 h-8 flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#12273c]/70 rounded transition-colors"
+              className="w-8 h-8 shrink-0 flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#12273c]/70 rounded transition-colors"
             >
               <Github size={16} />
             </button>
@@ -1491,43 +1524,13 @@ export default function GitCronPage() {
           {/* Branch filter dropdown — only visible when Graph tab is active */}
           {activeTab === 'Graph' && repoPath && (
             <>
-              {/* Segmented Graph Mode Toggle */}
-              <div className="bg-[#0b1724]/90 border border-[#3c495a]/20 rounded-md flex items-center p-0.5 mr-2">
-                <button
-                  type="button"
-                  onClick={() => handleChangeGraphMode('classic')}
-                  className={cn(
-                    "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
-                    graphMode === 'classic'
-                      ? "bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
-                      : "text-[#9eacc0] hover:text-[#d9e7fc] border border-transparent"
-                  )}
-                  title="Vista Clásica (GitKraken)"
-                >
-                  Clásico
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleChangeGraphMode('chronometric')}
-                  className={cn(
-                    "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
-                    graphMode === 'chronometric'
-                      ? "bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
-                      : "text-[#9eacc0] hover:text-[#d9e7fc] border border-transparent"
-                  )}
-                  title="Vista Cronométrica (Línea Diagonal)"
-                >
-                  Cronométrico
-                </button>
-              </div>
-
               <div className="relative" ref={branchFilterRef}>
               <button
                 type="button"
                 onClick={() => setShowBranchFilterDropdown((v) => !v)}
                 title={graphShowAllBranches ? t('graph.allBranches') : t('graph.currentBranch')}
                 className={cn(
-                  'flex flex-col items-center justify-center p-1.5 rounded transition-colors group',
+                  'flex flex-col items-center justify-center p-1.5 rounded transition-colors group shrink-0',
                   'hover:bg-[#12273c]/70',
                   !graphShowAllBranches && 'text-[#a3f185]',
                 )}
@@ -1596,7 +1599,7 @@ export default function GitCronPage() {
             </div>
           </>
         )}
-          <div className="relative" ref={searchButtonRef}>
+          <div className="relative shrink-0" ref={searchButtonRef}>
             <ToolbarButton
               icon={<Search />}
               onClick={() => setShowSearchPopover((v) => !v)}
@@ -1607,25 +1610,25 @@ export default function GitCronPage() {
               <span className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-full bg-[#a3f185] shadow-[0_0_8px_rgba(163,241,133,0.7)]" />
             )}
           </div>
-          <div className="w-px h-4 bg-[#3c495a] mx-1" />
+          <div className="w-px h-4 bg-[#3c495a] mx-1 shrink-0" />
           <ToolbarButton icon={<Settings />} onClick={() => setShowSettings(true)} title={t('toolbar.settings')} />
           <ToolbarButton icon={<HelpCircle />} onClick={() => setShowHelp(true)} title={t('toolbar.help')} />
-          <div className="flex items-center gap-2 ml-2 pl-2">
+          <div className="flex items-center gap-2 ml-1 pl-1 shrink-0">
             {githubUser ? (
               <button
                 onClick={() => setShowProfile(true)}
                 title={t('toolbar.connectedAs', { user: githubUser.login })}
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:opacity-80 transition-opacity"
               >
                 {githubUser.avatarUrl ? (
                   <img
                     src={githubUser.avatarUrl}
                     alt={githubUser.login}
-                    className="w-7 h-7 rounded-full border border-[#a3f185]/50"
+                    className="h-7 w-7 shrink-0 rounded-full border border-[#a3f185]/50 object-cover"
                   />
                 ) : (
                   <div
-                    className="w-7 h-7 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-[10px] font-bold text-[#052900] border border-[#a3f185]/50"
+                    className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-[10px] font-bold text-[#052900] border border-[#a3f185]/50"
                   >
                     {userInitials(githubUser)}
                   </div>
@@ -1635,7 +1638,7 @@ export default function GitCronPage() {
               <button
                 onClick={() => setShowProfile(true)}
                 title={t('toolbar.connectGitHub')}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#172d45] transition-colors"
+                className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#172d45] transition-colors"
               >
                 <UserCircle2 size={22} strokeWidth={1.5} />
               </button>
@@ -1643,6 +1646,8 @@ export default function GitCronPage() {
           </div>
         </div>
       </header>
+        </div>
+      </div>
 
       {/* ──────────── MAIN 3-COLUMN LAYOUT ──────────── */}
       {showSearchPopover && searchPopoverPos && (
@@ -1676,7 +1681,7 @@ export default function GitCronPage() {
       <div className="flex-1 overflow-hidden relative">
         {/* FLOATING LEFT PANEL: Sidebar — floats over the canvas, toggle via tab button */}
         <aside
-          className="absolute bg-[#041425]/90 backdrop-blur-xl flex flex-col overflow-hidden z-30 border border-[#3c495a]/25 rounded-xl shadow-[0_18px_48px_rgba(0,0,0,0.52)] transition-transform duration-300"
+          className="absolute bg-[#071a2c]/60 backdrop-blur-2xl flex flex-col overflow-hidden z-30 border border-[#d9e7fc]/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
           style={{
             top: FLOATING_PANEL_INSET,
             left: FLOATING_PANEL_INSET,
@@ -1843,7 +1848,7 @@ export default function GitCronPage() {
             setSidebarOpen(next);
             localStorage.setItem('gitcron:sidebarOpen', String(next));
           }}
-          className="absolute top-1/2 -translate-y-1/2 z-40 w-5 h-12 bg-[#041425]/95 backdrop-blur-xl border border-[#3c495a]/30 border-l-0 rounded-r-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#0b2035] transition-all duration-300 shadow-[2px_0_12px_rgba(0,0,0,0.42)]"
+          className="absolute top-1/2 -translate-y-1/2 z-40 w-5 h-12 bg-[#071a2c]/60 backdrop-blur-2xl border border-[#d9e7fc]/15 border-l-0 rounded-r-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#d9e7fc]/10 transition-all duration-300 shadow-[2px_0_16px_rgba(0,0,0,0.46),inset_0_1px_0_rgba(255,255,255,0.07)]"
           style={{ left: sidebarOpen ? FLOATING_PANEL_INSET + sidebarW - 1 : 0 }}
           title={sidebarOpen ? 'Ocultar sidebar' : 'Mostrar sidebar'}
         >
@@ -2108,7 +2113,7 @@ export default function GitCronPage() {
             setDetailsOpen(next);
             localStorage.setItem('gitcron:detailsOpen', String(next));
           }}
-          className="absolute top-1/2 -translate-y-1/2 z-40 w-5 h-12 bg-[#041425]/95 backdrop-blur-xl border border-[#3c495a]/30 border-r-0 rounded-l-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#0b2035] transition-all duration-300 shadow-[-2px_0_12px_rgba(0,0,0,0.42)]"
+          className="absolute top-1/2 -translate-y-1/2 z-40 w-5 h-12 bg-[#071a2c]/60 backdrop-blur-2xl border border-[#d9e7fc]/15 border-r-0 rounded-l-md flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#d9e7fc]/10 transition-all duration-300 shadow-[-2px_0_16px_rgba(0,0,0,0.46),inset_0_1px_0_rgba(255,255,255,0.07)]"
           style={{ right: detailsOpen ? FLOATING_PANEL_INSET + detailsW - 1 : 0 }}
           title={detailsOpen ? 'Ocultar panel de detalles' : 'Mostrar panel de detalles'}
         >
@@ -2117,7 +2122,7 @@ export default function GitCronPage() {
 
         {/* FLOATING RIGHT PANEL: Commit details + staging — floats over the canvas */}
         <aside
-          className="absolute bg-[#041425]/90 backdrop-blur-xl flex flex-col overflow-hidden z-30 border border-[#3c495a]/25 rounded-xl shadow-[0_18px_48px_rgba(0,0,0,0.52)] transition-transform duration-300"
+          className="absolute bg-[#071a2c]/60 backdrop-blur-2xl flex flex-col overflow-hidden z-30 border border-[#d9e7fc]/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
           style={{
             top: FLOATING_PANEL_INSET,
             right: FLOATING_PANEL_INSET,
@@ -3378,9 +3383,9 @@ function ToolbarButton({
     <button
       onClick={onClick} title={title} disabled={disabled}
       className={cn(
-        'flex flex-col items-center justify-center p-1.5 rounded transition-colors group',
+        'flex shrink-0 flex-col items-center justify-center p-1.5 rounded-md border border-transparent bg-[#d9e7fc]/[0.025] transition-colors group shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
         label && 'px-3',
-        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#3c495a]',
+        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#d9e7fc]/[0.075] hover:border-[#d9e7fc]/15',
       )}
     >
       <div className="w-5 h-5 text-[#9eacc0] group-hover:text-[#a3f185] flex items-center justify-center">{icon}</div>

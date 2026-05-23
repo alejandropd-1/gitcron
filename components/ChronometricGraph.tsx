@@ -1523,8 +1523,8 @@ export function ChronometricGraph({
 
                         if (renderBranchTag) {
                           const tagText = branchName.toUpperCase();
-                          const tagBadgeWidth = tagText.length * 4.8 + 14;
-                          const badgeY = baseY - 16;
+                          const tagBadgeWidth = tagText.length * 6 + 22;
+                          const badgeY = baseY - 18;
                           const anchor = isLeft ? "end" : "start";
                           // Badge rect origin: left edge for right wing, shifted left for left wing
                           const rectX = isLeft ? -tagBadgeWidth : 0;
@@ -1535,10 +1535,10 @@ export function ChronometricGraph({
                               <g transform={`translate(${baseX}, ${badgeY})`}>
                                 <rect
                                   x={rectX}
-                                  y={-7}
+                                  y={-9}
                                   width={tagBadgeWidth}
-                                  height={14}
-                                  rx={2.5}
+                                  height={18}
+                                  rx={3}
                                   fill={node.laneColor}
                                   stroke={node.laneColor}
                                   strokeWidth={0.75}
@@ -1550,7 +1550,7 @@ export function ChronometricGraph({
                                   textAnchor="middle"
                                   dominantBaseline="central"
                                   fill="#020f1e"
-                                  fontSize="8"
+                                  fontSize="10"
                                   fontWeight="bold"
                                   className="font-mono select-none pointer-events-none"
                                   letterSpacing="0.5"

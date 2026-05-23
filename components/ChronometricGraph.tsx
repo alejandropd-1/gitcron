@@ -621,6 +621,9 @@ export function ChronometricGraph({
     minScale: 0.25,
     maxScale: 3.5,
     padding: 120,
+    // Focus on the most recent commit (top-right of the diagonal) on first render
+    initialWorldFocusX: width - 100,
+    initialWorldFocusY: 100,
   });
 
   // 7. Time ticks (date guidelines at the bottom of the graph)

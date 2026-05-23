@@ -15,6 +15,8 @@ interface UseCanvasViewportOptions {
   minScale?: number;
   maxScale?: number;
   padding?: number;
+  initialWorldFocusX?: number;
+  initialWorldFocusY?: number;
 }
 
 export function useCanvasViewport({
@@ -24,6 +26,8 @@ export function useCanvasViewport({
   minScale = 0.2,
   maxScale = 5.0,
   padding = 100,
+  initialWorldFocusX,
+  initialWorldFocusY,
 }: UseCanvasViewportOptions) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -54,8 +58,10 @@ export function useCanvasViewport({
     const viewportWidth = container.clientWidth || 800;
     const viewportHeight = container.clientHeight || 520;
 
-    const initialOffsetX = viewportWidth / 2 - (worldWidth / 2) * initialScale;
-    const initialOffsetY = viewportHeight / 2 - (worldHeight / 2) * initialScale;
+    const focusX = initialWorldFocusX ?? worldWidth / 2;
+    const focusY = initialWorldFocusY ?? worldHeight / 2;
+    const initialOffsetX = viewportWidth / 2 - focusX * initialScale;
+    const initialOffsetY = viewportHeight / 2 - focusY * initialScale;
 
     setViewport(
       constrainViewport(
@@ -71,7 +77,7 @@ export function useCanvasViewport({
         padding
       )
     );
-  }, [worldWidth, worldHeight, initialScale, padding]);
+  }, [worldWidth, worldHeight, initialScale, padding, initialWorldFocusX, initialWorldFocusY]);
 
   const hasInitialized = useRef(false);
 
@@ -91,8 +97,10 @@ export function useCanvasViewport({
     const viewportHeight = container.clientHeight || 0;
 
     if (viewportWidth > 0 && viewportHeight > 0) {
-      const initialOffsetX = viewportWidth / 2 - (worldWidth / 2) * initialScale;
-      const initialOffsetY = viewportHeight / 2 - (worldHeight / 2) * initialScale;
+      const focusX = initialWorldFocusX ?? worldWidth / 2;
+      const focusY = initialWorldFocusY ?? worldHeight / 2;
+      const initialOffsetX = viewportWidth / 2 - focusX * initialScale;
+      const initialOffsetY = viewportHeight / 2 - focusY * initialScale;
 
       setViewport(
         constrainViewport(
@@ -110,7 +118,7 @@ export function useCanvasViewport({
       );
       hasInitialized.current = true;
     }
-  }, [worldWidth, worldHeight, initialScale, padding]);
+  }, [worldWidth, worldHeight, initialScale, padding, initialWorldFocusX, initialWorldFocusY]);
 
 
   // Handles discrete zoom actions (zoom buttons)

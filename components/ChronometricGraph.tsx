@@ -293,21 +293,25 @@ export function ChronometricGraph({
       );
 
       // Determine if the comment should be placed on the left side.
-      // Hybrid rule:
-      //  1. If the commit's branch has an assigned side in branchSidesMap, use it
-      //     (keeps all commits of the same branch on the same side).
-      //  2. Otherwise (no branch name, or branch not in map), follow the node's
-      //     visual offset; default LEFT when sitting exactly on the trunk.
+      // Hybrid rule, in priority order:
+      //  1. Per-commit visual position: if the node is visually offset from the
+      //     trunk, the comment goes on that same side. This is the primary rule
+      //     because it handles bifurcations where a branch literally splits into
+      //     a lateral lane — each commit follows the line that holds it.
+      //  2. On trunk (no visual offset): use the branch's stable side from
+      //     branchSidesMap, so trunk-sitting commits of a branch stay consistent
+      //     with the rest of that branch.
+      //  3. No branch info: default LEFT.
       const isLeft = (() => {
-        if (branchName) {
-          const side = branchSidesMap.get(branchName);
-          if (side !== undefined) return side;
-        }
         const lateralOffset = proj.x - proj.baseX;
         if (Math.abs(lateralOffset) > 0.5) {
           return lateralOffset < 0;
         }
-        return true; // default LEFT
+        if (branchName) {
+          const side = branchSidesMap.get(branchName);
+          if (side !== undefined) return side;
+        }
+        return true;
       })();
 
       return {

@@ -745,6 +745,7 @@ export function ChronometricGraph({
   const hudDockStyle = {
     left: hudLeftInset,
     right: hudRightInset,
+    paddingRight: 44, // clear space for the zoom button stack (36px btn + 8px gap)
     transition: 'left 0.3s ease, right 0.3s ease',
   };
 

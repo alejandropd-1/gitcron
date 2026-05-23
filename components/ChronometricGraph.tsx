@@ -229,21 +229,34 @@ export function ChronometricGraph({
     return map;
   }, [rows, filteredCommits]);
 
-  // Stable map of branchName -> isLeft via PURE ALTERNATION by appearance order.
-  // Each branch alternates its label side from the previous one, so adjacent
-  // branches (even when both happen to land on the same lateral side of the
-  // trunk) get mirrored labels and never clump on a single side.
-  // main/master are pinned LEFT, so the first new branch goes RIGHT, second LEFT, etc.
+  // Stable map of branchName -> isLeft.
+  // Two passes:
+  //  1. Visual bifurcation respect: if a branch has at least one commit that's
+  //     visually offset (bIndex != 0), pin the label side to that visual side.
+  //     This handles cases like a branch that physically forks down-left → labels LEFT.
+  //  2. Alternation by appearance order: branches that never bifurcated (always
+  //     on the trunk) alternate sides starting from RIGHT (since main/master are LEFT).
   // All commits of the same branch share the same side.
   const branchSidesMap = useMemo(() => {
     const map = new Map<string, boolean>();
     map.set('main', true);
     map.set('master', true);
 
-    // Process oldest → newest so "order of appearance" is chronological
+    // Process oldest → newest so the FIRST encountered non-zero bIndex (or order
+    // of appearance for alternation) is chronologically anchored.
     const ordered = [...rows].reverse();
-    let nextSide = false; // RIGHT (main/master already LEFT)
 
+    // Pass 1: bifurcation respect
+    for (const row of ordered) {
+      const bIndex = mapLaneToBranchIndex(row.lane);
+      const name = commitBranchNames.get(row.commit.hash);
+      if (!name || map.has(name)) continue;
+      if (bIndex > 0) map.set(name, true);       // visually LEFT
+      else if (bIndex < 0) map.set(name, false); // visually RIGHT
+    }
+
+    // Pass 2: alternation for the rest
+    let nextSide = false; // RIGHT first (main/master already LEFT)
     for (const row of ordered) {
       const name = commitBranchNames.get(row.commit.hash);
       if (!name || map.has(name)) continue;

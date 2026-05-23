@@ -2038,10 +2038,10 @@ export default function GitCronPage() {
             />
           ) : (
             /* Graph tab — default */
-            <div className="flex-1 flex flex-col bg-[#020f1e]">
+            <div className="flex-1 flex flex-col bg-[#020f1e] min-h-0">
               {graphMode === 'classic' ? (
                 <div
-                  className="flex-1 min-w-0 flex flex-col transition-[padding] duration-300 ease-out"
+                  className="flex-1 min-w-0 flex flex-col min-h-0 transition-[padding] duration-300 ease-out"
                   style={{ paddingLeft: leftGraphSafe, paddingRight: rightGraphSafe }}
                 >
                   <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">

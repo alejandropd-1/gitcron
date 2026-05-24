@@ -69,6 +69,11 @@ export function ChronometricGraph({
   hudRight = 0,
 }: ChronometricGraphProps) {
   const stashes = useGitStore((state) => state.stashes);
+  const appFontSize = useGitStore((state) => state.fontSize);
+  // Scale factor for all SVG text in this graph, driven by the global text-size setting (gear → "Tamaño de texto").
+  // The hardcoded SVG fontSize values were tuned for "compact"; "normal" and "large" upscale proportionally.
+  const textScale = appFontSize === 'large' ? 1.36 : appFontSize === 'normal' ? 1.18 : 1.0;
+  const fs = (base: number) => +(base * textScale).toFixed(2);
   const modifiedFiles = useGitStore((state) => state.modifiedFiles);
   const branchTracking = useGitStore((state) => state.branchTracking);
   const repoName = useGitStore((state) => state.repoName);
@@ -365,9 +370,26 @@ export function ChronometricGraph({
   //  - RIGHT side: new → old, pushing older labels further DOWN-RIGHT
   // Capped at MAX_OFFSET so labels never escape the visible area.
   const labelOffsets = useMemo(() => {
-    const MIN_CLEARANCE = 12;
+    // All clearance values scale with the global text-size setting so labels never collide
+    // when the user picks "normal" or "large" from the gear menu.
+    const MIN_CLEARANCE = 12 * textScale;
+    // When either neighbor commit renders a branch badge, that badge protrudes above the comment
+    // line (≈ 20px offset + 9px half-height ≈ 29px at scale 1) and needs an extra clearance
+    // band so adjacent comments don't overlap it. Scales with text size.
+    const BADGE_CLEARANCE_EXTRA = 30 * textScale;
     const BASE_OFFSET = 35;
-    const MAX_OFFSET = 85;
+    const MAX_OFFSET = 85 + 30 * (textScale - 1);
+
+    const hasBadge = (node: typeof projectedCommits[number]) => {
+      if (!node.branchName) return false;
+      if (node.isBranchOrigin) return true;
+      return !!node.commit.refs?.some(r => {
+        if (!r || r.startsWith('tag: ')) return false;
+        if (r === 'HEAD' || r === 'stash') return false;
+        if (r.startsWith('refs/stash')) return false;
+        return true;
+      });
+    };
 
     const _xStart = config.paddingLeft;
     const _yStart = height - config.paddingBottom;
@@ -389,32 +411,40 @@ export function ChronometricGraph({
 
     // LEFT side — push newer label upward when too close to previous (older) one
     let lastLeftY = NaN;
+    let prevLeftHadBadge = false;
     for (const node of leftNodes) {
+      const curHasBadge = hasBadge(node);
+      const effectiveClearance = MIN_CLEARANCE + ((prevLeftHadBadge || curHasBadge) ? BADGE_CLEARANCE_EXTRA : 0);
       let offset = BASE_OFFSET;
       const naturalY = node.y + _ny * BASE_OFFSET;
-      if (!isNaN(lastLeftY) && naturalY > lastLeftY - MIN_CLEARANCE) {
-        const needed = (lastLeftY - MIN_CLEARANCE - node.y) / _ny;
+      if (!isNaN(lastLeftY) && naturalY > lastLeftY - effectiveClearance) {
+        const needed = (lastLeftY - effectiveClearance - node.y) / _ny;
         offset = Math.min(MAX_OFFSET, Math.max(BASE_OFFSET, needed));
       }
       offsets.set(node.commit.hash, offset);
       lastLeftY = node.y + _ny * offset;
+      prevLeftHadBadge = curHasBadge;
     }
 
     // RIGHT side — push older label downward when too close to previous (newer) one
     let lastRightY = NaN;
+    let prevRightHadBadge = false;
     for (const node of rightNodes) {
+      const curHasBadge = hasBadge(node);
+      const effectiveClearance = MIN_CLEARANCE + ((prevRightHadBadge || curHasBadge) ? BADGE_CLEARANCE_EXTRA : 0);
       let offset = BASE_OFFSET;
       const naturalY = node.y + _ry * BASE_OFFSET;
-      if (!isNaN(lastRightY) && naturalY < lastRightY + MIN_CLEARANCE) {
-        const needed = (lastRightY + MIN_CLEARANCE - node.y) / _ry;
+      if (!isNaN(lastRightY) && naturalY < lastRightY + effectiveClearance) {
+        const needed = (lastRightY + effectiveClearance - node.y) / _ry;
         offset = Math.min(MAX_OFFSET, Math.max(BASE_OFFSET, needed));
       }
       offsets.set(node.commit.hash, offset);
       lastRightY = node.y + _ry * offset;
+      prevRightHadBadge = curHasBadge;
     }
 
     return offsets;
-  }, [projectedCommits, config, width, height]);
+  }, [projectedCommits, config, width, height, textScale]);
 
   // Find unit direction vectors of the diagonal line
   const xStart = config.paddingLeft;
@@ -913,7 +943,7 @@ export function ChronometricGraph({
                 x={xStart - 15}
                 y={yStart + 15}
                 textAnchor="end"
-                fontSize="8"
+                fontSize={fs(8)}
                 fill="#697789"
                 className="font-mono font-bold"
                 opacity={0.6}
@@ -924,7 +954,7 @@ export function ChronometricGraph({
                 x={xEnd + 15}
                 y={yEnd - 15}
                 textAnchor="start"
-                fontSize="8"
+                fontSize={fs(8)}
                 fill="#697789"
                 className="font-mono font-bold"
                 opacity={0.6}
@@ -979,7 +1009,7 @@ export function ChronometricGraph({
                       x={tick.x}
                       y={tick.y + yOffset}
                       textAnchor="middle"
-                      fontSize="8.5"
+                      fontSize={fs(8.5)}
                       fill="#697789"
                       className="font-mono font-semibold"
                     >
@@ -991,7 +1021,7 @@ export function ChronometricGraph({
                       x={tick.x}
                       y={tick.y + yOffset + 11}
                       textAnchor="middle"
-                      fontSize="10"
+                      fontSize={fs(10)}
                       fontWeight="600"
                       fill="#9eacc0"
                       className="font-mono"
@@ -1002,7 +1032,7 @@ export function ChronometricGraph({
                       x={tick.x}
                       y={tick.y + yOffset + 22}
                       textAnchor="middle"
-                      fontSize="9"
+                      fontSize={fs(9)}
                       fill="#697789"
                       className="font-mono"
                     >
@@ -1145,7 +1175,7 @@ export function ChronometricGraph({
                       y={node.y}
                       textAnchor="middle"
                       dominantBaseline="central"
-                      fontSize="7.5"
+                      fontSize={fs(7.5)}
                       fontWeight="700"
                       fill={isSelected ? '#a3f185' : node.laneColor}
                       className="font-mono select-none pointer-events-none"
@@ -1195,7 +1225,7 @@ export function ChronometricGraph({
                         textAnchor="middle"
                         dominantBaseline="central"
                         fill={TAG_COLOR}
-                        fontSize="10"
+                        fontSize={fs(10)}
                         fontWeight={500}
                         className="font-mono select-none pointer-events-none"
                         letterSpacing="0.5"
@@ -1282,7 +1312,7 @@ export function ChronometricGraph({
                     x={wipCoords.x + 8}
                     y={wipCoords.y + 2.5}
                     fill="#ff716c"
-                    fontSize="7.5"
+                    fontSize={fs(7.5)}
                     fontWeight="bold"
                     className="font-mono select-none pointer-events-none"
                     letterSpacing="0.5"
@@ -1347,7 +1377,7 @@ export function ChronometricGraph({
                     y={stashPos.y - 1}
                     textAnchor="middle"
                     fill="#9eacc0"
-                    fontSize="6.5"
+                    fontSize={fs(6.5)}
                     fontWeight="bold"
                     className="font-mono select-none pointer-events-none"
                   >
@@ -1396,7 +1426,7 @@ export function ChronometricGraph({
                         y={line1Y}
                         textAnchor={isLeft ? "end" : "start"}
                         fill="#a3f185"
-                        fontSize="7.5"
+                        fontSize={fs(7.5)}
                         fontWeight="bold"
                         className="font-mono select-none pointer-events-none"
                         letterSpacing="0.5"
@@ -1411,7 +1441,7 @@ export function ChronometricGraph({
                           y={line2Y}
                           textAnchor={isLeft ? "end" : "start"}
                           fill="#a3f185"
-                          fontSize="7"
+                          fontSize={fs(7)}
                           fontWeight="bold"
                           className="font-mono select-none pointer-events-none"
                           letterSpacing="0.5"
@@ -1427,7 +1457,7 @@ export function ChronometricGraph({
                         y={line3Y}
                         textAnchor={isLeft ? "end" : "start"}
                         fill={headCommitNode.laneColor}
-                        fontSize="7.5"
+                        fontSize={fs(7.5)}
                         fontWeight="bold"
                         className="font-mono select-none pointer-events-none"
                         letterSpacing="0.5"
@@ -1441,7 +1471,7 @@ export function ChronometricGraph({
                         y={line4Y}
                         textAnchor={isLeft ? "end" : "start"}
                         fill={headCommitNode.laneColor}
-                        fontSize="7"
+                        fontSize={fs(7)}
                         fontWeight="medium"
                         className="font-mono select-none pointer-events-none"
                         letterSpacing="0.5"
@@ -1534,7 +1564,7 @@ export function ChronometricGraph({
                               y={3}
                               textAnchor="end"
                               fill={node.laneColor}
-                              fontSize="7.5"
+                              fontSize={fs(7.5)}
                               fontWeight="bold"
                               className="font-mono select-none pointer-events-none"
                               letterSpacing="0.5"
@@ -1584,8 +1614,15 @@ export function ChronometricGraph({
 
                         if (renderBranchTag) {
                           const tagText = branchName.toUpperCase();
-                          const tagBadgeWidth = tagText.length * 6 + 22;
-                          const badgeY = baseY - 18;
+                          // Badge dimensions scale with text size. Generous internal padding
+                          // (8px each side at compact) keeps the text from touching the border at any size.
+                          const tagCharWidth = 6 * textScale;
+                          const tagPaddingX = 16 * textScale;
+                          const tagBadgeWidth = tagText.length * tagCharWidth + tagPaddingX;
+                          const tagBadgeHeight = 18 * textScale;
+                          const tagBadgeHalfHeight = tagBadgeHeight / 2;
+                          const tagBadgeOffsetFromComment = 20 * textScale;
+                          const badgeY = baseY - tagBadgeOffsetFromComment;
                           const anchor = isLeft ? "end" : "start";
                           // Badge rect origin: left edge for right wing, shifted left for left wing
                           const rectX = isLeft ? -tagBadgeWidth : 0;
@@ -1596,9 +1633,9 @@ export function ChronometricGraph({
                               <g transform={`translate(${baseX}, ${badgeY})`}>
                                 <rect
                                   x={rectX}
-                                  y={-9}
+                                  y={-tagBadgeHalfHeight}
                                   width={tagBadgeWidth}
-                                  height={18}
+                                  height={tagBadgeHeight}
                                   rx={4}
                                   fill={node.laneColor}
                                   fillOpacity={0.2}
@@ -1612,7 +1649,7 @@ export function ChronometricGraph({
                                   textAnchor="middle"
                                   dominantBaseline="central"
                                   fill={node.laneColor}
-                                  fontSize="10"
+                                  fontSize={fs(10)}
                                   fontWeight={500}
                                   className="font-mono select-none pointer-events-none"
                                   letterSpacing="0.5"
@@ -1628,7 +1665,7 @@ export function ChronometricGraph({
                                 textAnchor={anchor}
                                 dominantBaseline="central"
                                 fill={node.laneColor}
-                                fontSize="7"
+                                fontSize={fs(7)}
                                 fontWeight="medium"
                                 className="font-mono select-none pointer-events-none"
                                 letterSpacing="0.5"
@@ -1646,7 +1683,7 @@ export function ChronometricGraph({
                               textAnchor={isLeft ? "end" : "start"}
                               dominantBaseline="central"
                               fill={node.laneColor}
-                              fontSize="7"
+                              fontSize={fs(7)}
                               fontWeight="medium"
                               className="font-mono select-none pointer-events-none"
                               letterSpacing="0.5"

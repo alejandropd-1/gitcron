@@ -679,6 +679,34 @@ export default function GitCronPage() {
   const [showNewBranch, setShowNewBranch] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const [newBranchFrom, setNewBranchFrom] = useState<string | undefined>(undefined);
+
+  const openContextMenu = (menu: { x: number; y: number; hash?: string } | null) => {
+    setFileContextMenu(null);
+    setBranchMenu(null);
+    setRemoteBranchMenu(null);
+    setContextMenu(menu);
+  };
+
+  const openFileContextMenu = (menu: { x: number; y: number; file: GitFile } | null) => {
+    setContextMenu(null);
+    setBranchMenu(null);
+    setRemoteBranchMenu(null);
+    setFileContextMenu(menu);
+  };
+
+  const openBranchMenu = (menu: { x: number; y: number; branch: string } | null) => {
+    setContextMenu(null);
+    setFileContextMenu(null);
+    setRemoteBranchMenu(null);
+    setBranchMenu(menu);
+  };
+
+  const openRemoteBranchMenu = (menu: { x: number; y: number; branch: string } | null) => {
+    setContextMenu(null);
+    setFileContextMenu(null);
+    setBranchMenu(null);
+    setRemoteBranchMenu(menu);
+  };
   // ── Resizable column widths ──
   const [sidebarW, setSidebarW] = useState(240);
   const [detailsW, setDetailsW] = useState(320);
@@ -903,6 +931,7 @@ export default function GitCronPage() {
       setContextMenu(null);
       setFileContextMenu(null);
       setBranchMenu(null);
+      setRemoteBranchMenu(null);
     };
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
@@ -1692,7 +1721,7 @@ export default function GitCronPage() {
               onCheckout={(b) => handleCheckoutAttempt(b)}
               onContextMenu={(e, b) => {
                 e.preventDefault();
-                setBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
+                openBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
               }}
             />
           </SidebarSection>
@@ -1704,7 +1733,7 @@ export default function GitCronPage() {
               onCheckout={(b) => handleCheckoutAttempt(b)}
               onContextMenu={(e, b) => {
                 e.preventDefault();
-                setRemoteBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
+                openRemoteBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
               }}
             />
           </SidebarSection>
@@ -2036,7 +2065,7 @@ export default function GitCronPage() {
               currentBranch={currentBranch}
               filterText={filterText}
               onSelect={handleSelectCommit}
-              onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
+              onContextMenu={(e, c) => openContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
               isLoading={isLoading}
             />
           ) : activeTab === 'Commit' ? (
@@ -2127,7 +2156,7 @@ export default function GitCronPage() {
                         currentBranch={currentBranch}
                         filterText={filterText}
                         onSelect={handleSelectCommit}
-                        onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
+                        onContextMenu={(e, c) => openContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
                         hudLeft={leftGraphSafe}
                         hudRight={rightGraphSafe}
                       />
@@ -2277,7 +2306,7 @@ export default function GitCronPage() {
               onRequestSquash={() => setShowSquash(true)}
               onFileContextMenu={(e, file) => {
                 e.preventDefault();
-                setFileContextMenu({ x: e.clientX, y: e.clientY, file });
+                openFileContextMenu({ x: e.clientX, y: e.clientY, file });
               }}
               onRequestResetAll={() => setShowResetConfirm(true)}
             />

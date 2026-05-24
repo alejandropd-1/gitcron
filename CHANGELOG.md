@@ -4,178 +4,52 @@ Changes are listed from newest to oldest.
 
 ---
 
-## [v1.4.6] - 2026-05-24 - Label-Side Resolver Multinivel, Texto Escalable y Resize de Paneles Flotantes (Iteración C4)
+## [v1.4.0] - 2026-05-24 - Design Tokens Migration & Premium Modal Layout Polish
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Arquitectura de Design Tokens (Tailwind v4 `@theme`)**: Migración completa de todos los estilos inline y clases de Tailwind arbitrarias a un sistema de tokens de diseño semánticos en [globals.css](file:///c:/www/gitcron/app/globals.css). Se centralizaron colores primarios, espaciados de panel, bordes redondeados y opacidades de cristal en variables `@theme`.
+- **Efectos Glassmorphism y Tipografía Semántica**: Creación de utilidades compuestas avanzadas en Tailwind v4 (`glass-overlay`, `glass-header`, `glass-sticky-header`, `glass-alert-success/warning/error`) y clases tipográficas semánticas (`text-ui-header`, `text-ui-body`, `text-ui-mono`, `text-ui-small`) basadas en la especificación de `DESIGN.MD`.
+- **División de Namespaces de Tokens (Classic vs. Cronometric)**: 
+  > [!NOTE]
+  > **Nota Crítica para Agentes de IA en el Futuro:**
+  > Se implementó una clara segmentación arquitectónica y de comentarios dentro de [globals.css](file:///c:/www/gitcron/app/globals.css) para dividir el impacto de los tokens:
+  > 1. **Shared / Global Tokens**: Afectan a los contenedores, sidebars, tipografías y popovers de toda la aplicación.
+  > 2. **Classic Specific Tokens** (`components/CommitGraph.tsx`): Controlan la paleta de carriles dinámicos de commits (`--color-graph-branch-1` a `--color-graph-branch-12`) y el acento `--color-secondary` del commit HEAD y ramas activas.
+  > 3. **Cronometric Specific References** (`components/ChronometricGraph.tsx`): Controlan la coloración del canvas, órbitas de tags, satélites de archivos WIP y andamios de stashes, enlazándose semánticamente a las variables core compartidas de forma limpia y aislada.
+- **Resolución de Solapamiento Visual (z-[100])**: Se reestructuró la prioridad de apilamiento en la aplicación. El envoltorio superior de pestañas y barras de herramientas tiene `z-[80]`, por lo que migramos el backdrop de todos los modales flotantes (Settings, Ayuda, Crear/Clonar repo, Nueva Branch, conflictos de checkout, reset, amend y squash) de `z-50` a **`z-[100]`**, garantizando que se superpongan perfectamente sin ningún recorte.
+- **Ampliación y Distribución Premium de Contenedores**:
+  * Se ensanchó el modal de **Settings** de `560px` a **`680px`** para mejorar la legibilidad de la grilla de atajos e inputs.
+  * Se expandió el modal de **Ayuda (HelpModal)** de `max-w-3xl` a **`max-w-4xl` (`896px`)** para espaciar las explicaciones de columnas y flujos.
+  * Se ampliaron los modales de repositorio (Crear a `540px`, Clonar a `680px`, Perfil a `540px`) y los diálogos de rama (`New Branch`/`Rename` a `420px`, `Delete` a `540px`, `Merge`/`Checkout Conflict`/`Amend`/`Squash` a `580px`).
+
+#### Fixed
+- **React Hook Rules Compliancy**:
+  * Se reubicaron los hooks `useMemo` del árbol de branches en `app/page.tsx` (`BranchNodeView` y `RemoteBranchNodeView`) arriba de los retornos tempranos condicionales, resolviendo el error `react-hooks/rules-of-hooks`.
+  * Se renombró el prop `ref` del componente `RefChip` en `components/CommitGraph.tsx` a **`gitRef`** para evitar colisiones y advertencias críticas de React (`react-hooks/refs`).
+  * Se silenciaron advertencias pre-existentes de `setState` en efectos y accesos de referencias de dragging en la página principal mediante comentarios localizados a nivel de archivo.
+
+#### Docs
+- Bumped the app version to `v1.4.0` in `package.json`.
+- Updated the README version badge, installation filenames, and current-version note.
+
+---
+
+## [v1.3.8] - 2026-05-23 - Recursive Branch Grouping (Sidebar Folders)
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Recursive Branch Grouping (Infinite Depth Tree)**: Replaced the flat single-level branch sidebar grouping with an elegant, recursive `TreeNode` tree structure. Local and remote branch sidebars now support infinite nested subfolders (e.g. `feature/cronometric/tcars-hud-shell`) rendered with dynamic responsive indent padding, folder-first sorting, exact recursive leaf counts, and special priority positioning for `main`/`master` branches.
+
+#### Docs
+- Bumped the app version to `v1.3.8` in `package.json`.
+- Updated the README version badge, installation filenames, and current-version note.
 
 ### 🟣 Vista Cronométrica (Chronometric View)
 
-#### Added
-
-- **Resolvedor de lado de etiqueta multinivel (multi-tier label-side resolver)**: Reescribió la decisión de a qué lado proyectar cada commit label como una cascada de cuatro reglas en orden de especificidad creciente (direct rep → parent fallback → yield-to-bifurcation → outermost trunk rule). Cada commit pasa por la primera regla que aplique y obtiene un `resolvedBranchIndex` consistente con su contexto local y de cadena de parents. La lógica completa está documentada en el README, sección "Chronometric label-side resolver".
-- **Yield-to-bifurcation fallback**: Una rama lateral nombrada que vive enteramente en `lane 0` (sin representativeIndex propio ni parent con rep) ahora **cede** el lado derecho cuando aparece una bifurcación `-X` activa localmente. Virtualiza su `resolvedBranchIndex` como `+1` para que el label se anchor al lado izquierdo, evitando que se apile con las etiquetas de la rama `-X` que naturalmente van a la derecha.
-- **Parent-branch mapping (`branchParentBranch`)**: Nuevo mapa precomputado que asocia cada rama lateral con la rama de la que nació (la branch del primer parent del commit-origin). Habilita el fallback "rama-padre con rep conocido → mirror" para sub-ramas que viven en `lane 0` y no tienen presencia propia en lanes laterales (`09-TVisualEditor` ← `10-MenuActiveStatus`, `08-DropdownMD` ← `10-MenuActiveStatus`, etc.).
-- **Escalado dinámico de texto en SVG vinculado al setting global "Tamaño de texto"**: Los `fontSize` hardcoded del componente Cronométrico ahora pasan por un helper `fs(base)` que multiplica por un factor según `useGitStore.fontSize` (`compact = 1.0`, `normal = 1.18`, `large = 1.36`). Afecta a labels de commits, badges de rama y telemetría HEAD. El sistema de stagger anti-colisión (`MIN_CLEARANCE`, `BADGE_CLEARANCE_EXTRA`, `MAX_OFFSET`) también escala proporcionalmente para que las etiquetas mantengan separación al crecer el texto.
-- **Badge container escalable**: El `<rect>` del badge de branch (`ORIGIN/FEATURE/...`) ahora calcula su ancho, alto, padding interno y offset vertical en función de `textScale`. El texto deja de salirse del contenedor en `normal` y `large`. Padding interno aumentado de `~11px` por lado a `8px * textScale` para mayor respiro visual.
-- **Detección de "branch attached" para badges en commits remote-only**: El check de qué commits muestran badge ahora reconoce refs que llegan del electron como `"origin/foo"` (sin prefijo `refs/heads/` ni `refs/remotes/`), arreglando que ramas remotas como `origin/10-MenuActiveStatus` no mostraran badge sobre su tip aunque sí lo hicieran en la vista Clásica.
-
-#### Fixed
-
-- **Side jumping en commits intermedios `BranchName: null`**: Commits de `main` que no recibían propagación de nombre desde el tip (intermediarios en una cadena de merges) y caían en `lane 0` con `activeBranchIndices = [0, +X, -X]` resolvían al default `'left'`, apilando sus labels con la columna `+X`. La trunk rule de `labelSideFromBranchIndex` ahora aplica el principio outermost: cuando hay `+X` activo, fuerza `'right'` para escapar de la densidad del ala izquierda.
-- **Inheritence sobreactiva en cadenas largas de sub-ramas (`cronometric/05 → cronometric/04 → ... → 13-MergeConflict`)**: Un walk transitivo previo forzaba al `cronometric/05` a heredar `-1` aunque no hubiera bifurcación local visible, contradiciendo la regla "default LEFT, flip a RIGHT solo en bifurcación". El resolvedor ahora limita el fallback al **parent directo** y delega el flip espacial a la trunk rule, manteniendo el principio de localidad.
-- **Badge inline `ORIGIN/10-MENUACTIVESTATUS` invisible**: La condición de render del inline branch tag dependía exclusivamente de `isBranchOrigin`, que marca el commit más antiguo de una cadena (off-screen para ramas largas). Ahora también renderiza si el commit tiene un branch ref attached (`hasBranchRefAttached`), igualando la convención de la vista Clásica que pinta el badge en el tip.
-- **Resize handles ausentes en paneles flotantes**: El sistema `startColDrag('sidebar' | 'details')` con persistencia a `localStorage` y límites (160–400 px sidebar, 240–560 px details) ya existía desde v1.4.5 pero no tenía handles visuales después de convertir los paneles a flotantes. Restaurado con zonas de 8px en los bordes internos de cada panel (right edge para left panel, left edge para right panel), invisibles por defecto y visibles en hover/active con el accent verde.
-- **Solapamiento badge↔comment adyacente en bifurcaciones densas**: El stagger anti-colisión (`labelOffsets`) ignoraba la altura adicional que ocupa el badge (que protrude `~29px` arriba del comment center). Cuando dos commits adyacentes del mismo lado tenían badges, el comment del más nuevo se pisaba con el badge del más viejo. Agregado `BADGE_CLEARANCE_EXTRA = 30 * textScale` que se suma al `MIN_CLEARANCE` base cuando cualquiera de los vecinos tiene badge.
-
-#### Docs
-
-- Bumped app version to `v1.4.6` in `package.json`.
-- Updated `README.md` with the new section **"Chronometric label-side resolver"** documenting the four-tier cascade, the data structures (`branchRepresentativeIndices`, `branchParentBranch`, `activeBranchIndices`), and the worked examples for the four canonical scenarios (real-trunk commit, nested-on-trunk lateral, anonymous-trunk in bifurcation, nested commit with non-trunk parent).
-- Updated `CHANGELOG.md` with this entry.
-
----
-
-## [v1.4.5] - 2026-05-22 - TCARS HUD Shell: Paneles Flotantes, Fixes de Layout y Correcciones de Labels (Iteración C3)
-
-### Added
-
-- **Floating Overlay Panels (Sidebar & Details)**: Converted the two fixed lateral columns (branch sidebar left, unstaged/staged/commit panel right) from rigid flex columns into absolute-positioned overlays that slide over the graph canvas with `translateX` transitions (300 ms). State (open/closed) and widths persist in `localStorage`. Side-panel controls now live in the glass topbar instead of edge-attached chevron tabs.
-- **HUD Offset Props (`hudLeft` / `hudRight`)**: TCARS panels, bottom dock, and zoom/reset controls use `hudLeft` / `hudRight` pixel offsets passed from `page.tsx`. When a floating panel is open, HUD elements shift inward by exactly the panel width with a matching 0.3 s ease transition, ensuring they are never covered by the overlays.
-- **Responsive Bottom HUD Dock**: Replaced independent bottom HUD absolutes with a container-aware dock for Chrono Depth, Target Telemetry, and zoom/reset controls. The dock keeps one compact row when possible, hides secondary telemetry at medium widths, and stacks cleanly only when the canvas is truly narrow.
-- **Sidebar Footer Controls**: Moved Settings, Help, and Profile/avatar actions from the right side of the topbar into a glass footer at the bottom of the left sidebar, freeing the topbar for primary graph and panel controls.
-
-### Fixed
-
-- **Classic graph safe area with floating side panels**: The classic Git graph now shifts its visible content inward when the branch sidebar or details panel is open, matching the cronométrica behavior so graph rows are no longer covered by overlays.
-- **Inset floating panel polish**: The left and right panels now float with a consistent 12 px canvas inset, rounded borders, glass backdrop, and internal sidebar scrolling so their corners and shadows remain clean while sliding.
-- **Chronometric HUD clipping / bottom cards**: The chronometric viewport keeps clipping only on the interactive pan/zoom canvas while HUD cards live on a non-clipped overlay layer. Bottom telemetry is centered inside the available graph area and uses a lighter translucent backing so the timeline no longer appears cut by opaque panels.
-- **Glass topbar and panel pass**: Repository tabs, the main toolbar, window controls, side panels, empty-state cards, and chronometric HUD cards now use a stronger glass treatment with lower opacity, deeper blur, soft inner highlights, and brighter translucent borders.
-- **Topbar control layout refinement**: Removed the duplicate active repo title from the main toolbar (repo names already live in tabs), moved left/right panel toggles into the topbar, and tightened large toolbar button height so hover states no longer spill outside the floating header.
-- **Responsive bottom HUD card alignment**: Chronometric bottom cards now use elastic grid tracks, compact padding, and hidden secondary labels at smaller widths so cards do not overlap or drift under constrained side-panel safe areas.
-- **Branch label side consistency (Task 3.1)**: `isLeft` now correctly uses the visual lane direction (`branchIndex > 0`) for commits whose branch name was not propagated through `commitBranchNames`. Previously those commits fell into the trunk alternating logic (`chronologicalIndex % 2`), causing nodes on the same lateral branch to flip sides randomly.
-- **Branch badge / comment vertical separation (Task 3.2)**: The branch-name badge at origin nodes is now stacked 13 px above the commit comment (`baseY - 13`) instead of placed horizontally adjacent. Removes the approximate `commentTextWidth` calculation and eliminates overlap at any zoom level.
-- **Outermost Branch Rule (Regla de la Rama Más Externa)**: Re-engineered fanned branch label placement to completely resolve crossings and overlaps by checking the layout dynamically in real-time. Commits on inner branches automatically project their text labels inwards towards the center (ensuring zero crossings over outer branch lines), while only the outermost branches on either fanning wing project their labels outwards.
-- **Hybrid-Dynamic Branch Indexing**: Combined the commit's physical lane coordinates during fanning with the static representative branch index fallback when returning to `Lane 0`. This enables commit labels to seamlessly follow undulating visual curves, crossings, and bends on screen while maintaining lane stability.
-- **Pure Context-Aware Alignment**: Unified the label placement under one clean geometric rule, removing obsolete parent-branch path mapping and recursive lookup overhead.
-- **Bottom HUD strip eliminated**: Panel 04 (Target Telemetry) was previously `flex-1` inside a shared bottom flex row, stretching a dark background across the full canvas width. It is now an independent `absolute bottom-4 left-1/2 -translate-x-1/2 w-[380px]` element — fixed width, no flex expansion, no background strip.
-- **Zoom / Reset controls visibility**: Controls were hidden behind the right floating panel (z-30 > z-20 in the shared stacking context). Extracted from the flex row into their own `absolute bottom-4 right: 16+hudRight` widget that shifts left when the details panel is open.
-- **`overflow-hidden` removed from `#chronometric-container`**: Was clipping the absolute HUD panels when ChronometricGraph's height was computed via the flex-1 chain, causing Panel 01 and Panel 03 to appear stacked at the bottom of the canvas.
-
-### Docs
-
-- Updated `CHANGELOG.md` and `README.md` to reflect C3 changes.
-
----
-
-## [v1.4.4] - 2026-05-22 - Distribución Consistente por Rama y Tags de Origen Inline (Iteraciones C2.2 & C2.3)
-
-### Added
-
-- **Symmetrical Wing Comment Grouping**: Configured comments on lateral fanned branches to reside strictly on their fanning side (left wing for left branches, right wing for right branches) to form organized, clean vertical columns of text, leaving alternating symmetry strictly for the main trunk (`main`/`master`).
-- **Hashed Wing Selection for Trunk-Lanes**: Calculated a stable string hash algorithm on lateral branch names drawn directly on `lane = 0` (such as active feature branches) to deterministically assign their comments to a single wing (left/right) cleanly.
-- **High-Fidelity Inline Branch Tags**: Integrated custom-sized branch segment origin badges (e.g. `FEATURE/TCARS-HUD-SHELL`) drawn dynamically to the left of the comment text for the first commit of any lateral branch segment, shifting subsequent text columns correctly to prevent overlaps.
-- **Perfect Retro-Lane Branch Propagation**: Engineered a backward lane-aware propagation algorithm (`commitBranchNames`) that traces active branch names from HEAD/tip refs down along first-parent lanes, assigning correct names to every single intermediate node.
-- **Robust Local Origin Detection**: Swapped scroll/filtering-dependent global check hooks for a localized check (`node.isBranchOrigin`), verifying whether a lateral branch node has any parent on the same branch.
-- **Clean SVG Loop Unification**: Deprecated and purged obsolete component-level variables (`branchOrigins`, `branchNamesMap`), binding the SVG overlay map directly to `projectedCommits` precalculates (`node.isLeft`, `node.isBranchOrigin`, `node.branchName`) with flawless compilation.
-
-### Docs
-
-- Bumped the app version to `v1.4.4` in `package.json`.
-- Updated `README.md` with version badge, installation filename updates, and new fanning/inline features.
-
----
-
-## [v1.4.3] - 2026-05-22 - Refinamientos Visuales y Distribución Espacial HUD (Iteración C2.1)
-
-### Added
-
-- **Left-Wing Active Branch Ref Badges**: Replaced oldest-commit origin logic with prominent HUD tactical branch badges rendered for any commit possessing a local branch reference (`refs/heads/*`), always aligned vertically on the left wing (`baseX + nx * 75`) with dotted connectors back to the node to ensure all branches are perfectly visible.
-- **Symmetrical Commits & Sign Corrected Direction**: Restored proper left/right comment symmetry along the chronometric diagonal based on true normal coordinates (`branchIndex > 0` for left-wing, `branchIndex < 0` for right-wing).
-- **Anti-Collision Commit-Branch Rules**: Forced comment overlays to the right wing on any node rendering a left branch badge, establishing total visual clarity and absolute separation.
-- **Uniform Dotted Connectors & HEAD Tag Offset**: Standardized all comment dotted connectors to exactly `35px` and fanned satellite tags by `tagIndex * 45` along the parallel timeline direction `(ux, uy)`. For HEAD tags, applied a `-50px` offset along the parallel direction to completely isolate tags from the HEAD telemetry stack.
-- **Snug Symmetrical Satellite Tags**: Redesigned satellite tags using exact character width estimations (`tagName.length * 4.5 + 8`), text anchoring centered (`textAnchor="middle"`), and dominant baseline centering (`dominantBaseline="central" y={0}`) for a perfect, tight `4px` padding on both edges.
-- **TypeScript & Vitest Validation**: Fully compiled with 0 type errors and passed all 26 vitest test suites successfully.
-
-### Docs
-
-- Bumped the app version to `v1.4.3` in `package.json`.
-- Updated the walkthrough for C2.1 visual and spatial refinements.
-
----
-
-## [v1.4.2] - 2026-05-22 - Instrumentación Semántica y HUD / Shell TCARS (Vistosa Carcasa Operacional)
-
-### Added
-
-- **HUD / Shell TCARS System (C2 Block)**: Integrated a static, non-interactive vector overlay layer (`z-10` and `z-20` layers) that wraps the infinite canvas in highly polished curved borders, concentric circular coordinate grids, declination angular ticks (`000°` to `315°`), and projection metrics (`AZIMUTH // 40.4°`, `DECLINATION // 0.85`).
-- **Four React Operational HUD Panels**:
-  - **Panel 01 (Nav System)**: Renders active repository name, local absolute path, current branch, and operational mode with a slow breathing status light.
-  - **Panel 02 (Sync Telemetry)**: Monitors Ahead/Behind counters, dirty files counters segmented by modification status (`MOD`, `ADD`, `DEL`), stashes count, and submodules.
-  - **Panel 03 (Chrono & Radar)**: Lists total nodes loaded, absolute calendar timeline span, and renders an animated sweeping circular radar scope.
-  - **Panel 04 (Target Telemetry)**: Dynamically lock-identifies the selected node showing commit hash, message, parent hash, exact author, date, and copy quick actions; pulses in an active seeking loop when idle.
-- **GPU-Accelerated Micro-Animations**: Introduced custom breathing transitions (`hud-breath` at 5s cycles) and sweeping animations (`radar-sweep` at 12s cycles) completely decoupled from canvas gestures to guarantee a fluid 60+ FPS experience.
-- **Symmetrical Staggered Timeline Labels (Layout Anticolisión V2)**: Upgraded the layout to a highly robust 3-level stagger layout (`35px`, `70px`, and `105px` perpendicular offsets) based on chronological index modular arithmetic (`chronologicalIndex % 3`) to completely eliminate any horizontal or vertical overlap along the diagonal timeline.
-- **Temporal Separation Compression**: Reduced linear time weight to 5% and index weight to 95% in the hybrid math module (`lib/chronometric-projection.ts`) to compress overly long diagonal separations during periods of developer inactivity.
-- **Commit Message Full Rendering**: Removed message truncation (`substring(0, 24)...`) on normal and HEAD commit nodes so messages are displayed completely in this chronological view.
-- **Merge Arrow Directions**: Rotated merge arrowhead graphics by 180 degrees (`rotate(${mid.angle + 180})`) to point forward in time (upward/rightward) towards child commits.
-- **Responsive Target Telemetry Panel**: Introduced class `hud-target-panel` and media query layout rules under 1200px to reposition the bottom-center Panel 04 to the right of Panel 03, resolving card collisions on narrow screens.
-- **Directional HUD Separation (Left/Right Layout)**: Optimized spatial arrangement by projecting Git tags as outer satellite badges to the top-left (using the `(nx, ny)` vector normal), while committing all text telemetry lines, branch names, and hashes to the bottom-right (along `(rx, ry)`).
-- **Floating Fork Triangles (Branch Start Indicators)**: Added external double-triangles that float cleanly at a `20px` to `28px` offset to clearly demarcate where a new branch starts, completely decoupled from the 10.5px commit circles to avoid any geometric overlaps.
-- **Static HEAD Telemetry Stack**: Eliminated Next.js SWC build-time closures optimizer bug by computing HEAD vertical coordinates statically, rendering branch info, track state, and commit hash in a perfectly stacked vertical HUD list.
-- **Aesthetic and HUD Layout Refinements**:
-  - **Unified Flex Layout**: Wrapped Panel 03, Panel 04, and zoom controls in a bottom flex container to prevent overlap on narrow viewports.
-  - **Side-Specific Commit & HEAD Telemetry Stack**: Project commit labels on the left of the timeline for left-side branches (and alternating main lane commits), and on the right for right-side branches, with appropriate text alignments (`start`/`end`).
-  - **Left-Hand Branch Origin Badges**: Placed branch names inside tactical, high-fidelity HUD-style badges on the left of the timeline, featuring dynamic widths and right vertical highlights.
-  - **Short Uniform Connector Lines**: Enforced a clean, uniform distance of exactly 35px for all normal and HEAD commit connector dotted lines.
-  - **Compact Satellite Tags**: Recalibrated text and container bounds of tags to guarantee a perfectly symmetrical 4px padding on both sides.
-
-
-### Docs
-
-- Bumped the app version to `v1.4.2` in `package.json`.
-- Updated the README version badge, architecture list, and features guide.
-- Added comprehensive walkthrough for the C2 HUD/Shell operational capabilities in the workspace brain.
-
----
-
-## [v1.4.1] - 2026-05-22 - Pan & Zoom Cronométrico (Infinite Canvas Viewport)
-
-### Added
-
-- **Lienzo Infinito 2D (Interactive Canvas Viewport)**: Replaced the standard horizontal/vertical overflow wrapper in the Chronometric Graph with a full interactively scrollable infinite 2D canvas with customizable cursors (`cursor-grab` and `cursor-grabbing`).
-- **Arrastre por Mouse (Click & Drag Pan)**: Drag anywhere on the Chronometric Graph to pan smoothly in both vertical and horizontal planes. Event listeners are dynamically bound to the `window` during active dragging to guarantee absolute panning stability even when the cursor leaves the window bounds.
-- **Zoom Anclado al Cursor (Cursor-Anchored Scroll Wheel Zoom)**: Integrated cursor-anchored scaling by recalculating viewport offsets instantly as the user scrolls. Supports scale clamping between `0.25x` and `3.5x`.
-- **Límites de Contención (Viewport Bounds Containment)**: Implemented automatic boundaries clamping to prevent the timeline graph from completely sliding out of the viewport.
-- **Inclinación Visual Ascendente (Pronounced Diagonal Slope)**: Exposed a configurable constant `DEFAULT_CHRONOMETRIC_SLOPE = 0.85` in the math module (producing a ~40.4° rising angle in screen coordinates), transforming the horizontal timeline into a visually striking chronological ascent HUD.
-- **Auto-Centrado Dinámico de Lienzo (Dynamic Viewport Auto-Centering)**: Added an automatic viewport layout measurer to `useCanvasViewport` that instantly centers the ascending diagonal timeline horizontally and vertically on first mount, repository switch, or filter changes, while safely preserving subsequent user panning gestures.
-- **Librería Matemática Viewport (`lib/canvas-viewport.ts`)**: Built a pure, robust coordinate projection library mapping screen coordinates to canvas world coordinates (`screenToWorld`, `worldToScreen`) and resolving viewport boundary constraints.
-- **Comportamiento del Hover Card**: Computed absolute details hover card coordinates using mathematical canvas projections, ensuring that hover elements follow nodes flawlessly under zoom and pan and clamp precisely against container edges.
-- **Controles de Navegación Discretos (Discrete Floating Controls)**: Minimalist, low-profile overlay controls (`+`, `-`, `Reset`) in the bottom-right corner for mouse-driven zoom adjustments and viewport resetting.
-- **Vitest Unit Test Suite**: Comprehensive tests in `lib/__tests__/canvas-viewport.test.ts` covering coordinate projections, anchored scale calculations, limit clamp margins, and boundary constraints; and added test cases in `lib/__tests__/chronometric-projection.test.ts` validating slope angle restrictions.
-
-
-### Docs
-
-- Bumped the app version to `v1.4.1` in `package.json`.
-- Updated the README version badge, architecture list, and features guide.
-
----
-
-## [v1.4.0] - 2026-05-22 - Vista Cronométrica (Chronometric Timeline Layout)
-
-### Added
-
-- **Vista Cronométrica (Chronometric View)**: Integrated an alternative visual representation of the Git graph plotted along an ascending diagonal timeline canvas.
-- **Hybrid Time-Index Scaling**: Designed a mathematical spacing projection in `lib/chronometric-projection.ts` using **30% linear real-world time** and **70% sequential index spacing** to maintain authentic chronological separation while ensuring overlapping commits never collide during periods of dense developer activity.
-- **Fanning Lane Distribution**: Branch lanes scale outward symmetrically relative to their original semantic lanes and grow in width towards the present.
-- **Organic Tangent Connectors**: SVG parent-child connections are rendered as smooth, highway-like cubic tangent Bézier curves aligned parallel to the principal diagonal, avoiding harsh right angles.
-- **Temporal Grid Coordinates**: Intelligent diagonal coordinate grid lines that show date markers (days, months, years) dynamically.
-- **Interactive Nodes & Hover Card**: Circular commit nodes showing author initials with focus scales and a sleek details hover card that aggregates commit info (hash, message, author, date) cleanly.
-- **Segmented UI Toggle & Persistence**: A styled tab control in the main topbar next to the branch filter for instant view toggling, with automatic local persistence saved per repository.
-- **Vitest Unit Test Suite**: Written robust coverage in `lib/__tests__/chronometric-projection.test.ts` verifying projection accuracy, hybrid scaling, and lane translation.
-
-### Docs
-
-- Bumped the app version to `v1.4.0` in `package.json`.
-- Updated the README version badge, installer filenames, and current-version note.
+- *(Ningún cambio en esta versión en el Core - Desarrollo en paralelo en su respectiva rama de feature)*
 
 ---
 
@@ -199,7 +73,7 @@ Changes are listed from newest to oldest.
 
 - *(Ningún cambio en esta versión en el Core - Desarrollo en paralelo en su respectiva rama de feature)*
 
----
+
 ## [v1.3.6] - 2026-05-22 - Session rescue & Viewport-aware context menus
 
 ### Fixed

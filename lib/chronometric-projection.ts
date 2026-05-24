@@ -188,3 +188,51 @@ export function projectCommit(
     baseY,
   };
 }
+
+/**
+ * Decides whether the commit's text label should be positioned on the left or right side.
+ * Supports a dynamic factor: if there are multiple active branches at this chronological step,
+ * their visual left-to-right order determines which side their labels should go to prevent crossing lines.
+ *
+ * - positive branchIndex -> visual left wing
+ * - negative branchIndex -> visual right wing
+ * - 0 branchIndex -> visual center (trunk)
+ */
+export function labelSideFromBranchIndex(
+  branchIndex: number,
+  activeBranchIndices: number[] = [branchIndex],
+  _parentBranchIndex?: number
+): 'left' | 'right' {
+  if (branchIndex > 0) {
+    // If there is any active branch further to the left (larger positive index),
+    // label to the right to avoid crossing its line.
+    const hasBranchFurtherLeft = activeBranchIndices.some(x => x > branchIndex);
+    return hasBranchFurtherLeft ? 'right' : 'left';
+  }
+
+  if (branchIndex < 0) {
+    // If there is any active branch further to the right (more negative index),
+    // label to the left to avoid crossing its line.
+    const hasBranchFurtherRight = activeBranchIndices.some(x => x < branchIndex);
+    return hasBranchFurtherRight ? 'left' : 'right';
+  }
+
+  // For trunk (branchIndex === 0), look at other active branches in that range
+  const lateralActive = activeBranchIndices.filter(x => x !== 0);
+  if (lateralActive.length === 0) {
+    return 'left';
+  }
+
+  const allLeft = lateralActive.every(x => x > 0);
+  if (allLeft) {
+    return 'right'; // trunk is on the right of all active branches
+  }
+
+  const allRight = lateralActive.every(x => x < 0);
+  if (allRight) {
+    return 'left'; // trunk is on the left of all active branches
+  }
+
+  return 'left'; // default/balanced
+}
+

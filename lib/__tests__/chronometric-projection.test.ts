@@ -6,6 +6,7 @@ import {
   projectCommit,
   ProjectionConfig,
   DEFAULT_CHRONOMETRIC_SLOPE,
+  labelSideFromBranchIndex,
 } from '../chronometric-projection';
 
 describe('DEFAULT_CHRONOMETRIC_SLOPE', () => {
@@ -24,18 +25,25 @@ describe('DEFAULT_CHRONOMETRIC_SLOPE', () => {
 });
 
 
-describe('mapLaneToBranchIndex', () => {
-  it('maps sequential lane indices to alternating symmetrical indices', () => {
+describe('mapLaneToBranchIndex — abanico simétrico con signo', () => {
+  it('lane 0 (troncal) -> 0', () => {
     expect(mapLaneToBranchIndex(0)).toBe(0);
+  });
+
+  it('lanes impares abren a la derecha (positivos)', () => {
     expect(mapLaneToBranchIndex(1)).toBe(1);
-    expect(mapLaneToBranchIndex(2)).toBe(-1);
     expect(mapLaneToBranchIndex(3)).toBe(2);
-    expect(mapLaneToBranchIndex(4)).toBe(-2);
     expect(mapLaneToBranchIndex(5)).toBe(3);
   });
 
-  it('handles negative or invalid values gracefully', () => {
-    expect(mapLaneToBranchIndex(-5)).toBe(0);
+  it('lanes pares abren a la izquierda (negativos)', () => {
+    expect(mapLaneToBranchIndex(2)).toBe(-1);
+    expect(mapLaneToBranchIndex(4)).toBe(-2);
+    expect(mapLaneToBranchIndex(6)).toBe(-3);
+  });
+
+  it('lanes negativos defensivos colapsan a la troncal', () => {
+    expect(mapLaneToBranchIndex(-1)).toBe(0);
   });
 });
 
@@ -140,3 +148,64 @@ describe('projectCommit', () => {
     expect(distance).toBeCloseTo(expectedOffset);
   });
 });
+
+describe('labelSideFromBranchIndex — el lado respeta la divergencia y factor dinámico', () => {
+  describe('comportamiento estático (caída por defecto/rama única)', () => {
+    it('troncal (0) va a la izquierda', () => {
+      expect(labelSideFromBranchIndex(0)).toBe('left');
+    });
+    it('abanico positivo va a la izquierda (físico)', () => {
+      expect(labelSideFromBranchIndex(1)).toBe('left');
+      expect(labelSideFromBranchIndex(2)).toBe('left');
+    });
+    it('abanico negativo va a la derecha (físico)', () => {
+      expect(labelSideFromBranchIndex(-1)).toBe('right');
+      expect(labelSideFromBranchIndex(-2)).toBe('right');
+    });
+  });
+
+  describe('comportamiento dinámico (múltiples ramas activas paralelas)', () => {
+    it('troncal (0) con rama a la izquierda (1) -> troncal va a la derecha', () => {
+      expect(labelSideFromBranchIndex(0, [1, 0])).toBe('right');
+      expect(labelSideFromBranchIndex(1, [1, 0])).toBe('left');
+    });
+
+    it('troncal (0) con rama a la derecha (-1) -> troncal va a la izquierda', () => {
+      expect(labelSideFromBranchIndex(0, [0, -1])).toBe('left');
+      expect(labelSideFromBranchIndex(-1, [0, -1])).toBe('right');
+    });
+
+    it('troncal (0) con ramas a ambos lados (1, 0, -1) -> se mantiene centrado a la izquierda', () => {
+      expect(labelSideFromBranchIndex(1, [1, 0, -1])).toBe('left');
+      expect(labelSideFromBranchIndex(0, [1, 0, -1])).toBe('left');
+      expect(labelSideFromBranchIndex(-1, [1, 0, -1])).toBe('right');
+    });
+  });
+
+  describe('divergencia relativa (ramas anidadas/bifurcadas)', () => {
+    it('rama hija a la derecha de la rama padre (p. ej. hijo 0 de padre 1) -> va a la derecha', () => {
+      expect(labelSideFromBranchIndex(0, [0, 1])).toBe('right');
+    });
+
+    it('rama hija a la izquierda de la rama padre (p. ej. hijo 2 de padre 1) -> va a la izquierda', () => {
+      expect(labelSideFromBranchIndex(2, [1, 2])).toBe('left');
+    });
+
+    it('rama hija a la derecha de la rama padre en el ala izquierda (p. ej. hijo 1 de padre 2) -> va a la derecha', () => {
+      expect(labelSideFromBranchIndex(1, [1, 2])).toBe('right');
+    });
+
+    it('rama hija a la derecha de la rama padre en el ala derecha (p. ej. hijo -2 de padre -1) -> va a la derecha', () => {
+      expect(labelSideFromBranchIndex(-2, [-1, -2])).toBe('right');
+    });
+
+    it('rama hija a la izquierda de la rama padre en el ala derecha (p. ej. hijo -1 de padre -2) -> va a la izquierda', () => {
+      expect(labelSideFromBranchIndex(-1, [-1, -2])).toBe('left');
+    });
+
+    it('rama hija a la izquierda de la rama padre en el ala derecha (p. ej. hijo 0 de padre -1) -> va a la izquierda', () => {
+      expect(labelSideFromBranchIndex(0, [0, -1])).toBe('left');
+    });
+  });
+});
+

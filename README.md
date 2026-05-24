@@ -131,6 +131,8 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - *Esta sección documenta de forma aislada las características de la Vista Cronométrica para evitar conflictos de mezcla al trabajar en ramas de desarrollo paralelo (`feature/cronometric`).*
 - **Línea de tiempo cronométrica avanzada**: (Desarrollo en paralelo) Permite visualizar la evolución histórica de las ramas alineadas a su estampa de tiempo real, mejorando la comprensión visual de mezclas y bifurcaciones concurrentes.
 - **Navegación temporal interactiva**: Controles para filtrar y enfocar períodos de actividad específicos, útiles en repositorios con alta densidad de commits diarios.
+- **Regla de la Rama Más Externa (Outermost Branch Rule)**: Algoritmo de posicionamiento de etiquetas auto-adaptativo que resuelve las colisiones y cruces de líneas de forma dinámica. Las ramas internas proyectan automáticamente sus textos hacia el centro (eliminando cruces sobre líneas de ramas externas), mientras que solo la rama más externa de cada ala proyecta hacia afuera.
+- **Indexación Visual Híbrida (Hybrid-Dynamic Branch Indexing)**: Combina las coordenadas visuales del carril físico del commit durante el despliegue lateral (permitiendo que las etiquetas acompañen con fluidez las curvas, ondulaciones y cruces del grafo en tiempo real) con un fallback al índice representativo estático cuando la rama retorna a la línea troncal (`Lane 0`).
 
 ---
 

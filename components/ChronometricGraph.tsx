@@ -8,6 +8,7 @@ import {
   branchToOffset,
   type ProjectionConfig,
   DEFAULT_CHRONOMETRIC_SLOPE,
+  labelSideFromBranchIndex,
 } from '@/lib/chronometric-projection';
 import {
   screenToWorld,
@@ -229,32 +230,26 @@ export function ChronometricGraph({
     return map;
   }, [rows, filteredCommits]);
 
-  // Stable map of branchName -> isLeft via PURE ALTERNATION by appearance order.
-  // Each branch alternates its label side from the previous one, so adjacent
-  // branches (even when both happen to land on the same lateral side of the
-  // trunk) get mirrored labels and never clump on a single side.
-  // main/master are pinned LEFT, so the first new branch goes RIGHT, second LEFT, etc.
-  // All commits of the same branch share the same side.
-  const branchSidesMap = useMemo(() => {
-    const map = new Map<string, boolean>();
-    map.set('main', true);
-    map.set('master', true);
+  // Stable map of branchName -> representativeBranchIndex (non-zero visual divergence index of the branch).
+  // This solves the "lane jumping" issue in computeGraph where a branch's commits jump between lane 0 and a side lane.
+  // By assigning the same visual divergence side to all commits of the same branch, their labels always align
+  // on the physical side that the branch visually diverges to.
+  const branchRepresentativeIndices = useMemo(() => {
+    const map = new Map<string, number>();
 
-    // Process oldest → newest so "order of appearance" is chronological
-    const ordered = [...rows].reverse();
-    let nextSide = false; // RIGHT (main/master already LEFT)
-
-    for (const row of ordered) {
-      const name = commitBranchNames.get(row.commit.hash);
-      if (!name || map.has(name)) continue;
-      map.set(name, nextSide);
-      nextSide = !nextSide;
-    }
+    rows.forEach((row) => {
+      const branchName = commitBranchNames.get(row.commit.hash);
+      if (branchName && branchName !== 'main' && branchName !== 'master') {
+        const bIndex = mapLaneToBranchIndex(row.lane);
+        if (bIndex !== 0 && !map.has(branchName)) {
+          map.set(branchName, bIndex);
+        }
+      }
+    });
 
     return map;
   }, [rows, commitBranchNames]);
-
-  // 5. Pre-calculate projected commit coordinates
+  // 5. Pre-calculate projected commit coordinates
   const projectedCommits = useMemo(() => {
     const commitIndexMap = new Map<string, number>();
     filteredCommits.forEach((c, idx) => commitIndexMap.set(c.hash, idx));
@@ -281,13 +276,22 @@ export function ChronometricGraph({
         !row.commit.parents.some(parentHash => commitBranchNames.get(parentHash) === branchName)
       );
 
-      // Comment side: pure branch-driven alternation. All commits of the same
-      // branch get the same side, and the side comes from branchSidesMap which
-      // assigns LEFT/RIGHT alternating by order of appearance — ensuring that
-      // adjacent branches never collapse their labels onto a single side.
-      const isLeft = branchName
-        ? branchSidesMap.get(branchName) ?? true
-        : true;
+      // Hybrid branch index: use the physical branchIndex if it's lateral (non-zero)
+      // to perfectly follow physical undulations/lane crossings on the screen.
+      // Fall back to the branch's static representative index only if it temporarily jumps to the trunk (Lane 0)
+      // to keep label placement stable.
+      let resolvedBranchIndex = branchIndex;
+      if (resolvedBranchIndex === 0 && branchName && branchRepresentativeIndices.has(branchName)) {
+        resolvedBranchIndex = branchRepresentativeIndices.get(branchName)!;
+      }
+
+      // El lado de la etiqueta se DERIVA de resolvedBranchIndex y el factor dinámico de las ramas activas:
+      // Si hay bifurcación en este commit (múltiples ramas activas), se ordenan visualmente de izquierda a derecha
+      // y se divide la pantalla en dos mitades (la mitad izquierda rotula a la izquierda, la derecha a la derecha).
+      // Esto evita que las líneas conectoras del HUD se crucen de un lado a otro cuando hay bifurcaciones paralelas.
+      const activeLanes = [row.lane, ...row.activeLanes.map(al => al.lane)];
+      const activeBranchIndices = activeLanes.map(mapLaneToBranchIndex);
+      const isLeft = labelSideFromBranchIndex(resolvedBranchIndex, activeBranchIndices) === 'left';
 
       return {
         ...row,
@@ -303,7 +307,7 @@ export function ChronometricGraph({
         originalIndex: i, // index in the original rows array
       };
     });
-  }, [rows, filteredCommits, config, commitBranchNames, branchSidesMap]);
+  }, [rows, filteredCommits, config, commitBranchNames, branchRepresentativeIndices]);
 
   // Create a quick lookup map of commit hash -> projected node info
   const projectedLookup = useMemo(() => {

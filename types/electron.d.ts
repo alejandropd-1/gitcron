@@ -30,6 +30,7 @@ export interface StatusFile {
   status: 'modified' | 'added' | 'deleted' | 'untracked' | 'renamed';
   staged: boolean;
   oldPath?: string;
+  conflicted?: boolean;
 }
 
 export interface BranchTrackingInfo {

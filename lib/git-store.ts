@@ -24,6 +24,7 @@ export interface GitFile {
   status: 'modified' | 'added' | 'deleted' | 'untracked' | 'renamed';
   staged: boolean;
   oldPath?: string;
+  conflicted?: boolean;
 }
 
 export interface RepoState {

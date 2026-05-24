@@ -526,6 +526,7 @@ export default function GitCronPage() {
   } = useGitStore();
 
   const {
+    resolveConflict,
     commitChanges, mergeBranch, revertCommit, stashChanges,
     discardFileChanges, stageFile, stageFiles, removeIndexLock,
     checkoutBranch, checkoutBranchSmart, createBranch, pushChanges, pullChanges,
@@ -2056,6 +2057,39 @@ export default function GitCronPage() {
                   {selectedFile.status.toUpperCase()}
                 </span>
               </div>
+              {selectedFile.conflicted && (
+                <div className="mx-4 mt-3 p-4 bg-[#12273c]/80 backdrop-blur-md border border-[#fd9d1a]/30 rounded-xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="text-[#fd9d1a] shrink-0 mt-0.5" size={20} />
+                    <div>
+                      <h4 className="font-bold text-[#d9e7fc] text-sm">Este archivo tiene conflictos de fusión</h4>
+                      <p className="text-xs text-[#9eacc0] mt-0.5 leading-relaxed">
+                        Elegí qué cambios conservar para resolver el conflicto al instante, o editalo manualmente en tu IDE y stagealo.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={async () => {
+                        await resolveConflict(selectedFile.path, 'ours');
+                        handleCloseDiff();
+                      }}
+                      className="px-3 py-1.5 bg-[#a3f185]/20 hover:bg-[#a3f185] hover:text-[#052900] text-[#a3f185] text-xs font-bold rounded-lg border border-[#a3f185]/40 transition-all active:scale-[0.98]"
+                    >
+                      Aceptar Local (HEAD)
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await resolveConflict(selectedFile.path, 'theirs');
+                        handleCloseDiff();
+                      }}
+                      className="px-3 py-1.5 bg-[#5ed8ff]/20 hover:bg-[#5ed8ff] hover:text-[#020f1e] text-[#5ed8ff] text-xs font-bold rounded-lg border border-[#5ed8ff]/40 transition-all active:scale-[0.98]"
+                    >
+                      Aceptar Entrante (Merge)
+                    </button>
+                  </div>
+                </div>
+              )}
               <DiffViewer diff={currentDiff} filePath={selectedFile.path} />
             </div>
           ) : activeTab === 'History' ? (
@@ -4032,6 +4066,7 @@ function StagingFileRow({
         size={14}
         className={cn(
           'shrink-0',
+          file.conflicted ? 'text-[#ff716c]' :
           file.status === 'modified' ? 'text-[#fd9d1a]' :
           file.status === 'added' ? 'text-[#a3f185]' :
           file.status === 'renamed' ? 'text-[#5ed8ff]' :
@@ -4052,6 +4087,7 @@ function StagingFileRow({
       <div
         className={cn(
           'w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold shrink-0',
+          file.conflicted ? 'bg-[#ff716c]/20 text-[#ff716c] border border-[#ff716c]/40 animate-pulse' :
           file.status === 'modified' ? 'bg-[#fd9d1a]/20 text-[#fd9d1a]' :
           file.status === 'added' ? 'bg-[#a3f185]/20 text-[#a3f185]' :
           file.status === 'renamed' ? 'bg-[#5ed8ff]/20 text-[#5ed8ff]' :
@@ -4059,7 +4095,7 @@ function StagingFileRow({
           'bg-[#ff716c]/20 text-[#ff716c]',
         )}
       >
-        {file.status[0].toUpperCase()}
+        {file.conflicted ? '!' : file.status[0].toUpperCase()}
       </div>
     </div>
   );

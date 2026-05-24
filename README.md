@@ -38,7 +38,9 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 
 ## What GitCron does today
 
-### Repositories
+### 🟢 Core & Vista Clásica (Classic View) - Estable
+
+#### Repositories
 
 - Open any existing Git repo from a native OS dialog.
 - Create a new repo locally, including **intelligent initialization inside non-empty folders** without losing files or overwriting local content.
@@ -49,7 +51,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Restore open repos and the active tab automatically on app launch.
 - Use the `+` tab action to open the same central chooser for open / create / clone.
 
-### History and graph
+#### History and graph
 
 - SVG commit graph with stable branch colors.
 - Current branch always highlighted in neon green.
@@ -70,7 +72,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Floating Overlay Panels**: Both the branch sidebar (left) and the staging/commit panel (right) float as absolute overlays over the graph canvas with slide transitions (300 ms). Open/closed state and widths persist in `localStorage`. Topbar panel buttons open/close each side, while graph safe areas and TCARS HUD offsets keep content from being covered.
 
 
-### Staging and commits
+#### Staging and commits
 
 - Separate unstaged and staged sections.
 - **Auto-refresh of the UNSTAGED panel** when files change on disk: a `chokidar` watcher in the main process emits `repo:fs-change` over IPC (debounced 250 ms in main + 150 ms in renderer). A window `focus` listener provides a fallback when the watcher misses an event. Watches ignore `.git`, `node_modules`, `.next`, `dist`, `release`, and `out`.
@@ -82,7 +84,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Reset all with confirmation.
 - Recovery action for `index.lock` errors.
 
-### Branches
+#### Branches
 
 - Branch tree grouped by prefixes like `feature/` or `claude/`.
 - Ahead / behind counts in the sidebar.
@@ -93,8 +95,10 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Cherry-pick a single commit onto the current branch from the commit context menu, with conflict-aware feedback.
 - Per-file stash and full working-tree stash.
 - Clear-all stash action with confirmation.
+- **Remote branch checkout**: Double-clicking a remote branch in the sidebar or right-clicking to use the new `RemoteBranchContextMenu` will automatically download it as a local tracking branch (using `git checkout -t`) or switch to it if it already exists, featuring custom pointers and hover guides.
+- **Premium Conflict Resolver Card**: Displays a glassy, high-fidelity HSL gradient card in the Diff Viewer when a selected file has merge or rebase conflicts, allowing the user to resolve the file completely with a single click ("Aceptar Local (HEAD)" or "Aceptar Entrante (Merge)") or providing instructions for side-by-side editing in their IDE.
 
-### GitHub
+#### GitHub
 
 - OAuth Device Flow login, similar to `gh auth login`.
 - Manual personal access token fallback.
@@ -103,7 +107,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Pull requests list in the sidebar for the current repo, with an in-app unified diff view.
 - Private repo clone support after login.
 
-### UX
+#### UX
 
 - Success and error toasts for the main Git actions.
 - Search moved to a toolbar button with `Ctrl + Alt + F`.
@@ -121,6 +125,12 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Auto-update now stays inside the app UI: a version-tag dot announces updates, the tag opens the download dropdown, progress stays beside the GitHub releases icon, and `UPDATE` appears there when the download is ready.
 - Startup polish: the Electron splash now shows the GitCron icon with subtle geometric animation, stays visible long enough to avoid first-paint flicker, and the Graph fades in after initial repo data is ready.
 - Spanish and English UI strings.
+
+### 🟣 Vista Cronométrica (Chronometric View) - En Desarrollo / Experimental
+
+- *Esta sección documenta de forma aislada las características de la Vista Cronométrica para evitar conflictos de mezcla al trabajar en ramas de desarrollo paralelo (`feature/cronometric`).*
+- **Línea de tiempo cronométrica avanzada**: (Desarrollo en paralelo) Permite visualizar la evolución histórica de las ramas alineadas a su estampa de tiempo real, mejorando la comprensión visual de mezclas y bifurcaciones concurrentes.
+- **Navegación temporal interactiva**: Controles para filtrar y enfocar períodos de actividad específicos, útiles en repositorios con alta densidad de commits diarios.
 
 ---
 
@@ -262,25 +272,27 @@ gitCronos/
 
 ## Roadmap
 
-### Tier 1
+### 🟢 Core & Vista Clásica (Classic View) - Estable
+
+#### Tier 1
 
 - [x] Auto-fetch in the background with configurable intervals.
 - [x] Default folder for open / clone dialogs.
 - [x] Filter graph commits by branch.
 
-### Tier 2
+#### Tier 2
 
 - [x] Electron builder packaging — Windows (NSIS), macOS (DMG), Linux (AppImage).
 - [ ] Windows / macOS code signing.
 - [x] Auto-update flow.
 
-### Tier 3
+#### Tier 3
 
 - [x] OS notifications for long push / pull operations.
 - [x] Configurable keyboard shortcuts.
 - [x] Light theme (experimental).
 
-### Future
+#### Future / Reciente
 
 - [x] Amend last commit (v0.1.7).
 - [x] Cherry-pick from context menu (v0.1.7).
@@ -289,10 +301,21 @@ gitCronos/
 - [ ] GitLab / Bitbucket support.
 - [x] Pull request diff view (v1.2.0).
 - [ ] Interactive rebase (reorder / drop / reword).
-- [ ] Visual conflict resolver for merge/rebase: compare both sides of a conflicted file and accept A / B per block before writing the merged result.
+- [x] Remote branch checkout (v1.3.7).
+- [x] Premium Conflict Resolver Card (v1.3.7).
 - [ ] Local AI via LM Studio for commit messages, changelog drafting, project-history notes, and other offline writing helpers.
 - [ ] Upgrade Next.js beyond 15.4.x (currently pinned — verify Electron + Tailwind 4 compatibility before bumping).
 - [x] Remove token-bearing temporary `origin` URLs from authenticated Git operations (v1.2.0).
+
+---
+
+### 🟣 Vista Cronométrica (Chronometric View) - En Desarrollo / Experimental
+
+#### Core & Timeline Engine
+- [ ] Representación visual alternativa de los commits enfocada en su estampa temporal real.
+- [ ] Navegación temporal interactiva para filtrar períodos de actividad específicos.
+- [ ] Diseño responsivo y fluidas micro-animaciones en la línea de tiempo.
+- [ ] Comparación de ramas y estados históricos alineados cronológicamente.
 
 ---
 
@@ -351,7 +374,8 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-`v1.4.5` - see [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) for recent changes.
+- **Core & Vista Clásica (Estable)**: `v1.3.7` - ver [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) para más detalles.
+- **Vista Cronométrica (Experimental)**: `v1.4.5` - *(En desarrollo en la rama paralela `Cronometric` / `feature/cronometric`)*
 
 ---
 

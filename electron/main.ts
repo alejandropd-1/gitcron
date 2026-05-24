@@ -1163,12 +1163,28 @@ ipcMain.handle('github:get-pr-diff', async (_event, token: string, targetPath: s
 
 ipcMain.handle('git:checkout', async (_event, targetPath: string, branch: string) => {
   try {
-    await simpleGit(targetPath).checkout(branch);
+    const g = simpleGit(targetPath);
+    const remotes = await g.branch(['-r']);
+    if (remotes.all.includes(branch)) {
+      const slashIdx = branch.indexOf('/');
+      const localName = slashIdx !== -1 ? branch.substring(slashIdx + 1) : branch;
+      const localResult = await g.branchLocal();
+      const existsLocally = localResult.all.includes(localName);
+      if (existsLocally) {
+        await g.checkout(localName);
+      } else {
+        await g.checkout(['-t', branch]);
+      }
+      return { success: true, data: { checkedOut: localName } };
+    }
+
+    await g.checkout(branch);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: errMsg(error) };
   }
 });
+
 
 ipcMain.handle('git:create-branch', async (_event, targetPath: string, name: string, fromHash?: string) => {
   try {

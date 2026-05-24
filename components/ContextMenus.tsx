@@ -183,3 +183,37 @@ export function FileContextMenu({
   );
 }
 
+export function RemoteBranchContextMenu({
+  x, y, branch,
+  onCheckout, onCopyName, onCreateFrom, onClose,
+}: {
+  x: number; y: number; branch: string;
+  onCheckout: () => void; onCopyName: () => void;
+  onCreateFrom: () => void; onClose: () => void;
+}) {
+  const { ref, coords, isMeasured } = useAdjustedPosition(x, y);
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: isMeasured ? 1 : 0, scale: isMeasured ? 1 : 0.95 }}
+      className="fixed bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-lg shadow-2xl py-1 z-[100] w-72"
+      style={{
+        left: coords.left,
+        top: coords.top,
+        visibility: isMeasured ? 'visible' : 'hidden',
+      }}
+    >
+      <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-[#697789] border-b border-[#3c495a]/15 truncate">{branch}</div>
+      <ContextMenuItem onClick={onCheckout} text="Checkout (descargar localmente)" />
+      <div className="h-px bg-[#3c495a]/15 my-1" />
+      <ContextMenuItem onClick={onCreateFrom} text="Crear nueva branch desde acá" />
+      <div className="h-px bg-[#3c495a]/15 my-1" />
+      <ContextMenuItem onClick={onCopyName} text="Copiar nombre" textSecondary="Ctrl+C" />
+      <ContextMenuItem onClick={onClose} text="Cerrar" />
+    </motion.div>
+  );
+}
+
+

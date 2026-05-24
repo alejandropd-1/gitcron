@@ -133,6 +133,128 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Navegación temporal interactiva**: Controles para filtrar y enfocar períodos de actividad específicos, útiles en repositorios con alta densidad de commits diarios.
 - **Regla de la Rama Más Externa (Outermost Branch Rule)**: Algoritmo de posicionamiento de etiquetas auto-adaptativo que resuelve las colisiones y cruces de líneas de forma dinámica. Las ramas internas proyectan automáticamente sus textos hacia el centro (eliminando cruces sobre líneas de ramas externas), mientras que solo la rama más externa de cada ala proyecta hacia afuera.
 - **Indexación Visual Híbrida (Hybrid-Dynamic Branch Indexing)**: Combina las coordenadas visuales del carril físico del commit durante el despliegue lateral (permitiendo que las etiquetas acompañen con fluidez las curvas, ondulaciones y cruces del grafo en tiempo real) con un fallback al índice representativo estático cuando la rama retorna a la línea troncal (`Lane 0`).
+- **Resolvedor de lado de etiqueta multinivel (v1.4.6)**: Cascada de cuatro reglas en orden de especificidad que decide a qué lado se proyecta la etiqueta de cada commit según el contexto local + la cadena de parents. Detalle técnico completo en la sección **"Chronometric label-side resolver"** más abajo.
+- **Yield-to-bifurcation fallback (v1.4.6)**: Sub-ramas nombradas que viven en `lane 0` ceden el lado derecho cuando aparece una bifurcación `-X` activa, evitando que sus labels se apilen con los del ala derecha.
+- **Texto cronométrico escalable con setting global (v1.4.6)**: El control "Tamaño de texto" (`compact` / `normal` / `large`) del modal de Configuración ahora también escala los `fontSize` SVG de la vista Cronométrica (factor `1.0` / `1.18` / `1.36`), incluyendo labels de commits, badges de rama y telemetría HEAD. El sistema anti-colisión (`MIN_CLEARANCE`, `BADGE_CLEARANCE_EXTRA`, `MAX_OFFSET`) y el badge container (`<rect>` width/height/padding) escalan proporcionalmente.
+- **Badge para tips de ramas remotas (v1.4.6)**: El detector de "branch ref attached" reconoce ahora refs en el formato corto que entrega electron (`origin/X`, sin prefijos `refs/heads/`), de modo que ramas remote-only pintan su badge sobre el commit-tip igual que la vista Clásica.
+- **Resize en paneles flotantes (v1.4.6)**: Restaurados los handles de redimensionamiento en los bordes internos de los paneles flotantes izquierdo y derecho. Zonas de 8 px de ancho invisibles por defecto y resaltadas en verde al hover/active. Anchos persistidos en `localStorage` con límites (sidebar `160–400 px`, details `240–560 px`).
+
+---
+
+## Chronometric label-side resolver
+
+Documentación dedicada del algoritmo que decide a qué lado se proyectan los labels de commits en la **Vista Cronométrica**. Esta sección complementa los apartados "Regla de la Rama Más Externa" y "Indexación Visual Híbrida", documentando la cascada completa que se aplica a partir de v1.4.6.
+
+### Marco geométrico
+
+- La línea troncal corre en diagonal ascendente desde abajo-izquierda hacia arriba-derecha (`DEFAULT_CHRONOMETRIC_SLOPE = 0.85`, ángulo ≈ 40.4°).
+- Cada commit recibe un `branchIndex` derivado del lane que el motor clásico (`computeGraph` en `lib/chronometric-projection.ts`) le asignó (`mapLaneToBranchIndex`: lane 0 → `0`, lane 1 → `+1`, lane 2 → `-1`, lane 3 → `+2`, lane 4 → `-2`, …).
+- Indices positivos → ala visual **izquierda** (offset perpendicular arriba-izquierda del troncal). Indices negativos → ala visual **derecha** (offset perpendicular abajo-derecha).
+- Cada label tiene dos posibles direcciones de proyección desde su nodo: `'left'` (vector perpendicular `(nx, ny)` que va arriba-izquierda) o `'right'` (`(rx, ry) = -(nx, ny)`, abajo-derecha).
+
+### Estructuras de datos precomputadas
+
+Antes de decidir el lado de cada commit, `ChronometricGraph` precalcula tres mapas en `useMemo`:
+
+1. **`commitBranchNames: Map<commitHash, branchName | null>`** — Asigna a cada commit el nombre de la rama a la que pertenece, propagando hacia atrás por la cadena de first-parents desde cada ref. Los commits intermedios de `main` que no reciben propagación quedan con `null`.
+2. **`branchRepresentativeIndices: Map<branchName, branchIndex>`** — Para cada rama lateral (no `main`/`master`), guarda el primer `branchIndex` no-cero que la rama ocupó en algún commit. Una rama que solo vive en `lane 0` no recibe entrada.
+3. **`branchParentBranch: Map<branchName, parentBranchName>`** — Asocia cada rama con la rama de la que nació (la `branchName` del primer parent del commit que originó la rama). Permite el fallback "mi rama padre tiene rep conocido → espejo".
+
+Adicionalmente, en cada fila se computa **`activeBranchIndices`** — la lista de `branchIndex` activos en esa fila (incluyendo el propio lane y los `activeLanes` paralelos reportados por `computeGraph`).
+
+### Cascada del resolvedor (en orden de evaluación)
+
+Dado un commit con `branchIndex`, `branchName` y `activeBranchIndices`, se computa un `resolvedBranchIndex` que luego se pasa a `labelSideFromBranchIndex` para obtener el lado final (`'left'` o `'right'`).
+
+```text
+resolvedBranchIndex = branchIndex  // por defecto
+
+si (branchIndex === 0  Y  branchName  Y  branchName ≠ 'main' Y branchName ≠ 'master'):
+
+    [Tier 1] Direct rep:
+        si (branchRepresentativeIndices.has(branchName)):
+            resolvedBranchIndex = branchRepresentativeIndices.get(branchName)
+            → "El commit saltó temporalmente a lane 0 pero su rama vive en +1/-1 normalmente.
+               Lo anclamos a la misma flanca que el resto de su rama para no romper la columna."
+
+    [Tier 2] Parent fallback (mirror):
+        sino si parentBranch = branchParentBranch.get(branchName) Y branchRepresentativeIndices.has(parentBranch):
+            resolvedBranchIndex = -branchRepresentativeIndices.get(parentBranch)
+            → "Mi rama vive en lane 0 pero mi rama-padre vive en +X. Para no chocar con la línea
+               de mi padre, ESPEJO al lado opuesto."
+
+    [Tier 3] Yield-to-bifurcation:
+        sino si activeBranchIndices contiene algún x < 0:
+            resolvedBranchIndex = 1  // virtualizo como +1 → labelSide retorna 'left'
+            → "Soy una rama lateral nombrada pisando el troncal, sin rep propio ni parent con rep.
+               Hay otra rama -X activa que naturalmente proyecta a la derecha → cedo y me voy a la
+               izquierda para no apilarme con sus labels."
+
+// Tier 4 está dentro de labelSideFromBranchIndex y aplica a TODO commit que llegue a esa función
+// (incluyendo los que no entraron a la cascada superior porque branchName era null/main/master).
+```
+
+Luego se llama `labelSideFromBranchIndex(resolvedBranchIndex, activeBranchIndices)`:
+
+```text
+[Tier 4] Outermost-branch + trunk rule:
+
+    si resolvedBranchIndex > 0 (ala izquierda):
+        si hay otro activeBranchIndex > resolvedBranchIndex (más afuera del ala izq):
+            return 'right'   // soy interior, escapo hacia el centro
+        sino:
+            return 'left'    // soy outermost, proyecto hacia afuera
+
+    si resolvedBranchIndex < 0 (ala derecha):
+        si hay otro activeBranchIndex < resolvedBranchIndex (más afuera del ala der):
+            return 'left'    // soy interior, escapo hacia el centro
+        sino:
+            return 'right'   // soy outermost, proyecto hacia afuera
+
+    si resolvedBranchIndex === 0 (troncal genuino):
+        si lateralActive vacío:
+            return 'left'    // default
+        si algún lateralActive > 0 (cualquier rama en el ala izq):
+            return 'right'   // escapo de la densidad de labels +X
+        si todos los lateralActive < 0:
+            return 'left'    // solo hay ramas en el ala derecha, escapo hacia la izquierda
+```
+
+### Escenarios canónicos
+
+Cuatro situaciones típicas que la cascada resuelve correctamente:
+
+| Caso | Ejemplo real | `branchName` | `branchIndex` | `activeBIdx` | Tier que aplica | `resolvedBranchIndex` | Lado final |
+|---|---|---|---|---|---|---|---|
+| **A. Rama lateral propia en su flanca natural** | `10-MenuActiveStatus` (rep +1) | `10-MenuActiveStatus` | `+1` | `[1, 0, -1]` | (no entra) → Tier 4 (no hay `+2`) | `+1` | `left` |
+| **B. Sub-rama anidada en lane 0 con parent rep** | `09-TVisualEditor` (parent `10-MenuActiveStatus` rep +1) | `09-TVisualEditor` | `0` | `[0, 1, -1]` | Tier 2 (mirror) | `-1` | `right` |
+| **C. Anónimo de troncal entre bifurcaciones** | Commits intermedios de `main` sin ref propagada | `null` | `0` | `[0, 1, -1]` | (no entra) → Tier 4 (`hasPositive`) | `0` | `right` |
+| **D. Rama nombrada en lane 0, sin rep ni parent rep, con -X activo** | `cronometric/04-tcars-hud-shell` (parent chain de ramas en lane 0) | `feature/cronometric/04-...` | `0` | `[0, 1, -1]` | Tier 3 (yield) | `+1` (virtual) | `left` |
+| **D2.** Misma rama, sin -X activo todavía | Antes de la bifurcación | `feature/cronometric/04-...` | `0` | `[0, 1]` | (no entra) → Tier 4 (`hasPositive`) | `0` | `right` |
+
+Notar que los casos **C** y **D** comparten `branchIndex = 0` y `activeBIdx = [0, 1, -1]`, pero el lado final difiere según si la rama está nombrada o no — exactamente la distinción semántica entre "verdadero troncal" (escapa de la densidad) y "sub-rama squatting" (cede a una bifurcación).
+
+### Anti-colisión vertical (stagger)
+
+Una vez decidido el lado, el sistema `labelOffsets` aplica un stagger perpendicular para que labels adyacentes del mismo lado no se solapen:
+
+- `MIN_CLEARANCE = 12 * textScale` — separación vertical mínima entre comments adyacentes.
+- `BADGE_CLEARANCE_EXTRA = 30 * textScale` — extra que se suma cuando cualquiera de los vecinos renderiza un branch badge (el badge protrude ≈29 px arriba del comment center).
+- `MAX_OFFSET = 85 + 30 * (textScale - 1)` — distancia perpendicular máxima antes de aceptar el solape.
+
+Si el offset natural de un commit cae dentro del clearance del vecino más cercano, su offset se incrementa hasta despejar la zona o tocar `MAX_OFFSET`. El stagger procesa los lados de forma asimétrica:
+
+- **LEFT side**: old → new, empujando labels más nuevos hacia arriba-izquierda.
+- **RIGHT side**: new → old, empujando labels más viejos hacia abajo-derecha.
+
+### Renderizado de badges de rama
+
+El inline branch tag (`ORIGIN/<NOMBRE>` arriba del comment del commit-origen o tip) se renderiza si se cumple cualquiera de las dos condiciones:
+
+- `isBranchOrigin === true` — el commit es el origen de la cadena (no tiene parents en la misma rama). Útil para ramas anidadas como `09-TVisualEditor` donde el origin está en pantalla.
+- `hasBranchRefAttached === true` — el commit tiene un ref `branch-like` attached (cualquier entrada en `commit.refs` que no sea `tag:`/`HEAD`/`stash`). Útil para ramas largas donde el origin está off-screen pero el tip sí está visible (caso típico de ramas que vienen desde el inicio del repo).
+
+Los dimensiones del badge `<rect>` (ancho, alto, padding interno, offset vertical sobre el comment) escalan con `textScale` para mantener proporciones a través de los tres niveles `compact` / `normal` / `large`.
 
 ---
 
@@ -377,7 +499,7 @@ After publishing, install the update from GitCron and run one authenticated push
 ## Current version
 
 - **Core & Vista Clásica (Estable)**: `v1.3.7` - ver [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) para más detalles.
-- **Vista Cronométrica (Experimental)**: `v1.4.5` - *(En desarrollo en la rama paralela `Cronometric` / `feature/cronometric`)*
+- **Vista Cronométrica (Experimental)**: `v1.4.6` - *(En desarrollo en la rama paralela `Cronometric` / `feature/cronometric`)*
 
 ---
 

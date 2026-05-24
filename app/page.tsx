@@ -1709,6 +1709,14 @@ export default function GitCronPage() {
             transform: sidebarOpen ? 'translateX(0)' : `translateX(calc(-100% - ${FLOATING_PANEL_INSET * 2}px))`,
           }}
         >
+          {/* Right-edge resize handle */}
+          <div
+            onMouseDown={startColDrag('sidebar')}
+            className="group absolute top-0 right-0 h-full w-2 cursor-col-resize z-40"
+            title="Arrastrar para redimensionar"
+          >
+            <div className="absolute inset-y-3 right-0.5 w-px bg-transparent group-hover:bg-[#a3f185]/45 group-active:bg-[#a3f185]/70 transition-colors" />
+          </div>
           <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin py-2">
           {/* LOCAL — folder tree + ahead/behind chips */}
           <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-[#5ed8ff]" />}>
@@ -2213,6 +2221,14 @@ export default function GitCronPage() {
             transform: detailsOpen ? 'translateX(0)' : `translateX(calc(100% + ${FLOATING_PANEL_INSET * 2}px))`,
           }}
         >
+          {/* Left-edge resize handle */}
+          <div
+            onMouseDown={startColDrag('details')}
+            className="group absolute top-0 left-0 h-full w-2 cursor-col-resize z-40"
+            title="Arrastrar para redimensionar"
+          >
+            <div className="absolute inset-y-3 left-0.5 w-px bg-transparent group-hover:bg-[#a3f185]/45 group-active:bg-[#a3f185]/70 transition-colors" />
+          </div>
           {selectedCommit ? (
             <div className="flex flex-col h-full">
               {/* WIP banner: visible when commit is selected but there are unsaved changes */}

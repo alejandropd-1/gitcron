@@ -4,6 +4,35 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.4.6] - 2026-05-24 - Label-Side Resolver Multinivel, Texto Escalable y Resize de Paneles Flotantes (Iteración C4)
+
+### 🟣 Vista Cronométrica (Chronometric View)
+
+#### Added
+
+- **Resolvedor de lado de etiqueta multinivel (multi-tier label-side resolver)**: Reescribió la decisión de a qué lado proyectar cada commit label como una cascada de cuatro reglas en orden de especificidad creciente (direct rep → parent fallback → yield-to-bifurcation → outermost trunk rule). Cada commit pasa por la primera regla que aplique y obtiene un `resolvedBranchIndex` consistente con su contexto local y de cadena de parents. La lógica completa está documentada en el README, sección "Chronometric label-side resolver".
+- **Yield-to-bifurcation fallback**: Una rama lateral nombrada que vive enteramente en `lane 0` (sin representativeIndex propio ni parent con rep) ahora **cede** el lado derecho cuando aparece una bifurcación `-X` activa localmente. Virtualiza su `resolvedBranchIndex` como `+1` para que el label se anchor al lado izquierdo, evitando que se apile con las etiquetas de la rama `-X` que naturalmente van a la derecha.
+- **Parent-branch mapping (`branchParentBranch`)**: Nuevo mapa precomputado que asocia cada rama lateral con la rama de la que nació (la branch del primer parent del commit-origin). Habilita el fallback "rama-padre con rep conocido → mirror" para sub-ramas que viven en `lane 0` y no tienen presencia propia en lanes laterales (`09-TVisualEditor` ← `10-MenuActiveStatus`, `08-DropdownMD` ← `10-MenuActiveStatus`, etc.).
+- **Escalado dinámico de texto en SVG vinculado al setting global "Tamaño de texto"**: Los `fontSize` hardcoded del componente Cronométrico ahora pasan por un helper `fs(base)` que multiplica por un factor según `useGitStore.fontSize` (`compact = 1.0`, `normal = 1.18`, `large = 1.36`). Afecta a labels de commits, badges de rama y telemetría HEAD. El sistema de stagger anti-colisión (`MIN_CLEARANCE`, `BADGE_CLEARANCE_EXTRA`, `MAX_OFFSET`) también escala proporcionalmente para que las etiquetas mantengan separación al crecer el texto.
+- **Badge container escalable**: El `<rect>` del badge de branch (`ORIGIN/FEATURE/...`) ahora calcula su ancho, alto, padding interno y offset vertical en función de `textScale`. El texto deja de salirse del contenedor en `normal` y `large`. Padding interno aumentado de `~11px` por lado a `8px * textScale` para mayor respiro visual.
+- **Detección de "branch attached" para badges en commits remote-only**: El check de qué commits muestran badge ahora reconoce refs que llegan del electron como `"origin/foo"` (sin prefijo `refs/heads/` ni `refs/remotes/`), arreglando que ramas remotas como `origin/10-MenuActiveStatus` no mostraran badge sobre su tip aunque sí lo hicieran en la vista Clásica.
+
+#### Fixed
+
+- **Side jumping en commits intermedios `BranchName: null`**: Commits de `main` que no recibían propagación de nombre desde el tip (intermediarios en una cadena de merges) y caían en `lane 0` con `activeBranchIndices = [0, +X, -X]` resolvían al default `'left'`, apilando sus labels con la columna `+X`. La trunk rule de `labelSideFromBranchIndex` ahora aplica el principio outermost: cuando hay `+X` activo, fuerza `'right'` para escapar de la densidad del ala izquierda.
+- **Inheritence sobreactiva en cadenas largas de sub-ramas (`cronometric/05 → cronometric/04 → ... → 13-MergeConflict`)**: Un walk transitivo previo forzaba al `cronometric/05` a heredar `-1` aunque no hubiera bifurcación local visible, contradiciendo la regla "default LEFT, flip a RIGHT solo en bifurcación". El resolvedor ahora limita el fallback al **parent directo** y delega el flip espacial a la trunk rule, manteniendo el principio de localidad.
+- **Badge inline `ORIGIN/10-MENUACTIVESTATUS` invisible**: La condición de render del inline branch tag dependía exclusivamente de `isBranchOrigin`, que marca el commit más antiguo de una cadena (off-screen para ramas largas). Ahora también renderiza si el commit tiene un branch ref attached (`hasBranchRefAttached`), igualando la convención de la vista Clásica que pinta el badge en el tip.
+- **Resize handles ausentes en paneles flotantes**: El sistema `startColDrag('sidebar' | 'details')` con persistencia a `localStorage` y límites (160–400 px sidebar, 240–560 px details) ya existía desde v1.4.5 pero no tenía handles visuales después de convertir los paneles a flotantes. Restaurado con zonas de 8px en los bordes internos de cada panel (right edge para left panel, left edge para right panel), invisibles por defecto y visibles en hover/active con el accent verde.
+- **Solapamiento badge↔comment adyacente en bifurcaciones densas**: El stagger anti-colisión (`labelOffsets`) ignoraba la altura adicional que ocupa el badge (que protrude `~29px` arriba del comment center). Cuando dos commits adyacentes del mismo lado tenían badges, el comment del más nuevo se pisaba con el badge del más viejo. Agregado `BADGE_CLEARANCE_EXTRA = 30 * textScale` que se suma al `MIN_CLEARANCE` base cuando cualquiera de los vecinos tiene badge.
+
+#### Docs
+
+- Bumped app version to `v1.4.6` in `package.json`.
+- Updated `README.md` with the new section **"Chronometric label-side resolver"** documenting the four-tier cascade, the data structures (`branchRepresentativeIndices`, `branchParentBranch`, `activeBranchIndices`), and the worked examples for the four canonical scenarios (real-trunk commit, nested-on-trunk lateral, anonymous-trunk in bifurcation, nested commit with non-trunk parent).
+- Updated `CHANGELOG.md` with this entry.
+
+---
+
 ## [v1.4.5] - 2026-05-22 - TCARS HUD Shell: Paneles Flotantes, Fixes de Layout y Correcciones de Labels (Iteración C3)
 
 ### Added

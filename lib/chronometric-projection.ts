@@ -223,14 +223,19 @@ export function labelSideFromBranchIndex(
     return 'left';
   }
 
-  const allLeft = lateralActive.every(x => x > 0);
-  if (allLeft) {
-    return 'right'; // trunk is on the right of all active branches
-  }
+  const hasPositive = lateralActive.some(x => x > 0);
+  const hasNegative = lateralActive.some(x => x < 0);
 
-  const allRight = lateralActive.every(x => x < 0);
-  if (allRight) {
-    return 'left'; // trunk is on the left of all active branches
+  // Apply the outermost branch rule to trunk as well: if any left-wing lateral (+) is active,
+  // the trunk's label is forced to the right to escape that wing's territory and avoid stacking
+  // with the dense column of left-wing labels (each lateral on the left wing labels to the left
+  // by default). This holds even when a right-wing lateral is also active, because the left wing
+  // is where nested branches collide visually most often.
+  if (hasPositive) {
+    return 'right';
+  }
+  if (hasNegative) {
+    return 'left'; // only right-wing laterals → trunk escapes to the left
   }
 
   return 'left'; // default/balanced

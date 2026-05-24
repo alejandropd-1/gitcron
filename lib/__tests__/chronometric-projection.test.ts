@@ -175,9 +175,11 @@ describe('labelSideFromBranchIndex — el lado respeta la divergencia y factor d
       expect(labelSideFromBranchIndex(-1, [0, -1])).toBe('right');
     });
 
-    it('troncal (0) con ramas a ambos lados (1, 0, -1) -> se mantiene centrado a la izquierda', () => {
+    it('troncal (0) con ramas a ambos lados (1, 0, -1) -> escapa del ala izquierda (right)', () => {
+      // The left wing accumulates label density (every lateral on +X labels to the left by default).
+      // To avoid stacking, trunk commits squeezed between both wings push their labels to the right.
       expect(labelSideFromBranchIndex(1, [1, 0, -1])).toBe('left');
-      expect(labelSideFromBranchIndex(0, [1, 0, -1])).toBe('left');
+      expect(labelSideFromBranchIndex(0, [1, 0, -1])).toBe('right');
       expect(labelSideFromBranchIndex(-1, [1, 0, -1])).toBe('right');
     });
   });

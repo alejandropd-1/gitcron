@@ -308,12 +308,21 @@ export function ChronometricGraph({
         if (branchRepresentativeIndices.has(branchName)) {
           resolvedBranchIndex = branchRepresentativeIndices.get(branchName)!;
         } else {
-          // Nested-branch fallback: this lateral branch never touched a non-zero lane,
-          // so derive a virtual representative from its parent branch and mirror to the opposite side
-          // so labels don't collide with the parent branch's line.
-          const parentBranch = branchParentBranch.get(branchName);
-          if (parentBranch && branchRepresentativeIndices.has(parentBranch)) {
-            resolvedBranchIndex = -branchRepresentativeIndices.get(parentBranch)!;
+          // Nested-branch fallback: this lateral branch never touched a non-zero lane.
+          // Walk up the parent chain until we find an ancestor with a representative index, then mirror its sign
+          // so labels escape the visible parent's line. All intermediate ancestors (also on lane 0) inherit the
+          // same mirrored side — they form one continuous "nested-on-trunk" group that should label uniformly.
+          const seen = new Set<string>([branchName]);
+          let cursor: string | undefined = branchParentBranch.get(branchName);
+          let depth = 0;
+          while (cursor && !seen.has(cursor) && depth < 50) {
+            if (branchRepresentativeIndices.has(cursor)) {
+              resolvedBranchIndex = -branchRepresentativeIndices.get(cursor)!;
+              break;
+            }
+            seen.add(cursor);
+            cursor = branchParentBranch.get(cursor);
+            depth++;
           }
         }
       }
@@ -1554,7 +1563,14 @@ export function ChronometricGraph({
                       {/* Commit Telemetry label & Inline Branch Tag */}
                       {(() => {
                         const branchName = node.branchName;
-                        const renderBranchTag = node.isBranchOrigin && branchName;
+                        // Render the inline branch tag at two anchor points so every visible branch is labeled:
+                        //  - isBranchOrigin: the oldest commit of a chain (matches the chronometric "where it diverges" semantic)
+                        //  - hasBranchRefAttached: the commit where the actual ref label points (matches the classic-view tip semantic)
+                        // Branches whose origin lies off-screen would otherwise have no badge at all in the cronómetric view.
+                        const hasBranchRefAttached = !!node.commit.refs?.some(r =>
+                          r.startsWith('refs/heads/') || r.startsWith('refs/remotes/')
+                        );
+                        const renderBranchTag = (node.isBranchOrigin || hasBranchRefAttached) && branchName;
 
                         const commentText = `C:${node.commit.shortHash.toUpperCase()} // ${node.commit.message}`;
                         const commentTextWidth = commentText.length * 4.2;

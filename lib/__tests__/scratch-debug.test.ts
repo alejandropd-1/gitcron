@@ -97,13 +97,13 @@ describe('debug Portfolio_2026_astro TVisualEditor', () => {
   it('prints commit details for TVisualEditor', () => {
     // 1. Get git log from Portfolio_2026_astro
     const logOutput = execSync(
-      `git -C c:\\www\\Portfolio_2026_astro log --all --max-count=500 --date-order --pretty=format:"%H|%ad|%an|%ae|%s|%P" --date=iso`,
+      `git -C c:\\www\\gitcron log --all --max-count=500 --date-order --pretty=format:"%H|%ad|%an|%ae|%s|%P" --date=iso`,
       { encoding: 'utf8' }
     );
 
     // 2. Get refs from Portfolio_2026_astro
     const refsOutput = execSync(
-      `git -C c:\\www\\Portfolio_2026_astro for-each-ref --format="%(objectname) %(refname)"`,
+      `git -C c:\\www\\gitcron for-each-ref --format="%(objectname) %(refname)"`,
       { encoding: 'utf8' }
     );
 
@@ -231,24 +231,37 @@ describe('debug Portfolio_2026_astro TVisualEditor', () => {
 
     console.log('--- REPRESENTATIVE INDICES ---');
     branchRepresentativeIndices.forEach((index, name) => {
-      console.log(`BranchName: ${name} | RepresentativeIndex: ${index}`);
+      console.log(`BranchName: ${name.padEnd(28)} | RepresentativeIndex: ${index}`);
+    });
+    console.log('--- PARENT BRANCH MAP ---');
+    branchParentBranch.forEach((parent, name) => {
+      console.log(`Branch: ${name.padEnd(28)} | Parent: ${parent}`);
     });
 
-    const TARGETS = ['tvisualeditor', 'menuactivestatus', 'portraithomeimage', 'addfilters', 'listviewalternavie', 'filterlayoutcache', 'dropdownmd', 'fallow'];
+    const TARGETS = ['cronometric', 'tcars-hud-shell', 'mergeconflict', 'main'];
+    const TARGET_HASHES: string[] = [];
     console.log('--- TARGET BRANCH COMMITS DETAILS ---');
     rows.forEach((row) => {
       const branchName = commitBranchNames.get(row.commit.hash) || 'null';
       const lowerName = branchName.toLowerCase();
-      if (TARGETS.some(t => lowerName.includes(t))) {
+      if (TARGETS.some(t => lowerName.includes(t)) || TARGET_HASHES.some(h => row.commit.hash.startsWith(h))) {
         const branchIndex = mapLaneToBranchIndex(row.lane);
         let repIndex = branchIndex;
         if (repIndex === 0 && branchName && branchName !== 'main' && branchName !== 'master') {
           if (branchRepresentativeIndices.has(branchName)) {
             repIndex = branchRepresentativeIndices.get(branchName)!;
           } else {
-            const parentBranch = branchParentBranch.get(branchName);
-            if (parentBranch && branchRepresentativeIndices.has(parentBranch)) {
-              repIndex = -branchRepresentativeIndices.get(parentBranch)!;
+            const seen = new Set<string>([branchName]);
+            let cursor: string | undefined = branchParentBranch.get(branchName);
+            let depth = 0;
+            while (cursor && !seen.has(cursor) && depth < 50) {
+              if (branchRepresentativeIndices.has(cursor)) {
+                repIndex = -branchRepresentativeIndices.get(cursor)!;
+                break;
+              }
+              seen.add(cursor);
+              cursor = branchParentBranch.get(cursor);
+              depth++;
             }
           }
         }

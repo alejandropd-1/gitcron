@@ -2260,20 +2260,20 @@ export default function GitCronPage() {
               )}
               <div className="p-4 border-b border-border-subtle/15">
                 <div className="flex justify-between items-start mb-2">
-                  <div className="text-[12px] font-mono text-secondary">commit: {selectedCommit.shortHash}</div>
+                  <div className="text-[12px] font-mono text-secondary select-text">commit: {selectedCommit.shortHash}</div>
                   <button className="flex items-center gap-1.5 px-2 py-1 rounded bg-border-subtle text-xs hover:bg-bg-surface/70 transition-colors">
                     <Zap size={12} className="text-git-mod" /> Explain
                   </button>
                 </div>
-                <h2 className="font-semibold mb-1">{selectedCommit.message}</h2>
-                <div className="text-xs text-text-secondary mb-4">{formatDate(selectedCommit.date)}</div>
+                <h2 className="font-semibold mb-1 select-text">{selectedCommit.message}</h2>
+                <div className="text-xs text-text-secondary mb-4 select-text">{formatDate(selectedCommit.date)}</div>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
                     {initials(selectedCommit.authorName)}
                   </div>
                   <div>
-                    <div className="text-sm font-medium">{selectedCommit.authorName}</div>
-                    <div className="text-[10px] text-text-secondary">{selectedCommit.authorEmail}</div>
+                    <div className="text-sm font-medium select-text">{selectedCommit.authorName}</div>
+                    <div className="text-[10px] text-text-secondary select-text">{selectedCommit.authorEmail}</div>
                   </div>
                 </div>
               </div>
@@ -2314,7 +2314,7 @@ export default function GitCronPage() {
                       )}>
                         {file.status === 'added' ? 'A' : file.status === 'deleted' ? 'D' : file.status === 'renamed' ? 'R' : 'M'}
                       </span>
-                      <span className="truncate text-xs">{file.path}</span>
+                      <span className="truncate text-xs select-text">{file.path}</span>
                     </button>
                   ))}
                   {!commitFilesLoading && commitFiles.length === 0 && (
@@ -3547,7 +3547,7 @@ function SidebarItem({ icon, text, active, onClick }: { icon: React.ReactNode; t
     >
       {active && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />}
       <span className={cn('shrink-0', active ? 'text-secondary' : 'text-text-secondary group-hover:text-text-primary')}>{icon}</span>
-      <span className="truncate">{text}</span>
+      <span className="truncate select-text">{text}</span>
     </div>
   );
 }
@@ -3650,7 +3650,7 @@ function BranchFolderView({
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <Folder size={14} className="text-text-secondary shrink-0" />
-        <span className="truncate flex-1 text-left">{folder.prefix}</span>
+        <span className="truncate flex-1 text-left select-text">{folder.prefix}</span>
         <span className="text-[10px] text-text-secondary/70">{folder.branches.length}</span>
       </button>
       {isOpen && (
@@ -3700,7 +3700,7 @@ function BranchRow({
       ) : (
         <GitBranch size={13} className="shrink-0 text-text-secondary/70" />
       )}
-      <span className="truncate flex-1 text-sm">{name}</span>
+      <span className="truncate flex-1 text-sm select-text">{name}</span>
 
       {/* Ahead / behind chips */}
       {tracking && !tracking.gone && (tracking.ahead > 0 || tracking.behind > 0) && (
@@ -3746,7 +3746,7 @@ function RemoteBranchTree({
           className="pl-[26px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary cursor-pointer transition-colors group relative"
         >
           <Cloud size={13} className="shrink-0 text-primary" />
-          <span className="truncate text-xs flex-1">{b.name}</span>
+          <span className="truncate text-xs flex-1 select-text">{b.name}</span>
         </div>
       ))}
       {folders.map((f) => (
@@ -3777,7 +3777,7 @@ function RemoteFolderView({
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <Folder size={13} className="text-text-secondary shrink-0" />
-        <span className="truncate flex-1 text-left">{folder.prefix}</span>
+        <span className="truncate flex-1 text-left select-text">{folder.prefix}</span>
         <span className="text-[10px] text-text-secondary/70">{folder.branches.length}</span>
       </button>
       {isOpen && (
@@ -3791,7 +3791,7 @@ function RemoteFolderView({
               title={`Doble click: checkout · Click derecho: opciones\n${b.fullPath}`}
             >
               <GitBranch size={13} className="shrink-0 text-text-secondary/70 group-hover:text-primary transition-colors" />
-              <span className="truncate text-xs flex-1">{b.name}</span>
+              <span className="truncate text-xs flex-1 select-text">{b.name}</span>
             </div>
           ))}
         </div>
@@ -3811,7 +3811,7 @@ function StashItem({
       title={stash.message}
     >
       <Archive size={16} className="shrink-0" />
-      <span className="truncate flex-1 text-xs">{stash.message}</span>
+      <span className="truncate flex-1 text-xs select-text">{stash.message}</span>
       {isHovered && (
         <div className="flex items-center gap-1 shrink-0">
           <button onClick={(e) => { e.stopPropagation(); onApply(); }} className="p-1 hover:text-secondary transition-colors" title="Apply">

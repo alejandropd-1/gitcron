@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.4.1-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.5.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -269,6 +269,36 @@ gitCronos/
 
 ---
 
+## Single-Branch Workflow & Feature Flags
+
+To ensure rapid, secure development without branch drifts or versioning mismatches, GitCron operates under a **Trunk-Based Development** model with **Feature Flags** (Feature Toggles):
+
+1. **Developing under a Flag**: Any experimental feature (like the advanced Cronometric timeline canvas, interactive HUD satellites, or floating sidebars) must be wrapped inside a conditional block using the `enableCronometric` global state:
+   ```tsx
+   const enableCronometric = useGitStore((s) => s.enableCronometric);
+   
+   return enableCronometric ? <ChronometricLayout /> : <ClassicLayout />;
+   ```
+2. **Local Testing**: During development, turn the feature flag **On** using the interactive toggle in Settings (Settings Modal -> Vista Cronométrica (Beta) -> Activa).
+3. **Safe Deployments**: The feature flag is turned **Off** by default in production. This guarantees that unstable features cannot crash the stable Classic view since React will never mount or execute the experimental components.
+4. **Gradual Rollout**: When the feature is 100% stable, perform a single change to swap the default store state to `true` or expose it permanently to all users.
+
+---
+
+## Styling Best Practices (Conflict Prevention)
+
+Since the Classic and Cronometric views share the same global file and base variables, we enforce strict styling boundaries to avoid visual collisions (e.g. overlapping panels, distorted text sizes, or unexpected margins):
+
+1. **Strict CSS Namespacing**: Custom Tailwind v4 variables inside [globals.css](file:///c:/www/gitcron/app/globals.css) must live in labeled, commented block namespaces (`Shared / Global`, `Classic Specific`, `Cronometric Specific`).
+2. **Prefixing Variable Names**: Any color, size, animation, or opacity unique to the timeline canvas view must use the `--crono-` or `--cronometric-` prefix. Never override a base token like `--color-bg-surface` directly for experimental changes.
+3. **Isolated Layout Shells**:
+   * **Classic Layout**: Rectangular panel columns flush against each other, with rigid col-resize handles.
+   * **Cronometric Layout**: Absolute-positioned floating panels with micro-margins (`FLOATING_PANEL_INSET`), glass backgrounds, and rounded corners.
+   * *Never mix layout classes directly*. Keep them fully isolated inside `<ClassicLayoutShell>` and `<ChronometricLayoutShell>` to prevent margin/padding spillover.
+4. **CSS Dead-Code Elimination (Tailwind Compiler)**: During compilation (`npm run build`), Tailwind scans your active JSX files. If a component is commented out or deleted, its matching custom classes are automatically purged from the production CSS bundle.
+
+---
+
 ## Roadmap
 
 ### 🟢 Core & Vista Clásica (Classic View) - Estable
@@ -325,9 +355,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.4.1.exe`                                             |
-| macOS    | `GitCron-1.4.1.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.4.1.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.5.0.exe`                                             |
+| macOS    | `GitCron-1.5.0.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.5.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -374,8 +404,8 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.4.1` - ver [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) para más detalles.
-- **Vista Cronométrica (Experimental)**: *(En desarrollo en la rama paralela `Cronometric` / `feature/cronometric`)*
+- **Core & Vista Clásica (Estable)**: `v1.5.0` - ver [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) para más detalles.
+- **Vista Cronométrica (Experimental)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---
 

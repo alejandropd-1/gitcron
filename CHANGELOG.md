@@ -4,6 +4,28 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.5.0] - 2026-05-24 - Unificación en Rama Única con Feature Flags & Aislamiento Estético
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Unificación Segura bajo Feature Flags (Trunk-Based Development)**: Integración completa de la vista clásica estable y el nuevo motor cronométrico interactivo en un único flujo de trabajo unificado (`16-FlagToggle`), eliminando la necesidad de mantener ramas paralelas propensas a desajustes de versiones y conflictos de código:
+  * **Feature Flag Core (`enableCronometric`)**: Variable global en el store Zustand persistida de forma encriptada en el llavero de Electron (`safeStorage` con la clave `'enableCronometric'`), apagada por defecto (`false`) para resguardar con total garantía la estabilidad de la vista clásica en producción.
+  * **Toggles de Activación**: Añadido un interruptor ilustrado en el modal de Ajustes / Settings para que los desarrolladores activen dinámicamente la vista cronométrica en sus entornos locales.
+  * **Ocultamiento Inteligente de UI**: El segmented switch del topbar se oculta y la app fuerza síncronamente el modo clásico si el feature flag está apagado.
+  * **Integración del Lienzo Cronométrico**: Importados de forma segura `components/ChronometricGraph.tsx`, proyecciones visuales espaciales, hooks y tests unitarios.
+
+#### Docs
+- **Guía de Flujo de Trabajo en Rama Única (Single-Branch Workflow)**:
+  * *Cómo desarrollar*: Todo nuevo componente o funcionalidad experimental debe desarrollarse directamente en la rama principal, pero protegido detrás de una Feature Flag condicional: `{showFeature && <NewFeature />}`.
+  * *Cómo probar*: En desarrollo local, activa el toggle respectivo. En producción, permanece apagado por defecto hasta que esté 100% probado y listo para liberarse.
+- **Lineamientos de Aislamiento Estético (Evitar Conflictos de Estilos)**:
+  * **Uso de Namespaces en `globals.css`**: Todos los tokens de diseño de Tailwind v4 en [globals.css](file:///c:/www/gitcron/app/globals.css) se dividen y etiquetan en namespaces explícitos (`Shared / Global`, `Classic Specific`, `Cronometric Specific`). Cualquier cambio en estilos o colores de la vista cronométrica debe usar el prefijo `--crono-` o `--cronometric-`.
+  * **Layouts Aislados**: Estructurar los insets flotantes y manejadores de layouts dentro de condicionales limpios o shells aislados en `app/page.tsx` para evitar colisiones de márgenes y paddings.
+  * **Detección y Limpieza de Código Muerto**: Al compilar para producción (`npm run build`), Tailwind v4 analiza las dependencias activas del árbol JSX. Si una vista se desactiva o elimina, el compilador remueve automáticamente del CSS final cualquier clase que ya no se utilice.
+
+---
+
 ## [v1.4.1] - 2026-05-24 - Support for Selective Text Selection
 
 ### 🟢 Vista Clásica & Core

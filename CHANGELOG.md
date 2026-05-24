@@ -4,6 +4,22 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.4.1] - 2026-05-24 - Support for Selective Text Selection
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Soporte de Selección y Copia de Texto Quirúrgico**: Habilitación selectiva de la propiedad `select-text` (`user-select: text` de Tailwind) exclusivamente en elementos que renderizan textos legibles y metadatos clave para permitir su copia nativa al portapapeles sin sacrificar la sensación de aplicación de escritorio:
+  * **Barra Lateral Izquierda**: Nombres de ramas locales y remotas (incluyendo carpetas de agrupación recursivas), tags, submódulos y mensajes de stashes (`StashItem`).
+  * **Panel de Detalles de Commit (Derecha)**: Hash del commit (`shortHash`), mensaje de commit completo, timestamp/fecha del commit, autor (nombre y correo electrónico) e historial de rutas de archivos modificados.
+  * **Grafo e Historial Clásicos**: Mensajes principales de commits en las filas (`mainMessage`), chips de referencias/ramas/tags (`RefChip`) y hashes cortos a la derecha.
+
+#### Docs
+- Bumped the app version to `v1.4.1` in `package.json`.
+- Updated the README version badges, installation filenames, and current-version note.
+
+---
+
 ## [v1.4.0] - 2026-05-24 - Design Tokens Migration & Premium Modal Layout Polish
 
 ### 🟢 Vista Clásica & Core

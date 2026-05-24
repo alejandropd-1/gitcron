@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.4.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.4.1-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -113,6 +113,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Theme toggle in Settings: dark (default) and experimental light mode.
 - Auto-update now stays inside the app UI: a version-tag dot announces updates, the tag opens the download dropdown, progress stays beside the GitHub releases icon, and `UPDATE` appears there when the download is ready.
 - Startup polish: the Electron splash now shows the GitCron icon with subtle geometric animation, stays visible long enough to avoid first-paint flicker, and the Graph fades in after initial repo data is ready.
+- **Selective Text Selection**: Habilitación selectiva de la propiedad de selección de texto (`select-text`) quirúrgicamente sobre nombres de ramas (locales y remotas), agrupadores de carpetas, tags, stashes y todos los metadatos de commits (mensajes, hashes, email, autor, archivos) en los listados e insets, conservando el comportamiento nativo `select-none` en elementos interactivos.
 - Spanish and English UI strings.
 
 ### 🟣 Vista Cronométrica (Chronometric View) - En Desarrollo / Experimental
@@ -324,9 +325,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.4.0.exe`                                             |
-| macOS    | `GitCron-1.4.0.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.4.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.4.1.exe`                                             |
+| macOS    | `GitCron-1.4.1.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.4.1.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -373,7 +374,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.4.0` - ver [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.4.1` - ver [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Experimental)**: *(En desarrollo en la rama paralela `Cronometric` / `feature/cronometric`)*
 
 ---

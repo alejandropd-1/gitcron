@@ -93,15 +93,15 @@ function computeGraph(commits: Commit[]): { rows: GraphRow[]; totalLanes: number
   return { rows, totalLanes };
 }
 
-describe('debug Portfolio_2026_astro TVisualEditor', () => {
-  it('prints commit details for TVisualEditor', () => {
+describe('Label Side Diagnostic - Full Repository', () => {
+  it('prints ALL commits with lane, branchIndex, activeBranchIndices, and isLeft', () => {
     // 1. Get git log from Portfolio_2026_astro
     const logOutput = execSync(
-      `git -C c:\\www\\Portfolio_2026_astro log --all --max-count=500 --date-order --pretty=format:"%H|%ad|%an|%ae|%s|%P" --date=iso`,
+      `git -C c:\\www\\Portfolio_2026_astro log --pretty=format:"%H|%ad|%an|%ae|%s|%P" --date=iso`,
       { encoding: 'utf8' }
     );
 
-    // 2. Get refs from Portfolio_2026_astro
+    // 2. Get refs
     const refsOutput = execSync(
       `git -C c:\\www\\Portfolio_2026_astro for-each-ref --format="%(objectname) %(refname)"`,
       { encoding: 'utf8' }
@@ -118,89 +118,67 @@ describe('debug Portfolio_2026_astro TVisualEditor', () => {
       const [hash, date, authorName, authorEmail, message, parentsStr] = line.split('|');
       const parents = parentsStr ? parentsStr.split(' ').filter(Boolean) : [];
       const refs = refMap.get(hash) || [];
-      return {
-        hash,
-        shortHash: hash.slice(0, 7),
-        authorName,
-        authorEmail,
-        date,
-        message,
-        parents,
-        refs,
-      };
+      return { hash, shortHash: hash.slice(0, 7), authorName, authorEmail, date, message, parents, refs };
     });
 
-    // 3. Compute classic graph lanes
     const { rows } = computeGraph(commits);
 
-    // 4. Compute commitBranchNames
+    // Compute commitBranchNames
     const commitBranchNames = new Map<string, string>();
     const laneBranchNames: (string | null)[] = [];
     const commitIndex = new Map<string, number>();
     commits.forEach((c, idx) => commitIndex.set(c.hash, idx));
-
-    const lanes: (string | null)[] = [];
+    const lanes2: (string | null)[] = [];
 
     const getBranchName = (commit: Commit) => {
       if (!commit.refs || commit.refs.length === 0) return null;
-      const branchRefs = commit.refs.filter(
-        (r) => !r.startsWith('refs/tags/') && !r.includes('stash')
-      );
+      const branchRefs = commit.refs.filter((r) => !r.startsWith('refs/tags/') && !r.includes('stash'));
       if (branchRefs.length === 0) return null;
-      return branchRefs[0]
-        .replace(/^refs\/heads\//, '')
-        .replace(/^refs\/remotes\/[^/]+\//, '')
-        .replace(/^HEAD$/, '');
+      return branchRefs[0].replace(/^refs\/heads\//, '').replace(/^refs\/remotes\/[^/]+\//, '').replace(/^HEAD$/, '');
     };
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const commit = row.commit;
-
-      let lane = lanes.indexOf(commit.hash);
+      let lane = lanes2.indexOf(commit.hash);
       if (lane === -1) {
-        lane = lanes.findIndex((s) => s === null);
-        if (lane === -1) lane = lanes.length;
-        lanes[lane] = commit.hash;
+        lane = lanes2.findIndex((s) => s === null);
+        if (lane === -1) lane = lanes2.length;
+        lanes2[lane] = commit.hash;
       }
-
       let branchName = getBranchName(commit);
       if (branchName) {
         laneBranchNames[lane] = branchName;
       } else {
         branchName = laneBranchNames[lane] || null;
       }
-
       if (branchName) {
         commitBranchNames.set(commit.hash, branchName);
       }
-
-      lanes[lane] = null;
+      lanes2[lane] = null;
       const currentLaneBranchName = laneBranchNames[lane];
       laneBranchNames[lane] = null;
-
       for (let p = 0; p < commit.parents.length; p++) {
         const parent = commit.parents[p];
         const parentIdx = commitIndex.get(parent);
         if (parentIdx === undefined) continue;
-
-        let parentLane = lanes.indexOf(parent);
+        let parentLane = lanes2.indexOf(parent);
         if (parentLane === -1) {
           if (p === 0) {
             parentLane = lane;
-            lanes[parentLane] = parent;
+            lanes2[parentLane] = parent;
             laneBranchNames[parentLane] = branchName || currentLaneBranchName;
           } else {
-            parentLane = lanes.findIndex((s) => s === null);
-            if (parentLane === -1) parentLane = lanes.length;
-            lanes[parentLane] = parent;
+            parentLane = lanes2.findIndex((s) => s === null);
+            if (parentLane === -1) parentLane = lanes2.length;
+            lanes2[parentLane] = parent;
             laneBranchNames[parentLane] = null;
           }
         }
       }
     }
 
-    // 5. Compute branchRepresentativeIndices
+    // Compute branchRepresentativeIndices
     const branchRepresentativeIndices = new Map<string, number>();
     rows.forEach((row) => {
       const branchName = commitBranchNames.get(row.commit.hash);
@@ -212,55 +190,71 @@ describe('debug Portfolio_2026_astro TVisualEditor', () => {
       }
     });
 
-    // 5b. Compute branchParentBranch (parent of each lateral branch)
-    const branchParentBranch = new Map<string, string>();
-    rows.forEach((row) => {
-      const branchName = commitBranchNames.get(row.commit.hash);
-      if (!branchName || branchName === 'main' || branchName === 'master') return;
-      if (branchParentBranch.has(branchName)) return;
-      const isOrigin = !row.commit.parents.some(p => commitBranchNames.get(p) === branchName);
-      if (!isOrigin) return;
-      for (const parentHash of row.commit.parents) {
-        const parentBranch = commitBranchNames.get(parentHash);
-        if (parentBranch && parentBranch !== branchName) {
-          branchParentBranch.set(branchName, parentBranch);
-          break;
-        }
-      }
-    });
-
-    console.log('--- REPRESENTATIVE INDICES ---');
+    console.log('\n=== REPRESENTATIVE INDICES ===');
     branchRepresentativeIndices.forEach((index, name) => {
-      console.log(`BranchName: ${name} | RepresentativeIndex: ${index}`);
+      console.log(`  ${name.padEnd(30)} => repIndex: ${index}`);
     });
 
-    const TARGETS = ['tvisualeditor', 'menuactivestatus', 'portraithomeimage', 'addfilters', 'listviewalternavie', 'filterlayoutcache', 'dropdownmd', 'fallow'];
-    console.log('--- TARGET BRANCH COMMITS DETAILS ---');
-    rows.forEach((row) => {
-      const branchName = commitBranchNames.get(row.commit.hash) || 'null';
-      const lowerName = branchName.toLowerCase();
-      if (TARGETS.some(t => lowerName.includes(t))) {
-        const branchIndex = mapLaneToBranchIndex(row.lane);
-        let repIndex = branchIndex;
-        if (repIndex === 0 && branchName && branchName !== 'main' && branchName !== 'master') {
-          if (branchRepresentativeIndices.has(branchName)) {
-            repIndex = branchRepresentativeIndices.get(branchName)!;
-          } else {
-            const parentBranch = branchParentBranch.get(branchName);
-            if (parentBranch && branchRepresentativeIndices.has(parentBranch)) {
-              repIndex = -branchRepresentativeIndices.get(parentBranch)!;
-            }
-          }
-        }
+    console.log('\n=== ALL COMMITS (chronological order: oldest first) ===');
+    console.log('Row# | Hash    | Lane | bIdx | repIdx | ActiveBranchIndices        | isLeft | BranchName               | Message');
+    console.log('-----|---------|------|------|--------|----------------------------|--------|--------------------------|--------');
 
-        const activeLanes = [row.lane, ...row.activeLanes.map((al) => al.lane)];
-        const activeBranchIndices = activeLanes.map(mapLaneToBranchIndex);
-        const isLeft = labelSideFromBranchIndex(repIndex, activeBranchIndices) === 'left';
+    // Print in reverse (oldest first = most recent row index to least)
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const row = rows[i];
+      const branchName = commitBranchNames.get(row.commit.hash) || '';
+      const branchIndex = mapLaneToBranchIndex(row.lane);
 
-        console.log(
-          `Hash: ${row.commit.shortHash} | Msg: ${row.commit.message.slice(0, 30).padEnd(30)} | Lane: ${row.lane} | BranchName: ${branchName.padEnd(22)} | bIdx(raw): ${branchIndex.toString().padStart(2)} | repIndex: ${repIndex.toString().padStart(2)} | activeBIdx: ${JSON.stringify(activeBranchIndices).padEnd(20)} | isLeft: ${isLeft}`
-        );
+      let resolvedBranchIndex = branchIndex;
+      if (resolvedBranchIndex === 0 && branchName && branchRepresentativeIndices.has(branchName)) {
+        resolvedBranchIndex = branchRepresentativeIndices.get(branchName)!;
       }
-    });
+
+      const activeLanes = [row.lane, ...row.activeLanes.map((al) => al.lane)];
+      const activeBranchIndices = activeLanes.map(mapLaneToBranchIndex);
+      const isLeft = labelSideFromBranchIndex(resolvedBranchIndex, activeBranchIndices) === 'left';
+
+      // Highlight rows where activeBranchIndices has ONLY zeros (no lateral branches)
+      const hasLateral = activeBranchIndices.some(x => x !== 0);
+      const marker = !hasLateral ? ' *** ONLY-TRUNK ***' : '';
+
+      console.log(
+        `${i.toString().padStart(4)} | ${row.commit.shortHash} | ${row.lane.toString().padStart(4)} | ${branchIndex.toString().padStart(4)} | ${resolvedBranchIndex.toString().padStart(6)} | [${activeBranchIndices.join(', ').padEnd(24)}] | ${isLeft.toString().padEnd(6)} | ${branchName.padEnd(24)} | ${row.commit.message.slice(0, 40)}${marker}`
+      );
+    }
+
+    // Summary statistics
+    const totalCommits = rows.length;
+    let leftCount = 0;
+    let rightCount = 0;
+    let onlyTrunkCount = 0;
+    let onlyTrunkLeft = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const branchName = commitBranchNames.get(row.commit.hash) || '';
+      const branchIndex = mapLaneToBranchIndex(row.lane);
+      let resolvedBranchIndex = branchIndex;
+      if (resolvedBranchIndex === 0 && branchName && branchRepresentativeIndices.has(branchName)) {
+        resolvedBranchIndex = branchRepresentativeIndices.get(branchName)!;
+      }
+      const activeLanes = [row.lane, ...row.activeLanes.map((al) => al.lane)];
+      const activeBranchIndices = activeLanes.map(mapLaneToBranchIndex);
+      const isLeft = labelSideFromBranchIndex(resolvedBranchIndex, activeBranchIndices) === 'left';
+
+      if (isLeft) leftCount++;
+      else rightCount++;
+
+      const hasLateral = activeBranchIndices.some(x => x !== 0);
+      if (!hasLateral) {
+        onlyTrunkCount++;
+        if (isLeft) onlyTrunkLeft++;
+      }
+    }
+
+    console.log('\n=== SUMMARY ===');
+    console.log(`Total: ${totalCommits} | Left: ${leftCount} | Right: ${rightCount}`);
+    console.log(`Only-Trunk (no lateral active branches): ${onlyTrunkCount} | Of those, Left: ${onlyTrunkLeft} | Right: ${onlyTrunkCount - onlyTrunkLeft}`);
+    console.log(`Distribution: ${((leftCount / totalCommits) * 100).toFixed(1)}% left / ${((rightCount / totalCommits) * 100).toFixed(1)}% right`);
   });
 });

@@ -249,6 +249,29 @@ export function ChronometricGraph({
 
     return map;
   }, [rows, commitBranchNames]);
+
+  // Map of branchName -> parent branchName (the lateral branch this branch was created from, if any).
+  // Used to derive a virtual representative index for nested branches whose commits live entirely on lane 0
+  // (and thus never earned a non-zero physical representative). Such branches should mirror to the OPPOSITE
+  // side of their parent branch so their labels don't collide with the parent's line.
+  const branchParentBranch = useMemo(() => {
+    const map = new Map<string, string>();
+    rows.forEach((row) => {
+      const branchName = commitBranchNames.get(row.commit.hash);
+      if (!branchName || branchName === 'main' || branchName === 'master') return;
+      if (map.has(branchName)) return;
+      const isOrigin = !row.commit.parents.some(p => commitBranchNames.get(p) === branchName);
+      if (!isOrigin) return;
+      for (const parentHash of row.commit.parents) {
+        const parentBranch = commitBranchNames.get(parentHash);
+        if (parentBranch && parentBranch !== branchName) {
+          map.set(branchName, parentBranch);
+          break;
+        }
+      }
+    });
+    return map;
+  }, [rows, commitBranchNames]);
   // 5. Pre-calculate projected commit coordinates
   const projectedCommits = useMemo(() => {
     const commitIndexMap = new Map<string, number>();
@@ -281,8 +304,18 @@ export function ChronometricGraph({
       // Fall back to the branch's static representative index only if it temporarily jumps to the trunk (Lane 0)
       // to keep label placement stable.
       let resolvedBranchIndex = branchIndex;
-      if (resolvedBranchIndex === 0 && branchName && branchRepresentativeIndices.has(branchName)) {
-        resolvedBranchIndex = branchRepresentativeIndices.get(branchName)!;
+      if (resolvedBranchIndex === 0 && branchName && branchName !== 'main' && branchName !== 'master') {
+        if (branchRepresentativeIndices.has(branchName)) {
+          resolvedBranchIndex = branchRepresentativeIndices.get(branchName)!;
+        } else {
+          // Nested-branch fallback: this lateral branch never touched a non-zero lane,
+          // so derive a virtual representative from its parent branch and mirror to the opposite side
+          // so labels don't collide with the parent branch's line.
+          const parentBranch = branchParentBranch.get(branchName);
+          if (parentBranch && branchRepresentativeIndices.has(parentBranch)) {
+            resolvedBranchIndex = -branchRepresentativeIndices.get(parentBranch)!;
+          }
+        }
       }
 
       // El lado de la etiqueta se DERIVA de resolvedBranchIndex y el factor dinámico de las ramas activas:
@@ -307,7 +340,7 @@ export function ChronometricGraph({
         originalIndex: i, // index in the original rows array
       };
     });
-  }, [rows, filteredCommits, config, commitBranchNames, branchRepresentativeIndices]);
+  }, [rows, filteredCommits, config, commitBranchNames, branchRepresentativeIndices, branchParentBranch]);
 
   // Create a quick lookup map of commit hash -> projected node info
   const projectedLookup = useMemo(() => {

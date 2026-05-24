@@ -453,7 +453,7 @@ function GraphRowView({
 
       {/* ── Column 3: Description ── */}
       <div className="flex-1 min-w-0 flex items-center gap-3 pl-4 pr-3">
-        <span className={cn('truncate text-sm', selected ? 'text-[#d9e7fc]' : 'text-[#d9e7fc] group-hover:text-[#d9e7fc]')}>
+        <span className={cn('truncate text-sm select-text', selected ? 'text-[#d9e7fc]' : 'text-[#d9e7fc] group-hover:text-[#d9e7fc]')}>
           {mainMessage}
         </span>
         {hasCoauthor && (
@@ -465,7 +465,7 @@ function GraphRowView({
       <div className="flex items-center text-[11px] font-mono shrink-0 pr-3 text-[#697789]">
         <span className="text-right truncate" style={{ width: columnWidths.date }}>{formatDate(row.commit.date)}</span>
         <span
-          className={cn('text-right', selected ? 'text-[#a3f185]' : '')}
+          className={cn('text-right select-text', selected ? 'text-[#a3f185]' : '')}
           style={{
             width: columnWidths.hash,
             ...(!selected ? { color: row.laneColor, opacity: 0.8 } : undefined),
@@ -504,7 +504,7 @@ function RefChip({ gitRef }: { gitRef: ParsedRef }) {
     >
       {gitRef.isCurrent && <Check size={10} strokeWidth={3} className="shrink-0" />}
       {Icon && !gitRef.isCurrent && <Icon size={10} className="shrink-0" />}
-      <span className="truncate min-w-0">{gitRef.name}</span>
+      <span className="truncate min-w-0 select-text">{gitRef.name}</span>
     </span>
   );
 }

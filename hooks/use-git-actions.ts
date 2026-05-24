@@ -947,7 +947,35 @@ export const useGitActions = () => {
     return { success: false, error: msg };
   };
 
+  const resolveConflict = async (filePath: string, strategy: 'ours' | 'theirs') => {
+    if (!window.api || !repoPath) return { success: false, error: 'no api' };
+    setLoading(true); setError(null);
+    try {
+      const checkoutArgs = ['checkout', `--${strategy}`, filePath];
+      const rCheckout = await window.api.gitCommand(repoPath, checkoutArgs);
+      if (!rCheckout.success) {
+        setError(rCheckout.error ?? 'Error al aplicar resolución');
+        return { success: false, error: rCheckout.error };
+      }
+      const rStage = await window.api.gitStage(repoPath, filePath);
+      if (!rStage.success) {
+        setError(rStage.error ?? 'Error al stagear resolución');
+        return { success: false, error: rStage.error };
+      }
+      setSuccess(`Conflicto en "${filePath}" resuelto usando versión ${strategy === 'ours' ? 'local' : 'remota'}`);
+      await refreshStatus();
+      await refreshLog();
+      return { success: true };
+    } catch (err: any) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
+    resolveConflict,
     commitChanges,
     mergeBranch,
     revertCommit,

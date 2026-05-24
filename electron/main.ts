@@ -975,20 +975,27 @@ ipcMain.handle('git:status', async (_event, targetPath: string) => {
     const status = await g.status();
 
     const raw: StatusFile[] = [
-      ...status.modified.map((p) => ({ path: p, status: 'modified' as const, staged: false })),
-      ...status.created.map((p) => ({ path: p, status: 'added' as const, staged: false })),
-      ...status.deleted.map((p) => ({ path: p, status: 'deleted' as const, staged: false })),
-      ...status.not_added.map((p) => ({ path: p, status: 'untracked' as const, staged: false })),
-      ...status.staged.map((p) => ({ path: p, status: 'modified' as const, staged: true })),
+      ...status.modified.map((p) => ({ path: p, status: 'modified' as const, staged: false, conflicted: status.conflicted.includes(p) })),
+      ...status.created.map((p) => ({ path: p, status: 'added' as const, staged: false, conflicted: status.conflicted.includes(p) })),
+      ...status.deleted.map((p) => ({ path: p, status: 'deleted' as const, staged: false, conflicted: status.conflicted.includes(p) })),
+      ...status.not_added.map((p) => ({ path: p, status: 'untracked' as const, staged: false, conflicted: status.conflicted.includes(p) })),
+      ...status.staged.map((p) => ({ path: p, status: 'modified' as const, staged: true, conflicted: status.conflicted.includes(p) })),
       ...status.renamed.map((r) => ({
-        path: r.to, oldPath: r.from, status: 'renamed' as const, staged: true,
+        path: r.to, oldPath: r.from, status: 'renamed' as const, staged: true, conflicted: status.conflicted.includes(r.to) || status.conflicted.includes(r.from),
       })),
     ];
 
     const seen = new Map<string, StatusFile>();
     for (const f of raw) {
       const existing = seen.get(f.path);
-      if (!existing || f.staged) seen.set(f.path, f);
+      if (!existing || f.staged || f.conflicted) {
+        seen.set(f.path, {
+          ...f,
+          conflicted: f.conflicted || existing?.conflicted,
+        });
+      } else if (existing) {
+        existing.conflicted = existing.conflicted || f.conflicted;
+      }
     }
 
     return { success: true, data: Array.from(seen.values()) };

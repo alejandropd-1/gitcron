@@ -4,6 +4,27 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.3.7] - 2026-05-23 - Remote Checkout & Premium Visual Conflict Resolution
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Remote Branch Checkout**: Double-clicking a remote branch in the sidebar or right-clicking to use the new `RemoteBranchContextMenu` will automatically download it as a local tracking branch (`git checkout -t`) or switch to it if it already exists, featuring custom pointers and hover guides.
+- **Premium Conflict Resolver Card**: Displays a glassy, high-fidelity HSL gradient card in the Diff Viewer when a selected file has merge or rebase conflicts, allowing the user to resolve the file completely with a single click ("Aceptar Local (HEAD)" or "Aceptar Entrante (Merge)") or providing instructions for side-by-side editing in their IDE.
+- **State-Clearing Context Menus**: Introduced unifed setter functions for context menus (`BranchContextMenu`, `RemoteBranchContextMenu`, `CommitContextMenu`, `FileContextMenu`) to prevent overlapping rendering by closing all other active menus upon opening a new one.
+
+#### Fixed
+- Handled outside-click behavior for the new remote branch context menu, ensuring it closes naturally.
+
+#### Docs
+- Bumped the app version to `v1.3.7` in `package.json`.
+- Updated the README version badge, branches list, and current-version note.
+
+### 🟣 Vista Cronométrica (Chronometric View)
+
+- *(Ningún cambio en esta versión en el Core - Desarrollo en paralelo en su respectiva rama de feature)*
+
+
 ## [v1.3.6] - 2026-05-22 - Session rescue & Viewport-aware context menus
 
 ### Fixed

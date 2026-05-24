@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.3.8-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.4.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -238,17 +238,33 @@ gitCronos/
 
 ---
 
-## Design system
+## Design system & CSS Tokenization
 
-"The Compiled Soul" uses:
+"The Compiled Soul" design system has been fully tokenized inside [globals.css](file:///c:/www/gitcron/app/globals.css) using Tailwind CSS v4 `@theme` and `@utility` rules:
 
-- Deep navy base: `#020f1e`
-- Primary neon green: `#a3f185`
-- Warning orange: `#fd9d1a`
-- Accent cyan: `#5ed8ff`
-- Glassy headers and modals
-- Soft tonal separation instead of heavy borders
-- Inter for UI and JetBrains Mono for code-ish surfaces
+* **Core Base Tokens**:
+  - Deep Navy Base Background (`--color-bg-base`): `#020f1e`
+  - Core Surface Panel (`--color-bg-surface`): `#06182a`
+  - Overlay Dialog Card Backdrop (`--color-bg-overlay`): `#12273c`
+  - Muted Secondary Text (`--color-text-secondary`): `#9eacc0`
+  - Primary Active Title Text (`--color-text-primary`): `#d9e7fc`
+  - Accent Brand Cyan (`--color-primary`): `#5ed8ff`
+  - Neon Green HEAD Highlight (`--color-secondary`): `#a3f185`
+  - Conflict Warning Orange (`--color-git-mod`): `#fd9d1a`
+  - Error/Delete Count Red (`--color-error`): `#ff716c`
+
+* **Advanced Glassmorphism Utilities**:
+  - `glass-overlay`: Unified blurred glass overlay for dialogs, context menus, and tooltips.
+  - `glass-header`: Glass top titlebar/toolbar separator.
+  - `glass-sticky-header`: Pinned list categorizer bars.
+  - `glass-alert-success` / `glass-alert-warning` / `glass-alert-error`: Semantically themed notification toast overlays.
+
+> [!IMPORTANT]
+> **Namespace Division Reference (For future AI agents):**
+> There is a strict architectural split in the token design system located inside `app/globals.css`:
+> 1. **Shared / Global Tokens:** Core typography, spacing, border radiuses, and glass filters affecting layouts, popovers, and dialogs.
+> 2. **Classic Specific Tokens** (`components/CommitGraph.tsx`): Focuses on the dynamic commit lane color palette (`--color-graph-branch-1` to `--color-graph-branch-12`) and classic HEAD indicators (`--color-secondary`).
+> 3. **Cronometric Specific References** (`components/ChronometricGraph.tsx`): Focuses on Canvas timeline color mapping (grid ticks, outer WIP orbits, stash decks). All canvas shapes reference these tokens under the hood, ensuring the timeline engine can be customized independently.
 
 ---
 
@@ -308,9 +324,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.3.8.exe`                                             |
-| macOS    | `GitCron-1.3.8.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.3.8.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.4.0.exe`                                             |
+| macOS    | `GitCron-1.4.0.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.4.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -357,7 +373,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.3.8` - ver [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.4.0` - ver [CHANGELOG.md](/C:/www/gitCronos/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Experimental)**: *(En desarrollo en la rama paralela `Cronometric` / `feature/cronometric`)*
 
 ---

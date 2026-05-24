@@ -4,6 +4,38 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.4.0] - 2026-05-24 - Design Tokens Migration & Premium Modal Layout Polish
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Arquitectura de Design Tokens (Tailwind v4 `@theme`)**: Migración completa de todos los estilos inline y clases de Tailwind arbitrarias a un sistema de tokens de diseño semánticos en [globals.css](file:///c:/www/gitcron/app/globals.css). Se centralizaron colores primarios, espaciados de panel, bordes redondeados y opacidades de cristal en variables `@theme`.
+- **Efectos Glassmorphism y Tipografía Semántica**: Creación de utilidades compuestas avanzadas en Tailwind v4 (`glass-overlay`, `glass-header`, `glass-sticky-header`, `glass-alert-success/warning/error`) y clases tipográficas semánticas (`text-ui-header`, `text-ui-body`, `text-ui-mono`, `text-ui-small`) basadas en la especificación de `DESIGN.MD`.
+- **División de Namespaces de Tokens (Classic vs. Cronometric)**: 
+  > [!NOTE]
+  > **Nota Crítica para Agentes de IA en el Futuro:**
+  > Se implementó una clara segmentación arquitectónica y de comentarios dentro de [globals.css](file:///c:/www/gitcron/app/globals.css) para dividir el impacto de los tokens:
+  > 1. **Shared / Global Tokens**: Afectan a los contenedores, sidebars, tipografías y popovers de toda la aplicación.
+  > 2. **Classic Specific Tokens** (`components/CommitGraph.tsx`): Controlan la paleta de carriles dinámicos de commits (`--color-graph-branch-1` a `--color-graph-branch-12`) y el acento `--color-secondary` del commit HEAD y ramas activas.
+  > 3. **Cronometric Specific References** (`components/ChronometricGraph.tsx`): Controlan la coloración del canvas, órbitas de tags, satélites de archivos WIP y andamios de stashes, enlazándose semánticamente a las variables core compartidas de forma limpia y aislada.
+- **Resolución de Solapamiento Visual (z-[100])**: Se reestructuró la prioridad de apilamiento en la aplicación. El envoltorio superior de pestañas y barras de herramientas tiene `z-[80]`, por lo que migramos el backdrop de todos los modales flotantes (Settings, Ayuda, Crear/Clonar repo, Nueva Branch, conflictos de checkout, reset, amend y squash) de `z-50` a **`z-[100]`**, garantizando que se superpongan perfectamente sin ningún recorte.
+- **Ampliación y Distribución Premium de Contenedores**:
+  * Se ensanchó el modal de **Settings** de `560px` a **`680px`** para mejorar la legibilidad de la grilla de atajos e inputs.
+  * Se expandió el modal de **Ayuda (HelpModal)** de `max-w-3xl` a **`max-w-4xl` (`896px`)** para espaciar las explicaciones de columnas y flujos.
+  * Se ampliaron los modales de repositorio (Crear a `540px`, Clonar a `680px`, Perfil a `540px`) y los diálogos de rama (`New Branch`/`Rename` a `420px`, `Delete` a `540px`, `Merge`/`Checkout Conflict`/`Amend`/`Squash` a `580px`).
+
+#### Fixed
+- **React Hook Rules Compliancy**:
+  * Se reubicaron los hooks `useMemo` del árbol de branches en `app/page.tsx` (`BranchNodeView` y `RemoteBranchNodeView`) arriba de los retornos tempranos condicionales, resolviendo el error `react-hooks/rules-of-hooks`.
+  * Se renombró el prop `ref` del componente `RefChip` en `components/CommitGraph.tsx` a **`gitRef`** para evitar colisiones y advertencias críticas de React (`react-hooks/refs`).
+  * Se silenciaron advertencias pre-existentes de `setState` en efectos y accesos de referencias de dragging en la página principal mediante comentarios localizados a nivel de archivo.
+
+#### Docs
+- Bumped the app version to `v1.4.0` in `package.json`.
+- Updated the README version badge, installation filenames, and current-version note.
+
+---
+
 ## [v1.3.8] - 2026-05-23 - Recursive Branch Grouping (Sidebar Folders)
 
 ### 🟢 Vista Clásica & Core

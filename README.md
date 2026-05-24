@@ -75,7 +75,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 
 #### Branches
 
-- Branch tree grouped by prefixes like `feature/` or `claude/`.
+- **Agrupamiento Recursivo de Ramas (Árbol de Profundidad Infinita)**: La barra lateral local y remota ahora soporta anidamiento recursivo de subcarpetas utilizando prefijos con múltiples barras diagonales (ej. `feature/cronometric/tcars-hud-shell`). Las ramas se ordenan jerárquicamente con carpetas primero y prioridades especiales para ramas principales (`main`/`master`), utilizando sangrías dinámicas y acumuladores de cantidad exactos.
 - Ahead / behind counts in the sidebar.
 - Ahead / behind chips now explain themselves on hover, and Pull / Push open a decision toast when the current branch is behind or diverged.
 - **Premium Force Push workflow**: when pushing a branch whose history has diverged from the remote (e.g., during initialization/pushes of overlapping repos), GitCron displays a beautifully styled, high-priority React overlay modal (`z-[300]`) requesting explicit permission before executing a safe `--force` push.
@@ -285,6 +285,7 @@ gitCronos/
 - [ ] Interactive rebase (reorder / drop / reword).
 - [x] Remote branch checkout (v1.3.7).
 - [x] Premium Conflict Resolver Card (v1.3.7).
+- [x] Agrupamiento recursivo de ramas en el sidebar (v1.3.7).
 - [ ] Local AI via LM Studio for commit messages, changelog drafting, project-history notes, and other offline writing helpers.
 - [ ] Upgrade Next.js beyond 15.4.x (currently pinned — verify Electron + Tailwind 4 compatibility before bumping).
 - [x] Remove token-bearing temporary `origin` URLs from authenticated Git operations (v1.2.0).

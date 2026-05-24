@@ -12,6 +12,7 @@ Changes are listed from newest to oldest.
 - **Remote Branch Checkout**: Double-clicking a remote branch in the sidebar or right-clicking to use the new `RemoteBranchContextMenu` will automatically download it as a local tracking branch (`git checkout -t`) or switch to it if it already exists, featuring custom pointers and hover guides.
 - **Premium Conflict Resolver Card**: Displays a glassy, high-fidelity HSL gradient card in the Diff Viewer when a selected file has merge or rebase conflicts, allowing the user to resolve the file completely with a single click ("Aceptar Local (HEAD)" or "Aceptar Entrante (Merge)") or providing instructions for side-by-side editing in their IDE.
 - **State-Clearing Context Menus**: Introduced unifed setter functions for context menus (`BranchContextMenu`, `RemoteBranchContextMenu`, `CommitContextMenu`, `FileContextMenu`) to prevent overlapping rendering by closing all other active menus upon opening a new one.
+- **Recursive Branch Grouping (Infinite Depth Tree)**: Replaced the flat single-level branch sidebar grouping with an elegant, recursive `TreeNode` tree structure. Local and remote branch sidebars now support infinite nested subfolders (e.g. `feature/cronometric/tcars-hud-shell`) rendered with dynamic responsive indent padding, folder-first sorting, exact recursive leaf counts, and special priority positioning for `main`/`master` branches.
 
 #### Fixed
 - Handled outside-click behavior for the new remote branch context menu, ensuring it closes naturally.

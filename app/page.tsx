@@ -3397,38 +3397,161 @@ interface BranchNode {
   fullPath: string;       // full branch name
 }
 
-interface BranchFolder {
-  prefix: string;
-  branches: BranchNode[];
+interface TreeNode {
+  name: string;
+  fullPath: string;
+  isLeaf: boolean;
+  children: TreeNode[];
 }
 
-function buildBranchTree(branches: string[]): { root: BranchNode[]; folders: BranchFolder[] } {
-  const root: BranchNode[] = [];
-  const folderMap = new Map<string, BranchNode[]>();
+function buildBranchTree(branches: string[]): TreeNode[] {
+  const rootNode: TreeNode = { name: '', fullPath: '', isLeaf: false, children: [] };
 
   for (const fullPath of branches) {
-    const slash = fullPath.indexOf('/');
-    if (slash === -1) {
-      root.push({ name: fullPath, fullPath });
-    } else {
-      const prefix = fullPath.slice(0, slash);
-      const leaf = fullPath.slice(slash + 1);
-      if (!folderMap.has(prefix)) folderMap.set(prefix, []);
-      folderMap.get(prefix)!.push({ name: leaf, fullPath });
+    const parts = fullPath.split('/');
+    let currentNode = rootNode;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isLast = i === parts.length - 1;
+      
+      let child = currentNode.children.find(c => c.name === part);
+      
+      if (!child) {
+        child = {
+          name: part,
+          fullPath: parts.slice(0, i + 1).join('/'),
+          isLeaf: isLast,
+          children: []
+        };
+        currentNode.children.push(child);
+      }
+      currentNode = child;
     }
   }
 
-  // Sort root: main/master first, then alphabetic
-  root.sort((a, b) => {
-    const priority = (n: string) => (n === 'main' ? 0 : n === 'master' ? 1 : 2);
-    return priority(a.name) - priority(b.name) || a.name.localeCompare(b.name);
-  });
+  function sortTree(node: TreeNode) {
+    node.children.sort((a, b) => {
+      // Carpetas primero, luego hojas
+      if (a.isLeaf !== b.isLeaf) {
+        return a.isLeaf ? 1 : -1;
+      }
+      
+      if (a.isLeaf) {
+        const priority = (n: string) => (n === 'main' ? 0 : n === 'master' ? 1 : 2);
+        const prioDiff = priority(a.name) - priority(b.name);
+        if (prioDiff !== 0) return prioDiff;
+      }
+      return a.name.localeCompare(b.name);
+    });
 
-  const folders: BranchFolder[] = Array.from(folderMap.entries())
-    .map(([prefix, branches]) => ({ prefix, branches: branches.sort((a, b) => a.name.localeCompare(b.name)) }))
-    .sort((a, b) => a.prefix.localeCompare(b.prefix));
+    for (const child of node.children) {
+      if (!child.isLeaf) {
+        sortTree(child);
+      }
+    }
+  }
 
-  return { root, folders };
+  sortTree(rootNode);
+  return rootNode.children;
+}
+
+function BranchNodeView({
+  node, depth, currentBranch, tracking, onCheckout, onContextMenu
+}: {
+  node: TreeNode;
+  depth: number;
+  currentBranch: string;
+  tracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
+  onCheckout: (b: string) => void;
+  onContextMenu: (e: React.MouseEvent, branch: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+
+  if (node.isLeaf) {
+    const isActive = node.fullPath === currentBranch;
+    const track = tracking[node.fullPath];
+    return (
+      <div
+        onDoubleClick={() => onCheckout(node.fullPath)}
+        onContextMenu={(e) => onContextMenu(e, node.fullPath)}
+        title={`Doble click: checkout · Click derecho: opciones`}
+        className={cn(
+          'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
+          isActive ? 'bg-[#a3f185]/10 text-[#a3f185]' : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
+        )}
+        style={{ paddingLeft: `${26 + depth * 14}px` }}
+      >
+        {isActive ? (
+          <Check size={13} strokeWidth={3} className="text-[#a3f185] shrink-0" />
+        ) : (
+          <GitBranch size={13} className="shrink-0 text-[#697789]" />
+        )}
+        <span className="truncate flex-1 text-sm">{node.name}</span>
+
+        {/* Ahead / behind chips */}
+        {track && !track.gone && (track.ahead > 0 || track.behind > 0) && (
+          <span className="flex items-center gap-1 text-[10px] font-mono shrink-0">
+            {track.ahead > 0 && (
+              <span className="flex items-center text-[#a3f185]" title={`${track.ahead} commit${track.ahead === 1 ? '' : 's'} local${track.ahead === 1 ? '' : 'es'} pendiente${track.ahead === 1 ? '' : 's'} de push`}>
+                {track.ahead}
+                <ArrowUp size={10} strokeWidth={3} />
+              </span>
+            )}
+            {track.behind > 0 && (
+              <span className="flex items-center text-[#fd9d1a]" title={`${track.behind} commit${track.behind === 1 ? '' : 's'} remoto${track.behind === 1 ? '' : 's'} pendiente${track.behind === 1 ? '' : 's'} de pull`}>
+                {track.behind}
+                <ArrowDown size={10} strokeWidth={3} />
+              </span>
+            )}
+          </span>
+        )}
+        {track?.gone && (
+          <span className="text-[9px] text-[#ff716c] uppercase shrink-0" title="Upstream eliminado">gone</span>
+        )}
+      </div>
+    );
+  }
+
+  const totalBranchesCount = useMemo(() => {
+    let count = 0;
+    function countLeaves(n: TreeNode) {
+      if (n.isLeaf) count++;
+      else n.children.forEach(countLeaves);
+    }
+    countLeaves(node);
+    return count;
+  }, [node]);
+
+  return (
+    <div>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors cursor-pointer"
+        style={{ paddingLeft: `${26 + depth * 14}px` }}
+      >
+        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        <Folder size={14} className="text-[#9eacc0] shrink-0" />
+        <span className="truncate flex-1 text-left">{node.name}</span>
+        <span className="text-[10px] text-[#697789]">{totalBranchesCount}</span>
+      </button>
+      {isOpen && (
+        <div>
+          {node.children.map((child) => (
+            <BranchNodeView
+              key={child.fullPath}
+              node={child}
+              depth={depth + 1}
+              currentBranch={currentBranch}
+              tracking={tracking}
+              onCheckout={onCheckout}
+              onContextMenu={onContextMenu}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function BranchTree({
@@ -3440,26 +3563,15 @@ function BranchTree({
   onCheckout: (b: string) => void;
   onContextMenu: (e: React.MouseEvent, branch: string) => void;
 }) {
-  const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
+  const tree = useMemo(() => buildBranchTree(branches), [branches]);
 
   return (
     <div>
-      {root.map((b) => (
-        <BranchRow
-          key={b.fullPath}
-          name={b.name}
-          fullPath={b.fullPath}
-          tracking={tracking[b.fullPath]}
-          isActive={b.fullPath === currentBranch}
-          onCheckout={onCheckout}
-          onContextMenu={onContextMenu}
-          indent={false}
-        />
-      ))}
-      {folders.map((f) => (
-        <BranchFolderView
-          key={f.prefix}
-          folder={f}
+      {tree.map((node) => (
+        <BranchNodeView
+          key={node.fullPath}
+          node={node}
+          depth={0}
           currentBranch={currentBranch}
           tracking={tracking}
           onCheckout={onCheckout}
@@ -3470,39 +3582,62 @@ function BranchTree({
   );
 }
 
-function BranchFolderView({
-  folder, currentBranch, tracking, onCheckout, onContextMenu,
+function RemoteBranchNodeView({
+  node, depth, onCheckout, onContextMenu
 }: {
-  folder: BranchFolder;
-  currentBranch: string;
-  tracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
+  node: TreeNode;
+  depth: number;
   onCheckout: (b: string) => void;
   onContextMenu: (e: React.MouseEvent, branch: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
+
+  if (node.isLeaf) {
+    return (
+      <div
+        onDoubleClick={() => onCheckout(node.fullPath)}
+        onContextMenu={(e) => onContextMenu(e, node.fullPath)}
+        className="pr-3 py-1.5 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] cursor-pointer transition-colors group relative"
+        style={{ paddingLeft: `${26 + depth * 14}px` }}
+        title={`Doble click: checkout · Click derecho: opciones\n${node.fullPath}`}
+      >
+        <GitBranch size={13} className="shrink-0 text-[#697789] group-hover:text-[#5ed8ff] transition-colors" />
+        <span className="truncate text-xs flex-1">{node.name}</span>
+      </div>
+    );
+  }
+
+  const totalBranchesCount = useMemo(() => {
+    let count = 0;
+    function countLeaves(n: TreeNode) {
+      if (n.isLeaf) count++;
+      else n.children.forEach(countLeaves);
+    }
+    countLeaves(node);
+    return count;
+  }, [node]);
+
   return (
     <div>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
+        className="w-full pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors cursor-pointer"
+        style={{ paddingLeft: `${26 + depth * 14}px` }}
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <Folder size={14} className="text-[#9eacc0] shrink-0" />
-        <span className="truncate flex-1 text-left">{folder.prefix}</span>
-        <span className="text-[10px] text-[#697789]">{folder.branches.length}</span>
+        <Folder size={13} className="text-[#9eacc0] shrink-0" />
+        <span className="truncate flex-1 text-left">{node.name}</span>
+        <span className="text-[10px] text-[#697789]">{totalBranchesCount}</span>
       </button>
       {isOpen && (
         <div>
-          {folder.branches.map((b) => (
-            <BranchRow
-              key={b.fullPath}
-              name={b.name}
-              fullPath={b.fullPath}
-              tracking={tracking[b.fullPath]}
-              isActive={b.fullPath === currentBranch}
+          {node.children.map((child) => (
+            <RemoteBranchNodeView
+              key={child.fullPath}
+              node={child}
+              depth={depth + 1}
               onCheckout={onCheckout}
               onContextMenu={onContextMenu}
-              indent={true}
             />
           ))}
         </div>
@@ -3511,60 +3646,6 @@ function BranchFolderView({
   );
 }
 
-function BranchRow({
-  name, fullPath, tracking, isActive, onCheckout, onContextMenu, indent,
-}: {
-  name: string;
-  fullPath: string;
-  tracking?: { ahead: number; behind: number; gone: boolean; upstream: string | null };
-  isActive: boolean;
-  onCheckout: (b: string) => void;
-  onContextMenu: (e: React.MouseEvent, branch: string) => void;
-  indent: boolean;
-}) {
-  return (
-    <div
-      onDoubleClick={() => onCheckout(fullPath)}
-      onContextMenu={(e) => onContextMenu(e, fullPath)}
-      title={`Doble click: checkout · Click derecho: opciones`}
-      className={cn(
-        'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
-        indent ? 'pl-[46px]' : 'pl-[26px]',
-        isActive ? 'bg-[#a3f185]/10 text-[#a3f185]' : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
-      )}
-    >
-      {isActive ? (
-        <Check size={13} strokeWidth={3} className="text-[#a3f185] shrink-0" />
-      ) : (
-        <GitBranch size={13} className="shrink-0 text-[#697789]" />
-      )}
-      <span className="truncate flex-1 text-sm">{name}</span>
-
-      {/* Ahead / behind chips */}
-      {tracking && !tracking.gone && (tracking.ahead > 0 || tracking.behind > 0) && (
-        <span className="flex items-center gap-1 text-[10px] font-mono shrink-0">
-          {tracking.ahead > 0 && (
-            <span className="flex items-center text-[#a3f185]" title={`${tracking.ahead} commit${tracking.ahead === 1 ? '' : 's'} local${tracking.ahead === 1 ? '' : 'es'} pendiente${tracking.ahead === 1 ? '' : 's'} de push`}>
-              {tracking.ahead}
-              <ArrowUp size={10} strokeWidth={3} />
-            </span>
-          )}
-          {tracking.behind > 0 && (
-            <span className="flex items-center text-[#fd9d1a]" title={`${tracking.behind} commit${tracking.behind === 1 ? '' : 's'} remoto${tracking.behind === 1 ? '' : 's'} pendiente${tracking.behind === 1 ? '' : 's'} de pull`}>
-              {tracking.behind}
-              <ArrowDown size={10} strokeWidth={3} />
-            </span>
-          )}
-        </span>
-      )}
-      {tracking?.gone && (
-        <span className="text-[9px] text-[#ff716c] uppercase shrink-0" title="Upstream eliminado">gone</span>
-      )}
-    </div>
-  );
-}
-
-/* Remote branches: similar tree grouped by 'origin/...' */
 function RemoteBranchTree({
   branches, onCheckout, onContextMenu,
 }: {
@@ -3572,68 +3653,18 @@ function RemoteBranchTree({
   onCheckout: (b: string) => void;
   onContextMenu: (e: React.MouseEvent, branch: string) => void;
 }) {
-  const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
+  const tree = useMemo(() => buildBranchTree(branches), [branches]);
   return (
     <div>
-      {root.map((b) => (
-        <div
-          key={b.fullPath}
-          onDoubleClick={() => onCheckout(b.fullPath)}
-          onContextMenu={(e) => onContextMenu(e, b.fullPath)}
-          title="Doble click: checkout · Click derecho: opciones"
-          className="pl-[26px] pr-3 py-1.5 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] cursor-pointer transition-colors group relative"
-        >
-          <Cloud size={13} className="shrink-0 text-[#5ed8ff]" />
-          <span className="truncate text-xs flex-1">{b.name}</span>
-        </div>
-      ))}
-      {folders.map((f) => (
-        <RemoteFolderView
-          key={f.prefix}
-          folder={f}
+      {tree.map((node) => (
+        <RemoteBranchNodeView
+          key={node.fullPath}
+          node={node}
+          depth={0}
           onCheckout={onCheckout}
           onContextMenu={onContextMenu}
         />
       ))}
-    </div>
-  );
-}
-
-function RemoteFolderView({
-  folder, onCheckout, onContextMenu,
-}: {
-  folder: BranchFolder;
-  onCheckout: (b: string) => void;
-  onContextMenu: (e: React.MouseEvent, branch: string) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(true);
-  return (
-    <div>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
-      >
-        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <Folder size={13} className="text-[#9eacc0] shrink-0" />
-        <span className="truncate flex-1 text-left">{folder.prefix}</span>
-        <span className="text-[10px] text-[#697789]">{folder.branches.length}</span>
-      </button>
-      {isOpen && (
-        <div>
-          {folder.branches.map((b) => (
-            <div
-              key={b.fullPath}
-              onDoubleClick={() => onCheckout(b.fullPath)}
-              onContextMenu={(e) => onContextMenu(e, b.fullPath)}
-              className="pl-[46px] pr-3 py-1.5 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] transition-colors cursor-pointer group relative"
-              title={`Doble click: checkout · Click derecho: opciones\n${b.fullPath}`}
-            >
-              <GitBranch size={13} className="shrink-0 text-[#697789] group-hover:text-[#5ed8ff] transition-colors" />
-              <span className="truncate text-xs flex-1">{b.name}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

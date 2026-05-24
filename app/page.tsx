@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
@@ -139,7 +140,7 @@ function RepoTabs({
   if (repos.length === 0) return null;
 
   return (
-    <div className="app-titlebar h-10 rounded-t-2xl bg-[#071a2c]/35 backdrop-blur-md border-b border-[#d9e7fc]/10 flex items-stretch shrink-0 overflow-hidden gap-1">
+    <div className="app-titlebar h-10 rounded-t-2xl bg-bg-overlay/60/35 backdrop-blur-md border-b border-text-primary/10 flex items-stretch shrink-0 overflow-hidden gap-1">
       <div className="min-w-0 flex-1 flex items-end gap-1 pl-2 pt-1.5 pb-1 overflow-x-auto overflow-y-hidden">
         <div className="app-titlebar-control h-7 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2">
         <img
@@ -148,7 +149,7 @@ function RepoTabs({
           data-keep-color
           className="w-4 h-4 rounded-sm"
         />
-        <span className="text-sm font-bold text-[#5ed8ff] tracking-tight">GitCron</span>
+        <span className="text-sm font-bold text-primary tracking-tight">GitCron</span>
         </div>
         {repos.map((repo, idx) => {
           const isActive = idx === activeIdx;
@@ -158,8 +159,8 @@ function RepoTabs({
               className={cn(
                 'app-titlebar-control group h-7 min-w-0 max-w-52 rounded-md flex items-center border transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
                 isActive
-                  ? 'bg-[#d9e7fc]/10 border-[#a3f185]/25 text-[#d9e7fc] shadow-[0_0_18px_rgba(163,241,133,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]'
-                  : 'bg-[#d9e7fc]/[0.035] border-[#d9e7fc]/10 text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#d9e7fc]/[0.07] hover:border-[#d9e7fc]/20',
+                  ? 'bg-text-primary/10 border-secondary/25 text-text-primary shadow-[0_0_18px_rgba(163,241,133,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]'
+                  : 'bg-text-primary/[0.035] border-text-primary/10 text-text-secondary hover:text-text-primary hover:bg-text-primary/[0.07] hover:border-text-primary/20',
               )}
             >
               <button
@@ -169,17 +170,17 @@ function RepoTabs({
                 className="min-w-0 flex-1 h-full px-2.5 flex items-center gap-2 text-left"
               >
                 {repo.isLoading ? (
-                  <Loader2 size={10} className="shrink-0 animate-spin text-[#a3f185]" />
+                  <Loader2 size={10} className="shrink-0 animate-spin text-secondary" />
                 ) : (
                   <span
                     className={cn(
                       'w-1.5 h-1.5 rounded-full shrink-0',
-                      isActive ? 'bg-[#a3f185] shadow-[0_0_10px_rgba(163,241,133,0.5)]' : 'bg-[#3c495a]',
+                      isActive ? 'bg-secondary shadow-[0_0_10px_rgba(var(--color-secondary-rgb),0.5)]' : 'bg-border-subtle',
                     )}
                   />
                 )}
                 <span className="truncate text-xs font-semibold">{repo.name}</span>
-                <span className="text-[10px] text-[#697789] font-mono truncate max-w-20 hidden md:block">
+                <span className="text-[10px] text-text-secondary/70 font-mono truncate max-w-20 hidden md:block">
                   {repo.currentBranch || '-'}
                 </span>
               </button>
@@ -190,7 +191,7 @@ function RepoTabs({
                   e.stopPropagation();
                   onClose(idx);
                 }}
-                className="mr-1 p-0.5 rounded text-[#697789] hover:text-[#ff716c] hover:bg-[#ff716c]/10 opacity-70 group-hover:opacity-100 transition"
+                className="mr-1 p-0.5 rounded text-text-secondary/70 hover:text-error hover:bg-error/10 opacity-70 group-hover:opacity-100 transition"
               >
                 <X size={13} />
               </button>
@@ -201,7 +202,7 @@ function RepoTabs({
           type="button"
           onClick={onOpen}
           title={t('repoTabs.openAnother')}
-          className="app-titlebar-control h-7 w-7 mb-0 rounded-md flex items-center justify-center text-[#9eacc0] bg-[#d9e7fc]/[0.025] hover:text-[#a3f185] hover:bg-[#d9e7fc]/[0.07] border border-[#d9e7fc]/15 hover:border-[#d9e7fc]/25 transition-colors shrink-0"
+          className="app-titlebar-control h-7 w-7 mb-0 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.025] hover:text-secondary hover:bg-text-primary/[0.07] border border-text-primary/15 hover:border-text-primary/25 transition-colors shrink-0"
         >
           <Plus size={14} />
         </button>
@@ -212,7 +213,7 @@ function RepoTabs({
           aria-label="Minimizar"
           title="Minimizar"
           onClick={() => window.api?.windowMinimize()}
-          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-[#9eacc0] bg-[#d9e7fc]/[0.035] hover:bg-[#d9e7fc]/[0.09] hover:text-[#d9e7fc] transition-colors"
+          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.035] hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
         >
           <Minus size={14} />
         </button>
@@ -221,7 +222,7 @@ function RepoTabs({
           aria-label="Maximizar o restaurar"
           title="Maximizar o restaurar"
           onClick={() => window.api?.windowToggleMaximize()}
-          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-[#9eacc0] bg-[#d9e7fc]/[0.035] hover:bg-[#d9e7fc]/[0.09] hover:text-[#d9e7fc] transition-colors"
+          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.035] hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
         >
           <Maximize2 size={13} />
         </button>
@@ -230,7 +231,7 @@ function RepoTabs({
           aria-label="Cerrar"
           title="Cerrar"
           onClick={() => window.api?.windowClose()}
-          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-[#9eacc0] bg-[#d9e7fc]/[0.035] hover:bg-[#ff716c]/20 hover:text-[#ffdad6] transition-colors"
+          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.035] hover:bg-error/20 hover:text-[#ffdad6] transition-colors"
         >
           <X size={15} />
         </button>
@@ -257,10 +258,10 @@ function AutoFetchSection({
 
   return (
     <section>
-      <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+      <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
         <RotateCcw size={12} /> {t('settings.autoFetch')}
       </h4>
-      <p className="text-xs text-[#9eacc0] mb-3">{t('settings.autoFetchDesc')}</p>
+      <p className="text-xs text-text-secondary mb-3">{t('settings.autoFetchDesc')}</p>
       <div className="flex items-center gap-2 mb-3">
         <button
           type="button"
@@ -268,8 +269,8 @@ function AutoFetchSection({
           className={cn(
             'px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors',
             autoFetchEnabled
-              ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
-              : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc]',
+              ? 'bg-secondary/15 border-secondary/50 text-secondary'
+              : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
           )}
         >
           {autoFetchEnabled && <Check size={14} strokeWidth={3} />}
@@ -277,7 +278,7 @@ function AutoFetchSection({
             {autoFetchEnabled ? t('settings.autoFetchEnabled') : t('settings.autoFetchDisabled')}
           </span>
         </button>
-        <span className="text-xs text-[#697789] ml-2">
+        <span className="text-xs text-text-secondary/70 ml-2">
           {t('settings.autoFetchLastSync')}: {lastSyncLabel}
         </span>
       </div>
@@ -290,8 +291,8 @@ function AutoFetchSection({
             className={cn(
               'px-3 py-2 rounded border text-sm flex items-center justify-center gap-2 transition-colors',
               autoFetchIntervalMinutes === mins
-                ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
-                : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc] hover:border-[#3c495a]/30',
+                ? 'bg-secondary/15 border-secondary/50 text-secondary'
+                : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary hover:border-border-subtle/30',
             )}
           >
             {mins} min
@@ -339,33 +340,33 @@ function ShortcutsSection({
   return (
     <section>
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider flex items-center gap-2">
+        <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-2">
           <Type size={12} /> {t('settings.shortcuts')}
         </h4>
         <button
           type="button"
           onClick={() => resetShortcutsToDefaults()}
-          className="text-[10px] uppercase tracking-wider font-bold text-[#9eacc0] hover:text-[#a3f185] transition-colors"
+          className="text-[10px] uppercase tracking-wider font-bold text-text-secondary hover:text-secondary transition-colors"
         >
           {t('settings.shortcutsReset')}
         </button>
       </div>
-      <p className="text-xs text-[#9eacc0] mb-3">{t('settings.shortcutsDesc')}</p>
-      <div className="bg-[#041425] border border-[#3c495a]/15 rounded divide-y divide-[#3c495a]/15 max-h-[280px] overflow-y-auto">
+      <p className="text-xs text-text-secondary mb-3">{t('settings.shortcutsDesc')}</p>
+      <div className="bg-bg-base/70 border border-border-subtle/15 rounded divide-y divide-border-subtle/15 max-h-[280px] overflow-y-auto">
         {DEFAULT_SHORTCUTS.map((s) => {
           const current = merged[s.id];
           const isEditing = editingId === s.id;
           return (
             <div key={s.id} className="flex items-center justify-between px-3 py-2 text-xs">
-              <span className="text-[#9eacc0]">{t(s.descriptionKey)}</span>
+              <span className="text-text-secondary">{t(s.descriptionKey)}</span>
               <button
                 type="button"
                 onClick={() => setEditingId(isEditing ? null : s.id)}
                 className={cn(
                   'px-2 py-1 rounded font-mono text-[10px] border transition-colors min-w-[100px] text-center',
                   isEditing
-                    ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185] animate-pulse'
-                    : 'bg-[#020f1e] border-[#3c495a]/30 text-[#d9e7fc] hover:border-[#a3f185]/40',
+                    ? 'bg-secondary/15 border-secondary/50 text-secondary animate-pulse'
+                    : 'bg-bg-base border-border-subtle/30 text-text-primary hover:border-secondary/40',
                 )}
               >
                 {isEditing ? t('settings.shortcutsCapture') : formatShortcut(current)}
@@ -388,18 +389,18 @@ function OsNotificationsSection({
 
   return (
     <section>
-      <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+      <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
         <AlertCircle size={12} /> {t('settings.osNotifications')}
       </h4>
-      <p className="text-xs text-[#9eacc0] mb-3">{t('settings.osNotificationsDesc')}</p>
+      <p className="text-xs text-text-secondary mb-3">{t('settings.osNotificationsDesc')}</p>
       <button
         type="button"
         onClick={() => setOsNotifications(!osNotificationsEnabled)}
         className={cn(
           'px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors',
           osNotificationsEnabled
-            ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
-            : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc]',
+            ? 'bg-secondary/15 border-secondary/50 text-secondary'
+            : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
         )}
       >
         {osNotificationsEnabled && <Check size={14} strokeWidth={3} />}
@@ -430,12 +431,12 @@ function FetchIndicator({ onClick }: { onClick: () => void | Promise<void> }) {
       title={tooltip}
       className={cn(
         'flex flex-col items-center justify-center p-1.5 rounded transition-colors group shrink-0',
-        'hover:bg-[#3c495a]',
+        'hover:bg-border-subtle',
       )}
     >
       <div className={cn(
         'w-5 h-5 flex items-center justify-center',
-        isFetchingRemote ? 'text-[#a3f185]' : 'text-[#9eacc0] group-hover:text-[#a3f185]',
+        isFetchingRemote ? 'text-secondary' : 'text-text-secondary group-hover:text-secondary',
       )}>
         <RotateCcw size={16} className={cn(isFetchingRemote && 'animate-spin')} />
       </div>
@@ -457,10 +458,10 @@ function RepoStartChooser({
   onConnectGitHub: () => void;
 }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-8 text-[#9eacc0] p-8">
+    <div className="flex-1 flex flex-col items-center justify-center gap-8 text-text-secondary p-8">
       <div className="text-center">
         <FolderOpen size={56} className="mx-auto opacity-20 mb-4" />
-        <p className="text-lg font-bold text-[#d9e7fc] mb-1">Bienvenido a GitCron</p>
+        <p className="text-lg font-bold text-text-primary mb-1">Bienvenido a GitCron</p>
         <p className="text-sm">Elegi como empezar:</p>
       </div>
 
@@ -489,7 +490,7 @@ function RepoStartChooser({
       {!githubUser && (
         <button
           onClick={onConnectGitHub}
-          className="text-xs text-[#9eacc0] hover:text-[#a3f185] underline transition-colors flex items-center gap-1.5"
+          className="text-xs text-text-secondary hover:text-secondary underline transition-colors flex items-center gap-1.5"
         >
           <Github size={12} />
           Conecta tu cuenta de GitHub para clonar repos privados
@@ -506,8 +507,8 @@ function GraphColumnHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent)
       className="group w-0 self-stretch -my-2 shrink-0 cursor-col-resize relative overflow-visible"
       title="Arrastrar para redimensionar columna"
     >
-      <div className="absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-[#3c495a]/20 group-hover:bg-[#a3f185]/45 group-active:bg-[#a3f185]/70 transition-colors" />
-      <div className="absolute inset-y-0 -left-1.5 -right-1.5 bg-transparent group-hover:bg-[#a3f185]/35 group-active:bg-[#a3f185]/60 transition-colors" />
+      <div className="absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-border-subtle/20 group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
+      <div className="absolute inset-y-0 -left-1.5 -right-1.5 bg-transparent group-hover:bg-secondary/35 group-active:bg-secondary/60 transition-colors" />
     </div>
   );
 }
@@ -885,6 +886,7 @@ export default function GitCronPage() {
   }, []);
 
   // Repo-scoped local UI should not survive tab switches or closing a repo.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setContextMenu(null);
     setFileContextMenu(null);
@@ -897,6 +899,7 @@ export default function GitCronPage() {
     setNewBranchName('');
     setNewBranchFrom(undefined);
   }, [repoPath]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Hydrate preferences (language) + GitHub auth + last opened repo on startup.
   useEffect(() => {
@@ -1332,9 +1335,9 @@ export default function GitCronPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#020f1e] text-[#d9e7fc] font-sans overflow-hidden select-none">
+    <div className="flex flex-col h-screen bg-bg-base text-text-primary font-sans overflow-hidden select-none">
       <div className="shrink-0 px-3 pt-2 relative z-[80]">
-        <div className="rounded-2xl border border-[#d9e7fc]/15 bg-[#06182a]/35 backdrop-blur-md shadow-[0_18px_60px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <div className="rounded-2xl border border-text-primary/15 bg-bg-surface/35 backdrop-blur-md shadow-[0_18px_60px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]">
           <RepoTabs
             repos={openRepos}
             activeIdx={activeRepoIdx}
@@ -1343,7 +1346,7 @@ export default function GitCronPage() {
             onOpen={handleOpenRepoChooser}
           />
       {/* ──────────── TOP NAV ──────────── */}
-      <header className="h-12 rounded-b-2xl border-t border-[#d9e7fc]/[0.06] bg-[#071a2c]/40 backdrop-blur-md grid grid-cols-[minmax(210px,0.8fr)_auto_minmax(360px,1.2fr)] items-center px-3 shrink-0 relative z-50">
+      <header className="h-12 rounded-b-2xl border-t border-text-primary/[0.06] bg-bg-overlay/60/40 backdrop-blur-md grid grid-cols-[minmax(210px,0.8fr)_auto_minmax(360px,1.2fr)] items-center px-3 shrink-0 relative z-50">
         <div className="flex items-center gap-4 h-full min-w-0">
           <button
             type="button"
@@ -1356,10 +1359,10 @@ export default function GitCronPage() {
             aria-pressed={sidebarOpen}
             title={sidebarOpen ? 'Ocultar sidebar' : 'Mostrar sidebar'}
             className={cn(
-              'h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0]',
+              'h-9 w-9 shrink-0 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary',
               'flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
-              'hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
-              sidebarOpen && 'text-[#a3f185] border-[#a3f185]/25 bg-[#a3f185]/10',
+              'hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary',
+              sidebarOpen && 'text-secondary border-secondary/25 bg-secondary/10',
             )}
           >
             {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
@@ -1375,12 +1378,12 @@ export default function GitCronPage() {
                 onClick={() => setActiveTab(tab.key)}
                 className={cn(
                   'px-3 h-full flex items-center text-sm transition-colors relative',
-                  activeTab === tab.key ? 'text-[#a3f185]' : 'text-[#9eacc0] hover:text-[#d9e7fc]',
+                  activeTab === tab.key ? 'text-secondary' : 'text-text-secondary hover:text-text-primary',
                 )}
               >
                 {tab.label}
                 {activeTab === tab.key && (
-                  <motion.div layoutId="activeTab" className="absolute bottom-1.5 left-2 right-2 h-0.5 rounded-full bg-[#a3f185]" />
+                  <motion.div layoutId="activeTab" className="absolute bottom-1.5 left-2 right-2 h-0.5 rounded-full bg-secondary" />
                 )}
               </button>
             ))}
@@ -1390,10 +1393,10 @@ export default function GitCronPage() {
         <div className="flex items-center justify-center gap-1 px-2">
           <ToolbarButton icon={<Undo />} onClick={() => {}} title={t('toolbar.undo')} />
           <ToolbarButton icon={<Redo />} onClick={() => {}} title={t('toolbar.redo')} />
-          <div className="w-px h-4 bg-[#3c495a] mx-1" />
+          <div className="w-px h-4 bg-border-subtle mx-1" />
           <ToolbarButton icon={<Download />} onClick={handlePullIntent} title={t('toolbar.pull')} label={t('toolbar.pull')} disabled={!repoPath || isLoading} />
           <ToolbarButton icon={<Upload />} onClick={handlePushIntent} title={t('toolbar.push')} label={t('toolbar.push')} disabled={!repoPath || isLoading} />
-          <div className="w-px h-4 bg-[#3c495a] mx-1" />
+          <div className="w-px h-4 bg-border-subtle mx-1" />
           <ToolbarButton
             icon={<GitBranch />}
             onClick={() => { setNewBranchFrom(undefined); setShowNewBranch(true); }}
@@ -1406,15 +1409,15 @@ export default function GitCronPage() {
         <div className="flex items-center justify-end gap-1 min-w-0">
           {/* Branch filter dropdown — only visible when Graph tab is active */}
           {activeTab === 'Graph' && repoPath && (
-            <div className="bg-[#0b1724]/90 border border-[#3c495a]/20 rounded-md flex items-center p-0.5 mr-1 shrink-0">
+            <div className="bg-bg-overlay/90 border border-border-subtle/20 rounded-md flex items-center p-0.5 mr-1 shrink-0">
               <button
                 type="button"
                 onClick={() => handleChangeGraphMode('classic')}
                 className={cn(
                   "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
                   graphMode === 'classic'
-                    ? "bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
-                    : "text-[#9eacc0] hover:text-[#d9e7fc] border border-transparent"
+                    ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
+                    : "text-text-secondary hover:text-text-primary border border-transparent"
                 )}
                 title="Vista Clásica (GitKraken)"
               >
@@ -1426,8 +1429,8 @@ export default function GitCronPage() {
                 className={cn(
                   "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
                   graphMode === 'chronometric'
-                    ? "bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
-                    : "text-[#9eacc0] hover:text-[#d9e7fc] border border-transparent"
+                    ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
+                    : "text-text-secondary hover:text-text-primary border border-transparent"
                 )}
                 title="Vista Cronométrica (Línea Diagonal)"
               >
@@ -1441,7 +1444,7 @@ export default function GitCronPage() {
               <button
                 type="button"
                 onClick={handleInstallUpdate}
-                className="h-7 px-2.5 rounded border border-[#a3f185]/45 bg-[#a3f185]/18 text-[10px] font-bold text-[#a3f185] hover:bg-[#a3f185]/28 transition-colors"
+                className="h-7 px-2.5 rounded border border-secondary/45 bg-secondary/18 text-[10px] font-bold text-secondary hover:bg-secondary/28 transition-colors"
                 title={t('update.install')}
               >
                 UPDATE
@@ -1449,14 +1452,14 @@ export default function GitCronPage() {
             )}
             {updateStatus === 'downloading' && (
               <div className="w-28 flex items-center gap-1.5">
-                <Download size={11} className="shrink-0 text-[#a3f185]" />
-                <div className="flex-1 h-1 bg-[#3c495a]/40 rounded-full overflow-hidden">
+                <Download size={11} className="shrink-0 text-secondary" />
+                <div className="flex-1 h-1 bg-border-subtle/40 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#a3f185] rounded-full transition-all duration-300"
+                    className="h-full bg-secondary rounded-full transition-all duration-300"
                     style={{ width: `${downloadProgress}%` }}
                   />
                 </div>
-                <span className="text-[10px] font-mono text-[#a3f185] w-7 text-right shrink-0">
+                <span className="text-[10px] font-mono text-secondary w-7 text-right shrink-0">
                   {downloadProgress}%
                 </span>
               </div>
@@ -1465,7 +1468,7 @@ export default function GitCronPage() {
               type="button"
               onClick={() => window.api.shellOpenExternal('https://github.com/alejandropd-1/gitcron/releases/')}
               title="GitHub Releases"
-              className="w-8 h-8 shrink-0 flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#12273c]/70 rounded transition-colors"
+              className="w-8 h-8 shrink-0 flex items-center justify-center text-text-secondary hover:text-secondary hover:bg-bg-overlay/70 rounded transition-colors"
             >
               <Github size={16} />
             </button>
@@ -1473,12 +1476,12 @@ export default function GitCronPage() {
               <button
                 type="button"
                 onClick={() => setShowUpdateMenu((v) => !v)}
-                className="relative text-[10px] font-mono font-bold text-[#052900] bg-[#a3f185] border border-[#68b24f] rounded px-2 py-0.5 select-none hover:brightness-110 transition"
+                className="relative text-[10px] font-mono font-bold text-[#052900] bg-secondary border border-[#68b24f] rounded px-2 py-0.5 select-none hover:brightness-110 transition"
                 title={updateInfo ? t('update.availableTitle', { version: updateInfo.version }) : t('settings.version')}
               >
                 v{pkg.version}
                 {(updateStatus === 'available' || updateStatus === 'downloaded') && (
-                  <span className="absolute -right-1 -top-1 w-2 h-2 rounded-full bg-[#fd9d1a] ring-2 ring-[#041425] shadow-[0_0_8px_rgba(253,157,26,0.9)]" />
+                  <span className="absolute -right-1 -top-1 w-2 h-2 rounded-full bg-git-mod ring-2 ring-bg-base/70 shadow-[0_0_8px_rgba(var(--color-git-mod-rgb),0.9)]" />
                 )}
               </button>
               <AnimatePresence>
@@ -1487,22 +1490,22 @@ export default function GitCronPage() {
                     initial={{ opacity: 0, scale: 0.95, y: -4 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                    className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-[#3c495a]/25 bg-[#12273c]/95 backdrop-blur-xl shadow-2xl shadow-black/40 p-3 z-[220]"
+                    className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border-subtle/25 bg-bg-overlay/95 backdrop-blur-xl shadow-2xl shadow-black/40 p-3 z-[220]"
                   >
                     <div className="flex items-start gap-2.5">
                       <div className={cn(
                         'mt-1 h-2 w-2 rounded-full shrink-0',
                         updateStatus === 'available' || updateStatus === 'downloaded'
-                          ? 'bg-[#fd9d1a] shadow-[0_0_8px_rgba(253,157,26,0.8)]'
-                          : 'bg-[#3c495a]',
+                          ? 'bg-git-mod shadow-[0_0_8px_rgba(var(--color-git-mod-rgb),0.8)]'
+                          : 'bg-border-subtle',
                       )} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-[#d9e7fc]">
+                        <p className="text-xs font-semibold text-text-primary">
                           {updateInfo
                             ? t('update.availableTitle', { version: updateInfo.version })
                             : t('update.currentTitle')}
                         </p>
-                        <p className="mt-0.5 text-[11px] text-[#9eacc0]">
+                        <p className="mt-0.5 text-[11px] text-text-secondary">
                           {updateInfo
                             ? t('update.currentVersion', { version: pkg.version })
                             : t('update.currentDesc')}
@@ -1511,10 +1514,10 @@ export default function GitCronPage() {
                     </div>
                     {updateStatus === 'downloading' && (
                       <div className="mt-3 flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-[#041425]/90 rounded-full overflow-hidden">
-                          <div className="h-full bg-[#a3f185] rounded-full transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
+                        <div className="flex-1 h-1.5 bg-bg-base/70/90 rounded-full overflow-hidden">
+                          <div className="h-full bg-secondary rounded-full transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
                         </div>
-                        <span className="text-[10px] font-mono text-[#a3f185] w-8 text-right">{downloadProgress}%</span>
+                        <span className="text-[10px] font-mono text-secondary w-8 text-right">{downloadProgress}%</span>
                       </div>
                     )}
                     <div className="mt-3 flex items-center gap-2">
@@ -1522,7 +1525,7 @@ export default function GitCronPage() {
                         <button
                           type="button"
                           onClick={handleDownloadUpdate}
-                          className="flex-1 px-3 py-2 rounded border border-[#a3f185]/40 bg-[#a3f185]/15 text-xs font-bold text-[#a3f185] hover:bg-[#a3f185]/25 transition-colors"
+                          className="flex-1 px-3 py-2 rounded border border-secondary/40 bg-secondary/15 text-xs font-bold text-secondary hover:bg-secondary/25 transition-colors"
                         >
                           {t('update.download')}
                         </button>
@@ -1531,7 +1534,7 @@ export default function GitCronPage() {
                         <button
                           type="button"
                           onClick={handleInstallUpdate}
-                          className="flex-1 px-3 py-2 rounded border border-[#a3f185]/45 bg-[#a3f185]/18 text-xs font-bold text-[#a3f185] hover:bg-[#a3f185]/28 transition-colors"
+                          className="flex-1 px-3 py-2 rounded border border-secondary/45 bg-secondary/18 text-xs font-bold text-secondary hover:bg-secondary/28 transition-colors"
                         >
                           UPDATE
                         </button>
@@ -1540,7 +1543,7 @@ export default function GitCronPage() {
                         <button
                           type="button"
                           onClick={handleCheckForUpdate}
-                          className="flex-1 px-3 py-2 rounded border border-[#3c495a]/25 bg-[#041425]/70 text-xs font-semibold text-[#9eacc0] hover:text-[#a3f185] hover:border-[#a3f185]/35 transition-colors"
+                          className="flex-1 px-3 py-2 rounded border border-border-subtle/25 bg-bg-base/70/70 text-xs font-semibold text-text-secondary hover:text-secondary hover:border-secondary/35 transition-colors"
                         >
                           {t('settings.checkUpdatesButton')}
                         </button>
@@ -1551,7 +1554,7 @@ export default function GitCronPage() {
               </AnimatePresence>
             </div>
           </div>
-          <div className="w-px h-4 bg-[#3c495a] mx-1" />
+          <div className="w-px h-4 bg-border-subtle mx-1" />
           <ToolbarButton icon={<Terminal />} onClick={openTerminal} title={t('toolbar.terminal')} disabled={!repoPath} />
 
           {/* Branch filter dropdown — only visible when Graph tab is active */}
@@ -1564,18 +1567,18 @@ export default function GitCronPage() {
                 title={graphShowAllBranches ? t('graph.allBranches') : t('graph.currentBranch')}
                 className={cn(
                   'flex flex-col items-center justify-center p-1.5 rounded transition-colors group shrink-0',
-                  'hover:bg-[#12273c]/70',
-                  !graphShowAllBranches && 'text-[#a3f185]',
+                  'hover:bg-bg-overlay/70',
+                  !graphShowAllBranches && 'text-secondary',
                 )}
               >
                 <div className={cn(
                   'w-5 h-5 flex items-center justify-center',
-                  !graphShowAllBranches ? 'text-[#a3f185]' : 'text-[#9eacc0] group-hover:text-[#a3f185]',
+                  !graphShowAllBranches ? 'text-secondary' : 'text-text-secondary group-hover:text-secondary',
                 )}>
                   <Filter size={15} />
                 </div>
                 {!graphShowAllBranches && (
-                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[#a3f185] shadow-[0_0_6px_rgba(163,241,133,0.7)]" />
+                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_6px_rgba(163,241,133,0.7)]" />
                 )}
               </button>
 
@@ -1585,7 +1588,7 @@ export default function GitCronPage() {
                     initial={{ opacity: 0, scale: 0.95, y: -4 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                    className="absolute right-0 top-full mt-1 bg-[#12273c]/95 backdrop-blur-xl border border-[#3c495a]/25 rounded-lg shadow-2xl shadow-black/40 py-1 z-50 w-44"
+                    className="absolute right-0 top-full mt-1 glass-overlay rounded-lg shadow-2xl shadow-black/40 py-1 z-50 w-44"
                     onClick={() => setShowBranchFilterDropdown(false)}
                   >
                     <button
@@ -1599,8 +1602,8 @@ export default function GitCronPage() {
                       className={cn(
                         'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors',
                         graphShowAllBranches
-                          ? 'text-[#a3f185]'
-                          : 'text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#3c495a]/30',
+                          ? 'text-secondary'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-border-subtle/30',
                       )}
                     >
                       {graphShowAllBranches && <Check size={12} strokeWidth={3} className="shrink-0" />}
@@ -1618,8 +1621,8 @@ export default function GitCronPage() {
                       className={cn(
                         'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors',
                         !graphShowAllBranches
-                          ? 'text-[#a3f185]'
-                          : 'text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#3c495a]/30',
+                          ? 'text-secondary'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-border-subtle/30',
                       )}
                     >
                       {!graphShowAllBranches && <Check size={12} strokeWidth={3} className="shrink-0" />}
@@ -1640,10 +1643,10 @@ export default function GitCronPage() {
               disabled={!repoPath}
             />
             {filterText && (
-              <span className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-full bg-[#a3f185] shadow-[0_0_8px_rgba(163,241,133,0.7)]" />
+              <span className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_8px_rgba(163,241,133,0.7)]" />
             )}
           </div>
-          <div className="w-px h-4 bg-[#3c495a] mx-1 shrink-0" />
+          <div className="w-px h-4 bg-border-subtle mx-1 shrink-0" />
           <button
             type="button"
             onClick={() => {
@@ -1655,10 +1658,10 @@ export default function GitCronPage() {
             aria-pressed={detailsOpen}
             title={detailsOpen ? 'Ocultar panel de detalles' : 'Mostrar panel de detalles'}
             className={cn(
-              'h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0]',
+              'h-9 w-9 shrink-0 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary',
               'flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
-              'hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
-              detailsOpen && 'text-[#a3f185] border-[#a3f185]/25 bg-[#a3f185]/10',
+              'hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary',
+              detailsOpen && 'text-secondary border-secondary/25 bg-secondary/10',
             )}
           >
             {detailsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
@@ -1672,22 +1675,22 @@ export default function GitCronPage() {
       {showSearchPopover && searchPopoverPos && (
         <div
           ref={searchPopoverRef}
-          className="fixed w-[360px] rounded-lg border border-[#3c495a]/25 bg-[#12273c]/95 backdrop-blur-xl shadow-2xl shadow-black/40 p-2 z-[200]"
+          className="fixed w-[360px] rounded-lg border border-border-subtle/25 bg-bg-overlay/95 backdrop-blur-xl shadow-2xl shadow-black/40 p-2 z-[200]"
           style={{ top: searchPopoverPos.top, right: searchPopoverPos.right }}
         >
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9eacc0]" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
             <input
               ref={filterInputRef}
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
-              className="w-full bg-[#041425]/70 border border-[#3c495a]/20 rounded px-8 py-2 text-sm text-[#d9e7fc] focus:outline-none focus:border-[#a3f185]/55"
+              className="w-full bg-bg-base/70/70 border border-border-subtle/20 rounded px-8 py-2 text-sm text-text-primary focus:outline-none focus:border-secondary/55"
               placeholder={t('toolbar.filter')}
             />
             {filterText && (
               <button
                 onClick={() => setFilterText('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#9eacc0] hover:text-[#d9e7fc] transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors"
                 title="Limpiar filtro (Esc)"
               >
                 <X size={14} />
@@ -1700,7 +1703,7 @@ export default function GitCronPage() {
       <div className="flex-1 overflow-hidden relative">
         {/* FLOATING LEFT PANEL: Sidebar — floats over the canvas, toggle via tab button */}
         <aside
-          className="absolute bg-[#071a2c]/60 backdrop-blur-md flex flex-col overflow-hidden z-30 border border-[#d9e7fc]/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
+          className="absolute bg-bg-overlay/60/60 backdrop-blur-md flex flex-col overflow-hidden z-30 border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
           style={{
             top: FLOATING_PANEL_INSET,
             left: FLOATING_PANEL_INSET,
@@ -1715,13 +1718,13 @@ export default function GitCronPage() {
             className="group absolute top-0 right-0 h-full w-2 cursor-col-resize z-40"
             title="Arrastrar para redimensionar"
           >
-            <div className="absolute inset-y-3 right-0.5 w-px bg-transparent group-hover:bg-[#a3f185]/45 group-active:bg-[#a3f185]/70 transition-colors" />
+            <div className="absolute inset-y-3 right-0.5 w-px bg-transparent group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin py-2">
           {/* LOCAL — folder tree + ahead/behind chips */}
-          <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-[#5ed8ff]" />}>
+          <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-primary" />}>
             {branches.length === 0 && !repoPath && (
-              <p className="px-4 py-2 text-xs text-[#9eacc0] italic">{t('sidebar.noBranches')}</p>
+              <p className="px-4 py-2 text-xs text-text-secondary italic">{t('sidebar.noBranches')}</p>
             )}
             <BranchTree
               branches={branches}
@@ -1736,7 +1739,7 @@ export default function GitCronPage() {
           </SidebarSection>
 
           {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
-          <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} className="text-[#5ed8ff]" />}>
+          <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} className="text-primary" />}>
             <RemoteBranchTree
               branches={remoteBranches}
               onCheckout={(b) => handleCheckoutAttempt(b)}
@@ -1751,7 +1754,7 @@ export default function GitCronPage() {
           {githubUser && (
             <SidebarSection title={t('sidebar.pullRequests')} count={pullRequests.length || undefined}>
               {pullRequests.length === 0 && (
-                <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">{t('sidebar.noPRs')}</p>
+                <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noPRs')}</p>
               )}
               {pullRequests.map((pr) => (
                 <div
@@ -1759,8 +1762,8 @@ export default function GitCronPage() {
                   className={cn(
                     'group flex items-stretch text-sm transition-colors',
                     selectedPullRequest?.number === pr.number
-                      ? 'bg-[#a3f185]/10 text-[#d9e7fc]'
-                      : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
+                      ? 'bg-secondary/10 text-text-primary'
+                      : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
                   )}
                 >
                   <button
@@ -1769,17 +1772,17 @@ export default function GitCronPage() {
                     title={t('prDiff.view', { number: String(pr.number) })}
                     className="flex-1 min-w-0 text-left px-4 py-1.5 flex items-start gap-2"
                   >
-                    <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-[#9eacc0]' : 'text-[#a3f185]')} />
+                    <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-text-secondary' : 'text-secondary')} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-mono text-[#697789]">#{pr.number}</span>
-                        {pr.draft && <span className="text-[9px] text-[#697789] uppercase">{t('sidebar.draft')}</span>}
+                        <span className="text-[10px] font-mono text-text-secondary/70">#{pr.number}</span>
+                        {pr.draft && <span className="text-[9px] text-text-secondary/70 uppercase">{t('sidebar.draft')}</span>}
                       </div>
                       <p className="text-xs truncate">{pr.title}</p>
-                      <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-[#697789]">
+                      <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-text-secondary/70">
                         <span className="truncate">{pr.branch}</span>
-                        <span className="text-[#a3f185]">+{pr.additions}</span>
-                        <span className="text-[#ff716c]">-{pr.deletions}</span>
+                        <span className="text-secondary">+{pr.additions}</span>
+                        <span className="text-error">-{pr.deletions}</span>
                       </div>
                     </div>
                   </button>
@@ -1787,7 +1790,7 @@ export default function GitCronPage() {
                     type="button"
                     onClick={() => window.api?.shellOpenExternal(pr.url)}
                     title={t('sidebar.openInGitHub', { number: String(pr.number) })}
-                    className="w-8 shrink-0 flex items-center justify-center text-[#697789] hover:text-[#a3f185] opacity-0 group-hover:opacity-100 transition"
+                    className="w-8 shrink-0 flex items-center justify-center text-text-secondary/70 hover:text-secondary opacity-0 group-hover:opacity-100 transition"
                   >
                     <ExternalLink size={12} />
                   </button>
@@ -1805,13 +1808,13 @@ export default function GitCronPage() {
                 <div className="flex items-center gap-1 ml-1">
                   <button
                     onClick={async () => { await stashClear(); setShowStashClearConfirm(false); }}
-                    className="text-[9px] px-1.5 py-0.5 rounded bg-[#ff716c] text-white font-bold"
+                    className="text-[9px] px-1.5 py-0.5 rounded bg-error text-white font-bold"
                   >
                     Sí, limpiar
                   </button>
                   <button
                     onClick={() => setShowStashClearConfirm(false)}
-                    className="text-[9px] px-1.5 py-0.5 rounded bg-[#3c495a] text-[#9eacc0]"
+                    className="text-[9px] px-1.5 py-0.5 rounded bg-border-subtle text-text-secondary"
                   >
                     No
                   </button>
@@ -1819,7 +1822,7 @@ export default function GitCronPage() {
               ) : (
                 <button
                   onClick={() => setShowStashClearConfirm(true)}
-                  className="text-[9px] text-[#9eacc0] hover:text-[#ff716c] transition-colors ml-1 font-medium"
+                  className="text-[9px] text-text-secondary hover:text-error transition-colors ml-1 font-medium"
                   title="Eliminar todos los stashes"
                 >
                   limpiar todo
@@ -1828,7 +1831,7 @@ export default function GitCronPage() {
             ) : undefined}
           >
             {stashes.length === 0 && repoPath && (
-              <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">{t('sidebar.noStashes')}</p>
+              <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noStashes')}</p>
             )}
             {stashes.map((s) => (
               <StashItem key={s.index} stash={s} onApply={() => stashApply(s.index)} onDrop={() => stashDrop(s.index)} />
@@ -1838,7 +1841,7 @@ export default function GitCronPage() {
           {/* TAGS */}
           <SidebarSection title={t('sidebar.tags')} count={tags.length || undefined}>
             {tags.length === 0 && repoPath && (
-              <p className="px-4 py-1 text-[11px] text-[#9eacc0] italic">{t('sidebar.noTags')}</p>
+              <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
             )}
             {tags.map((t) => <SidebarItem key={t} icon={<Tag size={16} />} text={t} />)}
           </SidebarSection>
@@ -1853,12 +1856,12 @@ export default function GitCronPage() {
                     key={wt.path}
                     onClick={() => window.api?.shellOpenPath(wt.path)}
                     title={wt.path}
-                    className="w-full text-left px-4 py-1.5 flex items-center gap-3 text-sm hover:bg-[#172d45] text-[#9eacc0] hover:text-[#d9e7fc] transition-colors"
+                    className="w-full text-left px-4 py-1.5 flex items-center gap-3 text-sm hover:bg-bg-surface/70 text-text-secondary hover:text-text-primary transition-colors"
                   >
-                    <TreePine size={14} className="shrink-0 text-[#5ed8ff]" />
+                    <TreePine size={14} className="shrink-0 text-primary" />
                     <span className="truncate flex-1">{name}</span>
                     {wt.branch && (
-                      <span className="text-[10px] font-mono text-[#697789] shrink-0">{wt.branch}</span>
+                      <span className="text-[10px] font-mono text-text-secondary/70 shrink-0">{wt.branch}</span>
                     )}
                   </button>
                 );
@@ -1873,13 +1876,13 @@ export default function GitCronPage() {
             </SidebarSection>
           )}
           </div>
-          <div className="shrink-0 border-t border-[#d9e7fc]/10 bg-[#041425]/35 px-3 py-3">
+          <div className="shrink-0 border-t border-text-primary/10 bg-bg-base/70/35 px-3 py-3">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setShowSettings(true)}
                 title={t('toolbar.settings')}
-                className="h-9 w-9 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]"
+                className="h-9 w-9 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary flex items-center justify-center transition-colors hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary"
               >
                 <Settings size={17} />
               </button>
@@ -1887,7 +1890,7 @@ export default function GitCronPage() {
                 type="button"
                 onClick={() => setShowHelp(true)}
                 title={t('toolbar.help')}
-                className="h-9 w-9 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]"
+                className="h-9 w-9 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary flex items-center justify-center transition-colors hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary"
               >
                 <HelpCircle size={17} />
               </button>
@@ -1897,7 +1900,7 @@ export default function GitCronPage() {
                     type="button"
                     onClick={() => setShowProfile(true)}
                     title={t('toolbar.connectedAs', { user: githubUser.login })}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#a3f185]/35 bg-[#a3f185]/10 hover:border-[#a3f185]/60 hover:bg-[#a3f185]/15 transition-colors"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-secondary/35 bg-secondary/10 hover:border-secondary/60 hover:bg-secondary/15 transition-colors"
                   >
                     {githubUser.avatarUrl ? (
                       <img
@@ -1916,7 +1919,7 @@ export default function GitCronPage() {
                     type="button"
                     onClick={() => setShowProfile(true)}
                     title={t('toolbar.connectGitHub')}
-                    className="h-10 w-10 shrink-0 rounded-full border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] flex items-center justify-center text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#d9e7fc]/10 hover:border-[#a3f185]/35 transition-colors"
+                    className="h-10 w-10 shrink-0 rounded-full border border-text-primary/15 bg-text-primary/[0.035] flex items-center justify-center text-text-secondary hover:text-secondary hover:bg-text-primary/10 hover:border-secondary/35 transition-colors"
                   >
                     <UserCircle2 size={24} strokeWidth={1.5} />
                   </button>
@@ -1927,12 +1930,12 @@ export default function GitCronPage() {
         </aside>
 
         {/* CENTER CANVAS: Full-bleed graph, always fills the whole area */}
-        <main className="absolute inset-0 bg-[#020f1e] overflow-hidden flex flex-col">
+        <main className="absolute inset-0 bg-bg-base overflow-hidden flex flex-col">
           {!repoPath || showRepoChooser ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-8 text-[#9eacc0] p-8">
+            <div className="flex-1 flex flex-col items-center justify-center gap-8 text-text-secondary p-8">
               <div className="text-center">
                 <FolderOpen size={56} className="mx-auto opacity-20 mb-4" />
-                <p className="text-lg font-bold text-[#d9e7fc] mb-1">Bienvenido a GitCron</p>
+                <p className="text-lg font-bold text-text-primary mb-1">Bienvenido a GitCron</p>
                 <p className="text-sm">Elegí cómo empezar:</p>
               </div>
 
@@ -1961,7 +1964,7 @@ export default function GitCronPage() {
               {!githubUser && (
                 <button
                   onClick={() => setShowSettings(true)}
-                  className="text-xs text-[#9eacc0] hover:text-[#a3f185] underline transition-colors flex items-center gap-1.5"
+                  className="text-xs text-text-secondary hover:text-secondary underline transition-colors flex items-center gap-1.5"
                 >
                   <Github size={12} />
                   Conectá tu cuenta de GitHub para clonar repos privados
@@ -1970,45 +1973,45 @@ export default function GitCronPage() {
             </div>
           ) : selectedPullRequest ? (
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="px-4 py-3 border-b border-[#3c495a]/15 bg-[#041425] shrink-0">
+              <div className="px-4 py-3 border-b border-border-subtle/15 bg-bg-base/70 shrink-0">
                 <div className="flex items-center gap-2 mb-2">
                   <button
                     type="button"
                     onClick={handleCloseDiff}
-                    className="flex items-center gap-1.5 text-xs text-[#9eacc0] hover:text-[#a3f185] transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-secondary transition-colors"
                   >
                     <ArrowLeft size={14} /> {t('prDiff.back')}
                   </button>
-                  <span className="text-[#697789]">/</span>
-                  <span className="text-xs font-mono text-[#a3f185]">PR #{selectedPullRequest.number}</span>
+                  <span className="text-text-secondary/70">/</span>
+                  <span className="text-xs font-mono text-secondary">PR #{selectedPullRequest.number}</span>
                   <div className="flex-1" />
                   {selectedPullRequest.draft && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#697789]/20 text-[#9eacc0] uppercase">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#697789]/20 text-text-secondary uppercase">
                       {t('sidebar.draft')}
                     </span>
                   )}
                   <button
                     type="button"
                     onClick={() => window.api?.shellOpenExternal(selectedPullRequest.url)}
-                    className="flex items-center gap-1.5 text-xs text-[#9eacc0] hover:text-[#a3f185] transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-secondary transition-colors"
                   >
                     <ExternalLink size={13} /> {t('prDiff.open')}
                   </button>
                 </div>
                 <div className="flex items-start gap-3">
-                  <FileDiff size={18} className="text-[#5ed8ff] shrink-0 mt-0.5" />
+                  <FileDiff size={18} className="text-primary shrink-0 mt-0.5" />
                   <div className="min-w-0 flex-1">
-                    <h2 className="font-semibold text-[#d9e7fc] truncate">{selectedPullRequest.title}</h2>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[#9eacc0]">
+                    <h2 className="font-semibold text-text-primary truncate">{selectedPullRequest.title}</h2>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-text-secondary">
                       <span>@{selectedPullRequest.author}</span>
-                      <span className="text-[#697789]">·</span>
-                      <span className="font-mono text-[#5ed8ff]">{selectedPullRequest.branch}</span>
-                      <span className="text-[#697789]">→</span>
-                      <span className="font-mono text-[#d9e7fc]">{selectedPullRequest.baseBranch}</span>
-                      <span className="text-[#697789]">·</span>
+                      <span className="text-text-secondary/70">·</span>
+                      <span className="font-mono text-primary">{selectedPullRequest.branch}</span>
+                      <span className="text-text-secondary/70">→</span>
+                      <span className="font-mono text-text-primary">{selectedPullRequest.baseBranch}</span>
+                      <span className="text-text-secondary/70">·</span>
                       <span>{t('prDiff.changedFiles', { count: String(pullRequestDiff?.changedFiles ?? selectedPullRequest.changedFiles) })}</span>
-                      <span className="font-mono text-[#a3f185]">+{pullRequestDiff?.additions ?? selectedPullRequest.additions}</span>
-                      <span className="font-mono text-[#ff716c]">-{pullRequestDiff?.deletions ?? selectedPullRequest.deletions}</span>
+                      <span className="font-mono text-secondary">+{pullRequestDiff?.additions ?? selectedPullRequest.additions}</span>
+                      <span className="font-mono text-error">-{pullRequestDiff?.deletions ?? selectedPullRequest.deletions}</span>
                     </div>
                   </div>
                 </div>
@@ -2018,13 +2021,13 @@ export default function GitCronPage() {
                       <span
                         key={file.filename}
                         title={file.previousFilename ? `${file.previousFilename} → ${file.filename}` : file.filename}
-                        className="shrink-0 max-w-[220px] truncate rounded border border-[#3c495a]/20 bg-[#020f1e] px-2 py-1 text-[10px] font-mono text-[#9eacc0]"
+                        className="shrink-0 max-w-[220px] truncate rounded border border-border-subtle/20 bg-bg-base px-2 py-1 text-[10px] font-mono text-text-secondary"
                       >
                         {file.filename}
                       </span>
                     ))}
                     {pullRequestDiff.files.length > 18 && (
-                      <span className="shrink-0 rounded border border-[#3c495a]/20 bg-[#020f1e] px-2 py-1 text-[10px] font-mono text-[#697789]">
+                      <span className="shrink-0 rounded border border-border-subtle/20 bg-bg-base px-2 py-1 text-[10px] font-mono text-text-secondary/70">
                         +{pullRequestDiff.files.length - 18}
                       </span>
                     )}
@@ -2032,8 +2035,8 @@ export default function GitCronPage() {
                 )}
               </div>
               {pullRequestDiffLoading ? (
-                <div className="flex-1 flex items-center justify-center text-[#9eacc0] text-sm">
-                  <Loader2 size={16} className="animate-spin mr-2 text-[#a3f185]" />
+                <div className="flex-1 flex items-center justify-center text-text-secondary text-sm">
+                  <Loader2 size={16} className="animate-spin mr-2 text-secondary" />
                   {t('prDiff.loading')}
                 </div>
               ) : (
@@ -2042,36 +2045,36 @@ export default function GitCronPage() {
             </div>
           ) : selectedFile ? (
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex items-center gap-2 px-4 py-2 border-b border-[#3c495a]/15 bg-[#041425] shrink-0">
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle/15 bg-bg-base/70 shrink-0">
                 <button
                   onClick={handleCloseDiff}
-                  className="flex items-center gap-1.5 text-xs text-[#9eacc0] hover:text-[#a3f185] transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-secondary transition-colors"
                 >
                   <ArrowLeft size={14} /> Volver al graph
                 </button>
-                <span className="text-[#697789]">/</span>
-                <span className="text-xs text-[#d9e7fc] font-mono truncate">{selectedFile.path}</span>
+                <span className="text-text-secondary/70">/</span>
+                <span className="text-xs text-text-primary font-mono truncate">{selectedFile.path}</span>
                 <div className="flex-1" />
                 <span
                   className={cn(
                     'text-[10px] px-1.5 py-0.5 rounded font-bold',
-                    selectedFile.status === 'modified' ? 'bg-[#fd9d1a]/20 text-[#fd9d1a]' :
-                    selectedFile.status === 'added' ? 'bg-[#a3f185]/20 text-[#a3f185]' :
-                    selectedFile.status === 'renamed' ? 'bg-[#5ed8ff]/20 text-[#5ed8ff]' :
-                    selectedFile.status === 'untracked' ? 'bg-[#9eacc0]/20 text-[#9eacc0]' :
-                    'bg-[#ff716c]/20 text-[#ff716c]',
+                    selectedFile.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
+                    selectedFile.status === 'added' ? 'bg-secondary/20 text-secondary' :
+                    selectedFile.status === 'renamed' ? 'bg-primary/20 text-primary' :
+                    selectedFile.status === 'untracked' ? 'bg-[#9eacc0]/20 text-text-secondary' :
+                    'bg-error/20 text-error',
                   )}
                 >
                   {selectedFile.status.toUpperCase()}
                 </span>
               </div>
               {selectedFile.conflicted && (
-                <div className="mx-4 mt-3 p-4 bg-[#12273c]/80 backdrop-blur-md border border-[#fd9d1a]/30 rounded-xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+                <div className="mx-4 mt-3 p-4 bg-bg-overlay/80 backdrop-blur-md border border-git-mod/30 rounded-xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="text-[#fd9d1a] shrink-0 mt-0.5" size={20} />
+                    <AlertCircle className="text-git-mod shrink-0 mt-0.5" size={20} />
                     <div>
-                      <h4 className="font-bold text-[#d9e7fc] text-sm">Este archivo tiene conflictos de fusión</h4>
-                      <p className="text-xs text-[#9eacc0] mt-0.5 leading-relaxed">
+                      <h4 className="font-bold text-text-primary text-sm">Este archivo tiene conflictos de fusión</h4>
+                      <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
                         Elegí qué cambios conservar para resolver el conflicto al instante, o editalo manualmente en tu IDE y stagealo.
                       </p>
                     </div>
@@ -2082,7 +2085,7 @@ export default function GitCronPage() {
                         await resolveConflict(selectedFile.path, 'ours');
                         handleCloseDiff();
                       }}
-                      className="px-3 py-1.5 bg-[#a3f185]/20 hover:bg-[#a3f185] hover:text-[#052900] text-[#a3f185] text-xs font-bold rounded-lg border border-[#a3f185]/40 transition-all active:scale-[0.98]"
+                      className="px-3 py-1.5 bg-secondary/20 hover:bg-secondary hover:text-[#052900] text-secondary text-xs font-bold rounded-lg border border-secondary/40 transition-all active:scale-[0.98]"
                     >
                       Aceptar Local (HEAD)
                     </button>
@@ -2091,7 +2094,7 @@ export default function GitCronPage() {
                         await resolveConflict(selectedFile.path, 'theirs');
                         handleCloseDiff();
                       }}
-                      className="px-3 py-1.5 bg-[#5ed8ff]/20 hover:bg-[#5ed8ff] hover:text-[#020f1e] text-[#5ed8ff] text-xs font-bold rounded-lg border border-[#5ed8ff]/40 transition-all active:scale-[0.98]"
+                      className="px-3 py-1.5 bg-primary/20 hover:bg-primary hover:text-[#020f1e] text-primary text-xs font-bold rounded-lg border border-[#5ed8ff]/40 transition-all active:scale-[0.98]"
                     >
                       Aceptar Entrante (Merge)
                     </button>
@@ -2117,13 +2120,13 @@ export default function GitCronPage() {
             />
           ) : (
             /* Graph tab — default */
-            <div className="flex-1 flex flex-col bg-[#020f1e] min-h-0">
+            <div className="flex-1 flex flex-col bg-bg-base min-h-0">
               {graphMode === 'classic' ? (
                 <div
                   className="flex-1 min-w-0 flex flex-col min-h-0 transition-[padding] duration-300 ease-out"
                   style={{ paddingLeft: leftGraphSafe, paddingRight: rightGraphSafe }}
                 >
-                  <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 flex items-center text-[10px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
+                  <div className="sticky top-0 glass-sticky-header z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
                     <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
                     <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
                     <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
@@ -2131,7 +2134,7 @@ export default function GitCronPage() {
                     <div className="flex-1 flex items-center gap-2 pl-5">
                       Commit message
                       {filterText.trim() && (
-                        <span className="text-[10px] normal-case px-1.5 py-0.5 rounded bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/30">
+                        <span className="text-[10px] normal-case px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
                           filtro activo
                         </span>
                       )}
@@ -2146,13 +2149,13 @@ export default function GitCronPage() {
 
                   <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin">
                     {!isStartupGraphReady && (
-                      <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-[#9eacc0] text-sm">
-                        <Loader2 size={18} className="animate-spin mb-3 text-[#a3f185]" />
+                      <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-text-secondary text-sm">
+                        <Loader2 size={18} className="animate-spin mb-3 text-secondary" />
                         <p>Cargando graph...</p>
                       </div>
                     )}
                     {isStartupGraphReady && commits.length === 0 && isLoading && (
-                      <p className="px-4 py-8 text-center text-[#9eacc0] text-sm">Cargando commits...</p>
+                      <p className="px-4 py-8 text-center text-text-secondary text-sm">Cargando commits...</p>
                     )}
                     {isStartupGraphReady && commits.length > 0 && (
                       <motion.div
@@ -2177,13 +2180,13 @@ export default function GitCronPage() {
               ) : (
                 <div className="flex-1 flex flex-col overflow-visible min-h-0">
                   {!isStartupGraphReady && (
-                    <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-[#9eacc0] text-sm">
-                      <Loader2 size={18} className="animate-spin mb-3 text-[#a3f185]" />
+                    <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-text-secondary text-sm">
+                      <Loader2 size={18} className="animate-spin mb-3 text-secondary" />
                       <p>Cargando graph...</p>
                     </div>
                   )}
                   {isStartupGraphReady && commits.length === 0 && isLoading && (
-                    <p className="px-4 py-8 text-center text-[#9eacc0] text-sm">Cargando commits...</p>
+                    <p className="px-4 py-8 text-center text-text-secondary text-sm">Cargando commits...</p>
                   )}
                   {isStartupGraphReady && commits.length > 0 && (
                     <motion.div
@@ -2212,7 +2215,7 @@ export default function GitCronPage() {
 
         {/* FLOATING RIGHT PANEL: Commit details + staging — floats over the canvas */}
         <aside
-          className="absolute bg-[#071a2c]/60 backdrop-blur-md flex flex-col overflow-hidden z-30 border border-[#d9e7fc]/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
+          className="absolute bg-bg-overlay/60/60 backdrop-blur-md flex flex-col overflow-hidden z-30 border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
           style={{
             top: FLOATING_PANEL_INSET,
             right: FLOATING_PANEL_INSET,
@@ -2227,57 +2230,57 @@ export default function GitCronPage() {
             className="group absolute top-0 left-0 h-full w-2 cursor-col-resize z-40"
             title="Arrastrar para redimensionar"
           >
-            <div className="absolute inset-y-3 left-0.5 w-px bg-transparent group-hover:bg-[#a3f185]/45 group-active:bg-[#a3f185]/70 transition-colors" />
+            <div className="absolute inset-y-3 left-0.5 w-px bg-transparent group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
           </div>
           {selectedCommit ? (
             <div className="flex flex-col h-full">
               {/* WIP banner: visible when commit is selected but there are unsaved changes */}
               {modifiedFiles.length > 0 && (
-                <div className="px-3 py-2 bg-[#fd9d1a]/10 border-b border-[#fd9d1a]/20 flex items-center gap-2 shrink-0">
-                  <Archive size={13} className="text-[#fd9d1a] shrink-0" />
-                  <span className="text-[11px] text-[#d9e7fc] flex-1">
+                <div className="px-3 py-2 bg-git-mod/10 border-b border-git-mod/20 flex items-center gap-2 shrink-0">
+                  <Archive size={13} className="text-git-mod shrink-0" />
+                  <span className="text-[11px] text-text-primary flex-1">
                     {modifiedFiles.length} cambio{modifiedFiles.length !== 1 ? 's' : ''} sin commitear
                   </span>
                   <button
                     onClick={stashChanges}
                     disabled={isLoading}
-                    className="text-[10px] font-bold text-[#fd9d1a] hover:text-[#052900] hover:bg-[#fd9d1a] px-2 py-0.5 rounded border border-[#fd9d1a]/40 transition-colors disabled:opacity-50"
+                    className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded border border-git-mod/40 transition-colors disabled:opacity-50"
                     title="Guardar los cambios actuales en el stash"
                   >
                     Stash
                   </button>
                   <button
                     onClick={() => setSelectedCommit(null)}
-                    className="text-[10px] text-[#9eacc0] hover:text-[#d9e7fc] px-2 py-0.5 rounded border border-[#3c495a]/15 transition-colors"
+                    className="text-[10px] text-text-secondary hover:text-text-primary px-2 py-0.5 rounded border border-border-subtle/15 transition-colors"
                     title="Ir al staging area"
                   >
                     Ver cambios →
                   </button>
                 </div>
               )}
-              <div className="p-4 border-b border-[#3c495a]/15">
+              <div className="p-4 border-b border-border-subtle/15">
                 <div className="flex justify-between items-start mb-2">
-                  <div className="text-[12px] font-mono text-[#a3f185]">commit: {selectedCommit.shortHash}</div>
-                  <button className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#3c495a] text-xs hover:bg-[#172d45] transition-colors">
-                    <Zap size={12} className="text-[#fd9d1a]" /> Explain
+                  <div className="text-[12px] font-mono text-secondary">commit: {selectedCommit.shortHash}</div>
+                  <button className="flex items-center gap-1.5 px-2 py-1 rounded bg-border-subtle text-xs hover:bg-bg-surface/70 transition-colors">
+                    <Zap size={12} className="text-git-mod" /> Explain
                   </button>
                 </div>
                 <h2 className="font-semibold mb-1">{selectedCommit.message}</h2>
-                <div className="text-xs text-[#9eacc0] mb-4">{formatDate(selectedCommit.date)}</div>
+                <div className="text-xs text-text-secondary mb-4">{formatDate(selectedCommit.date)}</div>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#a3f185] flex items-center justify-center text-xs font-bold">
+                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
                     {initials(selectedCommit.authorName)}
                   </div>
                   <div>
                     <div className="text-sm font-medium">{selectedCommit.authorName}</div>
-                    <div className="text-[10px] text-[#9eacc0]">{selectedCommit.authorEmail}</div>
+                    <div className="text-[10px] text-text-secondary">{selectedCommit.authorEmail}</div>
                   </div>
                 </div>
               </div>
 
               <div className="flex-1 overflow-y-auto">
-                <div className="px-4 py-2 border-b border-[#3c495a]/15 flex justify-between items-center bg-[#0d2134]">
-                  <span className="text-[11px] font-bold text-[#9eacc0] uppercase tracking-wider">
+                <div className="px-4 py-2 border-b border-border-subtle/15 flex justify-between items-center bg-bg-surface/75">
+                  <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
                     {commitFilesLoading
                       ? 'Cargando archivos...'
                       : `Changed files (${commitFiles.length})`}
@@ -2298,16 +2301,16 @@ export default function GitCronPage() {
                       className={cn(
                         'w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors',
                         selectedFile?.path === file.path
-                          ? 'bg-[#a3f185]/10 text-[#a3f185]'
-                          : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
+                          ? 'bg-secondary/10 text-secondary'
+                          : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
                       )}
                     >
                       <span className={cn(
                         'text-[10px] font-bold w-4 shrink-0',
-                        file.status === 'added' ? 'text-[#a3f185]' :
-                        file.status === 'deleted' ? 'text-[#ff716c]' :
-                        file.status === 'renamed' ? 'text-[#5ed8ff]' :
-                        'text-[#fd9d1a]',
+                        file.status === 'added' ? 'text-secondary' :
+                        file.status === 'deleted' ? 'text-error' :
+                        file.status === 'renamed' ? 'text-primary' :
+                        'text-git-mod',
                       )}>
                         {file.status === 'added' ? 'A' : file.status === 'deleted' ? 'D' : file.status === 'renamed' ? 'R' : 'M'}
                       </span>
@@ -2315,14 +2318,14 @@ export default function GitCronPage() {
                     </button>
                   ))}
                   {!commitFilesLoading && commitFiles.length === 0 && (
-                    <p className="px-4 py-4 text-xs text-[#697789] text-center">Sin archivos en este commit</p>
+                    <p className="px-4 py-4 text-xs text-text-secondary/70 text-center">Sin archivos en este commit</p>
                   )}
                 </div>
               </div>
 
-              <div className="p-4 border-t border-[#3c495a]/15 bg-[#0d2134]">
+              <div className="p-4 border-t border-border-subtle/15 bg-bg-surface/75">
                 <textarea
-                  className="w-full bg-[#041425] border border-[#3c495a]/15 rounded p-2 text-sm text-[#d9e7fc] h-24 focus:outline-none focus:border-[#a3f185]/30 resize-none"
+                  className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-24 focus:outline-none focus:border-secondary/30 resize-none"
                   placeholder="Mensaje del commit (requerido)"
                   value={commitMessage}
                   onChange={(e) => setCommitMessage(e.target.value)}
@@ -2330,7 +2333,7 @@ export default function GitCronPage() {
                 <button
                   onClick={commitChanges}
                   disabled={isLoading || !commitMessage.trim() || !repoPath}
-                  className="w-full mt-3 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold text-[#052900] rounded transition-colors shadow-lg shadow-[#a3f185]/20"
+                  className="w-full mt-3 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold text-[#052900] rounded transition-colors shadow-lg shadow-secondary/20"
                 >
                   {isLoading
                     ? 'Commiteando...'
@@ -2369,11 +2372,11 @@ export default function GitCronPage() {
         {success && (
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-3 bg-[#a3f185]/20 backdrop-blur-md text-[#a3f185] rounded-lg shadow-2xl flex items-center gap-3 z-50 border border-[#a3f185]/40 max-w-xl"
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-3 glass-alert-success rounded-lg shadow-2xl flex items-center gap-3 z-50 max-w-xl"
           >
             <Check size={18} className="shrink-0" />
             <span className="text-sm font-medium">{success}</span>
-            <button onClick={() => setSuccess(null)} className="ml-3 hover:opacity-70 shrink-0 text-[#a3f185]">
+            <button onClick={() => setSuccess(null)} className="ml-3 hover:opacity-70 shrink-0 text-secondary">
               <X size={14} />
             </button>
           </motion.div>
@@ -2385,7 +2388,7 @@ export default function GitCronPage() {
         {pullDecision && (
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-3 bg-[#12273c]/98 backdrop-blur-md text-[#d9e7fc] rounded-lg shadow-2xl flex items-center gap-3 z-50 border border-[#f4b942]/30 w-[min(calc(100vw-2rem),760px)]"
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-3 glass-alert-warning text-text-primary rounded-lg shadow-2xl flex items-center gap-3 z-50 w-[min(calc(100vw-2rem),760px)]"
           >
             <AlertCircle size={20} className="shrink-0 text-[#f4b942]" />
             <div className="flex-1 min-w-0">
@@ -2394,7 +2397,7 @@ export default function GitCronPage() {
                   ? `"${pullDecision.branch}" tiene cambios locales y remotos`
                   : `"${pullDecision.branch}" tiene cambios remotos pendientes`}
               </p>
-              <p className="text-xs text-[#9eacc0] mt-0.5 leading-snug">
+              <p className="text-xs text-text-secondary mt-0.5 leading-snug">
                 {pullDecision.mode === 'diverged'
                   ? pullDecision.source === 'push'
                     ? `Push pausado: primero integrá ${pullDecision.behind} remoto${pullDecision.behind === 1 ? '' : 's'} con tus ${pullDecision.ahead} local${pullDecision.ahead === 1 ? '' : 'es'}.`
@@ -2407,7 +2410,7 @@ export default function GitCronPage() {
                 <button
                   type="button"
                   onClick={() => void handlePullDecision('ff-only')}
-                  className="px-3 py-1.5 text-xs font-bold bg-[#a3f185]/20 hover:bg-[#a3f185]/30 text-[#a3f185] rounded transition-colors whitespace-nowrap"
+                  className="px-3 py-1.5 text-xs font-bold bg-secondary/20 hover:bg-secondary/30 text-secondary rounded transition-colors whitespace-nowrap"
                   title="Trae los commits remotos sin crear un commit de merge"
                 >
                   Fast-forward
@@ -2417,7 +2420,7 @@ export default function GitCronPage() {
                 <button
                   type="button"
                   onClick={() => void handlePullDecision('rebase')}
-                  className="px-3 py-1.5 text-xs font-bold bg-[#a3f185]/20 hover:bg-[#a3f185]/30 text-[#a3f185] rounded transition-colors whitespace-nowrap"
+                  className="px-3 py-1.5 text-xs font-bold bg-secondary/20 hover:bg-secondary/30 text-secondary rounded transition-colors whitespace-nowrap"
                   title="Recomendado: trae lo remoto y reaplica tus commits locales arriba"
                 >
                   Pull con rebase
@@ -2483,21 +2486,21 @@ export default function GitCronPage() {
         {showNewBranch && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
             onClick={() => setShowNewBranch(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-96"
+              className="glass-overlay rounded-xl shadow-2xl p-6 w-[420px]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-[#a3f185] flex items-center gap-2"><GitBranch size={16} /> Nueva Branch</h3>
-                <button onClick={() => setShowNewBranch(false)} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={16} /></button>
+                <h3 className="font-bold text-secondary flex items-center gap-2"><GitBranch size={16} /> Nueva Branch</h3>
+                <button onClick={() => setShowNewBranch(false)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
               </div>
               {newBranchFrom && (
-                <p className="text-xs text-[#9eacc0] mb-3">
-                  Desde commit: <span className="font-mono text-[#a3f185]">{newBranchFrom.slice(0, 7)}</span>
+                <p className="text-xs text-text-secondary mb-3">
+                  Desde commit: <span className="font-mono text-secondary">{newBranchFrom.slice(0, 7)}</span>
                 </p>
               )}
               <input
@@ -2506,14 +2509,14 @@ export default function GitCronPage() {
                 onChange={(e) => setNewBranchName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreateBranch(); if (e.key === 'Escape') setShowNewBranch(false); }}
                 placeholder="feature/mi-nueva-feature"
-                className="w-full bg-[#041425] border border-[#3c495a]/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#a3f185]/50 mb-4"
+                className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50 mb-4"
               />
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setShowNewBranch(false)} className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]">{t('modal.cancel')}</button>
+                <button onClick={() => setShowNewBranch(false)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
                 <button
                   onClick={handleCreateBranch}
                   disabled={!newBranchName.trim() || isLoading}
-                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
+                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
                 >
                   <Plus size={14} className="inline mr-1" /> Crear
                 </button>
@@ -2548,28 +2551,28 @@ export default function GitCronPage() {
         {showSettings && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
             onClick={() => setShowSettings(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl w-[560px] max-h-[90vh] flex flex-col"
+              className="glass-overlay rounded-xl shadow-2xl w-[680px] max-h-[90vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[#3c495a]/15 shrink-0">
-                <h3 className="font-bold text-[#a3f185] flex items-center gap-2 text-base">
+              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-border-subtle/15 shrink-0">
+                <h3 className="font-bold text-secondary flex items-center gap-2 text-base">
                   <Settings size={16} /> {t('settings.title')}
                 </h3>
-                <button onClick={() => setShowSettings(false)} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={16} /></button>
+                <button onClick={() => setShowSettings(false)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
               </div>
 
               <div className="space-y-5 px-6 py-5 overflow-y-auto scrollbar-thin flex-1">
                 {/* ── Language ── */}
                 <section>
-                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Globe size={12} /> {t('settings.language')}
                   </h4>
-                  <p className="text-xs text-[#9eacc0] mb-3">{t('settings.languageDesc')}</p>
+                  <p className="text-xs text-text-secondary mb-3">{t('settings.languageDesc')}</p>
                   <div className="flex gap-2">
                     {LANGS.map((l) => (
                       <button
@@ -2578,8 +2581,8 @@ export default function GitCronPage() {
                         className={cn(
                           'flex-1 px-3 py-2 rounded border text-sm flex items-center justify-center gap-2 transition-colors',
                           language === l.code
-                            ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
-                            : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc] hover:border-[#3c495a]/30',
+                            ? 'bg-secondary/15 border-secondary/50 text-secondary'
+                            : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary hover:border-border-subtle/30',
                         )}
                       >
                         <span className="text-base">{l.flag}</span>
@@ -2592,10 +2595,10 @@ export default function GitCronPage() {
 
                 {/* ── Theme ── */}
                 <section>
-                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Type size={12} /> {t('settings.fontSize')}
                   </h4>
-                  <p className="text-xs text-[#9eacc0] mb-3">{t('settings.fontSizeDesc')}</p>
+                  <p className="text-xs text-text-secondary mb-3">{t('settings.fontSizeDesc')}</p>
                   <div className="grid grid-cols-3 gap-2">
                     {FONT_SIZE_OPTIONS.map((option) => {
                       const labelKey = option.key === 'compact'
@@ -2610,8 +2613,8 @@ export default function GitCronPage() {
                           className={cn(
                             'px-3 py-2 rounded border text-sm flex items-center justify-center gap-2 transition-colors',
                             fontSize === option.key
-                              ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
-                              : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc] hover:border-[#3c495a]/30',
+                              ? 'bg-secondary/15 border-secondary/50 text-secondary'
+                              : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary hover:border-border-subtle/30',
                           )}
                         >
                           <span className="font-medium">{t(labelKey)}</span>
@@ -2624,29 +2627,29 @@ export default function GitCronPage() {
 
                 {/* ── Default folder ── */}
                 <section>
-                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Folder size={12} /> {t('settings.defaultFolder')}
                   </h4>
-                  <p className="text-xs text-[#9eacc0] mb-3">{t('settings.defaultFolderDesc')}</p>
+                  <p className="text-xs text-text-secondary mb-3">{t('settings.defaultFolderDesc')}</p>
                   <div className="flex items-center gap-2">
                     <div
-                      className="flex-1 px-3 py-2 rounded border bg-[#041425] border-[#3c495a]/15 text-sm font-mono truncate"
+                      className="flex-1 px-3 py-2 rounded border bg-bg-base/70 border-border-subtle/15 text-sm font-mono truncate"
                       title={defaultFolder ?? ''}
                     >
-                      <span className={defaultFolder ? 'text-[#d9e7fc]' : 'text-[#697789]'}>
+                      <span className={defaultFolder ? 'text-text-primary' : 'text-text-secondary/70'}>
                         {defaultFolder ?? t('settings.defaultFolderNone')}
                       </span>
                     </div>
                     <button
                       onClick={() => pickDefaultFolder()}
-                      className="px-3 py-2 rounded border bg-[#041425] border-[#3c495a]/30 text-sm text-[#d9e7fc] hover:bg-[#3c495a]/30 transition-colors"
+                      className="px-3 py-2 rounded border bg-bg-base/70 border-border-subtle/30 text-sm text-text-primary hover:bg-border-subtle/30 transition-colors"
                     >
                       {t('settings.defaultFolderChange')}
                     </button>
                     {defaultFolder && (
                       <button
                         onClick={() => changeDefaultFolder(null)}
-                        className="px-3 py-2 rounded border bg-[#041425] border-[#3c495a]/15 text-sm text-[#9eacc0] hover:text-[#ffa8a3] hover:border-[#ffa8a3]/30 transition-colors"
+                        className="px-3 py-2 rounded border bg-bg-base/70 border-border-subtle/15 text-sm text-text-secondary hover:text-[#ffa8a3] hover:border-[#ffa8a3]/30 transition-colors"
                       >
                         {t('settings.defaultFolderClear')}
                       </button>
@@ -2663,10 +2666,10 @@ export default function GitCronPage() {
                 />
 
                 <section>
-                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Sparkles size={12} /> {t('settings.theme')}
                   </h4>
-                  <p className="text-xs text-[#697789] mb-2 italic">{t('settings.themeLightWarning')}</p>
+                  <p className="text-xs text-text-secondary/70 mb-2 italic">{t('settings.themeLightWarning')}</p>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -2674,8 +2677,8 @@ export default function GitCronPage() {
                       className={cn(
                         'flex-1 px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors',
                         theme === 'dark'
-                          ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
-                          : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc]',
+                          ? 'bg-secondary/15 border-secondary/50 text-secondary'
+                          : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
                       )}
                     >
                       {theme === 'dark' && <Check size={14} strokeWidth={3} />}
@@ -2687,8 +2690,8 @@ export default function GitCronPage() {
                       className={cn(
                         'flex-1 px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors',
                         theme === 'light'
-                          ? 'bg-[#a3f185]/15 border-[#a3f185]/50 text-[#a3f185]'
-                          : 'bg-[#041425] border-[#3c495a]/15 text-[#9eacc0] hover:text-[#d9e7fc]',
+                          ? 'bg-secondary/15 border-secondary/50 text-secondary'
+                          : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
                       )}
                     >
                       {theme === 'light' && <Check size={14} strokeWidth={3} />}
@@ -2699,15 +2702,15 @@ export default function GitCronPage() {
 
                 {/* ── Security ── */}
                 <section>
-                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Lock size={12} /> {t('settings.security')}
                   </h4>
-                  <p className="text-[11px] text-[#9eacc0] mb-2 leading-relaxed">
+                  <p className="text-[11px] text-text-secondary mb-2 leading-relaxed">
                     {t('settings.dataLocation')}
                   </p>
                   <button
                     onClick={() => window.api?.shellOpenPath('https://github.com/alejandropd-1/gitcron/blob/main/SECURITY.md')}
-                    className="w-full text-left px-3 py-2 bg-[#041425] border border-[#3c495a]/15 hover:border-[#3c495a]/30 rounded text-sm text-[#9eacc0] hover:text-[#d9e7fc] flex items-center gap-2 transition-colors"
+                    className="w-full text-left px-3 py-2 bg-bg-base/70 border border-border-subtle/15 hover:border-border-subtle/30 rounded text-sm text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors"
                   >
                     <FileText size={14} />
                     {t('settings.viewSecurity')}
@@ -2716,22 +2719,22 @@ export default function GitCronPage() {
 
                 {/* ── About ── */}
                 <section>
-                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
                     <HelpCircle size={12} /> {t('settings.about')}
                   </h4>
-                  <div className="bg-[#041425] border border-[#3c495a]/15 rounded p-3 text-xs">
+                  <div className="bg-bg-base/70 border border-border-subtle/15 rounded p-3 text-xs">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-[#9eacc0]">GitCron</span>
-                      <span className="text-[#a3f185] font-mono">v{pkg.version}</span>
+                      <span className="text-text-secondary">GitCron</span>
+                      <span className="text-secondary font-mono">v{pkg.version}</span>
                     </div>
-                    <div className="flex justify-between text-[10px] text-[#697789]">
+                    <div className="flex justify-between text-[10px] text-text-secondary/70">
                       <span>Electron + Next.js + simple-git</span>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-[#3c495a]/15 flex flex-col gap-1.5">
+                    <div className="mt-2 pt-2 border-t border-border-subtle/15 flex flex-col gap-1.5">
                       <button
                         type="button"
                         onClick={() => window.api.shellOpenExternal('https://github.com/alejandropd-1/gitcron/releases/')}
-                        className="flex items-center gap-2 text-[#9eacc0] hover:text-[#a3f185] transition-colors text-left"
+                        className="flex items-center gap-2 text-text-secondary hover:text-secondary transition-colors text-left"
                       >
                         <Github size={12} />
                         <span>{t('settings.viewReleases')}</span>
@@ -2739,7 +2742,7 @@ export default function GitCronPage() {
                       <button
                         type="button"
                         onClick={() => window.api.shellOpenExternal('https://aledesign.dev/')}
-                        className="flex items-center gap-2 text-[#697789] hover:text-[#a3f185] transition-colors text-left text-[10px]"
+                        className="flex items-center gap-2 text-text-secondary/70 hover:text-secondary transition-colors text-left text-[10px]"
                       >
                         <Sparkles size={11} />
                         <span>{t('settings.developedBy')}</span>
@@ -2750,19 +2753,19 @@ export default function GitCronPage() {
 
                 {/* ── Updates ── */}
                 <section>
-                  <h4 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
                     <RotateCcw size={12} /> {t('settings.checkUpdates')}
                   </h4>
-                  <p className="text-xs text-[#9eacc0] mb-3">{t('settings.checkUpdatesDesc')}</p>
-                  <div className="rounded border border-[#3c495a]/15 bg-[#041425]/70 p-3">
+                  <p className="text-xs text-text-secondary mb-3">{t('settings.checkUpdatesDesc')}</p>
+                  <div className="rounded border border-border-subtle/15 bg-bg-base/70/70 p-3">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-[#d9e7fc]">
+                        <p className="text-sm font-semibold text-text-primary">
                           {updateInfo
                             ? t('update.availableTitle', { version: updateInfo.version })
                             : t('update.currentTitle')}
                         </p>
-                        <p className="mt-0.5 text-xs text-[#9eacc0]">
+                        <p className="mt-0.5 text-xs text-text-secondary">
                           {updateInfo
                             ? t('update.currentVersion', { version: pkg.version })
                             : t('update.currentDesc')}
@@ -2773,7 +2776,7 @@ export default function GitCronPage() {
                           <button
                             type="button"
                             onClick={handleDownloadUpdate}
-                            className="px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors bg-[#a3f185]/15 border-[#a3f185]/45 text-[#a3f185] hover:bg-[#a3f185]/25"
+                            className="px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors bg-secondary/15 border-secondary/45 text-secondary hover:bg-secondary/25"
                           >
                             <Download size={14} />
                             <span className="font-medium">{t('update.download')}</span>
@@ -2783,7 +2786,7 @@ export default function GitCronPage() {
                           <button
                             type="button"
                             onClick={handleInstallUpdate}
-                            className="px-3 py-2 rounded border text-sm font-bold transition-colors bg-[#a3f185]/15 border-[#a3f185]/45 text-[#a3f185] hover:bg-[#a3f185]/25"
+                            className="px-3 py-2 rounded border text-sm font-bold transition-colors bg-secondary/15 border-secondary/45 text-secondary hover:bg-secondary/25"
                           >
                             UPDATE
                           </button>
@@ -2793,7 +2796,7 @@ export default function GitCronPage() {
                             type="button"
                             onClick={handleCheckForUpdate}
                             disabled={updateStatus === 'checking'}
-                            className="px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors bg-[#041425]/70 border-[#3c495a]/15 text-[#9eacc0] hover:border-[#a3f185]/40 hover:text-[#a3f185] disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors bg-bg-base/70/70 border-border-subtle/15 text-text-secondary hover:border-secondary/40 hover:text-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {updateStatus === 'checking'
                               ? <Loader2 size={14} className="animate-spin" />
@@ -2806,10 +2809,10 @@ export default function GitCronPage() {
                     </div>
                     {updateStatus === 'downloading' && (
                       <div className="mt-3 flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-[#12273c] rounded-full overflow-hidden">
-                          <div className="h-full bg-[#a3f185] rounded-full transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
+                        <div className="flex-1 h-1.5 bg-bg-overlay rounded-full overflow-hidden">
+                          <div className="h-full bg-secondary rounded-full transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
                         </div>
-                        <span className="text-[10px] font-mono text-[#a3f185] w-8 text-right">{downloadProgress}%</span>
+                        <span className="text-[10px] font-mono text-secondary w-8 text-right">{downloadProgress}%</span>
                       </div>
                     )}
                   </div>
@@ -2998,21 +3001,21 @@ export default function GitCronPage() {
         {mergeNeedsCheckout && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
             onClick={() => setMergeNeedsCheckout(null)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[520px]"
+              className="glass-overlay rounded-xl shadow-2xl p-6 w-[580px]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start gap-3 mb-4">
-                <GitMerge size={22} className="text-[#a3f185] shrink-0 mt-0.5" />
+                <GitMerge size={22} className="text-secondary shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-bold text-[#d9e7fc] mb-1">Cambiar a {mergeNeedsCheckout.targetBranch} para mergear</h3>
-                  <p className="text-sm text-[#9eacc0] leading-relaxed">
-                    Para mergear <code className="text-[#a3f185] bg-[#020f1e] px-1 rounded">{mergeNeedsCheckout.sourceBranch}</code> en{' '}
-                    <code className="text-[#a3f185] bg-[#020f1e] px-1 rounded">{mergeNeedsCheckout.targetBranch}</code>,
+                  <h3 className="font-bold text-text-primary mb-1">Cambiar a {mergeNeedsCheckout.targetBranch} para mergear</h3>
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    Para mergear <code className="text-secondary bg-bg-base px-1 rounded">{mergeNeedsCheckout.sourceBranch}</code> en{' '}
+                    <code className="text-secondary bg-bg-base px-1 rounded">{mergeNeedsCheckout.targetBranch}</code>,
                     primero hay que estar en esa branch.
                   </p>
                 </div>
@@ -3020,7 +3023,7 @@ export default function GitCronPage() {
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => setMergeNeedsCheckout(null)}
-                  className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]"
+                  className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
                 >
                   Cancelar
                 </button>
@@ -3036,7 +3039,7 @@ export default function GitCronPage() {
                     }
                   }}
                   disabled={isLoading}
-                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
+                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
                 >
                   <GitMerge size={14} />
                   Checkout {mergeNeedsCheckout.targetBranch} y mergear
@@ -3052,30 +3055,30 @@ export default function GitCronPage() {
         {renameModal && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
             onClick={() => setRenameModal(null)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-96"
+              className="glass-overlay rounded-xl shadow-2xl p-6 w-[420px]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-[#a3f185] flex items-center gap-2"><GitBranch size={16} /> Renombrar branch</h3>
-                <button onClick={() => setRenameModal(null)} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={16} /></button>
+                <h3 className="font-bold text-secondary flex items-center gap-2"><GitBranch size={16} /> Renombrar branch</h3>
+                <button onClick={() => setRenameModal(null)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
               </div>
-              <p className="text-xs text-[#9eacc0] mb-2">Renombrando:</p>
-              <p className="text-sm text-[#d9e7fc] font-mono bg-[#020f1e] px-3 py-1.5 rounded mb-3">{renameModal.oldName}</p>
+              <p className="text-xs text-text-secondary mb-2">Renombrando:</p>
+              <p className="text-sm text-text-primary font-mono bg-bg-base px-3 py-1.5 rounded mb-3">{renameModal.oldName}</p>
               <input
                 autoFocus
                 value={renameModal.newName}
                 onChange={(e) => setRenameModal({ ...renameModal, newName: e.target.value })}
                 onKeyDown={(e) => { if (e.key === 'Escape') setRenameModal(null); }}
                 placeholder="nuevo-nombre"
-                className="w-full bg-[#020f1e] border border-[#3c495a]/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#a3f185]/50 mb-4"
+                className="w-full bg-bg-base border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50 mb-4"
               />
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setRenameModal(null)} className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]">{t('modal.cancel')}</button>
+                <button onClick={() => setRenameModal(null)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
                 <button
                   onClick={async () => {
                     const newName = renameModal.newName.trim();
@@ -3084,7 +3087,7 @@ export default function GitCronPage() {
                     if (ok) setRenameModal(null);
                   }}
                   disabled={!renameModal.newName.trim() || renameModal.newName === renameModal.oldName || isLoading}
-                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
+                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
                 >
                   Renombrar
                 </button>
@@ -3099,23 +3102,23 @@ export default function GitCronPage() {
         {deleteConfirm && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
             onClick={() => setDeleteConfirm(null)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[480px]"
+              className="glass-overlay rounded-xl shadow-2xl p-6 w-[540px]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start gap-3 mb-4">
-                <Trash2 size={20} className="text-[#ff716c] shrink-0 mt-0.5" />
+                <Trash2 size={20} className="text-error shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-bold text-[#d9e7fc] mb-1">Eliminar branch</h3>
-                  <p className="text-sm text-[#9eacc0]">
-                    ¿Eliminar <code className="text-[#a3f185] bg-[#020f1e] px-1 rounded">{deleteConfirm.branch}</code>?
+                  <h3 className="font-bold text-text-primary mb-1">Eliminar branch</h3>
+                  <p className="text-sm text-text-secondary">
+                    ¿Eliminar <code className="text-secondary bg-bg-base px-1 rounded">{deleteConfirm.branch}</code>?
                   </p>
                   {deleteConfirm.notMerged && (
-                    <p className="text-xs text-[#fd9d1a] mt-2 leading-relaxed">
+                    <p className="text-xs text-git-mod mt-2 leading-relaxed">
                       ⚠ Esta branch tiene commits que no fueron mergeados a ninguna otra branch.
                       Si la borrás, esos commits se pierden (a menos que recuperes via reflog).
                     </p>
@@ -3123,7 +3126,7 @@ export default function GitCronPage() {
                 </div>
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]">{t('modal.cancel')}</button>
+                <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
                 <button
                   onClick={async () => {
                     const r = await deleteBranch(deleteConfirm.branch, deleteConfirm.notMerged === true);
@@ -3137,7 +3140,7 @@ export default function GitCronPage() {
                     }
                   }}
                   disabled={isLoading}
-                  className="px-4 py-2 bg-[#ff716c] hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
+                  className="px-4 py-2 bg-error hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
                 >
                   {deleteConfirm.notMerged ? 'Forzar eliminación' : 'Eliminar'}
                 </button>
@@ -3172,11 +3175,11 @@ export default function GitCronPage() {
                   <p className="text-sm text-[#ccdbe8] leading-relaxed mb-3">
                     El repositorio remoto en GitHub ya contiene commits. ¿Quieres realizar un <strong className="text-[#ff8b87] font-semibold">Force Push</strong> para sobreescribir la historia remota con tus archivos locales?
                   </p>
-                  <div className="bg-[#020f1e]/80 border border-[#3c495a]/25 rounded-xl p-3 mb-1">
+                  <div className="bg-bg-base/80 border border-border-subtle/25 rounded-xl p-3 mb-1">
                     <p className="text-[11px] text-[#ff8b87] uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5">
                       ⚠️ Advertencia crítica
                     </p>
-                    <p className="text-xs text-[#9eacc0] leading-relaxed">
+                    <p className="text-xs text-text-secondary leading-relaxed">
                       Esta acción reemplazará de forma permanente todos los archivos del repositorio en GitHub con el contenido de tu carpeta local. No podrás recuperar los commits previos del remoto.
                     </p>
                   </div>
@@ -3188,7 +3191,7 @@ export default function GitCronPage() {
                     forcePushConfirm.resolve(false);
                     setForcePushConfirm(null);
                   }}
-                  className="px-5 py-2.5 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#1a2e44]/50 rounded-xl transition duration-200"
+                  className="px-5 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-[#1a2e44]/50 rounded-xl transition duration-200"
                 >
                   Cancelar
                 </button>
@@ -3212,33 +3215,33 @@ export default function GitCronPage() {
         {checkoutConflict && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
             onClick={() => setCheckoutConflict(null)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[520px]"
+              className="glass-overlay rounded-xl shadow-2xl p-6 w-[580px]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start gap-3 mb-4">
-                <AlertCircle size={22} className="text-[#fd9d1a] shrink-0 mt-0.5" />
+                <AlertCircle size={22} className="text-git-mod shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-bold text-[#d9e7fc] mb-1">Cambios sin commitear</h3>
-                  <p className="text-sm text-[#9eacc0] leading-relaxed">
-                    No se puede pasar a <code className="text-[#a3f185] bg-[#020f1e] px-1 rounded">{checkoutConflict.branch}</code>{' '}
+                  <h3 className="font-bold text-text-primary mb-1">Cambios sin commitear</h3>
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    No se puede pasar a <code className="text-secondary bg-bg-base px-1 rounded">{checkoutConflict.branch}</code>{' '}
                     porque tenés cambios que serían sobrescritos. ¿Qué hacés?
                   </p>
                 </div>
               </div>
 
-              <div className="bg-[#020f1e] border border-[#3c495a]/15 rounded p-3 mb-4 text-[11px] font-mono text-[#697789] max-h-32 overflow-y-auto">
+              <div className="bg-bg-base border border-border-subtle/15 rounded p-3 mb-4 text-[11px] font-mono text-text-secondary/70 max-h-32 overflow-y-auto">
                 {checkoutConflict.error}
               </div>
 
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => setCheckoutConflict(null)}
-                  className="px-4 py-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc]"
+                  className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
                 >
                   Cancelar
                 </button>
@@ -3249,14 +3252,14 @@ export default function GitCronPage() {
                     await checkoutBranchSmart(branch, { stashFirst: true });
                   }}
                   disabled={isLoading}
-                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
+                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
                 >
                   <Archive size={14} />
                   Stash y cambiar
                 </button>
               </div>
-              <p className="text-[10px] text-[#697789] mt-3 text-center">
-                "Stash y cambiar" guarda tus cambios actuales en la pila de stash y hace el checkout.
+              <p className="text-[10px] text-text-secondary/70 mt-3 text-center">
+                &quot;Stash y cambiar&quot; guarda tus cambios actuales en la pila de stash y hace el checkout.
                 Después podés recuperarlos desde la sección STASH.
               </p>
             </motion.div>
@@ -3269,7 +3272,7 @@ export default function GitCronPage() {
         {showResetConfirm && (
           <motion.div
             initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className="fixed top-14 left-1/2 -translate-x-1/2 z-50 bg-[#9f0519]/95 backdrop-blur-md border border-[#ffa8a3]/30 rounded-lg shadow-2xl px-4 py-3 flex items-center gap-4 max-w-2xl"
+            className="fixed top-14 left-1/2 -translate-x-1/2 z-50 glass-alert-error rounded-lg shadow-2xl px-4 py-3 flex items-center gap-4 max-w-2xl"
           >
             <AlertCircle size={20} className="text-[#ffdad6] shrink-0" />
             <span className="text-sm text-[#ffdad6]">
@@ -3281,7 +3284,7 @@ export default function GitCronPage() {
                 if (ok) setShowResetConfirm(false);
               }}
               disabled={isLoading}
-              className="shrink-0 px-3 py-1.5 text-xs font-bold bg-[#ff716c] hover:bg-[#ff8a86] text-white rounded transition-colors disabled:opacity-50"
+              className="shrink-0 px-3 py-1.5 text-xs font-bold bg-error hover:bg-[#ff8a86] text-white rounded transition-colors disabled:opacity-50"
             >
               {t('resetAll.button')}
             </button>
@@ -3300,35 +3303,35 @@ export default function GitCronPage() {
         {showAmend && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
             onClick={() => setShowAmend(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[520px] max-h-[80vh] flex flex-col"
+              className="glass-overlay rounded-xl shadow-2xl p-6 w-[580px] max-h-[80vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-[#fd9d1a] flex items-center gap-2 text-base">
+                <h3 className="font-bold text-git-mod flex items-center gap-2 text-base">
                   <RotateCcw size={16} /> {t('amend.title')}
                 </h3>
-                <button onClick={() => setShowAmend(false)} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={16} /></button>
+                <button onClick={() => setShowAmend(false)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
               </div>
-              <p className="text-xs text-[#9eacc0] mb-3">{t('amend.desc')}</p>
-              <div className="bg-[#fd9d1a]/10 border border-[#fd9d1a]/30 rounded p-2 text-xs text-[#ffd89e] mb-4">
+              <p className="text-xs text-text-secondary mb-3">{t('amend.desc')}</p>
+              <div className="bg-git-mod/10 border border-git-mod/30 rounded p-2 text-xs text-[#ffd89e] mb-4">
                 {t('amend.warning')}
               </div>
               <div className="space-y-3 flex-1 overflow-y-auto scrollbar-thin">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-[#9eacc0] block mb-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-text-secondary block mb-1">
                     {t('amend.currentMessage')}
                   </label>
-                  <div className="bg-[#041425] border border-[#3c495a]/15 rounded p-2 text-sm text-[#9eacc0] font-mono whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+                  <div className="bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-secondary font-mono whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
                     {commits[0]?.message || '(sin commits)'}
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-[#9eacc0] block mb-1">
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-text-secondary block mb-1">
                     {t('amend.newMessage')}
                   </label>
                   <textarea
@@ -3336,7 +3339,7 @@ export default function GitCronPage() {
                     value={amendNewMessage}
                     onChange={(e) => setAmendNewMessage(e.target.value)}
                     placeholder={commits[0]?.message || ''}
-                    className="w-full bg-[#041425] border border-[#3c495a]/15 rounded p-2 text-sm text-[#d9e7fc] h-24 focus:outline-none focus:border-[#fd9d1a]/40 resize-none"
+                    className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-24 focus:outline-none focus:border-git-mod/40 resize-none"
                   />
                 </div>
               </div>
@@ -3356,7 +3359,7 @@ export default function GitCronPage() {
                 </button>
                 <button
                   onClick={() => { setShowAmend(false); setAmendNewMessage(''); }}
-                  className="px-4 py-2 bg-[#041425] border border-[#3c495a]/30 hover:text-[#d9e7fc] text-sm text-[#9eacc0] rounded transition-colors"
+                  className="px-4 py-2 bg-bg-base/70 border border-border-subtle/30 hover:text-text-primary text-sm text-text-secondary rounded transition-colors"
                 >
                   {t('amend.cancel')}
                 </button>
@@ -3369,44 +3372,44 @@ export default function GitCronPage() {
       {/* ──────────── SQUASH COMMITS ──────────── */}
       <AnimatePresence>
         {showSquash && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowSquash(false)}>
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#12273c]/95 backdrop-blur-md border border-[#3c495a]/15 rounded-xl shadow-2xl p-6 w-[520px]" onClick={(e) => e.stopPropagation()}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={() => setShowSquash(false)}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-overlay rounded-xl shadow-2xl p-6 w-[580px]" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-[#fd9d1a] flex items-center gap-2 text-base">
+                <h3 className="font-bold text-git-mod flex items-center gap-2 text-base">
                   <Layers size={16} /> Combinar últimos commits (Squash)
                 </h3>
-                <button onClick={() => setShowSquash(false)} className="text-[#9eacc0] hover:text-[#d9e7fc]"><X size={16} /></button>
+                <button onClick={() => setShowSquash(false)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
               </div>
-              <div className="bg-[#fd9d1a]/10 border border-[#fd9d1a]/30 rounded p-2 text-xs text-[#ffd89e] mb-4">
+              <div className="bg-git-mod/10 border border-git-mod/30 rounded p-2 text-xs text-[#ffd89e] mb-4">
                 ⚠ Si ya pusheaste alguno de estos commits al remoto, vas a necesitar un force-push después. No hagas squash de commits compartidos con otros.
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-[#9eacc0] block mb-2">Combinar los últimos</label>
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-text-secondary block mb-2">Combinar los últimos</label>
                   <div className="flex gap-2">
                     {[2, 3, 4, 5].map((n) => (
-                      <button key={n} onClick={() => setSquashN(n)} className={cn('flex-1 py-2 rounded border text-sm font-bold transition-colors', squashN === n ? 'bg-[#fd9d1a]/15 border-[#fd9d1a]/50 text-[#fd9d1a]' : 'bg-[#041425] border-[#3c495a]/30 text-[#9eacc0] hover:text-[#d9e7fc]')}>
+                      <button key={n} onClick={() => setSquashN(n)} className={cn('flex-1 py-2 rounded border text-sm font-bold transition-colors', squashN === n ? 'bg-git-mod/15 border-[#fd9d1a]/50 text-git-mod' : 'bg-bg-base/70 border-border-subtle/30 text-text-secondary hover:text-text-primary')}>
                         {n}
                       </button>
                     ))}
                   </div>
-                  <div className="mt-2 bg-[#041425] border border-[#3c495a]/15 rounded p-2 max-h-32 overflow-y-auto">
+                  <div className="mt-2 bg-bg-base/70 border border-border-subtle/15 rounded p-2 max-h-32 overflow-y-auto">
                     {commits.slice(0, squashN).map((c, i) => (
                       <div key={c.hash} className="flex items-center gap-2 py-0.5 text-xs">
-                        <span className="font-mono text-[#697789] shrink-0">{c.shortHash}</span>
-                        <span className={cn('truncate', i === 0 ? 'text-[#d9e7fc]' : 'text-[#9eacc0]')}>{c.message}</span>
+                        <span className="font-mono text-text-secondary/70 shrink-0">{c.shortHash}</span>
+                        <span className={cn('truncate', i === 0 ? 'text-text-primary' : 'text-text-secondary')}>{c.message}</span>
                       </div>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-[#9eacc0] block mb-1">Nuevo mensaje del commit</label>
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-text-secondary block mb-1">Nuevo mensaje del commit</label>
                   <textarea
                     autoFocus
                     value={squashMessage}
                     onChange={(e) => setSquashMessage(e.target.value)}
                     placeholder={commits[0]?.message ?? ''}
-                    className="w-full bg-[#041425] border border-[#3c495a]/15 rounded p-2 text-sm text-[#d9e7fc] h-20 focus:outline-none focus:border-[#fd9d1a]/40 resize-none"
+                    className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-20 focus:outline-none focus:border-git-mod/40 resize-none"
                   />
                 </div>
               </div>
@@ -3422,7 +3425,7 @@ export default function GitCronPage() {
                 >
                   {isLoading ? '...' : `Combinar ${squashN} commits`}
                 </button>
-                <button onClick={() => { setShowSquash(false); setSquashMessage(''); setSquashN(2); }} className="px-4 py-2 bg-[#041425] border border-[#3c495a]/30 hover:text-[#d9e7fc] text-sm text-[#9eacc0] rounded transition-colors">
+                <button onClick={() => { setShowSquash(false); setSquashMessage(''); setSquashN(2); }} className="px-4 py-2 bg-bg-base/70 border border-border-subtle/30 hover:text-text-primary text-sm text-text-secondary rounded transition-colors">
                   Cancelar
                 </button>
               </div>
@@ -3496,13 +3499,13 @@ function ToolbarButton({
     <button
       onClick={onClick} title={title} disabled={disabled}
       className={cn(
-        'flex shrink-0 flex-col items-center justify-center self-center rounded-md border border-transparent bg-[#d9e7fc]/[0.025] transition-colors group shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
+        'flex shrink-0 flex-col items-center justify-center self-center rounded-md border border-transparent bg-text-primary/[0.025] transition-colors group shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
         label ? 'h-10 min-w-[54px] px-2.5 py-1 gap-0.5' : 'h-8 w-10 p-1.5',
-        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#d9e7fc]/[0.075] hover:border-[#d9e7fc]/15',
+        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#d9e7fc]/[0.075] hover:border-text-primary/15',
       )}
     >
-      <div className="w-5 h-5 shrink-0 text-[#9eacc0] group-hover:text-[#a3f185] flex items-center justify-center">{icon}</div>
-      {label && <span className="text-[9px] leading-none font-bold uppercase tracking-tighter text-[#9eacc0]">{label}</span>}
+      <div className="w-5 h-5 shrink-0 text-text-secondary group-hover:text-secondary flex items-center justify-center">{icon}</div>
+      {label && <span className="text-[9px] leading-none font-bold uppercase tracking-tighter text-text-secondary">{label}</span>}
     </button>
   );
 }
@@ -3515,16 +3518,16 @@ function SidebarSection({
   const [isOpen, setIsOpen] = useState(true);
   return (
     <div className="mt-2">
-      <div className="w-full flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-[#9eacc0]">
+      <div className="w-full flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-text-secondary">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1.5 flex-1 text-left hover:text-[#d9e7fc] transition-colors"
+          className="flex items-center gap-1.5 flex-1 text-left hover:text-text-primary transition-colors"
         >
           <ChevronRight size={12} className={cn('transition-transform shrink-0', isOpen && 'rotate-90')} />
           {icon && <span className="shrink-0">{icon}</span>}
           <span className="flex-1 text-left tracking-wider">{title}</span>
         </button>
-        {count !== undefined && <span className="bg-[#3c495a] text-[9px] px-1.5 rounded-full">{count}</span>}
+        {count !== undefined && <span className="bg-border-subtle text-[9px] px-1.5 rounded-full">{count}</span>}
         {extra}
       </div>
       {isOpen && <div>{children}</div>}
@@ -3538,12 +3541,12 @@ function SidebarItem({ icon, text, active, onClick }: { icon: React.ReactNode; t
       onClick={onClick}
       className={cn(
         'px-4 py-1.5 flex items-center gap-3 text-sm transition-colors group relative',
-        active ? 'text-[#a3f185] bg-[#a3f185]/10' : 'text-[#9eacc0] hover:bg-[#3c495a] hover:text-[#d9e7fc]',
+        active ? 'text-secondary bg-secondary/10' : 'text-text-secondary hover:bg-border-subtle hover:text-text-primary',
         onClick && 'cursor-pointer',
       )}
     >
-      {active && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#a3f185]" />}
-      <span className={cn('shrink-0', active ? 'text-[#a3f185]' : 'text-[#9eacc0] group-hover:text-[#d9e7fc]')}>{icon}</span>
+      {active && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />}
+      <span className={cn('shrink-0', active ? 'text-secondary' : 'text-text-secondary group-hover:text-text-primary')}>{icon}</span>
       <span className="truncate">{text}</span>
     </div>
   );
@@ -3643,12 +3646,12 @@ function BranchFolderView({
     <div>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
+        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <Folder size={14} className="text-[#9eacc0] shrink-0" />
+        <Folder size={14} className="text-text-secondary shrink-0" />
         <span className="truncate flex-1 text-left">{folder.prefix}</span>
-        <span className="text-[10px] text-[#697789]">{folder.branches.length}</span>
+        <span className="text-[10px] text-text-secondary/70">{folder.branches.length}</span>
       </button>
       {isOpen && (
         <div>
@@ -3689,13 +3692,13 @@ function BranchRow({
       className={cn(
         'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
         indent ? 'pl-[46px]' : 'pl-[26px]',
-        isActive ? 'bg-[#a3f185]/10 text-[#a3f185]' : 'text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc]',
+        isActive ? 'bg-secondary/10 text-secondary' : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
       )}
     >
       {isActive ? (
-        <Check size={13} strokeWidth={3} className="text-[#a3f185] shrink-0" />
+        <Check size={13} strokeWidth={3} className="text-secondary shrink-0" />
       ) : (
-        <GitBranch size={13} className="shrink-0 text-[#697789]" />
+        <GitBranch size={13} className="shrink-0 text-text-secondary/70" />
       )}
       <span className="truncate flex-1 text-sm">{name}</span>
 
@@ -3703,13 +3706,13 @@ function BranchRow({
       {tracking && !tracking.gone && (tracking.ahead > 0 || tracking.behind > 0) && (
         <span className="flex items-center gap-1 text-[10px] font-mono shrink-0">
           {tracking.ahead > 0 && (
-            <span className="flex items-center text-[#a3f185]" title={`${tracking.ahead} commit${tracking.ahead === 1 ? '' : 's'} local${tracking.ahead === 1 ? '' : 'es'} pendiente${tracking.ahead === 1 ? '' : 's'} de push`}>
+            <span className="flex items-center text-secondary" title={`${tracking.ahead} commit${tracking.ahead === 1 ? '' : 's'} local${tracking.ahead === 1 ? '' : 'es'} pendiente${tracking.ahead === 1 ? '' : 's'} de push`}>
               {tracking.ahead}
               <ArrowUp size={10} strokeWidth={3} />
             </span>
           )}
           {tracking.behind > 0 && (
-            <span className="flex items-center text-[#fd9d1a]" title={`${tracking.behind} commit${tracking.behind === 1 ? '' : 's'} remoto${tracking.behind === 1 ? '' : 's'} pendiente${tracking.behind === 1 ? '' : 's'} de pull`}>
+            <span className="flex items-center text-git-mod" title={`${tracking.behind} commit${tracking.behind === 1 ? '' : 's'} remoto${tracking.behind === 1 ? '' : 's'} pendiente${tracking.behind === 1 ? '' : 's'} de pull`}>
               {tracking.behind}
               <ArrowDown size={10} strokeWidth={3} />
             </span>
@@ -3717,7 +3720,7 @@ function BranchRow({
         </span>
       )}
       {tracking?.gone && (
-        <span className="text-[9px] text-[#ff716c] uppercase shrink-0" title="Upstream eliminado">gone</span>
+        <span className="text-[9px] text-error uppercase shrink-0" title="Upstream eliminado">gone</span>
       )}
     </div>
   );
@@ -3740,9 +3743,9 @@ function RemoteBranchTree({
           onDoubleClick={() => onCheckout(b.fullPath)}
           onContextMenu={(e) => onContextMenu(e, b.fullPath)}
           title="Doble click: checkout · Click derecho: opciones"
-          className="pl-[26px] pr-3 py-1.5 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] cursor-pointer transition-colors group relative"
+          className="pl-[26px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary cursor-pointer transition-colors group relative"
         >
-          <Cloud size={13} className="shrink-0 text-[#5ed8ff]" />
+          <Cloud size={13} className="shrink-0 text-primary" />
           <span className="truncate text-xs flex-1">{b.name}</span>
         </div>
       ))}
@@ -3770,12 +3773,12 @@ function RemoteFolderView({
     <div>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-[#9eacc0] hover:text-[#d9e7fc] hover:bg-[#172d45] transition-colors"
+        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <Folder size={13} className="text-[#9eacc0] shrink-0" />
+        <Folder size={13} className="text-text-secondary shrink-0" />
         <span className="truncate flex-1 text-left">{folder.prefix}</span>
-        <span className="text-[10px] text-[#697789]">{folder.branches.length}</span>
+        <span className="text-[10px] text-text-secondary/70">{folder.branches.length}</span>
       </button>
       {isOpen && (
         <div>
@@ -3784,10 +3787,10 @@ function RemoteFolderView({
               key={b.fullPath}
               onDoubleClick={() => onCheckout(b.fullPath)}
               onContextMenu={(e) => onContextMenu(e, b.fullPath)}
-              className="pl-[46px] pr-3 py-1.5 flex items-center gap-2 text-sm text-[#9eacc0] hover:bg-[#172d45] hover:text-[#d9e7fc] transition-colors cursor-pointer group relative"
+              className="pl-[46px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary transition-colors cursor-pointer group relative"
               title={`Doble click: checkout · Click derecho: opciones\n${b.fullPath}`}
             >
-              <GitBranch size={13} className="shrink-0 text-[#697789] group-hover:text-[#5ed8ff] transition-colors" />
+              <GitBranch size={13} className="shrink-0 text-text-secondary/70 group-hover:text-primary transition-colors" />
               <span className="truncate text-xs flex-1">{b.name}</span>
             </div>
           ))}
@@ -3804,17 +3807,17 @@ function StashItem({
   return (
     <div
       onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
-      className="px-4 py-1.5 flex items-center gap-3 text-sm text-[#9eacc0] hover:bg-[#3c495a] hover:text-[#d9e7fc] transition-colors"
+      className="px-4 py-1.5 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors"
       title={stash.message}
     >
       <Archive size={16} className="shrink-0" />
       <span className="truncate flex-1 text-xs">{stash.message}</span>
       {isHovered && (
         <div className="flex items-center gap-1 shrink-0">
-          <button onClick={(e) => { e.stopPropagation(); onApply(); }} className="p-1 hover:text-[#a3f185] transition-colors" title="Apply">
+          <button onClick={(e) => { e.stopPropagation(); onApply(); }} className="p-1 hover:text-secondary transition-colors" title="Apply">
             <RotateCcw size={12} />
           </button>
-          <button onClick={(e) => { e.stopPropagation(); onDrop(); }} className="p-1 hover:text-[#ff716c] transition-colors" title="Drop">
+          <button onClick={(e) => { e.stopPropagation(); onDrop(); }} className="p-1 hover:text-error transition-colors" title="Drop">
             <Trash2 size={12} />
           </button>
         </div>
@@ -3834,7 +3837,7 @@ function FileRow({
       onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} onClick={onClick}
       className={cn(
         'flex items-center gap-3 px-3 py-1.5 rounded group transition-colors',
-        selected ? 'bg-[#a3f185]/15' : 'hover:bg-[#3c495a]/50',
+        selected ? 'bg-secondary/15' : 'hover:bg-border-subtle/50',
         onClick && 'cursor-pointer',
       )}
     >
@@ -3842,33 +3845,33 @@ function FileRow({
         type="checkbox" checked={file.staged}
         onClick={(e) => e.stopPropagation()}
         onChange={(e) => onStage(e.target.checked)}
-        className="w-3.5 h-3.5 rounded bg-[#041425] border-[#3c495a]/15 text-[#a3f185] focus:ring-0"
+        className="w-3.5 h-3.5 rounded bg-bg-base/70 border-border-subtle/15 text-secondary focus:ring-0"
       />
       <FileText
         size={16}
         className={cn(
-          file.status === 'modified' ? 'text-[#fd9d1a]' :
-          file.status === 'added' ? 'text-[#a3f185]' :
-          file.status === 'renamed' ? 'text-[#5ed8ff]' :
-          file.status === 'untracked' ? 'text-[#9eacc0]' :
-          'text-[#ff716c]',
+          file.status === 'modified' ? 'text-git-mod' :
+          file.status === 'added' ? 'text-secondary' :
+          file.status === 'renamed' ? 'text-primary' :
+          file.status === 'untracked' ? 'text-text-secondary' :
+          'text-error',
         )}
       />
-      <span className="text-sm truncate flex-1 text-[#d9e7fc] group-hover:text-[#d9e7fc]">{file.path}</span>
+      <span className="text-sm truncate flex-1 text-text-primary group-hover:text-text-primary">{file.path}</span>
       <div className="flex items-center gap-2">
         {isHovered && (
-          <button onClick={(e) => { e.stopPropagation(); onDiscard(); }} className="p-1 hover:text-[#ff716c] text-[#9eacc0]">
+          <button onClick={(e) => { e.stopPropagation(); onDiscard(); }} className="p-1 hover:text-error text-text-secondary">
             <Trash2 size={14} />
           </button>
         )}
         <div
           className={cn(
             'w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold',
-            file.status === 'modified' ? 'bg-[#fd9d1a]/20 text-[#fd9d1a]' :
-            file.status === 'added' ? 'bg-[#a3f185]/20 text-[#a3f185]' :
-            file.status === 'renamed' ? 'bg-[#5ed8ff]/20 text-[#5ed8ff]' :
-            file.status === 'untracked' ? 'bg-[#9eacc0]/20 text-[#9eacc0]' :
-            'bg-[#ff716c]/20 text-[#ff716c]',
+            file.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
+            file.status === 'added' ? 'bg-secondary/20 text-secondary' :
+            file.status === 'renamed' ? 'bg-primary/20 text-primary' :
+            file.status === 'untracked' ? 'bg-[#9eacc0]/20 text-text-secondary' :
+            'bg-error/20 text-error',
           )}
         >
           {file.status[0].toUpperCase()}
@@ -3909,7 +3912,7 @@ function StagingPanel({
 
   if (!repoPath) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-[#9eacc0] text-sm">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-text-secondary text-sm">
         <GitBranch size={32} className="mx-auto mb-3 opacity-30" />
         Abrí un repo para ver los cambios
       </div>
@@ -3920,15 +3923,15 @@ function StagingPanel({
     <div className="flex flex-col h-full">
       {/* ── Unstaged Files ── */}
       <div className="flex flex-col min-h-0 flex-1">
-        <div className="px-4 py-2 border-b border-[#3c495a]/15 bg-[#0d2134] flex items-center justify-between shrink-0">
-          <span className="text-[11px] font-bold text-[#9eacc0] uppercase tracking-wider">
+        <div className="px-4 py-2 border-b border-border-subtle/15 bg-bg-surface/75 flex items-center justify-between shrink-0">
+          <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
             Unstaged ({unstaged.length})
           </span>
           <div className="flex items-center gap-2">
             {files.length > 0 && (
               <button
                 onClick={onRequestResetAll}
-                className="p-1 text-[#9eacc0] hover:text-[#ff716c] hover:bg-[#ff716c]/10 rounded transition-colors"
+                className="p-1 text-text-secondary hover:text-error hover:bg-error/10 rounded transition-colors"
                 title="Descartar TODOS los cambios (reset --hard)"
               >
                 <Trash2 size={12} />
@@ -3937,7 +3940,7 @@ function StagingPanel({
             {unstaged.length > 0 && (
               <button
                 onClick={stageAll}
-                className="text-[10px] text-[#a3f185] hover:text-[#052900] px-2 py-0.5 rounded border border-[#a3f185]/40 hover:bg-[#a3f185] transition-colors"
+                className="text-[10px] text-secondary hover:text-[#052900] px-2 py-0.5 rounded border border-secondary/40 hover:bg-secondary transition-colors"
               >
                 Stage all
               </button>
@@ -3946,7 +3949,7 @@ function StagingPanel({
         </div>
         <div className="flex-1 overflow-y-auto min-h-0">
           {unstaged.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-[#697789] italic">No hay cambios sin stagear</p>
+            <p className="px-4 py-3 text-xs text-text-secondary/70 italic">No hay cambios sin stagear</p>
           ) : (
             <div className="p-1">
               {unstaged.map((file) => (
@@ -3967,15 +3970,15 @@ function StagingPanel({
       </div>
 
       {/* ── Staged Files ── */}
-      <div className="flex flex-col min-h-0 flex-1 border-t-2 border-[#a3f185]/30">
-        <div className="px-4 py-2 border-b border-[#3c495a]/15 bg-[#052900] flex items-center justify-between shrink-0">
-          <span className="text-[11px] font-bold text-[#a3f185] uppercase tracking-wider">
+      <div className="flex flex-col min-h-0 flex-1 border-t-2 border-secondary/30">
+        <div className="px-4 py-2 border-b border-border-subtle/15 bg-[#052900] flex items-center justify-between shrink-0">
+          <span className="text-[11px] font-bold text-secondary uppercase tracking-wider">
             Staged ({staged.length})
           </span>
           {staged.length > 0 && (
             <button
               onClick={unstageAll}
-              className="text-[10px] text-[#9eacc0] hover:text-[#020f1e] px-2 py-0.5 rounded border border-[#9eacc0]/40 hover:bg-[#9eacc0] transition-colors"
+              className="text-[10px] text-text-secondary hover:text-[#020f1e] px-2 py-0.5 rounded border border-[#9eacc0]/40 hover:bg-[#9eacc0] transition-colors"
             >
               Unstage all
             </button>
@@ -3983,7 +3986,7 @@ function StagingPanel({
         </div>
         <div className="flex-1 overflow-y-auto min-h-0">
           {staged.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-[#697789] italic">Stagea archivos para incluir en el commit</p>
+            <p className="px-4 py-3 text-xs text-text-secondary/70 italic">Stagea archivos para incluir en el commit</p>
           ) : (
             <div className="p-1">
               {staged.map((file) => (
@@ -4004,9 +4007,9 @@ function StagingPanel({
       </div>
 
       {/* ── Commit Box ── */}
-      <div className="p-3 border-t border-[#3c495a]/15 bg-[#0d2134] shrink-0">
+      <div className="p-3 border-t border-border-subtle/15 bg-bg-surface/75 shrink-0">
         <textarea
-          className="w-full bg-[#041425] border border-[#3c495a]/15 rounded p-2 text-sm text-[#d9e7fc] h-16 focus:outline-none focus:border-[#a3f185]/30 resize-none"
+          className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-16 focus:outline-none focus:border-secondary/30 resize-none"
           placeholder="Mensaje del commit (requerido)"
           value={commitMessage}
           onChange={(e) => setCommitMessage(e.target.value)}
@@ -4015,7 +4018,7 @@ function StagingPanel({
           <button
             onClick={onCommit}
             disabled={isLoading || !commitMessage.trim() || staged.length === 0}
-            className="flex-1 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-[#a3f185]/20 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-[#052900] rounded transition-colors"
+            className="flex-1 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-[#052900] rounded transition-colors"
           >
             {isLoading ? 'Commiteando...' : `Commit ${staged.length > 0 ? ` (${staged.length})` : ''}`}
           </button>
@@ -4023,7 +4026,7 @@ function StagingPanel({
             onClick={onRequestAmend}
             disabled={isLoading || !repoPath}
             title="Enmendar el último commit"
-            className="px-3 py-2 bg-[#041425] border border-[#3c495a]/30 hover:border-[#fd9d1a]/50 hover:text-[#fd9d1a] disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium text-[#9eacc0] rounded transition-colors flex items-center gap-1"
+            className="px-3 py-2 bg-bg-base/70 border border-border-subtle/30 hover:border-[#fd9d1a]/50 hover:text-git-mod disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium text-text-secondary rounded transition-colors flex items-center gap-1"
           >
             <RotateCcw size={12} />
             Amend
@@ -4032,7 +4035,7 @@ function StagingPanel({
             onClick={onRequestSquash}
             disabled={isLoading || !repoPath}
             title="Combinar los últimos N commits en uno (Squash)"
-            className="px-3 py-2 bg-[#041425] border border-[#3c495a]/30 hover:border-[#fd9d1a]/50 hover:text-[#fd9d1a] disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium text-[#9eacc0] rounded transition-colors flex items-center gap-1"
+            className="px-3 py-2 bg-bg-base/70 border border-border-subtle/30 hover:border-[#fd9d1a]/50 hover:text-git-mod disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium text-text-secondary rounded transition-colors flex items-center gap-1"
           >
             <Layers size={12} />
             Squash
@@ -4063,7 +4066,7 @@ function StagingFileRow({
       onContextMenu={onContextMenu}
       className={cn(
         'flex items-center gap-2 px-2 py-1.5 rounded group transition-colors cursor-pointer',
-        selected ? 'bg-[#a3f185]/15' : 'hover:bg-[#3c495a]/50',
+        selected ? 'bg-secondary/15' : 'hover:bg-border-subtle/50',
       )}
     >
       <button
@@ -4072,8 +4075,8 @@ function StagingFileRow({
         className={cn(
           'p-1 rounded shrink-0 transition-colors',
           direction === 'stage'
-            ? 'text-[#9eacc0] hover:text-[#a3f185] hover:bg-[#a3f185]/10'
-            : 'text-[#9eacc0] hover:text-[#fd9d1a] hover:bg-[#fd9d1a]/10',
+            ? 'text-text-secondary hover:text-secondary hover:bg-secondary/10'
+            : 'text-text-secondary hover:text-git-mod hover:bg-git-mod/10',
         )}
       >
         {direction === 'stage' ? <Plus size={14} /> : <Minus size={14} />}
@@ -4082,19 +4085,19 @@ function StagingFileRow({
         size={14}
         className={cn(
           'shrink-0',
-          file.conflicted ? 'text-[#ff716c]' :
-          file.status === 'modified' ? 'text-[#fd9d1a]' :
-          file.status === 'added' ? 'text-[#a3f185]' :
-          file.status === 'renamed' ? 'text-[#5ed8ff]' :
-          file.status === 'untracked' ? 'text-[#9eacc0]' :
-          'text-[#ff716c]',
+          file.conflicted ? 'text-error' :
+          file.status === 'modified' ? 'text-git-mod' :
+          file.status === 'added' ? 'text-secondary' :
+          file.status === 'renamed' ? 'text-primary' :
+          file.status === 'untracked' ? 'text-text-secondary' :
+          'text-error',
         )}
       />
-      <span className="text-xs truncate flex-1 text-[#d9e7fc] group-hover:text-[#d9e7fc]">{file.path}</span>
+      <span className="text-xs truncate flex-1 text-text-primary group-hover:text-text-primary">{file.path}</span>
       {isHovered && direction === 'stage' && (
         <button
           onClick={(e) => { e.stopPropagation(); onDiscard(); }}
-          className="p-1 hover:text-[#ff716c] text-[#9eacc0] shrink-0"
+          className="p-1 hover:text-error text-text-secondary shrink-0"
           title="Descartar cambios"
         >
           <Trash2 size={12} />
@@ -4103,12 +4106,12 @@ function StagingFileRow({
       <div
         className={cn(
           'w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold shrink-0',
-          file.conflicted ? 'bg-[#ff716c]/20 text-[#ff716c] border border-[#ff716c]/40 animate-pulse' :
-          file.status === 'modified' ? 'bg-[#fd9d1a]/20 text-[#fd9d1a]' :
-          file.status === 'added' ? 'bg-[#a3f185]/20 text-[#a3f185]' :
-          file.status === 'renamed' ? 'bg-[#5ed8ff]/20 text-[#5ed8ff]' :
-          file.status === 'untracked' ? 'bg-[#9eacc0]/20 text-[#9eacc0]' :
-          'bg-[#ff716c]/20 text-[#ff716c]',
+          file.conflicted ? 'bg-error/20 text-error border border-[#ff716c]/40 animate-pulse' :
+          file.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
+          file.status === 'added' ? 'bg-secondary/20 text-secondary' :
+          file.status === 'renamed' ? 'bg-primary/20 text-primary' :
+          file.status === 'untracked' ? 'bg-[#9eacc0]/20 text-text-secondary' :
+          'bg-error/20 text-error',
         )}
       >
         {file.conflicted ? '!' : file.status[0].toUpperCase()}
@@ -4144,17 +4147,17 @@ function HistoryView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="sticky top-0 bg-[#020f1e]/75 backdrop-blur-xl z-10 border-b border-[#3c495a]/15 py-2 px-4 text-[11px] text-[#9eacc0] uppercase tracking-wider font-bold shrink-0">
+      <div className="sticky top-0 glass-sticky-header z-10 py-2 px-4 text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
         {filter
           ? `${filtered.length} de ${commits.length} commits`
           : `Historial · ${commits.length} commits`}
       </div>
       <div className="flex-1 overflow-y-auto">
         {commits.length === 0 && isLoading && (
-          <p className="px-4 py-8 text-center text-[#9eacc0] text-sm">Cargando commits...</p>
+          <p className="px-4 py-8 text-center text-text-secondary text-sm">Cargando commits...</p>
         )}
         {filter && filtered.length === 0 && (
-          <p className="px-4 py-8 text-center text-[#9eacc0] text-sm">
+          <p className="px-4 py-8 text-center text-text-secondary text-sm">
             Sin resultados para &quot;{filter}&quot;
           </p>
         )}
@@ -4166,13 +4169,13 @@ function HistoryView({
               onClick={() => onSelect(commit)}
               onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, commit); }}
               className={cn(
-                'px-4 py-3 border-b border-[#3c495a]/15 cursor-pointer transition-colors',
-                isSelected ? 'bg-[#a3f185]/10' : 'hover:bg-[#0d2134]',
+                'px-4 py-3 border-b border-border-subtle/15 cursor-pointer transition-colors',
+                isSelected ? 'bg-secondary/10' : 'hover:bg-bg-surface/75',
               )}
             >
               <div className="flex items-start justify-between gap-4 mb-1.5">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <code className="text-[11px] font-mono text-[#a3f185] shrink-0">{commit.shortHash}</code>
+                  <code className="text-[11px] font-mono text-secondary shrink-0">{commit.shortHash}</code>
                   {commit.refs && commit.refs.length > 0 && (
                     <div className="flex gap-1 flex-wrap">
                       {commit.refs.slice(0, 3).map((ref) => {
@@ -4185,10 +4188,10 @@ function HistoryView({
                             key={ref}
                             className={cn(
                               'text-[9px] px-1.5 py-0.5 rounded border whitespace-nowrap font-medium',
-                              isTag ? 'bg-[#fd9d1a]/15 text-[#fd9d1a] border-[#fd9d1a]/30'
-                                : isCurrent ? 'bg-[#a3f185]/20 text-[#a3f185] border-[#a3f185]/40'
-                                : isRemote ? 'bg-[#5ed8ff]/10 text-[#5ed8ff] border-[#5ed8ff]/30'
-                                : 'bg-[#a3f185]/15 text-[#a3f185] border-[#a3f185]/30',
+                              isTag ? 'bg-git-mod/15 text-git-mod border-git-mod/30'
+                                : isCurrent ? 'bg-secondary/20 text-secondary border-secondary/40'
+                                : isRemote ? 'bg-primary/10 text-primary border-[#5ed8ff]/30'
+                                : 'bg-secondary/15 text-secondary border-secondary/30',
                             )}
                           >
                             {text}
@@ -4198,18 +4201,18 @@ function HistoryView({
                     </div>
                   )}
                 </div>
-                <span className="text-[11px] text-[#697789] shrink-0 font-mono">{formatDate(commit.date)}</span>
+                <span className="text-[11px] text-text-secondary/70 shrink-0 font-mono">{formatDate(commit.date)}</span>
               </div>
-              <p className={cn('text-sm font-medium mb-1.5', isSelected ? 'text-[#d9e7fc]' : 'text-[#d9e7fc]')}>
+              <p className={cn('text-sm font-medium mb-1.5', isSelected ? 'text-text-primary' : 'text-text-primary')}>
                 {commit.message}
               </p>
-              <div className="flex items-center gap-2 text-xs text-[#9eacc0]">
+              <div className="flex items-center gap-2 text-xs text-text-secondary">
                 <div className="w-5 h-5 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-[8px] font-bold text-[#052900]">
                   {initials(commit.authorName)}
                 </div>
                 <span>{commit.authorName}</span>
-                <span className="text-[#697789]">·</span>
-                <span className="text-[#697789] font-mono text-[10px]">{commit.authorEmail}</span>
+                <span className="text-text-secondary/70">·</span>
+                <span className="text-text-secondary/70 font-mono text-[10px]">{commit.authorEmail}</span>
               </div>
             </div>
           );
@@ -4237,20 +4240,20 @@ function CommitTabView({
     <div className="flex-1 overflow-y-auto p-8">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-[#d9e7fc] mb-2">Workspace</h2>
-          <p className="text-sm text-[#9eacc0]">
+          <h2 className="text-xl font-bold text-text-primary mb-2">Workspace</h2>
+          <p className="text-sm text-text-secondary">
             Resumen de lo que tenés sin commitear. Hacé clic en cualquier archivo de la columna derecha
             para ver su diff con colores acá en el centro.
           </p>
         </div>
 
         {modifiedFiles.length === 0 ? (
-          <div className="bg-[#0d2134] border border-[#3c495a]/15 rounded-lg p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-[#a3f185]/10 flex items-center justify-center mx-auto mb-4">
-              <FileText size={28} className="text-[#a3f185]" />
+          <div className="bg-bg-surface/75 border border-border-subtle/15 rounded-lg p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-secondary/10 flex items-center justify-center mx-auto mb-4">
+              <FileText size={28} className="text-secondary" />
             </div>
-            <p className="text-base font-semibold text-[#d9e7fc] mb-1">Working tree limpio</p>
-            <p className="text-sm text-[#9eacc0]">No hay cambios sin commitear.</p>
+            <p className="text-base font-semibold text-text-primary mb-1">Working tree limpio</p>
+            <p className="text-sm text-text-secondary">No hay cambios sin commitear.</p>
           </div>
         ) : (
           <>
@@ -4259,8 +4262,8 @@ function CommitTabView({
               <StatCard label="Staged" value={staged.length} accent="primary" />
             </div>
 
-            <div className="bg-[#0d2134] border border-[#3c495a]/15 rounded-lg p-5 mb-4">
-              <h3 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-3">
+            <div className="bg-bg-surface/75 border border-border-subtle/15 rounded-lg p-5 mb-4">
+              <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3">
                 Cambios por tipo
               </h3>
               <div className="grid grid-cols-2 gap-2">
@@ -4272,16 +4275,16 @@ function CommitTabView({
               </div>
             </div>
 
-            <div className="bg-[#0d2134] border border-[#3c495a]/15 rounded-lg p-5">
-              <h3 className="text-xs font-bold text-[#9eacc0] uppercase tracking-wider mb-3">Flujo</h3>
-              <ol className="space-y-2 text-sm text-[#d9e7fc]">
+            <div className="bg-bg-surface/75 border border-border-subtle/15 rounded-lg p-5">
+              <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3">Flujo</h3>
+              <ol className="space-y-2 text-sm text-text-primary">
                 <FlowStep n={1} done={true}>Modificá archivos en tu editor</FlowStep>
                 <FlowStep n={2} done={staged.length > 0}>
-                  Clic en el <code className="bg-[#020f1e] px-1 rounded text-[#a3f185] text-xs">+</code> de cada archivo en la columna derecha para stagearlo
+                  Clic en el <code className="bg-bg-base px-1 rounded text-secondary text-xs">+</code> de cada archivo en la columna derecha para stagearlo
                 </FlowStep>
                 <FlowStep n={3} done={false}>Escribí un mensaje en la caja de abajo a la derecha</FlowStep>
-                <FlowStep n={4} done={false}>Clic en <span className="text-[#a3f185] font-semibold">Commit Changes</span></FlowStep>
-                {hasGithubUser && <FlowStep n={5} done={false}>Clic en <span className="text-[#a3f185] font-semibold">Push</span> para subirlo a GitHub</FlowStep>}
+                <FlowStep n={4} done={false}>Clic en <span className="text-secondary font-semibold">Commit Changes</span></FlowStep>
+                {hasGithubUser && <FlowStep n={5} done={false}>Clic en <span className="text-secondary font-semibold">Push</span> para subirlo a GitHub</FlowStep>}
               </ol>
             </div>
           </>
@@ -4295,12 +4298,12 @@ function StatCard({ label, value, accent }: { label: string; value: number; acce
   return (
     <div
       className={cn(
-        'bg-[#0d2134] border rounded-lg p-4',
-        accent === 'primary' ? 'border-[#a3f185]/40' : 'border-[#3c495a]/15',
+        'bg-bg-surface/75 border rounded-lg p-4',
+        accent === 'primary' ? 'border-secondary/40' : 'border-border-subtle/15',
       )}
     >
-      <p className="text-xs text-[#9eacc0] uppercase tracking-wider mb-1">{label}</p>
-      <p className={cn('text-2xl font-bold', accent === 'primary' ? 'text-[#a3f185]' : 'text-[#d9e7fc]')}>
+      <p className="text-xs text-text-secondary uppercase tracking-wider mb-1">{label}</p>
+      <p className={cn('text-2xl font-bold', accent === 'primary' ? 'text-secondary' : 'text-text-primary')}>
         {value}
       </p>
     </div>

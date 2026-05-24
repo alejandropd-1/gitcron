@@ -553,7 +553,7 @@ export function ChronometricGraph({
       }
 
       const matchingNode = projectedCommits.find(n => n.branchIndex === bIndex);
-      const color = matchingNode?.laneColor || '#3c495a';
+      const color = matchingNode?.laneColor || 'var(--color-border-subtle)';
 
       return {
         branchIndex: bIndex,
@@ -611,7 +611,7 @@ export function ChronometricGraph({
           y: node.y,
           satX,
           satY,
-          color: '#fd9d1a',
+          color: 'var(--color-git-mod)',
         });
       });
     });
@@ -687,7 +687,7 @@ export function ChronometricGraph({
           parents: [],
           refs: ['WIP'],
         },
-        laneColor: '#ff716c',
+        laneColor: 'var(--color-error)',
         x: wipCoords.x,
         y: wipCoords.y,
       } as any;
@@ -709,7 +709,7 @@ export function ChronometricGraph({
             parents: [],
             refs: [`stash@{${idx}}`],
           },
-          laneColor: '#9eacc0',
+          laneColor: 'var(--color-text-secondary)',
           x: pos.x,
           y: pos.y,
         } as any;
@@ -812,26 +812,13 @@ export function ChronometricGraph({
 
 
 
-  // Get first parent's color or own lane color for curves
-  const getConnectorColor = (conn: { color: string }) => {
-    return conn.color;
-  };
-
-  if (filteredCommits.length === 0) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-[#9eacc0] text-sm bg-[#020f1e] select-none">
-        <GitCommit size={20} className="mb-2 text-[#697789]" />
-        <p>No se encontraron commits en este rango de búsqueda.</p>
-      </div>
-    );
-  }
-
   // Calculate screen position for hover card
   const hoveredScreenPos = useMemo(() => {
     if (!hoveredPos) return null;
     return worldToScreen({ x: hoveredPos.x, y: hoveredPos.y }, viewport);
   }, [hoveredPos, viewport]);
 
+  /* eslint-disable react-hooks/refs */
   // Calculate absolute coordinates for hover card clamped inside the container bounds
   const hoveredCardStyle = useMemo(() => {
     if (!hoveredScreenPos || !containerRef.current) return {};
@@ -856,6 +843,21 @@ export function ChronometricGraph({
       fontFamily: 'var(--font-sans), Inter, sans-serif',
     };
   }, [hoveredScreenPos]);
+  /* eslint-enable react-hooks/refs */
+
+  // Get first parent's color or own lane color for curves
+  const getConnectorColor = (conn: { color: string }) => {
+    return conn.color;
+  };
+
+  if (filteredCommits.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-text-secondary text-ui-body bg-bg-base select-none">
+        <GitCommit size={20} className="mb-2 text-text-secondary/70" />
+        <p>No se encontraron commits en este rango de búsqueda.</p>
+      </div>
+    );
+  }
 
   const hudLeftInset = 16 + hudLeft;
   const hudRightInset = 16 + hudRight;
@@ -868,7 +870,7 @@ export function ChronometricGraph({
 
   return (
     <div
-      className="flex-1 w-full h-full overflow-visible bg-[#020f1e] flex flex-col relative select-none"
+      className="flex-1 w-full h-full overflow-visible bg-bg-base flex flex-col relative select-none"
       id="chronometric-container"
     >
       {/* 2D Infinite Interactive Canvas Viewport */}
@@ -909,7 +911,7 @@ export function ChronometricGraph({
                 y1={yStart + ny * 2}
                 x2={xEnd + nx * 2}
                 y2={yEnd + ny * 2}
-                stroke="#1e293b"
+                stroke="var(--color-border-subtle)"
                 strokeWidth={1}
                 opacity={0.6}
               />
@@ -918,7 +920,7 @@ export function ChronometricGraph({
                 y1={yStart - ny * 2}
                 x2={xEnd - nx * 2}
                 y2={yEnd - ny * 2}
-                stroke="#1e293b"
+                stroke="var(--color-border-subtle)"
                 strokeWidth={1}
                 opacity={0.6}
               />
@@ -931,7 +933,7 @@ export function ChronometricGraph({
                     y1={tick.y - ny * 5}
                     x2={tick.x + nx * 5}
                     y2={tick.y + ny * 5}
-                    stroke="#3c495a"
+                    stroke="var(--color-border-subtle)"
                     strokeWidth={1.5}
                     opacity={0.7}
                   />
@@ -944,7 +946,7 @@ export function ChronometricGraph({
                 y={yStart + 15}
                 textAnchor="end"
                 fontSize={fs(8)}
-                fill="#697789"
+                fill="var(--color-text-secondary)"
                 className="font-mono font-bold"
                 opacity={0.6}
               >
@@ -955,7 +957,7 @@ export function ChronometricGraph({
                 y={yEnd - 15}
                 textAnchor="start"
                 fontSize={fs(8)}
-                fill="#697789"
+                fill="var(--color-text-secondary)"
                 className="font-mono font-bold"
                 opacity={0.6}
               >
@@ -984,13 +986,13 @@ export function ChronometricGraph({
                       y1={config.paddingTop - 20}
                       x2={tick.x}
                       y2={height - config.paddingBottom + 20}
-                      stroke="#1e293b"
+                      stroke="var(--color-border-subtle)"
                       strokeWidth={0.75}
                       strokeDasharray="4 8"
                       opacity={0.3}
                     />
                     {/* Visual marker point on diagonal */}
-                    <circle cx={tick.x} cy={tick.y} r={2.5} fill="#697789" />
+                    <circle cx={tick.x} cy={tick.y} r={2.5} fill="var(--color-text-secondary)" />
 
                     {/* HUD Dotted Connector Line from circle to date label */}
                     <line
@@ -998,7 +1000,7 @@ export function ChronometricGraph({
                       y1={tick.y + 4}
                       x2={tick.x}
                       y2={tick.y + dotY2}
-                      stroke="#697789"
+                      stroke="var(--color-text-secondary)"
                       strokeWidth={0.75}
                       strokeDasharray="2 2"
                       opacity={0.6}
@@ -1010,7 +1012,7 @@ export function ChronometricGraph({
                       y={tick.y + yOffset}
                       textAnchor="middle"
                       fontSize={fs(8.5)}
-                      fill="#697789"
+                      fill="var(--color-text-secondary)"
                       className="font-mono font-semibold"
                     >
                       {`T+${String(index).padStart(3, '0')}`}
@@ -1023,7 +1025,7 @@ export function ChronometricGraph({
                       textAnchor="middle"
                       fontSize={fs(10)}
                       fontWeight="600"
-                      fill="#9eacc0"
+                      fill="var(--color-text-secondary)"
                       className="font-mono"
                     >
                       {tick.dateStr}
@@ -1033,7 +1035,7 @@ export function ChronometricGraph({
                       y={tick.y + yOffset + 22}
                       textAnchor="middle"
                       fontSize={fs(9)}
-                      fill="#697789"
+                      fill="var(--color-text-secondary)"
                       className="font-mono"
                     >
                       {tick.yearStr}
@@ -1139,7 +1141,7 @@ export function ChronometricGraph({
                         cy={node.y}
                         r={15}
                         fill="none"
-                        stroke="#a3f185"
+                        stroke="var(--color-secondary)"
                         strokeWidth={1.5}
                         opacity={0.8}
                       />
@@ -1163,8 +1165,8 @@ export function ChronometricGraph({
                       cx={node.x}
                       cy={node.y}
                       r={10.5}
-                      fill="#020f1e"
-                      stroke={isSelected ? '#a3f185' : node.laneColor}
+                      fill="var(--color-bg-base)"
+                      stroke={isSelected ? 'var(--color-secondary)' : node.laneColor}
                       strokeWidth={isSelected ? 3 : 2}
                       className="transition-all duration-150"
                     />
@@ -1177,7 +1179,7 @@ export function ChronometricGraph({
                       dominantBaseline="central"
                       fontSize={fs(7.5)}
                       fontWeight="700"
-                      fill={isSelected ? '#a3f185' : node.laneColor}
+                      fill={isSelected ? 'var(--color-secondary)' : node.laneColor}
                       className="font-mono select-none pointer-events-none"
                     >
                       {initials(node.commit.authorName)}
@@ -1191,7 +1193,7 @@ export function ChronometricGraph({
             <g id="overlay-labels">
               {/* Satellite Tags — same classic-view aesthetic as branch tags */}
               {tagsWithPositions.map((tag, idx) => {
-                const TAG_COLOR = '#fd9d1a';
+                const TAG_COLOR = 'var(--color-git-mod)';
                 const badgeWidth = tag.tagName.length * 6 + 22;
                 return (
                   <g key={`tag-satellite-${tag.commitHash}-${idx}`}>
@@ -1200,7 +1202,7 @@ export function ChronometricGraph({
                       y1={tag.y}
                       x2={tag.satX}
                       y2={tag.satY}
-                      stroke="#697789"
+                      stroke="var(--color-text-secondary)"
                       strokeWidth={0.75}
                       strokeDasharray="2 2"
                       opacity={0.5}
@@ -1245,7 +1247,7 @@ export function ChronometricGraph({
                     cy={headCommitNode.y}
                     r={17}
                     fill="none"
-                    stroke="#a3f185"
+                    stroke="var(--color-secondary)"
                     strokeWidth={1}
                     strokeDasharray="3 3"
                     opacity={0.6}
@@ -1256,14 +1258,14 @@ export function ChronometricGraph({
                     cy={headCommitNode.y}
                     r={13.5}
                     fill="none"
-                    stroke="#a3f185"
+                    stroke="var(--color-secondary)"
                     strokeWidth={0.75}
                     opacity={0.7}
                   />
-                  <line x1={headCommitNode.x} y1={headCommitNode.y - 21} x2={headCommitNode.x} y2={headCommitNode.y - 16} stroke="#a3f185" strokeWidth={1} opacity={0.8} />
-                  <line x1={headCommitNode.x} y1={headCommitNode.y + 16} x2={headCommitNode.x} y2={headCommitNode.y + 21} stroke="#a3f185" strokeWidth={1} opacity={0.8} />
-                  <line x1={headCommitNode.x - 21} y1={headCommitNode.y} x2={headCommitNode.x - 16} y2={headCommitNode.y} stroke="#a3f185" strokeWidth={1} opacity={0.8} />
-                  <line x1={headCommitNode.x + 16} y1={headCommitNode.y} x2={headCommitNode.x + 21} y2={headCommitNode.y} stroke="#a3f185" strokeWidth={1} opacity={0.8} />
+                  <line x1={headCommitNode.x} y1={headCommitNode.y - 21} x2={headCommitNode.x} y2={headCommitNode.y - 16} stroke="var(--color-secondary)" strokeWidth={1} opacity={0.8} />
+                  <line x1={headCommitNode.x} y1={headCommitNode.y + 16} x2={headCommitNode.x} y2={headCommitNode.y + 21} stroke="var(--color-secondary)" strokeWidth={1} opacity={0.8} />
+                  <line x1={headCommitNode.x - 21} y1={headCommitNode.y} x2={headCommitNode.x - 16} y2={headCommitNode.y} stroke="var(--color-secondary)" strokeWidth={1} opacity={0.8} />
+                  <line x1={headCommitNode.x + 16} y1={headCommitNode.y} x2={headCommitNode.x + 21} y2={headCommitNode.y} stroke="var(--color-secondary)" strokeWidth={1} opacity={0.8} />
                 </g>
               )}
 
@@ -1286,14 +1288,14 @@ export function ChronometricGraph({
                     y1={headCommitNode.y}
                     x2={wipCoords.x}
                     y2={wipCoords.y}
-                    stroke="#ff716c"
+                    stroke="var(--color-error)"
                     strokeWidth={1}
                     strokeDasharray="2 3"
                     opacity={0.5}
                   />
                   <polygon
                     points={`${wipCoords.x - 11},${wipCoords.y + 4} ${wipCoords.x - 5},${wipCoords.y - 6} ${wipCoords.x + 1},${wipCoords.y + 4}`}
-                    fill="#ff716c"
+                    fill="var(--color-error)"
                     opacity={0.5}
                   />
                   <rect
@@ -1302,8 +1304,8 @@ export function ChronometricGraph({
                     width={85}
                     height={18}
                     rx={4}
-                    fill="#031427"
-                    stroke="#ff716c"
+                    fill="var(--color-bg-surface)"
+                    stroke="var(--color-error)"
                     strokeWidth={1}
                     strokeDasharray="2 2"
                     opacity={0.8}
@@ -1311,7 +1313,7 @@ export function ChronometricGraph({
                   <text
                     x={wipCoords.x + 8}
                     y={wipCoords.y + 2.5}
-                    fill="#ff716c"
+                    fill="var(--color-error)"
                     fontSize={fs(7.5)}
                     fontWeight="bold"
                     className="font-mono select-none pointer-events-none"
@@ -1341,7 +1343,7 @@ export function ChronometricGraph({
                     y1={stashPos.y}
                     x2={stashPos.x - nx * 18}
                     y2={stashPos.y - ny * 18}
-                    stroke="#9eacc0"
+                    stroke="var(--color-text-secondary)"
                     strokeWidth={0.75}
                     strokeDasharray="1 3"
                     opacity={0.4}
@@ -1352,8 +1354,8 @@ export function ChronometricGraph({
                     width={44}
                     height={16}
                     rx={3}
-                    fill="#031427"
-                    stroke="#9eacc0"
+                    fill="var(--color-bg-surface)"
+                    stroke="var(--color-text-secondary)"
                     strokeWidth={0.75}
                     opacity={0.75}
                   />
@@ -1362,13 +1364,13 @@ export function ChronometricGraph({
                     y={stashPos.y + 1}
                     width={28}
                     height={3}
-                    fill="#3c495a"
+                    fill="var(--color-border-subtle)"
                     opacity={0.6}
                   />
                   <path
                     d={`M ${stashPos.x - 16} ${stashPos.y - 4} L ${stashPos.x - 16} ${stashPos.y + 4} L ${stashPos.x + 16} ${stashPos.y + 4} L ${stashPos.x + 16} ${stashPos.y - 4}`}
                     fill="none"
-                    stroke="#9eacc0"
+                    stroke="var(--color-text-secondary)"
                     strokeWidth={0.5}
                     opacity={0.5}
                   />
@@ -1376,7 +1378,7 @@ export function ChronometricGraph({
                     x={stashPos.x}
                     y={stashPos.y - 1}
                     textAnchor="middle"
-                    fill="#9eacc0"
+                    fill="var(--color-text-secondary)"
                     fontSize={fs(6.5)}
                     fontWeight="bold"
                     className="font-mono select-none pointer-events-none"
@@ -1414,7 +1416,7 @@ export function ChronometricGraph({
                         y1={headCommitNode.y}
                         x2={headCommitNode.x + vx * 34}
                         y2={headCommitNode.y + vy * 34}
-                        stroke="#a3f185"
+                        stroke="var(--color-secondary)"
                         strokeWidth={1}
                         strokeDasharray="2 2"
                         opacity={0.85}
@@ -1425,7 +1427,7 @@ export function ChronometricGraph({
                         x={baseLabelX}
                         y={line1Y}
                         textAnchor={isLeft ? "end" : "start"}
-                        fill="#a3f185"
+                        fill="var(--color-secondary)"
                         fontSize={fs(7.5)}
                         fontWeight="bold"
                         className="font-mono select-none pointer-events-none"
@@ -1440,7 +1442,7 @@ export function ChronometricGraph({
                           x={baseLabelX}
                           y={line2Y}
                           textAnchor={isLeft ? "end" : "start"}
-                          fill="#a3f185"
+                          fill="var(--color-secondary)"
                           fontSize={fs(7)}
                           fontWeight="bold"
                           className="font-mono select-none pointer-events-none"
@@ -1704,30 +1706,34 @@ export function ChronometricGraph({
         {/* 5. Custom Floating Hover Card (Geometric clarity, details on-demand, relative positioned) */}
         {hoveredNode && hoveredScreenPos && (
           <div
-            className="absolute pointer-events-none bg-[#071a2c]/60 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] z-30 min-w-[280px] max-w-[340px] transition-opacity duration-150 animate-in fade-in zoom-in-95 duration-100"
+            className="absolute pointer-events-none bg-bg-overlay/60 backdrop-blur-md border border-border-subtle/15 rounded-md px-3 py-2.5 shadow-glass z-30 min-w-[280px] max-w-[340px] transition-opacity duration-150 animate-in fade-in zoom-in-95 duration-100"
             style={hoveredCardStyle}
           >
-            <div className="flex items-center justify-between gap-3 mb-1.5 border-b border-[#3c495a]/15 pb-1">
-              <span className="text-[10px] uppercase font-bold text-[#697789] tracking-wider font-mono">
+            <div className="flex items-center justify-between gap-3 mb-1.5 border-b border-border-subtle/15 pb-1">
+              <span className="text-[10px] uppercase font-bold text-text-secondary/70 tracking-wider font-mono">
                 {hoveredNode.commit.shortHash}
               </span>
               {getBranchName(hoveredNode.commit) && (
                 <span
                   className="text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold truncate max-w-[150px]"
                   style={{
-                    backgroundColor: `${hoveredNode.laneColor}15`,
+                    backgroundColor: hoveredNode.laneColor.startsWith('var(')
+                      ? `color-mix(in srgb, ${hoveredNode.laneColor} 8.2%, transparent)`
+                      : `${hoveredNode.laneColor}15`,
                     color: hoveredNode.laneColor,
-                    border: `1px solid ${hoveredNode.laneColor}30`,
+                    border: hoveredNode.laneColor.startsWith('var(')
+                      ? `1px solid color-mix(in srgb, ${hoveredNode.laneColor} 18.8%, transparent)`
+                      : `1px solid ${hoveredNode.laneColor}30`,
                   }}
                 >
                   {getBranchName(hoveredNode.commit)}
                 </span>
               )}
             </div>
-            <p className="text-xs text-[#d9e7fc] font-medium line-clamp-2 mb-2 leading-relaxed">
+            <p className="text-xs text-text-primary font-medium line-clamp-2 mb-2 leading-relaxed">
               {hoveredNode.commit.message}
             </p>
-            <div className="flex items-center justify-between text-[9px] text-[#9eacc0] font-mono">
+            <div className="flex items-center justify-between text-[9px] text-text-secondary font-mono">
               <span className="truncate max-w-[130px]">{hoveredNode.commit.authorName}</span>
               <span className="flex items-center gap-1">
                 <Calendar size={10} className="opacity-70" />

@@ -39,22 +39,22 @@ const DEFAULT_COLUMN_WIDTHS: CommitGraphColumnWidths = {
 
 // Ordered palette — used both for branch hashing and fallback lane colors
 export const BRANCH_PALETTE = [
-  '#5ed8ff', // cyan      (for common branches like "master"/"main" variants)
-  '#fd9d1a', // orange
-  '#ff716c', // red
-  '#39bce2', // teal
-  '#ffb462', // amber
-  '#d0bcff', // lavender
-  '#68b24f', // deep green
-  '#f472b6', // pink
-  '#a78bfa', // purple
-  '#34d399', // emerald
-  '#fb923c', // orange-red
-  '#60a5fa', // blue
+  'var(--color-graph-branch-1)',
+  'var(--color-graph-branch-2)',
+  'var(--color-graph-branch-3)',
+  'var(--color-graph-branch-4)',
+  'var(--color-graph-branch-5)',
+  'var(--color-graph-branch-6)',
+  'var(--color-graph-branch-7)',
+  'var(--color-graph-branch-8)',
+  'var(--color-graph-branch-9)',
+  'var(--color-graph-branch-10)',
+  'var(--color-graph-branch-11)',
+  'var(--color-graph-branch-12)',
 ];
 
 // Current branch always gets the primary neon green
-export const CURRENT_BRANCH_COLOR = '#a3f185';
+export const CURRENT_BRANCH_COLOR = 'var(--color-secondary)';
 
 /**
  * Stable color for a branch/ref name.
@@ -279,7 +279,7 @@ export function CommitGraph({
 
   if (commits.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[#9eacc0] text-sm">
+      <div className="flex-1 flex items-center justify-center text-text-secondary text-ui-body">
         Sin commits
       </div>
     );
@@ -343,22 +343,21 @@ function GraphRowView({
       onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, row.commit); }}
       className={cn(
         'flex items-center cursor-pointer group relative',
-        selected ? 'bg-[#a3f185]/10' : 'hover:bg-[#0d2134]',
+        selected ? 'bg-secondary/10' : 'hover:bg-bg-surface/50',
       )}
       style={{ height: ROW_H }}
     >
-      {selected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#a3f185]" />}
+      {selected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-secondary" />}
 
       {/* ── Column 1: BRANCH / TAG labels — 260px ── */}
       <div
         className="shrink-0 flex items-center justify-end gap-1 pl-3 pr-3 overflow-hidden"
         style={{ width: columnWidths.refs }}
       >
-        {refs.slice(0, 3).map((ref, ri) => <RefChip key={ri} ref={ref} />)}
+        {refs.slice(0, 3).map((ref, ri) => <RefChip key={ri} gitRef={ref} />)}
         {refs.length > 3 && (
           <span
-            className="inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium shrink-0 whitespace-nowrap"
-            style={{ backgroundColor: '#9eacc033', borderColor: '#9eacc044', color: '#9eacc0' }}
+            className="inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium shrink-0 whitespace-nowrap bg-text-secondary/20 border-text-secondary/25 text-text-secondary"
             title={refs.slice(3).map((r) => r.raw).join(', ')}
           >
             +{refs.length - 3}
@@ -373,7 +372,9 @@ function GraphRowView({
           style={{
             left: PADDING_LEFT + row.lane * LANE_W,
             right: 0,
-            backgroundColor: `${row.laneColor}18`,
+            backgroundColor: row.laneColor.startsWith('var(')
+              ? `color-mix(in srgb, ${row.laneColor} 9.4%, transparent)`
+              : `${row.laneColor}18`,
             borderRight: `2px solid ${row.laneColor}`,
             opacity: selected ? 0.6 : 0.42,
           }}
@@ -477,27 +478,33 @@ function GraphRowView({
   );
 }
 
-function RefChip({ ref }: { ref: ParsedRef }) {
-  const Icon = ref.type === 'remote' ? Cloud : ref.type === 'tag' ? TagIcon : ref.type === 'stash' ? null : Monitor;
+function RefChip({ gitRef }: { gitRef: ParsedRef }) {
+  const Icon = gitRef.type === 'remote' ? Cloud : gitRef.type === 'tag' ? TagIcon : gitRef.type === 'stash' ? null : Monitor;
 
-  // Build rgba bg/border from the ref's color
-  const hex = ref.color;
-  const bgOpacity = ref.isCurrent ? '33' : '1A'; // ~20% or ~10%
-  const borderOpacity = ref.isCurrent ? '80' : '44';
+  const hex = gitRef.color;
+  const isCurrent = gitRef.isCurrent;
+
+  const chipStyle = hex.startsWith('var(')
+    ? {
+        backgroundColor: `color-mix(in srgb, ${hex} ${isCurrent ? '20%' : '10%'}, transparent)`,
+        borderColor: `color-mix(in srgb, ${hex} ${isCurrent ? '50%' : '25%'}, transparent)`,
+        color: hex,
+      }
+    : {
+        backgroundColor: `${hex}${isCurrent ? '33' : '1A'}`,
+        borderColor: `${hex}${isCurrent ? '80' : '44'}`,
+        color: hex,
+      };
 
   return (
     <span
       className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium whitespace-nowrap max-w-[120px] overflow-hidden"
-      style={{
-        backgroundColor: `${hex}${bgOpacity}`,
-        borderColor: `${hex}${borderOpacity}`,
-        color: hex,
-      }}
-      title={ref.raw}
+      style={chipStyle}
+      title={gitRef.raw}
     >
-      {ref.isCurrent && <Check size={10} strokeWidth={3} className="shrink-0" />}
-      {Icon && !ref.isCurrent && <Icon size={10} className="shrink-0" />}
-      <span className="truncate min-w-0">{ref.name}</span>
+      {gitRef.isCurrent && <Check size={10} strokeWidth={3} className="shrink-0" />}
+      {Icon && !gitRef.isCurrent && <Icon size={10} className="shrink-0" />}
+      <span className="truncate min-w-0">{gitRef.name}</span>
     </span>
   );
 }
@@ -514,14 +521,13 @@ function WIPRow({
 }) {
   return (
     <div
-      className="flex items-center relative bg-[#a3f185]/5 border-l-2 border-[#a3f185]/40"
+      className="flex items-center relative bg-git-add/5 border-l-2 border-git-add/40"
       style={{ height: ROW_H }}
     >
       <div className="shrink-0 flex items-center justify-end pr-3" style={{ width: columnWidths.refs }}>
         {stagedCount > 0 && (
           <span
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium"
-            style={{ backgroundColor: '#a3f185' + '33', borderColor: '#a3f185' + '80', color: '#a3f185' }}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium bg-git-add/20 border-git-add/50 text-git-add"
           >
             + {stagedCount}
           </span>
@@ -542,8 +548,8 @@ function WIPRow({
       </div>
 
       <div className="flex-1 min-w-0 flex items-center gap-2 pl-2">
-        <span className="text-sm text-[#a3f185] font-mono">// WIP</span>
-        <span className="text-xs text-[#9eacc0]">
+        <span className="text-sm text-git-add font-mono">{"// WIP"}</span>
+        <span className="text-xs text-text-secondary">
           {unstagedCount > 0 && `${unstagedCount} sin stagear`}
           {unstagedCount > 0 && stagedCount > 0 && ' · '}
           {stagedCount > 0 && `${stagedCount} listos para commitear`}

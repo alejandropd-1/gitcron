@@ -46,6 +46,7 @@ export interface RepoState {
   selectedFile: GitFile | null;
   currentDiff: string;
   graphShowAllBranches: boolean;
+  graphMode: 'classic' | 'chronometric';
   isLoading: boolean;
   error: string | null;
   success: string | null;
@@ -98,6 +99,7 @@ interface GitStore {
   osNotificationsEnabled: boolean;
   shortcuts: Record<string, string>;
   theme: Theme;
+  enableCronometric: boolean;
 
   setRepoPath: (path: string | null) => void;
   setRepoName: (name: string | null) => void;
@@ -133,6 +135,7 @@ interface GitStore {
   updateShortcut: (id: string, keys: string) => void;
   resetShortcuts: () => void;
   setTheme: (theme: Theme) => void;
+  setEnableCronometric: (enabled: boolean) => void;
 }
 
 type EmptyRepoFields = Omit<RepoState, 'path' | 'name'>;
@@ -155,6 +158,7 @@ function createEmptyRepoFields(): EmptyRepoFields {
     selectedFile: null,
     currentDiff: '',
     graphShowAllBranches: true,
+    graphMode: 'classic',
     isLoading: false,
     error: null,
     success: null,
@@ -315,6 +319,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   osNotificationsEnabled: true,
   shortcuts: {},
   theme: 'dark',
+  enableCronometric: false,
 
   setRepoPath: (repoPath) => set((state) => {
     if (!repoPath) {
@@ -385,5 +390,6 @@ export const useGitStore = create<GitStore>((set, get) => ({
   updateShortcut: (id, keys) => set((s) => ({ shortcuts: { ...s.shortcuts, [id]: keys } })),
   resetShortcuts: () => set({ shortcuts: {} }),
   setTheme: (theme) => set({ theme }),
+  setEnableCronometric: (enableCronometric) => set({ enableCronometric }),
   setGithubUser: (githubUser) => set({ githubUser }),
 }));

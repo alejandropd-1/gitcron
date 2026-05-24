@@ -55,6 +55,18 @@ export const useRepoLoader = () => {
 
   const applyRepoInfo = async (info: RepoInfo) => {
     addOrActivateRepo(info);
+    if (window.api) {
+      const saved = await window.api.storageGet('repoGraphModes').catch(() => null);
+      if (saved?.success && typeof saved.data === 'string') {
+        try {
+          const modes = JSON.parse(saved.data);
+          const mode = modes[info.path];
+          if (mode === 'classic' || mode === 'chronometric') {
+            updateRepoByPath(info.path, { graphMode: mode });
+          }
+        } catch {}
+      }
+    }
     await persistOpenRepos();
   };
 
@@ -135,11 +147,21 @@ export const useRepoLoader = () => {
         const activePath = activeSaved?.success ? activeSaved.data : null;
         const opened: RepoInfo[] = [];
 
+        const savedModes = await window.api.storageGet('repoGraphModes').catch(() => null);
+        let modes: Record<string, string> = {};
+        if (savedModes?.success && typeof savedModes.data === 'string') {
+          try { modes = JSON.parse(savedModes.data); } catch {}
+        }
+
         for (const path of paths) {
           try {
             const result = await window.api.openPath(path);
             if (result.success && result.data) {
               addOrActivateRepo(result.data);
+              const mode = modes[path];
+              if (mode === 'classic' || mode === 'chronometric') {
+                updateRepoByPath(path, { graphMode: mode });
+              }
               opened.push(result.data);
             }
           } catch { /* ignore moved/deleted repos */ }

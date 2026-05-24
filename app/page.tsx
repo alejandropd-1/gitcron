@@ -1,5 +1,5 @@
 'use client';
-/* eslint-disable react-hooks/set-state-in-effect, react-hooks/refs */
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
@@ -10,6 +10,7 @@ import {
   Sparkles, Copy, Lock, Globe, Loader2, UserCircle2,
   GitMerge, TreePine, ArrowUp, ArrowDown, ChevronDown, Check,
   Type, Filter, Monitor, ExternalLink, FileDiff, Maximize2,
+  PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import pkg from '../package.json';
@@ -29,6 +30,7 @@ import { useRepoLoader } from '@/hooks/use-repo-loader';
 import { useAutoFetch } from '@/hooks/use-auto-fetch';
 import { DiffViewer } from '@/components/DiffViewer';
 import { CommitGraph } from '@/components/CommitGraph';
+import { ChronometricGraph } from '@/components/ChronometricGraph';
 import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -47,6 +49,9 @@ const GRAPH_COLUMN_LIMITS = {
   date: { min: 64, max: 150 },
   hash: { min: 56, max: 120 },
 };
+
+const FLOATING_PANEL_INSET = 12;
+const GRAPH_SAFE_GAP = 12;
 
 type GraphColumnKey = keyof typeof GRAPH_COLUMN_DEFAULTS;
 
@@ -135,9 +140,9 @@ function RepoTabs({
   if (repos.length === 0) return null;
 
   return (
-    <div className="app-titlebar h-10 bg-bg-base border-b border-border-subtle/15 flex items-stretch shrink-0 overflow-hidden">
-      <div className="min-w-0 flex-1 flex items-end gap-1 pl-2 pt-1 overflow-x-auto overflow-y-hidden">
-        <div className="app-titlebar-control h-8 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2">
+    <div className="app-titlebar h-10 rounded-t-2xl bg-bg-overlay/60/35 backdrop-blur-md border-b border-text-primary/10 flex items-stretch shrink-0 overflow-hidden gap-1">
+      <div className="min-w-0 flex-1 flex items-end gap-1 pl-2 pt-1.5 pb-1 overflow-x-auto overflow-y-hidden">
+        <div className="app-titlebar-control h-7 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2">
         <img
           src="/gitcron-icon.png"
           alt="GitCron"
@@ -152,17 +157,17 @@ function RepoTabs({
             <div
               key={repo.path}
               className={cn(
-                'app-titlebar-control group h-8 min-w-0 max-w-56 rounded-t-md flex items-center border transition-colors',
+                'app-titlebar-control group h-7 min-w-0 max-w-52 rounded-md flex items-center border transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
                 isActive
-                  ? 'bg-bg-base/70 border-border-subtle/20 border-b-bg-base text-text-primary'
-                  : 'bg-bg-surface border-border-subtle/10 text-text-secondary hover:text-text-primary hover:bg-bg-surface/75',
+                  ? 'bg-text-primary/10 border-secondary/25 text-text-primary shadow-[0_0_18px_rgba(163,241,133,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]'
+                  : 'bg-text-primary/[0.035] border-text-primary/10 text-text-secondary hover:text-text-primary hover:bg-text-primary/[0.07] hover:border-text-primary/20',
               )}
             >
               <button
                 type="button"
                 onClick={() => onSelect(idx)}
                 title={t('repoTabs.switchTo', { repo: repo.name })}
-                className="min-w-0 flex-1 h-full px-3 flex items-center gap-2 text-left"
+                className="min-w-0 flex-1 h-full px-2.5 flex items-center gap-2 text-left"
               >
                 {repo.isLoading ? (
                   <Loader2 size={10} className="shrink-0 animate-spin text-secondary" />
@@ -197,18 +202,18 @@ function RepoTabs({
           type="button"
           onClick={onOpen}
           title={t('repoTabs.openAnother')}
-          className="app-titlebar-control h-8 w-8 mb-0 rounded-t-md flex items-center justify-center text-text-secondary hover:text-secondary hover:bg-bg-surface border border-transparent hover:border-border-subtle/15 transition-colors shrink-0"
+          className="app-titlebar-control h-7 w-7 mb-0 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.025] hover:text-secondary hover:bg-text-primary/[0.07] border border-text-primary/15 hover:border-text-primary/25 transition-colors shrink-0"
         >
           <Plus size={14} />
         </button>
       </div>
-      <div className="app-titlebar-control h-10 self-stretch flex items-stretch shrink-0">
+      <div className="app-titlebar-control h-10 self-stretch flex items-stretch shrink-0 pr-3 gap-1">
         <button
           type="button"
           aria-label="Minimizar"
           title="Minimizar"
           onClick={() => window.api?.windowMinimize()}
-          className="h-full w-11 flex items-center justify-center text-text-secondary bg-bg-base hover:bg-bg-surface/75 hover:text-text-primary transition-colors"
+          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.035] hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
         >
           <Minus size={14} />
         </button>
@@ -217,7 +222,7 @@ function RepoTabs({
           aria-label="Maximizar o restaurar"
           title="Maximizar o restaurar"
           onClick={() => window.api?.windowToggleMaximize()}
-          className="h-full w-11 flex items-center justify-center text-text-secondary bg-bg-base hover:bg-bg-surface/75 hover:text-text-primary transition-colors"
+          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.035] hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
         >
           <Maximize2 size={13} />
         </button>
@@ -226,7 +231,7 @@ function RepoTabs({
           aria-label="Cerrar"
           title="Cerrar"
           onClick={() => window.api?.windowClose()}
-          className="h-full w-11 flex items-center justify-center text-text-secondary bg-bg-base hover:bg-bg-surface/75 hover:text-text-primary transition-colors"
+          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.035] hover:bg-error/20 hover:text-[#ffdad6] transition-colors"
         >
           <X size={15} />
         </button>
@@ -425,7 +430,7 @@ function FetchIndicator({ onClick }: { onClick: () => void | Promise<void> }) {
       onClick={() => onClick()}
       title={tooltip}
       className={cn(
-        'flex flex-col items-center justify-center p-1.5 rounded transition-colors group',
+        'flex flex-col items-center justify-center p-1.5 rounded transition-colors group shrink-0',
         'hover:bg-border-subtle',
       )}
     >
@@ -511,7 +516,7 @@ function GraphColumnHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent)
 export default function GitCronPage() {
   const {
     openRepos, activeRepoIdx, setActiveRepoIdx,
-    repoPath, repoName,
+    repoPath,
     currentBranch, branches, remoteBranches,
     commits, modifiedFiles, commitMessage, setCommitMessage,
     selectedCommit, setSelectedCommit, isLoading, error, setError, success, setSuccess,
@@ -529,7 +534,7 @@ export default function GitCronPage() {
     openTerminal, stashApply, stashDrop, stashClear,
     connectGitHub, disconnectGitHub, loginWithGitHubDevice, bootstrapGitHub,
     bootstrapPreferences, changeLanguage, changeFontSize, changeDefaultFolder, pickDefaultFolder,
-    setAutoFetchPrefs, setOsNotifications, rebindShortcut, resetShortcutsToDefaults, changeTheme,
+    setAutoFetchPrefs, setOsNotifications, rebindShortcut, resetShortcutsToDefaults, changeTheme, changeEnableCronometric,
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch, amendLastCommit, cherryPickCommit, squashCommits,
@@ -542,6 +547,7 @@ export default function GitCronPage() {
   const fontSize = useGitStore((s) => s.fontSize);
   const defaultFolder = useGitStore((s) => s.defaultFolder);
   const theme = useGitStore((s) => s.theme);
+  const enableCronometric = useGitStore((s) => s.enableCronometric);
   const appFontSizePx = FONT_SIZE_OPTIONS.find((option) => option.key === fontSize)?.px ?? 15;
 
   const {
@@ -550,11 +556,32 @@ export default function GitCronPage() {
   } = useRepoLoader();
 
   const graphShowAllBranches = useGitStore((s) => s.getActiveRepo()?.graphShowAllBranches ?? true);
+  const rawGraphMode = useGitStore((s) => s.getActiveRepo()?.graphMode ?? 'classic');
+  const graphMode = enableCronometric ? rawGraphMode : 'classic';
   const updateActiveRepo = useGitStore((s) => s.updateActiveRepo);
 
   const { runFetchCycle } = useAutoFetch();
 
   const [activeTab, setActiveTab] = useState('Graph');
+
+  const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
+    const activeRepo = useGitStore.getState().getActiveRepo();
+    if (!activeRepo) return;
+
+    updateActiveRepo({ graphMode: mode });
+
+    if (window.api) {
+      try {
+        const saved = await window.api.storageGet('repoGraphModes').catch(() => null);
+        let modes: Record<string, string> = {};
+        if (saved?.success && typeof saved.data === 'string') {
+          try { modes = JSON.parse(saved.data); } catch {}
+        }
+        modes[activeRepo.path] = mode;
+        await window.api.storageSet('repoGraphModes', JSON.stringify(modes)).catch(() => {});
+      } catch {}
+    }
+  };
   const [pullDecision, setPullDecision] = useState<PullDecisionToast | null>(null);
 
   const showPullDecisionIfNeeded = (source: 'push' | 'pull') => {
@@ -687,6 +714,11 @@ export default function GitCronPage() {
   // ── Resizable column widths ──
   const [sidebarW, setSidebarW] = useState(240);
   const [detailsW, setDetailsW] = useState(320);
+  // ── Floating panel open/closed state ──
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [detailsOpen, setDetailsOpen] = useState(true);
+  const leftGraphSafe = sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
+  const rightGraphSafe = detailsOpen ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
   const [graphColumns, setGraphColumns] = useState(GRAPH_COLUMN_DEFAULTS);
   const dragRef = useRef<{
     col: 'sidebar' | 'details';
@@ -822,16 +854,20 @@ export default function GitCronPage() {
     document.documentElement.style.fontSize = `${appFontSizePx}px`;
   }, [appFontSizePx]);
 
-  // Read persisted split widths only on the client to avoid SSR hydration mismatches.
+  // Read persisted split widths and panel open states on the client to avoid SSR hydration mismatches.
   useEffect(() => {
     const savedSidebarW = localStorage.getItem('gitcron:sidebarW');
     const savedDetailsW = localStorage.getItem('gitcron:detailsW');
     const savedGraphColumns = localStorage.getItem('gitcron:graphColumns');
+    const savedSidebarOpen = localStorage.getItem('gitcron:sidebarOpen');
+    const savedDetailsOpen = localStorage.getItem('gitcron:detailsOpen');
     const parsedSidebarW = savedSidebarW ? parseInt(savedSidebarW, 10) : NaN;
     const parsedDetailsW = savedDetailsW ? parseInt(savedDetailsW, 10) : NaN;
 
     if (!Number.isNaN(parsedSidebarW)) setSidebarW(parsedSidebarW);
     if (!Number.isNaN(parsedDetailsW)) setDetailsW(parsedDetailsW);
+    if (savedSidebarOpen !== null) setSidebarOpen(savedSidebarOpen !== 'false');
+    if (savedDetailsOpen !== null) setDetailsOpen(savedDetailsOpen !== 'false');
     if (savedGraphColumns) {
       try {
         const parsed = JSON.parse(savedGraphColumns) as Partial<typeof GRAPH_COLUMN_DEFAULTS>;
@@ -1302,33 +1338,36 @@ export default function GitCronPage() {
 
   return (
     <div className="flex flex-col h-screen bg-bg-base text-text-primary font-sans overflow-hidden select-none">
-      <RepoTabs
-        repos={openRepos}
-        activeIdx={activeRepoIdx}
-        onSelect={handleSelectRepoTab}
-        onClose={handleCloseRepoTab}
-        onOpen={handleOpenRepoChooser}
-      />
+      <div className="shrink-0 px-3 pt-2 relative z-[80]">
+        <div className="rounded-2xl border border-text-primary/15 bg-bg-surface/35 backdrop-blur-md shadow-[0_18px_60px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]">
+          <RepoTabs
+            repos={openRepos}
+            activeIdx={activeRepoIdx}
+            onSelect={handleSelectRepoTab}
+            onClose={handleCloseRepoTab}
+            onOpen={handleOpenRepoChooser}
+          />
       {/* ──────────── TOP NAV ──────────── */}
-      <header className="h-12 glass-header grid grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] items-center px-4 shrink-0 relative z-50">
-        <div className="flex items-center gap-6 h-full min-w-0">
+      <header className="h-12 rounded-b-2xl border-t border-text-primary/[0.06] bg-bg-overlay/60/40 backdrop-blur-md grid grid-cols-[minmax(210px,0.8fr)_auto_minmax(360px,1.2fr)] items-center px-3 shrink-0 relative z-50">
+        <div className="flex items-center gap-4 h-full min-w-0">
           <button
-            onClick={openRepo}
-            title={t('toolbar.openRepo')}
-            className="flex items-center gap-1.5 font-bold text-secondary text-base hover:opacity-75 transition-opacity min-w-0"
-          >
-            {/* App icon — shown when no repo is open, replaced by folder icon when a repo is active */}
-            {repoName ? (
-              <FolderOpen size={16} />
-            ) : (
-              <img
-                src="/gitcron-icon.png"
-                alt="GitCron"
-                className="w-5 h-5 rounded object-cover"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-              />
+            type="button"
+            onClick={() => {
+              const next = !sidebarOpen;
+              setSidebarOpen(next);
+              localStorage.setItem('gitcron:sidebarOpen', String(next));
+            }}
+            aria-label={sidebarOpen ? 'Ocultar sidebar' : 'Mostrar sidebar'}
+            aria-pressed={sidebarOpen}
+            title={sidebarOpen ? 'Ocultar sidebar' : 'Mostrar sidebar'}
+            className={cn(
+              'h-9 w-9 shrink-0 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary',
+              'flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
+              'hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary',
+              sidebarOpen && 'text-secondary border-secondary/25 bg-secondary/10',
             )}
-            <span className="truncate">{repoName ?? 'GitCron'}</span>
+          >
+            {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
           </button>
           <nav className="flex h-full gap-1 shrink-0">
             {[
@@ -1346,14 +1385,14 @@ export default function GitCronPage() {
               >
                 {tab.label}
                 {activeTab === tab.key && (
-                  <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-secondary" />
+                  <motion.div layoutId="activeTab" className="absolute bottom-1.5 left-2 right-2 h-0.5 rounded-full bg-secondary" />
                 )}
               </button>
             ))}
           </nav>
         </div>
 
-        <div className="flex items-center justify-center gap-1 px-3">
+        <div className="flex items-center justify-center gap-1 px-2">
           <ToolbarButton icon={<Undo />} onClick={() => {}} title={t('toolbar.undo')} />
           <ToolbarButton icon={<Redo />} onClick={() => {}} title={t('toolbar.redo')} />
           <div className="w-px h-4 bg-border-subtle mx-1" />
@@ -1370,8 +1409,39 @@ export default function GitCronPage() {
         </div>
 
         <div className="flex items-center justify-end gap-1 min-w-0">
+          {/* Branch filter dropdown — only visible when Graph tab is active */}
+          {activeTab === 'Graph' && repoPath && enableCronometric && (
+            <div className="bg-bg-overlay/90 border border-border-subtle/20 rounded-md flex items-center p-0.5 mr-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleChangeGraphMode('classic')}
+                className={cn(
+                  "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
+                  graphMode === 'classic'
+                    ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
+                    : "text-text-secondary hover:text-text-primary border border-transparent"
+                )}
+                title="Vista Clásica (GitKraken)"
+              >
+                Clásico
+              </button>
+              <button
+                type="button"
+                onClick={() => handleChangeGraphMode('chronometric')}
+                className={cn(
+                  "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
+                  graphMode === 'chronometric'
+                    ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
+                    : "text-text-secondary hover:text-text-primary border border-transparent"
+                )}
+                title="Vista Cronométrica (Línea Diagonal)"
+              >
+                Cronométrico
+              </button>
+            </div>
+          )}
           {/* Version tag + GitHub icon / update status */}
-          <div className="flex items-center gap-1.5 mr-1">
+          <div className="flex items-center gap-1.5 mr-1 shrink-0">
             {updateStatus === 'downloaded' && (
               <button
                 type="button"
@@ -1400,7 +1470,7 @@ export default function GitCronPage() {
               type="button"
               onClick={() => window.api.shellOpenExternal('https://github.com/alejandropd-1/gitcron/releases/')}
               title="GitHub Releases"
-              className="w-8 h-8 flex items-center justify-center text-text-secondary hover:text-secondary hover:bg-bg-overlay/70 rounded transition-colors"
+              className="w-8 h-8 shrink-0 flex items-center justify-center text-text-secondary hover:text-secondary hover:bg-bg-overlay/70 rounded transition-colors"
             >
               <Github size={16} />
             </button>
@@ -1491,13 +1561,14 @@ export default function GitCronPage() {
 
           {/* Branch filter dropdown — only visible when Graph tab is active */}
           {activeTab === 'Graph' && repoPath && (
-            <div className="relative" ref={branchFilterRef}>
+            <>
+              <div className="relative" ref={branchFilterRef}>
               <button
                 type="button"
                 onClick={() => setShowBranchFilterDropdown((v) => !v)}
                 title={graphShowAllBranches ? t('graph.allBranches') : t('graph.currentBranch')}
                 className={cn(
-                  'flex flex-col items-center justify-center p-1.5 rounded transition-colors group',
+                  'flex flex-col items-center justify-center p-1.5 rounded transition-colors group shrink-0',
                   'hover:bg-bg-overlay/70',
                   !graphShowAllBranches && 'text-secondary',
                 )}
@@ -1564,8 +1635,9 @@ export default function GitCronPage() {
                 )}
               </AnimatePresence>
             </div>
-          )}
-          <div className="relative" ref={searchButtonRef}>
+          </>
+        )}
+          <div className="relative shrink-0" ref={searchButtonRef}>
             <ToolbarButton
               icon={<Search />}
               onClick={() => setShowSearchPopover((v) => !v)}
@@ -1576,42 +1648,30 @@ export default function GitCronPage() {
               <span className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_8px_rgba(163,241,133,0.7)]" />
             )}
           </div>
-          <div className="w-px h-4 bg-border-subtle mx-1" />
-          <ToolbarButton icon={<Settings />} onClick={() => setShowSettings(true)} title={t('toolbar.settings')} />
-          <ToolbarButton icon={<HelpCircle />} onClick={() => setShowHelp(true)} title={t('toolbar.help')} />
-          <div className="flex items-center gap-2 ml-2 pl-2">
-            {githubUser ? (
-              <button
-                onClick={() => setShowProfile(true)}
-                title={t('toolbar.connectedAs', { user: githubUser.login })}
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-              >
-                {githubUser.avatarUrl ? (
-                  <img
-                    src={githubUser.avatarUrl}
-                    alt={githubUser.login}
-                    className="w-7 h-7 rounded-full border border-secondary/50"
-                  />
-                ) : (
-                  <div
-                    className="w-7 h-7 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-[10px] font-bold text-[#052900] border border-secondary/50"
-                  >
-                    {userInitials(githubUser)}
-                  </div>
-                )}
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowProfile(true)}
-                title={t('toolbar.connectGitHub')}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-text-secondary hover:text-secondary hover:bg-bg-surface/70 transition-colors"
-              >
-                <UserCircle2 size={22} strokeWidth={1.5} />
-              </button>
+          <div className="w-px h-4 bg-border-subtle mx-1 shrink-0" />
+          <button
+            type="button"
+            onClick={() => {
+              const next = !detailsOpen;
+              setDetailsOpen(next);
+              localStorage.setItem('gitcron:detailsOpen', String(next));
+            }}
+            aria-label={detailsOpen ? 'Ocultar panel de detalles' : 'Mostrar panel de detalles'}
+            aria-pressed={detailsOpen}
+            title={detailsOpen ? 'Ocultar panel de detalles' : 'Mostrar panel de detalles'}
+            className={cn(
+              'h-9 w-9 shrink-0 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary',
+              'flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
+              'hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary',
+              detailsOpen && 'text-secondary border-secondary/25 bg-secondary/10',
             )}
-          </div>
+          >
+            {detailsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+          </button>
         </div>
       </header>
+        </div>
+      </div>
 
       {/* ──────────── MAIN 3-COLUMN LAYOUT ──────────── */}
       {showSearchPopover && searchPopoverPos && (
@@ -1642,12 +1702,27 @@ export default function GitCronPage() {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* COLUMN 1: SIDEBAR */}
+      <div className="flex-1 overflow-hidden relative">
+        {/* FLOATING LEFT PANEL: Sidebar — floats over the canvas, toggle via tab button */}
         <aside
-          className="bg-bg-base/70 flex flex-col shrink-0 overflow-y-auto"
-          style={{ width: sidebarW }}
+          className="absolute bg-bg-overlay/60/60 backdrop-blur-md flex flex-col overflow-hidden z-30 border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
+          style={{
+            top: FLOATING_PANEL_INSET,
+            left: FLOATING_PANEL_INSET,
+            bottom: FLOATING_PANEL_INSET,
+            width: sidebarW,
+            transform: sidebarOpen ? 'translateX(0)' : `translateX(calc(-100% - ${FLOATING_PANEL_INSET * 2}px))`,
+          }}
         >
+          {/* Right-edge resize handle */}
+          <div
+            onMouseDown={startColDrag('sidebar')}
+            className="group absolute top-0 right-0 h-full w-2 cursor-col-resize z-40"
+            title="Arrastrar para redimensionar"
+          >
+            <div className="absolute inset-y-3 right-0.5 w-px bg-transparent group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin py-2">
           {/* LOCAL — folder tree + ahead/behind chips */}
           <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-primary" />}>
             {branches.length === 0 && !repoPath && (
@@ -1802,19 +1877,62 @@ export default function GitCronPage() {
               {submodules.map((sm) => <SidebarItem key={sm.path} icon={<Layers size={16} />} text={sm.path} />)}
             </SidebarSection>
           )}
+          </div>
+          <div className="shrink-0 border-t border-text-primary/10 bg-bg-base/70/35 px-3 py-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                title={t('toolbar.settings')}
+                className="h-9 w-9 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary flex items-center justify-center transition-colors hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary"
+              >
+                <Settings size={17} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowHelp(true)}
+                title={t('toolbar.help')}
+                className="h-9 w-9 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary flex items-center justify-center transition-colors hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary"
+              >
+                <HelpCircle size={17} />
+              </button>
+              <div className="ml-auto">
+                {githubUser ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowProfile(true)}
+                    title={t('toolbar.connectedAs', { user: githubUser.login })}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-secondary/35 bg-secondary/10 hover:border-secondary/60 hover:bg-secondary/15 transition-colors"
+                  >
+                    {githubUser.avatarUrl ? (
+                      <img
+                        src={githubUser.avatarUrl}
+                        alt={githubUser.login}
+                        className="h-8 w-8 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-[10px] font-bold text-[#052900]">
+                        {userInitials(githubUser)}
+                      </div>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowProfile(true)}
+                    title={t('toolbar.connectGitHub')}
+                    className="h-10 w-10 shrink-0 rounded-full border border-text-primary/15 bg-text-primary/[0.035] flex items-center justify-center text-text-secondary hover:text-secondary hover:bg-text-primary/10 hover:border-secondary/35 transition-colors"
+                  >
+                    <UserCircle2 size={24} strokeWidth={1.5} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </aside>
 
-        {/* ── Drag handle: sidebar ↔ center ── */}
-        <div
-          onMouseDown={startColDrag('sidebar')}
-          className="w-1 shrink-0 cursor-col-resize hover:bg-secondary/40 active:bg-secondary/60 transition-colors bg-transparent group relative"
-          title="Arrastrar para redimensionar"
-        >
-          <div className="absolute inset-y-0 -left-1 -right-1" /> {/* wider hit area */}
-        </div>
-
-        {/* COLUMN 2: CENTER (Commit graph OR diff viewer) */}
-        <main className="flex-1 bg-bg-base overflow-hidden relative flex flex-col">
+        {/* CENTER CANVAS: Full-bleed graph, always fills the whole area */}
+        <main className="absolute inset-0 bg-bg-base overflow-hidden flex flex-col">
           {!repoPath || showRepoChooser ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-8 text-text-secondary p-8">
               <div className="text-center">
@@ -2004,75 +2122,118 @@ export default function GitCronPage() {
             />
           ) : (
             /* Graph tab — default */
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="sticky top-0 glass-sticky-header z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
-                <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
-                <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
-                <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
-                <GraphColumnHandle onMouseDown={startGraphColDrag('graph')} />
-                <div className="flex-1 flex items-center gap-2 pl-5">
-                  Commit message
-                  {filterText.trim() && (
-                    <span className="text-[10px] normal-case px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
-                      filtro activo
-                    </span>
+            <div className="flex-1 flex flex-col bg-bg-base min-h-0">
+              {graphMode === 'classic' ? (
+                <div
+                  className="flex-1 min-w-0 flex flex-col min-h-0 transition-[padding] duration-300 ease-out"
+                  style={{ paddingLeft: leftGraphSafe, paddingRight: rightGraphSafe }}
+                >
+                  <div className="sticky top-0 glass-sticky-header z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
+                    <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
+                    <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
+                    <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
+                    <GraphColumnHandle onMouseDown={startGraphColDrag('graph')} />
+                    <div className="flex-1 flex items-center gap-2 pl-5">
+                      Commit message
+                      {filterText.trim() && (
+                        <span className="text-[10px] normal-case px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
+                          filtro activo
+                        </span>
+                      )}
+                    </div>
+                    <GraphColumnHandle onMouseDown={startGraphColDrag('date', -1)} />
+                    <div className="flex items-center pr-3 text-right shrink-0">
+                      <span className="pr-3" style={{ width: graphColumns.date }}>Date</span>
+                      <GraphColumnHandle onMouseDown={startGraphColDrag('date')} />
+                      <span style={{ width: graphColumns.hash }}>Commit</span>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin">
+                    {!isStartupGraphReady && (
+                      <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-text-secondary text-sm">
+                        <Loader2 size={18} className="animate-spin mb-3 text-secondary" />
+                        <p>Cargando graph...</p>
+                      </div>
+                    )}
+                    {isStartupGraphReady && commits.length === 0 && isLoading && (
+                      <p className="px-4 py-8 text-center text-text-secondary text-sm">Cargando commits...</p>
+                    )}
+                    {isStartupGraphReady && commits.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.22, ease: 'easeOut' }}
+                      >
+                        <CommitGraph
+                          commits={commits}
+                          selectedHash={selectedCommit?.hash}
+                          currentBranch={currentBranch}
+                          workingTreeFiles={modifiedFiles}
+                          filterText={filterText}
+                          columnWidths={graphColumns}
+                          onSelect={handleSelectCommit}
+                          onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
+                        />
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col overflow-visible min-h-0">
+                  {!isStartupGraphReady && (
+                    <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-text-secondary text-sm">
+                      <Loader2 size={18} className="animate-spin mb-3 text-secondary" />
+                      <p>Cargando graph...</p>
+                    </div>
+                  )}
+                  {isStartupGraphReady && commits.length === 0 && isLoading && (
+                    <p className="px-4 py-8 text-center text-text-secondary text-sm">Cargando commits...</p>
+                  )}
+                  {isStartupGraphReady && commits.length > 0 && (
+                    <motion.div
+                      className="flex-1 flex flex-col overflow-visible min-h-0"
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                    >
+                      <ChronometricGraph
+                        commits={commits}
+                        selectedHash={selectedCommit?.hash}
+                        currentBranch={currentBranch}
+                        filterText={filterText}
+                        onSelect={handleSelectCommit}
+                        onContextMenu={(e, c) => openContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
+                        hudLeft={leftGraphSafe}
+                        hudRight={rightGraphSafe}
+                      />
+                    </motion.div>
                   )}
                 </div>
-                <GraphColumnHandle onMouseDown={startGraphColDrag('date', -1)} />
-                <div className="flex items-center pr-3 text-right shrink-0">
-                  <span className="pr-3" style={{ width: graphColumns.date }}>Date</span>
-                  <GraphColumnHandle onMouseDown={startGraphColDrag('date')} />
-                  <span style={{ width: graphColumns.hash }}>Commit</span>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                {!isStartupGraphReady && (
-                  <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-text-secondary text-sm">
-                    <Loader2 size={18} className="animate-spin mb-3 text-secondary" />
-                    <p>Cargando graph...</p>
-                  </div>
-                )}
-                {isStartupGraphReady && commits.length === 0 && isLoading && (
-                  <p className="px-4 py-8 text-center text-text-secondary text-sm">Cargando commits...</p>
-                )}
-                {isStartupGraphReady && commits.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.22, ease: 'easeOut' }}
-                  >
-                    <CommitGraph
-                      commits={commits}
-                      selectedHash={selectedCommit?.hash}
-                      currentBranch={currentBranch}
-                      workingTreeFiles={modifiedFiles}
-                      filterText={filterText}
-                      columnWidths={graphColumns}
-                      onSelect={handleSelectCommit}
-                      onContextMenu={(e, c) => openContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
-                    />
-                  </motion.div>
-                )}
-              </div>
+              )}
             </div>
           )}
         </main>
 
-        {/* ── Drag handle: center ↔ details ── */}
-        <div
-          onMouseDown={startColDrag('details')}
-          className="w-1 shrink-0 cursor-col-resize hover:bg-secondary/40 active:bg-secondary/60 transition-colors bg-transparent relative"
-          title="Arrastrar para redimensionar"
-        >
-          <div className="absolute inset-y-0 -left-1 -right-1" />
-        </div>
-
-        {/* COLUMN 3: COMMIT DETAILS + FILE CHANGES + COMMIT BOX */}
+        {/* FLOATING RIGHT PANEL: Commit details + staging — floats over the canvas */}
         <aside
-          className="bg-bg-base/70 flex flex-col shrink-0 overflow-hidden"
-          style={{ width: detailsW }}
+          className="absolute bg-bg-overlay/60/60 backdrop-blur-md flex flex-col overflow-hidden z-30 border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
+          style={{
+            top: FLOATING_PANEL_INSET,
+            right: FLOATING_PANEL_INSET,
+            bottom: FLOATING_PANEL_INSET,
+            width: detailsW,
+            transform: detailsOpen ? 'translateX(0)' : `translateX(calc(100% + ${FLOATING_PANEL_INSET * 2}px))`,
+          }}
         >
+          {/* Left-edge resize handle */}
+          <div
+            onMouseDown={startColDrag('details')}
+            className="group absolute top-0 left-0 h-full w-2 cursor-col-resize z-40"
+            title="Arrastrar para redimensionar"
+          >
+            <div className="absolute inset-y-3 left-0.5 w-px bg-transparent group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
+          </div>
           {selectedCommit ? (
             <div className="flex flex-col h-full">
               {/* WIP banner: visible when commit is selected but there are unsaved changes */}
@@ -2541,6 +2702,35 @@ export default function GitCronPage() {
                   </div>
                 </section>
 
+                {/* ── Vista Cronométrica (Feature Flag Toggle) ── */}
+                <section>
+                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <Sparkles size={12} /> Vista Cronométrica (Beta)
+                  </h4>
+                  <p className="text-xs text-text-secondary mb-3 leading-relaxed">
+                    Habilita la nueva línea de tiempo interactiva avanzada basada en Canvas espacial y HUD dinámico.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => changeEnableCronometric(!enableCronometric)}
+                    className={cn(
+                      'w-full px-3 py-2 rounded border text-sm flex items-center justify-center gap-2 transition-colors font-medium',
+                      enableCronometric
+                        ? 'bg-secondary/15 border-secondary/50 text-secondary'
+                        : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
+                    )}
+                  >
+                    {enableCronometric ? (
+                      <>
+                        <Check size={14} strokeWidth={3} />
+                        Activa
+                      </>
+                    ) : (
+                      'Inactiva (Usar vista clásica estable)'
+                    )}
+                  </button>
+                </section>
+
                 {/* ── Security ── */}
                 <section>
                   <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -2681,7 +2871,7 @@ export default function GitCronPage() {
               const repoDir = parent.endsWith('/') || parent.endsWith('\\')
                 ? `${parent}${name}`
                 : `${parent}${separator}${name}`;
-              
+
               const existsResult = await window.api.fsExistsAndNotEmpty(parent, name);
               const existsAndNotEmpty = existsResult.success && existsResult.data;
 
@@ -3340,13 +3530,13 @@ function ToolbarButton({
     <button
       onClick={onClick} title={title} disabled={disabled}
       className={cn(
-        'flex flex-col items-center justify-center p-1.5 rounded transition-colors group',
-        label && 'px-3',
-        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-border-subtle',
+        'flex shrink-0 flex-col items-center justify-center self-center rounded-md border border-transparent bg-text-primary/[0.025] transition-colors group shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
+        label ? 'h-10 min-w-[54px] px-2.5 py-1 gap-0.5' : 'h-8 w-10 p-1.5',
+        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#d9e7fc]/[0.075] hover:border-text-primary/15',
       )}
     >
-      <div className="w-5 h-5 text-text-secondary group-hover:text-secondary flex items-center justify-center">{icon}</div>
-      {label && <span className="text-[9px] mt-0.5 font-bold uppercase tracking-tighter text-text-secondary">{label}</span>}
+      <div className="w-5 h-5 shrink-0 text-text-secondary group-hover:text-secondary flex items-center justify-center">{icon}</div>
+      {label && <span className="text-[9px] leading-none font-bold uppercase tracking-tighter text-text-secondary">{label}</span>}
     </button>
   );
 }
@@ -3400,161 +3590,38 @@ interface BranchNode {
   fullPath: string;       // full branch name
 }
 
-interface TreeNode {
-  name: string;
-  fullPath: string;
-  isLeaf: boolean;
-  children: TreeNode[];
+interface BranchFolder {
+  prefix: string;
+  branches: BranchNode[];
 }
 
-function buildBranchTree(branches: string[]): TreeNode[] {
-  const rootNode: TreeNode = { name: '', fullPath: '', isLeaf: false, children: [] };
+function buildBranchTree(branches: string[]): { root: BranchNode[]; folders: BranchFolder[] } {
+  const root: BranchNode[] = [];
+  const folderMap = new Map<string, BranchNode[]>();
 
   for (const fullPath of branches) {
-    const parts = fullPath.split('/');
-    let currentNode = rootNode;
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isLast = i === parts.length - 1;
-      
-      let child = currentNode.children.find(c => c.name === part);
-      
-      if (!child) {
-        child = {
-          name: part,
-          fullPath: parts.slice(0, i + 1).join('/'),
-          isLeaf: isLast,
-          children: []
-        };
-        currentNode.children.push(child);
-      }
-      currentNode = child;
+    const slash = fullPath.indexOf('/');
+    if (slash === -1) {
+      root.push({ name: fullPath, fullPath });
+    } else {
+      const prefix = fullPath.slice(0, slash);
+      const leaf = fullPath.slice(slash + 1);
+      if (!folderMap.has(prefix)) folderMap.set(prefix, []);
+      folderMap.get(prefix)!.push({ name: leaf, fullPath });
     }
   }
 
-  function sortTree(node: TreeNode) {
-    node.children.sort((a, b) => {
-      // Carpetas primero, luego hojas
-      if (a.isLeaf !== b.isLeaf) {
-        return a.isLeaf ? 1 : -1;
-      }
-      
-      if (a.isLeaf) {
-        const priority = (n: string) => (n === 'main' ? 0 : n === 'master' ? 1 : 2);
-        const prioDiff = priority(a.name) - priority(b.name);
-        if (prioDiff !== 0) return prioDiff;
-      }
-      return a.name.localeCompare(b.name);
-    });
+  // Sort root: main/master first, then alphabetic
+  root.sort((a, b) => {
+    const priority = (n: string) => (n === 'main' ? 0 : n === 'master' ? 1 : 2);
+    return priority(a.name) - priority(b.name) || a.name.localeCompare(b.name);
+  });
 
-    for (const child of node.children) {
-      if (!child.isLeaf) {
-        sortTree(child);
-      }
-    }
-  }
+  const folders: BranchFolder[] = Array.from(folderMap.entries())
+    .map(([prefix, branches]) => ({ prefix, branches: branches.sort((a, b) => a.name.localeCompare(b.name)) }))
+    .sort((a, b) => a.prefix.localeCompare(b.prefix));
 
-  sortTree(rootNode);
-  return rootNode.children;
-}
-
-function BranchNodeView({
-  node, depth, currentBranch, tracking, onCheckout, onContextMenu
-}: {
-  node: TreeNode;
-  depth: number;
-  currentBranch: string;
-  tracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
-  onCheckout: (b: string) => void;
-  onContextMenu: (e: React.MouseEvent, branch: string) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(true);
-
-  const totalBranchesCount = useMemo(() => {
-    let count = 0;
-    function countLeaves(n: TreeNode) {
-      if (n.isLeaf) count++;
-      else n.children.forEach(countLeaves);
-    }
-    countLeaves(node);
-    return count;
-  }, [node]);
-
-  if (node.isLeaf) {
-    const isActive = node.fullPath === currentBranch;
-    const track = tracking[node.fullPath];
-    return (
-      <div
-        onDoubleClick={() => onCheckout(node.fullPath)}
-        onContextMenu={(e) => onContextMenu(e, node.fullPath)}
-        title={`Doble click: checkout · Click derecho: opciones`}
-        className={cn(
-          'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
-          isActive ? 'bg-secondary/10 text-secondary' : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
-        )}
-        style={{ paddingLeft: `${26 + depth * 14}px` }}
-      >
-        {isActive ? (
-          <Check size={13} strokeWidth={3} className="text-secondary shrink-0" />
-        ) : (
-          <GitBranch size={13} className="shrink-0 text-text-secondary/70" />
-        )}
-        <span className="truncate flex-1 text-sm select-text">{node.name}</span>
-
-        {/* Ahead / behind chips */}
-        {track && !track.gone && (track.ahead > 0 || track.behind > 0) && (
-          <span className="flex items-center gap-1 text-[10px] font-mono shrink-0">
-            {track.ahead > 0 && (
-              <span className="flex items-center text-secondary" title={`${track.ahead} commit${track.ahead === 1 ? '' : 's'} local${track.ahead === 1 ? '' : 'es'} pendiente${track.ahead === 1 ? '' : 's'} de push`}>
-                {track.ahead}
-                <ArrowUp size={10} strokeWidth={3} />
-              </span>
-            )}
-            {track.behind > 0 && (
-              <span className="flex items-center text-git-mod" title={`${track.behind} commit${track.behind === 1 ? '' : 's'} remoto${track.behind === 1 ? '' : 's'} pendiente${track.behind === 1 ? '' : 's'} de pull`}>
-                {track.behind}
-                <ArrowDown size={10} strokeWidth={3} />
-              </span>
-            )}
-          </span>
-        )}
-        {track?.gone && (
-          <span className="text-[9px] text-error uppercase shrink-0" title="Upstream eliminado">gone</span>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors cursor-pointer"
-        style={{ paddingLeft: `${26 + depth * 14}px` }}
-      >
-        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <Folder size={14} className="text-text-secondary shrink-0" />
-        <span className="truncate flex-1 text-left select-text">{node.name}</span>
-        <span className="text-[10px] text-text-secondary/70">{totalBranchesCount}</span>
-      </button>
-      {isOpen && (
-        <div>
-          {node.children.map((child) => (
-            <BranchNodeView
-              key={child.fullPath}
-              node={child}
-              depth={depth + 1}
-              currentBranch={currentBranch}
-              tracking={tracking}
-              onCheckout={onCheckout}
-              onContextMenu={onContextMenu}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  return { root, folders };
 }
 
 function BranchTree({
@@ -3566,15 +3633,26 @@ function BranchTree({
   onCheckout: (b: string) => void;
   onContextMenu: (e: React.MouseEvent, branch: string) => void;
 }) {
-  const tree = useMemo(() => buildBranchTree(branches), [branches]);
+  const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
 
   return (
     <div>
-      {tree.map((node) => (
-        <BranchNodeView
-          key={node.fullPath}
-          node={node}
-          depth={0}
+      {root.map((b) => (
+        <BranchRow
+          key={b.fullPath}
+          name={b.name}
+          fullPath={b.fullPath}
+          tracking={tracking[b.fullPath]}
+          isActive={b.fullPath === currentBranch}
+          onCheckout={onCheckout}
+          onContextMenu={onContextMenu}
+          indent={false}
+        />
+      ))}
+      {folders.map((f) => (
+        <BranchFolderView
+          key={f.prefix}
+          folder={f}
           currentBranch={currentBranch}
           tracking={tracking}
           onCheckout={onCheckout}
@@ -3585,62 +3663,39 @@ function BranchTree({
   );
 }
 
-function RemoteBranchNodeView({
-  node, depth, onCheckout, onContextMenu
+function BranchFolderView({
+  folder, currentBranch, tracking, onCheckout, onContextMenu,
 }: {
-  node: TreeNode;
-  depth: number;
+  folder: BranchFolder;
+  currentBranch: string;
+  tracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
   onCheckout: (b: string) => void;
   onContextMenu: (e: React.MouseEvent, branch: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
-
-  const totalBranchesCount = useMemo(() => {
-    let count = 0;
-    function countLeaves(n: TreeNode) {
-      if (n.isLeaf) count++;
-      else n.children.forEach(countLeaves);
-    }
-    countLeaves(node);
-    return count;
-  }, [node]);
-
-  if (node.isLeaf) {
-    return (
-      <div
-        onDoubleClick={() => onCheckout(node.fullPath)}
-        onContextMenu={(e) => onContextMenu(e, node.fullPath)}
-        className="pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary cursor-pointer transition-colors group relative"
-        style={{ paddingLeft: `${26 + depth * 14}px` }}
-        title={`Doble click: checkout · Click derecho: opciones\n${node.fullPath}`}
-      >
-        <GitBranch size={13} className="shrink-0 text-text-secondary/70 group-hover:text-primary transition-colors" />
-        <span className="truncate text-xs flex-1 select-text">{node.name}</span>
-      </div>
-    );
-  }
-
   return (
     <div>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors cursor-pointer"
-        style={{ paddingLeft: `${26 + depth * 14}px` }}
+        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <Folder size={13} className="text-text-secondary shrink-0" />
-        <span className="truncate flex-1 text-left select-text">{node.name}</span>
-        <span className="text-[10px] text-text-secondary/70">{totalBranchesCount}</span>
+        <Folder size={14} className="text-text-secondary shrink-0" />
+        <span className="truncate flex-1 text-left select-text">{folder.prefix}</span>
+        <span className="text-[10px] text-text-secondary/70">{folder.branches.length}</span>
       </button>
       {isOpen && (
         <div>
-          {node.children.map((child) => (
-            <RemoteBranchNodeView
-              key={child.fullPath}
-              node={child}
-              depth={depth + 1}
+          {folder.branches.map((b) => (
+            <BranchRow
+              key={b.fullPath}
+              name={b.name}
+              fullPath={b.fullPath}
+              tracking={tracking[b.fullPath]}
+              isActive={b.fullPath === currentBranch}
               onCheckout={onCheckout}
               onContextMenu={onContextMenu}
+              indent={true}
             />
           ))}
         </div>
@@ -3649,6 +3704,60 @@ function RemoteBranchNodeView({
   );
 }
 
+function BranchRow({
+  name, fullPath, tracking, isActive, onCheckout, onContextMenu, indent,
+}: {
+  name: string;
+  fullPath: string;
+  tracking?: { ahead: number; behind: number; gone: boolean; upstream: string | null };
+  isActive: boolean;
+  onCheckout: (b: string) => void;
+  onContextMenu: (e: React.MouseEvent, branch: string) => void;
+  indent: boolean;
+}) {
+  return (
+    <div
+      onDoubleClick={() => onCheckout(fullPath)}
+      onContextMenu={(e) => onContextMenu(e, fullPath)}
+      title={`Doble click: checkout · Click derecho: opciones`}
+      className={cn(
+        'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
+        indent ? 'pl-[46px]' : 'pl-[26px]',
+        isActive ? 'bg-secondary/10 text-secondary' : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+      )}
+    >
+      {isActive ? (
+        <Check size={13} strokeWidth={3} className="text-secondary shrink-0" />
+      ) : (
+        <GitBranch size={13} className="shrink-0 text-text-secondary/70" />
+      )}
+      <span className="truncate flex-1 text-sm select-text">{name}</span>
+
+      {/* Ahead / behind chips */}
+      {tracking && !tracking.gone && (tracking.ahead > 0 || tracking.behind > 0) && (
+        <span className="flex items-center gap-1 text-[10px] font-mono shrink-0">
+          {tracking.ahead > 0 && (
+            <span className="flex items-center text-secondary" title={`${tracking.ahead} commit${tracking.ahead === 1 ? '' : 's'} local${tracking.ahead === 1 ? '' : 'es'} pendiente${tracking.ahead === 1 ? '' : 's'} de push`}>
+              {tracking.ahead}
+              <ArrowUp size={10} strokeWidth={3} />
+            </span>
+          )}
+          {tracking.behind > 0 && (
+            <span className="flex items-center text-git-mod" title={`${tracking.behind} commit${tracking.behind === 1 ? '' : 's'} remoto${tracking.behind === 1 ? '' : 's'} pendiente${tracking.behind === 1 ? '' : 's'} de pull`}>
+              {tracking.behind}
+              <ArrowDown size={10} strokeWidth={3} />
+            </span>
+          )}
+        </span>
+      )}
+      {tracking?.gone && (
+        <span className="text-[9px] text-error uppercase shrink-0" title="Upstream eliminado">gone</span>
+      )}
+    </div>
+  );
+}
+
+/* Remote branches: similar tree grouped by 'origin/...' */
 function RemoteBranchTree({
   branches, onCheckout, onContextMenu,
 }: {
@@ -3656,18 +3765,68 @@ function RemoteBranchTree({
   onCheckout: (b: string) => void;
   onContextMenu: (e: React.MouseEvent, branch: string) => void;
 }) {
-  const tree = useMemo(() => buildBranchTree(branches), [branches]);
+  const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
   return (
     <div>
-      {tree.map((node) => (
-        <RemoteBranchNodeView
-          key={node.fullPath}
-          node={node}
-          depth={0}
+      {root.map((b) => (
+        <div
+          key={b.fullPath}
+          onDoubleClick={() => onCheckout(b.fullPath)}
+          onContextMenu={(e) => onContextMenu(e, b.fullPath)}
+          title="Doble click: checkout · Click derecho: opciones"
+          className="pl-[26px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary cursor-pointer transition-colors group relative"
+        >
+          <Cloud size={13} className="shrink-0 text-primary" />
+          <span className="truncate text-xs flex-1 select-text">{b.name}</span>
+        </div>
+      ))}
+      {folders.map((f) => (
+        <RemoteFolderView
+          key={f.prefix}
+          folder={f}
           onCheckout={onCheckout}
           onContextMenu={onContextMenu}
         />
       ))}
+    </div>
+  );
+}
+
+function RemoteFolderView({
+  folder, onCheckout, onContextMenu,
+}: {
+  folder: BranchFolder;
+  onCheckout: (b: string) => void;
+  onContextMenu: (e: React.MouseEvent, branch: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+  return (
+    <div>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
+      >
+        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        <Folder size={13} className="text-text-secondary shrink-0" />
+        <span className="truncate flex-1 text-left select-text">{folder.prefix}</span>
+        <span className="text-[10px] text-text-secondary/70">{folder.branches.length}</span>
+      </button>
+      {isOpen && (
+        <div>
+          {folder.branches.map((b) => (
+            <div
+              key={b.fullPath}
+              onDoubleClick={() => onCheckout(b.fullPath)}
+              onContextMenu={(e) => onContextMenu(e, b.fullPath)}
+              className="pl-[46px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary transition-colors cursor-pointer group relative"
+              title={`Doble click: checkout · Click derecho: opciones\n${b.fullPath}`}
+            >
+              <GitBranch size={13} className="shrink-0 text-text-secondary/70 group-hover:text-primary transition-colors" />
+              <span className="truncate text-xs flex-1 select-text">{b.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -779,6 +779,13 @@ export const useGitActions = () => {
     await window.api.storageSet('theme', theme).catch(() => {});
   };
 
+  /** Toggle the Cronometric advanced timeline view globally. */
+  const changeEnableCronometric = async (enabled: boolean) => {
+    useGitStore.getState().setEnableCronometric(enabled);
+    if (!window.api) return;
+    await window.api.storageSet('enableCronometric', enabled ? '1' : '0').catch(() => {});
+  };
+
   /** Change default folder for open/clone dialogs and persist. */
   const changeDefaultFolder = async (folder: string | null) => {
     setDefaultFolder(folder);
@@ -847,6 +854,10 @@ export const useGitActions = () => {
         document.documentElement.classList.remove('dark', 'light');
         document.documentElement.classList.add(th.data);
       }
+    }
+    const ec = await window.api.storageGet('enableCronometric');
+    if (ec.success && typeof ec.data === 'string') {
+      useGitStore.getState().setEnableCronometric(ec.data === '1');
     }
   };
 
@@ -1025,5 +1036,6 @@ export const useGitActions = () => {
     rebindShortcut,
     resetShortcutsToDefaults,
     changeTheme,
+    changeEnableCronometric,
   };
 };

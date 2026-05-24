@@ -299,6 +299,10 @@ export function ChronometricGraph({
         !row.commit.parents.some(parentHash => commitBranchNames.get(parentHash) === branchName)
       );
 
+      // Compute active branches at this commit's row (used by both the resolver and labelSide)
+      const activeLanes = [row.lane, ...row.activeLanes.map(al => al.lane)];
+      const activeBranchIndices = activeLanes.map(mapLaneToBranchIndex);
+
       // Hybrid branch index: use the physical branchIndex if it's lateral (non-zero)
       // to perfectly follow physical undulations/lane crossings on the screen.
       // Fall back to the branch's static representative index only if it temporarily jumps to the trunk (Lane 0)
@@ -308,21 +312,19 @@ export function ChronometricGraph({
         if (branchRepresentativeIndices.has(branchName)) {
           resolvedBranchIndex = branchRepresentativeIndices.get(branchName)!;
         } else {
-          // Nested-branch fallback: this lateral branch never touched a non-zero lane.
-          // Walk up the parent chain until we find an ancestor with a representative index, then mirror its sign
-          // so labels escape the visible parent's line. All intermediate ancestors (also on lane 0) inherit the
-          // same mirrored side — they form one continuous "nested-on-trunk" group that should label uniformly.
-          const seen = new Set<string>([branchName]);
-          let cursor: string | undefined = branchParentBranch.get(branchName);
-          let depth = 0;
-          while (cursor && !seen.has(cursor) && depth < 50) {
-            if (branchRepresentativeIndices.has(cursor)) {
-              resolvedBranchIndex = -branchRepresentativeIndices.get(cursor)!;
-              break;
-            }
-            seen.add(cursor);
-            cursor = branchParentBranch.get(cursor);
-            depth++;
+          // Direct-parent fallback: if the immediate parent branch has its own representative,
+          // mirror its sign so labels escape the parent's visible line.
+          const parentBranch = branchParentBranch.get(branchName);
+          if (parentBranch && branchRepresentativeIndices.has(parentBranch)) {
+            resolvedBranchIndex = -branchRepresentativeIndices.get(parentBranch)!;
+          } else if (activeBranchIndices.some(x => x < 0)) {
+            // Yield-to-bifurcation fallback: a *named* lateral that lives entirely on lane 0
+            // (no own rep, no resolvable parent) is visually "squatting" on the trunk. When a
+            // right-wing branch (-X) is locally active, that branch's labels naturally go right —
+            // so this commit yields the right side and labels to the left instead, preventing
+            // both from stacking on the same flank. Virtualize as +1 so labelSideFromBranchIndex
+            // returns 'left' via the lateral-+1 path.
+            resolvedBranchIndex = 1;
           }
         }
       }
@@ -331,8 +333,6 @@ export function ChronometricGraph({
       // Si hay bifurcación en este commit (múltiples ramas activas), se ordenan visualmente de izquierda a derecha
       // y se divide la pantalla en dos mitades (la mitad izquierda rotula a la izquierda, la derecha a la derecha).
       // Esto evita que las líneas conectoras del HUD se crucen de un lado a otro cuando hay bifurcaciones paralelas.
-      const activeLanes = [row.lane, ...row.activeLanes.map(al => al.lane)];
-      const activeBranchIndices = activeLanes.map(mapLaneToBranchIndex);
       const isLeft = labelSideFromBranchIndex(resolvedBranchIndex, activeBranchIndices) === 'left';
 
       return {
@@ -1567,9 +1567,13 @@ export function ChronometricGraph({
                         //  - isBranchOrigin: the oldest commit of a chain (matches the chronometric "where it diverges" semantic)
                         //  - hasBranchRefAttached: the commit where the actual ref label points (matches the classic-view tip semantic)
                         // Branches whose origin lies off-screen would otherwise have no badge at all in the cronómetric view.
-                        const hasBranchRefAttached = !!node.commit.refs?.some(r =>
-                          r.startsWith('refs/heads/') || r.startsWith('refs/remotes/')
-                        );
+                        // Refs come from electron's git log %D as short names like "main", "origin/foo", "tag: v1.0", "HEAD" — NOT with refs/heads/ prefixes.
+                        const hasBranchRefAttached = !!node.commit.refs?.some(r => {
+                          if (!r || r.startsWith('tag: ')) return false;
+                          if (r === 'HEAD' || r === 'stash') return false;
+                          if (r.startsWith('refs/stash')) return false;
+                          return true;
+                        });
                         const renderBranchTag = (node.isBranchOrigin || hasBranchRefAttached) && branchName;
 
                         const commentText = `C:${node.commit.shortHash.toUpperCase()} // ${node.commit.message}`;

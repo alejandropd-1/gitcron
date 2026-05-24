@@ -1194,7 +1194,9 @@ export function ChronometricGraph({
               {/* Satellite Tags — same classic-view aesthetic as branch tags */}
               {tagsWithPositions.map((tag, idx) => {
                 const TAG_COLOR = 'var(--color-git-mod)';
-                const badgeWidth = tag.tagName.length * 6 + 22;
+                const tagCharWidth = 7.5;
+                const tagPaddingX = 24;
+                const badgeWidth = tag.tagName.length * tagCharWidth + tagPaddingX;
                 return (
                   <g key={`tag-satellite-${tag.commitHash}-${idx}`}>
                     <line
@@ -1393,20 +1395,52 @@ export function ChronometricGraph({
                 const isHead = headCommitNode && node.commit.hash === headCommitNode.commit.hash;
                 const isBranchOrigin = node.isBranchOrigin;
 
-                // 1. HEAD Node - Unified Telemetry Stack (Fixed Offset, prominent placement)
                 if (isHead && headCommitNode) {
                   const isLeft = headCommitNode.isLeft;
                   const vx = isLeft ? nx : rx;
                   const vy = isLeft ? ny : ry;
-                  const baseLabelX = headCommitNode.x + vx * 38;
-                  const baseLabelY = headCommitNode.y + vy * 38;
-                  const lineSpacing = 11;
 
-                  // Compute line Y positions statically to prevent JSX closure optimization issues
-                  const line1Y = baseLabelY;
-                  const line2Y = line1Y + ((ahead > 0 || behind > 0) ? lineSpacing : 0);
-                  const line3Y = line2Y + lineSpacing;
-                  const line4Y = line3Y + lineSpacing;
+                  const lineSpacing = 12 * textScale;
+                  const baseClearance = 52 * textScale; // safe clearance from timeline to avoid branch badges
+
+                  // Define the lines to render, from closest to furthest (ordered chronologically)
+                  const lines: { text: string; fill: string; fontSize: number; fontWeight: string; opacity?: number }[] = [];
+
+                  // Line 1 (closest to timeline): COMMIT message
+                  lines.push({
+                    text: `C:${headCommitNode.commit.shortHash.toUpperCase()} // ${headCommitNode.commit.message}`,
+                    fill: headCommitNode.laneColor,
+                    fontSize: fs(7),
+                    fontWeight: "medium",
+                    opacity: 0.8
+                  });
+
+                  // Line 2: BRANCH name
+                  lines.push({
+                    text: `BRANCH // ${currentBranch || 'DETACHED'}`,
+                    fill: headCommitNode.laneColor,
+                    fontSize: fs(7.5),
+                    fontWeight: "bold"
+                  });
+
+                  // Line 3: TRACKING (conditional)
+                  if (ahead > 0 || behind > 0) {
+                    lines.push({
+                      text: `TRACKING // ${ahead > 0 ? `▲${ahead}` : ''}${behind > 0 ? ` ▼${behind}` : ''}`,
+                      fill: "var(--color-secondary)",
+                      fontSize: fs(7),
+                      fontWeight: "bold",
+                      opacity: 0.85
+                    });
+                  }
+
+                  // Line 4 (furthest from timeline): HEAD header
+                  lines.push({
+                    text: "[HEAD // TARGET: ACTIVE]",
+                    fill: "var(--color-secondary)",
+                    fontSize: fs(7.5),
+                    fontWeight: "bold"
+                  });
 
                   return (
                     <g key={`head-telemetry-stack`} opacity={0.95}>
@@ -1414,73 +1448,34 @@ export function ChronometricGraph({
                       <line
                         x1={headCommitNode.x}
                         y1={headCommitNode.y}
-                        x2={headCommitNode.x + vx * 34}
-                        y2={headCommitNode.y + vy * 34}
+                        x2={headCommitNode.x + vx * (baseClearance - 6)}
+                        y2={headCommitNode.y + vy * (baseClearance - 6)}
                         stroke="var(--color-secondary)"
                         strokeWidth={1}
                         strokeDasharray="2 2"
                         opacity={0.85}
                       />
 
-                      {/* Line 1: [HEAD // TARGET: ACTIVE] */}
-                      <text
-                        x={baseLabelX}
-                        y={line1Y}
-                        textAnchor={isLeft ? "end" : "start"}
-                        fill="var(--color-secondary)"
-                        fontSize={fs(7.5)}
-                        fontWeight="bold"
-                        className="font-mono select-none pointer-events-none"
-                        letterSpacing="0.5"
-                      >
-                        [HEAD // TARGET: ACTIVE]
-                      </text>
-
-                      {/* Line 2: TRACKING // Ahead/Behind (Conditional) */}
-                      {(ahead > 0 || behind > 0) && (
-                        <text
-                          x={baseLabelX}
-                          y={line2Y}
-                          textAnchor={isLeft ? "end" : "start"}
-                          fill="var(--color-secondary)"
-                          fontSize={fs(7)}
-                          fontWeight="bold"
-                          className="font-mono select-none pointer-events-none"
-                          letterSpacing="0.5"
-                          opacity={0.85}
-                        >
-                          {`TRACKING // ${ahead > 0 ? `▲${ahead}` : ''}${behind > 0 ? ` ▼${behind}` : ''}`}
-                        </text>
-                      )}
-
-                      {/* Line 3: BRANCH // Name */}
-                      <text
-                        x={baseLabelX}
-                        y={line3Y}
-                        textAnchor={isLeft ? "end" : "start"}
-                        fill={headCommitNode.laneColor}
-                        fontSize={fs(7.5)}
-                        fontWeight="bold"
-                        className="font-mono select-none pointer-events-none"
-                        letterSpacing="0.5"
-                      >
-                        {`BRANCH // ${currentBranch || 'DETACHED'}`}
-                      </text>
-
-                      {/* Line 4: COMMIT // hash & message */}
-                      <text
-                        x={baseLabelX}
-                        y={line4Y}
-                        textAnchor={isLeft ? "end" : "start"}
-                        fill={headCommitNode.laneColor}
-                        fontSize={fs(7)}
-                        fontWeight="medium"
-                        className="font-mono select-none pointer-events-none"
-                        letterSpacing="0.5"
-                        opacity={0.8}
-                      >
-                        {`C:${headCommitNode.commit.shortHash.toUpperCase()} // ${headCommitNode.commit.message}`}
-                      </text>
+                      {/* Stacked Telemetry lines growing OUTWARD away from the timeline */}
+                      {lines.map((line, idx) => {
+                        const dist = baseClearance + idx * lineSpacing;
+                        return (
+                          <text
+                            key={`hud-line-${idx}`}
+                            x={headCommitNode.x + vx * dist}
+                            y={headCommitNode.y + vy * dist}
+                            textAnchor={isLeft ? "end" : "start"}
+                            fill={line.fill}
+                            fontSize={line.fontSize}
+                            fontWeight={line.fontWeight}
+                            className="font-mono select-none pointer-events-none"
+                            letterSpacing="0.5"
+                            opacity={line.opacity ?? 1}
+                          >
+                            {line.text}
+                          </text>
+                        );
+                      })}
                     </g>
                   );
                 }
@@ -1618,8 +1613,8 @@ export function ChronometricGraph({
                           const tagText = branchName.toUpperCase();
                           // Badge dimensions scale with text size. Generous internal padding
                           // (8px each side at compact) keeps the text from touching the border at any size.
-                          const tagCharWidth = 6 * textScale;
-                          const tagPaddingX = 16 * textScale;
+                          const tagCharWidth = 7.5 * textScale;
+                          const tagPaddingX = 24 * textScale;
                           const tagBadgeWidth = tagText.length * tagCharWidth + tagPaddingX;
                           const tagBadgeHeight = 18 * textScale;
                           const tagBadgeHalfHeight = tagBadgeHeight / 2;

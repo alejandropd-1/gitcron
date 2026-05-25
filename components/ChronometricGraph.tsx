@@ -943,8 +943,8 @@ export function ChronometricGraph({
 
               {/* Extreme labels */}
               <text
-                x={xStart - 15}
-                y={yStart + 15}
+                x={xStart - 95}
+                y={yStart + 95}
                 textAnchor="end"
                 fontSize={fs(8)}
                 fill="var(--color-text-secondary)"
@@ -954,8 +954,8 @@ export function ChronometricGraph({
                 [CHRONO_START // T_MIN]
               </text>
               <text
-                x={xEnd + 15}
-                y={yEnd - 15}
+                x={xEnd + 95}
+                y={yEnd - 95}
                 textAnchor="start"
                 fontSize={fs(8)}
                 fill="var(--color-text-secondary)"
@@ -976,8 +976,9 @@ export function ChronometricGraph({
                   return !node.isLeft;
                 });
 
-                const yOffset = hasOverlap ? 55 : 16;
-                const dotY2 = hasOverlap ? 50 : 12;
+                const isNearHead = headCommitNode && Math.abs(headCommitNode.x - tick.x) < 80;
+                const yOffset = isNearHead ? 95 : (hasOverlap ? 55 : 16);
+                const dotY2 = isNearHead ? 90 : (hasOverlap ? 50 : 12);
 
                 return (
                   <g key={`tick-${index}`} opacity={0.6}>
@@ -1156,7 +1157,7 @@ export function ChronometricGraph({
                         cy={node.y}
                         r={isHead ? 28 : 14}
                         fill="none"
-                        stroke={node.laneColor}
+                        stroke={isHead ? 'none' : node.laneColor}
                         strokeWidth={isHead ? 2 : 1}
                         opacity={0.4}
                       />
@@ -1168,7 +1169,7 @@ export function ChronometricGraph({
                       cy={node.y}
                       r={isHead ? 21 : 10.5}
                       fill={isHead ? 'none' : 'var(--color-bg-base)'}
-                      stroke={isSelected ? 'var(--color-secondary)' : node.laneColor}
+                      stroke={isHead ? 'none' : (isSelected ? 'var(--color-secondary)' : node.laneColor)}
                       strokeWidth={isSelected ? (isHead ? 6 : 3) : (isHead ? 4 : 2)}
                       className="transition-all duration-150"
                     />

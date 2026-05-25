@@ -1951,12 +1951,12 @@ export function ChronometricGraph({
 
         {/* Curved HUD Corner Frames */}
         {/* Top-Left Curve */}
-        <path d="M 8 60 L 8 16 A 8 8 0 0 1 16 8 L 285 8" fill="none" stroke="#5ed8ff" strokeWidth="1" filter="url(#hud-glow)" />
-        <rect x="8" y="8" width="12" height="3" fill="#5ed8ff" />
+        <path d="M 8 156 L 8 112 A 8 8 0 0 1 16 104 L 285 104" fill="none" stroke="#5ed8ff" strokeWidth="1" filter="url(#hud-glow)" />
+        <rect x="8" y="104" width="12" height="3" fill="#5ed8ff" />
 
         {/* Top-Right Curve */}
-        <path d="M calc(100% - 285px) 8 L calc(100% - 16px) 8 A 8 8 0 0 1 calc(100% - 8px) 16 L calc(100% - 8px) 60" fill="none" stroke="#b455ff" strokeWidth="1" filter="url(#hud-glow)" />
-        <rect x="calc(100% - 20px)" y="8" width="12" height="3" fill="#b455ff" />
+        <path d="M calc(100% - 285px) 104 L calc(100% - 16px) 104 A 8 8 0 0 1 calc(100% - 8px) 112 L calc(100% - 8px) 156" fill="none" stroke="#b455ff" strokeWidth="1" filter="url(#hud-glow)" />
+        <rect x="calc(100% - 20px)" y="104" width="12" height="3" fill="#b455ff" />
 
         {/* Bottom-Left Curve */}
         <path d="M 8 calc(100% - 60px) L 8 calc(100% - 16px) A 8 8 0 0 0 16 calc(100% - 8px) L 265 calc(100% - 8px)" fill="none" stroke="#a3f185" strokeWidth="1" filter="url(#hud-glow)" />
@@ -1967,16 +1967,16 @@ export function ChronometricGraph({
         <rect x="calc(100% - 20px)" y="calc(100% - 11px)" width="12" height="3" fill="#fd9d1a" />
 
         {/* Technical Coordinate Indicators */}
-        <text x="295" y="13" fill="#697789" fontSize="6" className="font-mono" opacity="0.5">
+        <text x="295" y="109" fill="#697789" fontSize="6" className="font-mono" opacity="0.5">
           NAV_AXIS // AZIMUTH: 40.4° // DECLINATION: 0.85
         </text>
-        <text x="calc(100% - 295px)" y="13" textAnchor="end" fill="#697789" fontSize="6" className="font-mono" opacity="0.5">
+        <text x="calc(100% - 295px)" y="109" textAnchor="end" fill="#697789" fontSize="6" className="font-mono" opacity="0.5">
           SYS_CORRELATION // CHRONO_V2.0 // TIMELINE: RUNNING
         </text>
       </svg>
 
       {/* 2. PANEL 01: NAV TELEMETRY & SYSTEM CONTEXT (Top-Left, z-20) */}
-      <div className="absolute top-4 w-[250px] bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-1.5 select-none overflow-hidden" style={{ left: hudLeftInset, transition: 'left 0.3s ease' }}>
+      <div className="absolute top-[112px] w-[250px] bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-1.5 select-none overflow-hidden" style={{ left: hudLeftInset, transition: 'left 0.3s ease' }}>
         <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full bg-[#5ed8ff]/55" />
         <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[10px] font-bold text-[#5ed8ff] tracking-wider uppercase truncate max-w-[170px]">
@@ -2006,7 +2006,7 @@ export function ChronometricGraph({
       </div>
 
       {/* 3. PANEL 02: SYNC & DIRTY METRICS (Top-Right, z-20) */}
-      <div className="absolute top-4 w-[250px] bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-1.5 select-none overflow-hidden" style={{ right: hudRightInset, transition: 'right 0.3s ease' }}>
+      <div className="absolute top-[112px] w-[250px] bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-1.5 select-none overflow-hidden" style={{ right: hudRightInset, transition: 'right 0.3s ease' }}>
         <div className="absolute right-0 top-3 bottom-3 w-[2px] rounded-full bg-[#b455ff]/55" />
         <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[9px] font-bold text-[#b455ff] tracking-wider uppercase">

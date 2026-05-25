@@ -1113,6 +1113,7 @@ export function ChronometricGraph({
               {projectedCommits.map((node) => {
                 const isSelected = selectedHash === node.commit.hash;
                 const isHovered = hoveredHash === node.commit.hash;
+                const isHead = headCommitNode && node.commit.hash === headCommitNode.commit.hash;
 
                 return (
                   <g
@@ -1140,10 +1141,10 @@ export function ChronometricGraph({
                       <circle
                         cx={node.x}
                         cy={node.y}
-                        r={15}
+                        r={isHead ? 30 : 15}
                         fill="none"
                         stroke="var(--color-secondary)"
-                        strokeWidth={1.5}
+                        strokeWidth={isHead ? 3 : 1.5}
                         opacity={0.8}
                       />
                     )}
@@ -1153,10 +1154,10 @@ export function ChronometricGraph({
                       <circle
                         cx={node.x}
                         cy={node.y}
-                        r={14}
+                        r={isHead ? 28 : 14}
                         fill="none"
                         stroke={node.laneColor}
-                        strokeWidth={1}
+                        strokeWidth={isHead ? 2 : 1}
                         opacity={0.4}
                       />
                     )}
@@ -1165,10 +1166,10 @@ export function ChronometricGraph({
                     <circle
                       cx={node.x}
                       cy={node.y}
-                      r={10.5}
+                      r={isHead ? 21 : 10.5}
                       fill="var(--color-bg-base)"
                       stroke={isSelected ? 'var(--color-secondary)' : node.laneColor}
-                      strokeWidth={isSelected ? 3 : 2}
+                      strokeWidth={isSelected ? (isHead ? 6 : 3) : (isHead ? 4 : 2)}
                       className="transition-all duration-150"
                     />
 
@@ -1178,7 +1179,7 @@ export function ChronometricGraph({
                       y={node.y}
                       textAnchor="middle"
                       dominantBaseline="central"
-                      fontSize={fs(7.5)}
+                      fontSize={fs(isHead ? 15 : 7.5)}
                       fontWeight="700"
                       fill={isSelected ? 'var(--color-secondary)' : node.laneColor}
                       className="font-mono select-none pointer-events-none"
@@ -1246,10 +1247,10 @@ export function ChronometricGraph({
               {headCommitNode && (
                 <g key="head-reticle">
                   <g
-                    transform={`translate(${headCommitNode.x}, ${headCommitNode.y}) scale(0.08) translate(-360, -360)`}
+                    transform={`translate(${headCommitNode.x}, ${headCommitNode.y}) scale(0.18) translate(-360, -360)`}
                     opacity={0.85}
                   >
-                    <g style={{ transformOrigin: '360px 360px', animation: 'spin 28s linear infinite' }}>
+                    <g style={{ transformOrigin: '360px 360px' }}>
                       <path fill="#80d1e2" d="M128.94,233.7s47.13,24.25,84.98,51.05c12.09-23.46,29.72-43.59,51.17-58.67l-17.17-11.81H30.72c-2.23,5.02-4.34,10.1-6.34,15.24,82.61-3.21,104.56,4.18,104.56,4.18Z"/>
                       <path fill="#1984cd" d="M157,524.71h62.4c-7.77-2.28-21.77-14.28-27.67-19.61h-34.73v19.61Z"/>
                       <path fill="#e5d6b4" d="M263.8,452.94l-13.17,13.17c26.37,27.14,62.71,44.53,103.12,46.26v-18.64c-35.26-1.72-66.94-17.03-89.94-40.79Z"/>

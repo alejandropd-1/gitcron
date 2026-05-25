@@ -719,6 +719,7 @@ export default function GitCronPage() {
   const [detailsOpen, setDetailsOpen] = useState(true);
   const leftGraphSafe = sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
   const rightGraphSafe = detailsOpen ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
+  const [isDragging, setIsDragging] = useState(false);
   const [graphColumns, setGraphColumns] = useState(GRAPH_COLUMN_DEFAULTS);
   const dragRef = useRef<{
     col: 'sidebar' | 'details';
@@ -734,6 +735,7 @@ export default function GitCronPage() {
 
   const startColDrag = (col: 'sidebar' | 'details') => (e: React.MouseEvent) => {
     e.preventDefault();
+    setIsDragging(true);
     dragRef.current = {
       col,
       startX: e.clientX,
@@ -754,6 +756,7 @@ export default function GitCronPage() {
       }
     };
     const onUp = () => {
+      setIsDragging(false);
       dragRef.current = null;
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
@@ -1728,7 +1731,8 @@ export default function GitCronPage() {
         {/* LEFT PANEL: Sidebar — floats in chronometric view, inline in classic view */}
         <aside
           className={cn(
-            "flex flex-col overflow-hidden transition-all duration-300 z-30",
+            "flex flex-col overflow-hidden z-30",
+            !isDragging && "transition-all duration-300",
             graphMode === 'chronometric'
               ? "absolute bg-bg-overlay/60/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
               : "relative bg-bg-base/70 border-r border-border-subtle/30 shrink-0"
@@ -2255,7 +2259,8 @@ export default function GitCronPage() {
         {/* RIGHT PANEL: Commit details + staging — floats in chronometric view, inline in classic view */}
         <aside
           className={cn(
-            "flex flex-col overflow-hidden transition-all duration-300 z-30",
+            "flex flex-col overflow-hidden z-30",
+            !isDragging && "transition-all duration-300",
             graphMode === 'chronometric'
               ? "absolute bg-bg-overlay/60/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
               : "relative bg-bg-base/70 border-l border-border-subtle/30 shrink-0"

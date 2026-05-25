@@ -23,7 +23,7 @@ const ROW_H = 36;
 const DOT_R = 9;
 const PADDING_LEFT = 10;
 
-export interface CommitGraphColumnWidths {
+interface CommitGraphColumnWidths {
   refs: number;
   graph: number;
   date: number;
@@ -38,7 +38,7 @@ const DEFAULT_COLUMN_WIDTHS: CommitGraphColumnWidths = {
 };
 
 // Ordered palette — used both for branch hashing and fallback lane colors
-export const BRANCH_PALETTE = [
+const BRANCH_PALETTE = [
   'var(--color-graph-branch-1)',
   'var(--color-graph-branch-2)',
   'var(--color-graph-branch-3)',
@@ -54,13 +54,13 @@ export const BRANCH_PALETTE = [
 ];
 
 // Current branch always gets the primary neon green
-export const CURRENT_BRANCH_COLOR = 'var(--color-secondary)';
+const CURRENT_BRANCH_COLOR = 'var(--color-secondary)';
 
 /**
  * Stable color for a branch/ref name.
  * Same name → always same color, regardless of repo or session.
  */
-export function colorForBranch(refName: string, currentBranch?: string): string {
+function colorForBranch(refName: string, currentBranch?: string): string {
   // Strip remote prefix to match local ↔ remote: "origin/main" == "main"
   const clean = refName
     .replace(/^refs\/heads\//, '')
@@ -103,7 +103,7 @@ export function initials(name: string): string {
 
 // ───────────────────── Graph algorithm ─────────────────────
 
-export interface GraphRow {
+interface GraphRow {
   commit: Commit;
   lane: number;
   laneColor: string;

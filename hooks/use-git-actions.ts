@@ -6,6 +6,87 @@ import type { Lang } from '@/lib/i18n';
 import { tNow as t } from './use-translation';
 import { notify } from '@/lib/os-notify';
 
+const bootstrapLanguage = async () => {
+  if (!window.api) return;
+  const lr = await window.api.storageGet('language');
+  if (lr.success && (lr.data === 'es' || lr.data === 'en')) {
+    useGitStore.getState().setLanguage(lr.data as Lang);
+  }
+};
+
+const bootstrapFontSize = async () => {
+  if (!window.api) return;
+  const fr = await window.api.storageGet('fontSize');
+  if (fr.success && (fr.data === 'compact' || fr.data === 'normal' || fr.data === 'large')) {
+    useGitStore.getState().setFontSize(fr.data as FontSize);
+  }
+};
+
+const bootstrapDefaultFolder = async () => {
+  if (!window.api) return;
+  const df = await window.api.storageGet('defaultFolder');
+  if (df.success && typeof df.data === 'string' && df.data.length > 0) {
+    useGitStore.getState().setDefaultFolder(df.data);
+  }
+};
+
+const bootstrapAutoFetch = async () => {
+  if (!window.api) return;
+  const af = await window.api.storageGet('autoFetch');
+  if (af.success && typeof af.data === 'string') {
+    try {
+      const parsed = JSON.parse(af.data) as { enabled?: unknown; intervalMinutes?: unknown };
+      if (typeof parsed.enabled === 'boolean') {
+        useGitStore.getState().setAutoFetchEnabled(parsed.enabled);
+      }
+      if (typeof parsed.intervalMinutes === 'number' && parsed.intervalMinutes > 0) {
+        useGitStore.getState().setAutoFetchIntervalMinutes(parsed.intervalMinutes);
+      }
+    } catch { /* ignore corrupted prefs */ }
+  }
+};
+
+const bootstrapOsNotifications = async () => {
+  if (!window.api) return;
+  const osN = await window.api.storageGet('osNotifications');
+  if (osN.success && typeof osN.data === 'string') {
+    useGitStore.getState().setOsNotificationsEnabled(osN.data === '1');
+  }
+};
+
+const bootstrapShortcuts = async () => {
+  if (!window.api) return;
+  const sc = await window.api.storageGet('shortcuts');
+  if (sc.success && typeof sc.data === 'string') {
+    try {
+      const parsed = JSON.parse(sc.data) as Record<string, string>;
+      if (parsed && typeof parsed === 'object') {
+        useGitStore.getState().setShortcuts(parsed);
+      }
+    } catch { /* ignore corrupted prefs */ }
+  }
+};
+
+const bootstrapTheme = async () => {
+  if (!window.api) return;
+  const th = await window.api.storageGet('theme');
+  if (th.success && (th.data === 'dark' || th.data === 'light')) {
+    useGitStore.getState().setTheme(th.data as Theme);
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.remove('dark', 'light');
+      document.documentElement.classList.add(th.data);
+    }
+  }
+};
+
+const bootstrapCronometric = async () => {
+  if (!window.api) return;
+  const ec = await window.api.storageGet('enableCronometric');
+  if (ec.success && typeof ec.data === 'string') {
+    useGitStore.getState().setEnableCronometric(ec.data === '1');
+  }
+};
+
 export const useGitActions = () => {
   const {
     repoPath,
@@ -810,55 +891,14 @@ export const useGitActions = () => {
   /** Hydrate language pref + GitHub auth from storage on mount. */
   const bootstrapPreferences = async () => {
     if (!window.api) return;
-    const lr = await window.api.storageGet('language');
-    if (lr.success && (lr.data === 'es' || lr.data === 'en')) {
-      setLanguage(lr.data as Lang);
-    }
-    const fr = await window.api.storageGet('fontSize');
-    if (fr.success && (fr.data === 'compact' || fr.data === 'normal' || fr.data === 'large')) {
-      setFontSize(fr.data as FontSize);
-    }
-    const df = await window.api.storageGet('defaultFolder');
-    if (df.success && typeof df.data === 'string' && df.data.length > 0) {
-      setDefaultFolder(df.data);
-    }
-    const af = await window.api.storageGet('autoFetch');
-    if (af.success && typeof af.data === 'string') {
-      try {
-        const parsed = JSON.parse(af.data) as { enabled?: unknown; intervalMinutes?: unknown };
-        if (typeof parsed.enabled === 'boolean') {
-          useGitStore.getState().setAutoFetchEnabled(parsed.enabled);
-        }
-        if (typeof parsed.intervalMinutes === 'number' && parsed.intervalMinutes > 0) {
-          useGitStore.getState().setAutoFetchIntervalMinutes(parsed.intervalMinutes);
-        }
-      } catch { /* ignore corrupted prefs */ }
-    }
-    const osN = await window.api.storageGet('osNotifications');
-    if (osN.success && typeof osN.data === 'string') {
-      useGitStore.getState().setOsNotificationsEnabled(osN.data === '1');
-    }
-    const sc = await window.api.storageGet('shortcuts');
-    if (sc.success && typeof sc.data === 'string') {
-      try {
-        const parsed = JSON.parse(sc.data) as Record<string, string>;
-        if (parsed && typeof parsed === 'object') {
-          useGitStore.getState().setShortcuts(parsed);
-        }
-      } catch { /* ignore corrupted prefs */ }
-    }
-    const th = await window.api.storageGet('theme');
-    if (th.success && (th.data === 'dark' || th.data === 'light')) {
-      useGitStore.getState().setTheme(th.data as Theme);
-      if (typeof document !== 'undefined') {
-        document.documentElement.classList.remove('dark', 'light');
-        document.documentElement.classList.add(th.data);
-      }
-    }
-    const ec = await window.api.storageGet('enableCronometric');
-    if (ec.success && typeof ec.data === 'string') {
-      useGitStore.getState().setEnableCronometric(ec.data === '1');
-    }
+    await bootstrapLanguage();
+    await bootstrapFontSize();
+    await bootstrapDefaultFolder();
+    await bootstrapAutoFetch();
+    await bootstrapOsNotifications();
+    await bootstrapShortcuts();
+    await bootstrapTheme();
+    await bootstrapCronometric();
   };
 
   /** Loads token from encrypted storage on app mount. */

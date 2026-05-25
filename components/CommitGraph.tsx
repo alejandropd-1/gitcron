@@ -111,6 +111,87 @@ interface GraphRow {
   activeLanes: Array<{ lane: number; color: string }>;
 }
 
+function getOrCreateLaneForCommit(
+  commit: Commit,
+  currentBranch: string | undefined,
+  lanes: (string | null)[],
+  laneColors: string[],
+  nextFallbackIdx: number
+): { lane: number; laneColor: string; nextFallbackIdx: number } {
+  let lane = lanes.indexOf(commit.hash);
+  let laneColor: string;
+  let nextIdx = nextFallbackIdx;
+
+  if (lane === -1) {
+    // New lane needed — prefer a free slot, otherwise extend
+    lane = lanes.findIndex((s) => s === null);
+    if (lane === -1) lane = lanes.length;
+
+    // Prefer branch-derived stable color; fall back to sequential
+    laneColor =
+      preferredColorForCommit(commit, currentBranch) ??
+      BRANCH_PALETTE[nextIdx++ % BRANCH_PALETTE.length];
+
+    lanes[lane] = commit.hash;
+    laneColors[lane] = laneColor;
+  } else {
+    laneColor = laneColors[lane];
+    // If this commit has a named branch ref, upgrade the lane color
+    const preferred = preferredColorForCommit(commit, currentBranch);
+    if (preferred) {
+      laneColor = preferred;
+      laneColors[lane] = preferred;
+    }
+  }
+
+  return { lane, laneColor, nextFallbackIdx: nextIdx };
+}
+
+function calculateConnections(
+  commit: Commit,
+  commits: Commit[],
+  commitIndex: Map<string, number>,
+  lane: number,
+  laneColor: string,
+  lanes: (string | null)[],
+  laneColors: string[],
+  nextFallbackIdx: number,
+  currentBranch?: string
+): { connections: GraphRow['connections']; nextFallbackIdx: number } {
+  const connections: GraphRow['connections'] = [];
+  let nextIdx = nextFallbackIdx;
+
+  for (let p = 0; p < commit.parents.length; p++) {
+    const parent = commit.parents[p];
+    const parentIdx = commitIndex.get(parent);
+    if (parentIdx === undefined) continue;
+
+    let parentLane = lanes.indexOf(parent);
+    if (parentLane === -1) {
+      if (p === 0) {
+        // First parent inherits our lane and color
+        parentLane = lane;
+        lanes[parentLane] = parent;
+        laneColors[parentLane] = laneColor;
+      } else {
+        // Additional parent (merge) → new lane
+        parentLane = lanes.findIndex((s) => s === null);
+        if (parentLane === -1) parentLane = lanes.length;
+        lanes[parentLane] = parent;
+        // Color from the parent commit's refs if available
+        const parentCommit = commits[parentIdx];
+        laneColors[parentLane] =
+          preferredColorForCommit(parentCommit, currentBranch) ??
+          BRANCH_PALETTE[nextIdx++ % BRANCH_PALETTE.length];
+      }
+    }
+
+    connections.push({ fromLane: lane, toLane: parentLane, toRow: parentIdx, color: laneColors[parentLane] });
+  }
+
+  return { connections, nextFallbackIdx: nextIdx };
+}
+
 export function computeGraph(commits: Commit[], currentBranch?: string): { rows: GraphRow[]; totalLanes: number } {
   const lanes: (string | null)[] = [];
   const laneColors: string[] = [];
@@ -123,30 +204,9 @@ export function computeGraph(commits: Commit[], currentBranch?: string): { rows:
   for (let i = 0; i < commits.length; i++) {
     const commit = commits[i];
 
-    let lane = lanes.indexOf(commit.hash);
-    let laneColor: string;
-
-    if (lane === -1) {
-      // New lane needed — prefer a free slot, otherwise extend
-      lane = lanes.findIndex((s) => s === null);
-      if (lane === -1) lane = lanes.length;
-
-      // Prefer branch-derived stable color; fall back to sequential
-      laneColor =
-        preferredColorForCommit(commit, currentBranch) ??
-        BRANCH_PALETTE[nextFallbackIdx++ % BRANCH_PALETTE.length];
-
-      lanes[lane] = commit.hash;
-      laneColors[lane] = laneColor;
-    } else {
-      laneColor = laneColors[lane];
-      // If this commit has a named branch ref, upgrade the lane color
-      const preferred = preferredColorForCommit(commit, currentBranch);
-      if (preferred) {
-        laneColor = preferred;
-        laneColors[lane] = preferred;
-      }
-    }
+    const laneResult = getOrCreateLaneForCommit(commit, currentBranch, lanes, laneColors, nextFallbackIdx);
+    const { lane, laneColor } = laneResult;
+    nextFallbackIdx = laneResult.nextFallbackIdx;
 
     const activeLanes = lanes
       .map((sha, l) => (sha !== null && sha !== commit.hash ? { lane: l, color: laneColors[l] } : null))
@@ -154,34 +214,19 @@ export function computeGraph(commits: Commit[], currentBranch?: string): { rows:
 
     lanes[lane] = null;
 
-    const connections: GraphRow['connections'] = [];
-    for (let p = 0; p < commit.parents.length; p++) {
-      const parent = commit.parents[p];
-      const parentIdx = commitIndex.get(parent);
-      if (parentIdx === undefined) continue;
-
-      let parentLane = lanes.indexOf(parent);
-      if (parentLane === -1) {
-        if (p === 0) {
-          // First parent inherits our lane and color
-          parentLane = lane;
-          lanes[parentLane] = parent;
-          laneColors[parentLane] = laneColor;
-        } else {
-          // Additional parent (merge) → new lane
-          parentLane = lanes.findIndex((s) => s === null);
-          if (parentLane === -1) parentLane = lanes.length;
-          lanes[parentLane] = parent;
-          // Color from the parent commit's refs if available
-          const parentCommit = commits[parentIdx];
-          laneColors[parentLane] =
-            preferredColorForCommit(parentCommit, currentBranch) ??
-            BRANCH_PALETTE[nextFallbackIdx++ % BRANCH_PALETTE.length];
-        }
-      }
-
-      connections.push({ fromLane: lane, toLane: parentLane, toRow: parentIdx, color: laneColors[parentLane] });
-    }
+    const connResult = calculateConnections(
+      commit,
+      commits,
+      commitIndex,
+      lane,
+      laneColor,
+      lanes,
+      laneColors,
+      nextFallbackIdx,
+      currentBranch
+    );
+    const { connections } = connResult;
+    nextFallbackIdx = connResult.nextFallbackIdx;
 
     rows.push({ commit, lane, laneColor, connections, activeLanes });
   }

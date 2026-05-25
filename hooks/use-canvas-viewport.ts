@@ -17,6 +17,7 @@ interface UseCanvasViewportOptions {
   padding?: number;
   initialWorldFocusX?: number;
   initialWorldFocusY?: number;
+  topSafeOffset?: number;
 }
 
 export function useCanvasViewport({
@@ -28,6 +29,7 @@ export function useCanvasViewport({
   padding = 100,
   initialWorldFocusX,
   initialWorldFocusY,
+  topSafeOffset = 0,
 }: UseCanvasViewportOptions) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -61,7 +63,10 @@ export function useCanvasViewport({
     const focusX = initialWorldFocusX ?? worldWidth / 2;
     const focusY = initialWorldFocusY ?? worldHeight / 2;
     const initialOffsetX = viewportWidth / 2 - focusX * initialScale;
-    const initialOffsetY = viewportHeight / 2 - focusY * initialScale;
+    
+    // Shift Y focus down to center in the visible area below the topSafeOffset
+    const focusHeight = viewportHeight - topSafeOffset;
+    const initialOffsetY = topSafeOffset + focusHeight / 2 - focusY * initialScale;
 
     setViewport(
       constrainViewport(
@@ -77,7 +82,7 @@ export function useCanvasViewport({
         padding
       )
     );
-  }, [worldWidth, worldHeight, initialScale, padding, initialWorldFocusX, initialWorldFocusY]);
+  }, [worldWidth, worldHeight, initialScale, padding, initialWorldFocusX, initialWorldFocusY, topSafeOffset]);
 
   const hasInitialized = useRef(false);
 
@@ -100,7 +105,10 @@ export function useCanvasViewport({
       const focusX = initialWorldFocusX ?? worldWidth / 2;
       const focusY = initialWorldFocusY ?? worldHeight / 2;
       const initialOffsetX = viewportWidth / 2 - focusX * initialScale;
-      const initialOffsetY = viewportHeight / 2 - focusY * initialScale;
+      
+      // Shift Y focus down to center in the visible area below the topSafeOffset
+      const focusHeight = viewportHeight - topSafeOffset;
+      const initialOffsetY = topSafeOffset + focusHeight / 2 - focusY * initialScale;
 
       setViewport(
         constrainViewport(
@@ -118,7 +126,7 @@ export function useCanvasViewport({
       );
       hasInitialized.current = true;
     }
-  }, [worldWidth, worldHeight, initialScale, padding, initialWorldFocusX, initialWorldFocusY]);
+  }, [worldWidth, worldHeight, initialScale, padding, initialWorldFocusX, initialWorldFocusY, topSafeOffset]);
 
 
   // Handles discrete zoom actions (zoom buttons)

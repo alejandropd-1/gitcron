@@ -739,6 +739,7 @@ export function ChronometricGraph({
     // slide gracefully into the upper-right quadrant of the viewport, showing more timeline history.
     initialWorldFocusX: width - 280,
     initialWorldFocusY: 100 + 180 * DEFAULT_CHRONOMETRIC_SLOPE,
+    topSafeOffset: 96,
   });
 
   // 7. Time ticks (date guidelines at the bottom of the graph)

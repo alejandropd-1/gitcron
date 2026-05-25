@@ -1348,13 +1348,13 @@ export default function GitCronPage() {
       <div
         className={cn(
           "shrink-0",
-          graphMode === 'chronometric' ? "px-3 pt-2 relative z-[80]" : "relative z-50"
+          graphMode === 'chronometric' ? "px-3 pt-2 absolute top-0 left-0 right-0 z-[80]" : "relative z-50"
         )}
       >
         <div
           className={cn(
             "flex flex-col",
-            graphMode === 'chronometric' && "rounded-2xl border border-text-primary/15 bg-bg-overlay/60/60 backdrop-blur-md shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
+            graphMode === 'chronometric' && "rounded-2xl border border-text-primary/15 bg-bg-overlay/60 backdrop-blur-md shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
           )}
         >
           <RepoTabs
@@ -1738,13 +1738,13 @@ export default function GitCronPage() {
             "flex flex-col overflow-hidden z-30",
             !isDragging && "transition-all duration-300",
             graphMode === 'chronometric'
-              ? "absolute bg-bg-overlay/60/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
+              ? "absolute bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
               : "relative bg-bg-base/70 border-r border-border-subtle/30 shrink-0"
           )}
           style={
             graphMode === 'chronometric'
               ? {
-                  top: FLOATING_PANEL_INSET,
+                  top: 96 + FLOATING_PANEL_INSET,
                   left: FLOATING_PANEL_INSET,
                   bottom: FLOATING_PANEL_INSET,
                   width: sidebarW,
@@ -1981,7 +1981,7 @@ export default function GitCronPage() {
             graphMode === 'chronometric'
               ? cn(
                   "absolute transition-all duration-300",
-                  !isMainFullBleed && "bg-bg-overlay/60/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
+                  !isMainFullBleed && "bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
                 )
               : "relative flex-1 min-h-0 bg-bg-base"
           )}
@@ -1990,7 +1990,7 @@ export default function GitCronPage() {
               ? isMainFullBleed
                 ? { top: 0, left: 0, right: 0, bottom: 0 }
                 : {
-                    top: FLOATING_PANEL_INSET,
+                    top: 96 + FLOATING_PANEL_INSET,
                     bottom: FLOATING_PANEL_INSET,
                     left: sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
                     right: detailsOpen ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
@@ -2283,13 +2283,13 @@ export default function GitCronPage() {
             "flex flex-col overflow-hidden z-30",
             !isDragging && "transition-all duration-300",
             graphMode === 'chronometric'
-              ? "absolute bg-bg-overlay/60/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
+              ? "absolute bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
               : "relative bg-bg-base/70 border-l border-border-subtle/30 shrink-0"
           )}
           style={
             graphMode === 'chronometric'
               ? {
-                  top: FLOATING_PANEL_INSET,
+                  top: 96 + FLOATING_PANEL_INSET,
                   right: FLOATING_PANEL_INSET,
                   bottom: FLOATING_PANEL_INSET,
                   width: detailsW,

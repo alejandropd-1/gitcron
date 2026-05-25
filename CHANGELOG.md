@@ -4,6 +4,17 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.6.1] - 2026-05-25 - Preservación de Layout Flotante y Corrección de Vista por Defecto
+
+### 🔵 Vista Cronométrica (Beta)
+
+#### Fixed
+- **Preservación del Layout Flotante Unificado**: Rediseñamos `graphMode` en `app/page.tsx` para ser estrictamente `'chronometric'` en todo momento. Esto asegura que la envoltura premium glassmorphic de la aplicación (RepoTabs, Header y Sidebars izquierdo/derecho flotantes) permanezca activa de forma permanente, independientemente del estado del Feature Flag en Ajustes. Se eliminó la regresión visual al antiguo layout plano e inline.
+- **Comportamiento por Defecto en Nuevos Proyectos**: Implementamos la variable reactiva `activeGraphMode = enableCronometric ? rawGraphMode : 'classic'` y la utilizamos para renderizar condicionalmente el `<CommitGraph>` clásico o el `<ChronometricGraph>` diagonal. Esto soluciona un problema por el cual proyectos recién abiertos o sin preferencia guardada (como `odontoPau`) arrancaban de forma predeterminada en la vista cronométrica al tener la bandera experimental activada en Ajustes, respetando ahora la vista clásica vertical por defecto.
+- **Chequeo de Tipos TypeScript**: Envolvimos la definición de `graphMode` en un helper de función `getGraphMode()` para evitar que el motor de inferencia de control de flujo de TypeScript estreche el tipo a un único literal `'chronometric'`, resolviendo un error de compilación estática al compararlo con `'classic'`.
+
+---
+
 ## [v1.6.0] - 2026-05-25 - Vista Cronométrica Avanzada: Nodo HEAD Agrandado, HUD de Alta Fidelidad y Animación Temporal
 
 ### 🔵 Vista Cronométrica (Beta)

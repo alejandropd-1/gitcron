@@ -1936,11 +1936,6 @@ export function ChronometricGraph({
           </filter>
         </defs>
 
-        {/* Outer Circular Tactical Grid (Temporal horizons, centered) */}
-        <circle cx="50%" cy="50%" r="35%" fill="none" stroke="#b455ff" strokeWidth="0.5" strokeDasharray="2 12" opacity="0.12" filter="url(#hud-glow)" />
-        <circle cx="50%" cy="50%" r="42%" fill="none" stroke="#5ed8ff" strokeWidth="0.5" strokeDasharray="100 200" opacity="0.08" filter="url(#hud-glow)" />
-        <circle cx="50%" cy="50%" r="48%" fill="none" stroke="#a3f185" strokeWidth="0.5" strokeDasharray="1 18" opacity="0.06" />
-
         {/* Crosshair Ticks in center of screen */}
         <g stroke="#3c495a" strokeWidth="0.75" opacity="0.2">
           <line x1="50%" y1="calc(50% - 16px)" x2="50%" y2="calc(50% - 8px)" />
@@ -1948,23 +1943,6 @@ export function ChronometricGraph({
           <line x1="calc(50% - 16px)" y1="50%" x2="calc(50% - 8px)" y2="50%" />
           <line x1="calc(50% + 8px)" y1="50%" x2="calc(50% + 16px)" y2="50%" />
         </g>
-
-        {/* Curved HUD Corner Frames */}
-        {/* Top-Left Curve */}
-        <path d="M 8 156 L 8 112 A 8 8 0 0 1 16 104 L 285 104" fill="none" stroke="#5ed8ff" strokeWidth="1" filter="url(#hud-glow)" />
-        <rect x="8" y="104" width="12" height="3" fill="#5ed8ff" />
-
-        {/* Top-Right Curve */}
-        <path d="M calc(100% - 285px) 104 L calc(100% - 16px) 104 A 8 8 0 0 1 calc(100% - 8px) 112 L calc(100% - 8px) 156" fill="none" stroke="#b455ff" strokeWidth="1" filter="url(#hud-glow)" />
-        <rect x="calc(100% - 20px)" y="104" width="12" height="3" fill="#b455ff" />
-
-        {/* Bottom-Left Curve */}
-        <path d="M 8 calc(100% - 60px) L 8 calc(100% - 16px) A 8 8 0 0 0 16 calc(100% - 8px) L 265 calc(100% - 8px)" fill="none" stroke="#a3f185" strokeWidth="1" filter="url(#hud-glow)" />
-        <rect x="8" y="calc(100% - 11px)" width="12" height="3" fill="#a3f185" />
-
-        {/* Bottom-Right Curve */}
-        <path d="M calc(100% - 160px) calc(100% - 8px) L calc(100% - 16px) calc(100% - 8px) A 8 8 0 0 0 calc(100% - 8px) calc(100% - 16px) L calc(100% - 8px) calc(100% - 60px)" fill="none" stroke="#fd9d1a" strokeWidth="1" filter="url(#hud-glow)" />
-        <rect x="calc(100% - 20px)" y="calc(100% - 11px)" width="12" height="3" fill="#fd9d1a" />
 
         {/* Technical Coordinate Indicators */}
         <text x="295" y="109" fill="#697789" fontSize="6" className="font-mono" opacity="0.5">

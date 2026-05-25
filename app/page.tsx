@@ -2164,10 +2164,7 @@ export default function GitCronPage() {
             /* Graph tab — default */
             <div className="flex-1 flex flex-col bg-bg-base min-h-0">
               {graphMode === 'classic' ? (
-                <div
-                  className="flex-1 min-w-0 flex flex-col min-h-0 transition-[padding] duration-300 ease-out"
-                  style={{ paddingLeft: leftGraphSafe, paddingRight: rightGraphSafe }}
-                >
+                <div className="flex-1 min-w-0 flex flex-col min-h-0">
                   <div className="sticky top-0 glass-sticky-header z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
                     <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
                     <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />

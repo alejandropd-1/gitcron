@@ -39,3 +39,4 @@ npm-debug.log*
 *.code-workspace
 .fallow/
 .codegraph/codegraph.db
+fallow_report.json

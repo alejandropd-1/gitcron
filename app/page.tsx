@@ -564,8 +564,10 @@ export default function GitCronPage() {
   const [activeTab, setActiveTab] = useState('Graph');
   const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestEntry | null>(null);
 
-  const graphMode = enableCronometric ? 'chronometric' : 'classic';
-  const isMainFullBleed = activeTab === 'Graph' && rawGraphMode === 'chronometric' && !selectedFile && !selectedPullRequest;
+  const getGraphMode = (): 'chronometric' | 'classic' => 'chronometric';
+  const graphMode = getGraphMode(); // Always use premium floating layout
+  const activeGraphMode = enableCronometric ? rawGraphMode : 'classic';
+  const isMainFullBleed = activeTab === 'Graph' && activeGraphMode === 'chronometric' && !selectedFile && !selectedPullRequest;
 
   const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
     const activeRepo = useGitStore.getState().getActiveRepo();
@@ -1439,7 +1441,7 @@ export default function GitCronPage() {
                 onClick={() => handleChangeGraphMode('classic')}
                 className={cn(
                   "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
-                  rawGraphMode === 'classic'
+                  activeGraphMode === 'classic'
                     ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
                     : "text-text-secondary hover:text-text-primary border border-transparent"
                 )}
@@ -1452,7 +1454,7 @@ export default function GitCronPage() {
                 onClick={() => handleChangeGraphMode('chronometric')}
                 className={cn(
                   "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
-                  rawGraphMode === 'chronometric'
+                  activeGraphMode === 'chronometric'
                     ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
                     : "text-text-secondary hover:text-text-primary border border-transparent"
                 )}
@@ -2186,7 +2188,7 @@ export default function GitCronPage() {
           ) : (
             /* Graph tab — default */
             <div className={cn("flex-1 flex flex-col min-h-0", graphMode !== 'chronometric' && "bg-bg-base")}>
-              {rawGraphMode === 'classic' ? (
+              {activeGraphMode === 'classic' ? (
                 <div className="flex-1 min-w-0 flex flex-col min-h-0">
                   <div className="sticky top-0 glass-sticky-header z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
                     <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>

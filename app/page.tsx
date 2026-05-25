@@ -562,8 +562,9 @@ export default function GitCronPage() {
   const { runFetchCycle } = useAutoFetch();
 
   const [activeTab, setActiveTab] = useState('Graph');
+  const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestEntry | null>(null);
 
-  const graphMode = (enableCronometric && rawGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile)
+  const graphMode = (enableCronometric && rawGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest)
     ? 'chronometric'
     : 'classic';
 
@@ -668,7 +669,6 @@ export default function GitCronPage() {
   const [squashMessage, setSquashMessage] = useState('');
   const [commitFiles, setCommitFiles] = useState<GitFile[]>([]);
   const [commitFilesLoading, setCommitFilesLoading] = useState(false);
-  const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestEntry | null>(null);
   const [pullRequestDiff, setPullRequestDiff] = useState<PullRequestDiffData | null>(null);
   const [pullRequestDiffLoading, setPullRequestDiffLoading] = useState(false);
   const [showStashClearConfirm, setShowStashClearConfirm] = useState(false);
@@ -4258,7 +4258,7 @@ function HistoryView({
               onClick={() => onSelect(commit)}
               onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, commit); }}
               className={cn(
-                'px-4 py-3 border-b border-border-subtle/15 cursor-pointer transition-colors',
+                'px-4 py-3 border-b border-border-subtle/15 cursor-pointer transition-colors select-text',
                 isSelected ? 'bg-secondary/10' : 'hover:bg-bg-surface/75',
               )}
             >

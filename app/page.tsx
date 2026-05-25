@@ -1338,8 +1338,18 @@ export default function GitCronPage() {
 
   return (
     <div className="flex flex-col h-screen bg-bg-base text-text-primary font-sans overflow-hidden select-none">
-      <div className="shrink-0 px-3 pt-2 relative z-[80]">
-        <div className="rounded-2xl border border-text-primary/15 bg-bg-surface/35 backdrop-blur-md shadow-[0_18px_60px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]">
+      <div
+        className={cn(
+          "shrink-0",
+          graphMode === 'chronometric' ? "px-3 pt-2 relative z-[80]" : "relative z-50"
+        )}
+      >
+        <div
+          className={cn(
+            "flex flex-col",
+            graphMode === 'chronometric' && "rounded-2xl border border-text-primary/15 bg-bg-surface/35 backdrop-blur-md shadow-[0_18px_60px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]"
+          )}
+        >
           <RepoTabs
             repos={openRepos}
             activeIdx={activeRepoIdx}
@@ -1347,8 +1357,15 @@ export default function GitCronPage() {
             onClose={handleCloseRepoTab}
             onOpen={handleOpenRepoChooser}
           />
-      {/* ──────────── TOP NAV ──────────── */}
-      <header className="h-12 rounded-b-2xl border-t border-text-primary/[0.06] bg-bg-overlay/60/40 backdrop-blur-md grid grid-cols-[minmax(210px,0.8fr)_auto_minmax(360px,1.2fr)] items-center px-3 shrink-0 relative z-50">
+          {/* ──────────── TOP NAV ──────────── */}
+          <header
+            className={cn(
+              "grid items-center shrink-0 relative z-50 h-12",
+              graphMode === 'chronometric'
+                ? "rounded-b-2xl border-t border-text-primary/[0.06] bg-bg-overlay/60/40 backdrop-blur-md grid-cols-[minmax(210px,0.8fr)_auto_minmax(360px,1.2fr)] px-3"
+                : "glass-header grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] px-4"
+            )}
+          >
         <div className="flex items-center gap-4 h-full min-w-0">
           <button
             type="button"
@@ -1702,17 +1719,35 @@ export default function GitCronPage() {
         </div>
       )}
 
-      <div className="flex-1 overflow-hidden relative">
-        {/* FLOATING LEFT PANEL: Sidebar — floats over the canvas, toggle via tab button */}
+      <div
+        className={cn(
+          "flex-1 overflow-hidden relative",
+          graphMode === 'classic' && "flex"
+        )}
+      >
+        {/* LEFT PANEL: Sidebar — floats in chronometric view, inline in classic view */}
         <aside
-          className="absolute bg-bg-overlay/60/60 backdrop-blur-md flex flex-col overflow-hidden z-30 border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
-          style={{
-            top: FLOATING_PANEL_INSET,
-            left: FLOATING_PANEL_INSET,
-            bottom: FLOATING_PANEL_INSET,
-            width: sidebarW,
-            transform: sidebarOpen ? 'translateX(0)' : `translateX(calc(-100% - ${FLOATING_PANEL_INSET * 2}px))`,
-          }}
+          className={cn(
+            "flex flex-col overflow-hidden transition-all duration-300 z-30",
+            graphMode === 'chronometric'
+              ? "absolute bg-bg-overlay/60/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
+              : "relative bg-bg-base/70 border-r border-border-subtle/30 shrink-0"
+          )}
+          style={
+            graphMode === 'chronometric'
+              ? {
+                  top: FLOATING_PANEL_INSET,
+                  left: FLOATING_PANEL_INSET,
+                  bottom: FLOATING_PANEL_INSET,
+                  width: sidebarW,
+                  transform: sidebarOpen ? 'translateX(0)' : `translateX(calc(-100% - ${FLOATING_PANEL_INSET * 2}px))`,
+                }
+              : {
+                  width: sidebarOpen ? sidebarW : 0,
+                  opacity: sidebarOpen ? 1 : 0,
+                  visibility: sidebarOpen ? 'visible' : 'hidden',
+                }
+          }
         >
           {/* Right-edge resize handle */}
           <div
@@ -1931,8 +1966,13 @@ export default function GitCronPage() {
           </div>
         </aside>
 
-        {/* CENTER CANVAS: Full-bleed graph, always fills the whole area */}
-        <main className="absolute inset-0 bg-bg-base overflow-hidden flex flex-col">
+        {/* CENTER CANVAS: Full-bleed graph, always fills the whole area in chronometric, flex-1 relative in classic */}
+        <main
+          className={cn(
+            "bg-bg-base overflow-hidden flex flex-col min-w-0",
+            graphMode === 'chronometric' ? "absolute inset-0" : "relative flex-1 min-h-0"
+          )}
+        >
           {!repoPath || showRepoChooser ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-8 text-text-secondary p-8">
               <div className="text-center">
@@ -2215,16 +2255,29 @@ export default function GitCronPage() {
           )}
         </main>
 
-        {/* FLOATING RIGHT PANEL: Commit details + staging — floats over the canvas */}
+        {/* RIGHT PANEL: Commit details + staging — floats in chronometric view, inline in classic view */}
         <aside
-          className="absolute bg-bg-overlay/60/60 backdrop-blur-md flex flex-col overflow-hidden z-30 border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300"
-          style={{
-            top: FLOATING_PANEL_INSET,
-            right: FLOATING_PANEL_INSET,
-            bottom: FLOATING_PANEL_INSET,
-            width: detailsW,
-            transform: detailsOpen ? 'translateX(0)' : `translateX(calc(100% + ${FLOATING_PANEL_INSET * 2}px))`,
-          }}
+          className={cn(
+            "flex flex-col overflow-hidden transition-all duration-300 z-30",
+            graphMode === 'chronometric'
+              ? "absolute bg-bg-overlay/60/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
+              : "relative bg-bg-base/70 border-l border-border-subtle/30 shrink-0"
+          )}
+          style={
+            graphMode === 'chronometric'
+              ? {
+                  top: FLOATING_PANEL_INSET,
+                  right: FLOATING_PANEL_INSET,
+                  bottom: FLOATING_PANEL_INSET,
+                  width: detailsW,
+                  transform: detailsOpen ? 'translateX(0)' : `translateX(calc(100% + ${FLOATING_PANEL_INSET * 2}px))`,
+                }
+              : {
+                  width: detailsOpen ? detailsW : 0,
+                  opacity: detailsOpen ? 1 : 0,
+                  visibility: detailsOpen ? 'visible' : 'hidden',
+                }
+          }
         >
           {/* Left-edge resize handle */}
           <div

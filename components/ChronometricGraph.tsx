@@ -1197,8 +1197,8 @@ export function ChronometricGraph({
                       cx={node.x}
                       cy={node.y}
                       r={isHead ? 21 : 10.5}
-                      fill={isHead ? 'none' : 'var(--color-bg-base)'}
-                      stroke={isHead ? 'none' : (isSelected ? 'var(--color-secondary)' : node.laneColor)}
+                      fill={isHead ? 'transparent' : 'var(--color-bg-base)'}
+                      stroke={isHead ? 'transparent' : (isSelected ? 'var(--color-secondary)' : node.laneColor)}
                       strokeWidth={isSelected ? (isHead ? 6 : 3) : (isHead ? 4 : 2)}
                       className="transition-all duration-150"
                     />

@@ -1167,7 +1167,7 @@ export function ChronometricGraph({
                       cx={node.x}
                       cy={node.y}
                       r={isHead ? 21 : 10.5}
-                      fill="var(--color-bg-base)"
+                      fill={isHead ? 'none' : 'var(--color-bg-base)'}
                       stroke={isSelected ? 'var(--color-secondary)' : node.laneColor}
                       strokeWidth={isSelected ? (isHead ? 6 : 3) : (isHead ? 4 : 2)}
                       className="transition-all duration-150"
@@ -1411,8 +1411,8 @@ export function ChronometricGraph({
                   const vx = isLeft ? nx : rx;
                   const vy = isLeft ? ny : ry;
 
-                  const lineSpacing = 12 * textScale;
-                  const baseClearance = 52 * textScale; // safe clearance from timeline to avoid branch badges
+                  const lineSpacing = 16 * textScale;
+                  const baseClearance = 78 * textScale; // safe clearance from timeline to avoid branch badges
 
                   // Define the lines to render, from closest to furthest (ordered chronologically)
                   const lines: { text: string; fill: string; fontSize: number; fontWeight: string; opacity?: number }[] = [];

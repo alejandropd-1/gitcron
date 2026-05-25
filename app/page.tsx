@@ -565,7 +565,7 @@ export default function GitCronPage() {
   const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestEntry | null>(null);
 
   const graphMode = enableCronometric ? 'chronometric' : 'classic';
-  const isMainFullBleed = activeTab === 'Graph' && !selectedFile && !selectedPullRequest;
+  const isMainFullBleed = activeTab === 'Graph' && rawGraphMode === 'chronometric' && !selectedFile && !selectedPullRequest;
 
   const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
     const activeRepo = useGitStore.getState().getActiveRepo();
@@ -2185,7 +2185,7 @@ export default function GitCronPage() {
             />
           ) : (
             /* Graph tab — default */
-            <div className="flex-1 flex flex-col bg-bg-base min-h-0">
+            <div className={cn("flex-1 flex flex-col min-h-0", graphMode !== 'chronometric' && "bg-bg-base")}>
               {rawGraphMode === 'classic' ? (
                 <div className="flex-1 min-w-0 flex flex-col min-h-0">
                   <div className="sticky top-0 glass-sticky-header z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">

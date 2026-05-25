@@ -564,9 +564,8 @@ export default function GitCronPage() {
   const [activeTab, setActiveTab] = useState('Graph');
   const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestEntry | null>(null);
 
-  const graphMode = (enableCronometric && rawGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest)
-    ? 'chronometric'
-    : 'classic';
+  const graphMode = enableCronometric ? 'chronometric' : 'classic';
+  const isMainFullBleed = activeTab === 'Graph' && !selectedFile && !selectedPullRequest;
 
   const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
     const activeRepo = useGitStore.getState().getActiveRepo();
@@ -1440,7 +1439,7 @@ export default function GitCronPage() {
                 onClick={() => handleChangeGraphMode('classic')}
                 className={cn(
                   "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
-                  graphMode === 'classic'
+                  rawGraphMode === 'classic'
                     ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
                     : "text-text-secondary hover:text-text-primary border border-transparent"
                 )}
@@ -1453,7 +1452,7 @@ export default function GitCronPage() {
                 onClick={() => handleChangeGraphMode('chronometric')}
                 className={cn(
                   "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
-                  graphMode === 'chronometric'
+                  rawGraphMode === 'chronometric'
                     ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
                     : "text-text-secondary hover:text-text-primary border border-transparent"
                 )}
@@ -1973,12 +1972,29 @@ export default function GitCronPage() {
           </div>
         </aside>
 
-        {/* CENTER CANVAS: Full-bleed graph, always fills the whole area in chronometric, flex-1 relative in classic */}
+        {/* CENTER CANVAS: Full-bleed graph in Graph tab, beautifully centered glass panel in other tabs / diffs */}
         <main
           className={cn(
-            "bg-bg-base overflow-hidden flex flex-col min-w-0",
-            graphMode === 'chronometric' ? "absolute inset-0" : "relative flex-1 min-h-0"
+            "overflow-hidden flex flex-col min-w-0",
+            graphMode === 'chronometric'
+              ? cn(
+                  "absolute transition-all duration-300",
+                  !isMainFullBleed && "bg-bg-overlay/60/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
+                )
+              : "relative flex-1 min-h-0 bg-bg-base"
           )}
+          style={
+            graphMode === 'chronometric'
+              ? isMainFullBleed
+                ? { top: 0, left: 0, right: 0, bottom: 0 }
+                : {
+                    top: FLOATING_PANEL_INSET,
+                    bottom: FLOATING_PANEL_INSET,
+                    left: sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
+                    right: detailsOpen ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
+                  }
+              : undefined
+          }
         >
           {!repoPath || showRepoChooser ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-8 text-text-secondary p-8">
@@ -2170,7 +2186,7 @@ export default function GitCronPage() {
           ) : (
             /* Graph tab — default */
             <div className="flex-1 flex flex-col bg-bg-base min-h-0">
-              {graphMode === 'classic' ? (
+              {rawGraphMode === 'classic' ? (
                 <div className="flex-1 min-w-0 flex flex-col min-h-0">
                   <div className="sticky top-0 glass-sticky-header z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
                     <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>

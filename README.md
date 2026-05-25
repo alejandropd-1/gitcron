@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.6.1-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.6.2-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -114,13 +114,15 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Auto-update now stays inside the app UI: a version-tag dot announces updates, the tag opens the download dropdown, progress stays beside the GitHub releases icon, and `UPDATE` appears there when the download is ready.
 - Startup polish: the Electron splash now shows the GitCron icon with subtle geometric animation, stays visible long enough to avoid first-paint flicker, and the Graph fades in after initial repo data is ready.
 - **Selective Text Selection**: Habilitación selectiva de la propiedad de selección de texto (`select-text`) quirúrgicamente sobre nombres de ramas (locales y remotas), agrupadores de carpetas, tags, stashes y todos los metadatos de commits (mensajes, hashes, email, autor, archivos) en los listados e insets, conservando el comportamiento nativo `select-none` en elementos interactivos.
-- Spanish and English UI strings.
+- **Saneamiento Estático y Mantenibilidad de Fallow**: Saneamos la complejidad del grafo clásico (`computeGraph` en `CommitGraph.tsx` simplificada) y modularizamos la hidratación de preferencias en `use-git-actions.ts` hacia helpers modulares independientes, logrando una reducción del 90% en su complejidad cognitiva y elevando el *Maintainability Score* global del proyecto al **90.0% ("Good")**.
+- **Spanish and English UI strings**.
 
 ### 🟣 Vista Cronométrica (Chronometric View) - En Desarrollo / Experimental
 
 - *Esta sección documenta de forma aislada las características de la Vista Cronométrica para evitar conflictos de mezcla al trabajar en ramas de desarrollo paralelo (`feature/cronometric`).*
 - **Línea de tiempo cronométrica avanzada**: (Desarrollo en paralelo) Permite visualizar la evolución histórica de las ramas alineadas a su estampa de tiempo real, mejorando la comprensión visual de mezclas y bifurcaciones concurrentes.
 - **Navegación temporal interactiva**: Controles para filtrar y enfocar períodos de actividad específicos, útiles en repositorios con alta densidad de commits diarios.
+- **Simplificación Visual y Declutter del HUD**: Remoción de los círculos punteados concéntricos de radar de fondo y los marcos de esquinas neón decorativos, logrando una interfaz cronométrica inmersiva minimalista y despejada de tipo "Full Bleed" que prioriza el árbol de commits.
 
 ---
 
@@ -355,9 +357,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.6.1.exe`                                             |
-| macOS    | `GitCron-1.6.1.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.6.1.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.6.2.exe`                                             |
+| macOS    | `GitCron-1.6.2.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.6.2.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -404,7 +406,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.6.1` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.6.2` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

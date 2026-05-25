@@ -4,6 +4,25 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.6.2] - 2026-05-25 - Saneamiento Estático de Fallow y Simplificación Visual Cronométrica
+
+### 🟢 Vista Clásica & Core
+
+#### Refactored
+- **Modularización de Preferencias (Análisis de Fallow)**: Extrajimos la hidratación individual de preferencias desde storageGet en `use-git-actions.ts` hacia helpers puros e independientes a nivel de módulo (`bootstrapLanguage`, `bootstrapFontSize`, `bootstrapDefaultFolder`, `bootstrapAutoFetch`, `bootstrapOsNotifications`, `bootstrapShortcuts`, `bootstrapTheme`, `bootstrapCronometric`), simplificando `bootstrapPreferences` de forma drástica y reduciendo su complejidad cognitiva en un 90%.
+- **Optimización Algorítmica del Grafo (`computeGraph`)**: Extrajimos la lógica matemática de asignación de carriles (`getOrCreateLaneForCommit`) y propagación de conexiones de commits padres (`calculateConnections`) en `components/CommitGraph.tsx` hacia funciones puras externas a nivel de módulo, reduciendo su complejidad cognitiva de `30` a menos de `8` y removiendo este componente de la lista de hotspots críticos de Fallow.
+- **Remoción de Exportaciones Muertas**: Saneamos quirúrgicamente interfaces y constantes de `CommitGraph.tsx` sin uso externo para limpiar el árbol de dependencias públicas.
+- **Maintainability Score de 90.0%**: La suite completa de saneamiento e incremento de calidad de código elevó el índice de mantenibilidad global de GitCron al **90.0% ("Good")**.
+
+### 🔵 Vista Cronométrica (Beta)
+
+#### Added
+- **Simplificación Visual y Declutter del HUD**: Removimos elementos estéticos decorativos invasivos del lienzo cronométrico para una visualización inmersiva ultra-limpia y moderna:
+  * Eliminamos la red de radar de círculos punteados concéntricos de fondo sobre toda la vista.
+  * Eliminamos las guías y marcos angulares sólidos de color neón en las 4 esquinas perimetrales de la pantalla, logrando una sensación minimalista y espaciosa de "Full Bleed" que prioriza el árbol de commits.
+
+---
+
 ## [v1.6.1] - 2026-05-25 - Preservación de Layout Flotante y Corrección de Vista por Defecto
 
 ### 🔵 Vista Cronométrica (Beta)

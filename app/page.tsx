@@ -140,7 +140,7 @@ function RepoTabs({
   if (repos.length === 0) return null;
 
   return (
-    <div className="app-titlebar h-10 rounded-t-2xl bg-bg-overlay/60/35 backdrop-blur-md border-b border-text-primary/10 flex items-stretch shrink-0 overflow-hidden gap-1">
+    <div className="app-titlebar h-10 rounded-t-2xl bg-transparent border-b border-text-primary/10 flex items-stretch shrink-0 overflow-hidden gap-1">
       <div className="min-w-0 flex-1 flex items-end gap-1 pl-2 pt-1.5 pb-1 overflow-x-auto overflow-y-hidden">
         <div className="app-titlebar-control h-7 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2">
         <img
@@ -1354,7 +1354,7 @@ export default function GitCronPage() {
         <div
           className={cn(
             "flex flex-col",
-            graphMode === 'chronometric' && "rounded-2xl border border-text-primary/15 bg-bg-surface/35 backdrop-blur-md shadow-[0_18px_60px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]"
+            graphMode === 'chronometric' && "rounded-2xl border border-text-primary/15 bg-bg-overlay/60/60 backdrop-blur-md shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
           )}
         >
           <RepoTabs
@@ -1369,7 +1369,7 @@ export default function GitCronPage() {
             className={cn(
               "grid items-center shrink-0 relative z-50 h-12",
               graphMode === 'chronometric'
-                ? "rounded-b-2xl border-t border-text-primary/[0.06] bg-bg-overlay/60/40 backdrop-blur-md grid-cols-[minmax(210px,0.8fr)_auto_minmax(360px,1.2fr)] px-3"
+                ? "rounded-b-2xl border-t border-text-primary/[0.06] bg-transparent grid-cols-[minmax(210px,0.8fr)_auto_minmax(360px,1.2fr)] px-3"
                 : "glass-header grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] px-4"
             )}
           >

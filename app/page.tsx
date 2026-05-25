@@ -567,7 +567,7 @@ export default function GitCronPage() {
   const getGraphMode = (): 'chronometric' | 'classic' => 'chronometric';
   const graphMode = getGraphMode(); // Always use premium floating layout
   const activeGraphMode = enableCronometric ? rawGraphMode : 'classic';
-  const isMainFullBleed = activeTab === 'Graph' && activeGraphMode === 'chronometric' && !selectedFile && !selectedPullRequest;
+  const isMainFullBleed = activeTab === 'Graph' && !selectedFile && !selectedPullRequest;
 
   const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
     const activeRepo = useGitStore.getState().getActiveRepo();
@@ -1980,7 +1980,7 @@ export default function GitCronPage() {
             "overflow-hidden flex flex-col min-w-0",
             graphMode === 'chronometric'
               ? cn(
-                  "absolute transition-all duration-300",
+                  "absolute transition-[left,right,top,bottom] duration-300",
                   !isMainFullBleed && "bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
                 )
               : "relative flex-1 min-h-0 bg-bg-base"
@@ -2187,92 +2187,154 @@ export default function GitCronPage() {
             />
           ) : (
             /* Graph tab — default */
-            <div className={cn("flex-1 flex flex-col min-h-0", graphMode !== 'chronometric' && "bg-bg-base")}>
-              {activeGraphMode === 'classic' ? (
-                <div className="flex-1 min-w-0 flex flex-col min-h-0">
-                  <div className="sticky top-0 glass-sticky-header z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
-                    <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
-                    <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
-                    <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
-                    <GraphColumnHandle onMouseDown={startGraphColDrag('graph')} />
-                    <div className="flex-1 flex items-center gap-2 pl-5">
-                      Commit message
-                      {filterText.trim() && (
-                        <span className="text-[10px] normal-case px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
-                          filtro activo
-                        </span>
-                      )}
-                    </div>
-                    <GraphColumnHandle onMouseDown={startGraphColDrag('date', -1)} />
-                    <div className="flex items-center pr-3 text-right shrink-0">
-                      <span className="pr-3" style={{ width: graphColumns.date }}>Date</span>
-                      <GraphColumnHandle onMouseDown={startGraphColDrag('date')} />
-                      <span style={{ width: graphColumns.hash }}>Commit</span>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin">
-                    {!isStartupGraphReady && (
-                      <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-text-secondary text-sm">
-                        <Loader2 size={18} className="animate-spin mb-3 text-secondary" />
-                        <p>Cargando graph...</p>
+            <div className={cn("flex-1 relative min-h-0", graphMode !== 'chronometric' && "bg-bg-base")}>
+              <AnimatePresence>
+                {activeGraphMode === 'classic' && (
+                  <motion.div
+                    key="classic-graph"
+                    className={cn("absolute inset-0 flex flex-col", !isDragging && "transition-[padding] duration-300")}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    style={{
+                      paddingTop: 96 + FLOATING_PANEL_INSET,
+                      paddingBottom: FLOATING_PANEL_INSET,
+                      paddingLeft: sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
+                      paddingRight: detailsOpen ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
+                    }}
+                  >
+                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]">
+                    <div className="sticky top-0 glass-sticky-header z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
+                      <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
+                      <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
+                      <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
+                      <GraphColumnHandle onMouseDown={startGraphColDrag('graph')} />
+                      <div className="flex-1 flex items-center gap-2 pl-5">
+                        Commit message
+                        {filterText.trim() && (
+                          <span className="text-[10px] normal-case px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
+                            filtro activo
+                          </span>
+                        )}
                       </div>
-                    )}
-                    {isStartupGraphReady && commits.length === 0 && isLoading && (
-                      <p className="px-4 py-8 text-center text-text-secondary text-sm">Cargando commits...</p>
-                    )}
-                    {isStartupGraphReady && commits.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.22, ease: 'easeOut' }}
-                      >
-                        <CommitGraph
-                          commits={commits}
-                          selectedHash={selectedCommit?.hash}
-                          currentBranch={currentBranch}
-                          workingTreeFiles={modifiedFiles}
-                          filterText={filterText}
-                          columnWidths={graphColumns}
-                          onSelect={handleSelectCommit}
-                          onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
-                        />
-                      </motion.div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex-1 flex flex-col overflow-visible min-h-0">
-                  {!isStartupGraphReady && (
-                    <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-text-secondary text-sm">
-                      <Loader2 size={18} className="animate-spin mb-3 text-secondary" />
-                      <p>Cargando graph...</p>
+                      <GraphColumnHandle onMouseDown={startGraphColDrag('date', -1)} />
+                      <div className="flex items-center pr-3 text-right shrink-0">
+                        <span className="pr-3" style={{ width: graphColumns.date }}>Date</span>
+                        <GraphColumnHandle onMouseDown={startGraphColDrag('date')} />
+                        <span style={{ width: graphColumns.hash }}>Commit</span>
+                      </div>
                     </div>
-                  )}
-                  {isStartupGraphReady && commits.length === 0 && isLoading && (
-                    <p className="px-4 py-8 text-center text-text-secondary text-sm">Cargando commits...</p>
-                  )}
-                  {isStartupGraphReady && commits.length > 0 && (
-                    <motion.div
-                      className="flex-1 flex flex-col overflow-visible min-h-0"
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.2, ease: 'easeOut' }}
-                    >
-                      <ChronometricGraph
-                        commits={commits}
-                        selectedHash={selectedCommit?.hash}
-                        currentBranch={currentBranch}
-                        filterText={filterText}
-                        onSelect={handleSelectCommit}
-                        onContextMenu={(e, c) => openContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
-                        hudLeft={leftGraphSafe}
-                        hudRight={rightGraphSafe}
-                      />
-                    </motion.div>
-                  )}
-                </div>
-              )}
+
+                    <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin relative">
+                      <AnimatePresence mode="wait">
+                        {!isStartupGraphReady ? (
+                          <motion.div
+                            key="classic-loading"
+                            className="absolute inset-0 flex flex-col items-center justify-center text-text-secondary text-sm"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <Loader2 size={18} className="animate-spin mb-3 text-secondary" />
+                            <p>Cargando graph...</p>
+                          </motion.div>
+                        ) : commits.length === 0 && isLoading ? (
+                          <motion.div
+                            key="classic-loading-commits"
+                            className="absolute inset-0 flex items-center justify-center"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <p className="text-text-secondary text-sm">Cargando commits...</p>
+                          </motion.div>
+                        ) : commits.length > 0 ? (
+                          <motion.div
+                            key="classic-commits"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.25, ease: 'easeOut' }}
+                          >
+                            <CommitGraph
+                              commits={commits}
+                              selectedHash={selectedCommit?.hash}
+                              currentBranch={currentBranch}
+                              workingTreeFiles={modifiedFiles}
+                              filterText={filterText}
+                              columnWidths={graphColumns}
+                              onSelect={handleSelectCommit}
+                              onContextMenu={(e, c) => setContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
+                            />
+                          </motion.div>
+                        ) : null}
+                      </AnimatePresence>
+                    </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {activeGraphMode === 'chronometric' && (
+                  <motion.div
+                    key="chronometric-graph"
+                    className="absolute inset-0 flex flex-col overflow-visible"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  >
+                    <AnimatePresence mode="wait">
+                      {!isStartupGraphReady ? (
+                        <motion.div
+                          key="chrono-loading"
+                          className="absolute inset-0 flex flex-col items-center justify-center text-text-secondary text-sm"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <Loader2 size={18} className="animate-spin mb-3 text-secondary" />
+                          <p>Cargando graph...</p>
+                        </motion.div>
+                      ) : commits.length === 0 && isLoading ? (
+                        <motion.div
+                          key="chrono-loading-commits"
+                          className="absolute inset-0 flex items-center justify-center"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <p className="text-text-secondary text-sm">Cargando commits...</p>
+                        </motion.div>
+                      ) : commits.length > 0 ? (
+                        <motion.div
+                          key="chrono-commits"
+                          className="absolute inset-0 flex flex-col overflow-visible"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.25, ease: 'easeOut' }}
+                        >
+                          <ChronometricGraph
+                            commits={commits}
+                            selectedHash={selectedCommit?.hash}
+                            currentBranch={currentBranch}
+                            filterText={filterText}
+                            onSelect={handleSelectCommit}
+                            onContextMenu={(e, c) => openContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
+                            hudLeft={leftGraphSafe}
+                            hudRight={rightGraphSafe}
+                          />
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
         </main>
@@ -2443,6 +2505,32 @@ export default function GitCronPage() {
             />
           )}
         </aside>
+
+        {/* LCAR-29 right-side decorative panel — cronométrico only */}
+        <AnimatePresence>
+          {activeGraphMode === 'chronometric' && (
+            <motion.img
+              key="lcar-right"
+              src="/lcar-29-right-side.svg"
+              alt=""
+              aria-hidden="true"
+              className="absolute pointer-events-none select-none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.18 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4, ease: 'easeInOut' }}
+              style={{
+                top: 0,
+                right: 0,
+                bottom: 0,
+                height: '100%',
+                width: 'auto',
+                zIndex: 2,
+                mixBlendMode: 'screen',
+              }}
+            />
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ──────────── SUCCESS TOAST (auto-dismiss 3s) ──────────── */}

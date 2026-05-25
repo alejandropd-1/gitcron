@@ -4,6 +4,28 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.6.3] - 2026-05-25 - Tooltips Flotantes Premium, Control de Word-Wrap en Diff y Transición Suave de Layout
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Word-Wrap Toggle en Diff Viewer**: Incorporación de un botón interactivo premium en la cabecera del visor de diferencias (a la izquierda de la etiqueta 'MODIFIED') que permite alternar instantáneamente entre modo de ajuste de línea ("wrap text") y modo continuo ("align left"). Incluye iconos interactivos customizados (`<WrapText>` y `<AlignLeft>`).
+- **Atajo de Teclado Global `Alt+Z`**: Implementación de una escucha global de teclado (`Alt+Z` o `Option+Z`) para alternar rápidamente el modo de ajuste de línea en el visor de diferencias actual, emulando la experiencia del editor de Visual Studio Code.
+
+#### Fixed
+- **Fondo de Líneas Completas en Diff Viewer**: Corrección de la anchura del fondo destacado de las líneas agregadas (verde) y eliminadas (rojo) en `components/DiffViewer.tsx`. El color de fondo ahora se expande horizontalmente a lo largo de toda la extensión del texto con scroll horizontal, eliminando el corte abrupto del color al desplazarse a la derecha.
+- **Transición Suave de Layout en Cambio de Vistas**: Implementación de la técnica de diseño de Josh W. Comeau para evitar distorsiones visuales ("squishing" / encogimiento) en el lienzo del grafo y en el visor de diferencias. Extendimos el bypass de transición temporal (`isTabChanging`) activándolo de forma síncrona e instantánea directamente en los controladores de eventos principales: cambio de solapas (`handleTabChange`), selección de archivos/diffs (`handleSelectFile` y el click en la lista de archivos de un commit), selección de Pull Requests (`handleSelectPullRequest`) y cierre del diff (`handleCloseDiff`). Esto asegura de manera absoluta que al alternar vistas, el tamaño del contenedor principal `<main>` cambie síncronamente en 0ms y el contenido se revele con una animación fluida de opacidad sin deformaciones.
+- **Animación de Fundido (Fade-In) en Visor de Diferencias**: Envolvimos las secciones del panel de detalles de Pull Request (`selectedPullRequest`) y visor de diferencias de archivos (`selectedFile`) en elementos `<motion.div>` con claves e inicializadores de Framer Motion. Esto elimina la aparición instantánea o la distorsión física por defecto, logrando que el diff del archivo se hidrate con un fundido de opacidad impecable y fluido.
+
+### 🔵 Vista Cronométrica (Beta)
+
+#### Added
+- **Tooltips Flotantes de Altísima Fidelidad con React Portal**: Rediseñamos los tooltips de información interactiva en `components/ChronometricGraph.tsx` para proyectarse en la raíz del documento (`document.body`) mediante `createPortal`. Esto garantiza de forma absoluta que los tooltips floten sobre cualquier barra lateral o elemento z-index, eliminando superposiciones o recortes visuales.
+- **Líneas Conectoras de Curva Bezier Cúbica en Amarillo**: Implementación de elegantes curvas Bezier interactivas en color amarillo vibrante (`git-mod` de `DESIGN.MD`) que conectan dinámicamente el nodo enfocado con su tooltip flotante correspondiente.
+- **Efecto Radial Breath en Nodo Seleccionado**: Se añadió un aro circular concéntrico más grande con un `radialGradient` animado que realiza una transición de respiración ("breathing effect") suave al seleccionar un nodo en la línea de tiempo.
+
+---
+
 ## [v1.6.2] - 2026-05-25 - Saneamiento Estático de Fallow y Simplificación Visual Cronométrica
 
 ### 🟢 Vista Clásica & Core

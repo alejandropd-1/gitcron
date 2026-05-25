@@ -60,7 +60,7 @@ function parseDiff(raw: string): DiffHunk[] {
   return hunks;
 }
 
-export function DiffViewer({ diff, filePath }: { diff: string; filePath?: string }) {
+export function DiffViewer({ diff, filePath, wordWrap = false }: { diff: string; filePath?: string; wordWrap?: boolean }) {
   const hunks = useMemo(() => parseDiff(diff), [diff]);
 
   if (!diff) {
@@ -93,22 +93,24 @@ export function DiffViewer({ diff, filePath }: { diff: string; filePath?: string
         </div>
       )}
       <div className="flex-1 overflow-auto font-mono text-[12px] leading-[1.5]">
-        {hunks.map((hunk, hi) => (
-          <div key={hi} className="border-b border-[#3c495a]/20">
-            <div className="px-4 py-1 bg-[#12273c] text-[#9eacc0] text-[11px] sticky top-0 z-10">
-              {hunk.header}
+        <div className="min-w-full inline-block">
+          {hunks.map((hunk, hi) => (
+            <div key={hi} className="border-b border-[#3c495a]/20">
+              <div className="px-4 py-1 bg-[#12273c] text-[#9eacc0] text-[11px] sticky top-0 z-10 select-none">
+                {hunk.header}
+              </div>
+              <div>
+                {hunk.lines.map((line, li) => <DiffLineRow key={li} line={line} wordWrap={wordWrap} />)}
+              </div>
             </div>
-            <div>
-              {hunk.lines.map((line, li) => <DiffLineRow key={li} line={line} />)}
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-function DiffLineRow({ line }: { line: DiffLine }) {
+function DiffLineRow({ line, wordWrap }: { line: DiffLine; wordWrap: boolean }) {
   const bg = line.type === 'add' ? 'bg-[#a3f185]/10 hover:bg-[#a3f185]/20'
     : line.type === 'remove' ? 'bg-[#ff716c]/10 hover:bg-[#ff716c]/20'
     : 'hover:bg-[#3c495a]/30';
@@ -127,7 +129,13 @@ function DiffLineRow({ line }: { line: DiffLine }) {
         {line.newLineNum ?? ''}
       </span>
       <span className={cn('w-6 text-center select-none shrink-0', markerColor)}>{marker}</span>
-      <pre className={cn('whitespace-pre flex-1 min-w-0 pr-4', textColor)}>{line.content}</pre>
+      <pre className={cn(
+        wordWrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre',
+        'flex-1 min-w-0 pr-4',
+        textColor
+      )}>
+        {line.content}
+      </pre>
     </div>
   );
 }

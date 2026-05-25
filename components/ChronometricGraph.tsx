@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useGitStore, type Commit } from '@/lib/git-store';
 import {
   mapLaneToBranchIndex,
@@ -845,6 +846,34 @@ export function ChronometricGraph({
       fontFamily: 'var(--font-sans), Inter, sans-serif',
     };
   }, [hoveredScreenPos]);
+
+  // Viewport-relative fixed coordinates for document.body React Portal
+  const hoveredCardPortalStyle = useMemo(() => {
+    if (!hoveredScreenPos || !containerRef.current) return {};
+    const rect = containerRef.current.getBoundingClientRect();
+    const containerWidth = rect.width || 800;
+    const containerHeight = rect.height || 520;
+
+    const cardWidth = 310;
+    const cardHeight = 135;
+
+    // Position adjacent to the node, clamping within screen bounds to prevent overflow
+    const leftVal = hoveredScreenPos.x + 20 + cardWidth > containerWidth
+      ? Math.max(10, hoveredScreenPos.x - 20 - cardWidth)
+      : Math.max(10, hoveredScreenPos.x + 20);
+
+    const topVal = hoveredScreenPos.y + cardHeight > containerHeight - 20
+      ? Math.max(10, hoveredScreenPos.y - 10 - cardHeight)
+      : Math.max(10, hoveredScreenPos.y + 15);
+
+    return {
+      position: 'fixed' as const,
+      left: rect.left + leftVal,
+      top: rect.top + topVal,
+      fontFamily: 'var(--font-sans), Inter, sans-serif',
+      zIndex: 99999,
+    };
+  }, [hoveredScreenPos]);
   /* eslint-enable react-hooks/refs */
 
   // Get first parent's color or own lane color for curves
@@ -889,6 +918,13 @@ export function ChronometricGraph({
           className="block"
           style={{ overflow: 'visible' }}
         >
+          <defs>
+            <radialGradient id="selected-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="var(--color-secondary)" stopOpacity="0" />
+              <stop offset="60%" stopColor="var(--color-secondary)" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="var(--color-secondary)" stopOpacity="0.4" />
+            </radialGradient>
+          </defs>
           <style>{`
             @keyframes chrono-flow {
               0% {
@@ -901,6 +937,16 @@ export function ChronometricGraph({
               100% {
                 stroke-dashoffset: 0;
                 opacity: 0.18;
+              }
+            }
+            @keyframes selected-breath {
+              0%, 100% {
+                transform: scale(0.96);
+                opacity: 0.8;
+              }
+              50% {
+                transform: scale(1.06);
+                opacity: 1;
               }
             }
           `}</style>
@@ -1172,11 +1218,14 @@ export function ChronometricGraph({
                       <circle
                         cx={node.x}
                         cy={node.y}
-                        r={isHead ? 30 : 15}
-                        fill="none"
+                        r={isHead ? 36 : 19}
+                        fill="url(#selected-glow)"
                         stroke="var(--color-secondary)"
                         strokeWidth={isHead ? 3 : 1.5}
-                        opacity={0.8}
+                        style={{
+                          transformOrigin: `${node.x}px ${node.y}px`,
+                          animation: 'selected-breath 3s ease-in-out infinite',
+                        }}
                       />
                     )}
 
@@ -1738,13 +1787,57 @@ export function ChronometricGraph({
               })}
             </g>
           </g>
+
+          {/* Curved connection line on hover */}
+          {hoveredNode && hoveredScreenPos && hoveredCardStyle && 'left' in hoveredCardStyle && 'top' in hoveredCardStyle && (() => {
+            const leftVal = hoveredCardStyle.left as number;
+            const topVal = hoveredCardStyle.top as number;
+            const cardWidth = 310;
+
+            // Start point (P0) at the center of the hovered node
+            const p0x = hoveredScreenPos.x;
+            const p0y = hoveredScreenPos.y;
+
+            // Target point on the card (P3) - connect to the closest vertical edge of the card
+            const isCardOnRight = leftVal > p0x;
+            const p3x = isCardOnRight ? leftVal : leftVal + cardWidth;
+            const p3y = topVal + 18; // Connect near the top of the card for classic look
+
+            // Control points for a beautiful organic Bezier curve
+            // P1: Exits vertically upward from the node
+            const p1x = p0x;
+            const p1y = p0y - 35;
+
+            // P2: Enters horizontally into the card edge
+            const p2x = isCardOnRight ? p3x - 45 : p3x + 45;
+            const p2y = p3y;
+
+            const yellowColor = 'var(--color-git-mod)'; // As per DESIGN.MD: git-mod is #F5A623
+
+            return (
+              <g id="hover-connection-overlay" className="pointer-events-none">
+                {/* Curved line itself */}
+                <path
+                  d={`M ${p0x} ${p0y} C ${p1x} ${p1y}, ${p2x} ${p2y}, ${p3x} ${p3y}`}
+                  stroke={yellowColor}
+                  strokeWidth={1.5}
+                  fill="none"
+                  opacity={0.85}
+                  className="transition-all duration-150"
+                />
+                {/* Visual anchor dots at start and end for premium aesthetic */}
+                <circle cx={p0x} cy={p0y} r={3} fill={yellowColor} />
+                <circle cx={p3x} cy={p3y} r={3} fill={yellowColor} />
+              </g>
+            );
+          })()}
         </svg>
 
-        {/* 5. Custom Floating Hover Card (Geometric clarity, details on-demand, relative positioned) */}
-        {hoveredNode && hoveredScreenPos && (
+        {/* 5. Custom Floating Hover Card (Geometric clarity, details on-demand, viewport relative positioned, portaled to body to overlap sidebars) */}
+        {hoveredNode && hoveredScreenPos && typeof document !== 'undefined' && createPortal(
           <div
-            className="absolute pointer-events-none bg-bg-overlay/60 backdrop-blur-md border border-border-subtle/15 rounded-md px-3 py-2.5 shadow-glass z-30 min-w-[280px] max-w-[340px] transition-opacity duration-150 animate-in fade-in zoom-in-95 duration-100"
-            style={hoveredCardStyle}
+            className="pointer-events-none bg-bg-overlay/60 backdrop-blur-md border border-border-subtle/15 rounded-md px-3 py-2.5 shadow-glass min-w-[280px] max-w-[340px] transition-opacity duration-150 animate-in fade-in zoom-in-95 duration-100"
+            style={hoveredCardPortalStyle}
           >
             <div className="flex items-center justify-between gap-3 mb-1.5 border-b border-border-subtle/15 pb-1">
               <span className="text-[10px] uppercase font-bold text-text-secondary/70 tracking-wider font-mono">
@@ -1782,7 +1875,8 @@ export function ChronometricGraph({
                 })}
               </span>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
 

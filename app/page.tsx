@@ -10,7 +10,7 @@ import {
   Sparkles, Copy, Lock, Globe, Loader2, UserCircle2,
   GitMerge, TreePine, ArrowUp, ArrowDown, ChevronDown, Check,
   Type, Filter, Monitor, ExternalLink, FileDiff, Maximize2,
-  PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
+  PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, WrapText, AlignLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import pkg from '../package.json';
@@ -563,6 +563,29 @@ export default function GitCronPage() {
 
   const [activeTab, setActiveTab] = useState('Graph');
   const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestEntry | null>(null);
+  const [wordWrap, setWordWrap] = useState(false);
+
+  // Keyboard shortcut to toggle word wrap (Alt+Z)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        setWordWrap((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const [isTabChanging, setIsTabChanging] = useState(false);
+
+  const handleTabChange = (tab: string) => {
+    setIsTabChanging(true);
+    setActiveTab(tab);
+    setTimeout(() => {
+      setIsTabChanging(false);
+    }, 150);
+  };
 
   const getGraphMode = (): 'chronometric' | 'classic' => 'chronometric';
   const graphMode = getGraphMode(); // Always use premium floating layout
@@ -655,9 +678,9 @@ export default function GitCronPage() {
         s.setActiveRepoIdx(idx);
       }
     },
-    graphTab: () => setActiveTab('Graph'),
-    historyTab: () => setActiveTab('History'),
-    commitTab: () => setActiveTab('Commit'),
+    graphTab: () => handleTabChange('Graph'),
+    historyTab: () => handleTabChange('History'),
+    commitTab: () => handleTabChange('Commit'),
   });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hash?: string } | null>(null);
   const [fileContextMenu, setFileContextMenu] = useState<{ x: number; y: number; file: GitFile } | null>(null);
@@ -1187,20 +1210,28 @@ export default function GitCronPage() {
   };
 
   const handleSelectFile = async (file: GitFile) => {
+    setIsTabChanging(true);
     setSelectedPullRequest(null);
     setPullRequestDiff(null);
     setSelectedFile(file);
+    setTimeout(() => {
+      setIsTabChanging(false);
+    }, 150);
     await loadDiff(file.path, file.staged, repoPath ?? undefined);
   };
 
   const handleSelectPullRequest = async (pr: PullRequestEntry) => {
     if (!repoPath || !githubToken || !window.api) return;
+    setIsTabChanging(true);
     setSelectedCommit(null);
     setSelectedFile(null);
     setCurrentDiff('');
     setSelectedPullRequest(pr);
     setPullRequestDiff(null);
     setPullRequestDiffLoading(true);
+    setTimeout(() => {
+      setIsTabChanging(false);
+    }, 150);
     try {
       const result = await window.api.githubGetPRDiff(githubToken, repoPath, pr.number);
       if (result.success && result.data) {
@@ -1262,11 +1293,15 @@ export default function GitCronPage() {
   };
 
   const handleCloseDiff = () => {
+    setIsTabChanging(true);
     setSelectedFile(null);
     setCurrentDiff('');
     setSelectedPullRequest(null);
     setPullRequestDiff(null);
     setPullRequestDiffLoading(false);
+    setTimeout(() => {
+      setIsTabChanging(false);
+    }, 150);
   };
 
   const handleConnectGitHub = async () => {
@@ -1401,7 +1436,7 @@ export default function GitCronPage() {
             ].map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => handleTabChange(tab.key)}
                 className={cn(
                   'px-3 h-full flex items-center text-sm transition-colors relative',
                   activeTab === tab.key ? 'text-secondary' : 'text-text-secondary hover:text-text-primary',
@@ -1980,7 +2015,8 @@ export default function GitCronPage() {
             "overflow-hidden flex flex-col min-w-0",
             graphMode === 'chronometric'
               ? cn(
-                  "absolute transition-[left,right,top,bottom] duration-300",
+                  "absolute",
+                  !isTabChanging && "transition-[left,right,top,bottom] duration-300",
                   !isMainFullBleed && "bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
                 )
               : "relative flex-1 min-h-0 bg-bg-base"
@@ -2039,7 +2075,14 @@ export default function GitCronPage() {
               )}
             </div>
           ) : selectedPullRequest ? (
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <motion.div
+              key={`pr-diff-${selectedPullRequest.number}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="flex-1 flex flex-col overflow-hidden"
+            >
               <div className="px-4 py-3 border-b border-border-subtle/15 bg-bg-base/70 shrink-0">
                 <div className="flex items-center gap-2 mb-2">
                   <button
@@ -2107,11 +2150,18 @@ export default function GitCronPage() {
                   {t('prDiff.loading')}
                 </div>
               ) : (
-                <DiffViewer diff={pullRequestDiff?.diff ?? ''} filePath={t('prDiff.unifiedDiff', { number: String(selectedPullRequest.number) })} />
+                <DiffViewer diff={pullRequestDiff?.diff ?? ''} filePath={t('prDiff.unifiedDiff', { number: String(selectedPullRequest.number) })} wordWrap={wordWrap} />
               )}
-            </div>
+            </motion.div>
           ) : selectedFile ? (
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <motion.div
+              key={`file-diff-${selectedFile.path}-${selectedFile.staged}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="flex-1 flex flex-col overflow-hidden"
+            >
               <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle/15 bg-bg-base/70 shrink-0">
                 <button
                   onClick={handleCloseDiff}
@@ -2122,6 +2172,19 @@ export default function GitCronPage() {
                 <span className="text-text-secondary/70">/</span>
                 <span className="text-xs text-text-primary font-mono truncate">{selectedFile.path}</span>
                 <div className="flex-1" />
+                <button
+                  type="button"
+                  onClick={() => setWordWrap(!wordWrap)}
+                  title={wordWrap ? "Ajuste de línea activo (Alt + Z) - Hacer clic para ver a lo largo" : "Ver a lo largo activo (Alt + Z) - Hacer clic para ajustar línea"}
+                  className={cn(
+                    "p-1 rounded border flex items-center justify-center transition-all cursor-pointer mr-1",
+                    wordWrap
+                      ? "border-secondary/40 bg-secondary/15 text-secondary hover:bg-secondary/25"
+                      : "border-text-primary/10 bg-text-primary/[0.02] text-text-secondary hover:text-text-primary hover:border-text-primary/20"
+                  )}
+                >
+                  {wordWrap ? <WrapText size={14} /> : <AlignLeft size={14} />}
+                </button>
                 <span
                   className={cn(
                     'text-[10px] px-1.5 py-0.5 rounded font-bold',
@@ -2168,23 +2231,41 @@ export default function GitCronPage() {
                   </div>
                 </div>
               )}
-              <DiffViewer diff={currentDiff} filePath={selectedFile.path} />
-            </div>
+              <DiffViewer diff={currentDiff} filePath={selectedFile.path} wordWrap={wordWrap} />
+            </motion.div>
           ) : activeTab === 'History' ? (
-            <HistoryView
-              commits={commits}
-              selectedHash={selectedCommit?.hash}
-              currentBranch={currentBranch}
-              filterText={filterText}
-              onSelect={handleSelectCommit}
-              onContextMenu={(e, c) => openContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
-              isLoading={isLoading}
-            />
+            <motion.div
+              key="history-tab"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="flex-1 flex flex-col min-h-0 overflow-hidden"
+            >
+              <HistoryView
+                commits={commits}
+                selectedHash={selectedCommit?.hash}
+                currentBranch={currentBranch}
+                filterText={filterText}
+                onSelect={handleSelectCommit}
+                onContextMenu={(e, c) => openContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
+                isLoading={isLoading}
+              />
+            </motion.div>
           ) : activeTab === 'Commit' ? (
-            <CommitTabView
-              modifiedFiles={modifiedFiles}
-              hasGithubUser={!!githubUser}
-            />
+            <motion.div
+              key="commit-tab"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="flex-1 flex flex-col min-h-0 overflow-hidden"
+            >
+              <CommitTabView
+                modifiedFiles={modifiedFiles}
+                hasGithubUser={!!githubUser}
+              />
+            </motion.div>
           ) : (
             /* Graph tab — default */
             <div className={cn("flex-1 relative min-h-0", graphMode !== 'chronometric' && "bg-bg-base")}>
@@ -2432,11 +2513,15 @@ export default function GitCronPage() {
                       key={file.path}
                       onClick={async () => {
                         if (!repoPath || !window.api) return;
+                        setIsTabChanging(true);
                         const r = await window.api.gitDiffAtCommit(repoPath, file.path, selectedCommit!.hash);
                         if (r.success && r.data) {
                           useGitStore.getState().setCurrentDiff(r.data);
                           useGitStore.getState().setSelectedFile(file);
                         }
+                        setTimeout(() => {
+                          setIsTabChanging(false);
+                        }, 150);
                       }}
                       className={cn(
                         'w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors',

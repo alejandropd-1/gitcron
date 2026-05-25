@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.6.2-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.6.3-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -357,9 +357,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.6.2.exe`                                             |
-| macOS    | `GitCron-1.6.2.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.6.2.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.6.3.exe`                                             |
+| macOS    | `GitCron-1.6.3.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.6.3.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -406,7 +406,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.6.2` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.6.3` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

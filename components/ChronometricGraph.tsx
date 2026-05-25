@@ -1275,7 +1275,7 @@ export function ChronometricGraph({
 
               {/* HEAD Target Reticle (Custom LCARS radar graphic) */}
               {headCommitNode && (
-                <g key="head-reticle">
+                <g key="head-reticle" className="pointer-events-none">
                   <g
                     transform={`translate(${headCommitNode.x}, ${headCommitNode.y}) scale(0.18) translate(-360, -360)`}
                     opacity={0.85}

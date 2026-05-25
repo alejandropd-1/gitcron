@@ -557,12 +557,15 @@ export default function GitCronPage() {
 
   const graphShowAllBranches = useGitStore((s) => s.getActiveRepo()?.graphShowAllBranches ?? true);
   const rawGraphMode = useGitStore((s) => s.getActiveRepo()?.graphMode ?? 'classic');
-  const graphMode = enableCronometric ? rawGraphMode : 'classic';
   const updateActiveRepo = useGitStore((s) => s.updateActiveRepo);
 
   const { runFetchCycle } = useAutoFetch();
 
   const [activeTab, setActiveTab] = useState('Graph');
+
+  const graphMode = (enableCronometric && rawGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile)
+    ? 'chronometric'
+    : 'classic';
 
   const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
     const activeRepo = useGitStore.getState().getActiveRepo();
@@ -4261,7 +4264,7 @@ function HistoryView({
             >
               <div className="flex items-start justify-between gap-4 mb-1.5">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <code className="text-[11px] font-mono text-secondary shrink-0">{commit.shortHash}</code>
+                  <code className="text-[11px] font-mono text-secondary shrink-0 select-text">{commit.shortHash}</code>
                   {commit.refs && commit.refs.length > 0 && (
                     <div className="flex gap-1 flex-wrap">
                       {commit.refs.slice(0, 3).map((ref) => {
@@ -4287,18 +4290,18 @@ function HistoryView({
                     </div>
                   )}
                 </div>
-                <span className="text-[11px] text-text-secondary/70 shrink-0 font-mono">{formatDate(commit.date)}</span>
+                <span className="text-[11px] text-text-secondary/70 shrink-0 font-mono select-text">{formatDate(commit.date)}</span>
               </div>
-              <p className={cn('text-sm font-medium mb-1.5', isSelected ? 'text-text-primary' : 'text-text-primary')}>
+              <p className={cn('text-sm font-medium mb-1.5 select-text', isSelected ? 'text-text-primary' : 'text-text-primary')}>
                 {commit.message}
               </p>
               <div className="flex items-center gap-2 text-xs text-text-secondary">
                 <div className="w-5 h-5 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-[8px] font-bold text-[#052900]">
                   {initials(commit.authorName)}
                 </div>
-                <span>{commit.authorName}</span>
+                <span className="select-text">{commit.authorName}</span>
                 <span className="text-text-secondary/70">·</span>
-                <span className="text-text-secondary/70 font-mono text-[10px]">{commit.authorEmail}</span>
+                <span className="text-text-secondary/70 font-mono text-[10px] select-text">{commit.authorEmail}</span>
               </div>
             </div>
           );

@@ -888,6 +888,21 @@ export function ChronometricGraph({
           className="block"
           style={{ overflow: 'visible' }}
         >
+          <style>{`
+            @keyframes chrono-flow {
+              0% {
+                stroke-dashoffset: 20;
+                opacity: 0.18;
+              }
+              50% {
+                opacity: 0.9;
+              }
+              100% {
+                stroke-dashoffset: 0;
+                opacity: 0.18;
+              }
+            }
+          `}</style>
           <g
             transform={`translate(${viewport.offsetX}, ${viewport.offsetY}) scale(${viewport.scale})`}
           >
@@ -1083,15 +1098,29 @@ export function ChronometricGraph({
 
                   return (
                     <g key={`conn-group-${node.commit.hash}-${ci}`}>
+                      {/* Base semi-transparent solid connection path */}
                       <path
                         d={`M ${cx} ${cy} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${px} ${py}`}
                         stroke={conn.color}
-                        strokeWidth={isMerge ? 1.5 : 2}
+                        strokeWidth={isMerge ? 1.5 : 2.5}
                         strokeLinecap="round"
                         fill="none"
-                        strokeDasharray={isMerge ? "3 3" : undefined}
-                        opacity={selectedHash === node.commit.hash || selectedHash === parentNode.commit.hash ? 0.9 : 0.45}
+                        opacity={selectedHash === node.commit.hash || selectedHash === parentNode.commit.hash ? 0.85 : 0.35}
                         className="transition-all duration-200"
+                      />
+                      {/* Animated dotted overlay path flowing chronologically (parent -> child) */}
+                      <path
+                        d={`M ${px} ${py} C ${cp2x} ${cp2y}, ${cp1x} ${cp1y}, ${cx} ${cy}`}
+                        stroke={conn.color}
+                        strokeWidth={isMerge ? 1.2 : 1.5}
+                        strokeLinecap="round"
+                        fill="none"
+                        strokeDasharray={isMerge ? "3 3" : "4 6"}
+                        opacity={0.85}
+                        style={{
+                          animation: 'chrono-flow 3s linear infinite',
+                          animationDelay: `${(node.chronologicalIndex * 0.4) % 3}s`,
+                        }}
                       />
                       {isMerge && mid && (
                         <path

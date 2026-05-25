@@ -4,6 +4,37 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.6.0] - 2026-05-25 - Vista Cronométrica Avanzada: Nodo HEAD Agrandado, HUD de Alta Fidelidad y Animación Temporal
+
+### 🔵 Vista Cronométrica (Beta)
+
+#### Added
+- **Nodo HEAD Agrandado al Doble**: Rediseñamos el nodo HEAD activo en la línea de tiempo cronométrica para otorgar una presencia imponente en el lienzo:
+  * El círculo core del commit ahora posee un radio de `21` (diámetro de `42px`) y su grosor de borde se incrementó a `4` (o `6` cuando está seleccionado).
+  * Las iniciales de autoría del comitente dentro del círculo se escalaron proporcionalmente de un tamaño de fuente de `fs(7.5)` a `fs(15)` para una legibilidad superior.
+  * Las guías concéntricas de hover y selección se incrementaron a radios de `28` y `30` respectivamente.
+- **Retículo Star Trek LCARS Táctico Estático**: Reemplazamos el indicador concéntrico por defecto con la intrincada e increíblemente detallada geometría del SVG LCARS personalizado (`lcar-29-main-branch.svg`):
+  * Centrado quirúrgicamente en las coordenadas de HEAD y escalado a `scale(0.18)` para enmarcar con holgura al nuevo nodo gigante.
+  * Se removió por completo la animación de rotación (`animation: 'spin 28s...'`) haciéndolo estable y estático para lograr una estética de radar militar de alta precisión de ciencia ficción.
+- **HUD de Telemetría con Mayor Aire**: Ampliamos la visualización de metadatos del HUD de telemetría de HEAD:
+  * Incrementamos la separación vertical entre líneas de texto de `12` a `16` para darles un aspecto mucho más espacioso y premium.
+  * Elevamos la separación física (`baseClearance`) de la primera línea respecto al centro de `52` a `78`, extendiendo dinámicamente la línea de conexión HUD punteada.
+- **Evasión Dinámica de Fechas y Ticks (`isNearHead`)**: Añadimos un desvío inteligente en el canvas para evitar solapamientos de texto con el retículo:
+  * Las etiquetas técnicas extremas del canvas (`[CHRONO_START // T_MIN]` y `[CHRONO_END // T_MAX]`) se separaron a `95px` de distancia de las puntas de la diagonal.
+  * Implementamos un cálculo que evalúa si la marca cronológica (ej. `T+005`, `24 may`) está a menos de `80px` de HEAD; si es así, la desplaza automáticamente `95px` hacia abajo y estira su dotted guía de conexión a `90px`.
+- **Animación del Flujo Cronológico en las Conexiones**: Diseñamos una corriente de datos luminosa que recorre la línea de tiempo principal:
+  * Declaramos una animación keyframe `@keyframes chrono-flow` que modula la opacidad (entre `0.18` y `0.9`) y desplaza el `stroke-dashoffset` en un loop continuo de 3 segundos.
+  * Dividimos los conectores del grafo en una base sólida y una sobrecapa punteada (`strokeDasharray="4 6"` y `"3 3"` para fusiones) que transporta el flujo de luz.
+  * Revertimos el trazado del overlay punteado de padre (`px, py`) a hijo (`cx, cy`) para forzar a los impulsos de luz a fluir visualmente de forma cronológica (del pasado al presente).
+  * Aplicamos un retardo dinámico de inicio (`animationDelay`) calculado con el residuo del índice del commit (`${(node.chronologicalIndex * 0.4) % 3}s`) para crear una onda staggered que viaja tramo a tramo.
+
+#### Fixed
+- **Área Interactiva y Hit-Testing de HEAD**: Solucionamos un bloqueo de clics e interacciones sobre el nodo HEAD:
+  * Añadimos la clase `pointer-events-none` al contenedor del retículo LCARS para que los clics pasen a través del overlay.
+  * Cambiamos el relleno y el trazo del círculo core de HEAD de `'none'` a `'transparent'`, logrando que el círculo sea 100% invisible para apreciar el fondo y las iniciales libres, pero manteniendo activa su superficie física interactiva para el hit-testing. Esto habilita perfectamente la manito de selección (`cursor-pointer`) y la apertura del panel de detalles al hacer clic.
+
+---
+
 ## [v1.5.0] - 2026-05-24 - Unificación en Rama Única con Feature Flags & Aislamiento Estético
 
 ### 🟢 Vista Clásica & Core

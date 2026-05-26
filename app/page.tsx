@@ -3039,7 +3039,7 @@ export default function GitCronPage() {
                     }}
                   >
                     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl">
-                    <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
+                    <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 py-2 flex items-center text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
                       <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
                       <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
                       <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
@@ -3210,6 +3210,19 @@ export default function GitCronPage() {
           </div>
           {selectedCommit ? (
             <div className="flex flex-col h-full">
+              {/* Header bar: matches Unstaged header exactly in size, padding and font */}
+              <div className="px-4 py-2 border-b border-border-subtle/15 bg-bg-surface/75 flex items-center justify-between shrink-0">
+                <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
+                  Detalles del commit
+                </span>
+                <button
+                  onClick={() => setSelectedCommit(null)}
+                  className="text-[10px] text-text-secondary hover:text-[#052900] px-2 py-0.5 rounded border border-border-subtle/15 hover:bg-secondary hover:border-secondary/40 transition-colors"
+                  title="Ir al staging area"
+                >
+                  Ver cambios →
+                </button>
+              </div>
               {/* WIP banner: visible when commit is selected but there are unsaved changes */}
               {modifiedFiles.length > 0 && (
                 <div className="px-3 py-2 bg-git-mod/10 border-b border-git-mod/20 flex items-center gap-2 shrink-0">
@@ -3224,13 +3237,6 @@ export default function GitCronPage() {
                     title="Guardar los cambios actuales en el stash"
                   >
                     Stash
-                  </button>
-                  <button
-                    onClick={() => setSelectedCommit(null)}
-                    className="text-[10px] text-text-secondary hover:text-text-primary px-2 py-0.5 rounded border border-border-subtle/15 transition-colors"
-                    title="Ir al staging area"
-                  >
-                    Ver cambios →
                   </button>
                 </div>
               )}

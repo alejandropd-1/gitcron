@@ -3,16 +3,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
-  Download, FolderOpen, Github, LogOut, Sparkles, X, Lock, Globe,
-  Loader2, Copy,
+  Download, FolderOpen, Github, Sparkles, X, Lock, Globe,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/use-translation';
-
-function userInitials(user: { name?: string | null; login?: string; email?: string | null }): string {
-  const name = user.name ?? user.login ?? user.email ?? '?';
-  return name.split(/\s+/).map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-}
 
 export function EmptyStateCard({
   icon, title, desc, onClick, highlighted,
@@ -179,91 +174,6 @@ export function CloneRepoModal({
             {isLoading ? 'Clonando...' : 'Clonar'}
           </button>
         </div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-export function ProfileMenu({
-  user, isLoading, tokenInput, setTokenInput, authMode, setAuthMode,
-  deviceCodeInfo, isLoggingIn, onClose, onLogin, onConnectToken, onLogout,
-}: {
-  user: { login: string; name: string | null; avatarUrl: string; email: string | null } | null;
-  isLoading: boolean;
-  tokenInput: string;
-  setTokenInput: (v: string) => void;
-  authMode: 'oauth' | 'token';
-  setAuthMode: (m: 'oauth' | 'token') => void;
-  deviceCodeInfo: { userCode: string; verificationUri: string } | null;
-  isLoggingIn: boolean;
-  onClose: () => void;
-  onLogin: () => Promise<void>;
-  onConnectToken: () => Promise<void>;
-  onLogout: () => void;
-}) {
-  const t = useT();
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={onClose}>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="glass-overlay rounded-xl p-6 w-[540px] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold text-secondary flex items-center gap-2 text-ui-header"><Github size={16} /> {t('toolbar.profile')}</h3>
-          <button onClick={onClose} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
-        </div>
-        {user ? (
-          <div className="space-y-4">
-            <div className="bg-bg-base border border-secondary/30 rounded-lg p-4 flex items-center gap-4">
-              {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.login} className="w-16 h-16 rounded-full border border-secondary/30" />
-              ) : (
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-secondary to-[#68b24f] flex items-center justify-center text-base font-bold text-[#052900]">{userInitials(user)}</div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-text-primary truncate">{user.name ?? user.login}</p>
-                <p className="text-xs text-secondary truncate">@{user.login}</p>
-                {user.email && <p className="text-[10px] text-text-secondary truncate mt-0.5">{user.email}</p>}
-              </div>
-            </div>
-            <div className="space-y-1">
-              <button onClick={() => window.api?.shellOpenPath(`https://github.com/${user.login}`)} className="w-full text-left px-3 py-2 rounded bg-bg-base border border-border-subtle/15 hover:border-border-subtle/30 text-ui-body text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors"><Github size={14} />{t('profile.viewOnGitHub')}</button>
-              <button onClick={() => navigator.clipboard.writeText(`@${user.login}`)} className="w-full text-left px-3 py-2 rounded bg-bg-base border border-border-subtle/15 hover:border-border-subtle/30 text-ui-body text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors"><Copy size={14} />{t('profile.copyUsername', { user: user.login })}</button>
-            </div>
-            <button onClick={onLogout} className="w-full px-3 py-2.5 rounded border border-error/30 hover:border-error/60 bg-error/10 hover:bg-error/20 text-error text-ui-body font-bold flex items-center justify-center gap-2 transition-colors"><LogOut size={14} />{t('profile.signOut')}</button>
-          </div>
-        ) : deviceCodeInfo ? (
-          <div className="bg-bg-base border border-secondary/40 rounded-lg p-5 text-center">
-            <p className="text-ui-body text-text-primary mb-4">{t('profile.deviceCodeShown')}</p>
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <code className="text-3xl font-mono font-bold text-secondary bg-bg-base px-4 py-2 rounded border border-secondary/30 tracking-widest">{deviceCodeInfo.userCode}</code>
-              <button onClick={() => navigator.clipboard.writeText(deviceCodeInfo.userCode)} className="p-2 hover:bg-border-subtle rounded text-text-secondary hover:text-secondary" title="Copy"><Copy size={14} /></button>
-            </div>
-            <p className="text-ui-small text-text-secondary mb-3">{t('profile.browserNotOpened')}{' '}<button onClick={() => window.api?.shellOpenPath(deviceCodeInfo.verificationUri)} className="text-secondary underline">{deviceCodeInfo.verificationUri}</button></p>
-            <div className="flex items-center justify-center gap-2 text-ui-small text-text-secondary"><Loader2 size={14} className="animate-spin text-secondary" />{t('profile.waitingAuth')}</div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="bg-bg-base border border-border-subtle/15 rounded p-3">
-              <p className="font-semibold text-ui-body text-text-primary mb-1">{t('profile.notConnected')}</p>
-              <p className="text-ui-small text-text-secondary leading-relaxed">{t('profile.notConnectedDesc')}</p>
-            </div>
-            <div className="flex gap-1 bg-bg-base rounded p-1">
-              <button onClick={() => setAuthMode('oauth')} className={cn('flex-1 px-3 py-1.5 text-xs font-bold rounded transition-colors', authMode === 'oauth' ? 'bg-gradient-to-br from-secondary to-[#68b24f] text-[#052900]' : 'text-text-secondary hover:text-text-primary')}>{t('profile.tabOAuth')}</button>
-              <button onClick={() => setAuthMode('token')} className={cn('flex-1 px-3 py-1.5 text-xs font-bold rounded transition-colors', authMode === 'token' ? 'bg-gradient-to-br from-secondary to-[#68b24f] text-[#052900]' : 'text-text-secondary hover:text-text-primary')}>{t('profile.tabToken')}</button>
-            </div>
-            {authMode === 'oauth' ? (
-              <>
-                <p className="text-ui-small text-text-secondary leading-relaxed">{t('profile.oauthDesc')}</p>
-                <button onClick={onLogin} disabled={isLoggingIn} className="w-full py-2.5 bg-[#24292e] hover:bg-[#373e47] border border-[#444c56] disabled:opacity-50 text-white text-ui-body font-bold rounded transition-colors flex items-center justify-center gap-2"><Github size={16} />{isLoggingIn ? t('profile.starting') : t('profile.continueWithGitHub')}</button>
-                <p className="text-[10px] text-text-secondary/70 text-center">{t('profile.oauthFooter')}</p>
-              </>
-            ) : (
-              <>
-                <p className="text-ui-small text-text-secondary leading-relaxed">{t('profile.tokenInputDesc')}{' '}<button onClick={() => window.api?.shellOpenPath('https://github.com/settings/tokens/new?scopes=repo&description=GitCron')} className="text-secondary underline hover:opacity-80">{t('profile.tokenGenerate')}</button>{' '}{t('profile.tokenScope')} <code className="bg-bg-base px-1 rounded">repo</code>.</p>
-                <input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') onConnectToken(); }} placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="w-full bg-bg-base border border-border-subtle/15 rounded px-3 py-2 text-ui-body font-mono focus:outline-none focus:border-secondary/50" />
-                <button onClick={onConnectToken} disabled={!tokenInput.trim() || isLoading} className="w-full py-2 bg-gradient-to-br from-secondary to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-ui-body font-bold rounded transition-colors">{isLoading ? t('profile.tokenVerifying') : t('profile.tokenConnect')}</button>
-              </>
-            )}
-          </div>
-        )}
       </motion.div>
     </motion.div>
   );

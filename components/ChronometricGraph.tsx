@@ -19,7 +19,6 @@ import { useCanvasViewport } from '@/hooks/use-canvas-viewport';
 import {
   computeGraph,
   initials,
-  preferredColorForCommit,
 } from './CommitGraph';
 import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Cpu, Terminal, Compass, Crosshair } from 'lucide-react';
 

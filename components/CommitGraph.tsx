@@ -79,7 +79,7 @@ export function colorForBranch(refName: string, currentBranch?: string): string 
  * Given a commit, pick the "preferred" color by looking at its refs.
  * Priority: local branch > remote branch > tag (skip) > null
  */
-export function preferredColorForCommit(commit: Commit, currentBranch?: string): string | null {
+function preferredColorForCommit(commit: Commit, currentBranch?: string): string | null {
   if (!commit.refs || commit.refs.length === 0) return null;
 
   // Skip tags and stashes

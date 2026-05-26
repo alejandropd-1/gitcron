@@ -22,8 +22,9 @@ import {
 } from '@/lib/shortcuts';
 import { useShortcuts } from '@/hooks/use-shortcuts';
 import { CommitContextMenu, BranchContextMenu, FileContextMenu, RemoteBranchContextMenu } from '@/components/ContextMenus';
-import { HelpModal, StatusBadge, FlowStep } from '@/components/HelpModal';
-import { EmptyStateCard, InitRepoModal, CloneRepoModal, ProfileMenu } from '@/components/RepoModals';
+import { StatusBadge, FlowStep } from '@/components/HelpModal';
+import { EmptyStateCard, InitRepoModal, CloneRepoModal } from '@/components/RepoModals';
+import { ChangelogPreview } from '@/components/ChangelogPreview';
 import { useGitStore, Commit, GitFile, type RepoState, type FontSize } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
@@ -34,6 +35,7 @@ import { ChronometricGraph } from '@/components/ChronometricGraph';
 import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { parseChangelog } from '@/lib/changelog';
 import type { PullRequestDiffData, PullRequestEntry } from '@/types/electron';
 
 const GRAPH_COLUMN_DEFAULTS = {
@@ -69,23 +71,6 @@ type UpdateInfo = {
   version: string;
   currentVersion: string;
   releaseDate?: string;
-};
-
-type ChangelogBullet = {
-  title: string;
-  detail?: string;
-};
-
-type ChangelogGroup = {
-  label: string;
-  items: ChangelogBullet[];
-};
-
-type ChangelogEntry = {
-  version: string;
-  date?: string;
-  title: string;
-  groups: ChangelogGroup[];
 };
 
 const MOCK_UPDATE_ENABLED = process.env.NEXT_PUBLIC_MOCK_UPDATE === '1';
@@ -138,213 +123,6 @@ function safeDirectoryPathFromError(message: string): string | null {
   if (!commandMatch?.[1]) return null;
 
   return commandMatch[1].trim().replace(/^['"`]+|['"`]+$/g, '').replace(/[.)]+$/, '');
-}
-
-function cleanChangelogText(value: string): string {
-  return value
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/^\s*>\s?!?\[?(?:NOTE|TIP|WARNING|IMPORTANT)?\]?\s*/i, '')
-    .trim();
-}
-
-function splitChangelogBullet(value: string): ChangelogBullet {
-  const clean = cleanChangelogText(value);
-  const match = clean.match(/^([^:]{3,96}):\s+(.+)$/);
-  if (!match) return { title: clean };
-  return { title: match[1], detail: match[2] };
-}
-
-function changelogSectionLabel(area: string | null, section: string | null): string {
-  const sectionLabels: Record<string, string> = {
-    Added: 'Novedades',
-    Fixed: 'Correcciones',
-    Refactored: 'Mejoras internas',
-    Docs: 'Documentación',
-    Packaging: 'Empaquetado',
-    Tests: 'Pruebas',
-    Stability: 'Estabilidad',
-  };
-  const parts = [
-    area ? cleanChangelogText(area).replace(/^[^\wÁÉÍÓÚÜÑáéíóúüñ]+/, '') : null,
-    section ? (sectionLabels[section] ?? cleanChangelogText(section)) : null,
-  ].filter(Boolean);
-  return parts.join(' · ') || 'Cambios';
-}
-
-function parseChangelog(raw: string, maxEntries = 5): ChangelogEntry[] {
-  const entries: ChangelogEntry[] = [];
-  let currentEntry: ChangelogEntry | null = null;
-  let currentArea: string | null = null;
-  let currentGroup: ChangelogGroup | null = null;
-
-  const ensureGroup = (section: string | null) => {
-    if (!currentEntry) return null;
-    const label = changelogSectionLabel(currentArea, section);
-    currentGroup = currentEntry.groups.find((group) => group.label === label) ?? null;
-    if (!currentGroup) {
-      currentGroup = { label, items: [] };
-      currentEntry.groups.push(currentGroup);
-    }
-    return currentGroup;
-  };
-
-  for (const line of raw.split(/\r?\n/)) {
-    const versionMatch = line.match(/^##\s+\[?v?([^\]\s]+)\]?\s*(?:-\s*([0-9-]+))?\s*(?:-\s*(.+))?$/);
-    if (versionMatch) {
-      if (entries.length >= maxEntries) break;
-      currentEntry = {
-        version: versionMatch[1],
-        date: versionMatch[2],
-        title: cleanChangelogText(versionMatch[3] ?? ''),
-        groups: [],
-      };
-      entries.push(currentEntry);
-      currentArea = null;
-      currentGroup = null;
-      continue;
-    }
-
-    if (!currentEntry) continue;
-
-    const areaMatch = line.match(/^###\s+(.+)$/);
-    if (areaMatch) {
-      currentArea = areaMatch[1];
-      currentGroup = null;
-      continue;
-    }
-
-    const sectionMatch = line.match(/^####\s+(.+)$/);
-    if (sectionMatch) {
-      ensureGroup(sectionMatch[1]);
-      continue;
-    }
-
-    const bulletMatch = line.match(/^\s*[-*]\s+(.+)$/);
-    if (!bulletMatch) continue;
-
-    const group = currentGroup ?? ensureGroup(null);
-    if (!group) continue;
-
-    const isNested = /^\s{2,}[*-]\s+/.test(line);
-    if (isNested && group.items.length > 0) {
-      const last = group.items[group.items.length - 1];
-      const nested = cleanChangelogText(bulletMatch[1]);
-      last.detail = [last.detail, nested].filter(Boolean).join(' ');
-      continue;
-    }
-
-    if (group.items.length < 5) {
-      group.items.push(splitChangelogBullet(bulletMatch[1]));
-    }
-  }
-
-  return entries.filter((entry) => entry.groups.some((group) => group.items.length > 0));
-}
-
-function ChangelogPreview({
-  entries,
-  error,
-  isLoading,
-}: {
-  entries: ChangelogEntry[];
-  error: string | null;
-  isLoading: boolean;
-}) {
-  return (
-    <section className="rounded-xl border border-border-subtle/15 bg-bg-base/70 overflow-hidden">
-      <div className="px-4 py-3 border-b border-border-subtle/15 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
-            <FileText size={15} className="text-secondary shrink-0" />
-            <span>Cambios recientes</span>
-          </h3>
-          <p className="mt-0.5 text-xs text-text-secondary">
-            Resumen curado desde el changelog local, sin salir de GitCron.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => window.api.shellOpenExternal('https://github.com/alejandropd-1/gitcron/releases/')}
-          className="shrink-0 h-8 px-3 rounded-lg border border-border-subtle/15 bg-bg-overlay/50 text-xs font-bold text-text-secondary hover:border-secondary/35 hover:text-secondary transition-colors flex items-center gap-2"
-        >
-          <ExternalLink size={13} />
-          <span>Historial completo</span>
-        </button>
-      </div>
-
-      {isLoading && (
-        <div className="p-4 flex items-center gap-2 text-sm text-text-secondary">
-          <Loader2 size={14} className="animate-spin text-secondary" />
-          Cargando cambios...
-        </div>
-      )}
-
-      {!isLoading && error && (
-        <div className="m-4 rounded-lg border border-error/25 bg-error/10 px-3 py-2 text-sm text-[#ffb8ad] flex items-center gap-2">
-          <AlertCircle size={14} className="shrink-0" />
-          {error}
-        </div>
-      )}
-
-      {!isLoading && !error && entries.length === 0 && (
-        <div className="p-4 text-sm text-text-secondary">
-          Todavía no hay cambios publicados para mostrar.
-        </div>
-      )}
-
-      {!isLoading && !error && entries.length > 0 && (
-        <div className="divide-y divide-border-subtle/10">
-          {entries.map((entry, entryIndex) => (
-            <details
-              key={`${entry.version}-${entry.date ?? entryIndex}`}
-              open={entryIndex === 0}
-              className="group [&>summary::-webkit-details-marker]:hidden"
-            >
-              <summary className="cursor-pointer select-none px-4 py-3 flex items-center justify-between gap-3 hover:bg-bg-overlay/35 transition-colors">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-secondary font-mono text-xs font-extrabold">v{entry.version}</span>
-                    {entry.date && (
-                      <span className="text-[11px] text-text-secondary/70 font-medium">{entry.date}</span>
-                    )}
-                  </div>
-                  {entry.title && (
-                    <p className="mt-1 text-sm font-semibold text-text-primary truncate">{entry.title}</p>
-                  )}
-                </div>
-                <ChevronRight size={15} className="text-text-secondary shrink-0 transition-transform group-open:rotate-90" />
-              </summary>
-
-              <div className="px-4 pb-4 space-y-4">
-                {entry.groups.map((group) => (
-                  <div key={group.label} className="rounded-lg border border-border-subtle/10 bg-bg-overlay/25 p-3">
-                    <h4 className="text-[11px] uppercase font-extrabold text-text-secondary tracking-wider mb-2">
-                      {group.label}
-                    </h4>
-                    <ul className="space-y-2.5">
-                      {group.items.map((item, itemIndex) => (
-                        <li key={`${item.title}-${itemIndex}`} className="grid grid-cols-[16px_1fr] gap-2 text-sm">
-                          <Check size={13} className="mt-0.5 text-secondary" />
-                          <div className="min-w-0">
-                            <p className="font-semibold text-text-primary leading-snug">{item.title}</p>
-                            {item.detail && (
-                              <p className="mt-0.5 text-xs leading-relaxed text-text-secondary">{item.detail}</p>
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </details>
-          ))}
-        </div>
-      )}
-    </section>
-  );
 }
 
 function RepoTabs({

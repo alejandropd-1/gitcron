@@ -42,7 +42,7 @@ function useAdjustedPosition(x: number, y: number) {
   return { ref, coords, isMeasured };
 }
 
-export function ContextMenuItem({
+function ContextMenuItem({
   onClick, text, textSecondary,
 }: { onClick: () => void; text: string; textSecondary?: string }) {
   return (

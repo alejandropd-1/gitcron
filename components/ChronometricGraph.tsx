@@ -916,7 +916,11 @@ export function ChronometricGraph({
           width="100%"
           height="100%"
           className="block"
-          style={{ overflow: 'visible' }}
+          style={{
+            overflow: 'visible',
+            maskImage: 'linear-gradient(to right, black 0%, black calc(100% - 370px), transparent calc(100% - 220px))',
+            WebkitMaskImage: 'linear-gradient(to right, black 0%, black calc(100% - 370px), transparent calc(100% - 220px))',
+          }}
         >
           <defs>
             <radialGradient id="selected-glow" cx="50%" cy="50%" r="50%">

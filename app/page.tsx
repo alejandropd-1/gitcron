@@ -29,7 +29,7 @@ import { useGitActions } from '@/hooks/use-git-actions';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
 import { useAutoFetch } from '@/hooks/use-auto-fetch';
 import { DiffViewer } from '@/components/DiffViewer';
-import { CommitGraph } from '@/components/CommitGraph';
+import { CommitGraph, colorForBranch } from '@/components/CommitGraph';
 import { ChronometricGraph } from '@/components/ChronometricGraph';
 import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
@@ -4428,6 +4428,9 @@ function BranchRow({
   onContextMenu: (e: React.MouseEvent, branch: string) => void;
   indent: boolean;
 }) {
+  const currentBranch = useGitStore((s) => s.currentBranch);
+  const branchColor = colorForBranch(fullPath, currentBranch || undefined);
+
   return (
     <div
       onDoubleClick={() => onCheckout(fullPath)}
@@ -4442,7 +4445,7 @@ function BranchRow({
       {isActive ? (
         <Check size={13} strokeWidth={3} className="text-secondary shrink-0" />
       ) : (
-        <GitBranch size={13} className="shrink-0 text-text-secondary/70" />
+        <GitBranch size={13} className="shrink-0" style={{ color: branchColor }} />
       )}
       <span className="truncate flex-1 text-sm select-text">{name}</span>
 
@@ -4466,6 +4469,13 @@ function BranchRow({
       {tracking?.gone && (
         <span className="text-[9px] text-error uppercase shrink-0" title="Upstream eliminado">gone</span>
       )}
+
+      {/* Branch color dot */}
+      <span
+        className="w-1.5 h-1.5 rounded-full shrink-0 ml-1 shadow-[0_0_4px_rgba(0,0,0,0.25)]"
+        style={{ backgroundColor: branchColor }}
+        title={`Color en el grafo: ${branchColor}`}
+      />
     </div>
   );
 }
@@ -4478,21 +4488,30 @@ function RemoteBranchTree({
   onCheckout: (b: string) => void;
   onContextMenu: (e: React.MouseEvent, branch: string) => void;
 }) {
+  const currentBranch = useGitStore((s) => s.currentBranch);
   const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
   return (
     <div>
-      {root.map((b) => (
-        <div
-          key={b.fullPath}
-          onDoubleClick={() => onCheckout(b.fullPath)}
-          onContextMenu={(e) => onContextMenu(e, b.fullPath)}
-          title="Doble click: checkout · Click derecho: opciones"
-          className="pl-[26px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary cursor-pointer transition-colors group relative"
-        >
-          <Cloud size={13} className="shrink-0 text-primary" />
-          <span className="truncate text-xs flex-1 select-text">{b.name}</span>
-        </div>
-      ))}
+      {root.map((b) => {
+        const branchColor = colorForBranch(b.fullPath, currentBranch || undefined);
+        return (
+          <div
+            key={b.fullPath}
+            onDoubleClick={() => onCheckout(b.fullPath)}
+            onContextMenu={(e) => onContextMenu(e, b.fullPath)}
+            title="Doble click: checkout · Click derecho: opciones"
+            className="pl-[26px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary cursor-pointer transition-colors group relative"
+          >
+            <Cloud size={13} className="shrink-0" style={{ color: branchColor }} />
+            <span className="truncate text-xs flex-1 select-text">{b.name}</span>
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0 ml-1 shadow-[0_0_4px_rgba(0,0,0,0.25)]"
+              style={{ backgroundColor: branchColor }}
+              title={`Color en el grafo: ${branchColor}`}
+            />
+          </div>
+        );
+      })}
       {folders.map((f) => (
         <RemoteFolderView
           key={f.prefix}
@@ -4513,6 +4532,7 @@ function RemoteFolderView({
   onContextMenu: (e: React.MouseEvent, branch: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
+  const currentBranch = useGitStore((s) => s.currentBranch);
   return (
     <div>
       <button
@@ -4526,18 +4546,26 @@ function RemoteFolderView({
       </button>
       {isOpen && (
         <div>
-          {folder.branches.map((b) => (
-            <div
-              key={b.fullPath}
-              onDoubleClick={() => onCheckout(b.fullPath)}
-              onContextMenu={(e) => onContextMenu(e, b.fullPath)}
-              className="pl-[46px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary transition-colors cursor-pointer group relative"
-              title={`Doble click: checkout · Click derecho: opciones\n${b.fullPath}`}
-            >
-              <GitBranch size={13} className="shrink-0 text-text-secondary/70 group-hover:text-primary transition-colors" />
-              <span className="truncate text-xs flex-1 select-text">{b.name}</span>
-            </div>
-          ))}
+          {folder.branches.map((b) => {
+            const branchColor = colorForBranch(b.fullPath, currentBranch || undefined);
+            return (
+              <div
+                key={b.fullPath}
+                onDoubleClick={() => onCheckout(b.fullPath)}
+                onContextMenu={(e) => onContextMenu(e, b.fullPath)}
+                className="pl-[46px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary transition-colors cursor-pointer group relative"
+                title={`Doble click: checkout · Click derecho: opciones\n${b.fullPath}`}
+              >
+                <GitBranch size={13} className="shrink-0" style={{ color: branchColor }} />
+                <span className="truncate text-xs flex-1 select-text">{b.name}</span>
+                <span
+                  className="w-1.5 h-1.5 rounded-full shrink-0 ml-1 shadow-[0_0_4px_rgba(0,0,0,0.25)]"
+                  style={{ backgroundColor: branchColor }}
+                  title={`Color en el grafo: ${branchColor}`}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

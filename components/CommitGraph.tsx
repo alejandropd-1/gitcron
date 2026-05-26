@@ -60,7 +60,7 @@ const CURRENT_BRANCH_COLOR = 'var(--color-secondary)';
  * Stable color for a branch/ref name.
  * Same name → always same color, regardless of repo or session.
  */
-function colorForBranch(refName: string, currentBranch?: string): string {
+export function colorForBranch(refName: string, currentBranch?: string): string {
   // Strip remote prefix to match local ↔ remote: "origin/main" == "main"
   const clean = refName
     .replace(/^refs\/heads\//, '')

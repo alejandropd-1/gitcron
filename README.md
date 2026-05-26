@@ -112,6 +112,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Configurable keyboard shortcuts: 14 actions (commit, push, pull, branch, fetch, search, etc.) editable from Settings with click-to-capture rebind.
 - Theme toggle in Settings: dark (default) and experimental light mode.
 - Auto-update now stays inside the app UI: a version-tag dot announces updates, the tag opens the download dropdown, progress stays beside the GitHub releases icon, and `UPDATE` appears there when the download is ready.
+- Settings -> Check for updates now includes a **Recent changes** view sourced from the local `CHANGELOG.md`: the newest version opens by default, older versions stay collapsible, and GitHub Releases remains available as a secondary "full history" action.
 - Startup polish: the Electron splash now shows the GitCron icon with subtle geometric animation, stays visible long enough to avoid first-paint flicker, and the Graph fades in after initial repo data is ready.
 - **Selective Text Selection**: Habilitación selectiva de la propiedad de selección de texto (`select-text`) quirúrgicamente sobre nombres de ramas (locales y remotas), agrupadores de carpetas, tags, stashes y todos los metadatos de commits (mensajes, hashes, email, autor, archivos) en los listados e insets, conservando el comportamiento nativo `select-none` en elementos interactivos.
 - **Reordenamiento de Pestañas por Arrastre (Drag-to-Reorder Repo Tabs)**: Las pestañas de los repositorios abiertos en la barra superior ahora soportan reordenamiento visual dinámico por arrastre utilizando `Reorder` de `motion/react`, with mitigación de clics accidentales durante el arrastre (`isDraggingRef`).
@@ -377,8 +378,10 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 GitCron checks for updates silently 3 seconds after the main window appears and then keeps checking every 30 minutes while the app is open. If a new version is available on [GitHub Releases](https://github.com/alejandropd-1/gitcron/releases), a dot appears on the version tag in the topbar. Clicking the tag opens an in-app dropdown with the new version and a download action. Download progress appears beside the GitHub releases icon, and an `UPDATE` button appears there once the update is ready to install.
 
+Settings -> _Buscar actualizaciones_ / _Check for updates_ also shows **Cambios recientes** / **Recent changes**, sourced from the packaged `CHANGELOG.md`. The newest entry is expanded by default, previous versions are collapsible, and the full GitHub Releases page remains one click away for technical release details.
+
 - **No update:** no dialog, no toast for silent background checks.
-- **Manual check:** open Settings → _Buscar actualizaciones_ / _Check for updates_, or click the version tag.
+- **Manual check:** open Settings -> _Buscar actualizaciones_ / _Check for updates_, or click the version tag.
 - **Platforms:** Windows (NSIS) and Linux (AppImage) auto-update without code signing. macOS auto-update is inactive until the app is signed.
 - **Dev mock:** set `NEXT_PUBLIC_MOCK_UPDATE=1` before `pnpm run electron:dev` to preview the update dot, dropdown, progress bar, and `UPDATE` button without publishing a release.
 

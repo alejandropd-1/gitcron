@@ -202,6 +202,7 @@ interface ElectronAPI {
   checkForUpdate: () => Promise<GitResult>;
   downloadUpdate: () => Promise<GitResult>;
   installUpdate: () => Promise<GitResult>;
+  getChangelog: () => Promise<GitResult<string>>;
   windowMinimize: () => Promise<GitResult>;
   windowToggleMaximize: () => Promise<GitResult<{ maximized: boolean }>>;
   windowClose: () => Promise<GitResult>;

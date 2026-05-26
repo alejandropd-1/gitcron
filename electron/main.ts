@@ -582,6 +582,25 @@ ipcMain.handle('app:install-update', async () => {
   }
 });
 
+ipcMain.handle('app:get-changelog', async () => {
+  try {
+    const candidates = [
+      path.join(process.cwd(), 'CHANGELOG.md'),
+      path.join(process.resourcesPath, 'CHANGELOG.md'),
+      path.join(app.getAppPath(), 'CHANGELOG.md'),
+      path.join(__dirname, '../../CHANGELOG.md'),
+    ];
+    const changelogPath = candidates.find((candidate) => fs.existsSync(candidate));
+    if (!changelogPath) {
+      return { success: false, error: 'CHANGELOG.md no encontrado' };
+    }
+
+    return { success: true, data: fs.readFileSync(changelogPath, 'utf-8') };
+  } catch (error) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
 ipcMain.handle('window:minimize', async () => {
   if (!mainWindow) return { success: false, error: 'Window unavailable' };
   mainWindow.minimize();

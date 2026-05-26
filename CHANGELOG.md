@@ -4,6 +4,21 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.6.5] - 2026-05-26 - Changelog Integrado en Buscar Actualizaciones
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Cambios Recientes dentro de Buscar Actualizaciones**: La pantalla de Configuración → Buscar actualizaciones ahora muestra una sección de **Cambios recientes** alimentada desde el `CHANGELOG.md` local. La última versión queda expandida por defecto y las versiones anteriores se muestran como historial colapsable para una lectura rápida, contextual y sin salir de GitCron.
+- **Parser de Changelog para UI de Usuario**: Se incorporó un parser liviano que transforma el Markdown del changelog en tarjetas legibles, agrupando cambios por versión, fecha, área y tipo de cambio (`Novedades`, `Correcciones`, `Mejoras internas`, etc.) en lugar de mostrar el archivo crudo.
+- **Bridge IPC para Changelog Local**: Electron expone `app:get-changelog` mediante preload seguro (`window.api.getChangelog()`), leyendo el changelog desde el workspace en desarrollo y desde recursos empaquetados en producción.
+
+#### Changed
+- **GitHub Releases como Acción Secundaria**: La experiencia principal para entender qué cambió queda dentro de la app, mientras que GitHub Releases se mantiene como enlace complementario de historial completo para usuarios técnicos.
+- **Empaquetado del Changelog**: `CHANGELOG.md` se incluye en `extraResources` para que la vista de Cambios recientes funcione también en builds instalados, sin depender de red ni de GitHub.
+
+---
+
 ## [v1.6.4] - 2026-05-26 - Máscara Curva Bézier de Precisión en Grafo Cronométrico y Reordenamiento Dinámico de Pestañas
 
 ### 🟢 Vista Clásica & Core

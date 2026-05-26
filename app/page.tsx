@@ -12,7 +12,7 @@ import {
   Type, Filter, Monitor, ExternalLink, FileDiff, Maximize2,
   PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, WrapText, AlignLeft,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, Reorder } from 'motion/react';
 import pkg from '../package.json';
 import {
   DEFAULT_SHORTCUTS,
@@ -129,75 +129,96 @@ function RepoTabs({
   onSelect,
   onClose,
   onOpen,
+  onReorder,
 }: {
   repos: RepoState[];
   activeIdx: number;
   onSelect: (idx: number) => void | Promise<void>;
   onClose: (idx: number) => void | Promise<void>;
   onOpen: () => void | Promise<void>;
+  onReorder: (newOrder: RepoState[]) => void;
 }) {
   const t = useT();
+  const isDraggingRef = useRef(false);
   if (repos.length === 0) return null;
 
   return (
     <div className="app-titlebar h-10 rounded-t-2xl bg-transparent border-b border-text-primary/10 flex items-stretch shrink-0 overflow-hidden gap-1">
       <div className="min-w-0 flex-1 flex items-end gap-1 pl-2 pt-1.5 pb-1 overflow-x-auto overflow-y-hidden">
-        <div className="app-titlebar-control h-7 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2">
-        <img
-          src="/gitcron-icon.png"
-          alt="GitCron"
-          data-keep-color
-          className="w-4 h-4 rounded-sm"
-        />
-        <span className="text-sm font-bold text-primary tracking-tight">GitCron</span>
+        <div className="app-titlebar-control h-7 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2 select-none">
+          <img
+            src="/gitcron-icon.png"
+            alt="GitCron"
+            data-keep-color
+            className="w-4 h-4 rounded-sm"
+          />
+          <span className="text-sm font-bold text-primary tracking-tight">GitCron</span>
         </div>
-        {repos.map((repo, idx) => {
-          const isActive = idx === activeIdx;
-          return (
-            <div
-              key={repo.path}
-              className={cn(
-                'app-titlebar-control group h-7 min-w-0 max-w-52 rounded-md flex items-center border transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
-                isActive
-                  ? 'bg-text-primary/10 border-secondary/25 text-text-primary shadow-[0_0_18px_rgba(163,241,133,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]'
-                  : 'bg-text-primary/[0.035] border-text-primary/10 text-text-secondary hover:text-text-primary hover:bg-text-primary/[0.07] hover:border-text-primary/20',
-              )}
-            >
-              <button
-                type="button"
-                onClick={() => onSelect(idx)}
-                title={t('repoTabs.switchTo', { repo: repo.name })}
-                className="min-w-0 flex-1 h-full px-2.5 flex items-center gap-2 text-left"
-              >
-                {repo.isLoading ? (
-                  <Loader2 size={10} className="shrink-0 animate-spin text-secondary" />
-                ) : (
-                  <span
-                    className={cn(
-                      'w-1.5 h-1.5 rounded-full shrink-0',
-                      isActive ? 'bg-secondary shadow-[0_0_10px_rgba(var(--color-secondary-rgb),0.5)]' : 'bg-border-subtle',
-                    )}
-                  />
-                )}
-                <span className="truncate text-xs font-semibold">{repo.name}</span>
-                <span className="text-[10px] text-text-secondary/70 font-mono truncate max-w-20 hidden md:block">
-                  {repo.currentBranch || '-'}
-                </span>
-              </button>
-              <button
-                type="button"
-                title={t('repoTabs.close', { repo: repo.name })}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClose(idx);
+        <Reorder.Group
+          axis="x"
+          values={repos}
+          onReorder={onReorder}
+          className="flex items-end gap-1 min-w-0"
+        >
+          {repos.map((repo, idx) => {
+            const isActive = idx === activeIdx;
+            return (
+              <Reorder.Item
+                key={repo.path}
+                value={repo}
+                onDragStart={() => { isDraggingRef.current = true; }}
+                onDragEnd={() => {
+                  setTimeout(() => {
+                    isDraggingRef.current = false;
+                  }, 50);
                 }}
-                className="mr-1 p-0.5 rounded text-text-secondary/70 hover:text-error hover:bg-error/10 opacity-70 group-hover:opacity-100 transition"
+                className={cn(
+                  'app-titlebar-control group h-7 min-w-0 max-w-52 rounded-md flex items-center border transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] cursor-grab active:cursor-grabbing',
+                  isActive
+                    ? 'bg-text-primary/10 border-secondary/25 text-text-primary shadow-[0_0_18px_rgba(163,241,133,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]'
+                    : 'bg-text-primary/[0.035] border-text-primary/10 text-text-secondary hover:text-text-primary hover:bg-text-primary/[0.07] hover:border-text-primary/20',
+                )}
               >
-                <X size={13} />
-              </button>
-            </div>
-          );
-        })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isDraggingRef.current) {
+                      onSelect(idx);
+                    }
+                  }}
+                  title={t('repoTabs.switchTo', { repo: repo.name })}
+                  className="min-w-0 flex-1 h-full px-2.5 flex items-center gap-2 text-left"
+                >
+                  {repo.isLoading ? (
+                     <Loader2 size={10} className="shrink-0 animate-spin text-secondary" />
+                  ) : (
+                    <span
+                      className={cn(
+                        'w-1.5 h-1.5 rounded-full shrink-0',
+                        isActive ? 'bg-secondary shadow-[0_0_10px_rgba(var(--color-secondary-rgb),0.5)]' : 'bg-border-subtle',
+                      )}
+                    />
+                  )}
+                  <span className="truncate text-xs font-semibold">{repo.name}</span>
+                  <span className="text-[10px] text-text-secondary/70 font-mono truncate max-w-20 hidden md:block">
+                    {repo.currentBranch || '-'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  title={t('repoTabs.close', { repo: repo.name })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClose(idx);
+                  }}
+                  className="mr-1 p-0.5 rounded text-text-secondary/70 hover:text-error hover:bg-error/10 opacity-70 group-hover:opacity-100 transition"
+                >
+                  <X size={13} />
+                </button>
+              </Reorder.Item>
+            );
+          })}
+        </Reorder.Group>
         <button
           type="button"
           onClick={onOpen}
@@ -524,6 +545,7 @@ export default function GitCronPage() {
     stashes, tags, submodules,
     githubToken, githubUser,
     branchTracking, worktrees, pullRequests,
+    setOpenRepos,
   } = useGitStore();
 
   const {
@@ -1403,7 +1425,7 @@ export default function GitCronPage() {
         <div
           className={cn(
             "flex flex-col",
-            graphMode === 'chronometric' && "rounded-2xl border border-text-primary/15 bg-bg-overlay/60 backdrop-blur-md shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
+            graphMode === 'chronometric' && "rounded-2xl border border-text-primary/15 bg-bg-overlay/60 backdrop-blur-md"
           )}
         >
           <RepoTabs
@@ -1412,6 +1434,7 @@ export default function GitCronPage() {
             onSelect={handleSelectRepoTab}
             onClose={handleCloseRepoTab}
             onOpen={handleOpenRepoChooser}
+            onReorder={setOpenRepos}
           />
           {/* ──────────── TOP NAV ──────────── */}
           <header
@@ -1787,7 +1810,7 @@ export default function GitCronPage() {
             "flex flex-col overflow-hidden z-30",
             !isDragging && "transition-all duration-300",
             graphMode === 'chronometric'
-              ? "absolute bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
+              ? "absolute bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl"
               : "relative bg-bg-base/70 border-r border-border-subtle/30 shrink-0"
           )}
           style={
@@ -2165,7 +2188,7 @@ export default function GitCronPage() {
               ? cn(
                   "absolute",
                   (!isTabChanging && activeView === 'repository') && "transition-[left,right,top,bottom] duration-300",
-                  !isMainFullBleed && "bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
+                  !isMainFullBleed && "bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl"
                 )
               : "relative flex-1 min-h-0 bg-bg-base"
           )}
@@ -2976,7 +2999,7 @@ export default function GitCronPage() {
                       paddingRight: detailsOpen ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
                     }}
                   >
-                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]">
+                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl">
                     <div className="sticky top-0 glass-sticky-header z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
                       <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
                       <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
@@ -3117,7 +3140,7 @@ export default function GitCronPage() {
             "flex flex-col overflow-hidden z-30",
             !isDragging && "transition-all duration-300",
             graphMode === 'chronometric'
-              ? "absolute bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
+              ? "absolute bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl"
               : "relative bg-bg-base/70 border-l border-border-subtle/30 shrink-0"
           )}
           style={

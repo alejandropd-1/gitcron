@@ -62,6 +62,7 @@ interface GitStore {
   addOrActivateRepo: (info: RepoInfo) => void;
   setActiveRepoIdx: (idx: number) => void;
   closeRepo: (idx: number) => void;
+  setOpenRepos: (openRepos: RepoState[]) => void;
 
   // Legacy active-repo API. These fields mirror openRepos[activeRepoIdx] so
   // existing hooks/components can keep working while multi-repo lands in steps.
@@ -392,4 +393,15 @@ export const useGitStore = create<GitStore>((set, get) => ({
   setTheme: (theme) => set({ theme }),
   setEnableCronometric: (enableCronometric) => set({ enableCronometric }),
   setGithubUser: (githubUser) => set({ githubUser }),
+  setOpenRepos: (openRepos) => set((state) => {
+    const activeRepo = state.openRepos[state.activeRepoIdx] ?? null;
+    const activeRepoIdx = activeRepo
+      ? openRepos.findIndex((r) => r.path === activeRepo.path)
+      : -1;
+    return {
+      openRepos,
+      activeRepoIdx,
+      ...legacyFromRepo(activeRepoFrom(openRepos, activeRepoIdx)),
+    };
+  }),
 }));

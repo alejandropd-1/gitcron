@@ -4,6 +4,29 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.6.4] - 2026-05-26 - Máscara Curva Bézier de Precisión en Grafo Cronométrico y Reordenamiento Dinámico de Pestañas
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Reordenamiento de Pestañas por Arrastre (Drag-to-Reorder Repo Tabs)**: Integración de la API `<Reorder.Group>` y `<Reorder.Item>` de `motion/react` sobre las pestañas de repositorios abiertos en la barra superior. Los usuarios ahora pueden ordenar visualmente sus pestañas arrastrándolas horizontalmente, con mitigación de clics falsos mediante referencias de estado durante el arrastre (`isDraggingRef`), previniendo autoselecciones indeseadas al reordenar pestañas.
+- **Paneles Laterales Integrados para Configuración, Ayuda y Usuario**: Reemplazo completo de los antiguos modales flotantes por paneles semánticos integrados en el layout principal. Los contenidos se adaptan fluidamente a la anchura del contenedor (`w-full` y `max-w-2xl` para el perfil de usuario), eliminando límites heredados del contenedor modal.
+- **Transición Suave de Desvanecimiento Puro (Fade-Only)**: Eliminación definitiva de las distorsiones de escalado bruscas por defecto. Implementación de transiciones puras basadas en opacidad para una experiencia visual de alta gama al abrir/cerrar paneles de Ajustes, Ayuda o Perfil de usuario.
+- **Guardia de Hidratación de Josh W. Comeau**: Implementación de una barrera de renderizado síncrono en el cliente para erradicar discrepancias de hidratación SSR, introduciendo una pantalla de carga y esqueleto premium durante la sincronización inicial.
+
+### 🔵 Vista Cronométrica (Beta)
+
+#### Added
+- **Máscara en Curva Bézier de Precisión (Solid Curved Bézier Backing Mask)**: Rediseño completo del sólido de ocultación derecho usando curvas Bézier cúbicas (`C`) en lugar de segmentos poligonales rígidos. Logramos una silueta perfectamente fluida, orgánica y circular que calza de manera idéntica al milímetro con el barrido del arco del SVG LCARS decorativo de la consola.
+- **Enmascarado con Degradado sobre el Canvas del Grafo (Linear Gradient Canvas Masking)**: Implementación de un `mask-image` / `-webkit-mask-image` de CSS directamente sobre el `<svg>` del lienzo del grafo cronométrico (`components/ChronometricGraph.tsx`). Las líneas y commits ahora se desvanecen suavemente a transparente (`opacity: 0`) entre los `370px` y `220px` antes del borde derecho, ocultándolos por completo antes de aproximarse al panel.
+- **Bordes y Esquinas Ultra-Nítidos (Cero Neblinas de Borde)**: Eliminamos los filtros de desenfoque y capas de corte del fondo decorativo que desbordaban la pantalla superior, inferior y lateral. La máscara curvo-vectorial ahora es 100% sólida y perfectamente nítida, permitiendo que el grafo se funde de forma invisible antes de tocar la consola.
+
+#### Fixed
+- **Visualización Condicional por Contexto (Context-Aware Layout Mounting)**: Restringimos la visualización del panel decorativo e interactivo LCARS y su máscara de ocultación para que solo se rendericen en el DOM si el usuario está activamente en la solapa de **`Graph`** (`activeTab === 'Graph'`) y no hay ningún visualizador de Diff de archivos (`selectedFile`) o Pull Request abierto. Esto soluciona la superposición visual en las vistas de **Commit**, **History** y lectura de diferencias de código.
+- **Comportamiento Cohesivo del TCAR y Sidebar**: Ocultamiento dinámico inteligente de la barra lateral técnica derecha (TCAR) y el switch clásico/cronométrico al navegar hacia los paneles de Configuración, Ayuda o Ajustes de Usuario. Ahora la interfaz se comporta de manera simétrica en todas las vistas de administración y configuración global.
+
+---
+
 ## [v1.6.3] - 2026-05-25 - Tooltips Flotantes Premium, Control de Word-Wrap en Diff y Transición Suave de Layout
 
 ### 🟢 Vista Clásica & Core

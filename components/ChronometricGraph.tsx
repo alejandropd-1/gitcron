@@ -278,7 +278,8 @@ export function ChronometricGraph({
     });
     return map;
   }, [rows, commitBranchNames]);
-  // 5. Pre-calculate projected commit coordinates
+
+  // 5. Pre-calculate projected commit coordinates
   const projectedCommits = useMemo(() => {
     const commitIndexMap = new Map<string, number>();
     filteredCommits.forEach((c, idx) => commitIndexMap.set(c.hash, idx));
@@ -2052,7 +2053,7 @@ export function ChronometricGraph({
       </svg>
 
       {/* 2. PANEL 01: NAV TELEMETRY & SYSTEM CONTEXT (Top-Left, z-20) */}
-      <div className="absolute top-[112px] w-[250px] bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-1.5 select-none overflow-hidden" style={{ left: hudLeftInset, transition: 'left 0.3s ease' }}>
+      <div className="absolute top-[112px] w-[250px] bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono flex flex-col gap-1.5 select-none overflow-hidden" style={{ left: hudLeftInset, transition: 'left 0.3s ease' }}>
         <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full bg-[#5ed8ff]/55" />
         <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[10px] font-bold text-[#5ed8ff] tracking-wider uppercase truncate max-w-[170px]">
@@ -2082,7 +2083,7 @@ export function ChronometricGraph({
       </div>
 
       {/* 3. PANEL 02: SYNC & DIRTY METRICS (Top-Right, z-20) */}
-      <div className="absolute top-[112px] w-[250px] bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-1.5 select-none overflow-hidden" style={{ right: hudRightInset, transition: 'right 0.3s ease' }}>
+      <div className="absolute top-[112px] w-[250px] bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono flex flex-col gap-1.5 select-none overflow-hidden" style={{ right: hudRightInset, transition: 'right 0.3s ease' }}>
         <div className="absolute right-0 top-3 bottom-3 w-[2px] rounded-full bg-[#b455ff]/55" />
         <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
           <span className="text-[9px] font-bold text-[#b455ff] tracking-wider uppercase">
@@ -2134,20 +2135,20 @@ export function ChronometricGraph({
         className="absolute flex flex-col gap-1 pointer-events-auto select-none z-20"
         style={{ right: hudRightInset, bottom: '1rem', transition: 'right 0.3s ease' }}
       >
-        <button onClick={zoomIn} title="Acercar (Zoom In)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+        <button onClick={zoomIn} title="Acercar (Zoom In)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
           <ZoomIn size={16} />
         </button>
-        <button onClick={zoomOut} title="Alejar (Zoom Out)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+        <button onClick={zoomOut} title="Alejar (Zoom Out)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
           <ZoomOut size={16} />
         </button>
-        <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+        <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
           <RotateCcw size={16} />
         </button>
       </div>
 
       <div className="chronometric-bottom-shell" style={hudDockStyle}>
         <div className="chronometric-bottom-dock">
-          <div className="hud-depth-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] flex items-center gap-3 select-none">
+          <div className="hud-depth-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono flex items-center gap-3 select-none">
             <div className="hud-depth-radar relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/35 rounded-full overflow-hidden bg-[#021820]/50">
               <svg width="30" height="30" className="absolute inset-0">
                 <circle cx="15" cy="15" r="14" fill="none" stroke="#a3f185" strokeWidth="0.75" opacity="0.28" />
@@ -2170,7 +2171,7 @@ export function ChronometricGraph({
             </div>
           </div>
 
-          <div className="hud-target-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] select-none transition-all duration-300">
+          <div className="hud-target-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono select-none transition-all duration-300">
             {selectedCommit ? (
               <div className="flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between border-b border-[#5ed8ff]/25 pb-1 mb-0.5">

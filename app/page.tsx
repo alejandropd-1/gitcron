@@ -561,6 +561,10 @@ export default function GitCronPage() {
 
   const { runFetchCycle } = useAutoFetch();
 
+  const [activeView, setActiveView] = useState<'repository' | 'settings' | 'help' | 'profile'>('repository');
+  const [selectedSettingsSection, setSelectedSettingsSection] = useState<string>('language');
+  const [selectedHelpSection, setSelectedHelpSection] = useState<string>('whatis');
+
   const [activeTab, setActiveTab] = useState('Graph');
   const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestEntry | null>(null);
   const [wordWrap, setWordWrap] = useState(false);
@@ -581,6 +585,7 @@ export default function GitCronPage() {
 
   const handleTabChange = (tab: string) => {
     setIsTabChanging(true);
+    setActiveView('repository');
     setActiveTab(tab);
     setTimeout(() => {
       setIsTabChanging(false);
@@ -590,7 +595,7 @@ export default function GitCronPage() {
   const getGraphMode = (): 'chronometric' | 'classic' => 'chronometric';
   const graphMode = getGraphMode(); // Always use premium floating layout
   const activeGraphMode = enableCronometric ? rawGraphMode : 'classic';
-  const isMainFullBleed = activeTab === 'Graph' && !selectedFile && !selectedPullRequest;
+  const isMainFullBleed = activeView === 'repository' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest;
 
   const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
     const activeRepo = useGitStore.getState().getActiveRepo();
@@ -659,8 +664,8 @@ export default function GitCronPage() {
     newBranch: () => { if (repoPath) { setNewBranchFrom(undefined); setShowNewBranch(true); } },
     search: () => setShowSearchPopover(true),
     fetchNow: () => { if (repoPath) void runFetchCycle(); },
-    settings: () => setShowSettings(true),
-    help: () => setShowHelp(true),
+    settings: () => setActiveView((v) => v === 'settings' ? 'repository' : 'settings'),
+    help: () => setActiveView((v) => v === 'help' ? 'repository' : 'help'),
     closeRepo: () => {
       const idx = useGitStore.getState().activeRepoIdx;
       if (idx >= 0) useGitStore.getState().closeRepo(idx);
@@ -822,9 +827,7 @@ export default function GitCronPage() {
     document.addEventListener('mouseup', onUp);
   };
 
-  const [showSettings, setShowSettings] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
+
   const [filterText, setFilterText] = useState('');
   const filterInputRef = useRef<HTMLInputElement>(null);
   const [showInitRepo, setShowInitRepo] = useState(false);
@@ -948,10 +951,10 @@ export default function GitCronPage() {
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Retry GitHub user info fetch if we have a token but no user, either on online events or when opening profile dropdown.
+  // Retry GitHub user info fetch if we have a token but no user, either on online events or when opening profile view.
   useEffect(() => {
     if (githubToken && !githubUser) {
-      if (showProfile) {
+      if (activeView === 'profile') {
         void bootstrapGitHub();
       }
       const handleOnline = () => {
@@ -960,7 +963,7 @@ export default function GitCronPage() {
       window.addEventListener('online', handleOnline);
       return () => window.removeEventListener('online', handleOnline);
     }
-  }, [githubToken, githubUser, showProfile, bootstrapGitHub]);
+  }, [githubToken, githubUser, activeView, bootstrapGitHub]);
 
   useEffect(() => {
     const handleClick = () => {
@@ -1332,6 +1335,7 @@ export default function GitCronPage() {
     setCurrentDiff('');
     setSelectedPullRequest(null);
     setPullRequestDiff(null);
+    setActiveView('repository');
     setShowRepoChooser(true);
   };
 
@@ -1355,6 +1359,7 @@ export default function GitCronPage() {
   const handleSelectRepoTab = async (idx: number) => {
     const repo = openRepos[idx];
     if (!repo || idx === activeRepoIdx) return;
+    setActiveView('repository');
     setShowRepoChooser(false);
     setSelectedPullRequest(null);
     setPullRequestDiff(null);
@@ -1377,6 +1382,15 @@ export default function GitCronPage() {
     setPullDecision(null);
     await pullWithDecision(mode);
   };
+
+  if (!isStartupHydrated) {
+    return (
+      <div className="flex flex-col h-screen w-screen bg-bg-base items-center justify-center text-text-secondary text-sm select-none">
+        <Loader2 size={24} className="animate-spin mb-3 text-secondary animate-pulse" />
+        <p className="font-semibold text-text-primary tracking-wide">Iniciando GitCron...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-bg-base text-text-primary font-sans overflow-hidden select-none">
@@ -1469,7 +1483,7 @@ export default function GitCronPage() {
 
         <div className="flex items-center justify-end gap-1 min-w-0">
           {/* Branch filter dropdown — only visible when Graph tab is active */}
-          {activeTab === 'Graph' && repoPath && enableCronometric && (
+          {activeView === 'repository' && activeTab === 'Graph' && repoPath && enableCronometric && (
             <div className="bg-bg-overlay/90 border border-border-subtle/20 rounded-md flex items-center p-0.5 mr-1 shrink-0">
               <button
                 type="button"
@@ -1548,9 +1562,9 @@ export default function GitCronPage() {
               <AnimatePresence>
                 {showUpdateMenu && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
                     className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border-subtle/25 bg-bg-overlay/95 backdrop-blur-xl shadow-2xl shadow-black/40 p-3 z-[220]"
                   >
                     <div className="flex items-start gap-2.5">
@@ -1646,9 +1660,9 @@ export default function GitCronPage() {
               <AnimatePresence>
                 {showBranchFilterDropdown && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
                     className="absolute right-0 top-full mt-1 glass-overlay rounded-lg shadow-2xl shadow-black/40 py-1 z-50 w-44"
                     onClick={() => setShowBranchFilterDropdown(false)}
                   >
@@ -1801,176 +1815,300 @@ export default function GitCronPage() {
             <div className="absolute inset-y-3 right-0.5 w-px bg-transparent group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin py-2">
-          {/* LOCAL — folder tree + ahead/behind chips */}
-          <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-primary" />}>
-            {branches.length === 0 && !repoPath && (
-              <p className="px-4 py-2 text-xs text-text-secondary italic">{t('sidebar.noBranches')}</p>
-            )}
-            <BranchTree
-              branches={branches}
-              currentBranch={currentBranch}
-              tracking={branchTracking}
-              onCheckout={(b) => handleCheckoutAttempt(b)}
-              onContextMenu={(e, b) => {
-                e.preventDefault();
-                openBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
-              }}
-            />
-          </SidebarSection>
-
-          {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
-          <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} className="text-primary" />}>
-            <RemoteBranchTree
-              branches={remoteBranches}
-              onCheckout={(b) => handleCheckoutAttempt(b)}
-              onContextMenu={(e, b) => {
-                e.preventDefault();
-                openRemoteBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
-              }}
-            />
-          </SidebarSection>
-
-          {/* PULL REQUESTS — only when logged in to GitHub */}
-          {githubUser && (
-            <SidebarSection title={t('sidebar.pullRequests')} count={pullRequests.length || undefined}>
-              {pullRequests.length === 0 && (
-                <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noPRs')}</p>
-              )}
-              {pullRequests.map((pr) => (
-                <div
-                  key={pr.number}
-                  className={cn(
-                    'group flex items-stretch text-sm transition-colors',
-                    selectedPullRequest?.number === pr.number
-                      ? 'bg-secondary/10 text-text-primary'
-                      : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+            {activeView === 'repository' ? (
+              <>
+                {/* LOCAL — folder tree + ahead/behind chips */}
+                <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-primary" />}>
+                  {branches.length === 0 && !repoPath && (
+                    <p className="px-4 py-2 text-xs text-text-secondary italic">{t('sidebar.noBranches')}</p>
                   )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleSelectPullRequest(pr)}
-                    title={t('prDiff.view', { number: String(pr.number) })}
-                    className="flex-1 min-w-0 text-left px-4 py-1.5 flex items-start gap-2"
-                  >
-                    <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-text-secondary' : 'text-secondary')} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-mono text-text-secondary/70">#{pr.number}</span>
-                        {pr.draft && <span className="text-[9px] text-text-secondary/70 uppercase">{t('sidebar.draft')}</span>}
-                      </div>
-                      <p className="text-xs truncate">{pr.title}</p>
-                      <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-text-secondary/70">
-                        <span className="truncate">{pr.branch}</span>
-                        <span className="text-secondary">+{pr.additions}</span>
-                        <span className="text-error">-{pr.deletions}</span>
-                      </div>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => window.api?.shellOpenExternal(pr.url)}
-                    title={t('sidebar.openInGitHub', { number: String(pr.number) })}
-                    className="w-8 shrink-0 flex items-center justify-center text-text-secondary/70 hover:text-secondary opacity-0 group-hover:opacity-100 transition"
-                  >
-                    <ExternalLink size={12} />
-                  </button>
-                </div>
-              ))}
-            </SidebarSection>
-          )}
+                  <BranchTree
+                    branches={branches}
+                    currentBranch={currentBranch}
+                    tracking={branchTracking}
+                    onCheckout={(b) => handleCheckoutAttempt(b)}
+                    onContextMenu={(e, b) => {
+                      e.preventDefault();
+                      openBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
+                    }}
+                  />
+                </SidebarSection>
 
-          {/* STASH */}
-          <SidebarSection
-            title={t('sidebar.stash')}
-            count={stashes.length || undefined}
-            extra={stashes.length > 1 ? (
-              showStashClearConfirm ? (
-                <div className="flex items-center gap-1 ml-1">
-                  <button
-                    onClick={async () => { await stashClear(); setShowStashClearConfirm(false); }}
-                    className="text-[9px] px-1.5 py-0.5 rounded bg-error text-white font-bold"
-                  >
-                    Sí, limpiar
-                  </button>
-                  <button
-                    onClick={() => setShowStashClearConfirm(false)}
-                    className="text-[9px] px-1.5 py-0.5 rounded bg-border-subtle text-text-secondary"
-                  >
-                    No
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowStashClearConfirm(true)}
-                  className="text-[9px] text-text-secondary hover:text-error transition-colors ml-1 font-medium"
-                  title="Eliminar todos los stashes"
-                >
-                  limpiar todo
-                </button>
-              )
-            ) : undefined}
-          >
-            {stashes.length === 0 && repoPath && (
-              <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noStashes')}</p>
-            )}
-            {stashes.map((s) => (
-              <StashItem key={s.index} stash={s} onApply={() => stashApply(s.index)} onDrop={() => stashDrop(s.index)} />
-            ))}
-          </SidebarSection>
+                {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
+                <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} className="text-primary" />}>
+                  <RemoteBranchTree
+                    branches={remoteBranches}
+                    onCheckout={(b) => handleCheckoutAttempt(b)}
+                    onContextMenu={(e, b) => {
+                      e.preventDefault();
+                      openRemoteBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
+                    }}
+                  />
+                </SidebarSection>
 
-          {/* TAGS */}
-          <SidebarSection title={t('sidebar.tags')} count={tags.length || undefined}>
-            {tags.length === 0 && repoPath && (
-              <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
-            )}
-            {tags.map((t) => <SidebarItem key={t} icon={<Tag size={16} />} text={t} />)}
-          </SidebarSection>
-
-          {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
-          {worktrees.length > 1 && (
-            <SidebarSection title={t('sidebar.worktrees')} count={worktrees.length}>
-              {worktrees.map((wt) => {
-                const name = wt.path.split(/[/\\]/).pop() || wt.path;
-                return (
-                  <button
-                    key={wt.path}
-                    onClick={() => window.api?.shellOpenPath(wt.path)}
-                    title={wt.path}
-                    className="w-full text-left px-4 py-1.5 flex items-center gap-3 text-sm hover:bg-bg-surface/70 text-text-secondary hover:text-text-primary transition-colors"
-                  >
-                    <TreePine size={14} className="shrink-0 text-primary" />
-                    <span className="truncate flex-1">{name}</span>
-                    {wt.branch && (
-                      <span className="text-[10px] font-mono text-text-secondary/70 shrink-0">{wt.branch}</span>
+                {/* PULL REQUESTS — only when logged in to GitHub */}
+                {githubUser && (
+                  <SidebarSection title={t('sidebar.pullRequests')} count={pullRequests.length || undefined}>
+                    {pullRequests.length === 0 && (
+                      <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noPRs')}</p>
                     )}
-                  </button>
-                );
-              })}
-            </SidebarSection>
-          )}
+                    {pullRequests.map((pr) => (
+                      <div
+                        key={pr.number}
+                        className={cn(
+                          'group flex items-stretch text-sm transition-colors',
+                          selectedPullRequest?.number === pr.number
+                            ? 'bg-secondary/10 text-text-primary'
+                            : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSelectPullRequest(pr)}
+                          title={t('prDiff.view', { number: String(pr.number) })}
+                          className="flex-1 min-w-0 text-left px-4 py-1.5 flex items-start gap-2"
+                        >
+                          <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-text-secondary' : 'text-secondary')} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] font-mono text-text-secondary/70">#{pr.number}</span>
+                              {pr.draft && <span className="text-[9px] text-text-secondary/70 uppercase">{t('sidebar.draft')}</span>}
+                            </div>
+                            <p className="text-xs truncate">{pr.title}</p>
+                            <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-text-secondary/70">
+                              <span className="truncate">{pr.branch}</span>
+                              <span className="text-secondary">+{pr.additions}</span>
+                              <span className="text-error">-{pr.deletions}</span>
+                            </div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => window.api?.shellOpenExternal(pr.url)}
+                          title={t('sidebar.openInGitHub', { number: String(pr.number) })}
+                          className="w-8 shrink-0 flex items-center justify-center text-text-secondary/70 hover:text-secondary opacity-0 group-hover:opacity-100 transition"
+                        >
+                          <ExternalLink size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </SidebarSection>
+                )}
 
-          {/* SUBMODULES — only render section if there are any */}
-          {submodules.length > 0 && (
-            <SidebarSection title={t('sidebar.submodules')} count={submodules.length}>
-              {submodules.map((sm) => <SidebarItem key={sm.path} icon={<Layers size={16} />} text={sm.path} />)}
-            </SidebarSection>
-          )}
+                {/* STASH */}
+                <SidebarSection
+                  title={t('sidebar.stash')}
+                  count={stashes.length || undefined}
+                  extra={stashes.length > 1 ? (
+                    showStashClearConfirm ? (
+                      <div className="flex items-center gap-1 ml-1">
+                        <button
+                          onClick={async () => { await stashClear(); setShowStashClearConfirm(false); }}
+                          className="text-[9px] px-1.5 py-0.5 rounded bg-error text-white font-bold"
+                        >
+                          Sí, limpiar
+                        </button>
+                        <button
+                          onClick={() => setShowStashClearConfirm(false)}
+                          className="text-[9px] px-1.5 py-0.5 rounded bg-border-subtle text-text-secondary"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowStashClearConfirm(true)}
+                        className="text-[9px] text-text-secondary hover:text-error transition-colors ml-1 font-medium"
+                        title="Eliminar todos los stashes"
+                      >
+                        limpiar todo
+                      </button>
+                    )
+                  ) : undefined}
+                >
+                  {stashes.length === 0 && repoPath && (
+                    <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noStashes')}</p>
+                  )}
+                  {stashes.map((s) => (
+                    <StashItem key={s.index} stash={s} onApply={() => stashApply(s.index)} onDrop={() => stashDrop(s.index)} />
+                  ))}
+                </SidebarSection>
+
+                {/* TAGS */}
+                <SidebarSection title={t('sidebar.tags')} count={tags.length || undefined}>
+                  {tags.length === 0 && repoPath && (
+                    <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
+                  )}
+                  {tags.map((t) => <SidebarItem key={t} icon={<Tag size={16} />} text={t} />)}
+                </SidebarSection>
+
+                {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
+                {worktrees.length > 1 && (
+                  <SidebarSection title={t('sidebar.worktrees')} count={worktrees.length}>
+                    {worktrees.map((wt) => {
+                      const name = wt.path.split(/[/\\]/).pop() || wt.path;
+                      return (
+                        <button
+                          key={wt.path}
+                          onClick={() => window.api?.shellOpenPath(wt.path)}
+                          title={wt.path}
+                          className="w-full text-left px-4 py-1.5 flex items-center gap-3 text-sm hover:bg-bg-surface/70 text-text-secondary hover:text-text-primary transition-colors"
+                        >
+                          <TreePine size={14} className="shrink-0 text-primary" />
+                          <span className="truncate flex-1 text-left">{name}</span>
+                          {wt.branch && (
+                            <span className="text-[10px] font-mono text-text-secondary/70 shrink-0">{wt.branch}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </SidebarSection>
+                )}
+
+                {/* SUBMODULES — only render section if there are any */}
+                {submodules.length > 0 && (
+                  <SidebarSection title={t('sidebar.submodules')} count={submodules.length}>
+                    {submodules.map((sm) => <SidebarItem key={sm.path} icon={<Layers size={16} />} text={sm.path} />)}
+                  </SidebarSection>
+                )}
+              </>
+            ) : activeView === 'settings' ? (
+              <div className="flex flex-col h-full select-none">
+                <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
+                  <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                    <Settings size={14} /> {t('settings.title')}
+                  </span>
+                  <button
+                    onClick={() => setActiveView('repository')}
+                    className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
+                    title="Volver al Repositorio"
+                  >
+                    <ArrowLeft size={12} />
+                  </button>
+                </div>
+                <div className="py-2 space-y-0.5">
+                  {[
+                    { id: 'language', label: t('settings.language'), icon: <Globe size={14} /> },
+                    { id: 'fontSize', label: t('settings.fontSize'), icon: <Type size={14} /> },
+                    { id: 'defaultFolder', label: t('settings.defaultFolder'), icon: <Folder size={14} /> },
+                    { id: 'theme', label: t('settings.theme'), icon: <Sparkles size={14} /> },
+                    { id: 'cronometric', label: 'Línea de Tiempo', icon: <Sparkles size={14} /> },
+                    { id: 'autoFetch', label: t('settings.autoFetch'), icon: <RotateCcw size={14} /> },
+                    { id: 'osNotifications', label: t('settings.osNotifications'), icon: <AlertCircle size={14} /> },
+                    { id: 'shortcuts', label: t('settings.shortcuts'), icon: <Type size={14} /> },
+                    { id: 'security', label: t('settings.security'), icon: <Lock size={14} /> },
+                    { id: 'updates', label: t('settings.checkUpdates'), icon: <Download size={14} /> },
+                    { id: 'about', label: t('settings.about'), icon: <HelpCircle size={14} /> },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => setSelectedSettingsSection(item.id)}
+                      className={cn(
+                        'w-full px-4 py-2 flex items-center gap-3 text-xs font-semibold tracking-wide transition-colors text-left relative',
+                        selectedSettingsSection === item.id
+                          ? 'bg-secondary/10 text-secondary'
+                          : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+                      )}
+                    >
+                      {selectedSettingsSection === item.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />}
+                      <span className={cn('shrink-0', selectedSettingsSection === item.id ? 'text-secondary' : 'text-text-secondary/70')}>{item.icon}</span>
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : activeView === 'help' ? (
+              <div className="flex flex-col h-full select-none">
+                <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
+                  <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                    <HelpCircle size={14} /> {t('toolbar.help')}
+                  </span>
+                  <button
+                    onClick={() => setActiveView('repository')}
+                    className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
+                    title="Volver al Repositorio"
+                  >
+                    <ArrowLeft size={12} />
+                  </button>
+                </div>
+                <div className="py-2 space-y-0.5">
+                  {[
+                    { id: 'whatis', label: '¿Qué es GitCron?', icon: <HelpCircle size={14} /> },
+                    { id: 'columns', label: 'Las 3 Columnas', icon: <Layers size={14} /> },
+                    { id: 'tabs', label: 'Las 3 Solapas', icon: <FileText size={14} /> },
+                    { id: 'states', label: 'Estados de Archivo', icon: <Sparkles size={14} /> },
+                    { id: 'buttons', label: 'Botones del Toolbar', icon: <Zap size={14} /> },
+                    { id: 'flow', label: 'Flujo Típico', icon: <RotateCcw size={14} /> },
+                    { id: 'security', label: 'Seguridad de Token', icon: <Lock size={14} /> },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => setSelectedHelpSection(item.id)}
+                      className={cn(
+                        'w-full px-4 py-2 flex items-center gap-3 text-xs font-semibold tracking-wide transition-colors text-left relative',
+                        selectedHelpSection === item.id
+                          ? 'bg-secondary/10 text-secondary'
+                          : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+                      )}
+                    >
+                      {selectedHelpSection === item.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />}
+                      <span className={cn('shrink-0', selectedHelpSection === item.id ? 'text-secondary' : 'text-text-secondary/70')}>{item.icon}</span>
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col h-full select-none">
+                <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
+                  <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                    <Github size={14} /> {t('toolbar.profile')}
+                  </span>
+                  <button
+                    onClick={() => setActiveView('repository')}
+                    className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
+                    title="Volver al Repositorio"
+                  >
+                    <ArrowLeft size={12} />
+                  </button>
+                </div>
+                <div className="py-2">
+                  <button
+                    className="w-full px-4 py-2 flex items-center gap-3 text-xs font-semibold tracking-wide bg-secondary/10 text-secondary text-left relative"
+                  >
+                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />
+                    <span className="shrink-0 text-secondary"><Github size={14} /></span>
+                    <span className="truncate">Cuenta GitHub</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="shrink-0 border-t border-text-primary/10 bg-bg-base/70/35 px-3 py-3">
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setShowSettings(true)}
+                onClick={() => setActiveView((v) => v === 'settings' ? 'repository' : 'settings')}
                 title={t('toolbar.settings')}
-                className="h-9 w-9 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary flex items-center justify-center transition-colors hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary"
+                className={cn(
+                  'h-9 w-9 rounded-lg border flex items-center justify-center transition-colors',
+                  activeView === 'settings'
+                    ? 'border-secondary/35 bg-secondary/10 text-secondary'
+                    : 'border-text-primary/15 bg-text-primary/[0.035] text-text-secondary hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary'
+                )}
               >
                 <Settings size={17} />
               </button>
               <button
                 type="button"
-                onClick={() => setShowHelp(true)}
+                onClick={() => setActiveView((v) => v === 'help' ? 'repository' : 'help')}
                 title={t('toolbar.help')}
-                className="h-9 w-9 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary flex items-center justify-center transition-colors hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary"
+                className={cn(
+                  'h-9 w-9 rounded-lg border flex items-center justify-center transition-colors',
+                  activeView === 'help'
+                    ? 'border-secondary/35 bg-secondary/10 text-secondary'
+                    : 'border-text-primary/15 bg-text-primary/[0.035] text-text-secondary hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary'
+                )}
               >
                 <HelpCircle size={17} />
               </button>
@@ -1978,9 +2116,14 @@ export default function GitCronPage() {
                 {githubUser ? (
                   <button
                     type="button"
-                    onClick={() => setShowProfile(true)}
+                    onClick={() => setActiveView((v) => v === 'profile' ? 'repository' : 'profile')}
                     title={t('toolbar.connectedAs', { user: githubUser.login })}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-secondary/35 bg-secondary/10 hover:border-secondary/60 hover:bg-secondary/15 transition-colors"
+                    className={cn(
+                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors',
+                      activeView === 'profile'
+                        ? 'border-secondary bg-secondary/20'
+                        : 'border-secondary/35 bg-secondary/10 hover:border-secondary/60 hover:bg-secondary/15'
+                    )}
                   >
                     {githubUser.avatarUrl ? (
                       <img
@@ -1997,9 +2140,14 @@ export default function GitCronPage() {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setShowProfile(true)}
+                    onClick={() => setActiveView((v) => v === 'profile' ? 'repository' : 'profile')}
                     title={t('toolbar.connectGitHub')}
-                    className="h-10 w-10 shrink-0 rounded-full border border-text-primary/15 bg-text-primary/[0.035] flex items-center justify-center text-text-secondary hover:text-secondary hover:bg-text-primary/10 hover:border-secondary/35 transition-colors"
+                    className={cn(
+                      'h-10 w-10 shrink-0 rounded-full border flex items-center justify-center transition-colors',
+                      activeView === 'profile'
+                        ? 'border-secondary bg-secondary/15 text-secondary'
+                        : 'border-text-primary/15 bg-text-primary/[0.035] text-text-secondary hover:text-secondary hover:bg-text-primary/10 hover:border-secondary/35'
+                    )}
                   >
                     <UserCircle2 size={24} strokeWidth={1.5} />
                   </button>
@@ -2016,7 +2164,7 @@ export default function GitCronPage() {
             graphMode === 'chronometric'
               ? cn(
                   "absolute",
-                  !isTabChanging && "transition-[left,right,top,bottom] duration-300",
+                  (!isTabChanging && activeView === 'repository') && "transition-[left,right,top,bottom] duration-300",
                   !isMainFullBleed && "bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl shadow-[0_22px_70px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.07)]"
                 )
               : "relative flex-1 min-h-0 bg-bg-base"
@@ -2029,12 +2177,555 @@ export default function GitCronPage() {
                     top: 96 + FLOATING_PANEL_INSET,
                     bottom: FLOATING_PANEL_INSET,
                     left: sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
-                    right: detailsOpen ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
+                    right: (detailsOpen && activeView === 'repository') ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
                   }
               : undefined
           }
         >
-          {!repoPath || showRepoChooser ? (
+          {activeView === 'settings' ? (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
+              <div className="px-6 py-4 border-b border-border-subtle/15 shrink-0 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings size={18} className="text-secondary" />
+                  <h2 className="text-base font-bold text-text-primary">
+                    {selectedSettingsSection === 'language' && t('settings.language')}
+                    {selectedSettingsSection === 'fontSize' && t('settings.fontSize')}
+                    {selectedSettingsSection === 'defaultFolder' && t('settings.defaultFolder')}
+                    {selectedSettingsSection === 'theme' && t('settings.theme')}
+                    {selectedSettingsSection === 'cronometric' && 'Vista Cronométrica (Beta)'}
+                    {selectedSettingsSection === 'autoFetch' && t('settings.autoFetch')}
+                    {selectedSettingsSection === 'osNotifications' && t('settings.osNotifications')}
+                    {selectedSettingsSection === 'shortcuts' && t('settings.shortcuts')}
+                    {selectedSettingsSection === 'security' && t('settings.security')}
+                    {selectedSettingsSection === 'updates' && t('settings.checkUpdates')}
+                    {selectedSettingsSection === 'about' && t('settings.about')}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setActiveView('repository')}
+                  className="text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
+                >
+                  Volver al Repositorio
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 w-full select-text">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={selectedSettingsSection}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="space-y-6"
+                  >
+                    {selectedSettingsSection === 'language' && (
+                      <div className="space-y-4">
+                        <p className="text-sm text-text-secondary">{t('settings.languageDesc')}</p>
+                        <div className="flex gap-2">
+                          {LANGS.map((l) => (
+                            <button
+                              key={l.code}
+                              onClick={() => changeLanguage(l.code as Lang)}
+                              className={cn(
+                                'flex-1 px-4 py-3 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors',
+                                language === l.code
+                                  ? 'bg-secondary/15 border-secondary/50 text-secondary'
+                                  : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary hover:border-border-subtle/30',
+                              )}
+                            >
+                              <span className="text-lg">{l.flag}</span>
+                              <span className="font-semibold">{l.label}</span>
+                              {language === l.code && <Check size={14} strokeWidth={3} className="ml-1" />}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedSettingsSection === 'fontSize' && (
+                      <div className="space-y-4">
+                        <p className="text-sm text-text-secondary">{t('settings.fontSizeDesc')}</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {FONT_SIZE_OPTIONS.map((option) => {
+                            const labelKey = option.key === 'compact'
+                              ? 'settings.fontCompact'
+                              : option.key === 'normal'
+                                ? 'settings.fontNormal'
+                                : 'settings.fontLarge';
+                            return (
+                              <button
+                                key={option.key}
+                                onClick={() => changeFontSize(option.key)}
+                                className={cn(
+                                  'px-4 py-3 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors',
+                                  fontSize === option.key
+                                    ? 'bg-secondary/15 border-secondary/50 text-secondary'
+                                    : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary hover:border-border-subtle/30',
+                                )}
+                              >
+                                <span className="font-semibold">{t(labelKey)}</span>
+                                {fontSize === option.key && <Check size={14} strokeWidth={3} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedSettingsSection === 'defaultFolder' && (
+                      <div className="space-y-4">
+                        <p className="text-sm text-text-secondary">{t('settings.defaultFolderDesc')}</p>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="flex-1 px-4 py-2.5 rounded-lg border bg-bg-base/70 border-border-subtle/15 text-sm font-mono truncate"
+                            title={defaultFolder ?? ''}
+                          >
+                            <span className={defaultFolder ? 'text-text-primary' : 'text-text-secondary/70'}>
+                              {defaultFolder ?? t('settings.defaultFolderNone')}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => pickDefaultFolder()}
+                            className="px-4 py-2.5 rounded-lg border bg-bg-base/70 border-border-subtle/30 text-sm text-text-primary hover:bg-border-subtle/30 transition-colors"
+                          >
+                            {t('settings.defaultFolderChange')}
+                          </button>
+                          {defaultFolder && (
+                            <button
+                              onClick={() => changeDefaultFolder(null)}
+                              className="px-4 py-2.5 rounded-lg border bg-bg-base/70 border-border-subtle/15 text-sm text-text-secondary hover:text-[#ffa8a3] hover:border-[#ffa8a3]/30 transition-colors"
+                            >
+                              {t('settings.defaultFolderClear')}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedSettingsSection === 'theme' && (
+                      <div className="space-y-4">
+                        <p className="text-xs text-text-secondary/70 mb-2 italic">{t('settings.themeLightWarning')}</p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => changeTheme('dark')}
+                            className={cn(
+                              'flex-1 px-4 py-3 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors',
+                              theme === 'dark'
+                                ? 'bg-secondary/15 border-secondary/50 text-secondary'
+                                : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
+                            )}
+                          >
+                            {theme === 'dark' && <Check size={14} strokeWidth={3} />}
+                            {t('settings.themeDark')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => changeTheme('light')}
+                            className={cn(
+                              'flex-1 px-4 py-3 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors',
+                              theme === 'light'
+                                ? 'bg-secondary/15 border-secondary/50 text-secondary'
+                                : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
+                            )}
+                          >
+                            {theme === 'light' && <Check size={14} strokeWidth={3} />}
+                            {t('settings.themeLight')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedSettingsSection === 'cronometric' && (
+                      <div className="space-y-4">
+                        <p className="text-sm text-text-secondary leading-relaxed">
+                          Habilita la nueva línea de tiempo interactiva avanzada basada en Canvas espacial y HUD dinámico.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => changeEnableCronometric(!enableCronometric)}
+                          className={cn(
+                            'w-full px-4 py-3 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors font-semibold',
+                            enableCronometric
+                              ? 'bg-secondary/15 border-secondary/50 text-secondary'
+                              : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
+                          )}
+                        >
+                          {enableCronometric ? (
+                            <>
+                              <Check size={14} strokeWidth={3} />
+                              Activa
+                            </>
+                          ) : (
+                            'Inactiva (Usar vista clásica estable)'
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedSettingsSection === 'autoFetch' && (
+                      <AutoFetchSection setAutoFetchPrefs={setAutoFetchPrefs} />
+                    )}
+
+                    {selectedSettingsSection === 'osNotifications' && (
+                      <OsNotificationsSection setOsNotifications={setOsNotifications} />
+                    )}
+
+                    {selectedSettingsSection === 'shortcuts' && (
+                      <ShortcutsSection
+                        rebindShortcut={rebindShortcut}
+                        resetShortcutsToDefaults={resetShortcutsToDefaults}
+                      />
+                    )}
+
+                    {selectedSettingsSection === 'security' && (
+                      <div className="space-y-4">
+                        <p className="text-sm text-text-secondary leading-relaxed">
+                          {t('settings.dataLocation')}
+                        </p>
+                        <button
+                          onClick={() => window.api?.shellOpenPath('https://github.com/alejandropd-1/gitcron/blob/main/SECURITY.md')}
+                          className="w-full text-left px-4 py-3 bg-bg-base/70 border border-border-subtle/15 hover:border-border-subtle/30 rounded-lg text-sm text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors"
+                        >
+                          <FileText size={14} />
+                          {t('settings.viewSecurity')}
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedSettingsSection === 'updates' && (
+                      <div className="space-y-4">
+                        <p className="text-sm text-text-secondary">{t('settings.checkUpdatesDesc')}</p>
+                        <div className="rounded-xl border border-border-subtle/15 bg-bg-base/70 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-text-primary">
+                                {updateInfo
+                                  ? t('update.availableTitle', { version: updateInfo.version })
+                                  : t('update.currentTitle')}
+                              </p>
+                              <p className="mt-0.5 text-xs text-text-secondary">
+                                {updateInfo
+                                  ? t('update.currentVersion', { version: pkg.version })
+                                  : t('update.currentDesc')}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {updateStatus === 'available' && (
+                                <button
+                                  type="button"
+                                  onClick={handleDownloadUpdate}
+                                  className="px-4 py-2 rounded-lg border text-sm flex items-center gap-2 transition-colors bg-secondary/15 border-secondary/45 text-secondary hover:bg-secondary/25 font-bold"
+                                >
+                                  <Download size={14} />
+                                  <span>{t('update.download')}</span>
+                                </button>
+                              )}
+                              {updateStatus === 'downloaded' && (
+                                <button
+                                  type="button"
+                                  onClick={handleInstallUpdate}
+                                  className="px-4 py-2 rounded-lg border text-sm font-extrabold transition-colors bg-secondary/15 border-secondary/45 text-secondary hover:bg-secondary/25"
+                                >
+                                  UPDATE
+                                </button>
+                              )}
+                              {(updateStatus === 'idle' || updateStatus === 'checking' || updateStatus === 'error') && (
+                                <button
+                                  type="button"
+                                  onClick={handleCheckForUpdate}
+                                  disabled={updateStatus === 'checking'}
+                                  className="px-4 py-2 rounded-lg border text-sm flex items-center gap-2 transition-colors bg-bg-base border-border-subtle/15 text-text-secondary hover:border-secondary/40 hover:text-secondary disabled:opacity-50 disabled:cursor-not-allowed font-bold"
+                                >
+                                  {updateStatus === 'checking'
+                                    ? <Loader2 size={14} className="animate-spin" />
+                                    : <RotateCcw size={14} />
+                                  }
+                                  <span>{t('settings.checkUpdatesButton')}</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {updateStatus === 'downloading' && (
+                            <div className="mt-3 flex items-center gap-2">
+                              <div className="flex-1 h-1.5 bg-bg-overlay rounded-full overflow-hidden">
+                                <div className="h-full bg-secondary rounded-full transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
+                              </div>
+                              <span className="text-[10px] font-mono text-secondary w-8 text-right">{downloadProgress}%</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedSettingsSection === 'about' && (
+                      <div className="space-y-4">
+                        <div className="bg-bg-base/70 border border-border-subtle/15 rounded-xl p-4 text-sm space-y-3">
+                          <div className="flex justify-between items-center pb-2 border-b border-border-subtle/15">
+                            <span className="text-text-secondary font-semibold">GitCron</span>
+                            <span className="text-secondary font-mono font-bold">v{pkg.version}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-text-secondary/70">
+                            <span>Electron + Next.js + simple-git</span>
+                          </div>
+                          <div className="pt-2 flex flex-col gap-2">
+                            <button
+                              type="button"
+                              onClick={() => window.api.shellOpenExternal('https://github.com/alejandropd-1/gitcron/releases/')}
+                              className="flex items-center gap-2 text-text-secondary hover:text-secondary transition-colors text-left font-semibold"
+                            >
+                              <Github size={14} />
+                              <span>{t('settings.viewReleases')}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => window.api.shellOpenExternal('https://aledesign.dev/')}
+                              className="flex items-center gap-2 text-text-secondary/70 hover:text-secondary transition-colors text-left text-xs font-semibold"
+                            >
+                              <Sparkles size={13} />
+                              <span>{t('settings.developedBy')}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+          ) : activeView === 'help' ? (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
+              <div className="px-6 py-4 border-b border-border-subtle/15 shrink-0 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <HelpCircle size={18} className="text-secondary" />
+                  <h2 className="text-base font-bold text-text-primary">
+                    {selectedHelpSection === 'whatis' && '¿Qué es GitCron?'}
+                    {selectedHelpSection === 'columns' && 'Las 3 Columnas'}
+                    {selectedHelpSection === 'tabs' && 'Las 3 Solapas'}
+                    {selectedHelpSection === 'states' && 'Estados de Archivo'}
+                    {selectedHelpSection === 'buttons' && 'Botones del Toolbar'}
+                    {selectedHelpSection === 'flow' && 'Flujo Típico (de cero a push)'}
+                    {selectedHelpSection === 'security' && 'Seguridad de tu Token'}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setActiveView('repository')}
+                  className="text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
+                >
+                  Volver al Repositorio
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 w-full select-text leading-relaxed text-sm text-text-secondary">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={selectedHelpSection}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="space-y-4"
+                  >
+                    {selectedHelpSection === 'whatis' && (
+                      <p className="text-text-secondary">Cliente git visual estilo GitKraken. Te muestra tus commits como un grafo con branches que se ramifican, y te deja stagear, commitear, hacer push/pull sin escribir comandos en la terminal.</p>
+                    )}
+
+                    {selectedHelpSection === 'columns' && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Izquierda — Sidebar</span>
+                          <span>Branches locales y remotas, stashes, tags, submódulos. Click en una branch local hace checkout. El verde indica la branch activa.</span>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Centro — Contenido</span>
+                          <span>Cambia según la solapa que tengas activa. También se transforma en visor de diff cuando hacés click en un archivo de la derecha.</span>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Derecha — Workspace</span>
+                          <span>Si estás navegando commits → muestra detalles y archivos del commit. Si no → muestra tu working tree dividido en <strong>Unstaged</strong> arriba y <strong>Staged</strong> abajo.</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedHelpSection === 'tabs' && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Commit</span>
+                          <span>Modo &quot;vamos a commitear&quot;. Muestra un resumen del workspace con stats y el flujo paso a paso.</span>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Graph (default)</span>
+                          <span>Vista visual del historial. Cada commit es un punto, las branches son líneas verticales de colores.</span>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">History</span>
+                          <span>Lista cronológica plana de todos los commits (sin SVG). Más cómoda para leer mensajes largos.</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedHelpSection === 'states' && (
+                      <div className="space-y-4">
+                        <p className="text-xs text-text-secondary/70 mb-2">Letras de estado que aparecen al lado de cada archivo:</p>
+                        <div className="grid grid-cols-2 gap-3 bg-bg-base/40 p-4 rounded-xl border border-border-subtle/15">
+                          <StatusBadge label="Modified — cambios sin commitear" count={0} color="var(--color-git-mod)" letter="M" />
+                          <StatusBadge label="Added — nuevo y staged" count={0} color="var(--color-git-add)" letter="A" />
+                          <StatusBadge label="Deleted — borrado" count={0} color="var(--color-git-delete)" letter="D" />
+                          <StatusBadge label="Untracked — git no lo conoce" count={0} color="var(--color-text-secondary)" letter="U" />
+                          <StatusBadge label="Renamed — renombrado" count={0} color="var(--color-primary)" letter="R" />
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedHelpSection === 'buttons' && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Pull (↓)</span>
+                          <span>Baja commits del repo remoto a tu local.</span>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Push (↑)</span>
+                          <span>Sube tus commits locales al repo remoto (GitHub).</span>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Branch</span>
+                          <span>Crea una branch nueva.</span>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Stash</span>
+                          <span>Guarda tus cambios actuales en una &quot;pila&quot; temporal.</span>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Terminal</span>
+                          <span>Abre la terminal en la carpeta del repo.</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedHelpSection === 'flow' && (
+                      <div className="space-y-2 bg-bg-base/40 p-4 rounded-xl border border-border-subtle/15">
+                        <ol className="space-y-3 font-semibold text-text-primary text-xs">
+                          <li className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">1</span>
+                            <span>Abrí o creá un repo desde el empty state</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">2</span>
+                            <span>(Opcional) Conectá tu cuenta de GitHub en la sección de Perfil</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">3</span>
+                            <span>Modificá archivos en tu editor</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">4</span>
+                            <span>En GitCron click + en cada archivo que querés incluir en la derecha</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">5</span>
+                            <span>Escribí un mensaje en la caja de abajo a la derecha</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-secondary text-[#052900] flex items-center justify-center">✓</span>
+                            <span>Click <strong className="text-secondary">Commit Changes</strong></span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-secondary text-[#052900] flex items-center justify-center">✓</span>
+                            <span>Click <strong className="text-secondary">Push</strong> para subirlo a GitHub</span>
+                          </li>
+                        </ol>
+                      </div>
+                    )}
+
+                    {selectedHelpSection === 'security' && (
+                      <p className="text-text-secondary leading-relaxed">Tu access token se guarda <strong>encriptado</strong> por el sistema operativo (Windows DPAPI / macOS Keychain). Al hacer push/pull, el token NUNCA se escribe en el <code className="bg-bg-base px-1 rounded text-xs">.git/config</code> del repo.</p>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+          ) : activeView === 'profile' ? (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
+              <div className="px-6 py-4 border-b border-border-subtle/15 shrink-0 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Github size={18} className="text-secondary" />
+                  <h2 className="text-base font-bold text-text-primary">
+                    {t('toolbar.profile')}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setActiveView('repository')}
+                  className="text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
+                >
+                  Volver al Repositorio
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center select-text">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="glass-overlay rounded-2xl border border-border-subtle/25 shadow-2xl p-6 w-full max-w-2xl"
+                >
+                  {githubUser ? (
+                    <div className="space-y-4">
+                      <div className="bg-bg-base/60 border border-secondary/30 rounded-xl p-4 flex items-center gap-4">
+                        {githubUser.avatarUrl ? (
+                          <img src={githubUser.avatarUrl} alt={githubUser.login} className="w-16 h-16 rounded-full border border-secondary/30" />
+                        ) : (
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-secondary to-[#68b24f] flex items-center justify-center text-base font-bold text-[#052900]">{userInitials(githubUser)}</div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-extrabold text-text-primary truncate">{githubUser.name ?? githubUser.login}</p>
+                          <p className="text-xs text-secondary truncate">@{githubUser.login}</p>
+                          {githubUser.email && <p className="text-[10px] text-text-secondary truncate mt-0.5">{githubUser.email}</p>}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <button onClick={() => window.api?.shellOpenPath(`https://github.com/${githubUser.login}`)} className="w-full text-left px-4 py-2.5 rounded-lg bg-bg-base/60 border border-border-subtle/15 hover:border-border-subtle/30 text-xs font-semibold text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors"><Github size={14} />{t('profile.viewOnGitHub')}</button>
+                        <button onClick={() => navigator.clipboard.writeText(`@${githubUser.login}`)} className="w-full text-left px-4 py-2.5 rounded-lg bg-bg-base/60 border border-border-subtle/15 hover:border-border-subtle/30 text-xs font-semibold text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors"><Copy size={14} />{t('profile.copyUsername', { user: githubUser.login })}</button>
+                      </div>
+                      <button onClick={() => { disconnectGitHub(); setActiveView('repository'); }} className="w-full px-4 py-3 rounded-lg border border-error/30 hover:border-error/60 bg-error/10 hover:bg-error/20 text-error text-xs font-bold flex items-center justify-center gap-2 transition-colors"><LogOut size={14} />{t('profile.signOut')}</button>
+                    </div>
+                  ) : deviceCodeInfo ? (
+                    <div className="bg-bg-base/60 border border-secondary/40 rounded-xl p-5 text-center">
+                      <p className="text-xs font-semibold text-[#ffd98a] mb-4">{t('profile.deviceCodeShown')}</p>
+                      <div className="flex items-center justify-center gap-2 mb-4">
+                        <code className="text-3xl font-mono font-bold text-secondary bg-bg-base px-4 py-2 rounded-lg border border-secondary/30 tracking-widest">{deviceCodeInfo.userCode}</code>
+                        <button onClick={() => navigator.clipboard.writeText(deviceCodeInfo.userCode)} className="p-2 hover:bg-border-subtle rounded text-text-secondary hover:text-secondary" title="Copy"><Copy size={14} /></button>
+                      </div>
+                      <p className="text-[11px] text-text-secondary mb-3">{t('profile.browserNotOpened')}{' '}<button onClick={() => window.api?.shellOpenPath(deviceCodeInfo.verificationUri)} className="text-secondary underline">{deviceCodeInfo.verificationUri}</button></p>
+                      <div className="flex items-center justify-center gap-2 text-xs font-semibold text-text-secondary"><Loader2 size={14} className="animate-spin text-secondary" />{t('profile.waitingAuth')}</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="bg-bg-base/60 border border-border-subtle/15 rounded-xl p-4">
+                        <p className="font-bold text-sm text-text-primary mb-1">{t('profile.notConnected')}</p>
+                        <p className="text-xs text-text-secondary leading-relaxed">{t('profile.notConnectedDesc')}</p>
+                      </div>
+                      <div className="flex gap-1 bg-bg-base rounded-xl p-1 border border-border-subtle/10">
+                        <button onClick={() => setAuthMode('oauth')} className={cn('flex-1 px-3 py-2 text-xs font-bold rounded-lg transition-colors', authMode === 'oauth' ? 'bg-secondary text-[#052900]' : 'text-text-secondary hover:text-text-primary')}>{t('profile.tabOAuth')}</button>
+                        <button onClick={() => setAuthMode('token')} className={cn('flex-1 px-3 py-2 text-xs font-bold rounded-lg transition-colors', authMode === 'token' ? 'bg-secondary text-[#052900]' : 'text-text-secondary hover:text-text-primary')}>{t('profile.tabToken')}</button>
+                      </div>
+                      {authMode === 'oauth' ? (
+                        <>
+                          <p className="text-xs text-text-secondary leading-relaxed">{t('profile.oauthDesc')}</p>
+                          <button onClick={handleLoginWithGitHub} disabled={isLoggingIn} className="w-full py-3 bg-[#24292e] hover:bg-[#373e47] border border-[#444c56] disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-black/20"><Github size={16} />{isLoggingIn ? t('profile.starting') : t('profile.continueWithGitHub')}</button>
+                          <p className="text-[10px] text-text-secondary/70 text-center">{t('profile.oauthFooter')}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs text-text-secondary leading-relaxed">{t('profile.tokenInputDesc')}{' '}<button onClick={() => window.api?.shellOpenPath('https://github.com/settings/tokens/new?scopes=repo&description=GitCron')} className="text-secondary underline hover:opacity-80">{t('profile.tokenGenerate')}</button>{' '}{t('profile.tokenScope')} <code className="bg-bg-base px-1 rounded">repo</code>.</p>
+                          <input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleConnectGitHub(); }} placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="w-full bg-bg-base border border-border-subtle/15 rounded-lg px-3 py-2.5 text-xs font-mono focus:outline-none focus:border-secondary/50" />
+                          <button onClick={handleConnectGitHub} disabled={!tokenInput.trim() || isLoading} className="w-full py-2.5 bg-gradient-to-br from-secondary to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-xs font-bold rounded-lg transition-colors">{isLoading ? t('profile.tokenVerifying') : t('profile.tokenConnect')}</button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+            </div>
+          ) : !repoPath || showRepoChooser ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-8 text-text-secondary p-8">
               <div className="text-center">
                 <FolderOpen size={56} className="mx-auto opacity-20 mb-4" />
@@ -2066,7 +2757,7 @@ export default function GitCronPage() {
 
               {!githubUser && (
                 <button
-                  onClick={() => setShowSettings(true)}
+                  onClick={() => setActiveView('profile')}
                   className="text-xs text-text-secondary hover:text-secondary underline transition-colors flex items-center gap-1.5"
                 >
                   <Github size={12} />
@@ -2436,12 +3127,14 @@ export default function GitCronPage() {
                   right: FLOATING_PANEL_INSET,
                   bottom: FLOATING_PANEL_INSET,
                   width: detailsW,
-                  transform: detailsOpen ? 'translateX(0)' : `translateX(calc(100% + ${FLOATING_PANEL_INSET * 2}px))`,
+                  transform: (detailsOpen && activeView === 'repository') ? 'translateX(0)' : `translateX(calc(100% + ${FLOATING_PANEL_INSET * 2}px))`,
+                  opacity: (detailsOpen && activeView === 'repository') ? 1 : 0,
+                  visibility: (detailsOpen && activeView === 'repository') ? 'visible' : 'hidden',
                 }
               : {
-                  width: detailsOpen ? detailsW : 0,
-                  opacity: detailsOpen ? 1 : 0,
-                  visibility: detailsOpen ? 'visible' : 'hidden',
+                  width: (detailsOpen && activeView === 'repository') ? detailsW : 0,
+                  opacity: (detailsOpen && activeView === 'repository') ? 1 : 0,
+                  visibility: (detailsOpen && activeView === 'repository') ? 'visible' : 'hidden',
                 }
           }
         >
@@ -2593,7 +3286,7 @@ export default function GitCronPage() {
 
         {/* LCAR-29 right-side decorative panel — cronométrico only when Graph tab is active and no diff is open */}
         <AnimatePresence>
-          {activeGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest && (
+          {activeView === 'repository' && activeGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest && (
             <motion.div
               key="lcar-right-container"
               initial={{ opacity: 0 }}
@@ -2779,7 +3472,7 @@ export default function GitCronPage() {
             onClick={() => setShowNewBranch(false)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="glass-overlay rounded-xl shadow-2xl p-6 w-[420px]"
               onClick={(e) => e.stopPropagation()}
             >
@@ -2815,336 +3508,7 @@ export default function GitCronPage() {
         )}
       </AnimatePresence>
 
-      {/* ──────────── PROFILE DROPDOWN ──────────── */}
-      <AnimatePresence>
-        {showProfile && (
-          <ProfileMenu
-            user={githubUser}
-            isLoading={isLoading}
-            tokenInput={tokenInput}
-            setTokenInput={setTokenInput}
-            authMode={authMode}
-            setAuthMode={setAuthMode}
-            deviceCodeInfo={deviceCodeInfo}
-            isLoggingIn={isLoggingIn}
-            onClose={() => setShowProfile(false)}
-            onLogin={handleLoginWithGitHub}
-            onConnectToken={handleConnectGitHub}
-            onLogout={() => { disconnectGitHub(); setShowProfile(false); }}
-          />
-        )}
-      </AnimatePresence>
 
-      {/* ──────────── SETTINGS (preferencias) ──────────── */}
-      <AnimatePresence>
-        {showSettings && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
-            onClick={() => setShowSettings(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="glass-overlay rounded-xl shadow-2xl w-[680px] max-h-[90vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-border-subtle/15 shrink-0">
-                <h3 className="font-bold text-secondary flex items-center gap-2 text-base">
-                  <Settings size={16} /> {t('settings.title')}
-                </h3>
-                <button onClick={() => setShowSettings(false)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
-              </div>
-
-              <div className="space-y-5 px-6 py-5 overflow-y-auto scrollbar-thin flex-1">
-                {/* ── Language ── */}
-                <section>
-                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <Globe size={12} /> {t('settings.language')}
-                  </h4>
-                  <p className="text-xs text-text-secondary mb-3">{t('settings.languageDesc')}</p>
-                  <div className="flex gap-2">
-                    {LANGS.map((l) => (
-                      <button
-                        key={l.code}
-                        onClick={() => changeLanguage(l.code as Lang)}
-                        className={cn(
-                          'flex-1 px-3 py-2 rounded border text-sm flex items-center justify-center gap-2 transition-colors',
-                          language === l.code
-                            ? 'bg-secondary/15 border-secondary/50 text-secondary'
-                            : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary hover:border-border-subtle/30',
-                        )}
-                      >
-                        <span className="text-base">{l.flag}</span>
-                        <span className="font-medium">{l.label}</span>
-                        {language === l.code && <Check size={14} strokeWidth={3} className="ml-1" />}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                {/* ── Theme ── */}
-                <section>
-                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <Type size={12} /> {t('settings.fontSize')}
-                  </h4>
-                  <p className="text-xs text-text-secondary mb-3">{t('settings.fontSizeDesc')}</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {FONT_SIZE_OPTIONS.map((option) => {
-                      const labelKey = option.key === 'compact'
-                        ? 'settings.fontCompact'
-                        : option.key === 'normal'
-                          ? 'settings.fontNormal'
-                          : 'settings.fontLarge';
-                      return (
-                        <button
-                          key={option.key}
-                          onClick={() => changeFontSize(option.key)}
-                          className={cn(
-                            'px-3 py-2 rounded border text-sm flex items-center justify-center gap-2 transition-colors',
-                            fontSize === option.key
-                              ? 'bg-secondary/15 border-secondary/50 text-secondary'
-                              : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary hover:border-border-subtle/30',
-                          )}
-                        >
-                          <span className="font-medium">{t(labelKey)}</span>
-                          {fontSize === option.key && <Check size={14} strokeWidth={3} />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-
-                {/* ── Default folder ── */}
-                <section>
-                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <Folder size={12} /> {t('settings.defaultFolder')}
-                  </h4>
-                  <p className="text-xs text-text-secondary mb-3">{t('settings.defaultFolderDesc')}</p>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="flex-1 px-3 py-2 rounded border bg-bg-base/70 border-border-subtle/15 text-sm font-mono truncate"
-                      title={defaultFolder ?? ''}
-                    >
-                      <span className={defaultFolder ? 'text-text-primary' : 'text-text-secondary/70'}>
-                        {defaultFolder ?? t('settings.defaultFolderNone')}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => pickDefaultFolder()}
-                      className="px-3 py-2 rounded border bg-bg-base/70 border-border-subtle/30 text-sm text-text-primary hover:bg-border-subtle/30 transition-colors"
-                    >
-                      {t('settings.defaultFolderChange')}
-                    </button>
-                    {defaultFolder && (
-                      <button
-                        onClick={() => changeDefaultFolder(null)}
-                        className="px-3 py-2 rounded border bg-bg-base/70 border-border-subtle/15 text-sm text-text-secondary hover:text-[#ffa8a3] hover:border-[#ffa8a3]/30 transition-colors"
-                      >
-                        {t('settings.defaultFolderClear')}
-                      </button>
-                    )}
-                  </div>
-                </section>
-
-                {/* ── Auto-fetch ── */}
-                <AutoFetchSection setAutoFetchPrefs={setAutoFetchPrefs} />
-                <OsNotificationsSection setOsNotifications={setOsNotifications} />
-                <ShortcutsSection
-                  rebindShortcut={rebindShortcut}
-                  resetShortcutsToDefaults={resetShortcutsToDefaults}
-                />
-
-                <section>
-                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <Sparkles size={12} /> {t('settings.theme')}
-                  </h4>
-                  <p className="text-xs text-text-secondary/70 mb-2 italic">{t('settings.themeLightWarning')}</p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => changeTheme('dark')}
-                      className={cn(
-                        'flex-1 px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors',
-                        theme === 'dark'
-                          ? 'bg-secondary/15 border-secondary/50 text-secondary'
-                          : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
-                      )}
-                    >
-                      {theme === 'dark' && <Check size={14} strokeWidth={3} />}
-                      {t('settings.themeDark')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => changeTheme('light')}
-                      className={cn(
-                        'flex-1 px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors',
-                        theme === 'light'
-                          ? 'bg-secondary/15 border-secondary/50 text-secondary'
-                          : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
-                      )}
-                    >
-                      {theme === 'light' && <Check size={14} strokeWidth={3} />}
-                      {t('settings.themeLight')}
-                    </button>
-                  </div>
-                </section>
-
-                {/* ── Vista Cronométrica (Feature Flag Toggle) ── */}
-                <section>
-                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <Sparkles size={12} /> Vista Cronométrica (Beta)
-                  </h4>
-                  <p className="text-xs text-text-secondary mb-3 leading-relaxed">
-                    Habilita la nueva línea de tiempo interactiva avanzada basada en Canvas espacial y HUD dinámico.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => changeEnableCronometric(!enableCronometric)}
-                    className={cn(
-                      'w-full px-3 py-2 rounded border text-sm flex items-center justify-center gap-2 transition-colors font-medium',
-                      enableCronometric
-                        ? 'bg-secondary/15 border-secondary/50 text-secondary'
-                        : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
-                    )}
-                  >
-                    {enableCronometric ? (
-                      <>
-                        <Check size={14} strokeWidth={3} />
-                        Activa
-                      </>
-                    ) : (
-                      'Inactiva (Usar vista clásica estable)'
-                    )}
-                  </button>
-                </section>
-
-                {/* ── Security ── */}
-                <section>
-                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <Lock size={12} /> {t('settings.security')}
-                  </h4>
-                  <p className="text-[11px] text-text-secondary mb-2 leading-relaxed">
-                    {t('settings.dataLocation')}
-                  </p>
-                  <button
-                    onClick={() => window.api?.shellOpenPath('https://github.com/alejandropd-1/gitcron/blob/main/SECURITY.md')}
-                    className="w-full text-left px-3 py-2 bg-bg-base/70 border border-border-subtle/15 hover:border-border-subtle/30 rounded text-sm text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors"
-                  >
-                    <FileText size={14} />
-                    {t('settings.viewSecurity')}
-                  </button>
-                </section>
-
-                {/* ── About ── */}
-                <section>
-                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <HelpCircle size={12} /> {t('settings.about')}
-                  </h4>
-                  <div className="bg-bg-base/70 border border-border-subtle/15 rounded p-3 text-xs">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-text-secondary">GitCron</span>
-                      <span className="text-secondary font-mono">v{pkg.version}</span>
-                    </div>
-                    <div className="flex justify-between text-[10px] text-text-secondary/70">
-                      <span>Electron + Next.js + simple-git</span>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-border-subtle/15 flex flex-col gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => window.api.shellOpenExternal('https://github.com/alejandropd-1/gitcron/releases/')}
-                        className="flex items-center gap-2 text-text-secondary hover:text-secondary transition-colors text-left"
-                      >
-                        <Github size={12} />
-                        <span>{t('settings.viewReleases')}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => window.api.shellOpenExternal('https://aledesign.dev/')}
-                        className="flex items-center gap-2 text-text-secondary/70 hover:text-secondary transition-colors text-left text-[10px]"
-                      >
-                        <Sparkles size={11} />
-                        <span>{t('settings.developedBy')}</span>
-                      </button>
-                    </div>
-                  </div>
-                </section>
-
-                {/* ── Updates ── */}
-                <section>
-                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <RotateCcw size={12} /> {t('settings.checkUpdates')}
-                  </h4>
-                  <p className="text-xs text-text-secondary mb-3">{t('settings.checkUpdatesDesc')}</p>
-                  <div className="rounded border border-border-subtle/15 bg-bg-base/70/70 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-text-primary">
-                          {updateInfo
-                            ? t('update.availableTitle', { version: updateInfo.version })
-                            : t('update.currentTitle')}
-                        </p>
-                        <p className="mt-0.5 text-xs text-text-secondary">
-                          {updateInfo
-                            ? t('update.currentVersion', { version: pkg.version })
-                            : t('update.currentDesc')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {updateStatus === 'available' && (
-                          <button
-                            type="button"
-                            onClick={handleDownloadUpdate}
-                            className="px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors bg-secondary/15 border-secondary/45 text-secondary hover:bg-secondary/25"
-                          >
-                            <Download size={14} />
-                            <span className="font-medium">{t('update.download')}</span>
-                          </button>
-                        )}
-                        {updateStatus === 'downloaded' && (
-                          <button
-                            type="button"
-                            onClick={handleInstallUpdate}
-                            className="px-3 py-2 rounded border text-sm font-bold transition-colors bg-secondary/15 border-secondary/45 text-secondary hover:bg-secondary/25"
-                          >
-                            UPDATE
-                          </button>
-                        )}
-                        {(updateStatus === 'idle' || updateStatus === 'checking' || updateStatus === 'error') && (
-                          <button
-                            type="button"
-                            onClick={handleCheckForUpdate}
-                            disabled={updateStatus === 'checking'}
-                            className="px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors bg-bg-base/70/70 border-border-subtle/15 text-text-secondary hover:border-secondary/40 hover:text-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {updateStatus === 'checking'
-                              ? <Loader2 size={14} className="animate-spin" />
-                              : <RotateCcw size={14} />
-                            }
-                            <span className="font-medium">{t('settings.checkUpdatesButton')}</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {updateStatus === 'downloading' && (
-                      <div className="mt-3 flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-bg-overlay rounded-full overflow-hidden">
-                          <div className="h-full bg-secondary rounded-full transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
-                        </div>
-                        <span className="text-[10px] font-mono text-secondary w-8 text-right">{downloadProgress}%</span>
-                      </div>
-                    )}
-                  </div>
-                </section>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ──────────── HELP MODAL ──────────── */}
-      <AnimatePresence>
-        {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-      </AnimatePresence>
 
       {/* ──────────── INIT REPO MODAL ──────────── */}
       <AnimatePresence>
@@ -3323,7 +3687,7 @@ export default function GitCronPage() {
             onClick={() => setMergeNeedsCheckout(null)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="glass-overlay rounded-xl shadow-2xl p-6 w-[580px]"
               onClick={(e) => e.stopPropagation()}
             >
@@ -3377,7 +3741,7 @@ export default function GitCronPage() {
             onClick={() => setRenameModal(null)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="glass-overlay rounded-xl shadow-2xl p-6 w-[420px]"
               onClick={(e) => e.stopPropagation()}
             >
@@ -3424,7 +3788,7 @@ export default function GitCronPage() {
             onClick={() => setDeleteConfirm(null)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="glass-overlay rounded-xl shadow-2xl p-6 w-[540px]"
               onClick={(e) => e.stopPropagation()}
             >
@@ -3480,7 +3844,7 @@ export default function GitCronPage() {
             }}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="bg-[#152335]/98 backdrop-blur-xl border border-[#ffa8a3]/20 rounded-2xl shadow-2xl shadow-black/80 p-6 w-[480px]"
               onClick={(e) => e.stopPropagation()}
             >
@@ -3537,7 +3901,7 @@ export default function GitCronPage() {
             onClick={() => setCheckoutConflict(null)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="glass-overlay rounded-xl shadow-2xl p-6 w-[580px]"
               onClick={(e) => e.stopPropagation()}
             >
@@ -3625,7 +3989,7 @@ export default function GitCronPage() {
             onClick={() => setShowAmend(false)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="glass-overlay rounded-xl shadow-2xl p-6 w-[580px] max-h-[80vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
@@ -3691,7 +4055,7 @@ export default function GitCronPage() {
       <AnimatePresence>
         {showSquash && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={() => setShowSquash(false)}>
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-overlay rounded-xl shadow-2xl p-6 w-[580px]" onClick={(e) => e.stopPropagation()}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="glass-overlay rounded-xl shadow-2xl p-6 w-[580px]" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-git-mod flex items-center gap-2 text-base">
                   <Layers size={16} /> Combinar últimos commits (Squash)

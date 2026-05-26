@@ -55,7 +55,7 @@ export function InitRepoModal({
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-overlay rounded-xl p-6 w-[540px]" onClick={(e) => e.stopPropagation()}>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="glass-overlay rounded-xl p-6 w-[540px]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-secondary flex items-center gap-2"><Sparkles size={16} /> Crear repositorio nuevo</h3>
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
@@ -127,7 +127,7 @@ export function CloneRepoModal({
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-overlay rounded-xl p-6 w-[680px] max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="glass-overlay rounded-xl p-6 w-[680px] max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-secondary flex items-center gap-2"><Download size={16} /> Clonar repositorio</h3>
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
@@ -204,7 +204,7 @@ export function ProfileMenu({
   const t = useT();
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-overlay rounded-xl p-6 w-[540px] flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="glass-overlay rounded-xl p-6 w-[540px] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-bold text-secondary flex items-center gap-2 text-ui-header"><Github size={16} /> {t('toolbar.profile')}</h3>
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>

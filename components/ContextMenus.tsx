@@ -69,8 +69,8 @@ export function CommitContextMenu({
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: isMeasured ? 1 : 0, scale: isMeasured ? 1 : 0.95 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: isMeasured ? 1 : 0 }}
       className="fixed glass-overlay rounded-lg py-1 z-[100] w-64"
       style={{
         left: coords.left,
@@ -112,8 +112,8 @@ export function BranchContextMenu({
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: isMeasured ? 1 : 0, scale: isMeasured ? 1 : 0.95 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: isMeasured ? 1 : 0 }}
       className="fixed glass-overlay rounded-lg py-1 z-[100] w-72"
       style={{
         left: coords.left,
@@ -158,8 +158,8 @@ export function FileContextMenu({
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: isMeasured ? 1 : 0, scale: isMeasured ? 1 : 0.95 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: isMeasured ? 1 : 0 }}
       className="fixed glass-overlay rounded-lg py-1 z-[100] w-60"
       style={{
         left: coords.left,
@@ -196,8 +196,8 @@ export function RemoteBranchContextMenu({
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: isMeasured ? 1 : 0, scale: isMeasured ? 1 : 0.95 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: isMeasured ? 1 : 0 }}
       className="fixed glass-overlay rounded-lg py-1 z-[100] w-72"
       style={{
         left: coords.left,

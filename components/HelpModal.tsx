@@ -54,7 +54,7 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
   const t = useT();
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-8" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-overlay rounded-xl w-full max-w-4xl max-h-full flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="glass-overlay rounded-xl w-full max-w-4xl max-h-full flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-border-subtle/15 flex items-center justify-between shrink-0">
           <h2 className="font-bold text-secondary flex items-center gap-2 text-ui-header"><HelpCircle size={18} /> {t('help.title')}</h2>
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary"><X size={18} /></button>

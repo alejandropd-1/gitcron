@@ -3039,7 +3039,7 @@ export default function GitCronPage() {
                     }}
                   >
                     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl">
-                    <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 py-2 flex items-center text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
+                    <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 h-9 flex items-center text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
                       <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
                       <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
                       <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>

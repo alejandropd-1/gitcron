@@ -3039,7 +3039,7 @@ export default function GitCronPage() {
                     }}
                   >
                     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl">
-                    <div className="sticky top-0 glass-sticky-header z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
+                    <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 py-2 flex items-center text-[10px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
                       <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
                       <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
                       <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
@@ -3234,7 +3234,7 @@ export default function GitCronPage() {
                   </button>
                 </div>
               )}
-              <div className="p-4 border-b border-border-subtle/15">
+              <div className="p-4 border-b border-border-subtle/15 bg-bg-surface/75 shrink-0">
                 <div className="flex justify-between items-start mb-2">
                   <div className="text-[12px] font-mono text-secondary select-text">commit: {selectedCommit.shortHash}</div>
                   <button className="flex items-center gap-1.5 px-2 py-1 rounded bg-border-subtle text-xs hover:bg-bg-surface/70 transition-colors">
@@ -4919,7 +4919,7 @@ function HistoryView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="sticky top-0 glass-sticky-header z-10 py-2 px-4 text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
+      <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 py-2 px-4 text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
         {filter
           ? `${filtered.length} de ${commits.length} commits`
           : `Historial · ${commits.length} commits`}

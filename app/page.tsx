@@ -2494,40 +2494,43 @@ export default function GitCronPage() {
         >
           {activeView === 'settings' ? (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
-              <div className="px-6 py-4 border-b border-border-subtle/15 shrink-0 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Settings size={18} className="text-secondary" />
-                  <h2 className="text-base font-bold text-text-primary">
-                    {selectedSettingsSection === 'language' && t('settings.language')}
-                    {selectedSettingsSection === 'fontSize' && t('settings.fontSize')}
-                    {selectedSettingsSection === 'defaultFolder' && t('settings.defaultFolder')}
-                    {selectedSettingsSection === 'theme' && t('settings.theme')}
-                    {selectedSettingsSection === 'cronometric' && 'Vista Cronométrica (Beta)'}
-                    {selectedSettingsSection === 'autoFetch' && t('settings.autoFetch')}
-                    {selectedSettingsSection === 'osNotifications' && t('settings.osNotifications')}
-                    {selectedSettingsSection === 'shortcuts' && t('settings.shortcuts')}
-                    {selectedSettingsSection === 'security' && t('settings.security')}
-                    {selectedSettingsSection === 'updates' && t('settings.checkUpdates')}
-                    {selectedSettingsSection === 'about' && t('settings.about')}
-                  </h2>
-                </div>
-                <button
-                  onClick={() => handleViewChange('repository')}
-                  className="text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
-                >
-                  Volver al Repositorio
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 w-full select-text">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={selectedSettingsSection}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="space-y-6"
+              <div className="border-b border-border-subtle/15 shrink-0">
+                <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Settings size={18} className="text-secondary shrink-0" />
+                    <h2 className="truncate text-base font-bold text-text-primary">
+                      {selectedSettingsSection === 'language' && t('settings.language')}
+                      {selectedSettingsSection === 'fontSize' && t('settings.fontSize')}
+                      {selectedSettingsSection === 'defaultFolder' && t('settings.defaultFolder')}
+                      {selectedSettingsSection === 'theme' && t('settings.theme')}
+                      {selectedSettingsSection === 'cronometric' && 'Vista Cronométrica (Beta)'}
+                      {selectedSettingsSection === 'autoFetch' && t('settings.autoFetch')}
+                      {selectedSettingsSection === 'osNotifications' && t('settings.osNotifications')}
+                      {selectedSettingsSection === 'shortcuts' && t('settings.shortcuts')}
+                      {selectedSettingsSection === 'security' && t('settings.security')}
+                      {selectedSettingsSection === 'updates' && t('settings.checkUpdates')}
+                      {selectedSettingsSection === 'about' && t('settings.about')}
+                    </h2>
+                  </div>
+                  <button
+                    onClick={() => handleViewChange('repository')}
+                    className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
                   >
+                    Volver al Repositorio
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto w-full select-text">
+                <div className="mx-auto w-full max-w-5xl p-6">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={selectedSettingsSection}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="space-y-6"
+                    >
                     {selectedSettingsSection === 'language' && (
                       <div className="space-y-4">
                         <p className="text-sm text-text-secondary">{t('settings.languageDesc')}</p>
@@ -2804,42 +2807,46 @@ export default function GitCronPage() {
                         </div>
                       </div>
                     )}
-                  </motion.div>
-                </AnimatePresence>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
           ) : activeView === 'help' ? (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
-              <div className="px-6 py-4 border-b border-border-subtle/15 shrink-0 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <HelpCircle size={18} className="text-secondary" />
-                  <h2 className="text-base font-bold text-text-primary">
-                    {selectedHelpSection === 'whatis' && '¿Qué es GitCron?'}
-                    {selectedHelpSection === 'columns' && 'Las 3 Columnas'}
-                    {selectedHelpSection === 'tabs' && 'Las 3 Solapas'}
-                    {selectedHelpSection === 'states' && 'Estados de Archivo'}
-                    {selectedHelpSection === 'buttons' && 'Botones del Toolbar'}
-                    {selectedHelpSection === 'flow' && 'Flujo Típico (de cero a push)'}
-                    {selectedHelpSection === 'security' && 'Seguridad de tu Token'}
-                  </h2>
-                </div>
-                <button
-                  onClick={() => handleViewChange('repository')}
-                  className="text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
-                >
-                  Volver al Repositorio
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 w-full select-text leading-relaxed text-sm text-text-secondary">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={selectedHelpSection}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="space-y-4"
+              <div className="border-b border-border-subtle/15 shrink-0">
+                <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <HelpCircle size={18} className="text-secondary shrink-0" />
+                    <h2 className="truncate text-base font-bold text-text-primary">
+                      {selectedHelpSection === 'whatis' && '¿Qué es GitCron?'}
+                      {selectedHelpSection === 'columns' && 'Las 3 Columnas'}
+                      {selectedHelpSection === 'tabs' && 'Las 3 Solapas'}
+                      {selectedHelpSection === 'states' && 'Estados de Archivo'}
+                      {selectedHelpSection === 'buttons' && 'Botones del Toolbar'}
+                      {selectedHelpSection === 'flow' && 'Flujo Típico (de cero a push)'}
+                      {selectedHelpSection === 'security' && 'Seguridad de tu Token'}
+                    </h2>
+                  </div>
+                  <button
+                    onClick={() => handleViewChange('repository')}
+                    className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
                   >
+                    Volver al Repositorio
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto w-full select-text leading-relaxed text-sm text-text-secondary">
+                <div className="mx-auto w-full max-w-4xl p-6">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={selectedHelpSection}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="space-y-4"
+                    >
                     {selectedHelpSection === 'whatis' && (
                       <p className="text-text-secondary">Cliente git visual estilo GitKraken. Te muestra tus commits como un grafo con branches que se ramifican, y te deja stagear, commitear, hacer push/pull sin escribir comandos en la terminal.</p>
                     )}
@@ -2954,25 +2961,28 @@ export default function GitCronPage() {
                     {selectedHelpSection === 'security' && (
                       <p className="text-text-secondary leading-relaxed">Tu access token se guarda <strong>encriptado</strong> por el sistema operativo (Windows DPAPI / macOS Keychain). Al hacer push/pull, el token NUNCA se escribe en el <code className="bg-bg-base px-1 rounded text-xs">.git/config</code> del repo.</p>
                     )}
-                  </motion.div>
-                </AnimatePresence>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
           ) : activeView === 'profile' ? (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
-              <div className="px-6 py-4 border-b border-border-subtle/15 shrink-0 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Github size={18} className="text-secondary" />
-                  <h2 className="text-base font-bold text-text-primary">
-                    {t('toolbar.profile')}
-                  </h2>
+              <div className="border-b border-border-subtle/15 shrink-0">
+                <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-6 py-4">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Github size={18} className="text-secondary shrink-0" />
+                    <h2 className="truncate text-base font-bold text-text-primary">
+                      {t('toolbar.profile')}
+                    </h2>
+                  </div>
+                  <button
+                    onClick={() => handleViewChange('repository')}
+                    className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
+                  >
+                    Volver al Repositorio
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleViewChange('repository')}
-                  className="text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
-                >
-                  Volver al Repositorio
-                </button>
               </div>
               <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center select-text">
                 <motion.div

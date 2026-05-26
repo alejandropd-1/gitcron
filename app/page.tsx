@@ -604,6 +604,7 @@ export default function GitCronPage() {
   }, []);
 
   const [isTabChanging, setIsTabChanging] = useState(false);
+  const [isViewChanging, setIsViewChanging] = useState(false);
 
   const handleTabChange = (tab: string) => {
     setIsTabChanging(true);
@@ -611,6 +612,14 @@ export default function GitCronPage() {
     setActiveTab(tab);
     setTimeout(() => {
       setIsTabChanging(false);
+    }, 150);
+  };
+
+  const handleViewChange = (view: 'repository' | 'settings' | 'help' | 'profile') => {
+    setIsViewChanging(true);
+    setActiveView(view);
+    setTimeout(() => {
+      setIsViewChanging(false);
     }, 150);
   };
 
@@ -686,8 +695,8 @@ export default function GitCronPage() {
     newBranch: () => { if (repoPath) { setNewBranchFrom(undefined); setShowNewBranch(true); } },
     search: () => setShowSearchPopover(true),
     fetchNow: () => { if (repoPath) void runFetchCycle(); },
-    settings: () => setActiveView((v) => v === 'settings' ? 'repository' : 'settings'),
-    help: () => setActiveView((v) => v === 'help' ? 'repository' : 'help'),
+    settings: () => handleViewChange(activeView === 'settings' ? 'repository' : 'settings'),
+    help: () => handleViewChange(activeView === 'help' ? 'repository' : 'help'),
     closeRepo: () => {
       const idx = useGitStore.getState().activeRepoIdx;
       if (idx >= 0) useGitStore.getState().closeRepo(idx);
@@ -1357,7 +1366,7 @@ export default function GitCronPage() {
     setCurrentDiff('');
     setSelectedPullRequest(null);
     setPullRequestDiff(null);
-    setActiveView('repository');
+    handleViewChange('repository');
     setShowRepoChooser(true);
   };
 
@@ -1381,7 +1390,7 @@ export default function GitCronPage() {
   const handleSelectRepoTab = async (idx: number) => {
     const repo = openRepos[idx];
     if (!repo || idx === activeRepoIdx) return;
-    setActiveView('repository');
+    handleViewChange('repository');
     setShowRepoChooser(false);
     setSelectedPullRequest(null);
     setPullRequestDiff(null);
@@ -2002,7 +2011,7 @@ export default function GitCronPage() {
                     <Settings size={14} /> {t('settings.title')}
                   </span>
                   <button
-                    onClick={() => setActiveView('repository')}
+                    onClick={() => handleViewChange('repository')}
                     className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
                     title="Volver al Repositorio"
                   >
@@ -2047,7 +2056,7 @@ export default function GitCronPage() {
                     <HelpCircle size={14} /> {t('toolbar.help')}
                   </span>
                   <button
-                    onClick={() => setActiveView('repository')}
+                    onClick={() => handleViewChange('repository')}
                     className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
                     title="Volver al Repositorio"
                   >
@@ -2088,7 +2097,7 @@ export default function GitCronPage() {
                     <Github size={14} /> {t('toolbar.profile')}
                   </span>
                   <button
-                    onClick={() => setActiveView('repository')}
+                    onClick={() => handleViewChange('repository')}
                     className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
                     title="Volver al Repositorio"
                   >
@@ -2111,7 +2120,7 @@ export default function GitCronPage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setActiveView((v) => v === 'settings' ? 'repository' : 'settings')}
+                onClick={() => handleViewChange(activeView === 'settings' ? 'repository' : 'settings')}
                 title={t('toolbar.settings')}
                 className={cn(
                   'h-9 w-9 rounded-lg border flex items-center justify-center transition-colors',
@@ -2124,7 +2133,7 @@ export default function GitCronPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveView((v) => v === 'help' ? 'repository' : 'help')}
+                onClick={() => handleViewChange(activeView === 'help' ? 'repository' : 'help')}
                 title={t('toolbar.help')}
                 className={cn(
                   'h-9 w-9 rounded-lg border flex items-center justify-center transition-colors',
@@ -2139,7 +2148,7 @@ export default function GitCronPage() {
                 {githubUser ? (
                   <button
                     type="button"
-                    onClick={() => setActiveView((v) => v === 'profile' ? 'repository' : 'profile')}
+                    onClick={() => handleViewChange(activeView === 'profile' ? 'repository' : 'profile')}
                     title={t('toolbar.connectedAs', { user: githubUser.login })}
                     className={cn(
                       'flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors',
@@ -2163,7 +2172,7 @@ export default function GitCronPage() {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setActiveView((v) => v === 'profile' ? 'repository' : 'profile')}
+                    onClick={() => handleViewChange(activeView === 'profile' ? 'repository' : 'profile')}
                     title={t('toolbar.connectGitHub')}
                     className={cn(
                       'h-10 w-10 shrink-0 rounded-full border flex items-center justify-center transition-colors',
@@ -2187,7 +2196,7 @@ export default function GitCronPage() {
             graphMode === 'chronometric'
               ? cn(
                   "absolute",
-                  (!isTabChanging && activeView === 'repository') && "transition-[left,right,top,bottom] duration-300",
+                  (!isTabChanging && !isViewChanging && activeView === 'repository') && "transition-[left,right,top,bottom] duration-300",
                   !isMainFullBleed && "bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl"
                 )
               : "relative flex-1 min-h-0 bg-bg-base"
@@ -2225,7 +2234,7 @@ export default function GitCronPage() {
                   </h2>
                 </div>
                 <button
-                  onClick={() => setActiveView('repository')}
+                  onClick={() => handleViewChange('repository')}
                   className="text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
                 >
                   Volver al Repositorio
@@ -2532,7 +2541,7 @@ export default function GitCronPage() {
                   </h2>
                 </div>
                 <button
-                  onClick={() => setActiveView('repository')}
+                  onClick={() => handleViewChange('repository')}
                   className="text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
                 >
                   Volver al Repositorio
@@ -2676,7 +2685,7 @@ export default function GitCronPage() {
                   </h2>
                 </div>
                 <button
-                  onClick={() => setActiveView('repository')}
+                  onClick={() => handleViewChange('repository')}
                   className="text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
                 >
                   Volver al Repositorio
@@ -2708,7 +2717,7 @@ export default function GitCronPage() {
                         <button onClick={() => window.api?.shellOpenPath(`https://github.com/${githubUser.login}`)} className="w-full text-left px-4 py-2.5 rounded-lg bg-bg-base/60 border border-border-subtle/15 hover:border-border-subtle/30 text-xs font-semibold text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors"><Github size={14} />{t('profile.viewOnGitHub')}</button>
                         <button onClick={() => navigator.clipboard.writeText(`@${githubUser.login}`)} className="w-full text-left px-4 py-2.5 rounded-lg bg-bg-base/60 border border-border-subtle/15 hover:border-border-subtle/30 text-xs font-semibold text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors"><Copy size={14} />{t('profile.copyUsername', { user: githubUser.login })}</button>
                       </div>
-                      <button onClick={() => { disconnectGitHub(); setActiveView('repository'); }} className="w-full px-4 py-3 rounded-lg border border-error/30 hover:border-error/60 bg-error/10 hover:bg-error/20 text-error text-xs font-bold flex items-center justify-center gap-2 transition-colors"><LogOut size={14} />{t('profile.signOut')}</button>
+                      <button onClick={() => { disconnectGitHub(); handleViewChange('repository'); }} className="w-full px-4 py-3 rounded-lg border border-error/30 hover:border-error/60 bg-error/10 hover:bg-error/20 text-error text-xs font-bold flex items-center justify-center gap-2 transition-colors"><LogOut size={14} />{t('profile.signOut')}</button>
                     </div>
                   ) : deviceCodeInfo ? (
                     <div className="bg-bg-base/60 border border-secondary/40 rounded-xl p-5 text-center">
@@ -2780,7 +2789,7 @@ export default function GitCronPage() {
 
               {!githubUser && (
                 <button
-                  onClick={() => setActiveView('profile')}
+                  onClick={() => handleViewChange('profile')}
                   className="text-xs text-text-secondary hover:text-secondary underline transition-colors flex items-center gap-1.5"
                 >
                   <Github size={12} />

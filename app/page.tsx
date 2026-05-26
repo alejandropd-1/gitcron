@@ -1847,274 +1847,304 @@ export default function GitCronPage() {
             <div className="absolute inset-y-3 right-0.5 w-px bg-transparent group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin py-2">
-            {activeView === 'repository' ? (
-              <>
-                {/* LOCAL — folder tree + ahead/behind chips */}
-                <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-primary" />}>
-                  {branches.length === 0 && !repoPath && (
-                    <p className="px-4 py-2 text-xs text-text-secondary italic">{t('sidebar.noBranches')}</p>
-                  )}
-                  <BranchTree
-                    branches={branches}
-                    currentBranch={currentBranch}
-                    tracking={branchTracking}
-                    onCheckout={(b) => handleCheckoutAttempt(b)}
-                    onContextMenu={(e, b) => {
-                      e.preventDefault();
-                      openBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
-                    }}
-                  />
-                </SidebarSection>
-
-                {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
-                <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} className="text-primary" />}>
-                  <RemoteBranchTree
-                    branches={remoteBranches}
-                    onCheckout={(b) => handleCheckoutAttempt(b)}
-                    onContextMenu={(e, b) => {
-                      e.preventDefault();
-                      openRemoteBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
-                    }}
-                  />
-                </SidebarSection>
-
-                {/* PULL REQUESTS — only when logged in to GitHub */}
-                {githubUser && (
-                  <SidebarSection title={t('sidebar.pullRequests')} count={pullRequests.length || undefined}>
-                    {pullRequests.length === 0 && (
-                      <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noPRs')}</p>
+            <AnimatePresence mode="wait">
+              {activeView === 'repository' ? (
+                <motion.div
+                  key="repository"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="flex flex-col min-h-0"
+                >
+                  {/* LOCAL — folder tree + ahead/behind chips */}
+                  <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-primary" />}>
+                    {branches.length === 0 && !repoPath && (
+                      <p className="px-4 py-2 text-xs text-text-secondary italic">{t('sidebar.noBranches')}</p>
                     )}
-                    {pullRequests.map((pr) => (
-                      <div
-                        key={pr.number}
+                    <BranchTree
+                      branches={branches}
+                      currentBranch={currentBranch}
+                      tracking={branchTracking}
+                      onCheckout={(b) => handleCheckoutAttempt(b)}
+                      onContextMenu={(e, b) => {
+                        e.preventDefault();
+                        openBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
+                      }}
+                    />
+                  </SidebarSection>
+
+                  {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
+                  <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} className="text-primary" />}>
+                    <RemoteBranchTree
+                      branches={remoteBranches}
+                      onCheckout={(b) => handleCheckoutAttempt(b)}
+                      onContextMenu={(e, b) => {
+                        e.preventDefault();
+                        openRemoteBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
+                      }}
+                    />
+                  </SidebarSection>
+
+                  {/* PULL REQUESTS — only when logged in to GitHub */}
+                  {githubUser && (
+                    <SidebarSection title={t('sidebar.pullRequests')} count={pullRequests.length || undefined}>
+                      {pullRequests.length === 0 && (
+                        <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noPRs')}</p>
+                      )}
+                      {pullRequests.map((pr) => (
+                        <div
+                          key={pr.number}
+                          className={cn(
+                            'group flex items-stretch text-sm transition-colors',
+                            selectedPullRequest?.number === pr.number
+                              ? 'bg-secondary/10 text-text-primary'
+                              : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleSelectPullRequest(pr)}
+                            title={t('prDiff.view', { number: String(pr.number) })}
+                            className="flex-1 min-w-0 text-left px-4 py-1.5 flex items-start gap-2"
+                          >
+                            <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-text-secondary' : 'text-secondary')} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] font-mono text-text-secondary/70">#{pr.number}</span>
+                                {pr.draft && <span className="text-[9px] text-text-secondary/70 uppercase">{t('sidebar.draft')}</span>}
+                              </div>
+                              <p className="text-xs truncate">{pr.title}</p>
+                              <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-text-secondary/70">
+                                <span className="truncate">{pr.branch}</span>
+                                <span className="text-secondary">+{pr.additions}</span>
+                                <span className="text-error">-{pr.deletions}</span>
+                              </div>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => window.api?.shellOpenExternal(pr.url)}
+                            title={t('sidebar.openInGitHub', { number: String(pr.number) })}
+                            className="w-8 shrink-0 flex items-center justify-center text-text-secondary/70 hover:text-secondary opacity-0 group-hover:opacity-100 transition"
+                          >
+                            <ExternalLink size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </SidebarSection>
+                  )}
+
+                  {/* STASH */}
+                  <SidebarSection
+                    title={t('sidebar.stash')}
+                    count={stashes.length || undefined}
+                    extra={stashes.length > 1 ? (
+                      showStashClearConfirm ? (
+                        <div className="flex items-center gap-1 ml-1">
+                          <button
+                            onClick={async () => { await stashClear(); setShowStashClearConfirm(false); }}
+                            className="text-[9px] px-1.5 py-0.5 rounded bg-error text-white font-bold"
+                          >
+                            Sí, limpiar
+                          </button>
+                          <button
+                            onClick={() => setShowStashClearConfirm(false)}
+                            className="text-[9px] px-1.5 py-0.5 rounded bg-border-subtle text-text-secondary"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setShowStashClearConfirm(true)}
+                          className="text-[9px] text-text-secondary hover:text-error transition-colors ml-1 font-medium"
+                          title="Eliminar todos los stashes"
+                        >
+                          limpiar todo
+                        </button>
+                      )
+                    ) : undefined}
+                  >
+                    {stashes.length === 0 && repoPath && (
+                      <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noStashes')}</p>
+                    )}
+                    {stashes.map((s) => (
+                      <StashItem key={s.index} stash={s} onApply={() => stashApply(s.index)} onDrop={() => stashDrop(s.index)} />
+                    ))}
+                  </SidebarSection>
+
+                  {/* TAGS */}
+                  <SidebarSection title={t('sidebar.tags')} count={tags.length || undefined}>
+                    {tags.length === 0 && repoPath && (
+                      <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
+                    )}
+                    {tags.map((t) => <SidebarItem key={t} icon={<Tag size={16} />} text={t} />)}
+                  </SidebarSection>
+
+                  {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
+                  {worktrees.length > 1 && (
+                    <SidebarSection title={t('sidebar.worktrees')} count={worktrees.length}>
+                      {worktrees.map((wt) => {
+                        const name = wt.path.split(/[/\\]/).pop() || wt.path;
+                        return (
+                          <button
+                            key={wt.path}
+                            onClick={() => window.api?.shellOpenPath(wt.path)}
+                            title={wt.path}
+                            className="w-full text-left px-4 py-1.5 flex items-center gap-3 text-sm hover:bg-bg-surface/70 text-text-secondary hover:text-text-primary transition-colors"
+                          >
+                            <TreePine size={14} className="shrink-0 text-primary" />
+                            <span className="truncate flex-1 text-left">{name}</span>
+                            {wt.branch && (
+                              <span className="text-[10px] font-mono text-text-secondary/70 shrink-0">{wt.branch}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </SidebarSection>
+                  )}
+
+                  {/* SUBMODULES — only render section if there are any */}
+                  {submodules.length > 0 && (
+                    <SidebarSection title={t('sidebar.submodules')} count={submodules.length}>
+                      {submodules.map((sm) => <SidebarItem key={sm.path} icon={<Layers size={16} />} text={sm.path} />)}
+                    </SidebarSection>
+                  )}
+                </motion.div>
+              ) : activeView === 'settings' ? (
+                <motion.div
+                  key="settings"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="flex flex-col h-full select-none"
+                >
+                  <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
+                    <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                      <Settings size={14} /> {t('settings.title')}
+                    </span>
+                    <button
+                      onClick={() => handleViewChange('repository')}
+                      className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
+                      title="Volver al Repositorio"
+                    >
+                      <ArrowLeft size={12} />
+                    </button>
+                  </div>
+                  <div className="py-2 space-y-0.5">
+                    {[
+                      { id: 'language', label: t('settings.language'), icon: <Globe size={14} /> },
+                      { id: 'fontSize', label: t('settings.fontSize'), icon: <Type size={14} /> },
+                      { id: 'defaultFolder', label: t('settings.defaultFolder'), icon: <Folder size={14} /> },
+                      { id: 'theme', label: t('settings.theme'), icon: <Sparkles size={14} /> },
+                      { id: 'cronometric', label: 'Línea de Tiempo', icon: <Sparkles size={14} /> },
+                      { id: 'autoFetch', label: t('settings.autoFetch'), icon: <RotateCcw size={14} /> },
+                      { id: 'osNotifications', label: t('settings.osNotifications'), icon: <AlertCircle size={14} /> },
+                      { id: 'shortcuts', label: t('settings.shortcuts'), icon: <Type size={14} /> },
+                      { id: 'security', label: t('settings.security'), icon: <Lock size={14} /> },
+                      { id: 'updates', label: t('settings.checkUpdates'), icon: <Download size={14} /> },
+                      { id: 'about', label: t('settings.about'), icon: <HelpCircle size={14} /> },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedSettingsSection(item.id)}
                         className={cn(
-                          'group flex items-stretch text-sm transition-colors',
-                          selectedPullRequest?.number === pr.number
-                            ? 'bg-secondary/10 text-text-primary'
+                          'w-full px-4 py-2 flex items-center gap-3 text-xs font-semibold tracking-wide transition-colors text-left relative',
+                          selectedSettingsSection === item.id
+                            ? 'bg-secondary/10 text-secondary'
                             : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
                         )}
                       >
-                        <button
-                          type="button"
-                          onClick={() => handleSelectPullRequest(pr)}
-                          title={t('prDiff.view', { number: String(pr.number) })}
-                          className="flex-1 min-w-0 text-left px-4 py-1.5 flex items-start gap-2"
-                        >
-                          <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-text-secondary' : 'text-secondary')} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] font-mono text-text-secondary/70">#{pr.number}</span>
-                              {pr.draft && <span className="text-[9px] text-text-secondary/70 uppercase">{t('sidebar.draft')}</span>}
-                            </div>
-                            <p className="text-xs truncate">{pr.title}</p>
-                            <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-text-secondary/70">
-                              <span className="truncate">{pr.branch}</span>
-                              <span className="text-secondary">+{pr.additions}</span>
-                              <span className="text-error">-{pr.deletions}</span>
-                            </div>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => window.api?.shellOpenExternal(pr.url)}
-                          title={t('sidebar.openInGitHub', { number: String(pr.number) })}
-                          className="w-8 shrink-0 flex items-center justify-center text-text-secondary/70 hover:text-secondary opacity-0 group-hover:opacity-100 transition"
-                        >
-                          <ExternalLink size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </SidebarSection>
-                )}
-
-                {/* STASH */}
-                <SidebarSection
-                  title={t('sidebar.stash')}
-                  count={stashes.length || undefined}
-                  extra={stashes.length > 1 ? (
-                    showStashClearConfirm ? (
-                      <div className="flex items-center gap-1 ml-1">
-                        <button
-                          onClick={async () => { await stashClear(); setShowStashClearConfirm(false); }}
-                          className="text-[9px] px-1.5 py-0.5 rounded bg-error text-white font-bold"
-                        >
-                          Sí, limpiar
-                        </button>
-                        <button
-                          onClick={() => setShowStashClearConfirm(false)}
-                          className="text-[9px] px-1.5 py-0.5 rounded bg-border-subtle text-text-secondary"
-                        >
-                          No
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setShowStashClearConfirm(true)}
-                        className="text-[9px] text-text-secondary hover:text-error transition-colors ml-1 font-medium"
-                        title="Eliminar todos los stashes"
-                      >
-                        limpiar todo
+                        {selectedSettingsSection === item.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />}
+                        <span className={cn('shrink-0', selectedSettingsSection === item.id ? 'text-secondary' : 'text-text-secondary/70')}>{item.icon}</span>
+                        <span className="truncate">{item.label}</span>
                       </button>
-                    )
-                  ) : undefined}
+                    ))}
+                  </div>
+                </motion.div>
+              ) : activeView === 'help' ? (
+                <motion.div
+                  key="help"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="flex flex-col h-full select-none"
                 >
-                  {stashes.length === 0 && repoPath && (
-                    <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noStashes')}</p>
-                  )}
-                  {stashes.map((s) => (
-                    <StashItem key={s.index} stash={s} onApply={() => stashApply(s.index)} onDrop={() => stashDrop(s.index)} />
-                  ))}
-                </SidebarSection>
-
-                {/* TAGS */}
-                <SidebarSection title={t('sidebar.tags')} count={tags.length || undefined}>
-                  {tags.length === 0 && repoPath && (
-                    <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
-                  )}
-                  {tags.map((t) => <SidebarItem key={t} icon={<Tag size={16} />} text={t} />)}
-                </SidebarSection>
-
-                {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
-                {worktrees.length > 1 && (
-                  <SidebarSection title={t('sidebar.worktrees')} count={worktrees.length}>
-                    {worktrees.map((wt) => {
-                      const name = wt.path.split(/[/\\]/).pop() || wt.path;
-                      return (
-                        <button
-                          key={wt.path}
-                          onClick={() => window.api?.shellOpenPath(wt.path)}
-                          title={wt.path}
-                          className="w-full text-left px-4 py-1.5 flex items-center gap-3 text-sm hover:bg-bg-surface/70 text-text-secondary hover:text-text-primary transition-colors"
-                        >
-                          <TreePine size={14} className="shrink-0 text-primary" />
-                          <span className="truncate flex-1 text-left">{name}</span>
-                          {wt.branch && (
-                            <span className="text-[10px] font-mono text-text-secondary/70 shrink-0">{wt.branch}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </SidebarSection>
-                )}
-
-                {/* SUBMODULES — only render section if there are any */}
-                {submodules.length > 0 && (
-                  <SidebarSection title={t('sidebar.submodules')} count={submodules.length}>
-                    {submodules.map((sm) => <SidebarItem key={sm.path} icon={<Layers size={16} />} text={sm.path} />)}
-                  </SidebarSection>
-                )}
-              </>
-            ) : activeView === 'settings' ? (
-              <div className="flex flex-col h-full select-none">
-                <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
-                  <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
-                    <Settings size={14} /> {t('settings.title')}
-                  </span>
-                  <button
-                    onClick={() => handleViewChange('repository')}
-                    className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
-                    title="Volver al Repositorio"
-                  >
-                    <ArrowLeft size={12} />
-                  </button>
-                </div>
-                <div className="py-2 space-y-0.5">
-                  {[
-                    { id: 'language', label: t('settings.language'), icon: <Globe size={14} /> },
-                    { id: 'fontSize', label: t('settings.fontSize'), icon: <Type size={14} /> },
-                    { id: 'defaultFolder', label: t('settings.defaultFolder'), icon: <Folder size={14} /> },
-                    { id: 'theme', label: t('settings.theme'), icon: <Sparkles size={14} /> },
-                    { id: 'cronometric', label: 'Línea de Tiempo', icon: <Sparkles size={14} /> },
-                    { id: 'autoFetch', label: t('settings.autoFetch'), icon: <RotateCcw size={14} /> },
-                    { id: 'osNotifications', label: t('settings.osNotifications'), icon: <AlertCircle size={14} /> },
-                    { id: 'shortcuts', label: t('settings.shortcuts'), icon: <Type size={14} /> },
-                    { id: 'security', label: t('settings.security'), icon: <Lock size={14} /> },
-                    { id: 'updates', label: t('settings.checkUpdates'), icon: <Download size={14} /> },
-                    { id: 'about', label: t('settings.about'), icon: <HelpCircle size={14} /> },
-                  ].map((item) => (
+                  <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
+                    <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                      <HelpCircle size={14} /> {t('toolbar.help')}
+                    </span>
                     <button
-                      key={item.id}
-                      onClick={() => setSelectedSettingsSection(item.id)}
-                      className={cn(
-                        'w-full px-4 py-2 flex items-center gap-3 text-xs font-semibold tracking-wide transition-colors text-left relative',
-                        selectedSettingsSection === item.id
-                          ? 'bg-secondary/10 text-secondary'
-                          : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
-                      )}
+                      onClick={() => handleViewChange('repository')}
+                      className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
+                      title="Volver al Repositorio"
                     >
-                      {selectedSettingsSection === item.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />}
-                      <span className={cn('shrink-0', selectedSettingsSection === item.id ? 'text-secondary' : 'text-text-secondary/70')}>{item.icon}</span>
-                      <span className="truncate">{item.label}</span>
+                      <ArrowLeft size={12} />
                     </button>
-                  ))}
-                </div>
-              </div>
-            ) : activeView === 'help' ? (
-              <div className="flex flex-col h-full select-none">
-                <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
-                  <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
-                    <HelpCircle size={14} /> {t('toolbar.help')}
-                  </span>
-                  <button
-                    onClick={() => handleViewChange('repository')}
-                    className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
-                    title="Volver al Repositorio"
-                  >
-                    <ArrowLeft size={12} />
-                  </button>
-                </div>
-                <div className="py-2 space-y-0.5">
-                  {[
-                    { id: 'whatis', label: '¿Qué es GitCron?', icon: <HelpCircle size={14} /> },
-                    { id: 'columns', label: 'Las 3 Columnas', icon: <Layers size={14} /> },
-                    { id: 'tabs', label: 'Las 3 Solapas', icon: <FileText size={14} /> },
-                    { id: 'states', label: 'Estados de Archivo', icon: <Sparkles size={14} /> },
-                    { id: 'buttons', label: 'Botones del Toolbar', icon: <Zap size={14} /> },
-                    { id: 'flow', label: 'Flujo Típico', icon: <RotateCcw size={14} /> },
-                    { id: 'security', label: 'Seguridad de Token', icon: <Lock size={14} /> },
-                  ].map((item) => (
+                  </div>
+                  <div className="py-2 space-y-0.5">
+                    {[
+                      { id: 'whatis', label: '¿Qué es GitCron?', icon: <HelpCircle size={14} /> },
+                      { id: 'columns', label: 'Las 3 Columnas', icon: <Layers size={14} /> },
+                      { id: 'tabs', label: 'Las 3 Solapas', icon: <FileText size={14} /> },
+                      { id: 'states', label: 'Estados de Archivo', icon: <Sparkles size={14} /> },
+                      { id: 'buttons', label: 'Botones del Toolbar', icon: <Zap size={14} /> },
+                      { id: 'flow', label: 'Flujo Típico', icon: <RotateCcw size={14} /> },
+                      { id: 'security', label: 'Seguridad de Token', icon: <Lock size={14} /> },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedHelpSection(item.id)}
+                        className={cn(
+                          'w-full px-4 py-2 flex items-center gap-3 text-xs font-semibold tracking-wide transition-colors text-left relative',
+                          selectedHelpSection === item.id
+                            ? 'bg-secondary/10 text-secondary'
+                            : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+                        )}
+                      >
+                        {selectedHelpSection === item.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />}
+                        <span className={cn('shrink-0', selectedHelpSection === item.id ? 'text-secondary' : 'text-text-secondary/70')}>{item.icon}</span>
+                        <span className="truncate">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="profile"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="flex flex-col h-full select-none"
+                >
+                  <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
+                    <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                      <Github size={14} /> {t('toolbar.profile')}
+                    </span>
                     <button
-                      key={item.id}
-                      onClick={() => setSelectedHelpSection(item.id)}
-                      className={cn(
-                        'w-full px-4 py-2 flex items-center gap-3 text-xs font-semibold tracking-wide transition-colors text-left relative',
-                        selectedHelpSection === item.id
-                          ? 'bg-secondary/10 text-secondary'
-                          : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
-                      )}
+                      onClick={() => handleViewChange('repository')}
+                      className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
+                      title="Volver al Repositorio"
                     >
-                      {selectedHelpSection === item.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />}
-                      <span className={cn('shrink-0', selectedHelpSection === item.id ? 'text-secondary' : 'text-text-secondary/70')}>{item.icon}</span>
-                      <span className="truncate">{item.label}</span>
+                      <ArrowLeft size={12} />
                     </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col h-full select-none">
-                <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
-                  <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
-                    <Github size={14} /> {t('toolbar.profile')}
-                  </span>
-                  <button
-                    onClick={() => handleViewChange('repository')}
-                    className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
-                    title="Volver al Repositorio"
-                  >
-                    <ArrowLeft size={12} />
-                  </button>
-                </div>
-                <div className="py-2">
-                  <button
-                    className="w-full px-4 py-2 flex items-center gap-3 text-xs font-semibold tracking-wide bg-secondary/10 text-secondary text-left relative"
-                  >
-                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />
-                    <span className="shrink-0 text-secondary"><Github size={14} /></span>
-                    <span className="truncate">Cuenta GitHub</span>
-                  </button>
-                </div>
-              </div>
-            )}
+                  </div>
+                  <div className="py-2">
+                    <button
+                      className="w-full px-4 py-2 flex items-center gap-3 text-xs font-semibold tracking-wide bg-secondary/10 text-secondary text-left relative"
+                    >
+                      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />
+                      <span className="shrink-0 text-secondary"><Github size={14} /></span>
+                      <span className="truncate">Cuenta GitHub</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <div className="shrink-0 border-t border-text-primary/10 bg-bg-base/70/35 px-3 py-3">
             <div className="flex items-center gap-2">

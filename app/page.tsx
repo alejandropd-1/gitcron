@@ -2370,7 +2370,7 @@ export default function GitCronPage() {
           {activeView === 'settings' ? (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
               <div className="border-b border-border-subtle/15 shrink-0">
-                <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
+                <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
                   <div className="flex min-w-0 items-center gap-2">
                     <Settings size={18} className="text-secondary shrink-0" />
                     <h2 className="truncate text-base font-bold text-text-primary">
@@ -2396,7 +2396,7 @@ export default function GitCronPage() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto w-full select-text">
-                <div className="mx-auto w-full max-w-5xl p-6">
+                <div className="mx-auto w-full max-w-4xl p-6">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={selectedSettingsSection}
@@ -2844,7 +2844,7 @@ export default function GitCronPage() {
           ) : activeView === 'profile' ? (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
               <div className="border-b border-border-subtle/15 shrink-0">
-                <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-6 py-4">
+                <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
                   <div className="flex min-w-0 items-center gap-2">
                     <Github size={18} className="text-secondary shrink-0" />
                     <h2 className="truncate text-base font-bold text-text-primary">
@@ -2859,13 +2859,13 @@ export default function GitCronPage() {
                   </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center select-text">
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center select-text">
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="glass-overlay rounded-2xl border border-border-subtle/25 p-6 w-full max-w-2xl"
+                  className="glass-overlay rounded-2xl border border-border-subtle/25 p-6 w-full max-w-4xl"
                 >
                   {githubUser ? (
                     <div className="space-y-4">

@@ -225,8 +225,9 @@ function createWindow() {
     },
   });
 
+  const port = process.env.PORT || '3001';
   const url = isDev
-    ? 'http://localhost:3000'
+    ? `http://localhost:${port}`
     : 'app://./index.html';   // served via custom protocol registered in app.on('ready')
 
   mainWindow.loadURL(url);

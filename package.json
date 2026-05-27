@@ -4,10 +4,10 @@
   "private": true,
   "main": "dist/main.js",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "build:electron": "tsup",
-    "electron:dev": "concurrently \"next dev\" \"npm run build:electron -- --watch\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:dev": "concurrently \"next dev -p 3001\" \"npm run build:electron -- --watch\" \"wait-on http://localhost:3001 && electron .\"",
     "start": "next start",
     "lint": "eslint .",
     "clean": "next clean",

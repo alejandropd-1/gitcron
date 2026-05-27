@@ -566,6 +566,9 @@ export default function GitCronPage() {
   const handleViewChange = (view: 'repository' | 'settings' | 'help' | 'profile') => {
     setIsViewChanging(true);
     setActiveView(view);
+    if (view !== 'repository') {
+      setShowRepoChooser(false);
+    }
     setTimeout(() => {
       setIsViewChanging(false);
     }, 150);

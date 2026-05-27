@@ -16,6 +16,12 @@ Changes are listed from newest to oldest.
 #### Changed
 - **GitHub Releases como Acción Secundaria**: La experiencia principal para entender qué cambió queda dentro de la app, mientras que GitHub Releases se mantiene como enlace complementario de historial completo para usuarios técnicos.
 - **Empaquetado del Changelog**: `CHANGELOG.md` se incluye en `extraResources` para que la vista de Cambios recientes funcione también en builds instalados, sin depender de red ni de GitHub.
+- **Flujo de Inicio de Repositorios Integrado**: Las acciones **Abrir existente**, **Crear nuevo** y **Clonar de GitHub** reemplazan el chooser central y los modales flotantes por una navegación real desde el sidebar izquierdo, usando la misma arquitectura visual que Configuración, Ayuda y Perfil.
+- **Panel Central de Repositorios**: Los formularios de creación, apertura y clonado ahora se muestran en un cuerpo central acotado, con card glass, fondo de sección consistente y contenido preparado para lectura y operación sin estirarse a todo el ancho.
+
+#### Fixed
+- **Aislamiento Visual de Repositorios**: Al entrar en Abrir / Crear / Clonar se ocultan el TCAR/LCAR y el selector Clásico/Cronométrico para evitar superposiciones y mantener el mismo fondo limpio de las vistas de Perfil, Ayuda y Configuración.
+- **Transición de Regreso al Graph**: Se corrigió la animación de resize/slide al volver al repositorio desde las vistas de repositorios, incluyendo el botón **Volver al Repositorio** y la flecha del sidebar izquierdo. El cambio ahora se comporta como el resto de paneles integrados, con salida sin deformar el contenido.
 
 ---
 

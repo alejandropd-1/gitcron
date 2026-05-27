@@ -1,6 +1,6 @@
 {
   "name": "gitcron",
-  "version": "1.6.3",
+  "version": "1.6.5",
   "private": true,
   "main": "dist/main.js",
   "scripts": {

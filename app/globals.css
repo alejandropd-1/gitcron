@@ -7,30 +7,30 @@
   /* ==========================================================================
      A. SHARED DESIGN TOKENS (Global layout, dialogs, texts and utility grids)
      ========================================================================== */
-  
+
   /* Shared Base Backgrounds (Affects: app/page.tsx, HelpModal, RepoModals, ContextMenus) */
-  --color-bg-base: #020f1e;        /* Primary page backdrop | Cronometric Canvas timeline background */
-  --color-bg-surface: #06182a;     /* Toolbars, Sidebars, list panels */
-  --color-bg-overlay: #12273c;     /* Dialogs, dropdowns, ContextMenu cards | Chronometric Hover HUD backdrop */
-  
+  --color-bg-base: #020f1e; /* Primary page backdrop | Cronometric Canvas timeline background */
+  --color-bg-surface: #06182a; /* Toolbars, Sidebars, list panels */
+  --color-bg-overlay: #12273c; /* Dialogs, dropdowns, ContextMenu cards | Chronometric Hover HUD backdrop */
+
   /* Shared Border Contrast (Affects: panels, dividers) */
-  --color-border-subtle: #3c495a;  /* Panel separators, tab boundaries | Chronometric Canvas grid lines */
-  
+  --color-border-subtle: #3c495a; /* Panel separators, tab boundaries | Chronometric Canvas grid lines */
+
   /* Shared Typography Colors (Affects: all UI texts, labels, buttons) */
-  --color-text-primary: #d9e7fc;   /* Primary readable headings, active states, active tag label titles */
+  --color-text-primary: #d9e7fc; /* Primary readable headings, active states, active tag label titles */
   --color-text-secondary: #9eacc0; /* Muted descriptions, secondary labels | Chronometric Canvas axis metadata labels */
-  
+
   /* Shared Brand Accents & Semantic States (Affects: buttons, selections, status badges) */
-  --color-primary: #5ed8ff;        /* Active Cyan brand identity, highlights, pull request indicator icons */
-  --color-error: #ff716c;          /* Muted warnings, conflict states, deletion indicators | Chronometric Canvas WIP orbits */
-  
+  --color-primary: #5ed8ff; /* Active Cyan brand identity, highlights, pull request indicator icons */
+  --color-error: #ff716c; /* Muted warnings, conflict states, deletion indicators | Chronometric Canvas WIP orbits */
+
   /* Shared Semantics Git Status Badge Colors (Affects: HelpModal, Sidebar, File list badges M, A, D, U, R) */
-  --color-git-add: #a3f185;        /* Staged modifications / Added files (Green) */
-  --color-git-delete: #ff716c;     /* Untracked deletions / Deleted files (Red) */
-  --color-git-mod: #fd9d1a;        /* Staged modifications / Orange tag labels | Chronometric Canvas Tag orbits */
-  
+  --color-git-add: #a3f185; /* Staged modifications / Added files (Green) */
+  --color-git-delete: #ff716c; /* Untracked deletions / Deleted files (Red) */
+  --color-git-mod: #fd9d1a; /* Staged modifications / Orange tag labels | Chronometric Canvas Tag orbits */
+
   /* Shared Auxiliary Accent */
-  --color-accent-purple: #8A5CF5;  /* Deep purple helper tag colors */
+  --color-accent-purple: #8a5cf5; /* Deep purple helper tag colors */
 
   /* Shared Spacing, Padding & Margins (Affects: general responsive flex margins, based on DESIGN.MD) */
   --spacing-panel-gap: 1px;
@@ -56,20 +56,20 @@
   /* ==========================================================================
      B. CLASSIC VIEW TOKENS (Affects: components/CommitGraph.tsx)
      ========================================================================== */
-  
+
   /* Active HEAD Branch Highlighting & WIP Stage Badges (Classic specific highlights) */
-  --color-secondary: #a3f185;      /* HEAD indicator star/dots checkmarks, success toast text | Chronometric HEAD crosshair */
+  --color-secondary: #a3f185; /* HEAD indicator star/dots checkmarks, success toast text | Chronometric HEAD crosshair */
 
   /* Dynamic Commit Lane Lines (Shared colors but primary visualization in Classic CommitGraph lines) */
-  --color-graph-branch-1: #5ed8ff;  /* Lane color 1 */
-  --color-graph-branch-2: #fd9d1a;  /* Lane color 2 */
-  --color-graph-branch-3: #ff716c;  /* Lane color 3 */
-  --color-graph-branch-4: #39bce2;  /* Lane color 4 */
-  --color-graph-branch-5: #ffb462;  /* Lane color 5 */
-  --color-graph-branch-6: #d0bcff;  /* Lane color 6 */
-  --color-graph-branch-7: #68b24f;  /* Lane color 7 */
-  --color-graph-branch-8: #f472b6;  /* Lane color 8 */
-  --color-graph-branch-9: #a78bfa;  /* Lane color 9 */
+  --color-graph-branch-1: #5ed8ff; /* Lane color 1 */
+  --color-graph-branch-2: #fd9d1a; /* Lane color 2 */
+  --color-graph-branch-3: #ff716c; /* Lane color 3 */
+  --color-graph-branch-4: #39bce2; /* Lane color 4 */
+  --color-graph-branch-5: #ffb462; /* Lane color 5 */
+  --color-graph-branch-6: #d0bcff; /* Lane color 6 */
+  --color-graph-branch-7: #68b24f; /* Lane color 7 */
+  --color-graph-branch-8: #f472b6; /* Lane color 8 */
+  --color-graph-branch-9: #a78bfa; /* Lane color 9 */
   --color-graph-branch-10: #34d399; /* Lane color 10 */
   --color-graph-branch-11: #fb923c; /* Lane color 11 */
   --color-graph-branch-12: #60a5fa; /* Lane color 12 */
@@ -77,7 +77,7 @@
   /* ==========================================================================
      C. CRONOMETRIC VIEW TOKENS (Affects: components/ChronometricGraph.tsx)
      ========================================================================= */
-  
+
   /* Canvas Timeline Grid lines reference the subtle border token (--color-border-subtle) */
   /* Canvas Timeline tick marks and text labels reference secondary text token (--color-text-secondary) */
   /* Canvas HEAD Target crosshair indicator references the active branch green highlight token (--color-secondary) */
@@ -93,22 +93,37 @@
 
 /* 1. glass-overlay: Popovers, context menus, modal containers */
 @utility glass-overlay {
-  background-color: rgba(18, 39, 60, var(--opacity-glass-bg)); /* #12273c with glass opacity */
+  background-color: rgba(
+    18,
+    39,
+    60,
+    var(--opacity-glass-bg)
+  ); /* #12273c with glass opacity */
   backdrop-filter: var(--backdrop-blur-glass-md);
   border: 1px solid rgba(60, 73, 90, 0.15); /* border-border-subtle/15 */
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+  /* box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); */
 }
 
 /* 2. glass-header: Primary top toolbar */
 @utility glass-header {
-  background-color: rgba(4, 20, 37, var(--opacity-glass-header)); /* #041425 with glass opacity */
+  background-color: rgba(
+    4,
+    20,
+    37,
+    var(--opacity-glass-header)
+  ); /* #041425 with glass opacity */
   backdrop-filter: var(--backdrop-blur-glass-xl);
   border-bottom: 1px solid rgba(60, 73, 90, 0.15);
 }
 
 /* 3. glass-sticky-header: Sticky section dividers inside lists */
 @utility glass-sticky-header {
-  background-color: rgba(2, 15, 30, var(--opacity-glass-sticky)); /* #020f1e with glass opacity */
+  background-color: rgba(
+    2,
+    15,
+    30,
+    var(--opacity-glass-sticky)
+  ); /* #020f1e with glass opacity */
   backdrop-filter: var(--backdrop-blur-glass-xl);
   border-bottom: 1px solid rgba(60, 73, 90, 0.15);
 }
@@ -171,7 +186,6 @@
   font-weight: 400;
   line-height: 14px;
 }
-
 
 /* ──────────── Light theme (experimental) ──────────── */
 /*

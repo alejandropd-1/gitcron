@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.6.4-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.6.5-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -117,6 +117,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Selective Text Selection**: Habilitación selectiva de la propiedad de selección de texto (`select-text`) quirúrgicamente sobre nombres de ramas (locales y remotas), agrupadores de carpetas, tags, stashes y todos los metadatos de commits (mensajes, hashes, email, autor, archivos) en los listados e insets, conservando el comportamiento nativo `select-none` en elementos interactivos.
 - **Reordenamiento de Pestañas por Arrastre (Drag-to-Reorder Repo Tabs)**: Las pestañas de los repositorios abiertos en la barra superior ahora soportan reordenamiento visual dinámico por arrastre utilizando `Reorder` de `motion/react`, with mitigación de clics accidentales durante el arrastre (`isDraggingRef`).
 - **Paneles Laterales Integrados para Configuración, Ayuda y Usuario**: Reemplazo de los antiguos modales flotantes por paneles semánticos integrados en el layout principal. Los contenidos se adaptan fluidamente a la anchura del contenedor (`w-full` y `max-w-2xl` para el perfil de usuario), eliminando límites heredados del contenedor modal.
+- **Flujo de Repositorios Integrado**: Abrir existente, Crear nuevo y Clonar de GitHub ahora viven en la navegación lateral izquierda, siguiendo la misma estética y comportamiento de Configuración, Ayuda y Perfil. El contenido se muestra en el panel central con ancho controlado, fondo glass consistente y sin superposición del TCAR/LCAR o del switch Clásico/Cronométrico.
 - **Transición de Desvanecimiento Puro (Fade-Only)**: Eliminación definitiva de las distorsiones de escalado bruscas por defecto. Implementación de transiciones de opacidad para una experiencia fluida y prémium al abrir y cerrar paneles.
 - **Guardia de Hidratación (Hydration Guard)**: Implementación de una barrera de renderizado síncrono en el cliente basada en la técnica de Josh W. Comeau para evitar discrepancias de hidratación SSR, introduciendo una pantalla de carga y esqueleto premium durante la sincronización inicial.
 - **Saneamiento Estático y Mantenibilidad de Fallow**: Saneamos la complejidad del grafo clásico (`computeGraph` en `CommitGraph.tsx` simplificada) y modularizamos la hidratación de preferencias en `use-git-actions.ts` hacia helpers modulares independientes, logrando una reducción del 90% en su complejidad cognitiva y elevando el *Maintainability Score* global del proyecto al **90.0% ("Good")**.
@@ -366,9 +367,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.6.4.exe`                                             |
-| macOS    | `GitCron-1.6.4.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.6.4.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.6.5.exe`                                             |
+| macOS    | `GitCron-1.6.5.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.6.5.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -417,7 +418,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.6.4` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.6.5` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

@@ -23,7 +23,7 @@ import {
 import { useShortcuts } from '@/hooks/use-shortcuts';
 import { CommitContextMenu, BranchContextMenu, FileContextMenu, RemoteBranchContextMenu } from '@/components/ContextMenus';
 import { StatusBadge, FlowStep } from '@/components/HelpModal';
-import { EmptyStateCard, InitRepoModal, CloneRepoModal } from '@/components/RepoModals';
+import { RepoStartPanel, type RepoStartMode } from '@/components/RepoModals';
 import { ChangelogPreview } from '@/components/ChangelogPreview';
 import { useGitStore, Commit, GitFile, type RepoState, type FontSize } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
@@ -467,62 +467,6 @@ function FetchIndicator({ onClick }: { onClick: () => void | Promise<void> }) {
   );
 }
 
-function RepoStartChooser({
-  githubUser,
-  onOpenExisting,
-  onCreateNew,
-  onCloneRepo,
-  onConnectGitHub,
-}: {
-  githubUser: { login: string } | null;
-  onOpenExisting: () => void | Promise<void>;
-  onCreateNew: () => void;
-  onCloneRepo: () => void;
-  onConnectGitHub: () => void;
-}) {
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-8 text-text-secondary p-8">
-      <div className="text-center">
-        <FolderOpen size={56} className="mx-auto opacity-20 mb-4" />
-        <p className="text-lg font-bold text-text-primary mb-1">Bienvenido a GitCron</p>
-        <p className="text-sm">Elegi como empezar:</p>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4 max-w-3xl">
-        <EmptyStateCard
-          icon={<FolderOpen size={28} />}
-          title="Abrir existente"
-          desc="Selecciona una carpeta que ya sea un repo git"
-          onClick={onOpenExisting}
-        />
-        <EmptyStateCard
-          icon={<Sparkles size={28} />}
-          title="Crear nuevo"
-          desc="Inicializar un repo nuevo en tu maquina"
-          onClick={onCreateNew}
-          highlighted
-        />
-        <EmptyStateCard
-          icon={<Download size={28} />}
-          title="Clonar de GitHub"
-          desc="Bajar un repo existente desde una URL"
-          onClick={onCloneRepo}
-        />
-      </div>
-
-      {!githubUser && (
-        <button
-          onClick={onConnectGitHub}
-          className="text-xs text-text-secondary hover:text-secondary underline transition-colors flex items-center gap-1.5"
-        >
-          <Github size={12} />
-          Conecta tu cuenta de GitHub para clonar repos privados
-        </button>
-      )}
-    </div>
-  );
-}
-
 function GraphColumnHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
   return (
     <div
@@ -588,6 +532,8 @@ export default function GitCronPage() {
   const [activeView, setActiveView] = useState<'repository' | 'settings' | 'help' | 'profile'>('repository');
   const [selectedSettingsSection, setSelectedSettingsSection] = useState<string>('language');
   const [selectedHelpSection, setSelectedHelpSection] = useState<string>('whatis');
+  const [showRepoChooser, setShowRepoChooser] = useState(false);
+  const [repoStartMode, setRepoStartMode] = useState<RepoStartMode>('create');
 
   const [activeTab, setActiveTab] = useState('Graph');
   const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestEntry | null>(null);
@@ -625,10 +571,19 @@ export default function GitCronPage() {
     }, 150);
   };
 
+  const handleCloseRepoChooser = () => {
+    setIsViewChanging(true);
+    setShowRepoChooser(false);
+    setTimeout(() => {
+      setIsViewChanging(false);
+    }, 150);
+  };
+
   const getGraphMode = (): 'chronometric' | 'classic' => 'chronometric';
   const graphMode = getGraphMode(); // Always use premium floating layout
   const activeGraphMode = enableCronometric ? rawGraphMode : 'classic';
-  const isMainFullBleed = activeView === 'repository' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest;
+  const isRepoStartView = activeView === 'repository' && (!repoPath || showRepoChooser);
+  const isMainFullBleed = activeView === 'repository' && !isRepoStartView && activeTab === 'Graph' && !selectedFile && !selectedPullRequest;
 
   const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
     const activeRepo = useGitStore.getState().getActiveRepo();
@@ -782,8 +737,9 @@ export default function GitCronPage() {
   // ── Floating panel open/closed state ──
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(true);
+  const repositoryDetailsVisible = detailsOpen && activeView === 'repository' && !!repoPath && !isRepoStartView;
   const leftGraphSafe = sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
-  const rightGraphSafe = detailsOpen ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
+  const rightGraphSafe = repositoryDetailsVisible ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
   const [isDragging, setIsDragging] = useState(false);
   const [graphColumns, setGraphColumns] = useState(GRAPH_COLUMN_DEFAULTS);
   const dragRef = useRef<{
@@ -863,9 +819,6 @@ export default function GitCronPage() {
 
   const [filterText, setFilterText] = useState('');
   const filterInputRef = useRef<HTMLInputElement>(null);
-  const [showInitRepo, setShowInitRepo] = useState(false);
-  const [showCloneRepo, setShowCloneRepo] = useState(false);
-  const [showRepoChooser, setShowRepoChooser] = useState(false);
   const [showSearchPopover, setShowSearchPopover] = useState(false);
   const [showBranchFilterDropdown, setShowBranchFilterDropdown] = useState(false);
   const branchFilterRef = useRef<HTMLDivElement>(null);
@@ -1392,6 +1345,7 @@ export default function GitCronPage() {
     setCurrentDiff('');
     setSelectedPullRequest(null);
     setPullRequestDiff(null);
+    setRepoStartMode('create');
     handleViewChange('repository');
     setShowRepoChooser(true);
   };
@@ -1399,25 +1353,118 @@ export default function GitCronPage() {
   const handleOpenExistingFromChooser = async () => {
     await openRepo();
     if (useGitStore.getState().repoPath) {
-      setShowRepoChooser(false);
+      handleCloseRepoChooser();
     }
   };
 
-  const handleCreateRepoFromChooser = () => {
-    setShowRepoChooser(false);
-    setShowInitRepo(true);
+  const handleCreateRepoFromChooser = async (parent: string, name: string, withGitHub: boolean) => {
+    setError(null);
+    const separator = parent.includes('\\') ? '\\' : '/';
+    const repoDir = parent.endsWith('/') || parent.endsWith('\\')
+      ? `${parent}${name}`
+      : `${parent}${separator}${name}`;
+
+    const existsResult = await window.api.fsExistsAndNotEmpty(parent, name);
+    const existsAndNotEmpty = existsResult.success && existsResult.data;
+
+    if (existsAndNotEmpty) {
+      const r = await initRepo(parent, name, true);
+      if (!r.success) return false;
+
+      if (withGitHub && githubToken) {
+        const gh = await createGitHubRepo(githubToken, name, true, '', false);
+        let cloneUrl = '';
+
+        if (!gh.success) {
+          const isNameExistsError = gh.error && gh.error.includes('already exists');
+          if (isNameExistsError && githubUser?.login) {
+            cloneUrl = `https://github.com/${githubUser.login}/${name}.git`;
+          } else {
+            return false;
+          }
+        } else if (gh.data) {
+          cloneUrl = gh.data.cloneUrl;
+        }
+
+        if (cloneUrl) {
+          const remoteRes = await window.api.gitCommand(repoDir, ['remote', 'add', 'origin', cloneUrl]);
+          if (!remoteRes.success && !remoteRes.error?.includes('already exists')) {
+            setError(remoteRes.error ?? 'Error al asociar el repositorio remoto');
+            return false;
+          }
+
+          const pushRes = await window.api.gitPushBranch(repoDir, 'main', githubToken);
+          if (!pushRes.success) {
+            const isRejected = pushRes.error && (
+              pushRes.error.includes('[rejected]') ||
+              pushRes.error.includes('fetch first') ||
+              pushRes.error.includes('non-fast-forward') ||
+              pushRes.error.includes('remote contains work')
+            );
+            if (isRejected) {
+              const shouldForce = await new Promise<boolean>((resolve) => {
+                setForcePushConfirm({
+                  repoDir,
+                  githubToken,
+                  resolve,
+                });
+              });
+              if (shouldForce) {
+                const forcePushRes = await window.api.gitPushBranch(repoDir, 'main', githubToken, true);
+                if (!forcePushRes.success) {
+                  setError(forcePushRes.error ?? 'Error al forzar la subida a GitHub');
+                  return false;
+                }
+              } else {
+                return false;
+              }
+            } else {
+              setError(pushRes.error ?? 'Error al subir los archivos a GitHub');
+              return false;
+            }
+          }
+        }
+      }
+      await loadAll(repoDir);
+      return true;
+    }
+
+    if (withGitHub && githubToken) {
+      const r = await createGitHubRepo(githubToken, name, true, '', true);
+      let cloneUrl = '';
+
+      if (!r.success) {
+        const isNameExistsError = r.error && r.error.includes('already exists');
+        if (isNameExistsError && githubUser?.login) {
+          cloneUrl = `https://github.com/${githubUser.login}/${name}.git`;
+        } else {
+          return false;
+        }
+      } else if (r.data) {
+        cloneUrl = r.data.cloneUrl;
+      }
+
+      if (cloneUrl) {
+        const cl = await cloneRepo(cloneUrl, parent, name, githubToken);
+        return cl.success;
+      }
+      return false;
+    }
+
+    const r = await initRepo(parent, name, true);
+    return r.success;
   };
 
-  const handleCloneRepoFromChooser = () => {
-    setShowRepoChooser(false);
-    setShowCloneRepo(true);
+  const handleCloneRepoFromChooser = async (url: string, parent: string, name: string) => {
+    const r = await cloneRepo(url, parent, name, githubToken ?? undefined);
+    return r.success;
   };
 
   const handleSelectRepoTab = async (idx: number) => {
     const repo = openRepos[idx];
     if (!repo || idx === activeRepoIdx) return;
     handleViewChange('repository');
-    setShowRepoChooser(false);
+    handleCloseRepoChooser();
     setSelectedPullRequest(null);
     setPullRequestDiff(null);
     setPullRequestDiffLoading(false);
@@ -1432,7 +1479,7 @@ export default function GitCronPage() {
 
   const handleCloseRepoTab = async (idx: number) => {
     await closeRepo(idx);
-    setShowRepoChooser(false);
+    handleCloseRepoChooser();
   };
 
   const handlePullDecision = async (mode: 'ff-only' | 'rebase' | 'merge') => {
@@ -1541,7 +1588,7 @@ export default function GitCronPage() {
 
         <div className="flex items-center justify-end gap-1 min-w-0">
           {/* Branch filter dropdown — only visible when Graph tab is active */}
-          {activeView === 'repository' && activeTab === 'Graph' && repoPath && enableCronometric && (
+          {activeView === 'repository' && !isRepoStartView && activeTab === 'Graph' && repoPath && enableCronometric && (
             <div className="bg-bg-overlay/90 border border-border-subtle/20 rounded-md flex items-center p-0.5 mr-1 shrink-0">
               <button
                 type="button"
@@ -1623,7 +1670,7 @@ export default function GitCronPage() {
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
-                    className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border-subtle/25 bg-bg-overlay/95 backdrop-blur-xl shadow-2xl shadow-black/40 p-3 z-[220]"
+                    className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border-subtle/25 bg-bg-overlay/95 backdrop-blur-xl p-3 z-[220]"
                   >
                     <div className="flex items-start gap-2.5">
                       <div className={cn(
@@ -1721,7 +1768,7 @@ export default function GitCronPage() {
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
-                    className="absolute right-0 top-full mt-1 glass-overlay rounded-lg shadow-2xl shadow-black/40 py-1 z-50 w-44"
+                    className="absolute right-0 top-full mt-1 glass-overlay rounded-lg  py-1 z-50 w-44"
                     onClick={() => setShowBranchFilterDropdown(false)}
                   >
                     <button
@@ -1808,7 +1855,7 @@ export default function GitCronPage() {
       {showSearchPopover && searchPopoverPos && (
         <div
           ref={searchPopoverRef}
-          className="fixed w-[360px] rounded-lg border border-border-subtle/25 bg-bg-overlay/95 backdrop-blur-xl shadow-2xl shadow-black/40 p-2 z-[200]"
+          className="fixed w-[360px] rounded-lg border border-border-subtle/25 bg-bg-overlay/95 backdrop-blur-xl p-2 z-[200]"
           style={{ top: searchPopoverPos.top, right: searchPopoverPos.right }}
         >
           <div className="relative">
@@ -1875,42 +1922,89 @@ export default function GitCronPage() {
           <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin py-2">
             <AnimatePresence mode="wait">
               {activeView === 'repository' ? (
-                <motion.div
-                  key="repository"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex flex-col min-h-0"
-                >
-                  {/* LOCAL — folder tree + ahead/behind chips */}
-                  <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-primary" />}>
-                    {branches.length === 0 && !repoPath && (
-                      <p className="px-4 py-2 text-xs text-text-secondary italic">{t('sidebar.noBranches')}</p>
-                    )}
-                    <BranchTree
-                      branches={branches}
-                      currentBranch={currentBranch}
-                      tracking={branchTracking}
-                      onCheckout={(b) => handleCheckoutAttempt(b)}
-                      onContextMenu={(e, b) => {
-                        e.preventDefault();
-                        openBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
-                      }}
-                    />
-                  </SidebarSection>
+                isRepoStartView ? (
+                  <motion.div
+                    key="repo-start"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex flex-col h-full select-none"
+                  >
+                    <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
+                      <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                        <FolderOpen size={14} /> Repositorios
+                      </span>
+                      {repoPath && (
+                        <button
+                          onClick={handleCloseRepoChooser}
+                          className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
+                          title="Volver al Repositorio"
+                        >
+                          <ArrowLeft size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="py-2 space-y-0.5">
+                      {[
+                        { id: 'open' as const, label: 'Abrir existente', icon: <FolderOpen size={14} /> },
+                        { id: 'create' as const, label: 'Crear nuevo', icon: <Sparkles size={14} /> },
+                        { id: 'clone' as const, label: 'Clonar de GitHub', icon: <Download size={14} /> },
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => setRepoStartMode(item.id)}
+                          className={cn(
+                            'w-full px-4 py-2 flex items-center gap-3 text-xs font-semibold tracking-wide transition-colors text-left relative',
+                            repoStartMode === item.id
+                              ? 'bg-secondary/10 text-secondary'
+                              : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+                          )}
+                        >
+                          {repoStartMode === item.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />}
+                          <span className={cn('shrink-0', repoStartMode === item.id ? 'text-secondary' : 'text-text-secondary/70')}>{item.icon}</span>
+                          <span className="truncate">{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="repository"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex flex-col min-h-0"
+                  >
+                    {/* LOCAL — folder tree + ahead/behind chips */}
+                    <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-primary" />}>
+                      {branches.length === 0 && !repoPath && (
+                        <p className="px-4 py-2 text-xs text-text-secondary italic">{t('sidebar.noBranches')}</p>
+                      )}
+                      <BranchTree
+                        branches={branches}
+                        currentBranch={currentBranch}
+                        tracking={branchTracking}
+                        onCheckout={(b) => handleCheckoutAttempt(b)}
+                        onContextMenu={(e, b) => {
+                          e.preventDefault();
+                          openBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
+                        }}
+                      />
+                    </SidebarSection>
 
-                  {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
-                  <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} className="text-primary" />}>
-                    <RemoteBranchTree
-                      branches={remoteBranches}
-                      onCheckout={(b) => handleCheckoutAttempt(b)}
-                      onContextMenu={(e, b) => {
-                        e.preventDefault();
-                        openRemoteBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
-                      }}
-                    />
-                  </SidebarSection>
+                    {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
+                    <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} className="text-primary" />}>
+                      <RemoteBranchTree
+                        branches={remoteBranches}
+                        onCheckout={(b) => handleCheckoutAttempt(b)}
+                        onContextMenu={(e, b) => {
+                          e.preventDefault();
+                          openRemoteBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
+                        }}
+                      />
+                    </SidebarSection>
 
                   {/* PULL REQUESTS — only when logged in to GitHub */}
                   {githubUser && (
@@ -2031,13 +2125,14 @@ export default function GitCronPage() {
                     </SidebarSection>
                   )}
 
-                  {/* SUBMODULES — only render section if there are any */}
-                  {submodules.length > 0 && (
-                    <SidebarSection title={t('sidebar.submodules')} count={submodules.length}>
-                      {submodules.map((sm) => <SidebarItem key={sm.path} icon={<Layers size={16} />} text={sm.path} />)}
-                    </SidebarSection>
-                  )}
-                </motion.div>
+                    {/* SUBMODULES — only render section if there are any */}
+                    {submodules.length > 0 && (
+                      <SidebarSection title={t('sidebar.submodules')} count={submodules.length}>
+                        {submodules.map((sm) => <SidebarItem key={sm.path} icon={<Layers size={16} />} text={sm.path} />)}
+                      </SidebarSection>
+                    )}
+                  </motion.div>
+                )
               ) : activeView === 'settings' ? (
                 <motion.div
                   key="settings"
@@ -2252,8 +2347,10 @@ export default function GitCronPage() {
             graphMode === 'chronometric'
               ? cn(
                   "absolute",
-                  (!isTabChanging && !isViewChanging && activeView === 'repository') && "transition-[left,right,top,bottom] duration-300",
-                  !isMainFullBleed && "bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl"
+                  (!isTabChanging && !isViewChanging && activeView === 'repository' && !isRepoStartView) && "transition-[left,right,top,bottom] duration-300",
+                  isRepoStartView
+                    ? "z-40 bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl"
+                    : !isMainFullBleed && "bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl"
                 )
               : "relative flex-1 min-h-0 bg-bg-base"
           )}
@@ -2265,7 +2362,7 @@ export default function GitCronPage() {
                     top: 96 + FLOATING_PANEL_INSET,
                     bottom: FLOATING_PANEL_INSET,
                     left: sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
-                    right: (detailsOpen && activeView === 'repository') ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
+                    right: repositoryDetailsVisible ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
                   }
               : undefined
           }
@@ -2768,7 +2865,7 @@ export default function GitCronPage() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="glass-overlay rounded-2xl border border-border-subtle/25 shadow-2xl p-6 w-full max-w-2xl"
+                  className="glass-overlay rounded-2xl border border-border-subtle/25 p-6 w-full max-w-2xl"
                 >
                   {githubUser ? (
                     <div className="space-y-4">
@@ -2828,45 +2925,45 @@ export default function GitCronPage() {
                 </motion.div>
               </div>
             </div>
-          ) : !repoPath || showRepoChooser ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-8 text-text-secondary p-8">
-              <div className="text-center">
-                <FolderOpen size={56} className="mx-auto opacity-20 mb-4" />
-                <p className="text-lg font-bold text-text-primary mb-1">Bienvenido a GitCron</p>
-                <p className="text-sm">Elegí cómo empezar:</p>
+          ) : isRepoStartView ? (
+            <div className="relative z-10 flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
+              <div className="border-b border-border-subtle/15 shrink-0">
+                <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <FolderOpen size={18} className="text-secondary shrink-0" />
+                    <h2 className="truncate text-base font-bold text-text-primary">
+                      {repoStartMode === 'open' && 'Abrir repositorio existente'}
+                      {repoStartMode === 'create' && 'Crear repositorio nuevo'}
+                      {repoStartMode === 'clone' && 'Clonar repositorio'}
+                    </h2>
+                  </div>
+                  {repoPath && (
+                    <button
+                      onClick={handleCloseRepoChooser}
+                      className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
+                    >
+                      Volver al Repositorio
+                    </button>
+                  )}
+                </div>
               </div>
-
-              <div className="grid grid-cols-3 gap-4 max-w-3xl">
-                <EmptyStateCard
-                  icon={<FolderOpen size={28} />}
-                  title="Abrir existente"
-                  desc="Seleccioná una carpeta que ya sea un repo git"
-                  onClick={handleOpenExistingFromChooser}
-                />
-                <EmptyStateCard
-                  icon={<Sparkles size={28} />}
-                  title="Crear nuevo"
-                  desc="Inicializar un repo nuevo en tu máquina"
-                  onClick={handleCreateRepoFromChooser}
-                  highlighted
-                />
-                <EmptyStateCard
-                  icon={<Download size={28} />}
-                  title="Clonar de GitHub"
-                  desc="Bajar un repo existente desde una URL"
-                  onClick={handleCloneRepoFromChooser}
-                />
+              <div className="flex-1 overflow-y-auto w-full select-text">
+                <div className="mx-auto w-full max-w-4xl p-6">
+                  <RepoStartPanel
+                    mode={repoStartMode}
+                    githubConnected={!!githubUser}
+                    isLoading={isLoading}
+                    onOpenExisting={handleOpenExistingFromChooser}
+                    onPickCreateFolder={() => pickFolder('Elegir carpeta padre donde crear el repo')}
+                    onPickCloneFolder={() => pickFolder('Elegir carpeta padre donde clonar')}
+                    onCreate={handleCreateRepoFromChooser}
+                    onClone={handleCloneRepoFromChooser}
+                    onListRepos={() => githubToken ? listUserGitHubRepos(githubToken) : Promise.resolve([])}
+                    onConnectGitHub={() => handleViewChange('profile')}
+                    onComplete={handleCloseRepoChooser}
+                  />
+                </div>
               </div>
-
-              {!githubUser && (
-                <button
-                  onClick={() => handleViewChange('profile')}
-                  className="text-xs text-text-secondary hover:text-secondary underline transition-colors flex items-center gap-1.5"
-                >
-                  <Github size={12} />
-                  Conectá tu cuenta de GitHub para clonar repos privados
-                </button>
-              )}
             </div>
           ) : selectedPullRequest ? (
             <motion.div
@@ -3076,7 +3173,7 @@ export default function GitCronPage() {
                       paddingTop: 96 + FLOATING_PANEL_INSET,
                       paddingBottom: FLOATING_PANEL_INSET,
                       paddingLeft: sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
-                      paddingRight: detailsOpen ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
+                      paddingRight: repositoryDetailsVisible ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
                     }}
                   >
                     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl">
@@ -3230,14 +3327,14 @@ export default function GitCronPage() {
                   right: FLOATING_PANEL_INSET,
                   bottom: FLOATING_PANEL_INSET,
                   width: detailsW,
-                  transform: (detailsOpen && activeView === 'repository') ? 'translateX(0)' : `translateX(calc(100% + ${FLOATING_PANEL_INSET * 2}px))`,
-                  opacity: (detailsOpen && activeView === 'repository') ? 1 : 0,
-                  visibility: (detailsOpen && activeView === 'repository') ? 'visible' : 'hidden',
+                  transform: repositoryDetailsVisible ? 'translateX(0)' : `translateX(calc(100% + ${FLOATING_PANEL_INSET * 2}px))`,
+                  opacity: repositoryDetailsVisible ? 1 : 0,
+                  visibility: repositoryDetailsVisible ? 'visible' : 'hidden',
                 }
               : {
-                  width: (detailsOpen && activeView === 'repository') ? detailsW : 0,
-                  opacity: (detailsOpen && activeView === 'repository') ? 1 : 0,
-                  visibility: (detailsOpen && activeView === 'repository') ? 'visible' : 'hidden',
+                  width: repositoryDetailsVisible ? detailsW : 0,
+                  opacity: repositoryDetailsVisible ? 1 : 0,
+                  visibility: repositoryDetailsVisible ? 'visible' : 'hidden',
                 }
           }
         >
@@ -3395,7 +3492,7 @@ export default function GitCronPage() {
 
         {/* LCAR-29 right-side decorative panel — cronométrico only when Graph tab is active and no diff is open */}
         <AnimatePresence>
-          {activeView === 'repository' && activeGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest && (
+          {activeView === 'repository' && !isRepoStartView && activeGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest && (
             <motion.div
               key="lcar-right-container"
               initial={{ opacity: 0 }}
@@ -3616,138 +3713,6 @@ export default function GitCronPage() {
           </motion.div>
         )}
       </AnimatePresence>
-
-
-
-      {/* ──────────── INIT REPO MODAL ──────────── */}
-      <AnimatePresence>
-        {showInitRepo && (
-          <InitRepoModal
-            onClose={() => setShowInitRepo(false)}
-            onPickFolder={() => pickFolder('Elegir carpeta padre donde crear el repo')}
-            onCreate={async (parent, name, withGitHub) => {
-              setError(null);
-              const separator = parent.includes('\\') ? '\\' : '/';
-              const repoDir = parent.endsWith('/') || parent.endsWith('\\')
-                ? `${parent}${name}`
-                : `${parent}${separator}${name}`;
-
-              const existsResult = await window.api.fsExistsAndNotEmpty(parent, name);
-              const existsAndNotEmpty = existsResult.success && existsResult.data;
-
-              if (existsAndNotEmpty) {
-                // Inteligente: La carpeta existe y no está vacía.
-                const r = await initRepo(parent, name, true);
-                if (!r.success) return false;
-
-                if (withGitHub && githubToken) {
-                  const gh = await createGitHubRepo(githubToken, name, true, '', false);
-                  let cloneUrl = '';
-
-                  if (!gh.success) {
-                    const isNameExistsError = gh.error && gh.error.includes('already exists');
-                    if (isNameExistsError && githubUser?.login) {
-                      cloneUrl = `https://github.com/${githubUser.login}/${name}.git`;
-                    } else {
-                      return false;
-                    }
-                  } else if (gh.data) {
-                    cloneUrl = gh.data.cloneUrl;
-                  }
-
-                  if (cloneUrl) {
-                    // Asociar el remote origin (si no existiera ya)
-                    const remoteRes = await window.api.gitCommand(repoDir, ['remote', 'add', 'origin', cloneUrl]);
-                    if (!remoteRes.success && !remoteRes.error?.includes('already exists')) {
-                      setError(remoteRes.error ?? 'Error al asociar el repositorio remoto');
-                      return false;
-                    }
-
-                    // Push de la rama local main a origin
-                    let pushRes = await window.api.gitPushBranch(repoDir, 'main', githubToken);
-                    if (!pushRes.success) {
-                      const isRejected = pushRes.error && (
-                        pushRes.error.includes('[rejected]') ||
-                        pushRes.error.includes('fetch first') ||
-                        pushRes.error.includes('non-fast-forward') ||
-                        pushRes.error.includes('remote contains work')
-                      );
-                      if (isRejected) {
-                        const shouldForce = await new Promise<boolean>((resolve) => {
-                          setForcePushConfirm({
-                            repoDir,
-                            githubToken,
-                            resolve,
-                          });
-                        });
-                        if (shouldForce) {
-                          const forcePushRes = await window.api.gitPushBranch(repoDir, 'main', githubToken, true);
-                          if (!forcePushRes.success) {
-                            setError(forcePushRes.error ?? 'Error al forzar la subida a GitHub');
-                            return false;
-                          }
-                        } else {
-                          return false;
-                        }
-                      } else {
-                        setError(pushRes.error ?? 'Error al subir los archivos a GitHub');
-                        return false;
-                      }
-                    }
-                  }
-                }
-                await loadAll(repoDir);
-                return true;
-              } else {
-                // Por defecto: Carpeta nueva o vacía.
-                if (withGitHub && githubToken) {
-                  const r = await createGitHubRepo(githubToken, name, true, '', true);
-                  let cloneUrl = '';
-
-                  if (!r.success) {
-                    const isNameExistsError = r.error && r.error.includes('already exists');
-                    if (isNameExistsError && githubUser?.login) {
-                      cloneUrl = `https://github.com/${githubUser.login}/${name}.git`;
-                    } else {
-                      return false;
-                    }
-                  } else if (r.data) {
-                    cloneUrl = r.data.cloneUrl;
-                  }
-
-                  if (cloneUrl) {
-                    const cl = await cloneRepo(cloneUrl, parent, name, githubToken);
-                    return cl.success;
-                  }
-                  return false;
-                }
-                const r = await initRepo(parent, name, true);
-                return r.success;
-              }
-            }}
-            isLoading={isLoading}
-            githubConnected={!!githubUser}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* ──────────── CLONE REPO MODAL ──────────── */}
-      <AnimatePresence>
-        {showCloneRepo && (
-          <CloneRepoModal
-            onClose={() => setShowCloneRepo(false)}
-            onPickFolder={() => pickFolder('Elegir carpeta padre donde clonar')}
-            onClone={async (url, parent, name) => {
-              const r = await cloneRepo(url, parent, name, githubToken ?? undefined);
-              return r.success;
-            }}
-            onListRepos={() => githubToken ? listUserGitHubRepos(githubToken) : Promise.resolve([])}
-            isLoading={isLoading}
-            githubConnected={!!githubUser}
-          />
-        )}
-      </AnimatePresence>
-
       {/* ──────────── BRANCH CONTEXT MENU ──────────── */}
       <AnimatePresence>
         {branchMenu && (
@@ -3954,7 +3919,7 @@ export default function GitCronPage() {
           >
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="bg-[#152335]/98 backdrop-blur-xl border border-[#ffa8a3]/20 rounded-2xl shadow-2xl shadow-black/80 p-6 w-[480px]"
+              className="bg-[#152335]/98 backdrop-blur-xl border border-[#ffa8a3]/20 rounded-2xl p-6 w-[480px]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start gap-4 mb-5">

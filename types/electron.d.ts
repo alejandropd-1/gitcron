@@ -3,6 +3,8 @@ import type {
   TemporalAgentNotes,
   TemporalAgentDecision,
   PredictionResult,
+  MaterializeIdeaInput,
+  MaterializationResult,
 } from './temporal-agent';
 
 interface GitResult<T = unknown> {
@@ -221,6 +223,7 @@ interface ElectronAPI {
   repoWatch: (targetPath: string) => Promise<GitResult>;
   repoUnwatch: (targetPath: string) => Promise<GitResult>;
   onRepoFsChange: (cb: (repoPath: string) => void) => () => void;
+  materializeIdea(repoPath: string, idea: MaterializeIdeaInput): Promise<GitResult<MaterializationResult>>;
   ai: {
     predictTimelines(repoPath: string, repoName: string): Promise<GitResult<PredictionResult>>;
     hasKey(provider: string): Promise<GitResult<boolean>>;

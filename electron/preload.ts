@@ -144,6 +144,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('repo:fs-change', handler);
     return () => ipcRenderer.removeListener('repo:fs-change', handler);
   },
+  materializeIdea: (repoPath: string, idea: unknown) =>
+    ipcRenderer.invoke('git:materialize-idea', repoPath, idea),
   ai: {
     predictTimelines: (repoPath: string, repoName: string) =>
       ipcRenderer.invoke('ai:predict-timelines', repoPath, repoName),

@@ -20,6 +20,19 @@ import {
   computeGraph,
   initials,
 } from './CommitGraph';
+import { SpeculativeBranches } from './SpeculativeBranches';
+import {
+  projectSpeculative,
+  type SpeculativeBranch,
+} from '@/lib/speculative-projection';
+import {
+  openingTurnFromBranch,
+  type SpeculativeDialogue,
+  type MaterializeIdeaInput,
+  type MaterializationResult,
+} from '@/types/temporal-agent';
+import { buildMaterializationPlan } from '@/lib/materialize-idea';
+import { cn } from '@/lib/utils';
 import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Cpu, Terminal, Compass, Crosshair } from 'lucide-react';
 
 function getBezierPoint(
@@ -52,6 +65,12 @@ interface ChronometricGraphProps {
   filterText?: string;
   onSelect: (commit: Commit) => void;
   onContextMenu: (e: React.MouseEvent, commit: Commit) => void;
+  /** AI-predicted future branches to overlay (Feature B). Empty/undefined = none. */
+  speculativeBranches?: SpeculativeBranch[];
+  /** Toggle the speculative overlay without losing the predictions. */
+  showSpeculative?: boolean;
+  /** Optional click handler for a speculative branch (e.g. open accept/reject). */
+  onSelectSpeculative?: (id: string) => void;
   /** Pixels reserved by the left floating panel (sidebar). HUD panels shift right by this amount. */
   hudLeft?: number;
   /** Pixels reserved by the right floating panel (details). HUD panels shift left by this amount. */
@@ -65,6 +84,9 @@ export function ChronometricGraph({
   filterText = '',
   onSelect,
   onContextMenu,
+  speculativeBranches = [],
+  showSpeculative = false,
+  onSelectSpeculative,
   hudLeft = 0,
   hudRight = 0,
 }: ChronometricGraphProps) {
@@ -363,6 +385,100 @@ export function ChronometricGraph({
     projectedCommits.forEach((p) => map.set(p.commit.hash, p));
     return map;
   }, [projectedCommits]);
+
+  // Present (HEAD) anchor = the most recent projected commit (greatest x).
+  // Speculative branches fork from here into the future.
+  const speculativeNodes = useMemo(() => {
+    if (!showSpeculative || speculativeBranches.length === 0 || projectedCommits.length === 0) {
+      return [];
+    }
+    const head = projectedCommits.reduce((a, b) => (b.x > a.x ? b : a));
+    return projectSpeculative(speculativeBranches, { x: head.x, y: head.y }, config);
+  }, [showSpeculative, speculativeBranches, projectedCommits, config]);
+
+  // Centauro panel (Phase 5b): clicking a speculative branch opens its dialogue.
+  // The unit is a THREAD (SpeculativeDialogue.turns[]), not a loose string — today
+  // it holds a single read-only agent turn; tomorrow user/agent turns append with
+  // ZERO rewrite. No chat input yet (that's the conversation phase).
+  const [selectedSpeculativeId, setSelectedSpeculativeId] = useState<string | null>('mock-1');
+
+  const speculativeDialogue = useMemo<SpeculativeDialogue | null>(() => {
+    if (!showSpeculative || !selectedSpeculativeId) return null;
+    const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
+    if (!node) return null;
+    const b = node.branch;
+    // openingTurnFromBranch wants a full branch (rationale required); the lib
+    // branch keeps rationale optional, so default it before building the thread.
+    return openingTurnFromBranch({
+      id: b.id,
+      message: b.message,
+      rationale: b.rationale ?? '',
+      type: b.type,
+      confidence: b.confidence,
+    });
+  }, [showSpeculative, selectedSpeculativeId, speculativeNodes]);
+
+  const handleSelectSpeculative = (id: string) => {
+    setSelectedSpeculativeId(id);
+    onSelectSpeculative?.(id);
+  };
+
+  // --- Materialization (Phase 6) — confirm BEFORE any Git write -------------
+  // (repoPath / repoName are already read from the store above.)
+  // The idea pending confirmation (null = no modal). Built from the selected branch.
+  const [materializeIdea, setMaterializeIdea] = useState<MaterializeIdeaInput | null>(null);
+  const [materializing, setMaterializing] = useState(false);
+  const [materializeResult, setMaterializeResult] = useState<MaterializationResult | null>(null);
+  const [materializeError, setMaterializeError] = useState<string | null>(null);
+
+  // The exact plan the user is shown and confirms. Same builder main uses.
+  const materializePlan = useMemo(
+    () => (materializeIdea ? buildMaterializationPlan(materializeIdea) : null),
+    [materializeIdea],
+  );
+
+  function openMaterializeConfirm() {
+    if (!selectedSpeculativeId) return;
+    const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
+    if (!node) return;
+    const b = node.branch;
+    setMaterializeResult(null);
+    setMaterializeError(null);
+    setMaterializeIdea({
+      id: b.id,
+      title: b.message,
+      rationale: b.rationale ?? '',
+      type: b.type,
+      confidence: b.confidence,
+    });
+  }
+
+  async function confirmMaterialize() {
+    if (!materializeIdea || !repoPath) return;
+    setMaterializing(true);
+    setMaterializeError(null);
+    try {
+      const res = await window.api.materializeIdea(repoPath, materializeIdea);
+      if (res.success && res.data) {
+        setMaterializeResult(res.data);
+        // Record the accepted decision so future predictions learn from it.
+        await window.api.temporalAgent.recordDecision(repoPath, repoName ?? 'repo', {
+          date: new Date().toISOString(),
+          suggestionTitle: materializeIdea.title,
+          type: materializeIdea.type,
+          outcome: 'accepted',
+          confidence: materializeIdea.confidence,
+          impact: `Materialized as ${res.data.branchName} (${res.data.tagName}).`,
+        });
+      } else {
+        setMaterializeError(res.error ?? 'Materialization failed');
+      }
+    } catch (e) {
+      setMaterializeError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setMaterializing(false);
+    }
+  }
 
   // Per-node perpendicular offsetDist to prevent same-side label overlap.
   // Each side is processed in the direction where increasing offset moves the
@@ -1789,6 +1905,13 @@ export function ChronometricGraph({
                   </g>
                 );
               })}
+            {/* 5. Speculative (AI-predicted) future branches — overlay, dotted/faint */}
+            <SpeculativeBranches
+              nodes={speculativeNodes}
+              config={config}
+              visible={showSpeculative}
+              onSelect={handleSelectSpeculative}
+            />
             </g>
           </g>
 
@@ -2171,7 +2294,53 @@ export function ChronometricGraph({
           </div>
 
           <div className="hud-target-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono select-none transition-all duration-300">
-            {selectedCommit ? (
+            {speculativeDialogue ? (
+              <div className="flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-200 select-text">
+                <div className="flex items-center justify-between border-b border-[#5ed8ff]/25 pb-1 mb-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <Compass size={11} className="text-[#5ed8ff] hud-breath" />
+                    <span className="text-[9px] font-bold text-[#5ed8ff] tracking-wider uppercase">
+                      CENTAURO // INFORME DE PREDICCIÓN
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={openMaterializeConfirm}
+                      className="px-1.5 py-0.5 border border-[#a3f185]/45 hover:border-[#a3f185]/85 text-[#a3f185] hover:bg-[#a3f185]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
+                      title="Materializar como branch real (pide confirmación)"
+                    >
+                      Materializar
+                    </button>
+                    <button
+                      onClick={() => setSelectedSpeculativeId(null)}
+                      className="px-1.5 py-0.5 border border-[#5ed8ff]/35 hover:border-[#5ed8ff]/75 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
+                      title="Cerrar informe"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
+                {/* The thread: one agent turn today; user/agent turns append later. */}
+                <div className="flex flex-col gap-1.5 max-h-[120px] overflow-y-auto">
+                  {speculativeDialogue.turns.map((turn) => (
+                    <div
+                      key={turn.id}
+                      className={cn(
+                        'flex flex-col gap-0.5 border-l-2 pl-2',
+                        turn.role === 'agent' ? 'border-[#5ed8ff]/50' : 'border-[#a3f185]/50',
+                      )}
+                    >
+                      <span className="text-[7px] uppercase tracking-wider text-[#697789]">
+                        {turn.role === 'agent' ? 'agente' : 'vos'}
+                      </span>
+                      <p className="text-[9px] leading-snug text-[#d9e7fc] whitespace-pre-line font-sans">
+                        {turn.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : selectedCommit ? (
               <div className="flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between border-b border-[#5ed8ff]/25 pb-1 mb-0.5">
                   <div className="flex items-center gap-1.5">
@@ -2227,6 +2396,90 @@ export function ChronometricGraph({
 
         </div>
       </div>
+
+      {/* Materialization confirmation (Phase 6) — shown BEFORE any Git write. */}
+      {materializeIdea && materializePlan && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => { if (!materializing) setMaterializeIdea(null); }}
+        >
+          <div
+            className="w-[min(560px,92vw)] max-h-[85vh] overflow-y-auto bg-[#071a2c] border border-[#5ed8ff]/30 rounded-lg shadow-2xl p-5 font-mono text-[#d9e7fc] select-text"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {materializeResult ? (
+              <div className="flex flex-col gap-3">
+                <span className="text-[12px] font-bold text-[#a3f185] tracking-wider uppercase">
+                  ✓ Branch materializada
+                </span>
+                <div className="text-[11px] flex flex-col gap-1.5 text-[#d9e7fc]">
+                  <div>Branch: <span className="text-[#a3f185]">{materializeResult.branchName}</span></div>
+                  <div>Tag: <span className="text-[#5ed8ff]">{materializeResult.tagName}</span></div>
+                  <div>Commit: <span className="text-[#9eacc0]">{materializeResult.commitHash.slice(0, 10)}</span> (con IDEA.md)</div>
+                </div>
+                <p className="text-[10px] text-[#697789] leading-relaxed">
+                  Decisión registrada como <strong>accepted</strong>. Tu working tree y la branch actual no se tocaron.
+                </p>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setMaterializeIdea(null)}
+                    className="px-3 py-1.5 border border-[#5ed8ff]/40 hover:bg-[#5ed8ff]/10 text-[#5ed8ff] rounded text-[10px] uppercase tracking-wider cursor-pointer"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1 border-b border-[#5ed8ff]/20 pb-2">
+                  <span className="text-[12px] font-bold text-[#5ed8ff] tracking-wider uppercase">
+                    Materializar futuro
+                  </span>
+                  <span className="text-[10px] text-[#fd9d1a]">
+                    Esto crea una branch REAL desde HEAD. Revisá exactamente qué se va a crear:
+                  </span>
+                </div>
+
+                <div className="text-[11px] flex flex-col gap-1.5">
+                  <div>Branch: <span className="text-[#a3f185] font-bold">{materializePlan.branchName}</span></div>
+                  <div>Tag: <span className="text-[#5ed8ff] font-bold">{materializePlan.tagName}</span></div>
+                  <div>Nivel de vuelo: <span className="text-[#5ed8ff]">{materializePlan.flightLevel}</span></div>
+                  <div>Commit: <span className="text-[#9eacc0]">{materializePlan.commitMessage}</span></div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] text-[#697789] uppercase tracking-wider">IDEA.md</span>
+                  <pre className="max-h-[260px] overflow-y-auto bg-[#020f1e] border border-[#2D2E39] rounded p-3 text-[10px] leading-relaxed text-[#cbc3d7] whitespace-pre-wrap">
+                    {materializePlan.ideaMarkdown}
+                  </pre>
+                </div>
+
+                {materializeError && (
+                  <p className="text-[10px] text-[#fd9d1a]">Error: {materializeError}</p>
+                )}
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    onClick={() => setMaterializeIdea(null)}
+                    disabled={materializing}
+                    className="px-3 py-1.5 border border-[#3c495a]/60 hover:border-[#697789] text-[#9eacc0] rounded text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmMaterialize}
+                    disabled={materializing}
+                    className="px-3 py-1.5 bg-[#a3f185] hover:bg-[#b6f59f] text-[#020f1e] font-bold rounded text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                  >
+                    {materializing ? 'Creando…' : 'Confirmar y crear'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

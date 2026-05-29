@@ -33,6 +33,36 @@ import { DiffViewer } from '@/components/DiffViewer';
 import { CommitGraph, colorForBranch } from '@/components/CommitGraph';
 import { ChronometricGraph } from '@/components/ChronometricGraph';
 import { TemporalAgentSettings } from '@/components/TemporalAgentSettings';
+import type { SpeculativeBranch } from '@/lib/speculative-projection';
+
+// Phase 5 test data — 3 mock speculative branches to validate the overlay
+// without hitting the AI. The real flow swaps these for PredictionResult.branches.
+const MOCK_SPECULATIVE: SpeculativeBranch[] = [
+  {
+    id: 'mock-1',
+    message: 'Extract IPC layer into a typed contract module',
+    rationale:
+      'Los commits recientes tocan electron/main.ts una y otra vez para sumar handlers. Un contrato IPC tipado y compartido cortaría ese churn y reduciría el riesgo en el bridge del preload.',
+    type: 'improvement',
+    confidence: 0.82,
+  },
+  {
+    id: 'mock-2',
+    message: 'Add a streaming prediction mode for large repos',
+    rationale:
+      'El armado de contexto ya lee hasta 40 commits; transmitir la salida del modelo mantendría la UI fluida en historiales grandes.',
+    type: 'breakthrough',
+    confidence: 0.66,
+  },
+  {
+    id: 'mock-3',
+    message: 'Surface forecasting-doctrine confidence inline on the diagonal',
+    rationale:
+      'La doctrina ata la confianza a la entropía del repo. Mostrar el "por qué 0.7 y no 0.9" junto a cada rama refuerza la calibración honesta.',
+    type: 'trend',
+    confidence: 0.74,
+  },
+];
 import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -539,6 +569,11 @@ export default function GitCronPage() {
   const [activeTab, setActiveTab] = useState('Graph');
   const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestEntry | null>(null);
   const [wordWrap, setWordWrap] = useState(false);
+
+  // Temporal Agent — speculative branch overlay (Phase 5). Seeded with mock
+  // branches for visual testing; the real PredictionResult is wired separately.
+  const [showSpeculative, setShowSpeculative] = useState(true);
+  const [speculativeBranches] = useState<SpeculativeBranch[]>(MOCK_SPECULATIVE);
 
   // Keyboard shortcut to toggle word wrap (Alt+Z)
   useEffect(() => {
@@ -3312,6 +3347,20 @@ export default function GitCronPage() {
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.25, ease: 'easeOut' }}
                         >
+                          {/* Temporal Agent overlay toggle (Phase 5). */}
+                          <button
+                            onClick={() => setShowSpeculative((v) => !v)}
+                            className={cn(
+                              'absolute z-40 top-3 px-3 py-1.5 rounded-md text-xs font-mono font-bold tracking-wide border transition-colors',
+                              showSpeculative
+                                ? 'bg-[#5ed8ff]/15 text-[#5ed8ff] border-[#5ed8ff]/50'
+                                : 'bg-bg-overlay/60 text-text-secondary border-text-primary/15 hover:text-[#5ed8ff] hover:border-[#5ed8ff]/40',
+                            )}
+                            style={{ left: leftGraphSafe + 16 }}
+                            title="Mostrar / ocultar futuros especulativos del Temporal Agent"
+                          >
+                            {showSpeculative ? 'FUTUROS: ON' : 'FUTUROS: OFF'}
+                          </button>
                           <ChronometricGraph
                             commits={commits}
                             selectedHash={selectedCommit?.hash}
@@ -3319,6 +3368,8 @@ export default function GitCronPage() {
                             filterText={filterText}
                             onSelect={handleSelectCommit}
                             onContextMenu={(e, c) => openContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
+                            speculativeBranches={speculativeBranches}
+                            showSpeculative={showSpeculative}
                             hudLeft={leftGraphSafe}
                             hudRight={rightGraphSafe}
                           />

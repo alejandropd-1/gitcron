@@ -15,7 +15,8 @@ import { registerTemporalAgentHandlers, loadConfig as loadTemporalConfig, loadNo
 import { runPrediction } from './ai/predict';
 import { hasKey as hasAiKey, setKey as setAiKey, removeKey as removeAiKey } from './ai/key-store';
 import type { ProviderId } from './ai/providers';
-import type { AIPredictionProvider, PredictionResult, SpeculativeBranch } from '../types/temporal-agent';
+import type { AIPredictionProvider, PredictionResult, SpeculativeBranch, MaterializeIdeaInput } from '../types/temporal-agent';
+import { buildMaterializationPlan } from '../lib/materialize-idea';
 
 const isDev = !app.isPackaged;
 
@@ -473,6 +474,92 @@ ipcMain.handle('ai:remove-key', async (_event, provider: ProviderId) => {
     return { success: true };
   } catch (error: any) {
     return { success: false, error: errMsg(error) };
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Temporal Agent: materialize a speculative idea into a REAL branch.
+//
+// THE ONLY NEW GIT WRITE in the whole feature. It runs ONLY after the renderer
+// has shown the user the exact plan and the user confirmed (the confirmation
+// lives in the UI; this handler is the executor).
+//
+// SAFETY: uses pure plumbing — a TEMPORARY index file (GIT_INDEX_FILE), then
+// write-tree / commit-tree / branch / tag. It NEVER checks out, NEVER stages,
+// NEVER touches the working tree or the current branch. So a dirty working tree
+// and every existing flow (commit/push/pull/merge/…) are completely unaffected.
+// The plan is re-derived here from the idea via the SAME pure builder the UI
+// used, so the renderer cannot inject an arbitrary branch/tag/ref string.
+// ---------------------------------------------------------------------------
+ipcMain.handle('git:materialize-idea', async (_event, repoPath: string, idea: MaterializeIdeaInput) => {
+  let tmpIndex: string | null = null;
+  let tmpFile: string | null = null;
+  try {
+    if (!repoPath) return { success: false, error: 'No repo path' };
+    if (!idea || !idea.title) return { success: false, error: 'Invalid idea' };
+
+    const plan = buildMaterializationPlan(idea);
+
+    // Child env for git: inherit the process env but DROP the vars simple-git's
+    // safety guard refuses (editor/ssh/askpass/diff hooks leaking from the
+    // launching shell, e.g. GIT_EDITOR="code --wait", SSH_ASKPASS, …). Our
+    // plumbing commands invoke none of these, so removing them is safe.
+    const baseEnv: Record<string, string> = { ...(process.env as Record<string, string>), GIT_TERMINAL_PROMPT: '0' };
+    for (const k of [
+      'GIT_EDITOR', 'GIT_SEQUENCE_EDITOR', 'GIT_ASKPASS', 'SSH_ASKPASS',
+      'GIT_SSH', 'GIT_SSH_COMMAND', 'GIT_EXTERNAL_DIFF', 'GIT_PROXY_COMMAND',
+    ]) {
+      delete baseEnv[k];
+    }
+
+    const g = simpleGit(repoPath).env(baseEnv);
+
+    // Refuse if the branch or flight tag already exist (don't clobber). Checked
+    // BEFORE any write, so a collision can never leave partial state.
+    const branches = await g.branchLocal();
+    if (branches.all.includes(plan.branchName)) {
+      return { success: false, error: `Branch "${plan.branchName}" already exists` };
+    }
+    const tags = await g.tags();
+    if (tags.all.includes(plan.tagName)) {
+      return {
+        success: false,
+        error: `Tag "${plan.tagName}" already exists — pick a different flight level or remove it first`,
+      };
+    }
+
+    const headSha = (await g.revparse(['HEAD'])).trim();
+
+    // 1) Write IDEA.md content to a blob (object DB only; no working-tree file).
+    tmpFile = path.join(app.getPath('temp'), `gitcron-idea-${Date.now()}.md`);
+    fs.writeFileSync(tmpFile, plan.ideaMarkdown, 'utf8');
+    const blobSha = (await g.raw(['hash-object', '-w', tmpFile])).trim();
+
+    // 2) Build a tree = HEAD's tree + IDEA.md, using a TEMP index (never the real one).
+    tmpIndex = path.join(app.getPath('temp'), `gitcron-index-${Date.now()}`);
+    const gi = simpleGit(repoPath).env({ ...baseEnv, GIT_INDEX_FILE: tmpIndex });
+    await gi.raw(['read-tree', headSha]);
+    await gi.raw(['update-index', '--add', '--cacheinfo', `100644,${blobSha},IDEA.md`]);
+    const treeSha = (await gi.raw(['write-tree'])).trim();
+
+    // 3) Commit the tree with HEAD as parent (no branch ref moved yet).
+    const commitSha = (
+      await g.raw(['commit-tree', treeSha, '-p', headSha, '-m', plan.commitMessage])
+    ).trim();
+
+    // 4) Point the new branch + flight tag at that commit. Working tree untouched.
+    await g.raw(['branch', plan.branchName, commitSha]);
+    await g.raw(['tag', plan.tagName, commitSha]);
+
+    return {
+      success: true,
+      data: { branchName: plan.branchName, tagName: plan.tagName, commitHash: commitSha },
+    };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  } finally {
+    if (tmpIndex) { try { fs.unlinkSync(tmpIndex); } catch { /* ignore */ } }
+    if (tmpFile) { try { fs.unlinkSync(tmpFile); } catch { /* ignore */ } }
   }
 });
 

@@ -163,6 +163,43 @@ export interface AIPredictionProvider {
 }
 
 // ---------------------------------------------------------------------------
+// MATERIALIZATION (Phase 6) — turn a dreamed branch into a REAL branch.
+//
+// This is the ONLY new Git write in the whole feature. It runs only after an
+// explicit user confirmation that previews exactly what will be created. The
+// plan is built by a PURE function (lib/materialize-idea.ts) so the UI preview
+// and the main-process writer never diverge.
+// ---------------------------------------------------------------------------
+
+/** How speculative/ambitious the idea is. Drives the `flight/<level>` tag. */
+export type FlightLevel = 'conservative' | 'grounded' | 'high' | 'creative';
+
+/** The minimal idea the user accepts. Mirrors a SpeculativeBranch. */
+export interface MaterializeIdeaInput {
+  id: string;
+  title: string;
+  rationale: string;
+  type: SpeculativeType;
+  confidence: number;
+}
+
+/** Exactly what will be created — shown to the user BEFORE any Git write. */
+export interface MaterializationPlan {
+  branchName: string;
+  tagName: string;
+  flightLevel: FlightLevel;
+  commitMessage: string;
+  ideaMarkdown: string;
+}
+
+/** What main returns after a successful materialization. */
+export interface MaterializationResult {
+  branchName: string;
+  tagName: string;
+  commitHash: string;
+}
+
+// ---------------------------------------------------------------------------
 // Defaults
 // ---------------------------------------------------------------------------
 

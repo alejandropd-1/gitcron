@@ -47,7 +47,7 @@ const MAX_BYTES = 1_000_000; // hard ceiling so notes can't grow unbounded
 // Config
 // ---------------------------------------------------------------------------
 
-async function loadConfig(repoPath: string, repoName: string): Promise<TemporalAgentConfig> {
+export async function loadConfig(repoPath: string, repoName: string): Promise<TemporalAgentConfig> {
   const file = path.join(repoDir(repoPath), 'config.json');
   try {
     const raw = await fs.readFile(file, 'utf8');
@@ -70,7 +70,7 @@ async function saveConfig(repoPath: string, config: TemporalAgentConfig): Promis
 // Notes (canonical JSON + rendered markdown mirror)
 // ---------------------------------------------------------------------------
 
-async function loadNotes(repoPath: string, repoName: string): Promise<TemporalAgentNotes> {
+export async function loadNotes(repoPath: string, repoName: string): Promise<TemporalAgentNotes> {
   const file = path.join(repoDir(repoPath), 'notes.json');
   try {
     const raw = await fs.readFile(file, 'utf8');

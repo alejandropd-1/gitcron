@@ -11,11 +11,15 @@ import type {
   TemporalAgentConfig,
   AnalysisFrequency,
   PrivacyScope,
+  PredictionResult,
 } from '@/types/temporal-agent';
 
 const GREEN = '#a3f185';
 const CYAN = '#5ed8ff';
 const ORANGE = '#fd9d1a';
+
+// Phase 3 / Phase 4: OpenRouter is the primary provider (one key → many models).
+const ACTIVE_PROVIDER = 'openrouter';
 
 interface Props {
   repoPath: string;
@@ -28,15 +32,70 @@ export function TemporalAgentSettings({ repoPath, repoName }: Props) {
   const [showNotes, setShowNotes] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // AI key state — only a boolean ("is there a key?") is ever read back.
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
+  const [keyDraft, setKeyDraft] = useState('');
+  const [savingKey, setSavingKey] = useState(false);
+
+  // Prediction trigger (Phase 4: provider is stubbed in main; draw is Phase 5).
+  const [predicting, setPredicting] = useState(false);
+  const [result, setResult] = useState<PredictionResult | null>(null);
+  const [predictError, setPredictError] = useState<string | null>(null);
+
   useEffect(() => {
     let alive = true;
     window.api.temporalAgent.loadConfig(repoPath, repoName).then((c) => {
       if (alive) setConfig(c);
     });
+    window.api.ai.hasKey(ACTIVE_PROVIDER).then((r) => {
+      if (alive) setHasKey(r.success ? Boolean(r.data) : false);
+    });
     return () => {
       alive = false;
     };
   }, [repoPath, repoName]);
+
+  async function refreshHasKey() {
+    const r = await window.api.ai.hasKey(ACTIVE_PROVIDER);
+    setHasKey(r.success ? Boolean(r.data) : false);
+  }
+
+  async function saveKey() {
+    const k = keyDraft.trim();
+    if (!k) return;
+    setSavingKey(true);
+    try {
+      await window.api.ai.setKey(ACTIVE_PROVIDER, k);
+      setKeyDraft(''); // never keep the key in component state
+      await refreshHasKey();
+    } finally {
+      setSavingKey(false);
+    }
+  }
+
+  async function removeKey() {
+    await window.api.ai.removeKey(ACTIVE_PROVIDER);
+    await refreshHasKey();
+  }
+
+  async function predict() {
+    setPredicting(true);
+    setPredictError(null);
+    try {
+      const r = await window.api.ai.predictTimelines(repoPath, repoName);
+      if (r.success && r.data) {
+        // Phase 4: just log + summarize. The diagonal overlay is Phase 5.
+        console.log('[TemporalAgent] PredictionResult', r.data);
+        setResult(r.data);
+      } else {
+        setPredictError(r.error ?? 'Prediction failed');
+      }
+    } catch (e) {
+      setPredictError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPredicting(false);
+    }
+  }
 
   if (!config) return <div style={{ color: '#9BA1B0' }}>Loading…</div>;
 
@@ -141,6 +200,74 @@ export function TemporalAgentSettings({ repoPath, repoName }: Props) {
             style={{ accentColor: CYAN, width: 180 }}
           />
         </Row>
+      </div>
+
+      {/* AI access — the renderer only ever learns whether a key exists. */}
+      <div style={cardStyle}>
+        <h4 style={{ fontSize: 13, fontWeight: 600, margin: '0 0 10px', color: CYAN }}>
+          AI access — OpenRouter
+        </h4>
+        <Row label="API key status">
+          {hasKey === null ? (
+            <span style={{ fontSize: 12, color: '#9BA1B0' }}>checking…</span>
+          ) : hasKey ? (
+            <span style={{ fontSize: 12, color: GREEN }}>● configured</span>
+          ) : (
+            <span style={{ fontSize: 12, color: ORANGE }}>○ not set</span>
+          )}
+        </Row>
+        <p style={{ fontSize: 12, color: '#9BA1B0', margin: '0 0 8px' }}>
+          The key is encrypted by your OS and used only inside the app process. It is never shown
+          back here and never reaches this screen.
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="password"
+            value={keyDraft}
+            onChange={(e) => setKeyDraft(e.target.value)}
+            placeholder={hasKey ? 'Replace key…' : 'Paste OpenRouter API key'}
+            autoComplete="off"
+            style={{ ...selectStyle, flex: 1 }}
+          />
+          <button onClick={saveKey} disabled={savingKey || !keyDraft.trim()} style={primaryBtn}>
+            {savingKey ? 'Saving…' : 'Save key'}
+          </button>
+          {hasKey && (
+            <button onClick={removeKey} style={ghostBtn}>
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Prediction trigger — Phase 4 logs the result; the diagonal draw is Phase 5. */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={predict} disabled={predicting} style={{ ...primaryBtn, background: CYAN }}>
+            {predicting ? 'Predicting…' : 'Predecir futuros'}
+          </button>
+          <span style={{ fontSize: 12, color: '#9BA1B0' }}>
+            Runs the agent and logs the PredictionResult (drawing comes in Phase 5).
+          </span>
+        </div>
+        {predictError && (
+          <p style={{ fontSize: 12, color: ORANGE, margin: '10px 0 0' }}>Error: {predictError}</p>
+        )}
+        {result && (
+          <div style={{ marginTop: 10, fontSize: 12, color: '#cbc3d7' }}>
+            <div style={{ color: GREEN, marginBottom: 6 }}>
+              {result.branches.length} branch{result.branches.length === 1 ? '' : 'es'} from{' '}
+              <span style={{ color: CYAN }}>{result.provider}</span>
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              {result.branches.map((b) => (
+                <li key={b.id} style={{ marginBottom: 4 }}>
+                  <strong>{b.message}</strong> — {b.type}, {Math.round(b.confidence * 100)}%
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 10 }}>

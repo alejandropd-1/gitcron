@@ -31,6 +31,7 @@ import type {
   TemporalAgentNotes,
   PredictionInput,
   PredictionResult,
+  AIPredictionProvider,
 } from '../../types/temporal-agent';
 import { getProvider, type ProviderId } from './providers';
 
@@ -181,17 +182,23 @@ export interface RunPredictionArgs {
   config: TemporalAgentConfig;
   notes: TemporalAgentNotes;
   providerId: ProviderId;
+  /**
+   * Optional adapter override. When present, it replaces the registry lookup —
+   * used to inject a mock provider (no network) while still exercising the full
+   * orchestrator: read-only context gather, privacy scope, feedback, threshold.
+   */
+  providerOverride?: AIPredictionProvider;
 }
 
 export async function runPrediction(args: RunPredictionArgs): Promise<PredictionResult> {
-  const { repoPath, config, notes, providerId } = args;
+  const { repoPath, config, notes, providerId, providerOverride } = args;
 
   const raw = await gatherRawContext(repoPath);
   const input = applyPrivacyScope(raw, config.privacyScope);
   const feedbackBlock = renderFeedbackBlock(config.skillProfile, notes);
   const prompts = assemblePrompts(loadSkillText(), loadDoctrineText(), feedbackBlock, input);
 
-  const provider = getProvider(providerId);
+  const provider = providerOverride ?? getProvider(providerId);
   const result = await provider.predictTimelines(prompts);
 
   // Belt-and-suspenders: never surface an idea the user already rejected,

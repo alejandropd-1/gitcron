@@ -5,10 +5,10 @@
 
 import type {
   AIPredictionProvider,
-  PredictionInput,
   PredictionResult,
   SpeculativeBranch,
 } from '../../../types/temporal-agent';
+import type { AssembledPrompts } from '../predict';
 import { getKey } from '../key-store';
 
 // Model is configurable; verify the exact id for your account before shipping.
@@ -23,11 +23,11 @@ export function createClaudeProvider(opts?: { model?: string }): AIPredictionPro
     label: 'Claude (Anthropic)',
     kind: 'cloud',
 
-    async predictTimelines(input: PredictionInput): Promise<PredictionResult> {
+    async predictTimelines(prompts: AssembledPrompts): Promise<PredictionResult> {
       const key = getKey('claude');
       if (!key) throw new Error('No Claude API key stored');
 
-      const { systemPrompt, userPrompt } = await buildPrompts(input);
+      const { systemPrompt, userPrompt } = prompts;
 
       const res = await fetch(ENDPOINT, {
         method: 'POST',
@@ -62,13 +62,6 @@ export function createClaudeProvider(opts?: { model?: string }): AIPredictionPro
       };
     },
   };
-}
-
-// buildPrompts is shared logic; imported lazily to avoid a cycle with the
-// orchestrator. The skill text + decision-log context are assembled there.
-async function buildPrompts(input: PredictionInput) {
-  const { assemblePrompts } = await import('../predict');
-  return assemblePrompts(input);
 }
 
 /** The skill instructs JSON-only output. Parse defensively; bad output → []. */

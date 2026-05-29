@@ -9,9 +9,9 @@
 
 import type {
   AIPredictionProvider,
-  PredictionInput,
   PredictionResult,
 } from '../../../types/temporal-agent';
+import type { AssembledPrompts } from '../predict';
 import { createClaudeProvider } from './claude';
 import { createOpenRouterProvider } from './openrouter';
 
@@ -23,7 +23,7 @@ function stub(id: ProviderId, label: string, kind: 'cloud' | 'local'): AIPredict
     id,
     label,
     kind,
-    async predictTimelines(_input: PredictionInput): Promise<PredictionResult> {
+    async predictTimelines(_prompts: AssembledPrompts): Promise<PredictionResult> {
       throw new Error(`Provider "${id}" is not implemented yet`);
     },
   };

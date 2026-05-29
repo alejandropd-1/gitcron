@@ -1,3 +1,10 @@
+import type {
+  TemporalAgentConfig,
+  TemporalAgentNotes,
+  TemporalAgentDecision,
+  PredictionResult,
+} from './temporal-agent';
+
 interface GitResult<T = unknown> {
   success: boolean;
   data?: T;
@@ -214,6 +221,24 @@ interface ElectronAPI {
   repoWatch: (targetPath: string) => Promise<GitResult>;
   repoUnwatch: (targetPath: string) => Promise<GitResult>;
   onRepoFsChange: (cb: (repoPath: string) => void) => () => void;
+  ai: {
+    predictTimelines(repoPath: string, repoName: string): Promise<GitResult<PredictionResult>>;
+    hasKey(provider: string): Promise<GitResult<boolean>>;
+    /** One-way: submits a key to be encrypted in main. The key never comes back. */
+    setKey(provider: string, key: string): Promise<GitResult>;
+    removeKey(provider: string): Promise<GitResult>;
+  };
+  temporalAgent: {
+    loadConfig(repoPath: string, repoName: string): Promise<TemporalAgentConfig>;
+    saveConfig(repoPath: string, config: TemporalAgentConfig): Promise<{ success: true }>;
+    loadNotes(repoPath: string, repoName: string): Promise<TemporalAgentNotes>;
+    getNotesMarkdown(repoPath: string, repoName: string): Promise<string>;
+    recordDecision(
+      repoPath: string,
+      repoName: string,
+      decision: TemporalAgentDecision,
+    ): Promise<TemporalAgentNotes>;
+  };
 }
 
 declare global {

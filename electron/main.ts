@@ -11,6 +11,11 @@ import type {
   StatusFile, CommitData, BranchData, RepoInfo, StashEntry, SubmoduleEntry, GitHubUser,
   BranchTrackingInfo, WorktreeEntry, PullRequestEntry, PullRequestDiffData, PullRequestDiffFile,
 } from '../types/electron';
+import { registerTemporalAgentHandlers, loadConfig as loadTemporalConfig, loadNotes as loadTemporalNotes } from './temporal-agent-ipc';
+import { runPrediction } from './ai/predict';
+import { hasKey as hasAiKey, setKey as setAiKey, removeKey as removeAiKey } from './ai/key-store';
+import type { ProviderId } from './ai/providers';
+import type { AIPredictionProvider, PredictionResult, SpeculativeBranch } from '../types/temporal-agent';
 
 const isDev = !app.isPackaged;
 
@@ -358,6 +363,118 @@ function writeEncryptedStorage(data: Record<string, string>) {
   // Restrictive file permissions on Unix (owner read/write only)
   fs.writeFileSync(storagePath(), buf, { mode: 0o600 });
 }
+
+// Temporal Agent: per-repo config/notes storage (no secrets, no network).
+registerTemporalAgentHandlers();
+
+// ---------------------------------------------------------------------------
+// Temporal Agent: AI key vault (one-way) + prediction trigger.
+//
+// SECURITY: getKey() is NEVER exposed over IPC. The renderer can only ask
+// whether a key EXISTS (boolean) and submit a new one (one-way, in-only).
+// Keys are encrypted at rest by safeStorage inside key-store (main only).
+// ---------------------------------------------------------------------------
+
+const AI_PROVIDER_PREF_KEY = 'ai.activeProvider';
+
+function activeProviderId(): ProviderId {
+  try {
+    const pref = readEncryptedStorage()[AI_PROVIDER_PREF_KEY];
+    if (pref) return pref as ProviderId;
+  } catch {
+    /* fall through to default */
+  }
+  // Phase 3 note: OpenRouter is the primary provider (one key → many models).
+  return 'openrouter';
+}
+
+// PHASE 4: stub the provider so we don't spend OpenRouter credit yet. The real
+// adapter is wired in Phase 5 — flip this to false then. The mock still runs the
+// full orchestrator (read-only git context, privacy scope, feedback, threshold).
+const USE_MOCK_PREDICTION = true;
+
+function mockProvider(id: ProviderId): AIPredictionProvider {
+  const branches: SpeculativeBranch[] = [
+    {
+      id: 'mock-1',
+      message: 'Extract IPC layer into a typed contract module',
+      rationale:
+        'The recent commits keep touching electron/main.ts to add handlers. A shared, typed IPC contract would cut that churn and de-risk the preload bridge.',
+      type: 'improvement',
+      confidence: 0.82,
+    },
+    {
+      id: 'mock-2',
+      message: 'Add a streaming prediction mode for large repos',
+      rationale:
+        'Context assembly already reads up to 40 commits; streaming the model output would keep the UI responsive on big histories.',
+      type: 'breakthrough',
+      confidence: 0.66,
+    },
+    {
+      id: 'mock-3',
+      message: 'Surface forecasting-doctrine confidence inline on the diagonal',
+      rationale:
+        'The doctrine ties confidence to repo entropy. Showing the "why 0.7 not 0.9" reasoning next to each branch reinforces honest calibration.',
+      type: 'trend',
+      confidence: 0.74,
+    },
+  ];
+  return {
+    id,
+    label: `${id} (MOCK)`,
+    kind: 'cloud',
+    async predictTimelines(): Promise<PredictionResult> {
+      return { branches, provider: `${id}:mock`, generatedAt: new Date().toISOString() };
+    },
+  };
+}
+
+ipcMain.handle('ai:predict-timelines', async (_event, repoPath: string, repoName: string) => {
+  try {
+    if (!repoPath) return { success: false, error: 'No repo path' };
+    const providerId = activeProviderId();
+    const config = await loadTemporalConfig(repoPath, repoName);
+    const notes = await loadTemporalNotes(repoPath, repoName);
+    const result = await runPrediction({
+      repoPath,
+      config,
+      notes,
+      providerId,
+      providerOverride: USE_MOCK_PREDICTION ? mockProvider(providerId) : undefined,
+    });
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
+ipcMain.handle('ai:has-key', async (_event, provider: ProviderId) => {
+  try {
+    return { success: true, data: hasAiKey(provider) };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
+ipcMain.handle('ai:set-key', async (_event, provider: ProviderId, key: string) => {
+  try {
+    setAiKey(provider, key);
+    return { success: true };
+  } catch (error: any) {
+    // Never echo the key in the error.
+    return { success: false, error: errMsg(error) };
+  }
+});
+
+ipcMain.handle('ai:remove-key', async (_event, provider: ProviderId) => {
+  try {
+    removeAiKey(provider);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
 
 ipcMain.handle('storage:set', async (_event, key: string, value: string) => {
   try {

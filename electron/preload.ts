@@ -144,4 +144,24 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('repo:fs-change', handler);
     return () => ipcRenderer.removeListener('repo:fs-change', handler);
   },
+  ai: {
+    predictTimelines: (repoPath: string, repoName: string) =>
+      ipcRenderer.invoke('ai:predict-timelines', repoPath, repoName),
+    hasKey: (provider: string) => ipcRenderer.invoke('ai:has-key', provider),
+    // One-way: the key goes IN to be encrypted; it never comes back out.
+    setKey: (provider: string, key: string) => ipcRenderer.invoke('ai:set-key', provider, key),
+    removeKey: (provider: string) => ipcRenderer.invoke('ai:remove-key', provider),
+  },
+  temporalAgent: {
+    loadConfig: (repoPath: string, repoName: string) =>
+      ipcRenderer.invoke('temporal-agent:load-config', repoPath, repoName),
+    saveConfig: (repoPath: string, config: unknown) =>
+      ipcRenderer.invoke('temporal-agent:save-config', repoPath, config),
+    loadNotes: (repoPath: string, repoName: string) =>
+      ipcRenderer.invoke('temporal-agent:load-notes', repoPath, repoName),
+    getNotesMarkdown: (repoPath: string, repoName: string) =>
+      ipcRenderer.invoke('temporal-agent:get-notes-markdown', repoPath, repoName),
+    recordDecision: (repoPath: string, repoName: string, decision: unknown) =>
+      ipcRenderer.invoke('temporal-agent:record-decision', repoPath, repoName, decision),
+  },
 });

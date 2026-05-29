@@ -32,6 +32,7 @@ import { useAutoFetch } from '@/hooks/use-auto-fetch';
 import { DiffViewer } from '@/components/DiffViewer';
 import { CommitGraph, colorForBranch } from '@/components/CommitGraph';
 import { ChronometricGraph } from '@/components/ChronometricGraph';
+import { TemporalAgentSettings } from '@/components/TemporalAgentSettings';
 import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -2164,6 +2165,7 @@ export default function GitCronPage() {
                       { id: 'defaultFolder', label: t('settings.defaultFolder'), icon: <Folder size={14} /> },
                       { id: 'theme', label: t('settings.theme'), icon: <Sparkles size={14} /> },
                       { id: 'cronometric', label: 'Línea de Tiempo', icon: <Sparkles size={14} /> },
+                      { id: 'temporalAgent', label: 'Temporal Agent', icon: <Layers size={14} /> },
                       { id: 'autoFetch', label: t('settings.autoFetch'), icon: <RotateCcw size={14} /> },
                       { id: 'osNotifications', label: t('settings.osNotifications'), icon: <AlertCircle size={14} /> },
                       { id: 'shortcuts', label: t('settings.shortcuts'), icon: <Type size={14} /> },
@@ -2382,6 +2384,7 @@ export default function GitCronPage() {
                       {selectedSettingsSection === 'defaultFolder' && t('settings.defaultFolder')}
                       {selectedSettingsSection === 'theme' && t('settings.theme')}
                       {selectedSettingsSection === 'cronometric' && 'Vista Cronométrica (Beta)'}
+                      {selectedSettingsSection === 'temporalAgent' && 'Temporal Agent (Experimental)'}
                       {selectedSettingsSection === 'autoFetch' && t('settings.autoFetch')}
                       {selectedSettingsSection === 'osNotifications' && t('settings.osNotifications')}
                       {selectedSettingsSection === 'shortcuts' && t('settings.shortcuts')}
@@ -2651,6 +2654,21 @@ export default function GitCronPage() {
                           error={changelogError}
                           isLoading={changelogRaw === null && changelogError === null}
                         />
+                      </div>
+                    )}
+
+                    {selectedSettingsSection === 'temporalAgent' && (
+                      <div className="space-y-4">
+                        {repoPath ? (
+                          <TemporalAgentSettings
+                            repoPath={repoPath}
+                            repoName={openRepos[activeRepoIdx]?.name ?? 'repo'}
+                          />
+                        ) : (
+                          <p className="text-sm text-text-secondary">
+                            Abrí un repositorio para configurar el Temporal Agent.
+                          </p>
+                        )}
                       </div>
                     )}
 

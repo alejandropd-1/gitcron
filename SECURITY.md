@@ -29,7 +29,9 @@ Notas sobre el modelo de amenazas, lo que ya está protegido y lo que falta si a
 ### 4. Content Security Policy (CSP)
 - Agregada en `app/layout.tsx` via meta tag.
 - Bloquea scripts/conexiones a dominios no permitidos.
-- Solo se permite `connect-src` a `api.github.com` y `github.com` (más localhost para el dev server).
+- Se permite `connect-src` a `api.github.com`, `github.com` y `https://openrouter.ai` (el proveedor de IA **activo** del Temporal Agent), más `localhost`/`ws://localhost` **solo en dev**.
+- Regla: se agrega **únicamente el dominio del proveedor de IA activo**, nunca todos los proveedores a la vez. Si en el futuro se usa OpenCode u otro, se agrega ese endpoint y se quita el que no se use.
+- `'unsafe-eval'` y los orígenes `localhost`/`ws://localhost` siguen siendo **dev-only** (se eliminan en el build empaquetado de producción).
 - `object-src 'none'`, `frame-ancestors 'none'`, `base-uri 'self'`.
 
 ### 5. Electron baseline secure
@@ -38,6 +40,17 @@ Notas sobre el modelo de amenazas, lo que ya está protegido y lo que falta si a
 - `sandbox: true` y `webSecurity: true` en `webPreferences`
 - DevTools solo en dev (`if (isDev)`) ✅
 - Preload usa `contextBridge.exposeInMainWorld` (no expone toda la API Node) ✅
+
+### 6. Temporal Agent — envío de contexto a un proveedor de IA (opt-in)
+
+El Temporal Agent es una función **opt-in** que proyecta ramas especulativas usando un modelo de IA. Esto introduce una superficie nueva: **enviar contexto del repo a un tercero** (OpenRouter). Se documenta como **riesgo aceptado**, mitigado así:
+
+- **Opt-in explícito.** Está desactivado por defecto (`enabled: false`). No se manda nada a ningún lado hasta que el usuario activa el agente *y* dispara una predicción manualmente. No hay análisis automático ni en background sin acción del usuario.
+- **Scope per-repo configurable.** El contexto se limita por `privacyScope`: el default `metadata` envía solo mensajes de commit, lenguajes y dependencias. Los **nombres de archivo** solo se incluyen si el usuario elige `metadata-plus-files` para ese repo; nunca auto-escala. **Nunca se envía contenido de archivos ni diffs.**
+- **Claves cifradas por el OS, nunca en el renderer.** Las API keys de IA viven en `app.getPath('userData')/ai-keys.enc` cifradas con `safeStorage` (DPAPI/Keychain/libsecret), una por proveedor, con permisos `0600`. El proceso main es el único que las lee (`getKey()` es interno y **no se expone por IPC**). El renderer solo puede preguntar si existe una key (booleano) y dar de alta una nueva (one-way: entra, se cifra, nunca sale). Las keys nunca se loguean.
+- **La petición sale del proceso main.** El `fetch` al proveedor se arma y dispara en main (`electron/ai/providers/*`), no en el renderer, así la CSP del renderer permanece cerrada.
+- **CSP en lockstep.** Solo el dominio del proveedor activo (`https://openrouter.ai`) está en `connect-src`, documentado arriba.
+- **Materialización con confirmación.** La única escritura de Git nueva (`git:materialize-idea`) se ejecuta solo tras confirmación explícita del usuario que previsualiza branch, tag y contenido del `IDEA.md`. Usa plumbing (índice temporal + `commit-tree`), sin tocar working tree, índice real ni la branch actual.
 
 ## ⚠️ Vulnerabilidades conocidas en dependencias
 
@@ -76,6 +89,8 @@ pnpm run electron:dev
 | Dependencia maliciosa (supply chain) | Real pero baja | CSP limita exfiltración. Auditá con `pnpm audit` regularmente |
 | Token leak via git config | Mitigado | No se escribe URL con token en `origin`; auth efímera por `http.extraheader` + `credential.helper=` vacío autorizado en Git y `simple-git` |
 | Command injection en spawn | Eliminado | `shell: false` + args array |
+| Fuga de contexto del repo a un tercero (IA) | Riesgo aceptado, bajo | Opt-in + disparo manual; `privacyScope` per-repo (default solo metadata, sin contenido de archivos); CSP limita el `connect-src` al proveedor activo |
+| API key de IA leída por malware / renderer | Baja con safeStorage | Cifrada por el OS (`ai-keys.enc`), solo en main, `getKey()` no se expone por IPC, nunca al renderer ni a logs |
 
 ## 🚧 Pendiente para producción / distribución pública
 

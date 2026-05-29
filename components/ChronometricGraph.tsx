@@ -400,7 +400,7 @@ export function ChronometricGraph({
   // The unit is a THREAD (SpeculativeDialogue.turns[]), not a loose string — today
   // it holds a single read-only agent turn; tomorrow user/agent turns append with
   // ZERO rewrite. No chat input yet (that's the conversation phase).
-  const [selectedSpeculativeId, setSelectedSpeculativeId] = useState<string | null>('mock-1');
+  const [selectedSpeculativeId, setSelectedSpeculativeId] = useState<string | null>(null);
 
   const speculativeDialogue = useMemo<SpeculativeDialogue | null>(() => {
     if (!showSpeculative || !selectedSpeculativeId) return null;

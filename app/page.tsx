@@ -572,7 +572,7 @@ export default function GitCronPage() {
 
   // Temporal Agent — speculative branch overlay (Phase 5). Seeded with mock
   // branches for visual testing; the real PredictionResult is wired separately.
-  const [showSpeculative, setShowSpeculative] = useState(true);
+  const [showSpeculative, setShowSpeculative] = useState(false);
   const [speculativeBranches] = useState<SpeculativeBranch[]>(MOCK_SPECULATIVE);
 
   // Keyboard shortcut to toggle word wrap (Alt+Z)

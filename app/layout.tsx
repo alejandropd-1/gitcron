@@ -44,7 +44,7 @@ export const metadata: Metadata = {
  *
  *   default-src 'self'                  → only allow local resources by default
  *   img-src                             → GitHub avatars + local + data URIs
- *   connect-src                         → GitHub API; + localhost only in dev
+ *   connect-src                         → GitHub API + active AI provider (OpenRouter); + localhost only in dev
  *   font-src 'self' data:               → Inter + JetBrains Mono fonts (bundled)
  *   object-src 'none'                   → block <object>, <embed>, plugins
  *   base-uri 'self'                     → can't be hijacked with <base>
@@ -56,9 +56,14 @@ const scriptSrc = isDev
   ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
   : "script-src 'self' 'unsafe-inline'";
 
+// Temporal Agent: only the ACTIVE AI provider's origin is added. OpenRouter is
+// the active provider (https://openrouter.ai). Do NOT widen this to every
+// provider at once — add a domain only when its provider is the one in use.
+// (The model request itself is made from the MAIN process, but we keep the CSP
+// in lockstep with the documented threat model — see SECURITY.md.)
 const connectSrc = isDev
-  ? "connect-src 'self' http://localhost:* ws://localhost:* https://api.github.com https://github.com"
-  : "connect-src 'self' https://api.github.com https://github.com";
+  ? "connect-src 'self' http://localhost:* ws://localhost:* https://api.github.com https://github.com https://openrouter.ai"
+  : "connect-src 'self' https://api.github.com https://github.com https://openrouter.ai";
 
 const CSP = [
   "default-src 'self'",

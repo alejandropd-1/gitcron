@@ -63,6 +63,10 @@ const MOCK_SPECULATIVE: SpeculativeBranch[] = [
     confidence: 0.74,
   },
 ];
+
+// Flip to true to debug with the hardcoded mock branches instead of the real,
+// persisted prediction. false = use the real per-repo PredictionResult (Capa 1).
+const USE_MOCK_SPECULATIVE = false;
 import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -570,10 +574,41 @@ export default function GitCronPage() {
   const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestEntry | null>(null);
   const [wordWrap, setWordWrap] = useState(false);
 
-  // Temporal Agent — speculative branch overlay (Phase 5). Seeded with mock
-  // branches for visual testing; the real PredictionResult is wired separately.
+  // Temporal Agent — speculative branch overlay. Source is the real, persisted
+  // per-repo prediction (Capa 1); flip USE_MOCK_SPECULATIVE to debug with the mock.
   const [showSpeculative, setShowSpeculative] = useState(false);
-  const [speculativeBranches] = useState<SpeculativeBranch[]>(MOCK_SPECULATIVE);
+  const [speculativeBranches, setSpeculativeBranches] = useState<SpeculativeBranch[]>(
+    USE_MOCK_SPECULATIVE ? MOCK_SPECULATIVE : [],
+  );
+  // Timestamp of the loaded/fresh prediction, shown next to the FUTUROS toggle.
+  const [speculativeAt, setSpeculativeAt] = useState<string | null>(null);
+
+  // Load the last persisted prediction when the repo changes (no auto-predict).
+  // FUTUROS stays OFF: loading ≠ showing. Mock mode bypasses disk.
+  useEffect(() => {
+    if (USE_MOCK_SPECULATIVE) {
+      setSpeculativeBranches(MOCK_SPECULATIVE);
+      setSpeculativeAt(null);
+      return;
+    }
+    if (!repoPath) {
+      setSpeculativeBranches([]);
+      setSpeculativeAt(null);
+      return;
+    }
+    let alive = true;
+    window.api.ai.loadPrediction(repoPath).then((r) => {
+      if (!alive) return;
+      if (r.success && r.data) {
+        setSpeculativeBranches(r.data.branches);
+        setSpeculativeAt(r.data.generatedAt);
+      } else {
+        setSpeculativeBranches([]);
+        setSpeculativeAt(null);
+      }
+    });
+    return () => { alive = false; };
+  }, [repoPath]);
 
   // Keyboard shortcut to toggle word wrap (Alt+Z)
   useEffect(() => {
@@ -2698,6 +2733,10 @@ export default function GitCronPage() {
                           <TemporalAgentSettings
                             repoPath={repoPath}
                             repoName={openRepos[activeRepoIdx]?.name ?? 'repo'}
+                            onPrediction={(r) => {
+                              setSpeculativeBranches(r.branches);
+                              setSpeculativeAt(r.generatedAt);
+                            }}
                           />
                         ) : (
                           <p className="text-sm text-text-secondary">
@@ -3347,20 +3386,32 @@ export default function GitCronPage() {
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.25, ease: 'easeOut' }}
                         >
-                          {/* Temporal Agent overlay toggle (Phase 5). */}
-                          <button
-                            onClick={() => setShowSpeculative((v) => !v)}
-                            className={cn(
-                              'absolute z-40 top-3 px-3 py-1.5 rounded-md text-xs font-mono font-bold tracking-wide border transition-colors',
-                              showSpeculative
-                                ? 'bg-[#5ed8ff]/15 text-[#5ed8ff] border-[#5ed8ff]/50'
-                                : 'bg-bg-overlay/60 text-text-secondary border-text-primary/15 hover:text-[#5ed8ff] hover:border-[#5ed8ff]/40',
-                            )}
+                          {/* Temporal Agent overlay toggle + last-prediction date. */}
+                          <div
+                            className="absolute z-40 top-3 flex items-center gap-2"
                             style={{ left: leftGraphSafe + 16 }}
-                            title="Mostrar / ocultar futuros especulativos del Temporal Agent"
                           >
-                            {showSpeculative ? 'FUTUROS: ON' : 'FUTUROS: OFF'}
-                          </button>
+                            <button
+                              onClick={() => setShowSpeculative((v) => !v)}
+                              className={cn(
+                                'px-3 py-1.5 rounded-md text-xs font-mono font-bold tracking-wide border transition-colors',
+                                showSpeculative
+                                  ? 'bg-[#5ed8ff]/15 text-[#5ed8ff] border-[#5ed8ff]/50'
+                                  : 'bg-bg-overlay/60 text-text-secondary border-text-primary/15 hover:text-[#5ed8ff] hover:border-[#5ed8ff]/40',
+                              )}
+                              title="Mostrar / ocultar futuros especulativos del Temporal Agent"
+                            >
+                              {showSpeculative ? 'FUTUROS: ON' : 'FUTUROS: OFF'}
+                            </button>
+                            {speculativeAt && (
+                              <span
+                                className="px-2 py-1 rounded bg-bg-overlay/50 text-[10px] font-mono text-text-secondary/80 border border-text-primary/10"
+                                title={new Date(speculativeAt).toLocaleString()}
+                              >
+                                última predicción: {new Date(speculativeAt).toLocaleString()}
+                              </span>
+                            )}
+                          </div>
                           <ChronometricGraph
                             commits={commits}
                             selectedHash={selectedCommit?.hash}

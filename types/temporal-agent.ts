@@ -33,6 +33,12 @@ export interface TemporalAgentConfig {
   /** ISO timestamp of last successful analysis, or null. */
   lastAnalysis: string | null;
   skillProfile: TemporalAgentSkillProfile;
+  /**
+   * OpenRouter model id (e.g. "anthropic/claude-sonnet-4.5"). NOT a secret —
+   * stored in plain config, never in the encrypted key-store. Empty = use the
+   * adapter's default.
+   */
+  model?: string;
 }
 
 export type DecisionOutcome = 'accepted' | 'rejected' | 'deferred';
@@ -218,6 +224,7 @@ export function defaultConfig(repoHash: string, repoName: string): TemporalAgent
     privacyScope: 'metadata',
     lastAnalysis: null,
     skillProfile: { ...DEFAULT_SKILL_PROFILE },
+    model: '',
   };
 }
 

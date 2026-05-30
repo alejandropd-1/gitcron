@@ -24,9 +24,11 @@ const ACTIVE_PROVIDER = 'openrouter';
 interface Props {
   repoPath: string;
   repoName: string;
+  /** Capa 1: lift the fresh prediction up so the graph can draw it this session. */
+  onPrediction?: (result: PredictionResult) => void;
 }
 
-export function TemporalAgentSettings({ repoPath, repoName }: Props) {
+export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Props) {
   const [config, setConfig] = useState<TemporalAgentConfig | null>(null);
   const [notesMd, setNotesMd] = useState<string>('');
   const [showNotes, setShowNotes] = useState(false);
@@ -84,9 +86,9 @@ export function TemporalAgentSettings({ repoPath, repoName }: Props) {
     try {
       const r = await window.api.ai.predictTimelines(repoPath, repoName);
       if (r.success && r.data) {
-        // Phase 4: just log + summarize. The diagonal overlay is Phase 5.
-        console.log('[TemporalAgent] PredictionResult', r.data);
         setResult(r.data);
+        // Capa 1: lift the result so the graph draws it (main already persisted it).
+        onPrediction?.(r.data);
       } else {
         setPredictError(r.error ?? 'Prediction failed');
       }
@@ -237,6 +239,25 @@ export function TemporalAgentSettings({ repoPath, repoName }: Props) {
               Remove
             </button>
           )}
+        </div>
+
+        {/* Model id — NOT a secret; saved in plain config with the rest of the prefs. */}
+        <div style={{ marginTop: 12 }}>
+          <label style={{ fontSize: 12, color: '#9BA1B0', display: 'block', marginBottom: 6 }}>
+            Modelo (OpenRouter)
+          </label>
+          <input
+            type="text"
+            value={config.model ?? ''}
+            onChange={(e) => patch({ model: e.target.value })}
+            placeholder="ID de OpenRouter, formato proveedor/modelo. Ej: anthropic/claude-sonnet-4.5, anthropic/claude-sonnet-4.6, google/gemini-3-flash-preview"
+            autoComplete="off"
+            spellCheck={false}
+            style={{ ...selectStyle, width: '100%' }}
+          />
+          <p style={{ fontSize: 11, color: '#697789', margin: '6px 0 0' }}>
+            Vacío = usa el default <code>anthropic/claude-sonnet-4.5</code>. Acordate de <strong>Save</strong>.
+          </p>
         </div>
       </div>
 

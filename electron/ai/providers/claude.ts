@@ -8,7 +8,7 @@ import type {
   PredictionResult,
   SpeculativeBranch,
 } from '../../../types/temporal-agent';
-import type { AssembledPrompts } from '../predict';
+import { fetchWithTimeout, type AssembledPrompts } from '../predict';
 import { getKey } from '../key-store';
 
 // Model is configurable; verify the exact id for your account before shipping.
@@ -29,7 +29,7 @@ export function createClaudeProvider(opts?: { model?: string }): AIPredictionPro
 
       const { systemPrompt, userPrompt } = prompts;
 
-      const res = await fetch(ENDPOINT, {
+      const res = await fetchWithTimeout(ENDPOINT, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',

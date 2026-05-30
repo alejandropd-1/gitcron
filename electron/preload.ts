@@ -149,6 +149,8 @@ contextBridge.exposeInMainWorld('api', {
   ai: {
     predictTimelines: (repoPath: string, repoName: string) =>
       ipcRenderer.invoke('ai:predict-timelines', repoPath, repoName),
+    loadPrediction: (repoPath: string) =>
+      ipcRenderer.invoke('ai:load-prediction', repoPath),
     hasKey: (provider: string) => ipcRenderer.invoke('ai:has-key', provider),
     // One-way: the key goes IN to be encrypted; it never comes back out.
     setKey: (provider: string, key: string) => ipcRenderer.invoke('ai:set-key', provider, key),

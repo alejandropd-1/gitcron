@@ -41,6 +41,33 @@ export interface AssembledPrompts {
   input: PredictionInput;
 }
 
+/** Default budget for a single provider call before we give up. */
+export const PREDICTION_TIMEOUT_MS = 30_000;
+
+/**
+ * fetch() with a hard timeout via AbortController. If the provider hangs, we
+ * abort at `timeoutMs` and throw a soft, user-facing message instead of leaving
+ * the UI waiting forever. Re-throws other errors untouched.
+ */
+export async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number = PREDICTION_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`La predicción tardó demasiado (más de ${Math.round(timeoutMs / 1000)}s) y se canceló. Probá de nuevo.`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // --- skill text -------------------------------------------------------------
 
 const SKILL_REL = 'temporal-attention/SKILL.md';
@@ -198,7 +225,8 @@ export async function runPrediction(args: RunPredictionArgs): Promise<Prediction
   const feedbackBlock = renderFeedbackBlock(config.skillProfile, notes);
   const prompts = assemblePrompts(loadSkillText(), loadDoctrineText(), feedbackBlock, input);
 
-  const provider = providerOverride ?? getProvider(providerId);
+  const provider =
+    providerOverride ?? getProvider(providerId, { model: config.model?.trim() || undefined });
   const result = await provider.predictTimelines(prompts);
 
   // Belt-and-suspenders: never surface an idea the user already rejected,

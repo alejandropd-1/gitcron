@@ -20,6 +20,7 @@ import {
   type TemporalAgentNotes,
   type TemporalAgentDecision,
   type DecisionSummary,
+  type PredictionResult,
   defaultConfig,
   emptyNotes,
   DECISION_LOG_CAP,
@@ -167,6 +168,36 @@ function renderNotesMarkdown(notes: TemporalAgentNotes): string {
 /** Returns the rendered markdown for the UI viewer (reads from JSON). */
 async function getNotesMarkdown(repoPath: string, repoName: string): Promise<string> {
   return renderNotesMarkdown(await loadNotes(repoPath, repoName));
+}
+
+// ---------------------------------------------------------------------------
+// Last prediction (Capa 1) — persist the most recent PredictionResult per-repo
+// so speculative branches survive close/reopen without re-spending credit.
+// Separate file from notes.json: this is WHAT was proposed, not WHAT was decided.
+// ---------------------------------------------------------------------------
+
+export async function savePrediction(repoPath: string, result: PredictionResult): Promise<void> {
+  const dir = repoDir(repoPath);
+  await ensureDir(dir);
+  const json = JSON.stringify(result, null, 2);
+  if (Buffer.byteLength(json, 'utf8') > MAX_BYTES) {
+    throw new Error('temporal-agent prediction exceeds size limit');
+  }
+  await fs.writeFile(path.join(dir, 'prediction.json'), json, { mode: 0o600 });
+}
+
+/** Loads the last prediction, or null. Silent discard on missing/corrupt/old schema. */
+export async function loadPrediction(repoPath: string): Promise<PredictionResult | null> {
+  const file = path.join(repoDir(repoPath), 'prediction.json');
+  try {
+    const raw = await fs.readFile(file, 'utf8');
+    const parsed = JSON.parse(raw) as PredictionResult;
+    // Minimal shape guard — same spirit as loadNotes' silent fallback.
+    if (!parsed || !Array.isArray(parsed.branches)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------

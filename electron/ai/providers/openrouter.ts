@@ -13,7 +13,7 @@ import type {
   PredictionResult,
   SpeculativeBranch,
 } from '../../../types/temporal-agent';
-import type { AssembledPrompts } from '../predict';
+import { fetchWithTimeout, type AssembledPrompts } from '../predict';
 import { getKey } from '../key-store';
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
@@ -32,7 +32,7 @@ export function createOpenRouterProvider(opts?: { model?: string }): AIPredictio
       const key = getKey('openrouter');
       if (!key) throw new Error('No OpenRouter API key stored');
 
-      const res = await fetch(ENDPOINT, {
+      const res = await fetchWithTimeout(ENDPOINT, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',

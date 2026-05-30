@@ -226,6 +226,7 @@ interface ElectronAPI {
   materializeIdea(repoPath: string, idea: MaterializeIdeaInput): Promise<GitResult<MaterializationResult>>;
   ai: {
     predictTimelines(repoPath: string, repoName: string): Promise<GitResult<PredictionResult>>;
+    loadPrediction(repoPath: string): Promise<GitResult<PredictionResult | null>>;
     hasKey(provider: string): Promise<GitResult<boolean>>;
     /** One-way: submits a key to be encrypted in main. The key never comes back. */
     setKey(provider: string, key: string): Promise<GitResult>;

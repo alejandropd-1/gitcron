@@ -31,18 +31,21 @@ function stub(id: ProviderId, label: string, kind: 'cloud' | 'local'): AIPredict
 
 // OpenCode note: local/gateway. `kind: 'local'`. When implemented, it reads a
 // user-configured endpoint and treats auth as optional (may have no key).
-const registry: Record<ProviderId, () => AIPredictionProvider> = {
-  openrouter: () => createOpenRouterProvider(),
-  claude: () => createClaudeProvider(),
+/** Runtime options for building a provider (e.g. user-chosen model id). */
+export type ProviderOpts = { model?: string };
+
+const registry: Record<ProviderId, (opts?: ProviderOpts) => AIPredictionProvider> = {
+  openrouter: (opts) => createOpenRouterProvider({ model: opts?.model }),
+  claude: (opts) => createClaudeProvider({ model: opts?.model }),
   openai: () => stub('openai', 'OpenAI', 'cloud'),
   gemini: () => stub('gemini', 'Google Gemini', 'cloud'),
   opencode: () => stub('opencode', 'OpenCode (local/gateway)', 'local'),
 };
 
-export function getProvider(id: ProviderId): AIPredictionProvider {
+export function getProvider(id: ProviderId, opts?: ProviderOpts): AIPredictionProvider {
   const make = registry[id];
   if (!make) throw new Error(`Unknown provider: ${id}`);
-  return make();
+  return make(opts);
 }
 
 export function listProviders(): Array<Pick<AIPredictionProvider, 'id' | 'label' | 'kind'>> {

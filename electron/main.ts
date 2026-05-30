@@ -11,7 +11,7 @@ import type {
   StatusFile, CommitData, BranchData, RepoInfo, StashEntry, SubmoduleEntry, GitHubUser,
   BranchTrackingInfo, WorktreeEntry, PullRequestEntry, PullRequestDiffData, PullRequestDiffFile,
 } from '../types/electron';
-import { registerTemporalAgentHandlers, loadConfig as loadTemporalConfig, loadNotes as loadTemporalNotes } from './temporal-agent-ipc';
+import { registerTemporalAgentHandlers, loadConfig as loadTemporalConfig, loadNotes as loadTemporalNotes, savePrediction, loadPrediction } from './temporal-agent-ipc';
 import { runPrediction } from './ai/predict';
 import { hasKey as hasAiKey, setKey as setAiKey, removeKey as removeAiKey } from './ai/key-store';
 import type { ProviderId } from './ai/providers';
@@ -392,7 +392,7 @@ function activeProviderId(): ProviderId {
 // PHASE 4: stub the provider so we don't spend OpenRouter credit yet. The real
 // adapter is wired in Phase 5 — flip this to false then. The mock still runs the
 // full orchestrator (read-only git context, privacy scope, feedback, threshold).
-const USE_MOCK_PREDICTION = true;
+const USE_MOCK_PREDICTION = false;
 
 function mockProvider(id: ProviderId): AIPredictionProvider {
   const branches: SpeculativeBranch[] = [
@@ -444,7 +444,20 @@ ipcMain.handle('ai:predict-timelines', async (_event, repoPath: string, repoName
       providerId,
       providerOverride: USE_MOCK_PREDICTION ? mockProvider(providerId) : undefined,
     });
+    // Capa 1: persist the last prediction per-repo so it survives close/reopen.
+    try { await savePrediction(repoPath, result); } catch { /* non-fatal */ }
     return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
+// Read-only: load the last persisted prediction for a repo (no network).
+ipcMain.handle('ai:load-prediction', async (_event, repoPath: string) => {
+  try {
+    if (!repoPath) return { success: false, error: 'No repo path' };
+    const data = await loadPrediction(repoPath);
+    return { success: true, data };
   } catch (error: any) {
     return { success: false, error: errMsg(error) };
   }

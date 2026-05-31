@@ -49,6 +49,10 @@
       {
         "from": "public/gitcron-icon.png",
         "to": "gitcron-icon.png"
+      },
+      {
+        "from": ".agents/skills/temporal-attention",
+        "to": "skills/temporal-attention"
       }
     ],
     "win": {

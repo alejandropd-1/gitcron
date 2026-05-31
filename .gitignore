@@ -33,7 +33,10 @@ npm-debug.log*
 .claude/
 
 # Claude Code agent skills (tool-specific internal files)
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/temporal-attention/
 
 # VS Code workspace file (optional — delete this line if querés commitearla)
 *.code-workspace

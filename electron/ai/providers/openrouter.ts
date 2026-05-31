@@ -43,7 +43,7 @@ export function createOpenRouterProvider(opts?: { model?: string }): AIPredictio
         },
         body: JSON.stringify({
           model,
-          max_tokens: 1024,
+          max_tokens: 2048,
           messages: [
             { role: 'system', content: prompts.systemPrompt },
             { role: 'user', content: prompts.userPrompt },
@@ -57,9 +57,15 @@ export function createOpenRouterProvider(opts?: { model?: string }): AIPredictio
       }
 
       const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
+        choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
       };
-      const text = data.choices?.[0]?.message?.content ?? '';
+      const choice = data.choices?.[0];
+      const text = choice?.message?.content ?? '';
+      const finishReason = choice?.finish_reason;
+
+      if (!text && finishReason === 'length') {
+        throw new Error('Model response truncated (max_tokens too low)');
+      }
 
       return {
         branches: parseBranches(text),
@@ -70,16 +76,65 @@ export function createOpenRouterProvider(opts?: { model?: string }): AIPredictio
   };
 }
 
-/** Skill mandates JSON-only output. Parse defensively; bad output → []. */
 function parseBranches(text: string): SpeculativeBranch[] {
-  const cleaned = text.replace(/```json|```/g, '').trim();
-  try {
-    const parsed = JSON.parse(cleaned) as { branches?: unknown };
-    if (!parsed || !Array.isArray(parsed.branches)) return [];
-    return parsed.branches.filter(isBranch);
-  } catch {
+  console.log('[temporal-agent] AI raw response length:', text.length);
+  console.log('[temporal-agent] AI raw preview:', text.slice(0, 500));
+
+  const jsonStr = extractJson(text);
+  if (!jsonStr) {
+    console.log('[temporal-agent] parseBranches: no JSON object found in response');
     return [];
   }
+
+  try {
+    const parsed = JSON.parse(jsonStr) as { branches?: unknown };
+    if (!parsed || !Array.isArray(parsed.branches)) {
+      console.log('[temporal-agent] parseBranches: no branches array. Keys:', Object.keys(parsed ?? {}));
+      return [];
+    }
+    const valid = parsed.branches.filter(isBranch);
+    const dropped = parsed.branches.length - valid.length;
+    console.log(`[temporal-agent] parseBranches: ${valid.length} valid, ${dropped} dropped of ${parsed.branches.length}`);
+    if (dropped > 0) {
+      parsed.branches.forEach((b, i) => {
+        if (!isBranch(b)) {
+          console.log(`[temporal-agent] dropped branch[${i}]:`, JSON.stringify(b).slice(0, 200));
+        }
+      });
+    }
+    return valid;
+  } catch (e) {
+    console.log('[temporal-agent] parseBranches: JSON parse failed —', e instanceof Error ? e.message : e);
+    return [];
+  }
+}
+
+function extractJson(text: string): string | null {
+  const stripped = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  try {
+    JSON.parse(stripped);
+    return stripped;
+  } catch { /* fall through */ }
+
+  const match = stripped.match(/\{[\s\S]*"branches"\s*:\s*\[[\s\S]*\][\s\S]*\}/);
+  if (match) {
+    try {
+      JSON.parse(match[0]);
+      return match[0];
+    } catch { /* fall through */ }
+  }
+
+  const braceStart = stripped.indexOf('{');
+  const braceEnd = stripped.lastIndexOf('}');
+  if (braceStart !== -1 && braceEnd > braceStart) {
+    const candidate = stripped.slice(braceStart, braceEnd + 1);
+    try {
+      JSON.parse(candidate);
+      return candidate;
+    } catch { /* fall through */ }
+  }
+
+  return null;
 }
 
 function isBranch(b: unknown): b is SpeculativeBranch {

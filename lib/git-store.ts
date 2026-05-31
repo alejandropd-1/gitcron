@@ -47,6 +47,7 @@ export interface RepoState {
   currentDiff: string;
   graphShowAllBranches: boolean;
   graphMode: 'classic' | 'chronometric';
+  showSpeculative: boolean;
   isLoading: boolean;
   error: string | null;
   success: string | null;
@@ -160,6 +161,7 @@ function createEmptyRepoFields(): EmptyRepoFields {
     currentDiff: '',
     graphShowAllBranches: true,
     graphMode: 'classic',
+    showSpeculative: false,
     isLoading: false,
     error: null,
     success: null,

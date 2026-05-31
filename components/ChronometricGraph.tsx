@@ -389,11 +389,14 @@ export function ChronometricGraph({
   // Present (HEAD) anchor = the most recent projected commit (greatest x).
   // Speculative branches fork from here into the future.
   const speculativeNodes = useMemo(() => {
+    console.log('[ChronometricGraph] speculativeNodes useMemo:', { showSpeculative, branchesCount: speculativeBranches.length, commitsCount: projectedCommits.length });
     if (!showSpeculative || speculativeBranches.length === 0 || projectedCommits.length === 0) {
       return [];
     }
     const head = projectedCommits.reduce((a, b) => (b.x > a.x ? b : a));
-    return projectSpeculative(speculativeBranches, { x: head.x, y: head.y }, config);
+    const nodes = projectSpeculative(speculativeBranches, { x: head.x, y: head.y }, config);
+    console.log('[ChronometricGraph] projected', nodes.length, 'speculative nodes from HEAD at', head.x, head.y);
+    return nodes;
   }, [showSpeculative, speculativeBranches, projectedCommits, config]);
 
   // Centauro panel (Phase 5b): clicking a speculative branch opens its dialogue.

@@ -71,3 +71,9 @@ export function removeKey(provider: ProviderId): void {
   delete data[provider];
   writeFile(data);
 }
+
+export function getKeyPrefix(provider: ProviderId): string | null {
+  const key = getKey(provider);
+  if (!key) return null;
+  return key.slice(0, 10) + '…';
+}

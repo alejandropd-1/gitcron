@@ -152,6 +152,7 @@ contextBridge.exposeInMainWorld('api', {
     loadPrediction: (repoPath: string) =>
       ipcRenderer.invoke('ai:load-prediction', repoPath),
     hasKey: (provider: string) => ipcRenderer.invoke('ai:has-key', provider),
+    keyPrefix: (provider: string) => ipcRenderer.invoke('ai:key-prefix', provider),
     // One-way: the key goes IN to be encrypted; it never comes back out.
     setKey: (provider: string, key: string) => ipcRenderer.invoke('ai:set-key', provider, key),
     removeKey: (provider: string) => ipcRenderer.invoke('ai:remove-key', provider),

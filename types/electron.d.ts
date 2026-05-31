@@ -228,6 +228,7 @@ interface ElectronAPI {
     predictTimelines(repoPath: string, repoName: string): Promise<GitResult<PredictionResult>>;
     loadPrediction(repoPath: string): Promise<GitResult<PredictionResult | null>>;
     hasKey(provider: string): Promise<GitResult<boolean>>;
+    keyPrefix(provider: string): Promise<GitResult<string | null>>;
     /** One-way: submits a key to be encrypted in main. The key never comes back. */
     setKey(provider: string, key: string): Promise<GitResult>;
     removeKey(provider: string): Promise<GitResult>;

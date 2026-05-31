@@ -21,6 +21,16 @@ const ORANGE = '#fd9d1a';
 // Phase 3 / Phase 4: OpenRouter is the primary provider (one key → many models).
 const ACTIVE_PROVIDER = 'openrouter';
 
+const OPENROUTER_MODELS: Array<{ id: string; label: string; price: string }> = [
+  { id: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash (barato)', price: '$0.50 / $3.00' },
+  { id: 'google/gemini-3.5-flash', label: 'Gemini 3.5 Flash', price: '$1.50 / $9.00' },
+  { id: 'deepseek/deepseek-v4-pro', label: 'DeepSeek V4 Pro', price: '$0.44 / $0.87' },
+  { id: 'xiaomi/mimo-v2.5-pro', label: 'MiMo V2.5 Pro', price: '$0.44 / $0.87' },
+  { id: 'minimax/minimax-m2.7', label: 'MiniMax M2.7', price: '$0.26 / $1.20' },
+  { id: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (default)', price: '$3.00 / $15.00' },
+  { id: 'openai/gpt-5.5', label: 'GPT-5.5', price: '$5.00 / $30.00' },
+];
+
 interface Props {
   repoPath: string;
   repoName: string;
@@ -33,9 +43,12 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
   const [notesMd, setNotesMd] = useState<string>('');
   const [showNotes, setShowNotes] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // AI key state — only a boolean ("is there a key?") is ever read back.
+  // AI key state — only a boolean ("is there a key?") and a safe prefix are ever read back.
   const [hasKey, setHasKey] = useState<boolean | null>(null);
+  const [keyPrefix, setKeyPrefix] = useState<string | null>(null);
   const [keyDraft, setKeyDraft] = useState('');
   const [savingKey, setSavingKey] = useState(false);
 
@@ -52,14 +65,21 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
     window.api.ai.hasKey(ACTIVE_PROVIDER).then((r) => {
       if (alive) setHasKey(r.success ? Boolean(r.data) : false);
     });
+    window.api.ai.keyPrefix(ACTIVE_PROVIDER).then((r) => {
+      if (alive) setKeyPrefix(r.success ? r.data ?? null : null);
+    });
     return () => {
       alive = false;
     };
   }, [repoPath, repoName]);
 
   async function refreshHasKey() {
-    const r = await window.api.ai.hasKey(ACTIVE_PROVIDER);
-    setHasKey(r.success ? Boolean(r.data) : false);
+    const [hasR, prefixR] = await Promise.all([
+      window.api.ai.hasKey(ACTIVE_PROVIDER),
+      window.api.ai.keyPrefix(ACTIVE_PROVIDER),
+    ]);
+    setHasKey(hasR.success ? Boolean(hasR.data) : false);
+    setKeyPrefix(prefixR.success ? prefixR.data ?? null : null);
   }
 
   async function saveKey() {
@@ -111,8 +131,14 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
   async function save() {
     if (!config) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await window.api.temporalAgent.saveConfig(repoPath, config);
+      const now = Date.now();
+      setSavedAt(now);
+      setTimeout(() => setSavedAt((t) => (t === now ? null : t)), 3000);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }
@@ -213,7 +239,14 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
           {hasKey === null ? (
             <span style={{ fontSize: 12, color: '#9BA1B0' }}>checking…</span>
           ) : hasKey ? (
-            <span style={{ fontSize: 12, color: GREEN }}>● configured</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+              <span style={{ fontSize: 12, color: GREEN }}>● configured</span>
+              {keyPrefix && (
+                <code style={{ fontSize: 11, color: '#9BA1B0', fontFamily: 'JetBrains Mono, monospace' }}>
+                  {keyPrefix}
+                </code>
+              )}
+            </div>
           ) : (
             <span style={{ fontSize: 12, color: ORANGE }}>○ not set</span>
           )}
@@ -246,18 +279,20 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
           <label style={{ fontSize: 12, color: '#9BA1B0', display: 'block', marginBottom: 6 }}>
             Modelo (OpenRouter)
           </label>
-          <input
-            type="text"
+          <ModelSelect
             value={config.model ?? ''}
-            onChange={(e) => patch({ model: e.target.value })}
-            placeholder="ID de OpenRouter, formato proveedor/modelo. Ej: anthropic/claude-sonnet-4.5, anthropic/claude-sonnet-4.6, google/gemini-3-flash-preview"
-            autoComplete="off"
-            spellCheck={false}
-            style={{ ...selectStyle, width: '100%' }}
+            onChange={(v) => patch({ model: v })}
           />
-          <p style={{ fontSize: 11, color: '#697789', margin: '6px 0 0' }}>
-            Vacío = usa el default <code>anthropic/claude-sonnet-4.5</code>. Acordate de <strong>Save</strong>.
-          </p>
+          {config.model && (
+            <p style={{ fontSize: 11, color: GREEN, margin: '6px 0 0' }}>
+              Modelo activo: <code style={{ fontFamily: 'JetBrains Mono, monospace' }}>{config.model}</code>
+            </p>
+          )}
+          {!config.model && (
+            <p style={{ fontSize: 11, color: '#697789', margin: '6px 0 0' }}>
+              Vacío = usa el default <code>anthropic/claude-sonnet-4.5</code>. Acordate de <strong>Save</strong>.
+            </p>
+          )}
         </div>
       </div>
 
@@ -291,13 +326,39 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <button onClick={save} disabled={saving} style={primaryBtn}>
           {saving ? 'Saving…' : 'Save'}
         </button>
         <button onClick={openNotes} style={ghostBtn}>
           View agent notes
         </button>
+        {savedAt && (
+          <span style={{ fontSize: 12, color: GREEN, fontWeight: 600 }}>
+            Guardado ✓
+          </span>
+        )}
+        {saveError && (
+          <span style={{ fontSize: 12, color: ORANGE }}>
+            Error: {saveError}
+          </span>
+        )}
+      </div>
+
+      {/* Active config summary */}
+      <div style={{ ...cardStyle, fontSize: 11, color: '#697789', lineHeight: 1.6 }}>
+        <strong style={{ color: '#9BA1B0', fontSize: 12 }}>Config activa:</strong>{' '}
+        {config.enabled ? <span style={{ color: GREEN }}>on</span> : <span style={{ color: ORANGE }}>off</span>}
+        {' · '}scope: {config.privacyScope}
+        {' · '}modelo: <code style={{ fontFamily: 'JetBrains Mono, monospace' }}>{config.model || 'default'}</code>
+        {' · '}threshold: {config.skillProfile.confidenceThreshold.toFixed(2)}
+        {' · '}freq: {config.frequency}
+        {config.skillProfile.focusAreas.length > 0 && (
+          <>
+            <br />
+            focus: {config.skillProfile.focusAreas.join(', ')}
+          </>
+        )}
       </div>
 
       {showNotes && (
@@ -368,6 +429,51 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
         }}
       />
     </button>
+  );
+}
+
+function ModelSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [customMode, setCustomMode] = useState(false);
+  const knownIds = OPENROUTER_MODELS.map((m) => m.id);
+  const isKnown = knownIds.includes(value);
+  const selectValue = !value ? '' : isKnown ? value : '__custom__';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <select
+        value={customMode ? '__custom__' : selectValue}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === '__custom__') {
+            setCustomMode(true);
+            onChange('');
+          } else {
+            setCustomMode(false);
+            onChange(v);
+          }
+        }}
+        style={{ ...selectStyle, width: '100%' }}
+      >
+        <option value="">Default (anthropic/claude-sonnet-4.5)</option>
+        {OPENROUTER_MODELS.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.label} — {m.price}/M tokens
+          </option>
+        ))}
+        <option value="__custom__">Custom…</option>
+      </select>
+      {(customMode || (!isKnown && value)) && (
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="ID de OpenRouter, formato proveedor/modelo"
+          autoComplete="off"
+          spellCheck={false}
+          style={{ ...selectStyle, width: '100%' }}
+        />
+      )}
+    </div>
   );
 }
 

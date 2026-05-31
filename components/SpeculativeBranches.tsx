@@ -33,6 +33,7 @@ interface Props {
 }
 
 export function SpeculativeBranches({ nodes, config, visible, onSelect }: Props) {
+  console.log('[SpeculativeBranches] render:', { visible, nodesCount: nodes.length });
   if (!visible || nodes.length === 0) return null;
   const { ux, uy } = diagonalBasis(config);
 
@@ -74,22 +75,19 @@ export function SpeculativeBranches({ nodes, config, visible, onSelect }: Props)
               opacity={Math.min(1, opacity + 0.15)}
             />
 
-            {/* Label: type tag + short message + "predicción" */}
-            <g transform={`translate(${n.x + 12}, ${n.y - 4})`} opacity={Math.min(1, opacity + 0.2)}>
+            {/* Label: type+confidence in one line, message in another — pushed further from node to avoid collisions with WIP/HEAD telemetry */}
+            <g transform={`translate(${n.x + 20}, ${n.y - 8})`} opacity={Math.min(1, opacity + 0.2)}>
               <text
-                fontSize="9"
+                fontSize="8.5"
                 fontWeight={700}
                 fill={CYAN}
                 className="font-mono uppercase"
                 style={{ letterSpacing: '0.04em' }}
               >
-                {TYPE_LABEL[n.branch.type]} · predicción
+                {TYPE_LABEL[n.branch.type]} · {Math.round(n.branch.confidence * 100)}%
               </text>
-              <text y={13} fontSize="10.5" fill="#d9e7fc" className="font-sans">
-                {truncate(n.branch.message, 38)}
-              </text>
-              <text y={26} fontSize="8.5" fill="#9eacc0" className="font-mono">
-                {Math.round(n.branch.confidence * 100)}% conf.
+              <text y={12} fontSize="10" fill="#d9e7fc" className="font-sans">
+                {truncate(n.branch.message, 28)}
               </text>
             </g>
           </g>

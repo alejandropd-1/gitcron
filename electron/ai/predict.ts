@@ -196,7 +196,20 @@ export function assemblePrompts(
       ? ['', 'Recently changed files:', ...input.fileNames.map((f) => `- ${f}`)]
       : []),
     '',
-    'Return the PredictionResult JSON only.',
+    '# Output format',
+    'Return ONLY a JSON object with this exact schema (no markdown, no explanation):',
+    '{',
+    '  "branches": [',
+    '    {',
+    '      "id": "unique-id",',
+    '      "message": "short description (max 60 chars)",',
+    '      "rationale": "why this makes sense (max 100 chars)",',
+    '      "type": "improvement" | "breakthrough" | "trend",',
+    '      "confidence": 0.0 to 1.0',
+    '    }',
+    '  ]',
+    '}',
+    'Propose 3-5 branches. Keep rationale SHORT (under 100 chars). Each must have all 5 fields.',
   ].join('\n');
 
   return { systemPrompt, userPrompt, input };

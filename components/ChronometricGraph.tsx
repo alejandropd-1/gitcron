@@ -389,14 +389,11 @@ export function ChronometricGraph({
   // Present (HEAD) anchor = the most recent projected commit (greatest x).
   // Speculative branches fork from here into the future.
   const speculativeNodes = useMemo(() => {
-    console.log('[ChronometricGraph] speculativeNodes useMemo:', { showSpeculative, branchesCount: speculativeBranches.length, commitsCount: projectedCommits.length });
     if (!showSpeculative || speculativeBranches.length === 0 || projectedCommits.length === 0) {
       return [];
     }
     const head = projectedCommits.reduce((a, b) => (b.x > a.x ? b : a));
-    const nodes = projectSpeculative(speculativeBranches, { x: head.x, y: head.y }, config);
-    console.log('[ChronometricGraph] projected', nodes.length, 'speculative nodes from HEAD at', head.x, head.y);
-    return nodes;
+    return projectSpeculative(speculativeBranches, { x: head.x, y: head.y }, config);
   }, [showSpeculative, speculativeBranches, projectedCommits, config]);
 
   // Centauro panel (Phase 5b): clicking a speculative branch opens its dialogue.
@@ -2273,28 +2270,6 @@ export function ChronometricGraph({
 
       <div className="chronometric-bottom-shell" style={hudDockStyle}>
         <div className="chronometric-bottom-dock">
-          <div className="hud-depth-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono flex items-center gap-3 select-none">
-            <div className="hud-depth-radar relative w-[30px] h-[30px] shrink-0 border border-[#a3f185]/35 rounded-full overflow-hidden bg-[#021820]/50">
-              <svg width="30" height="30" className="absolute inset-0">
-                <circle cx="15" cy="15" r="14" fill="none" stroke="#a3f185" strokeWidth="0.75" opacity="0.28" />
-                <circle cx="15" cy="15" r="7" fill="none" stroke="#a3f185" strokeWidth="0.5" opacity="0.20" />
-                <line x1="15" y1="15" x2="15" y2="1" stroke="#a3f185" strokeWidth="1" opacity="0.85" className="radar-sweep" />
-              </svg>
-            </div>
-            <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-              <div className="hud-depth-title flex items-center justify-between border-b border-[#3c495a]/25 pb-0.5 mb-0.5">
-                <span className="text-[9px] font-bold text-[#a3f185] tracking-wider">CHRONO_DEPTH</span>
-                <Activity size={10} className="text-[#a3f185]/80" />
-              </div>
-              <div className="flex items-center justify-between text-[8.5px] text-[#9eacc0]">
-                <span>NODES //</span>
-                <span className="font-bold text-[9px] text-[#d9e7fc]">{filteredCommits.length}</span>
-              </div>
-              <div className="hud-depth-date truncate text-[7.5px] text-[#697789] tracking-tight uppercase mt-0.5">
-                {dateRangeString}
-              </div>
-            </div>
-          </div>
 
           <div className="hud-target-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono select-none transition-all duration-300">
             {speculativeDialogue ? (

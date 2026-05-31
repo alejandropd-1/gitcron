@@ -576,13 +576,7 @@ export default function GitCronPage() {
 
   // Temporal Agent — speculative branch overlay. Source is the real, persisted
   // per-repo prediction (Capa 1); flip USE_MOCK_SPECULATIVE to debug with the mock.
-  // showSpeculative lives in the store so it survives view changes (Settings → Graph).
-  const showSpeculative = useGitStore((s) => s.getActiveRepo()?.showSpeculative ?? false);
-  const setShowSpeculative = (v: boolean | ((prev: boolean) => boolean)) => {
-    const current = useGitStore.getState().getActiveRepo()?.showSpeculative ?? false;
-    const next = typeof v === 'function' ? v(current) : v;
-    updateActiveRepo({ showSpeculative: next });
-  };
+  const [showSpeculative, setShowSpeculative] = useState(false);
   const [speculativeBranches, setSpeculativeBranches] = useState<SpeculativeBranch[]>(
     USE_MOCK_SPECULATIVE ? MOCK_SPECULATIVE : [],
   );
@@ -595,7 +589,6 @@ export default function GitCronPage() {
     if (USE_MOCK_SPECULATIVE) {
       setSpeculativeBranches(MOCK_SPECULATIVE);
       setSpeculativeAt(null);
-      console.log('[temporal-agent] Mock mode: loaded', MOCK_SPECULATIVE.length, 'branches');
       return;
     }
     if (!repoPath) {
@@ -604,10 +597,8 @@ export default function GitCronPage() {
       return;
     }
     let alive = true;
-    console.log('[temporal-agent] Loading prediction for repo:', repoPath);
     window.api.ai.loadPrediction(repoPath).then((r) => {
       if (!alive) return;
-      console.log('[temporal-agent] loadPrediction result:', r.success, 'branches:', r.data?.branches?.length ?? 0);
       if (r.success && r.data) {
         setSpeculativeBranches(r.data.branches);
         setSpeculativeAt(r.data.generatedAt);
@@ -2743,9 +2734,9 @@ export default function GitCronPage() {
                             repoPath={repoPath}
                             repoName={openRepos[activeRepoIdx]?.name ?? 'repo'}
                             onPrediction={(r) => {
-                              console.log('[temporal-agent] onPrediction callback:', r.branches.length, 'branches');
                               setSpeculativeBranches(r.branches);
                               setSpeculativeAt(r.generatedAt);
+                              setShowSpeculative(true);
                             }}
                           />
                         ) : (
@@ -3289,6 +3280,18 @@ export default function GitCronPage() {
                       <GraphColumnHandle onMouseDown={startGraphColDrag('graph')} />
                       <div className="flex-1 flex items-center gap-2 pl-5">
                         Commit message
+                        {speculativeBranches.length > 0 && (
+                          <button
+                            onClick={() => {
+                              handleChangeGraphMode('chronometric');
+                              setShowSpeculative(true);
+                            }}
+                            className="text-[9px] normal-case px-2 py-0.5 rounded bg-[#5ed8ff]/10 text-[#5ed8ff] border border-[#5ed8ff]/30 hover:bg-[#5ed8ff]/20 transition-colors font-mono"
+                            title={`${speculativeBranches.length} ramas especulativas disponibles`}
+                          >
+                            {speculativeBranches.length} futuros →
+                          </button>
+                        )}
                         {filterText.trim() && (
                           <span className="text-[10px] normal-case px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
                             filtro activo

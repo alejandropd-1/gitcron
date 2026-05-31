@@ -33,7 +33,6 @@ interface Props {
 }
 
 export function SpeculativeBranches({ nodes, config, visible, onSelect }: Props) {
-  console.log('[SpeculativeBranches] render:', { visible, nodesCount: nodes.length });
   if (!visible || nodes.length === 0) return null;
   const { ux, uy } = diagonalBasis(config);
 
@@ -75,8 +74,9 @@ export function SpeculativeBranches({ nodes, config, visible, onSelect }: Props)
               opacity={Math.min(1, opacity + 0.15)}
             />
 
-            {/* Label: type+confidence in one line, message in another — pushed further from node to avoid collisions with WIP/HEAD telemetry */}
-            <g transform={`translate(${n.x + 20}, ${n.y - 8})`} opacity={Math.min(1, opacity + 0.2)}>
+            {/* Label: type+confidence in one line, full message word-wrapped below.
+                Pushed further from node with wider spacing to avoid label collisions. */}
+            <g transform={`translate(${n.x + 22}, ${n.y - 8})`} opacity={Math.min(1, opacity + 0.2)}>
               <text
                 fontSize="8.5"
                 fontWeight={700}
@@ -86,9 +86,17 @@ export function SpeculativeBranches({ nodes, config, visible, onSelect }: Props)
               >
                 {TYPE_LABEL[n.branch.type]} · {Math.round(n.branch.confidence * 100)}%
               </text>
-              <text y={12} fontSize="10" fill="#d9e7fc" className="font-sans">
-                {truncate(n.branch.message, 28)}
-              </text>
+              {wrapLines(n.branch.message, 30).map((line, li) => (
+                <text
+                  key={li}
+                  y={12 + li * 11}
+                  fontSize="9.5"
+                  fill="#d9e7fc"
+                  className="font-sans"
+                >
+                  {line}
+                </text>
+              ))}
             </g>
           </g>
         );
@@ -97,6 +105,18 @@ export function SpeculativeBranches({ nodes, config, visible, onSelect }: Props)
   );
 }
 
-function truncate(s: string, n: number): string {
-  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+function wrapLines(text: string, maxLen: number): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+  for (const w of words) {
+    if (current.length + w.length + (current ? 1 : 0) <= maxLen || !current) {
+      current = current ? current + ' ' + w : w;
+    } else {
+      if (current) lines.push(current);
+      current = w.length > maxLen ? w.slice(0, maxLen - 1) + '…' : w;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
 }

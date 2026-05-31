@@ -45,8 +45,8 @@ export interface SpeculativeOptions {
 }
 
 const DEFAULTS: Required<SpeculativeOptions> = {
-  reach: 240,
-  fanFactor: 38, // matches ChronometricGraph's config.fanFactor
+  reach: 320,
+  fanFactor: 60,
   growth: 1.0,
 };
 

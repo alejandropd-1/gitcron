@@ -125,14 +125,24 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 
 ### 🟣 Vista Cronométrica (Chronometric View) - En Desarrollo / Experimental
 
-- *Esta sección documenta de forma aislada las características de la Vista Cronométrica para evitar conflictos de mezcla al trabajar en ramas de desarrollo paralelo (`feature/cronometric`).*
-- **Línea de tiempo cronométrica avanzada**: (Desarrollo en paralelo) Permite visualizar la evolución histórica de las ramas alineadas a su estampa de tiempo real, mejorando la comprensión visual de mezclas y bifurcaciones concurrentes.
+- *Esta sección documenta las características de la Vista Cronométrica.*
+- **Línea de tiempo cronométrica avanzada**: Visualiza la evolución histórica de las ramas alineadas a su estampa de tiempo real, mejorando la comprensión visual de mezclas y bifurcaciones concurrentes.
 - **Navegación temporal interactiva**: Controles para filtrar y enfocar períodos de actividad específicos, útiles en repositorios con alta densidad de commits diarios.
-- **Simplificación Visual y Declutter del HUD**: Remoción de los círculos punteados concéntricos de radar de fondo y los marcos de esquinas neón decorativos, logrando una interfaz cronométrica inmersiva minimalista y despejada de tipo "Full Bleed" que prioriza el árbol de commits.
-- **Máscara en Curva Bézier de Precisión (Solid Curved Bézier Backing Mask)**: La máscara de ocultación se rediseñó por completo utilizando curvas Bézier cúbicas (`C`) en lugar de segmentos poligonales rígidos. Esto genera una silueta perfectamente circular, fluida y orgánica que calza al milímetro con el arco del SVG LCARS decorativo de la consola.
-- **Enmascarado con Degradado sobre el Grafo (Linear Gradient Canvas Masking)**: Implementamos un `mask-image` de CSS con degradado lineal directamente en el lienzo del grafo (`components/ChronometricGraph.tsx`), haciendo que los timelines y commits se desvanezcan suavemente a transparente (entre `370px` y `220px` antes del borde derecho) antes de tocar el panel técnico.
-- **Bordes y Esquinas Ultra-Nítidos (No Bleeding/Fog)**: Eliminamos la neblina decorativa y los filtros de blureo que se desbordaban en los bordes de la pantalla. El fondo TCAR y su máscara son 100% vectoriales, sólidos y perfectamente nítidos, logrando que el grafo parezca "fundirse en el aire" antes de pasar detrás de la consola física.
-- **Visualización Condicional por Contexto (Context-Aware UI Mounting)**: El panel decorativo e interactivo LCARS ahora solo se monta en el DOM si el usuario se encuentra activamente en la solapa de **`Graph`** y no hay ningún visualizador de Diff de archivos o Pull Request abierto. Esto garantiza que las solapas de **Commit**, **History** y los visores de código se muestren limpios de punta a punta sin ninguna obstrucción.
+- **Máscara en Curva Bézier de Precisión**: La máscara de ocultación usa curvas Bézier cúbicas con una silueta fluida que calza al milímetro con la consola LCARS.
+- **Enmascarado con Degradado sobre el Canvas**: Los timelines y commits se desvanecen suavemente a transparente antes de tocar el panel técnico derecho.
+- **Visualización Condicional por Contexto**: El panel LCARS solo se monta en el DOM en la solapa Graph, dejando limpias las vistas de Commit, History y Diff.
+
+### 🟡 Temporal Agent — Ramas Futuras con IA (v1.6.6+, Experimental)
+
+- **Predicción de ramas especulativas**: Una IA (OpenRouter) analiza el contexto del repositorio y propone 3-5 ramas futuras posibles (`improvement`, `breakthrough`, `trend`).
+- **Visualización en la diagonal cronométrica**: Ramas punteadas semitransparentes en cyan que salen de HEAD hacia el futuro, con opacidad ligada a la confianza de la predicción.
+- **Panel Centauro**: Al clickear una rama especulativa, el HUD inferior muestra el rationale de la IA con evidencia del repositorio.
+- **Materialización one-click**: El botón "Materializar" convierte una rama soñada en un branch real de Git (`imagined/<slug>`) con tag `flight/<nivel>` y un `IDEA.md` documentando la decisión.
+- **Configuración por repositorio**: Settings → Temporal Agent permite elegir modelo de IA (7 modelos OpenRouter verificados), scope de privacidad, threshold de confianza, y focus areas.
+- **Persistencia**: Las predicciones se guardan en `prediction.json` por repo y sobreviven a cierre/re-apertura de la app.
+- **Seguridad**: API keys cifradas con `safeStorage` del OS (DPAPI/Keychain/libsecret). Fingerprint SHA-256 como identificador visible. Las keys nunca salen del proceso main.
+- **Toggle FUTUROS**: Botón en la esquina superior del grafo cronométrico para mostrar/ocultar las ramas especulativas. Se activa automáticamente tras una predicción.
+- **Chip en vista clásica**: Si hay predicciones disponibles, la cabecera del grafo clásico muestra un chip "N futuros →" que cambia a vista cronométrica en un click.
 
 ---
 
@@ -142,15 +152,23 @@ Renderer:
 
 - `app/page.tsx` drives the main three-column UI, tabs, modals, and topbar.
 - `components/CommitGraph.tsx` renders the SVG graph and graph-table rows.
+- `components/ChronometricGraph.tsx` renders the chronometric diagonal view with speculative branch overlay.
+- `components/SpeculativeBranches.tsx` renders AI-predicted future branches as dotted cyan overlays.
 - `components/DiffViewer.tsx` renders unified diffs.
+- `components/TemporalAgentSettings.tsx` per-repo settings panel for the Temporal Agent.
 - `hooks/use-git-actions.ts` contains repo actions like commit, push, pull, merge, stash, and preferences persistence.
 - `hooks/use-repo-loader.ts` loads repo data and restores persisted repos.
 - `lib/git-store.ts` holds the Zustand store.
+- `lib/speculative-projection.ts` computes future-branch positions along the chronometric diagonal.
+- `lib/chronometric-projection.ts` projects commits into the chronometric coordinate system.
+- `lib/feedback-context.ts` builds feedback blocks from the decision log for the AI context.
+- `lib/materialize-idea.ts` builds the materialization plan (branch name, tag, IDEA.md content).
 
 Main process:
 
-- `electron/main.ts` exposes typed IPC handlers for Git, GitHub, storage, shell, and filesystem actions.
+- `electron/main.ts` exposes typed IPC handlers for Git, GitHub, storage, shell, filesystem, and Temporal Agent.
 - `electron/preload.ts` exposes the safe renderer bridge via `window.api`.
+- `electron/ai/key-store.ts` manages OS-encrypted API keys (never exposed over IPC).
 
 Data flow:
 

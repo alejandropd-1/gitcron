@@ -4,6 +4,32 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.6.6] - 2026-05-31 - Temporal Agent — Predicción de Ramas Futuras con IA
+
+### 🔵 Vista Cronométrica — Temporal Agent (Beta)
+
+#### Added
+- **Temporal Agent funcional end-to-end**: La feature de predicción de ramas especulativas ahora funciona completamente. El agente envía contexto del repositorio a OpenRouter, recibe predicciones de la IA y las dibuja como ramas punteadas semitransparentes sobre la diagonal cronométrica.
+- **Dropdown de modelos de IA**: Selector de modelo en Settings → Temporal Agent con 7 modelos verificados de OpenRouter — Gemini 3 Flash, Gemini 3.5 Flash, DeepSeek V4 Pro, MiMo V2.5 Pro, MiniMax M2.7, Claude Sonnet 4.5 y GPT-5.5, más opción "Custom" para modelos no listados. Cada modelo muestra su precio por millón de tokens.
+- **Fingerprint de API key (SHA-256)**: La validación de API key ahora usa un hash criptográfico irreversible en lugar de enviar caracteres reales al renderer. El usuario ve una huella de 8 hex que permite identificar cuál key está cargada sin exponer el secreto.
+- **Feedback de guardado en Settings**: Toast "Guardado ✓" (se auto-oculta a los 3s) y resumen persistente de la configuración activa (modelo, scope, threshold, frequency, focus areas) debajo del botón Save.
+- **Auto-prender FUTUROS tras predicción**: Al disparar "Predecir futuros", el toggle FUTUROS se activa automáticamente si la IA devuelve ramas. No hay que ir al grafo a prenderlo manualmente.
+- **Chip "N futuros →" en vista clásica**: Cuando hay predicciones disponibles, la cabecera del grafo clásico muestra un chip cyan que al clickear cambia a vista cronométrica y prende FUTUROS automáticamente.
+- **Labels especulativas legibles**: Los textos de las ramas futuras ahora usan word-wrap multilínea (sin truncamiento con puntos suspensivos). Mayor espaciado entre ramas (`reach: 320`, `fanFactor: 60`) para evitar amontonamiento.
+- **Parser de IA tolerante**: `parseBranches()` ahora extrae JSON de respuestas con markdown, texto adicional o formato impreciso. Loguea ramas válidas y descartadas para diagnóstico.
+
+#### Changed
+- **Panel CENTAURO sin competencia**: Se eliminó la card `CHRONO_DEPTH` (radar verde con conteo de nodos y rango de fechas) del HUD inferior. El panel CENTAURO ahora ocupa ese espacio sin competir visualmente con los detalles de commit del panel derecho.
+- **Prompt de IA más explícito**: El system prompt ahora incluye el schema JSON exacto esperado (`id`, `message`, `rationale`, `type`, `confidence`) y pide rationales de máximo 100 caracteres para evitar truncamiento.
+- **`max_tokens` ampliado**: De 1024 a 2048 tokens. El modelo anteriormente truncaba el JSON a mitad de una string.
+
+#### Fixed
+- **Error handling en Settings**: El botón Save ahora tiene try/catch y muestra mensajes de error visibles en naranja si falla la persistencia.
+- **Toggle FUTUROS corregido**: Se revirtió un cambio que movía `showSpeculative` al store de Zustand, lo cual impedía que el toggle funcionara al cambiar de vista. Ahora usa `useState` local que sobrevive correctamente entre Settings y Graph.
+- **Puerto 3001 EADDRINUSE**: El servidor Next.js en dev ahora usa puerto 3001. Si queda un proceso zombie, matarlo con `netstat -ano | findstr :3001` + `taskkill /PID <pid> /F`.
+
+---
+
 ## [v1.6.5] - 2026-05-26 - Changelog Integrado en Buscar Actualizaciones
 
 ### 🟢 Vista Clásica & Core

@@ -13,7 +13,7 @@ import type {
 } from '../types/electron';
 import { registerTemporalAgentHandlers, loadConfig as loadTemporalConfig, loadNotes as loadTemporalNotes, savePrediction, loadPrediction } from './temporal-agent-ipc';
 import { runPrediction } from './ai/predict';
-import { hasKey as hasAiKey, setKey as setAiKey, removeKey as removeAiKey, getKeyPrefix as getAiKeyPrefix } from './ai/key-store';
+import { hasKey as hasAiKey, setKey as setAiKey, removeKey as removeAiKey, getKeyFingerprint as getAiKeyFingerprint } from './ai/key-store';
 import type { ProviderId } from './ai/providers';
 import type { AIPredictionProvider, PredictionResult, SpeculativeBranch, MaterializeIdeaInput } from '../types/temporal-agent';
 import { buildMaterializationPlan } from '../lib/materialize-idea';
@@ -490,9 +490,10 @@ ipcMain.handle('ai:remove-key', async (_event, provider: ProviderId) => {
   }
 });
 
-ipcMain.handle('ai:key-prefix', async (_event, provider: ProviderId) => {
+ipcMain.handle('ai:key-fingerprint', async (_event, provider: ProviderId) => {
   try {
-    return { success: true, data: getAiKeyPrefix(provider) };
+    // Returns a SHA-256-derived id (8 hex chars), never any part of the key.
+    return { success: true, data: getAiKeyFingerprint(provider) };
   } catch (error: any) {
     return { success: false, error: errMsg(error) };
   }

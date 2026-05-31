@@ -46,9 +46,10 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // AI key state — only a boolean ("is there a key?") and a safe prefix are ever read back.
+  // AI key state — only a boolean ("is there a key?") and a safe fingerprint are
+  // ever read back. The fingerprint is a SHA-256 hash id, NOT part of the key.
   const [hasKey, setHasKey] = useState<boolean | null>(null);
-  const [keyPrefix, setKeyPrefix] = useState<string | null>(null);
+  const [keyFingerprint, setKeyFingerprint] = useState<string | null>(null);
   const [keyDraft, setKeyDraft] = useState('');
   const [savingKey, setSavingKey] = useState(false);
 
@@ -65,8 +66,8 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
     window.api.ai.hasKey(ACTIVE_PROVIDER).then((r) => {
       if (alive) setHasKey(r.success ? Boolean(r.data) : false);
     });
-    window.api.ai.keyPrefix(ACTIVE_PROVIDER).then((r) => {
-      if (alive) setKeyPrefix(r.success ? r.data ?? null : null);
+    window.api.ai.keyFingerprint(ACTIVE_PROVIDER).then((r) => {
+      if (alive) setKeyFingerprint(r.success ? r.data ?? null : null);
     });
     return () => {
       alive = false;
@@ -74,12 +75,12 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
   }, [repoPath, repoName]);
 
   async function refreshHasKey() {
-    const [hasR, prefixR] = await Promise.all([
+    const [hasR, fpR] = await Promise.all([
       window.api.ai.hasKey(ACTIVE_PROVIDER),
-      window.api.ai.keyPrefix(ACTIVE_PROVIDER),
+      window.api.ai.keyFingerprint(ACTIVE_PROVIDER),
     ]);
     setHasKey(hasR.success ? Boolean(hasR.data) : false);
-    setKeyPrefix(prefixR.success ? prefixR.data ?? null : null);
+    setKeyFingerprint(fpR.success ? fpR.data ?? null : null);
   }
 
   async function saveKey() {
@@ -241,9 +242,9 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
           ) : hasKey ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
               <span style={{ fontSize: 12, color: GREEN }}>● configured</span>
-              {keyPrefix && (
+              {keyFingerprint && (
                 <code style={{ fontSize: 11, color: '#9BA1B0', fontFamily: 'JetBrains Mono, monospace' }}>
-                  {keyPrefix}
+                  huella: {keyFingerprint}
                 </code>
               )}
             </div>

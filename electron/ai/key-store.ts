@@ -14,6 +14,7 @@
 import { app, safeStorage } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { createHash } from 'node:crypto';
 import type { AIPredictionProvider } from '../../types/temporal-agent';
 
 export type ProviderId = AIPredictionProvider['id'];
@@ -72,8 +73,15 @@ export function removeKey(provider: ProviderId): void {
   writeFile(data);
 }
 
-export function getKeyPrefix(provider: ProviderId): string | null {
+/**
+ * Safe-to-expose stable identifier of WHICH key is stored — NOT any part of the
+ * secret. We hash the full key with SHA-256 and return only the first 8 hex
+ * chars. This lets the user recognize which key they loaded (the fingerprint is
+ * deterministic per-key) while no byte of the real key ever leaves main.
+ * Replaces the old getKeyPrefix(), which leaked the first 10 real characters.
+ */
+export function getKeyFingerprint(provider: ProviderId): string | null {
   const key = getKey(provider);
   if (!key) return null;
-  return key.slice(0, 10) + '…';
+  return createHash('sha256').update(key).digest('hex').slice(0, 8);
 }

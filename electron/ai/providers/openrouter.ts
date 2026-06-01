@@ -43,7 +43,7 @@ export function createOpenRouterProvider(opts?: { model?: string }): AIPredictio
         },
         body: JSON.stringify({
           model,
-          max_tokens: 2048,
+          max_tokens: 4096,
           messages: [
             { role: 'system', content: prompts.systemPrompt },
             { role: 'user', content: prompts.userPrompt },

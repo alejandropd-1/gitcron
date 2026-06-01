@@ -577,33 +577,53 @@ export default function GitCronPage() {
   // Temporal Agent — speculative branch overlay. Source is the real, persisted
   // per-repo prediction (Capa 1); flip USE_MOCK_SPECULATIVE to debug with the mock.
   const [showSpeculative, setShowSpeculative] = useState(false);
-  const [speculativeBranches, setSpeculativeBranches] = useState<SpeculativeBranch[]>(
+  // Raw unfiltered branches from disk or fresh prediction. Filtered via threshold below.
+  const [rawSpeculativeBranches, setRawSpeculativeBranches] = useState<SpeculativeBranch[]>(
     USE_MOCK_SPECULATIVE ? MOCK_SPECULATIVE : [],
   );
   // Timestamp of the loaded/fresh prediction, shown next to the FUTUROS toggle.
   const [speculativeAt, setSpeculativeAt] = useState<string | null>(null);
 
+  // Confidence threshold applied reactively. Updated from config load + Settings save.
+  const [confidenceThreshold, setConfidenceThreshold] = useState(0);
+
+  // Derived: filtered branches. Recomputes whenever raw data or threshold changes.
+  const speculativeBranches = useMemo(() => {
+    if (confidenceThreshold <= 0) return rawSpeculativeBranches;
+    return rawSpeculativeBranches.filter((b) => b.confidence >= confidenceThreshold);
+  }, [rawSpeculativeBranches, confidenceThreshold]);
+
   // Load the last persisted prediction when the repo changes (no auto-predict).
   // FUTUROS stays OFF: loading ≠ showing. Mock mode bypasses disk.
   useEffect(() => {
     if (USE_MOCK_SPECULATIVE) {
-      setSpeculativeBranches(MOCK_SPECULATIVE);
+      setRawSpeculativeBranches(MOCK_SPECULATIVE);
       setSpeculativeAt(null);
       return;
     }
     if (!repoPath) {
-      setSpeculativeBranches([]);
+      setRawSpeculativeBranches([]);
       setSpeculativeAt(null);
       return;
     }
     let alive = true;
-    window.api.ai.loadPrediction(repoPath).then((r) => {
+    Promise.all([
+      window.api.ai.loadPrediction(repoPath),
+      window.api.temporalAgent.loadConfig(repoPath, openRepos[activeRepoIdx]?.name ?? 'repo'),
+    ]).then(([r, cfg]) => {
       if (!alive) return;
+      setConfidenceThreshold(cfg?.skillProfile?.confidenceThreshold ?? 0);
       if (r.success && r.data) {
-        setSpeculativeBranches(r.data.branches);
+        // Patch predictionIndex on old branches that don't have it yet.
+        r.data.branches.forEach((b: SpeculativeBranch, i: number) => {
+          if (b.predictionIndex == null) b.predictionIndex = i + 1;
+        });
+        setRawSpeculativeBranches(r.data.branches);
         setSpeculativeAt(r.data.generatedAt);
+        // Auto-enable FUTUROS when a saved prediction exists for this repo.
+        setShowSpeculative(true);
       } else {
-        setSpeculativeBranches([]);
+        setRawSpeculativeBranches([]);
         setSpeculativeAt(null);
       }
     });
@@ -2734,9 +2754,16 @@ export default function GitCronPage() {
                             repoPath={repoPath}
                             repoName={openRepos[activeRepoIdx]?.name ?? 'repo'}
                             onPrediction={(r) => {
-                              setSpeculativeBranches(r.branches);
+                              // Patch predictionIndex on all branches before storing.
+                              r.branches.forEach((b, i) => {
+                                if (b.predictionIndex == null) b.predictionIndex = i + 1;
+                              });
+                              setRawSpeculativeBranches(r.branches);
                               setSpeculativeAt(r.generatedAt);
                               setShowSpeculative(true);
+                            }}
+                            onConfigSaved={(cfg) => {
+                              setConfidenceThreshold(cfg.skillProfile.confidenceThreshold);
                             }}
                           />
                         ) : (
@@ -3434,6 +3461,7 @@ export default function GitCronPage() {
                             onContextMenu={(e, c) => openContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
                             speculativeBranches={speculativeBranches}
                             showSpeculative={showSpeculative}
+                            onToggleSpeculative={() => setShowSpeculative((v) => !v)}
                             hudLeft={leftGraphSafe}
                             hudRight={rightGraphSafe}
                           />

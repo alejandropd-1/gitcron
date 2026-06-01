@@ -18,6 +18,10 @@ export interface SpeculativeBranch {
   id: string;
   message: string;
   rationale?: string;
+  /** Extended reasoning in prose (3-5 sentences). Optional for backward compatibility. */
+  reasoning?: string;
+  /** 1-based index in the original prediction array, before any filter. */
+  predictionIndex?: number;
   type: 'improvement' | 'breakthrough' | 'trend';
   /** 0..1 — drives reach into the future, opacity, and dash density. */
   confidence: number;
@@ -45,8 +49,8 @@ export interface SpeculativeOptions {
 }
 
 const DEFAULTS: Required<SpeculativeOptions> = {
-  reach: 320,
-  fanFactor: 60,
+  reach: 400,
+  fanFactor: 90,
   growth: 1.0,
 };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useGitStore, type Commit } from '@/lib/git-store';
 import {
@@ -30,10 +30,38 @@ import {
   type SpeculativeDialogue,
   type MaterializeIdeaInput,
   type MaterializationResult,
+  type TemporalAgentDecision,
+  type DecisionOutcome,
+  type TemporalAgentNotes,
 } from '@/types/temporal-agent';
 import { buildMaterializationPlan } from '@/lib/materialize-idea';
 import { cn } from '@/lib/utils';
 import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Cpu, Terminal, Compass, Crosshair } from 'lucide-react';
+
+const OUTCOME_LABEL: Record<string, string> = {
+  accepted: 'ACEPTADA',
+  rejected: 'RECHAZADA',
+  deferred: 'DIFERIDA',
+};
+const OUTCOME_COLOR: Record<string, string> = {
+  accepted: '#a3f185',
+  rejected: '#dc6a6a',
+  deferred: '#fd9d1a',
+};
+
+function formatDecisionDate(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMins = Math.round(diffMs / 60000);
+  if (diffMins < 1) return 'ahora';
+  if (diffMins < 60) return `hace ${diffMins}m`;
+  const diffHours = Math.round(diffMins / 60);
+  if (diffHours < 24) return `hace ${diffHours}h`;
+  const diffDays = Math.round(diffHours / 24);
+  if (diffDays < 7) return `hace ${diffDays}d`;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
 
 function getBezierPoint(
   p0: { x: number; y: number },
@@ -69,6 +97,8 @@ interface ChronometricGraphProps {
   speculativeBranches?: SpeculativeBranch[];
   /** Toggle the speculative overlay without losing the predictions. */
   showSpeculative?: boolean;
+  /** Callback to toggle speculative branch visibility from within the component. */
+  onToggleSpeculative?: () => void;
   /** Optional click handler for a speculative branch (e.g. open accept/reject). */
   onSelectSpeculative?: (id: string) => void;
   /** Pixels reserved by the left floating panel (sidebar). HUD panels shift right by this amount. */
@@ -86,6 +116,7 @@ export function ChronometricGraph({
   onContextMenu,
   speculativeBranches = [],
   showSpeculative = false,
+  onToggleSpeculative,
   onSelectSpeculative,
   hudLeft = 0,
   hudRight = 0,
@@ -401,6 +432,144 @@ export function ChronometricGraph({
   // it holds a single read-only agent turn; tomorrow user/agent turns append with
   // ZERO rewrite. No chat input yet (that's the conversation phase).
   const [selectedSpeculativeId, setSelectedSpeculativeId] = useState<string | null>(null);
+
+  // Centauro panel — collapsible overlay in the bottom-center of the canvas.
+  // Default collapsed (scanning bar); expands on click to show the thread.
+  const [centauroExpanded, setCentauroExpanded] = useState(false);
+
+  // Which tab is active inside the expanded Centauro panel.
+  const [centauroTab, setCentauroTab] = useState<'report' | 'history'>('report');
+
+  // Centauro panel resizable height (in vh). Persisted in localStorage.
+  const [centauroHeight, setCentauroHeight] = useState(42);
+  const centauroDragRef = useRef<{
+    startY: number;
+    startH: number;
+  } | null>(null);
+
+  // Hydrate height from localStorage on mount.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('gitcron:centauroHeight');
+      if (saved) {
+        const h = parseInt(saved, 10);
+        if (h >= 15 && h <= 65) setCentauroHeight(h);
+      }
+    } catch { /* ignore corrupt value */ }
+  }, []);
+
+  const onCentauroResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    centauroDragRef.current = {
+      startY: e.clientY,
+      startH: centauroHeight,
+    };
+    const onMove = (ev: MouseEvent) => {
+      if (!centauroDragRef.current) return;
+      // Dragging UP (delta negative) = taller; DOWN (delta positive) = shorter.
+      const delta = centauroDragRef.current.startY - ev.clientY;
+      const newH = Math.max(15, Math.min(65, centauroDragRef.current.startH + delta));
+      setCentauroHeight(newH);
+      localStorage.setItem('gitcron:centauroHeight', String(newH));
+    };
+    const onUp = () => {
+      centauroDragRef.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [centauroHeight]);
+
+  // Capa 2a — per-branch decisions (accepted / rejected / deferred).
+  // Keyed by branch message (title), which is the stable identity across sessions.
+  const [decisions, setDecisions] = useState<Record<string, TemporalAgentDecision>>({});
+
+  // Capa 2b — full decision history (all decisions from notes.json, newest first).
+  const [allDecisions, setAllDecisions] = useState<TemporalAgentDecision[]>([]);
+
+  // Rehydrate decisions from notes on mount / repo change, cross-referencing
+  // with the current speculative branches by title.
+  useEffect(() => {
+    if (!repoPath || !repoName) return;
+    let alive = true;
+    window.api.temporalAgent.loadNotes(repoPath, repoName).then((notes) => {
+      if (!alive || !notes?.decisions?.length) return;
+      const map: Record<string, TemporalAgentDecision> = {};
+      for (const d of notes.decisions) {
+        if (!map[d.suggestionTitle]) {
+          map[d.suggestionTitle] = d;
+        }
+      }
+      setDecisions(map);
+      setAllDecisions(notes.decisions);
+    });
+    return () => { alive = false; };
+  }, [repoPath, repoName]);
+
+  // Capa 2a — record a decision via the existing IPC, then update local state.
+  // Clicking the same outcome again undoes it; clicking a different one changes it.
+  async function recordBranchDecision(outcome: DecisionOutcome) {
+    if (!selectedSpeculativeId || !repoPath || !repoName) return;
+    const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
+    if (!node) return;
+    const b = node.branch;
+    const current = decisions[b.message];
+
+    // Undo: click the same outcome that's already active → remove the decision.
+    if (current && current.outcome === outcome) {
+      await window.api.temporalAgent.removeDecision(repoPath, repoName, b.message);
+      setDecisions((prev) => {
+        const next = { ...prev };
+        delete next[b.message];
+        return next;
+      });
+      return;
+    }
+
+    const decision: TemporalAgentDecision = {
+      date: new Date().toISOString(),
+      suggestionTitle: b.message,
+      type: b.type,
+      outcome,
+      confidence: b.confidence,
+      impact: outcome === 'accepted'
+        ? `Accepted — ready for materialization evaluation.`
+        : outcome === 'rejected'
+        ? `Rejected — will be suppressed in future predictions.`
+        : `Deferred — worth revisiting later.`,
+    };
+    await window.api.temporalAgent.recordDecision(repoPath, repoName, decision);
+    setDecisions((prev) => ({ ...prev, [b.message]: decision }));
+  }
+
+  // Is any branch decided? Used to determine dimming.
+  const hasAnyDecision = Object.keys(decisions).length > 0;
+
+  // Decision for the currently selected speculative branch, if any.
+  const selectedBranchDecision = useMemo(() => {
+    if (!selectedSpeculativeId) return null;
+    const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
+    if (!node) return null;
+    return decisions[node.branch.message] ?? null;
+  }, [selectedSpeculativeId, speculativeNodes, decisions]);
+
+  // Full branch object for the currently selected speculative branch.
+  const selectedSpeculativeBranch = useMemo(() => {
+    if (!selectedSpeculativeId) return null;
+    const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
+    return node?.branch ?? null;
+  }, [selectedSpeculativeId, speculativeNodes]);
+
+  // Extended reasoning text for the currently selected branch.
+  const selectedBranchReasoning = useMemo(() => {
+    return selectedSpeculativeBranch?.reasoning ?? null;
+  }, [selectedSpeculativeBranch]);
+
+  // Split reasoning text into paragraphs on double newlines, filtering empties.
+  function renderReasoningParagraphs(text: string): string[] {
+    return text.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
+  }
 
   const speculativeDialogue = useMemo<SpeculativeDialogue | null>(() => {
     if (!showSpeculative || !selectedSpeculativeId) return null;
@@ -1008,12 +1177,6 @@ export function ChronometricGraph({
 
   const hudLeftInset = 16 + hudLeft;
   const hudRightInset = 16 + hudRight;
-  const hudDockStyle = {
-    left: hudLeftInset,
-    right: hudRightInset,
-    paddingRight: 44, // clear space for the zoom button stack (36px btn + 8px gap)
-    transition: 'left 0.3s ease, right 0.3s ease',
-  };
 
   return (
     <div
@@ -1911,6 +2074,9 @@ export function ChronometricGraph({
               config={config}
               visible={showSpeculative}
               onSelect={handleSelectSpeculative}
+              selectedBranchId={selectedSpeculativeId}
+              decisions={decisions}
+              hasAnyDecision={hasAnyDecision}
             />
             </g>
           </g>
@@ -2036,109 +2202,8 @@ export function ChronometricGraph({
           animation: radar-sweep 12s linear infinite;
           transform-origin: 15px 15px;
         }
-        .chronometric-bottom-shell {
-          position: absolute;
-          bottom: clamp(0.5rem, 1cqi, 1rem);
-          z-index: 20;
-          pointer-events: none;
-          container: chrono-bottom-dock / inline-size;
-        }
-        .chronometric-bottom-dock {
-          display: grid;
-          grid-template-areas: "depth target";
-          grid-template-columns: minmax(140px, 0.75fr) minmax(220px, 1.15fr);
-          align-items: end;
-          justify-content: center;
-          gap: clamp(0.45rem, 1cqi, 0.75rem);
-          width: 100%;
-          max-width: min(900px, 100%);
-          margin: 0 auto;
-        }
-        .hud-depth-panel {
-          grid-area: depth;
-          width: 100%;
-          min-width: 0;
-        }
-        .hud-target-panel {
-          grid-area: target;
-          width: 100%;
-          min-width: 0;
-          max-width: 380px;
-          justify-self: center;
-        }
-        @container chrono-bottom-dock (max-width: 760px) {
-          .chronometric-bottom-dock {
-            grid-template-areas: "depth target";
-            grid-template-columns: minmax(112px, 0.7fr) minmax(190px, 1fr);
-            align-items: end;
-            max-width: 100%;
-          }
-          .hud-depth-panel,
-          .hud-target-panel {
-            padding: 0.55rem 0.65rem;
-          }
-          .hud-depth-panel {
-            gap: 0.55rem;
-          }
-          .hud-depth-radar {
-            display: none;
-          }
-          .hud-depth-date,
-          .hud-target-status {
-            display: none;
-          }
-          .hud-target-panel {
-            max-width: none;
-          }
-          .hud-target-empty {
-            height: 34px;
-          }
-          .hud-target-title {
-            font-size: 8px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-          .hud-target-subtitle {
-            font-size: 7px;
-          }
-        }
-        @container chrono-bottom-dock (max-width: 560px) {
-          .chronometric-bottom-dock {
-            grid-template-areas:
-              "target"
-              "depth";
-            grid-template-columns: minmax(0, 1fr);
-            gap: 0.5rem;
-          }
-          .hud-depth-panel {
-            max-width: none;
-            justify-self: start;
-            padding-top: 0.45rem;
-            padding-bottom: 0.45rem;
-          }
-          .hud-target-panel {
-            width: 100%;
-          }
-        }
-        @container chrono-bottom-dock (max-width: 420px) {
-          .chronometric-bottom-dock {
-            grid-template-areas:
-              "target"
-              "depth";
-            grid-template-columns: minmax(0, 1fr);
-          }
-          .hud-depth-panel .hud-depth-radar,
-          .hud-depth-title,
-          .hud-target-subtitle {
-            display: none;
-          }
-          .hud-depth-panel,
-          .hud-target-panel {
-            padding: 0.45rem 0.55rem;
-          }
-        }
-        @media (max-width: 1200px) {
+        .duration-400 {
+          transition-duration: 0.4s;
         }
       `}</style>
 
@@ -2251,127 +2316,324 @@ export function ChronometricGraph({
         )}
       </div>
 
-      {/* Responsive Bottom HUD Dock: depth, target and controls share one collision-free layout. */}
-      {/* Zoom controls — absolute in the root container, same right as the shell, never overlaps dock panels */}
+      {/* Bottom dock — Centauro panel + horizontal toolbar above it.
+          Toolbar and panel form one visual block; both rise/fall together.
+          Toolbar is a reusable bar — zoom is the first resident, more controls go here later. */}
       <div
-        className="absolute flex flex-col gap-1 pointer-events-auto select-none z-20"
-        style={{ right: hudRightInset, bottom: '1rem', transition: 'right 0.3s ease' }}
+        className="absolute z-20 pointer-events-none flex justify-center"
+        style={{
+          left: hudLeftInset,
+          right: hudRightInset,
+          bottom: '0.5rem',
+          transition: 'left 0.3s ease, right 0.3s ease',
+        }}
       >
-        <button onClick={zoomIn} title="Acercar (Zoom In)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
-          <ZoomIn size={16} />
-        </button>
-        <button onClick={zoomOut} title="Alejar (Zoom Out)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
-          <ZoomOut size={16} />
-        </button>
-        <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="h-9 w-9 shrink-0 rounded-lg border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
-          <RotateCcw size={16} />
-        </button>
-      </div>
+        <div
+          className="pointer-events-auto select-none"
+          style={{ width: 'min(680px, calc(100% - 8px))' }}
+        >
+          {/* Toolbar — glassy, horizontal. Rounded top joins with centauro's rounded bottom. */}
+          <div className="rounded-t-xl border border-b-0 border-text-primary/15 bg-bg-overlay/60 backdrop-blur-md px-3 py-1.5 flex items-center justify-between gap-3">
+            {/* FUTUROS toggle — quick access from within chronometric view */}
+            <button
+              onClick={onToggleSpeculative}
+              className={cn(
+                'px-2 py-0.5 rounded font-mono text-[9px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150 border',
+                showSpeculative
+                  ? 'bg-[#5ed8ff]/15 text-[#5ed8ff] border-[#5ed8ff]/50'
+                  : 'text-text-secondary border-transparent hover:text-[#5ed8ff] hover:border-[#5ed8ff]/30',
+              )}
+              title="Mostrar / ocultar futuros especulativos"
+            >
+              {showSpeculative ? 'FUTUROS: ON' : 'FUTUROS: OFF'}
+            </button>
+            {/* Zoom group — right side of the toolbar */}
+            <div className="flex items-center gap-1">
+              <button onClick={zoomIn} title="Acercar (Zoom In)" className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+                <ZoomIn size={14} />
+              </button>
+              <button onClick={zoomOut} title="Alejar (Zoom Out)" className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+                <ZoomOut size={14} />
+              </button>
+              <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+                <RotateCcw size={14} />
+              </button>
+            </div>
+          </div>
 
-      <div className="chronometric-bottom-shell" style={hudDockStyle}>
-        <div className="chronometric-bottom-dock">
+          {/* Resize handle — drag up/down to resize the Centauro panel height.
+              Same pattern as sidebar/details column handles in page.tsx. */}
+          <div
+            onMouseDown={onCentauroResizeStart}
+            className="group h-2 w-full cursor-ns-resize flex items-center justify-center -mb-px relative overflow-visible"
+            title="Arrastrar para redimensionar altura del panel"
+          >
+            <div className="w-1/3 h-px bg-border-subtle/15 group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
+          </div>
 
-          <div className="hud-target-panel pointer-events-auto bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 font-mono select-none transition-all duration-300">
-            {speculativeDialogue ? (
-              <div className="flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-200 select-text">
-                <div className="flex items-center justify-between border-b border-[#5ed8ff]/25 pb-1 mb-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <Compass size={11} className="text-[#5ed8ff] hud-breath" />
-                    <span className="text-[9px] font-bold text-[#5ed8ff] tracking-wider uppercase">
-                      CENTAURO // INFORME DE PREDICCIÓN
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={openMaterializeConfirm}
-                      className="px-1.5 py-0.5 border border-[#a3f185]/45 hover:border-[#a3f185]/85 text-[#a3f185] hover:bg-[#a3f185]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
-                      title="Materializar como branch real (pide confirmación)"
-                    >
-                      Materializar
-                    </button>
-                    <button
-                      onClick={() => setSelectedSpeculativeId(null)}
-                      className="px-1.5 py-0.5 border border-[#5ed8ff]/35 hover:border-[#5ed8ff]/75 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
-                      title="Cerrar informe"
-                    >
-                      Cerrar
-                    </button>
-                  </div>
-                </div>
-                {/* The thread: one agent turn today; user/agent turns append later. */}
-                <div className="flex flex-col gap-1.5 max-h-[120px] overflow-y-auto">
-                  {speculativeDialogue.turns.map((turn) => (
-                    <div
-                      key={turn.id}
-                      className={cn(
-                        'flex flex-col gap-0.5 border-l-2 pl-2',
-                        turn.role === 'agent' ? 'border-[#5ed8ff]/50' : 'border-[#a3f185]/50',
-                      )}
-                    >
-                      <span className="text-[7px] uppercase tracking-wider text-[#697789]">
-                        {turn.role === 'agent' ? 'agente' : 'vos'}
-                      </span>
-                      <p className="text-[9px] leading-snug text-[#d9e7fc] whitespace-pre-line font-sans">
-                        {turn.text}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : selectedCommit ? (
-              <div className="flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
-                <div className="flex items-center justify-between border-b border-[#5ed8ff]/25 pb-1 mb-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <Crosshair size={11} className="text-[#5ed8ff] hud-breath" />
-                    <span className="text-[9px] font-bold text-[#5ed8ff] tracking-wider uppercase">
-                      TARGET_LOCKED // LOCK_STABLE
-                    </span>
-                  </div>
+          {/* Centauro Panel — rounded-b-xl joins toolbar's rounded-t-xl into one seamless glassy block */}
+          <div
+            className={cn(
+              'rounded-b-xl border border-t-0 border-[#5ed8ff]/25 bg-[#071a2c]/85 backdrop-blur-xl overflow-hidden',
+              'transition-all duration-400 ease-out',
+            )}
+            style={{
+              maxHeight: centauroExpanded ? `${centauroHeight}vh` : '34px',
+            }}
+          >
+            {/* Collapse bar / toggle */}
+            <button
+              onClick={() => setCentauroExpanded((v) => !v)}
+              className="w-full h-[34px] flex items-center justify-center gap-2 cursor-pointer hover:bg-[#5ed8ff]/5 transition-colors text-[#5ed8ff]"
+            >
+              <Compass size={10} className="text-[#5ed8ff]/70" />
+              <span className="text-[9px] font-bold tracking-wider uppercase font-mono">
+                CENTAURO
+              </span>
+              <span className="text-[8px] text-[#5ed8ff]/60 transition-transform duration-300" style={{ transform: centauroExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                ▲
+              </span>
+            </button>
+
+            {/* Expanded content — tabbed layout: report + history, no stacking */}
+            {centauroExpanded && (
+              <div className="flex flex-col" style={{ maxHeight: `calc(${centauroHeight}vh - 34px)` }}>
+                {/* Tab bar */}
+                <div className="flex items-center border-b border-[#5ed8ff]/15 px-4">
                   <button
-                    onClick={() => navigator.clipboard.writeText(selectedCommit.hash)}
-                    className="px-1.5 py-0.5 border border-[#5ed8ff]/35 hover:border-[#5ed8ff]/75 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
-                    title="Copy full commit SHA"
+                    onClick={() => setCentauroTab('report')}
+                    className={cn(
+                      'px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-colors border-b-2 -mb-[1px]',
+                      centauroTab === 'report'
+                        ? 'text-[#5ed8ff] border-[#5ed8ff]'
+                        : 'text-[#697789] border-transparent hover:text-[#9eacc0]',
+                    )}
                   >
-                    Copy SHA
+                    Resumen / Lógica
+                  </button>
+                  <button
+                    onClick={() => setCentauroTab('history')}
+                    className={cn(
+                      'px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-colors border-b-2 -mb-[1px]',
+                      centauroTab === 'history'
+                        ? 'text-[#5ed8ff] border-[#5ed8ff]'
+                        : 'text-[#697789] border-transparent hover:text-[#9eacc0]',
+                    )}
+                  >
+                    Historial
                   </button>
                 </div>
-                <div className="flex flex-col gap-0.5 text-[8.5px] text-[#9eacc0]">
-                  <div className="flex items-center justify-between">
-                    <span>SHA // <span className="text-[#5ed8ff] font-bold">{selectedCommit.shortHash.toUpperCase()}</span></span>
-                    <span className="text-[7.5px] opacity-80">{new Date(selectedCommit.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).toUpperCase()}</span>
-                  </div>
-                  <div className="truncate text-[#d9e7fc] text-[9px] font-semibold border-l-2 border-[#5ed8ff]/50 pl-1.5 my-0.5">
-                    {selectedCommit.message}
-                  </div>
-                  <div className="flex items-center justify-between text-[7.5px] text-[#697789] pt-0.5 border-t border-[#3c495a]/15">
-                    <span className="truncate max-w-[140px]">AUTHOR: {selectedCommit.authorName.toUpperCase()}</span>
-                    <span className="truncate max-w-[150px]">PARENT: {selectedCommit.parents[0]?.substring(0, 7).toUpperCase() || 'ROOT'}</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="hud-target-empty flex items-center justify-between h-[45px] min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="relative flex items-center justify-center w-5 h-5">
-                    <div className="absolute inset-0 border border-[#3c495a]/50 rounded-full animate-ping opacity-30" />
-                    <Compass size={11} className="text-[#697789] animate-spin" style={{ animationDuration: '4s' }} />
-                  </div>
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="hud-target-title text-[9px] font-bold text-[#697789] tracking-wider uppercase">
-                      TARGET_ACQUISITION // SCANNING
-                    </span>
-                    <span className="hud-target-subtitle text-[7.5px] text-[#697789]/70 uppercase tracking-wide">
-                      SELECT A COMMIT NODE TO LOCK SCANNER
-                    </span>
-                  </div>
-                </div>
-                <div className="hud-target-status text-[7px] text-[#697789]/60 text-right font-mono select-none leading-relaxed">
-                  GRID: ACTIVE<br />LANE_ORBITS: SECURE
+
+                {/* Tab content */}
+                <div className="overflow-y-auto flex-1">
+                  {centauroTab === 'report' ? (
+                    <div className="px-4 py-3 font-mono">
+                      {speculativeDialogue ? (
+                        /* ---- BRANCH SELECTED — report with reasoning ---- */
+                        <div className="flex flex-col gap-2.5 animate-in fade-in duration-200 select-text">
+                          {/* Header: Materializar + Cerrar */}
+                          <div className="flex items-center justify-between border-b border-[#5ed8ff]/20 pb-2">
+                            <span className="text-[12px] font-bold text-[#5ed8ff] tracking-wider uppercase">
+                              INFORME DE PREDICCIÓN
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openMaterializeConfirm(); }}
+                                className="px-3 py-1.5 bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/40 hover:bg-[#a3f185]/25 hover:border-[#a3f185]/70 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150"
+                              >
+                                Materializar
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setSelectedSpeculativeId(null); }}
+                                className="px-2.5 py-1.5 text-[#5ed8ff]/60 border border-transparent hover:border-[#5ed8ff]/30 hover:bg-[#5ed8ff]/8 hover:text-[#5ed8ff] rounded font-mono text-[10px] tracking-wider uppercase cursor-pointer transition-all duration-150"
+                              >
+                                Cerrar
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Rationale — bordered box */}
+                          <div className="border border-[#5ed8ff]/15 rounded-md px-3 py-2 bg-[#5ed8ff]/[0.03]">
+                            <p className="text-[11px] leading-relaxed text-[#c0d4f0] whitespace-pre-line font-sans">
+                              {speculativeDialogue.turns[0]?.text.split('\n\n')[1]?.trim() || speculativeDialogue.turns[0]?.text || ''}
+                            </p>
+                          </div>
+
+                          {/* Reasoning — extended prose in paragraphs */}
+                          {selectedBranchReasoning ? (
+                            <div className="flex flex-col gap-2">
+                              {renderReasoningParagraphs(selectedBranchReasoning).map((p, i) => (
+                                <p key={i} className="text-[11px] leading-relaxed text-[#d9e7fc] whitespace-pre-line font-sans">
+                                  {p}
+                                </p>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-[#697789]/70 italic leading-relaxed">
+                              Este futuro se generó antes del análisis extendido. Volvé a predecir para verlo.
+                            </p>
+                          )}
+
+                          {/* Type + confidence metadata */}
+                          <div className="flex items-center gap-3 text-[9px] text-[#697789] border-t border-[#d9e7fc]/8 pt-1.5">
+                            <span>Tipo: <span className="text-[#5ed8ff]">{selectedSpeculativeBranch?.type}</span></span>
+                            <span>Confianza: <span className="text-[#5ed8ff]">{Math.round((selectedSpeculativeBranch?.confidence ?? 0) * 100)}%</span></span>
+                          </div>
+
+                          {/* Juzgar buttons */}
+                          <div className="flex items-center gap-2 pt-1 border-t border-[#d9e7fc]/10">
+                            <span className="text-[9px] text-[#697789] uppercase tracking-wider mr-1 shrink-0">juzgar:</span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); recordBranchDecision('accepted'); }}
+                              className={cn(
+                                'px-2.5 py-0.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150',
+                                selectedBranchDecision?.outcome === 'accepted'
+                                  ? 'bg-[#a3f185]/20 text-[#a3f185] border border-[#a3f185]/50'
+                                  : 'text-[#a3f185]/50 border border-transparent hover:text-[#a3f185] hover:border-[#a3f185]/30 hover:bg-[#a3f185]/8',
+                              )}
+                            >
+                              Aceptar
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); recordBranchDecision('rejected'); }}
+                              className={cn(
+                                'px-2.5 py-0.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150',
+                                selectedBranchDecision?.outcome === 'rejected'
+                                  ? 'bg-[#dc6a6a]/15 text-[#dc6a6a] border border-[#dc6a6a]/40'
+                                  : 'text-[#dc6a6a]/40 border border-transparent hover:text-[#dc6a6a] hover:border-[#dc6a6a]/25 hover:bg-[#dc6a6a]/6',
+                              )}
+                            >
+                              Rechazar
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); recordBranchDecision('deferred'); }}
+                              className={cn(
+                                'px-2.5 py-0.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150',
+                                selectedBranchDecision?.outcome === 'deferred'
+                                  ? 'bg-[#fd9d1a]/15 text-[#fd9d1a] border border-[#fd9d1a]/40'
+                                  : 'text-[#fd9d1a]/40 border border-transparent hover:text-[#fd9d1a] hover:border-[#fd9d1a]/25 hover:bg-[#fd9d1a]/6',
+                              )}
+                            >
+                              Diferir
+                            </button>
+                          </div>
+                        </div>
+                      ) : selectedCommit ? (
+                        /* ---- TARGET_LOCKED — commit selected ---- */
+                        <div className="flex flex-col gap-1 animate-in fade-in duration-200">
+                          <div className="flex items-center justify-between border-b border-[#5ed8ff]/20 pb-1.5 mb-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <Crosshair size={10} className="text-[#5ed8ff]" />
+                              <span className="text-[11px] font-bold text-[#5ed8ff] tracking-wider uppercase">
+                                TARGET_LOCKED // LOCK_STABLE
+                              </span>
+                            </div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(selectedCommit.hash); }}
+                              className="px-1.5 py-0.5 border border-[#5ed8ff]/35 hover:border-[#5ed8ff]/75 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
+                            >
+                              Copy SHA
+                            </button>
+                          </div>
+                          <div className="flex flex-col gap-0.5 text-[8.5px] text-[#9eacc0]">
+                            <div className="flex items-center justify-between">
+                              <span>SHA // <span className="text-[#5ed8ff] font-bold">{selectedCommit.shortHash.toUpperCase()}</span></span>
+                              <span className="text-[7.5px] opacity-80">{new Date(selectedCommit.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).toUpperCase()}</span>
+                            </div>
+                            <div className="truncate text-[#d9e7fc] text-[9px] font-semibold border-l-2 border-[#5ed8ff]/50 pl-1.5 my-0.5">
+                              {selectedCommit.message}
+                            </div>
+                            <div className="flex items-center justify-between text-[7.5px] text-[#697789] pt-0.5 border-t border-[#3c495a]/15">
+                              <span className="truncate max-w-[140px]">AUTHOR: {selectedCommit.authorName.toUpperCase()}</span>
+                              <span className="truncate max-w-[150px]">PARENT: {selectedCommit.parents[0]?.substring(0, 7).toUpperCase() || 'ROOT'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        /* ---- IDLE — no branch selected. Show summary or composed list ---- */
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2 border-b border-[#5ed8ff]/20 pb-1.5">
+                            <Compass size={10} className="text-[#697789]" />
+                            <span className="text-[10px] font-bold text-[#697789] tracking-wider uppercase">
+                              TARGET_ACQUISITION // SCANNING
+                            </span>
+                          </div>
+                          {speculativeBranches.length > 0 ? (
+                            <div className="flex flex-col gap-2">
+                              <p className="text-[10px] text-[#697789]/70 italic">
+                                Click en una fila para ver su informe detallado.
+                              </p>
+                              <div className="flex flex-col gap-0.5">
+                                {speculativeBranches.map((b, bi) => {
+                                  const d = decisions[b.message];
+                                  const branchColor = d ? OUTCOME_COLOR[d.outcome] : '#5ed8ff';
+                                  const num = b.predictionIndex ?? (bi + 1);
+                                  return (
+                                  <button
+                                    key={b.id}
+                                    onClick={() => handleSelectSpeculative(b.id)}
+                                    className="flex items-center gap-2 border-l-2 border-[#5ed8ff]/20 pl-2 py-0.5 cursor-pointer hover:border-[#5ed8ff]/60 hover:bg-[#5ed8ff]/5 transition-colors text-left w-full"
+                                  >
+                                    <span
+                                      className="text-[9px] font-bold shrink-0 w-5 text-center"
+                                      style={{ color: branchColor }}
+                                    >
+                                      #{num}
+                                    </span>
+                                    <span className="text-[10px] text-[#d9e7fc]/80 truncate flex-1">{b.message}</span>
+                                    <span className="text-[9px] text-[#5ed8ff]/60 shrink-0">{b.type}</span>
+                                    <span className="text-[9px] text-[#697789]/50 shrink-0 w-8 text-right">{Math.round(b.confidence * 100)}%</span>
+                                  </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-[#697789]/70">
+                              No hay predicciones cargadas. Dispará una predicción desde Settings → Temporal Agent.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* ---- HISTORY TAB — decision log ---- */
+                    <div className="px-4 py-2.5">
+                      {allDecisions.length > 0 ? (
+                        <div className="flex flex-col gap-1 font-mono">
+                          {allDecisions.map((d, i) => (
+                            <div key={i} className="flex items-center justify-between gap-2 border-l-2 pl-2 border-[#d9e7fc]/8 hover:border-[#5ed8ff]/20 transition-colors">
+                              <div className="flex flex-col min-w-0 flex-1 leading-snug">
+                                <span className="truncate text-[10px] text-[#d9e7fc]/80">{d.suggestionTitle}</span>
+                                <span className="text-[9px] text-[#697789]/70">{formatDecisionDate(d.date)}</span>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[9px] text-[#697789]/50 font-mono">{Math.round(d.confidence * 100)}%</span>
+                                <span
+                                  className="text-[9px] font-bold tracking-wider uppercase rounded px-1.5 py-0.5 border"
+                                  style={{
+                                    color: OUTCOME_COLOR[d.outcome],
+                                    borderColor: `${OUTCOME_COLOR[d.outcome]}40`,
+                                    background: `${OUTCOME_COLOR[d.outcome]}10`,
+                                  }}
+                                >
+                                  {OUTCOME_LABEL[d.outcome]}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-[#697789]/70 italic">
+                          Sin decisiones todavía. Usá los botones Aceptar / Rechazar / Diferir en una rama para empezar el historial.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
           </div>
-
         </div>
       </div>
 

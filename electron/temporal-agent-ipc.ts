@@ -131,6 +131,30 @@ function rollUp(prev: DecisionSummary, overflow: TemporalAgentDecision[]): Decis
   return next;
 }
 
+/** Remove the most recent decision whose title matches. Keeps the summary consistent. */
+async function removeDecision(
+  repoPath: string,
+  repoName: string,
+  suggestionTitle: string,
+): Promise<void> {
+  const notes = await loadNotes(repoPath, repoName);
+  const idx = notes.decisions.findIndex((d) => d.suggestionTitle === suggestionTitle);
+  if (idx === -1) return;
+  const removed = notes.decisions[idx];
+  notes.decisions.splice(idx, 1);
+  notes.lastUpdated = new Date().toISOString();
+
+  // Guard: don't let counters go negative.
+  if (removed.outcome === 'accepted' && notes.summary.accepted > 0) {
+    notes.summary.accepted--;
+  } else if (removed.outcome === 'rejected' && notes.summary.rejected > 0) {
+    notes.summary.rejected--;
+  } else if (removed.outcome === 'deferred' && notes.summary.deferred > 0) {
+    notes.summary.deferred--;
+  }
+  await saveNotes(repoPath, notes);
+}
+
 // ---------------------------------------------------------------------------
 // Markdown rendering (mirror of notes.json — do not hand-edit notes.md)
 // ---------------------------------------------------------------------------
@@ -222,5 +246,12 @@ export function registerTemporalAgentHandlers(): void {
     'temporal-agent:record-decision',
     (_e, repoPath: string, repoName: string, decision: TemporalAgentDecision) =>
       recordDecision(repoPath, repoName, decision),
+  );
+  ipcMain.handle(
+    'temporal-agent:remove-decision',
+    async (_e, repoPath: string, repoName: string, suggestionTitle: string) => {
+      await removeDecision(repoPath, repoName, suggestionTitle);
+      return loadNotes(repoPath, repoName);
+    },
   );
 }

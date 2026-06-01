@@ -98,6 +98,10 @@ export interface SpeculativeBranch {
   id: string;
   message: string;
   rationale: string;
+  /** Extended reasoning (3-5 sentences of plain prose). Optional for backward compatibility. */
+  reasoning?: string;
+  /** 1-based index in the original prediction array, before any filter. Stable across sessions. */
+  predictionIndex?: number;
   type: SpeculativeType;
   /** 0..1 — drives opacity / dash styling on the diagonal graph. */
   confidence: number;
@@ -141,6 +145,9 @@ export function openingTurnFromBranch(b: SpeculativeBranch): SpeculativeDialogue
     '',
     b.rationale,
   ];
+  if (b.reasoning) {
+    lines.push('', b.reasoning);
+  }
   return {
     branchId: b.id,
     turns: [
@@ -158,6 +165,8 @@ export interface PredictionResult {
   branches: SpeculativeBranch[];
   provider: string;
   generatedAt: string;
+  /** Ensemble summary — one paragraph synthesizing the full set of futures. */
+  summary?: string;
 }
 
 /** Multi-provider adapter (brief §6.1). Cloud and local/gateway families. */

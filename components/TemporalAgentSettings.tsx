@@ -36,9 +36,11 @@ interface Props {
   repoName: string;
   /** Capa 1: lift the fresh prediction up so the graph can draw it this session. */
   onPrediction?: (result: PredictionResult) => void;
+  /** Capa 2C: notify parent when config is saved so threshold filters reactively. */
+  onConfigSaved?: (config: TemporalAgentConfig) => void;
 }
 
-export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Props) {
+export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConfigSaved }: Props) {
   const [config, setConfig] = useState<TemporalAgentConfig | null>(null);
   const [notesMd, setNotesMd] = useState<string>('');
   const [showNotes, setShowNotes] = useState(false);
@@ -57,6 +59,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
   const [predicting, setPredicting] = useState(false);
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [predictError, setPredictError] = useState<string | null>(null);
+  const [cancelled, setCancelled] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -83,6 +86,36 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
     setKeyFingerprint(fpR.success ? fpR.data ?? null : null);
   }
 
+  async function predict() {
+    setPredicting(true);
+    setPredictError(null);
+    setCancelled(false);
+    try {
+      const r = await window.api.ai.predictTimelines(repoPath, repoName);
+      if (r.success && r.data) {
+        setResult(r.data);
+        // Capa 1: lift the result so the graph draws it (main already persisted it).
+        onPrediction?.(r.data);
+      } else {
+        setPredictError(r.error ?? 'Prediction failed');
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes('AbortError') || msg.includes('cancelada')) {
+        setCancelled(true);
+        setTimeout(() => setCancelled(false), 4000);
+      } else {
+        setPredictError(msg);
+      }
+    } finally {
+      setPredicting(false);
+    }
+  }
+
+  async function cancelPrediction() {
+    await window.api.ai.cancelPrediction();
+  }
+
   async function saveKey() {
     const k = keyDraft.trim();
     if (!k) return;
@@ -99,25 +132,6 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
   async function removeKey() {
     await window.api.ai.removeKey(ACTIVE_PROVIDER);
     await refreshHasKey();
-  }
-
-  async function predict() {
-    setPredicting(true);
-    setPredictError(null);
-    try {
-      const r = await window.api.ai.predictTimelines(repoPath, repoName);
-      if (r.success && r.data) {
-        setResult(r.data);
-        // Capa 1: lift the result so the graph draws it (main already persisted it).
-        onPrediction?.(r.data);
-      } else {
-        setPredictError(r.error ?? 'Prediction failed');
-      }
-    } catch (e) {
-      setPredictError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setPredicting(false);
-    }
   }
 
   if (!config) return <div style={{ color: '#9BA1B0' }}>Loading…</div>;
@@ -138,6 +152,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
       const now = Date.now();
       setSavedAt(now);
       setTimeout(() => setSavedAt((t) => (t === now ? null : t)), 3000);
+      onConfigSaved?.(config);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -297,16 +312,69 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction }: Prop
         </div>
       </div>
 
-      {/* Prediction trigger — Phase 4 logs the result; the diagonal draw is Phase 5. */}
-      <div style={cardStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={predict} disabled={predicting} style={{ ...primaryBtn, background: CYAN }}>
-            {predicting ? 'Predicting…' : 'Predecir futuros'}
-          </button>
-          <span style={{ fontSize: 12, color: '#9BA1B0' }}>
-            Runs the agent and logs the PredictionResult (drawing comes in Phase 5).
+      {/* Prediction trigger — visually distinct from save/config: this is the expensive action. */}
+      <div style={{ ...cardStyle, borderColor: `${CYAN}50` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {predicting ? (
+            <>
+              <button
+                disabled
+                style={{
+                  ...primaryBtn,
+                  background: '#2D2E39',
+                  color: CYAN,
+                  border: `1px solid ${CYAN}40`,
+                  fontWeight: 600,
+                  fontSize: 14,
+                  padding: '12px 24px',
+                  minWidth: 180,
+                  cursor: 'wait',
+                }}
+              >
+                generando…
+              </button>
+              <button
+                onClick={cancelPrediction}
+                style={{
+                  ...ghostBtn,
+                  color: ORANGE,
+                  borderColor: `${ORANGE}50`,
+                  fontSize: 12,
+                  padding: '8px 16px',
+                }}
+              >
+                Cancelar
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={predict}
+              style={{
+                ...primaryBtn,
+                background: CYAN,
+                color: '#020f1e',
+                fontWeight: 700,
+                fontSize: 15,
+                padding: '14px 28px',
+                border: 'none',
+                borderRadius: 10,
+                minWidth: 220,
+                boxShadow: `0 0 18px ${CYAN}30`,
+                cursor: 'pointer',
+              }}
+            >
+              Predecir futuros
+            </button>
+          )}
+          <span style={{ fontSize: 12, color: '#697789', maxWidth: 220, lineHeight: 1.4 }}>
+            Dispara una predicción con IA. <strong style={{ color: ORANGE }}>Consume crédito de OpenRouter.</strong>
           </span>
         </div>
+        {cancelled && (
+          <p style={{ fontSize: 12, color: '#9eacc0', margin: '10px 0 0' }}>
+            Predicción cancelada.
+          </p>
+        )}
         {predictError && (
           <p style={{ fontSize: 12, color: ORANGE, margin: '10px 0 0' }}>Error: {predictError}</p>
         )}

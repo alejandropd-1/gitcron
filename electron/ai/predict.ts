@@ -44,6 +44,19 @@ export interface AssembledPrompts {
 /** Default budget for a single provider call before we give up. */
 export const PREDICTION_TIMEOUT_MS = 30_000;
 
+/** Module-level reference to the active prediction's AbortController, if any. */
+let activeAbortController: AbortController | null = null;
+
+/** True when the current abort was triggered by the Cancel button (not timeout). */
+let cancelledByUser = false;
+
+/** Cancel the in-flight prediction (called from IPC). Safe to call if idle. */
+export function cancelActivePrediction(): void {
+  cancelledByUser = true;
+  activeAbortController?.abort();
+  activeAbortController = null;
+}
+
 /**
  * fetch() with a hard timeout via AbortController. If the provider hangs, we
  * abort at `timeoutMs` and throw a soft, user-facing message instead of leaving
@@ -55,16 +68,24 @@ export async function fetchWithTimeout(
   timeoutMs: number = PREDICTION_TIMEOUT_MS,
 ): Promise<Response> {
   const controller = new AbortController();
+  activeAbortController = controller;
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
+      if (cancelledByUser) {
+        cancelledByUser = false;
+        throw new Error('Predicción cancelada por el usuario.');
+      }
       throw new Error(`La predicción tardó demasiado (más de ${Math.round(timeoutMs / 1000)}s) y se canceló. Probá de nuevo.`);
     }
     throw err;
   } finally {
     clearTimeout(timer);
+    if (activeAbortController === controller) {
+      activeAbortController = null;
+    }
   }
 }
 
@@ -199,17 +220,19 @@ export function assemblePrompts(
     '# Output format',
     'Return ONLY a JSON object with this exact schema (no markdown, no explanation):',
     '{',
+    '  "summary": "one-paragraph ensemble synthesis of all futures together",',
     '  "branches": [',
     '    {',
     '      "id": "unique-id",',
     '      "message": "short description (max 60 chars)",',
-    '      "rationale": "why this makes sense (max 100 chars)",',
+    '      "rationale": "concise technical justification (max 100 chars)",',
+    '      "reasoning": "3-5 sentence extended reasoning in plain prose. Ground it in repo signals from the context. Explain: what evidence supports this, whether it is incremental or a paradigm jump, and why this confidence level (confidence = inverse of forecast entropy).",',
     '      "type": "improvement" | "breakthrough" | "trend",',
     '      "confidence": 0.0 to 1.0',
     '    }',
     '  ]',
     '}',
-    'Propose 3-5 branches. Keep rationale SHORT (under 100 chars). Each must have all 5 fields.',
+    'Propose 3-5 branches. Each must have all 6 fields. summary must be one paragraph. Each reasoning must be 3-5 sentences, plain prose, no markdown.',
   ].join('\n');
 
   return { systemPrompt, userPrompt, input };
@@ -242,11 +265,18 @@ export async function runPrediction(args: RunPredictionArgs): Promise<Prediction
     providerOverride ?? getProvider(providerId, { model: config.model?.trim() || undefined });
   const result = await provider.predictTimelines(prompts);
 
-  // Belt-and-suspenders: never surface an idea the user already rejected,
-  // and honor the confidence threshold.
-  const threshold = config.skillProfile.confidenceThreshold;
+  // Tag each branch with its 1-based index from the original prediction array.
+  // This index is the stable identity for numbering in the graph and panel,
+  // surviving any runtime threshold filter.
+  result.branches.forEach((b, i) => {
+    b.predictionIndex = i + 1;
+  });
+
+  // Belt-and-suspenders: never surface an idea the user already rejected.
+  // Confidence threshold is applied at render time (page.tsx), not here,
+  // so the user can adjust it dynamically and see stable numbering.
   const branches = result.branches.filter(
-    (b) => b.confidence >= threshold && !isSuppressed(b.message, notes),
+    (b) => !isSuppressed(b.message, notes),
   );
 
   return { ...result, branches };

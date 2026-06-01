@@ -16,8 +16,23 @@ import {
   type SpeculativeNode,
 } from '@/lib/speculative-projection';
 import type { ProjectionConfig } from '@/lib/chronometric-projection';
+import type { TemporalAgentDecision } from '@/types/temporal-agent';
 
 const CYAN = '#5ed8ff';
+const GREEN = '#a3f185';
+const REJECT_RED = '#dc6a6a';
+const DEFER_ORANGE = '#fd9d1a';
+
+const OUTCOME_LABEL: Record<string, string> = {
+  accepted: 'ACEPTADA',
+  rejected: 'RECHAZADA',
+  deferred: 'DIFERIDA',
+};
+const OUTCOME_COLOR: Record<string, string> = {
+  accepted: GREEN,
+  rejected: REJECT_RED,
+  deferred: DEFER_ORANGE,
+};
 
 const TYPE_LABEL: Record<SpeculativeNode['branch']['type'], string> = {
   improvement: 'mejora',
@@ -30,36 +45,91 @@ interface Props {
   config: ProjectionConfig;
   visible: boolean;
   onSelect?: (id: string) => void;
+  /** ID of the currently selected speculative branch. */
+  selectedBranchId?: string | null;
+  /** Capa 2a — per-branch decisions keyed by branch message (title). */
+  decisions?: Record<string, TemporalAgentDecision>;
+  /** Capa 2a — true when at least one branch has been decided. */
+  hasAnyDecision?: boolean;
 }
 
-export function SpeculativeBranches({ nodes, config, visible, onSelect }: Props) {
+export function SpeculativeBranches({
+  nodes,
+  config,
+  visible,
+  onSelect,
+  selectedBranchId = null,
+  decisions = {},
+  hasAnyDecision = false,
+}: Props) {
   if (!visible || nodes.length === 0) return null;
   const { ux, uy } = diagonalBasis(config);
 
   return (
     <g data-layer="speculative" pointerEvents="visiblePainted">
-      {nodes.map((n) => {
-        const opacity = speculativeOpacity(n.branch.confidence);
+      {nodes.map((n, nodeIdx) => {
+        const baseOpacity = speculativeOpacity(n.branch.confidence);
+        const decision = decisions[n.branch.message];
+        const isDecided = !!decision;
+        const dimFactor = hasAnyDecision && !isDecided ? 0.3 : 1;
+        const opacity = baseOpacity * dimFactor;
+        const accentColor = isDecided ? OUTCOME_COLOR[decision!.outcome] : CYAN;
+        const isSelected = selectedBranchId === n.branch.id;
+        const branchNum = n.branch.predictionIndex ?? (nodeIdx + 1); // fallback for old predictions
         const dist = Math.hypot(n.x - n.anchorX, n.y - n.anchorY) || 1;
         const tension = dist * 0.33;
 
-        // Bezier tangent to the diagonal, mirroring the real connectors.
         const cp1x = n.anchorX + tension * ux;
         const cp1y = n.anchorY + tension * uy;
         const cp2x = n.x - tension * ux;
         const cp2y = n.y - tension * uy;
 
+        const msgLines = wrapLines(n.branch.message, 30);
+        const chipY = 12 + msgLines.length * 11;
+
         return (
           <g key={n.branch.id} className="cursor-pointer" onClick={() => onSelect?.(n.branch.id)}>
-            {/* Dotted fork line from HEAD into the future */}
+            {/* Selection glow ring — mirrors real commit selected-breath */}
+            {isSelected && (
+              <circle
+                cx={n.x}
+                cy={n.y}
+                r={16}
+                fill="url(#selected-glow)"
+                stroke={accentColor}
+                strokeWidth={1.5}
+                strokeDasharray="2 3"
+                style={{
+                  transformOrigin: `${n.x}px ${n.y}px`,
+                  animation: 'selected-breath 3s ease-in-out infinite',
+                }}
+              />
+            )}
+
+            {/* Base dotted fork line from HEAD into the future */}
             <path
               d={`M ${n.anchorX} ${n.anchorY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${n.x} ${n.y}`}
-              stroke={CYAN}
+              stroke={accentColor}
               strokeWidth={1.75}
               strokeDasharray="3 5"
               strokeLinecap="round"
               fill="none"
               opacity={opacity}
+            />
+
+            {/* Animated flow overlay — mimics real connectors' chrono-flow */}
+            <path
+              d={`M ${n.anchorX} ${n.anchorY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${n.x} ${n.y}`}
+              stroke={accentColor}
+              strokeWidth={1.2}
+              strokeDasharray={isSelected ? "4 6" : "3 6"}
+              strokeLinecap="round"
+              fill="none"
+              opacity={Math.min(1, opacity + 0.1)}
+              style={{
+                animation: 'chrono-flow 3s linear infinite',
+                animationDelay: `${(nodeIdx * 0.6) % 3}s`,
+              }}
             />
 
             {/* Hollow, dashed future node */}
@@ -68,25 +138,49 @@ export function SpeculativeBranches({ nodes, config, visible, onSelect }: Props)
               cy={n.y}
               r={8}
               fill="#020f1e"
-              stroke={CYAN}
-              strokeWidth={1.5}
+              stroke={accentColor}
+              strokeWidth={isSelected ? 2.2 : 1.5}
               strokeDasharray="2 3"
               opacity={Math.min(1, opacity + 0.15)}
             />
 
-            {/* Label: type+confidence in one line, full message word-wrapped below.
-                Pushed further from node with wider spacing to avoid label collisions. */}
+            {/* Branch number badge — to the top-left of the node */}
+            <g transform={`translate(${n.x - 18}, ${n.y - 18})`} opacity={Math.min(1, opacity + 0.25)}>
+              <circle
+                cx={7}
+                cy={7}
+                r={7}
+                fill={isSelected ? accentColor : '#020f1e'}
+                fillOpacity={isSelected ? 0.35 : 0.85}
+                stroke={accentColor}
+                strokeWidth={0.8}
+                strokeOpacity={0.55}
+              />
+              <text
+                x={7}
+                y={8}
+                textAnchor="middle"
+                fontSize="7"
+                fontWeight={700}
+                fill={accentColor}
+                className="font-mono"
+              >
+                {branchNum}
+              </text>
+            </g>
+
+            {/* Label: type+confidence in one line, full message word-wrapped below. */}
             <g transform={`translate(${n.x + 22}, ${n.y - 8})`} opacity={Math.min(1, opacity + 0.2)}>
               <text
                 fontSize="8.5"
                 fontWeight={700}
-                fill={CYAN}
+                fill={accentColor}
                 className="font-mono uppercase"
                 style={{ letterSpacing: '0.04em' }}
               >
                 {TYPE_LABEL[n.branch.type]} · {Math.round(n.branch.confidence * 100)}%
               </text>
-              {wrapLines(n.branch.message, 30).map((line, li) => (
+              {msgLines.map((line, li) => (
                 <text
                   key={li}
                   y={12 + li * 11}
@@ -97,6 +191,35 @@ export function SpeculativeBranches({ nodes, config, visible, onSelect }: Props)
                   {line}
                 </text>
               ))}
+              {/* Capa 2a — status chip for decided branches */}
+              {isDecided && (
+                <g transform={`translate(0, ${chipY + 3})`}>
+                  <rect
+                    x={0}
+                    y={0}
+                    width={decision!.outcome === 'accepted' ? 54 : decision!.outcome === 'rejected' ? 56 : 44}
+                    height={14}
+                    rx={3}
+                    fill={OUTCOME_COLOR[decision!.outcome]}
+                    fillOpacity={0.12}
+                    stroke={OUTCOME_COLOR[decision!.outcome]}
+                    strokeOpacity={0.4}
+                    strokeWidth={0.75}
+                  />
+                  <text
+                    x={decision!.outcome === 'accepted' ? 27 : decision!.outcome === 'rejected' ? 28 : 22}
+                    y={10}
+                    fontSize="7"
+                    fontWeight={700}
+                    fill={OUTCOME_COLOR[decision!.outcome]}
+                    textAnchor="middle"
+                    className="font-mono uppercase"
+                    style={{ letterSpacing: '0.05em' }}
+                  >
+                    {OUTCOME_LABEL[decision!.outcome]}
+                  </text>
+                </g>
+              )}
             </g>
           </g>
         );

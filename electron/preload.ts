@@ -156,6 +156,7 @@ contextBridge.exposeInMainWorld('api', {
     // One-way: the key goes IN to be encrypted; it never comes back out.
     setKey: (provider: string, key: string) => ipcRenderer.invoke('ai:set-key', provider, key),
     removeKey: (provider: string) => ipcRenderer.invoke('ai:remove-key', provider),
+    cancelPrediction: () => ipcRenderer.invoke('ai:cancel-prediction'),
   },
   temporalAgent: {
     loadConfig: (repoPath: string, repoName: string) =>
@@ -168,5 +169,7 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('temporal-agent:get-notes-markdown', repoPath, repoName),
     recordDecision: (repoPath: string, repoName: string, decision: unknown) =>
       ipcRenderer.invoke('temporal-agent:record-decision', repoPath, repoName, decision),
+    removeDecision: (repoPath: string, repoName: string, suggestionTitle: string) =>
+      ipcRenderer.invoke('temporal-agent:remove-decision', repoPath, repoName, suggestionTitle),
   },
 });

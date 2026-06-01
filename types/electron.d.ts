@@ -232,6 +232,7 @@ interface ElectronAPI {
     /** One-way: submits a key to be encrypted in main. The key never comes back. */
     setKey(provider: string, key: string): Promise<GitResult>;
     removeKey(provider: string): Promise<GitResult>;
+    cancelPrediction(): Promise<GitResult>;
   };
   temporalAgent: {
     loadConfig(repoPath: string, repoName: string): Promise<TemporalAgentConfig>;
@@ -242,6 +243,11 @@ interface ElectronAPI {
       repoPath: string,
       repoName: string,
       decision: TemporalAgentDecision,
+    ): Promise<TemporalAgentNotes>;
+    removeDecision(
+      repoPath: string,
+      repoName: string,
+      suggestionTitle: string,
     ): Promise<TemporalAgentNotes>;
   };
 }

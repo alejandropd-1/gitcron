@@ -101,6 +101,7 @@ interface GitStore {
   shortcuts: Record<string, string>;
   theme: Theme;
   enableCronometric: boolean;
+  centauroExpanded: boolean;
 
   setRepoPath: (path: string | null) => void;
   setRepoName: (name: string | null) => void;
@@ -137,6 +138,7 @@ interface GitStore {
   resetShortcuts: () => void;
   setTheme: (theme: Theme) => void;
   setEnableCronometric: (enabled: boolean) => void;
+  setCentauroExpanded: (expanded: boolean) => void;
 }
 
 type EmptyRepoFields = Omit<RepoState, 'path' | 'name'>;
@@ -321,6 +323,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   shortcuts: {},
   theme: 'dark',
   enableCronometric: false,
+  centauroExpanded: false,
 
   setRepoPath: (repoPath) => set((state) => {
     if (!repoPath) {
@@ -392,6 +395,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   resetShortcuts: () => set({ shortcuts: {} }),
   setTheme: (theme) => set({ theme }),
   setEnableCronometric: (enableCronometric) => set({ enableCronometric }),
+  setCentauroExpanded: (centauroExpanded) => set({ centauroExpanded }),
   setGithubUser: (githubUser) => set({ githubUser }),
   setOpenRepos: (openRepos) => set((state) => {
     const activeRepo = state.openRepos[state.activeRepoIdx] ?? null;

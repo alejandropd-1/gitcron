@@ -103,7 +103,24 @@ export function SpeculativeBranches({
         const chipY = 12 + msgLines.length * 11;
 
         return (
-          <g key={n.branch.id} className="cursor-pointer" onClick={() => onSelect?.(n.branch.id)}>
+          <g
+            key={n.branch.id}
+            className="cursor-pointer"
+            onMouseDown={(e) => {
+              const startX = e.clientX;
+              const startY = e.clientY;
+              const onMouseUp = (upEvent: MouseEvent) => {
+                const diffX = upEvent.clientX - startX;
+                const diffY = upEvent.clientY - startY;
+                const distance = Math.sqrt(diffX * diffX + diffY * diffY);
+                if (distance < 5) {
+                  onSelect?.(n.branch.id);
+                }
+                window.removeEventListener('mouseup', onMouseUp);
+              };
+              window.addEventListener('mouseup', onMouseUp);
+            }}
+          >
             {/* Selection glow ring — mirrors real commit selected-breath */}
             {isSelected && (
               <circle
@@ -159,31 +176,6 @@ export function SpeculativeBranches({
               opacity={Math.min(1, opacity + 0.15)}
             />
 
-            {/* Branch number badge — to the top-left of the node */}
-            <g transform={`translate(${n.x - 18}, ${n.y - 18})`} opacity={Math.min(1, opacity + 0.25)}>
-              <circle
-                cx={7}
-                cy={7}
-                r={7}
-                fill={isSelected ? accentColor : '#020f1e'}
-                fillOpacity={isSelected ? 0.35 : 0.85}
-                stroke={accentColor}
-                strokeWidth={0.8}
-                strokeOpacity={0.55}
-              />
-              <text
-                x={7}
-                y={8}
-                textAnchor="middle"
-                fontSize="7"
-                fontWeight={700}
-                fill={accentColor}
-                className="font-mono"
-              >
-                {branchNum}
-              </text>
-            </g>
-
             {/* Label: type+confidence in one line, full message word-wrapped below. */}
             <g transform={`translate(${n.x + 22}, ${n.y - 8})`} opacity={Math.min(1, opacity + 0.2)}>
               <text
@@ -195,17 +187,50 @@ export function SpeculativeBranches({
               >
                 {branchTypeLabel} · {Math.round(n.branch.confidence * 100)}%
               </text>
-              {msgLines.map((line, li) => (
-                <text
-                  key={li}
-                  y={12 + li * 11}
-                  fontSize="9.5"
-                  fill="#d9e7fc"
-                  className="font-sans"
-                >
-                  {line}
-                </text>
-              ))}
+              {msgLines.map((line, li) => {
+                const isFirstLine = li === 0;
+                return (
+                  <g key={li} transform={`translate(0, ${12 + li * 11})`}>
+                    {isFirstLine && (
+                      <g>
+                        <rect
+                          x={0}
+                          y={-7}
+                          width={18}
+                          height={10}
+                          rx={2}
+                          fill={accentColor}
+                          fillOpacity={0.15}
+                          stroke={accentColor}
+                          strokeOpacity={0.4}
+                          strokeWidth={0.75}
+                          strokeDasharray="1.5 1.5"
+                        />
+                        <text
+                          x={9}
+                          y={0.5}
+                          textAnchor="middle"
+                          fontSize="7"
+                          fontWeight={700}
+                          fill={accentColor}
+                          className="font-mono"
+                        >
+                          {`#${branchNum}`}
+                        </text>
+                      </g>
+                    )}
+                    <text
+                      x={isFirstLine ? 24 : 0}
+                      y={0}
+                      fontSize="9.5"
+                      fill="#d9e7fc"
+                      className="font-sans"
+                    >
+                      {line}
+                    </text>
+                  </g>
+                );
+              })}
               {/* Capa 2a — status chip for decided branches */}
               {isDecided && (
                 <g transform={`translate(0, ${chipY + 3})`}>

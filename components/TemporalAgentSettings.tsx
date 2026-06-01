@@ -15,6 +15,7 @@ import type {
 } from '@/types/temporal-agent';
 import { useT } from '@/hooks/use-translation';
 import { useGitStore } from '@/lib/git-store';
+import { Copy, Check } from 'lucide-react';
 
 const GREEN = '#a3f185';
 const CYAN = '#5ed8ff';
@@ -22,6 +23,79 @@ const ORANGE = '#fd9d1a';
 
 // Phase 3 / Phase 4: OpenRouter is the primary provider (one key → many models).
 const ACTIVE_PROVIDER = 'openrouter';
+
+function CopyButton({ text }: { text: string }) {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        onClick={handleCopy}
+        style={{
+          width: 28,
+          height: 28,
+          flexShrink: 0,
+          borderRadius: 6,
+          border: '1px solid rgba(217, 231, 252, 0.15)',
+          background: 'rgba(217, 231, 252, 0.035)',
+          color: '#9eacc0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s',
+          cursor: 'pointer',
+          outline: 'none',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = 'rgba(163, 241, 133, 0.35)';
+          e.currentTarget.style.background = 'rgba(217, 231, 252, 0.1)';
+          e.currentTarget.style.color = '#a3f185';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = 'rgba(217, 231, 252, 0.15)';
+          e.currentTarget.style.background = 'rgba(217, 231, 252, 0.035)';
+          e.currentTarget.style.color = '#9eacc0';
+        }}
+        title={t('common.copy')}
+      >
+        {copied ? <Check size={14} style={{ color: '#a3f185' }} /> : <Copy size={14} />}
+      </button>
+      {copied && (
+        <span
+          style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: '50%',
+            transform: 'translateX(-50%) translateY(-6px)',
+            background: '#0D0E12',
+            color: GREEN,
+            border: `1px solid ${GREEN}30`,
+            fontSize: 10,
+            padding: '3px 8px',
+            borderRadius: 4,
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            fontFamily: 'sans-serif',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          }}
+        >
+          {t('common.copied')}
+        </span>
+      )}
+    </div>
+  );
+}
 
 const OPENROUTER_MODELS: Array<{ id: string; label: string; price: string }> = [
   { id: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash (barato)', price: '$0.50 / $3.00' },
@@ -318,62 +392,64 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
 
       {/* Prediction trigger — visually distinct from save/config: this is the expensive action. */}
       <div style={{ ...cardStyle, borderColor: `${CYAN}50` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {predicting ? (
-            <>
-              <button
-                disabled
-                style={{
-                  ...primaryBtn,
-                  background: '#2D2E39',
-                  color: CYAN,
-                  border: `1px solid ${CYAN}40`,
-                  fontWeight: 600,
-                  fontSize: 14,
-                  padding: '12px 24px',
-                  minWidth: 180,
-                  cursor: 'wait',
-                }}
-              >
-                {t('temporalAgent.generating')}
-              </button>
-              <button
-                onClick={cancelPrediction}
-                style={{
-                  ...ghostBtn,
-                  color: ORANGE,
-                  borderColor: `${ORANGE}50`,
-                  fontSize: 12,
-                  padding: '8px 16px',
-                }}
-              >
-                {t('common.cancel')}
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={predict}
-              style={{
-                ...primaryBtn,
-                background: CYAN,
-                color: '#020f1e',
-                fontWeight: 700,
-                fontSize: 15,
-                padding: '14px 28px',
-                border: 'none',
-                borderRadius: 10,
-                minWidth: 220,
-                boxShadow: `0 0 18px ${CYAN}30`,
-                cursor: 'pointer',
-              }}
-            >
-              {t('temporalAgent.predictBtn')}
-            </button>
-          )}
-          <span style={{ fontSize: 12, color: '#697789', maxWidth: 220, lineHeight: 1.4 }}>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: '#697789', flex: 1, minWidth: 200, lineHeight: 1.4 }}>
             {t('temporalAgent.predictDesc')}{' '}
             <strong style={{ color: ORANGE }}>{t('temporalAgent.predictCost')}</strong>
           </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            {predicting ? (
+              <>
+                <button
+                  disabled
+                  style={{
+                    ...primaryBtn,
+                    background: '#2D2E39',
+                    color: CYAN,
+                    border: `1px solid ${CYAN}40`,
+                    fontWeight: 600,
+                    fontSize: 13,
+                    padding: '10px 20px',
+                    minWidth: 160,
+                    cursor: 'wait',
+                  }}
+                >
+                  {t('temporalAgent.generating')}
+                </button>
+                <button
+                  onClick={cancelPrediction}
+                  style={{
+                    ...ghostBtn,
+                    color: ORANGE,
+                    borderColor: `${ORANGE}50`,
+                    fontSize: 12,
+                    padding: '8px 16px',
+                  }}
+                >
+                  {t('common.cancel')}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={predict}
+                style={{
+                  ...primaryBtn,
+                  background: CYAN,
+                  color: '#020f1e',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: 8,
+                  minWidth: 180,
+                  boxShadow: `0 0 14px ${CYAN}25`,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('temporalAgent.predictBtn')}
+              </button>
+            )}
+          </div>
         </div>
         {cancelled && (
           <p style={{ fontSize: 12, color: '#9eacc0', margin: '10px 0 0' }}>
@@ -420,28 +496,56 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
       </div>
 
       {/* Active config summary */}
-      <div style={{ ...cardStyle, fontSize: 11, color: '#697789', lineHeight: 1.6 }}>
-        <strong style={{ color: '#9BA1B0', fontSize: 12 }}>{t('temporalAgent.configSummaryLabel')}</strong>{' '}
-        {config.enabled ? <span style={{ color: GREEN }}>on</span> : <span style={{ color: ORANGE }}>off</span>}
-        {' · '}scope: {config.privacyScope}
-        {' · '}modelo: <code style={{ fontFamily: 'JetBrains Mono, monospace' }}>{config.model || 'default'}</code>
-        {' · '}threshold: {config.skillProfile.confidenceThreshold.toFixed(2)}
-        {' · '}freq: {config.frequency}
-        {config.skillProfile.focusAreas.length > 0 && (
-          <>
-            <br />
-            focus: {config.skillProfile.focusAreas.join(', ')}
-          </>
-        )}
+      <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <strong style={{ color: '#9BA1B0', fontSize: 12 }}>{t('temporalAgent.configSummaryLabel')}</strong>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', fontSize: 11, color: '#9BA1B0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: '#697789' }}>status:</span>
+            {config.enabled ? (
+              <span style={{ color: GREEN, fontWeight: 'bold', background: `${GREEN}10`, border: `1px solid ${GREEN}30`, borderRadius: 4, padding: '1px 6px' }}>on</span>
+            ) : (
+              <span style={{ color: ORANGE, fontWeight: 'bold', background: `${ORANGE}10`, border: `1px solid ${ORANGE}30`, borderRadius: 4, padding: '1px 6px' }}>off</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: '#697789' }}>scope:</span>
+            <span style={{ color: CYAN, background: `${CYAN}10`, border: `1px solid ${CYAN}30`, borderRadius: 4, padding: '1px 6px' }}>{config.privacyScope}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: '#697789' }}>modelo:</span>
+            <code style={{ color: CYAN, fontFamily: 'JetBrains Mono, monospace', background: `${CYAN}10`, border: `1px solid ${CYAN}30`, borderRadius: 4, padding: '1px 6px' }}>{config.model || 'default'}</code>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: '#697789' }}>threshold:</span>
+            <span style={{ color: GREEN, background: `${GREEN}10`, border: `1px solid ${GREEN}30`, borderRadius: 4, padding: '1px 6px' }}>{config.skillProfile.confidenceThreshold.toFixed(2)}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: '#697789' }}>freq:</span>
+            <span style={{ color: CYAN, background: `${CYAN}10`, border: `1px solid ${CYAN}30`, borderRadius: 4, padding: '1px 6px' }}>{config.frequency}</span>
+          </div>
+          {config.skillProfile.focusAreas.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+              <span style={{ color: '#697789' }}>focus:</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {config.skillProfile.focusAreas.map(f => (
+                  <span key={f} style={{ color: GREEN, background: `${GREEN}10`, border: `1px solid ${GREEN}30`, borderRadius: 4, padding: '1px 6px' }}>{f}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {showNotes && (
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <strong style={{ fontSize: 12, color: CYAN }}>{t('temporalAgent.notesHeading')}</strong>
-            <button onClick={() => setShowNotes(false)} style={ghostBtn}>
-              {t('common.close')}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CopyButton text={notesMd || ''} />
+              <button onClick={() => setShowNotes(false)} style={ghostBtn}>
+                {t('common.close')}
+              </button>
+            </div>
           </div>
           <pre
             style={{

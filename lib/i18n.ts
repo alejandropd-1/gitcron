@@ -133,6 +133,7 @@ const es: Dict = {
   'common.close': 'Cerrar',
   'common.cancel': 'Cancelar',
   'common.copy': 'Copiar',
+  'common.copied': 'Copiado',
   'common.backToRepo': 'Volver al Repositorio',
 
   // ── Panel Centauro ──
@@ -647,6 +648,8 @@ const es: Dict = {
   'toolbar.viewChronometricTooltip': 'Vista Cronométrica (Línea Diagonal)',
   'toolbar.viewChronometricBtn': 'Cronométrico',
   'toolbar.clearFilterTooltip': 'Limpiar filtro (Esc)',
+  'toolbar.centauro': 'CENTAURO',
+  'toolbar.centauroTooltip': 'Desplegar / colapsar el panel HUD Centauro',
   'settings.timeline': 'Línea de Tiempo',
   'settings.temporalAgent': 'Temporal Agent',
   'profile.githubAccount': 'Cuenta GitHub',
@@ -859,6 +862,7 @@ const en: Dict = {
   'common.close': 'Close',
   'common.cancel': 'Cancel',
   'common.copy': 'Copy',
+  'common.copied': 'Copied',
   'common.backToRepo': 'Back to Repository',
 
   // ── Centauro Panel ──
@@ -1291,6 +1295,8 @@ const en: Dict = {
   'toolbar.viewChronometricTooltip': 'Chronometric View (Diagonal Line)',
   'toolbar.viewChronometricBtn': 'Chronometric',
   'toolbar.clearFilterTooltip': 'Clear filter (Esc)',
+  'toolbar.centauro': 'CENTAUR',
+  'toolbar.centauroTooltip': 'Expand / collapse Centauro HUD panel',
   'settings.timeline': 'Timeline',
   'settings.temporalAgent': 'Temporal Agent',
   'profile.githubAccount': 'GitHub Account',

@@ -37,7 +37,7 @@ import {
 import { buildMaterializationPlan } from '@/lib/materialize-idea';
 import { cn } from '@/lib/utils';
 import { useT, tNow } from '@/hooks/use-translation';
-import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Cpu, Terminal, Compass, Crosshair } from 'lucide-react';
+import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Compass, Crosshair } from 'lucide-react';
 
 const OUTCOME_COLOR: Record<string, string> = {
   accepted: '#a3f185',
@@ -432,7 +432,8 @@ export function ChronometricGraph({
 
   // Centauro panel — collapsible overlay in the bottom-center of the canvas.
   // Default collapsed (scanning bar); expands on click to show the thread.
-  const [centauroExpanded, setCentauroExpanded] = useState(false);
+  const centauroExpanded = useGitStore((state) => state.centauroExpanded);
+  const setCentauroExpanded = useGitStore((state) => state.setCentauroExpanded);
 
   // Which tab is active inside the expanded Centauro panel.
   const [centauroTab, setCentauroTab] = useState<'report' | 'history'>('report');
@@ -586,6 +587,7 @@ export function ChronometricGraph({
 
   const handleSelectSpeculative = (id: string) => {
     setSelectedSpeculativeId(id);
+    setCentauroExpanded(true);
     onSelectSpeculative?.(id);
   };
 
@@ -2238,82 +2240,7 @@ export function ChronometricGraph({
         </text>
       </svg>
 
-      {/* 2. PANEL 01: NAV TELEMETRY & SYSTEM CONTEXT (Top-Left, z-20) */}
-      <div className="absolute top-[112px] w-[250px] bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono flex flex-col gap-1.5 select-none overflow-hidden" style={{ left: hudLeftInset, transition: 'left 0.3s ease' }}>
-        <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full bg-[#5ed8ff]/55" />
-        <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
-          <span className="text-[10px] font-bold text-[#5ed8ff] tracking-wider uppercase truncate max-w-[170px]">
-            {repoName || 'NO_ACTIVE_REPO'}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#a3f185] hud-breath" />
-            <span className="text-[7.5px] font-bold text-[#a3f185] tracking-widest">ACTIVE</span>
-          </div>
-        </div>
-        <div className="flex flex-col gap-1 text-[8.5px] text-[#9eacc0]">
-          <div className="flex items-center gap-1.5">
-            <Terminal size={10} className="text-[#5ed8ff]/70" />
-            <span className="text-[8px] font-semibold text-[#5ed8ff]/55 shrink-0">BR //</span>
-            <span className="truncate font-semibold text-[#d9e7fc]">
-              {currentBranch || 'DETACHED_HEAD'}
-            </span>
-          </div>
-          <div className="truncate text-[7.5px] opacity-70 pl-4 border-l border-[#3c495a]/25">
-            {repoPath || 'NO_PATH_SPECIFIED'}
-          </div>
-          <div className="flex items-center justify-between text-[7px] text-[#697789] uppercase tracking-wider pt-0.5 border-t border-[#3c495a]/15 mt-0.5">
-            <span>MODE // CHRONO_HUD</span>
-            <span>T_CORRELATION // OK</span>
-          </div>
-        </div>
-      </div>
 
-      {/* 3. PANEL 02: SYNC & DIRTY METRICS (Top-Right, z-20) */}
-      <div className="absolute top-[112px] w-[250px] bg-[#071a2c]/50 backdrop-blur-md border border-[#d9e7fc]/15 rounded-md px-3 py-2.5 z-20 font-mono flex flex-col gap-1.5 select-none overflow-hidden" style={{ right: hudRightInset, transition: 'right 0.3s ease' }}>
-        <div className="absolute right-0 top-3 bottom-3 w-[2px] rounded-full bg-[#b455ff]/55" />
-        <div className="flex items-center justify-between border-b border-[#3c495a]/25 pb-1 mb-0.5">
-          <span className="text-[9px] font-bold text-[#b455ff] tracking-wider uppercase">
-            SYNC_STATE // TELEMETRY
-          </span>
-          <Cpu size={11} className="text-[#b455ff]/70" />
-        </div>
-        <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[8.5px] text-[#9eacc0]">
-          <div className="flex items-center justify-between border-b border-[#3c495a]/15 pb-0.5">
-            <span>AHEAD //</span>
-            <span className={`font-bold text-[9px] ${ahead > 0 ? 'text-[#a3f185]' : 'text-[#697789]'}`}>
-              {ahead > 0 ? `▲${ahead}` : '—'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between border-b border-[#3c495a]/15 pb-0.5">
-            <span>BEHIND //</span>
-            <span className={`font-bold text-[9px] ${behind > 0 ? 'text-[#fd9d1a]' : 'text-[#697789]'}`}>
-              {behind > 0 ? `▼${behind}` : '—'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>STASH //</span>
-            <span className={`font-semibold text-[9px] ${stashes.length > 0 ? 'text-[#5ed8ff]' : 'text-[#697789]'}`}>
-              {stashes.length || '—'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>DIRTY //</span>
-            <span className={`font-semibold text-[9px] ${modifiedFiles.length > 0 ? 'text-[#fd9d1a]' : 'text-[#697789]'}`}>
-              {modifiedFiles.length || '—'}
-            </span>
-          </div>
-        </div>
-        {modifiedFiles.length > 0 && (
-          <div className="mt-1 pt-1 border-t border-[#3c495a]/20 flex items-center justify-between text-[7.5px] text-[#697789]">
-            <div className="flex gap-1.5">
-              <span>MOD: {modifiedFiles.filter(f => f.status === 'modified').length}</span>
-              <span>ADD: {modifiedFiles.filter(f => f.status === 'added' || f.status === 'untracked').length}</span>
-              <span>DEL: {modifiedFiles.filter(f => f.status === 'deleted').length}</span>
-            </div>
-            {submodules.length > 0 && <span>SUB: {submodules.length}</span>}
-          </div>
-        )}
-      </div>
 
       {/* Bottom dock — Centauro panel + horizontal toolbar above it.
           Toolbar and panel form one visual block; both rise/fall together.
@@ -2341,21 +2268,46 @@ export function ChronometricGraph({
             <div className="absolute inset-x-0 top-1 h-px bg-border-subtle/15 group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
           </div>
 
-          {/* Toolbar — glassy, horizontal. Rounded top joins with centauro's rounded bottom. */}
-          <div className="rounded-t-xl border border-b-0 border-text-primary/15 bg-bg-overlay/60 backdrop-blur-md px-3 py-1.5 flex items-center justify-between gap-3">
-            {/* FUTUROS toggle — quick access from within chronometric view */}
-            <button
-              onClick={onToggleSpeculative}
-              className={cn(
-                'px-2 py-0.5 rounded font-mono text-[9px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150 border',
-                showSpeculative
-                  ? 'bg-[#5ed8ff]/15 text-[#5ed8ff] border-[#5ed8ff]/50'
-                  : 'text-text-secondary border-transparent hover:text-[#5ed8ff] hover:border-[#5ed8ff]/30',
-              )}
-              title={t('centauro.futurosTooltip')}
-            >
-              {showSpeculative ? t('centauro.futurosOn') : t('centauro.futurosOff')}
-            </button>
+          {/* Inner content box — keeps overflow-hidden to perfectly mask content and transitions */}
+          <div className="w-full rounded-xl border border-text-primary/15 bg-bg-overlay/60 backdrop-blur-md overflow-hidden relative">
+
+          {/* Toolbar — horizontal controls */}
+          <div
+            className={cn(
+              'px-3 py-1.5 flex items-center justify-between gap-3 bg-transparent border-b transition-colors duration-300',
+              centauroExpanded ? 'border-[#5ed8ff]/15' : 'border-transparent',
+            )}
+          >
+            <div className="flex items-center gap-2">
+              {/* FUTUROS toggle — quick access from within chronometric view */}
+              <button
+                onClick={onToggleSpeculative}
+                className={cn(
+                  'h-7 shrink-0 rounded-md border flex items-center gap-1.5 px-2.5 transition-colors cursor-pointer text-[9px] font-bold tracking-wider uppercase font-mono',
+                  showSpeculative
+                    ? 'border-[#a3f185]/40 bg-[#d9e7fc]/10 text-[#a3f185]'
+                    : 'border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
+                )}
+                title={t('centauro.futurosTooltip')}
+              >
+                {showSpeculative ? t('centauro.futurosOn') : t('centauro.futurosOff')}
+              </button>
+
+              {/* CENTAURO toggle */}
+              <button
+                onClick={() => setCentauroExpanded(!centauroExpanded)}
+                className={cn(
+                  'h-7 shrink-0 rounded-md border flex items-center gap-1.5 px-2.5 transition-colors cursor-pointer text-[9px] font-bold tracking-wider uppercase font-mono',
+                  centauroExpanded
+                    ? 'border-[#a3f185]/40 bg-[#d9e7fc]/10 text-[#a3f185]'
+                    : 'border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
+                )}
+                title={t('toolbar.centauroTooltip')}
+              >
+                <Compass size={12} className={cn('transition-colors', centauroExpanded ? 'text-[#a3f185]' : 'text-[#9eacc0]/70')} />
+                <span>{t('toolbar.centauro')}</span>
+              </button>
+            </div>
             {/* Zoom group — right side of the toolbar */}
             <div className="flex items-center gap-1">
               <button onClick={zoomIn} title={t('zoom.in')} className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
@@ -2370,33 +2322,16 @@ export function ChronometricGraph({
             </div>
           </div>
 
-          {/* Centauro Panel — rounded-b-xl joins toolbar's rounded-t-xl into one seamless glassy block */}
+          {/* Centauro Panel — glassy content block */}
           <div
-            className={cn(
-              'rounded-b-xl border border-t-0 border-[#5ed8ff]/25 bg-[#071a2c]/85 backdrop-blur-xl overflow-hidden',
-              'transition-all duration-400 ease-out',
-            )}
+            className="overflow-hidden transition-all duration-400 ease-out bg-[#071a2c]/85 rounded-b-xl"
             style={{
-              maxHeight: centauroExpanded ? `${centauroHeight}vh` : '34px',
+              maxHeight: centauroExpanded ? `${centauroHeight}vh` : '0px',
             }}
           >
-            {/* Collapse bar / toggle */}
-            <button
-              onClick={() => setCentauroExpanded((v) => !v)}
-              className="w-full h-[34px] flex items-center justify-center gap-2 cursor-pointer hover:bg-[#5ed8ff]/5 transition-colors text-[#5ed8ff]"
-            >
-              <Compass size={10} className="text-[#5ed8ff]/70" />
-              <span className="text-[9px] font-bold tracking-wider uppercase font-mono">
-                CENTAURO
-              </span>
-              <span className="text-[8px] text-[#5ed8ff]/60 transition-transform duration-300" style={{ transform: centauroExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                ▲
-              </span>
-            </button>
-
             {/* Expanded content — tabbed layout: report + history, no stacking */}
             {centauroExpanded && (
-              <div className="flex flex-col" style={{ maxHeight: `calc(${centauroHeight}vh - 34px)` }}>
+              <div className="flex flex-col rounded-b-xl" style={{ maxHeight: `${centauroHeight}vh` }}>
                 {/* Tab bar */}
                 <div className="flex items-center border-b border-[#5ed8ff]/15 px-4">
                   <button
@@ -2424,7 +2359,7 @@ export function ChronometricGraph({
                 </div>
 
                 {/* Tab content */}
-                <div className="overflow-y-auto flex-1">
+                <div className="overflow-y-auto flex-1 rounded-b-xl">
                   {centauroTab === 'report' ? (
                     <div className="px-4 py-3 font-mono">
                       {speculativeDialogue ? (
@@ -2635,6 +2570,7 @@ export function ChronometricGraph({
           </div>
         </div>
       </div>
+    </div>
 
       {/* Materialization confirmation (Phase 6) — shown BEFORE any Git write. */}
       {materializeIdea && materializePlan && typeof document !== 'undefined' && createPortal(

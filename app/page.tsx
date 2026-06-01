@@ -551,6 +551,8 @@ export default function GitCronPage() {
   const defaultFolder = useGitStore((s) => s.defaultFolder);
   const theme = useGitStore((s) => s.theme);
   const enableCronometric = useGitStore((s) => s.enableCronometric);
+  const centauroExpanded = useGitStore((s) => s.centauroExpanded);
+  const setCentauroExpanded = useGitStore((s) => s.setCentauroExpanded);
   const appFontSizePx = FONT_SIZE_OPTIONS.find((option) => option.key === fontSize)?.px ?? 15;
 
   const {

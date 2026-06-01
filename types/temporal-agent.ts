@@ -100,6 +100,8 @@ export interface SpeculativeBranch {
   rationale: string;
   /** Extended reasoning (3-5 sentences of plain prose). Optional for backward compatibility. */
   reasoning?: string;
+  /** Ready-to-use coding prompt for an AI agent to implement this speculative feature. */
+  agentPrompt?: string;
   /** 1-based index in the original prediction array, before any filter. Stable across sessions. */
   predictionIndex?: number;
   type: SpeculativeType;
@@ -167,6 +169,7 @@ export interface PredictionResult {
   generatedAt: string;
   /** Ensemble summary — one paragraph synthesizing the full set of futures. */
   summary?: string;
+  lang?: string;
 }
 
 /** Multi-provider adapter (brief §6.1). Cloud and local/gateway families. */
@@ -196,6 +199,8 @@ export interface MaterializeIdeaInput {
   rationale: string;
   type: SpeculativeType;
   confidence: number;
+  reasoning?: string;
+  agentPrompt?: string;
 }
 
 /** Exactly what will be created — shown to the user BEFORE any Git write. */

@@ -14,6 +14,7 @@ import type {
   PredictionResult,
 } from '@/types/temporal-agent';
 import { useT } from '@/hooks/use-translation';
+import { useGitStore } from '@/lib/git-store';
 
 const GREEN = '#a3f185';
 const CYAN = '#5ed8ff';
@@ -43,6 +44,7 @@ interface Props {
 
 export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConfigSaved }: Props) {
   const t = useT();
+  const language = useGitStore((s) => s.language);
   const [config, setConfig] = useState<TemporalAgentConfig | null>(null);
   const [notesMd, setNotesMd] = useState<string>('');
   const [showNotes, setShowNotes] = useState(false);
@@ -93,7 +95,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
     setPredictError(null);
     setCancelled(false);
     try {
-      const r = await window.api.ai.predictTimelines(repoPath, repoName);
+      const r = await window.api.ai.predictTimelines(repoPath, repoName, language);
       if (r.success && r.data) {
         setResult(r.data);
         // Capa 1: lift the result so the graph draws it (main already persisted it).

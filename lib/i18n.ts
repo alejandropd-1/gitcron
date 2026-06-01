@@ -133,6 +133,7 @@ const es: Dict = {
   'common.close': 'Cerrar',
   'common.cancel': 'Cancelar',
   'common.copy': 'Copiar',
+  'common.backToRepo': 'Volver al Repositorio',
 
   // ── Panel Centauro ──
   'centauro.materialize': 'Materializar',
@@ -154,6 +155,7 @@ const es: Dict = {
   'centauro.futurosOn': 'FUTUROS: ON',
   'centauro.futurosOff': 'FUTUROS: OFF',
   'centauro.futurosTooltip': 'Mostrar / ocultar futuros especulativos',
+  'centauro.lastPrediction': 'última predicción: {{date}}',
 
   // ── Zoom ──
   'zoom.in': 'Acercar (Zoom In)',
@@ -208,6 +210,20 @@ const es: Dict = {
   'modal.create': 'Crear',
   'modal.close': 'Cerrar',
   'modal.understood': 'Entendido',
+
+  // ── Modals: Force Push ──
+  'page.modals.forcePush.title': 'Sobreescribir repositorio remoto',
+  'page.modals.forcePush.desc': 'El repositorio remoto en GitHub ya contiene commits. ¿Quieres realizar un Force Push para sobreescribir la historia remota con tus archivos locales?',
+  'page.modals.forcePush.warningTitle': '⚠️ Advertencia crítica',
+  'page.modals.forcePush.warningDesc': 'Esta acción reemplazará de forma permanente todos los archivos del repositorio en GitHub con el contenido de tu carpeta local. No podrás recuperar los commits previos del remoto.',
+  'page.modals.forcePush.confirmBtn': 'Forzar subida (Force Push)',
+
+  // ── Modals: Squash ──
+  'page.modals.squash.title': 'Combinar últimos commits (Squash)',
+  'page.modals.squash.warning': '⚠ Si ya pusheaste alguno de estos commits al remoto, vas a necesitar un force-push después. No hagas squash de commits compartidos con otros.',
+  'page.modals.squash.lastCommits': 'Combinar los últimos',
+  'page.modals.squash.newMessage': 'Nuevo mensaje del commit',
+  'page.modals.squash.button': 'Combinar {{n}} commits',
 
   // ── Modal: New Branch ──
   'newBranch.title': 'Nueva branch',
@@ -403,6 +419,52 @@ const es: Dict = {
   // ── Help Modal ──
   'help.title': 'Ayuda — Cómo funciona GitCron',
 
+  // ── Help Section ──
+  'page.help.whatis.title': '¿Qué es GitCron?',
+  'page.help.whatis.desc': 'Cliente git visual estilo GitKraken. Te muestra tus commits como un grafo con branches que se ramifican, y te deja stagear, commitear, hacer push/pull sin escribir comandos en la terminal.',
+  'page.help.columns.title': 'Las 3 Columnas',
+  'page.help.columns.sidebarTitle': 'Izquierda — Sidebar',
+  'page.help.columns.sidebarDesc': 'Branches locales y remotas, stashes, tags, submódulos. Click en una branch local hace checkout. El verde indica la branch activa.',
+  'page.help.columns.centerTitle': 'Centro — Contenido',
+  'page.help.columns.centerDesc': 'Cambia según la solapa que tengas activa. También se transforma en visor de diff cuando hacés click en un archivo de la derecha.',
+  'page.help.columns.rightTitle': 'Derecha — Workspace',
+  'page.help.columns.rightDesc': 'Si estás navegando commits → muestra detalles y archivos del commit. Si no → muestra tu working tree dividido en Unstaged arriba y Staged abajo.',
+  'page.help.tabs.title': 'Las 3 Solapas',
+  'page.help.tabs.commitTitle': 'Commit',
+  'page.help.tabs.commitDesc': 'Modo "vamos a commitear". Muestra un resumen del workspace con stats y el flujo paso a paso.',
+  'page.help.tabs.graphTitle': 'Graph (default)',
+  'page.help.tabs.graphDesc': 'Vista visual del historial. Cada commit es un punto, las branches son líneas verticales de colores.',
+  'page.help.tabs.historyTitle': 'History',
+  'page.help.tabs.historyDesc': 'Lista cronológica plana de todos los commits (sin SVG). Más cómoda para leer mensajes largos.',
+  'page.help.states.title': 'Estados de Archivo',
+  'page.help.states.intro': 'Letras de estado que aparecen al lado de cada archivo:',
+  'page.help.states.modified': 'Modified — cambios sin commitear',
+  'page.help.states.added': 'Added — nuevo y staged',
+  'page.help.states.deleted': 'Deleted — borrado',
+  'page.help.states.untracked': 'Untracked — git no lo conoce',
+  'page.help.states.renamed': 'Renamed — renombrado',
+  'page.help.buttons.title': 'Botones del Toolbar',
+  'page.help.buttons.pullTitle': 'Pull (↓)',
+  'page.help.buttons.pullDesc': 'Baja commits del repo remoto a tu local.',
+  'page.help.buttons.pushTitle': 'Push (↑)',
+  'page.help.buttons.pushDesc': 'Sube tus commits locales al repo remoto (GitHub).',
+  'page.help.buttons.branchTitle': 'Branch',
+  'page.help.buttons.branchDesc': 'Crea una branch nueva.',
+  'page.help.buttons.stashTitle': 'Stash',
+  'page.help.buttons.stashDesc': 'Guarda tus cambios actuales en una "pila" temporal.',
+  'page.help.buttons.terminalTitle': 'Terminal',
+  'page.help.buttons.terminalDesc': 'Abre la terminal en la carpeta del repo.',
+  'page.help.flow.title': 'Flujo Típico (de cero a push)',
+  'page.help.flow.step1': 'Abrí o creá un repo desde el empty state',
+  'page.help.flow.step2': '(Opcional) Conectá tu cuenta de GitHub en la sección de Perfil',
+  'page.help.flow.step3': 'Modificá archivos en tu editor',
+  'page.help.flow.step4': 'En GitCron click + en cada archivo que querés incluir en la derecha',
+  'page.help.flow.step5': 'Escribí un mensaje en la caja de abajo a la derecha',
+  'page.help.flow.step6': 'Click Commit Changes',
+  'page.help.flow.step7': 'Click Push para subirlo a GitHub',
+  'page.help.security.title': 'Seguridad de tu Token',
+  'page.help.security.desc': 'Tu access token se guarda encriptado por el sistema operativo (Windows DPAPI / macOS Keychain). Al hacer push/pull, el token NUNCA se escribe en el .git/config del repo.',
+
   // ── Error Toast ──
   'error.removeLock': 'Eliminar lock',
   'error.removeLockTooltip': 'Borra .git/index.lock y refresca el estado',
@@ -520,6 +582,85 @@ const es: Dict = {
   'temporalAgent.modelCustomOption': 'Personalizado…',
   'temporalAgent.modelCustomPlaceholder': 'ID de OpenRouter, formato proveedor/modelo',
   'temporalAgent.resultFrom': 'de',
+
+  // ── Staging Panel (Coloquial) ──
+  'staging.unstagedTitle': 'Cambios sin preparar',
+  'staging.stagedTitle': 'Cambios listos para guardar',
+  'staging.discardAllTooltip': 'Borrar TODOS los cambios (reset --hard)',
+  'staging.stageAllBtn': 'Stage all',
+  'staging.unstageAllBtn': 'Unstage all',
+  'staging.noUnstagedChanges': 'No quedan cambios sin preparar',
+  'staging.noStagedChanges': 'Prepará algunos archivos a la derecha para poder guardarlos',
+  'staging.openRepoPrompt': 'Abrí algún repositorio para ver qué cambiaste',
+  'staging.commitMsgPlaceholder': 'Escribí una nota sobre tus cambios (obligatorio)',
+  'staging.commitBtn': 'Commit',
+  'staging.commitWithCountBtn': 'Commit ({{count}})',
+  'staging.committingState': 'Committing...',
+  'staging.amendTooltip': 'Corregir o sumar cambios al último commit realizado',
+  'staging.amendBtn': 'Amend',
+  'staging.squashTooltip': 'Combinar los últimos commits en uno solo',
+  'staging.squashBtn': 'Squash',
+  'staging.stageFileTooltip': 'Preparar este archivo',
+  'staging.unstageFileTooltip': 'Quitar este archivo de los preparados',
+  'staging.discardFileTooltip': 'Borrar estos cambios',
+
+  // ── CommitTabView (Coloquial) ──
+  'commitTab.pageTitle': 'Área de trabajo',
+  'commitTab.introText': 'Acá ves todo lo que cambiaste. Hacé clic en cualquier archivo a la derecha para ver los cambios con colores acá en el centro.',
+  'commitTab.cleanWorkspace': 'Todo guardado y limpio',
+  'commitTab.cleanWorkspaceDesc': 'No tenés ningún cambio pendiente de guardar.',
+  'commitTab.changesByTypeLabel': 'Tus cambios por tipo',
+  'commitTab.stepByStepLabel': 'Paso a paso',
+  'commitTab.step1Text': 'Editá tus archivos en tu editor de código como siempre',
+  'commitTab.step2Text': 'Hacé clic en el botón + de cada archivo a la derecha para stagearlo',
+  'commitTab.step3Text': 'Escribí qué cambiaste en la caja de abajo a la derecha',
+  'commitTab.step4Text': 'Hacé clic en "Commit"',
+  'commitTab.step5Text': 'Hacé "Push" para subir tus cambios',
+
+  // ── Pull Decision Toast (Coloquial - tNow) ──
+  'pullDecision.divergedTitle': '«{{branch}}» tiene cambios tanto en tu PC como en internet',
+  'pullDecision.behindTitle': '«{{branch}}» tiene cambios nuevos en internet por traer',
+  'pullDecision.divergedPushDesc': 'Pausa: primero traé los {{behind}} cambios de internet para combinarlos con tus {{ahead}} cambios locales.',
+  'pullDecision.divergedPullDesc': 'Tenés {{behind}} cambios nuevos en internet y {{ahead}} locales sin subir. ¡Hay que unirlos!',
+  'pullDecision.behindDesc': 'Traé los {{behind}} cambios nuevos de internet directamente.',
+  'pullDecision.ffBtn': 'Traer directo',
+  'pullDecision.ffTooltip': 'Trae los cambios directamente sin generar un commit extra',
+  'pullDecision.rebaseBtn': 'Traer y ordenar',
+  'pullDecision.rebaseTooltip': 'Recomendado: trae los cambios de internet y acomoda los tuyos arriba',
+  'pullDecision.mergeBtn': 'Traer y combinar',
+  'pullDecision.mergeTooltip': 'Trae los cambios unificando todo en un commit nuevo si es necesario',
+
+  // ── Status types (Coloquial) ──
+  'status.modified': 'Modificados',
+  'status.added': 'Nuevos (listos)',
+  'status.deleted': 'Borrados',
+  'status.untracked': 'Sin seguimiento',
+  'status.renamed': 'Renombrados',
+
+  // ── Toolbar & Topbar (Coloquial) ──
+  'toolbar.hideSidebar': 'Ocultar barra lateral',
+  'toolbar.showSidebar': 'Mostrar barra lateral',
+  'toolbar.hideDetails': 'Ocultar panel de detalles',
+  'toolbar.showDetails': 'Mostrar panel de detalles',
+  'toolbar.viewClassicTooltip': 'Vista Clásica (GitKraken)',
+  'toolbar.viewClassicBtn': 'Clásico',
+  'toolbar.viewChronometricTooltip': 'Vista Cronométrica (Línea Diagonal)',
+  'toolbar.viewChronometricBtn': 'Cronométrico',
+  'toolbar.clearFilterTooltip': 'Limpiar filtro (Esc)',
+  'settings.timeline': 'Línea de Tiempo',
+  'settings.temporalAgent': 'Temporal Agent',
+  'profile.githubAccount': 'Cuenta GitHub',
+
+  // ── Commit details (Coloquial) ──
+  'commit.detailsTitle': 'Detalles del commit',
+  'commit.viewChangesBtn': 'Ver cambios →',
+  'commit.goToStagingTooltip': 'Ir al área de preparación',
+  'commit.unstagedChangesCount': '{{count}} cambios sin preparar',
+  'commit.stashTooltip': 'Guardar los cambios actuales en el baúl (stash)',
+  'commit.explainBtn': 'Explicar con IA',
+  'commit.loadingFiles': 'Cargando archivos...',
+  'commit.changedFilesCount': 'Archivos modificados ({{count}})',
+  'commit.noFiles': 'Sin archivos en este commit',
 };
 
 const en: Dict = {
@@ -655,6 +796,20 @@ const en: Dict = {
   'modal.close': 'Close',
   'modal.understood': 'Got it',
 
+  // ── Modals: Force Push ──
+  'page.modals.forcePush.title': 'Overwrite remote repository',
+  'page.modals.forcePush.desc': 'The remote repository on GitHub already contains commits. Do you want to perform a Force Push to overwrite the remote history with your local files?',
+  'page.modals.forcePush.warningTitle': '⚠️ Critical Warning',
+  'page.modals.forcePush.warningDesc': 'This action will permanently replace all files in the GitHub repository with the contents of your local folder. You will not be able to recover previous remote commits.',
+  'page.modals.forcePush.confirmBtn': 'Force Push',
+
+  // ── Modals: Squash ──
+  'page.modals.squash.title': 'Combine last commits (Squash)',
+  'page.modals.squash.warning': '⚠ If you already pushed any of these commits to the remote, you will need a force push afterward. Do not squash commits shared with others.',
+  'page.modals.squash.lastCommits': 'Combine the last',
+  'page.modals.squash.newMessage': 'New commit message',
+  'page.modals.squash.button': 'Combine {{n}} commits',
+
   // ── New Branch ──
   'newBranch.title': 'New branch',
   'newBranch.fromCommit': 'From commit:',
@@ -704,6 +859,7 @@ const en: Dict = {
   'common.close': 'Close',
   'common.cancel': 'Cancel',
   'common.copy': 'Copy',
+  'common.backToRepo': 'Back to Repository',
 
   // ── Centauro Panel ──
   'centauro.materialize': 'Materialize',
@@ -725,6 +881,7 @@ const en: Dict = {
   'centauro.futurosOn': 'FUTURES: ON',
   'centauro.futurosOff': 'FUTURES: OFF',
   'centauro.futurosTooltip': 'Show / hide speculative futures',
+  'centauro.lastPrediction': 'last prediction: {{date}}',
 
   // ── Zoom ──
   'zoom.in': 'Zoom In',
@@ -906,6 +1063,52 @@ const en: Dict = {
   // ── Help ──
   'help.title': 'Help — How GitCron works',
 
+  // ── Help Section ──
+  'page.help.whatis.title': 'What is GitCron?',
+  'page.help.whatis.desc': 'Visual git client in the style of GitKraken. It shows your commits as a graph with branches that fork, and lets you stage, commit, and push/pull without writing commands in the terminal.',
+  'page.help.columns.title': 'The 3 Columns',
+  'page.help.columns.sidebarTitle': 'Left — Sidebar',
+  'page.help.columns.sidebarDesc': 'Local and remote branches, stashes, tags, submodules. Clicking a local branch performs a checkout. Green indicates the active branch.',
+  'page.help.columns.centerTitle': 'Center — Content',
+  'page.help.columns.centerDesc': 'Changes depending on the active tab. It also transforms into a diff viewer when you click a file on the right.',
+  'page.help.columns.rightTitle': 'Right — Workspace',
+  'page.help.columns.rightDesc': 'If browsing commits → shows commit details and files. If not → shows your working tree divided into Unstaged on top and Staged below.',
+  'page.help.tabs.title': 'The 3 Tabs',
+  'page.help.tabs.commitTitle': 'Commit',
+  'page.help.tabs.commitDesc': '"Let\'s commit" mode. Shows a workspace summary with stats and the step-by-step flow.',
+  'page.help.tabs.graphTitle': 'Graph (default)',
+  'page.help.tabs.graphDesc': 'Visual view of history. Each commit is a dot, branches are colored vertical lines.',
+  'page.help.tabs.historyTitle': 'History',
+  'page.help.tabs.historyDesc': 'Flat chronological list of all commits (no SVG). More comfortable for reading long messages.',
+  'page.help.states.title': 'File States',
+  'page.help.states.intro': 'Status letters that appear next to each file:',
+  'page.help.states.modified': 'Modified — uncommitted changes',
+  'page.help.states.added': 'Added — new and staged',
+  'page.help.states.deleted': 'Deleted — deleted',
+  'page.help.states.untracked': 'Untracked — unknown to git',
+  'page.help.states.renamed': 'Renamed — renamed',
+  'page.help.buttons.title': 'Toolbar Buttons',
+  'page.help.buttons.pullTitle': 'Pull (↓)',
+  'page.help.buttons.pullDesc': 'Downloads commits from the remote repository to your local machine.',
+  'page.help.buttons.pushTitle': 'Push (↑)',
+  'page.help.buttons.pushDesc': 'Uploads your local commits to the remote repository (GitHub).',
+  'page.help.buttons.branchTitle': 'Branch',
+  'page.help.buttons.branchDesc': 'Creates a new branch.',
+  'page.help.buttons.stashTitle': 'Stash',
+  'page.help.buttons.stashDesc': 'Saves your current changes to a temporary "stash" stack.',
+  'page.help.buttons.terminalTitle': 'Terminal',
+  'page.help.buttons.terminalDesc': 'Opens the terminal in the repository folder.',
+  'page.help.flow.title': 'Typical Flow (from scratch to push)',
+  'page.help.flow.step1': 'Open or create a repository from the empty state',
+  'page.help.flow.step2': '(Optional) Connect your GitHub account in the Profile section',
+  'page.help.flow.step3': 'Modify files in your editor',
+  'page.help.flow.step4': 'In GitCron, click + on each file you want to include on the right side',
+  'page.help.flow.step5': 'Write a message in the bottom-right box',
+  'page.help.flow.step6': 'Click Commit Changes',
+  'page.help.flow.step7': 'Click Push to upload to GitHub',
+  'page.help.security.title': 'Token Security',
+  'page.help.security.desc': 'Your access token is saved encrypted by the operating system (Windows DPAPI / macOS Keychain). When pushing/pulling, the token is NEVER written to the repository\'s .git/config.',
+
   // ── Error Toast ──
   'error.removeLock': 'Remove lock',
   'error.removeLockTooltip': 'Deletes .git/index.lock and refreshes state',
@@ -1023,6 +1226,85 @@ const en: Dict = {
   'temporalAgent.modelCustomOption': 'Custom…',
   'temporalAgent.modelCustomPlaceholder': 'OpenRouter ID, format provider/model',
   'temporalAgent.resultFrom': 'from',
+
+  // ── Staging Panel (Colloquial) ──
+  'staging.unstagedTitle': 'Unprepared changes',
+  'staging.stagedTitle': 'Changes ready to save',
+  'staging.discardAllTooltip': 'Delete ALL changes (reset --hard)',
+  'staging.stageAllBtn': 'Stage all',
+  'staging.unstageAllBtn': 'Unstage all',
+  'staging.noUnstagedChanges': 'No unprepared changes left',
+  'staging.noStagedChanges': 'Prepare some files on the right to be able to save them',
+  'staging.openRepoPrompt': 'Open a repository to see what you changed',
+  'staging.commitMsgPlaceholder': 'Write a note about your changes (required)',
+  'staging.commitBtn': 'Commit',
+  'staging.commitWithCountBtn': 'Commit ({{count}})',
+  'staging.committingState': 'Committing...',
+  'staging.amendTooltip': 'Fix or add changes to the last commit made',
+  'staging.amendBtn': 'Amend',
+  'staging.squashTooltip': 'Combine the last commits into one',
+  'staging.squashBtn': 'Squash',
+  'staging.stageFileTooltip': 'Prepare this file',
+  'staging.unstageFileTooltip': 'Remove this file from prepared',
+  'staging.discardFileTooltip': 'Delete these changes',
+
+  // ── CommitTabView (Colloquial) ──
+  'commitTab.pageTitle': 'Working area',
+  'commitTab.introText': 'Here you see everything you changed. Click any file on the right to see colorized changes here in the center.',
+  'commitTab.cleanWorkspace': 'Everything clean and saved',
+  'commitTab.cleanWorkspaceDesc': 'You don\'t have any pending changes to save.',
+  'commitTab.changesByTypeLabel': 'Your changes by type',
+  'commitTab.stepByStepLabel': 'Step by step',
+  'commitTab.step1Text': 'Edit your files in your code editor as usual',
+  'commitTab.step2Text': 'Click the + button next to each file on the right to prepare it',
+  'commitTab.step3Text': 'Write what you changed in the box in the bottom-right',
+  'commitTab.step4Text': 'Click "Commit"',
+  'commitTab.step5Text': 'Upload your changes to GitHub by clicking "Push"',
+
+  // ── Pull Decision Toast (Colloquial) ──
+  'pullDecision.divergedTitle': '“{{branch}}” has changes on both your PC and the internet',
+  'pullDecision.behindTitle': '“{{branch}}” has new changes on the internet to fetch',
+  'pullDecision.divergedPushDesc': 'Pause: first pull the {{behind}} changes from the internet to combine them with your {{ahead}} local changes.',
+  'pullDecision.divergedPullDesc': 'You have {{behind}} new changes on the internet and {{ahead}} local unsaved ones. Time to merge them!',
+  'pullDecision.behindDesc': 'Get the {{behind}} new changes from the internet directly.',
+  'pullDecision.ffBtn': 'Get direct',
+  'pullDecision.ffTooltip': 'Bring changes directly without creating an extra commit',
+  'pullDecision.rebaseBtn': 'Bring and order',
+  'pullDecision.rebaseTooltip': 'Recommended: bring internet changes and place yours on top',
+  'pullDecision.mergeBtn': 'Bring and combine',
+  'pullDecision.mergeTooltip': 'Bring changes merging everything into a new commit if necessary',
+
+  // ── Status types ──
+  'status.modified': 'Modified',
+  'status.added': 'New (staged)',
+  'status.deleted': 'Deleted',
+  'status.untracked': 'Untracked',
+  'status.renamed': 'Renamed',
+
+  // ── Toolbar & Topbar (Colloquial) ──
+  'toolbar.hideSidebar': 'Hide sidebar',
+  'toolbar.showSidebar': 'Show sidebar',
+  'toolbar.hideDetails': 'Hide details panel',
+  'toolbar.showDetails': 'Show details panel',
+  'toolbar.viewClassicTooltip': 'Classic View (GitKraken)',
+  'toolbar.viewClassicBtn': 'Classic',
+  'toolbar.viewChronometricTooltip': 'Chronometric View (Diagonal Line)',
+  'toolbar.viewChronometricBtn': 'Chronometric',
+  'toolbar.clearFilterTooltip': 'Clear filter (Esc)',
+  'settings.timeline': 'Timeline',
+  'settings.temporalAgent': 'Temporal Agent',
+  'profile.githubAccount': 'GitHub Account',
+
+  // ── Commit details (Colloquial) ──
+  'commit.detailsTitle': 'Commit details',
+  'commit.viewChangesBtn': 'View changes →',
+  'commit.goToStagingTooltip': 'Go to preparation area',
+  'commit.unstagedChangesCount': '{{count}} unprepared changes',
+  'commit.stashTooltip': 'Save current changes to the vault (stash)',
+  'commit.explainBtn': 'Explain with AI',
+  'commit.loadingFiles': 'Loading files...',
+  'commit.changedFilesCount': 'Changed files ({{count}})',
+  'commit.noFiles': 'No files in this commit',
 };
 
 const dicts: Record<Lang, Dict> = { es, en };

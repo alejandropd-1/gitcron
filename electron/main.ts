@@ -431,7 +431,7 @@ function mockProvider(id: ProviderId): AIPredictionProvider {
   };
 }
 
-ipcMain.handle('ai:predict-timelines', async (_event, repoPath: string, repoName: string) => {
+ipcMain.handle('ai:predict-timelines', async (_event, repoPath: string, repoName: string, lang = 'es') => {
   try {
     if (!repoPath) return { success: false, error: 'No repo path' };
     const providerId = activeProviderId();
@@ -442,6 +442,7 @@ ipcMain.handle('ai:predict-timelines', async (_event, repoPath: string, repoName
       config,
       notes,
       providerId,
+      lang,
       providerOverride: USE_MOCK_PREDICTION ? mockProvider(providerId) : undefined,
     });
     // Capa 1: persist the last prediction per-repo so it survives close/reopen.
@@ -452,7 +453,7 @@ ipcMain.handle('ai:predict-timelines', async (_event, repoPath: string, repoName
   }
 });
 
-// Read-only: load the last persisted prediction for a repo (no network).
+// Load the last persisted prediction for a repo (no network, no extra credits).
 ipcMain.handle('ai:load-prediction', async (_event, repoPath: string) => {
   try {
     if (!repoPath) return { success: false, error: 'No repo path' };

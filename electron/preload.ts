@@ -147,8 +147,8 @@ contextBridge.exposeInMainWorld('api', {
   materializeIdea: (repoPath: string, idea: unknown) =>
     ipcRenderer.invoke('git:materialize-idea', repoPath, idea),
   ai: {
-    predictTimelines: (repoPath: string, repoName: string) =>
-      ipcRenderer.invoke('ai:predict-timelines', repoPath, repoName),
+    predictTimelines: (repoPath: string, repoName: string, lang?: string) =>
+      ipcRenderer.invoke('ai:predict-timelines', repoPath, repoName, lang),
     loadPrediction: (repoPath: string) =>
       ipcRenderer.invoke('ai:load-prediction', repoPath),
     hasKey: (provider: string) => ipcRenderer.invoke('ai:has-key', provider),

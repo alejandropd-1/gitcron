@@ -54,7 +54,7 @@ export function buildIdeaMarkdown(
   level: FlightLevel,
 ): string {
   const pct = Math.round(clamp01(idea.confidence) * 100);
-  return [
+  const sections = [
     `# ${idea.title}`,
     '',
     `> Materialized from a Temporal Agent prediction. This branch is a starting`,
@@ -63,6 +63,29 @@ export function buildIdeaMarkdown(
     '## Rationale (agent)',
     '',
     idea.rationale || '_(no rationale provided)_',
+  ];
+
+  if (idea.reasoning) {
+    sections.push(
+      '',
+      '## Reasoning',
+      '',
+      idea.reasoning,
+    );
+  }
+
+  if (idea.agentPrompt) {
+    sections.push(
+      '',
+      '## AI Agent Prompt (for execution)',
+      '',
+      '```text',
+      idea.agentPrompt,
+      '```',
+    );
+  }
+
+  sections.push(
     '',
     '## Metadata',
     '',
@@ -72,11 +95,14 @@ export function buildIdeaMarkdown(
     '',
     '## Next steps',
     '',
+    '- [ ] Pass the AI Agent Prompt to a coding agent (like Antigravity or Claude) to start implementing this idea.',
     '- [ ] Decide whether this future is worth pursuing.',
     '- [ ] Sketch the first concrete change.',
     '- [ ] Replace this file with a real plan or delete the branch.',
     '',
-  ].join('\n');
+  );
+
+  return sections.join('\n');
 }
 
 /** The single source of truth for a materialization plan. */

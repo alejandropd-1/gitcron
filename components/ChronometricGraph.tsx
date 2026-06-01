@@ -616,6 +616,8 @@ export function ChronometricGraph({
       rationale: b.rationale ?? '',
       type: b.type,
       confidence: b.confidence,
+      reasoning: b.reasoning ?? '',
+      agentPrompt: b.agentPrompt ?? '',
     });
   }
 

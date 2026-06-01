@@ -225,7 +225,7 @@ interface ElectronAPI {
   onRepoFsChange: (cb: (repoPath: string) => void) => () => void;
   materializeIdea(repoPath: string, idea: MaterializeIdeaInput): Promise<GitResult<MaterializationResult>>;
   ai: {
-    predictTimelines(repoPath: string, repoName: string): Promise<GitResult<PredictionResult>>;
+    predictTimelines(repoPath: string, repoName: string, lang?: string): Promise<GitResult<PredictionResult>>;
     loadPrediction(repoPath: string): Promise<GitResult<PredictionResult | null>>;
     hasKey(provider: string): Promise<GitResult<boolean>>;
     keyFingerprint(provider: string): Promise<GitResult<string | null>>;

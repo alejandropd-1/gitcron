@@ -67,7 +67,7 @@ const MOCK_SPECULATIVE: SpeculativeBranch[] = [
 // Flip to true to debug with the hardcoded mock branches instead of the real,
 // persisted prediction. false = use the real per-repo PredictionResult (Capa 1).
 const USE_MOCK_SPECULATIVE = false;
-import { useT } from '@/hooks/use-translation';
+import { useT, tNow } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { parseChangelog } from '@/lib/changelog';
@@ -122,12 +122,12 @@ function formatDate(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
-  if (diffMin < 1) return 'Just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 1) return tNow('graph.justNow');
+  if (diffMin < 60) return tNow('graph.minutesAgo', { n: diffMin });
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
+  if (diffH < 24) return tNow('graph.hoursAgo', { n: diffH });
   const diffD = Math.floor(diffH / 24);
-  if (diffD < 7) return `${diffD}d ago`;
+  if (diffD < 7) return tNow('graph.daysAgo', { n: diffD });
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
@@ -1629,9 +1629,9 @@ export default function GitCronPage() {
               setSidebarOpen(next);
               localStorage.setItem('gitcron:sidebarOpen', String(next));
             }}
-            aria-label={sidebarOpen ? 'Ocultar sidebar' : 'Mostrar sidebar'}
+            aria-label={sidebarOpen ? t('toolbar.hideSidebar') : t('toolbar.showSidebar')}
             aria-pressed={sidebarOpen}
-            title={sidebarOpen ? 'Ocultar sidebar' : 'Mostrar sidebar'}
+            title={sidebarOpen ? t('toolbar.hideSidebar') : t('toolbar.showSidebar')}
             className={cn(
               'h-9 w-9 shrink-0 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary',
               'flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
@@ -1693,9 +1693,9 @@ export default function GitCronPage() {
                     ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
                     : "text-text-secondary hover:text-text-primary border border-transparent"
                 )}
-                title="Vista Clásica (GitKraken)"
+                title={t('toolbar.viewClassicTooltip')}
               >
-                Clásico
+                {t('toolbar.viewClassicBtn')}
               </button>
               <button
                 type="button"
@@ -1706,9 +1706,9 @@ export default function GitCronPage() {
                     ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
                     : "text-text-secondary hover:text-text-primary border border-transparent"
                 )}
-                title="Vista Cronométrica (Línea Diagonal)"
+                title={t('toolbar.viewChronometricTooltip')}
               >
-                Cronométrico
+                {t('toolbar.viewChronometricBtn')}
               </button>
             </div>
           )}
@@ -1928,9 +1928,9 @@ export default function GitCronPage() {
               setDetailsOpen(next);
               localStorage.setItem('gitcron:detailsOpen', String(next));
             }}
-            aria-label={detailsOpen ? 'Ocultar panel de detalles' : 'Mostrar panel de detalles'}
+            aria-label={detailsOpen ? t('toolbar.hideDetails') : t('toolbar.showDetails')}
             aria-pressed={detailsOpen}
-            title={detailsOpen ? 'Ocultar panel de detalles' : 'Mostrar panel de detalles'}
+            title={detailsOpen ? t('toolbar.hideDetails') : t('toolbar.showDetails')}
             className={cn(
               'h-9 w-9 shrink-0 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary',
               'flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
@@ -1965,7 +1965,7 @@ export default function GitCronPage() {
               <button
                 onClick={() => setFilterText('')}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors"
-                title="Limpiar filtro (Esc)"
+                title={t('toolbar.clearFilterTooltip')}
               >
                 <X size={14} />
               </button>
@@ -2033,7 +2033,7 @@ export default function GitCronPage() {
                         <button
                           onClick={handleCloseRepoChooser}
                           className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
-                          title="Volver al Repositorio"
+                          title={t('common.backToRepo')}
                         >
                           <ArrowLeft size={12} />
                         </button>
@@ -2243,7 +2243,7 @@ export default function GitCronPage() {
                     <button
                       onClick={() => handleViewChange('repository')}
                       className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
-                      title="Volver al Repositorio"
+                      title={t('common.backToRepo')}
                     >
                       <ArrowLeft size={12} />
                     </button>
@@ -2254,8 +2254,8 @@ export default function GitCronPage() {
                       { id: 'fontSize', label: t('settings.fontSize'), icon: <Type size={14} /> },
                       { id: 'defaultFolder', label: t('settings.defaultFolder'), icon: <Folder size={14} /> },
                       { id: 'theme', label: t('settings.theme'), icon: <Sparkles size={14} /> },
-                      { id: 'cronometric', label: 'Línea de Tiempo', icon: <Sparkles size={14} /> },
-                      { id: 'temporalAgent', label: 'Temporal Agent', icon: <Layers size={14} /> },
+                      { id: 'cronometric', label: t('settings.timeline'), icon: <Sparkles size={14} /> },
+                      { id: 'temporalAgent', label: t('settings.temporalAgent'), icon: <Layers size={14} /> },
                       { id: 'autoFetch', label: t('settings.autoFetch'), icon: <RotateCcw size={14} /> },
                       { id: 'osNotifications', label: t('settings.osNotifications'), icon: <AlertCircle size={14} /> },
                       { id: 'shortcuts', label: t('settings.shortcuts'), icon: <Type size={14} /> },
@@ -2296,20 +2296,20 @@ export default function GitCronPage() {
                     <button
                       onClick={() => handleViewChange('repository')}
                       className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
-                      title="Volver al Repositorio"
+                      title={t('common.backToRepo')}
                     >
                       <ArrowLeft size={12} />
                     </button>
                   </div>
                   <div className="py-2 space-y-0.5">
                     {[
-                      { id: 'whatis', label: '¿Qué es GitCron?', icon: <HelpCircle size={14} /> },
-                      { id: 'columns', label: 'Las 3 Columnas', icon: <Layers size={14} /> },
-                      { id: 'tabs', label: 'Las 3 Solapas', icon: <FileText size={14} /> },
-                      { id: 'states', label: 'Estados de Archivo', icon: <Sparkles size={14} /> },
-                      { id: 'buttons', label: 'Botones del Toolbar', icon: <Zap size={14} /> },
-                      { id: 'flow', label: 'Flujo Típico', icon: <RotateCcw size={14} /> },
-                      { id: 'security', label: 'Seguridad de Token', icon: <Lock size={14} /> },
+                      { id: 'whatis', label: t('page.help.whatis.title'), icon: <HelpCircle size={14} /> },
+                      { id: 'columns', label: t('page.help.columns.title'), icon: <Layers size={14} /> },
+                      { id: 'tabs', label: t('page.help.tabs.title'), icon: <FileText size={14} /> },
+                      { id: 'states', label: t('page.help.states.title'), icon: <Sparkles size={14} /> },
+                      { id: 'buttons', label: t('page.help.buttons.title'), icon: <Zap size={14} /> },
+                      { id: 'flow', label: t('page.help.flow.title'), icon: <RotateCcw size={14} /> },
+                      { id: 'security', label: t('page.help.security.title'), icon: <Lock size={14} /> },
                     ].map((item) => (
                       <button
                         key={item.id}
@@ -2344,7 +2344,7 @@ export default function GitCronPage() {
                     <button
                       onClick={() => handleViewChange('repository')}
                       className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
-                      title="Volver al Repositorio"
+                      title={t('common.backToRepo')}
                     >
                       <ArrowLeft size={12} />
                     </button>
@@ -2355,7 +2355,7 @@ export default function GitCronPage() {
                     >
                       <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />
                       <span className="shrink-0 text-secondary"><Github size={14} /></span>
-                      <span className="truncate">Cuenta GitHub</span>
+                      <span className="truncate">{t('profile.githubAccount')}</span>
                     </button>
                   </div>
                 </motion.div>
@@ -2487,7 +2487,7 @@ export default function GitCronPage() {
                     onClick={() => handleViewChange('repository')}
                     className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
                   >
-                    Volver al Repositorio
+                    {t('common.backToRepo')}
                   </button>
                 </div>
               </div>
@@ -2817,20 +2817,20 @@ export default function GitCronPage() {
                   <div className="flex min-w-0 items-center gap-2">
                     <HelpCircle size={18} className="text-secondary shrink-0" />
                     <h2 className="truncate text-base font-bold text-text-primary">
-                      {selectedHelpSection === 'whatis' && '¿Qué es GitCron?'}
-                      {selectedHelpSection === 'columns' && 'Las 3 Columnas'}
-                      {selectedHelpSection === 'tabs' && 'Las 3 Solapas'}
-                      {selectedHelpSection === 'states' && 'Estados de Archivo'}
-                      {selectedHelpSection === 'buttons' && 'Botones del Toolbar'}
-                      {selectedHelpSection === 'flow' && 'Flujo Típico (de cero a push)'}
-                      {selectedHelpSection === 'security' && 'Seguridad de tu Token'}
+                      {selectedHelpSection === 'whatis' && t('page.help.whatis.title')}
+                      {selectedHelpSection === 'columns' && t('page.help.columns.title')}
+                      {selectedHelpSection === 'tabs' && t('page.help.tabs.title')}
+                      {selectedHelpSection === 'states' && t('page.help.states.title')}
+                      {selectedHelpSection === 'buttons' && t('page.help.buttons.title')}
+                      {selectedHelpSection === 'flow' && t('page.help.flow.title')}
+                      {selectedHelpSection === 'security' && t('page.help.security.title')}
                     </h2>
                   </div>
                   <button
                     onClick={() => handleViewChange('repository')}
                     className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
                   >
-                    Volver al Repositorio
+                    {t('common.backToRepo')}
                   </button>
                 </div>
               </div>
@@ -2846,22 +2846,22 @@ export default function GitCronPage() {
                       className="space-y-4"
                     >
                     {selectedHelpSection === 'whatis' && (
-                      <p className="text-text-secondary">Cliente git visual estilo GitKraken. Te muestra tus commits como un grafo con branches que se ramifican, y te deja stagear, commitear, hacer push/pull sin escribir comandos en la terminal.</p>
+                      <p className="text-text-secondary">{t('page.help.whatis.desc')}</p>
                     )}
 
                     {selectedHelpSection === 'columns' && (
                       <div className="space-y-4">
                         <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Izquierda — Sidebar</span>
-                          <span>Branches locales y remotas, stashes, tags, submódulos. Click en una branch local hace checkout. El verde indica la branch activa.</span>
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.columns.sidebarTitle')}</span>
+                          <span>{t('page.help.columns.sidebarDesc')}</span>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Centro — Contenido</span>
-                          <span>Cambia según la solapa que tengas activa. También se transforma en visor de diff cuando hacés click en un archivo de la derecha.</span>
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.columns.centerTitle')}</span>
+                          <span>{t('page.help.columns.centerDesc')}</span>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Derecha — Workspace</span>
-                          <span>Si estás navegando commits → muestra detalles y archivos del commit. Si no → muestra tu working tree dividido en <strong>Unstaged</strong> arriba y <strong>Staged</strong> abajo.</span>
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.columns.rightTitle')}</span>
+                          <span>{t('page.help.columns.rightDesc')}</span>
                         </div>
                       </div>
                     )}
@@ -2869,29 +2869,29 @@ export default function GitCronPage() {
                     {selectedHelpSection === 'tabs' && (
                       <div className="space-y-4">
                         <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Commit</span>
-                          <span>Modo &quot;vamos a commitear&quot;. Muestra un resumen del workspace con stats y el flujo paso a paso.</span>
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.tabs.commitTitle')}</span>
+                          <span>{t('page.help.tabs.commitDesc')}</span>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Graph (default)</span>
-                          <span>Vista visual del historial. Cada commit es un punto, las branches son líneas verticales de colores.</span>
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.tabs.graphTitle')}</span>
+                          <span>{t('page.help.tabs.graphDesc')}</span>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">History</span>
-                          <span>Lista cronológica plana de todos los commits (sin SVG). Más cómoda para leer mensajes largos.</span>
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.tabs.historyTitle')}</span>
+                          <span>{t('page.help.tabs.historyDesc')}</span>
                         </div>
                       </div>
                     )}
 
                     {selectedHelpSection === 'states' && (
                       <div className="space-y-4">
-                        <p className="text-xs text-text-secondary/70 mb-2">Letras de estado que aparecen al lado de cada archivo:</p>
+                        <p className="text-xs text-text-secondary/70 mb-2">{t('page.help.states.intro')}</p>
                         <div className="grid grid-cols-2 gap-3 bg-bg-base/40 p-4 rounded-xl border border-border-subtle/15">
-                          <StatusBadge label="Modified — cambios sin commitear" count={0} color="var(--color-git-mod)" letter="M" />
-                          <StatusBadge label="Added — nuevo y staged" count={0} color="var(--color-git-add)" letter="A" />
-                          <StatusBadge label="Deleted — borrado" count={0} color="var(--color-git-delete)" letter="D" />
-                          <StatusBadge label="Untracked — git no lo conoce" count={0} color="var(--color-text-secondary)" letter="U" />
-                          <StatusBadge label="Renamed — renombrado" count={0} color="var(--color-primary)" letter="R" />
+                          <StatusBadge label={t('page.help.states.modified')} count={0} color="var(--color-git-mod)" letter="M" />
+                          <StatusBadge label={t('page.help.states.added')} count={0} color="var(--color-git-add)" letter="A" />
+                          <StatusBadge label={t('page.help.states.deleted')} count={0} color="var(--color-git-delete)" letter="D" />
+                          <StatusBadge label={t('page.help.states.untracked')} count={0} color="var(--color-text-secondary)" letter="U" />
+                          <StatusBadge label={t('page.help.states.renamed')} count={0} color="var(--color-primary)" letter="R" />
                         </div>
                       </div>
                     )}
@@ -2899,24 +2899,24 @@ export default function GitCronPage() {
                     {selectedHelpSection === 'buttons' && (
                       <div className="space-y-4">
                         <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Pull (↓)</span>
-                          <span>Baja commits del repo remoto a tu local.</span>
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.buttons.pullTitle')}</span>
+                          <span>{t('page.help.buttons.pullDesc')}</span>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Push (↑)</span>
-                          <span>Sube tus commits locales al repo remoto (GitHub).</span>
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.buttons.pushTitle')}</span>
+                          <span>{t('page.help.buttons.pushDesc')}</span>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Branch</span>
-                          <span>Crea una branch nueva.</span>
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.buttons.branchTitle')}</span>
+                          <span>{t('page.help.buttons.branchDesc')}</span>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Stash</span>
-                          <span>Guarda tus cambios actuales en una &quot;pila&quot; temporal.</span>
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.buttons.stashTitle')}</span>
+                          <span>{t('page.help.buttons.stashDesc')}</span>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">Terminal</span>
-                          <span>Abre la terminal en la carpeta del repo.</span>
+                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.buttons.terminalTitle')}</span>
+                          <span>{t('page.help.buttons.terminalDesc')}</span>
                         </div>
                       </div>
                     )}
@@ -2926,38 +2926,38 @@ export default function GitCronPage() {
                         <ol className="space-y-3 font-semibold text-text-primary text-xs">
                           <li className="flex items-center gap-2">
                             <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">1</span>
-                            <span>Abrí o creá un repo desde el empty state</span>
+                            <span>{t('page.help.flow.step1')}</span>
                           </li>
                           <li className="flex items-center gap-2">
                             <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">2</span>
-                            <span>(Opcional) Conectá tu cuenta de GitHub en la sección de Perfil</span>
+                            <span>{t('page.help.flow.step2')}</span>
                           </li>
                           <li className="flex items-center gap-2">
                             <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">3</span>
-                            <span>Modificá archivos en tu editor</span>
+                            <span>{t('page.help.flow.step3')}</span>
                           </li>
                           <li className="flex items-center gap-2">
                             <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">4</span>
-                            <span>En GitCron click + en cada archivo que querés incluir en la derecha</span>
+                            <span>{t('page.help.flow.step4')}</span>
                           </li>
                           <li className="flex items-center gap-2">
                             <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">5</span>
-                            <span>Escribí un mensaje en la caja de abajo a la derecha</span>
+                            <span>{t('page.help.flow.step5')}</span>
                           </li>
                           <li className="flex items-center gap-2">
                             <span className="w-5 h-5 rounded-full bg-secondary text-[#052900] flex items-center justify-center">✓</span>
-                            <span>Click <strong className="text-secondary">Commit Changes</strong></span>
+                            <span>Click <strong className="text-secondary">{t('page.help.flow.step6')}</strong></span>
                           </li>
                           <li className="flex items-center gap-2">
                             <span className="w-5 h-5 rounded-full bg-secondary text-[#052900] flex items-center justify-center">✓</span>
-                            <span>Click <strong className="text-secondary">Push</strong> para subirlo a GitHub</span>
+                            <span>Click <strong className="text-secondary">{t('page.help.flow.step7')}</strong></span>
                           </li>
                         </ol>
                       </div>
                     )}
 
                     {selectedHelpSection === 'security' && (
-                      <p className="text-text-secondary leading-relaxed">Tu access token se guarda <strong>encriptado</strong> por el sistema operativo (Windows DPAPI / macOS Keychain). Al hacer push/pull, el token NUNCA se escribe en el <code className="bg-bg-base px-1 rounded text-xs">.git/config</code> del repo.</p>
+                      <p className="text-text-secondary leading-relaxed">{t('page.help.security.desc')}</p>
                     )}
                     </motion.div>
                   </AnimatePresence>
@@ -2978,7 +2978,7 @@ export default function GitCronPage() {
                     onClick={() => handleViewChange('repository')}
                     className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
                   >
-                    Volver al Repositorio
+                    {t('common.backToRepo')}
                   </button>
                 </div>
               </div>
@@ -3065,7 +3065,7 @@ export default function GitCronPage() {
                       onClick={handleCloseRepoChooser}
                       className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
                     >
-                      Volver al Repositorio
+                      {t('common.backToRepo')}
                     </button>
                   )}
                 </div>
@@ -3439,16 +3439,16 @@ export default function GitCronPage() {
                                   ? 'bg-[#5ed8ff]/15 text-[#5ed8ff] border-[#5ed8ff]/50'
                                   : 'bg-bg-overlay/60 text-text-secondary border-text-primary/15 hover:text-[#5ed8ff] hover:border-[#5ed8ff]/40',
                               )}
-                              title="Mostrar / ocultar futuros especulativos del Temporal Agent"
+                              title={t('centauro.futurosTooltip')}
                             >
-                              {showSpeculative ? 'FUTUROS: ON' : 'FUTUROS: OFF'}
+                              {showSpeculative ? t('centauro.futurosOn') : t('centauro.futurosOff')}
                             </button>
                             {speculativeAt && (
                               <span
                                 className="px-2 py-1 rounded bg-bg-overlay/50 text-[10px] font-mono text-text-secondary/80 border border-text-primary/10"
                                 title={new Date(speculativeAt).toLocaleString()}
                               >
-                                última predicción: {new Date(speculativeAt).toLocaleString()}
+                                {t('centauro.lastPrediction', { date: new Date(speculativeAt).toLocaleString() })}
                               </span>
                             )}
                           </div>
@@ -3515,14 +3515,14 @@ export default function GitCronPage() {
               {/* Header bar: matches Unstaged header exactly in size, padding and font */}
               <div className="px-4 py-2 border-b border-border-subtle/15 bg-bg-surface/75 flex items-center justify-between shrink-0">
                 <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
-                  Detalles del commit
+                  {t('commit.detailsTitle')}
                 </span>
                 <button
                   onClick={() => setSelectedCommit(null)}
                   className="text-[10px] text-text-secondary hover:text-[#052900] px-2 py-0.5 rounded border border-border-subtle/15 hover:bg-secondary hover:border-secondary/40 transition-colors"
-                  title="Ir al staging area"
+                  title={t('commit.goToStagingTooltip')}
                 >
-                  Ver cambios →
+                  {t('commit.viewChangesBtn')}
                 </button>
               </div>
               {/* WIP banner: visible when commit is selected but there are unsaved changes */}
@@ -3530,13 +3530,13 @@ export default function GitCronPage() {
                 <div className="px-3 py-2 bg-git-mod/10 border-b border-git-mod/20 flex items-center gap-2 shrink-0">
                   <Archive size={13} className="text-git-mod shrink-0" />
                   <span className="text-[11px] text-text-primary flex-1">
-                    {modifiedFiles.length} cambio{modifiedFiles.length !== 1 ? 's' : ''} sin commitear
+                    {t('commit.unstagedChangesCount', { count: modifiedFiles.length })}
                   </span>
                   <button
                     onClick={stashChanges}
                     disabled={isLoading}
                     className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded border border-git-mod/40 transition-colors disabled:opacity-50"
-                    title="Guardar los cambios actuales en el stash"
+                    title={t('commit.stashTooltip')}
                   >
                     Stash
                   </button>
@@ -3546,7 +3546,7 @@ export default function GitCronPage() {
                 <div className="flex justify-between items-start mb-2">
                   <div className="text-[12px] font-mono text-secondary select-text">commit: {selectedCommit.shortHash}</div>
                   <button className="flex items-center gap-1.5 px-2 py-1 rounded bg-border-subtle text-xs hover:bg-bg-surface/70 transition-colors">
-                    <Zap size={12} className="text-git-mod" /> Explain
+                    <Zap size={12} className="text-git-mod" /> {t('commit.explainBtn')}
                   </button>
                 </div>
                 <h2 className="font-semibold mb-1 select-text">{selectedCommit.message}</h2>
@@ -3566,8 +3566,8 @@ export default function GitCronPage() {
                 <div className="px-4 py-2 border-b border-border-subtle/15 flex justify-between items-center bg-bg-surface/75">
                   <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
                     {commitFilesLoading
-                      ? 'Cargando archivos...'
-                      : `Changed files (${commitFiles.length})`}
+                      ? t('commit.loadingFiles')
+                      : t('commit.changedFilesCount', { count: commitFiles.length })}
                   </span>
                 </div>
                 <div className="p-1">
@@ -3606,7 +3606,7 @@ export default function GitCronPage() {
                     </button>
                   ))}
                   {!commitFilesLoading && commitFiles.length === 0 && (
-                    <p className="px-4 py-4 text-xs text-text-secondary/70 text-center">Sin archivos en este commit</p>
+                    <p className="px-4 py-4 text-xs text-text-secondary/70 text-center">{t('commit.noFiles')}</p>
                   )}
                 </div>
               </div>
@@ -3614,7 +3614,7 @@ export default function GitCronPage() {
               <div className="p-4 border-t border-border-subtle/15 bg-bg-surface/75">
                 <textarea
                   className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-24 focus:outline-none focus:border-secondary/30 resize-none"
-                  placeholder="Mensaje del commit (requerido)"
+                  placeholder={t('staging.commitMsgPlaceholder')}
                   value={commitMessage}
                   onChange={(e) => setCommitMessage(e.target.value)}
                 />
@@ -3624,8 +3624,8 @@ export default function GitCronPage() {
                   className="w-full mt-3 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold text-[#052900] rounded transition-colors shadow-lg shadow-secondary/20"
                 >
                   {isLoading
-                    ? 'Commiteando...'
-                    : `Commit (${modifiedFiles.filter((f) => f.staged).length} staged)`}
+                    ? t('staging.committingState')
+                    : t('staging.commitWithCountBtn', { count: modifiedFiles.filter((f) => f.staged).length })}
                 </button>
               </div>
             </div>
@@ -3746,15 +3746,15 @@ export default function GitCronPage() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[#ffd98a] leading-tight">
                 {pullDecision.mode === 'diverged'
-                  ? `"${pullDecision.branch}" tiene cambios locales y remotos`
-                  : `"${pullDecision.branch}" tiene cambios remotos pendientes`}
+                  ? t('pullDecision.divergedTitle', { branch: pullDecision.branch })
+                  : t('pullDecision.behindTitle', { branch: pullDecision.branch })}
               </p>
               <p className="text-xs text-text-secondary mt-0.5 leading-snug">
                 {pullDecision.mode === 'diverged'
                   ? pullDecision.source === 'push'
-                    ? `Push pausado: primero integrá ${pullDecision.behind} remoto${pullDecision.behind === 1 ? '' : 's'} con tus ${pullDecision.ahead} local${pullDecision.ahead === 1 ? '' : 'es'}.`
-                    : `Hay ${pullDecision.behind} remoto${pullDecision.behind === 1 ? '' : 's'} y ${pullDecision.ahead} local${pullDecision.ahead === 1 ? '' : 'es'} por combinar.`
-                  : `Traé ${pullDecision.behind} commit${pullDecision.behind === 1 ? '' : 's'} sin crear un commit extra.`}
+                    ? t('pullDecision.divergedPushDesc', { behind: pullDecision.behind, ahead: pullDecision.ahead })
+                    : t('pullDecision.divergedPullDesc', { behind: pullDecision.behind, ahead: pullDecision.ahead })
+                  : t('pullDecision.behindDesc', { behind: pullDecision.behind })}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -3763,9 +3763,9 @@ export default function GitCronPage() {
                   type="button"
                   onClick={() => void handlePullDecision('ff-only')}
                   className="px-3 py-1.5 text-xs font-bold bg-secondary/20 hover:bg-secondary/30 text-secondary rounded transition-colors whitespace-nowrap"
-                  title="Trae los commits remotos sin crear un commit de merge"
+                  title={t('pullDecision.ffTooltip')}
                 >
-                  Fast-forward
+                  {t('pullDecision.ffBtn')}
                 </button>
               )}
               {pullDecision.mode === 'diverged' && (
@@ -3773,18 +3773,18 @@ export default function GitCronPage() {
                   type="button"
                   onClick={() => void handlePullDecision('rebase')}
                   className="px-3 py-1.5 text-xs font-bold bg-secondary/20 hover:bg-secondary/30 text-secondary rounded transition-colors whitespace-nowrap"
-                  title="Recomendado: trae lo remoto y reaplica tus commits locales arriba"
+                  title={t('pullDecision.rebaseTooltip')}
                 >
-                  Pull con rebase
+                  {t('pullDecision.rebaseBtn')}
                 </button>
               )}
               <button
                 type="button"
                 onClick={() => void handlePullDecision('merge')}
                 className="px-3 py-1.5 text-xs font-bold bg-[#f4b942]/15 hover:bg-[#f4b942]/25 text-[#ffd98a] rounded transition-colors whitespace-nowrap"
-                title="Trae lo remoto creando un commit de merge si hace falta"
+                title={t('pullDecision.mergeTooltip')}
               >
-                Pull con merge
+                {t('pullDecision.mergeBtn')}
               </button>
             </div>
             <button onClick={() => setPullDecision(null)} className="hover:opacity-70 shrink-0 text-[#ffd98a]">
@@ -3847,12 +3847,12 @@ export default function GitCronPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-secondary flex items-center gap-2"><GitBranch size={16} /> Nueva Branch</h3>
+                <h3 className="font-bold text-secondary flex items-center gap-2"><GitBranch size={16} /> {t('newBranch.title')}</h3>
                 <button onClick={() => setShowNewBranch(false)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
               </div>
               {newBranchFrom && (
                 <p className="text-xs text-text-secondary mb-3">
-                  Desde commit: <span className="font-mono text-secondary">{newBranchFrom.slice(0, 7)}</span>
+                  {t('newBranch.fromCommit')} <span className="font-mono text-secondary">{newBranchFrom.slice(0, 7)}</span>
                 </p>
               )}
               <input
@@ -3860,7 +3860,7 @@ export default function GitCronPage() {
                 value={newBranchName}
                 onChange={(e) => setNewBranchName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreateBranch(); if (e.key === 'Escape') setShowNewBranch(false); }}
-                placeholder="feature/mi-nueva-feature"
+                placeholder={t('newBranch.namePlaceholder')}
                 className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50 mb-4"
               />
               <div className="flex gap-2 justify-end">
@@ -3870,7 +3870,7 @@ export default function GitCronPage() {
                   disabled={!newBranchName.trim() || isLoading}
                   className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
                 >
-                  <Plus size={14} className="inline mr-1" /> Crear
+                  <Plus size={14} className="inline mr-1" /> {t('modal.create')}
                 </button>
               </div>
             </motion.div>
@@ -3932,11 +3932,9 @@ export default function GitCronPage() {
               <div className="flex items-start gap-3 mb-4">
                 <GitMerge size={22} className="text-secondary shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-bold text-text-primary mb-1">Cambiar a {mergeNeedsCheckout.targetBranch} para mergear</h3>
+                  <h3 className="font-bold text-text-primary mb-1">{t('mergeCheckout.title', { branch: mergeNeedsCheckout.targetBranch })}</h3>
                   <p className="text-sm text-text-secondary leading-relaxed">
-                    Para mergear <code className="text-secondary bg-bg-base px-1 rounded">{mergeNeedsCheckout.sourceBranch}</code> en{' '}
-                    <code className="text-secondary bg-bg-base px-1 rounded">{mergeNeedsCheckout.targetBranch}</code>,
-                    primero hay que estar en esa branch.
+                    {t('mergeCheckout.desc', { src: mergeNeedsCheckout.sourceBranch, dst: mergeNeedsCheckout.targetBranch })}
                   </p>
                 </div>
               </div>
@@ -3945,7 +3943,7 @@ export default function GitCronPage() {
                   onClick={() => setMergeNeedsCheckout(null)}
                   className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
                 >
-                  Cancelar
+                  {t('modal.cancel')}
                 </button>
                 <button
                   onClick={async () => {
@@ -3962,7 +3960,7 @@ export default function GitCronPage() {
                   className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
                 >
                   <GitMerge size={14} />
-                  Checkout {mergeNeedsCheckout.targetBranch} y mergear
+                  {t('mergeCheckout.button', { branch: mergeNeedsCheckout.targetBranch })}
                 </button>
               </div>
             </motion.div>
@@ -3984,17 +3982,17 @@ export default function GitCronPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-secondary flex items-center gap-2"><GitBranch size={16} /> Renombrar branch</h3>
+                <h3 className="font-bold text-secondary flex items-center gap-2"><GitBranch size={16} /> {t('rename.title')}</h3>
                 <button onClick={() => setRenameModal(null)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
               </div>
-              <p className="text-xs text-text-secondary mb-2">Renombrando:</p>
+              <p className="text-xs text-text-secondary mb-2">{t('rename.renaming')}</p>
               <p className="text-sm text-text-primary font-mono bg-bg-base px-3 py-1.5 rounded mb-3">{renameModal.oldName}</p>
               <input
                 autoFocus
                 value={renameModal.newName}
                 onChange={(e) => setRenameModal({ ...renameModal, newName: e.target.value })}
                 onKeyDown={(e) => { if (e.key === 'Escape') setRenameModal(null); }}
-                placeholder="nuevo-nombre"
+                placeholder={t('rename.newName')}
                 className="w-full bg-bg-base border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50 mb-4"
               />
               <div className="flex gap-2 justify-end">
@@ -4009,7 +4007,7 @@ export default function GitCronPage() {
                   disabled={!renameModal.newName.trim() || renameModal.newName === renameModal.oldName || isLoading}
                   className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
                 >
-                  Renombrar
+                  {t('rename.button')}
                 </button>
               </div>
             </motion.div>
@@ -4033,14 +4031,13 @@ export default function GitCronPage() {
               <div className="flex items-start gap-3 mb-4">
                 <Trash2 size={20} className="text-error shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-bold text-text-primary mb-1">Eliminar branch</h3>
+                  <h3 className="font-bold text-text-primary mb-1">{t('deleteBranch.title')}</h3>
                   <p className="text-sm text-text-secondary">
-                    ¿Eliminar <code className="text-secondary bg-bg-base px-1 rounded">{deleteConfirm.branch}</code>?
+                    {t('deleteBranch.confirm', { branch: deleteConfirm.branch })}
                   </p>
                   {deleteConfirm.notMerged && (
                     <p className="text-xs text-git-mod mt-2 leading-relaxed">
-                      ⚠ Esta branch tiene commits que no fueron mergeados a ninguna otra branch.
-                      Si la borrás, esos commits se pierden (a menos que recuperes via reflog).
+                      {t('deleteBranch.notMergedWarning')}
                     </p>
                   )}
                 </div>
@@ -4062,7 +4059,7 @@ export default function GitCronPage() {
                   disabled={isLoading}
                   className="px-4 py-2 bg-error hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
                 >
-                  {deleteConfirm.notMerged ? 'Forzar eliminación' : 'Eliminar'}
+                  {deleteConfirm.notMerged ? t('deleteBranch.force') : t('deleteBranch.delete')}
                 </button>
               </div>
             </motion.div>
@@ -4091,16 +4088,16 @@ export default function GitCronPage() {
                   <AlertCircle size={24} />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-extrabold text-lg text-[#ffdad6] mb-2 tracking-tight">Sobreescribir repositorio remoto</h3>
+                  <h3 className="font-extrabold text-lg text-[#ffdad6] mb-2 tracking-tight">{t('page.modals.forcePush.title')}</h3>
                   <p className="text-sm text-[#ccdbe8] leading-relaxed mb-3">
-                    El repositorio remoto en GitHub ya contiene commits. ¿Quieres realizar un <strong className="text-[#ff8b87] font-semibold">Force Push</strong> para sobreescribir la historia remota con tus archivos locales?
+                    {t('page.modals.forcePush.desc')}
                   </p>
                   <div className="bg-bg-base/80 border border-border-subtle/25 rounded-xl p-3 mb-1">
                     <p className="text-[11px] text-[#ff8b87] uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5">
-                      ⚠️ Advertencia crítica
+                      {t('page.modals.forcePush.warningTitle')}
                     </p>
                     <p className="text-xs text-text-secondary leading-relaxed">
-                      Esta acción reemplazará de forma permanente todos los archivos del repositorio en GitHub con el contenido de tu carpeta local. No podrás recuperar los commits previos del remoto.
+                      {t('page.modals.forcePush.warningDesc')}
                     </p>
                   </div>
                 </div>
@@ -4113,7 +4110,7 @@ export default function GitCronPage() {
                   }}
                   className="px-5 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-[#1a2e44]/50 rounded-xl transition duration-200"
                 >
-                  Cancelar
+                  {t('modal.cancel')}
                 </button>
                 <button
                   onClick={() => {
@@ -4122,7 +4119,7 @@ export default function GitCronPage() {
                   }}
                   className="px-5 py-2.5 bg-gradient-to-br from-[#ff8b87] to-[#d63a35] hover:from-[#ff9f9c] hover:to-[#e64742] shadow-lg shadow-[#d63a35]/20 text-[#fff0ef] text-sm font-bold rounded-xl transition duration-200"
                 >
-                  Forzar subida (Force Push)
+                  {t('page.modals.forcePush.confirmBtn')}
                 </button>
               </div>
             </motion.div>
@@ -4146,10 +4143,9 @@ export default function GitCronPage() {
               <div className="flex items-start gap-3 mb-4">
                 <AlertCircle size={22} className="text-git-mod shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-bold text-text-primary mb-1">Cambios sin commitear</h3>
+                  <h3 className="font-bold text-text-primary mb-1">{t('checkoutConflict.title')}</h3>
                   <p className="text-sm text-text-secondary leading-relaxed">
-                    No se puede pasar a <code className="text-secondary bg-bg-base px-1 rounded">{checkoutConflict.branch}</code>{' '}
-                    porque tenés cambios que serían sobrescritos. ¿Qué hacés?
+                    {t('checkoutConflict.desc', { branch: checkoutConflict.branch })}
                   </p>
                 </div>
               </div>
@@ -4163,7 +4159,7 @@ export default function GitCronPage() {
                   onClick={() => setCheckoutConflict(null)}
                   className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
                 >
-                  Cancelar
+                  {t('modal.cancel')}
                 </button>
                 <button
                   onClick={async () => {
@@ -4175,12 +4171,11 @@ export default function GitCronPage() {
                   className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
                 >
                   <Archive size={14} />
-                  Stash y cambiar
+                  {t('checkoutConflict.stashAndSwitch')}
                 </button>
               </div>
               <p className="text-[10px] text-text-secondary/70 mt-3 text-center">
-                &quot;Stash y cambiar&quot; guarda tus cambios actuales en la pila de stash y hace el checkout.
-                Después podés recuperarlos desde la sección STASH.
+                {t('checkoutConflict.stashAndSwitchDesc')}
               </p>
             </motion.div>
           </motion.div>
@@ -4247,7 +4242,7 @@ export default function GitCronPage() {
                     {t('amend.currentMessage')}
                   </label>
                   <div className="bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-secondary font-mono whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
-                    {commits[0]?.message || '(sin commits)'}
+                    {commits[0]?.message || t('graph.noCommits')}
                   </div>
                 </div>
                 <div>
@@ -4296,16 +4291,16 @@ export default function GitCronPage() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="glass-overlay rounded-xl shadow-2xl p-6 w-[580px]" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-git-mod flex items-center gap-2 text-base">
-                  <Layers size={16} /> Combinar últimos commits (Squash)
+                  <Layers size={16} /> {t('page.modals.squash.title')}
                 </h3>
                 <button onClick={() => setShowSquash(false)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
               </div>
               <div className="bg-git-mod/10 border border-git-mod/30 rounded p-2 text-xs text-[#ffd89e] mb-4">
-                ⚠ Si ya pusheaste alguno de estos commits al remoto, vas a necesitar un force-push después. No hagas squash de commits compartidos con otros.
+                {t('page.modals.squash.warning')}
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-text-secondary block mb-2">Combinar los últimos</label>
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-text-secondary block mb-2">{t('page.modals.squash.lastCommits')}</label>
                   <div className="flex gap-2">
                     {[2, 3, 4, 5].map((n) => (
                       <button key={n} onClick={() => setSquashN(n)} className={cn('flex-1 py-2 rounded border text-sm font-bold transition-colors', squashN === n ? 'bg-git-mod/15 border-[#fd9d1a]/50 text-git-mod' : 'bg-bg-base/70 border-border-subtle/30 text-text-secondary hover:text-text-primary')}>
@@ -4323,7 +4318,7 @@ export default function GitCronPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider font-bold text-text-secondary block mb-1">Nuevo mensaje del commit</label>
+                  <label className="text-[10px] uppercase tracking-wider font-bold text-text-secondary block mb-1">{t('page.modals.squash.newMessage')}</label>
                   <textarea
                     autoFocus
                     value={squashMessage}
@@ -4343,10 +4338,10 @@ export default function GitCronPage() {
                   disabled={isLoading || !repoPath || commits.length < 2}
                   className="flex-1 py-2 bg-gradient-to-br from-[#fd9d1a] to-[#c87d10] hover:from-[#feab33] hover:to-[#d68f1f] disabled:opacity-40 text-sm font-bold text-[#2a1500] rounded transition-colors"
                 >
-                  {isLoading ? '...' : `Combinar ${squashN} commits`}
+                  {isLoading ? '...' : t('page.modals.squash.button', { n: squashN })}
                 </button>
                 <button onClick={() => { setShowSquash(false); setSquashMessage(''); setSquashN(2); }} className="px-4 py-2 bg-bg-base/70 border border-border-subtle/30 hover:text-text-primary text-sm text-text-secondary rounded transition-colors">
-                  Cancelar
+                  {t('modal.cancel')}
                 </button>
               </div>
             </motion.div>
@@ -4850,6 +4845,7 @@ function StagingPanel({
   onFileContextMenu: (e: React.MouseEvent, file: GitFile) => void;
   onRequestResetAll: () => void;
 }) {
+  const t = useT();
   const unstaged = files.filter((f) => !f.staged);
   const staged = files.filter((f) => f.staged);
 
@@ -4862,7 +4858,7 @@ function StagingPanel({
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-text-secondary text-sm">
         <GitBranch size={32} className="mx-auto mb-3 opacity-30" />
-        Abrí un repo para ver los cambios
+        {t('staging.openRepoPrompt')}
       </div>
     );
   }
@@ -4873,14 +4869,14 @@ function StagingPanel({
       <div className="flex flex-col min-h-0 flex-1">
         <div className="px-4 py-2 border-b border-border-subtle/15 bg-bg-surface/75 flex items-center justify-between shrink-0">
           <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
-            Unstaged ({unstaged.length})
+            {t('staging.unstagedTitle')} ({unstaged.length})
           </span>
           <div className="flex items-center gap-2">
             {files.length > 0 && (
               <button
                 onClick={onRequestResetAll}
                 className="p-1 text-text-secondary hover:text-error hover:bg-error/10 rounded transition-colors"
-                title="Descartar TODOS los cambios (reset --hard)"
+                title={t('staging.discardAllTooltip')}
               >
                 <Trash2 size={12} />
               </button>
@@ -4890,14 +4886,14 @@ function StagingPanel({
                 onClick={stageAll}
                 className="text-[10px] text-secondary hover:text-[#052900] px-2 py-0.5 rounded border border-secondary/40 hover:bg-secondary transition-colors"
               >
-                Stage all
+                {t('staging.stageAllBtn')}
               </button>
             )}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto min-h-0">
           {unstaged.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-text-secondary/70 italic">No hay cambios sin stagear</p>
+            <p className="px-4 py-3 text-xs text-text-secondary/70 italic">{t('staging.noUnstagedChanges')}</p>
           ) : (
             <div className="p-1">
               {unstaged.map((file) => (
@@ -4921,20 +4917,20 @@ function StagingPanel({
       <div className="flex flex-col min-h-0 flex-1 border-t-2 border-secondary/30">
         <div className="px-4 py-2 border-b border-border-subtle/15 bg-[#052900] flex items-center justify-between shrink-0">
           <span className="text-[11px] font-bold text-secondary uppercase tracking-wider">
-            Staged ({staged.length})
+            {t('staging.stagedTitle')} ({staged.length})
           </span>
           {staged.length > 0 && (
             <button
               onClick={unstageAll}
               className="text-[10px] text-text-secondary hover:text-[#020f1e] px-2 py-0.5 rounded border border-[#9eacc0]/40 hover:bg-[#9eacc0] transition-colors"
             >
-              Unstage all
+              {t('staging.unstageAllBtn')}
             </button>
           )}
         </div>
         <div className="flex-1 overflow-y-auto min-h-0">
           {staged.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-text-secondary/70 italic">Stagea archivos para incluir en el commit</p>
+            <p className="px-4 py-3 text-xs text-text-secondary/70 italic">{t('staging.noStagedChanges')}</p>
           ) : (
             <div className="p-1">
               {staged.map((file) => (
@@ -4958,7 +4954,7 @@ function StagingPanel({
       <div className="p-3 border-t border-border-subtle/15 bg-bg-surface/75 shrink-0">
         <textarea
           className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-16 focus:outline-none focus:border-secondary/30 resize-none"
-          placeholder="Mensaje del commit (requerido)"
+          placeholder={t('staging.commitMsgPlaceholder')}
           value={commitMessage}
           onChange={(e) => setCommitMessage(e.target.value)}
         />
@@ -4968,25 +4964,29 @@ function StagingPanel({
             disabled={isLoading || !commitMessage.trim() || staged.length === 0}
             className="flex-1 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-[#052900] rounded transition-colors"
           >
-            {isLoading ? 'Commiteando...' : `Commit ${staged.length > 0 ? ` (${staged.length})` : ''}`}
+            {isLoading
+              ? t('staging.committingState')
+              : staged.length > 0
+                ? t('staging.commitWithCountBtn', { count: staged.length })
+                : t('staging.commitBtn')}
           </button>
           <button
             onClick={onRequestAmend}
             disabled={isLoading || !repoPath}
-            title="Enmendar el último commit"
+            title={t('staging.amendTooltip')}
             className="px-3 py-2 bg-bg-base/70 border border-border-subtle/30 hover:border-[#fd9d1a]/50 hover:text-git-mod disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium text-text-secondary rounded transition-colors flex items-center gap-1"
           >
             <RotateCcw size={12} />
-            Amend
+            {t('staging.amendBtn')}
           </button>
           <button
             onClick={onRequestSquash}
             disabled={isLoading || !repoPath}
-            title="Combinar los últimos N commits en uno (Squash)"
+            title={t('staging.squashTooltip')}
             className="px-3 py-2 bg-bg-base/70 border border-border-subtle/30 hover:border-[#fd9d1a]/50 hover:text-git-mod disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium text-text-secondary rounded transition-colors flex items-center gap-1"
           >
             <Layers size={12} />
-            Squash
+            {t('staging.squashBtn')}
           </button>
         </div>
       </div>
@@ -5005,6 +5005,7 @@ function StagingFileRow({
   onDiscard: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
 }) {
+  const t = useT();
   const [isHovered, setIsHovered] = useState(false);
   return (
     <div
@@ -5019,7 +5020,7 @@ function StagingFileRow({
     >
       <button
         onClick={(e) => { e.stopPropagation(); onAction(); }}
-        title={direction === 'stage' ? 'Stage este archivo' : 'Unstage este archivo'}
+        title={direction === 'stage' ? t('staging.stageFileTooltip') : t('staging.unstageFileTooltip')}
         className={cn(
           'p-1 rounded shrink-0 transition-colors',
           direction === 'stage'
@@ -5046,7 +5047,7 @@ function StagingFileRow({
         <button
           onClick={(e) => { e.stopPropagation(); onDiscard(); }}
           className="p-1 hover:text-error text-text-secondary shrink-0"
-          title="Descartar cambios"
+          title={t('staging.discardFileTooltip')}
         >
           <Trash2 size={12} />
         </button>
@@ -5178,6 +5179,7 @@ function HistoryView({
 function CommitTabView({
   modifiedFiles, hasGithubUser,
 }: { modifiedFiles: GitFile[]; hasGithubUser: boolean }) {
+  const t = useT();
   const unstaged = modifiedFiles.filter((f) => !f.staged);
   const staged = modifiedFiles.filter((f) => f.staged);
 
@@ -5188,10 +5190,9 @@ function CommitTabView({
     <div className="flex-1 overflow-y-auto p-8">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-text-primary mb-2">Workspace</h2>
+          <h2 className="text-xl font-bold text-text-primary mb-2">{t('commitTab.pageTitle')}</h2>
           <p className="text-sm text-text-secondary">
-            Resumen de lo que tenés sin commitear. Hacé clic en cualquier archivo de la columna derecha
-            para ver su diff con colores acá en el centro.
+            {t('commitTab.introText')}
           </p>
         </div>
 
@@ -5200,39 +5201,37 @@ function CommitTabView({
             <div className="w-16 h-16 rounded-full bg-secondary/10 flex items-center justify-center mx-auto mb-4">
               <FileText size={28} className="text-secondary" />
             </div>
-            <p className="text-base font-semibold text-text-primary mb-1">Working tree limpio</p>
-            <p className="text-sm text-text-secondary">No hay cambios sin commitear.</p>
+            <p className="text-base font-semibold text-text-primary mb-1">{t('commitTab.cleanWorkspace')}</p>
+            <p className="text-sm text-text-secondary">{t('commitTab.cleanWorkspaceDesc')}</p>
           </div>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3 mb-6">
-              <StatCard label="Unstaged" value={unstaged.length} accent="muted" />
-              <StatCard label="Staged" value={staged.length} accent="primary" />
+              <StatCard label={t('staging.unstagedTitle')} value={unstaged.length} accent="muted" />
+              <StatCard label={t('staging.stagedTitle')} value={staged.length} accent="primary" />
             </div>
 
             <div className="bg-bg-surface/75 border border-border-subtle/15 rounded-lg p-5 mb-4">
               <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3">
-                Cambios por tipo
+                {t('commitTab.changesByTypeLabel')}
               </h3>
               <div className="grid grid-cols-2 gap-2">
-                {statusCount('modified') > 0 && <StatusBadge label="Modificados" count={statusCount('modified')} color="#fd9d1a" letter="M" />}
-                {statusCount('added') > 0 && <StatusBadge label="Nuevos (staged)" count={statusCount('added')} color="#a3f185" letter="A" />}
-                {statusCount('deleted') > 0 && <StatusBadge label="Borrados" count={statusCount('deleted')} color="#ff716c" letter="D" />}
-                {statusCount('untracked') > 0 && <StatusBadge label="Untracked" count={statusCount('untracked')} color="#9eacc0" letter="U" />}
-                {statusCount('renamed') > 0 && <StatusBadge label="Renombrados" count={statusCount('renamed')} color="#5ed8ff" letter="R" />}
+                {statusCount('modified') > 0 && <StatusBadge label={t('status.modified')} count={statusCount('modified')} color="#fd9d1a" letter="M" />}
+                {statusCount('added') > 0 && <StatusBadge label={t('status.added')} count={statusCount('added')} color="#a3f185" letter="A" />}
+                {statusCount('deleted') > 0 && <StatusBadge label={t('status.deleted')} count={statusCount('deleted')} color="#ff716c" letter="D" />}
+                {statusCount('untracked') > 0 && <StatusBadge label={t('status.untracked')} count={statusCount('untracked')} color="#9eacc0" letter="U" />}
+                {statusCount('renamed') > 0 && <StatusBadge label={t('status.renamed')} count={statusCount('renamed')} color="#5ed8ff" letter="R" />}
               </div>
             </div>
 
             <div className="bg-bg-surface/75 border border-border-subtle/15 rounded-lg p-5">
-              <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3">Flujo</h3>
+              <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3">{t('commitTab.stepByStepLabel')}</h3>
               <ol className="space-y-2 text-sm text-text-primary">
-                <FlowStep n={1} done={true}>Modificá archivos en tu editor</FlowStep>
-                <FlowStep n={2} done={staged.length > 0}>
-                  Clic en el <code className="bg-bg-base px-1 rounded text-secondary text-xs">+</code> de cada archivo en la columna derecha para stagearlo
-                </FlowStep>
-                <FlowStep n={3} done={false}>Escribí un mensaje en la caja de abajo a la derecha</FlowStep>
-                <FlowStep n={4} done={false}>Clic en <span className="text-secondary font-semibold">Commit Changes</span></FlowStep>
-                {hasGithubUser && <FlowStep n={5} done={false}>Clic en <span className="text-secondary font-semibold">Push</span> para subirlo a GitHub</FlowStep>}
+                <FlowStep n={1} done={true}>{t('commitTab.step1Text')}</FlowStep>
+                <FlowStep n={2} done={staged.length > 0}>{t('commitTab.step2Text')}</FlowStep>
+                <FlowStep n={3} done={false}>{t('commitTab.step3Text')}</FlowStep>
+                <FlowStep n={4} done={false}>{t('commitTab.step4Text')}</FlowStep>
+                {hasGithubUser && <FlowStep n={5} done={false}>{t('commitTab.step5Text')}</FlowStep>}
               </ol>
             </div>
           </>

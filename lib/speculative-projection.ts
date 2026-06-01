@@ -20,6 +20,8 @@ export interface SpeculativeBranch {
   rationale?: string;
   /** Extended reasoning in prose (3-5 sentences). Optional for backward compatibility. */
   reasoning?: string;
+  /** Ready-to-use coding prompt for an AI agent to implement this speculative feature. */
+  agentPrompt?: string;
   /** 1-based index in the original prediction array, before any filter. */
   predictionIndex?: number;
   type: 'improvement' | 'breakthrough' | 'trend';

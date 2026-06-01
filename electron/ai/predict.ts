@@ -193,11 +193,14 @@ export function assemblePrompts(
   doctrineText: string,
   feedbackBlock: string,
   input: PredictionInput,
+  lang: string = 'es',
 ): AssembledPrompts {
   // Order matters: skill (who you are) → doctrine (the method, entropy capstone)
   // → feedback (focus) → context (raw material). See CONTEXT-FEEDBACK-FORMAT.md.
   const systemPrompt = [
     skillText,
+    '',
+    `IMPORTANT: Since the user is using ${lang === 'es' ? 'Spanish (Castellano)' : 'English'} as their primary language, you MUST return the main UI narrative fields ("summary", "message", "rationale", "reasoning") in ${lang === 'es' ? 'Spanish (Castellano)' : 'English'}. Use clear, professional, warm, and highly accessible Spanish (avoid overly technical jargon where possible, keep it friendly and colloquial).`,
     '',
     '# Forecasting doctrine (apply before predicting; estimate entropy first)',
     doctrineText,
@@ -227,12 +230,14 @@ export function assemblePrompts(
     '      "message": "short description (max 60 chars)",',
     '      "rationale": "concise technical justification (max 100 chars)",',
     '      "reasoning": "3-5 sentence extended reasoning in plain prose. Ground it in repo signals from the context. Explain: what evidence supports this, whether it is incremental or a paradigm jump, and why this confidence level (confidence = inverse of forecast entropy).",',
+    '      "agentPrompt": "A detailed, actionable step-by-step programming prompt in English (so any standard AI coding agent can understand it perfectly and execute it) outlining exactly what changes to make, what files to create or modify, and the concrete implementation strategy for this speculative feature. Must be plain text, ready to be passed directly to a coding assistant like Antigravity.",',
     '      "type": "improvement" | "breakthrough" | "trend",',
     '      "confidence": 0.0 to 1.0',
     '    }',
     '  ]',
     '}',
-    'Propose 3-5 branches. Each must have all 6 fields. summary must be one paragraph. Each reasoning must be 3-5 sentences, plain prose, no markdown.',
+    'Propose 3-5 branches. Each must have all 7 fields. summary must be one paragraph. Each reasoning must be 3-5 sentences, plain prose, no markdown.',
+    `IMPORTANT: The UI fields ("summary", "message", "rationale", "reasoning") MUST be written in ${lang === 'es' ? 'Spanish (Castellano)' : 'English'}. Keep explanations friendly, clear, and easy to understand. The "agentPrompt" field must always be written in English as a detailed programming prompt for an AI agent to execute.`,
   ].join('\n');
 
   return { systemPrompt, userPrompt, input };
@@ -245,6 +250,7 @@ export interface RunPredictionArgs {
   config: TemporalAgentConfig;
   notes: TemporalAgentNotes;
   providerId: ProviderId;
+  lang?: string;
   /**
    * Optional adapter override. When present, it replaces the registry lookup —
    * used to inject a mock provider (no network) while still exercising the full
@@ -254,12 +260,12 @@ export interface RunPredictionArgs {
 }
 
 export async function runPrediction(args: RunPredictionArgs): Promise<PredictionResult> {
-  const { repoPath, config, notes, providerId, providerOverride } = args;
+  const { repoPath, config, notes, providerId, lang = 'es', providerOverride } = args;
 
   const raw = await gatherRawContext(repoPath);
   const input = applyPrivacyScope(raw, config.privacyScope);
   const feedbackBlock = renderFeedbackBlock(config.skillProfile, notes);
-  const prompts = assemblePrompts(loadSkillText(), loadDoctrineText(), feedbackBlock, input);
+  const prompts = assemblePrompts(loadSkillText(), loadDoctrineText(), feedbackBlock, input, lang);
 
   const provider =
     providerOverride ?? getProvider(providerId, { model: config.model?.trim() || undefined });
@@ -279,5 +285,48 @@ export async function runPrediction(args: RunPredictionArgs): Promise<Prediction
     (b) => !isSuppressed(b.message, notes),
   );
 
-  return { ...result, branches };
+  return { ...result, branches, lang };
 }
+
+/**
+ * Translates an existing PredictionResult to Spanish or English dynamically via LLM.
+ * Avoids breaking IDs or technical details, preserving JSON shape.
+ */
+export async function translatePrediction(
+  result: PredictionResult,
+  targetLang: string,
+  providerId: ProviderId,
+  model?: string,
+): Promise<PredictionResult> {
+  const provider = getProvider(providerId, { model });
+
+  const systemPrompt = [
+    `You are a translation assistant. You must translate the given PredictionResult JSON object into ${targetLang === 'es' ? 'Spanish (Castellano)' : 'English'}.`,
+    `Translate only the natural language fields: 'summary' (the top-level synthesis), 'message', 'rationale', and 'reasoning' inside the branches.`,
+    `For the translated text, use clear, professional, warm, and highly accessible language (avoid overly technical jargon, keep it friendly and colloquial).`,
+    `Do NOT translate technical keywords, ids, branch names or tags. Keep fields like 'id', 'type', 'confidence', 'predictionIndex', 'provider', and 'generatedAt' exactly the same.`,
+    `You must output ONLY the resulting translated JSON object. No markdown formatting (no \`\`\`json blocks), no comments, no explanation. Just a raw valid JSON object matching the input structure exactly.`,
+  ].join('\n');
+
+  const userPrompt = JSON.stringify(result, null, 2);
+
+  const prompts: AssembledPrompts = {
+    systemPrompt,
+    userPrompt,
+    input: {
+      commitMessages: [],
+      languages: [],
+      dependencies: {},
+    },
+  };
+
+  const translatedResult = await provider.predictTimelines(prompts);
+
+  return {
+    ...translatedResult,
+    provider: result.provider,
+    generatedAt: result.generatedAt,
+    lang: targetLang,
+  };
+}
+

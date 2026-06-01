@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/hooks/use-translation';
 
 interface DiffLine {
   type: 'context' | 'add' | 'remove';
@@ -61,19 +62,20 @@ function parseDiff(raw: string): DiffHunk[] {
 }
 
 export function DiffViewer({ diff, filePath, wordWrap = false }: { diff: string; filePath?: string; wordWrap?: boolean }) {
+  const t = useT();
   const hunks = useMemo(() => parseDiff(diff), [diff]);
 
   if (!diff) {
     return (
       <div className="flex-1 flex items-center justify-center text-[#9eacc0] text-sm">
-        No hay cambios para mostrar
+        {t('diff.noChanges')}
       </div>
     );
   }
   if (hunks.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-[#9eacc0] text-sm">
-        Archivo binario o sin diff parseable
+        {t('diff.binaryFile')}
       </div>
     );
   }

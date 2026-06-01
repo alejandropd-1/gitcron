@@ -36,13 +36,9 @@ import {
 } from '@/types/temporal-agent';
 import { buildMaterializationPlan } from '@/lib/materialize-idea';
 import { cn } from '@/lib/utils';
+import { useT, tNow } from '@/hooks/use-translation';
 import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Cpu, Terminal, Compass, Crosshair } from 'lucide-react';
 
-const OUTCOME_LABEL: Record<string, string> = {
-  accepted: 'ACEPTADA',
-  rejected: 'RECHAZADA',
-  deferred: 'DIFERIDA',
-};
 const OUTCOME_COLOR: Record<string, string> = {
   accepted: '#a3f185',
   rejected: '#dc6a6a',
@@ -54,12 +50,12 @@ function formatDecisionDate(iso: string): string {
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffMins = Math.round(diffMs / 60000);
-  if (diffMins < 1) return 'ahora';
-  if (diffMins < 60) return `hace ${diffMins}m`;
+  if (diffMins < 1) return tNow('graph.justNow');
+  if (diffMins < 60) return tNow('graph.minutesAgo', { n: diffMins });
   const diffHours = Math.round(diffMins / 60);
-  if (diffHours < 24) return `hace ${diffHours}h`;
+  if (diffHours < 24) return tNow('graph.hoursAgo', { n: diffHours });
   const diffDays = Math.round(diffHours / 24);
-  if (diffDays < 7) return `hace ${diffDays}d`;
+  if (diffDays < 7) return tNow('graph.daysAgo', { n: diffDays });
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
@@ -121,6 +117,7 @@ export function ChronometricGraph({
   hudLeft = 0,
   hudRight = 0,
 }: ChronometricGraphProps) {
+  const t = useT();
   const stashes = useGitStore((state) => state.stashes);
   const appFontSize = useGitStore((state) => state.fontSize);
   // Scale factor for all SVG text in this graph, driven by the global text-size setting (gear → "Tamaño de texto").
@@ -453,7 +450,7 @@ export function ChronometricGraph({
       const saved = localStorage.getItem('gitcron:centauroHeight');
       if (saved) {
         const h = parseInt(saved, 10);
-        if (h >= 15 && h <= 65) setCentauroHeight(h);
+        if (h >= 15 && h <= 80) setCentauroHeight(h);
       }
     } catch { /* ignore corrupt value */ }
   }, []);
@@ -468,7 +465,7 @@ export function ChronometricGraph({
       if (!centauroDragRef.current) return;
       // Dragging UP (delta negative) = taller; DOWN (delta positive) = shorter.
       const delta = centauroDragRef.current.startY - ev.clientY;
-      const newH = Math.max(15, Math.min(65, centauroDragRef.current.startH + delta));
+      const newH = Math.max(15, Math.min(80, centauroDragRef.current.startH + delta));
       setCentauroHeight(newH);
       localStorage.setItem('gitcron:centauroHeight', String(newH));
     };
@@ -2329,9 +2326,19 @@ export function ChronometricGraph({
         }}
       >
         <div
-          className="pointer-events-auto select-none"
+          className="pointer-events-auto select-none relative"
           style={{ width: 'min(680px, calc(100% - 8px))' }}
         >
+          {/* Resize handle — mounted on the top outer edge, protruding upward.
+              Same absolute-edge pattern as sidebar/details column handles. */}
+          <div
+            onMouseDown={onCentauroResizeStart}
+            className="absolute -top-1.5 left-0 right-0 h-3 cursor-ns-resize z-40 group"
+            title={t('resize.centauro')}
+          >
+            <div className="absolute inset-x-0 top-1 h-px bg-border-subtle/15 group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
+          </div>
+
           {/* Toolbar — glassy, horizontal. Rounded top joins with centauro's rounded bottom. */}
           <div className="rounded-t-xl border border-b-0 border-text-primary/15 bg-bg-overlay/60 backdrop-blur-md px-3 py-1.5 flex items-center justify-between gap-3">
             {/* FUTUROS toggle — quick access from within chronometric view */}
@@ -2343,32 +2350,22 @@ export function ChronometricGraph({
                   ? 'bg-[#5ed8ff]/15 text-[#5ed8ff] border-[#5ed8ff]/50'
                   : 'text-text-secondary border-transparent hover:text-[#5ed8ff] hover:border-[#5ed8ff]/30',
               )}
-              title="Mostrar / ocultar futuros especulativos"
+              title={t('centauro.futurosTooltip')}
             >
-              {showSpeculative ? 'FUTUROS: ON' : 'FUTUROS: OFF'}
+              {showSpeculative ? t('centauro.futurosOn') : t('centauro.futurosOff')}
             </button>
             {/* Zoom group — right side of the toolbar */}
             <div className="flex items-center gap-1">
-              <button onClick={zoomIn} title="Acercar (Zoom In)" className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+              <button onClick={zoomIn} title={t('zoom.in')} className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
                 <ZoomIn size={14} />
               </button>
-              <button onClick={zoomOut} title="Alejar (Zoom Out)" className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+              <button onClick={zoomOut} title={t('zoom.out')} className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
                 <ZoomOut size={14} />
               </button>
-              <button onClick={resetViewport} title="Restablecer Vista (Reset)" className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+              <button onClick={resetViewport} title={t('zoom.reset')} className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
                 <RotateCcw size={14} />
               </button>
             </div>
-          </div>
-
-          {/* Resize handle — drag up/down to resize the Centauro panel height.
-              Same pattern as sidebar/details column handles in page.tsx. */}
-          <div
-            onMouseDown={onCentauroResizeStart}
-            className="group h-2 w-full cursor-ns-resize flex items-center justify-center -mb-px relative overflow-visible"
-            title="Arrastrar para redimensionar altura del panel"
-          >
-            <div className="w-1/3 h-px bg-border-subtle/15 group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
           </div>
 
           {/* Centauro Panel — rounded-b-xl joins toolbar's rounded-t-xl into one seamless glassy block */}
@@ -2409,7 +2406,7 @@ export function ChronometricGraph({
                         : 'text-[#697789] border-transparent hover:text-[#9eacc0]',
                     )}
                   >
-                    Resumen / Lógica
+                    {t('centauro.tabReport')}
                   </button>
                   <button
                     onClick={() => setCentauroTab('history')}
@@ -2420,7 +2417,7 @@ export function ChronometricGraph({
                         : 'text-[#697789] border-transparent hover:text-[#9eacc0]',
                     )}
                   >
-                    Historial
+                    {t('centauro.tabHistory')}
                   </button>
                 </div>
 
@@ -2434,20 +2431,20 @@ export function ChronometricGraph({
                           {/* Header: Materializar + Cerrar */}
                           <div className="flex items-center justify-between border-b border-[#5ed8ff]/20 pb-2">
                             <span className="text-[12px] font-bold text-[#5ed8ff] tracking-wider uppercase">
-                              INFORME DE PREDICCIÓN
+                              {t('centauro.reportHeading')}
                             </span>
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={(e) => { e.stopPropagation(); openMaterializeConfirm(); }}
                                 className="px-3 py-1.5 bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/40 hover:bg-[#a3f185]/25 hover:border-[#a3f185]/70 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150"
                               >
-                                Materializar
+                                {t('centauro.materialize')}
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setSelectedSpeculativeId(null); }}
                                 className="px-2.5 py-1.5 text-[#5ed8ff]/60 border border-transparent hover:border-[#5ed8ff]/30 hover:bg-[#5ed8ff]/8 hover:text-[#5ed8ff] rounded font-mono text-[10px] tracking-wider uppercase cursor-pointer transition-all duration-150"
                               >
-                                Cerrar
+                                {t('common.close')}
                               </button>
                             </div>
                           </div>
@@ -2470,19 +2467,19 @@ export function ChronometricGraph({
                             </div>
                           ) : (
                             <p className="text-[10px] text-[#697789]/70 italic leading-relaxed">
-                              Este futuro se generó antes del análisis extendido. Volvé a predecir para verlo.
+                              {t('centauro.oldPrediction')}
                             </p>
                           )}
 
                           {/* Type + confidence metadata */}
                           <div className="flex items-center gap-3 text-[9px] text-[#697789] border-t border-[#d9e7fc]/8 pt-1.5">
-                            <span>Tipo: <span className="text-[#5ed8ff]">{selectedSpeculativeBranch?.type}</span></span>
-                            <span>Confianza: <span className="text-[#5ed8ff]">{Math.round((selectedSpeculativeBranch?.confidence ?? 0) * 100)}%</span></span>
+                            <span>{t('centauro.typeLabel')} <span className="text-[#5ed8ff]">{selectedSpeculativeBranch?.type}</span></span>
+                            <span>{t('centauro.confidenceLabel')} <span className="text-[#5ed8ff]">{Math.round((selectedSpeculativeBranch?.confidence ?? 0) * 100)}%</span></span>
                           </div>
 
                           {/* Juzgar buttons */}
                           <div className="flex items-center gap-2 pt-1 border-t border-[#d9e7fc]/10">
-                            <span className="text-[9px] text-[#697789] uppercase tracking-wider mr-1 shrink-0">juzgar:</span>
+                            <span className="text-[9px] text-[#697789] uppercase tracking-wider mr-1 shrink-0">{t('centauro.judge')}</span>
                             <button
                               onClick={(e) => { e.stopPropagation(); recordBranchDecision('accepted'); }}
                               className={cn(
@@ -2492,7 +2489,7 @@ export function ChronometricGraph({
                                   : 'text-[#a3f185]/50 border border-transparent hover:text-[#a3f185] hover:border-[#a3f185]/30 hover:bg-[#a3f185]/8',
                               )}
                             >
-                              Aceptar
+                              {t('centauro.accept')}
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); recordBranchDecision('rejected'); }}
@@ -2503,7 +2500,7 @@ export function ChronometricGraph({
                                   : 'text-[#dc6a6a]/40 border border-transparent hover:text-[#dc6a6a] hover:border-[#dc6a6a]/25 hover:bg-[#dc6a6a]/6',
                               )}
                             >
-                              Rechazar
+                              {t('centauro.reject')}
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); recordBranchDecision('deferred'); }}
@@ -2514,7 +2511,7 @@ export function ChronometricGraph({
                                   : 'text-[#fd9d1a]/40 border border-transparent hover:text-[#fd9d1a] hover:border-[#fd9d1a]/25 hover:bg-[#fd9d1a]/6',
                               )}
                             >
-                              Diferir
+                              {t('centauro.defer')}
                             </button>
                           </div>
                         </div>
@@ -2532,7 +2529,7 @@ export function ChronometricGraph({
                               onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(selectedCommit.hash); }}
                               className="px-1.5 py-0.5 border border-[#5ed8ff]/35 hover:border-[#5ed8ff]/75 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
                             >
-                              Copy SHA
+                              {t('centauro.copySha')}
                             </button>
                           </div>
                           <div className="flex flex-col gap-0.5 text-[8.5px] text-[#9eacc0]">
@@ -2561,7 +2558,7 @@ export function ChronometricGraph({
                           {speculativeBranches.length > 0 ? (
                             <div className="flex flex-col gap-2">
                               <p className="text-[10px] text-[#697789]/70 italic">
-                                Click en una fila para ver su informe detallado.
+                                {t('centauro.clickHint')}
                               </p>
                               <div className="flex flex-col gap-0.5">
                                 {speculativeBranches.map((b, bi) => {
@@ -2590,7 +2587,7 @@ export function ChronometricGraph({
                             </div>
                           ) : (
                             <p className="text-[10px] text-[#697789]/70">
-                              No hay predicciones cargadas. Dispará una predicción desde Settings → Temporal Agent.
+                              {t('centauro.noPredictions')}
                             </p>
                           )}
                         </div>
@@ -2617,7 +2614,7 @@ export function ChronometricGraph({
                                     background: `${OUTCOME_COLOR[d.outcome]}10`,
                                   }}
                                 >
-                                  {OUTCOME_LABEL[d.outcome]}
+                                  {t(`decision.${d.outcome}`)}
                                 </span>
                               </div>
                             </div>
@@ -2625,7 +2622,7 @@ export function ChronometricGraph({
                         </div>
                       ) : (
                         <p className="text-[10px] text-[#697789]/70 italic">
-                          Sin decisiones todavía. Usá los botones Aceptar / Rechazar / Diferir en una rama para empezar el historial.
+                          {t('centauro.noDecisions')}
                         </p>
                       )}
                     </div>
@@ -2650,22 +2647,22 @@ export function ChronometricGraph({
             {materializeResult ? (
               <div className="flex flex-col gap-3">
                 <span className="text-[12px] font-bold text-[#a3f185] tracking-wider uppercase">
-                  ✓ Branch materializada
+                  {t('materialize.success')}
                 </span>
                 <div className="text-[11px] flex flex-col gap-1.5 text-[#d9e7fc]">
-                  <div>Branch: <span className="text-[#a3f185]">{materializeResult.branchName}</span></div>
-                  <div>Tag: <span className="text-[#5ed8ff]">{materializeResult.tagName}</span></div>
-                  <div>Commit: <span className="text-[#9eacc0]">{materializeResult.commitHash.slice(0, 10)}</span> (con IDEA.md)</div>
+                  <div>{t('materialize.branchLabel')} <span className="text-[#a3f185]">{materializeResult.branchName}</span></div>
+                  <div>{t('materialize.tagLabel')} <span className="text-[#5ed8ff]">{materializeResult.tagName}</span></div>
+                  <div>{t('materialize.commitLabel')} <span className="text-[#9eacc0]">{materializeResult.commitHash.slice(0, 10)}</span> {t('materialize.ideaMdNote')}</div>
                 </div>
                 <p className="text-[10px] text-[#697789] leading-relaxed">
-                  Decisión registrada como <strong>accepted</strong>. Tu working tree y la branch actual no se tocaron.
+                  {t('materialize.successDesc')}
                 </p>
                 <div className="flex justify-end">
                   <button
                     onClick={() => setMaterializeIdea(null)}
                     className="px-3 py-1.5 border border-[#5ed8ff]/40 hover:bg-[#5ed8ff]/10 text-[#5ed8ff] rounded text-[10px] uppercase tracking-wider cursor-pointer"
                   >
-                    Cerrar
+                    {t('common.close')}
                   </button>
                 </div>
               </div>
@@ -2673,18 +2670,18 @@ export function ChronometricGraph({
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1 border-b border-[#5ed8ff]/20 pb-2">
                   <span className="text-[12px] font-bold text-[#5ed8ff] tracking-wider uppercase">
-                    Materializar futuro
+                    {t('materialize.heading')}
                   </span>
                   <span className="text-[10px] text-[#fd9d1a]">
-                    Esto crea una branch REAL desde HEAD. Revisá exactamente qué se va a crear:
+                    {t('materialize.warning')}
                   </span>
                 </div>
 
                 <div className="text-[11px] flex flex-col gap-1.5">
-                  <div>Branch: <span className="text-[#a3f185] font-bold">{materializePlan.branchName}</span></div>
-                  <div>Tag: <span className="text-[#5ed8ff] font-bold">{materializePlan.tagName}</span></div>
-                  <div>Nivel de vuelo: <span className="text-[#5ed8ff]">{materializePlan.flightLevel}</span></div>
-                  <div>Commit: <span className="text-[#9eacc0]">{materializePlan.commitMessage}</span></div>
+                  <div>{t('materialize.branchLabel')} <span className="text-[#a3f185] font-bold">{materializePlan.branchName}</span></div>
+                  <div>{t('materialize.tagLabel')} <span className="text-[#5ed8ff] font-bold">{materializePlan.tagName}</span></div>
+                  <div>{t('materialize.flightLabel')} <span className="text-[#5ed8ff]">{materializePlan.flightLevel}</span></div>
+                  <div>{t('materialize.commitLabel')} <span className="text-[#9eacc0]">{materializePlan.commitMessage}</span></div>
                 </div>
 
                 <div className="flex flex-col gap-1">
@@ -2704,14 +2701,14 @@ export function ChronometricGraph({
                     disabled={materializing}
                     className="px-3 py-1.5 border border-[#3c495a]/60 hover:border-[#697789] text-[#9eacc0] rounded text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50"
                   >
-                    Cancelar
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={confirmMaterialize}
                     disabled={materializing}
                     className="px-3 py-1.5 bg-[#a3f185] hover:bg-[#b6f59f] text-[#020f1e] font-bold rounded text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50"
                   >
-                    {materializing ? 'Creando…' : 'Confirmar y crear'}
+                    {materializing ? t('materialize.creating') : t('materialize.confirmBtn')}
                   </button>
                 </div>
               </div>

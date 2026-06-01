@@ -17,28 +17,39 @@ import {
 } from '@/lib/speculative-projection';
 import type { ProjectionConfig } from '@/lib/chronometric-projection';
 import type { TemporalAgentDecision } from '@/types/temporal-agent';
+import { useT } from '@/hooks/use-translation';
 
 const CYAN = '#5ed8ff';
 const GREEN = '#a3f185';
 const REJECT_RED = '#dc6a6a';
 const DEFER_ORANGE = '#fd9d1a';
 
-const OUTCOME_LABEL: Record<string, string> = {
-  accepted: 'ACEPTADA',
-  rejected: 'RECHAZADA',
-  deferred: 'DIFERIDA',
-};
-const OUTCOME_COLOR: Record<string, string> = {
-  accepted: GREEN,
-  rejected: REJECT_RED,
-  deferred: DEFER_ORANGE,
-};
+function getOutcomeLabel(outcome: string, t: ReturnType<typeof useT>): string {
+  const map: Record<string, string> = {
+    accepted: t('decision.accepted'),
+    rejected: t('decision.rejected'),
+    deferred: t('decision.deferred'),
+  };
+  return map[outcome] ?? outcome;
+}
 
-const TYPE_LABEL: Record<SpeculativeNode['branch']['type'], string> = {
-  improvement: 'mejora',
-  breakthrough: 'salto',
-  trend: 'tendencia',
-};
+function getOutcomeColor(outcome: string): string {
+  const map: Record<string, string> = {
+    accepted: GREEN,
+    rejected: REJECT_RED,
+    deferred: DEFER_ORANGE,
+  };
+  return map[outcome] ?? CYAN;
+}
+
+function getTypeLabel(type: string, t: ReturnType<typeof useT>): string {
+  const map: Record<string, string> = {
+    improvement: t('branchType.improvement'),
+    breakthrough: t('branchType.breakthrough'),
+    trend: t('branchType.trend'),
+  };
+  return map[type] ?? type;
+}
 
 interface Props {
   nodes: SpeculativeNode[];
@@ -62,6 +73,7 @@ export function SpeculativeBranches({
   decisions = {},
   hasAnyDecision = false,
 }: Props) {
+  const t = useT();
   if (!visible || nodes.length === 0) return null;
   const { ux, uy } = diagonalBasis(config);
 
@@ -73,7 +85,10 @@ export function SpeculativeBranches({
         const isDecided = !!decision;
         const dimFactor = hasAnyDecision && !isDecided ? 0.3 : 1;
         const opacity = baseOpacity * dimFactor;
-        const accentColor = isDecided ? OUTCOME_COLOR[decision!.outcome] : CYAN;
+        const accentColor = isDecided ? getOutcomeColor(decision!.outcome) : CYAN;
+        const branchTypeLabel = getTypeLabel(n.branch.type, t);
+        const outcomeLabel = isDecided ? getOutcomeLabel(decision!.outcome, t) : '';
+        const outcomeColor = isDecided ? getOutcomeColor(decision!.outcome) : CYAN;
         const isSelected = selectedBranchId === n.branch.id;
         const branchNum = n.branch.predictionIndex ?? (nodeIdx + 1); // fallback for old predictions
         const dist = Math.hypot(n.x - n.anchorX, n.y - n.anchorY) || 1;
@@ -178,7 +193,7 @@ export function SpeculativeBranches({
                 className="font-mono uppercase"
                 style={{ letterSpacing: '0.04em' }}
               >
-                {TYPE_LABEL[n.branch.type]} · {Math.round(n.branch.confidence * 100)}%
+                {branchTypeLabel} · {Math.round(n.branch.confidence * 100)}%
               </text>
               {msgLines.map((line, li) => (
                 <text
@@ -200,9 +215,9 @@ export function SpeculativeBranches({
                     width={decision!.outcome === 'accepted' ? 54 : decision!.outcome === 'rejected' ? 56 : 44}
                     height={14}
                     rx={3}
-                    fill={OUTCOME_COLOR[decision!.outcome]}
+                    fill={outcomeColor}
                     fillOpacity={0.12}
-                    stroke={OUTCOME_COLOR[decision!.outcome]}
+                    stroke={outcomeColor}
                     strokeOpacity={0.4}
                     strokeWidth={0.75}
                   />
@@ -211,12 +226,12 @@ export function SpeculativeBranches({
                     y={10}
                     fontSize="7"
                     fontWeight={700}
-                    fill={OUTCOME_COLOR[decision!.outcome]}
+                    fill={outcomeColor}
                     textAnchor="middle"
                     className="font-mono uppercase"
                     style={{ letterSpacing: '0.05em' }}
                   >
-                    {OUTCOME_LABEL[decision!.outcome]}
+                    {outcomeLabel}
                   </text>
                 </g>
               )}

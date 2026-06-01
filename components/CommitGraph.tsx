@@ -17,6 +17,7 @@ import { useMemo } from 'react';
 import type { Commit, GitFile } from '@/lib/git-store';
 import { Monitor, Cloud, Tag as TagIcon, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT, tNow } from '@/hooks/use-translation';
 
 const LANE_W = 18;
 const ROW_H = 36;
@@ -290,6 +291,7 @@ export function CommitGraph({
   onSelect: (commit: Commit) => void;
   onContextMenu: (e: React.MouseEvent, commit: Commit) => void;
 }) {
+  const t = useT();
   const filter = filterText?.trim().toLowerCase() ?? '';
   const filteredCommits = useMemo(() => {
     if (!filter) return commits;
@@ -325,7 +327,7 @@ export function CommitGraph({
   if (commits.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-text-secondary text-ui-body">
-        Sin commits
+        {t('graph.noCommits')}
       </div>
     );
   }
@@ -502,7 +504,7 @@ function GraphRowView({
           {mainMessage}
         </span>
         {hasCoauthor && (
-          <span className="text-xs text-[#697789] shrink-0 italic">Co-Authored…</span>
+          <span className="text-xs text-[#697789] shrink-0 italic">{tNow('graph.coAuthored')}</span>
         )}
       </div>
 
@@ -595,9 +597,9 @@ function WIPRow({
       <div className="flex-1 min-w-0 flex items-center gap-2 pl-2">
         <span className="text-sm text-git-add font-mono">{"// WIP"}</span>
         <span className="text-xs text-text-secondary">
-          {unstagedCount > 0 && `${unstagedCount} sin stagear`}
+          {unstagedCount > 0 && tNow('graph.unstagedCount', { n: unstagedCount })}
           {unstagedCount > 0 && stagedCount > 0 && ' · '}
-          {stagedCount > 0 && `${stagedCount} listos para commitear`}
+          {stagedCount > 0 && tNow('graph.stagedCount', { n: stagedCount })}
         </span>
       </div>
     </div>
@@ -609,11 +611,11 @@ function formatDate(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
-  if (diffMin < 1) return 'Just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 1) return tNow('graph.justNow');
+  if (diffMin < 60) return tNow('graph.minutesAgo', { n: diffMin });
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
+  if (diffH < 24) return tNow('graph.hoursAgo', { n: diffH });
   const diffD = Math.floor(diffH / 24);
-  if (diffD < 7) return `${diffD}d ago`;
+  if (diffD < 7) return tNow('graph.daysAgo', { n: diffD });
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }

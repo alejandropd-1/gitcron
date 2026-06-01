@@ -13,6 +13,7 @@ import type {
   PrivacyScope,
   PredictionResult,
 } from '@/types/temporal-agent';
+import { useT } from '@/hooks/use-translation';
 
 const GREEN = '#a3f185';
 const CYAN = '#5ed8ff';
@@ -41,6 +42,7 @@ interface Props {
 }
 
 export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConfigSaved }: Props) {
+  const t = useT();
   const [config, setConfig] = useState<TemporalAgentConfig | null>(null);
   const [notesMd, setNotesMd] = useState<string>('');
   const [showNotes, setShowNotes] = useState(false);
@@ -151,7 +153,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
       await window.api.temporalAgent.saveConfig(repoPath, config);
       const now = Date.now();
       setSavedAt(now);
-      setTimeout(() => setSavedAt((t) => (t === now ? null : t)), 3000);
+      setTimeout(() => setSavedAt((ts) => (ts === now ? null : ts)), 3000);
       onConfigSaved?.(config);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
@@ -171,69 +173,67 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
       <header style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Temporal Agent</h3>
         <span style={{ fontSize: 11, color: CYAN, border: `1px solid ${CYAN}`, borderRadius: 9999, padding: '1px 8px' }}>
-          experimental
+          {t('temporalAgent.experimental')}
         </span>
       </header>
       <p style={{ fontSize: 13, color: '#9BA1B0', margin: 0 }}>
-        Lets an AI propose speculative future branches for <strong>{repoName}</strong> on the
-        chronometric graph. Opt-in. Nothing is sent anywhere until you trigger an analysis.
+        {t('temporalAgent.description', { repo: repoName })}
       </p>
 
       {/* Enable */}
-      <Row label="Enable for this repo">
+      <Row label={t('temporalAgent.enableLabel')}>
         <Toggle on={config.enabled} onChange={(v) => patch({ enabled: v })} />
       </Row>
 
       {/* Frequency */}
-      <Row label="Analysis frequency">
+      <Row label={t('temporalAgent.frequencyLabel')}>
         <select
           value={config.frequency}
           onChange={(e) => patch({ frequency: e.target.value as AnalysisFrequency })}
           style={selectStyle}
         >
-          <option value="on-demand">On demand (button)</option>
-          <option value="manual">Manual only</option>
-          <option value="daily">Daily (when open)</option>
-          <option value="weekly">Weekly (when open)</option>
+          <option value="on-demand">{t('temporalAgent.freqOnDemand')}</option>
+          <option value="manual">{t('temporalAgent.freqManual')}</option>
+          <option value="daily">{t('temporalAgent.freqDaily')}</option>
+          <option value="weekly">{t('temporalAgent.freqWeekly')}</option>
         </select>
       </Row>
 
       {/* Privacy scope */}
-      <Row label="What context is sent">
+      <Row label={t('temporalAgent.contextLabel')}>
         <select
           value={config.privacyScope}
           onChange={(e) => patch({ privacyScope: e.target.value as PrivacyScope })}
           style={selectStyle}
         >
-          <option value="metadata">Metadata only (commits, languages, deps)</option>
-          <option value="metadata-plus-files">Metadata + changed filenames</option>
+          <option value="metadata">{t('temporalAgent.scopeMetadata')}</option>
+          <option value="metadata-plus-files">{t('temporalAgent.scopeMetadataPlus')}</option>
         </select>
       </Row>
       {config.privacyScope === 'metadata-plus-files' && (
         <p style={{ fontSize: 12, color: ORANGE, margin: 0 }}>
-          Filenames give better predictions but widen what leaves your machine. Default is
-          metadata-only; this stays off until you choose it.
+          {t('temporalAgent.filenamesWarning')}
         </p>
       )}
 
       {/* Skill profile */}
       <div style={cardStyle}>
         <h4 style={{ fontSize: 13, fontWeight: 600, margin: '0 0 10px', color: GREEN }}>
-          Temporal Attention — focus profile
+          {t('temporalAgent.focusProfileHeading')}
         </h4>
         <TagInput
-          label="Focus areas (up-weight)"
+          label={t('temporalAgent.focusAreas')}
           tags={config.skillProfile.focusAreas}
           color={GREEN}
-          onChange={(t) => patchSkill({ focusAreas: t })}
+          onChange={(tags) => patchSkill({ focusAreas: tags })}
         />
         <TagInput
-          label="Avoid topics (down-weight)"
+          label={t('temporalAgent.avoidTopics')}
           tags={config.skillProfile.avoidTopics}
           color={ORANGE}
-          onChange={(t) => patchSkill({ avoidTopics: t })}
+          onChange={(tags) => patchSkill({ avoidTopics: tags })}
         />
-        <Row label={`Hide predictions below confidence (${config.skillProfile.confidenceThreshold.toFixed(2)})`}>
+        <Row label={t('temporalAgent.confidenceThreshold', { val: config.skillProfile.confidenceThreshold.toFixed(2) })}>
           <input
             type="range"
             min={0}
@@ -249,43 +249,42 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
       {/* AI access — the renderer only ever learns whether a key exists. */}
       <div style={cardStyle}>
         <h4 style={{ fontSize: 13, fontWeight: 600, margin: '0 0 10px', color: CYAN }}>
-          AI access — OpenRouter
+          {t('temporalAgent.aiAccessHeading')}
         </h4>
-        <Row label="API key status">
+        <Row label={t('temporalAgent.apiKeyStatus')}>
           {hasKey === null ? (
-            <span style={{ fontSize: 12, color: '#9BA1B0' }}>checking…</span>
+            <span style={{ fontSize: 12, color: '#9BA1B0' }}>{t('temporalAgent.keyChecking')}</span>
           ) : hasKey ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-              <span style={{ fontSize: 12, color: GREEN }}>● configured</span>
+              <span style={{ fontSize: 12, color: GREEN }}>{t('temporalAgent.keyConfigured')}</span>
               {keyFingerprint && (
                 <code style={{ fontSize: 11, color: '#9BA1B0', fontFamily: 'JetBrains Mono, monospace' }}>
-                  huella: {keyFingerprint}
+                  {t('temporalAgent.keyFingerprint', { fp: keyFingerprint })}
                 </code>
               )}
             </div>
           ) : (
-            <span style={{ fontSize: 12, color: ORANGE }}>○ not set</span>
+            <span style={{ fontSize: 12, color: ORANGE }}>{t('temporalAgent.keyNotSet')}</span>
           )}
         </Row>
         <p style={{ fontSize: 12, color: '#9BA1B0', margin: '0 0 8px' }}>
-          The key is encrypted by your OS and used only inside the app process. It is never shown
-          back here and never reaches this screen.
+          {t('temporalAgent.keyDescription')}
         </p>
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             type="password"
             value={keyDraft}
             onChange={(e) => setKeyDraft(e.target.value)}
-            placeholder={hasKey ? 'Replace key…' : 'Paste OpenRouter API key'}
+            placeholder={hasKey ? t('temporalAgent.keyPlaceholderReplace') : t('temporalAgent.keyPlaceholderPaste')}
             autoComplete="off"
             style={{ ...selectStyle, flex: 1 }}
           />
           <button onClick={saveKey} disabled={savingKey || !keyDraft.trim()} style={primaryBtn}>
-            {savingKey ? 'Saving…' : 'Save key'}
+            {savingKey ? t('temporalAgent.saving') : t('temporalAgent.saveKey')}
           </button>
           {hasKey && (
             <button onClick={removeKey} style={ghostBtn}>
-              Remove
+              {t('temporalAgent.removeKey')}
             </button>
           )}
         </div>
@@ -293,7 +292,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
         {/* Model id — NOT a secret; saved in plain config with the rest of the prefs. */}
         <div style={{ marginTop: 12 }}>
           <label style={{ fontSize: 12, color: '#9BA1B0', display: 'block', marginBottom: 6 }}>
-            Modelo (OpenRouter)
+            {t('temporalAgent.modelLabel')}
           </label>
           <ModelSelect
             value={config.model ?? ''}
@@ -301,12 +300,15 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
           />
           {config.model && (
             <p style={{ fontSize: 11, color: GREEN, margin: '6px 0 0' }}>
-              Modelo activo: <code style={{ fontFamily: 'JetBrains Mono, monospace' }}>{config.model}</code>
+              {t('temporalAgent.modelActive')}{' '}
+              <code style={{ fontFamily: 'JetBrains Mono, monospace' }}>{config.model}</code>
             </p>
           )}
           {!config.model && (
             <p style={{ fontSize: 11, color: '#697789', margin: '6px 0 0' }}>
-              Vacío = usa el default <code>anthropic/claude-sonnet-4.5</code>. Acordate de <strong>Save</strong>.
+              {t('temporalAgent.modelEmptyPrefix')}{' '}
+              <code>anthropic/claude-sonnet-4.5</code>
+              {t('temporalAgent.modelEmptySuffix')}
             </p>
           )}
         </div>
@@ -331,7 +333,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
                   cursor: 'wait',
                 }}
               >
-                generando…
+                {t('temporalAgent.generating')}
               </button>
               <button
                 onClick={cancelPrediction}
@@ -343,7 +345,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
                   padding: '8px 16px',
                 }}
               >
-                Cancelar
+                {t('common.cancel')}
               </button>
             </>
           ) : (
@@ -363,16 +365,17 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
                 cursor: 'pointer',
               }}
             >
-              Predecir futuros
+              {t('temporalAgent.predictBtn')}
             </button>
           )}
           <span style={{ fontSize: 12, color: '#697789', maxWidth: 220, lineHeight: 1.4 }}>
-            Dispara una predicción con IA. <strong style={{ color: ORANGE }}>Consume crédito de OpenRouter.</strong>
+            {t('temporalAgent.predictDesc')}{' '}
+            <strong style={{ color: ORANGE }}>{t('temporalAgent.predictCost')}</strong>
           </span>
         </div>
         {cancelled && (
           <p style={{ fontSize: 12, color: '#9eacc0', margin: '10px 0 0' }}>
-            Predicción cancelada.
+            {t('temporalAgent.cancelled')}
           </p>
         )}
         {predictError && (
@@ -381,7 +384,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
         {result && (
           <div style={{ marginTop: 10, fontSize: 12, color: '#cbc3d7' }}>
             <div style={{ color: GREEN, marginBottom: 6 }}>
-              {result.branches.length} branch{result.branches.length === 1 ? '' : 'es'} from{' '}
+              {result.branches.length} branch{result.branches.length === 1 ? '' : 'es'} {t('temporalAgent.resultFrom')}{' '}
               <span style={{ color: CYAN }}>{result.provider}</span>
             </div>
             <ul style={{ margin: 0, paddingLeft: 16 }}>
@@ -397,14 +400,14 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <button onClick={save} disabled={saving} style={primaryBtn}>
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? t('temporalAgent.saving') : t('temporalAgent.save')}
         </button>
         <button onClick={openNotes} style={ghostBtn}>
-          View agent notes
+          {t('temporalAgent.viewNotes')}
         </button>
         {savedAt && (
           <span style={{ fontSize: 12, color: GREEN, fontWeight: 600 }}>
-            Guardado ✓
+            {t('temporalAgent.savedConfirmation')}
           </span>
         )}
         {saveError && (
@@ -416,7 +419,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
 
       {/* Active config summary */}
       <div style={{ ...cardStyle, fontSize: 11, color: '#697789', lineHeight: 1.6 }}>
-        <strong style={{ color: '#9BA1B0', fontSize: 12 }}>Config activa:</strong>{' '}
+        <strong style={{ color: '#9BA1B0', fontSize: 12 }}>{t('temporalAgent.configSummaryLabel')}</strong>{' '}
         {config.enabled ? <span style={{ color: GREEN }}>on</span> : <span style={{ color: ORANGE }}>off</span>}
         {' · '}scope: {config.privacyScope}
         {' · '}modelo: <code style={{ fontFamily: 'JetBrains Mono, monospace' }}>{config.model || 'default'}</code>
@@ -433,9 +436,9 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
       {showNotes && (
         <div style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <strong style={{ fontSize: 12, color: CYAN }}>notes.md (read-only mirror)</strong>
+            <strong style={{ fontSize: 12, color: CYAN }}>{t('temporalAgent.notesHeading')}</strong>
             <button onClick={() => setShowNotes(false)} style={ghostBtn}>
-              Close
+              {t('common.close')}
             </button>
           </div>
           <pre
@@ -450,7 +453,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
               whiteSpace: 'pre-wrap',
             }}
           >
-            {notesMd || '(empty)'}
+            {notesMd || t('temporalAgent.notesEmpty')}
           </pre>
         </div>
       )}
@@ -502,6 +505,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
 }
 
 function ModelSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const t = useT();
   const [customMode, setCustomMode] = useState(false);
   const knownIds = OPENROUTER_MODELS.map((m) => m.id);
   const isKnown = knownIds.includes(value);
@@ -523,20 +527,20 @@ function ModelSelect({ value, onChange }: { value: string; onChange: (v: string)
         }}
         style={{ ...selectStyle, width: '100%' }}
       >
-        <option value="">Default (anthropic/claude-sonnet-4.5)</option>
+        <option value="">{t('temporalAgent.modelDefaultOption')}</option>
         {OPENROUTER_MODELS.map((m) => (
           <option key={m.id} value={m.id}>
             {m.label} — {m.price}/M tokens
           </option>
         ))}
-        <option value="__custom__">Custom…</option>
+        <option value="__custom__">{t('temporalAgent.modelCustomOption')}</option>
       </select>
       {(customMode || (!isKnown && value)) && (
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="ID de OpenRouter, formato proveedor/modelo"
+          placeholder={t('temporalAgent.modelCustomPlaceholder')}
           autoComplete="off"
           spellCheck={false}
           style={{ ...selectStyle, width: '100%' }}
@@ -557,6 +561,7 @@ function TagInput({
   color: string;
   onChange: (t: string[]) => void;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState('');
   function add() {
     const v = draft.trim();
@@ -567,9 +572,9 @@ function TagInput({
     <div style={{ marginBottom: 12 }}>
       <label style={{ fontSize: 12, color: '#9BA1B0', display: 'block', marginBottom: 6 }}>{label}</label>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
-        {tags.map((t) => (
+        {tags.map((tag) => (
           <span
-            key={t}
+            key={tag}
             style={{
               fontSize: 11,
               color,
@@ -581,9 +586,9 @@ function TagInput({
               alignItems: 'center',
             }}
           >
-            {t}
+            {tag}
             <button
-              onClick={() => onChange(tags.filter((x) => x !== t))}
+              onClick={() => onChange(tags.filter((x) => x !== tag))}
               style={{ background: 'none', border: 'none', color, cursor: 'pointer', padding: 0 }}
             >
               ×
@@ -595,7 +600,7 @@ function TagInput({
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add())}
-        placeholder="type + Enter"
+        placeholder={t('temporalAgent.tagPlaceholder')}
         style={{ ...selectStyle, width: '100%' }}
       />
     </div>

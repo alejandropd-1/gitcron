@@ -109,6 +109,73 @@ const es: Dict = {
   'diff.binaryFile': 'Archivo binario o sin diff parseable',
   'diff.backToGraph': 'Volver al graph',
 
+  // ── Decisiones del Temporal Agent ──
+  'decision.accepted': 'ACEPTADA',
+  'decision.rejected': 'RECHAZADA',
+  'decision.deferred': 'DIFERIDA',
+
+  // ── Tipos de rama especulativa ──
+  'branchType.improvement': 'mejora',
+  'branchType.breakthrough': 'salto',
+  'branchType.trend': 'tendencia',
+
+  // ── Graph ──
+  'graph.noCommits': 'Sin commits',
+  'graph.justNow': 'Justo ahora',
+  'graph.minutesAgo': 'hace {{n}}m',
+  'graph.hoursAgo': 'hace {{n}}h',
+  'graph.daysAgo': 'hace {{n}}d',
+  'graph.unstagedCount': '{{n}} sin stagear',
+  'graph.stagedCount': '{{n}} listos para commitear',
+  'graph.coAuthored': 'Co-Authored…',
+
+  // ── Común (compartido entre componentes) ──
+  'common.close': 'Cerrar',
+  'common.cancel': 'Cancelar',
+  'common.copy': 'Copiar',
+
+  // ── Panel Centauro ──
+  'centauro.materialize': 'Materializar',
+  'centauro.judge': 'juzgar:',
+  'centauro.accept': 'Aceptar',
+  'centauro.reject': 'Rechazar',
+  'centauro.defer': 'Diferir',
+  'centauro.reportHeading': 'INFORME DE PREDICCIÓN',
+  'centauro.historyHeading': 'HISTORIAL DE DECISIONES',
+  'centauro.tabReport': 'Resumen / Lógica',
+  'centauro.tabHistory': 'Historial',
+  'centauro.copySha': 'Copy SHA',
+  'centauro.oldPrediction': 'Este futuro se generó antes del análisis extendido. Volvé a predecir para verlo.',
+  'centauro.typeLabel': 'Tipo:',
+  'centauro.confidenceLabel': 'Confianza:',
+  'centauro.clickHint': 'Click en una fila para ver su informe detallado.',
+  'centauro.noPredictions': 'No hay predicciones cargadas. Dispará una predicción desde Settings → Temporal Agent.',
+  'centauro.noDecisions': 'Sin decisiones todavía. Usá los botones Aceptar / Rechazar / Diferir en una rama para empezar el historial.',
+  'centauro.futurosOn': 'FUTUROS: ON',
+  'centauro.futurosOff': 'FUTUROS: OFF',
+  'centauro.futurosTooltip': 'Mostrar / ocultar futuros especulativos',
+
+  // ── Zoom ──
+  'zoom.in': 'Acercar (Zoom In)',
+  'zoom.out': 'Alejar (Zoom Out)',
+  'zoom.reset': 'Restablecer Vista (Reset)',
+
+  // ── Resize ──
+  'resize.centauro': 'Arrastrar para redimensionar altura del panel',
+
+  // ── Materialización ──
+  'materialize.heading': 'Materializar futuro',
+  'materialize.warning': 'Esto crea una branch REAL desde HEAD. Revisá exactamente qué se va a crear:',
+  'materialize.branchLabel': 'Branch:',
+  'materialize.tagLabel': 'Tag:',
+  'materialize.commitLabel': 'Commit:',
+  'materialize.flightLabel': 'Nivel de vuelo:',
+  'materialize.ideaMdNote': '(con IDEA.md)',
+  'materialize.success': '✓ Branch materializada',
+  'materialize.successDesc': 'Decisión registrada como accepted. Tu working tree y la branch actual no se tocaron.',
+  'materialize.confirmBtn': 'Confirmar y crear',
+  'materialize.creating': 'Creando…',
+
   // ── Commit Tab View ──
   'commitTab.workspace': 'Workspace',
   'commitTab.intro': 'Resumen de lo que tenés sin commitear. Hacé clic en cualquier archivo de la columna derecha para ver su diff con colores acá en el centro.',
@@ -403,6 +470,56 @@ const es: Dict = {
 
   // ── Commit context menu ──
   'commitMenu.cherryPick': 'Cherry-pick este commit',
+
+  // ── Temporal Agent Settings ──
+  'temporalAgent.experimental': 'experimental',
+  'temporalAgent.description': 'Permite que una IA proponga ramas especulativas futuras para {{repo}} en el gráfico cronométrico. Opt-in. Nada se envía hasta que disparás un análisis.',
+  'temporalAgent.enableLabel': 'Activar para este repositorio',
+  'temporalAgent.frequencyLabel': 'Frecuencia de análisis',
+  'temporalAgent.freqOnDemand': 'Bajo demanda (botón)',
+  'temporalAgent.freqManual': 'Solo manual',
+  'temporalAgent.freqDaily': 'Diario (cuando está abierto)',
+  'temporalAgent.freqWeekly': 'Semanal (cuando está abierto)',
+  'temporalAgent.contextLabel': 'Qué contexto se envía',
+  'temporalAgent.scopeMetadata': 'Solo metadatos (commits, lenguajes, deps)',
+  'temporalAgent.scopeMetadataPlus': 'Metadatos + nombres de archivos modificados',
+  'temporalAgent.filenamesWarning': 'Los nombres de archivo mejoran las predicciones pero amplían lo que sale de tu máquina. El default es solo metadatos; esto permanece apagado hasta que lo elegís.',
+  'temporalAgent.focusProfileHeading': 'Temporal Attention — perfil de foco',
+  'temporalAgent.focusAreas': 'Áreas de foco (aumentar peso)',
+  'temporalAgent.avoidTopics': 'Temas a evitar (bajar peso)',
+  'temporalAgent.confidenceThreshold': 'Ocultar predicciones bajo confianza ({{val}})',
+  'temporalAgent.aiAccessHeading': 'Acceso a IA — OpenRouter',
+  'temporalAgent.apiKeyStatus': 'Estado de la API key',
+  'temporalAgent.keyChecking': 'verificando…',
+  'temporalAgent.keyConfigured': '● configurada',
+  'temporalAgent.keyFingerprint': 'huella: {{fp}}',
+  'temporalAgent.keyNotSet': '○ no configurada',
+  'temporalAgent.keyDescription': 'La key se cifra con el OS y se usa solo dentro del proceso de la app. Nunca se muestra acá ni llega a esta pantalla.',
+  'temporalAgent.keyPlaceholderReplace': 'Reemplazar key…',
+  'temporalAgent.keyPlaceholderPaste': 'Pegar API key de OpenRouter',
+  'temporalAgent.saving': 'Guardando…',
+  'temporalAgent.saveKey': 'Guardar key',
+  'temporalAgent.removeKey': 'Eliminar',
+  'temporalAgent.modelLabel': 'Modelo (OpenRouter)',
+  'temporalAgent.modelActive': 'Modelo activo:',
+  'temporalAgent.modelEmptyPrefix': 'Vacío = usa el default',
+  'temporalAgent.modelEmptySuffix': '. Acordate de guardar.',
+  'temporalAgent.generating': 'generando…',
+  'temporalAgent.predictBtn': 'Predecir futuros',
+  'temporalAgent.predictDesc': 'Dispara una predicción con IA.',
+  'temporalAgent.predictCost': 'Consume crédito de OpenRouter.',
+  'temporalAgent.cancelled': 'Predicción cancelada.',
+  'temporalAgent.save': 'Guardar',
+  'temporalAgent.viewNotes': 'Ver notas del agente',
+  'temporalAgent.savedConfirmation': 'Guardado ✓',
+  'temporalAgent.configSummaryLabel': 'Config activa:',
+  'temporalAgent.notesHeading': 'notes.md (solo lectura)',
+  'temporalAgent.notesEmpty': '(vacío)',
+  'temporalAgent.tagPlaceholder': 'tipo + Enter',
+  'temporalAgent.modelDefaultOption': 'Default (anthropic/claude-sonnet-4.5)',
+  'temporalAgent.modelCustomOption': 'Personalizado…',
+  'temporalAgent.modelCustomPlaceholder': 'ID de OpenRouter, formato proveedor/modelo',
+  'temporalAgent.resultFrom': 'de',
 };
 
 const en: Dict = {
@@ -495,6 +612,16 @@ const en: Dict = {
   'diff.binaryFile': 'Binary file or unparseable diff',
   'diff.backToGraph': 'Back to graph',
 
+  // ── Temporal Agent decisions ──
+  'decision.accepted': 'ACCEPTED',
+  'decision.rejected': 'REJECTED',
+  'decision.deferred': 'DEFERRED',
+
+  // ── Speculative branch types ──
+  'branchType.improvement': 'improvement',
+  'branchType.breakthrough': 'breakthrough',
+  'branchType.trend': 'trend',
+
   // ── Commit Tab View ──
   'commitTab.workspace': 'Workspace',
   'commitTab.intro': 'Summary of what you have uncommitted. Click any file in the right column to see its colored diff here in the center.',
@@ -562,6 +689,63 @@ const en: Dict = {
   'clone.destination': 'Destination: {{path}}',
   'clone.cloning': 'Cloning...',
   'clone.cloneButton': 'Clone',
+
+  // ── Graph ──
+  'graph.noCommits': 'No commits',
+  'graph.justNow': 'Just now',
+  'graph.minutesAgo': '{{n}}m ago',
+  'graph.hoursAgo': '{{n}}h ago',
+  'graph.daysAgo': '{{n}}d ago',
+  'graph.unstagedCount': '{{n}} unstaged',
+  'graph.stagedCount': '{{n}} ready to commit',
+  'graph.coAuthored': 'Co-Authored…',
+
+  // ── Common (shared across components) ──
+  'common.close': 'Close',
+  'common.cancel': 'Cancel',
+  'common.copy': 'Copy',
+
+  // ── Centauro Panel ──
+  'centauro.materialize': 'Materialize',
+  'centauro.judge': 'judge:',
+  'centauro.accept': 'Accept',
+  'centauro.reject': 'Reject',
+  'centauro.defer': 'Defer',
+  'centauro.reportHeading': 'PREDICTION REPORT',
+  'centauro.historyHeading': 'DECISION HISTORY',
+  'centauro.tabReport': 'Summary / Logic',
+  'centauro.tabHistory': 'History',
+  'centauro.copySha': 'Copy SHA',
+  'centauro.oldPrediction': 'This prediction was made before extended analysis was available. Run a new prediction to see it.',
+  'centauro.typeLabel': 'Type:',
+  'centauro.confidenceLabel': 'Confidence:',
+  'centauro.clickHint': 'Click a row to see its detailed report.',
+  'centauro.noPredictions': 'No predictions loaded. Run a prediction from Settings → Temporal Agent.',
+  'centauro.noDecisions': 'No decisions yet. Use Accept / Reject / Defer buttons on a branch to start the log.',
+  'centauro.futurosOn': 'FUTURES: ON',
+  'centauro.futurosOff': 'FUTURES: OFF',
+  'centauro.futurosTooltip': 'Show / hide speculative futures',
+
+  // ── Zoom ──
+  'zoom.in': 'Zoom In',
+  'zoom.out': 'Zoom Out',
+  'zoom.reset': 'Reset View',
+
+  // ── Resize ──
+  'resize.centauro': 'Drag to resize panel height',
+
+  // ── Materialization ──
+  'materialize.heading': 'Materialize future',
+  'materialize.warning': 'This creates a REAL branch from HEAD. Review exactly what will be created:',
+  'materialize.branchLabel': 'Branch:',
+  'materialize.tagLabel': 'Tag:',
+  'materialize.commitLabel': 'Commit:',
+  'materialize.flightLabel': 'Flight level:',
+  'materialize.ideaMdNote': '(with IDEA.md)',
+  'materialize.success': '✓ Branch materialized',
+  'materialize.successDesc': 'Decision recorded as accepted. Your working tree and current branch were not touched.',
+  'materialize.confirmBtn': 'Confirm and create',
+  'materialize.creating': 'Creating…',
 
   // ── Settings ──
   'settings.title': 'Settings',
@@ -789,6 +973,56 @@ const en: Dict = {
 
   // ── Commit context menu ──
   'commitMenu.cherryPick': 'Cherry-pick this commit',
+
+  // ── Temporal Agent Settings ──
+  'temporalAgent.experimental': 'experimental',
+  'temporalAgent.description': 'Lets an AI propose speculative future branches for {{repo}} on the chronometric graph. Opt-in. Nothing is sent anywhere until you trigger an analysis.',
+  'temporalAgent.enableLabel': 'Enable for this repo',
+  'temporalAgent.frequencyLabel': 'Analysis frequency',
+  'temporalAgent.freqOnDemand': 'On demand (button)',
+  'temporalAgent.freqManual': 'Manual only',
+  'temporalAgent.freqDaily': 'Daily (when open)',
+  'temporalAgent.freqWeekly': 'Weekly (when open)',
+  'temporalAgent.contextLabel': 'What context is sent',
+  'temporalAgent.scopeMetadata': 'Metadata only (commits, languages, deps)',
+  'temporalAgent.scopeMetadataPlus': 'Metadata + changed filenames',
+  'temporalAgent.filenamesWarning': 'Filenames give better predictions but widen what leaves your machine. Default is metadata-only; this stays off until you choose it.',
+  'temporalAgent.focusProfileHeading': 'Temporal Attention — focus profile',
+  'temporalAgent.focusAreas': 'Focus areas (up-weight)',
+  'temporalAgent.avoidTopics': 'Avoid topics (down-weight)',
+  'temporalAgent.confidenceThreshold': 'Hide predictions below confidence ({{val}})',
+  'temporalAgent.aiAccessHeading': 'AI access — OpenRouter',
+  'temporalAgent.apiKeyStatus': 'API key status',
+  'temporalAgent.keyChecking': 'checking…',
+  'temporalAgent.keyConfigured': '● configured',
+  'temporalAgent.keyFingerprint': 'fingerprint: {{fp}}',
+  'temporalAgent.keyNotSet': '○ not set',
+  'temporalAgent.keyDescription': 'The key is encrypted by your OS and used only inside the app process. It is never shown back here and never reaches this screen.',
+  'temporalAgent.keyPlaceholderReplace': 'Replace key…',
+  'temporalAgent.keyPlaceholderPaste': 'Paste OpenRouter API key',
+  'temporalAgent.saving': 'Saving…',
+  'temporalAgent.saveKey': 'Save key',
+  'temporalAgent.removeKey': 'Remove',
+  'temporalAgent.modelLabel': 'Model (OpenRouter)',
+  'temporalAgent.modelActive': 'Active model:',
+  'temporalAgent.modelEmptyPrefix': 'Empty = uses the default',
+  'temporalAgent.modelEmptySuffix': '. Remember to save.',
+  'temporalAgent.generating': 'generating…',
+  'temporalAgent.predictBtn': 'Predict futures',
+  'temporalAgent.predictDesc': 'Triggers an AI prediction.',
+  'temporalAgent.predictCost': 'Consumes OpenRouter credit.',
+  'temporalAgent.cancelled': 'Prediction cancelled.',
+  'temporalAgent.save': 'Save',
+  'temporalAgent.viewNotes': 'View agent notes',
+  'temporalAgent.savedConfirmation': 'Saved ✓',
+  'temporalAgent.configSummaryLabel': 'Active config:',
+  'temporalAgent.notesHeading': 'notes.md (read-only)',
+  'temporalAgent.notesEmpty': '(empty)',
+  'temporalAgent.tagPlaceholder': 'type + Enter',
+  'temporalAgent.modelDefaultOption': 'Default (anthropic/claude-sonnet-4.5)',
+  'temporalAgent.modelCustomOption': 'Custom…',
+  'temporalAgent.modelCustomPlaceholder': 'OpenRouter ID, format provider/model',
+  'temporalAgent.resultFrom': 'from',
 };
 
 const dicts: Record<Lang, Dict> = { es, en };

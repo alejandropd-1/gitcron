@@ -36,7 +36,7 @@ import {
 import { buildMaterializationPlan } from '@/lib/materialize-idea';
 import { cn } from '@/lib/utils';
 import { useT, tNow } from '@/hooks/use-translation';
-import { CopyButton } from './TemporalAgentSettings';
+import { CopyButton } from './CopyButton';
 import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Compass, Crosshair } from 'lucide-react';
 
 const OUTCOME_COLOR: Record<string, string> = {

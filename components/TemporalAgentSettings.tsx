@@ -15,7 +15,8 @@ import type {
 } from '@/types/temporal-agent';
 import { useT } from '@/hooks/use-translation';
 import { useGitStore } from '@/lib/git-store';
-import { Copy, Check, Brain } from 'lucide-react';
+import { Brain } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 const GREEN = '#a3f185';
 const CYAN = '#5ed8ff';
@@ -23,79 +24,6 @@ const ORANGE = '#fd9d1a';
 
 // Phase 3 / Phase 4: OpenRouter is the primary provider (one key → many models).
 const ACTIVE_PROVIDER = 'openrouter';
-
-export function CopyButton({ text }: { text: string }) {
-  const t = useT();
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy text: ', err);
-    }
-  };
-
-  return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
-      <button
-        onClick={handleCopy}
-        style={{
-          width: 28,
-          height: 28,
-          flexShrink: 0,
-          borderRadius: 6,
-          border: '1px solid rgba(217, 231, 252, 0.15)',
-          background: 'rgba(217, 231, 252, 0.035)',
-          color: '#9eacc0',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.2s',
-          cursor: 'pointer',
-          outline: 'none',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = 'rgba(163, 241, 133, 0.35)';
-          e.currentTarget.style.background = 'rgba(217, 231, 252, 0.1)';
-          e.currentTarget.style.color = '#a3f185';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = 'rgba(217, 231, 252, 0.15)';
-          e.currentTarget.style.background = 'rgba(217, 231, 252, 0.035)';
-          e.currentTarget.style.color = '#9eacc0';
-        }}
-        title={t('common.copy')}
-      >
-        {copied ? <Check size={14} style={{ color: '#a3f185' }} /> : <Copy size={14} />}
-      </button>
-      {copied && (
-        <span
-          style={{
-            position: 'absolute',
-            bottom: '100%',
-            left: '50%',
-            transform: 'translateX(-50%) translateY(-6px)',
-            background: '#0D0E12',
-            color: GREEN,
-            border: `1px solid ${GREEN}30`,
-            fontSize: 10,
-            padding: '3px 8px',
-            borderRadius: 4,
-            whiteSpace: 'nowrap',
-            pointerEvents: 'none',
-            fontFamily: 'sans-serif',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-          }}
-        >
-          {t('common.copied')}
-        </span>
-      )}
-    </div>
-  );
-}
 
 const OPENROUTER_MODELS: Array<{ id: string; label: string; price: string }> = [
   { id: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash (barato)', price: '$0.50 / $3.00' },
@@ -362,6 +290,29 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
     'Clearing the speculative path of false positives...'
   ];
 
+  const THOUGHTS_ZH = [
+    '正在对齐 reflog 指针...',
+    '正在分析最近提交的熵值...',
+    '正在检查未来分支的可信度...',
+    '正在读取提交信息中的线索...',
+    '正在估算下一步最可能的方向...',
+    '正在过滤低置信度预测...',
+    '正在整理仓库时间线...',
+    '正在把技术信号转成清晰说明...',
+    '正在评估哪些想法更接近现实...',
+    '正在避免把猜测说得太确定...',
+    '正在校准 Temporal Agent 的判断...',
+    '正在寻找分支历史里的模式...',
+    '正在比较增量改进和突破性变化...',
+    '正在准备可执行的代理提示...',
+    '正在保持 Git 操作只读...',
+    '正在汇总未来路线的证据...',
+    '正在把复杂上下文压缩成可读结论...',
+    '正在检查预测是否符合当前仓库轨迹...',
+    '正在让置信度和证据保持一致...',
+    '正在生成候选未来分支...'
+  ];
+
   useEffect(() => {
     if (!predicting) {
       if (result) {
@@ -371,7 +322,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
     }
 
     setProgress(0);
-    const thoughts = language === 'en' ? THOUGHTS_EN : THOUGHTS_ES;
+    const thoughts = language === 'zh' ? THOUGHTS_ZH : language === 'en' ? THOUGHTS_EN : THOUGHTS_ES;
     const getRandomThought = (prev?: string) => {
       const filtered = prev ? thoughts.filter(t => t !== prev) : thoughts;
       return filtered[Math.floor(Math.random() * filtered.length)];

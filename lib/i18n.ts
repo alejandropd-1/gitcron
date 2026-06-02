@@ -15,6 +15,7 @@ export type Lang = 'es' | 'en' | 'zh';
 export const LANGS: { code: Lang; label: string; flag: string }[] = [
   { code: 'es', label: 'Español', flag: '🇦🇷' },
   { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'zh', label: '中文', flag: '🇨🇳' },
 ];
 
 type Dict = Record<string, string>;

@@ -14,6 +14,7 @@ import type {
   SpeculativeBranch,
 } from '../../../types/temporal-agent';
 import { fetchWithTimeout, type AssembledPrompts } from '../provider-runtime';
+import { cleanJsonString, extractJson, normalizeBranch } from '../provider-parsing';
 import { getKey } from '../key-store';
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
@@ -76,82 +77,6 @@ export function createOpenRouterProvider(opts?: { model?: string }): AIPredictio
   };
 }
 
-function cleanJsonString(str: string): string {
-  // Strip trailing commas from objects and arrays
-  return str.replace(/,\s*([\]}])/g, '$1');
-}
-
-function normalizeBranch(b: any): SpeculativeBranch | null {
-  if (!b || typeof b !== 'object') return null;
-
-  const id = b.id != null ? String(b.id) : (b.id_especulativa != null ? String(b.id_especulativa) : `branch-${Math.random().toString(36).slice(2, 9)}`);
-  
-  // Resilient messages
-  let message = b.message != null ? String(b.message) : '';
-  if (!message && b.mensaje != null) {
-    message = String(b.mensaje);
-  }
-  if (!message) {
-    message = b.name || b.nombre || b.title || b.titulo || b.branchName || b.nombreRama || b.nombre_rama || 'Speculative Branch';
-  }
-  message = String(message).slice(0, 100);
-
-  // Resilient rationale
-  let rationale = b.rationale != null ? String(b.rationale) : '';
-  if (!rationale) {
-    rationale = b.justificacion || b.explicacion || b.justificación || b.explicación || b.razon || b.razón || '';
-  }
-  rationale = String(rationale);
-
-  // Resilient type
-  let type = b.type || b.tipo;
-  if (typeof type === 'string') {
-    type = type.toLowerCase().trim();
-    if (type === 'mejora' || type === 'improvement' || type === 'mejora de código' || type === 'mejora_codigo') {
-      type = 'improvement';
-    } else if (type === 'innovacion' || type === 'innovación' || type === 'breakthrough' || type === 'descubrimiento' || type === 'discovery') {
-      type = 'breakthrough';
-    } else if (type === 'tendencia' || type === 'trend' || type === 'evolucion' || type === 'evolución' || type === 'evolution') {
-      type = 'trend';
-    } else {
-      type = 'improvement';
-    }
-  } else {
-    type = 'improvement';
-  }
-
-  // Resilient confidence
-  let confidence = b.confidence !== undefined ? b.confidence : b.confianza;
-  if (typeof confidence === 'string') {
-    if (confidence.endsWith('%')) {
-      confidence = parseFloat(confidence) / 100;
-    } else {
-      confidence = parseFloat(confidence);
-    }
-  }
-  if (typeof confidence !== 'number' || isNaN(confidence)) {
-    confidence = 0.5;
-  }
-  confidence = Math.max(0, Math.min(1, confidence));
-
-  // Resilient reasoning
-  const reasoning = b.reasoning || b.razonamiento || b.explicacion_detallada || b.explicación_detallada || b.pensamiento;
-
-  // Resilient agentPrompt
-  const agentPrompt = b.agentPrompt || b.promptAgente || b.prompt_agente || b.instrucciones || b.instruccionesAgente;
-
-  return {
-    id,
-    message,
-    rationale,
-    type: type as 'improvement' | 'breakthrough' | 'trend',
-    confidence,
-    reasoning: reasoning ? String(reasoning) : undefined,
-    agentPrompt: agentPrompt ? String(agentPrompt) : undefined,
-    predictionIndex: b.predictionIndex != null ? Number(b.predictionIndex) : undefined
-  };
-}
-
 function parseBranches(text: string): SpeculativeBranch[] {
   console.log('[temporal-agent] AI raw response length:', text.length);
   console.log('[temporal-agent] AI raw preview:', text.slice(0, 500));
@@ -195,86 +120,5 @@ function parseBranches(text: string): SpeculativeBranch[] {
     console.log('[temporal-agent] parseBranches: JSON parse failed —', e instanceof Error ? e.message : e);
     return [];
   }
-}
-
-function extractJson(text: string): string | null {
-  const trimmed = text.trim();
-  
-  // Try parsing the text directly first
-  try {
-    JSON.parse(cleanJsonString(trimmed));
-    return trimmed;
-  } catch {}
-
-  // Look for any markdown code blocks
-  const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
-  let match;
-  while ((match = codeBlockRegex.exec(text)) !== null) {
-    const content = match[1].trim();
-    try {
-      JSON.parse(cleanJsonString(content));
-      return content;
-    } catch {}
-  }
-
-  // Resilient regex for finding json objects containing branches or similar keys
-  const branchesMatch = text.match(/\{[\s\S]*(?:"branches"|"ramas"|"ideas"|"predictions")\s*:\s*\[[\s\S]*\][\s\S]*\}/i);
-  if (branchesMatch) {
-    try {
-      const candidate = cleanJsonString(branchesMatch[0]);
-      JSON.parse(candidate);
-      return branchesMatch[0];
-    } catch {}
-  }
-
-  // Find the first { or [ and the last } or ]
-  const firstBrace = text.indexOf('{');
-  const lastBrace = text.lastIndexOf('}');
-  const firstBracket = text.indexOf('[');
-  const lastBracket = text.lastIndexOf(']');
-
-  // Try extracting between first brace and last brace
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    const candidate = text.slice(firstBrace, lastBrace + 1);
-    try {
-      JSON.parse(cleanJsonString(candidate));
-      return candidate;
-    } catch {}
-  }
-
-  // Try extracting between first bracket and last bracket
-  if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-    const candidate = text.slice(firstBracket, lastBracket + 1);
-    try {
-      JSON.parse(cleanJsonString(candidate));
-      return candidate;
-    } catch {}
-  }
-
-  // Stack-based search for the first valid JSON object or array
-  // This is highly robust if there is garbage text before/after.
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (char === '{' || char === '[') {
-      const closingChar = char === '{' ? '}' : ']';
-      let depth = 1;
-      for (let j = i + 1; j < text.length; j++) {
-        if (text[j] === char) {
-          depth++;
-        } else if (text[j] === closingChar) {
-          depth--;
-          if (depth === 0) {
-            const candidate = text.slice(i, j + 1);
-            try {
-              JSON.parse(cleanJsonString(candidate));
-              return candidate;
-            } catch {}
-          }
-        }
-      }
-    }
-  }
-
-  return null;
 }
 

@@ -1,6 +1,7 @@
 'use client';
 /* eslint-disable react-hooks/set-state-in-effect */
 
+import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Undo, Redo, Download, Upload, GitBranch, Archive, Terminal, Search,
@@ -22,7 +23,7 @@ import {
 } from '@/lib/shortcuts';
 import { useShortcuts } from '@/hooks/use-shortcuts';
 import { CommitContextMenu, BranchContextMenu, FileContextMenu, RemoteBranchContextMenu } from '@/components/ContextMenus';
-import { StatusBadge, FlowStep } from '@/components/HelpModal';
+import { StatusBadge } from '@/components/HelpModal';
 import { RepoStartPanel, type RepoStartMode } from '@/components/RepoModals';
 import { ChangelogPreview } from '@/components/ChangelogPreview';
 import { useGitStore, Commit, GitFile, type RepoState, type FontSize } from '@/lib/git-store';
@@ -31,11 +32,35 @@ import { useRepoLoader } from '@/hooks/use-repo-loader';
 import { useAutoFetch } from '@/hooks/use-auto-fetch';
 import { DiffViewer } from '@/components/DiffViewer';
 import { CommitGraph, colorForBranch } from '@/components/CommitGraph';
-import { ChronometricGraph } from '@/components/ChronometricGraph';
-import { TemporalAgentSettings } from '@/components/TemporalAgentSettings';
 import { ConflictResolver } from '@/components/ConflictResolver';
 import { StagingPanel } from '@/components/StagingPanel';
+import { HistoryView, CommitTabView } from '@/components/RepoContentViews';
 import type { SpeculativeBranch } from '@/types/temporal-agent';
+import { formatDate, formatInitials } from '@/lib/display-format';
+
+const ChronometricGraph = dynamic(
+  () => import('@/components/ChronometricGraph').then((mod) => mod.ChronometricGraph),
+  {
+    ssr: false,
+    loading: () => <DeferredPanelLoading />,
+  },
+);
+
+const TemporalAgentSettings = dynamic(
+  () => import('@/components/TemporalAgentSettings').then((mod) => mod.TemporalAgentSettings),
+  {
+    ssr: false,
+    loading: () => <DeferredPanelLoading />,
+  },
+);
+
+function DeferredPanelLoading() {
+  return (
+    <div className="flex min-h-48 w-full items-center justify-center text-text-secondary">
+      <Loader2 size={18} className="animate-spin text-secondary" />
+    </div>
+  );
+}
 
 // Phase 5 test data — 3 mock speculative branches to validate the overlay
 // without hitting the AI. The real flow swaps these for PredictionResult.branches.
@@ -69,7 +94,7 @@ const MOCK_SPECULATIVE: SpeculativeBranch[] = [
 // Flip to true to debug with the hardcoded mock branches instead of the real,
 // persisted prediction. false = use the real per-repo PredictionResult (Capa 1).
 const USE_MOCK_SPECULATIVE = false;
-import { useT, tNow } from '@/hooks/use-translation';
+import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { parseChangelog } from '@/lib/changelog';
@@ -126,30 +151,12 @@ const FONT_SIZE_OPTIONS: Array<{ key: FontSize; px: number }> = [
   { key: 'large', px: 17 },
 ];
 
-function formatDate(iso: string): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
-  if (diffMin < 1) return tNow('graph.justNow');
-  if (diffMin < 60) return tNow('graph.minutesAgo', { n: diffMin });
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return tNow('graph.hoursAgo', { n: diffH });
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 7) return tNow('graph.daysAgo', { n: diffD });
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function initials(name: string): string {
-  return name.split(' ').slice(0, 2).map((n) => n[0]?.toUpperCase() ?? '').join('');
-}
-
 /**
  * Derive 2-letter initials from a GitHub user object, falling back through
  * name → login → email. Always returns at most 2 chars.
  */
 function userInitials(user: { name?: string | null; login?: string; email?: string | null }): string {
-  if (user.name && user.name.trim()) return initials(user.name.trim());
+  if (user.name && user.name.trim()) return formatInitials(user.name.trim());
   if (user.login) return user.login.slice(0, 2).toUpperCase();
   if (user.email) return user.email.split('@')[0].slice(0, 2).toUpperCase();
   return '?';
@@ -3646,7 +3653,7 @@ export default function GitCronPage() {
                 <div className="text-xs text-text-secondary mb-4 select-text">{formatDate(selectedCommit.date)}</div>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
-                    {initials(selectedCommit.authorName)}
+                    {formatInitials(selectedCommit.authorName)}
                   </div>
                   <div>
                     <div className="text-sm font-medium select-text">{selectedCommit.authorName}</div>
@@ -5535,190 +5542,3 @@ function FileRow({
   );
 }
 
-/**
- * Linear chronological history list — no SVG, more detail per row.
- * Useful for skimming the full commit log of the current branch.
- */
-function HistoryView({
-  commits, selectedHash, currentBranch, filterText, onSelect, onContextMenu, isLoading,
-}: {
-  commits: Commit[];
-  selectedHash?: string;
-  currentBranch?: string;
-  filterText?: string;
-  onSelect: (c: Commit) => void;
-  onContextMenu: (e: React.MouseEvent, c: Commit) => void;
-  isLoading: boolean;
-}) {
-  const filter = filterText?.trim().toLowerCase() ?? '';
-  const filtered = filter
-    ? commits.filter(
-        (c) =>
-          c.message.toLowerCase().includes(filter) ||
-          c.shortHash.startsWith(filter) ||
-          c.authorName.toLowerCase().includes(filter),
-      )
-    : commits;
-
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 py-2 px-4 text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
-        {filter
-          ? `${filtered.length} de ${commits.length} commits`
-          : `Historial · ${commits.length} commits`}
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        {commits.length === 0 && isLoading && (
-          <p className="px-4 py-8 text-center text-text-secondary text-sm">Cargando commits...</p>
-        )}
-        {filter && filtered.length === 0 && (
-          <p className="px-4 py-8 text-center text-text-secondary text-sm">
-            Sin resultados para &quot;{filter}&quot;
-          </p>
-        )}
-        {filtered.map((commit) => {
-          const isSelected = selectedHash === commit.hash;
-          return (
-            <div
-              key={commit.hash}
-              onClick={() => onSelect(commit)}
-              onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, commit); }}
-              className={cn(
-                'px-4 py-3 border-b border-border-subtle/15 cursor-pointer transition-colors select-text',
-                isSelected ? 'bg-secondary/10' : 'hover:bg-bg-surface/75',
-              )}
-            >
-              <div className="flex items-start justify-between gap-4 mb-1.5">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <code className="text-[11px] font-mono text-secondary shrink-0 select-text">{commit.shortHash}</code>
-                  {commit.refs && commit.refs.length > 0 && (
-                    <div className="flex gap-1 flex-wrap">
-                      {commit.refs.slice(0, 3).map((ref) => {
-                        const isTag = ref.startsWith('tag: ');
-                        const isRemote = ref.includes('/');
-                        const text = isTag ? ref.replace('tag: ', '') : ref;
-                        const isCurrent = !isTag && !isRemote && text === currentBranch;
-                        return (
-                          <span
-                            key={ref}
-                            className={cn(
-                              'text-[9px] px-1.5 py-0.5 rounded border whitespace-nowrap font-medium',
-                              isTag ? 'bg-git-mod/15 text-git-mod border-git-mod/30'
-                                : isCurrent ? 'bg-secondary/20 text-secondary border-secondary/40'
-                                : isRemote ? 'bg-primary/10 text-primary border-[#5ed8ff]/30'
-                                : 'bg-secondary/15 text-secondary border-secondary/30',
-                            )}
-                          >
-                            {text}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-                <span className="text-[11px] text-text-secondary/70 shrink-0 font-mono select-text">{formatDate(commit.date)}</span>
-              </div>
-              <p className={cn('text-sm font-medium mb-1.5 select-text', isSelected ? 'text-text-primary' : 'text-text-primary')}>
-                {commit.message}
-              </p>
-              <div className="flex items-center gap-2 text-xs text-text-secondary">
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-[8px] font-bold text-[#052900]">
-                  {initials(commit.authorName)}
-                </div>
-                <span className="select-text">{commit.authorName}</span>
-                <span className="text-text-secondary/70">·</span>
-                <span className="text-text-secondary/70 font-mono text-[10px] select-text">{commit.authorEmail}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/**
- * "Commit" tab — focused workspace for preparing changes.
- * Shows a summary of the working tree and prompts the user to click a file
- * (in the right panel) to review the diff.
- */
-function CommitTabView({
-  modifiedFiles, hasGithubUser,
-}: { modifiedFiles: GitFile[]; hasGithubUser: boolean }) {
-  const t = useT();
-  const unstaged = modifiedFiles.filter((f) => !f.staged);
-  const staged = modifiedFiles.filter((f) => f.staged);
-
-  const statusCount = (status: GitFile['status']) =>
-    modifiedFiles.filter((f) => f.status === status).length;
-
-  return (
-    <div className="flex-1 overflow-y-auto p-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-text-primary mb-2">{t('commitTab.pageTitle')}</h2>
-          <p className="text-sm text-text-secondary">
-            {t('commitTab.introText')}
-          </p>
-        </div>
-
-        {modifiedFiles.length === 0 ? (
-          <div className="bg-bg-surface/75 border border-border-subtle/15 rounded-lg p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-secondary/10 flex items-center justify-center mx-auto mb-4">
-              <FileText size={28} className="text-secondary" />
-            </div>
-            <p className="text-base font-semibold text-text-primary mb-1">{t('commitTab.cleanWorkspace')}</p>
-            <p className="text-sm text-text-secondary">{t('commitTab.cleanWorkspaceDesc')}</p>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              <StatCard label={t('staging.unstagedTitle')} value={unstaged.length} accent="muted" />
-              <StatCard label={t('staging.stagedTitle')} value={staged.length} accent="primary" />
-            </div>
-
-            <div className="bg-bg-surface/75 border border-border-subtle/15 rounded-lg p-5 mb-4">
-              <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3">
-                {t('commitTab.changesByTypeLabel')}
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {statusCount('modified') > 0 && <StatusBadge label={t('status.modified')} count={statusCount('modified')} color="#fd9d1a" letter="M" />}
-                {statusCount('added') > 0 && <StatusBadge label={t('status.added')} count={statusCount('added')} color="#a3f185" letter="A" />}
-                {statusCount('deleted') > 0 && <StatusBadge label={t('status.deleted')} count={statusCount('deleted')} color="#ff716c" letter="D" />}
-                {statusCount('untracked') > 0 && <StatusBadge label={t('status.untracked')} count={statusCount('untracked')} color="#9eacc0" letter="U" />}
-                {statusCount('renamed') > 0 && <StatusBadge label={t('status.renamed')} count={statusCount('renamed')} color="#5ed8ff" letter="R" />}
-              </div>
-            </div>
-
-            <div className="bg-bg-surface/75 border border-border-subtle/15 rounded-lg p-5">
-              <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3">{t('commitTab.stepByStepLabel')}</h3>
-              <ol className="space-y-2 text-sm text-text-primary">
-                <FlowStep n={1} done={true}>{t('commitTab.step1Text')}</FlowStep>
-                <FlowStep n={2} done={staged.length > 0}>{t('commitTab.step2Text')}</FlowStep>
-                <FlowStep n={3} done={false}>{t('commitTab.step3Text')}</FlowStep>
-                <FlowStep n={4} done={false}>{t('commitTab.step4Text')}</FlowStep>
-                {hasGithubUser && <FlowStep n={5} done={false}>{t('commitTab.step5Text')}</FlowStep>}
-              </ol>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value, accent }: { label: string; value: number; accent: 'primary' | 'muted' }) {
-  return (
-    <div
-      className={cn(
-        'bg-bg-surface/75 border rounded-lg p-4',
-        accent === 'primary' ? 'border-secondary/40' : 'border-border-subtle/15',
-      )}
-    >
-      <p className="text-xs text-text-secondary uppercase tracking-wider mb-1">{label}</p>
-      <p className={cn('text-2xl font-bold', accent === 'primary' ? 'text-secondary' : 'text-text-primary')}>
-        {value}
-      </p>
-    </div>
-  );
-}

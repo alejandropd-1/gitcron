@@ -135,6 +135,22 @@ async function gatherRawContext(
 
 // --- prompt assembly (pure) -------------------------------------------------
 
+function uiLanguageName(lang: string): string {
+  if (lang === 'es') return 'Spanish (Castellano)';
+  if (lang === 'zh') return 'Simplified Chinese (中文)';
+  return 'English';
+}
+
+function uiLanguageStyle(lang: string): string {
+  if (lang === 'es') {
+    return 'Use clear, professional, warm, and highly accessible Spanish (avoid overly technical jargon where possible, keep it friendly and colloquial).';
+  }
+  if (lang === 'zh') {
+    return 'Use clear, professional, warm, and highly accessible Simplified Chinese (avoid overly technical jargon where possible, keep it natural and concise).';
+  }
+  return 'Use clear, professional, warm, and highly accessible English (avoid overly technical jargon where possible, keep it friendly and concise).';
+}
+
 function assemblePrompts(
   skillText: string,
   doctrineText: string,
@@ -142,12 +158,15 @@ function assemblePrompts(
   input: PredictionInput,
   lang: string = 'es',
 ): AssembledPrompts {
+  const narrativeLanguage = uiLanguageName(lang);
+  const narrativeStyle = uiLanguageStyle(lang);
+
   // Order matters: skill (who you are) → doctrine (the method, entropy capstone)
   // → feedback (focus) → context (raw material). See CONTEXT-FEEDBACK-FORMAT.md.
   const systemPrompt = [
     skillText,
     '',
-    `IMPORTANT: Since the user is using ${lang === 'es' ? 'Spanish (Castellano)' : 'English'} as their primary language, you MUST return the main UI narrative fields ("summary", "message", "rationale", "reasoning") in ${lang === 'es' ? 'Spanish (Castellano)' : 'English'}. Use clear, professional, warm, and highly accessible Spanish (avoid overly technical jargon where possible, keep it friendly and colloquial).`,
+    `IMPORTANT: Since the user is using ${narrativeLanguage} as their primary language, you MUST return the main UI narrative fields ("summary", "message", "rationale", "reasoning") in ${narrativeLanguage}. ${narrativeStyle}`,
     '',
     '# Forecasting doctrine (apply before predicting; estimate entropy first)',
     doctrineText,
@@ -184,7 +203,7 @@ function assemblePrompts(
     '  ]',
     '}',
     'Propose 3-5 branches. Each must have all 7 fields. summary must be one paragraph. Each reasoning must be 3-5 sentences, plain prose, no markdown.',
-    `IMPORTANT: The UI fields ("summary", "message", "rationale", "reasoning") MUST be written in ${lang === 'es' ? 'Spanish (Castellano)' : 'English'}. Keep explanations friendly, clear, and easy to understand. The "agentPrompt" field must always be written in English as a detailed programming prompt for an AI agent to execute.`,
+    `IMPORTANT: The UI fields ("summary", "message", "rationale", "reasoning") MUST be written in ${narrativeLanguage}. ${narrativeStyle} The "agentPrompt" field must always be written in English as a detailed programming prompt for an AI agent to execute.`,
   ].join('\n');
 
   return { systemPrompt, userPrompt, input };

@@ -185,8 +185,9 @@ export function ChronometricGraph({
   }, [filteredCommits]);
 
   // 4. Calculate dynamic SVG dimensions based on commit count
+  // Slightly increased spacing factor (from 60px to 75px per commit) to give nodes, tags and branches more breathing room
   const width = useMemo(() => {
-    return Math.max(1100, filteredCommits.length * 60);
+    return Math.max(1100, filteredCommits.length * 75);
   }, [filteredCommits]);
 
   // Compute height dynamically using the slope to maintain a constant visual angle of ~40.4°
@@ -980,6 +981,7 @@ export function ChronometricGraph({
       y: number;
       satX: number;
       satY: number;
+      isLeft: boolean;
       color: string;
     }> = [];
 
@@ -990,11 +992,13 @@ export function ChronometricGraph({
 
       tags.forEach((tagRaw, tagIndex) => {
         const tagName = tagRaw.slice(5);
-        // Enforce a uniform perpendicular line length of exactly 35px for tags
-        const distance = 35;
+        // Stagger perpendicular distance (35px for first, 50px for second...)
+        // to avoid overlapping with next node's telemetry text.
+        const distance = 35 + tagIndex * 15;
 
         // Base diagonal offset along (ux, uy) fanning out by index
-        let diagOffset = tagIndex * 45 - 8;
+        // Slightly reduced diagonal offset step to prevent tags from climbing too fast into the next node's vertical space.
+        let diagOffset = tagIndex * 26 - 8;
         if (isHead) {
           // Offset HEAD tags by -50px along temporal diagonal to completely clear the telemetry stack
           diagOffset += -50;
@@ -1022,6 +1026,7 @@ export function ChronometricGraph({
           y: node.y,
           satX,
           satY,
+          isLeft: nodeIsLeft,
           color: 'var(--color-git-mod)',
         });
       });
@@ -1713,31 +1718,39 @@ export function ChronometricGraph({
                     />
                     <circle cx={tag.satX} cy={tag.satY} r={2} fill={TAG_COLOR} opacity={0.7} />
                     <g transform={`translate(${tag.satX}, ${tag.satY})`}>
-                      <rect
-                        x={-badgeWidth - 2}
-                        y={-9}
-                        width={badgeWidth}
-                        height={18}
-                        rx={4}
-                        fill={TAG_COLOR}
-                        fillOpacity={0.2}
-                        stroke={TAG_COLOR}
-                        strokeOpacity={0.5}
-                        strokeWidth={1}
-                      />
-                      <text
-                        x={-badgeWidth / 2 - 2}
-                        y={0}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fill={TAG_COLOR}
-                        fontSize={fs(10)}
-                        fontWeight={500}
-                        className="font-mono select-none cursor-pointer"
-                        letterSpacing="0.5"
-                      >
-                        {tag.tagName}
-                      </text>
+                      {(() => {
+                        const rectX = tag.isLeft ? -badgeWidth - 2 : 2;
+                        const textX = tag.isLeft ? -badgeWidth / 2 - 2 : badgeWidth / 2 + 2;
+                        return (
+                          <>
+                            <rect
+                              x={rectX}
+                              y={-9}
+                              width={badgeWidth}
+                              height={18}
+                              rx={4}
+                              fill={TAG_COLOR}
+                              fillOpacity={0.2}
+                              stroke={TAG_COLOR}
+                              strokeOpacity={0.5}
+                              strokeWidth={1}
+                            />
+                            <text
+                              x={textX}
+                              y={0}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill={TAG_COLOR}
+                              fontSize={fs(10)}
+                              fontWeight={500}
+                              className="font-mono select-none cursor-pointer"
+                              letterSpacing="0.5"
+                            >
+                              {tag.tagName}
+                            </text>
+                          </>
+                        );
+                      })()}
                     </g>
                   </g>
                 );
@@ -2012,14 +2025,14 @@ export function ChronometricGraph({
                     {isBranchOrigin && node.commit.parents.length > 0 && (
                       <g opacity={0.9}>
                         <polygon
-                          points={`${node.x + nx * 25},${node.y + ny * 25} ${node.x + nx * 20 + ux * 2.5},${node.y + ny * 20 + uy * 2.5} ${node.x + nx * 20 - ux * 2.5},${node.y + ny * 20 - uy * 2.5}`}
+                          points={`${node.x + vx * 25},${node.y + vy * 25} ${node.x + vx * 20 + ux * 2.5},${node.y + vy * 20 + uy * 2.5} ${node.x + vx * 20 - ux * 2.5},${node.y + vy * 20 - uy * 2.5}`}
                           fill={node.laneColor}
                           opacity={0.4}
                           stroke={node.laneColor}
                           strokeWidth={0.75}
                         />
                         <polygon
-                          points={`${node.x + nx * 28},${node.y + ny * 28} ${node.x + nx * 23 + ux * 2.5},${node.y + ny * 23 + uy * 2.5} ${node.x + nx * 23 - ux * 2.5},${node.y + ny * 23 - uy * 2.5}`}
+                          points={`${node.x + vx * 28},${node.y + vy * 28} ${node.x + vx * 23 + ux * 2.5},${node.y + vy * 23 + uy * 2.5} ${node.x + vx * 23 - ux * 2.5},${node.y + vy * 23 - uy * 2.5}`}
                           fill="none"
                           stroke={node.laneColor}
                           strokeWidth={1}

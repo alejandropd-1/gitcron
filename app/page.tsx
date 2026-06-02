@@ -1359,7 +1359,7 @@ export default function GitCronPage() {
     const result = await cleanUntracked();
     if (result.success) {
       setCleanableFiles(result.files);
-      setSelectedCleanFiles(new Set(result.files));
+      setSelectedCleanFiles(new Set());
     }
     setCleanModalLoading(false);
   };
@@ -4581,11 +4581,11 @@ export default function GitCronPage() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setSelectedCleanFiles(new Set(cleanableFiles))}
+                    onClick={() => setSelectedCleanFiles(new Set(cleanableFiles.filter((filePath) => !filePath.endsWith('/'))))}
                     disabled={cleanModalLoading || cleanableFiles.length === 0}
                     className="text-[10px] text-secondary hover:text-[#052900] px-2 py-0.5 rounded border border-secondary/40 hover:bg-secondary transition-colors disabled:opacity-40"
                   >
-                    {t('cleanModal.selectAll')}
+                    {t('cleanModal.selectFiles')}
                   </button>
                   <button
                     type="button"
@@ -4629,7 +4629,11 @@ export default function GitCronPage() {
                           }}
                           className="accent-[#f4b942] shrink-0"
                         />
-                        <FileText size={13} className="text-text-secondary shrink-0" />
+                        {filePath.endsWith('/') ? (
+                          <Folder size={13} className="text-[#ffd98a] shrink-0" />
+                        ) : (
+                          <FileText size={13} className="text-text-secondary shrink-0" />
+                        )}
                         <span className="text-xs text-text-primary font-mono truncate">{filePath}</span>
                       </label>
                     );

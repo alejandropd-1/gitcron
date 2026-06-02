@@ -3466,6 +3466,7 @@ export default function GitCronPage() {
                             onToggleSpeculative={() => setShowSpeculative((v) => !v)}
                             hudLeft={leftGraphSafe}
                             hudRight={rightGraphSafe}
+                            localBranches={branches}
                           />
                         </motion.div>
                       ) : null}

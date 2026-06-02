@@ -24,7 +24,7 @@ const ORANGE = '#fd9d1a';
 // Phase 3 / Phase 4: OpenRouter is the primary provider (one key → many models).
 const ACTIVE_PROVIDER = 'openrouter';
 
-function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text }: { text: string }) {
   const t = useT();
   const [copied, setCopied] = useState(false);
 

@@ -530,8 +530,6 @@ ipcMain.handle('git:materialize-idea', async (_event, repoPath: string, idea: Ma
     if (!repoPath) return { success: false, error: 'No repo path' };
     if (!idea || !idea.title) return { success: false, error: 'Invalid idea' };
 
-    const plan = buildMaterializationPlan(idea);
-
     // Child env for git: inherit the process env but DROP the vars simple-git's
     // safety guard refuses (editor/ssh/askpass/diff hooks leaking from the
     // launching shell, e.g. GIT_EDITOR="code --wait", SSH_ASKPASS, …). Our
@@ -549,6 +547,8 @@ ipcMain.handle('git:materialize-idea', async (_event, repoPath: string, idea: Ma
     // Refuse if the branch or flight tag already exist (don't clobber). Checked
     // BEFORE any write, so a collision can never leave partial state.
     const branches = await g.branchLocal();
+    const plan = buildMaterializationPlan(idea, branches.all);
+
     if (branches.all.includes(plan.branchName)) {
       return { success: false, error: `Branch "${plan.branchName}" already exists` };
     }

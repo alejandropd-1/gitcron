@@ -37,6 +37,7 @@ import {
 import { buildMaterializationPlan } from '@/lib/materialize-idea';
 import { cn } from '@/lib/utils';
 import { useT, tNow } from '@/hooks/use-translation';
+import { CopyButton } from './TemporalAgentSettings';
 import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Compass, Crosshair } from 'lucide-react';
 
 const OUTCOME_COLOR: Record<string, string> = {
@@ -101,6 +102,8 @@ interface ChronometricGraphProps {
   hudLeft?: number;
   /** Pixels reserved by the right floating panel (details). HUD panels shift left by this amount. */
   hudRight?: number;
+  /** Optional array of existing local branches for materialization plan deduplication. */
+  localBranches?: string[];
 }
 
 export function ChronometricGraph({
@@ -116,6 +119,7 @@ export function ChronometricGraph({
   onSelectSpeculative,
   hudLeft = 0,
   hudRight = 0,
+  localBranches,
 }: ChronometricGraphProps) {
   const t = useT();
   const stashes = useGitStore((state) => state.stashes);
@@ -438,46 +442,91 @@ export function ChronometricGraph({
   // Which tab is active inside the expanded Centauro panel.
   const [centauroTab, setCentauroTab] = useState<'report' | 'history'>('report');
 
-  // Centauro panel resizable height (in vh). Persisted in localStorage.
-  const [centauroHeight, setCentauroHeight] = useState(42);
+  // Centauro panel resizable height (in px). Persisted in localStorage.
+  const [centauroHeight, setCentauroHeight] = useState(320);
+  const [isCentauroDragging, setIsCentauroDragging] = useState(false);
   const centauroDragRef = useRef<{
     startY: number;
     startH: number;
   } | null>(null);
 
+  // Dynamic helper to find the top of the sidebars
+  const getSidebarTop = useCallback(() => {
+    if (typeof document === 'undefined') return 104;
+    const el = document.querySelector('aside');
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      return rect.top;
+    }
+    return 104;
+  }, []);
+
+  // Dynamic helper to calculate the maximum allowed height for the centauro content block
+  // so that the top edge of the HUD aligns perfectly with the top edge of the sidebars.
+  const getMaxCentauroHeight = useCallback(() => {
+    if (typeof document === 'undefined') return 320;
+    
+    // 1. Get bottom boundary of the graph container or viewport
+    const containerEl = document.getElementById('chronometric-container');
+    const containerBottom = containerEl ? containerEl.getBoundingClientRect().bottom : window.innerHeight;
+    
+    // 2. Get the top coordinate of the sidebars
+    const sidebarTop = getSidebarTop();
+    
+    // 3. Get the height of the HUD toolbar (default to 41px if not yet rendered)
+    const toolbarEl = document.querySelector('.hud-toolbar');
+    const toolbarHeight = toolbarEl ? toolbarEl.getBoundingClientRect().height : 41;
+    
+    // 4. Calculate maximum height for the glassy block (centauroHeight)
+    // Formula: maxH = containerBottom - 8 (bottom inset) - sidebarTop - toolbarHeight - 2 (borders)
+    const maxH = containerBottom - 8 - sidebarTop - toolbarHeight - 2;
+    
+    return Math.max(120, maxH);
+  }, [getSidebarTop]);
+
   // Hydrate height from localStorage on mount.
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('gitcron:centauroHeight');
+      const saved = localStorage.getItem('gitcron:centauroHeightPx');
       if (saved) {
         const h = parseInt(saved, 10);
-        if (h >= 15 && h <= 80) setCentauroHeight(h);
+        const maxH = getMaxCentauroHeight();
+        if (h >= 120 && h <= maxH) {
+          setCentauroHeight(h);
+        } else if (h > maxH) {
+          setCentauroHeight(maxH);
+        }
       }
     } catch { /* ignore corrupt value */ }
-  }, []);
+  }, [getMaxCentauroHeight]);
 
   const onCentauroResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    setIsCentauroDragging(true);
     centauroDragRef.current = {
       startY: e.clientY,
       startH: centauroHeight,
     };
     const onMove = (ev: MouseEvent) => {
       if (!centauroDragRef.current) return;
-      // Dragging UP (delta negative) = taller; DOWN (delta positive) = shorter.
-      const delta = centauroDragRef.current.startY - ev.clientY;
-      const newH = Math.max(15, Math.min(80, centauroDragRef.current.startH + delta));
+      // Dragging UP (delta Y is startY - currentY) = taller
+      const deltaPx = centauroDragRef.current.startY - ev.clientY;
+      const targetH = centauroDragRef.current.startH + deltaPx;
+      // Clamp against useful area
+      const maxH = getMaxCentauroHeight();
+      const newH = Math.max(120, Math.min(maxH, targetH));
       setCentauroHeight(newH);
-      localStorage.setItem('gitcron:centauroHeight', String(newH));
+      localStorage.setItem('gitcron:centauroHeightPx', String(newH));
     };
     const onUp = () => {
+      setIsCentauroDragging(false);
       centauroDragRef.current = null;
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-  }, [centauroHeight]);
+  }, [centauroHeight, getMaxCentauroHeight]);
 
   // Capa 2a — per-branch decisions (accepted / rejected / deferred).
   // Keyed by branch message (title), which is the stable identity across sessions.
@@ -586,8 +635,17 @@ export function ChronometricGraph({
   }, [showSpeculative, selectedSpeculativeId, speculativeNodes]);
 
   const handleSelectSpeculative = (id: string) => {
+    // Restore height if switching branches or opening another branch while in preview
+    if (materializeIdea && previousCentauroHeight !== null) {
+      setCentauroHeight(previousCentauroHeight);
+      localStorage.setItem('gitcron:centauroHeightPx', String(previousCentauroHeight));
+      setPreviousCentauroHeight(null);
+    }
     setSelectedSpeculativeId(id);
     setCentauroExpanded(true);
+    setMaterializeIdea(null);
+    setMaterializeResult(null);
+    setMaterializeError(null);
     onSelectSpeculative?.(id);
   };
 
@@ -598,11 +656,24 @@ export function ChronometricGraph({
   const [materializing, setMaterializing] = useState(false);
   const [materializeResult, setMaterializeResult] = useState<MaterializationResult | null>(null);
   const [materializeError, setMaterializeError] = useState<string | null>(null);
+  const [previousCentauroHeight, setPreviousCentauroHeight] = useState<number | null>(null);
+
+  const isTallMode = centauroHeight >= 480;
+
+  // Automatically clamp height on window resize so HUD top never crosses sidebar top
+  useEffect(() => {
+    const handleResize = () => {
+      const maxH = getMaxCentauroHeight();
+      setCentauroHeight((prev) => Math.min(prev, maxH));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [getMaxCentauroHeight]);
 
   // The exact plan the user is shown and confirms. Same builder main uses.
   const materializePlan = useMemo(
-    () => (materializeIdea ? buildMaterializationPlan(materializeIdea) : null),
-    [materializeIdea],
+    () => (materializeIdea ? buildMaterializationPlan(materializeIdea, localBranches) : null),
+    [materializeIdea, localBranches],
   );
 
   function openMaterializeConfirm() {
@@ -610,6 +681,14 @@ export function ChronometricGraph({
     const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
     if (!node) return;
     const b = node.branch;
+
+    // Backup height and auto-expand to widescreen content height clamped below lateral panels
+    setPreviousCentauroHeight(centauroHeight);
+    const maxH = getMaxCentauroHeight();
+    const targetH = Math.min(680, maxH);
+    setCentauroHeight(targetH);
+    localStorage.setItem('gitcron:centauroHeightPx', String(targetH));
+
     setMaterializeResult(null);
     setMaterializeError(null);
     setMaterializeIdea({
@@ -621,6 +700,17 @@ export function ChronometricGraph({
       reasoning: b.reasoning ?? '',
       agentPrompt: b.agentPrompt ?? '',
     });
+  }
+
+  function cancelMaterialize() {
+    setMaterializeIdea(null);
+    setMaterializeResult(null);
+    setMaterializeError(null);
+    if (previousCentauroHeight !== null) {
+      setCentauroHeight(previousCentauroHeight);
+      localStorage.setItem('gitcron:centauroHeightPx', String(previousCentauroHeight));
+      setPreviousCentauroHeight(null);
+    }
   }
 
   async function confirmMaterialize() {
@@ -2256,7 +2346,7 @@ export function ChronometricGraph({
       >
         <div
           className="pointer-events-auto select-none relative"
-          style={{ width: 'min(680px, calc(100% - 8px))' }}
+          style={{ width: 'min(840px, calc(100% - 8px))' }}
         >
           {/* Resize handle — mounted on the top outer edge, protruding upward.
               Same absolute-edge pattern as sidebar/details column handles. */}
@@ -2274,7 +2364,7 @@ export function ChronometricGraph({
           {/* Toolbar — horizontal controls */}
           <div
             className={cn(
-              'px-3 py-1.5 flex items-center justify-between gap-3 bg-transparent border-b transition-colors duration-300',
+              'hud-toolbar px-3 py-1.5 flex items-center justify-between gap-3 bg-transparent border-b transition-colors duration-300',
               centauroExpanded ? 'border-[#5ed8ff]/15' : 'border-transparent',
             )}
           >
@@ -2324,14 +2414,17 @@ export function ChronometricGraph({
 
           {/* Centauro Panel — glassy content block */}
           <div
-            className="overflow-hidden transition-all duration-400 ease-out bg-[#071a2c]/85 rounded-b-xl"
+            className={cn(
+              "overflow-hidden bg-[#071a2c]/85 rounded-b-xl",
+              !isCentauroDragging && "transition-all duration-400 ease-out"
+            )}
             style={{
-              maxHeight: centauroExpanded ? `${centauroHeight}vh` : '0px',
+              height: centauroExpanded ? `${centauroHeight}px` : '0px',
             }}
           >
             {/* Expanded content — tabbed layout: report + history, no stacking */}
             {centauroExpanded && (
-              <div className="flex flex-col rounded-b-xl" style={{ maxHeight: `${centauroHeight}vh` }}>
+              <div className="flex flex-col rounded-b-xl h-full" style={{ maxHeight: `${centauroHeight}px` }}>
                 {/* Tab bar */}
                 <div className="flex items-center border-b border-[#5ed8ff]/15 px-4">
                   <button
@@ -2359,32 +2452,173 @@ export function ChronometricGraph({
                 </div>
 
                 {/* Tab content */}
-                <div className="overflow-y-auto flex-1 rounded-b-xl">
+                <div className={cn(
+                  "flex-1 rounded-b-xl",
+                  materializeIdea && materializePlan && isTallMode ? "overflow-hidden flex flex-col" : "overflow-y-auto"
+                )}>
                   {centauroTab === 'report' ? (
-                    <div className="px-4 py-3 font-mono">
-                      {speculativeDialogue ? (
-                        /* ---- BRANCH SELECTED — report with reasoning ---- */
-                        <div className="flex flex-col gap-2.5 animate-in fade-in duration-200 select-text">
-                          {/* Header: Materializar + Cerrar */}
-                          <div className="flex items-center justify-between border-b border-[#5ed8ff]/20 pb-2">
-                            <span className="text-[12px] font-bold text-[#5ed8ff] tracking-wider uppercase">
-                              {t('centauro.reportHeading')}
+                    <div className={cn(
+                      "px-4 py-3 font-mono",
+                      materializeIdea && materializePlan && isTallMode ? "h-full flex flex-col overflow-hidden" : ""
+                    )}>
+                    {materializeIdea && materializePlan ? (
+                      /* ---- INLINE MATERIALIZATION CONFIRMATION / SUCCESS ---- */
+                      materializeResult ? (
+                        <div className="flex flex-col gap-3 animate-in fade-in duration-200 select-text">
+                          <div className="flex items-center justify-between border-b border-[#a3f185]/20 pb-2">
+                            <span className="text-[12px] font-bold text-[#a3f185] tracking-wider uppercase">
+                              {t('materialize.success')}
                             </span>
+                            <button
+                              onClick={cancelMaterialize}
+                              className="px-3 py-1.5 border border-[#a3f185]/40 hover:bg-[#a3f185]/10 text-[#a3f185] rounded text-[10px] uppercase tracking-wider cursor-pointer transition-all duration-150 font-mono font-bold"
+                            >
+                              {t('common.close')}
+                            </button>
+                          </div>
+                          <div className="text-[11px] flex flex-col gap-2 text-[#d9e7fc]">
+                            <div>{t('materialize.branchLabel')} <span className="text-[#a3f185] font-bold font-mono">{materializeResult.branchName}</span></div>
+                            <div>{t('materialize.tagLabel')} <span className="text-[#5ed8ff] font-bold font-mono">{materializeResult.tagName}</span></div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span>{t('materialize.commitLabel')} <span className="text-[#9eacc0] font-mono">{materializeResult.commitHash.slice(0, 10)}</span> {t('materialize.ideaMdNote')}</span>
+                              <CopyButton text={materializeResult.commitHash} />
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-[#697789] leading-relaxed">
+                            {t('materialize.successDesc')}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-3 animate-in fade-in duration-200 select-text h-full overflow-hidden">
+                          <div className="flex items-center justify-between border-b border-[#5ed8ff]/20 pb-2 gap-4 flex-wrap shrink-0">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[12px] font-bold text-[#5ed8ff] tracking-wider uppercase">
+                                {t('materialize.heading')}
+                              </span>
+                              <span className="text-[10px] text-[#fd9d1a] font-bold">
+                                {t('materialize.warning')}
+                              </span>
+                            </div>
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={(e) => { e.stopPropagation(); openMaterializeConfirm(); }}
-                                className="px-3 py-1.5 bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/40 hover:bg-[#a3f185]/25 hover:border-[#a3f185]/70 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150"
+                                onClick={cancelMaterialize}
+                                disabled={materializing}
+                                className="px-3 py-1.5 border border-[#3c495a]/60 hover:border-[#697789] text-[#9eacc0] rounded text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50 transition-all font-mono"
                               >
-                                {t('centauro.materialize')}
+                                {t('common.cancel')}
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); setSelectedSpeculativeId(null); }}
-                                className="px-2.5 py-1.5 text-[#5ed8ff]/60 border border-transparent hover:border-[#5ed8ff]/30 hover:bg-[#5ed8ff]/8 hover:text-[#5ed8ff] rounded font-mono text-[10px] tracking-wider uppercase cursor-pointer transition-all duration-150"
+                                onClick={confirmMaterialize}
+                                disabled={materializing}
+                                className="px-3 py-1.5 bg-[#a3f185] hover:bg-[#b6f59f] text-[#020f1e] font-bold rounded text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50 transition-all font-mono"
                               >
-                                {t('common.close')}
+                                {materializing ? t('materialize.creating') : t('materialize.confirmBtn')}
                               </button>
                             </div>
                           </div>
+
+                          {isTallMode ? (
+                            /* ---- TALL MODE: Stacked Layout (Compact Header + Full-width IDEA.md below) ---- */
+                            <div className="flex flex-col gap-3 flex-1 overflow-hidden mt-1 select-text">
+                              {/* Compact Header metadata */}
+                              <div className="flex items-start gap-4 flex-wrap text-[10px] border border-[#5ed8ff]/10 rounded-md p-2.5 bg-[#5ed8ff]/[0.01] shrink-0 leading-tight">
+                                <div className="flex-1 min-w-[120px] flex flex-col gap-0.5">
+                                  <span className="text-[8px] text-[#697789] uppercase tracking-wider">{t('materialize.branchLabel')}</span>
+                                  <span className="text-[#a3f185] font-bold break-all font-mono">{materializePlan.branchName}</span>
+                                </div>
+                                <div className="flex-1 min-w-[120px] flex flex-col gap-0.5">
+                                  <span className="text-[8px] text-[#697789] uppercase tracking-wider">{t('materialize.tagLabel')}</span>
+                                  <span className="text-[#5ed8ff] font-bold break-all font-mono">{materializePlan.tagName}</span>
+                                </div>
+                                <div className="flex-1 min-w-[120px] flex flex-col gap-0.5">
+                                  <span className="text-[8px] text-[#697789] uppercase tracking-wider">{t('materialize.flightLabel')}</span>
+                                  <span className="text-[#5ed8ff] font-mono">{materializePlan.flightLevel}</span>
+                                </div>
+                                <div className="flex-[2] min-w-[200px] flex flex-col gap-0.5">
+                                  <span className="text-[8px] text-[#697789] uppercase tracking-wider">{t('materialize.commitLabel')}</span>
+                                  <span className="text-[#9eacc0] font-mono leading-relaxed truncate" title={materializePlan.commitMessage}>{materializePlan.commitMessage}</span>
+                                </div>
+                              </div>
+
+                              {/* Scrollable IDEA.md (flex-1 to occupy the rest of the height) */}
+                              <div className="flex-1 flex flex-col min-h-0 gap-1.5 select-text">
+                                <div className="flex items-center justify-between shrink-0">
+                                  <span className="text-[9px] text-[#697789] uppercase tracking-wider font-bold">IDEA.md</span>
+                                  <CopyButton text={materializePlan.ideaMarkdown} />
+                                </div>
+                                <pre className="flex-1 overflow-y-auto bg-[#020f1e] border border-[#2D2E39] rounded p-3 text-[10px] leading-relaxed text-[#cbc3d7] whitespace-pre-wrap font-mono select-text">
+                                  {materializePlan.ideaMarkdown}
+                                </pre>
+                              </div>
+                            </div>
+                          ) : (
+                            /* ---- LOW MODE: Side-by-Side 2-Column Layout ---- */
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-1 flex-1 min-h-0 select-text overflow-y-auto">
+                              {/* Left side: details (2/5 width) */}
+                              <div className="md:col-span-2 flex flex-col gap-2.5 text-[11px] border border-[#5ed8ff]/10 rounded-md p-3 bg-[#5ed8ff]/[0.01] self-start shrink-0">
+                                <div className="flex flex-col gap-1 border-b border-[#5ed8ff]/10 pb-1.5">
+                                  <span className="text-[9px] text-[#697789] uppercase tracking-wider">{t('materialize.branchLabel')}</span>
+                                  <span className="text-[#a3f185] font-bold break-all font-mono">{materializePlan.branchName}</span>
+                                </div>
+                                <div className="flex flex-col gap-1 border-b border-[#5ed8ff]/10 pb-1.5">
+                                  <span className="text-[9px] text-[#697789] uppercase tracking-wider">{t('materialize.tagLabel')}</span>
+                                  <span className="text-[#5ed8ff] font-bold break-all font-mono">{materializePlan.tagName}</span>
+                                </div>
+                                <div className="flex flex-col gap-1 border-b border-[#5ed8ff]/10 pb-1.5">
+                                  <span className="text-[9px] text-[#697789] uppercase tracking-wider">{t('materialize.flightLabel')}</span>
+                                  <span className="text-[#5ed8ff] font-mono">{materializePlan.flightLevel}</span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-[9px] text-[#697789] uppercase tracking-wider">{t('materialize.commitLabel')}</span>
+                                  <span className="text-[#9eacc0] font-mono leading-relaxed">{materializePlan.commitMessage}</span>
+                                </div>
+                              </div>
+
+                              {/* Right side: IDEA.md content preview (3/5 width) */}
+                              <div className="md:col-span-3 flex flex-col gap-1.5 min-h-[180px]">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] text-[#697789] uppercase tracking-wider font-bold">IDEA.md</span>
+                                  <CopyButton text={materializePlan.ideaMarkdown} />
+                                </div>
+                                <pre className="max-h-[220px] overflow-y-auto bg-[#020f1e] border border-[#2D2E39] rounded p-3 text-[10px] leading-relaxed text-[#cbc3d7] whitespace-pre-wrap font-mono select-text">
+                                  {materializePlan.ideaMarkdown}
+                                </pre>
+                              </div>
+                            </div>
+                          )}
+
+                          {materializeError && (
+                            <p className="text-[10px] text-[#fd9d1a] mt-1 font-mono shrink-0">Error: {materializeError}</p>
+                          )}
+                        </div>
+                      )
+                    ) : speculativeDialogue ? (
+                      /* ---- BRANCH SELECTED — report with reasoning ---- */
+                      <div className="flex flex-col gap-2.5 animate-in fade-in duration-200 select-text">
+                        {/* Header: Materializar + Cerrar */}
+                        <div className="flex items-center justify-between border-b border-[#5ed8ff]/20 pb-2">
+                          <span className="text-[12px] font-bold text-[#5ed8ff] tracking-wider uppercase">
+                            {t('centauro.reportHeading')}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedSpeculativeId(null);
+                                cancelMaterialize();
+                              }}
+                              className="px-3 py-1.5 border border-[#3c495a]/60 hover:border-[#697789] text-[#9eacc0] rounded text-[10px] uppercase tracking-wider cursor-pointer transition-all font-mono"
+                            >
+                              {t('common.close')}
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openMaterializeConfirm(); }}
+                              className="px-3 py-1.5 bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/40 hover:bg-[#a3f185]/25 hover:border-[#a3f185]/70 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150"
+                            >
+                              {t('centauro.materialize')}
+                            </button>
+                          </div>
+                        </div>
 
                           {/* Rationale — bordered box */}
                           <div className="border border-[#5ed8ff]/15 rounded-md px-3 py-2 bg-[#5ed8ff]/[0.03]">
@@ -2571,90 +2805,6 @@ export function ChronometricGraph({
         </div>
       </div>
     </div>
-
-      {/* Materialization confirmation (Phase 6) — shown BEFORE any Git write. */}
-      {materializeIdea && materializePlan && typeof document !== 'undefined' && createPortal(
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => { if (!materializing) setMaterializeIdea(null); }}
-        >
-          <div
-            className="w-[min(560px,92vw)] max-h-[85vh] overflow-y-auto bg-[#071a2c] border border-[#5ed8ff]/30 rounded-lg shadow-2xl p-5 font-mono text-[#d9e7fc] select-text"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {materializeResult ? (
-              <div className="flex flex-col gap-3">
-                <span className="text-[12px] font-bold text-[#a3f185] tracking-wider uppercase">
-                  {t('materialize.success')}
-                </span>
-                <div className="text-[11px] flex flex-col gap-1.5 text-[#d9e7fc]">
-                  <div>{t('materialize.branchLabel')} <span className="text-[#a3f185]">{materializeResult.branchName}</span></div>
-                  <div>{t('materialize.tagLabel')} <span className="text-[#5ed8ff]">{materializeResult.tagName}</span></div>
-                  <div>{t('materialize.commitLabel')} <span className="text-[#9eacc0]">{materializeResult.commitHash.slice(0, 10)}</span> {t('materialize.ideaMdNote')}</div>
-                </div>
-                <p className="text-[10px] text-[#697789] leading-relaxed">
-                  {t('materialize.successDesc')}
-                </p>
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setMaterializeIdea(null)}
-                    className="px-3 py-1.5 border border-[#5ed8ff]/40 hover:bg-[#5ed8ff]/10 text-[#5ed8ff] rounded text-[10px] uppercase tracking-wider cursor-pointer"
-                  >
-                    {t('common.close')}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1 border-b border-[#5ed8ff]/20 pb-2">
-                  <span className="text-[12px] font-bold text-[#5ed8ff] tracking-wider uppercase">
-                    {t('materialize.heading')}
-                  </span>
-                  <span className="text-[10px] text-[#fd9d1a]">
-                    {t('materialize.warning')}
-                  </span>
-                </div>
-
-                <div className="text-[11px] flex flex-col gap-1.5">
-                  <div>{t('materialize.branchLabel')} <span className="text-[#a3f185] font-bold">{materializePlan.branchName}</span></div>
-                  <div>{t('materialize.tagLabel')} <span className="text-[#5ed8ff] font-bold">{materializePlan.tagName}</span></div>
-                  <div>{t('materialize.flightLabel')} <span className="text-[#5ed8ff]">{materializePlan.flightLevel}</span></div>
-                  <div>{t('materialize.commitLabel')} <span className="text-[#9eacc0]">{materializePlan.commitMessage}</span></div>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <span className="text-[9px] text-[#697789] uppercase tracking-wider">IDEA.md</span>
-                  <pre className="max-h-[260px] overflow-y-auto bg-[#020f1e] border border-[#2D2E39] rounded p-3 text-[10px] leading-relaxed text-[#cbc3d7] whitespace-pre-wrap">
-                    {materializePlan.ideaMarkdown}
-                  </pre>
-                </div>
-
-                {materializeError && (
-                  <p className="text-[10px] text-[#fd9d1a]">Error: {materializeError}</p>
-                )}
-
-                <div className="flex justify-end gap-2 pt-1">
-                  <button
-                    onClick={() => setMaterializeIdea(null)}
-                    disabled={materializing}
-                    className="px-3 py-1.5 border border-[#3c495a]/60 hover:border-[#697789] text-[#9eacc0] rounded text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50"
-                  >
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    onClick={confirmMaterialize}
-                    disabled={materializing}
-                    className="px-3 py-1.5 bg-[#a3f185] hover:bg-[#b6f59f] text-[#020f1e] font-bold rounded text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50"
-                  >
-                    {materializing ? t('materialize.creating') : t('materialize.confirmBtn')}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>,
-        document.body,
-      )}
     </div>
   );
 }

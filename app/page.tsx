@@ -4944,6 +4944,7 @@ function StagingPanel({
   onRequestResetAll: () => void;
 }) {
   const t = useT();
+  const mergeInProgress = useGitStore((s) => s.mergeInProgress);
   const unstaged = files.filter((f) => !f.staged);
   const staged = files.filter((f) => f.staged);
 
@@ -5070,8 +5071,8 @@ function StagingPanel({
           </button>
           <button
             onClick={onRequestAmend}
-            disabled={isLoading || !repoPath}
-            title={t('staging.amendTooltip')}
+            disabled={isLoading || !repoPath || mergeInProgress}
+            title={mergeInProgress ? t('staging.disabledDuringMergeTooltip') : t('staging.amendTooltip')}
             className="px-3 py-2 bg-bg-base/70 border border-border-subtle/30 hover:border-[#fd9d1a]/50 hover:text-git-mod disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium text-text-secondary rounded transition-colors flex items-center gap-1"
           >
             <RotateCcw size={12} />
@@ -5079,8 +5080,8 @@ function StagingPanel({
           </button>
           <button
             onClick={onRequestSquash}
-            disabled={isLoading || !repoPath}
-            title={t('staging.squashTooltip')}
+            disabled={isLoading || !repoPath || mergeInProgress}
+            title={mergeInProgress ? t('staging.disabledDuringMergeTooltip') : t('staging.squashTooltip')}
             className="px-3 py-2 bg-bg-base/70 border border-border-subtle/30 hover:border-[#fd9d1a]/50 hover:text-git-mod disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium text-text-secondary rounded transition-colors flex items-center gap-1"
           >
             <Layers size={12} />

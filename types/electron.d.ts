@@ -13,6 +13,7 @@ interface GitResult<T = unknown> {
   error?: string;
   isAuthError?: boolean;
   status?: number;
+  mergeInProgress?: boolean;
 }
 
 

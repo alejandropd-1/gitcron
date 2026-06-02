@@ -51,6 +51,7 @@ export interface RepoState {
   error: string | null;
   success: string | null;
   lastFetchError: string | null;
+  mergeInProgress: boolean;
 }
 
 interface GitStore {
@@ -86,6 +87,7 @@ interface GitStore {
   isLoading: boolean;
   error: string | null;
   success: string | null;
+  mergeInProgress: boolean;
   // GitHub auth
   githubToken: string | null;
   githubUser: GitHubUser | null;
@@ -139,6 +141,7 @@ interface GitStore {
   setTheme: (theme: Theme) => void;
   setEnableCronometric: (enabled: boolean) => void;
   setCentauroExpanded: (expanded: boolean) => void;
+  setMergeInProgress: (inProgress: boolean) => void;
 }
 
 type EmptyRepoFields = Omit<RepoState, 'path' | 'name'>;
@@ -166,6 +169,7 @@ function createEmptyRepoFields(): EmptyRepoFields {
     error: null,
     success: null,
     lastFetchError: null,
+    mergeInProgress: false,
   };
 }
 
@@ -211,6 +215,7 @@ function legacyFromRepo(repo: RepoState | null) {
     isLoading: repo.isLoading,
     error: repo.error,
     success: repo.success,
+    mergeInProgress: repo.mergeInProgress,
   };
 }
 
@@ -307,6 +312,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   isLoading: false,
   error: null,
   success: null,
+  mergeInProgress: false,
   // Token starts null. It's hydrated asynchronously on app mount via
   // bootstrapGitHub() -> window.api.storageGet(). We DO NOT use localStorage:
   // tokens live encrypted at-rest via Electron's safeStorage (OS keychain).
@@ -365,6 +371,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   setBranchTracking: (branchTracking) => get().updateActiveRepo({ branchTracking }),
   setWorktrees: (worktrees) => get().updateActiveRepo({ worktrees }),
   setPullRequests: (pullRequests) => get().updateActiveRepo({ pullRequests }),
+  setMergeInProgress: (mergeInProgress) => get().updateActiveRepo({ mergeInProgress }),
   setLoading: (isLoading) => {
     const state = get();
     if (state.activeRepoIdx >= 0) state.updateActiveRepo({ isLoading });

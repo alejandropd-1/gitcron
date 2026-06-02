@@ -1231,6 +1231,7 @@ ipcMain.handle('git:status', async (_event, targetPath: string) => {
     const status = await g.status();
 
     const raw: StatusFile[] = [
+      ...status.conflicted.map((p) => ({ path: p, status: 'modified' as const, staged: false, conflicted: true })),
       ...status.modified.map((p) => ({ path: p, status: 'modified' as const, staged: false, conflicted: status.conflicted.includes(p) })),
       ...status.created.map((p) => ({ path: p, status: 'added' as const, staged: false, conflicted: status.conflicted.includes(p) })),
       ...status.deleted.map((p) => ({ path: p, status: 'deleted' as const, staged: false, conflicted: status.conflicted.includes(p) })),
@@ -1254,7 +1255,16 @@ ipcMain.handle('git:status', async (_event, targetPath: string) => {
       }
     }
 
-    return { success: true, data: Array.from(seen.values()) };
+    let mergeInProgress = false;
+    try {
+      const gitDir = (await g.revparse(['--git-dir'])).trim();
+      const mergeHeadPath = path.isAbsolute(gitDir) ? path.join(gitDir, 'MERGE_HEAD') : path.join(targetPath, gitDir, 'MERGE_HEAD');
+      mergeInProgress = fs.existsSync(mergeHeadPath);
+    } catch (e) {
+      console.error('Error checking merge progress:', e);
+    }
+
+    return { success: true, data: Array.from(seen.values()), mergeInProgress };
   } catch (error: any) {
     return { success: false, error: errMsg(error) };
   }

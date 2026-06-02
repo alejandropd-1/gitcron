@@ -392,6 +392,10 @@ export function ChronometricGraph({
         }
       }
 
+      // El lado de la etiqueta se DERIVA de resolvedBranchIndex y el factor dinámico de las ramas activas:
+      // Si hay bifurcación en este commit (múltiples ramas activas), se ordenan visualmente de izquierda a derecha
+      // y se divide la pantalla en dos mitades (la mitad izquierda rotula a la izquierda, la derecha a la derecha).
+      // Esto evita que las líneas conectoras del HUD se crucen de un lado a otro cuando hay bifurcaciones paralelas.
       const isLeft = labelSideFromBranchIndex(resolvedBranchIndex, activeBranchIndices) === 'left';
 
       return {
@@ -878,10 +882,10 @@ export function ChronometricGraph({
   // Coordinates for the WIP capsule (if changes exist in modifiedFiles)
   const wipCoords = useMemo(() => {
     if (modifiedFiles.length === 0 || !headCommitNode) return null;
-    // Place WIP 50px ahead of HEAD commit along its lane, and offset to the right-down perpendicular direction by 25px
+    // Place WIP 50px ahead of HEAD commit along its lane, and offset to the right-down perpendicular direction by 45px
     return {
-      x: headCommitNode.x + ux * 50 + rx * 25,
-      y: headCommitNode.y + uy * 50 + ry * 25,
+      x: headCommitNode.x + ux * 50 + rx * 45,
+      y: headCommitNode.y + uy * 50 + ry * 45,
     };
   }, [modifiedFiles.length, headCommitNode, ux, uy, rx, ry]);
 
@@ -993,13 +997,16 @@ export function ChronometricGraph({
           diagOffset += -50;
         }
 
-        const satX = node.x + nx * distance + ux * diagOffset;
-        let satY = node.y + ny * distance + uy * diagOffset;
+        const nodeIsLeft = node.isLeft;
+        const vx = nodeIsLeft ? nx : rx;
+        const vy = nodeIsLeft ? ny : ry;
+
+        const satX = node.x + vx * distance + ux * diagOffset;
+        let satY = node.y + vy * distance + uy * diagOffset;
 
         // If it's a normal commit (not HEAD) and its comment is on the left wing,
         // shift only the bottom tag (tagIndex === 0) vertically down by 14px to place it cleanly below the comment.
         if (!isHead) {
-          const nodeIsLeft = node.isLeft;
           if (nodeIsLeft && tagIndex === 0) {
             satY += 14;
           }

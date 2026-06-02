@@ -22,6 +22,7 @@ export const useRepoLoader = () => {
     setBranchTracking,
     setWorktrees,
     setPullRequests,
+    setMergeInProgress,
     updateRepoByPath,
     addOrActivateRepo,
     setActiveRepoIdx,
@@ -288,8 +289,13 @@ export const useRepoLoader = () => {
       const result = await window.api.gitStatus(target);
       if (result.success && result.data) {
         const modifiedFiles = result.data as StatusFile[];
-        if (hasExplicitPath) updateRepoByPath(target, { modifiedFiles });
-        else setModifiedFiles(modifiedFiles);
+        const mergeInProgress = result.mergeInProgress ?? false;
+        if (hasExplicitPath) {
+          updateRepoByPath(target, { modifiedFiles, mergeInProgress });
+        } else {
+          setModifiedFiles(modifiedFiles);
+          setMergeInProgress(mergeInProgress);
+        }
       }
     } catch (err: any) { console.error('refreshStatus error:', err); }
   };

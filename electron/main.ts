@@ -1875,6 +1875,70 @@ ipcMain.handle('git:reset-all', async (_event, targetPath: string) => {
   }
 });
 
+function resolveRepoRelativePath(repoRoot: string, relativeFilePath: string): string | null {
+  const resolved = path.resolve(repoRoot, relativeFilePath);
+  const rel = path.relative(repoRoot, resolved);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
+  return resolved;
+}
+
+function parseGitCleanDryRun(raw: string): string[] {
+  return raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('Would remove '))
+    .map((line) => line.slice('Would remove '.length).trim())
+    .filter(Boolean);
+}
+
+// ── Clean untracked files/directories safely ──
+ipcMain.handle('git:clean', async (_event, targetPath: string, files?: string[]) => {
+  try {
+    const repoRoot = path.resolve(targetPath);
+    const g = simpleGit(repoRoot);
+    const dryRunRaw = await g.raw(['-c', 'core.quotePath=false', 'clean', '-n', '-d']);
+    const cleanableFiles = parseGitCleanDryRun(dryRunRaw);
+
+    if (!files) {
+      return { success: true, data: { files: cleanableFiles } };
+    }
+
+    const cleanable = new Set(cleanableFiles);
+    const uniqueFiles = Array.from(new Set(files));
+    const rejected = uniqueFiles.filter((filePath) => !cleanable.has(filePath));
+    if (rejected.length > 0) {
+      return {
+        success: false,
+        error: `Solo se pueden limpiar archivos untracked detectados por git clean: ${rejected.join(', ')}`,
+      };
+    }
+
+    const deleted: string[] = [];
+    for (const filePath of uniqueFiles) {
+      const resolved = resolveRepoRelativePath(repoRoot, filePath);
+      if (!resolved) return { success: false, error: 'Path traversal blocked' };
+
+      let stat: fs.Stats;
+      try {
+        stat = fs.lstatSync(resolved);
+      } catch {
+        continue;
+      }
+
+      if (stat.isDirectory()) {
+        fs.rmSync(resolved, { recursive: true, force: true });
+      } else {
+        fs.unlinkSync(resolved);
+      }
+      deleted.push(filePath);
+    }
+
+    return { success: true, data: { files: cleanableFiles, deleted } };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
 // ── Reset to specific commit: supports soft, mixed, and hard modes ──
 ipcMain.handle('git:reset-commit', async (_event, targetPath: string, commitHash: string, mode: 'soft' | 'mixed' | 'hard') => {
   try {

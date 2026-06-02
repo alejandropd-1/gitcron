@@ -520,6 +520,7 @@ const es: Dict = {
   'success.squash': '{{n}} commits combinados en uno',
   'success.amend': 'Último commit enmendado correctamente',
   'success.cherryPick': 'Cherry-pick de {{hash}} aplicado',
+  'success.cleanUntracked': '{{count}} archivos sin trackear eliminados',
 
   // ── Amend modal ──
   'amend.title': 'Enmendar último commit',
@@ -557,6 +558,7 @@ const es: Dict = {
   'resetModal.button': 'Resetear a este commit',
   'success.resetCommit': 'Repositorio reseteado correctamente al commit {{hash}}',
   'error.resetCommit': 'Error al resetear repositorio: {{error}}',
+  'error.cleanUntracked': 'Error al limpiar archivos sin trackear: {{error}}',
 
   // ── Temporal Agent Settings ──
   'temporalAgent.experimental': 'experimental',
@@ -629,6 +631,18 @@ const es: Dict = {
   'staging.stageFileTooltip': 'Preparar este archivo',
   'staging.unstageFileTooltip': 'Quitar este archivo de los preparados',
   'staging.discardFileTooltip': 'Borrar estos cambios',
+  'staging.cleanUntrackedTooltip': 'Limpiar archivos sin trackear',
+  'staging.cleanUntrackedBtn': 'Limpiar...',
+  'cleanModal.title': 'Limpiar archivos sin trackear',
+  'cleanModal.desc': 'Seleccioná los archivos que querés borrar del disco.',
+  'cleanModal.warning': 'Estas acciones eliminarán físicamente los archivos seleccionados del disco. No se pueden recuperar.',
+  'cleanModal.loading': 'Buscando archivos...',
+  'cleanModal.empty': 'No hay archivos sin trackear para limpiar.',
+  'cleanModal.selectAll': 'Seleccionar todo',
+  'cleanModal.selectNone': 'Ninguno',
+  'cleanModal.selectedCount': '{{count}} seleccionados',
+  'cleanModal.cleanSelected': 'Limpiar seleccionados',
+  'cleanModal.cleaning': 'Limpiando...',
 
   // ── CommitTabView (Coloquial) ──
   'commitTab.pageTitle': 'Área de trabajo',
@@ -1192,6 +1206,7 @@ const en: Dict = {
   'success.squash': '{{n}} commits squashed into one',
   'success.amend': 'Last commit amended successfully',
   'success.cherryPick': 'Cherry-pick of {{hash}} applied',
+  'success.cleanUntracked': '{{count}} untracked files deleted',
 
   // ── Amend modal ──
   'amend.title': 'Amend last commit',
@@ -1229,6 +1244,7 @@ const en: Dict = {
   'resetModal.button': 'Reset to this commit',
   'success.resetCommit': 'Repository successfully reset to commit {{hash}}',
   'error.resetCommit': 'Error resetting repository: {{error}}',
+  'error.cleanUntracked': 'Error cleaning untracked files: {{error}}',
 
   // ── Temporal Agent Settings ──
   'temporalAgent.experimental': 'experimental',
@@ -1301,6 +1317,18 @@ const en: Dict = {
   'staging.stageFileTooltip': 'Prepare this file',
   'staging.unstageFileTooltip': 'Remove this file from prepared',
   'staging.discardFileTooltip': 'Delete these changes',
+  'staging.cleanUntrackedTooltip': 'Clean untracked files',
+  'staging.cleanUntrackedBtn': 'Clean...',
+  'cleanModal.title': 'Clean untracked files',
+  'cleanModal.desc': 'Select the files you want to delete from disk.',
+  'cleanModal.warning': 'These actions will physically delete the selected files from disk. They cannot be recovered.',
+  'cleanModal.loading': 'Finding files...',
+  'cleanModal.empty': 'There are no untracked files to clean.',
+  'cleanModal.selectAll': 'Select all',
+  'cleanModal.selectNone': 'None',
+  'cleanModal.selectedCount': '{{count}} selected',
+  'cleanModal.cleanSelected': 'Clean selected',
+  'cleanModal.cleaning': 'Cleaning...',
 
   // ── CommitTabView (Colloquial) ──
   'commitTab.pageTitle': 'Working area',

@@ -43,6 +43,11 @@ export interface StatusFile {
   conflicted?: boolean;
 }
 
+export interface GitCleanResult {
+  files: string[];
+  deleted?: string[];
+}
+
 export interface BranchTrackingInfo {
   upstream: string | null;
   ahead: number;
@@ -189,6 +194,7 @@ interface ElectronAPI {
   gitDiffAtCommit: (repoPath: string, filePath: string, hash: string) => Promise<GitResult<string>>;
   gitAddToGitignore: (repoPath: string, filePath: string) => Promise<GitResult<{ alreadyIgnored: boolean }>>;
   gitResetAll: (repoPath: string) => Promise<GitResult>;
+  gitClean: (repoPath: string, files?: string[]) => Promise<GitResult<GitCleanResult>>;
   gitStashFile: (repoPath: string, filePath: string) => Promise<GitResult>;
   shellShowInFolder: (repoPath: string, relativeFilePath: string) => Promise<GitResult>;
   shellOpenItem: (repoPath: string, relativeFilePath: string) => Promise<GitResult>;

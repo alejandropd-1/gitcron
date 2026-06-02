@@ -340,6 +340,27 @@ export const useGitActions = () => {
     }
   };
 
+  const cleanUntracked = async (files?: string[]) => {
+    if (!window.api || !repoPath) return { success: false as const, files: [] as string[] };
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await window.api.gitClean(repoPath, files);
+      if (r.success) {
+        await refreshStatus();
+        const deletedCount = r.data?.deleted?.length ?? 0;
+        if (deletedCount > 0) {
+          setSuccess(t('success.cleanUntracked', { count: deletedCount }));
+        }
+        return { success: true as const, files: r.data?.files ?? [], deleted: r.data?.deleted ?? [] };
+      }
+      setError(r.error ?? t('error.cleanUntracked', { error: 'Unknown error' }));
+      return { success: false as const, files: [] as string[] };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const copyFilePath = async (filePath: string) => {
     if (!repoPath) return;
     // We expose the full absolute path (more useful for terminal/editor pasting)
@@ -1119,6 +1140,7 @@ export const useGitActions = () => {
     showInFolder,
     openInDefault,
     deleteFile,
+    cleanUntracked,
     copyFilePath,
     checkoutBranch,
     checkoutBranchSmart,

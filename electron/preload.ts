@@ -76,6 +76,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:add-to-gitignore', repoPath, filePath),
   gitResetAll: (repoPath: string) =>
     ipcRenderer.invoke('git:reset-all', repoPath),
+  gitClean: (repoPath: string, files?: string[]) =>
+    ipcRenderer.invoke('git:clean', repoPath, files),
   gitStashFile: (repoPath: string, filePath: string) =>
     ipcRenderer.invoke('git:stash-file', repoPath, filePath),
   shellShowInFolder: (repoPath: string, relativeFilePath: string) =>

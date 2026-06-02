@@ -71,6 +71,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Amend last commit: reword the message or fold staged changes into the previous commit, with a warning if the commit was already pushed.
 - Squash last N commits (2–5) into one with a custom message.
 - Reset all with confirmation.
+- Clean untracked in bulk: a safe `Limpiar...` / `Clean...` action appears when untracked files exist, opens a checklist modal from a fresh `git clean -n -d` dry-run, and deletes only selected untracked paths after an explicit warning.
 - Recovery action for `index.lock` errors.
 
 #### Branches
@@ -376,7 +377,7 @@ Since the Classic and Cronometric views share the same global file and base vari
   - [ ] Habilitar creación de tags (livianos y anotados) desde el menú contextual del Commit.
   - [ ] Permitir empujar tags al remoto (`git push origin --tags`).
 - [ ] **Reset a commit puntual**: Añadir opciones de reset (`soft`, `mixed`, `hard`) hacia un commit específico seleccionado en el grafo (menú contextual).
-- [ ] **Clean untracked en bloque**: Crear diálogo interactivo con checklist para limpiar archivos no trackeados del working tree (`git clean`).
+- [x] **Clean untracked en bloque**: Crear diálogo interactivo con checklist para limpiar archivos no trackeados del working tree (`git clean`).
 - [ ] **Stash Avanzado**:
   - [ ] **Stash Pop**: Añadir botón hover en la barra lateral para aplicar y descartar un stash al mismo tiempo.
   - [ ] **Previsualizar contenido del Stash**: Crear diálogo o panel expansible para revisar archivos modificados y diffs contenidos en el stash.

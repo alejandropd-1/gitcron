@@ -539,7 +539,7 @@ export default function GitCronPage() {
     bootstrapPreferences, changeLanguage, changeFontSize, changeDefaultFolder, pickDefaultFolder,
     setAutoFetchPrefs, setOsNotifications, rebindShortcut, resetShortcutsToDefaults, changeTheme, changeEnableCronometric,
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
-    deleteFile, copyFilePath,
+    deleteFile, cleanUntracked, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch, amendLastCommit, cherryPickCommit, squashCommits,
     renameBranch, deleteBranch, deleteTag, createTag, pushTag, pullSpecificBranch, pushSpecificBranch,
     pullWithDecision,
@@ -807,6 +807,10 @@ export default function GitCronPage() {
   const [resetCommitFrom, setResetCommitFrom] = useState<string | undefined>(undefined);
   const [resetMode, setResetMode] = useState<'soft' | 'mixed' | 'hard'>('mixed');
   const [hardResetConfirmed, setHardResetConfirmed] = useState(false);
+  const [showCleanModal, setShowCleanModal] = useState(false);
+  const [cleanableFiles, setCleanableFiles] = useState<string[]>([]);
+  const [selectedCleanFiles, setSelectedCleanFiles] = useState<Set<string>>(() => new Set());
+  const [cleanModalLoading, setCleanModalLoading] = useState(false);
 
   const openContextMenu = (menu: { x: number; y: number; hash?: string } | null) => {
     setFileContextMenu(null);
@@ -1027,6 +1031,9 @@ export default function GitCronPage() {
     setShowNewBranch(false);
     setNewBranchName('');
     setNewBranchFrom(undefined);
+    setShowCleanModal(false);
+    setCleanableFiles([]);
+    setSelectedCleanFiles(new Set());
   }, [repoPath]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -1344,6 +1351,30 @@ export default function GitCronPage() {
     setResetCommitFrom(undefined);
     setResetMode('mixed');
     setHardResetConfirmed(false);
+  };
+
+  const handleOpenCleanModal = async () => {
+    setShowCleanModal(true);
+    setCleanModalLoading(true);
+    const result = await cleanUntracked();
+    if (result.success) {
+      setCleanableFiles(result.files);
+      setSelectedCleanFiles(new Set(result.files));
+    }
+    setCleanModalLoading(false);
+  };
+
+  const handleCleanSelected = async () => {
+    const files = Array.from(selectedCleanFiles);
+    if (files.length === 0) return;
+    setCleanModalLoading(true);
+    const result = await cleanUntracked(files);
+    if (result.success) {
+      setShowCleanModal(false);
+      setCleanableFiles([]);
+      setSelectedCleanFiles(new Set());
+    }
+    setCleanModalLoading(false);
   };
 
   const handleSelectFile = async (file: GitFile) => {
@@ -3662,6 +3693,7 @@ export default function GitCronPage() {
                 openFileContextMenu({ x: e.clientX, y: e.clientY, file });
               }}
               onRequestResetAll={() => setShowResetConfirm(true)}
+              onRequestCleanUntracked={handleOpenCleanModal}
             />
           )}
         </aside>
@@ -4512,6 +4544,120 @@ export default function GitCronPage() {
         )}
       </AnimatePresence>
 
+      {/* ──────────── CLEAN UNTRACKED MODAL ──────────── */}
+      <AnimatePresence>
+        {showCleanModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
+            onClick={() => setShowCleanModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
+              className="glass-overlay rounded-xl shadow-2xl p-6 w-[min(calc(100vw-2rem),620px)] max-h-[80vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="font-bold text-[#ffd98a] flex items-center gap-2">
+                    <Trash2 size={16} /> {t('cleanModal.title')}
+                  </h3>
+                  <p className="text-xs text-text-secondary mt-1">{t('cleanModal.desc')}</p>
+                </div>
+                <button onClick={() => setShowCleanModal(false)} className="text-text-secondary hover:text-text-primary">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="flex items-start gap-2 p-3 rounded bg-[#f4b942]/10 border border-[#f4b942]/30 text-[#ffd98a] mb-4">
+                <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-relaxed font-semibold">{t('cleanModal.warning')}</p>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <span className="text-[11px] text-text-secondary font-bold uppercase tracking-wider">
+                  {t('cleanModal.selectedCount', { count: selectedCleanFiles.size })}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCleanFiles(new Set(cleanableFiles))}
+                    disabled={cleanModalLoading || cleanableFiles.length === 0}
+                    className="text-[10px] text-secondary hover:text-[#052900] px-2 py-0.5 rounded border border-secondary/40 hover:bg-secondary transition-colors disabled:opacity-40"
+                  >
+                    {t('cleanModal.selectAll')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCleanFiles(new Set())}
+                    disabled={cleanModalLoading || cleanableFiles.length === 0}
+                    className="text-[10px] text-text-secondary hover:text-bg-base px-2 py-0.5 rounded border border-[#9eacc0]/40 hover:bg-[#9eacc0] transition-colors disabled:opacity-40"
+                  >
+                    {t('cleanModal.selectNone')}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 min-h-[180px] overflow-y-auto rounded border border-border-subtle/15 bg-bg-base/70 p-1">
+                {cleanModalLoading && cleanableFiles.length === 0 ? (
+                  <div className="h-full min-h-[170px] flex flex-col items-center justify-center text-text-secondary gap-2">
+                    <Loader2 size={18} className="animate-spin" />
+                    <p className="text-xs">{t('cleanModal.loading')}</p>
+                  </div>
+                ) : cleanableFiles.length === 0 ? (
+                  <div className="h-full min-h-[170px] flex items-center justify-center text-xs text-text-secondary">
+                    {t('cleanModal.empty')}
+                  </div>
+                ) : (
+                  cleanableFiles.map((filePath) => {
+                    const checked = selectedCleanFiles.has(filePath);
+                    return (
+                      <label
+                        key={filePath}
+                        className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-border-subtle/35 cursor-pointer transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            setSelectedCleanFiles((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(filePath);
+                              else next.delete(filePath);
+                              return next;
+                            });
+                          }}
+                          className="accent-[#f4b942] shrink-0"
+                        />
+                        <FileText size={13} className="text-text-secondary shrink-0" />
+                        <span className="text-xs text-text-primary font-mono truncate">{filePath}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="flex gap-2 justify-end mt-5">
+                <button
+                  onClick={() => setShowCleanModal(false)}
+                  className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
+                >
+                  {t('modal.cancel')}
+                </button>
+                <button
+                  onClick={handleCleanSelected}
+                  disabled={cleanModalLoading || selectedCleanFiles.size === 0}
+                  className="px-4 py-2 bg-gradient-to-br from-[#dc6a6a] to-[#b34f4f] hover:from-[#e57979] hover:to-[#9f3e3e] shadow-lg shadow-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded flex items-center gap-2"
+                >
+                  {cleanModalLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  {cleanModalLoading ? t('cleanModal.cleaning') : t('cleanModal.cleanSelected')}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ──────────── AMEND LAST COMMIT ──────────── */}
       <AnimatePresence>
         {showAmend && (
@@ -5183,7 +5329,7 @@ function FileRow({
 function StagingPanel({
   files, selectedFile, repoPath, commitMessage, setCommitMessage, isLoading,
   onSelectFile, onStage, onStageMany, onDiscard, onCommit, onRequestAmend, onRequestSquash,
-  onFileContextMenu, onRequestResetAll,
+  onFileContextMenu, onRequestResetAll, onRequestCleanUntracked,
 }: {
   files: GitFile[];
   selectedFile: GitFile | null;
@@ -5200,11 +5346,13 @@ function StagingPanel({
   onRequestSquash: () => void;
   onFileContextMenu: (e: React.MouseEvent, file: GitFile) => void;
   onRequestResetAll: () => void;
+  onRequestCleanUntracked: () => void;
 }) {
   const t = useT();
   const mergeInProgress = useGitStore((s) => s.mergeInProgress);
   const unstaged = files.filter((f) => !f.staged);
   const staged = files.filter((f) => f.staged);
+  const untrackedCount = unstaged.filter((f) => f.status === 'untracked').length;
 
   // CRITICAL: batch stage/unstage to avoid parallel writes to .git/index
   // which cause "index.lock: File exists" errors.
@@ -5229,6 +5377,17 @@ function StagingPanel({
             {t('staging.unstagedTitle')} ({unstaged.length})
           </span>
           <div className="flex items-center gap-2">
+            {untrackedCount > 0 && (
+              <button
+                type="button"
+                onClick={onRequestCleanUntracked}
+                disabled={isLoading}
+                className="text-[10px] text-[#ffd98a] hover:text-[#201100] px-2 py-0.5 rounded border border-[#f4b942]/40 hover:bg-[#f4b942] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title={t('staging.cleanUntrackedTooltip')}
+              >
+                {t('staging.cleanUntrackedBtn')}
+              </button>
+            )}
             {files.length > 0 && (
               <button
                 onClick={onRequestResetAll}

@@ -2197,7 +2197,25 @@ export default function GitCronPage() {
                   </SidebarSection>
 
                   {/* TAGS */}
-                  <SidebarSection title={t('sidebar.tags')} count={tags.length || undefined}>
+                  <SidebarSection
+                    title={t('sidebar.tags')}
+                    count={tags.length || undefined}
+                    extra={repoPath ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreateTagFrom(selectedCommit?.hash ?? 'HEAD');
+                          setNewTagName('');
+                          setNewTagMessage('');
+                        }}
+                        className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
+                        title={selectedCommit ? t('commitMenu.createTag') : `${t('commitMenu.createTag')} (HEAD)`}
+                        aria-label={selectedCommit ? t('commitMenu.createTag') : `${t('commitMenu.createTag')} (HEAD)`}
+                      >
+                        <Plus size={12} />
+                      </button>
+                    ) : undefined}
+                  >
                     {tags.length === 0 && repoPath && (
                       <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
                     )}

@@ -467,32 +467,33 @@ export function TagItem({
     >
       <Tag size={16} className="shrink-0" />
       <span className="truncate flex-1 text-xs select-text">{name}</span>
-      {isHovered && (
-        <div className="flex items-center gap-1 shrink-0 z-10">
-          {onPush && (
-            <button
-              onClick={(event) => {
-                event.stopPropagation();
-                onPush();
-              }}
-              className="p-1 hover:text-secondary transition-colors"
-              title={t('sidebar.pushTagTooltip')}
-            >
-              <Upload size={12} />
-            </button>
-          )}
+      <div className={cn(
+        'flex items-center gap-1 shrink-0 z-10 transition-opacity',
+        isHovered ? 'opacity-100' : 'opacity-0 group-focus-within:opacity-100',
+      )}>
+        {onPush && (
           <button
             onClick={(event) => {
               event.stopPropagation();
-              onDelete();
+              onPush();
             }}
-            className="p-1 hover:text-error transition-colors"
-            title="Eliminar Tag"
+            className="p-1 hover:text-secondary transition-colors"
+            title={t('sidebar.pushTagTooltip')}
           >
-            <Trash2 size={12} />
+            <Upload size={12} />
           </button>
-        </div>
-      )}
+        )}
+        <button
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete();
+          }}
+          className="p-1 hover:text-error transition-colors"
+          title="Eliminar Tag"
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
     </div>
   );
 }

@@ -93,6 +93,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:stash-drop', repoPath, index),
   gitStashClear: (repoPath: string) =>
     ipcRenderer.invoke('git:stash-clear', repoPath),
+  gitDeleteTag: (repoPath: string, tagName: string) =>
+    ipcRenderer.invoke('git:delete-tag', repoPath, tagName),
   gitTags: (repoPath: string) => ipcRenderer.invoke('git:tags', repoPath),
   gitSubmodules: (repoPath: string) => ipcRenderer.invoke('git:submodules', repoPath),
   gitWorktrees: (repoPath: string) => ipcRenderer.invoke('git:worktrees', repoPath),

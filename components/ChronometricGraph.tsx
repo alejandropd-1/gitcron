@@ -16,6 +16,7 @@ import {
   worldToScreen,
 } from '@/lib/canvas-viewport';
 import { useCanvasViewport } from '@/hooks/use-canvas-viewport';
+import { useRepoLoader } from '@/hooks/use-repo-loader';
 import {
   computeGraph,
   initials,
@@ -124,6 +125,7 @@ export function ChronometricGraph({
   const t = useT();
   const stashes = useGitStore((state) => state.stashes);
   const appFontSize = useGitStore((state) => state.fontSize);
+  const localTags = useGitStore((state) => state.tags);
   // Scale factor for all SVG text in this graph, driven by the global text-size setting (gear → "Tamaño de texto").
   // The hardcoded SVG fontSize values were tuned for "compact"; "normal" and "large" upscale proportionally.
   const textScale = appFontSize === 'large' ? 1.36 : appFontSize === 'normal' ? 1.18 : 1.0;
@@ -134,6 +136,7 @@ export function ChronometricGraph({
   const repoPath = useGitStore((state) => state.repoPath);
   const submodules = useGitStore((state) => state.submodules);
   const worktrees = useGitStore((state) => state.worktrees);
+  const { loadAll } = useRepoLoader();
 
   // 1. Filter commits if filterText is present
   const filter = filterText.trim().toLowerCase();
@@ -393,7 +396,10 @@ export function ChronometricGraph({
       // Si hay bifurcación en este commit (múltiples ramas activas), se ordenan visualmente de izquierda a derecha
       // y se divide la pantalla en dos mitades (la mitad izquierda rotula a la izquierda, la derecha a la derecha).
       // Esto evita que las líneas conectoras del HUD se crucen de un lado a otro cuando hay bifurcaciones paralelas.
-      const isLeft = labelSideFromBranchIndex(resolvedBranchIndex, activeBranchIndices) === 'left';
+      let isLeft = labelSideFromBranchIndex(resolvedBranchIndex, activeBranchIndices) === 'left';
+      if (isBranchOrigin && branchName?.startsWith('imagined/')) {
+        isLeft = false; // Always draw materialized futures labels on the right to perfectly clear the HEAD stack!
+      }
 
       return {
         ...row,
@@ -672,8 +678,8 @@ export function ChronometricGraph({
 
   // The exact plan the user is shown and confirms. Same builder main uses.
   const materializePlan = useMemo(
-    () => (materializeIdea ? buildMaterializationPlan(materializeIdea, localBranches) : null),
-    [materializeIdea, localBranches],
+    () => (materializeIdea ? buildMaterializationPlan(materializeIdea, localBranches, localTags) : null),
+    [materializeIdea, localBranches, localTags],
   );
 
   function openMaterializeConfirm() {
@@ -730,6 +736,7 @@ export function ChronometricGraph({
           confidence: materializeIdea.confidence,
           impact: `Materialized as ${res.data.branchName} (${res.data.tagName}).`,
         });
+        await loadAll(repoPath);
       } else {
         setMaterializeError(res.error ?? 'Materialization failed');
       }
@@ -768,6 +775,14 @@ export function ChronometricGraph({
       });
     };
 
+    // Find the head commit node to model its large telemetry stack clearance
+    const headNode = projectedCommits.find((node) => {
+      if (!node.commit.refs) return false;
+      return node.commit.refs.some(
+        (r) => r === 'HEAD' || r === currentBranch || r === `refs/heads/${currentBranch}`
+      );
+    }) || projectedCommits[0] || null;
+
     const _xStart = config.paddingLeft;
     const _yStart = height - config.paddingBottom;
     const _xEnd = width - config.paddingRight;
@@ -790,38 +805,54 @@ export function ChronometricGraph({
     let lastLeftY = NaN;
     let prevLeftHadBadge = false;
     for (const node of leftNodes) {
+      const isNodeHead = headNode && node.commit.hash === headNode.commit.hash;
       const curHasBadge = hasBadge(node);
       const effectiveClearance = MIN_CLEARANCE + ((prevLeftHadBadge || curHasBadge) ? BADGE_CLEARANCE_EXTRA : 0);
+
       let offset = BASE_OFFSET;
-      const naturalY = node.y + _ny * BASE_OFFSET;
-      if (!isNaN(lastLeftY) && naturalY > lastLeftY - effectiveClearance) {
-        const needed = (lastLeftY - effectiveClearance - node.y) / _ny;
-        offset = Math.min(MAX_OFFSET, Math.max(BASE_OFFSET, needed));
+      
+      if (isNodeHead) {
+        offset = 80 * textScale;
+      } else {
+        const naturalY = node.y + _ny * BASE_OFFSET;
+        if (!isNaN(lastLeftY) && naturalY > lastLeftY - effectiveClearance) {
+          const needed = (lastLeftY - effectiveClearance - node.y) / _ny;
+          offset = Math.min(MAX_OFFSET, Math.max(BASE_OFFSET, needed));
+        }
       }
+      
       offsets.set(node.commit.hash, offset);
       lastLeftY = node.y + _ny * offset;
-      prevLeftHadBadge = curHasBadge;
+      prevLeftHadBadge = curHasBadge || isNodeHead;
     }
 
     // RIGHT side — push older label downward when too close to previous (newer) one
     let lastRightY = NaN;
     let prevRightHadBadge = false;
     for (const node of rightNodes) {
+      const isNodeHead = headNode && node.commit.hash === headNode.commit.hash;
       const curHasBadge = hasBadge(node);
       const effectiveClearance = MIN_CLEARANCE + ((prevRightHadBadge || curHasBadge) ? BADGE_CLEARANCE_EXTRA : 0);
+
       let offset = BASE_OFFSET;
-      const naturalY = node.y + _ry * BASE_OFFSET;
-      if (!isNaN(lastRightY) && naturalY < lastRightY + effectiveClearance) {
-        const needed = (lastRightY + effectiveClearance - node.y) / _ry;
-        offset = Math.min(MAX_OFFSET, Math.max(BASE_OFFSET, needed));
+      
+      if (isNodeHead) {
+        offset = 80 * textScale;
+      } else {
+        const naturalY = node.y + _ry * BASE_OFFSET;
+        if (!isNaN(lastRightY) && naturalY < lastRightY + effectiveClearance) {
+          const needed = (lastRightY + effectiveClearance - node.y) / _ry;
+          offset = Math.min(MAX_OFFSET, Math.max(BASE_OFFSET, needed));
+        }
       }
+      
       offsets.set(node.commit.hash, offset);
       lastRightY = node.y + _ry * offset;
-      prevRightHadBadge = curHasBadge;
+      prevRightHadBadge = curHasBadge || isNodeHead;
     }
 
     return offsets;
-  }, [projectedCommits, config, width, height, textScale]);
+  }, [projectedCommits, config, width, height, textScale, currentBranch]);
 
   // Find unit direction vectors of the diagonal line
   const xStart = config.paddingLeft;
@@ -854,10 +885,10 @@ export function ChronometricGraph({
   // Coordinates for the WIP capsule (if changes exist in modifiedFiles)
   const wipCoords = useMemo(() => {
     if (modifiedFiles.length === 0 || !headCommitNode) return null;
-    // Place WIP 50px ahead of HEAD commit along its lane, and offset to the right-down perpendicular direction by 25px
+    // Place WIP 50px ahead of HEAD commit along its lane, and offset to the right-down perpendicular direction by 45px
     return {
-      x: headCommitNode.x + ux * 50 + rx * 25,
-      y: headCommitNode.y + uy * 50 + ry * 25,
+      x: headCommitNode.x + ux * 50 + rx * 45,
+      y: headCommitNode.y + uy * 50 + ry * 45,
     };
   }, [modifiedFiles.length, headCommitNode, ux, uy, rx, ry]);
 
@@ -969,13 +1000,16 @@ export function ChronometricGraph({
           diagOffset += -50;
         }
 
-        const satX = node.x + nx * distance + ux * diagOffset;
-        let satY = node.y + ny * distance + uy * diagOffset;
+        const nodeIsLeft = node.isLeft;
+        const vx = nodeIsLeft ? nx : rx;
+        const vy = nodeIsLeft ? ny : ry;
+
+        const satX = node.x + vx * distance + ux * diagOffset;
+        let satY = node.y + vy * distance + uy * diagOffset;
 
         // If it's a normal commit (not HEAD) and its comment is on the left wing,
         // shift only the bottom tag (tagIndex === 0) vertically down by 14px to place it cleanly below the comment.
         if (!isHead) {
-          const nodeIsLeft = node.isLeft;
           if (nodeIsLeft && tagIndex === 0) {
             satY += 14;
           }

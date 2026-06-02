@@ -547,12 +547,12 @@ ipcMain.handle('git:materialize-idea', async (_event, repoPath: string, idea: Ma
     // Refuse if the branch or flight tag already exist (don't clobber). Checked
     // BEFORE any write, so a collision can never leave partial state.
     const branches = await g.branchLocal();
-    const plan = buildMaterializationPlan(idea, branches.all);
+    const tags = await g.tags();
+    const plan = buildMaterializationPlan(idea, branches.all, tags.all);
 
     if (branches.all.includes(plan.branchName)) {
       return { success: false, error: `Branch "${plan.branchName}" already exists` };
     }
-    const tags = await g.tags();
     if (tags.all.includes(plan.tagName)) {
       return {
         success: false,
@@ -1523,14 +1523,45 @@ ipcMain.handle('git:rename-branch', async (_event, targetPath: string, oldName: 
 // ── Delete a local branch. `force=true` uses -D (even if unmerged) ──
 ipcMain.handle('git:delete-branch', async (_event, targetPath: string, branch: string, force: boolean = false) => {
   try {
+    const g = simpleGit(targetPath);
     const flag = force ? '-D' : '-d';
-    await simpleGit(targetPath).raw(['branch', flag, branch]);
+
+    // If it's an imagined branch, we want to find and delete the companion flight tag pointing to the same commit
+    if (branch.startsWith('imagined/')) {
+      try {
+        const commitSha = (await g.revparse([branch])).trim();
+        const tagsResult = await g.tags();
+        for (const t of tagsResult.all) {
+          if (t.startsWith('flight/')) {
+            const tagSha = (await g.revparse([t])).trim();
+            if (tagSha === commitSha) {
+              await g.raw(['tag', '-d', t]);
+            }
+          }
+        }
+      } catch (tagErr) {
+        console.error('Error finding/deleting companion tag for branch:', tagErr);
+      }
+    }
+
+    await g.raw(['branch', flag, branch]);
     return { success: true };
   } catch (error: any) {
     const msg = sanitizeForLog(error.message || String(error));
     // Detect "not fully merged" so renderer can offer force delete
     const notMerged = /not fully merged|not yet merged/i.test(msg);
     return { success: false, error: msg, data: { notMerged } };
+  }
+});
+
+// ── Delete a tag. runs git tag -d <tag> ──
+ipcMain.handle('git:delete-tag', async (_event, targetPath: string, tagName: string) => {
+  try {
+    await simpleGit(targetPath).raw(['tag', '-d', tagName]);
+    return { success: true };
+  } catch (error: any) {
+    const msg = sanitizeForLog(error.message || String(error));
+    return { success: false, error: msg };
   }
 });
 

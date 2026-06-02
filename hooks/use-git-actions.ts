@@ -105,7 +105,7 @@ export const useGitActions = () => {
     setDefaultFolder,
   } = useGitStore();
 
-  const { refreshLog, refreshStatus, refreshBranches, refreshStashes } = useRepoLoader();
+  const { refreshLog, refreshStatus, refreshBranches, refreshStashes, refreshTags } = useRepoLoader();
 
   const runCommand = async (args: string[]) => {
     setLoading(true);
@@ -557,11 +557,29 @@ export const useGitActions = () => {
       const r = await window.api.gitDeleteBranch(repoPath, branch, force);
       if (r.success) {
         await refreshBranches();
+        await refreshTags();
+        await refreshLog();
         return { success: true };
       }
       const notMerged = (r.data as any)?.notMerged;
       if (!notMerged) setError(r.error ?? 'Error al eliminar branch');
       return { success: false, notMerged };
+    } finally { setLoading(false); }
+  };
+
+  const deleteTag = async (tagName: string): Promise<{ success: boolean }> => {
+    if (!window.api || !repoPath) return { success: false };
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitDeleteTag(repoPath, tagName);
+      if (r.success) {
+        setSuccess(`Tag "${tagName}" eliminado`);
+        await refreshTags();
+        await refreshLog();
+        return { success: true };
+      }
+      setError(r.error ?? 'Error al eliminar tag');
+      return { success: false };
     } finally { setLoading(false); }
   };
 
@@ -1053,6 +1071,7 @@ export const useGitActions = () => {
     squashCommits,
     renameBranch,
     deleteBranch,
+    deleteTag,
     pullSpecificBranch,
     pushSpecificBranch,
     pushChanges,

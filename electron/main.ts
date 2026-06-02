@@ -2197,6 +2197,18 @@ ipcMain.handle('git:stash-list', async (_event, targetPath: string) => {
   }
 });
 
+ipcMain.handle('git:stash-push', async (_event, targetPath: string, message?: string) => {
+  try {
+    const args = ['push'];
+    const trimmed = message?.trim();
+    if (trimmed) args.push('-m', trimmed);
+    await simpleGit(targetPath).stash(args);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
 ipcMain.handle('git:tags', async (_event, targetPath: string) => {
   try {
     const tags = await simpleGit(targetPath).tags();
@@ -2284,10 +2296,37 @@ ipcMain.handle('git:stash-apply', async (_event, targetPath: string, stashIndex:
   }
 });
 
+ipcMain.handle('git:stash-pop', async (_event, targetPath: string, stashIndex: number) => {
+  try {
+    await simpleGit(targetPath).stash(['pop', `stash@{${stashIndex}}`]);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
 ipcMain.handle('git:stash-drop', async (_event, targetPath: string, stashIndex: number) => {
   try {
     await simpleGit(targetPath).stash(['drop', `stash@{${stashIndex}}`]);
     return { success: true };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
+ipcMain.handle('git:stash-preview', async (_event, targetPath: string, stashIndex: number) => {
+  try {
+    const ref = `stash@{${stashIndex}}`;
+    const g = simpleGit(targetPath);
+    const [filesRaw, diff] = await Promise.all([
+      g.raw(['stash', 'show', '--name-only', ref]),
+      g.raw(['stash', 'show', '-p', ref]),
+    ]);
+    const files = filesRaw
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    return { success: true, data: { files, diff } };
   } catch (error: any) {
     return { success: false, error: errMsg(error) };
   }

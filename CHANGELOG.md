@@ -12,6 +12,7 @@ Changes are listed from newest to oldest.
 - **Auditoría Exhaustiva de Operaciones Git**: Completamos un inventario profundo del código vivo de la aplicación (v1.6.5/v1.6.6) para mapear el estado real de las funcionalidades básicas de Git.
 - **Plan de Backlog**: Registramos en la documentación el listado completo de operaciones Git faltantes o parcialmente implementadas para priorizar futuros desarrollos sin duplicados.
 - **Clean untracked en bloque**: El panel de staging ahora muestra `Limpiar...` cuando hay archivos sin trackear. La acción abre un modal con checklist basado en un dry-run fresco de `git clean -n -d`, permite seleccionar archivos individuales y borra únicamente los paths elegidos después de una advertencia explícita de eliminación física del disco.
+- **Stash avanzado**: El botón Stash ahora abre un modal para nombrar opcionalmente el stash. Cada stash en la barra lateral suma acciones hover para previsualizar archivos/diff, aplicar sin remover, hacer `pop` aplicando y removiendo, o eliminarlo.
 
 ---
 

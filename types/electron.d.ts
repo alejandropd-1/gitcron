@@ -112,6 +112,11 @@ export interface StashEntry {
   date: string;
 }
 
+export interface StashPreviewData {
+  files: string[];
+  diff: string;
+}
+
 export interface SubmoduleEntry {
   hash: string;
   path: string;
@@ -201,8 +206,11 @@ interface ElectronAPI {
   fsDeleteFile: (repoPath: string, relativeFilePath: string) => Promise<GitResult>;
   gitDiff: (repoPath: string, filePath: string, staged?: boolean) => Promise<GitResult<string>>;
   gitStashList: (repoPath: string) => Promise<GitResult<StashEntry[]>>;
+  gitStashPush: (repoPath: string, message?: string) => Promise<GitResult>;
   gitStashApply: (repoPath: string, index: number) => Promise<GitResult>;
+  gitStashPop: (repoPath: string, index: number) => Promise<GitResult>;
   gitStashDrop: (repoPath: string, index: number) => Promise<GitResult>;
+  gitStashPreview: (repoPath: string, index: number) => Promise<GitResult<StashPreviewData>>;
   gitStashClear: (repoPath: string) => Promise<GitResult>;
   gitDeleteTag: (repoPath: string, tagName: string) => Promise<GitResult>;
   gitCreateTag: (repoPath: string, tagName: string, commitHash: string, message?: string) => Promise<GitResult>;

@@ -84,6 +84,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Merge, rebase, fast-forward, rename, delete, and create branch flows.
 - Cherry-pick a single commit onto the current branch from the commit context menu, with conflict-aware feedback.
 - Per-file stash and full working-tree stash.
+- Advanced stash workflow: create a stash with an optional name, preview stash file lists and patches before applying, and use hover actions for Apply, Pop, or Drop from the sidebar.
 - Clear-all stash action with confirmation.
 - **Remote branch checkout**: Double-clicking a remote branch in the sidebar or right-clicking to use the new `RemoteBranchContextMenu` will automatically download it as a local tracking branch (using `git checkout -t`) or switch to it if it already exists, featuring custom pointers and hover guides.
 - **Premium Conflict Resolver Card**: Displays a glassy, high-fidelity HSL gradient card in the Diff Viewer when a selected file has merge or rebase conflicts, allowing the user to resolve the file completely with a single click ("Aceptar Local (HEAD)" or "Aceptar Entrante (Merge)") or providing instructions for side-by-side editing in their IDE.
@@ -378,10 +379,10 @@ Since the Classic and Cronometric views share the same global file and base vari
   - [ ] Permitir empujar tags al remoto (`git push origin --tags`).
 - [ ] **Reset a commit puntual**: Añadir opciones de reset (`soft`, `mixed`, `hard`) hacia un commit específico seleccionado en el grafo (menú contextual).
 - [x] **Clean untracked en bloque**: Crear diálogo interactivo con checklist para limpiar archivos no trackeados del working tree (`git clean`).
-- [ ] **Stash Avanzado**:
-  - [ ] **Stash Pop**: Añadir botón hover en la barra lateral para aplicar y descartar un stash al mismo tiempo.
-  - [ ] **Previsualizar contenido del Stash**: Crear diálogo o panel expansible para revisar archivos modificados y diffs contenidos en el stash.
-  - [ ] **Stash con nombre**: Solicitar nombre descriptivo opcional al stashear cambios.
+- [x] **Stash Avanzado**:
+  - [x] **Stash Pop**: Añadir botón hover en la barra lateral para aplicar y descartar un stash al mismo tiempo.
+  - [x] **Previsualizar contenido del Stash**: Crear diálogo o panel expansible para revisar archivos modificados y diffs contenidos en el stash.
+  - [x] **Stash con nombre**: Solicitar nombre descriptivo opcional al stashear cambios.
 
 ---
 

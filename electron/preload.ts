@@ -89,10 +89,16 @@ contextBridge.exposeInMainWorld('api', {
   gitDiff: (repoPath: string, filePath: string, staged?: boolean) =>
     ipcRenderer.invoke('git:diff', repoPath, filePath, staged ?? false),
   gitStashList: (repoPath: string) => ipcRenderer.invoke('git:stash-list', repoPath),
+  gitStashPush: (repoPath: string, message?: string) =>
+    ipcRenderer.invoke('git:stash-push', repoPath, message),
   gitStashApply: (repoPath: string, index: number) =>
     ipcRenderer.invoke('git:stash-apply', repoPath, index),
+  gitStashPop: (repoPath: string, index: number) =>
+    ipcRenderer.invoke('git:stash-pop', repoPath, index),
   gitStashDrop: (repoPath: string, index: number) =>
     ipcRenderer.invoke('git:stash-drop', repoPath, index),
+  gitStashPreview: (repoPath: string, index: number) =>
+    ipcRenderer.invoke('git:stash-preview', repoPath, index),
   gitStashClear: (repoPath: string) =>
     ipcRenderer.invoke('git:stash-clear', repoPath),
   gitDeleteTag: (repoPath: string, tagName: string) =>

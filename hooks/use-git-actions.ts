@@ -192,14 +192,25 @@ export const useGitActions = () => {
     }
   };
 
-  const stashChanges = async () => {
-    const result = await runCommand(['stash']);
-    if (result.success) {
-      setSuccess('Cambios guardados en el stash');
-      await refreshStatus();
-      await refreshStashes();
+  const stashChanges = async (message?: string) => {
+    if (!window.api || !repoPath) return { success: false, error: 'No repo' };
+    setLoading(true); setError(null);
+    try {
+      const result = await window.api.gitStashPush(repoPath, message);
+      if (result.success) {
+        setSuccess('Cambios guardados en el stash');
+        await refreshStatus();
+        await refreshStashes();
+      } else {
+        setError(result.error ?? 'Error al guardar stash');
+      }
+      return result;
+    } catch (err: any) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
     }
-    return result;
   };
 
   const discardFileChanges = async (filePath: string) => {
@@ -846,6 +857,39 @@ export const useGitActions = () => {
     finally { setLoading(false); }
   };
 
+  const stashPop = async (index: number) => {
+    if (!window.api || !repoPath) return;
+    setLoading(true); setError(null);
+    try {
+      const result = await window.api.gitStashPop(repoPath, index);
+      if (result.success) {
+        setSuccess('Stash aplicado y removido correctamente');
+        await refreshStashes();
+        await refreshStatus();
+      }
+      else setError(result.error ?? 'Error al hacer pop del stash');
+    } catch (err: any) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
+  const stashPreview = async (index: number) => {
+    if (!window.api || !repoPath) return { success: false as const, files: [] as string[], diff: '' };
+    setLoading(true); setError(null);
+    try {
+      const result = await window.api.gitStashPreview(repoPath, index);
+      if (result.success && result.data) {
+        return { success: true as const, files: result.data.files, diff: result.data.diff };
+      }
+      setError(result.error ?? 'Error al previsualizar stash');
+      return { success: false as const, files: [] as string[], diff: '' };
+    } catch (err: any) {
+      setError(err.message);
+      return { success: false as const, files: [] as string[], diff: '' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const stashClear = async () => {
     if (!window.api || !repoPath) return false;
     setLoading(true); setError(null);
@@ -1163,6 +1207,8 @@ export const useGitActions = () => {
     pullWithDecision,
     openTerminal,
     stashApply,
+    stashPop,
+    stashPreview,
     stashDrop,
     stashClear,
     connectGitHub,

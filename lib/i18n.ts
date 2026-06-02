@@ -62,6 +62,8 @@ const es: Dict = {
   'sidebar.openInGitHub': 'Abrir #{{number}} en GitHub',
   'sidebar.branchTooltip': 'Doble click: cambiar de branch · Click derecho: opciones',
   'sidebar.stashApply': 'Aplicar stash',
+  'sidebar.stashPop': 'Aplicar y remover stash',
+  'sidebar.stashPreview': 'Previsualizar stash',
   'sidebar.stashDrop': 'Eliminar stash',
   'sidebar.upstreamGone': 'Upstream eliminado',
 
@@ -204,6 +206,20 @@ const es: Dict = {
   'fileStatus.deleted': 'Borrados',
   'fileStatus.untracked': 'Sin trackear',
   'fileStatus.renamed': 'Renombrados',
+
+  // ── Stash modal / preview ──
+  'stashModal.title': 'Guardar cambios en stash',
+  'stashModal.messageLabel': 'Nombre opcional',
+  'stashModal.messagePlaceholder': 'Ej: WIP antes de probar login',
+  'stashModal.desc': 'GitCron guarda los cambios actuales en la pila de stash. Si dejás el nombre vacío, Git usa el mensaje por defecto.',
+  'stashModal.save': 'Guardar stash',
+  'stashModal.saving': 'Guardando...',
+  'stashPreview.title': 'Stash stash@{{index}}',
+  'stashPreview.files': 'Archivos ({{count}})',
+  'stashPreview.noFiles': 'Sin archivos listados',
+  'stashPreview.noDiff': 'Este stash no tiene diff para mostrar.',
+  'stashPreview.apply': 'Aplicar',
+  'stashPreview.pop': 'Pop',
 
   // ── Modals: shared ──
   'modal.cancel': 'Cancelar',
@@ -749,6 +765,8 @@ const en: Dict = {
   'sidebar.openInGitHub': 'Open #{{number}} on GitHub',
   'sidebar.branchTooltip': 'Double click: checkout · Right click: options',
   'sidebar.stashApply': 'Apply stash',
+  'sidebar.stashPop': 'Apply and remove stash',
+  'sidebar.stashPreview': 'Preview stash',
   'sidebar.stashDrop': 'Drop stash',
   'sidebar.upstreamGone': 'Upstream gone',
 
@@ -831,6 +849,20 @@ const en: Dict = {
   'fileStatus.deleted': 'Deleted',
   'fileStatus.untracked': 'Untracked',
   'fileStatus.renamed': 'Renamed',
+
+  // ── Stash modal / preview ──
+  'stashModal.title': 'Save changes to stash',
+  'stashModal.messageLabel': 'Optional name',
+  'stashModal.messagePlaceholder': 'Example: WIP before testing login',
+  'stashModal.desc': 'GitCron saves the current changes to the stash stack. If you leave the name empty, Git uses its default message.',
+  'stashModal.save': 'Save stash',
+  'stashModal.saving': 'Saving...',
+  'stashPreview.title': 'Stash stash@{{index}}',
+  'stashPreview.files': 'Files ({{count}})',
+  'stashPreview.noFiles': 'No files listed',
+  'stashPreview.noDiff': 'This stash has no diff to show.',
+  'stashPreview.apply': 'Apply',
+  'stashPreview.pop': 'Pop',
 
   // ── Modals: shared ──
   'modal.cancel': 'Cancel',

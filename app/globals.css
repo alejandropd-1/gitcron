@@ -277,3 +277,11 @@ html.light [data-keep-color] * {
 .scrollbar-thin::-webkit-scrollbar-thumb {
   border-width: 1px;
 }
+
+/* CJK Font Fallbacks for clean Chinese rendering */
+body, .font-sans {
+  font-family: var(--font-sans), "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+}
+.font-mono, pre, code {
+  font-family: var(--font-mono), "PingFang SC", "Noto Sans SC", "Microsoft YaHei", monospace;
+}

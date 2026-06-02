@@ -2,9 +2,9 @@
 // Shared types for GitCron's Temporal Agent (Feature B foundation, Phase 0).
 // No secrets are ever stored in these structures — see TEMPORAL_AGENT_DESIGN.md §4.
 
-// AssembledPrompts lives with the orchestrator that builds it (electron/ai/predict).
+// AssembledPrompts lives with the provider request runtime.
 // Type-only import: erased at compile, so no runtime cycle.
-import type { AssembledPrompts } from '../electron/ai/predict';
+import type { AssembledPrompts } from '../electron/ai/provider-runtime';
 
 /** What the agent leans toward / away from. Nudged by the decision log. */
 export interface TemporalAgentSkillProfile {
@@ -223,7 +223,7 @@ export interface MaterializationResult {
 // Defaults
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_SKILL_PROFILE: TemporalAgentSkillProfile = {
+const DEFAULT_SKILL_PROFILE: TemporalAgentSkillProfile = {
   focusAreas: [],
   avoidTopics: [],
   confidenceThreshold: 0.5,

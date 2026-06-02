@@ -133,7 +133,7 @@ export function tagNameFor(level: FlightLevel, existingTags?: string[]): string 
 }
 
 /** The IDEA.md body committed onto the new branch. */
-export function buildIdeaMarkdown(
+function buildIdeaMarkdown(
   idea: MaterializeIdeaInput,
   level: FlightLevel,
 ): string {

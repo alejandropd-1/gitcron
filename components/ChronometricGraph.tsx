@@ -22,10 +22,8 @@ import {
   initials,
 } from './CommitGraph';
 import { SpeculativeBranches } from './SpeculativeBranches';
-import {
-  projectSpeculative,
-  type SpeculativeBranch,
-} from '@/lib/speculative-projection';
+import { projectSpeculative } from '@/lib/speculative-projection';
+import type { SpeculativeBranch } from '@/types/temporal-agent';
 import {
   openingTurnFromBranch,
   type SpeculativeDialogue,

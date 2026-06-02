@@ -24,9 +24,41 @@ type ConflictSegmentWithIndex = ConflictSegment & {
 };
 
 type Segment = PlainSegment | ConflictSegment;
+type ConflictSection = 'ours' | 'base' | 'theirs';
 
 function joinLines(lines: string[]): string {
   return lines.join('\n');
+}
+
+function parseConflictBlock(lines: string[], startIndex: number): { segment: ConflictSegment; endIndex: number } {
+  const oursLabel = lines[startIndex].slice('<<<<<<<'.length).trim() || 'HEAD';
+  const segment: ConflictSegment = {
+    type: 'conflict',
+    oursLabel,
+    theirsLabel: 'incoming',
+    ours: [],
+    base: [],
+    theirs: [],
+  };
+  let section: ConflictSection = 'ours';
+  let endIndex = startIndex;
+
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    const current = lines[index];
+    endIndex = index;
+    if (current.startsWith('|||||||')) {
+      section = 'base';
+    } else if (current.startsWith('=======')) {
+      section = 'theirs';
+    } else if (current.startsWith('>>>>>>>')) {
+      segment.theirsLabel = current.slice('>>>>>>>'.length).trim() || 'incoming';
+      break;
+    } else {
+      segment[section].push(current);
+    }
+  }
+
+  return { segment, endIndex };
 }
 
 function parseConflictFile(content: string): { segments: Segment[]; trailingNewline: boolean } {
@@ -52,35 +84,9 @@ function parseConflictFile(content: string): { segments: Segment[]; trailingNewl
     }
 
     pushPlain();
-    const oursLabel = line.slice('<<<<<<<'.length).trim() || 'HEAD';
-    const ours: string[] = [];
-    const base: string[] = [];
-    const theirs: string[] = [];
-    let theirsLabel = 'incoming';
-    let section: 'ours' | 'base' | 'theirs' = 'ours';
-
-    index += 1;
-    for (; index < lines.length; index += 1) {
-      const current = lines[index];
-      if (current.startsWith('|||||||')) {
-        section = 'base';
-        continue;
-      }
-      if (current.startsWith('=======')) {
-        section = 'theirs';
-        continue;
-      }
-      if (current.startsWith('>>>>>>>')) {
-        theirsLabel = current.slice('>>>>>>>'.length).trim() || 'incoming';
-        break;
-      }
-
-      if (section === 'ours') ours.push(current);
-      else if (section === 'base') base.push(current);
-      else theirs.push(current);
-    }
-
-    segments.push({ type: 'conflict', oursLabel, theirsLabel, ours, base, theirs });
+    const conflict = parseConflictBlock(lines, index);
+    segments.push(conflict.segment);
+    index = conflict.endIndex;
   }
 
   pushPlain();

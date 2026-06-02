@@ -78,8 +78,7 @@ que estén verdes.
 
 1. Copiá `electron/temporal-agent-ipc.ts` y `electron/ai/key-store.ts`.
 2. Registrá los handlers: en `electron/main.ts`, importá y llamá
-   `registerTemporalAgentHandlers()` junto a los otros `register*` (ver
-   `electron/temporal-agent.bridge-additions.ts`, snippet 2).
+   `registerTemporalAgentHandlers()` junto a los otros `register*` existentes.
 3. Agregá el bridge en `electron/preload.ts` (snippet 1) y los tipos en
    `types/electron.d.ts` (snippet 3).
 4. Confirmá que `key-store.ts` usa `safeStorage` y que `getKey()` **no** se expone

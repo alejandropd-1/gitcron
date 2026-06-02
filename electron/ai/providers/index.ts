@@ -11,7 +11,7 @@ import type {
   AIPredictionProvider,
   PredictionResult,
 } from '../../../types/temporal-agent';
-import type { AssembledPrompts } from '../predict';
+import type { AssembledPrompts } from '../provider-runtime';
 import { createClaudeProvider } from './claude';
 import { createOpenRouterProvider } from './openrouter';
 
@@ -46,11 +46,4 @@ export function getProvider(id: ProviderId, opts?: ProviderOpts): AIPredictionPr
   const make = registry[id];
   if (!make) throw new Error(`Unknown provider: ${id}`);
   return make(opts);
-}
-
-export function listProviders(): Array<Pick<AIPredictionProvider, 'id' | 'label' | 'kind'>> {
-  return (Object.keys(registry) as ProviderId[]).map((id) => {
-    const p = registry[id]();
-    return { id: p.id, label: p.label, kind: p.kind };
-  });
 }

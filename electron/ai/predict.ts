@@ -34,60 +34,7 @@ import type {
   AIPredictionProvider,
 } from '../../types/temporal-agent';
 import { getProvider, type ProviderId } from './providers';
-
-export interface AssembledPrompts {
-  systemPrompt: string;
-  userPrompt: string;
-  input: PredictionInput;
-}
-
-/** Default budget for a single provider call before we give up. */
-export const PREDICTION_TIMEOUT_MS = 30_000;
-
-/** Module-level reference to the active prediction's AbortController, if any. */
-let activeAbortController: AbortController | null = null;
-
-/** True when the current abort was triggered by the Cancel button (not timeout). */
-let cancelledByUser = false;
-
-/** Cancel the in-flight prediction (called from IPC). Safe to call if idle. */
-export function cancelActivePrediction(): void {
-  cancelledByUser = true;
-  activeAbortController?.abort();
-  activeAbortController = null;
-}
-
-/**
- * fetch() with a hard timeout via AbortController. If the provider hangs, we
- * abort at `timeoutMs` and throw a soft, user-facing message instead of leaving
- * the UI waiting forever. Re-throws other errors untouched.
- */
-export async function fetchWithTimeout(
-  url: string,
-  init: RequestInit,
-  timeoutMs: number = PREDICTION_TIMEOUT_MS,
-): Promise<Response> {
-  const controller = new AbortController();
-  activeAbortController = controller;
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      if (cancelledByUser) {
-        cancelledByUser = false;
-        throw new Error('Predicción cancelada por el usuario.');
-      }
-      throw new Error(`La predicción tardó demasiado (más de ${Math.round(timeoutMs / 1000)}s) y se canceló. Probá de nuevo.`);
-    }
-    throw err;
-  } finally {
-    clearTimeout(timer);
-    if (activeAbortController === controller) {
-      activeAbortController = null;
-    }
-  }
-}
+import type { AssembledPrompts } from './provider-runtime';
 
 // --- skill text -------------------------------------------------------------
 
@@ -109,12 +56,12 @@ const DOCTRINE_FALLBACK =
   'hype as evidence.';
 
 /** Loads the skill body (frontmatter stripped) from resources or the repo. */
-export function loadSkillText(): string {
+function loadSkillText(): string {
   return loadSkillFile(SKILL_REL, SKILL_FALLBACK);
 }
 
 /** Loads the forecasting doctrine (the 7 principles; entropy capstone). */
-export function loadDoctrineText(): string {
+function loadDoctrineText(): string {
   return loadSkillFile(DOCTRINE_REL, DOCTRINE_FALLBACK);
 }
 
@@ -145,7 +92,7 @@ function stripFrontmatter(md: string): string {
 
 // --- repo context (read-only) -----------------------------------------------
 
-export async function gatherRawContext(
+async function gatherRawContext(
   repoPath: string,
   commitCount = 40,
 ): Promise<RawRepoContext> {
@@ -188,7 +135,7 @@ export async function gatherRawContext(
 
 // --- prompt assembly (pure) -------------------------------------------------
 
-export function assemblePrompts(
+function assemblePrompts(
   skillText: string,
   doctrineText: string,
   feedbackBlock: string,
@@ -288,45 +235,4 @@ export async function runPrediction(args: RunPredictionArgs): Promise<Prediction
   return { ...result, branches, lang };
 }
 
-/**
- * Translates an existing PredictionResult to Spanish or English dynamically via LLM.
- * Avoids breaking IDs or technical details, preserving JSON shape.
- */
-export async function translatePrediction(
-  result: PredictionResult,
-  targetLang: string,
-  providerId: ProviderId,
-  model?: string,
-): Promise<PredictionResult> {
-  const provider = getProvider(providerId, { model });
-
-  const systemPrompt = [
-    `You are a translation assistant. You must translate the given PredictionResult JSON object into ${targetLang === 'es' ? 'Spanish (Castellano)' : 'English'}.`,
-    `Translate only the natural language fields: 'summary' (the top-level synthesis), 'message', 'rationale', and 'reasoning' inside the branches.`,
-    `For the translated text, use clear, professional, warm, and highly accessible language (avoid overly technical jargon, keep it friendly and colloquial).`,
-    `Do NOT translate technical keywords, ids, branch names or tags. Keep fields like 'id', 'type', 'confidence', 'predictionIndex', 'provider', and 'generatedAt' exactly the same.`,
-    `You must output ONLY the resulting translated JSON object. No markdown formatting (no \`\`\`json blocks), no comments, no explanation. Just a raw valid JSON object matching the input structure exactly.`,
-  ].join('\n');
-
-  const userPrompt = JSON.stringify(result, null, 2);
-
-  const prompts: AssembledPrompts = {
-    systemPrompt,
-    userPrompt,
-    input: {
-      commitMessages: [],
-      languages: [],
-      dependencies: {},
-    },
-  };
-
-  const translatedResult = await provider.predictTimelines(prompts);
-
-  return {
-    ...translatedResult,
-    provider: result.provider,
-    generatedAt: result.generatedAt,
-    lang: targetLang,
-  };
-}
 

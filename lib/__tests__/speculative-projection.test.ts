@@ -4,9 +4,9 @@ import {
   projectSpeculative,
   speculativeOpacity,
   diagonalBasis,
-  type SpeculativeBranch,
 } from '../speculative-projection';
 import type { ProjectionConfig } from '../chronometric-projection';
+import type { SpeculativeBranch } from '../../types/temporal-agent';
 
 const config: ProjectionConfig = {
   width: 1100,
@@ -25,9 +25,9 @@ const config: ProjectionConfig = {
 const present = { x: config.width - config.paddingRight, y: config.paddingTop };
 
 const specs: SpeculativeBranch[] = [
-  { id: 's1', message: 'Add code signing', type: 'improvement', confidence: 0.9 },
-  { id: 's2', message: 'WASM diff engine', type: 'breakthrough', confidence: 0.4 },
-  { id: 's3', message: 'AI commit summaries', type: 'trend', confidence: 0.6 },
+  { id: 's1', message: 'Add code signing', rationale: 'Safer release flow', type: 'improvement', confidence: 0.9 },
+  { id: 's2', message: 'WASM diff engine', rationale: 'Faster large diffs', type: 'breakthrough', confidence: 0.4 },
+  { id: 's3', message: 'AI commit summaries', rationale: 'Better branch context', type: 'trend', confidence: 0.6 },
 ];
 
 describe('diagonalBasis', () => {
@@ -66,12 +66,12 @@ describe('projectSpeculative', () => {
 
   it('higher confidence reaches further into the future', () => {
     const high = projectSpeculative(
-      [{ id: 'h', message: 'x', type: 'improvement', confidence: 1 }],
+      [{ id: 'h', message: 'x', rationale: 'high confidence', type: 'improvement', confidence: 1 }],
       present,
       config,
     )[0];
     const low = projectSpeculative(
-      [{ id: 'l', message: 'x', type: 'improvement', confidence: 0 }],
+      [{ id: 'l', message: 'x', rationale: 'low confidence', type: 'improvement', confidence: 0 }],
       present,
       config,
     )[0];

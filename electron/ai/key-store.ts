@@ -17,7 +17,7 @@ import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import type { AIPredictionProvider } from '../../types/temporal-agent';
 
-export type ProviderId = AIPredictionProvider['id'];
+type ProviderId = AIPredictionProvider['id'];
 
 interface KeyFile {
   // provider id -> base64 of safeStorage-encrypted key bytes

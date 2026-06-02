@@ -12,22 +12,7 @@
 // dotted/semi-transparent/cyan, opacity tied to confidence, labelled "predicción".
 
 import { mapLaneToBranchIndex, type ProjectionConfig } from './chronometric-projection';
-
-/** Matches the AI PredictionResult branch shape (see types/temporal-agent.ts). */
-export interface SpeculativeBranch {
-  id: string;
-  message: string;
-  rationale?: string;
-  /** Extended reasoning in prose (3-5 sentences). Optional for backward compatibility. */
-  reasoning?: string;
-  /** Ready-to-use coding prompt for an AI agent to implement this speculative feature. */
-  agentPrompt?: string;
-  /** 1-based index in the original prediction array, before any filter. */
-  predictionIndex?: number;
-  type: 'improvement' | 'breakthrough' | 'trend';
-  /** 0..1 — drives reach into the future, opacity, and dash density. */
-  confidence: number;
-}
+import type { SpeculativeBranch } from '../types/temporal-agent';
 
 export interface SpeculativeNode {
   branch: SpeculativeBranch;

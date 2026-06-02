@@ -13,7 +13,7 @@ import type {
   PredictionResult,
   SpeculativeBranch,
 } from '../../../types/temporal-agent';
-import { fetchWithTimeout, type AssembledPrompts } from '../predict';
+import { fetchWithTimeout, type AssembledPrompts } from '../provider-runtime';
 import { getKey } from '../key-store';
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
@@ -278,14 +278,3 @@ function extractJson(text: string): string | null {
   return null;
 }
 
-function isBranch(b: unknown): b is SpeculativeBranch {
-  const x = b as Record<string, unknown>;
-  return (
-    !!x &&
-    (typeof x.id === 'string' || typeof x.id === 'number') &&
-    (typeof x.message === 'string' || typeof x.mensaje === 'string') &&
-    (typeof x.rationale === 'string' || typeof x.justificacion === 'string' || typeof x.explicacion === 'string') &&
-    (x.type === 'improvement' || x.type === 'breakthrough' || x.type === 'trend' || x.tipo === 'mejora' || x.tipo === 'innovación' || x.tipo === 'tendencia') &&
-    (typeof x.confidence === 'number' || typeof x.confianza === 'number')
-  );
-}

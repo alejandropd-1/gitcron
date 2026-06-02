@@ -43,7 +43,7 @@ export interface StatusFile {
   conflicted?: boolean;
 }
 
-export interface GitCleanResult {
+interface GitCleanResult {
   files: string[];
   deleted?: string[];
 }
@@ -112,7 +112,7 @@ export interface StashEntry {
   date: string;
 }
 
-export interface StashPreviewData {
+interface StashPreviewData {
   files: string[];
   diff: string;
 }

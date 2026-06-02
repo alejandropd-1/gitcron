@@ -12,7 +12,8 @@ import type {
   BranchTrackingInfo, WorktreeEntry, PullRequestEntry, PullRequestDiffData, PullRequestDiffFile,
 } from '../types/electron';
 import { registerTemporalAgentHandlers, loadConfig as loadTemporalConfig, loadNotes as loadTemporalNotes, savePrediction, loadPrediction } from './temporal-agent-ipc';
-import { runPrediction, cancelActivePrediction } from './ai/predict';
+import { runPrediction } from './ai/predict';
+import { cancelActivePrediction } from './ai/provider-runtime';
 import { hasKey as hasAiKey, setKey as setAiKey, removeKey as removeAiKey, getKeyFingerprint as getAiKeyFingerprint } from './ai/key-store';
 import type { ProviderId } from './ai/providers';
 import type { AIPredictionProvider, PredictionResult, SpeculativeBranch, MaterializeIdeaInput } from '../types/temporal-agent';

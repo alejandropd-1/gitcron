@@ -57,11 +57,11 @@ function ContextMenuItem({
 }
 
 export function CommitContextMenu({
-  x, y, onMerge, onRevert, onCheckout, onCreateBranch, onCherryPick, onCopySha, onClose,
+  x, y, onMerge, onRevert, onCheckout, onCreateBranch, onCreateTag, onCherryPick, onCopySha, onClose,
 }: {
   x: number; y: number;
   onMerge: () => void; onRevert: () => void; onCheckout: () => void;
-  onCreateBranch: () => void; onCherryPick: () => void; onCopySha: () => void; onClose: () => void;
+  onCreateBranch: () => void; onCreateTag: () => void; onCherryPick: () => void; onCopySha: () => void; onClose: () => void;
 }) {
   const t = useT();
   const { ref, coords, isMeasured } = useAdjustedPosition(x, y);
@@ -84,6 +84,7 @@ export function CommitContextMenu({
       <div className="h-px bg-border-subtle my-1" />
       <ContextMenuItem onClick={onCheckout} text="Checkout" />
       <ContextMenuItem onClick={onCreateBranch} text="Create branch here" />
+      <ContextMenuItem onClick={onCreateTag} text={t('commitMenu.createTag')} />
       <div className="h-px bg-border-subtle my-1" />
       <ContextMenuItem onClick={onCopySha} text="Copy commit SHA" textSecondary="Ctrl+C" />
       <ContextMenuItem onClick={onClose} text="Cerrar" />

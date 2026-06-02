@@ -533,6 +533,16 @@ const es: Dict = {
 
   // ── Commit context menu ──
   'commitMenu.cherryPick': 'Cherry-pick este commit',
+  'commitMenu.createTag': 'Crear tag en este commit',
+
+  // ── Create Tag Modal ──
+  'createTag.title': 'Crear nuevo Tag',
+  'createTag.nameLabel': 'Nombre del Tag (ej: v1.0.0)',
+  'createTag.msgLabel': 'Mensaje de anotación (opcional)',
+  'createTag.button': 'Crear Tag',
+  'sidebar.pushTagTooltip': 'Subir tag al remoto (GitHub)',
+  'success.createTag': 'Tag «{{name}}» creado',
+  'success.pushTag': 'Tag «{{name}}» subido al remoto correctamente',
 
   // ── Temporal Agent Settings ──
   'temporalAgent.experimental': 'experimental',
@@ -1181,6 +1191,16 @@ const en: Dict = {
 
   // ── Commit context menu ──
   'commitMenu.cherryPick': 'Cherry-pick this commit',
+  'commitMenu.createTag': 'Create tag at this commit',
+
+  // ── Create Tag Modal ──
+  'createTag.title': 'Create New Tag',
+  'createTag.nameLabel': 'Tag Name (e.g., v1.0.0)',
+  'createTag.msgLabel': 'Annotation message (optional)',
+  'createTag.button': 'Create Tag',
+  'sidebar.pushTagTooltip': 'Push tag to remote (GitHub)',
+  'success.createTag': 'Tag "{{name}}" created',
+  'success.pushTag': 'Tag "{{name}}" pushed to remote successfully',
 
   // ── Temporal Agent Settings ──
   'temporalAgent.experimental': 'experimental',
@@ -1748,6 +1768,16 @@ const zh: Dict = {
   'amend.cancel': '取消',
   'amend.toolbarLabel': 'Amend',
   'commitMenu.cherryPick': 'Cherry-pick 此 Commit',
+  'commitMenu.createTag': '在此 Commit 上创建 Tag',
+
+  // ── Create Tag Modal ──
+  'createTag.title': '创建新 Tag',
+  'createTag.nameLabel': 'Tag 名称 (例如：v1.0.0)',
+  'createTag.msgLabel': '注释说明（可选）',
+  'createTag.button': '创建 Tag',
+  'sidebar.pushTagTooltip': '推送 Tag 到远程仓库 (GitHub)',
+  'success.createTag': 'Tag “{{name}}” 已创建',
+  'success.pushTag': 'Tag “{{name}}” 已成功推送到远程',
   'temporalAgent.experimental': '实验性',
   'temporalAgent.description': '允许 AI 在时序图上为 {{repo}} 推荐未来的投机性 Branch。选择加入。在您触发分析之前不会发送任何内容。',
   'temporalAgent.enableLabel': '为此仓库启用',

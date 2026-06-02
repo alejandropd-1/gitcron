@@ -1575,6 +1575,37 @@ ipcMain.handle('git:delete-tag', async (_event, targetPath: string, tagName: str
   }
 });
 
+// ── Create a tag ──
+ipcMain.handle('git:create-tag', async (_event, targetPath: string, tagName: string, commitHash: string, message?: string) => {
+  try {
+    const g = simpleGit(targetPath);
+    if (message && message.trim() !== '') {
+      await g.raw(['tag', '-a', tagName, '-m', message, commitHash]);
+    } else {
+      await g.raw(['tag', tagName, commitHash]);
+    }
+    return { success: true };
+  } catch (error: any) {
+    const msg = sanitizeForLog(error.message || String(error));
+    return { success: false, error: msg };
+  }
+});
+
+// ── Push a tag to remote ──
+ipcMain.handle('git:push-tag', async (_event, targetPath: string, tagName: string, token?: string) => {
+  try {
+    await withGitHubToken(targetPath, token, async (g) => {
+      await g.push('origin', tagName);
+    });
+    return { success: true };
+  } catch (error: any) {
+    const isAuth = /authentication|credentials|permission denied|403|401/i.test(error.message);
+    const msg = sanitizeForLog(error.message || String(error));
+    return { success: false, error: msg, data: { authRequired: isAuth } };
+  }
+});
+
+
 // ── Pull from origin for a SPECIFIC branch (without checkout) ──
 // Strategy: fetch then merge --ff-only into the local branch
 ipcMain.handle('git:pull-branch', async (_event, targetPath: string, branch: string, token?: string) => {

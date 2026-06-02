@@ -541,7 +541,7 @@ export default function GitCronPage() {
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch, amendLastCommit, cherryPickCommit, squashCommits,
-    renameBranch, deleteBranch, deleteTag, pullSpecificBranch, pushSpecificBranch,
+    renameBranch, deleteBranch, deleteTag, createTag, pushTag, pullSpecificBranch, pushSpecificBranch,
     pullWithDecision,
   } = useGitActions();
 
@@ -791,6 +791,7 @@ export default function GitCronPage() {
   const [renameModal, setRenameModal] = useState<{ oldName: string; newName: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ branch: string; notMerged?: boolean } | null>(null);
   const [deleteTagConfirm, setDeleteTagConfirm] = useState<string | null>(null);
+  const [discardConfirmFile, setDiscardConfirmFile] = useState<GitFile | null>(null);
   const [forcePushConfirm, setForcePushConfirm] = useState<{
     repoDir: string;
     githubToken: string;
@@ -800,6 +801,9 @@ export default function GitCronPage() {
   const [showNewBranch, setShowNewBranch] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const [newBranchFrom, setNewBranchFrom] = useState<string | undefined>(undefined);
+  const [createTagFrom, setCreateTagFrom] = useState<string | undefined>(undefined);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagMessage, setNewTagMessage] = useState('');
 
   const openContextMenu = (menu: { x: number; y: number; hash?: string } | null) => {
     setFileContextMenu(null);
@@ -931,6 +935,7 @@ export default function GitCronPage() {
   const [changelogError, setChangelogError] = useState<string | null>(null);
   const [showUpdateMenu, setShowUpdateMenu] = useState(false);
   const newBranchInputRef = useRef<HTMLInputElement>(null);
+  const newTagInputRef = useRef<HTMLInputElement>(null);
   const searchPopoverRef = useRef<HTMLDivElement>(null);
   const searchButtonRef = useRef<HTMLDivElement>(null);
   const updateMenuRef = useRef<HTMLDivElement>(null);
@@ -1146,6 +1151,7 @@ export default function GitCronPage() {
   }, [showSearchPopover]);
 
   useEffect(() => { if (showNewBranch) newBranchInputRef.current?.focus(); }, [showNewBranch]);
+  useEffect(() => { if (createTagFrom) newTagInputRef.current?.focus(); }, [createTagFrom]);
 
   // Auto-dismiss success toast after 3 seconds
   useEffect(() => {
@@ -1317,6 +1323,16 @@ export default function GitCronPage() {
     setShowNewBranch(false);
     setNewBranchName('');
     setNewBranchFrom(undefined);
+  };
+
+  const handleCreateTag = async () => {
+    const name = newTagName.trim();
+    if (!name || !createTagFrom) return;
+    const msg = newTagMessage.trim();
+    await createTag(name, createTagFrom, msg !== '' ? msg : undefined);
+    setCreateTagFrom(undefined);
+    setNewTagName('');
+    setNewTagMessage('');
   };
 
   const handleSelectFile = async (file: GitFile) => {
@@ -2197,8 +2213,8 @@ export default function GitCronPage() {
                     {tags.length === 0 && repoPath && (
                       <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
                     )}
-                    {tags.map((t) => (
-                      <TagItem key={t} name={t} onDelete={() => setDeleteTagConfirm(t)} />
+                    {tags.map((tg) => (
+                      <TagItem key={tg} name={tg} onDelete={() => setDeleteTagConfirm(tg)} onPush={() => pushTag(tg)} />
                     ))}
                   </SidebarSection>
 
@@ -3648,7 +3664,10 @@ export default function GitCronPage() {
               onSelectFile={handleSelectFile}
               onStage={(path, stage) => stageFile(path, stage)}
               onStageMany={(paths, stage) => stageFiles(paths, stage)}
-              onDiscard={(path) => discardFileChanges(path)}
+              onDiscard={(path) => {
+                const file = modifiedFiles.find((f) => f.path === path);
+                if (file) setDiscardConfirmFile(file);
+              }}
               onCommit={commitChanges}
               onRequestAmend={() => setShowAmend(true)}
               onRequestSquash={() => setShowSquash(true)}
@@ -3878,6 +3897,64 @@ export default function GitCronPage() {
                   className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
                 >
                   <Plus size={14} className="inline mr-1" /> {t('modal.create')}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── CREATE TAG MODAL ──────────── */}
+      <AnimatePresence>
+        {createTagFrom && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
+            onClick={() => setCreateTagFrom(undefined)}
+          >
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="glass-overlay rounded-xl shadow-2xl p-6 w-[420px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-secondary flex items-center gap-2"><Tag size={16} /> {t('createTag.title')}</h3>
+                <button onClick={() => setCreateTagFrom(undefined)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
+              </div>
+              <p className="text-xs text-text-secondary mb-3">
+                {t('newBranch.fromCommit')} <span className="font-mono text-secondary">{createTagFrom.slice(0, 7)}</span>
+              </p>
+              <div className="flex flex-col gap-3 mb-4">
+                <div>
+                  <label className="text-xs text-text-secondary block mb-1">{t('createTag.nameLabel')}</label>
+                  <input
+                    ref={newTagInputRef}
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTag(); if (e.key === 'Escape') setCreateTagFrom(undefined); }}
+                    placeholder="v1.0.0"
+                    className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-text-secondary block mb-1">{t('createTag.msgLabel')}</label>
+                  <input
+                    value={newTagMessage}
+                    onChange={(e) => setNewTagMessage(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTag(); if (e.key === 'Escape') setCreateTagFrom(undefined); }}
+                    placeholder="Release v1.0.0"
+                    className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setCreateTagFrom(undefined)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
+                <button
+                  onClick={handleCreateTag}
+                  disabled={!newTagName.trim() || isLoading}
+                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
+                >
+                  <Plus size={14} className="inline mr-1" /> {t('createTag.button')}
                 </button>
               </div>
             </motion.div>
@@ -4115,6 +4192,58 @@ export default function GitCronPage() {
                   className="px-4 py-2 bg-error hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
                 >
                   Eliminar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── DISCARD FILE CONFIRM ──────────── */}
+      <AnimatePresence>
+        {discardConfirmFile && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
+            onClick={() => setDiscardConfirmFile(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="glass-overlay rounded-xl shadow-2xl p-6 w-[540px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <Trash2 size={20} className="text-error shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-bold text-text-primary mb-1">
+                    {t('discardConfirm.title')}
+                  </h3>
+                  <p className="text-sm text-text-secondary leading-relaxed select-text">
+                    {t('discardConfirm.warning', { file: discardConfirmFile.path })}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setDiscardConfirmFile(null)}
+                  className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
+                >
+                  {t('modal.cancel')}
+                </button>
+                <button
+                  onClick={async () => {
+                    const file = discardConfirmFile;
+                    setDiscardConfirmFile(null);
+                    if (file.status === 'untracked') {
+                      await deleteFile(file.path);
+                    } else {
+                      await discardFileChanges(file.path);
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-error hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
+                >
+                  {t('discardConfirm.button')}
                 </button>
               </div>
             </motion.div>
@@ -4412,7 +4541,7 @@ export default function GitCronPage() {
             y={fileContextMenu.y}
             file={fileContextMenu.file}
             onStage={() => { stageFile(fileContextMenu.file.path, !fileContextMenu.file.staged); setFileContextMenu(null); }}
-            onDiscard={() => { discardFileChanges(fileContextMenu.file.path); setFileContextMenu(null); }}
+            onDiscard={() => { setDiscardConfirmFile(fileContextMenu.file); setFileContextMenu(null); }}
             onStashFile={() => { stashFile(fileContextMenu.file.path); setFileContextMenu(null); }}
             onIgnore={async () => {
               const r = await addToGitignore(fileContextMenu.file.path);
@@ -4451,6 +4580,7 @@ export default function GitCronPage() {
             onRevert={() => { contextMenu.hash && revertCommit(contextMenu.hash); setContextMenu(null); }}
             onCheckout={() => { contextMenu.hash && checkoutBranch(contextMenu.hash); setContextMenu(null); }}
             onCreateBranch={() => { setNewBranchFrom(contextMenu.hash); setShowNewBranch(true); setContextMenu(null); }}
+            onCreateTag={() => { setCreateTagFrom(contextMenu.hash); setNewTagName(''); setNewTagMessage(''); setContextMenu(null); }}
             onCopySha={() => { contextMenu.hash && navigator.clipboard.writeText(contextMenu.hash); setContextMenu(null); }}
             onClose={() => setContextMenu(null)}
           />
@@ -4843,9 +4973,10 @@ function StashItem({
 }
 
 function TagItem({
-  name, onDelete,
-}: { name: string; onDelete: () => void }) {
+  name, onDelete, onPush,
+}: { name: string; onDelete: () => void; onPush?: () => void }) {
   const [isHovered, setIsHovered] = useState(false);
+  const t = useT();
   return (
     <div
       onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
@@ -4855,13 +4986,24 @@ function TagItem({
       <Tag size={16} className="shrink-0" />
       <span className="truncate flex-1 text-xs select-text">{name}</span>
       {isHovered && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="p-1 hover:text-error transition-colors shrink-0 z-10"
-          title="Eliminar Tag"
-        >
-          <Trash2 size={12} />
-        </button>
+        <div className="flex items-center gap-1 shrink-0 z-10">
+          {onPush && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onPush(); }}
+              className="p-1 hover:text-secondary transition-colors"
+              title={t('sidebar.pushTagTooltip')}
+            >
+              <Upload size={12} />
+            </button>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="p-1 hover:text-error transition-colors"
+            title="Eliminar Tag"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
       )}
     </div>
   );

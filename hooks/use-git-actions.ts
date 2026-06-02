@@ -583,6 +583,41 @@ export const useGitActions = () => {
     } finally { setLoading(false); }
   };
 
+  const createTag = async (tagName: string, commitHash: string, message?: string): Promise<{ success: boolean }> => {
+    if (!window.api || !repoPath) return { success: false };
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitCreateTag(repoPath, tagName, commitHash, message);
+      if (r.success) {
+        setSuccess(t('success.createTag', { name: tagName }));
+        await refreshTags();
+        await refreshLog();
+        return { success: true };
+      }
+      setError(r.error ?? 'Error al crear tag');
+      return { success: false };
+    } finally { setLoading(false); }
+  };
+
+  const pushTag = async (tagName: string): Promise<{ success: boolean }> => {
+    if (!window.api || !repoPath) return { success: false };
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitPushTag(repoPath, tagName, githubToken ?? undefined);
+      if (r.success) {
+        setSuccess(t('success.pushTag', { name: tagName }));
+        await refreshTags();
+        return { success: true };
+      }
+      const isAuth = (r.data as any)?.authRequired;
+      setError(isAuth
+        ? 'Push fallido: autenticación requerida. Conectá con GitHub en Settings.'
+        : `Push fallido: ${r.error}`);
+      return { success: false };
+    } finally { setLoading(false); }
+  };
+
+
   const pullSpecificBranch = async (branch: string) => {
     if (!window.api || !repoPath) return;
     setLoading(true); setError(null);
@@ -1072,6 +1107,8 @@ export const useGitActions = () => {
     renameBranch,
     deleteBranch,
     deleteTag,
+    createTag,
+    pushTag,
     pullSpecificBranch,
     pushSpecificBranch,
     pushChanges,

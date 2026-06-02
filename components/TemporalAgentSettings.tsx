@@ -15,7 +15,7 @@ import type {
 } from '@/types/temporal-agent';
 import { useT } from '@/hooks/use-translation';
 import { useGitStore } from '@/lib/git-store';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, Brain } from 'lucide-react';
 
 const GREEN = '#a3f185';
 const CYAN = '#5ed8ff';
@@ -139,6 +139,10 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
   const [predictError, setPredictError] = useState<string | null>(null);
   const [cancelled, setCancelled] = useState(false);
 
+  // States for interactive thinking messages and progress bar
+  const [progress, setProgress] = useState(0);
+  const [currentThought, setCurrentThought] = useState('');
+
   useEffect(() => {
     let alive = true;
     window.api.temporalAgent.loadConfig(repoPath, repoName).then((c) => {
@@ -168,7 +172,12 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
     setPredicting(true);
     setPredictError(null);
     setCancelled(false);
+    setResult(null);
     try {
+      if (config) {
+        await window.api.temporalAgent.saveConfig(repoPath, config);
+        onConfigSaved?.(config);
+      }
       const r = await window.api.ai.predictTimelines(repoPath, repoName, language);
       if (r.success && r.data) {
         setResult(r.data);
@@ -211,6 +220,183 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
     await window.api.ai.removeKey(ACTIVE_PROVIDER);
     await refreshHasKey();
   }
+
+  // Curated list of funny and thoughtful loading phrases in Spanish and English (50+ items)
+  const THOUGHTS_ES = [
+    'Alineando los punteros del reflog...',
+    'Analizando la entropía de tus commits recientes...',
+    'Evitando bucles infinitos en el continuo espacio-tiempo...',
+    'Consultando las profecías de Linus Torvalds...',
+    'Persuadiendo a la IA de no generar conflictos de merge...',
+    'Ignorando node_modules con extrema firmeza...',
+    'Buscando ramas en universos paralelos...',
+    'Calculando la probabilidad de romper producción (esperemos que 0%)...',
+    'Descifrando mensajes de commit misteriosos...',
+    'Summoning the Garbage Collector daemon...',
+    'Verificando si dejaste contraseñas en el código (por las dudas)...',
+    'Preguntándole al oráculo de git qué viene ahora...',
+    'Buscando la iluminación en un mar de diffs...',
+    'Tratando de entender por qué esa función tiene 32 parámetros...',
+    'Conectando hemisferios cuánticos del Temporal Agent...',
+    'Configurando condensador de flujos temporal...',
+    'Alimentando a los hámsteres que hacen girar el servidor...',
+    'Negociando diplomáticamente con el recolector de basura...',
+    'Buscando café virtual para el agente de IA...',
+    'Desenrollando bucles infinitos con mucho cuidado...',
+    'Calculando la probabilidad de que funcione a la primera (99.9% de fe)...',
+    'Pidiéndole permiso a Git para ver el futuro...',
+    'Ocultando los bugs debajo de la alfombra de node_modules...',
+    'Preguntándole a StackOverflow si esto es legal...',
+    'Optimizando la velocidad de la luz en el cable de red...',
+    'Alineando planetas para evitar conflictos en main...',
+    'Traduciendo pensamientos analógicos a binario...',
+    'Resolviendo discusiones filosóficas entre pestañas y espacios...',
+    'Buscando ese punto y coma que falta desde 2024...',
+    'Ignorando advertencias de compilación para mantener la paz mental...',
+    'Acelerando taquiones para viajar al próximo commit...',
+    'Hablando con el router en tonos amables...',
+    'Reescribiendo la historia sin que Git se dé cuenta...',
+    'Explicándole a la IA por qué borrar la carpeta System32 es mala idea...',
+    'Enviando pings al espacio exterior...',
+    'Borrando el historial de búsqueda del compilador...',
+    'Alineando el reflog con la luna llena...',
+    'Despertando a los duendes del procesamiento paralelo...',
+    'Preguntándole a la IA si sueña con ovejas eléctricas o con commits limpios...',
+    'Desactivando temporalmente las leyes de la física...',
+    'Esperando a que el café haga efecto en el procesador...',
+    'Limpiando el polvo digital del repositorio...',
+    'Tratando de convencer a Windows Defender de que somos inocentes...',
+    'Convirtiendo cafeína en código a nivel cuántico...',
+    'Calentando los núcleos del procesador con algoritmos recursivos...',
+    'Buscando la salida del laberinto del git rebase...',
+    'Borrando cachés con desprecio...',
+    'Evitando que el becario virtual rompa el grafo...',
+    'Alineando los electrones en la memoria RAM...',
+    'Negociando con Git para que acepte nuestra teoría del caos...',
+    'Ordenando el caos cósmico de tus ramas locales...',
+    'Revisando si las constantes siguen siendo constantes...',
+    'Limpiando huellas digitales del reflog...',
+    'Buscando el santo grial de la refactorización perfecta...',
+    'Evitando que la IA se vuelva autoconsciente antes del push...',
+    'Intentando entender por qué funciona pero no sabemos cómo...',
+    'Peinando los grafos del árbol de Git...',
+    'Preguntándole a Ada Lovelace qué opina de tu arquitectura...',
+    'Comprando tiempo en la nube cuántica...',
+    'Descartando posibilidades donde todo explota en producción...',
+    'Sincronizando el reloj del sistema con la era espacial...',
+    'Planchando arrugas temporales en la línea de tiempo...',
+    'Dándole golpecitos virtuales al servidor a ver si arranca...',
+    'Traduciendo bits tristes a bits felices...',
+    'Invocando al espíritu de Alan Turing...',
+    'Evitando que los commits se peleen entre sí...',
+    'Despejando el camino especulativo de falsos positivos...'
+  ];
+
+  const THOUGHTS_EN = [
+    'Aligning reflog pointers...',
+    'Analyzing entropy of your recent commits...',
+    'Avoiding infinite loops in the space-time continuum...',
+    'Consulting with the prophecies of Linus Torvalds...',
+    'Persuading the AI not to generate merge conflicts...',
+    'Ignoring node_modules with extreme resolve...',
+    'Searching for branches in parallel universes...',
+    'Calculating probability of breaking production (hopefully 0%)...',
+    'Deciphering mysterious commit messages...',
+    'Summoning the Garbage Collector daemon...',
+    'Double-checking you didn\'t commit secrets (just in case)...',
+    'Asking the Git oracle what comes next...',
+    'Seeking enlightenment in a sea of diffs...',
+    'Trying to understand why that function has 32 parameters...',
+    'Connecting quantum hemispheres of the Temporal Agent...',
+    'Configuring the temporal flux capacitor...',
+    'Feeding the hamsters that spin the server...',
+    'Diplomatically negotiating with the garbage collector...',
+    'Fetching virtual coffee for the AI agent...',
+    'Carefully unrolling infinite loops...',
+    'Calculating the probability of it working on the first run (99.9% faith)...',
+    'Asking Git permission to see the future...',
+    'Hiding bugs under the node_modules rug...',
+    'Asking StackOverflow if this is legal...',
+    'Optimizing the speed of light in the network cable...',
+    'Aligning planets to avoid conflicts in main...',
+    'Translating analog thoughts to binary...',
+    'Resolving philosophical arguments between tabs and spaces...',
+    'Searching for that missing semicolon since 2024...',
+    'Ignoring compiler warnings to maintain peace of mind...',
+    'Accelerating tachyons to travel to the next commit...',
+    'Talking to the router in friendly tones...',
+    'Rewriting history without Git noticing...',
+    'Explaining to the AI why deleting System32 is a bad idea...',
+    'Sending pings to outer space...',
+    'Clearing the compiler\'s search history...',
+    'Aligning the reflog with the full moon...',
+    'Waking up the parallel processing elves...',
+    'Asking the AI if it dreams of electric sheep or clean commits...',
+    'Temporarily disabling the laws of physics...',
+    'Waiting for coffee to take effect on the processor...',
+    'Dusting the digital shelves of the repository...',
+    'Trying to convince Windows Defender that we are innocent...',
+    'Converting caffeine into code at a quantum level...',
+    'Warming up CPU cores with recursive algorithms...',
+    'Searching for the exit of the git rebase maze...',
+    'Deleting caches with disdain...',
+    'Preventing the virtual intern from breaking the graph...',
+    'Aligning electrons in RAM...',
+    'Negotiating with Git to accept our chaos theory...',
+    'Ordering the cosmic chaos of your local branches...',
+    'Checking if constants are still constant...',
+    'Wiping digital fingerprints from the reflog...',
+    'Searching for the holy grail of perfect refactoring...',
+    'Preventing the AI from becoming self-aware before the push...',
+    'Trying to understand why it works but we don\'t know how...',
+    'Combing the Git tree graphs...',
+    'Asking Ada Lovelace what she thinks of your architecture...',
+    'Buying time in the quantum cloud...',
+    'Discarding possibilities where everything blows up in prod...',
+    'Synchronizing system clock with the space era...',
+    'Ironing out temporal wrinkles in the timeline...',
+    'Tapping the virtual server to see if it boots...',
+    'Translating sad bits to happy bits...',
+    'Summoning the spirit of Alan Turing...',
+    'Preventing commits from fighting each other...',
+    'Clearing the speculative path of false positives...'
+  ];
+
+  useEffect(() => {
+    if (!predicting) {
+      if (result) {
+        setProgress(100);
+      }
+      return;
+    }
+
+    setProgress(0);
+    const thoughts = language === 'en' ? THOUGHTS_EN : THOUGHTS_ES;
+    const getRandomThought = (prev?: string) => {
+      const filtered = prev ? thoughts.filter(t => t !== prev) : thoughts;
+      return filtered[Math.floor(Math.random() * filtered.length)];
+    };
+    
+    setCurrentThought(getRandomThought());
+
+    // Cycle thoughts every 2.8 seconds
+    const thoughtInterval = setInterval(() => {
+      setCurrentThought(prev => getRandomThought(prev));
+    }, 2800);
+
+    // Smooth decaying progress bar towards 95%
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 95) return prev + (99 - prev) * 0.02; // crawl near the end
+        return prev + (95 - prev) * 0.08; // asymptotic rise
+      });
+    }, 300);
+
+    return () => {
+      clearInterval(thoughtInterval);
+      clearInterval(progressInterval);
+    };
+  }, [predicting, language, result]);
 
   if (!config) return <div style={{ color: '#9BA1B0' }}>Loading…</div>;
 
@@ -451,6 +637,29 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
             )}
           </div>
         </div>
+        {predicting && (
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+              <span style={{ color: CYAN, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
+                <Brain size={14} className="animate-pulse" style={{ color: CYAN }} />
+                <span style={{ color: '#d9e7fc', opacity: 0.95 }}>{currentThought}</span>
+              </span>
+              <span style={{ color: '#9eacc0', fontFamily: 'monospace', fontSize: 11 }}>{Math.round(progress)}%</span>
+            </div>
+            {/* Progress Bar Container */}
+            <div style={{ width: '100%', height: 4, background: '#1A1B23', borderRadius: 2, overflow: 'hidden', border: '1px solid rgba(217, 231, 252, 0.05)' }}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${progress}%`,
+                  background: `linear-gradient(90deg, ${CYAN}, ${GREEN})`,
+                  borderRadius: 2,
+                  transition: 'width 0.3s cubic-bezier(0.1, 0.8, 0.25, 1)',
+                }}
+              />
+            </div>
+          </div>
+        )}
         {cancelled && (
           <p style={{ fontSize: 12, color: '#9eacc0', margin: '10px 0 0' }}>
             {t('temporalAgent.cancelled')}
@@ -460,7 +669,17 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
           <p style={{ fontSize: 12, color: ORANGE, margin: '10px 0 0' }}>Error: {predictError}</p>
         )}
         {result && (
-          <div style={{ marginTop: 10, fontSize: 12, color: '#cbc3d7' }}>
+          <div style={{ marginTop: 12, padding: '10px 14px', background: `${GREEN}10`, border: `1px solid ${GREEN}30`, borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: GREEN, fontWeight: 'bold', fontSize: 14 }}>✓</span>
+            <span style={{ color: '#d9e7fc', fontSize: 12 }}>
+              {language === 'en'
+                ? 'Prediction completed successfully! New speculative branches have been generated in your graph.'
+                : '¡Predicción completada con éxito! Se han generado las nuevas ramas especulativas en tu gráfico.'}
+            </span>
+          </div>
+        )}
+        {result && (
+          <div style={{ marginTop: 14, fontSize: 12, color: '#cbc3d7' }}>
             <div style={{ color: GREEN, marginBottom: 6 }}>
               {result.branches.length} branch{result.branches.length === 1 ? '' : 'es'} {t('temporalAgent.resultFrom')}{' '}
               <span style={{ color: CYAN }}>{result.provider}</span>

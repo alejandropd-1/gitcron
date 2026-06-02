@@ -534,6 +534,7 @@ const es: Dict = {
   // ── Commit context menu ──
   'commitMenu.cherryPick': 'Cherry-pick este commit',
   'commitMenu.createTag': 'Crear tag en este commit',
+  'commitMenu.reset': 'Resetear a este commit...',
 
   // ── Create Tag Modal ──
   'createTag.title': 'Crear nuevo Tag',
@@ -543,6 +544,19 @@ const es: Dict = {
   'sidebar.pushTagTooltip': 'Subir tag al remoto (GitHub)',
   'success.createTag': 'Tag «{{name}}» creado',
   'success.pushTag': 'Tag «{{name}}» subido al remoto correctamente',
+
+  // ── Reset Commit Modal ──
+  'resetModal.title': 'Resetear a este commit',
+  'resetModal.fromCommit': 'Reseteando repo al commit',
+  'resetModal.modeLabel': 'Seleccioná el modo de Reset:',
+  'resetModal.soft': 'Soft (--soft): Mantiene tus archivos modificados y los cambios staged.',
+  'resetModal.mixed': 'Mixed (--mixed): Mantiene tus archivos modificados pero quita los cambios del área staged.',
+  'resetModal.hard': 'Hard (--hard): Descarta TODOS tus archivos modificados y staged. ¡Pérdida irreversible de cambios!',
+  'resetModal.warning': '⚠ ADVERTENCIA CRÍTICA: El modo HARD descartará permanentemente todos los cambios no guardados en tu espacio de trabajo y en el área de preparación (stage). Esta acción es irreversible.',
+  'resetModal.confirmCheckbox': 'Entiendo que esta acción borrará permanentemente todos mis cambios locales.',
+  'resetModal.button': 'Resetear a este commit',
+  'success.resetCommit': 'Repositorio reseteado correctamente al commit {{hash}}',
+  'error.resetCommit': 'Error al resetear repositorio: {{error}}',
 
   // ── Temporal Agent Settings ──
   'temporalAgent.experimental': 'experimental',
@@ -1192,6 +1206,7 @@ const en: Dict = {
   // ── Commit context menu ──
   'commitMenu.cherryPick': 'Cherry-pick this commit',
   'commitMenu.createTag': 'Create tag at this commit',
+  'commitMenu.reset': 'Reset to this commit...',
 
   // ── Create Tag Modal ──
   'createTag.title': 'Create New Tag',
@@ -1201,6 +1216,19 @@ const en: Dict = {
   'sidebar.pushTagTooltip': 'Push tag to remote (GitHub)',
   'success.createTag': 'Tag "{{name}}" created',
   'success.pushTag': 'Tag "{{name}}" pushed to remote successfully',
+
+  // ── Reset Commit Modal ──
+  'resetModal.title': 'Reset to this commit',
+  'resetModal.fromCommit': 'Resetting repo to commit',
+  'resetModal.modeLabel': 'Select Reset Mode:',
+  'resetModal.soft': 'Soft (--soft): Keep modified files and staged changes.',
+  'resetModal.mixed': 'Mixed (--mixed): Keep modified files but unstage changes.',
+  'resetModal.hard': 'Hard (--hard): Discard ALL modified files and staged changes. Irreversible data loss!',
+  'resetModal.warning': '⚠ CRITICAL WARNING: HARD mode will permanently discard all uncommitted changes in your workspace and staging area. This action cannot be undone.',
+  'resetModal.confirmCheckbox': 'I understand that this action will permanently delete all my local changes.',
+  'resetModal.button': 'Reset to this commit',
+  'success.resetCommit': 'Repository successfully reset to commit {{hash}}',
+  'error.resetCommit': 'Error resetting repository: {{error}}',
 
   // ── Temporal Agent Settings ──
   'temporalAgent.experimental': 'experimental',
@@ -1769,6 +1797,7 @@ const zh: Dict = {
   'amend.toolbarLabel': 'Amend',
   'commitMenu.cherryPick': 'Cherry-pick 此 Commit',
   'commitMenu.createTag': '在此 Commit 上创建 Tag',
+  'commitMenu.reset': '重置到此 Commit...',
 
   // ── Create Tag Modal ──
   'createTag.title': '创建新 Tag',
@@ -1778,6 +1807,19 @@ const zh: Dict = {
   'sidebar.pushTagTooltip': '推送 Tag 到远程仓库 (GitHub)',
   'success.createTag': 'Tag “{{name}}” 已创建',
   'success.pushTag': 'Tag “{{name}}” 已成功推送到远程',
+
+  // ── Reset Commit Modal ──
+  'resetModal.title': '重置到此 Commit',
+  'resetModal.fromCommit': '正在重置仓库到 Commit',
+  'resetModal.modeLabel': '选择重置模式：',
+  'resetModal.soft': 'Soft (--soft): 保留修改的文件和已暂存的更改。',
+  'resetModal.mixed': 'Mixed (--mixed): 保留修改的文件但取消暂存的更改。',
+  'resetModal.hard': 'Hard (--hard): 丢弃所有修改的文件和已暂存的更改。不可逆的数据丢失！',
+  'resetModal.warning': '⚠ 严重警告：HARD 模式将永久丢弃您工作区和暂存区中的所有未提交的更改。此操作无法撤销。',
+  'resetModal.confirmCheckbox': '我理解此操作将永久删除我所有的本地更改。',
+  'resetModal.button': '重置到此 Commit',
+  'success.resetCommit': '仓库已成功重置到 Commit {{hash}}',
+  'error.resetCommit': '重置仓库失败: {{error}}',
   'temporalAgent.experimental': '实验性',
   'temporalAgent.description': '允许 AI 在时序图上为 {{repo}} 推荐未来的投机性 Branch。选择加入。在您触发分析之前不会发送任何内容。',
   'temporalAgent.enableLabel': '为此仓库启用',

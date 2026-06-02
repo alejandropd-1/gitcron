@@ -168,6 +168,30 @@ export const useGitActions = () => {
     return result;
   };
 
+  const resetToCommit = async (hash: string, mode: 'soft' | 'mixed' | 'hard') => {
+    if (!window.api || !repoPath) return { success: false, error: 'No repo' };
+    setLoading(true); setError(null);
+    try {
+      const result = await window.api.gitResetCommit(repoPath, hash, mode);
+      if (result.success) {
+        setSuccess(t('success.resetCommit', { hash: hash.slice(0, 7) }));
+        await refreshLog();
+        await refreshStatus();
+        await refreshBranches();
+        await refreshStashes();
+      } else {
+        setError(t('error.resetCommit', { error: result.error ?? 'Unknown error' }));
+      }
+      return result;
+    } catch (err: any) {
+      const msg = err.message || 'Unknown error';
+      setError(msg);
+      return { success: false, error: msg };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const stashChanges = async () => {
     const result = await runCommand(['stash']);
     if (result.success) {
@@ -1083,6 +1107,7 @@ export const useGitActions = () => {
     commitChanges,
     mergeBranch,
     revertCommit,
+    resetToCommit,
     stashChanges,
     discardFileChanges,
     stageFile,

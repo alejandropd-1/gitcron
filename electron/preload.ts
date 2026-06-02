@@ -99,6 +99,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:create-tag', repoPath, tagName, commitHash, message),
   gitPushTag: (repoPath: string, tagName: string, token?: string) =>
     ipcRenderer.invoke('git:push-tag', repoPath, tagName, token),
+  gitResetCommit: (repoPath: string, commitHash: string, mode: 'soft' | 'mixed' | 'hard') =>
+    ipcRenderer.invoke('git:reset-commit', repoPath, commitHash, mode),
   gitTags: (repoPath: string) => ipcRenderer.invoke('git:tags', repoPath),
   gitSubmodules: (repoPath: string) => ipcRenderer.invoke('git:submodules', repoPath),
   gitWorktrees: (repoPath: string) => ipcRenderer.invoke('git:worktrees', repoPath),

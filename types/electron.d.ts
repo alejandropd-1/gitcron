@@ -201,6 +201,7 @@ interface ElectronAPI {
   gitDeleteTag: (repoPath: string, tagName: string) => Promise<GitResult>;
   gitCreateTag: (repoPath: string, tagName: string, commitHash: string, message?: string) => Promise<GitResult>;
   gitPushTag: (repoPath: string, tagName: string, token?: string) => Promise<GitResult>;
+  gitResetCommit: (repoPath: string, commitHash: string, mode: 'soft' | 'mixed' | 'hard') => Promise<GitResult>;
   gitTags: (repoPath: string) => Promise<GitResult<string[]>>;
   gitSubmodules: (repoPath: string) => Promise<GitResult<SubmoduleEntry[]>>;
   gitWorktrees: (repoPath: string) => Promise<GitResult<WorktreeEntry[]>>;

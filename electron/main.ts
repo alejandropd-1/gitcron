@@ -1875,6 +1875,17 @@ ipcMain.handle('git:reset-all', async (_event, targetPath: string) => {
   }
 });
 
+// ── Reset to specific commit: supports soft, mixed, and hard modes ──
+ipcMain.handle('git:reset-commit', async (_event, targetPath: string, commitHash: string, mode: 'soft' | 'mixed' | 'hard') => {
+  try {
+    const g = simpleGit(targetPath);
+    await g.reset([`--${mode}`, commitHash]);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
 // ── Stash a single file (or set of files) ──
 ipcMain.handle('git:stash-file', async (_event, targetPath: string, filePath: string) => {
   try {

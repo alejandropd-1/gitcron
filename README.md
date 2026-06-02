@@ -123,6 +123,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Transición de Desvanecimiento Puro (Fade-Only)**: Eliminación definitiva de las distorsiones de escalado bruscas por defecto. Implementación de transiciones de opacidad para una experiencia fluida y prémium al abrir y cerrar paneles.
 - **Guardia de Hidratación (Hydration Guard)**: Implementación de una barrera de renderizado síncrono en el cliente basada en la técnica de Josh W. Comeau para evitar discrepancias de hidratación SSR, introduciendo una pantalla de carga y esqueleto premium durante la sincronización inicial.
 - **Saneamiento Estático y Mantenibilidad de Fallow**: Saneamos la complejidad del grafo clásico (`computeGraph` en `CommitGraph.tsx` simplificada) y modularizamos la hidratación de preferencias en `use-git-actions.ts` hacia helpers modulares independientes, logrando una reducción del 90% en su complejidad cognitiva y elevando el *Maintainability Score* global del proyecto al **90.0% ("Good")**.
+- **Optimización y Componentización Continua**: `app/page.tsx` empezó una segunda etapa de reducción controlada: tabs multi-repo, sidebar de ramas/stashes/tags, vistas internas de History/Commit y confirmaciones destructivas viven ahora en componentes dedicados. La última auditoría de Fallow no detecta dead files ni dead exports, mantiene el *Maintainability Score* en **90.9 ("Good")** y baja la duplicación total a **4.3%**, aunque la página principal sigue siendo el mayor objetivo de saneamiento.
 - **Spanish and English UI strings**.
 
 ### 🟣 Vista Cronométrica (Chronometric View) - En Desarrollo / Experimental
@@ -153,14 +154,19 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 Renderer:
 
 - `app/page.tsx` drives the main three-column UI, tabs, modals, and topbar.
+- `components/RepoTabs.tsx` renders the draggable multi-repo titlebar tabs and Electron window controls.
+- `components/RepoSidebarParts.tsx` renders reusable sidebar sections, local/remote branch trees, stash rows, tags, and nested branch folders.
+- `components/DangerConfirmDialog.tsx` centralizes destructive confirmation dialogs for branch/tag/file removal flows.
+- `components/RepoContentViews.tsx` renders the History and Commit tab bodies that were extracted from the main page.
 - `components/CommitGraph.tsx` renders the SVG graph and graph-table rows.
 - `components/ChronometricGraph.tsx` renders the chronometric diagonal view with speculative branch overlay.
 - `components/SpeculativeBranches.tsx` renders AI-predicted future branches as dotted cyan overlays.
 - `components/DiffViewer.tsx` renders unified diffs.
 - `components/TemporalAgentSettings.tsx` per-repo settings panel for the Temporal Agent.
 - `hooks/use-git-actions.ts` contains repo actions like commit, push, pull, merge, stash, and preferences persistence.
-- `hooks/use-repo-loader.ts` loads repo data and restores persisted repos.
+- `hooks/use-repo-loader.ts` loads repo data and restores persisted repos with selective Zustand subscriptions and shared refresh helpers.
 - `lib/git-store.ts` holds the Zustand store.
+- `lib/display-format.ts` centralizes renderer date formatting and author initials.
 - `lib/speculative-projection.ts` computes future-branch positions along the chronometric diagonal.
 - `lib/chronometric-projection.ts` projects commits into the chronometric coordinate system.
 - `lib/feedback-context.ts` builds feedback blocks from the decision log for the AI context.
@@ -171,6 +177,7 @@ Main process:
 - `electron/main.ts` exposes typed IPC handlers for Git, GitHub, storage, shell, filesystem, and Temporal Agent.
 - `electron/preload.ts` exposes the safe renderer bridge via `window.api`.
 - `electron/ai/key-store.ts` manages OS-encrypted API keys (never exposed over IPC).
+- `electron/ai/provider-parsing.ts` normalizes AI-provider JSON extraction and speculative branch parsing across Claude/OpenRouter adapters.
 
 Data flow:
 

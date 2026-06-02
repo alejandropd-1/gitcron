@@ -6,14 +6,14 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Undo, Redo, Download, Upload, GitBranch, Archive, Terminal, Search,
   Settings, HelpCircle, Folder, Cloud, Tag, Layers,
-  ChevronRight, FileText, Trash2, Zap, AlertCircle, FolderOpen, Plus, X,
-  ArrowLeft, RotateCcw, Github, LogOut, Minus,
+  FileText, Trash2, Zap, AlertCircle, FolderOpen, Plus, X,
+  ArrowLeft, RotateCcw, Github, LogOut,
   Sparkles, Copy, Lock, Globe, Loader2, UserCircle2,
-  GitMerge, TreePine, ArrowUp, ArrowDown, ChevronDown, Check,
-  Type, Filter, Monitor, ExternalLink, FileDiff, Maximize2,
+  GitMerge, TreePine, Check,
+  Type, Filter, Monitor, ExternalLink, FileDiff,
   PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, WrapText, AlignLeft,
 } from 'lucide-react';
-import { motion, AnimatePresence, Reorder } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import pkg from '../package.json';
 import {
   DEFAULT_SHORTCUTS,
@@ -26,15 +26,25 @@ import { CommitContextMenu, BranchContextMenu, FileContextMenu, RemoteBranchCont
 import { StatusBadge } from '@/components/HelpModal';
 import { RepoStartPanel, type RepoStartMode } from '@/components/RepoModals';
 import { ChangelogPreview } from '@/components/ChangelogPreview';
-import { useGitStore, Commit, GitFile, type RepoState, type FontSize } from '@/lib/git-store';
+import { useGitStore, Commit, GitFile, type FontSize } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
 import { useAutoFetch } from '@/hooks/use-auto-fetch';
 import { DiffViewer } from '@/components/DiffViewer';
-import { CommitGraph, colorForBranch } from '@/components/CommitGraph';
+import { CommitGraph } from '@/components/CommitGraph';
 import { ConflictResolver } from '@/components/ConflictResolver';
 import { StagingPanel } from '@/components/StagingPanel';
 import { HistoryView, CommitTabView } from '@/components/RepoContentViews';
+import { RepoTabs } from '@/components/RepoTabs';
+import { DangerConfirmDialog } from '@/components/DangerConfirmDialog';
+import {
+  BranchTree,
+  RemoteBranchTree,
+  SidebarItem,
+  SidebarSection,
+  StashItem,
+  TagItem,
+} from '@/components/RepoSidebarParts';
 import type { SpeculativeBranch } from '@/types/temporal-agent';
 import { formatDate, formatInitials } from '@/lib/display-format';
 
@@ -176,142 +186,32 @@ function safeDirectoryPathFromError(message: string): string | null {
   return commandMatch[1].trim().replace(/^['"`]+|['"`]+$/g, '').replace(/[.)]+$/, '');
 }
 
-function RepoTabs({
-  repos,
-  activeIdx,
-  onSelect,
-  onClose,
-  onOpen,
-  onReorder,
-}: {
-  repos: RepoState[];
-  activeIdx: number;
-  onSelect: (idx: number) => void | Promise<void>;
-  onClose: (idx: number) => void | Promise<void>;
-  onOpen: () => void | Promise<void>;
-  onReorder: (newOrder: RepoState[]) => void;
-}) {
-  const t = useT();
-  const isDraggingRef = useRef(false);
-  if (repos.length === 0) return null;
+function childPath(parent: string, name: string): string {
+  const separator = parent.includes('\\') ? '\\' : '/';
+  return parent.endsWith('/') || parent.endsWith('\\')
+    ? `${parent}${name}`
+    : `${parent}${separator}${name}`;
+}
 
-  return (
-    <div className="app-titlebar h-10 rounded-t-2xl bg-transparent border-b border-text-primary/10 flex items-stretch shrink-0 overflow-hidden gap-1">
-      <div className="min-w-0 flex-1 flex items-end gap-1 pl-2 pt-1.5 pb-1 overflow-x-auto overflow-y-hidden">
-        <div className="app-titlebar-control h-7 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2 select-none">
-          <img
-            src="/gitcron-icon.png"
-            alt="GitCron"
-            data-keep-color
-            className="w-4 h-4 rounded-sm"
-          />
-          <span className="text-sm font-bold text-primary tracking-tight">GitCron</span>
-        </div>
-        <Reorder.Group
-          axis="x"
-          values={repos}
-          onReorder={onReorder}
-          className="flex items-end gap-1 min-w-0"
-        >
-          {repos.map((repo, idx) => {
-            const isActive = idx === activeIdx;
-            return (
-              <Reorder.Item
-                key={repo.path}
-                value={repo}
-                onDragStart={() => { isDraggingRef.current = true; }}
-                onDragEnd={() => {
-                  setTimeout(() => {
-                    isDraggingRef.current = false;
-                  }, 50);
-                }}
-                className={cn(
-                  'app-titlebar-control group h-7 min-w-0 max-w-52 rounded-md flex items-center border transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] cursor-grab active:cursor-grabbing',
-                  isActive
-                    ? 'bg-text-primary/10 border-secondary/25 text-text-primary shadow-[0_0_18px_rgba(163,241,133,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]'
-                    : 'bg-text-primary/[0.035] border-text-primary/10 text-text-secondary hover:text-text-primary hover:bg-text-primary/[0.07] hover:border-text-primary/20',
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!isDraggingRef.current) {
-                      onSelect(idx);
-                    }
-                  }}
-                  title={t('repoTabs.switchTo', { repo: repo.name })}
-                  className="min-w-0 flex-1 h-full px-2.5 flex items-center gap-2 text-left"
-                >
-                  {repo.isLoading ? (
-                     <Loader2 size={10} className="shrink-0 animate-spin text-secondary" />
-                  ) : (
-                    <span
-                      className={cn(
-                        'w-1.5 h-1.5 rounded-full shrink-0',
-                        isActive ? 'bg-secondary shadow-[0_0_10px_rgba(var(--color-secondary-rgb),0.5)]' : 'bg-border-subtle',
-                      )}
-                    />
-                  )}
-                  <span className="truncate text-xs font-semibold">{repo.name}</span>
-                  <span className="text-[10px] text-text-secondary/70 font-mono truncate max-w-20 hidden md:block">
-                    {repo.currentBranch || '-'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  title={t('repoTabs.close', { repo: repo.name })}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onClose(idx);
-                  }}
-                  className="mr-1 p-0.5 rounded text-text-secondary/70 hover:text-error hover:bg-error/10 opacity-70 group-hover:opacity-100 transition"
-                >
-                  <X size={13} />
-                </button>
-              </Reorder.Item>
-            );
-          })}
-        </Reorder.Group>
-        <button
-          type="button"
-          onClick={onOpen}
-          title={t('repoTabs.openAnother')}
-          className="app-titlebar-control h-7 w-7 mb-0 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.025] hover:text-secondary hover:bg-text-primary/[0.07] border border-text-primary/15 hover:border-text-primary/25 transition-colors shrink-0"
-        >
-          <Plus size={14} />
-        </button>
-      </div>
-      <div className="app-titlebar-control h-10 self-stretch flex items-stretch shrink-0 pr-3 gap-1">
-        <button
-          type="button"
-          aria-label="Minimizar"
-          title="Minimizar"
-          onClick={() => window.api?.windowMinimize()}
-          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.035] hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
-        >
-          <Minus size={14} />
-        </button>
-        <button
-          type="button"
-          aria-label="Maximizar o restaurar"
-          title="Maximizar o restaurar"
-          onClick={() => window.api?.windowToggleMaximize()}
-          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.035] hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
-        >
-          <Maximize2 size={13} />
-        </button>
-        <button
-          type="button"
-          aria-label="Cerrar"
-          title="Cerrar"
-          onClick={() => window.api?.windowClose()}
-          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.035] hover:bg-error/20 hover:text-[#ffdad6] transition-colors"
-        >
-          <X size={15} />
-        </button>
-      </div>
-    </div>
+function isPushRejected(error?: string | null): boolean {
+  return Boolean(
+    error?.includes('[rejected]') ||
+    error?.includes('fetch first') ||
+    error?.includes('non-fast-forward') ||
+    error?.includes('remote contains work'),
   );
+}
+
+function cloneUrlFromGitHubCreateResult(
+  result: { success: boolean; error?: string | null; data?: { cloneUrl?: string | null } | null },
+  ownerLogin: string | undefined,
+  repoName: string,
+): string | null {
+  if (result.success) return result.data?.cloneUrl ?? '';
+  if (result.error?.includes('already exists') && ownerLogin) {
+    return `https://github.com/${ownerLogin}/${repoName}.git`;
+  }
+  return null;
 }
 
 const AUTO_FETCH_INTERVALS = [5, 10, 30, 60] as const;
@@ -1582,10 +1482,7 @@ export default function GitCronPage() {
 
   const handleCreateRepoFromChooser = async (parent: string, name: string, withGitHub: boolean) => {
     setError(null);
-    const separator = parent.includes('\\') ? '\\' : '/';
-    const repoDir = parent.endsWith('/') || parent.endsWith('\\')
-      ? `${parent}${name}`
-      : `${parent}${separator}${name}`;
+    const repoDir = childPath(parent, name);
 
     const existsResult = await window.api.fsExistsAndNotEmpty(parent, name);
     const existsAndNotEmpty = existsResult.success && existsResult.data;
@@ -1596,18 +1493,8 @@ export default function GitCronPage() {
 
       if (withGitHub && githubToken) {
         const gh = await createGitHubRepo(githubToken, name, true, '', false);
-        let cloneUrl = '';
-
-        if (!gh.success) {
-          const isNameExistsError = gh.error && gh.error.includes('already exists');
-          if (isNameExistsError && githubUser?.login) {
-            cloneUrl = `https://github.com/${githubUser.login}/${name}.git`;
-          } else {
-            return false;
-          }
-        } else if (gh.data) {
-          cloneUrl = gh.data.cloneUrl;
-        }
+        const cloneUrl = cloneUrlFromGitHubCreateResult(gh, githubUser?.login, name);
+        if (cloneUrl === null) return false;
 
         if (cloneUrl) {
           const remoteRes = await window.api.gitCommand(repoDir, ['remote', 'add', 'origin', cloneUrl]);
@@ -1618,13 +1505,7 @@ export default function GitCronPage() {
 
           const pushRes = await window.api.gitPushBranch(repoDir, 'main', githubToken);
           if (!pushRes.success) {
-            const isRejected = pushRes.error && (
-              pushRes.error.includes('[rejected]') ||
-              pushRes.error.includes('fetch first') ||
-              pushRes.error.includes('non-fast-forward') ||
-              pushRes.error.includes('remote contains work')
-            );
-            if (isRejected) {
+            if (isPushRejected(pushRes.error)) {
               const shouldForce = await new Promise<boolean>((resolve) => {
                 setForcePushConfirm({
                   repoDir,
@@ -1654,18 +1535,8 @@ export default function GitCronPage() {
 
     if (withGitHub && githubToken) {
       const r = await createGitHubRepo(githubToken, name, true, '', true);
-      let cloneUrl = '';
-
-      if (!r.success) {
-        const isNameExistsError = r.error && r.error.includes('already exists');
-        if (isNameExistsError && githubUser?.login) {
-          cloneUrl = `https://github.com/${githubUser.login}/${name}.git`;
-        } else {
-          return false;
-        }
-      } else if (r.data) {
-        cloneUrl = r.data.cloneUrl;
-      }
+      const cloneUrl = cloneUrlFromGitHubCreateResult(r, githubUser?.login, name);
+      if (cloneUrl === null) return false;
 
       if (cloneUrl) {
         const cl = await cloneRepo(cloneUrl, parent, name, githubToken);
@@ -4445,157 +4316,73 @@ export default function GitCronPage() {
         )}
       </AnimatePresence>
 
-      {/* ──────────── DELETE BRANCH CONFIRM ──────────── */}
-      <AnimatePresence>
-        {deleteConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
-            onClick={() => setDeleteConfirm(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="glass-overlay rounded-xl shadow-2xl p-6 w-[540px]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start gap-3 mb-4">
-                <Trash2 size={20} className="text-error shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-bold text-text-primary mb-1">
-                    {deleteConfirm.branch.startsWith('imagined/') ? 'Descartar futuro materializado' : t('deleteBranch.title')}
-                  </h3>
-                  <p className="text-sm text-text-secondary">
-                    {deleteConfirm.branch.startsWith('imagined/')
-                      ? `¿Estás seguro de que deseas descartar este futuro? Esto eliminará de forma permanente la branch real "${deleteConfirm.branch}" y su tag de flight level asociado.`
-                      : t('deleteBranch.confirm', { branch: deleteConfirm.branch })}
-                  </p>
-                  {deleteConfirm.notMerged && (
-                    <p className="text-xs text-git-mod mt-2 leading-relaxed">
-                      {t('deleteBranch.notMergedWarning')}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
-                <button
-                  onClick={async () => {
-                    const r = await deleteBranch(deleteConfirm.branch, deleteConfirm.notMerged === true);
-                    if (r.success) {
-                      setDeleteConfirm(null);
-                    } else if (r.notMerged && !deleteConfirm.notMerged) {
-                      // Re-show modal in "force" mode
-                      setDeleteConfirm({ branch: deleteConfirm.branch, notMerged: true });
-                    } else {
-                      setDeleteConfirm(null);
-                    }
-                  }}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-error hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
-                >
-                  {deleteConfirm.notMerged ? t('deleteBranch.force') : t('deleteBranch.delete')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <DangerConfirmDialog
+        open={deleteConfirm !== null}
+        title={deleteConfirm?.branch.startsWith('imagined/') ? 'Descartar futuro materializado' : t('deleteBranch.title')}
+        message={
+          deleteConfirm?.branch.startsWith('imagined/')
+            ? `¿Estás seguro de que deseas descartar este futuro? Esto eliminará de forma permanente la branch real "${deleteConfirm.branch}" y su tag de flight level asociado.`
+            : deleteConfirm
+              ? t('deleteBranch.confirm', { branch: deleteConfirm.branch })
+              : ''
+        }
+        warning={deleteConfirm?.notMerged ? t('deleteBranch.notMergedWarning') : undefined}
+        cancelLabel={t('modal.cancel')}
+        confirmLabel={deleteConfirm?.notMerged ? t('deleteBranch.force') : t('deleteBranch.delete')}
+        disabled={isLoading}
+        onCancel={() => setDeleteConfirm(null)}
+        onConfirm={async () => {
+          if (!deleteConfirm) return;
+          const r = await deleteBranch(deleteConfirm.branch, deleteConfirm.notMerged === true);
+          if (r.success) {
+            setDeleteConfirm(null);
+          } else if (r.notMerged && !deleteConfirm.notMerged) {
+            setDeleteConfirm({ branch: deleteConfirm.branch, notMerged: true });
+          } else {
+            setDeleteConfirm(null);
+          }
+        }}
+      />
 
-      {/* ──────────── DELETE TAG CONFIRM ──────────── */}
-      <AnimatePresence>
-        {deleteTagConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
-            onClick={() => setDeleteTagConfirm(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="glass-overlay rounded-xl shadow-2xl p-6 w-[540px]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start gap-3 mb-4">
-                <Trash2 size={20} className="text-error shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-bold text-text-primary mb-1">Eliminar Tag</h3>
-                  <p className="text-sm text-text-secondary">
-                    ¿Estás seguro de que deseas eliminar el tag <span className="font-bold text-text-primary">{deleteTagConfirm}</span>?
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <button onClick={() => setDeleteTagConfirm(null)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
-                <button
-                  onClick={async () => {
-                    const r = await deleteTag(deleteTagConfirm);
-                    if (r.success) {
-                      setDeleteTagConfirm(null);
-                    } else {
-                      setDeleteTagConfirm(null);
-                    }
-                  }}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-error hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
-                >
-                  Eliminar
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <DangerConfirmDialog
+        open={deleteTagConfirm !== null}
+        title="Eliminar Tag"
+        message={
+          <>
+            ¿Estás seguro de que deseas eliminar el tag{' '}
+            <span className="font-bold text-text-primary">{deleteTagConfirm}</span>?
+          </>
+        }
+        cancelLabel={t('modal.cancel')}
+        confirmLabel="Eliminar"
+        disabled={isLoading}
+        onCancel={() => setDeleteTagConfirm(null)}
+        onConfirm={async () => {
+          if (!deleteTagConfirm) return;
+          await deleteTag(deleteTagConfirm);
+          setDeleteTagConfirm(null);
+        }}
+      />
 
-      {/* ──────────── DISCARD FILE CONFIRM ──────────── */}
-      <AnimatePresence>
-        {discardConfirmFile && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
-            onClick={() => setDiscardConfirmFile(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="glass-overlay rounded-xl shadow-2xl p-6 w-[540px]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start gap-3 mb-4">
-                <Trash2 size={20} className="text-error shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-bold text-text-primary mb-1">
-                    {t('discardConfirm.title')}
-                  </h3>
-                  <p className="text-sm text-text-secondary leading-relaxed select-text">
-                    {t('discardConfirm.warning', { file: discardConfirmFile.path })}
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <button
-                  onClick={() => setDiscardConfirmFile(null)}
-                  className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
-                >
-                  {t('modal.cancel')}
-                </button>
-                <button
-                  onClick={async () => {
-                    const file = discardConfirmFile;
-                    setDiscardConfirmFile(null);
-                    if (file.status === 'untracked') {
-                      await deleteFile(file.path);
-                    } else {
-                      await discardFileChanges(file.path);
-                    }
-                  }}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-error hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
-                >
-                  {t('discardConfirm.button')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <DangerConfirmDialog
+        open={discardConfirmFile !== null}
+        title={t('discardConfirm.title')}
+        message={discardConfirmFile ? t('discardConfirm.warning', { file: discardConfirmFile.path }) : ''}
+        cancelLabel={t('modal.cancel')}
+        confirmLabel={t('discardConfirm.button')}
+        disabled={isLoading}
+        onCancel={() => setDiscardConfirmFile(null)}
+        onConfirm={async () => {
+          if (!discardConfirmFile) return;
+          const file = discardConfirmFile;
+          setDiscardConfirmFile(null);
+          if (file.status === 'untracked') {
+            await deleteFile(file.path);
+          } else {
+            await discardFileChanges(file.path);
+          }
+        }}
+      />
 
       {/* ──────────── FORCE PUSH CONFIRM MODAL ──────────── */}
       <AnimatePresence>
@@ -5072,473 +4859,6 @@ function ToolbarButton({
       <div className="w-5 h-5 shrink-0 text-text-secondary group-hover:text-secondary flex items-center justify-center">{icon}</div>
       {label && <span className="text-[9px] leading-none font-bold uppercase tracking-tighter text-text-secondary">{label}</span>}
     </button>
-  );
-}
-
-function SidebarSection({
-  title, children, count, extra, icon,
-}: {
-  title: string; children: React.ReactNode; count?: number; extra?: React.ReactNode; icon?: React.ReactNode;
-}) {
-  const [isOpen, setIsOpen] = useState(true);
-  return (
-    <div className="mt-2">
-      <div className="w-full flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-text-secondary">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1.5 flex-1 text-left hover:text-text-primary transition-colors"
-        >
-          <ChevronRight size={12} className={cn('transition-transform shrink-0', isOpen && 'rotate-90')} />
-          {icon && <span className="shrink-0">{icon}</span>}
-          <span className="flex-1 text-left tracking-wider">{title}</span>
-        </button>
-        {count !== undefined && <span className="bg-border-subtle text-[9px] px-1.5 rounded-full">{count}</span>}
-        {extra}
-      </div>
-      {isOpen && <div>{children}</div>}
-    </div>
-  );
-}
-
-function SidebarItem({ icon, text, active, onClick }: { icon: React.ReactNode; text: string; active?: boolean; onClick?: () => void }) {
-  return (
-    <div
-      onClick={onClick}
-      className={cn(
-        'px-4 py-1.5 flex items-center gap-3 text-sm transition-colors group relative',
-        active ? 'text-secondary bg-secondary/10' : 'text-text-secondary hover:bg-border-subtle hover:text-text-primary',
-        onClick && 'cursor-pointer',
-      )}
-    >
-      {active && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />}
-      <span className={cn('shrink-0', active ? 'text-secondary' : 'text-text-secondary group-hover:text-text-primary')}>{icon}</span>
-      <span className="truncate select-text">{text}</span>
-    </div>
-  );
-}
-
-/* ──────────── BRANCH TREE (folder grouping) ──────────── */
-
-interface BranchNode {
-  name: string;           // leaf name (last segment)
-  fullPath: string;       // full branch name
-}
-
-interface BranchFolder {
-  prefix: string;
-  branches: BranchNode[];
-}
-
-function buildBranchTree(branches: string[]): { root: BranchNode[]; folders: BranchFolder[] } {
-  const root: BranchNode[] = [];
-  const folderMap = new Map<string, BranchNode[]>();
-
-  for (const fullPath of branches) {
-    const slash = fullPath.indexOf('/');
-    if (slash === -1) {
-      root.push({ name: fullPath, fullPath });
-    } else {
-      const prefix = fullPath.slice(0, slash);
-      const leaf = fullPath.slice(slash + 1);
-      if (!folderMap.has(prefix)) folderMap.set(prefix, []);
-      folderMap.get(prefix)!.push({ name: leaf, fullPath });
-    }
-  }
-
-  // Sort root: main/master first, then alphabetic
-  root.sort((a, b) => {
-    const priority = (n: string) => (n === 'main' ? 0 : n === 'master' ? 1 : 2);
-    return priority(a.name) - priority(b.name) || a.name.localeCompare(b.name);
-  });
-
-  const folders: BranchFolder[] = Array.from(folderMap.entries())
-    .map(([prefix, branches]) => ({ prefix, branches: branches.sort((a, b) => a.name.localeCompare(b.name)) }))
-    .sort((a, b) => a.prefix.localeCompare(b.prefix));
-
-  return { root, folders };
-}
-
-function BranchTree({
-  branches, currentBranch, tracking, onCheckout, onContextMenu, onDelete,
-}: {
-  branches: string[];
-  currentBranch: string;
-  tracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
-  onCheckout: (b: string) => void;
-  onContextMenu: (e: React.MouseEvent, branch: string) => void;
-  onDelete?: (branch: string) => void;
-}) {
-  const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
-
-  return (
-    <div>
-      {root.map((b) => (
-        <BranchRow
-          key={b.fullPath}
-          name={b.name}
-          fullPath={b.fullPath}
-          tracking={tracking[b.fullPath]}
-          isActive={b.fullPath === currentBranch}
-          onCheckout={onCheckout}
-          onContextMenu={onContextMenu}
-          indent={false}
-          onDelete={onDelete}
-        />
-      ))}
-      {folders.map((f) => (
-        <BranchFolderView
-          key={f.prefix}
-          folder={f}
-          currentBranch={currentBranch}
-          tracking={tracking}
-          onCheckout={onCheckout}
-          onContextMenu={onContextMenu}
-          onDelete={onDelete}
-        />
-      ))}
-    </div>
-  );
-}
-
-function BranchFolderView({
-  folder, currentBranch, tracking, onCheckout, onContextMenu, onDelete,
-}: {
-  folder: BranchFolder;
-  currentBranch: string;
-  tracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
-  onCheckout: (b: string) => void;
-  onContextMenu: (e: React.MouseEvent, branch: string) => void;
-  onDelete?: (branch: string) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(true);
-  return (
-    <div>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
-      >
-        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <Folder size={14} className="text-text-secondary shrink-0" />
-        <span className="truncate flex-1 text-left select-text">{folder.prefix}</span>
-        <span className="text-[10px] text-text-secondary/70">{folder.branches.length}</span>
-      </button>
-      {isOpen && (
-        <div>
-          {folder.branches.map((b) => (
-            <BranchRow
-              key={b.fullPath}
-              name={b.name}
-              fullPath={b.fullPath}
-              tracking={tracking[b.fullPath]}
-              isActive={b.fullPath === currentBranch}
-              onCheckout={onCheckout}
-              onContextMenu={onContextMenu}
-              indent={true}
-              onDelete={onDelete}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BranchRow({
-  name, fullPath, tracking, isActive, onCheckout, onContextMenu, indent, onDelete,
-}: {
-  name: string;
-  fullPath: string;
-  tracking?: { ahead: number; behind: number; gone: boolean; upstream: string | null };
-  isActive: boolean;
-  onCheckout: (b: string) => void;
-  onContextMenu: (e: React.MouseEvent, branch: string) => void;
-  indent: boolean;
-  onDelete?: (branch: string) => void;
-}) {
-  const currentBranch = useGitStore((s) => s.currentBranch);
-  const branchColor = colorForBranch(fullPath, currentBranch || undefined);
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <div
-      onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
-      onDoubleClick={() => onCheckout(fullPath)}
-      onContextMenu={(e) => onContextMenu(e, fullPath)}
-      title={`Doble click: checkout · Click derecho: opciones`}
-      className={cn(
-        'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors relative',
-        indent ? 'pl-[46px]' : 'pl-[26px]',
-        isActive ? 'bg-secondary/10 text-secondary' : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
-      )}
-    >
-      {isActive ? (
-        <Check size={13} strokeWidth={3} className="text-secondary shrink-0" />
-      ) : (
-        <GitBranch size={13} className="shrink-0" style={{ color: branchColor }} />
-      )}
-      <span className="truncate flex-1 text-sm select-text">{name}</span>
-
-      {/* Ahead / behind chips */}
-      {tracking && !tracking.gone && (tracking.ahead > 0 || tracking.behind > 0) && (
-        <span className="flex items-center gap-1 text-[10px] font-mono shrink-0">
-          {tracking.ahead > 0 && (
-            <span className="flex items-center text-secondary" title={`${tracking.ahead} commit${tracking.ahead === 1 ? '' : 's'} local${tracking.ahead === 1 ? '' : 'es'} pendiente${tracking.ahead === 1 ? '' : 's'} de push`}>
-              {tracking.ahead}
-              <ArrowUp size={10} strokeWidth={3} />
-            </span>
-          )}
-          {tracking.behind > 0 && (
-            <span className="flex items-center text-git-mod" title={`${tracking.behind} commit${tracking.behind === 1 ? '' : 's'} remoto${tracking.behind === 1 ? '' : 's'} pendiente${tracking.behind === 1 ? '' : 's'} de pull`}>
-              {tracking.behind}
-              <ArrowDown size={10} strokeWidth={3} />
-            </span>
-          )}
-        </span>
-      )}
-      {tracking?.gone && (
-        <span className="text-[9px] text-error uppercase shrink-0" title="Upstream eliminado">gone</span>
-      )}
-
-      {/* Branch color dot or Trash icon if imagined and hovered */}
-      {fullPath.startsWith('imagined/') && isHovered ? (
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete?.(fullPath); }}
-          className="p-1 hover:text-error text-text-secondary transition-colors shrink-0 z-10"
-          title="Descartar futuro"
-        >
-          <Trash2 size={12} />
-        </button>
-      ) : (
-        <span
-          className="w-1.5 h-1.5 rounded-full shrink-0 ml-1 shadow-[0_0_4px_rgba(0,0,0,0.25)]"
-          style={{ backgroundColor: branchColor }}
-          title={`Color en el grafo: ${branchColor}`}
-        />
-      )}
-    </div>
-  );
-}
-
-/* Remote branches: similar tree grouped by 'origin/...' */
-function RemoteBranchTree({
-  branches, onCheckout, onContextMenu,
-}: {
-  branches: string[];
-  onCheckout: (b: string) => void;
-  onContextMenu: (e: React.MouseEvent, branch: string) => void;
-}) {
-  const currentBranch = useGitStore((s) => s.currentBranch);
-  const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
-  return (
-    <div>
-      {root.map((b) => {
-        const branchColor = colorForBranch(b.fullPath, currentBranch || undefined);
-        return (
-          <div
-            key={b.fullPath}
-            onDoubleClick={() => onCheckout(b.fullPath)}
-            onContextMenu={(e) => onContextMenu(e, b.fullPath)}
-            title="Doble click: checkout · Click derecho: opciones"
-            className="pl-[26px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary cursor-pointer transition-colors group relative"
-          >
-            <Cloud size={13} className="shrink-0" style={{ color: branchColor }} />
-            <span className="truncate text-xs flex-1 select-text">{b.name}</span>
-            <span
-              className="w-1.5 h-1.5 rounded-full shrink-0 ml-1 shadow-[0_0_4px_rgba(0,0,0,0.25)]"
-              style={{ backgroundColor: branchColor }}
-              title={`Color en el grafo: ${branchColor}`}
-            />
-          </div>
-        );
-      })}
-      {folders.map((f) => (
-        <RemoteFolderView
-          key={f.prefix}
-          folder={f}
-          onCheckout={onCheckout}
-          onContextMenu={onContextMenu}
-        />
-      ))}
-    </div>
-  );
-}
-
-function RemoteFolderView({
-  folder, onCheckout, onContextMenu,
-}: {
-  folder: BranchFolder;
-  onCheckout: (b: string) => void;
-  onContextMenu: (e: React.MouseEvent, branch: string) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(true);
-  const currentBranch = useGitStore((s) => s.currentBranch);
-  return (
-    <div>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
-      >
-        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <Folder size={13} className="text-text-secondary shrink-0" />
-        <span className="truncate flex-1 text-left select-text">{folder.prefix}</span>
-        <span className="text-[10px] text-text-secondary/70">{folder.branches.length}</span>
-      </button>
-      {isOpen && (
-        <div>
-          {folder.branches.map((b) => {
-            const branchColor = colorForBranch(b.fullPath, currentBranch || undefined);
-            return (
-              <div
-                key={b.fullPath}
-                onDoubleClick={() => onCheckout(b.fullPath)}
-                onContextMenu={(e) => onContextMenu(e, b.fullPath)}
-                className="pl-[46px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary transition-colors cursor-pointer group relative"
-                title={`Doble click: checkout · Click derecho: opciones\n${b.fullPath}`}
-              >
-                <GitBranch size={13} className="shrink-0" style={{ color: branchColor }} />
-                <span className="truncate text-xs flex-1 select-text">{b.name}</span>
-                <span
-                  className="w-1.5 h-1.5 rounded-full shrink-0 ml-1 shadow-[0_0_4px_rgba(0,0,0,0.25)]"
-                  style={{ backgroundColor: branchColor }}
-                  title={`Color en el grafo: ${branchColor}`}
-                />
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StashItem({
-  stash, onApply, onPop, onPreview, onDrop,
-}: {
-  stash: { index: number; message: string; hash: string };
-  onApply: () => void;
-  onPop: () => void;
-  onPreview: () => void;
-  onDrop: () => void;
-}) {
-  const [isHovered, setIsHovered] = useState(false);
-  const t = useT();
-  return (
-    <div
-      onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
-      className="px-4 py-1.5 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors"
-      title={stash.message}
-    >
-      <Archive size={16} className="shrink-0" />
-      <span className="truncate flex-1 text-xs select-text">{stash.message}</span>
-      {isHovered && (
-        <div className="flex items-center gap-1 shrink-0">
-          <button onClick={(e) => { e.stopPropagation(); onPreview(); }} className="p-1 hover:text-primary transition-colors" title={t('sidebar.stashPreview')}>
-            <FileDiff size={12} />
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); onApply(); }} className="p-1 hover:text-secondary transition-colors" title={t('sidebar.stashApply')}>
-            <RotateCcw size={12} />
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); onPop(); }} className="p-1 hover:text-git-mod transition-colors" title={t('sidebar.stashPop')}>
-            <Upload size={12} />
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); onDrop(); }} className="p-1 hover:text-error transition-colors" title={t('sidebar.stashDrop')}>
-            <Trash2 size={12} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TagItem({
-  name, onDelete, onPush,
-}: { name: string; onDelete: () => void; onPush?: () => void }) {
-  const [isHovered, setIsHovered] = useState(false);
-  const t = useT();
-  return (
-    <div
-      onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
-      className="px-4 py-1.5 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
-      title={name}
-    >
-      <Tag size={16} className="shrink-0" />
-      <span className="truncate flex-1 text-xs select-text">{name}</span>
-      {isHovered && (
-        <div className="flex items-center gap-1 shrink-0 z-10">
-          {onPush && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onPush(); }}
-              className="p-1 hover:text-secondary transition-colors"
-              title={t('sidebar.pushTagTooltip')}
-            >
-              <Upload size={12} />
-            </button>
-          )}
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="p-1 hover:text-error transition-colors"
-            title="Eliminar Tag"
-          >
-            <Trash2 size={12} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FileRow({
-  file, selected, onClick, onDiscard, onStage,
-}: {
-  file: GitFile; selected?: boolean; onClick?: () => void; onDiscard: () => void; onStage: (stage: boolean) => void;
-}) {
-  const [isHovered, setIsHovered] = useState(false);
-  return (
-    <div
-      onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} onClick={onClick}
-      className={cn(
-        'flex items-center gap-3 px-3 py-1.5 rounded group transition-colors',
-        selected ? 'bg-secondary/15' : 'hover:bg-border-subtle/50',
-        onClick && 'cursor-pointer',
-      )}
-    >
-      <input
-        type="checkbox" checked={file.staged}
-        onClick={(e) => e.stopPropagation()}
-        onChange={(e) => onStage(e.target.checked)}
-        className="w-3.5 h-3.5 rounded bg-bg-base/70 border-border-subtle/15 text-secondary focus:ring-0"
-      />
-      <FileText
-        size={16}
-        className={cn(
-          file.status === 'modified' ? 'text-git-mod' :
-          file.status === 'added' ? 'text-secondary' :
-          file.status === 'renamed' ? 'text-primary' :
-          file.status === 'untracked' ? 'text-text-secondary' :
-          'text-error',
-        )}
-      />
-      <span className="text-sm truncate flex-1 text-text-primary group-hover:text-text-primary">{file.path}</span>
-      <div className="flex items-center gap-2">
-        {isHovered && (
-          <button onClick={(e) => { e.stopPropagation(); onDiscard(); }} className="p-1 hover:text-error text-text-secondary">
-            <Trash2 size={14} />
-          </button>
-        )}
-        <div
-          className={cn(
-            'w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold',
-            file.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
-            file.status === 'added' ? 'bg-secondary/20 text-secondary' :
-            file.status === 'renamed' ? 'bg-primary/20 text-primary' :
-            file.status === 'untracked' ? 'bg-[#9eacc0]/20 text-text-secondary' :
-            'bg-error/20 text-error',
-          )}
-        >
-          {file.status[0].toUpperCase()}
-        </div>
-      </div>
-    </div>
   );
 }
 

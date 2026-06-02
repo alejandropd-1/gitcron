@@ -4,6 +4,31 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.6.8] - 2026-06-02 - Optimización, Componentización y Handoff de Mantenibilidad
+
+### 🟢 Vista Clásica & Core
+
+#### Refactored
+- **Componentización de `app/page.tsx` sin pérdida funcional**: Extrajimos piezas de UI vivas hacia componentes dedicados para reducir el tamaño de la página principal sin tocar los flujos de idioma, predicción de futuros, grafo clásico/cronométrico, stash avanzado, limpieza de untracked ni resolución de conflictos.
+- **Tab bar modular**: Las pestañas multi-repo con drag-to-reorder viven ahora en `components/RepoTabs.tsx`, conservando `motion/react`, mitigación de clicks durante drag y controles de ventana Electron.
+- **Sidebar modular**: La navegación lateral de ramas locales/remotas, agrupadores, stashes, tags y submódulos se concentró en `components/RepoSidebarParts.tsx`, manteniendo colores de rama, ahead/behind, checkout remoto, acciones hover y descarte de branches `imagined/*`.
+- **Confirmaciones destructivas reutilizables**: Los diálogos de eliminar branch/futuro materializado, eliminar tag y descartar archivo usan `components/DangerConfirmDialog.tsx`, reduciendo JSX repetido y manteniendo los callbacks async originales.
+- **Vistas internas separadas**: `HistoryView` y `CommitTabView` viven en `components/RepoContentViews.tsx`, con `lib/display-format.ts` como helper común de fechas e iniciales.
+- **Parsing de proveedores de IA centralizado**: `electron/ai/provider-parsing.ts` concentra normalización, extracción de JSON tolerante y shape mapping para Claude/OpenRouter, evitando duplicación entre adapters.
+- **Loader de repos más selectivo**: `hooks/use-repo-loader.ts` usa selectores más granulares de Zustand y helpers de refresh/persistencia, reduciendo renders derivados de suscripciones amplias.
+- **Helpers del flujo Crear Repo/GitHub**: `app/page.tsx` ahora nombra explícitamente la construcción de path, detección de push rechazado y recuperación de clone URL ante repos GitHub existentes, bajando la complejidad del handler de creación.
+
+#### Quality
+- **Validación estática y tests verdes**: `npx.cmd tsc --noEmit` y `pnpm test` pasaron después de la tanda de refactors. La suite reportó 9 archivos de test y 80 tests OK.
+- **Fallow actualizado**: No hay dead files ni dead exports. La mantenibilidad global queda en `90.9 (good)`. La duplicación baja de `4.5%` a `4.3%`, aunque Fallow todavía falla por deuda de duplicación y complejidad conocida.
+- **`app/page.tsx` reducido**: El cuerpo principal bajó de aproximadamente 5.4k LOC a 4.8k LOC durante esta optimización, pero sigue siendo el objetivo principal para próximas extracciones.
+
+#### Remaining
+- **Pendientes principales de saneamiento**: Fallow sigue marcando `app/page.tsx`, `hooks/use-git-actions.ts`, `hooks/use-repo-loader.ts`, `components/ChronometricGraph.tsx`, `components/StagingPanel.tsx` y tests diagnósticos de grafo como próximos objetivos.
+- **Duplicación aún presente**: Persisten clone groups entre `CommitGraph.tsx`/tests diagnósticos, `ChronometricGraph.tsx`/tests diagnósticos, algunas ramas de error en `electron/main.ts` y operaciones parecidas en `use-git-actions.ts`.
+
+---
+
 ## [v1.6.7] - 2026-06-02 - Auditoría General de Operaciones Git
 
 ### 🟢 Vista Clásica & Core

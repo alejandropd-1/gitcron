@@ -3487,6 +3487,7 @@ export default function GitCronPage() {
                             hudLeft={leftGraphSafe}
                             hudRight={rightGraphSafe}
                             localBranches={branches}
+                            isContextMenuOpen={!!contextMenu || !!branchMenu || !!remoteBranchMenu || !!fileContextMenu}
                           />
                         </motion.div>
                       ) : null}

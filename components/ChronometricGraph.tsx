@@ -105,6 +105,8 @@ interface ChronometricGraphProps {
   hudRight?: number;
   /** Optional array of existing local branches for materialization plan deduplication. */
   localBranches?: string[];
+  /** Flag indicating if any context menu is currently open. */
+  isContextMenuOpen?: boolean;
 }
 
 export function ChronometricGraph({
@@ -121,6 +123,7 @@ export function ChronometricGraph({
   hudLeft = 0,
   hudRight = 0,
   localBranches,
+  isContextMenuOpen = false,
 }: ChronometricGraphProps) {
   const t = useT();
   const stashes = useGitStore((state) => state.stashes);
@@ -1685,7 +1688,19 @@ export function ChronometricGraph({
                 const tagPaddingX = 24;
                 const badgeWidth = tag.tagName.length * tagCharWidth + tagPaddingX;
                 return (
-                  <g key={`tag-satellite-${tag.commitHash}-${idx}`}>
+                  <g
+                    key={`tag-satellite-${tag.commitHash}-${idx}`}
+                    className="cursor-pointer"
+                    onClick={() => {
+                      const commit = commits.find(c => c.hash === tag.commitHash);
+                      if (commit) onSelect(commit);
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      const commit = commits.find(c => c.hash === tag.commitHash);
+                      if (commit) onContextMenu(e, commit);
+                    }}
+                  >
                     <line
                       x1={tag.x}
                       y1={tag.y}
@@ -1718,7 +1733,7 @@ export function ChronometricGraph({
                         fill={TAG_COLOR}
                         fontSize={fs(10)}
                         fontWeight={500}
-                        className="font-mono select-none pointer-events-none"
+                        className="font-mono select-none cursor-pointer"
                         letterSpacing="0.5"
                       >
                         {tag.tagName}
@@ -2021,7 +2036,15 @@ export function ChronometricGraph({
                       const badgeY = node.baseY + ny * 75;
 
                       return (
-                        <g opacity={0.95}>
+                        <g
+                          className="cursor-pointer"
+                          onClick={() => onSelect(node.commit)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            onContextMenu(e, node.commit);
+                          }}
+                          opacity={0.95}
+                        >
                            {/* Dotted HUD connector line from node to left-aligned badge */}
                           <line
                             x1={node.x}
@@ -2059,7 +2082,7 @@ export function ChronometricGraph({
                               fill={node.laneColor}
                               fontSize={fs(7.5)}
                               fontWeight="bold"
-                              className="font-mono select-none pointer-events-none"
+                              className="font-mono select-none cursor-pointer"
                               letterSpacing="0.5"
                             >
                               {branchLabelText}
@@ -2070,7 +2093,14 @@ export function ChronometricGraph({
                     })()}
 
                     {/* C. Commit Telemetry Label */}
-                    <g>
+                    <g
+                      className="cursor-pointer"
+                      onClick={() => onSelect(node.commit)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        onContextMenu(e, node.commit);
+                      }}
+                    >
                       {/* Dotted HUD connector line */}
                       <line
                         x1={node.x}
@@ -2144,7 +2174,7 @@ export function ChronometricGraph({
                                   fill={node.laneColor}
                                   fontSize={fs(10)}
                                   fontWeight={500}
-                                  className="font-mono select-none pointer-events-none"
+                                  className="font-mono select-none cursor-pointer"
                                   letterSpacing="0.5"
                                 >
                                   {tagText}
@@ -2160,7 +2190,7 @@ export function ChronometricGraph({
                                 fill={node.laneColor}
                                 fontSize={fs(7)}
                                 fontWeight="medium"
-                                className="font-mono select-none pointer-events-none"
+                                className="font-mono select-none cursor-pointer"
                                 letterSpacing="0.5"
                               >
                                 {commentText}
@@ -2178,7 +2208,7 @@ export function ChronometricGraph({
                               fill={node.laneColor}
                               fontSize={fs(7)}
                               fontWeight="medium"
-                              className="font-mono select-none pointer-events-none"
+                              className="font-mono select-none cursor-pointer"
                               letterSpacing="0.5"
                             >
                               {commentText}
@@ -2204,7 +2234,7 @@ export function ChronometricGraph({
           </g>
 
           {/* Curved connection line on hover */}
-          {hoveredNode && hoveredScreenPos && hoveredCardStyle && 'left' in hoveredCardStyle && 'top' in hoveredCardStyle && (() => {
+          {!isContextMenuOpen && hoveredNode && hoveredScreenPos && hoveredCardStyle && 'left' in hoveredCardStyle && 'top' in hoveredCardStyle && (() => {
             const leftVal = hoveredCardStyle.left as number;
             const topVal = hoveredCardStyle.top as number;
             const cardWidth = 310;
@@ -2249,7 +2279,7 @@ export function ChronometricGraph({
         </svg>
 
         {/* 5. Custom Floating Hover Card (Geometric clarity, details on-demand, viewport relative positioned, portaled to body to overlap sidebars) */}
-        {hoveredNode && hoveredScreenPos && typeof document !== 'undefined' && createPortal(
+        {!isContextMenuOpen && hoveredNode && hoveredScreenPos && typeof document !== 'undefined' && createPortal(
           <div
             className="pointer-events-none bg-bg-overlay/60 backdrop-blur-md border border-border-subtle/15 rounded-md px-3 py-2.5 shadow-glass min-w-[280px] max-w-[340px] transition-opacity duration-150 animate-in fade-in zoom-in-95 duration-100"
             style={hoveredCardPortalStyle}

@@ -4,6 +4,16 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.6.7] - 2026-06-02 - Auditoría General de Operaciones Git
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Auditoría Exhaustiva de Operaciones Git**: Completamos un inventario profundo del código vivo de la aplicación (v1.6.5/v1.6.6) para mapear el estado real de las funcionalidades básicas de Git.
+- **Plan de Backlog**: Registramos en la documentación el listado completo de operaciones Git faltantes o parcialmente implementadas para priorizar futuros desarrollos sin duplicados.
+
+---
+
 ## [v1.6.6] - 2026-05-31 - Temporal Agent — Predicción de Ramas Futuras con IA
 
 ### 🔵 Vista Cronométrica — Temporal Agent (Beta)

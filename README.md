@@ -367,6 +367,21 @@ Since the Classic and Cronometric views share the same global file and base vari
 - [ ] Upgrade Next.js beyond 15.4.x (currently pinned — verify Electron + Tailwind 4 compatibility before bumping).
 - [x] Remove token-bearing temporary `origin` URLs from authenticated Git operations (v1.2.0).
 
+#### 🟡 Backlog / Operaciones Git Faltantes (Auditadas en v1.6.5)
+
+- [ ] **Descarte de cambios robusto**:
+  - [ ] Añadir diálogo de confirmación de seguridad para evitar pérdida accidental de datos.
+  - [ ] Unificar el descarte de archivos *untracked* para que los elimine físicamente mediante `fs:delete-file` en lugar de fallar con `git restore`.
+- [ ] **Creación y Push de Tags**:
+  - [ ] Habilitar creación de tags (livianos y anotados) desde el menú contextual del Commit.
+  - [ ] Permitir empujar tags al remoto (`git push origin --tags`).
+- [ ] **Reset a commit puntual**: Añadir opciones de reset (`soft`, `mixed`, `hard`) hacia un commit específico seleccionado en el grafo (menú contextual).
+- [ ] **Clean untracked en bloque**: Crear diálogo interactivo con checklist para limpiar archivos no trackeados del working tree (`git clean`).
+- [ ] **Stash Avanzado**:
+  - [ ] **Stash Pop**: Añadir botón hover en la barra lateral para aplicar y descartar un stash al mismo tiempo.
+  - [ ] **Previsualizar contenido del Stash**: Crear diálogo o panel expansible para revisar archivos modificados y diffs contenidos en el stash.
+  - [ ] **Stash con nombre**: Solicitar nombre descriptivo opcional al stashear cambios.
+
 ---
 
 ### 🟣 Vista Cronométrica (Chronometric View) - En Desarrollo / Experimental

@@ -117,9 +117,19 @@ export function branchNameFor(title: string, existingBranches?: string[]): strin
   return `${prefix}${slug}`;
 }
 
-/** The git tag tying the branch to its flight level. */
-export function tagNameFor(level: FlightLevel): string {
-  return `flight/${level}`;
+/** The git tag tying the branch to its flight level with optional deduplication. */
+export function tagNameFor(level: FlightLevel, existingTags?: string[]): string {
+  const baseTag = `flight/${level}`;
+  let tag = baseTag;
+  let counter = 2;
+  
+  if (existingTags) {
+    while (existingTags.includes(tag)) {
+      tag = `${baseTag}-${counter}`;
+      counter++;
+    }
+  }
+  return tag;
 }
 
 /** The IDEA.md body committed onto the new branch. */
@@ -184,11 +194,12 @@ export function buildIdeaMarkdown(
 export function buildMaterializationPlan(
   idea: MaterializeIdeaInput,
   existingBranches?: string[],
+  existingTags?: string[],
 ): MaterializationPlan {
   const flightLevel = flightLevelFor(idea.type, idea.confidence);
   return {
     branchName: branchNameFor(idea.title, existingBranches),
-    tagName: tagNameFor(flightLevel),
+    tagName: tagNameFor(flightLevel, existingTags),
     flightLevel,
     commitMessage: `idea: ${idea.title}`,
     ideaMarkdown: buildIdeaMarkdown(idea, flightLevel),

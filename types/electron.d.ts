@@ -197,6 +197,7 @@ interface ElectronAPI {
   gitStashApply: (repoPath: string, index: number) => Promise<GitResult>;
   gitStashDrop: (repoPath: string, index: number) => Promise<GitResult>;
   gitStashClear: (repoPath: string) => Promise<GitResult>;
+  gitDeleteTag: (repoPath: string, tagName: string) => Promise<GitResult>;
   gitTags: (repoPath: string) => Promise<GitResult<string[]>>;
   gitSubmodules: (repoPath: string) => Promise<GitResult<SubmoduleEntry[]>>;
   gitWorktrees: (repoPath: string) => Promise<GitResult<WorktreeEntry[]>>;

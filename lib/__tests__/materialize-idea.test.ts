@@ -130,6 +130,14 @@ describe('plan builders', () => {
     expect(branchNameFor(idea.title, existing)).toBe('imagined/extract-ipc-layer-into-3');
   });
 
+  it('tagNameFor deduplicates correctly when existingTags are provided', () => {
+    const existing = [
+      'flight/conservative',
+      'flight/conservative-2',
+    ];
+    expect(tagNameFor('conservative', existing)).toBe('flight/conservative-3');
+  });
+
   it('buildMaterializationPlan is deterministic and self-consistent', () => {
     const plan = buildMaterializationPlan(idea);
     expect(plan.branchName).toBe('imagined/extract-ipc-layer-into');

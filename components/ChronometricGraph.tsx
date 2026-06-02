@@ -16,6 +16,7 @@ import {
   worldToScreen,
 } from '@/lib/canvas-viewport';
 import { useCanvasViewport } from '@/hooks/use-canvas-viewport';
+import { useRepoLoader } from '@/hooks/use-repo-loader';
 import {
   computeGraph,
   initials,
@@ -124,6 +125,7 @@ export function ChronometricGraph({
   const t = useT();
   const stashes = useGitStore((state) => state.stashes);
   const appFontSize = useGitStore((state) => state.fontSize);
+  const localTags = useGitStore((state) => state.tags);
   // Scale factor for all SVG text in this graph, driven by the global text-size setting (gear → "Tamaño de texto").
   // The hardcoded SVG fontSize values were tuned for "compact"; "normal" and "large" upscale proportionally.
   const textScale = appFontSize === 'large' ? 1.36 : appFontSize === 'normal' ? 1.18 : 1.0;
@@ -134,6 +136,7 @@ export function ChronometricGraph({
   const repoPath = useGitStore((state) => state.repoPath);
   const submodules = useGitStore((state) => state.submodules);
   const worktrees = useGitStore((state) => state.worktrees);
+  const { loadAll } = useRepoLoader();
 
   // 1. Filter commits if filterText is present
   const filter = filterText.trim().toLowerCase();
@@ -389,10 +392,6 @@ export function ChronometricGraph({
         }
       }
 
-      // El lado de la etiqueta se DERIVA de resolvedBranchIndex y el factor dinámico de las ramas activas:
-      // Si hay bifurcación en este commit (múltiples ramas activas), se ordenan visualmente de izquierda a derecha
-      // y se divide la pantalla en dos mitades (la mitad izquierda rotula a la izquierda, la derecha a la derecha).
-      // Esto evita que las líneas conectoras del HUD se crucen de un lado a otro cuando hay bifurcaciones paralelas.
       const isLeft = labelSideFromBranchIndex(resolvedBranchIndex, activeBranchIndices) === 'left';
 
       return {
@@ -672,8 +671,8 @@ export function ChronometricGraph({
 
   // The exact plan the user is shown and confirms. Same builder main uses.
   const materializePlan = useMemo(
-    () => (materializeIdea ? buildMaterializationPlan(materializeIdea, localBranches) : null),
-    [materializeIdea, localBranches],
+    () => (materializeIdea ? buildMaterializationPlan(materializeIdea, localBranches, localTags) : null),
+    [materializeIdea, localBranches, localTags],
   );
 
   function openMaterializeConfirm() {
@@ -730,6 +729,7 @@ export function ChronometricGraph({
           confidence: materializeIdea.confidence,
           impact: `Materialized as ${res.data.branchName} (${res.data.tagName}).`,
         });
+        await loadAll(repoPath);
       } else {
         setMaterializeError(res.error ?? 'Materialization failed');
       }
@@ -768,6 +768,14 @@ export function ChronometricGraph({
       });
     };
 
+    // Find the head commit node to model its large telemetry stack clearance
+    const headNode = projectedCommits.find((node) => {
+      if (!node.commit.refs) return false;
+      return node.commit.refs.some(
+        (r) => r === 'HEAD' || r === currentBranch || r === `refs/heads/${currentBranch}`
+      );
+    }) || projectedCommits[0] || null;
+
     const _xStart = config.paddingLeft;
     const _yStart = height - config.paddingBottom;
     const _xEnd = width - config.paddingRight;
@@ -790,38 +798,54 @@ export function ChronometricGraph({
     let lastLeftY = NaN;
     let prevLeftHadBadge = false;
     for (const node of leftNodes) {
+      const isNodeHead = headNode && node.commit.hash === headNode.commit.hash;
       const curHasBadge = hasBadge(node);
       const effectiveClearance = MIN_CLEARANCE + ((prevLeftHadBadge || curHasBadge) ? BADGE_CLEARANCE_EXTRA : 0);
+
       let offset = BASE_OFFSET;
-      const naturalY = node.y + _ny * BASE_OFFSET;
-      if (!isNaN(lastLeftY) && naturalY > lastLeftY - effectiveClearance) {
-        const needed = (lastLeftY - effectiveClearance - node.y) / _ny;
-        offset = Math.min(MAX_OFFSET, Math.max(BASE_OFFSET, needed));
+      
+      if (isNodeHead) {
+        offset = 80 * textScale;
+      } else {
+        const naturalY = node.y + _ny * BASE_OFFSET;
+        if (!isNaN(lastLeftY) && naturalY > lastLeftY - effectiveClearance) {
+          const needed = (lastLeftY - effectiveClearance - node.y) / _ny;
+          offset = Math.min(MAX_OFFSET, Math.max(BASE_OFFSET, needed));
+        }
       }
+      
       offsets.set(node.commit.hash, offset);
       lastLeftY = node.y + _ny * offset;
-      prevLeftHadBadge = curHasBadge;
+      prevLeftHadBadge = curHasBadge || isNodeHead;
     }
 
     // RIGHT side — push older label downward when too close to previous (newer) one
     let lastRightY = NaN;
     let prevRightHadBadge = false;
     for (const node of rightNodes) {
+      const isNodeHead = headNode && node.commit.hash === headNode.commit.hash;
       const curHasBadge = hasBadge(node);
       const effectiveClearance = MIN_CLEARANCE + ((prevRightHadBadge || curHasBadge) ? BADGE_CLEARANCE_EXTRA : 0);
+
       let offset = BASE_OFFSET;
-      const naturalY = node.y + _ry * BASE_OFFSET;
-      if (!isNaN(lastRightY) && naturalY < lastRightY + effectiveClearance) {
-        const needed = (lastRightY + effectiveClearance - node.y) / _ry;
-        offset = Math.min(MAX_OFFSET, Math.max(BASE_OFFSET, needed));
+      
+      if (isNodeHead) {
+        offset = 80 * textScale;
+      } else {
+        const naturalY = node.y + _ry * BASE_OFFSET;
+        if (!isNaN(lastRightY) && naturalY < lastRightY + effectiveClearance) {
+          const needed = (lastRightY + effectiveClearance - node.y) / _ry;
+          offset = Math.min(MAX_OFFSET, Math.max(BASE_OFFSET, needed));
+        }
       }
+      
       offsets.set(node.commit.hash, offset);
       lastRightY = node.y + _ry * offset;
-      prevRightHadBadge = curHasBadge;
+      prevRightHadBadge = curHasBadge || isNodeHead;
     }
 
     return offsets;
-  }, [projectedCommits, config, width, height, textScale]);
+  }, [projectedCommits, config, width, height, textScale, currentBranch]);
 
   // Find unit direction vectors of the diagonal line
   const xStart = config.paddingLeft;

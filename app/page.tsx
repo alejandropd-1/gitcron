@@ -541,7 +541,7 @@ export default function GitCronPage() {
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch, amendLastCommit, cherryPickCommit, squashCommits,
-    renameBranch, deleteBranch, pullSpecificBranch, pushSpecificBranch,
+    renameBranch, deleteBranch, deleteTag, pullSpecificBranch, pushSpecificBranch,
     pullWithDecision,
   } = useGitActions();
 
@@ -790,6 +790,7 @@ export default function GitCronPage() {
   const [remoteBranchMenu, setRemoteBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
   const [renameModal, setRenameModal] = useState<{ oldName: string; newName: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ branch: string; notMerged?: boolean } | null>(null);
+  const [deleteTagConfirm, setDeleteTagConfirm] = useState<string | null>(null);
   const [forcePushConfirm, setForcePushConfirm] = useState<{
     repoDir: string;
     githubToken: string;
@@ -2087,6 +2088,7 @@ export default function GitCronPage() {
                           e.preventDefault();
                           openBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
                         }}
+                        onDelete={(b) => setDeleteConfirm({ branch: b })}
                       />
                     </SidebarSection>
 
@@ -2195,7 +2197,9 @@ export default function GitCronPage() {
                     {tags.length === 0 && repoPath && (
                       <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
                     )}
-                    {tags.map((t) => <SidebarItem key={t} icon={<Tag size={16} />} text={t} />)}
+                    {tags.map((t) => (
+                      <TagItem key={t} name={t} onDelete={() => setDeleteTagConfirm(t)} />
+                    ))}
                   </SidebarSection>
 
                   {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
@@ -4034,9 +4038,13 @@ export default function GitCronPage() {
               <div className="flex items-start gap-3 mb-4">
                 <Trash2 size={20} className="text-error shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-bold text-text-primary mb-1">{t('deleteBranch.title')}</h3>
+                  <h3 className="font-bold text-text-primary mb-1">
+                    {deleteConfirm.branch.startsWith('imagined/') ? 'Descartar futuro materializado' : t('deleteBranch.title')}
+                  </h3>
                   <p className="text-sm text-text-secondary">
-                    {t('deleteBranch.confirm', { branch: deleteConfirm.branch })}
+                    {deleteConfirm.branch.startsWith('imagined/')
+                      ? `¿Estás seguro de que deseas descartar este futuro? Esto eliminará de forma permanente la branch real "${deleteConfirm.branch}" y su tag de flight level asociado.`
+                      : t('deleteBranch.confirm', { branch: deleteConfirm.branch })}
                   </p>
                   {deleteConfirm.notMerged && (
                     <p className="text-xs text-git-mod mt-2 leading-relaxed">
@@ -4063,6 +4071,50 @@ export default function GitCronPage() {
                   className="px-4 py-2 bg-error hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
                 >
                   {deleteConfirm.notMerged ? t('deleteBranch.force') : t('deleteBranch.delete')}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── DELETE TAG CONFIRM ──────────── */}
+      <AnimatePresence>
+        {deleteTagConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
+            onClick={() => setDeleteTagConfirm(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="glass-overlay rounded-xl shadow-2xl p-6 w-[540px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <Trash2 size={20} className="text-error shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-bold text-text-primary mb-1">Eliminar Tag</h3>
+                  <p className="text-sm text-text-secondary">
+                    ¿Estás seguro de que deseas eliminar el tag <span className="font-bold text-text-primary">{deleteTagConfirm}</span>?
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setDeleteTagConfirm(null)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
+                <button
+                  onClick={async () => {
+                    const r = await deleteTag(deleteTagConfirm);
+                    if (r.success) {
+                      setDeleteTagConfirm(null);
+                    } else {
+                      setDeleteTagConfirm(null);
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-error hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
+                >
+                  Eliminar
                 </button>
               </div>
             </motion.div>
@@ -4512,13 +4564,14 @@ function buildBranchTree(branches: string[]): { root: BranchNode[]; folders: Bra
 }
 
 function BranchTree({
-  branches, currentBranch, tracking, onCheckout, onContextMenu,
+  branches, currentBranch, tracking, onCheckout, onContextMenu, onDelete,
 }: {
   branches: string[];
   currentBranch: string;
   tracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
   onCheckout: (b: string) => void;
   onContextMenu: (e: React.MouseEvent, branch: string) => void;
+  onDelete?: (branch: string) => void;
 }) {
   const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
 
@@ -4534,6 +4587,7 @@ function BranchTree({
           onCheckout={onCheckout}
           onContextMenu={onContextMenu}
           indent={false}
+          onDelete={onDelete}
         />
       ))}
       {folders.map((f) => (
@@ -4544,6 +4598,7 @@ function BranchTree({
           tracking={tracking}
           onCheckout={onCheckout}
           onContextMenu={onContextMenu}
+          onDelete={onDelete}
         />
       ))}
     </div>
@@ -4551,13 +4606,14 @@ function BranchTree({
 }
 
 function BranchFolderView({
-  folder, currentBranch, tracking, onCheckout, onContextMenu,
+  folder, currentBranch, tracking, onCheckout, onContextMenu, onDelete,
 }: {
   folder: BranchFolder;
   currentBranch: string;
   tracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
   onCheckout: (b: string) => void;
   onContextMenu: (e: React.MouseEvent, branch: string) => void;
+  onDelete?: (branch: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
   return (
@@ -4583,6 +4639,7 @@ function BranchFolderView({
               onCheckout={onCheckout}
               onContextMenu={onContextMenu}
               indent={true}
+              onDelete={onDelete}
             />
           ))}
         </div>
@@ -4592,7 +4649,7 @@ function BranchFolderView({
 }
 
 function BranchRow({
-  name, fullPath, tracking, isActive, onCheckout, onContextMenu, indent,
+  name, fullPath, tracking, isActive, onCheckout, onContextMenu, indent, onDelete,
 }: {
   name: string;
   fullPath: string;
@@ -4601,17 +4658,20 @@ function BranchRow({
   onCheckout: (b: string) => void;
   onContextMenu: (e: React.MouseEvent, branch: string) => void;
   indent: boolean;
+  onDelete?: (branch: string) => void;
 }) {
   const currentBranch = useGitStore((s) => s.currentBranch);
   const branchColor = colorForBranch(fullPath, currentBranch || undefined);
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <div
+      onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
       onDoubleClick={() => onCheckout(fullPath)}
       onContextMenu={(e) => onContextMenu(e, fullPath)}
       title={`Doble click: checkout · Click derecho: opciones`}
       className={cn(
-        'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors',
+        'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors relative',
         indent ? 'pl-[46px]' : 'pl-[26px]',
         isActive ? 'bg-secondary/10 text-secondary' : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
       )}
@@ -4644,12 +4704,22 @@ function BranchRow({
         <span className="text-[9px] text-error uppercase shrink-0" title="Upstream eliminado">gone</span>
       )}
 
-      {/* Branch color dot */}
-      <span
-        className="w-1.5 h-1.5 rounded-full shrink-0 ml-1 shadow-[0_0_4px_rgba(0,0,0,0.25)]"
-        style={{ backgroundColor: branchColor }}
-        title={`Color en el grafo: ${branchColor}`}
-      />
+      {/* Branch color dot or Trash icon if imagined and hovered */}
+      {fullPath.startsWith('imagined/') && isHovered ? (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete?.(fullPath); }}
+          className="p-1 hover:text-error text-text-secondary transition-colors shrink-0 z-10"
+          title="Descartar futuro"
+        >
+          <Trash2 size={12} />
+        </button>
+      ) : (
+        <span
+          className="w-1.5 h-1.5 rounded-full shrink-0 ml-1 shadow-[0_0_4px_rgba(0,0,0,0.25)]"
+          style={{ backgroundColor: branchColor }}
+          title={`Color en el grafo: ${branchColor}`}
+        />
+      )}
     </div>
   );
 }
@@ -4767,6 +4837,31 @@ function StashItem({
             <Trash2 size={12} />
           </button>
         </div>
+      )}
+    </div>
+  );
+}
+
+function TagItem({
+  name, onDelete,
+}: { name: string; onDelete: () => void }) {
+  const [isHovered, setIsHovered] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
+      className="px-4 py-1.5 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
+      title={name}
+    >
+      <Tag size={16} className="shrink-0" />
+      <span className="truncate flex-1 text-xs select-text">{name}</span>
+      {isHovered && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="p-1 hover:text-error transition-colors shrink-0 z-10"
+          title="Eliminar Tag"
+        >
+          <Trash2 size={12} />
+        </button>
       )}
     </div>
   );

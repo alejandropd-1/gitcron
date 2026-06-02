@@ -87,7 +87,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Advanced stash workflow: create a stash with an optional name, preview stash file lists and patches before applying, and use hover actions for Apply, Pop, or Drop from the sidebar.
 - Clear-all stash action with confirmation.
 - **Remote branch checkout**: Double-clicking a remote branch in the sidebar or right-clicking to use the new `RemoteBranchContextMenu` will automatically download it as a local tracking branch (using `git checkout -t`) or switch to it if it already exists, featuring custom pointers and hover guides.
-- **Premium Conflict Resolver Card**: Displays a glassy, high-fidelity HSL gradient card in the Diff Viewer when a selected file has merge or rebase conflicts, allowing the user to resolve the file completely with a single click ("Aceptar Local (HEAD)" or "Aceptar Entrante (Merge)") or providing instructions for side-by-side editing in their IDE.
+- **Interactive Conflict Resolver**: Conflicted files open a block-by-block resolver in the Diff Viewer. Each hunk can keep Local, keep Incoming, combine both orders, or be manually edited in a final text area. Saving writes the resolved file, removes conflict markers, and stages it automatically.
 
 #### GitHub
 
@@ -383,6 +383,7 @@ Since the Classic and Cronometric views share the same global file and base vari
   - [x] **Stash Pop**: Añadir botón hover en la barra lateral para aplicar y descartar un stash al mismo tiempo.
   - [x] **Previsualizar contenido del Stash**: Crear diálogo o panel expansible para revisar archivos modificados y diffs contenidos en el stash.
   - [x] **Stash con nombre**: Solicitar nombre descriptivo opcional al stashear cambios.
+- [x] **Editor de fusión interactivo de 3 vías**: Resolver archivos conflictuados por bloques, combinando Local/Entrante o editando el resultado final antes de guardar y stagear.
 
 ---
 

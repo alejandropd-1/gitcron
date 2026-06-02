@@ -1167,8 +1167,49 @@ export const useGitActions = () => {
     }
   };
 
+  const loadConflictFile = async (filePath: string) => {
+    if (!window.api || !repoPath) return { success: false as const, content: '', error: 'no api' };
+    setLoading(true); setError(null);
+    try {
+      const result = await window.api.gitReadFile(repoPath, filePath);
+      if (result.success && typeof result.data === 'string') {
+        return { success: true as const, content: result.data };
+      }
+      setError(result.error ?? 'Error al leer archivo conflictuado');
+      return { success: false as const, content: '', error: result.error };
+    } catch (err: any) {
+      setError(err.message);
+      return { success: false as const, content: '', error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resolveConflictContent = async (filePath: string, content: string) => {
+    if (!window.api || !repoPath) return { success: false, error: 'no api' };
+    setLoading(true); setError(null);
+    try {
+      const result = await window.api.gitResolveConflictFile(repoPath, filePath, content);
+      if (!result.success) {
+        setError(result.error ?? 'Error al guardar resolución');
+        return { success: false, error: result.error };
+      }
+      setSuccess(`Conflicto en "${filePath}" resuelto y preparado para commit`);
+      await refreshStatus();
+      await refreshLog();
+      return { success: true };
+    } catch (err: any) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     resolveConflict,
+    loadConflictFile,
+    resolveConflictContent,
     commitChanges,
     mergeBranch,
     revertCommit,

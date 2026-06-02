@@ -200,6 +200,8 @@ interface ElectronAPI {
   gitAddToGitignore: (repoPath: string, filePath: string) => Promise<GitResult<{ alreadyIgnored: boolean }>>;
   gitResetAll: (repoPath: string) => Promise<GitResult>;
   gitClean: (repoPath: string, files?: string[]) => Promise<GitResult<GitCleanResult>>;
+  gitReadFile: (repoPath: string, filePath: string) => Promise<GitResult<string>>;
+  gitResolveConflictFile: (repoPath: string, filePath: string, content: string) => Promise<GitResult>;
   gitStashFile: (repoPath: string, filePath: string) => Promise<GitResult>;
   shellShowInFolder: (repoPath: string, relativeFilePath: string) => Promise<GitResult>;
   shellOpenItem: (repoPath: string, relativeFilePath: string) => Promise<GitResult>;

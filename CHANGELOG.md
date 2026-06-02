@@ -13,6 +13,7 @@ Changes are listed from newest to oldest.
 - **Plan de Backlog**: Registramos en la documentación el listado completo de operaciones Git faltantes o parcialmente implementadas para priorizar futuros desarrollos sin duplicados.
 - **Clean untracked en bloque**: El panel de staging ahora muestra `Limpiar...` cuando hay archivos sin trackear. La acción abre un modal con checklist basado en un dry-run fresco de `git clean -n -d`, permite seleccionar archivos individuales y borra únicamente los paths elegidos después de una advertencia explícita de eliminación física del disco.
 - **Stash avanzado**: El botón Stash ahora abre un modal para nombrar opcionalmente el stash. Cada stash en la barra lateral suma acciones hover para previsualizar archivos/diff, aplicar sin remover, hacer `pop` aplicando y removiendo, o eliminarlo.
+- **Editor interactivo de conflictos**: Los archivos con conflictos ahora muestran un resolver por bloques dentro del Diff Viewer. Cada hunk permite elegir Local, Entrante, combinar ambos órdenes o editar el resultado final; al guardar, GitCron escribe el archivo resuelto, valida que no queden marcadores y lo stagea automáticamente.
 
 ---
 

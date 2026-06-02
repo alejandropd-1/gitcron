@@ -78,6 +78,10 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:reset-all', repoPath),
   gitClean: (repoPath: string, files?: string[]) =>
     ipcRenderer.invoke('git:clean', repoPath, files),
+  gitReadFile: (repoPath: string, filePath: string) =>
+    ipcRenderer.invoke('git:read-file', repoPath, filePath),
+  gitResolveConflictFile: (repoPath: string, filePath: string, content: string) =>
+    ipcRenderer.invoke('git:resolve-conflict-file', repoPath, filePath, content),
   gitStashFile: (repoPath: string, filePath: string) =>
     ipcRenderer.invoke('git:stash-file', repoPath, filePath),
   shellShowInFolder: (repoPath: string, relativeFilePath: string) =>

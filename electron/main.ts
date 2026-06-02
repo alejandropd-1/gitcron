@@ -1939,6 +1939,41 @@ ipcMain.handle('git:clean', async (_event, targetPath: string, files?: string[])
   }
 });
 
+ipcMain.handle('git:read-file', async (_event, targetPath: string, relativeFilePath: string) => {
+  try {
+    const repoRoot = path.resolve(targetPath);
+    const resolved = resolveRepoRelativePath(repoRoot, relativeFilePath);
+    if (!resolved) return { success: false, error: 'Path traversal blocked' };
+
+    const stat = fs.lstatSync(resolved);
+    if (!stat.isFile()) return { success: false, error: 'Solo se pueden leer archivos comunes' };
+
+    return { success: true, data: fs.readFileSync(resolved, 'utf-8') };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
+ipcMain.handle('git:resolve-conflict-file', async (_event, targetPath: string, relativeFilePath: string, content: string) => {
+  try {
+    const repoRoot = path.resolve(targetPath);
+    const resolved = resolveRepoRelativePath(repoRoot, relativeFilePath);
+    if (!resolved) return { success: false, error: 'Path traversal blocked' };
+    if (/^<{7}|^={7}|^>{7}/m.test(content)) {
+      return { success: false, error: 'La resolución todavía contiene marcadores de conflicto' };
+    }
+
+    const stat = fs.lstatSync(resolved);
+    if (!stat.isFile()) return { success: false, error: 'Solo se pueden resolver archivos comunes' };
+
+    fs.writeFileSync(resolved, content, 'utf-8');
+    await simpleGit(repoRoot).add(relativeFilePath);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: errMsg(error) };
+  }
+});
+
 // ── Reset to specific commit: supports soft, mixed, and hard modes ──
 ipcMain.handle('git:reset-commit', async (_event, targetPath: string, commitHash: string, mode: 'soft' | 'mixed' | 'hard') => {
   try {

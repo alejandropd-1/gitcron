@@ -221,6 +221,25 @@ const es: Dict = {
   'stashPreview.apply': 'Aplicar',
   'stashPreview.pop': 'Pop',
 
+  // ── Conflict resolver ──
+  'conflictResolver.loading': 'Leyendo archivo conflictuado...',
+  'conflictResolver.title': 'Resolver conflicto por bloques',
+  'conflictResolver.desc': '{{count}} bloque(s) con conflicto. Elegí una versión, combiná ambas o editá el resultado final antes de guardar.',
+  'conflictResolver.hunkTitle': 'Bloque {{index}}',
+  'conflictResolver.oursLabel': 'Local',
+  'conflictResolver.theirsLabel': 'Entrante',
+  'conflictResolver.baseLabel': 'Base',
+  'conflictResolver.finalLabel': 'Resultado final',
+  'conflictResolver.acceptOurs': 'Local',
+  'conflictResolver.acceptTheirs': 'Entrante',
+  'conflictResolver.acceptBothOursFirst': 'Local + Entrante',
+  'conflictResolver.acceptBothTheirsFirst': 'Entrante + Local',
+  'conflictResolver.saveHint': 'Al guardar, GitCron reemplaza el archivo, remueve los marcadores de conflicto y lo prepara para commit.',
+  'conflictResolver.save': 'Guardar resolución',
+  'conflictResolver.saving': 'Guardando...',
+  'conflictResolver.noMarkersTitle': 'No se encontraron marcadores de conflicto',
+  'conflictResolver.noMarkersDesc': 'El archivo ya parece estar resuelto. Stagealo manualmente si querés continuar.',
+
   // ── Modals: shared ──
   'modal.cancel': 'Cancelar',
   'modal.confirm': 'Confirmar',
@@ -863,6 +882,25 @@ const en: Dict = {
   'stashPreview.noDiff': 'This stash has no diff to show.',
   'stashPreview.apply': 'Apply',
   'stashPreview.pop': 'Pop',
+
+  // ── Conflict resolver ──
+  'conflictResolver.loading': 'Reading conflicted file...',
+  'conflictResolver.title': 'Resolve conflict by blocks',
+  'conflictResolver.desc': '{{count}} conflicted block(s). Choose one version, combine both, or edit the final result before saving.',
+  'conflictResolver.hunkTitle': 'Block {{index}}',
+  'conflictResolver.oursLabel': 'Local',
+  'conflictResolver.theirsLabel': 'Incoming',
+  'conflictResolver.baseLabel': 'Base',
+  'conflictResolver.finalLabel': 'Final result',
+  'conflictResolver.acceptOurs': 'Local',
+  'conflictResolver.acceptTheirs': 'Incoming',
+  'conflictResolver.acceptBothOursFirst': 'Local + Incoming',
+  'conflictResolver.acceptBothTheirsFirst': 'Incoming + Local',
+  'conflictResolver.saveHint': 'When saving, GitCron replaces the file, removes conflict markers, and stages it for commit.',
+  'conflictResolver.save': 'Save resolution',
+  'conflictResolver.saving': 'Saving...',
+  'conflictResolver.noMarkersTitle': 'No conflict markers found',
+  'conflictResolver.noMarkersDesc': 'The file already appears resolved. Stage it manually if you want to continue.',
 
   // ── Modals: shared ──
   'modal.cancel': 'Cancel',

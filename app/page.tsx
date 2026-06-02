@@ -33,6 +33,7 @@ import { DiffViewer } from '@/components/DiffViewer';
 import { CommitGraph, colorForBranch } from '@/components/CommitGraph';
 import { ChronometricGraph } from '@/components/ChronometricGraph';
 import { TemporalAgentSettings } from '@/components/TemporalAgentSettings';
+import { ConflictResolver } from '@/components/ConflictResolver';
 import type { SpeculativeBranch } from '@/lib/speculative-projection';
 
 // Phase 5 test data — 3 mock speculative branches to validate the overlay
@@ -537,7 +538,7 @@ export default function GitCronPage() {
   } = useGitStore();
 
   const {
-    resolveConflict,
+    loadConflictFile, resolveConflictContent,
     commitChanges, mergeBranch, revertCommit, resetToCommit, stashChanges,
     discardFileChanges, stageFile, stageFiles, removeIndexLock,
     checkoutBranch, checkoutBranchSmart, createBranch, pushChanges, pullChanges,
@@ -582,6 +583,8 @@ export default function GitCronPage() {
   const [activeTab, setActiveTab] = useState('Graph');
   const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestEntry | null>(null);
   const [wordWrap, setWordWrap] = useState(false);
+  const [conflictFileContent, setConflictFileContent] = useState('');
+  const [conflictFileLoading, setConflictFileLoading] = useState(false);
 
   // Temporal Agent — speculative branch overlay. Source is the real, persisted
   // per-repo prediction (Capa 1); flip USE_MOCK_SPECULATIVE to debug with the mock.
@@ -1123,6 +1126,24 @@ export default function GitCronPage() {
     filterInputRef.current?.focus();
     filterInputRef.current?.select();
   }, [showSearchPopover]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!selectedFile?.conflicted) {
+      setConflictFileContent('');
+      setConflictFileLoading(false);
+      return () => { alive = false; };
+    }
+
+    setConflictFileLoading(true);
+    void loadConflictFile(selectedFile.path).then((result) => {
+      if (!alive) return;
+      setConflictFileContent(result.success ? result.content : '');
+      setConflictFileLoading(false);
+    });
+
+    return () => { alive = false; };
+  }, [selectedFile?.path, selectedFile?.conflicted]);
 
   useEffect(() => {
     if (!showSearchPopover) return;
@@ -3323,37 +3344,22 @@ export default function GitCronPage() {
                 </span>
               </div>
               {selectedFile.conflicted && (
-                <div className="mx-4 mt-3 p-4 bg-bg-overlay/80 backdrop-blur-md border border-git-mod/30 rounded-xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="text-git-mod shrink-0 mt-0.5" size={20} />
-                    <div>
-                      <h4 className="font-bold text-text-primary text-sm">Este archivo tiene conflictos de fusión</h4>
-                      <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
-                        Elegí qué cambios conservar para resolver el conflicto al instante, o editalo manualmente en tu IDE y stagealo.
-                      </p>
-                    </div>
+                conflictFileLoading ? (
+                  <div className="px-4 py-3 border-b border-border-subtle/15 bg-bg-base/45 flex items-center gap-2 text-text-secondary text-sm shrink-0">
+                    <Loader2 size={16} className="animate-spin text-git-mod" />
+                    {t('conflictResolver.loading')}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={async () => {
-                        await resolveConflict(selectedFile.path, 'ours');
-                        handleCloseDiff();
-                      }}
-                      className="px-3 py-1.5 bg-secondary/20 hover:bg-secondary hover:text-[#052900] text-secondary text-xs font-bold rounded-lg border border-secondary/40 transition-all active:scale-[0.98]"
-                    >
-                      Aceptar Local (HEAD)
-                    </button>
-                    <button
-                      onClick={async () => {
-                        await resolveConflict(selectedFile.path, 'theirs');
-                        handleCloseDiff();
-                      }}
-                      className="px-3 py-1.5 bg-primary/20 hover:bg-primary hover:text-[#020f1e] text-primary text-xs font-bold rounded-lg border border-[#5ed8ff]/40 transition-all active:scale-[0.98]"
-                    >
-                      Aceptar Entrante (Merge)
-                    </button>
-                  </div>
-                </div>
+                ) : (
+                  <ConflictResolver
+                    filePath={selectedFile.path}
+                    content={conflictFileContent}
+                    isSaving={isLoading}
+                    onSave={async (content) => {
+                      const result = await resolveConflictContent(selectedFile.path, content);
+                      if (result.success) handleCloseDiff();
+                    }}
+                  />
+                )
               )}
               <DiffViewer diff={currentDiff} filePath={selectedFile.path} wordWrap={wordWrap} />
             </motion.div>

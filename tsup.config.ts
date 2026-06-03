@@ -7,11 +7,22 @@ export default defineConfig([
     entry: ['electron/main.ts'],
     format: ['cjs'],
     outDir: 'dist',
-    target: 'es2017',
+    target: 'node22',
     bundle: true,
     // Bundle everything except 'electron' (provided by the Electron runtime)
-    noExternal: [/^(?!electron$).+/],
-    external: ['electron'],
+    noExternal: [/^(?!electron$|node:).+/],
+    external: ['electron', 'node:sqlite'],
+    // tsup/esbuild currently strips `node:` from `node:sqlite` even with the
+    // supported flags below and a Node 22 target. Keep this post-build fallback
+    // scoped to the main bundle so Electron 42/Node 24 loads the builtin module.
+    onSuccess: "node -e \"const fs=require('fs');const path=require('path');const p=path.join('dist','main.js');const q=String.fromCharCode(34);const a='require('+q+'sqlite'+q+')';const b='require('+q+'node:sqlite'+q+')';const s=fs.readFileSync(p,'utf8');const next=s.split(a).join(b);if(next!==s)fs.writeFileSync(p,next,'utf8');\"",
+    esbuildOptions(options) {
+      options.supported = {
+        ...(options.supported ?? {}),
+        'node-colon-prefix-import': true,
+        'node-colon-prefix-require': true,
+      };
+    },
     platform: 'node',
     minify: false,
     sourcemap: false,
@@ -21,10 +32,17 @@ export default defineConfig([
     entry: ['electron/preload.ts'],
     format: ['cjs'],
     outDir: 'dist',
-    target: 'es2017',
+    target: 'node22',
     bundle: true,
-    noExternal: [/^(?!electron$).+/],
+    noExternal: [/^(?!electron$|node:).+/],
     external: ['electron'],
+    esbuildOptions(options) {
+      options.supported = {
+        ...(options.supported ?? {}),
+        'node-colon-prefix-import': true,
+        'node-colon-prefix-require': true,
+      };
+    },
     platform: 'node',
     minify: false,
     sourcemap: false,

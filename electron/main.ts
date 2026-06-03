@@ -15,6 +15,7 @@ import { registerTemporalAgentHandlers, loadConfig as loadTemporalConfig, loadNo
 import { runPrediction } from './ai/predict';
 import { cancelActivePrediction } from './ai/provider-runtime';
 import { hasKey as hasAiKey, setKey as setAiKey, removeKey as removeAiKey, getKeyFingerprint as getAiKeyFingerprint } from './ai/key-store';
+import { bootstrapDatabase, temporalAgentDatabasePath } from './db/connection';
 import type { ProviderId } from './ai/providers';
 import type { AIPredictionProvider, PredictionResult, SpeculativeBranch, MaterializeIdeaInput } from '../types/temporal-agent';
 import { buildMaterializationPlan } from '../lib/materialize-idea';
@@ -274,6 +275,14 @@ function createWindow() {
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
+function bootstrapTemporalAgentHistoryDatabase(): void {
+  try {
+    bootstrapDatabase(temporalAgentDatabasePath(app.getPath('userData')));
+  } catch (error) {
+    console.error('[temporal-agent-db] bootstrap error:', sanitizeForLog(error));
+  }
+}
+
 // Single-instance lock: if a second instance is launched (e.g. user
 // double-clicks the icon while the app is already open), focus the
 // existing window and quit the new instance immediately.
@@ -298,7 +307,7 @@ if (!gotLock) {
     }
   });
 
-  app.on('ready', () => {
+  void app.whenReady().then(() => {
     // Register the 'app://' protocol to serve the Next.js static export.
     // app://./index.html → out/index.html
     // app://./_next/static/... → out/_next/static/...
@@ -315,6 +324,7 @@ if (!gotLock) {
         return net.fetch(`file://${resolved}`);
       });
     }
+    bootstrapTemporalAgentHistoryDatabase();
     createWindow();
     if (!isDev) setupAutoUpdater();
   });

@@ -4,6 +4,21 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.6.9] - 2026-06-03 - Optimización Gradual: Componentización de Ajustes, Ayuda y Perfil
+
+### 🟢 Vista Clásica & Core
+
+#### Refactored
+- **Extracción de Ajustes (SettingsPanel)**: Movimos todas las secciones de configuración (idioma, tema, tamaño de fuente, carpeta predeterminada, vista cronométrica, auto-fetch, notificaciones del sistema, atajos de teclado, seguridad, actualizaciones, temporal agent y acerca de) a un componente separado en [SettingsPanel.tsx](file:///c:/www/gitCronos/components/SettingsPanel.tsx). Esto limpia también las funciones auxiliares de renderizado del tope del archivo.
+- **Extracción de Ayuda (HelpPanel)**: Mapeamos la documentación y los tutoriales de flujo Git a [HelpPanel.tsx](file:///c:/www/gitCronos/components/HelpPanel.tsx).
+- **Extracción de Perfil de GitHub (ProfilePanel)**: Centralizamos los flujos de inicio de sesión mediante OAuth (código de dispositivo) y Token Personal de GitHub a [ProfilePanel.tsx](file:///c:/www/gitCronos/components/ProfilePanel.tsx).
+- **Reducción de Complejidad de `app/page.tsx`**: El archivo monolito principal bajó de **4883 LOC** a **4187 LOC** (un ahorro neto de **696 líneas de código**), bajando su complejidad cognitiva de **531** a **417**.
+
+#### Quality
+- **Type Safety intacta**: TypeScript compila de forma perfectamente limpia con `npx.cmd tsc --noEmit`.
+- **Suite de Pruebas**: Confirmamos que las 80 pruebas unitarias en 9 archivos pasan con éxito total.
+- **Mantenibilidad Global**: Fallow confirma que el maintainability index general del proyecto se mantiene excelente en `90.9 (good)`.
+
 ## [v1.6.8] - 2026-06-02 - Optimización, Componentización y Handoff de Mantenibilidad
 
 ### 🟢 Vista Clásica & Core

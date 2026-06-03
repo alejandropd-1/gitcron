@@ -15,12 +15,6 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import pkg from '../package.json';
-import {
-  DEFAULT_SHORTCUTS,
-  defaultShortcutsMap,
-  eventToShortcut,
-  formatShortcut,
-} from '@/lib/shortcuts';
 import { useShortcuts } from '@/hooks/use-shortcuts';
 import { CommitContextMenu, BranchContextMenu, FileContextMenu, RemoteBranchContextMenu } from '@/components/ContextMenus';
 import { StatusBadge } from '@/components/HelpModal';
@@ -30,6 +24,9 @@ import { useGitStore, Commit, GitFile, type FontSize } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
 import { useAutoFetch } from '@/hooks/use-auto-fetch';
+import { SettingsPanel } from '@/components/SettingsPanel';
+import { HelpPanel } from '@/components/HelpPanel';
+import { ProfilePanel } from '@/components/ProfilePanel';
 import { DiffViewer } from '@/components/DiffViewer';
 import { CommitGraph } from '@/components/CommitGraph';
 import { ConflictResolver } from '@/components/ConflictResolver';
@@ -214,177 +211,7 @@ function cloneUrlFromGitHubCreateResult(
   return null;
 }
 
-const AUTO_FETCH_INTERVALS = [5, 10, 30, 60] as const;
-
-function AutoFetchSection({
-  setAutoFetchPrefs,
-}: {
-  setAutoFetchPrefs: (enabled: boolean, intervalMinutes: number) => Promise<void> | void;
-}) {
-  const t = useT();
-  const autoFetchEnabled = useGitStore((s) => s.autoFetchEnabled);
-  const autoFetchIntervalMinutes = useGitStore((s) => s.autoFetchIntervalMinutes);
-  const lastFetchTime = useGitStore((s) => s.lastFetchTime);
-
-  const lastSyncLabel = lastFetchTime
-    ? new Date(lastFetchTime).toLocaleTimeString()
-    : t('settings.autoFetchNever');
-
-  return (
-    <section>
-      <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
-        <RotateCcw size={12} /> {t('settings.autoFetch')}
-      </h4>
-      <p className="text-xs text-text-secondary mb-3">{t('settings.autoFetchDesc')}</p>
-      <div className="flex items-center gap-2 mb-3">
-        <button
-          type="button"
-          onClick={() => setAutoFetchPrefs(!autoFetchEnabled, autoFetchIntervalMinutes)}
-          className={cn(
-            'px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors',
-            autoFetchEnabled
-              ? 'bg-secondary/15 border-secondary/50 text-secondary'
-              : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
-          )}
-        >
-          {autoFetchEnabled && <Check size={14} strokeWidth={3} />}
-          <span className="font-medium">
-            {autoFetchEnabled ? t('settings.autoFetchEnabled') : t('settings.autoFetchDisabled')}
-          </span>
-        </button>
-        <span className="text-xs text-text-secondary/70 ml-2">
-          {t('settings.autoFetchLastSync')}: {lastSyncLabel}
-        </span>
-      </div>
-      <div className={cn('grid grid-cols-4 gap-2', !autoFetchEnabled && 'opacity-40 pointer-events-none')}>
-        {AUTO_FETCH_INTERVALS.map((mins) => (
-          <button
-            key={mins}
-            type="button"
-            onClick={() => setAutoFetchPrefs(true, mins)}
-            className={cn(
-              'px-3 py-2 rounded border text-sm flex items-center justify-center gap-2 transition-colors',
-              autoFetchIntervalMinutes === mins
-                ? 'bg-secondary/15 border-secondary/50 text-secondary'
-                : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary hover:border-border-subtle/30',
-            )}
-          >
-            {mins} min
-            {autoFetchIntervalMinutes === mins && <Check size={12} strokeWidth={3} />}
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ShortcutsSection({
-  rebindShortcut,
-  resetShortcutsToDefaults,
-}: {
-  rebindShortcut: (id: string, keys: string) => Promise<void> | void;
-  resetShortcutsToDefaults: () => Promise<void> | void;
-}) {
-  const t = useT();
-  const shortcuts = useGitStore((s) => s.shortcuts);
-  const [editingId, setEditingId] = useState<string | null>(null);
-
-  const defaults = useMemo(() => defaultShortcutsMap(), []);
-  const merged: Record<string, string> = { ...defaults, ...(shortcuts ?? {}) };
-
-  // Listen for keys while capturing
-  useEffect(() => {
-    if (!editingId) return;
-    const onKey = (e: KeyboardEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.key === 'Escape') {
-        setEditingId(null);
-        return;
-      }
-      const combo = eventToShortcut(e);
-      if (!combo) return; // ignore modifier-only press
-      rebindShortcut(editingId, combo);
-      setEditingId(null);
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [editingId, rebindShortcut]);
-
-  return (
-    <section>
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-2">
-          <Type size={12} /> {t('settings.shortcuts')}
-        </h4>
-        <button
-          type="button"
-          onClick={() => resetShortcutsToDefaults()}
-          className="text-[10px] uppercase tracking-wider font-bold text-text-secondary hover:text-secondary transition-colors"
-        >
-          {t('settings.shortcutsReset')}
-        </button>
-      </div>
-      <p className="text-xs text-text-secondary mb-3">{t('settings.shortcutsDesc')}</p>
-      <div className="bg-bg-base/70 border border-border-subtle/15 rounded divide-y divide-border-subtle/15 max-h-[280px] overflow-y-auto">
-        {DEFAULT_SHORTCUTS.map((s) => {
-          const current = merged[s.id];
-          const isEditing = editingId === s.id;
-          return (
-            <div key={s.id} className="flex items-center justify-between px-3 py-2 text-xs">
-              <span className="text-text-secondary">{t(s.descriptionKey)}</span>
-              <button
-                type="button"
-                onClick={() => setEditingId(isEditing ? null : s.id)}
-                className={cn(
-                  'px-2 py-1 rounded font-mono text-[10px] border transition-colors min-w-[100px] text-center',
-                  isEditing
-                    ? 'bg-secondary/15 border-secondary/50 text-secondary animate-pulse'
-                    : 'bg-bg-base border-border-subtle/30 text-text-primary hover:border-secondary/40',
-                )}
-              >
-                {isEditing ? t('settings.shortcutsCapture') : formatShortcut(current)}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function OsNotificationsSection({
-  setOsNotifications,
-}: {
-  setOsNotifications: (enabled: boolean) => Promise<void> | void;
-}) {
-  const t = useT();
-  const osNotificationsEnabled = useGitStore((s) => s.osNotificationsEnabled);
-
-  return (
-    <section>
-      <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
-        <AlertCircle size={12} /> {t('settings.osNotifications')}
-      </h4>
-      <p className="text-xs text-text-secondary mb-3">{t('settings.osNotificationsDesc')}</p>
-      <button
-        type="button"
-        onClick={() => setOsNotifications(!osNotificationsEnabled)}
-        className={cn(
-          'px-3 py-2 rounded border text-sm flex items-center gap-2 transition-colors',
-          osNotificationsEnabled
-            ? 'bg-secondary/15 border-secondary/50 text-secondary'
-            : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
-        )}
-      >
-        {osNotificationsEnabled && <Check size={14} strokeWidth={3} />}
-        <span className="font-medium">
-          {osNotificationsEnabled ? t('settings.osNotificationsEnabled') : t('settings.osNotificationsDisabled')}
-        </span>
-      </button>
-    </section>
-  );
-}
+// Local settings section helper functions extracted to components/SettingsPanel.tsx
 
 function FetchIndicator({ onClick }: { onClick: () => void | Promise<void> }) {
   const t = useT();
@@ -2491,591 +2318,68 @@ export default function GitCronPage() {
           }
         >
           {activeView === 'settings' ? (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
-              <div className="border-b border-border-subtle/15 shrink-0">
-                <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Settings size={18} className="text-secondary shrink-0" />
-                    <h2 className="truncate text-base font-bold text-text-primary">
-                      {selectedSettingsSection === 'language' && t('settings.language')}
-                      {selectedSettingsSection === 'fontSize' && t('settings.fontSize')}
-                      {selectedSettingsSection === 'defaultFolder' && t('settings.defaultFolder')}
-                      {selectedSettingsSection === 'theme' && t('settings.theme')}
-                      {selectedSettingsSection === 'cronometric' && 'Vista Cronométrica (Beta)'}
-                      {selectedSettingsSection === 'temporalAgent' && 'Temporal Agent (Experimental)'}
-                      {selectedSettingsSection === 'autoFetch' && t('settings.autoFetch')}
-                      {selectedSettingsSection === 'osNotifications' && t('settings.osNotifications')}
-                      {selectedSettingsSection === 'shortcuts' && t('settings.shortcuts')}
-                      {selectedSettingsSection === 'security' && t('settings.security')}
-                      {selectedSettingsSection === 'updates' && t('settings.checkUpdates')}
-                      {selectedSettingsSection === 'about' && t('settings.about')}
-                    </h2>
-                  </div>
-                  <button
-                    onClick={() => handleViewChange('repository')}
-                    className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
-                  >
-                    {t('common.backToRepo')}
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto w-full select-text">
-                <div className="mx-auto w-full max-w-4xl p-6">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={selectedSettingsSection}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="space-y-6"
-                    >
-                    {selectedSettingsSection === 'language' && (
-                      <div className="space-y-4">
-                        <p className="text-sm text-text-secondary">{t('settings.languageDesc')}</p>
-                        <div className="flex gap-2">
-                          {LANGS.map((l) => (
-                            <button
-                              key={l.code}
-                              onClick={() => changeLanguage(l.code as Lang)}
-                              className={cn(
-                                'flex-1 px-4 py-3 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors',
-                                language === l.code
-                                  ? 'bg-secondary/15 border-secondary/50 text-secondary'
-                                  : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary hover:border-border-subtle/30',
-                              )}
-                            >
-                              <span className="text-lg">{l.flag}</span>
-                              <span className="font-semibold">{l.label}</span>
-                              {language === l.code && <Check size={14} strokeWidth={3} className="ml-1" />}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedSettingsSection === 'fontSize' && (
-                      <div className="space-y-4">
-                        <p className="text-sm text-text-secondary">{t('settings.fontSizeDesc')}</p>
-                        <div className="grid grid-cols-3 gap-2">
-                          {FONT_SIZE_OPTIONS.map((option) => {
-                            const labelKey = option.key === 'compact'
-                              ? 'settings.fontCompact'
-                              : option.key === 'normal'
-                                ? 'settings.fontNormal'
-                                : 'settings.fontLarge';
-                            return (
-                              <button
-                                key={option.key}
-                                onClick={() => changeFontSize(option.key)}
-                                className={cn(
-                                  'px-4 py-3 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors',
-                                  fontSize === option.key
-                                    ? 'bg-secondary/15 border-secondary/50 text-secondary'
-                                    : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary hover:border-border-subtle/30',
-                                )}
-                              >
-                                <span className="font-semibold">{t(labelKey)}</span>
-                                {fontSize === option.key && <Check size={14} strokeWidth={3} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedSettingsSection === 'defaultFolder' && (
-                      <div className="space-y-4">
-                        <p className="text-sm text-text-secondary">{t('settings.defaultFolderDesc')}</p>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="flex-1 px-4 py-2.5 rounded-lg border bg-bg-base/70 border-border-subtle/15 text-sm font-mono truncate"
-                            title={defaultFolder ?? ''}
-                          >
-                            <span className={defaultFolder ? 'text-text-primary' : 'text-text-secondary/70'}>
-                              {defaultFolder ?? t('settings.defaultFolderNone')}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => pickDefaultFolder()}
-                            className="px-4 py-2.5 rounded-lg border bg-bg-base/70 border-border-subtle/30 text-sm text-text-primary hover:bg-border-subtle/30 transition-colors"
-                          >
-                            {t('settings.defaultFolderChange')}
-                          </button>
-                          {defaultFolder && (
-                            <button
-                              onClick={() => changeDefaultFolder(null)}
-                              className="px-4 py-2.5 rounded-lg border bg-bg-base/70 border-border-subtle/15 text-sm text-text-secondary hover:text-[#ffa8a3] hover:border-[#ffa8a3]/30 transition-colors"
-                            >
-                              {t('settings.defaultFolderClear')}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedSettingsSection === 'theme' && (
-                      <div className="space-y-4">
-                        <p className="text-xs text-text-secondary/70 mb-2 italic">{t('settings.themeLightWarning')}</p>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => changeTheme('dark')}
-                            className={cn(
-                              'flex-1 px-4 py-3 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors',
-                              theme === 'dark'
-                                ? 'bg-secondary/15 border-secondary/50 text-secondary'
-                                : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
-                            )}
-                          >
-                            {theme === 'dark' && <Check size={14} strokeWidth={3} />}
-                            {t('settings.themeDark')}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => changeTheme('light')}
-                            className={cn(
-                              'flex-1 px-4 py-3 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors',
-                              theme === 'light'
-                                ? 'bg-secondary/15 border-secondary/50 text-secondary'
-                                : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
-                            )}
-                          >
-                            {theme === 'light' && <Check size={14} strokeWidth={3} />}
-                            {t('settings.themeLight')}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedSettingsSection === 'cronometric' && (
-                      <div className="space-y-4">
-                        <p className="text-sm text-text-secondary leading-relaxed">
-                          Habilita la nueva línea de tiempo interactiva avanzada basada en Canvas espacial y HUD dinámico.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => changeEnableCronometric(!enableCronometric)}
-                          className={cn(
-                            'w-full px-4 py-3 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors font-semibold',
-                            enableCronometric
-                              ? 'bg-secondary/15 border-secondary/50 text-secondary'
-                              : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
-                          )}
-                        >
-                          {enableCronometric ? (
-                            <>
-                              <Check size={14} strokeWidth={3} />
-                              Activa
-                            </>
-                          ) : (
-                            'Inactiva (Usar vista clásica estable)'
-                          )}
-                        </button>
-                      </div>
-                    )}
-
-                    {selectedSettingsSection === 'autoFetch' && (
-                      <AutoFetchSection setAutoFetchPrefs={setAutoFetchPrefs} />
-                    )}
-
-                    {selectedSettingsSection === 'osNotifications' && (
-                      <OsNotificationsSection setOsNotifications={setOsNotifications} />
-                    )}
-
-                    {selectedSettingsSection === 'shortcuts' && (
-                      <ShortcutsSection
-                        rebindShortcut={rebindShortcut}
-                        resetShortcutsToDefaults={resetShortcutsToDefaults}
-                      />
-                    )}
-
-                    {selectedSettingsSection === 'security' && (
-                      <div className="space-y-4">
-                        <p className="text-sm text-text-secondary leading-relaxed">
-                          {t('settings.dataLocation')}
-                        </p>
-                        <button
-                          onClick={() => window.api?.shellOpenPath('https://github.com/alejandropd-1/gitcron/blob/main/SECURITY.md')}
-                          className="w-full text-left px-4 py-3 bg-bg-base/70 border border-border-subtle/15 hover:border-border-subtle/30 rounded-lg text-sm text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors"
-                        >
-                          <FileText size={14} />
-                          {t('settings.viewSecurity')}
-                        </button>
-                      </div>
-                    )}
-
-                    {selectedSettingsSection === 'updates' && (
-                      <div className="space-y-4">
-                        <p className="text-sm text-text-secondary">{t('settings.checkUpdatesDesc')}</p>
-                        <div className="rounded-xl border border-border-subtle/15 bg-bg-base/70 p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-text-primary">
-                                {updateInfo
-                                  ? t('update.availableTitle', { version: updateInfo.version })
-                                  : t('update.currentTitle')}
-                              </p>
-                              <p className="mt-0.5 text-xs text-text-secondary">
-                                {updateInfo
-                                  ? t('update.currentVersion', { version: pkg.version })
-                                  : t('update.currentDesc')}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              {updateStatus === 'available' && (
-                                <button
-                                  type="button"
-                                  onClick={handleDownloadUpdate}
-                                  className="px-4 py-2 rounded-lg border text-sm flex items-center gap-2 transition-colors bg-secondary/15 border-secondary/45 text-secondary hover:bg-secondary/25 font-bold"
-                                >
-                                  <Download size={14} />
-                                  <span>{t('update.download')}</span>
-                                </button>
-                              )}
-                              {updateStatus === 'downloaded' && (
-                                <button
-                                  type="button"
-                                  onClick={handleInstallUpdate}
-                                  className="px-4 py-2 rounded-lg border text-sm font-extrabold transition-colors bg-secondary/15 border-secondary/45 text-secondary hover:bg-secondary/25"
-                                >
-                                  UPDATE
-                                </button>
-                              )}
-                              {(updateStatus === 'idle' || updateStatus === 'checking' || updateStatus === 'error') && (
-                                <button
-                                  type="button"
-                                  onClick={handleCheckForUpdate}
-                                  disabled={updateStatus === 'checking'}
-                                  className="px-4 py-2 rounded-lg border text-sm flex items-center gap-2 transition-colors bg-bg-base border-border-subtle/15 text-text-secondary hover:border-secondary/40 hover:text-secondary disabled:opacity-50 disabled:cursor-not-allowed font-bold"
-                                >
-                                  {updateStatus === 'checking'
-                                    ? <Loader2 size={14} className="animate-spin" />
-                                    : <RotateCcw size={14} />
-                                  }
-                                  <span>{t('settings.checkUpdatesButton')}</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          {updateStatus === 'downloading' && (
-                            <div className="mt-3 flex items-center gap-2">
-                              <div className="flex-1 h-1.5 bg-bg-overlay rounded-full overflow-hidden">
-                                <div className="h-full bg-secondary rounded-full transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
-                              </div>
-                              <span className="text-[10px] font-mono text-secondary w-8 text-right">{downloadProgress}%</span>
-                            </div>
-                          )}
-                        </div>
-                        <ChangelogPreview
-                          entries={changelogEntries}
-                          error={changelogError}
-                          isLoading={changelogRaw === null && changelogError === null}
-                        />
-                      </div>
-                    )}
-
-                    {selectedSettingsSection === 'temporalAgent' && (
-                      <div className="space-y-4">
-                        {repoPath ? (
-                          <TemporalAgentSettings
-                            repoPath={repoPath}
-                            repoName={openRepos[activeRepoIdx]?.name ?? 'repo'}
-                            onPrediction={(r) => {
-                              // Patch predictionIndex on all branches before storing.
-                              r.branches.forEach((b, i) => {
-                                if (b.predictionIndex == null) b.predictionIndex = i + 1;
-                              });
-                              setRawSpeculativeBranches(r.branches);
-                              setSpeculativeAt(r.generatedAt);
-                              setShowSpeculative(true);
-                            }}
-                            onConfigSaved={(cfg) => {
-                              setConfidenceThreshold(cfg.skillProfile.confidenceThreshold);
-                            }}
-                          />
-                        ) : (
-                          <p className="text-sm text-text-secondary">
-                            Abrí un repositorio para configurar el Temporal Agent.
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {selectedSettingsSection === 'about' && (
-                      <div className="space-y-4">
-                        <div className="bg-bg-base/70 border border-border-subtle/15 rounded-xl p-4 text-sm space-y-3">
-                          <div className="flex justify-between items-center pb-2 border-b border-border-subtle/15">
-                            <span className="text-text-secondary font-semibold">GitCron</span>
-                            <span className="text-secondary font-mono font-bold">v{pkg.version}</span>
-                          </div>
-                          <div className="flex justify-between text-xs text-text-secondary/70">
-                            <span>Electron + Next.js + simple-git</span>
-                          </div>
-                          <div className="pt-2 flex flex-col gap-2">
-                            <button
-                              type="button"
-                              onClick={() => window.api.shellOpenExternal('https://github.com/alejandropd-1/gitcron/releases/')}
-                              className="flex items-center gap-2 text-text-secondary hover:text-secondary transition-colors text-left font-semibold"
-                            >
-                              <Github size={14} />
-                              <span>{t('settings.viewReleases')}</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => window.api.shellOpenExternal('https://aledesign.dev/')}
-                              className="flex items-center gap-2 text-text-secondary/70 hover:text-secondary transition-colors text-left text-xs font-semibold"
-                            >
-                              <Sparkles size={13} />
-                              <span>{t('settings.developedBy')}</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-              </div>
-            </div>
+            <SettingsPanel
+              selectedSettingsSection={selectedSettingsSection}
+              setSelectedSettingsSection={setSelectedSettingsSection}
+              handleViewChange={handleViewChange}
+              language={language}
+              changeLanguage={changeLanguage}
+              fontSize={fontSize}
+              changeFontSize={changeFontSize}
+              defaultFolder={defaultFolder}
+              changeDefaultFolder={changeDefaultFolder}
+              pickDefaultFolder={pickDefaultFolder}
+              theme={theme}
+              changeTheme={changeTheme}
+              enableCronometric={enableCronometric}
+              changeEnableCronometric={changeEnableCronometric}
+              setAutoFetchPrefs={setAutoFetchPrefs}
+              setOsNotifications={setOsNotifications}
+              rebindShortcut={rebindShortcut}
+              resetShortcutsToDefaults={resetShortcutsToDefaults}
+              repoPath={repoPath}
+              repoName={openRepos[activeRepoIdx]?.name ?? 'repo'}
+              onTemporalPrediction={(r) => {
+                r.branches.forEach((b: any, i: number) => {
+                  if (b.predictionIndex == null) b.predictionIndex = i + 1;
+                });
+                setRawSpeculativeBranches(r.branches);
+                setSpeculativeAt(r.generatedAt);
+                setShowSpeculative(true);
+              }}
+              onTemporalConfigSaved={(cfg) => {
+                setConfidenceThreshold(cfg.skillProfile.confidenceThreshold);
+              }}
+              updateStatus={updateStatus}
+              updateInfo={updateInfo}
+              downloadProgress={downloadProgress}
+              changelogEntries={changelogEntries}
+              changelogError={changelogError}
+              changelogRaw={changelogRaw}
+              handleDownloadUpdate={handleDownloadUpdate}
+              handleInstallUpdate={handleInstallUpdate}
+              handleCheckForUpdate={handleCheckForUpdate}
+            />
           ) : activeView === 'help' ? (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
-              <div className="border-b border-border-subtle/15 shrink-0">
-                <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <HelpCircle size={18} className="text-secondary shrink-0" />
-                    <h2 className="truncate text-base font-bold text-text-primary">
-                      {selectedHelpSection === 'whatis' && t('page.help.whatis.title')}
-                      {selectedHelpSection === 'columns' && t('page.help.columns.title')}
-                      {selectedHelpSection === 'tabs' && t('page.help.tabs.title')}
-                      {selectedHelpSection === 'states' && t('page.help.states.title')}
-                      {selectedHelpSection === 'buttons' && t('page.help.buttons.title')}
-                      {selectedHelpSection === 'flow' && t('page.help.flow.title')}
-                      {selectedHelpSection === 'security' && t('page.help.security.title')}
-                    </h2>
-                  </div>
-                  <button
-                    onClick={() => handleViewChange('repository')}
-                    className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
-                  >
-                    {t('common.backToRepo')}
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto w-full select-text leading-relaxed text-sm text-text-secondary">
-                <div className="mx-auto w-full max-w-4xl p-6">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={selectedHelpSection}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="space-y-4"
-                    >
-                    {selectedHelpSection === 'whatis' && (
-                      <p className="text-text-secondary">{t('page.help.whatis.desc')}</p>
-                    )}
-
-                    {selectedHelpSection === 'columns' && (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.columns.sidebarTitle')}</span>
-                          <span>{t('page.help.columns.sidebarDesc')}</span>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.columns.centerTitle')}</span>
-                          <span>{t('page.help.columns.centerDesc')}</span>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.columns.rightTitle')}</span>
-                          <span>{t('page.help.columns.rightDesc')}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedHelpSection === 'tabs' && (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.tabs.commitTitle')}</span>
-                          <span>{t('page.help.tabs.commitDesc')}</span>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.tabs.graphTitle')}</span>
-                          <span>{t('page.help.tabs.graphDesc')}</span>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.tabs.historyTitle')}</span>
-                          <span>{t('page.help.tabs.historyDesc')}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedHelpSection === 'states' && (
-                      <div className="space-y-4">
-                        <p className="text-xs text-text-secondary/70 mb-2">{t('page.help.states.intro')}</p>
-                        <div className="grid grid-cols-2 gap-3 bg-bg-base/40 p-4 rounded-xl border border-border-subtle/15">
-                          <StatusBadge label={t('page.help.states.modified')} count={0} color="var(--color-git-mod)" letter="M" />
-                          <StatusBadge label={t('page.help.states.added')} count={0} color="var(--color-git-add)" letter="A" />
-                          <StatusBadge label={t('page.help.states.deleted')} count={0} color="var(--color-git-delete)" letter="D" />
-                          <StatusBadge label={t('page.help.states.untracked')} count={0} color="var(--color-text-secondary)" letter="U" />
-                          <StatusBadge label={t('page.help.states.renamed')} count={0} color="var(--color-primary)" letter="R" />
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedHelpSection === 'buttons' && (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.buttons.pullTitle')}</span>
-                          <span>{t('page.help.buttons.pullDesc')}</span>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.buttons.pushTitle')}</span>
-                          <span>{t('page.help.buttons.pushDesc')}</span>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.buttons.branchTitle')}</span>
-                          <span>{t('page.help.buttons.branchDesc')}</span>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.buttons.stashTitle')}</span>
-                          <span>{t('page.help.buttons.stashDesc')}</span>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <span className="font-semibold text-primary text-xs uppercase tracking-wider pt-0.5">{t('page.help.buttons.terminalTitle')}</span>
-                          <span>{t('page.help.buttons.terminalDesc')}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedHelpSection === 'flow' && (
-                      <div className="space-y-2 bg-bg-base/40 p-4 rounded-xl border border-border-subtle/15">
-                        <ol className="space-y-3 font-semibold text-text-primary text-xs">
-                          <li className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">1</span>
-                            <span>{t('page.help.flow.step1')}</span>
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">2</span>
-                            <span>{t('page.help.flow.step2')}</span>
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">3</span>
-                            <span>{t('page.help.flow.step3')}</span>
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">4</span>
-                            <span>{t('page.help.flow.step4')}</span>
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-border-subtle text-text-secondary flex items-center justify-center">5</span>
-                            <span>{t('page.help.flow.step5')}</span>
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-secondary text-[#052900] flex items-center justify-center">✓</span>
-                            <span>Click <strong className="text-secondary">{t('page.help.flow.step6')}</strong></span>
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-secondary text-[#052900] flex items-center justify-center">✓</span>
-                            <span>Click <strong className="text-secondary">{t('page.help.flow.step7')}</strong></span>
-                          </li>
-                        </ol>
-                      </div>
-                    )}
-
-                    {selectedHelpSection === 'security' && (
-                      <p className="text-text-secondary leading-relaxed">{t('page.help.security.desc')}</p>
-                    )}
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-              </div>
-            </div>
+            <HelpPanel
+              selectedHelpSection={selectedHelpSection}
+              handleViewChange={handleViewChange}
+            />
           ) : activeView === 'profile' ? (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
-              <div className="border-b border-border-subtle/15 shrink-0">
-                <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Github size={18} className="text-secondary shrink-0" />
-                    <h2 className="truncate text-base font-bold text-text-primary">
-                      {t('toolbar.profile')}
-                    </h2>
-                  </div>
-                  <button
-                    onClick={() => handleViewChange('repository')}
-                    className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
-                  >
-                    {t('common.backToRepo')}
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center select-text">
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="glass-overlay rounded-2xl border border-border-subtle/25 p-6 w-full max-w-4xl"
-                >
-                  {githubUser ? (
-                    <div className="space-y-4">
-                      <div className="bg-bg-base/60 border border-secondary/30 rounded-xl p-4 flex items-center gap-4">
-                        {githubUser.avatarUrl ? (
-                          <img src={githubUser.avatarUrl} alt={githubUser.login} className="w-16 h-16 rounded-full border border-secondary/30" />
-                        ) : (
-                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-secondary to-[#68b24f] flex items-center justify-center text-base font-bold text-[#052900]">{userInitials(githubUser)}</div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-extrabold text-text-primary truncate">{githubUser.name ?? githubUser.login}</p>
-                          <p className="text-xs text-secondary truncate">@{githubUser.login}</p>
-                          {githubUser.email && <p className="text-[10px] text-text-secondary truncate mt-0.5">{githubUser.email}</p>}
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <button onClick={() => window.api?.shellOpenPath(`https://github.com/${githubUser.login}`)} className="w-full text-left px-4 py-2.5 rounded-lg bg-bg-base/60 border border-border-subtle/15 hover:border-border-subtle/30 text-xs font-semibold text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors"><Github size={14} />{t('profile.viewOnGitHub')}</button>
-                        <button onClick={() => navigator.clipboard.writeText(`@${githubUser.login}`)} className="w-full text-left px-4 py-2.5 rounded-lg bg-bg-base/60 border border-border-subtle/15 hover:border-border-subtle/30 text-xs font-semibold text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors"><Copy size={14} />{t('profile.copyUsername', { user: githubUser.login })}</button>
-                      </div>
-                      <button onClick={() => { disconnectGitHub(); handleViewChange('repository'); }} className="w-full px-4 py-3 rounded-lg border border-error/30 hover:border-error/60 bg-error/10 hover:bg-error/20 text-error text-xs font-bold flex items-center justify-center gap-2 transition-colors"><LogOut size={14} />{t('profile.signOut')}</button>
-                    </div>
-                  ) : deviceCodeInfo ? (
-                    <div className="bg-bg-base/60 border border-secondary/40 rounded-xl p-5 text-center">
-                      <p className="text-xs font-semibold text-[#ffd98a] mb-4">{t('profile.deviceCodeShown')}</p>
-                      <div className="flex items-center justify-center gap-2 mb-4">
-                        <code className="text-3xl font-mono font-bold text-secondary bg-bg-base px-4 py-2 rounded-lg border border-secondary/30 tracking-widest">{deviceCodeInfo.userCode}</code>
-                        <button onClick={() => navigator.clipboard.writeText(deviceCodeInfo.userCode)} className="p-2 hover:bg-border-subtle rounded text-text-secondary hover:text-secondary" title="Copy"><Copy size={14} /></button>
-                      </div>
-                      <p className="text-[11px] text-text-secondary mb-3">{t('profile.browserNotOpened')}{' '}<button onClick={() => window.api?.shellOpenPath(deviceCodeInfo.verificationUri)} className="text-secondary underline">{deviceCodeInfo.verificationUri}</button></p>
-                      <div className="flex items-center justify-center gap-2 text-xs font-semibold text-text-secondary"><Loader2 size={14} className="animate-spin text-secondary" />{t('profile.waitingAuth')}</div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="bg-bg-base/60 border border-border-subtle/15 rounded-xl p-4">
-                        <p className="font-bold text-sm text-text-primary mb-1">{t('profile.notConnected')}</p>
-                        <p className="text-xs text-text-secondary leading-relaxed">{t('profile.notConnectedDesc')}</p>
-                      </div>
-                      <div className="flex gap-1 bg-bg-base rounded-xl p-1 border border-border-subtle/10">
-                        <button onClick={() => setAuthMode('oauth')} className={cn('flex-1 px-3 py-2 text-xs font-bold rounded-lg transition-colors', authMode === 'oauth' ? 'bg-secondary text-[#052900]' : 'text-text-secondary hover:text-text-primary')}>{t('profile.tabOAuth')}</button>
-                        <button onClick={() => setAuthMode('token')} className={cn('flex-1 px-3 py-2 text-xs font-bold rounded-lg transition-colors', authMode === 'token' ? 'bg-secondary text-[#052900]' : 'text-text-secondary hover:text-text-primary')}>{t('profile.tabToken')}</button>
-                      </div>
-                      {authMode === 'oauth' ? (
-                        <>
-                          <p className="text-xs text-text-secondary leading-relaxed">{t('profile.oauthDesc')}</p>
-                          <button onClick={handleLoginWithGitHub} disabled={isLoggingIn} className="w-full py-3 bg-[#24292e] hover:bg-[#373e47] border border-[#444c56] disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-black/20"><Github size={16} />{isLoggingIn ? t('profile.starting') : t('profile.continueWithGitHub')}</button>
-                          <p className="text-[10px] text-text-secondary/70 text-center">{t('profile.oauthFooter')}</p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-xs text-text-secondary leading-relaxed">{t('profile.tokenInputDesc')}{' '}<button onClick={() => window.api?.shellOpenPath('https://github.com/settings/tokens/new?scopes=repo&description=GitCron')} className="text-secondary underline hover:opacity-80">{t('profile.tokenGenerate')}</button>{' '}{t('profile.tokenScope')} <code className="bg-bg-base px-1 rounded">repo</code>.</p>
-                          <input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleConnectGitHub(); }} placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="w-full bg-bg-base border border-border-subtle/15 rounded-lg px-3 py-2.5 text-xs font-mono focus:outline-none focus:border-secondary/50" />
-                          <button onClick={handleConnectGitHub} disabled={!tokenInput.trim() || isLoading} className="w-full py-2.5 bg-gradient-to-br from-secondary to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-xs font-bold rounded-lg transition-colors">{isLoading ? t('profile.tokenVerifying') : t('profile.tokenConnect')}</button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </motion.div>
-              </div>
-            </div>
+            <ProfilePanel
+              githubUser={githubUser}
+              deviceCodeInfo={deviceCodeInfo}
+              authMode={authMode}
+              setAuthMode={setAuthMode}
+              tokenInput={tokenInput}
+              setTokenInput={setTokenInput}
+              isLoggingIn={isLoggingIn}
+              isLoading={isLoading}
+              handleLoginWithGitHub={handleLoginWithGitHub}
+              handleConnectGitHub={handleConnectGitHub}
+              disconnectGitHub={disconnectGitHub}
+              handleViewChange={handleViewChange}
+            />
           ) : isRepoStartView ? (
             <div className="relative z-10 flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
               <div className="border-b border-border-subtle/15 shrink-0">
@@ -3320,7 +2624,7 @@ export default function GitCronPage() {
                       <GraphColumnHandle onMouseDown={startGraphColDrag('graph')} />
                       <div className="flex-1 flex items-center gap-2 pl-5">
                         Commit message
-                        {speculativeBranches.length > 0 && (
+                        {enableCronometric && speculativeBranches.length > 0 && (
                           <button
                             onClick={() => {
                               handleChangeGraphMode('chronometric');

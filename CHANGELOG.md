@@ -4,7 +4,7 @@ Changes are listed from newest to oldest.
 
 ---
 
-## [v1.6.9] - 2026-06-03 - Optimización Gradual: Componentización de Ajustes, Ayuda y Perfil
+## [v1.7.0] - 2026-06-03 - Optimización Estructural: Componentización de Paneles, Modales y Correcciones de Visibilidad
 
 ### 🟢 Vista Clásica & Core
 
@@ -12,7 +12,11 @@ Changes are listed from newest to oldest.
 - **Extracción de Ajustes (SettingsPanel)**: Movimos todas las secciones de configuración (idioma, tema, tamaño de fuente, carpeta predeterminada, vista cronométrica, auto-fetch, notificaciones del sistema, atajos de teclado, seguridad, actualizaciones, temporal agent y acerca de) a un componente separado en [SettingsPanel.tsx](file:///c:/www/gitCronos/components/SettingsPanel.tsx). Esto limpia también las funciones auxiliares de renderizado del tope del archivo.
 - **Extracción de Ayuda (HelpPanel)**: Mapeamos la documentación y los tutoriales de flujo Git a [HelpPanel.tsx](file:///c:/www/gitCronos/components/HelpPanel.tsx).
 - **Extracción de Perfil de GitHub (ProfilePanel)**: Centralizamos los flujos de inicio de sesión mediante OAuth (código de dispositivo) y Token Personal de GitHub a [ProfilePanel.tsx](file:///c:/www/gitCronos/components/ProfilePanel.tsx).
-- **Reducción de Complejidad de `app/page.tsx`**: El archivo monolito principal bajó de **4883 LOC** a **4187 LOC** (un ahorro neto de **696 líneas de código**), bajando su complejidad cognitiva de **531** a **417**.
+- **Extracción de Modales de Acción (RepoActionModals)**: Modulamos los modales de Checkout Conflict, Reset All Confirmation, Clean Untracked, Amend Last Commit y Squash Commits en [RepoActionModals.tsx](file:///c:/www/gitCronos/components/RepoActionModals.tsx).
+- **Reducción de Complejidad de `app/page.tsx`**: El archivo monolito principal bajó de **4883 LOC** a **3926 LOC** (un ahorro neto acumulado de **957 líneas de código**), bajando la complejidad cognitiva del componente principal a **398**.
+
+#### Fixed
+- **Chip de Futuros en Vista Clásica**: Corregimos el bug por el cual el tag cyan `"N futuros →"` se seguía mostrando en la cabecera del grafo clásico aun cuando el usuario desactivaba la línea de tiempo cronométrica desde la configuración de preferencias.
 
 #### Quality
 - **Type Safety intacta**: TypeScript compila de forma perfectamente limpia con `npx.cmd tsc --noEmit`.

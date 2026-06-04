@@ -90,6 +90,7 @@ function buildNewPrediction(
       id: branch.id,
       sourceId: branch.sourceId,
       message: branch.message,
+      description: branch.description,
       rationale: branch.rationale,
       type: branch.type,
       confidence: branch.confidence,

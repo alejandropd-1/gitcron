@@ -107,6 +107,8 @@ export interface SpeculativeBranch {
   /** Provider/LLM-emitted id when present; provenance only. */
   sourceId: string | null;
   message: string;
+  /** Concrete "what this idea is" description. Optional for older/model outputs. */
+  description: string | null;
   rationale: string;
   /** Extended reasoning (3-5 sentences of plain prose). Optional for backward compatibility. */
   reasoning?: string;

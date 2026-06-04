@@ -57,6 +57,7 @@ const result: PredictionResult = {
       id: branchOneId,
       sourceId: 'llm-branch-1',
       message: 'Persist prediction history',
+      description: 'Store prediction runs and their speculative branches in SQLite for later analysis.',
       rationale: 'SQLite is now available in the main process.',
       type: 'improvement',
       confidence: 0.82,
@@ -65,6 +66,7 @@ const result: PredictionResult = {
       id: branchTwoId,
       sourceId: 'llm-branch-2',
       message: 'Add calibration dashboard later',
+      description: null,
       rationale: 'Historical confidence/outcome pairs enable analysis.',
       type: 'trend',
       confidence: 0.64,
@@ -130,10 +132,10 @@ describe('Temporal Agent prediction persistence wiring', () => {
         id: branchOneId,
         sourceId: 'llm-branch-1',
         message: 'Persist prediction history',
+        description: 'Store prediction runs and their speculative branches in SQLite for later analysis.',
         rationale: 'SQLite is now available in the main process.',
         type: 'improvement',
         confidence: 0.82,
-        description: null,
       });
       expect(branches[1]).toMatchObject({
         id: branchTwoId,

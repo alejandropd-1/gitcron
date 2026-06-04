@@ -12,7 +12,7 @@ export interface NewSpeculativeBranch {
   id: string;
   sourceId?: string | null;
   message: string;
-  description?: string;
+  description?: string | null;
   rationale: string;
   type: PredictionType;
   confidence: number;

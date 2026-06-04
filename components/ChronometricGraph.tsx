@@ -672,6 +672,7 @@ export function ChronometricGraph({
       id: b.id,
       sourceId: b.sourceId,
       message: b.message,
+      description: b.description ?? null,
       rationale: b.rationale ?? '',
       type: b.type,
       confidence: b.confidence,

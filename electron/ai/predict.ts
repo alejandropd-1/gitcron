@@ -194,6 +194,7 @@ function assemblePrompts(
     '    {',
     '      "id": "unique-id",',
     '      "message": "short description (max 60 chars)",',
+    '      "description": "what the idea IS, concretely, in 1-2 concise sentences. Do not repeat message or rationale.",',
     '      "rationale": "concise technical justification (max 100 chars)",',
     '      "reasoning": "3-5 sentence extended reasoning in plain prose. Ground it in repo signals from the context. Explain: what evidence supports this, whether it is incremental or a paradigm jump, and why this confidence level (confidence = inverse of forecast entropy).",',
     '      "agentPrompt": "A detailed, actionable step-by-step programming prompt in English (so any standard AI coding agent can understand it perfectly and execute it) outlining exactly what changes to make, what files to create or modify, and the concrete implementation strategy for this speculative feature. Must be plain text, ready to be passed directly to a coding assistant like Antigravity.",',
@@ -202,8 +203,9 @@ function assemblePrompts(
     '    }',
     '  ]',
     '}',
-    'Propose 3-5 branches. Each must have all 7 fields. summary must be one paragraph. Each reasoning must be 3-5 sentences, plain prose, no markdown.',
-    `IMPORTANT: The UI fields ("summary", "message", "rationale", "reasoning") MUST be written in ${narrativeLanguage}. ${narrativeStyle} The "agentPrompt" field must always be written in English as a detailed programming prompt for an AI agent to execute.`,
+    'Text-field distinction for each branch: message = the short title; description = what the idea concretely is; rationale = why this future is plausible from repo trajectory. Example: message "Virtualizar el render del grafo"; description "Reemplazar el render completo de la lista de commits por una ventana virtualizada que solo monta los nodos visibles en pantalla."; rationale "El repo viene sumando features de grafo y la performance con cientos de commits ya aparece como preocupación recurrente."',
+    'Propose 3-5 branches. Each must have all 8 fields. summary must be one paragraph. Each description must be 1-2 concise sentences. Each reasoning must be 3-5 sentences, plain prose, no markdown.',
+    `IMPORTANT: The UI fields ("summary", "message", "description", "rationale", "reasoning") MUST be written in ${narrativeLanguage}. ${narrativeStyle} The "agentPrompt" field must always be written in English as a detailed programming prompt for an AI agent to execute.`,
   ].join('\n');
 
   return { systemPrompt, userPrompt, input };

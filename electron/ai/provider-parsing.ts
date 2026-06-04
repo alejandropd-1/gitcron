@@ -45,6 +45,17 @@ function normalizeRationale(b: RawBranch): string {
   ) ?? '';
 }
 
+function normalizeDescription(b: RawBranch): string | null {
+  const description = firstString(
+    b.description,
+    b.descripcion,
+    b.descripción,
+    b.detalle,
+    b.detail,
+  )?.trim();
+  return description ? description : null;
+}
+
 function normalizeBranchType(value: unknown): BranchType {
   if (typeof value !== 'string') return 'improvement';
   const type = value.toLowerCase().trim();
@@ -88,6 +99,7 @@ export function normalizeBranch(raw: unknown): SpeculativeBranch | null {
     id: randomUUID(),
     sourceId,
     message: normalizeMessage(b),
+    description: normalizeDescription(b),
     rationale: normalizeRationale(b),
     type: normalizeBranchType(b.type ?? b.tipo),
     confidence: normalizeConfidence(b.confidence ?? b.confianza),

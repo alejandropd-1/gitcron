@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   Archive,
@@ -130,15 +130,19 @@ function buildBranchTree(branches: string[]): { root: BranchNode[]; folders: Bra
 export function BranchTree({
   branches,
   currentBranch,
+  selectedBranch,
   tracking,
   onCheckout,
+  onSelect,
   onContextMenu,
   onDelete,
 }: {
   branches: string[];
   currentBranch: string;
+  selectedBranch?: string | null;
   tracking: BranchTrackingMap;
   onCheckout: (branch: string) => void;
+  onSelect?: (branch: string) => void;
   onContextMenu: (event: React.MouseEvent, branch: string) => void;
   onDelete?: (branch: string) => void;
 }) {
@@ -153,7 +157,9 @@ export function BranchTree({
           fullPath={branch.fullPath}
           tracking={tracking[branch.fullPath]}
           isActive={branch.fullPath === currentBranch}
+          isSelected={branch.fullPath === selectedBranch}
           onCheckout={onCheckout}
+          onSelect={onSelect}
           onContextMenu={onContextMenu}
           indent={false}
           onDelete={onDelete}
@@ -164,8 +170,10 @@ export function BranchTree({
           key={folder.prefix}
           folder={folder}
           currentBranch={currentBranch}
+          selectedBranch={selectedBranch}
           tracking={tracking}
           onCheckout={onCheckout}
+          onSelect={onSelect}
           onContextMenu={onContextMenu}
           onDelete={onDelete}
         />
@@ -177,19 +185,30 @@ export function BranchTree({
 function BranchFolderView({
   folder,
   currentBranch,
+  selectedBranch,
   tracking,
   onCheckout,
+  onSelect,
   onContextMenu,
   onDelete,
 }: {
   folder: BranchFolder;
   currentBranch: string;
+  selectedBranch?: string | null;
   tracking: BranchTrackingMap;
   onCheckout: (branch: string) => void;
+  onSelect?: (branch: string) => void;
   onContextMenu: (event: React.MouseEvent, branch: string) => void;
   onDelete?: (branch: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
+
+  useEffect(() => {
+    if (selectedBranch?.startsWith(`${folder.prefix}/`)) {
+      setIsOpen(true);
+    }
+  }, [folder.prefix, selectedBranch]);
+
   return (
     <div>
       <button
@@ -210,7 +229,9 @@ function BranchFolderView({
               fullPath={branch.fullPath}
               tracking={tracking[branch.fullPath]}
               isActive={branch.fullPath === currentBranch}
+              isSelected={branch.fullPath === selectedBranch}
               onCheckout={onCheckout}
+              onSelect={onSelect}
               onContextMenu={onContextMenu}
               indent={true}
               onDelete={onDelete}
@@ -227,7 +248,9 @@ function BranchRow({
   fullPath,
   tracking,
   isActive,
+  isSelected,
   onCheckout,
+  onSelect,
   onContextMenu,
   indent,
   onDelete,
@@ -236,7 +259,9 @@ function BranchRow({
   fullPath: string;
   tracking?: BranchTrackingInfo;
   isActive: boolean;
+  isSelected?: boolean;
   onCheckout: (branch: string) => void;
+  onSelect?: (branch: string) => void;
   onContextMenu: (event: React.MouseEvent, branch: string) => void;
   indent: boolean;
   onDelete?: (branch: string) => void;
@@ -244,20 +269,33 @@ function BranchRow({
   const currentBranch = useGitStore((state) => state.currentBranch);
   const branchColor = colorForBranch(fullPath, currentBranch || undefined);
   const [isHovered, setIsHovered] = useState(false);
+  const rowRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isSelected) return;
+    rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [isSelected]);
 
   return (
     <div
+      ref={rowRef}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => onSelect?.(fullPath)}
       onDoubleClick={() => onCheckout(fullPath)}
       onContextMenu={(event) => onContextMenu(event, fullPath)}
-      title="Doble click: checkout · Click derecho: opciones"
+      title="Click: enfocar en graph · Doble click: checkout · Click derecho: opciones"
       className={cn(
         'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors relative',
         indent ? 'pl-[46px]' : 'pl-[26px]',
-        isActive ? 'bg-secondary/10 text-secondary' : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+        isActive
+          ? 'bg-secondary/10 text-secondary'
+          : isSelected
+            ? 'bg-secondary/[0.07] text-text-primary'
+            : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
       )}
     >
+      {isSelected && !isActive && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary/45" />}
       {isActive ? (
         <Check size={13} strokeWidth={3} className="text-secondary shrink-0" />
       ) : (

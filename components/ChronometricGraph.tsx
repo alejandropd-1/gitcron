@@ -18,8 +18,13 @@ import {
 import { useCanvasViewport } from '@/hooks/use-canvas-viewport';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
 import {
+  colorForBranch,
   computeGraph,
+  commitHasBranchRef,
+  type CommitSelectOptions,
   initials,
+  normalizeBranchName,
+  primaryBranchNameForCommit,
 } from './CommitGraph';
 import { SpeculativeBranches } from './SpeculativeBranches';
 import { projectSpeculative } from '@/lib/speculative-projection';
@@ -85,9 +90,10 @@ function getBezierPoint(
 interface ChronometricGraphProps {
   commits: Commit[];
   selectedHash?: string;
+  selectedBranchName?: string | null;
   currentBranch?: string;
   filterText?: string;
-  onSelect: (commit: Commit) => void;
+  onSelect: (commit: Commit, options?: CommitSelectOptions) => void;
   onContextMenu: (e: React.MouseEvent, commit: Commit) => void;
   /** AI-predicted future branches to overlay (Feature B). Empty/undefined = none. */
   speculativeBranches?: SpeculativeBranch[];
@@ -110,6 +116,7 @@ interface ChronometricGraphProps {
 export function ChronometricGraph({
   commits,
   selectedHash,
+  selectedBranchName = null,
   currentBranch,
   filterText = '',
   onSelect,
@@ -217,14 +224,11 @@ export function ChronometricGraph({
   // Extract primary branch labels for display
   const getBranchName = (commit: Commit) => {
     if (!commit.refs || commit.refs.length === 0) return null;
-    const branchRefs = commit.refs.filter(
-      (r) => !r.startsWith('tag: ') && !r.includes('stash')
-    );
+    const branchRefs = commit.refs
+      .map(normalizeBranchName)
+      .filter((ref): ref is string => Boolean(ref));
     if (branchRefs.length === 0) return null;
-    return branchRefs[0]
-      .replace(/^refs\/heads\//, '')
-      .replace(/^refs\/remotes\/[^/]+\//, '')
-      .replace(/^HEAD$/, '');
+    return branchRefs[0];
   };
 
   // Stable map of commitHash -> branchName (propagated along lanes to cover all commits on a branch)
@@ -422,6 +426,17 @@ export function ChronometricGraph({
     projectedCommits.forEach((p) => map.set(p.commit.hash, p));
     return map;
   }, [projectedCommits]);
+  const selectedBranchColor = selectedBranchName ? colorForBranch(selectedBranchName, currentBranch) : null;
+  const selectedBranchTargetNode = useMemo(() => {
+    if (!selectedBranchName) return null;
+    return (
+      projectedCommits.find((node) => node.branchName === selectedBranchName && node.isBranchOrigin) ??
+      projectedCommits.find((node) => commitHasBranchRef(node.commit, selectedBranchName)) ??
+      projectedCommits.find((node) => node.branchName === selectedBranchName) ??
+      projectedCommits.find((node) => selectedBranchColor && node.laneColor === selectedBranchColor) ??
+      null
+    );
+  }, [projectedCommits, selectedBranchName, selectedBranchColor]);
 
   // Present (HEAD) anchor = the most recent projected commit (greatest x).
   // Speculative branches fork from here into the future.
@@ -1247,6 +1262,7 @@ export function ChronometricGraph({
     isDragging,
     handleMouseDown,
     resetViewport,
+    focusWorldPoint,
     zoomIn,
     zoomOut,
   } = useCanvasViewport({
@@ -1262,6 +1278,11 @@ export function ChronometricGraph({
     initialWorldFocusY: 100 + 180 * DEFAULT_CHRONOMETRIC_SLOPE,
     topSafeOffset: 96,
   });
+
+  useEffect(() => {
+    if (!selectedBranchTargetNode) return;
+    focusWorldPoint({ x: selectedBranchTargetNode.x, y: selectedBranchTargetNode.y });
+  }, [selectedBranchTargetNode, focusWorldPoint]);
 
   // 7. Time ticks (date guidelines at the bottom of the graph)
   const timeTicks = useMemo(() => {
@@ -1634,6 +1655,15 @@ export function ChronometricGraph({
                 return node.connections.map((conn, ci) => {
                   const parentNode = projectedCommits[conn.toRow];
                   if (!parentNode) return null;
+                  const nodeBranchHighlighted = Boolean(
+                    selectedBranchName &&
+                    (node.branchName === selectedBranchName || commitHasBranchRef(node.commit, selectedBranchName) || (selectedBranchColor && node.laneColor === selectedBranchColor))
+                  );
+                  const parentBranchHighlighted = Boolean(
+                    selectedBranchName &&
+                    (parentNode.branchName === selectedBranchName || commitHasBranchRef(parentNode.commit, selectedBranchName) || (selectedBranchColor && parentNode.laneColor === selectedBranchColor))
+                  );
+                  const connectionBranchHighlighted = nodeBranchHighlighted || parentBranchHighlighted;
 
                   const cx = node.x;
                   const cy = node.y;
@@ -1667,10 +1697,10 @@ export function ChronometricGraph({
                       <path
                         d={`M ${cx} ${cy} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${px} ${py}`}
                         stroke={conn.color}
-                        strokeWidth={isMerge ? 1.5 : 2.5}
+                        strokeWidth={connectionBranchHighlighted ? (isMerge ? 1.9 : 2.8) : (isMerge ? 1.5 : 2.5)}
                         strokeLinecap="round"
                         fill="none"
-                        opacity={selectedHash === node.commit.hash || selectedHash === parentNode.commit.hash ? 0.85 : 0.35}
+                        opacity={connectionBranchHighlighted ? 0.52 : selectedHash === node.commit.hash || selectedHash === parentNode.commit.hash ? 0.85 : 0.35}
                         className="transition-all duration-200"
                       />
                       {/* Animated dotted overlay path flowing chronologically (parent -> child) */}
@@ -1709,12 +1739,16 @@ export function ChronometricGraph({
                 const isSelected = selectedHash === node.commit.hash;
                 const isHovered = hoveredHash === node.commit.hash;
                 const isHead = headCommitNode && node.commit.hash === headCommitNode.commit.hash;
+                const isBranchHighlighted = Boolean(
+                  selectedBranchName &&
+                  (node.branchName === selectedBranchName || commitHasBranchRef(node.commit, selectedBranchName) || (selectedBranchColor && node.laneColor === selectedBranchColor))
+                );
 
                 return (
                   <g
                     key={`node-${node.commit.hash}`}
                     className="cursor-pointer"
-                    onClick={() => onSelect(node.commit)}
+                    onClick={() => onSelect(node.commit, { branchName: node.branchName })}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       onContextMenu(e, node.commit);
@@ -1732,17 +1766,18 @@ export function ChronometricGraph({
                     }}
                   >
                     {/* Outer selection ring */}
-                    {isSelected && (
+                    {(isSelected || isBranchHighlighted) && (
                       <circle
                         cx={node.x}
                         cy={node.y}
-                        r={isHead ? 36 : 19}
+                        r={isHead ? 36 : isSelected ? 19 : 16}
                         fill="url(#selected-glow)"
-                        stroke="var(--color-secondary)"
-                        strokeWidth={isHead ? 3 : 1.5}
+                        stroke={isSelected ? 'var(--color-secondary)' : node.laneColor}
+                        strokeWidth={isSelected ? (isHead ? 3 : 1.5) : 1}
+                        opacity={isSelected ? 1 : 0.65}
                         style={{
                           transformOrigin: `${node.x}px ${node.y}px`,
-                          animation: 'selected-breath 3s ease-in-out infinite',
+                          animation: isSelected ? 'selected-breath 3s ease-in-out infinite' : undefined,
                         }}
                       />
                     )}
@@ -1767,7 +1802,7 @@ export function ChronometricGraph({
                       r={isHead ? 21 : 10.5}
                       fill={isHead ? 'transparent' : 'var(--color-bg-base)'}
                       stroke={isHead ? 'transparent' : (isSelected ? 'var(--color-secondary)' : node.laneColor)}
-                      strokeWidth={isSelected ? (isHead ? 6 : 3) : (isHead ? 4 : 2)}
+                      strokeWidth={isSelected ? (isHead ? 6 : 3) : isBranchHighlighted ? (isHead ? 4 : 2.8) : (isHead ? 4 : 2)}
                       className="transition-all duration-150"
                     />
 
@@ -1803,7 +1838,7 @@ export function ChronometricGraph({
                     className="cursor-pointer"
                     onClick={() => {
                       const commit = commits.find(c => c.hash === tag.commitHash);
-                      if (commit) onSelect(commit);
+                      if (commit) onSelect(commit, { branchName: primaryBranchNameForCommit(commit) });
                     }}
                     onContextMenu={(e) => {
                       e.preventDefault();
@@ -2156,7 +2191,7 @@ export function ChronometricGraph({
                       return (
                         <g
                           className="cursor-pointer"
-                          onClick={() => onSelect(node.commit)}
+                          onClick={() => onSelect(node.commit, { branchName: node.branchName })}
                           onContextMenu={(e) => {
                             e.preventDefault();
                             onContextMenu(e, node.commit);
@@ -2213,7 +2248,7 @@ export function ChronometricGraph({
                     {/* C. Commit Telemetry Label */}
                     <g
                       className="cursor-pointer"
-                      onClick={() => onSelect(node.commit)}
+                      onClick={() => onSelect(node.commit, { branchName: node.branchName })}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         onContextMenu(e, node.commit);

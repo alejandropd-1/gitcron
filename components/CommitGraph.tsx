@@ -13,7 +13,7 @@
  * - Fallback to sequential lane colors when no branch name is available.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { Commit, GitFile } from '@/lib/git-store';
 import { Monitor, Cloud, Tag as TagIcon, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -66,6 +66,7 @@ export function colorForBranch(refName: string, currentBranch?: string): string 
   const clean = refName
     .replace(/^refs\/heads\//, '')
     .replace(/^refs\/remotes\/[^/]+\//, '')
+    .replace(/^(origin|upstream)\//, '')
     .replace(/^HEAD$/, '');
 
   if (clean === currentBranch || refName === currentBranch) return CURRENT_BRANCH_COLOR;
@@ -75,6 +76,32 @@ export function colorForBranch(refName: string, currentBranch?: string): string 
   for (let i = 0; i < clean.length; i++) hash = ((hash << 5) + hash + clean.charCodeAt(i)) | 0;
   return BRANCH_PALETTE[Math.abs(hash) % BRANCH_PALETTE.length];
 }
+
+export function normalizeBranchName(refName: string): string | null {
+  if (!refName || refName === 'HEAD' || refName === 'stash') return null;
+  if (refName.startsWith('tag: ') || refName.startsWith('refs/stash') || refName.includes('stash')) return null;
+  return refName
+    .replace(/^refs\/heads\//, '')
+    .replace(/^refs\/remotes\/[^/]+\//, '')
+    .replace(/^(origin|upstream)\//, '');
+}
+
+export function commitHasBranchRef(commit: Commit, branchName?: string | null): boolean {
+  if (!branchName) return false;
+  return commit.refs?.some((ref) => normalizeBranchName(ref) === branchName) ?? false;
+}
+
+export function primaryBranchNameForCommit(commit: Commit): string | null {
+  if (!commit.refs || commit.refs.length === 0) return null;
+  return commit.refs
+    .map(normalizeBranchName)
+    .find((ref): ref is string => Boolean(ref)) ?? null;
+}
+
+export type CommitSelectOptions = {
+  preserveBranchSelection?: boolean;
+  branchName?: string | null;
+};
 
 /**
  * Given a commit, pick the "preferred" color by looking at its refs.
@@ -275,6 +302,7 @@ function parseRefs(refs: string[] | undefined, currentBranch?: string): ParsedRe
 export function CommitGraph({
   commits,
   selectedHash,
+  selectedBranchName,
   currentBranch,
   workingTreeFiles,
   filterText,
@@ -284,11 +312,12 @@ export function CommitGraph({
 }: {
   commits: Commit[];
   selectedHash?: string;
+  selectedBranchName?: string | null;
   currentBranch?: string;
   workingTreeFiles?: GitFile[];
   filterText?: string;
   columnWidths?: CommitGraphColumnWidths;
-  onSelect: (commit: Commit) => void;
+  onSelect: (commit: Commit, options?: CommitSelectOptions) => void;
   onContextMenu: (e: React.MouseEvent, commit: Commit) => void;
 }) {
   const t = useT();
@@ -309,8 +338,50 @@ export function CommitGraph({
     () => computeGraph(filteredCommits, currentBranch),
     [filteredCommits, currentBranch],
   );
+  const rowRefs = useRef(new Map<string, HTMLDivElement>());
   const graphWidth = PADDING_LEFT + Math.max(totalLanes, 1) * LANE_W + 8;
   const graphColumnWidth = Math.max(columnWidths.graph, graphWidth);
+  const selectedBranchColor = selectedBranchName ? colorForBranch(selectedBranchName, currentBranch) : null;
+  const commitBranchNames = useMemo(() => {
+    const map = new Map<string, string>();
+    const laneBranchNames: (string | null)[] = [];
+
+    rows.forEach((row) => {
+      const directBranchName = primaryBranchNameForCommit(row.commit);
+      const branchName = directBranchName ?? laneBranchNames[row.lane] ?? null;
+      if (branchName) map.set(row.commit.hash, branchName);
+
+      row.connections.forEach((conn, index) => {
+        laneBranchNames[conn.toLane] = index === 0 ? branchName : null;
+      });
+    });
+
+    return map;
+  }, [rows]);
+
+  const selectedBranchTargetHash = useMemo(() => {
+    if (!selectedBranchName) return null;
+    const directRefRow = rows.find((row) => commitHasBranchRef(row.commit, selectedBranchName));
+    if (directRefRow) return directRefRow.commit.hash;
+
+    const matchingRows = rows.filter((row) =>
+      Boolean(selectedBranchColor && row.laneColor === selectedBranchColor)
+    );
+    if (selectedBranchName !== 'main' && selectedBranchName !== 'master' && matchingRows.length > 0) {
+      return matchingRows[matchingRows.length - 1].commit.hash;
+    }
+    return (
+      matchingRows[0]
+    )?.commit.hash ?? null;
+  }, [rows, selectedBranchName, selectedBranchColor]);
+
+  useEffect(() => {
+    if (!selectedBranchTargetHash) return;
+    rowRefs.current.get(selectedBranchTargetHash)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+  }, [selectedBranchTargetHash]);
 
   const stagedCount = workingTreeFiles?.filter((f) => f.staged).length ?? 0;
   const unstagedCount = workingTreeFiles?.filter((f) => !f.staged).length ?? 0;
@@ -347,12 +418,21 @@ export function CommitGraph({
       {rows.map((row, i) => (
         <GraphRowView
           key={row.commit.hash}
+          rowRef={(el) => {
+            if (el) rowRefs.current.set(row.commit.hash, el);
+            else rowRefs.current.delete(row.commit.hash);
+          }}
           row={row}
           index={i}
           graphWidth={graphWidth}
           graphColumnWidth={graphColumnWidth}
           columnWidths={columnWidths}
           selected={selectedHash === row.commit.hash}
+          branchName={commitBranchNames.get(row.commit.hash) ?? null}
+          branchHighlighted={Boolean(
+            selectedBranchName &&
+            (commitHasBranchRef(row.commit, selectedBranchName) || (selectedBranchColor && row.laneColor === selectedBranchColor))
+          )}
           currentBranch={currentBranch}
           onSelect={onSelect}
           onContextMenu={onContextMenu}
@@ -363,16 +443,19 @@ export function CommitGraph({
 }
 
 function GraphRowView({
-  row, index, graphWidth, graphColumnWidth, columnWidths, selected, currentBranch, onSelect, onContextMenu,
+  row, rowRef, index, graphWidth, graphColumnWidth, columnWidths, selected, branchName, branchHighlighted, currentBranch, onSelect, onContextMenu,
 }: {
   row: GraphRow;
+  rowRef?: (el: HTMLDivElement | null) => void;
   index: number;
   graphWidth: number;
   graphColumnWidth: number;
   columnWidths: CommitGraphColumnWidths;
   selected: boolean;
+  branchName?: string | null;
+  branchHighlighted?: boolean;
   currentBranch?: string;
-  onSelect: (c: Commit) => void;
+  onSelect: (c: Commit, options?: CommitSelectOptions) => void;
   onContextMenu: (e: React.MouseEvent, c: Commit) => void;
 }) {
   const refs = parseRefs(row.commit.refs, currentBranch);
@@ -386,15 +469,18 @@ function GraphRowView({
 
   return (
     <div
-      onClick={() => onSelect(row.commit)}
+      ref={rowRef}
+      onClick={() => onSelect(row.commit, { branchName })}
       onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, row.commit); }}
       className={cn(
         'flex items-center cursor-pointer group relative',
-        selected ? 'bg-secondary/10' : 'hover:bg-bg-surface/50',
+        selected ? 'bg-secondary/10' : branchHighlighted ? 'bg-secondary/5' : 'hover:bg-bg-surface/50',
       )}
       style={{ height: ROW_H }}
     >
-      {selected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-secondary" />}
+      {(selected || branchHighlighted) && (
+        <div className={cn('absolute left-0 top-0 bottom-0', selected ? 'w-1 bg-secondary' : 'w-0.5 bg-secondary/45')} />
+      )}
 
       {/* ── Column 1: BRANCH / TAG labels — 260px ── */}
       <div
@@ -423,7 +509,7 @@ function GraphRowView({
               ? `color-mix(in srgb, ${row.laneColor} 9.4%, transparent)`
               : `${row.laneColor}18`,
             borderRight: `2px solid ${row.laneColor}`,
-            opacity: selected ? 0.6 : 0.42,
+            opacity: selected ? 0.6 : branchHighlighted ? 0.54 : 0.42,
           }}
         />
       <svg width={graphWidth} height={ROW_H} className="block relative z-10" style={{ overflow: 'visible' }} data-keep-color>

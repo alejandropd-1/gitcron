@@ -1,4 +1,4 @@
-export type ProviderId = 'claude' | 'openai' | 'gemini' | 'opencode';
+export type ProviderId = string;
 export type PredictionType = 'improvement' | 'breakthrough' | 'trend';
 export type ContextScope = 'metadata' | 'metadata_filenames';
 export type DecisionKind = 'deferred' | 'rejected' | 'materialized';

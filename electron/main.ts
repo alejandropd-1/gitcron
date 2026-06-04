@@ -12,8 +12,9 @@ import type {
   BranchTrackingInfo, WorktreeEntry, PullRequestEntry, PullRequestDiffData, PullRequestDiffFile,
 } from '../types/electron';
 import { registerTemporalAgentHandlers, loadConfig as loadTemporalConfig, loadNotes as loadTemporalNotes, savePrediction, loadPrediction } from './temporal-agent-ipc';
-import { runPrediction } from './ai/predict';
+import { runPredictionWithInput } from './ai/predict';
 import { cancelActivePrediction } from './ai/provider-runtime';
+import { persistPredictionRun } from './ai/prediction-persistence';
 import { hasKey as hasAiKey, setKey as setAiKey, removeKey as removeAiKey, getKeyFingerprint as getAiKeyFingerprint } from './ai/key-store';
 import { bootstrapDatabase, temporalAgentDatabasePath } from './db/connection';
 import type { ProviderId } from './ai/providers';
@@ -448,7 +449,7 @@ ipcMain.handle('ai:predict-timelines', async (_event, repoPath: string, repoName
     const providerId = activeProviderId();
     const config = await loadTemporalConfig(repoPath, repoName);
     const notes = await loadTemporalNotes(repoPath, repoName);
-    const result = await runPrediction({
+    const { result, input } = await runPredictionWithInput({
       repoPath,
       config,
       notes,
@@ -458,6 +459,17 @@ ipcMain.handle('ai:predict-timelines', async (_event, repoPath: string, repoName
     });
     // Capa 1: persist the last prediction per-repo so it survives close/reopen.
     try { await savePrediction(repoPath, result); } catch { /* non-fatal */ }
+    void persistPredictionRun({
+      repoPath,
+      config,
+      providerId,
+      predictionInput: input,
+      result,
+    }, {
+      logError: (error) => {
+        console.error('[temporal-agent-db] prediction persistence error:', sanitizeForLog(error));
+      },
+    });
     return { success: true, data: result };
   } catch (error: any) {
     return { success: false, error: errMsg(error) };

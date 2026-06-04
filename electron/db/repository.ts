@@ -16,7 +16,6 @@ import type {
   SpeculativeBranchRow,
 } from './types';
 
-const PROVIDERS = new Set<ProviderId>(['claude', 'openai', 'gemini', 'opencode']);
 const PREDICTION_TYPES = new Set<PredictionType>(['improvement', 'breakthrough', 'trend']);
 const CONTEXT_SCOPES = new Set<ContextScope>(['metadata', 'metadata_filenames']);
 const DECISIONS = new Set<DecisionKind>(['deferred', 'rejected', 'materialized']);
@@ -71,7 +70,7 @@ export function insertPrediction(
   input: NewPrediction,
   options: RepositoryOptions = {},
 ): { runId: string; branchIds: string[] } {
-  validateProvider(input.provider);
+  const provider = normalizeProvider(input.provider);
   validateContextScope(input.contextScope);
   if (!Array.isArray(input.branches) || input.branches.length === 0) {
     throw new Error('Prediction must include at least one branch');
@@ -97,7 +96,7 @@ export function insertPrediction(
       input.repoPath,
       identity.deviceId,
       identity.deviceLabel,
-      input.provider,
+      provider,
       input.model ?? null,
       appVersion,
       input.contextScope,
@@ -216,10 +215,12 @@ function validateBranch(branch: NewSpeculativeBranch): void {
   validateConfidence(branch.confidence);
 }
 
-function validateProvider(provider: string): void {
-  if (!PROVIDERS.has(provider as ProviderId)) {
-    throw new Error(`Invalid prediction provider: ${provider}`);
+function normalizeProvider(provider: ProviderId | null | undefined): string {
+  const normalized = typeof provider === 'string' ? provider.trim().toLowerCase() : '';
+  if (!normalized) {
+    throw new Error('Invalid prediction provider: expected a non-empty provider family');
   }
+  return normalized;
 }
 
 function validatePredictionType(type: string): void {

@@ -225,7 +225,12 @@ export interface RunPredictionArgs {
   providerOverride?: AIPredictionProvider;
 }
 
-export async function runPrediction(args: RunPredictionArgs): Promise<PredictionResult> {
+export interface RunPredictionWithInputResult {
+  result: PredictionResult;
+  input: PredictionInput;
+}
+
+export async function runPredictionWithInput(args: RunPredictionArgs): Promise<RunPredictionWithInputResult> {
   const { repoPath, config, notes, providerId, lang = 'es', providerOverride } = args;
 
   const raw = await gatherRawContext(repoPath);
@@ -251,7 +256,11 @@ export async function runPrediction(args: RunPredictionArgs): Promise<Prediction
     (b) => !isSuppressed(b.message, notes),
   );
 
-  return { ...result, branches, lang };
+  return { result: { ...result, branches, lang }, input };
+}
+
+export async function runPrediction(args: RunPredictionArgs): Promise<PredictionResult> {
+  return (await runPredictionWithInput(args)).result;
 }
 
 

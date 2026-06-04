@@ -244,8 +244,20 @@ describe('Temporal Agent repository', () => {
 
   it('validates provider, type, context scope, decision, and confidence', () => {
     withDb((db) => {
+      const openFamily = insertPrediction(
+        { ...basePrediction(), repoPath: 'C:/work/deepseek', provider: ' DEEPSEEK ' },
+        repositoryOptions(db),
+      );
+      expect(getRunsForRepo('C:/work/deepseek', { db })[0]).toMatchObject({
+        id: openFamily.runId,
+        provider: 'deepseek',
+      });
       expect(() => insertPrediction(
-        { ...basePrediction(), provider: 'openrouter' as NewPrediction['provider'] },
+        { ...basePrediction(), provider: '' },
+        repositoryOptions(db),
+      )).toThrow(/provider/i);
+      expect(() => insertPrediction(
+        { ...basePrediction(), provider: '   ' },
         repositoryOptions(db),
       )).toThrow(/provider/i);
       expect(() => insertPrediction(

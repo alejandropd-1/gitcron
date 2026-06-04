@@ -410,6 +410,7 @@ function mockProvider(id: ProviderId): AIPredictionProvider {
   const branches: SpeculativeBranch[] = [
     {
       id: 'mock-1',
+      sourceId: null,
       message: 'Extract IPC layer into a typed contract module',
       rationale:
         'The recent commits keep touching electron/main.ts to add handlers. A shared, typed IPC contract would cut that churn and de-risk the preload bridge.',
@@ -418,6 +419,7 @@ function mockProvider(id: ProviderId): AIPredictionProvider {
     },
     {
       id: 'mock-2',
+      sourceId: null,
       message: 'Add a streaming prediction mode for large repos',
       rationale:
         'Context assembly already reads up to 40 commits; streaming the model output would keep the UI responsive on big histories.',
@@ -426,6 +428,7 @@ function mockProvider(id: ProviderId): AIPredictionProvider {
     },
     {
       id: 'mock-3',
+      sourceId: null,
       message: 'Surface forecasting-doctrine confidence inline on the diagonal',
       rationale:
         'The doctrine ties confidence to repo entropy. Showing the "why 0.7 not 0.9" reasoning next to each branch reinforces honest calibration.',

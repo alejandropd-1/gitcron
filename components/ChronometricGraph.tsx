@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useMemo, useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useGitStore, type Commit } from '@/lib/git-store';
 import {
@@ -454,6 +454,9 @@ export function ChronometricGraph({
     startY: number;
     startH: number;
   } | null>(null);
+  const centauroTabBarRef = useRef<HTMLDivElement | null>(null);
+  const centauroBodyRef = useRef<HTMLDivElement | null>(null);
+  const lastCentauroAutoFitSignatureRef = useRef<string | null>(null);
 
   // Dynamic helper to find the top of the sidebars
   const getSidebarTop = useCallback(() => {
@@ -473,7 +476,10 @@ export function ChronometricGraph({
     
     // 1. Get bottom boundary of the graph container or viewport
     const containerEl = document.getElementById('chronometric-container');
-    const containerBottom = containerEl ? containerEl.getBoundingClientRect().bottom : window.innerHeight;
+    const containerBottom = Math.max(
+      window.innerHeight,
+      containerEl ? containerEl.getBoundingClientRect().bottom : 0,
+    );
     
     // 2. Get the top coordinate of the sidebars
     const sidebarTop = getSidebarTop();
@@ -546,11 +552,17 @@ export function ChronometricGraph({
     if (!repoPath || !repoName) return;
     let alive = true;
     window.api.temporalAgent.loadNotes(repoPath, repoName).then((notes) => {
-      if (!alive || !notes?.decisions?.length) return;
+      if (!alive) return;
+      if (!notes?.decisions?.length) {
+        setDecisions({});
+        setAllDecisions([]);
+        return;
+      }
       const map: Record<string, TemporalAgentDecision> = {};
       for (const d of notes.decisions) {
-        if (!map[d.suggestionTitle]) {
-          map[d.suggestionTitle] = d;
+        const key = d.branchId || d.suggestionTitle;
+        if (!map[key]) {
+          map[key] = d;
         }
       }
       setDecisions(map);
@@ -566,13 +578,14 @@ export function ChronometricGraph({
     const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
     if (!node) return;
     const b = node.branch;
-    const current = decisions[b.message];
+    const current = decisions[b.id] ?? decisions[b.message];
 
     // Undo: click the same outcome that's already active → remove the decision.
     if (current && current.outcome === outcome) {
       await window.api.temporalAgent.removeDecision(repoPath, repoName, b.message);
       setDecisions((prev) => {
         const next = { ...prev };
+        delete next[b.id];
         delete next[b.message];
         return next;
       });
@@ -581,6 +594,7 @@ export function ChronometricGraph({
 
     const decision: TemporalAgentDecision = {
       date: new Date().toISOString(),
+      branchId: b.id,
       suggestionTitle: b.message,
       type: b.type,
       outcome,
@@ -592,7 +606,8 @@ export function ChronometricGraph({
         : `Deferred — worth revisiting later.`,
     };
     await window.api.temporalAgent.recordDecision(repoPath, repoName, decision);
-    setDecisions((prev) => ({ ...prev, [b.message]: decision }));
+    setDecisions((prev) => ({ ...prev, [b.id]: decision }));
+    setAllDecisions((prev) => [decision, ...prev]);
   }
 
   // Is any branch decided? Used to determine dimming.
@@ -603,8 +618,16 @@ export function ChronometricGraph({
     if (!selectedSpeculativeId) return null;
     const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
     if (!node) return null;
-    return decisions[node.branch.message] ?? null;
+    return decisions[node.branch.id] ?? decisions[node.branch.message] ?? null;
   }, [selectedSpeculativeId, speculativeNodes, decisions]);
+
+  const selectedBranchMaterialization = useMemo(() => {
+    if (!selectedSpeculativeId) return null;
+    return allDecisions.find((d) =>
+      d.branchId === selectedSpeculativeId
+      && (d.persistenceDecision === 'materialized' || Boolean(d.materializedRef))
+    ) ?? null;
+  }, [selectedSpeculativeId, allDecisions]);
 
   // Full branch object for the currently selected speculative branch.
   const selectedSpeculativeBranch = useMemo(() => {
@@ -632,6 +655,7 @@ export function ChronometricGraph({
     // branch keeps rationale optional, so default it before building the thread.
     return openingTurnFromBranch({
       id: b.id,
+      sourceId: b.sourceId,
       message: b.message,
       rationale: b.rationale ?? '',
       type: b.type,
@@ -663,8 +687,6 @@ export function ChronometricGraph({
   const [materializeError, setMaterializeError] = useState<string | null>(null);
   const [previousCentauroHeight, setPreviousCentauroHeight] = useState<number | null>(null);
 
-  const isTallMode = centauroHeight >= 480;
-
   // Automatically clamp height on window resize so HUD top never crosses sidebar top
   useEffect(() => {
     const handleResize = () => {
@@ -680,9 +702,79 @@ export function ChronometricGraph({
     () => (materializeIdea ? buildMaterializationPlan(materializeIdea, localBranches, localTags) : null),
     [materializeIdea, localBranches, localTags],
   );
+  const isTallMode = centauroHeight >= 480;
+  const isMaterializationMode = Boolean(materializeIdea && materializePlan);
+  const useTallMaterializationLayout = isTallMode || isMaterializationMode;
+
+  const centauroContentSignature = useMemo(() => [
+    centauroExpanded ? 'open' : 'closed',
+    centauroTab,
+    selectedSpeculativeId ?? 'no-speculative',
+    selectedCommit?.hash ?? 'no-commit',
+    materializeIdea?.id ?? 'no-materialize-idea',
+    materializeResult?.branchName ?? 'no-materialize-result',
+    materializeError ?? 'no-materialize-error',
+    selectedBranchDecision?.outcome ?? 'no-branch-decision',
+    selectedBranchMaterialization?.materializedRef ?? 'no-materialized-ref',
+    useTallMaterializationLayout ? 'tall-materialize' : 'compact-materialize',
+    String(allDecisions.length),
+  ].join('|'), [
+    centauroExpanded,
+    centauroTab,
+    selectedSpeculativeId,
+    selectedCommit?.hash,
+    materializeIdea?.id,
+    materializeResult?.branchName,
+    materializeError,
+    selectedBranchDecision?.outcome,
+    selectedBranchMaterialization?.materializedRef,
+    useTallMaterializationLayout,
+    allDecisions.length,
+  ]);
+
+  useLayoutEffect(() => {
+    if (!centauroExpanded || isCentauroDragging) return;
+    if (lastCentauroAutoFitSignatureRef.current === centauroContentSignature) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const tabBarHeight = centauroTabBarRef.current?.getBoundingClientRect().height ?? 0;
+      const body = centauroBodyRef.current;
+      if (!body) return;
+      const bodyContent = body.firstElementChild instanceof HTMLElement ? body.firstElementChild : null;
+
+      const maxH = getMaxCentauroHeight();
+      const bodyContentHeight = bodyContent
+        ? Math.max(bodyContent.scrollHeight, bodyContent.getBoundingClientRect().height)
+        : body.scrollHeight;
+      const contentHeight = tabBarHeight + bodyContentHeight + 2;
+      const minReadableHeight = isMaterializationMode ? 680 : 120;
+      const desiredHeight = Math.max(minReadableHeight, Math.ceil(contentHeight));
+      const nextHeight = Math.max(120, Math.min(maxH, desiredHeight));
+
+      setCentauroHeight((prev) => {
+        if (Math.abs(prev - nextHeight) < 2) return prev;
+        return nextHeight;
+      });
+      try {
+        localStorage.setItem('gitcron:centauroHeightPx', String(nextHeight));
+      } catch {
+        /* ignore storage failures */
+      }
+      lastCentauroAutoFitSignatureRef.current = centauroContentSignature;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [centauroContentSignature, centauroExpanded, getMaxCentauroHeight, isCentauroDragging, isMaterializationMode]);
+
+  useEffect(() => {
+    if (!centauroExpanded) {
+      lastCentauroAutoFitSignatureRef.current = null;
+    }
+  }, [centauroExpanded]);
 
   function openMaterializeConfirm() {
     if (!selectedSpeculativeId) return;
+    if (selectedBranchMaterialization) return;
     const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
     if (!node) return;
     const b = node.branch;
@@ -690,7 +782,8 @@ export function ChronometricGraph({
     // Backup height and auto-expand to widescreen content height clamped below lateral panels
     setPreviousCentauroHeight(centauroHeight);
     const maxH = getMaxCentauroHeight();
-    const targetH = Math.min(680, maxH);
+    lastCentauroAutoFitSignatureRef.current = null;
+    const targetH = Math.min(Math.max(centauroHeight, 680), maxH);
     setCentauroHeight(targetH);
     localStorage.setItem('gitcron:centauroHeightPx', String(targetH));
 
@@ -720,21 +813,35 @@ export function ChronometricGraph({
 
   async function confirmMaterialize() {
     if (!materializeIdea || !repoPath) return;
+    const alreadyMaterialized = allDecisions.some((d) =>
+      d.branchId === materializeIdea.id
+      && (d.persistenceDecision === 'materialized' || Boolean(d.materializedRef))
+    );
+    if (alreadyMaterialized) {
+      setMaterializeError(t('materialize.alreadyDone'));
+      return;
+    }
     setMaterializing(true);
     setMaterializeError(null);
     try {
       const res = await window.api.materializeIdea(repoPath, materializeIdea);
       if (res.success && res.data) {
         setMaterializeResult(res.data);
-        // Record the accepted decision so future predictions learn from it.
-        await window.api.temporalAgent.recordDecision(repoPath, repoName ?? 'repo', {
+        // Record the materialization as distinct from a plain accept.
+        const decision: TemporalAgentDecision = {
           date: new Date().toISOString(),
+          branchId: materializeIdea.id,
           suggestionTitle: materializeIdea.title,
           type: materializeIdea.type,
           outcome: 'accepted',
           confidence: materializeIdea.confidence,
+          persistenceDecision: 'materialized',
+          materializedRef: res.data.branchName,
           impact: `Materialized as ${res.data.branchName} (${res.data.tagName}).`,
-        });
+        };
+        await window.api.temporalAgent.recordDecision(repoPath, repoName ?? 'repo', decision);
+        setDecisions((prev) => ({ ...prev, [materializeIdea.id]: decision }));
+        setAllDecisions((prev) => [decision, ...prev]);
         await loadAll(repoPath);
       } else {
         setMaterializeError(res.error ?? 'Materialization failed');
@@ -2498,7 +2605,7 @@ export function ChronometricGraph({
             {centauroExpanded && (
               <div className="flex flex-col rounded-b-xl h-full" style={{ maxHeight: `${centauroHeight}px` }}>
                 {/* Tab bar */}
-                <div className="flex items-center border-b border-[#5ed8ff]/15 px-4">
+                <div ref={centauroTabBarRef} className="flex items-center border-b border-[#5ed8ff]/15 px-4">
                   <button
                     onClick={() => setCentauroTab('report')}
                     className={cn(
@@ -2524,14 +2631,14 @@ export function ChronometricGraph({
                 </div>
 
                 {/* Tab content */}
-                <div className={cn(
+                <div ref={centauroBodyRef} className={cn(
                   "flex-1 rounded-b-xl",
-                  materializeIdea && materializePlan && isTallMode ? "overflow-hidden flex flex-col" : "overflow-y-auto"
+                  isMaterializationMode && useTallMaterializationLayout ? "overflow-hidden flex flex-col" : "overflow-y-auto"
                 )}>
                   {centauroTab === 'report' ? (
                     <div className={cn(
                       "px-4 py-3 font-mono",
-                      materializeIdea && materializePlan && isTallMode ? "h-full flex flex-col overflow-hidden" : ""
+                      isMaterializationMode && useTallMaterializationLayout ? "h-full flex flex-col overflow-hidden" : ""
                     )}>
                     {materializeIdea && materializePlan ? (
                       /* ---- INLINE MATERIALIZATION CONFIRMATION / SUCCESS ---- */
@@ -2589,7 +2696,7 @@ export function ChronometricGraph({
                             </div>
                           </div>
 
-                          {isTallMode ? (
+                          {useTallMaterializationLayout ? (
                             /* ---- TALL MODE: Stacked Layout (Compact Header + Full-width IDEA.md below) ---- */
                             <div className="flex flex-col gap-3 flex-1 overflow-hidden mt-1 select-text">
                               {/* Compact Header metadata */}
@@ -2685,9 +2792,16 @@ export function ChronometricGraph({
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); openMaterializeConfirm(); }}
-                              className="px-3 py-1.5 bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/40 hover:bg-[#a3f185]/25 hover:border-[#a3f185]/70 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150"
+                              disabled={Boolean(selectedBranchMaterialization)}
+                              title={selectedBranchMaterialization?.materializedRef ?? undefined}
+                              className={cn(
+                                'px-3 py-1.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase transition-all duration-150',
+                                selectedBranchMaterialization
+                                  ? 'bg-[#a3f185]/10 text-[#a3f185]/70 border border-[#a3f185]/25 cursor-not-allowed'
+                                  : 'bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/40 hover:bg-[#a3f185]/25 hover:border-[#a3f185]/70 cursor-pointer',
+                              )}
                             >
-                              {t('centauro.materialize')}
+                              {selectedBranchMaterialization ? t('materialize.alreadyButton') : t('centauro.materialize')}
                             </button>
                           </div>
                         </div>
@@ -2719,6 +2833,22 @@ export function ChronometricGraph({
                             <span>{t('centauro.typeLabel')} <span className="text-[#5ed8ff]">{selectedSpeculativeBranch?.type}</span></span>
                             <span>{t('centauro.confidenceLabel')} <span className="text-[#5ed8ff]">{Math.round((selectedSpeculativeBranch?.confidence ?? 0) * 100)}%</span></span>
                           </div>
+
+                          {selectedBranchMaterialization && (
+                            <div className="border border-[#a3f185]/25 bg-[#a3f185]/[0.06] rounded-md px-3 py-2 text-[10px] leading-relaxed">
+                              <div className="text-[#a3f185] font-bold uppercase tracking-wider">
+                                {t('materialize.alreadyHeading')}
+                              </div>
+                              <div className="text-[#d9e7fc]/80 mt-1">
+                                {t('materialize.alreadyDesc')}{' '}
+                                {selectedBranchMaterialization.materializedRef && (
+                                  <span className="text-[#a3f185] font-bold font-mono break-all">
+                                    {selectedBranchMaterialization.materializedRef}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
 
                           {/* Juzgar buttons */}
                           <div className="flex items-center gap-2 pt-1 border-t border-[#d9e7fc]/10">

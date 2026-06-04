@@ -87,7 +87,8 @@ function buildNewPrediction(
     inputHash,
     generatedAt: args.result.generatedAt,
     branches: args.result.branches.map((branch) => ({
-      sourceId: branch.id,
+      id: branch.id,
+      sourceId: branch.sourceId,
       message: branch.message,
       rationale: branch.rationale,
       type: branch.type,

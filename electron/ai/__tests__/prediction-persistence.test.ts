@@ -35,6 +35,9 @@ const notes: TemporalAgentNotes = {
   summary: { accepted: 0, rejected: 0, deferred: 0, rejectedThemes: [] },
 };
 
+const branchOneId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const branchTwoId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
 const predictionInput: PredictionInput = {
   commitMessages: ['feat: add temporal agent', 'fix: keep sqlite local'],
   languages: ['TypeScript', 'Electron'],
@@ -51,14 +54,16 @@ const result: PredictionResult = {
   generatedAt: '2026-06-03T12:00:00.000Z',
   branches: [
     {
-      id: 'branch-1',
+      id: branchOneId,
+      sourceId: 'llm-branch-1',
       message: 'Persist prediction history',
       rationale: 'SQLite is now available in the main process.',
       type: 'improvement',
       confidence: 0.82,
     },
     {
-      id: 'branch-2',
+      id: branchTwoId,
+      sourceId: 'llm-branch-2',
       message: 'Add calibration dashboard later',
       rationale: 'Historical confidence/outcome pairs enable analysis.',
       type: 'trend',
@@ -122,7 +127,8 @@ describe('Temporal Agent prediction persistence wiring', () => {
       const branches = getBranchesForRun(runs[0].id, { db });
       expect(branches).toHaveLength(2);
       expect(branches[0]).toMatchObject({
-        sourceId: 'branch-1',
+        id: branchOneId,
+        sourceId: 'llm-branch-1',
         message: 'Persist prediction history',
         rationale: 'SQLite is now available in the main process.',
         type: 'improvement',
@@ -130,10 +136,39 @@ describe('Temporal Agent prediction persistence wiring', () => {
         description: null,
       });
       expect(branches[1]).toMatchObject({
-        sourceId: 'branch-2',
+        id: branchTwoId,
+        sourceId: 'llm-branch-2',
         type: 'trend',
         confidence: 0.64,
         description: null,
+      });
+    });
+  });
+
+  it('persists null source_id when the provider did not emit a source id', async () => {
+    await withDb(async (db) => {
+      await persistPredictionRun({
+        repoPath: 'C:/work/no-source-id',
+        config,
+        providerId: 'openrouter',
+        predictionInput,
+        result: {
+          ...result,
+          branches: [{
+            ...result.branches[0],
+            id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            sourceId: null,
+          }],
+        },
+      }, {
+        insertPrediction: insertForTest(db),
+        readHeadSha: async () => 'abc123head',
+      });
+
+      const run = getAllRuns({ db })[0];
+      expect(getBranchesForRun(run.id, { db })[0]).toMatchObject({
+        id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        sourceId: null,
       });
     });
   });

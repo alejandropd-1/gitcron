@@ -18,7 +18,7 @@ import type {
 
 const PREDICTION_TYPES = new Set<PredictionType>(['improvement', 'breakthrough', 'trend']);
 const CONTEXT_SCOPES = new Set<ContextScope>(['metadata', 'metadata_filenames']);
-const DECISIONS = new Set<DecisionKind>(['deferred', 'rejected', 'materialized']);
+const DECISIONS = new Set<DecisionKind>(['accepted', 'deferred', 'rejected', 'materialized']);
 
 interface RepositoryOptions {
   db?: DatabaseSync;
@@ -110,13 +110,12 @@ export function insertPrediction(
 
     for (const branch of input.branches) {
       validateBranch(branch);
-      const branchId = randomUUID();
       db.prepare(`
         INSERT INTO speculative_branch (
           id, run_id, source_id, message, description, rationale, type, confidence
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        branchId,
+        branch.id,
         runId,
         branch.sourceId ?? null,
         branch.message,
@@ -125,7 +124,7 @@ export function insertPrediction(
         branch.type,
         branch.confidence,
       );
-      branchIds.push(branchId);
+      branchIds.push(branch.id);
     }
 
     db.exec('COMMIT');
@@ -157,7 +156,7 @@ export function insertDecision(
     input.decision,
     input.materializedRef ?? null,
     input.note ?? null,
-    timestamp(options),
+    input.decidedAt ?? timestamp(options),
   );
 
   return { decisionId };
@@ -211,8 +210,15 @@ export function getLatestDecision(
 }
 
 function validateBranch(branch: NewSpeculativeBranch): void {
+  validateBranchId(branch.id);
   validatePredictionType(branch.type);
   validateConfidence(branch.confidence);
+}
+
+function validateBranchId(branchId: string): void {
+  if (typeof branchId !== 'string' || branchId.trim().length === 0) {
+    throw new Error('Invalid branch id: expected a non-empty string');
+  }
 }
 
 function normalizeProvider(provider: ProviderId | null | undefined): string {

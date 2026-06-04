@@ -81,6 +81,7 @@ function DeferredPanelLoading() {
 const MOCK_SPECULATIVE: SpeculativeBranch[] = [
   {
     id: 'mock-1',
+    sourceId: null,
     message: 'Extract IPC layer into a typed contract module',
     rationale:
       'Los commits recientes tocan electron/main.ts una y otra vez para sumar handlers. Un contrato IPC tipado y compartido cortaría ese churn y reduciría el riesgo en el bridge del preload.',
@@ -89,6 +90,7 @@ const MOCK_SPECULATIVE: SpeculativeBranch[] = [
   },
   {
     id: 'mock-2',
+    sourceId: null,
     message: 'Add a streaming prediction mode for large repos',
     rationale:
       'El armado de contexto ya lee hasta 40 commits; transmitir la salida del modelo mantendría la UI fluida en historiales grandes.',
@@ -97,6 +99,7 @@ const MOCK_SPECULATIVE: SpeculativeBranch[] = [
   },
   {
     id: 'mock-3',
+    sourceId: null,
     message: 'Surface forecasting-doctrine confidence inline on the diagonal',
     rationale:
       'La doctrina ata la confianza a la entropía del repo. Mostrar el "por qué 0.7 y no 0.9" junto a cada rama refuerza la calibración honesta.',
@@ -370,6 +373,7 @@ export default function GitCronPage() {
       if (r.success && r.data) {
         // Patch predictionIndex on old branches that don't have it yet.
         r.data.branches.forEach((b: SpeculativeBranch, i: number) => {
+          if (b.sourceId === undefined) b.sourceId = null;
           if (b.predictionIndex == null) b.predictionIndex = i + 1;
         });
         setRawSpeculativeBranches(r.data.branches);
@@ -2348,6 +2352,7 @@ export default function GitCronPage() {
               repoName={openRepos[activeRepoIdx]?.name ?? 'repo'}
               onTemporalPrediction={(r) => {
                 r.branches.forEach((b: any, i: number) => {
+                  if (b.sourceId === undefined) b.sourceId = null;
                   if (b.predictionIndex == null) b.predictionIndex = i + 1;
                 });
                 setRawSpeculativeBranches(r.branches);

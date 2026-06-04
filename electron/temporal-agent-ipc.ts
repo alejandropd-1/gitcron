@@ -15,6 +15,8 @@ import { app, ipcMain } from 'electron';
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { insertDecision } from './db/repository';
+import type { DecisionKind, NewDecision } from './db/types';
 import {
   type TemporalAgentConfig,
   type TemporalAgentNotes,
@@ -43,6 +45,13 @@ async function ensureDir(dir: string): Promise<void> {
 }
 
 const MAX_BYTES = 1_000_000; // hard ceiling so notes can't grow unbounded
+
+type InsertDecisionFn = (input: NewDecision) => { decisionId: string };
+
+interface RecordDecisionOptions {
+  insertDecision?: InsertDecisionFn;
+  logError?: (error: unknown) => void;
+}
 
 // ---------------------------------------------------------------------------
 // Config
@@ -94,10 +103,11 @@ async function saveNotes(repoPath: string, notes: TemporalAgentNotes): Promise<v
 }
 
 /** Append a decision, keep the log capped, roll older entries into the summary. */
-async function recordDecision(
+export async function recordDecision(
   repoPath: string,
   repoName: string,
   decision: TemporalAgentDecision,
+  options: RecordDecisionOptions = {},
 ): Promise<TemporalAgentNotes> {
   const notes = await loadNotes(repoPath, repoName);
   notes.decisions.unshift(decision); // newest first
@@ -108,7 +118,61 @@ async function recordDecision(
     notes.summary = rollUp(notes.summary, overflow);
   }
   await saveNotes(repoPath, notes);
+  persistDecisionBestEffort(decision, options);
   return notes;
+}
+
+function persistDecisionBestEffort(decision: TemporalAgentDecision, options: RecordDecisionOptions): void {
+  try {
+    (options.insertDecision ?? insertDecision)(buildNewDecision(decision));
+  } catch (error) {
+    if (options.logError) {
+      options.logError(error);
+    } else {
+      console.error('[temporal-agent-db] decision persistence miss:', sanitizeForLog(error));
+    }
+  }
+}
+
+function buildNewDecision(decision: TemporalAgentDecision): NewDecision {
+  return {
+    branchId: decision.branchId,
+    decision: decision.persistenceDecision ?? mapDecisionOutcome(decision.outcome),
+    materializedRef: decision.materializedRef ?? null,
+    note: decision.reasoning ?? null,
+    decidedAt: decision.date,
+  };
+}
+
+export function mapDecisionOutcome(outcome: TemporalAgentDecision['outcome']): DecisionKind {
+  switch (outcome) {
+    case 'accepted':
+      return 'accepted';
+    case 'rejected':
+      return 'rejected';
+    case 'deferred':
+      return 'deferred';
+    default: {
+      const exhaustive: never = outcome;
+      throw new Error(`Unsupported decision outcome: ${exhaustive}`);
+    }
+  }
+}
+
+function sanitizeForLog(value: unknown): string {
+  let str: string;
+  try {
+    str = typeof value === 'string'
+      ? value
+      : value instanceof Error
+        ? `${value.name}: ${value.message}`
+        : JSON.stringify(value);
+  } catch {
+    str = String(value);
+  }
+  return str
+    .replace(/(x-access-token:)[^@]+@/g, '$1[REDACTED]@')
+    .replace(/(AUTHORIZATION:\s*basic\s+)[A-Za-z0-9+/=]+/gi, '$1[REDACTED]');
 }
 
 function rollUp(prev: DecisionSummary, overflow: TemporalAgentDecision[]): DecisionSummary {

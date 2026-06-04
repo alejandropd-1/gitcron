@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { openTemporalAgentDatabase } from '../connection';
 import {
@@ -37,6 +38,7 @@ function basePrediction(overrides: Partial<NewPrediction> = {}): NewPrediction {
     generatedAt: '2026-06-03T10:00:00.000Z',
     branches: [
       {
+        id: randomUUID(),
         sourceId: 'branch-1',
         message: 'Extract IPC layer into a typed contract module',
         rationale: 'Recent commits keep touching Electron handlers.',
@@ -44,6 +46,7 @@ function basePrediction(overrides: Partial<NewPrediction> = {}): NewPrediction {
         confidence: 0.82,
       },
       {
+        id: randomUUID(),
         sourceId: 'branch-2',
         message: 'Add prediction history search',
         rationale: 'Persisted runs will need basic navigation later.',
@@ -51,6 +54,7 @@ function basePrediction(overrides: Partial<NewPrediction> = {}): NewPrediction {
         confidence: 0.61,
       },
       {
+        id: randomUUID(),
         sourceId: 'branch-3',
         message: 'Introduce speculative replay mode',
         rationale: 'The historical data can support richer future analysis.',
@@ -83,11 +87,11 @@ function tableCount(db: DatabaseSync, table: string): number {
 describe('Temporal Agent repository', () => {
   it('inserts a prediction batch and reads its run and branches back', () => {
     withDb((db) => {
-      const result = insertPrediction(basePrediction(), repositoryOptions(db));
+      const predictionInput = basePrediction();
+      const result = insertPrediction(predictionInput, repositoryOptions(db));
 
       expectUuid(result.runId);
-      expect(result.branchIds).toHaveLength(3);
-      result.branchIds.forEach(expectUuid);
+      expect(result.branchIds).toEqual(predictionInput.branches.map((branch) => branch.id));
 
       const runs = getRunsForRepo('C:/work/repo', { db });
       expect(runs).toHaveLength(1);
@@ -127,6 +131,7 @@ describe('Temporal Agent repository', () => {
           inputHash: 'input-hash-1',
           branches: [
             {
+              id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
               sourceId: 'with-description',
               message: 'Describe the idea',
               description: 'A concise proposal description.',
@@ -143,6 +148,7 @@ describe('Temporal Agent repository', () => {
           repoPath: 'C:/work/other',
           branches: [
             {
+              id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
               message: 'No optional fields',
               rationale: 'Older prediction outputs may omit optional fields.',
               type: 'trend',
@@ -179,12 +185,14 @@ describe('Temporal Agent repository', () => {
           basePrediction({
             branches: [
               {
+                id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
                 message: 'Valid first branch',
                 rationale: 'This should still roll back with the batch.',
                 type: 'improvement',
                 confidence: 0.3,
               },
               {
+                id: '99999999-9999-4999-8999-999999999999',
                 message: 'Invalid branch',
                 rationale: 'Confidence is not normalized.',
                 type: 'trend',
@@ -268,6 +276,7 @@ describe('Temporal Agent repository', () => {
         basePrediction({
           branches: [{
             message: 'Invalid type',
+            id: '12121212-1212-4212-8212-121212121212',
             rationale: 'Types are validated in access layer.',
             type: 'refactor' as NewPrediction['branches'][number]['type'],
             confidence: 0.5,
@@ -279,6 +288,7 @@ describe('Temporal Agent repository', () => {
         basePrediction({
           branches: [{
             message: 'Invalid confidence',
+            id: '34343434-3434-4434-8434-343434343434',
             rationale: 'Do not clamp confidence.',
             type: 'trend',
             confidence: -0.1,
@@ -292,12 +302,14 @@ describe('Temporal Agent repository', () => {
           repoPath: 'C:/work/confidence-edges',
           branches: [
             {
+              id: '56565656-5656-4656-8656-565656565656',
               message: 'Zero confidence edge',
               rationale: 'A normalized lower-bound confidence is valid.',
               type: 'improvement',
               confidence: 0,
             },
             {
+              id: '78787878-7878-4787-8787-787878787878',
               message: 'One confidence edge',
               rationale: 'A normalized upper-bound confidence is valid.',
               type: 'trend',
@@ -309,9 +321,27 @@ describe('Temporal Agent repository', () => {
       );
       expect(getBranchesForRun(edges.runId, { db }).map((branch) => branch.confidence)).toEqual([0, 1]);
 
+      expect(() => insertPrediction(
+        basePrediction({
+          branches: [{
+            id: '   ',
+            message: 'Invalid branch id',
+            rationale: 'Branch ids are minted before repository insertion.',
+            type: 'trend',
+            confidence: 0.5,
+          }],
+        }),
+        repositoryOptions(db),
+      )).toThrow(/branch id/i);
+
       const prediction = insertPrediction(basePrediction(), repositoryOptions(db));
+      insertDecision(
+        { branchId: prediction.branchIds[0], decision: 'accepted' },
+        repositoryOptions(db),
+      );
+      expect(getDecisionsForBranch(prediction.branchIds[0], { db })[0].decision).toBe('accepted');
       expect(() => insertDecision(
-        { branchId: prediction.branchIds[0], decision: 'accepted' as never },
+        { branchId: prediction.branchIds[0], decision: 'unknown' as never },
         repositoryOptions(db),
       )).toThrow(/decision/i);
     });

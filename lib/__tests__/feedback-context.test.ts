@@ -21,10 +21,10 @@ const notes: TemporalAgentNotes = {
   repoName: 'GitCron',
   lastUpdated: '2026-05-28T19:00:00Z',
   decisions: [
-    { date: '2026-05-28', suggestionTitle: 'Add code signing', type: 'improvement', outcome: 'accepted', confidence: 0.8 },
-    { date: '2026-05-27', suggestionTitle: 'Migrate to Redux', type: 'breakthrough', outcome: 'rejected', confidence: 0.3 },
-    { date: '2026-05-26', suggestionTitle: 'PR diff view', type: 'improvement', outcome: 'deferred', confidence: 0.6 },
-    { date: '2026-05-25', suggestionTitle: 'Add code signing', type: 'improvement', outcome: 'accepted', confidence: 0.7 }, // dup
+    { date: '2026-05-28', branchId: 'branch-1', suggestionTitle: 'Add code signing', type: 'improvement', outcome: 'accepted', confidence: 0.8 },
+    { date: '2026-05-27', branchId: 'branch-2', suggestionTitle: 'Migrate to Redux', type: 'breakthrough', outcome: 'rejected', confidence: 0.3 },
+    { date: '2026-05-26', branchId: 'branch-3', suggestionTitle: 'PR diff view', type: 'improvement', outcome: 'deferred', confidence: 0.6 },
+    { date: '2026-05-25', branchId: 'branch-4', suggestionTitle: 'Add code signing', type: 'improvement', outcome: 'accepted', confidence: 0.7 }, // dup
   ],
   summary: { accepted: 0, rejected: 0, deferred: 0, rejectedThemes: ['canvas rewrite'] },
 };

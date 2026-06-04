@@ -42,12 +42,15 @@ export interface TemporalAgentConfig {
 }
 
 export type DecisionOutcome = 'accepted' | 'rejected' | 'deferred';
+export type PersistedDecisionKind = 'accepted' | 'materialized' | 'rejected' | 'deferred';
 export type SpeculativeType = 'improvement' | 'breakthrough' | 'trend';
 
 /** One logged decision. Canonical data lives in notes.json. */
 export interface TemporalAgentDecision {
   /** ISO timestamp. */
   date: string;
+  /** GitCron-minted UUID of the speculative branch being decided. */
+  branchId: string;
   /** The prediction's title at the time it was shown. */
   suggestionTitle: string;
   type: SpeculativeType;
@@ -56,6 +59,10 @@ export interface TemporalAgentDecision {
   confidence: number;
   /** Optional free-text reason the user gave. */
   reasoning?: string;
+  /** Optional SQLite decision override for actions distinct from judge buttons. */
+  persistenceDecision?: PersistedDecisionKind;
+  /** Real ref created when the idea was materialized, if available. */
+  materializedRef?: string;
   /** Optional note on how this should shape future analysis. */
   impact?: string;
 }
@@ -95,7 +102,10 @@ export interface PredictionInput {
 }
 
 export interface SpeculativeBranch {
+  /** GitCron-minted UUID shared by the HUD, notes JSON, and SQLite PK. */
   id: string;
+  /** Provider/LLM-emitted id when present; provenance only. */
+  sourceId: string | null;
   message: string;
   rationale: string;
   /** Extended reasoning (3-5 sentences of plain prose). Optional for backward compatibility. */

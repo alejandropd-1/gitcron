@@ -1,7 +1,7 @@
 export type ProviderId = string;
 export type PredictionType = 'improvement' | 'breakthrough' | 'trend';
 export type ContextScope = 'metadata' | 'metadata_filenames';
-export type DecisionKind = 'deferred' | 'rejected' | 'materialized';
+export type DecisionKind = 'accepted' | 'deferred' | 'rejected' | 'materialized';
 
 export interface DeviceIdentity {
   deviceId: string;
@@ -9,7 +9,8 @@ export interface DeviceIdentity {
 }
 
 export interface NewSpeculativeBranch {
-  sourceId?: string;
+  id: string;
+  sourceId?: string | null;
   message: string;
   description?: string;
   rationale: string;
@@ -33,8 +34,9 @@ export interface NewPrediction {
 export interface NewDecision {
   branchId: string;
   decision: DecisionKind;
-  materializedRef?: string;
-  note?: string;
+  materializedRef?: string | null;
+  note?: string | null;
+  decidedAt?: string;
 }
 
 export interface PredictionRunRow {

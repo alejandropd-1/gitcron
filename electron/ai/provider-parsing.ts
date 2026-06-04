@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { SpeculativeBranch } from '../../types/temporal-agent';
 
 type BranchType = SpeculativeBranch['type'];
@@ -67,7 +68,7 @@ function normalizeConfidence(value: unknown): number {
 export function normalizeBranch(raw: unknown): SpeculativeBranch | null {
   if (!raw || typeof raw !== 'object') return null;
   const b = raw as RawBranch;
-  const id = firstString(b.id, b.id_especulativa) ?? `branch-${Math.random().toString(36).slice(2, 9)}`;
+  const sourceId = firstString(b.id, b.id_especulativa) ?? null;
   const reasoning = firstString(
     b.reasoning,
     b.razonamiento,
@@ -84,7 +85,8 @@ export function normalizeBranch(raw: unknown): SpeculativeBranch | null {
   );
 
   return {
-    id,
+    id: randomUUID(),
+    sourceId,
     message: normalizeMessage(b),
     rationale: normalizeRationale(b),
     type: normalizeBranchType(b.type ?? b.tipo),

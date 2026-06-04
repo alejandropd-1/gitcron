@@ -58,7 +58,7 @@ interface Props {
   onSelect?: (id: string) => void;
   /** ID of the currently selected speculative branch. */
   selectedBranchId?: string | null;
-  /** Capa 2a — per-branch decisions keyed by branch message (title). */
+  /** Capa 2a — per-branch decisions keyed by branch id, with title fallback for old notes. */
   decisions?: Record<string, TemporalAgentDecision>;
   /** Capa 2a — true when at least one branch has been decided. */
   hasAnyDecision?: boolean;
@@ -81,7 +81,7 @@ export function SpeculativeBranches({
     <g data-layer="speculative" pointerEvents="visiblePainted">
       {nodes.map((n, nodeIdx) => {
         const baseOpacity = speculativeOpacity(n.branch.confidence);
-        const decision = decisions[n.branch.message];
+        const decision = decisions[n.branch.id] ?? decisions[n.branch.message];
         const isDecided = !!decision;
         const dimFactor = hasAnyDecision && !isDecided ? 0.3 : 1;
         const opacity = baseOpacity * dimFactor;

@@ -28,7 +28,7 @@ import { SettingsPanel } from '@/components/SettingsPanel';
 import { HelpPanel } from '@/components/HelpPanel';
 import { ProfilePanel } from '@/components/ProfilePanel';
 import { DiffViewer } from '@/components/DiffViewer';
-import { CommitGraph } from '@/components/CommitGraph';
+import { CommitGraph, commitHasBranchRef, normalizeBranchName, type CommitSelectOptions } from '@/components/CommitGraph';
 import { ConflictResolver } from '@/components/ConflictResolver';
 import { StagingPanel } from '@/components/StagingPanel';
 import { HistoryView, CommitTabView } from '@/components/RepoContentViews';
@@ -685,6 +685,7 @@ export default function GitCronPage() {
 
 
   const [filterText, setFilterText] = useState('');
+  const [selectedBranchName, setSelectedBranchName] = useState<string | null>(null);
   const filterInputRef = useRef<HTMLInputElement>(null);
   const [showSearchPopover, setShowSearchPopover] = useState(false);
   const [showBranchFilterDropdown, setShowBranchFilterDropdown] = useState(false);
@@ -709,6 +710,10 @@ export default function GitCronPage() {
   const [isStartupHydrated, setIsStartupHydrated] = useState(false);
   const [isStartupGraphReady, setIsStartupGraphReady] = useState(false);
   const changelogEntries = useMemo(() => parseChangelog(changelogRaw ?? ''), [changelogRaw]);
+
+  useEffect(() => {
+    setSelectedBranchName(null);
+  }, [repoPath]);
 
   // Auto-load repo data
   useEffect(() => {
@@ -1220,11 +1225,43 @@ export default function GitCronPage() {
     }
   };
 
-  const handleSelectCommit = (commit: Commit) => {
+  const resolveLocalBranchSelection = (commit: Commit, requestedBranchName?: string | null) => {
+    const candidates = [
+      requestedBranchName,
+      ...(commit.refs ?? []).map(normalizeBranchName),
+    ].filter((branch): branch is string => Boolean(branch));
+
+    for (const candidate of candidates) {
+      if (branches.includes(candidate)) return candidate;
+
+      const withoutRemotePrefix = candidate.replace(/^[^/]+\//, '');
+      if (withoutRemotePrefix !== candidate && branches.includes(withoutRemotePrefix)) {
+        return withoutRemotePrefix;
+      }
+    }
+
+    return null;
+  };
+
+  const handleSelectCommit = (commit: Commit, options?: CommitSelectOptions) => {
     setSelectedPullRequest(null);
     setPullRequestDiff(null);
     setPullRequestDiffLoading(false);
+    const localBranchName = resolveLocalBranchSelection(commit, options?.branchName);
+    if (localBranchName) {
+      setSelectedBranchName(localBranchName);
+    } else if (!options?.preserveBranchSelection) {
+      setSelectedBranchName(null);
+    }
     setSelectedCommit(commit);
+  };
+
+  const handleSelectBranchInGraph = (branch: string) => {
+    setSelectedBranchName(branch);
+    const targetCommit = commits.find((commit) => commitHasBranchRef(commit, branch));
+    if (targetCommit) {
+      handleSelectCommit(targetCommit, { preserveBranchSelection: true });
+    }
   };
 
   /**
@@ -1917,8 +1954,10 @@ export default function GitCronPage() {
                       <BranchTree
                         branches={branches}
                         currentBranch={currentBranch}
+                        selectedBranch={selectedBranchName}
                         tracking={branchTracking}
                         onCheckout={(b) => handleCheckoutAttempt(b)}
+                        onSelect={handleSelectBranchInGraph}
                         onContextMenu={(e, b) => {
                           e.preventDefault();
                           openBranchMenu({ x: e.clientX, y: e.clientY, branch: b });
@@ -2698,6 +2737,7 @@ export default function GitCronPage() {
                             <CommitGraph
                               commits={commits}
                               selectedHash={selectedCommit?.hash}
+                              selectedBranchName={selectedBranchName}
                               currentBranch={currentBranch}
                               workingTreeFiles={modifiedFiles}
                               filterText={filterText}
@@ -2758,6 +2798,7 @@ export default function GitCronPage() {
                           <ChronometricGraph
                             commits={commits}
                             selectedHash={selectedCommit?.hash}
+                            selectedBranchName={selectedBranchName}
                             currentBranch={currentBranch}
                             filterText={filterText}
                             onSelect={handleSelectCommit}

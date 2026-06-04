@@ -166,6 +166,28 @@ export function useCanvasViewport({
   const zoomIn = useCallback(() => zoomDiscrete(1.2), [zoomDiscrete]);
   const zoomOut = useCallback(() => zoomDiscrete(1 / 1.2), [zoomDiscrete]);
 
+  const focusWorldPoint = useCallback((point: Point) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const viewportWidth = container.clientWidth || 800;
+    const viewportHeight = container.clientHeight || 520;
+    const focusHeight = viewportHeight - topSafeOffset;
+
+    setViewport((current) => constrainViewport(
+      {
+        offsetX: viewportWidth / 2 - point.x * current.scale,
+        offsetY: topSafeOffset + focusHeight / 2 - point.y * current.scale,
+        scale: current.scale,
+      },
+      worldWidth,
+      worldHeight,
+      viewportWidth,
+      viewportHeight,
+      padding
+    ));
+  }, [worldWidth, worldHeight, padding, topSafeOffset]);
+
   // Drag Panning Event Handlers
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -274,6 +296,7 @@ export function useCanvasViewport({
     isDragging,
     handleMouseDown,
     resetViewport,
+    focusWorldPoint,
     zoomIn,
     zoomOut,
   };

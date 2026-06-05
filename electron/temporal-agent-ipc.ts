@@ -15,8 +15,20 @@ import { app, ipcMain } from 'electron';
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { insertDecision } from './db/repository';
-import type { DecisionKind, NewDecision } from './db/types';
+import {
+  getBranchesForRun,
+  getDecisionsForBranch,
+  getRunsForRepo,
+  insertDecision,
+} from './db/repository';
+import type {
+  BranchDecisionRow,
+  DecisionKind,
+  NewDecision,
+  PredictionHistoryEntry,
+  PredictionRunRow,
+  SpeculativeBranchRow,
+} from './db/types';
 import {
   type TemporalAgentConfig,
   type TemporalAgentNotes,
@@ -50,6 +62,13 @@ type InsertDecisionFn = (input: NewDecision) => { decisionId: string };
 
 interface RecordDecisionOptions {
   insertDecision?: InsertDecisionFn;
+  logError?: (error: unknown) => void;
+}
+
+interface PredictionHistoryOptions {
+  readRunsForRepo?: (repoPath: string) => PredictionRunRow[];
+  readBranchesForRun?: (runId: string) => SpeculativeBranchRow[];
+  readDecisionsForBranch?: (branchId: string) => BranchDecisionRow[];
   logError?: (error: unknown) => void;
 }
 
@@ -289,6 +308,42 @@ export async function loadPrediction(repoPath: string): Promise<PredictionResult
 }
 
 // ---------------------------------------------------------------------------
+// SQLite prediction history — read-only bridge for the renderer
+// ---------------------------------------------------------------------------
+
+export function getPredictionHistory(
+  repoPath: string,
+  options: PredictionHistoryOptions = {},
+): PredictionHistoryEntry[] {
+  if (typeof repoPath !== 'string' || repoPath.trim().length === 0) {
+    return [];
+  }
+
+  try {
+    const readRunsForRepo = options.readRunsForRepo ?? getRunsForRepo;
+    const readBranchesForRun = options.readBranchesForRun ?? getBranchesForRun;
+    const readDecisionsForBranch = options.readDecisionsForBranch ?? getDecisionsForBranch;
+
+    return [...readRunsForRepo(repoPath)]
+      .reverse()
+      .map((run) => ({
+        run,
+        branches: readBranchesForRun(run.id).map((branch) => ({
+          branch,
+          decisions: readDecisionsForBranch(branch.id),
+        })),
+      }));
+  } catch (error) {
+    if (options.logError) {
+      options.logError(error);
+    } else {
+      console.error('[temporal-agent-db] history read miss:', sanitizeForLog(error));
+    }
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
 // IPC registration (typed bridge; mirrors existing GitCron handler style)
 // ---------------------------------------------------------------------------
 
@@ -317,5 +372,8 @@ export function registerTemporalAgentHandlers(): void {
       await removeDecision(repoPath, repoName, suggestionTitle);
       return loadNotes(repoPath, repoName);
     },
+  );
+  ipcMain.handle('temporal-agent:get-history', (_e, repoPath: string) =>
+    getPredictionHistory(repoPath),
   );
 }

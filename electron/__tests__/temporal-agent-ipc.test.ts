@@ -4,9 +4,16 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeDatabase } from '../db/connection';
 import { DEVICE_IDENTITY_FILENAME } from '../db/device';
-import { getDecisionsForBranch, insertDecision, insertPrediction } from '../db/repository';
+import {
+  getBranchesForRun,
+  getDecisionsForBranch,
+  getRunsForRepo,
+  insertDecision,
+  insertPrediction,
+} from '../db/repository';
 import type { NewDecision, NewPrediction } from '../db/types';
 import {
+  getPredictionHistory,
   loadNotes,
   mapDecisionOutcome,
   recordDecision,
@@ -32,8 +39,9 @@ vi.mock('electron', () => ({
 
 const DEVICE_ID = '11111111-1111-4111-8111-111111111111';
 const BRANCH_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const SECOND_BRANCH_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
-function basePrediction(): NewPrediction {
+function basePrediction(overrides: Partial<NewPrediction> = {}): NewPrediction {
   return {
     repoPath: 'C:/work/repo',
     provider: 'deepseek',
@@ -50,6 +58,7 @@ function basePrediction(): NewPrediction {
       type: 'improvement',
       confidence: 0.84,
     }],
+    ...overrides,
   };
 }
 
@@ -167,6 +176,82 @@ describe('Temporal Agent decision persistence wiring', () => {
 
     const decisions = getDecisionsForBranch(BRANCH_ID, { userDataPath: electronMock.userDataPath });
     expect(decisions.map((decision) => decision.decision)).toEqual(['rejected', 'deferred']);
+  });
+
+  it('reads SQLite prediction history newest first with nested branches and decisions', () => {
+    const older = insertPrediction(basePrediction({
+      generatedAt: '2026-06-04T10:00:00.000Z',
+    }), {
+      userDataPath: electronMock.userDataPath,
+      appVersion: '1.7.0-test',
+      now: () => '2026-06-04T10:00:00.500Z',
+    });
+    insertDecision({
+      branchId: BRANCH_ID,
+      decision: 'accepted',
+      note: 'Keep the IPC bridge small.',
+      decidedAt: '2026-06-04T10:00:01.000Z',
+    }, {
+      userDataPath: electronMock.userDataPath,
+    });
+
+    const newer = insertPrediction(basePrediction({
+      generatedAt: '2026-06-04T11:00:00.000Z',
+      branches: [{
+        id: SECOND_BRANCH_ID,
+        sourceId: 'llm-branch-2',
+        message: 'Expose prediction history',
+        description: 'Return runs with branches and append-only decisions.',
+        rationale: 'The HUD needs durable history in a later UI phase.',
+        type: 'trend',
+        confidence: 0.7,
+      }],
+    }), {
+      userDataPath: electronMock.userDataPath,
+      appVersion: '1.7.0-test',
+      now: () => '2026-06-04T11:00:00.500Z',
+    });
+    insertDecision({
+      branchId: SECOND_BRANCH_ID,
+      decision: 'deferred',
+      decidedAt: '2026-06-04T11:00:01.000Z',
+    }, {
+      userDataPath: electronMock.userDataPath,
+    });
+    insertDecision({
+      branchId: SECOND_BRANCH_ID,
+      decision: 'materialized',
+      materializedRef: 'flight/read-history',
+      decidedAt: '2026-06-04T11:00:02.000Z',
+    }, {
+      userDataPath: electronMock.userDataPath,
+    });
+
+    const history = getPredictionHistory('C:/work/repo', {
+      readRunsForRepo: (repoPath) => getRunsForRepo(repoPath, { userDataPath: electronMock.userDataPath }),
+      readBranchesForRun: (runId) => getBranchesForRun(runId, { userDataPath: electronMock.userDataPath }),
+      readDecisionsForBranch: (branchId) => getDecisionsForBranch(branchId, {
+        userDataPath: electronMock.userDataPath,
+      }),
+    });
+
+    expect(history.map((entry) => entry.run.id)).toEqual([newer.runId, older.runId]);
+    expect(history[0].branches).toHaveLength(1);
+    expect(history[0].branches[0].branch).toMatchObject({
+      id: SECOND_BRANCH_ID,
+      description: 'Return runs with branches and append-only decisions.',
+    });
+    expect(history[0].branches[0].decisions.map((decision) => decision.decision)).toEqual([
+      'deferred',
+      'materialized',
+    ]);
+    expect(history[1].branches[0].decisions[0]).toMatchObject({
+      branchId: BRANCH_ID,
+      decision: 'accepted',
+    });
+    expect(getPredictionHistory('C:/work/empty', {
+      readRunsForRepo: (repoPath) => getRunsForRepo(repoPath, { userDataPath: electronMock.userDataPath }),
+    })).toEqual([]);
   });
 
   it('does not propagate insertDecision failures and still writes JSON notes', async () => {

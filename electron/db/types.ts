@@ -76,3 +76,11 @@ export interface BranchDecisionRow {
   note: string | null;
   decidedAt: string;
 }
+
+export interface PredictionHistoryEntry {
+  run: PredictionRunRow;
+  branches: Array<{
+    branch: SpeculativeBranchRow;
+    decisions: BranchDecisionRow[];
+  }>;
+}

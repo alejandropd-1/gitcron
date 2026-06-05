@@ -6,6 +6,7 @@ import type {
   MaterializeIdeaInput,
   MaterializationResult,
 } from './temporal-agent';
+import type { PredictionHistoryEntry } from '../electron/db/types';
 
 interface GitResult<T = unknown> {
   success: boolean;
@@ -270,6 +271,7 @@ interface ElectronAPI {
       repoName: string,
       suggestionTitle: string,
     ): Promise<TemporalAgentNotes>;
+    getHistory(repoPath: string): Promise<PredictionHistoryEntry[]>;
   };
 }
 

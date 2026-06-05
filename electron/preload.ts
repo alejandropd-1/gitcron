@@ -191,5 +191,7 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('temporal-agent:record-decision', repoPath, repoName, decision),
     removeDecision: (repoPath: string, repoName: string, suggestionTitle: string) =>
       ipcRenderer.invoke('temporal-agent:remove-decision', repoPath, repoName, suggestionTitle),
+    getHistory: (repoPath: string) =>
+      ipcRenderer.invoke('temporal-agent:get-history', repoPath),
   },
 });

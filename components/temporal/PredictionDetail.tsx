@@ -14,6 +14,11 @@ const DECISION_COLOR: Record<DecisionKind, string> = {
   undecided: '#697789',
 };
 
+const REF_STATUS_COLOR = {
+  active: '#a3f185',
+  deleted: '#9ba7bb',
+};
+
 interface PredictionDetailProps {
   run: PredictionRunRow;
   branch: SpeculativeBranchRow;
@@ -189,21 +194,25 @@ export function PredictionDetail({
                       <span
                         className={cn(
                           'break-all rounded border px-1.5 py-0.5 font-mono',
-                          refExists
-                            ? 'border-[#a3f185]/25 bg-[#a3f185]/8 text-[#a3f185]/85'
-                            : 'border-[#697789]/25 bg-[#697789]/8 text-[#697789]/70 line-through',
+                          !refExists && 'line-through',
                         )}
+                        style={{
+                          color: refExists ? `${REF_STATUS_COLOR.active}d9` : `${REF_STATUS_COLOR.deleted}cc`,
+                          borderColor: `${refExists ? REF_STATUS_COLOR.active : REF_STATUS_COLOR.deleted}40`,
+                          background: `${refExists ? REF_STATUS_COLOR.active : REF_STATUS_COLOR.deleted}14`,
+                        }}
                       >
                         {materializedRef}
                       </span>
                       <span
-                        className={cn(
-                          'rounded border px-1.5 py-0.5 font-bold uppercase tracking-wider',
-                          refExists
-                            ? 'border-[#a3f185]/25 text-[#a3f185]/80'
-                            : 'border-[#697789]/25 text-[#697789]/70',
-                        )}
+                        className="rounded border px-1.5 py-0.5 font-bold uppercase tracking-wider shadow-[0_0_12px_rgba(155,167,187,0.12)]"
+                        style={{
+                          color: refExists ? `${REF_STATUS_COLOR.active}d9` : REF_STATUS_COLOR.deleted,
+                          borderColor: `${refExists ? REF_STATUS_COLOR.active : REF_STATUS_COLOR.deleted}55`,
+                          background: `${refExists ? REF_STATUS_COLOR.active : REF_STATUS_COLOR.deleted}1f`,
+                        }}
                       >
+                        {!refExists && <span aria-hidden="true">✕ </span>}
                         {translate(refExists ? 'predictionDetail.refActive' : 'predictionDetail.refDeleted', lang)}
                       </span>
                     </div>

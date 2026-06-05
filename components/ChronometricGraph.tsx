@@ -44,7 +44,7 @@ import { useT, tNow } from '@/hooks/use-translation';
 import type { Lang } from '@/lib/i18n';
 import { CopyButton } from './CopyButton';
 import { PredictionDetail } from './temporal/PredictionDetail';
-import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Compass, Crosshair } from 'lucide-react';
+import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Compass, Crosshair, ChevronDown, ChevronUp } from 'lucide-react';
 
 const OUTCOME_COLOR: Record<string, string> = {
   accepted: '#a3f185',
@@ -62,6 +62,7 @@ type HistoryDecisionKind = 'accepted' | 'materialized' | 'rejected' | 'deferred'
 
 const CENTAURO_BOTTOM_INSET_PX = 12;
 const GRAPH_CLEAR_CLICK_DRAG_THRESHOLD_PX = 5;
+const HUD_EXPANDED_STORAGE_KEY = 'gitcron:centauroHudExpanded';
 
 function formatDecisionDate(iso: string): string {
   const d = new Date(iso);
@@ -527,10 +528,10 @@ export function ChronometricGraph({
   // ZERO rewrite. No chat input yet (that's the conversation phase).
   const [selectedSpeculativeId, setSelectedSpeculativeId] = useState<string | null>(null);
 
-  // Centauro panel — collapsible overlay in the bottom-center of the canvas.
-  // Default collapsed (scanning bar); expands on click to show the thread.
-  const centauroExpanded = useGitStore((state) => state.centauroExpanded);
+  // Centauro mode controls the future-branch reader; hudExpanded controls the panel body.
+  const centauroModeActive = useGitStore((state) => state.centauroExpanded);
   const setCentauroExpanded = useGitStore((state) => state.setCentauroExpanded);
+  const [hudExpanded, setHudExpanded] = useState(false);
 
   // Which tab is active inside the expanded Centauro panel.
   const [centauroTab, setCentauroTab] = useState<'report' | 'history'>('report');
@@ -545,6 +546,15 @@ export function ChronometricGraph({
   const centauroTabBarRef = useRef<HTMLDivElement | null>(null);
   const centauroBodyRef = useRef<HTMLDivElement | null>(null);
   const lastCentauroAutoFitSignatureRef = useRef<string | null>(null);
+
+  const setHudPanelExpanded = useCallback((expanded: boolean) => {
+    setHudExpanded(expanded);
+    try {
+      localStorage.setItem(HUD_EXPANDED_STORAGE_KEY, String(expanded));
+    } catch {
+      /* ignore storage failures */
+    }
+  }, []);
 
   // Dynamic helper to find the top of the sidebars
   const getSidebarTop = useCallback(() => {
@@ -585,6 +595,10 @@ export function ChronometricGraph({
   // Hydrate height from localStorage on mount.
   useEffect(() => {
     try {
+      const savedExpanded = localStorage.getItem(HUD_EXPANDED_STORAGE_KEY);
+      if (savedExpanded === 'true' || savedExpanded === 'false') {
+        setHudExpanded(savedExpanded === 'true');
+      }
       const saved = localStorage.getItem('gitcron:centauroHeightPx');
       if (saved) {
         const h = parseInt(saved, 10);
@@ -720,9 +734,8 @@ export function ChronometricGraph({
   // Clicking the same outcome again undoes it; clicking a different one changes it.
   async function recordBranchDecision(outcome: DecisionOutcome) {
     if (!selectedSpeculativeId || !repoPath || !repoName) return;
-    const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
-    if (!node) return;
-    const b = node.branch;
+    const b = selectedSpeculativeBranch;
+    if (!b) return;
     const current = decisions[b.id] ?? decisions[b.message];
 
     // Undo: click the same outcome that's already active → remove the decision.
@@ -764,13 +777,17 @@ export function ChronometricGraph({
   // Is any branch decided? Used to determine dimming.
   const hasAnyDecision = Object.keys(decisions).length > 0;
 
+  // Full branch object for the currently selected speculative branch.
+  const selectedSpeculativeBranch = useMemo(() => {
+    if (!selectedSpeculativeId) return null;
+    return speculativeBranches.find((branch) => branch.id === selectedSpeculativeId) ?? null;
+  }, [selectedSpeculativeId, speculativeBranches]);
+
   // Decision for the currently selected speculative branch, if any.
   const selectedBranchDecision = useMemo(() => {
-    if (!selectedSpeculativeId) return null;
-    const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
-    if (!node) return null;
-    return decisions[node.branch.id] ?? decisions[node.branch.message] ?? null;
-  }, [selectedSpeculativeId, speculativeNodes, decisions]);
+    if (!selectedSpeculativeBranch) return null;
+    return decisions[selectedSpeculativeBranch.id] ?? decisions[selectedSpeculativeBranch.message] ?? null;
+  }, [selectedSpeculativeBranch, decisions]);
 
   const selectedBranchMaterialization = useMemo(() => {
     if (!selectedSpeculativeId) return null;
@@ -779,13 +796,6 @@ export function ChronometricGraph({
       && (d.persistenceDecision === 'materialized' || Boolean(d.materializedRef))
     ) ?? null;
   }, [selectedSpeculativeId, allDecisions]);
-
-  // Full branch object for the currently selected speculative branch.
-  const selectedSpeculativeBranch = useMemo(() => {
-    if (!selectedSpeculativeId) return null;
-    const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
-    return node?.branch ?? null;
-  }, [selectedSpeculativeId, speculativeNodes]);
 
   // Extended reasoning text for the currently selected branch.
   const selectedBranchReasoning = useMemo(() => {
@@ -798,10 +808,8 @@ export function ChronometricGraph({
   }
 
   const speculativeDialogue = useMemo<SpeculativeDialogue | null>(() => {
-    if (!showSpeculative || !selectedSpeculativeId) return null;
-    const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
-    if (!node) return null;
-    const b = node.branch;
+    if (!selectedSpeculativeBranch) return null;
+    const b = selectedSpeculativeBranch;
     // openingTurnFromBranch wants a full branch (rationale required); the lib
     // branch keeps rationale optional, so default it before building the thread.
     return openingTurnFromBranch({
@@ -813,7 +821,7 @@ export function ChronometricGraph({
       type: b.type,
       confidence: b.confidence,
     });
-  }, [showSpeculative, selectedSpeculativeId, speculativeNodes]);
+  }, [selectedSpeculativeBranch]);
 
   const handleSelectSpeculative = (id: string) => {
     // Restore height if switching branches or opening another branch while in preview
@@ -824,6 +832,8 @@ export function ChronometricGraph({
     }
     setSelectedSpeculativeId(id);
     setCentauroExpanded(true);
+    setHudPanelExpanded(true);
+    setCentauroTab('report');
     setMaterializeIdea(null);
     setMaterializeResult(null);
     setMaterializeError(null);
@@ -859,7 +869,9 @@ export function ChronometricGraph({
   const useTallMaterializationLayout = isTallMode || isMaterializationMode;
 
   const centauroContentSignature = useMemo(() => [
-    centauroExpanded ? 'open' : 'closed',
+    hudExpanded ? 'open' : 'closed',
+    centauroModeActive ? 'centauro-on' : 'centauro-off',
+    showSpeculative ? 'futures-on' : 'futures-off',
     centauroTab,
     predictionHistoryLoading ? 'history-loading' : 'history-ready',
     predictionHistory.map((entry) => `${entry.run.id}:${entry.branches.length}`).join(','),
@@ -874,7 +886,9 @@ export function ChronometricGraph({
     useTallMaterializationLayout ? 'tall-materialize' : 'compact-materialize',
     String(allDecisions.length),
   ].join('|'), [
-    centauroExpanded,
+    hudExpanded,
+    centauroModeActive,
+    showSpeculative,
     centauroTab,
     predictionHistoryLoading,
     predictionHistory,
@@ -891,7 +905,7 @@ export function ChronometricGraph({
   ]);
 
   useLayoutEffect(() => {
-    if (!centauroExpanded || isCentauroDragging) return;
+    if (!hudExpanded || isCentauroDragging) return;
     if (centauroTab === 'history' && predictionHistoryLoading) return;
     if (lastCentauroAutoFitSignatureRef.current === centauroContentSignature) return;
 
@@ -925,7 +939,7 @@ export function ChronometricGraph({
     return () => window.cancelAnimationFrame(frame);
   }, [
     centauroContentSignature,
-    centauroExpanded,
+    hudExpanded,
     centauroTab,
     getMaxCentauroHeight,
     isCentauroDragging,
@@ -934,17 +948,33 @@ export function ChronometricGraph({
   ]);
 
   useEffect(() => {
-    if (!centauroExpanded) {
+    if (!hudExpanded) {
       lastCentauroAutoFitSignatureRef.current = null;
     }
-  }, [centauroExpanded]);
+  }, [hudExpanded]);
+
+  function toggleCentauroMode(): void {
+    const next = !centauroModeActive;
+    setCentauroExpanded(next);
+    if (next) {
+      setHudPanelExpanded(true);
+      setCentauroTab('report');
+    } else {
+      setSelectedSpeculativeId(null);
+      cancelMaterialize();
+      setCentauroTab('report');
+    }
+  }
+
+  function toggleHudExpanded(): void {
+    setHudPanelExpanded(!hudExpanded);
+  }
 
   function openMaterializeConfirm() {
     if (!selectedSpeculativeId) return;
     if (selectedBranchMaterialization) return;
-    const node = speculativeNodes.find((n) => n.branch.id === selectedSpeculativeId);
-    if (!node) return;
-    const b = node.branch;
+    const b = selectedSpeculativeBranch;
+    if (!b) return;
 
     // Backup height and auto-expand to widescreen content height clamped below lateral panels
     setPreviousCentauroHeight(centauroHeight);
@@ -981,6 +1011,8 @@ export function ChronometricGraph({
   function selectGraphCommit(commit: Commit, options?: CommitSelectOptions): void {
     setSelectedSpeculativeId(null);
     cancelMaterialize();
+    setCentauroTab('report');
+    setHudPanelExpanded(true);
     onSelect(commit, options);
   }
 
@@ -2782,7 +2814,7 @@ export function ChronometricGraph({
           <div
             className={cn(
               'hud-toolbar px-3 py-1.5 flex items-center justify-between gap-3 bg-transparent border-b transition-colors duration-300',
-              centauroExpanded ? 'border-[#5ed8ff]/15' : 'border-transparent',
+              hudExpanded ? 'border-[#5ed8ff]/15' : 'border-transparent',
             )}
           >
             <div className="flex items-center gap-2">
@@ -2802,21 +2834,32 @@ export function ChronometricGraph({
 
               {/* CENTAURO toggle */}
               <button
-                onClick={() => setCentauroExpanded(!centauroExpanded)}
+                onClick={toggleCentauroMode}
                 className={cn(
                   'h-7 shrink-0 rounded-md border flex items-center gap-1.5 px-2.5 transition-colors cursor-pointer text-[9px] font-bold tracking-wider uppercase font-mono',
-                  centauroExpanded
+                  centauroModeActive
                     ? 'border-[#a3f185]/40 bg-[#d9e7fc]/10 text-[#a3f185]'
                     : 'border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
                 )}
                 title={t('toolbar.centauroTooltip')}
+                aria-pressed={centauroModeActive}
               >
-                <Compass size={12} className={cn('transition-colors', centauroExpanded ? 'text-[#a3f185]' : 'text-[#9eacc0]/70')} />
+                <Compass size={12} className={cn('transition-colors', centauroModeActive ? 'text-[#a3f185]' : 'text-[#9eacc0]/70')} />
                 <span>{t('toolbar.centauro')}</span>
               </button>
             </div>
             {/* Zoom group — right side of the toolbar */}
             <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={toggleHudExpanded}
+                title={hudExpanded ? t('centauro.collapsePanel') : t('centauro.expandPanel')}
+                aria-label={hudExpanded ? t('centauro.collapsePanel') : t('centauro.expandPanel')}
+                aria-expanded={hudExpanded}
+                className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#5ed8ff]/45 hover:bg-[#5ed8ff]/10 hover:text-[#5ed8ff] cursor-pointer"
+              >
+                {hudExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+              </button>
               <button onClick={zoomIn} title={t('zoom.in')} className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
                 <ZoomIn size={14} />
               </button>
@@ -2836,11 +2879,11 @@ export function ChronometricGraph({
               !isCentauroDragging && "transition-all duration-400 ease-out"
             )}
             style={{
-              height: centauroExpanded ? `${centauroHeight}px` : '0px',
+              height: hudExpanded ? `${centauroHeight}px` : '0px',
             }}
           >
             {/* Expanded content — tabbed layout: report + history, no stacking */}
-            {centauroExpanded && (
+            {hudExpanded && (
               <div className="flex flex-col rounded-b-xl h-full" style={{ maxHeight: `${centauroHeight}px` }}>
                 {/* Tab bar */}
                 <div ref={centauroTabBarRef} className="flex items-center border-b border-[#5ed8ff]/15 px-4">
@@ -2920,9 +2963,9 @@ export function ChronometricGraph({
                               <button
                                 onClick={cancelMaterialize}
                                 disabled={materializing}
-                                className="px-3 py-1.5 border border-[#3c495a]/60 hover:border-[#697789] text-[#9eacc0] rounded text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50 transition-all font-mono"
+                                className="rounded border border-[#5ed8ff]/25 bg-[#5ed8ff]/8 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#5ed8ff] transition-colors hover:border-[#5ed8ff]/55 hover:bg-[#5ed8ff]/14 font-mono cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                {t('common.cancel')}
+                                ← {t('predictionDetail.back')}
                               </button>
                               <button
                                 onClick={confirmMaterialize}
@@ -3024,9 +3067,9 @@ export function ChronometricGraph({
                                 setSelectedSpeculativeId(null);
                                 cancelMaterialize();
                               }}
-                              className="px-3 py-1.5 border border-[#3c495a]/60 hover:border-[#697789] text-[#9eacc0] rounded text-[10px] uppercase tracking-wider cursor-pointer transition-all font-mono"
+                              className="rounded border border-[#5ed8ff]/25 bg-[#5ed8ff]/8 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#5ed8ff] transition-colors hover:border-[#5ed8ff]/55 hover:bg-[#5ed8ff]/14 font-mono cursor-pointer"
                             >
-                              {t('common.close')}
+                              ← {t('predictionDetail.back')}
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); openMaterializeConfirm(); }}
@@ -3166,7 +3209,7 @@ export function ChronometricGraph({
                               TARGET_ACQUISITION // SCANNING
                             </span>
                           </div>
-                          {speculativeBranches.length > 0 ? (
+                          {centauroModeActive && speculativeBranches.length > 0 ? (
                             <div className="flex flex-col gap-2">
                               <p className="text-[10px] text-[#697789]/70 italic">
                                 {t('centauro.clickHint')}
@@ -3196,9 +3239,13 @@ export function ChronometricGraph({
                                 })}
                               </div>
                             </div>
-                          ) : (
+                          ) : centauroModeActive ? (
                             <p className="text-[10px] text-[#697789]/70">
                               {t('centauro.noPredictions')}
+                            </p>
+                          ) : (
+                            <p className="text-[10px] leading-relaxed text-[#697789]/75">
+                              {t('centauro.emptyHud')}
                             </p>
                           )}
                         </div>

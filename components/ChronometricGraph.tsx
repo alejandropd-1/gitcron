@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils';
 import { useT, tNow } from '@/hooks/use-translation';
 import type { Lang } from '@/lib/i18n';
 import { CopyButton } from './CopyButton';
+import { PredictionDetail } from './temporal/PredictionDetail';
 import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Compass, Crosshair } from 'lucide-react';
 
 const OUTCOME_COLOR: Record<string, string> = {
@@ -634,6 +635,11 @@ export function ChronometricGraph({
 
   const [predictionHistory, setPredictionHistory] = useState<PredictionHistory>([]);
   const [predictionHistoryLoading, setPredictionHistoryLoading] = useState(false);
+  const [selectedHistoryDetail, setSelectedHistoryDetail] = useState<{
+    run: PredictionHistoryEntry['run'];
+    branch: PredictionHistoryBranch['branch'];
+    decisions: PredictionHistoryDecision[];
+  } | null>(null);
   const predictionHistoryRequestRef = useRef(0);
 
   const openHistoryTab = useCallback(() => {
@@ -658,10 +664,20 @@ export function ChronometricGraph({
       const history = await window.api.temporalAgent.getHistory(repoPath);
       if (predictionHistoryRequestRef.current === requestId) {
         setPredictionHistory(history);
+        setSelectedHistoryDetail((current) => {
+          if (!current) return null;
+          const refreshed = history
+            .find((entry) => entry.run.id === current.run.id)
+            ?.branches.find((item) => item.branch.id === current.branch.id);
+          return refreshed
+            ? { run: current.run, branch: refreshed.branch, decisions: refreshed.decisions }
+            : null;
+        });
       }
     } catch {
       if (predictionHistoryRequestRef.current === requestId) {
         setPredictionHistory([]);
+        setSelectedHistoryDetail(null);
       }
     } finally {
       if (predictionHistoryRequestRef.current === requestId) {
@@ -847,6 +863,7 @@ export function ChronometricGraph({
     centauroTab,
     predictionHistoryLoading ? 'history-loading' : 'history-ready',
     predictionHistory.map((entry) => `${entry.run.id}:${entry.branches.length}`).join(','),
+    selectedHistoryDetail?.branch.id ?? 'history-list',
     selectedSpeculativeId ?? 'no-speculative',
     selectedCommit?.hash ?? 'no-commit',
     materializeIdea?.id ?? 'no-materialize-idea',
@@ -861,6 +878,7 @@ export function ChronometricGraph({
     centauroTab,
     predictionHistoryLoading,
     predictionHistory,
+    selectedHistoryDetail?.branch.id,
     selectedSpeculativeId,
     selectedCommit?.hash,
     materializeIdea?.id,
@@ -3188,6 +3206,16 @@ export function ChronometricGraph({
                     </div>
                   ) : (
                     /* ---- HISTORY TAB — SQLite prediction history grouped by run ---- */
+                    selectedHistoryDetail ? (
+                      <PredictionDetail
+                        run={selectedHistoryDetail.run}
+                        branch={selectedHistoryDetail.branch}
+                        decisions={selectedHistoryDetail.decisions}
+                        currentBranches={localBranches ?? []}
+                        lang={language}
+                        onBack={() => setSelectedHistoryDetail(null)}
+                      />
+                    ) : (
                     <div className="px-4 py-2.5 font-mono">
                       {predictionHistoryLoading && predictionHistory.length === 0 ? (
                         <p className="text-[10px] text-[#697789]/70 italic">
@@ -3246,28 +3274,38 @@ export function ChronometricGraph({
                                     return (
                                       <li
                                         key={branch.id}
-                                        className="flex items-center justify-between gap-3 px-3 py-2"
+                                        className="group"
                                       >
-                                        <div className="min-w-0 flex-1 leading-snug">
-                                          <span className="block truncate text-[10px] text-[#d9e7fc]/85" title={branch.message}>
-                                            {branch.message}
-                                          </span>
-                                        </div>
-                                        <div className="flex shrink-0 items-center gap-2">
-                                          <span className="w-9 text-right text-[9px] text-[#697789]/60">
-                                            {Math.round(branch.confidence * 100)}%
-                                          </span>
-                                          <span
-                                            className="rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-                                            style={{
-                                              color: badgeColor,
-                                              borderColor: `${badgeColor}40`,
-                                              background: `${badgeColor}10`,
-                                            }}
-                                          >
-                                            {t(`decision.${badgeKind}`)}
-                                          </span>
-                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => setSelectedHistoryDetail({
+                                            run: entry.run,
+                                            branch,
+                                            decisions: branchDecisions,
+                                          })}
+                                          className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-[#5ed8ff]/[0.045] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5ed8ff]/55"
+                                        >
+                                          <div className="min-w-0 flex-1 leading-snug">
+                                            <span className="block truncate text-[10px] text-[#d9e7fc]/85 group-hover:text-[#d9e7fc]" title={branch.message}>
+                                              {branch.message}
+                                            </span>
+                                          </div>
+                                          <div className="flex shrink-0 items-center gap-2">
+                                            <span className="w-9 text-right text-[9px] text-[#697789]/60">
+                                              {Math.round(branch.confidence * 100)}%
+                                            </span>
+                                            <span
+                                              className="rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                                              style={{
+                                                color: badgeColor,
+                                                borderColor: `${badgeColor}40`,
+                                                background: `${badgeColor}10`,
+                                              }}
+                                            >
+                                              {t(`decision.${badgeKind}`)}
+                                            </span>
+                                          </div>
+                                        </button>
                                       </li>
                                     );
                                   })}
@@ -3282,6 +3320,7 @@ export function ChronometricGraph({
                         </p>
                       )}
                     </div>
+                    )
                   )}
                 </div>
               </div>

@@ -41,14 +41,26 @@ import {
 import { buildMaterializationPlan } from '@/lib/materialize-idea';
 import { cn } from '@/lib/utils';
 import { useT, tNow } from '@/hooks/use-translation';
+import type { Lang } from '@/lib/i18n';
 import { CopyButton } from './CopyButton';
 import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Compass, Crosshair } from 'lucide-react';
 
 const OUTCOME_COLOR: Record<string, string> = {
   accepted: '#a3f185',
+  materialized: '#5ed8ff',
   rejected: '#dc6a6a',
   deferred: '#fd9d1a',
+  undecided: '#697789',
 };
+
+type PredictionHistory = Awaited<ReturnType<Window['api']['temporalAgent']['getHistory']>>;
+type PredictionHistoryEntry = PredictionHistory[number];
+type PredictionHistoryBranch = PredictionHistoryEntry['branches'][number];
+type PredictionHistoryDecision = PredictionHistoryBranch['decisions'][number];
+type HistoryDecisionKind = 'accepted' | 'materialized' | 'rejected' | 'deferred' | 'undecided';
+
+const CENTAURO_BOTTOM_INSET_PX = 12;
+const GRAPH_CLEAR_CLICK_DRAG_THRESHOLD_PX = 5;
 
 function formatDecisionDate(iso: string): string {
   const d = new Date(iso);
@@ -62,6 +74,60 @@ function formatDecisionDate(iso: string): string {
   const diffDays = Math.round(diffHours / 24);
   if (diffDays < 7) return tNow('graph.daysAgo', { n: diffDays });
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function localeForLang(lang: Lang): string {
+  if (lang === 'en') return 'en-US';
+  if (lang === 'zh') return 'zh-CN';
+  return 'es-AR';
+}
+
+function formatRunDate(iso: string, lang: Lang): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat(localeForLang(lang), {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function latestHistoryDecision(decisions: PredictionHistoryDecision[]): PredictionHistoryDecision | null {
+  let latest: PredictionHistoryDecision | null = null;
+  let latestTime = Number.NEGATIVE_INFINITY;
+  for (const decision of decisions) {
+    const decidedAt = new Date(decision.decidedAt).getTime();
+    const time = Number.isNaN(decidedAt) ? Number.NEGATIVE_INFINITY : decidedAt;
+    if (!latest || time > latestTime) {
+      latest = decision;
+      latestTime = time;
+    }
+  }
+  return latest;
+}
+
+function historyDecisionKind(decision: PredictionHistoryDecision | null): HistoryDecisionKind {
+  if (!decision) return 'undecided';
+  if (decision.decision === 'materialized') return 'materialized';
+  if (decision.decision === 'accepted' || decision.decision === 'rejected' || decision.decision === 'deferred') {
+    return decision.decision;
+  }
+  return 'undecided';
+}
+
+function historyRunSummary(entry: PredictionHistoryEntry): Array<{ kind: HistoryDecisionKind; count: number }> {
+  const counts: Record<HistoryDecisionKind, number> = {
+    accepted: 0,
+    materialized: 0,
+    rejected: 0,
+    deferred: 0,
+    undecided: 0,
+  };
+  for (const item of entry.branches) {
+    counts[historyDecisionKind(latestHistoryDecision(item.decisions))]++;
+  }
+  return (['materialized', 'accepted', 'rejected', 'deferred', 'undecided'] as HistoryDecisionKind[])
+    .map((kind) => ({ kind, count: counts[kind] }))
+    .filter((item) => item.count > 0);
 }
 
 function getBezierPoint(
@@ -91,9 +157,11 @@ interface ChronometricGraphProps {
   commits: Commit[];
   selectedHash?: string;
   selectedBranchName?: string | null;
+  selectedBranchFocusRequest?: number;
   currentBranch?: string;
   filterText?: string;
   onSelect: (commit: Commit, options?: CommitSelectOptions) => void;
+  onClearSelection?: () => void;
   onContextMenu: (e: React.MouseEvent, commit: Commit) => void;
   /** AI-predicted future branches to overlay (Feature B). Empty/undefined = none. */
   speculativeBranches?: SpeculativeBranch[];
@@ -117,9 +185,11 @@ export function ChronometricGraph({
   commits,
   selectedHash,
   selectedBranchName = null,
+  selectedBranchFocusRequest = 0,
   currentBranch,
   filterText = '',
   onSelect,
+  onClearSelection,
   onContextMenu,
   speculativeBranches = [],
   showSpeculative = false,
@@ -142,6 +212,7 @@ export function ChronometricGraph({
   const branchTracking = useGitStore((state) => state.branchTracking);
   const repoName = useGitStore((state) => state.repoName);
   const repoPath = useGitStore((state) => state.repoPath);
+  const language = useGitStore((state) => state.language);
   const submodules = useGitStore((state) => state.submodules);
   const worktrees = useGitStore((state) => state.worktrees);
   const { loadAll } = useRepoLoader();
@@ -437,6 +508,7 @@ export function ChronometricGraph({
       null
     );
   }, [projectedCommits, selectedBranchName, selectedBranchColor]);
+  const lastHandledBranchFocusRequestRef = useRef(selectedBranchFocusRequest);
 
   // Present (HEAD) anchor = the most recent projected commit (greatest x).
   // Speculative branches fork from here into the future.
@@ -504,8 +576,7 @@ export function ChronometricGraph({
     const toolbarHeight = toolbarEl ? toolbarEl.getBoundingClientRect().height : 41;
     
     // 4. Calculate maximum height for the glassy block (centauroHeight)
-    // Formula: maxH = containerBottom - 8 (bottom inset) - sidebarTop - toolbarHeight - 2 (borders)
-    const maxH = containerBottom - 8 - sidebarTop - toolbarHeight - 2;
+    const maxH = containerBottom - CENTAURO_BOTTOM_INSET_PX - sidebarTop - toolbarHeight - 2;
     
     return Math.max(120, maxH);
   }, [getSidebarTop]);
@@ -561,6 +632,49 @@ export function ChronometricGraph({
   // Capa 2b — full decision history (all decisions from notes.json, newest first).
   const [allDecisions, setAllDecisions] = useState<TemporalAgentDecision[]>([]);
 
+  const [predictionHistory, setPredictionHistory] = useState<PredictionHistory>([]);
+  const [predictionHistoryLoading, setPredictionHistoryLoading] = useState(false);
+  const predictionHistoryRequestRef = useRef(0);
+
+  const openHistoryTab = useCallback(() => {
+    if (repoPath) {
+      setPredictionHistoryLoading(true);
+    }
+    setCentauroTab('history');
+  }, [repoPath]);
+
+  const loadPredictionHistory = useCallback(async () => {
+    const requestId = predictionHistoryRequestRef.current + 1;
+    predictionHistoryRequestRef.current = requestId;
+
+    if (!repoPath) {
+      setPredictionHistory([]);
+      setPredictionHistoryLoading(false);
+      return;
+    }
+
+    setPredictionHistoryLoading(true);
+    try {
+      const history = await window.api.temporalAgent.getHistory(repoPath);
+      if (predictionHistoryRequestRef.current === requestId) {
+        setPredictionHistory(history);
+      }
+    } catch {
+      if (predictionHistoryRequestRef.current === requestId) {
+        setPredictionHistory([]);
+      }
+    } finally {
+      if (predictionHistoryRequestRef.current === requestId) {
+        setPredictionHistoryLoading(false);
+      }
+    }
+  }, [repoPath]);
+
+  useEffect(() => {
+    if (centauroTab !== 'history') return;
+    void loadPredictionHistory();
+  }, [centauroTab, loadPredictionHistory]);
+
   // Rehydrate decisions from notes on mount / repo change, cross-referencing
   // with the current speculative branches by title.
   useEffect(() => {
@@ -604,6 +718,9 @@ export function ChronometricGraph({
         delete next[b.message];
         return next;
       });
+      if (centauroTab === 'history') {
+        await loadPredictionHistory();
+      }
       return;
     }
 
@@ -623,6 +740,9 @@ export function ChronometricGraph({
     await window.api.temporalAgent.recordDecision(repoPath, repoName, decision);
     setDecisions((prev) => ({ ...prev, [b.id]: decision }));
     setAllDecisions((prev) => [decision, ...prev]);
+    if (centauroTab === 'history') {
+      await loadPredictionHistory();
+    }
   }
 
   // Is any branch decided? Used to determine dimming.
@@ -725,6 +845,8 @@ export function ChronometricGraph({
   const centauroContentSignature = useMemo(() => [
     centauroExpanded ? 'open' : 'closed',
     centauroTab,
+    predictionHistoryLoading ? 'history-loading' : 'history-ready',
+    predictionHistory.map((entry) => `${entry.run.id}:${entry.branches.length}`).join(','),
     selectedSpeculativeId ?? 'no-speculative',
     selectedCommit?.hash ?? 'no-commit',
     materializeIdea?.id ?? 'no-materialize-idea',
@@ -737,6 +859,8 @@ export function ChronometricGraph({
   ].join('|'), [
     centauroExpanded,
     centauroTab,
+    predictionHistoryLoading,
+    predictionHistory,
     selectedSpeculativeId,
     selectedCommit?.hash,
     materializeIdea?.id,
@@ -750,6 +874,7 @@ export function ChronometricGraph({
 
   useLayoutEffect(() => {
     if (!centauroExpanded || isCentauroDragging) return;
+    if (centauroTab === 'history' && predictionHistoryLoading) return;
     if (lastCentauroAutoFitSignatureRef.current === centauroContentSignature) return;
 
     const frame = window.requestAnimationFrame(() => {
@@ -780,7 +905,15 @@ export function ChronometricGraph({
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [centauroContentSignature, centauroExpanded, getMaxCentauroHeight, isCentauroDragging, isMaterializationMode]);
+  }, [
+    centauroContentSignature,
+    centauroExpanded,
+    centauroTab,
+    getMaxCentauroHeight,
+    isCentauroDragging,
+    isMaterializationMode,
+    predictionHistoryLoading,
+  ]);
 
   useEffect(() => {
     if (!centauroExpanded) {
@@ -827,6 +960,20 @@ export function ChronometricGraph({
     }
   }
 
+  function selectGraphCommit(commit: Commit, options?: CommitSelectOptions): void {
+    setSelectedSpeculativeId(null);
+    cancelMaterialize();
+    onSelect(commit, options);
+  }
+
+  function clearGraphTarget(): void {
+    setSelectedSpeculativeId(null);
+    cancelMaterialize();
+    onClearSelection?.();
+  }
+
+  const graphSurfacePointerDownRef = useRef<{ x: number; y: number } | null>(null);
+
   async function confirmMaterialize() {
     if (!materializeIdea || !repoPath) return;
     const alreadyMaterialized = allDecisions.some((d) =>
@@ -858,6 +1005,9 @@ export function ChronometricGraph({
         await window.api.temporalAgent.recordDecision(repoPath, repoName ?? 'repo', decision);
         setDecisions((prev) => ({ ...prev, [materializeIdea.id]: decision }));
         setAllDecisions((prev) => [decision, ...prev]);
+        if (centauroTab === 'history') {
+          await loadPredictionHistory();
+        }
         await loadAll(repoPath);
       } else {
         setMaterializeError(res.error ?? 'Materialization failed');
@@ -867,6 +1017,26 @@ export function ChronometricGraph({
     } finally {
       setMaterializing(false);
     }
+  }
+
+  function handleGraphSurfaceClick(e: React.MouseEvent<SVGSVGElement>): void {
+    const target = e.target;
+    if (target instanceof Element && target.closest('.cursor-pointer')) return;
+
+    const pointerDown = graphSurfacePointerDownRef.current;
+    graphSurfacePointerDownRef.current = null;
+    if (pointerDown) {
+      const dx = e.clientX - pointerDown.x;
+      const dy = e.clientY - pointerDown.y;
+      if (Math.hypot(dx, dy) > GRAPH_CLEAR_CLICK_DRAG_THRESHOLD_PX) return;
+    }
+
+    clearGraphTarget();
+  }
+
+  function handleGraphSurfaceMouseDownCapture(e: React.MouseEvent<SVGSVGElement>): void {
+    if (e.button !== 0) return;
+    graphSurfacePointerDownRef.current = { x: e.clientX, y: e.clientY };
   }
 
   // Per-node perpendicular offsetDist to prevent same-side label overlap.
@@ -1281,9 +1451,11 @@ export function ChronometricGraph({
   });
 
   useEffect(() => {
+    if (selectedBranchFocusRequest === lastHandledBranchFocusRequestRef.current) return;
     if (!selectedBranchTargetNode) return;
+    lastHandledBranchFocusRequestRef.current = selectedBranchFocusRequest;
     focusWorldPoint({ x: selectedBranchTargetNode.x, y: selectedBranchTargetNode.y });
-  }, [selectedBranchTargetNode, focusWorldPoint]);
+  }, [selectedBranchFocusRequest, selectedBranchTargetNode, focusWorldPoint]);
 
   // 7. Time ticks (date guidelines at the bottom of the graph)
   const timeTicks = useMemo(() => {
@@ -1452,6 +1624,8 @@ export function ChronometricGraph({
           width="100%"
           height="100%"
           className="block"
+          onMouseDownCapture={handleGraphSurfaceMouseDownCapture}
+          onClick={handleGraphSurfaceClick}
           style={{
             overflow: 'visible',
             maskImage: 'linear-gradient(to right, black 0%, black calc(100% - 370px), transparent calc(100% - 220px))',
@@ -1749,7 +1923,10 @@ export function ChronometricGraph({
                   <g
                     key={`node-${node.commit.hash}`}
                     className="cursor-pointer"
-                    onClick={() => onSelect(node.commit, { branchName: node.branchName })}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      selectGraphCommit(node.commit, { branchName: node.branchName });
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       onContextMenu(e, node.commit);
@@ -1837,9 +2014,10 @@ export function ChronometricGraph({
                   <g
                     key={`tag-satellite-${tag.commitHash}-${idx}`}
                     className="cursor-pointer"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       const commit = commits.find(c => c.hash === tag.commitHash);
-                      if (commit) onSelect(commit, { branchName: primaryBranchNameForCommit(commit) });
+                      if (commit) selectGraphCommit(commit, { branchName: primaryBranchNameForCommit(commit) });
                     }}
                     onContextMenu={(e) => {
                       e.preventDefault();
@@ -2192,7 +2370,10 @@ export function ChronometricGraph({
                       return (
                         <g
                           className="cursor-pointer"
-                          onClick={() => onSelect(node.commit, { branchName: node.branchName })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectGraphCommit(node.commit, { branchName: node.branchName });
+                          }}
                           onContextMenu={(e) => {
                             e.preventDefault();
                             onContextMenu(e, node.commit);
@@ -2249,7 +2430,10 @@ export function ChronometricGraph({
                     {/* C. Commit Telemetry Label */}
                     <g
                       className="cursor-pointer"
-                      onClick={() => onSelect(node.commit, { branchName: node.branchName })}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selectGraphCommit(node.commit, { branchName: node.branchName });
+                      }}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         onContextMenu(e, node.commit);
@@ -2555,7 +2739,7 @@ export function ChronometricGraph({
         style={{
           left: hudLeftInset,
           right: hudRightInset,
-          bottom: '0.5rem',
+          bottom: `${CENTAURO_BOTTOM_INSET_PX}px`,
           transition: 'left 0.3s ease, right 0.3s ease',
         }}
       >
@@ -2654,7 +2838,7 @@ export function ChronometricGraph({
                     {t('centauro.tabReport')}
                   </button>
                   <button
-                    onClick={() => setCentauroTab('history')}
+                    onClick={openHistoryTab}
                     className={cn(
                       'px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-colors border-b-2 -mb-[1px]',
                       centauroTab === 'history'
@@ -3003,35 +3187,98 @@ export function ChronometricGraph({
                       )}
                     </div>
                   ) : (
-                    /* ---- HISTORY TAB — decision log ---- */
-                    <div className="px-4 py-2.5">
-                      {allDecisions.length > 0 ? (
-                        <div className="flex flex-col gap-1 font-mono">
-                          {allDecisions.map((d, i) => (
-                            <div key={i} className="flex items-center justify-between gap-2 border-l-2 pl-2 border-[#d9e7fc]/8 hover:border-[#5ed8ff]/20 transition-colors">
-                              <div className="flex flex-col min-w-0 flex-1 leading-snug">
-                                <span className="truncate text-[10px] text-[#d9e7fc]/80">{d.suggestionTitle}</span>
-                                <span className="text-[9px] text-[#697789]/70">{formatDecisionDate(d.date)}</span>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-[9px] text-[#697789]/50 font-mono">{Math.round(d.confidence * 100)}%</span>
-                                <span
-                                  className="text-[9px] font-bold tracking-wider uppercase rounded px-1.5 py-0.5 border"
-                                  style={{
-                                    color: OUTCOME_COLOR[d.outcome],
-                                    borderColor: `${OUTCOME_COLOR[d.outcome]}40`,
-                                    background: `${OUTCOME_COLOR[d.outcome]}10`,
-                                  }}
-                                >
-                                  {t(`decision.${d.outcome}`)}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
+                    /* ---- HISTORY TAB — SQLite prediction history grouped by run ---- */
+                    <div className="px-4 py-2.5 font-mono">
+                      {predictionHistoryLoading && predictionHistory.length === 0 ? (
+                        <p className="text-[10px] text-[#697789]/70 italic">
+                          {t('centauro.historyLoading')}
+                        </p>
+                      ) : predictionHistory.length > 0 ? (
+                        <div className="flex flex-col gap-3">
+                          {predictionHistory.map((entry) => {
+                            const runDate = formatRunDate(entry.run.generatedAt, language);
+                            const model = entry.run.model ?? t('centauro.historyUnknownModel');
+                            const provider = entry.run.provider || t('centauro.historyUnknownProvider');
+                            const summary = historyRunSummary(entry);
+
+                            return (
+                              <section
+                                key={entry.run.id}
+                                className="overflow-hidden rounded-md border border-[#5ed8ff]/15 bg-[#061625]/70"
+                              >
+                                <header className="flex items-start justify-between gap-3 border-b border-[#5ed8ff]/12 bg-[#5ed8ff]/[0.035] px-3 py-2">
+                                  <div className="min-w-0 flex-1">
+                                    <h3 className="text-[11px] font-bold text-[#d9e7fc] tracking-wide">
+                                      <time dateTime={entry.run.generatedAt}>{runDate}</time>
+                                    </h3>
+                                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] text-[#697789]/85">
+                                      <span className="min-w-0">
+                                        {t('centauro.historyModel')}{' '}
+                                        <span
+                                          className="inline-block max-w-[240px] truncate align-bottom text-[#5ed8ff]/80"
+                                          title={model}
+                                        >
+                                          {model}
+                                        </span>
+                                      </span>
+                                      <span>
+                                        {t('centauro.historyProvider')}{' '}
+                                        <span className="text-[#5ed8ff]/80">{provider}</span>
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex shrink-0 flex-col items-end gap-1 text-right">
+                                    <span className="rounded border border-[#5ed8ff]/25 bg-[#5ed8ff]/8 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#5ed8ff]">
+                                      {t('centauro.historyBranches', { count: entry.branches.length })}
+                                    </span>
+                                    <div className="max-w-[260px] text-[8px] leading-snug text-[#697789]/70">
+                                      {summary.map((item) => t(`centauro.historySummary.${item.kind}`, { count: item.count })).join(' · ')}
+                                    </div>
+                                  </div>
+                                </header>
+
+                                <ul className="divide-y divide-[#d9e7fc]/8">
+                                  {entry.branches.map(({ branch, decisions: branchDecisions }) => {
+                                    const latestDecision = latestHistoryDecision(branchDecisions);
+                                    const badgeKind = historyDecisionKind(latestDecision);
+                                    const badgeColor = OUTCOME_COLOR[badgeKind];
+
+                                    return (
+                                      <li
+                                        key={branch.id}
+                                        className="flex items-center justify-between gap-3 px-3 py-2"
+                                      >
+                                        <div className="min-w-0 flex-1 leading-snug">
+                                          <span className="block truncate text-[10px] text-[#d9e7fc]/85" title={branch.message}>
+                                            {branch.message}
+                                          </span>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                          <span className="w-9 text-right text-[9px] text-[#697789]/60">
+                                            {Math.round(branch.confidence * 100)}%
+                                          </span>
+                                          <span
+                                            className="rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                                            style={{
+                                              color: badgeColor,
+                                              borderColor: `${badgeColor}40`,
+                                              background: `${badgeColor}10`,
+                                            }}
+                                          >
+                                            {t(`decision.${badgeKind}`)}
+                                          </span>
+                                        </div>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </section>
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="text-[10px] text-[#697789]/70 italic">
-                          {t('centauro.noDecisions')}
+                          {t('centauro.historyEmpty')}
                         </p>
                       )}
                     </div>

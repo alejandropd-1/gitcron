@@ -690,6 +690,7 @@ export default function GitCronPage() {
 
   const [filterText, setFilterText] = useState('');
   const [selectedBranchName, setSelectedBranchName] = useState<string | null>(null);
+  const [selectedBranchFocusRequest, setSelectedBranchFocusRequest] = useState(0);
   const filterInputRef = useRef<HTMLInputElement>(null);
   const [showSearchPopover, setShowSearchPopover] = useState(false);
   const [showBranchFilterDropdown, setShowBranchFilterDropdown] = useState(false);
@@ -1260,8 +1261,14 @@ export default function GitCronPage() {
     setSelectedCommit(commit);
   };
 
+  const handleClearGraphSelection = () => {
+    setSelectedCommit(null);
+    setSelectedBranchName(null);
+  };
+
   const handleSelectBranchInGraph = (branch: string) => {
     setSelectedBranchName(branch);
+    setSelectedBranchFocusRequest((request) => request + 1);
     const targetCommit = commits.find((commit) => commitHasBranchRef(commit, branch));
     if (targetCommit) {
       handleSelectCommit(targetCommit, { preserveBranchSelection: true });
@@ -2804,9 +2811,11 @@ export default function GitCronPage() {
                             commits={commits}
                             selectedHash={selectedCommit?.hash}
                             selectedBranchName={selectedBranchName}
+                            selectedBranchFocusRequest={selectedBranchFocusRequest}
                             currentBranch={currentBranch}
                             filterText={filterText}
                             onSelect={handleSelectCommit}
+                            onClearSelection={handleClearGraphSelection}
                             onContextMenu={(e, c) => openContextMenu({ x: e.clientX, y: e.clientY, hash: c.hash })}
                             speculativeBranches={speculativeBranches}
                             showSpeculative={showSpeculative}

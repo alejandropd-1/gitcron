@@ -30,8 +30,6 @@ import { SpeculativeBranches } from './SpeculativeBranches';
 import { projectSpeculative } from '@/lib/speculative-projection';
 import type { SpeculativeBranch } from '@/types/temporal-agent';
 import {
-  openingTurnFromBranch,
-  type SpeculativeDialogue,
   type MaterializeIdeaInput,
   type MaterializationResult,
   type TemporalAgentDecision,
@@ -130,6 +128,34 @@ function historyRunSummary(entry: PredictionHistoryEntry): Array<{ kind: History
   return (['materialized', 'accepted', 'rejected', 'deferred', 'undecided'] as HistoryDecisionKind[])
     .map((kind) => ({ kind, count: counts[kind] }))
     .filter((item) => item.count > 0);
+}
+
+function branchTypeFromRow(type: string): SpeculativeBranch['type'] {
+  if (type === 'improvement' || type === 'breakthrough' || type === 'trend') return type;
+  return 'trend';
+}
+
+function branchRowToSpeculativeBranch(
+  item: PredictionHistoryBranch,
+  index: number,
+): SpeculativeBranch {
+  const branch = item.branch;
+  return {
+    id: branch.id,
+    sourceId: branch.sourceId,
+    message: branch.message,
+    description: branch.description,
+    rationale: branch.rationale,
+    type: branchTypeFromRow(branch.type),
+    confidence: branch.confidence,
+    predictionIndex: index,
+  };
+}
+
+function materializedTagFromImpact(impact: string | null | undefined): string | null {
+  if (!impact) return null;
+  const match = impact.match(/\((flight\/[^()\s]+)\)\.?$/);
+  return match?.[1] ?? null;
 }
 
 function getBezierPoint(
@@ -663,17 +689,19 @@ export function ChronometricGraph({
     setCentauroTab('history');
   }, [repoPath]);
 
-  const loadPredictionHistory = useCallback(async () => {
+  const loadPredictionHistory = useCallback(async (options: { silent?: boolean } = {}) => {
     const requestId = predictionHistoryRequestRef.current + 1;
     predictionHistoryRequestRef.current = requestId;
 
     if (!repoPath) {
       setPredictionHistory([]);
       setPredictionHistoryLoading(false);
-      return;
+      return [];
     }
 
-    setPredictionHistoryLoading(true);
+    if (!options.silent) {
+      setPredictionHistoryLoading(true);
+    }
     try {
       const history = await window.api.temporalAgent.getHistory(repoPath);
       if (predictionHistoryRequestRef.current === requestId) {
@@ -688,22 +716,57 @@ export function ChronometricGraph({
             : null;
         });
       }
+      return history;
     } catch {
       if (predictionHistoryRequestRef.current === requestId) {
         setPredictionHistory([]);
         setSelectedHistoryDetail(null);
       }
+      return [];
     } finally {
-      if (predictionHistoryRequestRef.current === requestId) {
+      if (!options.silent && predictionHistoryRequestRef.current === requestId) {
         setPredictionHistoryLoading(false);
       }
     }
   }, [repoPath]);
 
   useEffect(() => {
-    if (centauroTab !== 'history') return;
-    void loadPredictionHistory();
+    void loadPredictionHistory({ silent: centauroTab !== 'history' });
   }, [centauroTab, loadPredictionHistory]);
+
+  const speculativeBranchSignature = useMemo(
+    () => speculativeBranches.map((branch) => `${branch.id}:${branch.message}`).join('|'),
+    [speculativeBranches],
+  );
+
+  useEffect(() => {
+    if (!repoPath || !speculativeBranchSignature) return;
+
+    let alive = true;
+    let timer: number | null = null;
+    const delays = [0, 250, 750, 1500];
+
+    const refresh = async (attempt: number) => {
+      const history = await loadPredictionHistory({ silent: true });
+      if (!alive) return;
+
+      const latest = history[0];
+      const hasMatchingLatestRun = latest?.branches.some((item) =>
+        speculativeBranches.some((branch) => branch.id === item.branch.id),
+      ) ?? false;
+
+      if (!hasMatchingLatestRun && attempt < delays.length - 1) {
+        timer = window.setTimeout(() => void refresh(attempt + 1), delays[attempt + 1]);
+      }
+    };
+
+    timer = window.setTimeout(() => void refresh(0), delays[0]);
+
+    return () => {
+      alive = false;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [loadPredictionHistory, repoPath, speculativeBranchSignature, speculativeBranches]);
 
   // Rehydrate decisions from notes on mount / repo change, cross-referencing
   // with the current speculative branches by title.
@@ -747,9 +810,7 @@ export function ChronometricGraph({
         delete next[b.message];
         return next;
       });
-      if (centauroTab === 'history') {
-        await loadPredictionHistory();
-      }
+      await loadPredictionHistory({ silent: centauroTab !== 'history' });
       return;
     }
 
@@ -769,19 +830,42 @@ export function ChronometricGraph({
     await window.api.temporalAgent.recordDecision(repoPath, repoName, decision);
     setDecisions((prev) => ({ ...prev, [b.id]: decision }));
     setAllDecisions((prev) => [decision, ...prev]);
-    if (centauroTab === 'history') {
-      await loadPredictionHistory();
-    }
+    await loadPredictionHistory({ silent: centauroTab !== 'history' });
   }
 
   // Is any branch decided? Used to determine dimming.
   const hasAnyDecision = Object.keys(decisions).length > 0;
 
+  const latestPredictionEntry = predictionHistory[0] ?? null;
+  const livePredictionBranches = latestPredictionEntry?.branches ?? [];
+  const liveSpeculativeBranches = useMemo(
+    () => livePredictionBranches.map((item, index) => branchRowToSpeculativeBranch(item, index + 1)),
+    [livePredictionBranches],
+  );
+
+  const selectedLivePredictionDetail = useMemo(() => {
+    if (!selectedSpeculativeId || !latestPredictionEntry) return null;
+    const item = latestPredictionEntry.branches.find((entry) => entry.branch.id === selectedSpeculativeId);
+    return item
+      ? { run: latestPredictionEntry.run, branch: item.branch, decisions: item.decisions }
+      : null;
+  }, [latestPredictionEntry, selectedSpeculativeId]);
+
+  const selectedHistoryDetailIsActionable = useMemo(() => {
+    if (!selectedHistoryDetail || !latestPredictionEntry) return false;
+    if (selectedHistoryDetail.run.id !== latestPredictionEntry.run.id) return false;
+    return liveSpeculativeBranches.some((branch) => branch.id === selectedHistoryDetail.branch.id);
+  }, [latestPredictionEntry, liveSpeculativeBranches, selectedHistoryDetail]);
+
   // Full branch object for the currently selected speculative branch.
   const selectedSpeculativeBranch = useMemo(() => {
     if (!selectedSpeculativeId) return null;
-    return speculativeBranches.find((branch) => branch.id === selectedSpeculativeId) ?? null;
-  }, [selectedSpeculativeId, speculativeBranches]);
+    return (
+      liveSpeculativeBranches.find((branch) => branch.id === selectedSpeculativeId)
+      ?? speculativeBranches.find((branch) => branch.id === selectedSpeculativeId)
+      ?? null
+    );
+  }, [liveSpeculativeBranches, selectedSpeculativeId, speculativeBranches]);
 
   // Decision for the currently selected speculative branch, if any.
   const selectedBranchDecision = useMemo(() => {
@@ -797,31 +881,37 @@ export function ChronometricGraph({
     ) ?? null;
   }, [selectedSpeculativeId, allDecisions]);
 
-  // Extended reasoning text for the currently selected branch.
-  const selectedBranchReasoning = useMemo(() => {
-    return selectedSpeculativeBranch?.reasoning ?? null;
-  }, [selectedSpeculativeBranch]);
+  const selectedDetailDecisions = selectedLivePredictionDetail?.decisions
+    ?? (selectedHistoryDetailIsActionable ? selectedHistoryDetail?.decisions ?? [] : []);
 
-  // Split reasoning text into paragraphs on double newlines, filtering empties.
-  function renderReasoningParagraphs(text: string): string[] {
-    return text.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
-  }
+  const selectedDbMaterialization = useMemo(() => {
+    return selectedDetailDecisions.find((decision) =>
+      decision.decision === 'materialized' || Boolean(decision.materializedRef)
+    ) ?? null;
+  }, [selectedDetailDecisions]);
 
-  const speculativeDialogue = useMemo<SpeculativeDialogue | null>(() => {
-    if (!selectedSpeculativeBranch) return null;
-    const b = selectedSpeculativeBranch;
-    // openingTurnFromBranch wants a full branch (rationale required); the lib
-    // branch keeps rationale optional, so default it before building the thread.
-    return openingTurnFromBranch({
-      id: b.id,
-      sourceId: b.sourceId,
-      message: b.message,
-      description: b.description ?? null,
-      rationale: b.rationale ?? '',
-      type: b.type,
-      confidence: b.confidence,
-    });
-  }, [selectedSpeculativeBranch]);
+  const selectedMaterializedRef = selectedBranchMaterialization?.materializedRef
+    ?? selectedDbMaterialization?.materializedRef
+    ?? null;
+  const selectedBranchIsMaterialized = Boolean(selectedMaterializedRef);
+  const selectedMaterializedBranchExists = Boolean(
+    selectedMaterializedRef && (localBranches ?? []).includes(selectedMaterializedRef),
+  );
+  const selectedMaterializedCommit = useMemo(() => {
+    if (!selectedMaterializedRef) return null;
+    return commits.find((commit) => commitHasBranchRef(commit, selectedMaterializedRef)) ?? null;
+  }, [commits, selectedMaterializedRef]);
+  const selectedMaterializedSourceTag = useMemo(() => {
+    const tagFromImpact = materializedTagFromImpact(selectedBranchMaterialization?.impact);
+    return tagFromImpact && localTags.includes(tagFromImpact) ? tagFromImpact : null;
+  }, [localTags, selectedBranchMaterialization?.impact]);
+  const canRestoreMaterializedBranch = Boolean(
+    repoPath
+    && selectedMaterializedRef
+    && selectedBranchIsMaterialized
+    && !selectedMaterializedBranchExists
+    && selectedMaterializedSourceTag,
+  );
 
   const handleSelectSpeculative = (id: string) => {
     // Restore height if switching branches or opening another branch while in preview
@@ -847,6 +937,9 @@ export function ChronometricGraph({
   const [materializing, setMaterializing] = useState(false);
   const [materializeResult, setMaterializeResult] = useState<MaterializationResult | null>(null);
   const [materializeError, setMaterializeError] = useState<string | null>(null);
+  const [restoreBranchLoading, setRestoreBranchLoading] = useState(false);
+  const [restoreBranchError, setRestoreBranchError] = useState<string | null>(null);
+  const [restoreBranchSuccess, setRestoreBranchSuccess] = useState<string | null>(null);
   const [previousCentauroHeight, setPreviousCentauroHeight] = useState<number | null>(null);
 
   // Automatically clamp height on window resize so HUD top never crosses sidebar top
@@ -864,9 +957,16 @@ export function ChronometricGraph({
     () => (materializeIdea ? buildMaterializationPlan(materializeIdea, localBranches, localTags) : null),
     [materializeIdea, localBranches, localTags],
   );
+
+  useEffect(() => {
+    setRestoreBranchError(null);
+    setRestoreBranchSuccess(null);
+  }, [selectedMaterializedRef, selectedSpeculativeId]);
+
   const isTallMode = centauroHeight >= 480;
   const isMaterializationMode = Boolean(materializeIdea && materializePlan);
   const useTallMaterializationLayout = isTallMode || isMaterializationMode;
+  const isLivePredictionDetailMode = Boolean(selectedLivePredictionDetail) && !isMaterializationMode;
 
   const centauroContentSignature = useMemo(() => [
     hudExpanded ? 'open' : 'closed',
@@ -882,7 +982,12 @@ export function ChronometricGraph({
     materializeResult?.branchName ?? 'no-materialize-result',
     materializeError ?? 'no-materialize-error',
     selectedBranchDecision?.outcome ?? 'no-branch-decision',
-    selectedBranchMaterialization?.materializedRef ?? 'no-materialized-ref',
+    selectedMaterializedRef ?? 'no-materialized-ref',
+    selectedMaterializedSourceTag ?? 'no-materialized-source-tag',
+    selectedMaterializedBranchExists ? 'materialized-ref-active' : 'materialized-ref-missing',
+    restoreBranchLoading ? 'restore-loading' : 'restore-idle',
+    restoreBranchError ?? 'no-restore-error',
+    restoreBranchSuccess ?? 'no-restore-success',
     useTallMaterializationLayout ? 'tall-materialize' : 'compact-materialize',
     String(allDecisions.length),
   ].join('|'), [
@@ -899,7 +1004,12 @@ export function ChronometricGraph({
     materializeResult?.branchName,
     materializeError,
     selectedBranchDecision?.outcome,
-    selectedBranchMaterialization?.materializedRef,
+    selectedMaterializedRef,
+    selectedMaterializedSourceTag,
+    selectedMaterializedBranchExists,
+    restoreBranchLoading,
+    restoreBranchError,
+    restoreBranchSuccess,
     useTallMaterializationLayout,
     allDecisions.length,
   ]);
@@ -972,7 +1082,7 @@ export function ChronometricGraph({
 
   function openMaterializeConfirm() {
     if (!selectedSpeculativeId) return;
-    if (selectedBranchMaterialization) return;
+    if (selectedBranchIsMaterialized) return;
     const b = selectedSpeculativeBranch;
     if (!b) return;
 
@@ -1055,9 +1165,7 @@ export function ChronometricGraph({
         await window.api.temporalAgent.recordDecision(repoPath, repoName ?? 'repo', decision);
         setDecisions((prev) => ({ ...prev, [materializeIdea.id]: decision }));
         setAllDecisions((prev) => [decision, ...prev]);
-        if (centauroTab === 'history') {
-          await loadPredictionHistory();
-        }
+        await loadPredictionHistory({ silent: centauroTab !== 'history' });
         await loadAll(repoPath);
       } else {
         setMaterializeError(res.error ?? 'Materialization failed');
@@ -1067,6 +1175,172 @@ export function ChronometricGraph({
     } finally {
       setMaterializing(false);
     }
+  }
+
+  function focusMaterializedBranch(): void {
+    if (!selectedMaterializedRef || !selectedMaterializedCommit) return;
+    selectGraphCommit(selectedMaterializedCommit, {
+      branchName: selectedMaterializedRef,
+      preserveBranchSelection: true,
+    });
+  }
+
+  async function restoreMaterializedBranch(): Promise<void> {
+    if (!repoPath || !selectedMaterializedRef || !selectedMaterializedSourceTag) return;
+    setRestoreBranchLoading(true);
+    setRestoreBranchError(null);
+    setRestoreBranchSuccess(null);
+    try {
+      const result = await window.api.gitRestoreMaterializedBranch(
+        repoPath,
+        selectedMaterializedRef,
+        selectedMaterializedSourceTag,
+      );
+      if (result.success) {
+        setRestoreBranchSuccess(t('centauro.materializedRestored', { branch: selectedMaterializedRef }));
+        await loadAll(repoPath);
+        await loadPredictionHistory({ silent: centauroTab !== 'history' });
+      } else {
+        setRestoreBranchError(result.error ?? t('centauro.materializedRestoreFailed'));
+      }
+    } catch (error) {
+      setRestoreBranchError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRestoreBranchLoading(false);
+    }
+  }
+
+  function renderMaterializedFinalState() {
+    if (!selectedBranchIsMaterialized || !selectedMaterializedRef) return null;
+
+    return (
+      <section className="mx-4 rounded border border-[#a3f185]/20 bg-[#a3f185]/[0.045] px-3 py-2.5 font-mono">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#a3f185]">
+              {t('centauro.materializedFinalTitle')}
+            </div>
+            <p className="mt-1 text-[10px] leading-relaxed text-[#d9e7fc]/75">
+              {selectedMaterializedBranchExists
+                ? t('centauro.materializedFinalActive')
+                : t('centauro.materializedFinalDeleted')}
+            </p>
+            <div className="mt-1 break-all text-[9px] text-[#697789]">
+              <span className="uppercase tracking-wider">{t('predictionDetail.materializedRef')}: </span>
+              <span className="text-[#a3f185]/85">{selectedMaterializedRef}</span>
+            </div>
+            {!selectedMaterializedBranchExists && selectedMaterializedSourceTag && (
+              <div className="mt-1 break-all text-[9px] text-[#697789]">
+                <span className="uppercase tracking-wider">{t('centauro.restoreSource')}: </span>
+                <span className="text-[#5ed8ff]/85">{selectedMaterializedSourceTag}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); focusMaterializedBranch(); }}
+              disabled={!selectedMaterializedCommit}
+              className="rounded border border-[#5ed8ff]/25 bg-[#5ed8ff]/8 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#5ed8ff] transition-colors hover:border-[#5ed8ff]/55 hover:bg-[#5ed8ff]/14 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {t('centauro.viewInGraph')}
+            </button>
+            {!selectedMaterializedBranchExists && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); void restoreMaterializedBranch(); }}
+                disabled={!canRestoreMaterializedBranch || restoreBranchLoading}
+                title={!selectedMaterializedSourceTag ? t('centauro.restoreUnavailable') : undefined}
+                className="rounded border border-[#a3f185]/30 bg-[#a3f185]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#a3f185] transition-colors hover:border-[#a3f185]/60 hover:bg-[#a3f185]/18 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {restoreBranchLoading ? t('centauro.restoringBranch') : t('centauro.restoreBranch')}
+              </button>
+            )}
+            <button
+              type="button"
+              disabled
+              title={t('centauro.reopenFutureUnavailable')}
+              className="rounded border border-[#697789]/25 bg-[#697789]/8 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#697789]/70"
+            >
+              {t('centauro.reopenFuture')}
+            </button>
+          </div>
+        </div>
+
+        {restoreBranchError && (
+          <p className="mt-2 text-[10px] leading-relaxed text-[#fd9d1a]">
+            {restoreBranchError}
+          </p>
+        )}
+        {restoreBranchSuccess && (
+          <p className="mt-2 text-[10px] leading-relaxed text-[#a3f185]">
+            {restoreBranchSuccess}
+          </p>
+        )}
+      </section>
+    );
+  }
+
+  function renderPredictionActionHeader() {
+    return (
+      <div className="flex justify-end border-b border-[#5ed8ff]/20 px-4 pb-2">
+        <button
+          onClick={(e) => { e.stopPropagation(); openMaterializeConfirm(); }}
+          disabled={selectedBranchIsMaterialized}
+          title={selectedMaterializedRef ?? undefined}
+          className={cn(
+            'px-3 py-1.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase transition-all duration-150',
+            selectedBranchIsMaterialized
+              ? 'bg-[#a3f185]/10 text-[#a3f185]/70 border border-[#a3f185]/25 cursor-not-allowed'
+              : 'bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/40 hover:bg-[#a3f185]/25 hover:border-[#a3f185]/70 cursor-pointer',
+          )}
+        >
+          {selectedBranchIsMaterialized ? t('materialize.alreadyButton') : t('centauro.materialize')}
+        </button>
+      </div>
+    );
+  }
+
+  function renderPredictionJudgeBar() {
+    return (
+      <div className="flex items-center gap-2 border-t border-[#d9e7fc]/10 px-4 pt-2">
+        <span className="text-[9px] text-[#697789] uppercase tracking-wider mr-1 shrink-0">{t('centauro.judge')}</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); recordBranchDecision('accepted'); }}
+          className={cn(
+            'px-2.5 py-0.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150',
+            selectedBranchDecision?.outcome === 'accepted'
+              ? 'bg-[#a3f185]/20 text-[#a3f185] border border-[#a3f185]/50'
+              : 'text-[#a3f185]/50 border border-transparent hover:text-[#a3f185] hover:border-[#a3f185]/30 hover:bg-[#a3f185]/8',
+          )}
+        >
+          {t('centauro.accept')}
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); recordBranchDecision('rejected'); }}
+          className={cn(
+            'px-2.5 py-0.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150',
+            selectedBranchDecision?.outcome === 'rejected'
+              ? 'bg-[#dc6a6a]/15 text-[#dc6a6a] border border-[#dc6a6a]/40'
+              : 'text-[#dc6a6a]/40 border border-transparent hover:text-[#dc6a6a] hover:border-[#dc6a6a]/25 hover:bg-[#dc6a6a]/6',
+          )}
+        >
+          {t('centauro.reject')}
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); recordBranchDecision('deferred'); }}
+          className={cn(
+            'px-2.5 py-0.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150',
+            selectedBranchDecision?.outcome === 'deferred'
+              ? 'bg-[#fd9d1a]/15 text-[#fd9d1a] border border-[#fd9d1a]/40'
+              : 'text-[#fd9d1a]/40 border border-transparent hover:text-[#fd9d1a] hover:border-[#fd9d1a]/25 hover:bg-[#fd9d1a]/6',
+          )}
+        >
+          {t('centauro.defer')}
+        </button>
+      </div>
+    );
   }
 
   function handleGraphSurfaceClick(e: React.MouseEvent<SVGSVGElement>): void {
@@ -2918,7 +3192,8 @@ export function ChronometricGraph({
                 )}>
                   {centauroTab === 'report' ? (
                     <div className={cn(
-                      "px-4 py-3 font-mono",
+                      "py-3 font-mono",
+                      !isLivePredictionDetailMode && "px-4",
                       isMaterializationMode && useTallMaterializationLayout ? "h-full flex flex-col overflow-hidden" : ""
                     )}>
                     {materializeIdea && materializePlan ? (
@@ -3052,123 +3327,29 @@ export function ChronometricGraph({
                           )}
                         </div>
                       )
-                    ) : speculativeDialogue ? (
-                      /* ---- BRANCH SELECTED — report with reasoning ---- */
+                    ) : selectedLivePredictionDetail ? (
+                      /* ---- BRANCH SELECTED — SQLite report detail + existing actions ---- */
                       <div className="flex flex-col gap-2.5 animate-in fade-in duration-200 select-text">
-                        {/* Header: Materializar + Cerrar */}
-                        <div className="flex items-center justify-between border-b border-[#5ed8ff]/20 pb-2">
-                          <span className="text-[12px] font-bold text-[#5ed8ff] tracking-wider uppercase">
-                            {t('centauro.reportHeading')}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedSpeculativeId(null);
-                                cancelMaterialize();
-                              }}
-                              className="rounded border border-[#5ed8ff]/25 bg-[#5ed8ff]/8 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#5ed8ff] transition-colors hover:border-[#5ed8ff]/55 hover:bg-[#5ed8ff]/14 font-mono cursor-pointer"
-                            >
-                              ← {t('predictionDetail.back')}
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); openMaterializeConfirm(); }}
-                              disabled={Boolean(selectedBranchMaterialization)}
-                              title={selectedBranchMaterialization?.materializedRef ?? undefined}
-                              className={cn(
-                                'px-3 py-1.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase transition-all duration-150',
-                                selectedBranchMaterialization
-                                  ? 'bg-[#a3f185]/10 text-[#a3f185]/70 border border-[#a3f185]/25 cursor-not-allowed'
-                                  : 'bg-[#a3f185]/15 text-[#a3f185] border border-[#a3f185]/40 hover:bg-[#a3f185]/25 hover:border-[#a3f185]/70 cursor-pointer',
-                              )}
-                            >
-                              {selectedBranchMaterialization ? t('materialize.alreadyButton') : t('centauro.materialize')}
-                            </button>
-                          </div>
+                        {!selectedBranchIsMaterialized && renderPredictionActionHeader()}
+
+                        <PredictionDetail
+                          run={selectedLivePredictionDetail.run}
+                          branch={selectedLivePredictionDetail.branch}
+                          decisions={selectedLivePredictionDetail.decisions}
+                          currentBranches={localBranches ?? []}
+                          lang={language}
+                          onBack={() => {
+                            setSelectedSpeculativeId(null);
+                            cancelMaterialize();
+                          }}
+                        />
+
+                        {selectedBranchIsMaterialized ? renderMaterializedFinalState() : renderPredictionJudgeBar()}
                         </div>
-
-                          {/* Rationale — bordered box */}
-                          <div className="border border-[#5ed8ff]/15 rounded-md px-3 py-2 bg-[#5ed8ff]/[0.03]">
-                            <p className="text-[11px] leading-relaxed text-[#c0d4f0] whitespace-pre-line font-sans">
-                              {speculativeDialogue.turns[0]?.text.split('\n\n')[1]?.trim() || speculativeDialogue.turns[0]?.text || ''}
-                            </p>
-                          </div>
-
-                          {/* Reasoning — extended prose in paragraphs */}
-                          {selectedBranchReasoning ? (
-                            <div className="flex flex-col gap-2">
-                              {renderReasoningParagraphs(selectedBranchReasoning).map((p, i) => (
-                                <p key={i} className="text-[11px] leading-relaxed text-[#d9e7fc] whitespace-pre-line font-sans">
-                                  {p}
-                                </p>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-[10px] text-[#697789]/70 italic leading-relaxed">
-                              {t('centauro.oldPrediction')}
-                            </p>
-                          )}
-
-                          {/* Type + confidence metadata */}
-                          <div className="flex items-center gap-3 text-[9px] text-[#697789] border-t border-[#d9e7fc]/8 pt-1.5">
-                            <span>{t('centauro.typeLabel')} <span className="text-[#5ed8ff]">{selectedSpeculativeBranch?.type}</span></span>
-                            <span>{t('centauro.confidenceLabel')} <span className="text-[#5ed8ff]">{Math.round((selectedSpeculativeBranch?.confidence ?? 0) * 100)}%</span></span>
-                          </div>
-
-                          {selectedBranchMaterialization && (
-                            <div className="border border-[#a3f185]/25 bg-[#a3f185]/[0.06] rounded-md px-3 py-2 text-[10px] leading-relaxed">
-                              <div className="text-[#a3f185] font-bold uppercase tracking-wider">
-                                {t('materialize.alreadyHeading')}
-                              </div>
-                              <div className="text-[#d9e7fc]/80 mt-1">
-                                {t('materialize.alreadyDesc')}{' '}
-                                {selectedBranchMaterialization.materializedRef && (
-                                  <span className="text-[#a3f185] font-bold font-mono break-all">
-                                    {selectedBranchMaterialization.materializedRef}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Juzgar buttons */}
-                          <div className="flex items-center gap-2 pt-1 border-t border-[#d9e7fc]/10">
-                            <span className="text-[9px] text-[#697789] uppercase tracking-wider mr-1 shrink-0">{t('centauro.judge')}</span>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); recordBranchDecision('accepted'); }}
-                              className={cn(
-                                'px-2.5 py-0.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150',
-                                selectedBranchDecision?.outcome === 'accepted'
-                                  ? 'bg-[#a3f185]/20 text-[#a3f185] border border-[#a3f185]/50'
-                                  : 'text-[#a3f185]/50 border border-transparent hover:text-[#a3f185] hover:border-[#a3f185]/30 hover:bg-[#a3f185]/8',
-                              )}
-                            >
-                              {t('centauro.accept')}
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); recordBranchDecision('rejected'); }}
-                              className={cn(
-                                'px-2.5 py-0.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150',
-                                selectedBranchDecision?.outcome === 'rejected'
-                                  ? 'bg-[#dc6a6a]/15 text-[#dc6a6a] border border-[#dc6a6a]/40'
-                                  : 'text-[#dc6a6a]/40 border border-transparent hover:text-[#dc6a6a] hover:border-[#dc6a6a]/25 hover:bg-[#dc6a6a]/6',
-                              )}
-                            >
-                              {t('centauro.reject')}
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); recordBranchDecision('deferred'); }}
-                              className={cn(
-                                'px-2.5 py-0.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-all duration-150',
-                                selectedBranchDecision?.outcome === 'deferred'
-                                  ? 'bg-[#fd9d1a]/15 text-[#fd9d1a] border border-[#fd9d1a]/40'
-                                  : 'text-[#fd9d1a]/40 border border-transparent hover:text-[#fd9d1a] hover:border-[#fd9d1a]/25 hover:bg-[#fd9d1a]/6',
-                              )}
-                            >
-                              {t('centauro.defer')}
-                            </button>
-                          </div>
-                        </div>
+                    ) : selectedSpeculativeId ? (
+                      <p className="text-[10px] leading-relaxed text-[#697789]/75">
+                        {predictionHistoryLoading ? t('centauro.historyLoading') : t('centauro.livePending')}
+                      </p>
                       ) : selectedCommit ? (
                         /* ---- TARGET_LOCKED — commit selected ---- */
                         <div className="flex flex-col gap-1 animate-in fade-in duration-200">
@@ -3209,14 +3390,14 @@ export function ChronometricGraph({
                               TARGET_ACQUISITION // SCANNING
                             </span>
                           </div>
-                          {centauroModeActive && speculativeBranches.length > 0 ? (
+                          {centauroModeActive && liveSpeculativeBranches.length > 0 ? (
                             <div className="flex flex-col gap-2">
                               <p className="text-[10px] text-[#697789]/70 italic">
                                 {t('centauro.clickHint')}
                               </p>
                               <div className="flex flex-col gap-0.5">
-                                {speculativeBranches.map((b, bi) => {
-                                  const d = decisions[b.message];
+                                {liveSpeculativeBranches.map((b, bi) => {
+                                  const d = decisions[b.id] ?? decisions[b.message];
                                   const branchColor = d ? OUTCOME_COLOR[d.outcome] : '#5ed8ff';
                                   const num = b.predictionIndex ?? (bi + 1);
                                   return (
@@ -3254,14 +3435,29 @@ export function ChronometricGraph({
                   ) : (
                     /* ---- HISTORY TAB — SQLite prediction history grouped by run ---- */
                     selectedHistoryDetail ? (
-                      <PredictionDetail
-                        run={selectedHistoryDetail.run}
-                        branch={selectedHistoryDetail.branch}
-                        decisions={selectedHistoryDetail.decisions}
-                        currentBranches={localBranches ?? []}
-                        lang={language}
-                        onBack={() => setSelectedHistoryDetail(null)}
-                      />
+                      selectedHistoryDetailIsActionable ? (
+                        <div className="flex flex-col gap-2.5 py-3 font-mono select-text">
+                          {!selectedBranchIsMaterialized && renderPredictionActionHeader()}
+                          <PredictionDetail
+                            run={selectedHistoryDetail.run}
+                            branch={selectedHistoryDetail.branch}
+                            decisions={selectedHistoryDetail.decisions}
+                            currentBranches={localBranches ?? []}
+                            lang={language}
+                            onBack={() => setSelectedHistoryDetail(null)}
+                          />
+                          {selectedBranchIsMaterialized ? renderMaterializedFinalState() : renderPredictionJudgeBar()}
+                        </div>
+                      ) : (
+                        <PredictionDetail
+                          run={selectedHistoryDetail.run}
+                          branch={selectedHistoryDetail.branch}
+                          decisions={selectedHistoryDetail.decisions}
+                          currentBranches={localBranches ?? []}
+                          lang={language}
+                          onBack={() => setSelectedHistoryDetail(null)}
+                        />
+                      )
                     ) : (
                     <div className="px-4 py-2.5 font-mono">
                       {predictionHistoryLoading && predictionHistory.length === 0 ? (
@@ -3325,11 +3521,24 @@ export function ChronometricGraph({
                                       >
                                         <button
                                           type="button"
-                                          onClick={() => setSelectedHistoryDetail({
-                                            run: entry.run,
-                                            branch,
-                                            decisions: branchDecisions,
-                                          })}
+                                          onClick={() => {
+                                            const isActionableLatestBranch = entry.run.id === latestPredictionEntry?.run.id
+                                              && liveSpeculativeBranches.some((item) => item.id === branch.id);
+                                            setSelectedHistoryDetail({
+                                              run: entry.run,
+                                              branch,
+                                              decisions: branchDecisions,
+                                            });
+                                            if (isActionableLatestBranch) {
+                                              setSelectedSpeculativeId(branch.id);
+                                              setMaterializeIdea(null);
+                                              setMaterializeResult(null);
+                                              setMaterializeError(null);
+                                            } else {
+                                              setSelectedSpeculativeId(null);
+                                              cancelMaterialize();
+                                            }
+                                          }}
                                           className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-[#5ed8ff]/[0.045] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5ed8ff]/55"
                                         >
                                           <div className="min-w-0 flex-1 leading-snug">

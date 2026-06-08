@@ -27,6 +27,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:checkout', repoPath, branch),
   gitCreateBranch: (repoPath: string, name: string, fromHash?: string) =>
     ipcRenderer.invoke('git:create-branch', repoPath, name, fromHash),
+  gitRestoreMaterializedBranch: (repoPath: string, branchName: string, sourceTag: string) =>
+    ipcRenderer.invoke('git:restore-materialized-branch', repoPath, branchName, sourceTag),
   gitMergeBranch: (repoPath: string, sourceBranch: string) =>
     ipcRenderer.invoke('git:merge-branch', repoPath, sourceBranch),
   gitRebase: (repoPath: string, ontoBranch: string) =>

@@ -1499,6 +1499,49 @@ ipcMain.handle('git:create-branch', async (_event, targetPath: string, name: str
   }
 });
 
+function isSafeMaterializedRestoreRef(value: string, expectedPrefix: 'imagined/' | 'flight/'): boolean {
+  return (
+    typeof value === 'string'
+    && value.startsWith(expectedPrefix)
+    && !value.startsWith('-')
+    && !/[\0\r\n\s]/.test(value)
+    && !value.includes('..')
+    && !value.includes('@{')
+  );
+}
+
+ipcMain.handle(
+  'git:restore-materialized-branch',
+  async (_event, targetPath: string, branchName: string, sourceTag: string) => {
+    try {
+      if (!targetPath) return { success: false, error: 'No repo path' };
+      if (!isSafeMaterializedRestoreRef(branchName, 'imagined/')) {
+        return { success: false, error: 'Invalid materialized branch name' };
+      }
+      if (!isSafeMaterializedRestoreRef(sourceTag, 'flight/')) {
+        return { success: false, error: 'Invalid materialization source tag' };
+      }
+
+      const g = simpleGit(targetPath);
+      const branches = await g.branchLocal();
+      if (branches.all.includes(branchName)) {
+        return { success: false, error: `Branch "${branchName}" already exists` };
+      }
+
+      const tags = await g.tags();
+      if (!tags.all.includes(sourceTag)) {
+        return { success: false, error: `Tag "${sourceTag}" does not exist` };
+      }
+
+      // Restore the ref without checkout. This does not touch HEAD or the working tree.
+      await g.raw(['branch', branchName, sourceTag]);
+      return { success: true, data: { branchName, sourceTag } };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  },
+);
+
 // ── Merge a branch INTO the current branch ──
 ipcMain.handle('git:merge-branch', async (_event, targetPath: string, sourceBranch: string) => {
   try {

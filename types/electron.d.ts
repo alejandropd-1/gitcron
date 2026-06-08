@@ -174,6 +174,11 @@ interface ElectronAPI {
   gitBranches: (repoPath: string) => Promise<GitResult<BranchData>>;
   gitCheckout: (repoPath: string, branch: string) => Promise<GitResult>;
   gitCreateBranch: (repoPath: string, name: string, fromHash?: string) => Promise<GitResult>;
+  gitRestoreMaterializedBranch: (
+    repoPath: string,
+    branchName: string,
+    sourceTag: string,
+  ) => Promise<GitResult<{ branchName: string; sourceTag: string }>>;
   gitMergeBranch: (repoPath: string, sourceBranch: string) => Promise<GitResult>;
   gitRebase: (repoPath: string, ontoBranch: string) => Promise<GitResult>;
   gitFastForward: (repoPath: string, branch: string, toRef: string) => Promise<GitResult>;

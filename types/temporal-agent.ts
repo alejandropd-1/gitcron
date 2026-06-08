@@ -222,6 +222,7 @@ export interface MaterializationPlan {
   flightLevel: FlightLevel;
   commitMessage: string;
   ideaMarkdown: string;
+  agentBriefMarkdown: string;
 }
 
 /** What main returns after a successful materialization. */

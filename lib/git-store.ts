@@ -103,7 +103,7 @@ interface GitStore {
   shortcuts: Record<string, string>;
   theme: Theme;
   enableCronometric: boolean;
-  centauroExpanded: boolean;
+  centauroReaderActive: boolean;
 
   setRepoPath: (path: string | null) => void;
   setRepoName: (name: string | null) => void;
@@ -140,7 +140,7 @@ interface GitStore {
   resetShortcuts: () => void;
   setTheme: (theme: Theme) => void;
   setEnableCronometric: (enabled: boolean) => void;
-  setCentauroExpanded: (expanded: boolean) => void;
+  setCentauroReaderActive: (active: boolean) => void;
   setMergeInProgress: (inProgress: boolean) => void;
 }
 
@@ -329,7 +329,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   shortcuts: {},
   theme: 'dark',
   enableCronometric: false,
-  centauroExpanded: false,
+  centauroReaderActive: false,
 
   setRepoPath: (repoPath) => set((state) => {
     if (!repoPath) {
@@ -402,7 +402,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   resetShortcuts: () => set({ shortcuts: {} }),
   setTheme: (theme) => set({ theme }),
   setEnableCronometric: (enableCronometric) => set({ enableCronometric }),
-  setCentauroExpanded: (centauroExpanded) => set({ centauroExpanded }),
+  setCentauroReaderActive: (centauroReaderActive) => set({ centauroReaderActive }),
   setGithubUser: (githubUser) => set({ githubUser }),
   setOpenRepos: (openRepos) => set((state) => {
     const activeRepo = state.openRepos[state.activeRepoIdx] ?? null;

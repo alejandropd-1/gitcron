@@ -555,8 +555,8 @@ export function ChronometricGraph({
   const [selectedSpeculativeId, setSelectedSpeculativeId] = useState<string | null>(null);
 
   // Centauro mode controls the future-branch reader; hudExpanded controls the panel body.
-  const centauroModeActive = useGitStore((state) => state.centauroExpanded);
-  const setCentauroExpanded = useGitStore((state) => state.setCentauroExpanded);
+  const centauroReaderActive = useGitStore((state) => state.centauroReaderActive);
+  const setCentauroReaderActive = useGitStore((state) => state.setCentauroReaderActive);
   const [hudExpanded, setHudExpanded] = useState(false);
 
   // Which tab is active inside the expanded Centauro panel.
@@ -921,7 +921,7 @@ export function ChronometricGraph({
       setPreviousCentauroHeight(null);
     }
     setSelectedSpeculativeId(id);
-    setCentauroExpanded(true);
+    setCentauroReaderActive(true);
     setHudPanelExpanded(true);
     setCentauroTab('report');
     setMaterializeIdea(null);
@@ -957,6 +957,9 @@ export function ChronometricGraph({
     () => (materializeIdea ? buildMaterializationPlan(materializeIdea, localBranches, localTags) : null),
     [materializeIdea, localBranches, localTags],
   );
+  const materializeConfidencePct = materializeIdea
+    ? Math.round(Math.min(1, Math.max(0, materializeIdea.confidence)) * 100)
+    : 0;
 
   useEffect(() => {
     setRestoreBranchError(null);
@@ -970,7 +973,7 @@ export function ChronometricGraph({
 
   const centauroContentSignature = useMemo(() => [
     hudExpanded ? 'open' : 'closed',
-    centauroModeActive ? 'centauro-on' : 'centauro-off',
+    centauroReaderActive ? 'centauro-on' : 'centauro-off',
     showSpeculative ? 'futures-on' : 'futures-off',
     centauroTab,
     predictionHistoryLoading ? 'history-loading' : 'history-ready',
@@ -992,7 +995,7 @@ export function ChronometricGraph({
     String(allDecisions.length),
   ].join('|'), [
     hudExpanded,
-    centauroModeActive,
+    centauroReaderActive,
     showSpeculative,
     centauroTab,
     predictionHistoryLoading,
@@ -1064,8 +1067,8 @@ export function ChronometricGraph({
   }, [hudExpanded]);
 
   function toggleCentauroMode(): void {
-    const next = !centauroModeActive;
-    setCentauroExpanded(next);
+    const next = !centauroReaderActive;
+    setCentauroReaderActive(next);
     if (next) {
       setHudPanelExpanded(true);
       setCentauroTab('report');
@@ -1773,6 +1776,44 @@ export function ChronometricGraph({
     initialWorldFocusY: 100 + 180 * DEFAULT_CHRONOMETRIC_SLOPE,
     topSafeOffset: 96,
   });
+
+  const [overlaySize, setOverlaySize] = useState({ width: 800, height: 520 });
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateOverlaySize = () => {
+      const nextSize = {
+        width: container.clientWidth || 800,
+        height: container.clientHeight || 520,
+      };
+
+      setOverlaySize((current) =>
+        current.width === nextSize.width && current.height === nextSize.height
+          ? current
+          : nextSize
+      );
+    };
+
+    updateOverlaySize();
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(updateOverlaySize)
+      : null;
+
+    resizeObserver?.observe(container);
+    window.addEventListener('resize', updateOverlaySize);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateOverlaySize);
+    };
+  }, [containerRef]);
+
+  const overlayCenterX = overlaySize.width / 2;
+  const overlayCenterY = overlaySize.height / 2;
+  const rightCoordinateLabelX = Math.max(0, overlaySize.width - 295);
 
   useEffect(() => {
     if (selectedBranchFocusRequest === lastHandledBranchFocusRequestRef.current) return;
@@ -3038,17 +3079,17 @@ export function ChronometricGraph({
 
         {/* Crosshair Ticks in center of screen */}
         <g stroke="#3c495a" strokeWidth="0.75" opacity="0.2">
-          <line x1="50%" y1="calc(50% - 16px)" x2="50%" y2="calc(50% - 8px)" />
-          <line x1="50%" y1="calc(50% + 8px)" x2="50%" y2="calc(50% + 16px)" />
-          <line x1="calc(50% - 16px)" y1="50%" x2="calc(50% - 8px)" y2="50%" />
-          <line x1="calc(50% + 8px)" y1="50%" x2="calc(50% + 16px)" y2="50%" />
+          <line x1={overlayCenterX} y1={overlayCenterY - 16} x2={overlayCenterX} y2={overlayCenterY - 8} />
+          <line x1={overlayCenterX} y1={overlayCenterY + 8} x2={overlayCenterX} y2={overlayCenterY + 16} />
+          <line x1={overlayCenterX - 16} y1={overlayCenterY} x2={overlayCenterX - 8} y2={overlayCenterY} />
+          <line x1={overlayCenterX + 8} y1={overlayCenterY} x2={overlayCenterX + 16} y2={overlayCenterY} />
         </g>
 
         {/* Technical Coordinate Indicators */}
         <text x="295" y="109" fill="#697789" fontSize="6" className="font-mono" opacity="0.5">
           NAV_AXIS // AZIMUTH: 40.4° // DECLINATION: 0.85
         </text>
-        <text x="calc(100% - 295px)" y="109" textAnchor="end" fill="#697789" fontSize="6" className="font-mono" opacity="0.5">
+        <text x={rightCoordinateLabelX} y="109" textAnchor="end" fill="#697789" fontSize="6" className="font-mono" opacity="0.5">
           SYS_CORRELATION // CHRONO_V2.0 // TIMELINE: RUNNING
         </text>
       </svg>
@@ -3111,14 +3152,14 @@ export function ChronometricGraph({
                 onClick={toggleCentauroMode}
                 className={cn(
                   'h-7 shrink-0 rounded-md border flex items-center gap-1.5 px-2.5 transition-colors cursor-pointer text-[9px] font-bold tracking-wider uppercase font-mono',
-                  centauroModeActive
+                  centauroReaderActive
                     ? 'border-[#a3f185]/40 bg-[#d9e7fc]/10 text-[#a3f185]'
                     : 'border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
                 )}
                 title={t('toolbar.centauroTooltip')}
-                aria-pressed={centauroModeActive}
+                aria-pressed={centauroReaderActive}
               >
-                <Compass size={12} className={cn('transition-colors', centauroModeActive ? 'text-[#a3f185]' : 'text-[#9eacc0]/70')} />
+                <Compass size={12} className={cn('transition-colors', centauroReaderActive ? 'text-[#a3f185]' : 'text-[#9eacc0]/70')} />
                 <span>{t('toolbar.centauro')}</span>
               </button>
             </div>
@@ -3269,20 +3310,28 @@ export function ChronometricGraph({
                                   <span className="text-[8px] text-[#697789] uppercase tracking-wider">{t('materialize.flightLabel')}</span>
                                   <span className="text-[#5ed8ff] font-mono">{materializePlan.flightLevel}</span>
                                 </div>
+                                <div className="flex-1 min-w-[120px] flex flex-col gap-0.5">
+                                  <span className="text-[8px] text-[#697789] uppercase tracking-wider">{t('predictionDetail.type')}</span>
+                                  <span className="text-[#9eacc0] font-mono">{materializeIdea.type}</span>
+                                </div>
+                                <div className="flex-1 min-w-[120px] flex flex-col gap-0.5">
+                                  <span className="text-[8px] text-[#697789] uppercase tracking-wider">{t('predictionDetail.confidence')}</span>
+                                  <span className="text-[#5ed8ff] font-mono">{materializeConfidencePct}%</span>
+                                </div>
                                 <div className="flex-[2] min-w-[200px] flex flex-col gap-0.5">
                                   <span className="text-[8px] text-[#697789] uppercase tracking-wider">{t('materialize.commitLabel')}</span>
                                   <span className="text-[#9eacc0] font-mono leading-relaxed truncate" title={materializePlan.commitMessage}>{materializePlan.commitMessage}</span>
                                 </div>
                               </div>
 
-                              {/* Scrollable IDEA.md (flex-1 to occupy the rest of the height) */}
+                              {/* Scrollable brief (flex-1 to occupy the rest of the height) */}
                               <div className="flex-1 flex flex-col min-h-0 gap-1.5 select-text">
                                 <div className="flex items-center justify-between shrink-0">
-                                  <span className="text-[9px] text-[#697789] uppercase tracking-wider font-bold">IDEA.md</span>
-                                  <CopyButton text={materializePlan.ideaMarkdown} />
+                                  <span className="text-[9px] text-[#697789] uppercase tracking-wider font-bold">{t('materialize.briefLabel')}</span>
+                                  <CopyButton text={materializePlan.agentBriefMarkdown} />
                                 </div>
                                 <pre className="flex-1 overflow-y-auto bg-[#020f1e] border border-[#2D2E39] rounded p-3 text-[10px] leading-relaxed text-[#cbc3d7] whitespace-pre-wrap font-mono select-text">
-                                  {materializePlan.ideaMarkdown}
+                                  {materializePlan.agentBriefMarkdown}
                                 </pre>
                               </div>
                             </div>
@@ -3303,20 +3352,28 @@ export function ChronometricGraph({
                                   <span className="text-[9px] text-[#697789] uppercase tracking-wider">{t('materialize.flightLabel')}</span>
                                   <span className="text-[#5ed8ff] font-mono">{materializePlan.flightLevel}</span>
                                 </div>
+                                <div className="flex flex-col gap-1 border-b border-[#5ed8ff]/10 pb-1.5">
+                                  <span className="text-[9px] text-[#697789] uppercase tracking-wider">{t('predictionDetail.type')}</span>
+                                  <span className="text-[#9eacc0] font-mono">{materializeIdea.type}</span>
+                                </div>
+                                <div className="flex flex-col gap-1 border-b border-[#5ed8ff]/10 pb-1.5">
+                                  <span className="text-[9px] text-[#697789] uppercase tracking-wider">{t('predictionDetail.confidence')}</span>
+                                  <span className="text-[#5ed8ff] font-mono">{materializeConfidencePct}%</span>
+                                </div>
                                 <div className="flex flex-col gap-1">
                                   <span className="text-[9px] text-[#697789] uppercase tracking-wider">{t('materialize.commitLabel')}</span>
                                   <span className="text-[#9eacc0] font-mono leading-relaxed">{materializePlan.commitMessage}</span>
                                 </div>
                               </div>
 
-                              {/* Right side: IDEA.md content preview (3/5 width) */}
+                              {/* Right side: execution brief content preview (3/5 width) */}
                               <div className="md:col-span-3 flex flex-col gap-1.5 min-h-[180px]">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-[9px] text-[#697789] uppercase tracking-wider font-bold">IDEA.md</span>
-                                  <CopyButton text={materializePlan.ideaMarkdown} />
+                                  <span className="text-[9px] text-[#697789] uppercase tracking-wider font-bold">{t('materialize.briefLabel')}</span>
+                                  <CopyButton text={materializePlan.agentBriefMarkdown} />
                                 </div>
                                 <pre className="max-h-[220px] overflow-y-auto bg-[#020f1e] border border-[#2D2E39] rounded p-3 text-[10px] leading-relaxed text-[#cbc3d7] whitespace-pre-wrap font-mono select-text">
-                                  {materializePlan.ideaMarkdown}
+                                  {materializePlan.agentBriefMarkdown}
                                 </pre>
                               </div>
                             </div>
@@ -3390,7 +3447,7 @@ export function ChronometricGraph({
                               TARGET_ACQUISITION // SCANNING
                             </span>
                           </div>
-                          {centauroModeActive && liveSpeculativeBranches.length > 0 ? (
+                          {centauroReaderActive && liveSpeculativeBranches.length > 0 ? (
                             <div className="flex flex-col gap-2">
                               <p className="text-[10px] text-[#697789]/70 italic">
                                 {t('centauro.clickHint')}
@@ -3420,7 +3477,7 @@ export function ChronometricGraph({
                                 })}
                               </div>
                             </div>
-                          ) : centauroModeActive ? (
+                          ) : centauroReaderActive ? (
                             <p className="text-[10px] text-[#697789]/70">
                               {t('centauro.noPredictions')}
                             </p>

@@ -132,12 +132,8 @@ export function tagNameFor(level: FlightLevel, existingTags?: string[]): string 
   return tag;
 }
 
-/** The IDEA.md body committed onto the new branch. */
-function buildIdeaMarkdown(
-  idea: MaterializeIdeaInput,
-  level: FlightLevel,
-): string {
-  const pct = Math.round(clamp01(idea.confidence) * 100);
+/** The copyable execution brief shown in the materialization preview. */
+export function buildAgentBriefMarkdown(idea: MaterializeIdeaInput): string {
   const sections = [
     `# ${idea.title}`,
     '',
@@ -170,7 +166,17 @@ function buildIdeaMarkdown(
     );
   }
 
-  sections.push(
+  return sections.join('\n');
+}
+
+/** The IDEA.md body committed onto the new branch. */
+function buildIdeaMarkdown(
+  idea: MaterializeIdeaInput,
+  level: FlightLevel,
+): string {
+  const pct = Math.round(clamp01(idea.confidence) * 100);
+  const sections = [
+    buildAgentBriefMarkdown(idea),
     '',
     '## Metadata',
     '',
@@ -185,7 +191,7 @@ function buildIdeaMarkdown(
     '- [ ] Sketch the first concrete change.',
     '- [ ] Replace this file with a real plan or delete the branch.',
     '',
-  );
+  ];
 
   return sections.join('\n');
 }
@@ -203,6 +209,7 @@ export function buildMaterializationPlan(
     flightLevel,
     commitMessage: `idea: ${idea.title}`,
     ideaMarkdown: buildIdeaMarkdown(idea, flightLevel),
+    agentBriefMarkdown: buildAgentBriefMarkdown(idea),
   };
 }
 

@@ -6,6 +6,11 @@ Changes are listed from newest to oldest.
 
 ## [v1.7.0] - 2026-06-03 - Optimización Estructural: Componentización de Paneles, Modales y Correcciones de Visibilidad
 
+### 🔵 Vista Cronométrica — Temporal Agent
+
+#### Changed
+- **Brief copiable en Materializar Futuro**: El preview de materialización separa la metadata fija (`branch`, `tag`, nivel de vuelo, tipo, confianza y commit) del bloque copiable para agentes. El `IDEA.md` creado en la rama real conserva el contenido completo, pero el botón de copiar ahora toma solo el brief de ejecución.
+
 ### 🟢 Vista Clásica & Core
 
 #### Refactored

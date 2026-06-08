@@ -149,6 +149,12 @@ describe('plan builders', () => {
     expect(plan.ideaMarkdown).toContain('Recent commits keep touching main.ts.');
     expect(plan.ideaMarkdown).toContain('**Flight level:** conservative');
     expect(plan.ideaMarkdown).toContain('**Agent confidence:** 82%');
+    // The copyable brief keeps execution content only; metadata stays in fixed UI fields.
+    expect(plan.agentBriefMarkdown).toContain('# Extract IPC layer into a typed contract module');
+    expect(plan.agentBriefMarkdown).toContain('Recent commits keep touching main.ts.');
+    expect(plan.agentBriefMarkdown).not.toContain('## Metadata');
+    expect(plan.agentBriefMarkdown).not.toContain('**Flight level:** conservative');
+    expect(plan.agentBriefMarkdown).not.toContain('**Agent confidence:** 82%');
   });
 
   it('buildMaterializationPlan uses secure code fence for agentPrompt', () => {
@@ -160,5 +166,7 @@ describe('plan builders', () => {
     expect(plan.ideaMarkdown).toContain('````text');
     expect(plan.ideaMarkdown).toContain('Here is a ``` code block inside prompt ```.');
     expect(plan.ideaMarkdown).toContain('````');
+    expect(plan.agentBriefMarkdown).toContain('````text');
+    expect(plan.agentBriefMarkdown).toContain('Here is a ``` code block inside prompt ```.');
   });
 });

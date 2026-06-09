@@ -63,6 +63,13 @@ const CENTAURO_BOTTOM_INSET_PX = 12;
 const GRAPH_CLEAR_CLICK_DRAG_THRESHOLD_PX = 5;
 const HUD_EXPANDED_STORAGE_KEY = 'gitcron:centauroHudExpanded';
 
+type HeadReticleSnapshot = {
+  id: number;
+  hash: string;
+  x: number;
+  y: number;
+};
+
 function formatDecisionDate(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
@@ -265,10 +272,30 @@ export function ChronometricGraph({
   }, [commits, selectedHash]);
 
   const previousCommitHashesRef = useRef<Set<string> | null>(null);
+  const previousCommitRepoPathRef = useRef<string | null>(null);
+  const recentlyAddedCommitHashesRef = useRef<Set<string>>(new Set());
   const [enteringCommitHashes, setEnteringCommitHashes] = useState<Set<string>>(() => new Set());
+  const immediatelyEnteringCommitHashes = useMemo(() => {
+    const previousCommitHashes = previousCommitHashesRef.current;
+    if (previousCommitRepoPathRef.current !== (repoPath ?? null)) return new Set<string>();
+    if (!previousCommitHashes) return new Set<string>();
+
+    const addedHashes = commits
+      .filter((commit) => !previousCommitHashes.has(commit.hash))
+      .map((commit) => commit.hash);
+
+    if (addedHashes.length === 0 || addedHashes.length > 4) return new Set<string>();
+    return new Set(addedHashes);
+  }, [commits, repoPath]);
+  const isCommitEntering = useCallback(
+    (hash: string) => enteringCommitHashes.has(hash) || immediatelyEnteringCommitHashes.has(hash),
+    [enteringCommitHashes, immediatelyEnteringCommitHashes],
+  );
 
   useLayoutEffect(() => {
     previousCommitHashesRef.current = null;
+    previousCommitRepoPathRef.current = null;
+    recentlyAddedCommitHashesRef.current = new Set();
     setEnteringCommitHashes(new Set());
   }, [repoPath]);
 
@@ -276,6 +303,7 @@ export function ChronometricGraph({
     const nextCommitHashes = new Set(commits.map((commit) => commit.hash));
     const previousCommitHashes = previousCommitHashesRef.current;
     previousCommitHashesRef.current = nextCommitHashes;
+    previousCommitRepoPathRef.current = repoPath ?? null;
 
     if (!previousCommitHashes) return;
 
@@ -283,7 +311,12 @@ export function ChronometricGraph({
       .filter((commit) => !previousCommitHashes.has(commit.hash))
       .map((commit) => commit.hash);
 
-    if (addedHashes.length === 0 || addedHashes.length > 4) return;
+    if (addedHashes.length === 0 || addedHashes.length > 4) {
+      recentlyAddedCommitHashesRef.current = new Set();
+      return;
+    }
+
+    recentlyAddedCommitHashesRef.current = new Set(addedHashes);
 
     setEnteringCommitHashes((current) => {
       const next = new Set(current);
@@ -297,10 +330,11 @@ export function ChronometricGraph({
         addedHashes.forEach((hash) => next.delete(hash));
         return next;
       });
+      addedHashes.forEach((hash) => recentlyAddedCommitHashesRef.current.delete(hash));
     }, 5600);
 
     return () => window.clearTimeout(timer);
-  }, [commits]);
+  }, [commits, repoPath]);
 
   // 2. Compute classic graph lanes to reuse lane assignment logic
   const { rows } = useMemo(
@@ -1551,6 +1585,50 @@ export function ChronometricGraph({
     return active || projectedCommits[0] || null;
   }, [projectedCommits, currentBranch]);
 
+  const previousHeadReticleRef = useRef<Omit<HeadReticleSnapshot, 'id'> | null>(null);
+  const headReticleExitIdRef = useRef(0);
+  const headReticleExitTimersRef = useRef<number[]>([]);
+  const [exitingHeadReticles, setExitingHeadReticles] = useState<HeadReticleSnapshot[]>([]);
+
+  useLayoutEffect(() => {
+    previousHeadReticleRef.current = null;
+    setExitingHeadReticles([]);
+    headReticleExitTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    headReticleExitTimersRef.current = [];
+  }, [repoPath]);
+
+  useLayoutEffect(() => {
+    if (!headCommitNode) {
+      previousHeadReticleRef.current = null;
+      return;
+    }
+
+    const nextHead = {
+      hash: headCommitNode.commit.hash,
+      x: headCommitNode.x,
+      y: headCommitNode.y,
+    };
+    const previousHead = previousHeadReticleRef.current;
+    previousHeadReticleRef.current = nextHead;
+
+    if (!previousHead || previousHead.hash === nextHead.hash) return;
+    if (!recentlyAddedCommitHashesRef.current.has(nextHead.hash)) return;
+
+    const exitingReticle: HeadReticleSnapshot = {
+      id: headReticleExitIdRef.current++,
+      ...previousHead,
+    };
+
+    setExitingHeadReticles((current) => [...current.slice(-2), exitingReticle]);
+
+    const timer = window.setTimeout(() => {
+      setExitingHeadReticles((current) => current.filter((item) => item.id !== exitingReticle.id));
+      headReticleExitTimersRef.current = headReticleExitTimersRef.current.filter((item) => item !== timer);
+    }, 1800);
+
+    headReticleExitTimersRef.current.push(timer);
+  }, [headCommitNode, repoPath]);
+
   // Coordinates for the WIP capsule (if changes exist in modifiedFiles)
   const wipCoords = useMemo(() => {
     if (modifiedFiles.length === 0 || !headCommitNode) return null;
@@ -2131,6 +2209,20 @@ export function ChronometricGraph({
                 filter: blur(0) brightness(1) saturate(1);
               }
             }
+            @keyframes chrono-tcar-exit {
+              0% {
+                opacity: 1;
+                filter: blur(0) brightness(1) saturate(1);
+              }
+              38% {
+                opacity: 0.52;
+                filter: blur(1.8px) brightness(1.22) saturate(1.05);
+              }
+              100% {
+                opacity: 0;
+                filter: blur(7px) brightness(1.65) saturate(0.72);
+              }
+            }
             @keyframes chrono-future-lines-enter {
               0%, 18% {
                 opacity: 0;
@@ -2156,7 +2248,11 @@ export function ChronometricGraph({
               animation: chrono-node-label-enter 5.15s ease-out both;
             }
             .chrono-tcar-enter {
-              animation: chrono-tcar-enter 3.2s ease-out both;
+              animation: chrono-tcar-enter 2.75s ease-out both;
+              mix-blend-mode: screen;
+            }
+            .chrono-tcar-exit {
+              animation: chrono-tcar-exit 1.65s ease-in both;
               mix-blend-mode: screen;
             }
             .chrono-future-lines-enter {
@@ -2167,9 +2263,13 @@ export function ChronometricGraph({
               .chrono-node-enter,
               .chrono-node-label-enter,
               .chrono-tcar-enter,
+              .chrono-tcar-exit,
               .chrono-future-lines-enter {
                 animation: none;
                 filter: none;
+              }
+              .chrono-tcar-exit {
+                opacity: 0;
               }
               .chrono-flow-overlay-enter-path {
                 animation: chrono-flow 3s linear infinite !important;
@@ -2366,7 +2466,7 @@ export function ChronometricGraph({
                   const cp2y = py + tension * uy;
 
                   const isMerge = node.commit.parents.length > 1 && ci > 0;
-                  const connectionIsEntering = ci === 0 && enteringCommitHashes.has(node.commit.hash);
+                  const connectionIsEntering = ci === 0 && isCommitEntering(node.commit.hash);
                   const childToParentPath = `M ${cx} ${cy} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${px} ${py}`;
                   const parentToChildPath = `M ${px} ${py} C ${cp2x} ${cp2y}, ${cp1x} ${cp1y}, ${cx} ${cy}`;
 
@@ -2433,7 +2533,7 @@ export function ChronometricGraph({
                 const isSelected = selectedHash === node.commit.hash;
                 const isHovered = hoveredHash === node.commit.hash;
                 const isHead = headCommitNode && node.commit.hash === headCommitNode.commit.hash;
-                const isEntering = enteringCommitHashes.has(node.commit.hash);
+                const isEntering = isCommitEntering(node.commit.hash);
                 const isBranchHighlighted = Boolean(
                   selectedBranchName &&
                   (node.branchName === selectedBranchName || commitHasBranchRef(node.commit, selectedBranchName) || (selectedBranchColor && node.laneColor === selectedBranchColor))
@@ -2601,14 +2701,14 @@ export function ChronometricGraph({
                   key="head-reticle"
                   className={cn(
                     'pointer-events-none',
-                    enteringCommitHashes.has(headCommitNode.commit.hash) && 'chrono-tcar-enter',
+                    isCommitEntering(headCommitNode.commit.hash) && 'chrono-tcar-enter',
                   )}
                 >
                   <g
                     transform={`translate(${headCommitNode.x}, ${headCommitNode.y}) scale(0.18) translate(-360, -360)`}
                     opacity={0.85}
                   >
-                    <g style={{ transformOrigin: '360px 360px' }}>
+                    <g id="tcar-reticle-art" style={{ transformOrigin: '360px 360px' }}>
                       <path fill="#80d1e2" d="M128.94,233.7s47.13,24.25,84.98,51.05c12.09-23.46,29.72-43.59,51.17-58.67l-17.17-11.81H30.72c-2.23,5.02-4.34,10.1-6.34,15.24,82.61-3.21,104.56,4.18,104.56,4.18Z"/>
                       <path fill="#1984cd" d="M157,524.71h62.4c-7.77-2.28-21.77-14.28-27.67-19.61h-34.73v19.61Z"/>
                       <path fill="#e5d6b4" d="M263.8,452.94l-13.17,13.17c26.37,27.14,62.71,44.53,103.12,46.26v-18.64c-35.26-1.72-66.94-17.03-89.94-40.79Z"/>
@@ -2636,9 +2736,23 @@ export function ChronometricGraph({
                       <path fill="#80d1e2" d="M209.22,377.11c33.81-4.57,61.9-6.6,61.9-20.24,0-10.26-28.64-15.14-61.9-19.02v39.26Z"/>
                       <path fill="#80d1e2" d="M248.75,468l-22.59,22.59c32.63,33.41,77.62,54.68,127.59,56.42v-31.96c-41.14-1.73-78.15-19.42-105-47.04Z"/>
                   </g>
+                  </g>
                 </g>
-              </g>
-            )}
+              )}
+
+              {exitingHeadReticles.map((reticle) => (
+                <g
+                  key={`head-reticle-exit-${reticle.id}`}
+                  className="pointer-events-none chrono-tcar-exit"
+                >
+                  <g
+                    transform={`translate(${reticle.x}, ${reticle.y}) scale(0.18) translate(-360, -360)`}
+                    opacity={0.85}
+                  >
+                    <use href="#tcar-reticle-art" />
+                  </g>
+                </g>
+              ))}
 
               {/* WIP Capsule (Work in Progress) */}
               {wipCoords && headCommitNode && (
@@ -2763,7 +2877,7 @@ export function ChronometricGraph({
               {projectedCommits.map((node) => {
                 const isHead = headCommitNode && node.commit.hash === headCommitNode.commit.hash;
                 const isBranchOrigin = node.isBranchOrigin;
-                const isEntering = enteringCommitHashes.has(node.commit.hash);
+                const isEntering = isCommitEntering(node.commit.hash);
 
                 if (isHead && headCommitNode) {
                   const isLeft = headCommitNode.isLeft;
@@ -3094,7 +3208,7 @@ export function ChronometricGraph({
               nodes={speculativeNodes}
               config={config}
               visible={showSpeculative}
-              anchorEntering={Boolean(headCommitNode && enteringCommitHashes.has(headCommitNode.commit.hash))}
+              anchorEntering={Boolean(headCommitNode && isCommitEntering(headCommitNode.commit.hash))}
               onSelect={handleSelectSpeculative}
               selectedBranchId={selectedSpeculativeId}
               decisions={decisions}

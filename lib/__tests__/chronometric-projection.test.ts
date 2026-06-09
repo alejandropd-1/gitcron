@@ -48,19 +48,14 @@ describe('mapLaneToBranchIndex — abanico simétrico con signo', () => {
 });
 
 describe('timeToX', () => {
-  it('maps minTime to paddingLeft and maxTime to width-paddingRight', () => {
+  it('anchors the oldest chronological slot at paddingLeft', () => {
     const range: [number, number] = [1000, 2000];
     const width = 1000;
     const paddingLeft = 100;
     const paddingRight = 100;
 
-    // Single commit at minTime
     const xMin = timeToX(1000, range, 0, 2, width, paddingLeft, paddingRight);
     expect(xMin).toBe(paddingLeft);
-
-    // Single commit at maxTime
-    const xMax = timeToX(2000, range, 1, 2, width, paddingLeft, paddingRight);
-    expect(xMax).toBe(width - paddingRight);
   });
 
   it('incorporates sequential index correctly to prevent collisions', () => {
@@ -74,9 +69,27 @@ describe('timeToX', () => {
     const x2 = timeToX(1000, range, 1, 3, width, paddingLeft, paddingRight);
     const x3 = timeToX(1001, range, 2, 3, width, paddingLeft, paddingRight);
 
-    // Should have substantial separation because of sequential index weighting (70%)
-    expect(x2 - x1).toBeGreaterThan(100);
-    expect(x3 - x2).toBeGreaterThan(100);
+    // Should keep readable slot separation even when timestamps are close.
+    expect(x2 - x1).toBeGreaterThan(60);
+    expect(x3 - x2).toBeGreaterThan(60);
+  });
+
+  it('keeps existing slot positions stable when a newer commit is appended', () => {
+    const rangeBefore: [number, number] = [1000, 3000];
+    const rangeAfter: [number, number] = [1000, 4000];
+    const widthBefore = 1100;
+    const widthAfter = 1100;
+    const paddingLeft = 100;
+    const paddingRight = 100;
+
+    const existingBefore = [0, 1, 2].map((index) =>
+      timeToX(1000 + index * 1000, rangeBefore, index, 3, widthBefore, paddingLeft, paddingRight)
+    );
+    const existingAfter = [0, 1, 2].map((index) =>
+      timeToX(1000 + index * 1000, rangeAfter, index, 4, widthAfter, paddingLeft, paddingRight)
+    );
+
+    expect(existingAfter).toEqual(existingBefore);
   });
 });
 
@@ -146,6 +159,51 @@ describe('projectCommit', () => {
     });
 
     expect(distance).toBeCloseTo(expectedOffset);
+  });
+
+  it('keeps existing projected coordinates stable when the timeline extends', () => {
+    const baseConfig: ProjectionConfig = {
+      width: 1100,
+      height: 965,
+      minTime: 1000,
+      maxTime: 3000,
+      paddingLeft: 100,
+      paddingRight: 100,
+      paddingTop: 100,
+      paddingBottom: 100,
+      fanFactor: 50,
+      totalCommits: 3,
+      timelineBaseY: 865,
+    };
+    const extendedConfig: ProjectionConfig = {
+      ...baseConfig,
+      width: 1175,
+      height: 1028.75,
+      maxTime: 4000,
+      totalCommits: 4,
+    };
+
+    const before = projectCommit(
+      {
+        date: new Date(2000).toISOString(),
+        branchIndex: 0,
+        chronologicalIndex: 1,
+      },
+      baseConfig
+    );
+    const after = projectCommit(
+      {
+        date: new Date(2000).toISOString(),
+        branchIndex: 0,
+        chronologicalIndex: 1,
+      },
+      extendedConfig
+    );
+
+    expect(after.x).toBeCloseTo(before.x);
+    expect(after.y).toBeCloseTo(before.y);
+    expect(after.baseX).toBeCloseTo(before.baseX);
+    expect(after.baseY).toBeCloseTo(before.baseY);
   });
 });
 

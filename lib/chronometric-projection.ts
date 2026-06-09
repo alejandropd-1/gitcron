@@ -23,6 +23,7 @@ export interface ProjectionConfig {
   paddingBottom: number;
   fanFactor: number;
   totalCommits: number;
+  timelineBaseY?: number;
   slope?: number;
 }
 
@@ -32,6 +33,7 @@ export interface ProjectionConfig {
  * Exposing this as a configurable constant keeps the geometry highly customizable.
  */
 export const DEFAULT_CHRONOMETRIC_SLOPE = 0.85;
+export const CHRONOMETRIC_SLOT_WIDTH = 75;
 
 
 export interface ProjectedCommit {
@@ -57,40 +59,29 @@ export function mapLaneToBranchIndex(lane: number): number {
 }
 
 /**
- * Maps a commit's timestamp and sequential index to a horizontal coordinate.
- * Uses a hybrid model (30% linear time, 70% sequential index) to preserve real chronological proportions
- * while preventing clustering of nodes during high-frequency periods.
+ * Maps a commit's sequential chronological slot to a horizontal coordinate.
+ *
+ * The slot spacing is intentionally stable: adding a new HEAD must not
+ * renormalize every existing commit and make the graph jump.
  */
 export function timeToX(
-  ts: number,
-  range: [number, number],
+  _ts: number,
+  _range: [number, number],
   index: number,
   total: number,
   width: number = 1000,
   paddingLeft: number = 80,
   paddingRight: number = 80
 ): number {
-  const [minTime, maxTime] = range;
   const availableWidth = width - paddingLeft - paddingRight;
 
   if (availableWidth <= 0) return paddingLeft;
 
-  // 1. Linear time percentage
-  let pTime = 0.5;
-  if (maxTime > minTime) {
-    pTime = Math.max(0, Math.min(1, (ts - minTime) / (maxTime - minTime)));
-  }
+  const minVisibleSlots = Math.floor(availableWidth / CHRONOMETRIC_SLOT_WIDTH);
+  const stableSlots = Math.max(total - 1, minVisibleSlots, 1);
+  const slotWidth = availableWidth / stableSlots;
 
-  // 2. Sequential index percentage
-  let pIndex = 0.5;
-  if (total > 1) {
-    pIndex = index / (total - 1);
-  }
-
-  // 3. Weighted hybrid interpolation
-  const p = pTime * 0.05 + pIndex * 0.95;
-
-  return paddingLeft + p * availableWidth;
+  return paddingLeft + index * slotWidth;
 }
 
 /**
@@ -129,10 +120,10 @@ export function projectCommit(
     maxTime,
     paddingLeft,
     paddingRight,
-    paddingTop,
     paddingBottom,
     fanFactor,
     totalCommits,
+    timelineBaseY,
   } = config;
 
   const ts = new Date(commit.date).getTime();
@@ -150,9 +141,10 @@ export function projectCommit(
 
   // 2. Main diagonal line segments
   const xStart = paddingLeft;
-  const yStart = height - paddingBottom;
+  const yStart = timelineBaseY ?? height - paddingBottom;
   const xEnd = width - paddingRight;
-  const yEnd = paddingTop;
+  const slope = config.slope ?? DEFAULT_CHRONOMETRIC_SLOPE;
+  const yEnd = yStart - (xEnd - paddingLeft) * slope;
 
   const dx = xEnd - xStart;
   const dy = yEnd - yStart;

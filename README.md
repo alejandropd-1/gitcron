@@ -130,6 +130,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 
 - *Esta sección documenta las características de la Vista Cronométrica.*
 - **Línea de tiempo cronométrica avanzada**: Visualiza la evolución histórica de las ramas alineadas a su estampa de tiempo real, mejorando la comprensión visual de mezclas y bifurcaciones concurrentes.
+- **Entrada estable de commits nuevos**: Al crear un commit desde la vista cronométrica, el viewport conserva su posición y el nodo nuevo entra con fade, mientras el conector desde el commit anterior se dibuja progresivamente.
 - **Navegación temporal interactiva**: Controles para filtrar y enfocar períodos de actividad específicos, útiles en repositorios con alta densidad de commits diarios.
 - **Máscara en Curva Bézier de Precisión**: La máscara de ocultación usa curvas Bézier cúbicas con una silueta fluida que calza al milímetro con la consola LCARS.
 - **Enmascarado con Degradado sobre el Canvas**: Los timelines y commits se desvanecen suavemente a transparente antes de tocar el panel técnico derecho.

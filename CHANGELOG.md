@@ -4,6 +4,18 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [Unreleased] - 2026-06-09
+
+### 🔵 Vista Cronométrica
+
+#### Changed
+- **Viewport estable al crear commits**: La vista cronométrica deja de recentrar el canvas cuando solo cambia el tamaño del mundo por un commit nuevo; el reset visual se mantiene al cambiar de repositorio.
+
+#### Added
+- **Entrada animada de commits nuevos**: Los hashes recién incorporados entran con fade y el conector principal se dibuja progresivamente desde el commit padre, respetando `prefers-reduced-motion`.
+
+---
+
 ## [v1.7.0] - 2026-06-03 - Optimización Estructural: Componentización de Paneles, Modales y Correcciones de Visibilidad
 
 ### 🔵 Vista Cronométrica — Temporal Agent

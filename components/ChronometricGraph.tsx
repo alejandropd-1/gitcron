@@ -9,6 +9,7 @@ import {
   branchToOffset,
   type ProjectionConfig,
   DEFAULT_CHRONOMETRIC_SLOPE,
+  CHRONOMETRIC_SLOT_WIDTH,
   labelSideFromBranchIndex,
 } from '@/lib/chronometric-projection';
 import {
@@ -263,6 +264,44 @@ export function ChronometricGraph({
     return commits.find((c) => c.hash === selectedHash) || null;
   }, [commits, selectedHash]);
 
+  const previousCommitHashesRef = useRef<Set<string> | null>(null);
+  const [enteringCommitHashes, setEnteringCommitHashes] = useState<Set<string>>(() => new Set());
+
+  useLayoutEffect(() => {
+    previousCommitHashesRef.current = null;
+    setEnteringCommitHashes(new Set());
+  }, [repoPath]);
+
+  useLayoutEffect(() => {
+    const nextCommitHashes = new Set(commits.map((commit) => commit.hash));
+    const previousCommitHashes = previousCommitHashesRef.current;
+    previousCommitHashesRef.current = nextCommitHashes;
+
+    if (!previousCommitHashes) return;
+
+    const addedHashes = commits
+      .filter((commit) => !previousCommitHashes.has(commit.hash))
+      .map((commit) => commit.hash);
+
+    if (addedHashes.length === 0 || addedHashes.length > 4) return;
+
+    setEnteringCommitHashes((current) => {
+      const next = new Set(current);
+      addedHashes.forEach((hash) => next.add(hash));
+      return next;
+    });
+
+    const timer = window.setTimeout(() => {
+      setEnteringCommitHashes((current) => {
+        const next = new Set(current);
+        addedHashes.forEach((hash) => next.delete(hash));
+        return next;
+      });
+    }, 5600);
+
+    return () => window.clearTimeout(timer);
+  }, [commits]);
+
   // 2. Compute classic graph lanes to reuse lane assignment logic
   const { rows } = useMemo(
     () => computeGraph(filteredCommits, currentBranch),
@@ -291,7 +330,7 @@ export function ChronometricGraph({
   // 4. Calculate dynamic SVG dimensions based on commit count
   // Slightly increased spacing factor (from 60px to 75px per commit) to give nodes, tags and branches more breathing room
   const width = useMemo(() => {
-    return Math.max(1100, filteredCommits.length * 75);
+    return Math.max(1100, 200 + Math.max(0, filteredCommits.length - 1) * CHRONOMETRIC_SLOT_WIDTH);
   }, [filteredCommits]);
 
   // Compute height dynamically using the slope to maintain a constant visual angle of ~40.4°
@@ -305,6 +344,16 @@ export function ChronometricGraph({
     return paddingTop + paddingBottom + rise;
   }, [width]);
 
+  const timelineBaseSignature = `${repoPath ?? 'no-repo'}:${filter}:${currentBranch ?? 'all'}:${filteredCommits[filteredCommits.length - 1]?.hash ?? 'empty'}`;
+  const timelineBaseRef = useRef<{ signature: string; y: number } | null>(null);
+  if (!timelineBaseRef.current || timelineBaseRef.current.signature !== timelineBaseSignature) {
+    timelineBaseRef.current = {
+      signature: timelineBaseSignature,
+      y: height - 100,
+    };
+  }
+  const timelineBaseY = timelineBaseRef.current.y;
+
   const config: ProjectionConfig = useMemo(() => {
     return {
       width,
@@ -317,8 +366,9 @@ export function ChronometricGraph({
       paddingBottom: 100,
       fanFactor: 38, // lane spacing for symmetrical abanico
       totalCommits: filteredCommits.length,
+      timelineBaseY,
     };
-  }, [width, minTime, maxTime, filteredCommits.length]);
+  }, [width, height, minTime, maxTime, filteredCommits.length, timelineBaseY]);
 
   // Extract primary branch labels for display
   const getBranchName = (commit: Commit) => {
@@ -1403,9 +1453,9 @@ export function ChronometricGraph({
     }) || projectedCommits[0] || null;
 
     const _xStart = config.paddingLeft;
-    const _yStart = height - config.paddingBottom;
+    const _yStart = config.timelineBaseY ?? height - config.paddingBottom;
     const _xEnd = width - config.paddingRight;
-    const _yEnd = config.paddingTop;
+    const _yEnd = _yStart - (_xEnd - _xStart) * DEFAULT_CHRONOMETRIC_SLOPE;
     const _dx = _xEnd - _xStart;
     const _dy = _yEnd - _yStart;
     const _L = Math.sqrt(_dx * _dx + _dy * _dy) || 1;
@@ -1475,9 +1525,9 @@ export function ChronometricGraph({
 
   // Find unit direction vectors of the diagonal line
   const xStart = config.paddingLeft;
-  const yStart = height - config.paddingBottom;
+  const yStart = config.timelineBaseY ?? height - config.paddingBottom;
   const xEnd = width - config.paddingRight;
-  const yEnd = config.paddingTop;
+  const yEnd = yStart - (xEnd - xStart) * DEFAULT_CHRONOMETRIC_SLOPE;
 
   const dx = xEnd - xStart;
   const dy = yEnd - yStart;
@@ -1775,6 +1825,8 @@ export function ChronometricGraph({
     initialWorldFocusX: width - 280,
     initialWorldFocusY: 100 + 180 * DEFAULT_CHRONOMETRIC_SLOPE,
     topSafeOffset: 96,
+    preserveViewportOnWorldResize: true,
+    resetKey: repoPath ?? null,
   });
 
   const [overlaySize, setOverlaySize] = useState({ width: 800, height: 520 });
@@ -1845,9 +1897,9 @@ export function ChronometricGraph({
 
       // Interpolate Y coordinate along the main diagonal path
       const xStart = config.paddingLeft;
-      const yStart = height - config.paddingBottom;
+      const yStart = config.timelineBaseY ?? height - config.paddingBottom;
       const xEnd = width - config.paddingRight;
-      const yEnd = config.paddingTop;
+      const yEnd = yStart - (xEnd - xStart) * DEFAULT_CHRONOMETRIC_SLOPE;
 
       const p = (x - xStart) / (xEnd - xStart || 1);
       const y = yStart + p * (yEnd - yStart);
@@ -1865,30 +1917,21 @@ export function ChronometricGraph({
     return ticks;
 
     function timeToX(
-      ts: number,
-      range: [number, number],
+      _ts: number,
+      _range: [number, number],
       index: number,
       total: number,
       w: number,
       padLeft: number,
       padRight: number
     ): number {
-      const [minT, maxT] = range;
       const availableW = w - padLeft - padRight;
       if (availableW <= 0) return padLeft;
 
-      let pTime = 0.5;
-      if (maxT > minT) {
-        pTime = Math.max(0, Math.min(1, (ts - minT) / (maxT - minT)));
-      }
-
-      let pIndex = 0.5;
-      if (total > 1) {
-        pIndex = index / (total - 1);
-      }
-
-      const p = pTime * 0.3 + pIndex * 0.7;
-      return padLeft + p * availableW;
+      const minVisibleSlots = Math.floor(availableW / CHRONOMETRIC_SLOT_WIDTH);
+      const stableSlots = Math.max(total - 1, minVisibleSlots, 1);
+      const slotWidth = availableW / stableSlots;
+      return padLeft + index * slotWidth;
     }
   }, [filteredCommits, minTime, maxTime, width, config, height]);
 
@@ -2028,6 +2071,110 @@ export function ChronometricGraph({
                 opacity: 1;
               }
             }
+            @keyframes chrono-link-enter {
+              0% {
+                stroke-dashoffset: 1;
+                opacity: 0;
+              }
+              12% {
+                opacity: 0.32;
+              }
+              100% {
+                stroke-dashoffset: 0;
+              }
+            }
+            @keyframes chrono-flow-overlay-enter {
+              0%, 82% {
+                opacity: 0;
+              }
+              100% {
+                opacity: 0.85;
+              }
+            }
+            @keyframes chrono-node-enter {
+              0% {
+                opacity: 0;
+              }
+              24% {
+                opacity: 0.08;
+              }
+              58% {
+                opacity: 0.34;
+              }
+              100% {
+                opacity: 1;
+              }
+            }
+            @keyframes chrono-node-label-enter {
+              0%, 64% {
+                opacity: 0;
+              }
+              100% {
+                opacity: 0.85;
+              }
+            }
+            @keyframes chrono-tcar-enter {
+              0% {
+                opacity: 0;
+                filter: blur(7px) brightness(1.8) saturate(0.65);
+              }
+              30% {
+                opacity: 0.12;
+                filter: blur(5px) brightness(1.6) saturate(0.8);
+              }
+              68% {
+                opacity: 0.48;
+                filter: blur(2.5px) brightness(1.35) saturate(1.05);
+              }
+              100% {
+                opacity: 1;
+                filter: blur(0) brightness(1) saturate(1);
+              }
+            }
+            @keyframes chrono-future-lines-enter {
+              0%, 18% {
+                opacity: 0;
+                filter: blur(6px) brightness(1.55);
+              }
+              58% {
+                opacity: 0.45;
+                filter: blur(2.5px) brightness(1.25);
+              }
+              100% {
+                opacity: 1;
+                filter: blur(0) brightness(1);
+              }
+            }
+            .chrono-link-enter {
+              animation: chrono-link-enter 5s cubic-bezier(0.16, 1, 0.3, 1) both;
+              stroke-dasharray: 1;
+            }
+            .chrono-node-enter {
+              animation: chrono-node-enter 5s ease-out both;
+            }
+            .chrono-node-label-enter {
+              animation: chrono-node-label-enter 5.15s ease-out both;
+            }
+            .chrono-tcar-enter {
+              animation: chrono-tcar-enter 3.2s ease-out both;
+              mix-blend-mode: screen;
+            }
+            .chrono-future-lines-enter {
+              animation: chrono-future-lines-enter 5.15s ease-out both;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .chrono-link-enter,
+              .chrono-node-enter,
+              .chrono-node-label-enter,
+              .chrono-tcar-enter,
+              .chrono-future-lines-enter {
+                animation: none;
+                filter: none;
+              }
+              .chrono-flow-overlay-enter-path {
+                animation: chrono-flow 3s linear infinite !important;
+              }
+            }
           `}</style>
           <g
             transform={`translate(${viewport.offsetX}, ${viewport.offsetY}) scale(${viewport.scale})`}
@@ -2128,7 +2275,7 @@ export function ChronometricGraph({
                       x1={tick.x}
                       y1={config.paddingTop - 20}
                       x2={tick.x}
-                      y2={height - config.paddingBottom + 20}
+                      y2={yStart + 20}
                       stroke="var(--color-border-subtle)"
                       strokeWidth={0.75}
                       strokeDasharray="4 8"
@@ -2219,6 +2366,9 @@ export function ChronometricGraph({
                   const cp2y = py + tension * uy;
 
                   const isMerge = node.commit.parents.length > 1 && ci > 0;
+                  const connectionIsEntering = ci === 0 && enteringCommitHashes.has(node.commit.hash);
+                  const childToParentPath = `M ${cx} ${cy} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${px} ${py}`;
+                  const parentToChildPath = `M ${px} ${py} C ${cp2x} ${cp2y}, ${cp1x} ${cp1y}, ${cx} ${cy}`;
 
                   let mid = null;
                   if (isMerge) {
@@ -2235,26 +2385,30 @@ export function ChronometricGraph({
                     <g key={`conn-group-${node.commit.hash}-${ci}`}>
                       {/* Base semi-transparent solid connection path */}
                       <path
-                        d={`M ${cx} ${cy} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${px} ${py}`}
+                        d={connectionIsEntering ? parentToChildPath : childToParentPath}
                         stroke={conn.color}
                         strokeWidth={connectionBranchHighlighted ? (isMerge ? 1.9 : 2.8) : (isMerge ? 1.5 : 2.5)}
                         strokeLinecap="round"
                         fill="none"
                         opacity={connectionBranchHighlighted ? 0.52 : selectedHash === node.commit.hash || selectedHash === parentNode.commit.hash ? 0.85 : 0.35}
-                        className="transition-all duration-200"
+                        pathLength={connectionIsEntering ? 1 : undefined}
+                        className={cn('transition-all duration-200', connectionIsEntering && 'chrono-link-enter')}
                       />
                       {/* Animated dotted overlay path flowing chronologically (parent -> child) */}
                       <path
-                        d={`M ${px} ${py} C ${cp2x} ${cp2y}, ${cp1x} ${cp1y}, ${cx} ${cy}`}
+                        d={parentToChildPath}
                         stroke={conn.color}
                         strokeWidth={isMerge ? 1.2 : 1.5}
                         strokeLinecap="round"
                         fill="none"
                         strokeDasharray={isMerge ? "3 3" : "4 6"}
                         opacity={0.85}
+                        className={cn(connectionIsEntering && 'chrono-flow-overlay-enter-path')}
                         style={{
-                          animation: 'chrono-flow 3s linear infinite',
-                          animationDelay: `${(node.chronologicalIndex * 0.4) % 3}s`,
+                          animation: connectionIsEntering
+                            ? 'chrono-flow-overlay-enter 5.15s ease-out both, chrono-flow 3s linear infinite 5.15s'
+                            : 'chrono-flow 3s linear infinite',
+                          animationDelay: connectionIsEntering ? undefined : `${(node.chronologicalIndex * 0.4) % 3}s`,
                         }}
                       />
                       {isMerge && mid && (
@@ -2279,6 +2433,7 @@ export function ChronometricGraph({
                 const isSelected = selectedHash === node.commit.hash;
                 const isHovered = hoveredHash === node.commit.hash;
                 const isHead = headCommitNode && node.commit.hash === headCommitNode.commit.hash;
+                const isEntering = enteringCommitHashes.has(node.commit.hash);
                 const isBranchHighlighted = Boolean(
                   selectedBranchName &&
                   (node.branchName === selectedBranchName || commitHasBranchRef(node.commit, selectedBranchName) || (selectedBranchColor && node.laneColor === selectedBranchColor))
@@ -2287,7 +2442,7 @@ export function ChronometricGraph({
                 return (
                   <g
                     key={`node-${node.commit.hash}`}
-                    className="cursor-pointer"
+                    className={cn('cursor-pointer', isEntering && 'chrono-node-enter')}
                     onClick={(e) => {
                       e.stopPropagation();
                       selectGraphCommit(node.commit, { branchName: node.branchName });
@@ -2442,7 +2597,13 @@ export function ChronometricGraph({
 
               {/* HEAD Target Reticle (Custom LCARS radar graphic) */}
               {headCommitNode && (
-                <g key="head-reticle" className="pointer-events-none">
+                <g
+                  key="head-reticle"
+                  className={cn(
+                    'pointer-events-none',
+                    enteringCommitHashes.has(headCommitNode.commit.hash) && 'chrono-tcar-enter',
+                  )}
+                >
                   <g
                     transform={`translate(${headCommitNode.x}, ${headCommitNode.y}) scale(0.18) translate(-360, -360)`}
                     opacity={0.85}
@@ -2602,6 +2763,7 @@ export function ChronometricGraph({
               {projectedCommits.map((node) => {
                 const isHead = headCommitNode && node.commit.hash === headCommitNode.commit.hash;
                 const isBranchOrigin = node.isBranchOrigin;
+                const isEntering = enteringCommitHashes.has(node.commit.hash);
 
                 if (isHead && headCommitNode) {
                   const isLeft = headCommitNode.isLeft;
@@ -2704,7 +2866,11 @@ export function ChronometricGraph({
                 const offsetDist = labelOffsets.get(node.commit.hash) ?? 35;
 
                 return (
-                  <g key={`overlay-node-${node.commit.hash}`} opacity={0.85} className="hover:opacity-100 transition-opacity">
+                  <g
+                    key={`overlay-node-${node.commit.hash}`}
+                    opacity={0.85}
+                    className={cn('hover:opacity-100 transition-opacity', isEntering && 'chrono-node-label-enter')}
+                  >
                     {/* A. Interlocking Triangles Demarcating branch start only */}
                     {isBranchOrigin && node.commit.parents.length > 0 && (
                       <g opacity={0.9}>
@@ -2928,6 +3094,7 @@ export function ChronometricGraph({
               nodes={speculativeNodes}
               config={config}
               visible={showSpeculative}
+              anchorEntering={Boolean(headCommitNode && enteringCommitHashes.has(headCommitNode.commit.hash))}
               onSelect={handleSelectSpeculative}
               selectedBranchId={selectedSpeculativeId}
               decisions={decisions}

@@ -62,6 +62,8 @@ interface Props {
   decisions?: Record<string, TemporalAgentDecision>;
   /** Capa 2a — true when at least one branch has been decided. */
   hasAnyDecision?: boolean;
+  /** True while the HEAD anchor is materializing after a new commit. */
+  anchorEntering?: boolean;
 }
 
 export function SpeculativeBranches({
@@ -72,13 +74,18 @@ export function SpeculativeBranches({
   selectedBranchId = null,
   decisions = {},
   hasAnyDecision = false,
+  anchorEntering = false,
 }: Props) {
   const t = useT();
   if (!visible || nodes.length === 0) return null;
   const { ux, uy } = diagonalBasis(config);
 
   return (
-    <g data-layer="speculative" pointerEvents="visiblePainted">
+    <g
+      data-layer="speculative"
+      pointerEvents="visiblePainted"
+      className={anchorEntering ? 'chrono-future-lines-enter' : undefined}
+    >
       {nodes.map((n, nodeIdx) => {
         const baseOpacity = speculativeOpacity(n.branch.confidence);
         const decision = decisions[n.branch.id] ?? decisions[n.branch.message];

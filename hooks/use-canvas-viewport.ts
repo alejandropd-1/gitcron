@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import {
   type ViewportState,
   type Point,
@@ -18,6 +18,8 @@ interface UseCanvasViewportOptions {
   initialWorldFocusX?: number;
   initialWorldFocusY?: number;
   topSafeOffset?: number;
+  preserveViewportOnWorldResize?: boolean;
+  resetKey?: string | number | null;
 }
 
 export function useCanvasViewport({
@@ -30,6 +32,8 @@ export function useCanvasViewport({
   initialWorldFocusX,
   initialWorldFocusY,
   topSafeOffset = 0,
+  preserveViewportOnWorldResize = false,
+  resetKey = null,
 }: UseCanvasViewportOptions) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -85,11 +89,43 @@ export function useCanvasViewport({
   }, [worldWidth, worldHeight, initialScale, padding, initialWorldFocusX, initialWorldFocusY, topSafeOffset]);
 
   const hasInitialized = useRef(false);
+  const previousResetKey = useRef(resetKey);
+  const previousWorldSize = useRef({ width: worldWidth, height: worldHeight });
 
-  // Reset initialization flag when repo world dimensions change
-  useEffect(() => {
-    hasInitialized.current = false;
-  }, [worldWidth, worldHeight]);
+  // By default, keep the historical behavior: dimension changes recenter the canvas.
+  // Chronometric mode can opt out so a newly-added commit does not jump the viewport.
+  useLayoutEffect(() => {
+    const previousSize = previousWorldSize.current;
+    previousWorldSize.current = { width: worldWidth, height: worldHeight };
+
+    if (previousResetKey.current !== resetKey) {
+      previousResetKey.current = resetKey;
+      hasInitialized.current = false;
+      return;
+    }
+
+    if (!preserveViewportOnWorldResize) {
+      hasInitialized.current = false;
+      return;
+    }
+
+    if (!hasInitialized.current) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const viewportWidth = container.clientWidth || 800;
+    const viewportHeight = container.clientHeight || 520;
+    setViewport((current) =>
+      constrainViewport(
+        current,
+        worldWidth,
+        worldHeight,
+        viewportWidth,
+        viewportHeight,
+        padding
+      )
+    );
+  }, [worldWidth, worldHeight, preserveViewportOnWorldResize, resetKey, padding]);
 
   // Dynamically center the viewport once container is measured and laid out
   useEffect(() => {
@@ -126,7 +162,7 @@ export function useCanvasViewport({
       );
       hasInitialized.current = true;
     }
-  }, [worldWidth, worldHeight, initialScale, padding, initialWorldFocusX, initialWorldFocusY, topSafeOffset]);
+  }, [worldWidth, worldHeight, initialScale, padding, initialWorldFocusX, initialWorldFocusY, topSafeOffset, resetKey]);
 
 
   // Handles discrete zoom actions (zoom buttons)

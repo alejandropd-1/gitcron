@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { MIGRATIONS } from './schema';
 
-export const TEMPORAL_AGENT_DB_FILENAME = 'temporal-agent-history.db';
+const TEMPORAL_AGENT_DB_FILENAME = 'temporal-agent-history.db';
 
 let database: DatabaseSync | null = null;
 

@@ -19,7 +19,7 @@ export const TEMPORAL_AGENT_INDEXES = [
   'idx_decision_device',
 ] as const;
 
-export const CREATE_PREDICTION_RUN_TABLE = `
+const CREATE_PREDICTION_RUN_TABLE = `
 CREATE TABLE prediction_run (
   id                 TEXT    PRIMARY KEY,
   repo_path          TEXT    NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE prediction_run (
 ) STRICT;
 `;
 
-export const CREATE_SPECULATIVE_BRANCH_TABLE = `
+const CREATE_SPECULATIVE_BRANCH_TABLE = `
 CREATE TABLE speculative_branch (
   id           TEXT    PRIMARY KEY,
   run_id       TEXT    NOT NULL REFERENCES prediction_run(id),
@@ -51,7 +51,7 @@ CREATE TABLE speculative_branch (
 ) STRICT;
 `;
 
-export const CREATE_BRANCH_DECISION_TABLE = `
+const CREATE_BRANCH_DECISION_TABLE = `
 CREATE TABLE branch_decision (
   id               TEXT    PRIMARY KEY,
   branch_id        TEXT    NOT NULL REFERENCES speculative_branch(id),
@@ -63,7 +63,7 @@ CREATE TABLE branch_decision (
 ) STRICT;
 `;
 
-export const CREATE_INDEXES = [
+const CREATE_INDEXES = [
   'CREATE INDEX idx_run_repo           ON prediction_run(repo_path);',
   'CREATE INDEX idx_run_repo_generated ON prediction_run(repo_path, generated_at);',
   'CREATE INDEX idx_run_device         ON prediction_run(device_id);',

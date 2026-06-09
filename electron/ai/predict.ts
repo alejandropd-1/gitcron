@@ -261,8 +261,5 @@ export async function runPredictionWithInput(args: RunPredictionArgs): Promise<R
   return { result: { ...result, branches, lang }, input };
 }
 
-export async function runPrediction(args: RunPredictionArgs): Promise<PredictionResult> {
-  return (await runPredictionWithInput(args)).result;
-}
 
 

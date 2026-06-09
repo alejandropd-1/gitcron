@@ -152,29 +152,6 @@ export interface SpeculativeDialogue {
   turns: DialogueTurn[];
 }
 
-/** Builds the opening agent turn from a branch's rationale (the report phase). */
-export function openingTurnFromBranch(b: SpeculativeBranch): SpeculativeDialogue {
-  const lines = [
-    `**${b.message}** (${b.type}, ${Math.round(b.confidence * 100)}% confianza)`,
-    '',
-    b.rationale,
-  ];
-  if (b.reasoning) {
-    lines.push('', b.reasoning);
-  }
-  return {
-    branchId: b.id,
-    turns: [
-      {
-        id: `${b.id}-t0`,
-        role: 'agent',
-        text: lines.join('\n'),
-        at: new Date().toISOString(),
-      },
-    ],
-  };
-}
-
 export interface PredictionResult {
   branches: SpeculativeBranch[];
   provider: string;

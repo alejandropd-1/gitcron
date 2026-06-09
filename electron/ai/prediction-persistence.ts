@@ -43,7 +43,7 @@ export async function persistPredictionRun(
   }
 }
 
-export async function readHeadSha(repoPath: string): Promise<string | undefined> {
+async function readHeadSha(repoPath: string): Promise<string | undefined> {
   try {
     const head = await simpleGit(repoPath).revparse(['HEAD']);
     const trimmed = head.trim();
@@ -57,7 +57,7 @@ export function hashPredictionInput(input: PredictionInput): string {
   return createHash('sha256').update(stableStringify(input)).digest('hex');
 }
 
-export function stableStringify(value: unknown): string {
+function stableStringify(value: unknown): string {
   if (value === null || typeof value !== 'object') {
     return JSON.stringify(value);
   }

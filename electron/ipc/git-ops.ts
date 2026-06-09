@@ -1,0 +1,888 @@
+// electron/ipc/git-ops.ts
+// Operaciones git locales: log/status/branches, checkout, merge/rebase,
+// tags, stash, staging, diffs, clean y archivos del working tree.
+// Ninguna de estas operaciones toca la red (eso vive en git-sync.ts).
+
+import { ipcMain } from 'electron';
+import * as path from 'path';
+import * as fs from 'fs';
+import { simpleGit } from 'simple-git';
+import type {
+  StatusFile, CommitData, BranchData, StashEntry, SubmoduleEntry,
+  BranchTrackingInfo, WorktreeEntry,
+} from '../../types/electron';
+import { errMsg, resolveRepoRelativePath, sanitizeForLog } from './shared';
+
+function isSafeMaterializedRestoreRef(value: string, expectedPrefix: 'imagined/' | 'flight/'): boolean {
+  return (
+    typeof value === 'string'
+    && value.startsWith(expectedPrefix)
+    && !value.startsWith('-')
+    && !/[\0\r\n\s]/.test(value)
+    && !value.includes('..')
+    && !value.includes('@{')
+  );
+}
+
+function parseGitCleanDryRun(raw: string): string[] {
+  return raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('Would remove '))
+    .map((line) => line.slice('Would remove '.length).trim())
+    .filter(Boolean);
+}
+
+export function registerGitOpsHandlers(): void {
+  ipcMain.handle('git:command', async (_event, targetPath: string, args: string[]) => {
+    try {
+      console.log('Executing git command:', targetPath, sanitizeForLog(args));
+      const scopedGit = simpleGit(targetPath);
+      let result;
+      const command = args[0];
+
+      switch (command) {
+        case 'status': result = await scopedGit.status(); break;
+        case 'commit': {
+          // The renderer sends ['commit', '-m', message]. simple-git's
+          // git.commit() treats an array as multiple message lines, so passing
+          // args.slice(1) made the message become "-m\n<actual text>". Extract
+          // the real message and pass it as a plain string.
+          const mIdx = args.indexOf('-m');
+          const message = mIdx >= 0 && args[mIdx + 1] !== undefined
+            ? args[mIdx + 1]
+            : args.slice(1).filter((a) => a !== '-m').join('\n');
+          if (!message || !message.trim()) {
+            throw new Error('Mensaje de commit vacío');
+          }
+          result = await scopedGit.commit(message);
+          break;
+        }
+        case 'merge': result = await scopedGit.merge(args.slice(1)); break;
+        case 'revert':
+          result = await scopedGit.revert(args[1], args.slice(2).reduce((acc, curr) => ({ ...acc, [curr]: true }), {}));
+          break;
+        case 'stash': result = await scopedGit.stash(args.slice(1)); break;
+        case 'restore': result = await scopedGit.raw(['restore', args[1]]); break;
+        default: result = await scopedGit.raw(args);
+      }
+      return { success: true, data: typeof result === 'string' ? result : JSON.stringify(result) };
+    } catch (error: any) {
+      console.error('Git Command Error:', sanitizeForLog(error));
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:log', async (_event, targetPath: string, opts?: { allBranches?: boolean }) => {
+    try {
+      const g = simpleGit(targetPath);
+      // Use --decorate to get branch/tag refs at each commit
+      const allBranches = opts?.allBranches !== false;
+      const args = ['log'];
+      if (allBranches) args.push('--all');
+      args.push('--max-count=500', '--date-order', '--pretty=format:%H%x1f%P%x1f%an%x1f%ae%x1f%aI%x1f%s%x1f%D');
+      const raw = await g.raw(args);
+
+      const commits: CommitData[] = raw
+        .split('\n')
+        .filter((l) => l.trim())
+        .map((line) => {
+          const [hash, parentsRaw, an, ae, date, msg, decoration] = line.split('\x1f');
+          const parents = (parentsRaw || '').split(' ').filter(Boolean);
+          const refs = (decoration || '')
+            .split(',')
+            .map((r) => r.trim())
+            .filter(Boolean)
+            .map((r) => r.replace(/^HEAD -> /, ''));
+          return {
+            hash,
+            shortHash: hash.slice(0, 7),
+            message: msg ?? '',
+            authorName: an ?? '',
+            authorEmail: ae ?? '',
+            date: date ?? '',
+            parents,
+            refs,
+          };
+        });
+
+      return { success: true, data: commits };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:status', async (_event, targetPath: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      const status = await g.status();
+
+      const raw: StatusFile[] = [
+        ...status.conflicted.map((p) => ({ path: p, status: 'modified' as const, staged: false, conflicted: true })),
+        ...status.modified.map((p) => ({ path: p, status: 'modified' as const, staged: false, conflicted: status.conflicted.includes(p) })),
+        ...status.created.map((p) => ({ path: p, status: 'added' as const, staged: false, conflicted: status.conflicted.includes(p) })),
+        ...status.deleted.map((p) => ({ path: p, status: 'deleted' as const, staged: false, conflicted: status.conflicted.includes(p) })),
+        ...status.not_added.map((p) => ({ path: p, status: 'untracked' as const, staged: false, conflicted: status.conflicted.includes(p) })),
+        ...status.staged.map((p) => ({ path: p, status: 'modified' as const, staged: true, conflicted: status.conflicted.includes(p) })),
+        ...status.renamed.map((r) => ({
+          path: r.to, oldPath: r.from, status: 'renamed' as const, staged: true, conflicted: status.conflicted.includes(r.to) || status.conflicted.includes(r.from),
+        })),
+      ];
+
+      const seen = new Map<string, StatusFile>();
+      for (const f of raw) {
+        const existing = seen.get(f.path);
+        if (!existing || f.staged || f.conflicted) {
+          seen.set(f.path, {
+            ...f,
+            conflicted: f.conflicted || existing?.conflicted,
+          });
+        } else if (existing) {
+          existing.conflicted = existing.conflicted || f.conflicted;
+        }
+      }
+
+      let mergeInProgress = false;
+      try {
+        const gitDir = (await g.revparse(['--git-dir'])).trim();
+        const mergeHeadPath = path.isAbsolute(gitDir) ? path.join(gitDir, 'MERGE_HEAD') : path.join(targetPath, gitDir, 'MERGE_HEAD');
+        mergeInProgress = fs.existsSync(mergeHeadPath);
+      } catch (e) {
+        console.error('Error checking merge progress:', e);
+      }
+
+      return { success: true, data: Array.from(seen.values()), mergeInProgress };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:branches', async (_event, targetPath: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      const local = await g.branchLocal();
+      const remotes = await g.branch(['-r']);
+
+      // Use `git for-each-ref` to get ahead/behind for ALL local branches in one shot.
+      // Format: <name>|<upstream>|<track>   where track looks like "[ahead 1, behind 3]" or "[gone]" or ""
+      const tracking: Record<string, BranchTrackingInfo> = {};
+      try {
+        const raw = await g.raw([
+          'for-each-ref',
+          '--format=%(refname:short)|%(upstream:short)|%(upstream:track)',
+          'refs/heads',
+        ]);
+        for (const line of raw.split('\n').filter((l) => l.trim())) {
+          const [name, upstream, track] = line.split('|');
+          let ahead = 0;
+          let behind = 0;
+          const aheadMatch = track?.match(/ahead (\d+)/);
+          const behindMatch = track?.match(/behind (\d+)/);
+          if (aheadMatch) ahead = parseInt(aheadMatch[1], 10);
+          if (behindMatch) behind = parseInt(behindMatch[1], 10);
+          tracking[name] = {
+            upstream: upstream || null,
+            ahead,
+            behind,
+            gone: !!track?.includes('gone'),
+          };
+        }
+      } catch {
+        /* ignore - tracking is best-effort */
+      }
+
+      const branchData: BranchData = {
+        local: local.all,
+        remote: remotes.all,
+        current: local.current,
+        tracking,
+      };
+      return { success: true, data: branchData };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // ── git worktree list ──
+  ipcMain.handle('git:worktrees', async (_event, targetPath: string) => {
+    try {
+      const raw = await simpleGit(targetPath).raw(['worktree', 'list', '--porcelain']);
+      const worktrees: WorktreeEntry[] = [];
+      let current: Partial<WorktreeEntry> | null = null;
+      for (const line of raw.split('\n')) {
+        if (line.startsWith('worktree ')) {
+          if (current && current.path) worktrees.push(current as WorktreeEntry);
+          current = { path: line.slice('worktree '.length).trim() };
+        } else if (current && line.startsWith('HEAD ')) {
+          current.head = line.slice('HEAD '.length).trim();
+        } else if (current && line.startsWith('branch ')) {
+          current.branch = line.slice('branch '.length).trim().replace('refs/heads/', '');
+        } else if (current && line.trim() === 'bare') {
+          current.bare = true;
+        } else if (current && line.trim() === 'detached') {
+          current.detached = true;
+        }
+      }
+      if (current && current.path) worktrees.push(current as WorktreeEntry);
+      return { success: true, data: worktrees };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:checkout', async (_event, targetPath: string, branch: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      const remotes = await g.branch(['-r']);
+      if (remotes.all.includes(branch)) {
+        const slashIdx = branch.indexOf('/');
+        const localName = slashIdx !== -1 ? branch.substring(slashIdx + 1) : branch;
+        const localResult = await g.branchLocal();
+        const existsLocally = localResult.all.includes(localName);
+        if (existsLocally) {
+          await g.checkout(localName);
+        } else {
+          await g.checkout(['-t', branch]);
+        }
+        return { success: true, data: { checkedOut: localName } };
+      }
+
+      await g.checkout(branch);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:create-branch', async (_event, targetPath: string, name: string, fromHash?: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      if (fromHash) await g.checkoutBranch(name, fromHash);
+      else await g.checkoutLocalBranch(name);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle(
+    'git:restore-materialized-branch',
+    async (_event, targetPath: string, branchName: string, sourceTag: string) => {
+      try {
+        if (!targetPath) return { success: false, error: 'No repo path' };
+        if (!isSafeMaterializedRestoreRef(branchName, 'imagined/')) {
+          return { success: false, error: 'Invalid materialized branch name' };
+        }
+        if (!isSafeMaterializedRestoreRef(sourceTag, 'flight/')) {
+          return { success: false, error: 'Invalid materialization source tag' };
+        }
+
+        const g = simpleGit(targetPath);
+        const branches = await g.branchLocal();
+        if (branches.all.includes(branchName)) {
+          return { success: false, error: `Branch "${branchName}" already exists` };
+        }
+
+        const tags = await g.tags();
+        if (!tags.all.includes(sourceTag)) {
+          return { success: false, error: `Tag "${sourceTag}" does not exist` };
+        }
+
+        // Restore the ref without checkout. This does not touch HEAD or the working tree.
+        await g.raw(['branch', branchName, sourceTag]);
+        return { success: true, data: { branchName, sourceTag } };
+      } catch (error: any) {
+        return { success: false, error: errMsg(error) };
+      }
+    },
+  );
+
+  // ── Merge a branch INTO the current branch ──
+  ipcMain.handle('git:merge-branch', async (_event, targetPath: string, sourceBranch: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      const result = await g.merge([sourceBranch]);
+      // Detect "Already up to date." — git exits 0 but nothing changed
+      const alreadyUpToDate = /already up.to.date/i.test(result.result ?? '');
+      return { success: true, data: { ...result, alreadyUpToDate } };
+    } catch (error: any) {
+      // simple-git throws on merge conflict — extract useful info
+      const msg = sanitizeForLog(error.message || String(error));
+      const isConflict = /conflict|automatic merge failed/i.test(msg);
+      return { success: false, error: msg, data: { conflict: isConflict } };
+    }
+  });
+
+  // ── Rebase the current branch onto another ──
+  ipcMain.handle('git:rebase', async (_event, targetPath: string, ontoBranch: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      const result = await g.rebase([ontoBranch]);
+      return { success: true, data: result };
+    } catch (error: any) {
+      const msg = sanitizeForLog(error.message || String(error));
+      const isConflict = /conflict|could not apply/i.test(msg);
+      return { success: false, error: msg, data: { conflict: isConflict } };
+    }
+  });
+
+  // ── Fast-forward: bring a branch up to a target (only if no divergence) ──
+  // Strategy: checkout the target branch, then `git merge --ff-only <from>`
+  // We avoid touching the current branch state if possible.
+  ipcMain.handle('git:fast-forward', async (_event, targetPath: string, branch: string, toRef: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      // Use git update-ref directly: this works without switching branches
+      // First make sure the merge would be fast-forward
+      const mergeBase = (await g.raw(['merge-base', branch, toRef])).trim();
+      const branchSha = (await g.raw(['rev-parse', branch])).trim();
+      if (mergeBase !== branchSha) {
+        return { success: false, error: 'No se puede hacer fast-forward: las branches divergieron' };
+      }
+      // Safe to fast-forward
+      await g.raw(['update-ref', `refs/heads/${branch}`, toRef]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // ── Rename a branch (works for the current branch too) ──
+  ipcMain.handle('git:rename-branch', async (_event, targetPath: string, oldName: string, newName: string) => {
+    try {
+      await simpleGit(targetPath).raw(['branch', '-m', oldName, newName]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // ── Delete a local branch. `force=true` uses -D (even if unmerged) ──
+  ipcMain.handle('git:delete-branch', async (_event, targetPath: string, branch: string, force: boolean = false) => {
+    try {
+      const g = simpleGit(targetPath);
+      const flag = force ? '-D' : '-d';
+
+      // If it's an imagined branch, we want to find and delete the companion flight tag pointing to the same commit
+      if (branch.startsWith('imagined/')) {
+        try {
+          const commitSha = (await g.revparse([branch])).trim();
+          const tagsResult = await g.tags();
+          for (const t of tagsResult.all) {
+            if (t.startsWith('flight/')) {
+              const tagSha = (await g.revparse([t])).trim();
+              if (tagSha === commitSha) {
+                await g.raw(['tag', '-d', t]);
+              }
+            }
+          }
+        } catch (tagErr) {
+          console.error('Error finding/deleting companion tag for branch:', tagErr);
+        }
+      }
+
+      await g.raw(['branch', flag, branch]);
+      return { success: true };
+    } catch (error: any) {
+      const msg = sanitizeForLog(error.message || String(error));
+      // Detect "not fully merged" so renderer can offer force delete
+      const notMerged = /not fully merged|not yet merged/i.test(msg);
+      return { success: false, error: msg, data: { notMerged } };
+    }
+  });
+
+  // ── Delete a tag. runs git tag -d <tag> ──
+  ipcMain.handle('git:delete-tag', async (_event, targetPath: string, tagName: string) => {
+    try {
+      await simpleGit(targetPath).raw(['tag', '-d', tagName]);
+      return { success: true };
+    } catch (error: any) {
+      const msg = sanitizeForLog(error.message || String(error));
+      return { success: false, error: msg };
+    }
+  });
+
+  // ── Create a tag ──
+  ipcMain.handle('git:create-tag', async (_event, targetPath: string, tagName: string, commitHash: string, message?: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      if (message && message.trim() !== '') {
+        await g.raw(['tag', '-a', tagName, '-m', message, commitHash]);
+      } else {
+        await g.raw(['tag', tagName, commitHash]);
+      }
+      return { success: true };
+    } catch (error: any) {
+      const msg = sanitizeForLog(error.message || String(error));
+      return { success: false, error: msg };
+    }
+  });
+
+  ipcMain.handle('git:stage', async (_event, targetPath: string, filePath: string) => {
+    try {
+      await simpleGit(targetPath).add(filePath);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:unstage', async (_event, targetPath: string, filePath: string) => {
+    try {
+      await simpleGit(targetPath).raw(['restore', '--staged', filePath]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // Batch stage/unstage: single git command for N files.
+  // Critical for "Stage all" — running N parallel `git add` commands
+  // causes index.lock collisions because they all try to write to .git/index.
+  ipcMain.handle('git:stage-batch', async (_event, targetPath: string, filePaths: string[]) => {
+    try {
+      if (!filePaths || filePaths.length === 0) return { success: true };
+      await simpleGit(targetPath).add(filePaths);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:unstage-batch', async (_event, targetPath: string, filePaths: string[]) => {
+    try {
+      if (!filePaths || filePaths.length === 0) return { success: true };
+      await simpleGit(targetPath).raw(['restore', '--staged', ...filePaths]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // ── Add a path to the repo's .gitignore (creates the file if needed) ──
+  ipcMain.handle('git:add-to-gitignore', async (_event, targetPath: string, filePath: string) => {
+    try {
+      const gitignorePath = path.join(targetPath, '.gitignore');
+      let current = '';
+      if (fs.existsSync(gitignorePath)) {
+        current = fs.readFileSync(gitignorePath, 'utf-8');
+      }
+      // Check if the path is already there (line-by-line, ignoring blanks/comments)
+      const lines = current.split('\n').map((l) => l.trim());
+      if (lines.includes(filePath)) {
+        return { success: true, data: { alreadyIgnored: true } };
+      }
+      // Append with proper newline handling
+      const needsNewline = current.length > 0 && !current.endsWith('\n');
+      const updated = current + (needsNewline ? '\n' : '') + filePath + '\n';
+      fs.writeFileSync(gitignorePath, updated);
+
+      // If the file is currently tracked, also untrack it so the .gitignore takes effect
+      try {
+        const g = simpleGit(targetPath);
+        const status = await g.status();
+        const isTracked = !status.not_added.includes(filePath);
+        if (isTracked) {
+          // --cached preserves the working copy, just untracks
+          await g.raw(['rm', '--cached', '--ignore-unmatch', filePath]);
+        }
+      } catch {
+        /* if the file wasn't tracked we silently skip */
+      }
+
+      return { success: true, data: { alreadyIgnored: false } };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // ── Reset ALL changes: discards working tree + staged + untracked ──
+  // Equivalent to: git reset --hard HEAD && git clean -fd
+  ipcMain.handle('git:reset-all', async (_event, targetPath: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      await g.reset(['--hard', 'HEAD']);
+      await g.clean('f', ['-d']);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // ── Clean untracked files/directories safely ──
+  ipcMain.handle('git:clean', async (_event, targetPath: string, files?: string[]) => {
+    try {
+      const repoRoot = path.resolve(targetPath);
+      const g = simpleGit(repoRoot);
+      const dryRunRaw = await g.raw(['-c', 'core.quotePath=false', 'clean', '-n', '-d']);
+      const cleanableFiles = parseGitCleanDryRun(dryRunRaw);
+
+      if (!files) {
+        return { success: true, data: { files: cleanableFiles } };
+      }
+
+      const cleanable = new Set(cleanableFiles);
+      const uniqueFiles = Array.from(new Set(files));
+      const rejected = uniqueFiles.filter((filePath) => !cleanable.has(filePath));
+      if (rejected.length > 0) {
+        return {
+          success: false,
+          error: `Solo se pueden limpiar archivos untracked detectados por git clean: ${rejected.join(', ')}`,
+        };
+      }
+
+      const deleted: string[] = [];
+      for (const filePath of uniqueFiles) {
+        const resolved = resolveRepoRelativePath(repoRoot, filePath);
+        if (!resolved) return { success: false, error: 'Path traversal blocked' };
+
+        let stat: fs.Stats;
+        try {
+          stat = fs.lstatSync(resolved);
+        } catch {
+          continue;
+        }
+
+        if (stat.isDirectory()) {
+          fs.rmSync(resolved, { recursive: true, force: true });
+        } else {
+          fs.unlinkSync(resolved);
+        }
+        deleted.push(filePath);
+      }
+
+      return { success: true, data: { files: cleanableFiles, deleted } };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:read-file', async (_event, targetPath: string, relativeFilePath: string) => {
+    try {
+      const repoRoot = path.resolve(targetPath);
+      const resolved = resolveRepoRelativePath(repoRoot, relativeFilePath);
+      if (!resolved) return { success: false, error: 'Path traversal blocked' };
+
+      const stat = fs.lstatSync(resolved);
+      if (!stat.isFile()) return { success: false, error: 'Solo se pueden leer archivos comunes' };
+
+      return { success: true, data: fs.readFileSync(resolved, 'utf-8') };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:resolve-conflict-file', async (_event, targetPath: string, relativeFilePath: string, content: string) => {
+    try {
+      const repoRoot = path.resolve(targetPath);
+      const resolved = resolveRepoRelativePath(repoRoot, relativeFilePath);
+      if (!resolved) return { success: false, error: 'Path traversal blocked' };
+      if (/^<{7}|^={7}|^>{7}/m.test(content)) {
+        return { success: false, error: 'La resolución todavía contiene marcadores de conflicto' };
+      }
+
+      const stat = fs.lstatSync(resolved);
+      if (!stat.isFile()) return { success: false, error: 'Solo se pueden resolver archivos comunes' };
+
+      fs.writeFileSync(resolved, content, 'utf-8');
+      await simpleGit(repoRoot).add(relativeFilePath);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // ── Reset to specific commit: supports soft, mixed, and hard modes ──
+  ipcMain.handle('git:reset-commit', async (_event, targetPath: string, commitHash: string, mode: 'soft' | 'mixed' | 'hard') => {
+    try {
+      const g = simpleGit(targetPath);
+      await g.reset([`--${mode}`, commitHash]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // ── Stash a single file (or set of files) ──
+  ipcMain.handle('git:stash-file', async (_event, targetPath: string, filePath: string) => {
+    try {
+      await simpleGit(targetPath).stash(['push', '--include-untracked', '--', filePath]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // Remove a stuck .git/index.lock file. Useful when a previous operation
+  // crashed or was interrupted, leaving the lock behind.
+  ipcMain.handle('git:remove-lock', async (_event, targetPath: string) => {
+    try {
+      const lockPath = path.join(targetPath, '.git', 'index.lock');
+      if (fs.existsSync(lockPath)) {
+        fs.unlinkSync(lockPath);
+        return { success: true, data: { removed: true } };
+      }
+      return { success: true, data: { removed: false } };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // Amend the last commit. If `newMessage` is provided, replaces the message;
+  // otherwise keeps the existing one (`--no-edit`). Staged changes (if any) are
+  // folded into the amended commit either way. Refuses to amend a commit that
+  // has already been pushed unless the caller has accepted the risk (the UI
+  // shows a confirmation modal mentioning that pushed commits should not be
+  // amended without force-pushing).
+  ipcMain.handle('git:amend', async (_event, targetPath: string, newMessage?: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      // Need at least one commit to amend.
+      try {
+        await g.revparse(['HEAD']);
+      } catch {
+        return { success: false, error: 'No hay commits que enmendar' };
+      }
+      const args = ['commit', '--amend'];
+      if (newMessage && newMessage.trim()) {
+        args.push('-m', newMessage.trim());
+      } else {
+        args.push('--no-edit');
+      }
+      await g.raw(args);
+      // Return the new HEAD sha for the caller to display
+      const newSha = (await g.revparse(['HEAD'])).trim();
+      return { success: true, data: { hash: newSha, shortHash: newSha.slice(0, 7) } };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // Cherry-pick a single commit onto the current branch. Returns { success,
+  // conflict? } so the renderer can react: a conflict leaves the working tree
+  // with conflicted files that the user must resolve and then `git
+  // cherry-pick --continue` (or abort) from the terminal. We don't auto-commit
+  // on conflict because the user might want to inspect the merge first.
+  ipcMain.handle('git:cherry-pick', async (_event, targetPath: string, hash: string) => {
+    try {
+      if (!/^[0-9a-f]{7,40}$/i.test(hash)) {
+        return { success: false, error: 'Hash inválido' };
+      }
+      const g = simpleGit(targetPath);
+      await g.raw(['cherry-pick', hash]);
+      return { success: true };
+    } catch (error: any) {
+      const msg = sanitizeForLog(error.message || String(error));
+      const isConflict = /conflict|after resolving|could not apply/i.test(msg);
+      return { success: false, error: msg, data: { conflict: isConflict } };
+    }
+  });
+
+  // Squash the last N commits into one using `git reset --soft HEAD~N` + `git commit -m`.
+  // Only works on commits that haven't been pushed (or the caller handles the force-push warning).
+  ipcMain.handle('git:squash', async (_event, targetPath: string, n: number, message: string) => {
+    try {
+      if (n < 2 || n > 100) return { success: false, error: 'N debe estar entre 2 y 100' };
+      if (!message.trim()) return { success: false, error: 'El mensaje del commit no puede estar vacío' };
+      const g = simpleGit(targetPath);
+      // Verify there are at least N commits
+      const log = await g.log({ maxCount: n + 1 });
+      if ((log.total ?? log.all.length) < n) {
+        return { success: false, error: `No hay ${n} commits para combinar` };
+      }
+      // Soft-reset to HEAD~N: stages everything from those N commits
+      await g.raw(['reset', '--soft', `HEAD~${n}`]);
+      // Commit with the provided message
+      await g.commit(message.trim());
+      const newSha = (await g.revparse(['HEAD'])).trim();
+      return { success: true, data: { hash: newSha, shortHash: newSha.slice(0, 7) } };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // Returns the list of files changed in a specific commit (for the commit detail panel).
+  // Uses `git diff-tree` which is fast and doesn't require a worktree checkout.
+  ipcMain.handle('git:show-files', async (_event, targetPath: string, hash: string) => {
+    try {
+      if (!/^[0-9a-f]{7,40}$/i.test(hash)) {
+        return { success: false, error: 'Hash inválido' };
+      }
+      const g = simpleGit(targetPath);
+      // diff-tree -r: recursive, shows files not just top-level dirs
+      // --name-status: shows M/A/D/R + path (same format as git status)
+      // --no-commit-id: don't print the commit hash in the output
+      const raw = await g.raw(['diff-tree', '--no-commit-id', '-r', '--name-status', hash]);
+      const files = raw.trim().split('\n').filter(Boolean).map((line) => {
+        const parts = line.split('\t');
+        const statusChar = parts[0]?.[0] ?? 'M'; // first char handles R100 → R
+        const filePath = parts[2] ?? parts[1] ?? ''; // renamed: old\tnew; else: path
+        const oldPath = parts[2] ? parts[1] : undefined;
+        const statusMap: Record<string, string> = {
+          M: 'modified', A: 'added', D: 'deleted', R: 'renamed', C: 'modified', U: 'modified',
+        };
+        return {
+          path: filePath,
+          status: (statusMap[statusChar] ?? 'modified') as 'modified' | 'added' | 'deleted' | 'renamed',
+          staged: true,  // all files in a commit are "staged" conceptually
+          oldPath,
+        };
+      });
+      return { success: true, data: files };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // Returns the diff for a specific file AT a specific commit hash.
+  ipcMain.handle('git:diff-at-commit', async (_event, targetPath: string, filePath: string, hash: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      // Use diff between commit and its parent for the actual diff
+      const diffOutput = await g.raw(['diff', `${hash}^`, hash, '--', filePath]).catch(() => '');
+      return { success: true, data: diffOutput };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:diff', async (_event, targetPath: string, filePath: string, staged: boolean = false) => {
+    try {
+      const g = simpleGit(targetPath);
+      const status = await g.status();
+      const isUntracked = status.not_added.includes(filePath);
+
+      let diff: string;
+      if (isUntracked) {
+        const fullPath = path.join(targetPath, filePath);
+        try {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          const lines = content.split('\n');
+          diff =
+            `diff --git a/${filePath} b/${filePath}\n` +
+            `--- /dev/null\n+++ b/${filePath}\n` +
+            `@@ -0,0 +1,${lines.length} @@\n` +
+            lines.map((l) => `+${l}`).join('\n');
+        } catch {
+          diff = '';
+        }
+      } else if (staged) {
+        diff = await g.diff(['--cached', '--', filePath]);
+      } else {
+        diff = await g.diff(['HEAD', '--', filePath]);
+      }
+
+      return { success: true, data: diff };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:stash-list', async (_event, targetPath: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      const list = await g.stashList();
+      const stashes: StashEntry[] = list.all.map((entry, idx) => ({
+        index: idx,
+        message: entry.message,
+        hash: entry.hash,
+        date: entry.date,
+      }));
+      return { success: true, data: stashes };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:stash-push', async (_event, targetPath: string, message?: string) => {
+    try {
+      const args = ['push'];
+      const trimmed = message?.trim();
+      if (trimmed) args.push('-m', trimmed);
+      await simpleGit(targetPath).stash(args);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:tags', async (_event, targetPath: string) => {
+    try {
+      const tags = await simpleGit(targetPath).tags();
+      return { success: true, data: tags.all };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:submodules', async (_event, targetPath: string) => {
+    try {
+      const raw = await simpleGit(targetPath).raw(['submodule', 'status']).catch(() => '');
+      const submodules: SubmoduleEntry[] = [];
+      for (const line of raw.split('\n')) {
+        if (!line.trim()) continue;
+        const match = line.match(/^[\s+\-U]?([0-9a-f]+)\s+(\S+)(?:\s+\((.+)\))?/);
+        if (!match) continue;
+        submodules.push({ hash: match[1], path: match[2], describe: match[3] || undefined });
+      }
+      return { success: true, data: submodules };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:stash-apply', async (_event, targetPath: string, stashIndex: number) => {
+    try {
+      await simpleGit(targetPath).stash(['apply', `stash@{${stashIndex}}`]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:stash-pop', async (_event, targetPath: string, stashIndex: number) => {
+    try {
+      await simpleGit(targetPath).stash(['pop', `stash@{${stashIndex}}`]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:stash-drop', async (_event, targetPath: string, stashIndex: number) => {
+    try {
+      await simpleGit(targetPath).stash(['drop', `stash@{${stashIndex}}`]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:stash-preview', async (_event, targetPath: string, stashIndex: number) => {
+    try {
+      const ref = `stash@{${stashIndex}}`;
+      const g = simpleGit(targetPath);
+      const [filesRaw, diff] = await Promise.all([
+        g.raw(['stash', 'show', '--name-only', ref]),
+        g.raw(['stash', 'show', '-p', ref]),
+      ]);
+      const files = filesRaw
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+      return { success: true, data: { files, diff } };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // Drop ALL stashes at once (git stash clear)
+  ipcMain.handle('git:stash-clear', async (_event, targetPath: string) => {
+    try {
+      await simpleGit(targetPath).stash(['clear']);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+}

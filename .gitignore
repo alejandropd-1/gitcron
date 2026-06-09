@@ -43,3 +43,4 @@ npm-debug.log*
 .fallow/
 .codegraph/codegraph.db
 fallow_report.json
+.codegraph/daemon.pid

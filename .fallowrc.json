@@ -4,7 +4,15 @@
     "electron/preload.ts"
   ],
   "ignoreDependencies": [
-    "wait-on"
+    "wait-on",
+    // Node builtin (node:sqlite) — not an npm package, never in package.json.
+    "node:sqlite"
+  ],
+  // ProviderId existe a propósito en dos capas: la runtime (union estricta en
+  // ai/providers) y la de storage (string laxo en db/types). Los consumidores
+  // los importan con alias (RuntimeProviderId / DbProviderId).
+  "ignoreExports": [
+    { "file": "electron/db/types.ts", "exports": ["ProviderId"] }
   ],
   "duplicates": {
     // Hide pair-only clones; focus on widespread copy-paste

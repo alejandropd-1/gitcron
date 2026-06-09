@@ -133,7 +133,7 @@ export function tagNameFor(level: FlightLevel, existingTags?: string[]): string 
 }
 
 /** The copyable execution brief shown in the materialization preview. */
-export function buildAgentBriefMarkdown(idea: MaterializeIdeaInput): string {
+function buildAgentBriefMarkdown(idea: MaterializeIdeaInput): string {
   const sections = [
     `# ${idea.title}`,
     '',

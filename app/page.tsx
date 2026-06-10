@@ -4,13 +4,13 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Undo, Redo, Download, Upload, GitBranch, Archive, Terminal, Search,
+  Undo, Redo, Download, Upload, GitBranch, Archive, Terminal,
   Settings, HelpCircle, Folder, Cloud, Tag, Layers,
   FileText, Trash2, Zap, AlertCircle, FolderOpen, Plus, X,
   ArrowLeft, RotateCcw, Github, LogOut,
   Sparkles, Copy, Lock, Globe, Loader2, UserCircle2,
   GitMerge, TreePine, Check,
-  Type, Filter, Monitor, ExternalLink, FileDiff,
+  Type, Monitor, ExternalLink, FileDiff,
   PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, WrapText, AlignLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -51,8 +51,10 @@ import {
 import type { SpeculativeBranch } from '@/types/temporal-agent';
 import { formatDate, formatInitials } from '@/lib/display-format';
 import { usePanelLayout, FLOATING_PANEL_INSET, GRAPH_SAFE_GAP } from '@/hooks/use-panel-layout';
-import { DeferredPanelLoading, FetchIndicator, GraphColumnHandle } from '@/components/PageWidgets';
+import { DeferredPanelLoading, FetchIndicator, GraphColumnHandle, ToolbarButton } from '@/components/PageWidgets';
 import { UpdateControls } from '@/components/UpdateControls';
+import { GraphSearchControl } from '@/components/GraphSearchControl';
+import { BranchFilterDropdown } from '@/components/BranchFilterDropdown';
 import {
   userInitials, isSafeDirectoryError, safeDirectoryPathFromError,
   childPath, isPushRejected, cloneUrlFromGitHubCreateResult,
@@ -479,13 +481,9 @@ export default function GitCronPage() {
   const rightGraphSafe = repositoryDetailsVisible ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
 
   const [filterText, setFilterText] = useState('');
+  const [showSearchPopover, setShowSearchPopover] = useState(false);
   const [selectedBranchName, setSelectedBranchName] = useState<string | null>(null);
   const [selectedBranchFocusRequest, setSelectedBranchFocusRequest] = useState(0);
-  const filterInputRef = useRef<HTMLInputElement>(null);
-  const [showSearchPopover, setShowSearchPopover] = useState(false);
-  const [showBranchFilterDropdown, setShowBranchFilterDropdown] = useState(false);
-  const branchFilterRef = useRef<HTMLDivElement>(null);
-  const [searchPopoverPos, setSearchPopoverPos] = useState<{ top: number; right: number } | null>(null);
   const [tokenInput, setTokenInput] = useState('');
   const [authMode, setAuthMode] = useState<'oauth' | 'token'>('oauth');
   const [deviceCodeInfo, setDeviceCodeInfo] = useState<{ userCode: string; verificationUri: string } | null>(null);
@@ -499,8 +497,6 @@ export default function GitCronPage() {
   } = useAppUpdate();
   const newBranchInputRef = useRef<HTMLInputElement>(null);
   const newTagInputRef = useRef<HTMLInputElement>(null);
-  const searchPopoverRef = useRef<HTMLDivElement>(null);
-  const searchButtonRef = useRef<HTMLDivElement>(null);
   const [isStartupHydrated, setIsStartupHydrated] = useState(false);
   const [isStartupGraphReady, setIsStartupGraphReady] = useState(false);
 
@@ -604,40 +600,6 @@ export default function GitCronPage() {
     return () => window.removeEventListener('click', handleClick);
   }, []);
 
-  // Ctrl+Alt+F focuses the filter input
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        setShowSearchPopover(true);
-      }
-      // Escape clears filter first, then closes search when pressed again.
-      if (e.key === 'Escape' && document.activeElement === filterInputRef.current) {
-        if (filterText) {
-          setFilterText('');
-        } else {
-          setShowSearchPopover(false);
-          filterInputRef.current?.blur();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [filterText]);
-
-  useEffect(() => {
-    if (!showSearchPopover) return;
-    const buttonRect = searchButtonRef.current?.getBoundingClientRect();
-    if (buttonRect) {
-      setSearchPopoverPos({
-        top: buttonRect.bottom + 8,
-        right: Math.max(12, window.innerWidth - buttonRect.right),
-      });
-    }
-    filterInputRef.current?.focus();
-    filterInputRef.current?.select();
-  }, [showSearchPopover]);
-
   // Cargar el contenido del archivo conflictuado seleccionado (async; el
   // reset sincrónico inicial es intencional al cambiar de selección).
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -659,45 +621,6 @@ export default function GitCronPage() {
     return () => { alive = false; };
   }, [selectedFile?.path, selectedFile?.conflicted]);
   /* eslint-enable react-hooks/set-state-in-effect */
-
-  useEffect(() => {
-    if (!showSearchPopover) return;
-    const handlePointerDown = (e: MouseEvent) => {
-      if (searchPopoverRef.current?.contains(e.target as Node)) return;
-      if (searchButtonRef.current?.contains(e.target as Node)) return;
-      setShowSearchPopover(false);
-    };
-    window.addEventListener('mousedown', handlePointerDown);
-    return () => window.removeEventListener('mousedown', handlePointerDown);
-  }, [showSearchPopover]);
-
-  useEffect(() => {
-    if (!showBranchFilterDropdown) return;
-    const handlePointerDown = (e: MouseEvent) => {
-      if (branchFilterRef.current?.contains(e.target as Node)) return;
-      setShowBranchFilterDropdown(false);
-    };
-    window.addEventListener('mousedown', handlePointerDown);
-    return () => window.removeEventListener('mousedown', handlePointerDown);
-  }, [showBranchFilterDropdown]);
-
-  useEffect(() => {
-    if (!showSearchPopover) return;
-    const updatePosition = () => {
-      const buttonRect = searchButtonRef.current?.getBoundingClientRect();
-      if (!buttonRect) return;
-      setSearchPopoverPos({
-        top: buttonRect.bottom + 8,
-        right: Math.max(12, window.innerWidth - buttonRect.right),
-      });
-    };
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
-    };
-  }, [showSearchPopover]);
 
   useEffect(() => { if (showNewBranch) newBranchInputRef.current?.focus(); }, [showNewBranch]);
   useEffect(() => { if (createTagFrom) newTagInputRef.current?.focus(); }, [createTagFrom]);
@@ -1203,94 +1126,14 @@ export default function GitCronPage() {
           <ToolbarButton icon={<Terminal />} onClick={openTerminal} title={t('toolbar.terminal')} disabled={!repoPath} />
 
           {/* Branch filter dropdown — only visible when Graph tab is active */}
-          {activeTab === 'Graph' && repoPath && (
-            <>
-              <div className="relative" ref={branchFilterRef}>
-              <button
-                type="button"
-                onClick={() => setShowBranchFilterDropdown((v) => !v)}
-                title={graphShowAllBranches ? t('graph.allBranches') : t('graph.currentBranch')}
-                className={cn(
-                  'flex flex-col items-center justify-center p-1.5 rounded transition-colors group shrink-0',
-                  'hover:bg-bg-overlay/70',
-                  !graphShowAllBranches && 'text-secondary',
-                )}
-              >
-                <div className={cn(
-                  'w-5 h-5 flex items-center justify-center',
-                  !graphShowAllBranches ? 'text-secondary' : 'text-text-secondary group-hover:text-secondary',
-                )}>
-                  <Filter size={15} />
-                </div>
-                {!graphShowAllBranches && (
-                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_6px_rgba(163,241,133,0.7)]" />
-                )}
-              </button>
-
-              <AnimatePresence>
-                {showBranchFilterDropdown && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    className="absolute right-0 top-full mt-1 glass-overlay rounded-lg  py-1 z-50 w-44"
-                    onClick={() => setShowBranchFilterDropdown(false)}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const path = useGitStore.getState().getActiveRepo()?.path;
-                        if (!path) return;
-                        updateActiveRepo({ graphShowAllBranches: true });
-                        refreshLog(path, { allBranches: true });
-                      }}
-                      className={cn(
-                        'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors',
-                        graphShowAllBranches
-                          ? 'text-secondary'
-                          : 'text-text-secondary hover:text-text-primary hover:bg-border-subtle/30',
-                      )}
-                    >
-                      {graphShowAllBranches && <Check size={12} strokeWidth={3} className="shrink-0" />}
-                      {!graphShowAllBranches && <span className="w-3 shrink-0" />}
-                      {t('graph.allBranches')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const path = useGitStore.getState().getActiveRepo()?.path;
-                        if (!path) return;
-                        updateActiveRepo({ graphShowAllBranches: false });
-                        refreshLog(path, { allBranches: false });
-                      }}
-                      className={cn(
-                        'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors',
-                        !graphShowAllBranches
-                          ? 'text-secondary'
-                          : 'text-text-secondary hover:text-text-primary hover:bg-border-subtle/30',
-                      )}
-                    >
-                      {!graphShowAllBranches && <Check size={12} strokeWidth={3} className="shrink-0" />}
-                      {graphShowAllBranches && <span className="w-3 shrink-0" />}
-                      {t('graph.currentBranch')}
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </>
-        )}
-          <div className="relative shrink-0" ref={searchButtonRef}>
-            <ToolbarButton
-              icon={<Search />}
-              onClick={() => setShowSearchPopover((v) => !v)}
-              title={t('toolbar.filter')}
-              disabled={!repoPath}
-            />
-            {filterText && (
-              <span className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_8px_rgba(163,241,133,0.7)]" />
-            )}
-          </div>
+          {activeTab === 'Graph' && repoPath && <BranchFilterDropdown />}
+          <GraphSearchControl
+            filterText={filterText}
+            onFilterTextChange={setFilterText}
+            disabled={!repoPath}
+            open={showSearchPopover}
+            onOpenChange={setShowSearchPopover}
+          />
           <div className="w-px h-4 bg-border-subtle mx-1 shrink-0" />
           <button
             type="button"
@@ -1313,34 +1156,6 @@ export default function GitCronPage() {
       </div>
 
       {/* ──────────── MAIN 3-COLUMN LAYOUT ──────────── */}
-      {showSearchPopover && searchPopoverPos && (
-        <div
-          ref={searchPopoverRef}
-          className="fixed w-[360px] rounded-lg border border-border-subtle/25 bg-bg-overlay/95 backdrop-blur-xl p-2 z-[200]"
-          style={{ top: searchPopoverPos.top, right: searchPopoverPos.right }}
-        >
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-            <input
-              ref={filterInputRef}
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-              className="w-full bg-bg-base/70/70 border border-border-subtle/20 rounded px-8 py-2 text-sm text-text-primary focus:outline-none focus:border-secondary/55"
-              placeholder={t('toolbar.filter')}
-            />
-            {filterText && (
-              <button
-                onClick={() => setFilterText('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors"
-                title={t('toolbar.clearFilterTooltip')}
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       <div
         className={cn(
           "flex-1 overflow-hidden relative",
@@ -3446,21 +3261,4 @@ export default function GitCronPage() {
 
 /* ──────────── COMPONENTS ──────────── */
 
-function ToolbarButton({
-  icon, onClick, title, label, disabled,
-}: { icon: React.ReactNode; onClick: () => void; title?: string; label?: string; disabled?: boolean }) {
-  return (
-    <button
-      onClick={onClick} title={title} disabled={disabled}
-      className={cn(
-        'flex shrink-0 flex-col items-center justify-center self-center rounded-md border border-transparent bg-text-primary/[0.025] transition-colors group shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
-        label ? 'h-10 min-w-[54px] px-2.5 py-1 gap-0.5' : 'h-8 w-10 p-1.5',
-        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#d9e7fc]/[0.075] hover:border-text-primary/15',
-      )}
-    >
-      <div className="w-5 h-5 shrink-0 text-text-secondary group-hover:text-secondary flex items-center justify-center">{icon}</div>
-      {label && <span className="text-[9px] leading-none font-bold uppercase tracking-tighter text-text-secondary">{label}</span>}
-    </button>
-  );
-}
 

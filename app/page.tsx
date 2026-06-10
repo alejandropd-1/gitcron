@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Undo, Redo, Download, Upload, GitBranch, Archive, Terminal,
   Settings, Folder, Tag,
-  FileText, Trash2, Zap, AlertCircle, FolderOpen, Plus, X,
+  FileText, Trash2, AlertCircle, FolderOpen, Plus, X,
   ArrowLeft, RotateCcw, LogOut,
   Copy, Loader2,
   GitMerge, Check,
@@ -29,7 +29,6 @@ import { ProfilePanel } from '@/components/ProfilePanel';
 import { DiffViewer } from '@/components/DiffViewer';
 import { CommitGraph, commitHasBranchRef, normalizeBranchName, type CommitSelectOptions } from '@/components/CommitGraph';
 import { ConflictResolver } from '@/components/ConflictResolver';
-import { StagingPanel } from '@/components/StagingPanel';
 import { HistoryView, CommitTabView } from '@/components/RepoContentViews';
 import { RepoTabs } from '@/components/RepoTabs';
 import { DangerConfirmDialog } from '@/components/DangerConfirmDialog';
@@ -41,13 +40,13 @@ import {
   SquashCommitsModal,
 } from '@/components/RepoActionModals';
 import type { SpeculativeBranch } from '@/types/temporal-agent';
-import { formatDate, formatInitials } from '@/lib/display-format';
 import { usePanelLayout, FLOATING_PANEL_INSET, GRAPH_SAFE_GAP } from '@/hooks/use-panel-layout';
 import { DeferredPanelLoading, FetchIndicator, GraphColumnHandle, ToolbarButton } from '@/components/PageWidgets';
 import { UpdateControls } from '@/components/UpdateControls';
 import { GraphSearchControl } from '@/components/GraphSearchControl';
 import { BranchFilterDropdown } from '@/components/BranchFilterDropdown';
 import { RepoSidebar } from '@/components/RepoSidebar';
+import { RepoDetailsPanel } from '@/components/RepoDetailsPanel';
 import {
   isSafeDirectoryError, safeDirectoryPathFromError,
   childPath, isPushRejected, cloneUrlFromGitHubCreateResult,
@@ -402,8 +401,6 @@ export default function GitCronPage() {
   const [showSquash, setShowSquash] = useState(false);
   const [squashN, setSquashN] = useState(2);
   const [squashMessage, setSquashMessage] = useState('');
-  const [commitFiles, setCommitFiles] = useState<GitFile[]>([]);
-  const [commitFilesLoading, setCommitFilesLoading] = useState(false);
   const [pullRequestDiff, setPullRequestDiff] = useState<PullRequestDiffData | null>(null);
   const [pullRequestDiffLoading, setPullRequestDiffLoading] = useState(false);
   const [showStashClearConfirm, setShowStashClearConfirm] = useState(false);
@@ -510,22 +507,6 @@ export default function GitCronPage() {
     });
     return () => { cancelled = true; };
   }, [repoPath, isStartupHydrated]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Load files changed in selected commit
-  useEffect(() => {
-    if (!selectedCommit || !repoPath || !window.api) {
-      setCommitFiles([]);
-      return;
-    }
-    setCommitFilesLoading(true);
-    window.api.gitShowFiles(repoPath, selectedCommit.hash)
-      .then((r) => {
-        if (r.success && r.data) setCommitFiles(r.data as GitFile[]);
-        else setCommitFiles([]);
-      })
-      .catch(() => setCommitFiles([]))
-      .finally(() => setCommitFilesLoading(false));
-  }, [selectedCommit?.hash, repoPath]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     document.documentElement.style.fontSize = `${appFontSizePx}px`;
@@ -711,6 +692,20 @@ export default function GitCronPage() {
       setIsTabChanging(false);
     }, 150);
     await loadDiff(file.path, file.staged, repoPath ?? undefined);
+  };
+
+  // Open a file's diff AT the selected commit (from the details panel list).
+  const handleOpenCommitFile = async (file: GitFile) => {
+    if (!repoPath || !window.api || !selectedCommit) return;
+    setIsTabChanging(true);
+    const r = await window.api.gitDiffAtCommit(repoPath, file.path, selectedCommit.hash);
+    if (r.success && r.data) {
+      useGitStore.getState().setCurrentDiff(r.data);
+      useGitStore.getState().setSelectedFile(file);
+    }
+    setTimeout(() => {
+      setIsTabChanging(false);
+    }, 150);
   };
 
   const handleSelectPullRequest = async (pr: PullRequestEntry) => {
@@ -1674,187 +1669,22 @@ export default function GitCronPage() {
         </main>
 
         {/* RIGHT PANEL: Commit details + staging — floats in chronometric view, inline in classic view */}
-        <aside
-          className={cn(
-            "flex flex-col overflow-hidden z-30",
-            !isDragging && "transition-all duration-300",
-            graphMode === 'chronometric'
-              ? "absolute bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl"
-              : "relative bg-bg-base/70 border-l border-border-subtle/30 shrink-0"
-          )}
-          style={
-            graphMode === 'chronometric'
-              ? {
-                  top: 96 + FLOATING_PANEL_INSET,
-                  right: FLOATING_PANEL_INSET,
-                  bottom: FLOATING_PANEL_INSET,
-                  width: detailsW,
-                  transform: repositoryDetailsVisible ? 'translateX(0)' : `translateX(calc(100% + ${FLOATING_PANEL_INSET * 2}px))`,
-                  opacity: repositoryDetailsVisible ? 1 : 0,
-                  visibility: repositoryDetailsVisible ? 'visible' : 'hidden',
-                }
-              : {
-                  width: repositoryDetailsVisible ? detailsW : 0,
-                  opacity: repositoryDetailsVisible ? 1 : 0,
-                  visibility: repositoryDetailsVisible ? 'visible' : 'hidden',
-                }
-          }
-        >
-          {/* Left-edge resize handle */}
-          <div
-            onMouseDown={(e) => beginColDrag('details', e)}
-            className="group absolute top-0 left-0 h-full w-2 cursor-col-resize z-40"
-            title="Arrastrar para redimensionar"
-          >
-            <div className="absolute inset-y-3 left-0.5 w-px bg-transparent group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
-          </div>
-          {selectedCommit ? (
-            <div className="flex flex-col h-full">
-              {/* Header bar: matches Unstaged header exactly in size, padding and font */}
-              <div className="px-4 py-2 border-b border-border-subtle/15 bg-bg-surface/75 flex items-center justify-between shrink-0">
-                <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
-                  {t('commit.detailsTitle')}
-                </span>
-                <button
-                  onClick={() => setSelectedCommit(null)}
-                  className="text-[10px] text-text-secondary hover:text-[#052900] px-2 py-0.5 rounded border border-border-subtle/15 hover:bg-secondary hover:border-secondary/40 transition-colors"
-                  title={t('commit.goToStagingTooltip')}
-                >
-                  {t('commit.viewChangesBtn')}
-                </button>
-              </div>
-              {/* WIP banner: visible when commit is selected but there are unsaved changes */}
-              {modifiedFiles.length > 0 && (
-                <div className="px-3 py-2 bg-git-mod/10 border-b border-git-mod/20 flex items-center gap-2 shrink-0">
-                  <Archive size={13} className="text-git-mod shrink-0" />
-                  <span className="text-[11px] text-text-primary flex-1">
-                    {t('commit.unstagedChangesCount', { count: modifiedFiles.length })}
-                  </span>
-                  <button
-                    onClick={handleOpenStashModal}
-                    disabled={isLoading}
-                    className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded border border-git-mod/40 transition-colors disabled:opacity-50"
-                    title={t('commit.stashTooltip')}
-                  >
-                    Stash
-                  </button>
-                </div>
-              )}
-              <div className="p-4 border-b border-border-subtle/15 bg-bg-surface/75 shrink-0">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="text-[12px] font-mono text-secondary select-text">commit: {selectedCommit.shortHash}</div>
-                  <button className="flex items-center gap-1.5 px-2 py-1 rounded bg-border-subtle text-xs hover:bg-bg-surface/70 transition-colors">
-                    <Zap size={12} className="text-git-mod" /> {t('commit.explainBtn')}
-                  </button>
-                </div>
-                <h2 className="font-semibold mb-1 select-text">{selectedCommit.message}</h2>
-                <div className="text-xs text-text-secondary mb-4 select-text">{formatDate(selectedCommit.date)}</div>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
-                    {formatInitials(selectedCommit.authorName)}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium select-text">{selectedCommit.authorName}</div>
-                    <div className="text-[10px] text-text-secondary select-text">{selectedCommit.authorEmail}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                <div className="px-4 py-2 border-b border-border-subtle/15 flex justify-between items-center bg-bg-surface/75">
-                  <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
-                    {commitFilesLoading
-                      ? t('commit.loadingFiles')
-                      : t('commit.changedFilesCount', { count: commitFiles.length })}
-                  </span>
-                </div>
-                <div className="p-1">
-                  {commitFiles.map((file) => (
-                    <button
-                      key={file.path}
-                      onClick={async () => {
-                        if (!repoPath || !window.api) return;
-                        setIsTabChanging(true);
-                        const r = await window.api.gitDiffAtCommit(repoPath, file.path, selectedCommit!.hash);
-                        if (r.success && r.data) {
-                          useGitStore.getState().setCurrentDiff(r.data);
-                          useGitStore.getState().setSelectedFile(file);
-                        }
-                        setTimeout(() => {
-                          setIsTabChanging(false);
-                        }, 150);
-                      }}
-                      className={cn(
-                        'w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors',
-                        selectedFile?.path === file.path
-                          ? 'bg-secondary/10 text-secondary'
-                          : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
-                      )}
-                    >
-                      <span className={cn(
-                        'text-[10px] font-bold w-4 shrink-0',
-                        file.status === 'added' ? 'text-secondary' :
-                        file.status === 'deleted' ? 'text-error' :
-                        file.status === 'renamed' ? 'text-primary' :
-                        'text-git-mod',
-                      )}>
-                        {file.status === 'added' ? 'A' : file.status === 'deleted' ? 'D' : file.status === 'renamed' ? 'R' : 'M'}
-                      </span>
-                      <span className="truncate text-xs select-text">{file.path}</span>
-                    </button>
-                  ))}
-                  {!commitFilesLoading && commitFiles.length === 0 && (
-                    <p className="px-4 py-4 text-xs text-text-secondary/70 text-center">{t('commit.noFiles')}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-4 border-t border-border-subtle/15 bg-bg-surface/75">
-                <textarea
-                  className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-24 focus:outline-none focus:border-secondary/30 resize-none"
-                  placeholder={t('staging.commitMsgPlaceholder')}
-                  value={commitMessage}
-                  onChange={(e) => setCommitMessage(e.target.value)}
-                />
-                <button
-                  onClick={commitChanges}
-                  disabled={isLoading || !commitMessage.trim() || !repoPath}
-                  className="w-full mt-3 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold text-[#052900] rounded transition-colors shadow-lg shadow-secondary/20"
-                >
-                  {isLoading
-                    ? t('staging.committingState')
-                    : t('staging.commitWithCountBtn', { count: modifiedFiles.filter((f) => f.staged).length })}
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Working tree: Unstaged ↑↓ Staged */
-            <StagingPanel
-              files={modifiedFiles}
-              selectedFile={selectedFile}
-              repoPath={repoPath}
-              commitMessage={commitMessage}
-              setCommitMessage={setCommitMessage}
-              isLoading={isLoading}
-              onSelectFile={handleSelectFile}
-              onStage={(path, stage) => stageFile(path, stage)}
-              onStageMany={(paths, stage) => stageFiles(paths, stage)}
-              onDiscard={(path) => {
-                const file = modifiedFiles.find((f) => f.path === path);
-                if (file) setDiscardConfirmFile(file);
-              }}
-              onCommit={commitChanges}
-              onRequestAmend={() => setShowAmend(true)}
-              onRequestSquash={() => setShowSquash(true)}
-              onFileContextMenu={(e, file) => {
-                e.preventDefault();
-                openFileContextMenu({ x: e.clientX, y: e.clientY, file });
-              }}
-              onRequestResetAll={() => setShowResetConfirm(true)}
-              onRequestCleanUntracked={handleOpenCleanModal}
-            />
-          )}
-        </aside>
+        <RepoDetailsPanel
+          graphMode={graphMode}
+          detailsW={detailsW}
+          visible={repositoryDetailsVisible}
+          isDragging={isDragging}
+          onResizeStart={(e) => beginColDrag('details', e)}
+          onOpenStashModal={handleOpenStashModal}
+          onOpenCommitFile={handleOpenCommitFile}
+          onSelectFile={handleSelectFile}
+          onDiscardRequest={setDiscardConfirmFile}
+          onRequestAmend={() => setShowAmend(true)}
+          onRequestSquash={() => setShowSquash(true)}
+          onFileContextMenu={openFileContextMenu}
+          onRequestResetAll={() => setShowResetConfirm(true)}
+          onRequestCleanUntracked={handleOpenCleanModal}
+        />
 
         {/* LCAR-29 right-side decorative panel — cronométrico only when Graph tab is active and no diff is open */}
         <AnimatePresence>

@@ -51,6 +51,12 @@ import {
 } from '@/components/RepoSidebarParts';
 import type { SpeculativeBranch } from '@/types/temporal-agent';
 import { formatDate, formatInitials } from '@/lib/display-format';
+import { usePanelLayout, FLOATING_PANEL_INSET, GRAPH_SAFE_GAP } from '@/hooks/use-panel-layout';
+import { DeferredPanelLoading, FetchIndicator, GraphColumnHandle } from '@/components/PageWidgets';
+import {
+  userInitials, isSafeDirectoryError, safeDirectoryPathFromError,
+  childPath, isPushRejected, cloneUrlFromGitHubCreateResult,
+} from '@/lib/page-helpers';
 
 const ChronometricGraph = dynamic(
   () => import('@/components/ChronometricGraph').then((mod) => mod.ChronometricGraph),
@@ -67,14 +73,6 @@ const TemporalAgentSettings = dynamic(
     loading: () => <DeferredPanelLoading />,
   },
 );
-
-function DeferredPanelLoading() {
-  return (
-    <div className="flex min-h-48 w-full items-center justify-center text-text-secondary">
-      <Loader2 size={18} className="animate-spin text-secondary" />
-    </div>
-  );
-}
 
 // Phase 5 test data — 3 mock speculative branches to validate the overlay
 // without hitting the AI. The real flow swaps these for PredictionResult.branches.
@@ -117,27 +115,8 @@ const USE_MOCK_SPECULATIVE = false;
 import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { parseChangelog } from '@/lib/changelog';
+import { useAppUpdate } from '@/hooks/use-app-update';
 import type { PullRequestDiffData, PullRequestEntry } from '@/types/electron';
-
-const GRAPH_COLUMN_DEFAULTS = {
-  refs: 260,
-  graph: 88,
-  date: 80,
-  hash: 64,
-};
-
-const GRAPH_COLUMN_LIMITS = {
-  refs: { min: 160, max: 520 },
-  graph: { min: 56, max: 260 },
-  date: { min: 64, max: 150 },
-  hash: { min: 56, max: 120 },
-};
-
-const FLOATING_PANEL_INSET = 12;
-const GRAPH_SAFE_GAP = 12;
-
-type GraphColumnKey = keyof typeof GRAPH_COLUMN_DEFAULTS;
 
 type PullDecisionToast = {
   source: 'push' | 'pull';
@@ -147,14 +126,6 @@ type PullDecisionToast = {
   mode: 'behind' | 'diverged';
 };
 
-type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error';
-
-type UpdateInfo = {
-  version: string;
-  currentVersion: string;
-  releaseDate?: string;
-};
-
 type StashPreviewState = {
   index: number;
   message: string;
@@ -162,114 +133,12 @@ type StashPreviewState = {
   diff: string;
 };
 
-const MOCK_UPDATE_ENABLED = process.env.NEXT_PUBLIC_MOCK_UPDATE === '1';
-const MOCK_UPDATE_VERSION = '1.3.1-dev';
-
 const FONT_SIZE_OPTIONS: Array<{ key: FontSize; px: number }> = [
   { key: 'compact', px: 15 },
   { key: 'normal', px: 16 },
   { key: 'large', px: 17 },
 ];
 
-/**
- * Derive 2-letter initials from a GitHub user object, falling back through
- * name → login → email. Always returns at most 2 chars.
- */
-function userInitials(user: { name?: string | null; login?: string; email?: string | null }): string {
-  if (user.name && user.name.trim()) return formatInitials(user.name.trim());
-  if (user.login) return user.login.slice(0, 2).toUpperCase();
-  if (user.email) return user.email.split('@')[0].slice(0, 2).toUpperCase();
-  return '?';
-}
-
-function isSafeDirectoryError(message: string): boolean {
-  return /detected dubious ownership|safe\.directory/i.test(message);
-}
-
-function safeDirectoryPathFromError(message: string): string | null {
-  const repoMatch = message.match(/repository at ['"]([^'"]+)['"]/i);
-  if (repoMatch?.[1]) return repoMatch[1].trim();
-
-  const commandMatch = message.match(/safe\.directory\s+(.+?)(?:\r?\n|$)/i);
-  if (!commandMatch?.[1]) return null;
-
-  return commandMatch[1].trim().replace(/^['"`]+|['"`]+$/g, '').replace(/[.)]+$/, '');
-}
-
-function childPath(parent: string, name: string): string {
-  const separator = parent.includes('\\') ? '\\' : '/';
-  return parent.endsWith('/') || parent.endsWith('\\')
-    ? `${parent}${name}`
-    : `${parent}${separator}${name}`;
-}
-
-function isPushRejected(error?: string | null): boolean {
-  return Boolean(
-    error?.includes('[rejected]') ||
-    error?.includes('fetch first') ||
-    error?.includes('non-fast-forward') ||
-    error?.includes('remote contains work'),
-  );
-}
-
-function cloneUrlFromGitHubCreateResult(
-  result: { success: boolean; error?: string | null; data?: { cloneUrl?: string | null } | null },
-  ownerLogin: string | undefined,
-  repoName: string,
-): string | null {
-  if (result.success) return result.data?.cloneUrl ?? '';
-  if (result.error?.includes('already exists') && ownerLogin) {
-    return `https://github.com/${ownerLogin}/${repoName}.git`;
-  }
-  return null;
-}
-
-// Local settings section helper functions extracted to components/SettingsPanel.tsx
-
-function FetchIndicator({ onClick }: { onClick: () => void | Promise<void> }) {
-  const t = useT();
-  const isFetchingRemote = useGitStore((s) => s.isFetchingRemote);
-  const lastFetchTime = useGitStore((s) => s.lastFetchTime);
-  const autoFetchEnabled = useGitStore((s) => s.autoFetchEnabled);
-  const tooltip = isFetchingRemote
-    ? t('autoFetch.fetching')
-    : lastFetchTime
-      ? `${t('autoFetch.lastSync')}: ${new Date(lastFetchTime).toLocaleTimeString()}`
-      : autoFetchEnabled
-        ? t('autoFetch.idle')
-        : t('autoFetch.disabled');
-  return (
-    <button
-      type="button"
-      onClick={() => onClick()}
-      title={tooltip}
-      className={cn(
-        'flex flex-col items-center justify-center p-1.5 rounded transition-colors group shrink-0',
-        'hover:bg-border-subtle',
-      )}
-    >
-      <div className={cn(
-        'w-5 h-5 flex items-center justify-center',
-        isFetchingRemote ? 'text-secondary' : 'text-text-secondary group-hover:text-secondary',
-      )}>
-        <RotateCcw size={16} className={cn(isFetchingRemote && 'animate-spin')} />
-      </div>
-    </button>
-  );
-}
-
-function GraphColumnHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
-  return (
-    <div
-      onMouseDown={onMouseDown}
-      className="group w-0 self-stretch -my-2 shrink-0 cursor-col-resize relative overflow-visible"
-      title="Arrastrar para redimensionar columna"
-    >
-      <div className="absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-border-subtle/20 group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
-      <div className="absolute inset-y-0 -left-1.5 -right-1.5 bg-transparent group-hover:bg-secondary/35 group-active:bg-secondary/60 transition-colors" />
-    </div>
-  );
-}
 
 export default function GitCronPage() {
   const {
@@ -600,91 +469,14 @@ export default function GitCronPage() {
     setBranchMenu(null);
     setRemoteBranchMenu(menu);
   };
-  // ── Resizable column widths ──
-  const [sidebarW, setSidebarW] = useState(240);
-  const [detailsW, setDetailsW] = useState(320);
-  // ── Floating panel open/closed state ──
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [detailsOpen, setDetailsOpen] = useState(true);
+  // ── Panel layout (resizable widths + open/closed state, persisted) ──
+  const {
+    sidebarW, detailsW, sidebarOpen, detailsOpen, isDragging, graphColumns,
+    beginColDrag, beginGraphColDrag, toggleSidebar, toggleDetails,
+  } = usePanelLayout();
   const repositoryDetailsVisible = detailsOpen && activeView === 'repository' && !!repoPath && !isRepoStartView;
   const leftGraphSafe = sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
   const rightGraphSafe = repositoryDetailsVisible ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
-  const [isDragging, setIsDragging] = useState(false);
-  const [graphColumns, setGraphColumns] = useState(GRAPH_COLUMN_DEFAULTS);
-  const dragRef = useRef<{
-    col: 'sidebar' | 'details';
-    startX: number;
-    startW: number;
-  } | null>(null);
-  const graphDragRef = useRef<{
-    col: GraphColumnKey;
-    startX: number;
-    startW: number;
-    direction: 1 | -1;
-  } | null>(null);
-
-  const startColDrag = (col: 'sidebar' | 'details') => (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-    dragRef.current = {
-      col,
-      startX: e.clientX,
-      startW: col === 'sidebar' ? sidebarW : detailsW,
-    };
-    const onMove = (ev: MouseEvent) => {
-      if (!dragRef.current) return;
-      const delta = ev.clientX - dragRef.current.startX;
-      if (dragRef.current.col === 'sidebar') {
-        const w = Math.max(160, Math.min(400, dragRef.current.startW + delta));
-        setSidebarW(w);
-        localStorage.setItem('gitcron:sidebarW', String(w));
-      } else {
-        // details grows to the LEFT so delta is inverted
-        const w = Math.max(240, Math.min(560, dragRef.current.startW - delta));
-        setDetailsW(w);
-        localStorage.setItem('gitcron:detailsW', String(w));
-      }
-    };
-    const onUp = () => {
-      setIsDragging(false);
-      dragRef.current = null;
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  };
-
-  const startGraphColDrag = (col: GraphColumnKey, direction: 1 | -1 = 1) => (e: React.MouseEvent) => {
-    e.preventDefault();
-    graphDragRef.current = {
-      col,
-      startX: e.clientX,
-      startW: graphColumns[col],
-      direction,
-    };
-    const onMove = (ev: MouseEvent) => {
-      if (!graphDragRef.current) return;
-      const { col: activeCol, startX, startW, direction: dragDirection } = graphDragRef.current;
-      const delta = (ev.clientX - startX) * dragDirection;
-      const limits = GRAPH_COLUMN_LIMITS[activeCol];
-      const width = Math.max(limits.min, Math.min(limits.max, startW + delta));
-
-      setGraphColumns((prev) => {
-        const next = { ...prev, [activeCol]: width };
-        localStorage.setItem('gitcron:graphColumns', JSON.stringify(next));
-        return next;
-      });
-    };
-    const onUp = () => {
-      graphDragRef.current = null;
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  };
-
 
   const [filterText, setFilterText] = useState('');
   const [selectedBranchName, setSelectedBranchName] = useState<string | null>(null);
@@ -698,21 +490,19 @@ export default function GitCronPage() {
   const [authMode, setAuthMode] = useState<'oauth' | 'token'>('oauth');
   const [deviceCodeInfo, setDeviceCodeInfo] = useState<{ userCode: string; verificationUri: string } | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const [changelogRaw, setChangelogRaw] = useState<string | null>(null);
-  const [changelogError, setChangelogError] = useState<string | null>(null);
-  const [showUpdateMenu, setShowUpdateMenu] = useState(false);
+  // ── App auto-update flow (estado, listeners IPC, changelog) ──
+  const {
+    updateStatus, updateInfo, downloadProgress,
+    changelogRaw, changelogError, changelogEntries,
+    showUpdateMenu, setShowUpdateMenu, updateMenuRef,
+    handleCheckForUpdate, handleDownloadUpdate, handleInstallUpdate,
+  } = useAppUpdate();
   const newBranchInputRef = useRef<HTMLInputElement>(null);
   const newTagInputRef = useRef<HTMLInputElement>(null);
   const searchPopoverRef = useRef<HTMLDivElement>(null);
   const searchButtonRef = useRef<HTMLDivElement>(null);
-  const updateMenuRef = useRef<HTMLDivElement>(null);
-  const mockUpdateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isStartupHydrated, setIsStartupHydrated] = useState(false);
   const [isStartupGraphReady, setIsStartupGraphReady] = useState(false);
-  const changelogEntries = useMemo(() => parseChangelog(changelogRaw ?? ''), [changelogRaw]);
 
   useEffect(() => {
     setSelectedBranchName(null);
@@ -751,39 +541,6 @@ export default function GitCronPage() {
   useEffect(() => {
     document.documentElement.style.fontSize = `${appFontSizePx}px`;
   }, [appFontSizePx]);
-
-  // Read persisted split widths and panel open states on the client to avoid SSR hydration mismatches.
-  useEffect(() => {
-    const savedSidebarW = localStorage.getItem('gitcron:sidebarW');
-    const savedDetailsW = localStorage.getItem('gitcron:detailsW');
-    const savedGraphColumns = localStorage.getItem('gitcron:graphColumns');
-    const savedSidebarOpen = localStorage.getItem('gitcron:sidebarOpen');
-    const savedDetailsOpen = localStorage.getItem('gitcron:detailsOpen');
-    const parsedSidebarW = savedSidebarW ? parseInt(savedSidebarW, 10) : NaN;
-    const parsedDetailsW = savedDetailsW ? parseInt(savedDetailsW, 10) : NaN;
-
-    if (!Number.isNaN(parsedSidebarW)) setSidebarW(parsedSidebarW);
-    if (!Number.isNaN(parsedDetailsW)) setDetailsW(parsedDetailsW);
-    if (savedSidebarOpen !== null) setSidebarOpen(savedSidebarOpen !== 'false');
-    if (savedDetailsOpen !== null) setDetailsOpen(savedDetailsOpen !== 'false');
-    if (savedGraphColumns) {
-      try {
-        const parsed = JSON.parse(savedGraphColumns) as Partial<typeof GRAPH_COLUMN_DEFAULTS>;
-        setGraphColumns((prev) => {
-          const next = { ...prev };
-          (Object.keys(GRAPH_COLUMN_DEFAULTS) as GraphColumnKey[]).forEach((key) => {
-            const value = parsed[key];
-            if (typeof value !== 'number' || Number.isNaN(value)) return;
-            const limits = GRAPH_COLUMN_LIMITS[key];
-            next[key] = Math.max(limits.min, Math.min(limits.max, value));
-          });
-          return next;
-        });
-      } catch {
-        localStorage.removeItem('gitcron:graphColumns');
-      }
-    }
-  }, []);
 
   // Repo-scoped local UI should not survive tab switches or closing a repo.
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -881,6 +638,9 @@ export default function GitCronPage() {
     filterInputRef.current?.select();
   }, [showSearchPopover]);
 
+  // Cargar el contenido del archivo conflictuado seleccionado (async; el
+  // reset sincrónico inicial es intencional al cambiar de selección).
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     let alive = true;
     if (!selectedFile?.conflicted) {
@@ -898,6 +658,7 @@ export default function GitCronPage() {
 
     return () => { alive = false; };
   }, [selectedFile?.path, selectedFile?.conflicted]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!showSearchPopover) return;
@@ -919,16 +680,6 @@ export default function GitCronPage() {
     window.addEventListener('mousedown', handlePointerDown);
     return () => window.removeEventListener('mousedown', handlePointerDown);
   }, [showBranchFilterDropdown]);
-
-  useEffect(() => {
-    if (!showUpdateMenu) return;
-    const handlePointerDown = (e: MouseEvent) => {
-      if (updateMenuRef.current?.contains(e.target as Node)) return;
-      setShowUpdateMenu(false);
-    };
-    window.addEventListener('mousedown', handlePointerDown);
-    return () => window.removeEventListener('mousedown', handlePointerDown);
-  }, [showUpdateMenu]);
 
   useEffect(() => {
     if (!showSearchPopover) return;
@@ -957,162 +708,6 @@ export default function GitCronPage() {
     const timer = setTimeout(() => setSuccess(null), 3000);
     return () => clearTimeout(timer);
   }, [success]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Wire up auto-update IPC events from the main process.
-  useEffect(() => {
-    if (MOCK_UPDATE_ENABLED) {
-      const timer = setTimeout(() => {
-        setUpdateInfo({
-          version: MOCK_UPDATE_VERSION,
-          currentVersion: pkg.version,
-          releaseDate: new Date().toISOString(),
-        });
-        setUpdateStatus('available');
-        setDownloadProgress(0);
-      }, 1200);
-      return () => clearTimeout(timer);
-    }
-
-    if (!window.api?.onUpdateNotAvailable) return;
-    const unsubAvailable = window.api.onUpdateAvailable((info) => {
-      setUpdateInfo(info);
-      setUpdateStatus('available');
-      setDownloadProgress(0);
-    });
-    const unsubNotAvailable = window.api.onUpdateNotAvailable(() => {
-      setUpdateStatus('idle');
-      setUpdateInfo(null);
-      setDownloadProgress(0);
-      setSuccess(t('update.toastNotAvailable'));
-    });
-    const unsubError = window.api.onUpdateError((msg: string) => {
-      setUpdateStatus((status) => status === 'downloading' ? 'available' : 'error');
-      setDownloadProgress(0);
-      setError(t('update.toastError', { error: msg }));
-    });
-    const unsubProgress = window.api.onDownloadProgress(({ percent }) => {
-      setUpdateStatus('downloading');
-      setDownloadProgress(percent);
-    });
-    const unsubDownloaded = window.api.onUpdateDownloaded((info) => {
-      setUpdateInfo(info);
-      setUpdateStatus('downloaded');
-      setDownloadProgress(100);
-      setShowUpdateMenu(false);
-    });
-    return () => {
-      unsubAvailable();
-      unsubNotAvailable();
-      unsubError();
-      unsubProgress();
-      unsubDownloaded();
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!window.api?.getChangelog) {
-      setChangelogError('El changelog está disponible en la app de escritorio.');
-      return () => { cancelled = true; };
-    }
-
-    window.api.getChangelog().then((result) => {
-      if (cancelled) return;
-      if (result.success && result.data) {
-        setChangelogRaw(result.data);
-        setChangelogError(null);
-      } else {
-        setChangelogError(result.error ?? 'No se pudo cargar el changelog');
-      }
-    }).catch((error) => {
-      if (!cancelled) setChangelogError(error instanceof Error ? error.message : String(error));
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  const handleCheckForUpdate = async () => {
-    if (updateStatus === 'checking' || updateStatus === 'downloading') return;
-    if (MOCK_UPDATE_ENABLED) {
-      setUpdateStatus('checking');
-      setSuccess(t('update.toastChecking'));
-      window.setTimeout(() => {
-        setUpdateInfo({
-          version: MOCK_UPDATE_VERSION,
-          currentVersion: pkg.version,
-          releaseDate: new Date().toISOString(),
-        });
-        setUpdateStatus('available');
-        setDownloadProgress(0);
-        setSuccess(null);
-      }, 600);
-      return;
-    }
-
-    setUpdateStatus('checking');
-    setSuccess(t('update.toastChecking'));
-    const result = await window.api.checkForUpdate();
-    if (!result.success) {
-      setUpdateStatus('error');
-      setError(result.error ?? t('update.toastError', { error: 'unknown' }));
-    }
-    // On success the IPC listeners (onUpdateNotAvailable / onUpdateError) handle the rest.
-  };
-
-  const handleDownloadUpdate = async () => {
-    if (updateStatus === 'downloading') return;
-    if (MOCK_UPDATE_ENABLED) {
-      if (mockUpdateTimerRef.current) clearInterval(mockUpdateTimerRef.current);
-      setUpdateInfo((info) => info ?? {
-        version: MOCK_UPDATE_VERSION,
-        currentVersion: pkg.version,
-        releaseDate: new Date().toISOString(),
-      });
-      setUpdateStatus('downloading');
-      setDownloadProgress(0);
-      mockUpdateTimerRef.current = setInterval(() => {
-        setDownloadProgress((prev) => {
-          const next = Math.min(prev + 12, 100);
-          if (next >= 100) {
-            if (mockUpdateTimerRef.current) {
-              clearInterval(mockUpdateTimerRef.current);
-              mockUpdateTimerRef.current = null;
-            }
-            setUpdateStatus('downloaded');
-            setShowUpdateMenu(false);
-          }
-          return next;
-        });
-      }, 220);
-      return;
-    }
-
-    setUpdateStatus('downloading');
-    setDownloadProgress(0);
-    const result = await window.api.downloadUpdate();
-    if (!result.success) {
-      setUpdateStatus(updateInfo ? 'available' : 'error');
-      setError(result.error ?? t('update.toastError', { error: 'unknown' }));
-    }
-  };
-
-  const handleInstallUpdate = async () => {
-    if (MOCK_UPDATE_ENABLED) {
-      setSuccess(t('update.mockInstall'));
-      setShowUpdateMenu(false);
-      return;
-    }
-
-    const result = await window.api.installUpdate();
-    if (!result.success) {
-      setError(result.error ?? t('update.toastError', { error: 'unknown' }));
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (mockUpdateTimerRef.current) clearInterval(mockUpdateTimerRef.current);
-    };
-  }, []);
 
   const handleCreateBranch = async () => {
     const name = newBranchName.trim();
@@ -1508,11 +1103,7 @@ export default function GitCronPage() {
         <div className="flex items-center gap-4 h-full min-w-0">
           <button
             type="button"
-            onClick={() => {
-              const next = !sidebarOpen;
-              setSidebarOpen(next);
-              localStorage.setItem('gitcron:sidebarOpen', String(next));
-            }}
+            onClick={toggleSidebar}
             aria-label={sidebarOpen ? t('toolbar.hideSidebar') : t('toolbar.showSidebar')}
             aria-pressed={sidebarOpen}
             title={sidebarOpen ? t('toolbar.hideSidebar') : t('toolbar.showSidebar')}
@@ -1807,11 +1398,7 @@ export default function GitCronPage() {
           <div className="w-px h-4 bg-border-subtle mx-1 shrink-0" />
           <button
             type="button"
-            onClick={() => {
-              const next = !detailsOpen;
-              setDetailsOpen(next);
-              localStorage.setItem('gitcron:detailsOpen', String(next));
-            }}
+            onClick={toggleDetails}
             aria-label={detailsOpen ? t('toolbar.hideDetails') : t('toolbar.showDetails')}
             aria-pressed={detailsOpen}
             title={detailsOpen ? t('toolbar.hideDetails') : t('toolbar.showDetails')}
@@ -1891,7 +1478,7 @@ export default function GitCronPage() {
         >
           {/* Right-edge resize handle */}
           <div
-            onMouseDown={startColDrag('sidebar')}
+            onMouseDown={(e) => beginColDrag('sidebar', e)}
             className="group absolute top-0 right-0 h-full w-2 cursor-col-resize z-40"
             title="Arrastrar para redimensionar"
           >
@@ -2680,9 +2267,9 @@ export default function GitCronPage() {
                     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl">
                     <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 h-9 flex items-center text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
                       <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphColumns.refs }}>Branch / Tag</div>
-                      <GraphColumnHandle onMouseDown={startGraphColDrag('refs')} />
+                      <GraphColumnHandle onMouseDown={(e) => beginGraphColDrag('refs', e)} />
                       <div className="shrink-0 text-left px-2" style={{ width: graphColumns.graph }}>Graph</div>
-                      <GraphColumnHandle onMouseDown={startGraphColDrag('graph')} />
+                      <GraphColumnHandle onMouseDown={(e) => beginGraphColDrag('graph', e)} />
                       <div className="flex-1 flex items-center gap-2 pl-5">
                         Commit message
                         {enableCronometric && speculativeBranches.length > 0 && (
@@ -2703,10 +2290,10 @@ export default function GitCronPage() {
                           </span>
                         )}
                       </div>
-                      <GraphColumnHandle onMouseDown={startGraphColDrag('date', -1)} />
+                      <GraphColumnHandle onMouseDown={(e) => beginGraphColDrag('date', e, -1)} />
                       <div className="flex items-center pr-3 text-right shrink-0">
                         <span className="pr-3" style={{ width: graphColumns.date }}>Date</span>
-                        <GraphColumnHandle onMouseDown={startGraphColDrag('date')} />
+                        <GraphColumnHandle onMouseDown={(e) => beginGraphColDrag('date', e)} />
                         <span style={{ width: graphColumns.hash }}>Commit</span>
                       </div>
                     </div>
@@ -2862,7 +2449,7 @@ export default function GitCronPage() {
         >
           {/* Left-edge resize handle */}
           <div
-            onMouseDown={startColDrag('details')}
+            onMouseDown={(e) => beginColDrag('details', e)}
             className="group absolute top-0 left-0 h-full w-2 cursor-col-resize z-40"
             title="Arrastrar para redimensionar"
           >

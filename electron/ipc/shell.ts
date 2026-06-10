@@ -6,13 +6,14 @@ import { ipcMain, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
-import { errMsg } from './shared';
+import { errMsg, resolveRepoRelativePath } from './shared';
 
 export function registerShellHandlers(): void {
   // ── Show a file in OS file explorer (highlights it) ──
   ipcMain.handle('shell:show-in-folder', async (_event, targetPath: string, relativeFilePath: string) => {
     try {
-      const fullPath = path.join(targetPath, relativeFilePath);
+      const fullPath = resolveRepoRelativePath(path.resolve(targetPath), relativeFilePath);
+      if (!fullPath) return { success: false, error: 'Path traversal blocked' };
       shell.showItemInFolder(fullPath);
       return { success: true };
     } catch (error: any) {
@@ -23,7 +24,8 @@ export function registerShellHandlers(): void {
   // ── Open a file with the OS default program ──
   ipcMain.handle('shell:open-item', async (_event, targetPath: string, relativeFilePath: string) => {
     try {
-      const fullPath = path.join(targetPath, relativeFilePath);
+      const fullPath = resolveRepoRelativePath(path.resolve(targetPath), relativeFilePath);
+      if (!fullPath) return { success: false, error: 'Path traversal blocked' };
       const err = await shell.openPath(fullPath);
       if (err) return { success: false, error: err };
       return { success: true };
@@ -96,8 +98,19 @@ export function registerShellHandlers(): void {
     }
   });
 
+  // Renderer callers pass BOTH folders (worktrees, repo dir) and https URLs
+  // (GitHub profile / device-flow verification). Route URLs through
+  // openExternal and only hand real directories to the OS — never a loose
+  // file path, which would launch it with its default program.
   ipcMain.handle('shell:open-path', async (_event, targetPath: string) => {
     try {
+      if (/^https?:\/\//i.test(targetPath)) {
+        await shell.openExternal(targetPath);
+        return { success: true };
+      }
+      if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isDirectory()) {
+        return { success: false, error: 'Solo se pueden abrir carpetas existentes' };
+      }
       await shell.openPath(targetPath);
       return { success: true };
     } catch (error: any) {

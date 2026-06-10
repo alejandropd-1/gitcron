@@ -21,9 +21,13 @@ export type ShortcutHandlers = Partial<Record<ShortcutId, () => void>>;
  * unless `ignoreInputs: false` is passed.
  */
 export const useShortcuts = (handlers: ShortcutHandlers, ignoreInputs = true) => {
-  // Keep latest handlers in a ref so the listener never goes stale
+  // Keep latest handlers in a ref so the listener never goes stale.
+  // Updated in an effect — writing a ref during render breaks with
+  // React concurrent rendering (a render can be thrown away or replayed).
   const handlersRef = useRef(handlers);
-  handlersRef.current = handlers;
+  useEffect(() => {
+    handlersRef.current = handlers;
+  });
 
   const shortcutsPref = useGitStore((s) => s.shortcuts);
 

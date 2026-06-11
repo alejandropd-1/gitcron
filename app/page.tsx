@@ -4,9 +4,9 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Upload, GitBranch, Archive,
+  GitBranch,
   Settings, Folder, Tag,
-  FileText, Trash2, AlertCircle, FolderOpen, Plus, X,
+  Trash2, AlertCircle, FolderOpen, Plus, X,
   ArrowLeft, RotateCcw, LogOut,
   Copy, Loader2,
   GitMerge, Check,
@@ -46,6 +46,7 @@ import { RepoSidebar } from '@/components/RepoSidebar';
 import { RepoDetailsPanel } from '@/components/RepoDetailsPanel';
 import { PageToasts, type PullDecisionToast } from '@/components/PageToasts';
 import { TopBar } from '@/components/TopBar';
+import { StashCreateModal, StashPreviewModal, type StashPreviewState } from '@/components/StashModals';
 import {
   isSafeDirectoryError, safeDirectoryPathFromError,
   childPath, isPushRejected, cloneUrlFromGitHubCreateResult,
@@ -111,13 +112,6 @@ import { cn } from '@/lib/utils';
 import { useAppUpdate } from '@/hooks/use-app-update';
 import type { PullRequestDiffData, PullRequestEntry } from '@/types/electron';
 
-type StashPreviewState = {
-  index: number;
-  message: string;
-  files: string[];
-  diff: string;
-};
-
 const FONT_SIZE_OPTIONS: Array<{ key: FontSize; px: number }> = [
   { key: 'compact', px: 15 },
   { key: 'normal', px: 16 },
@@ -144,7 +138,7 @@ export default function GitCronPage() {
     commitChanges, mergeBranch, revertCommit, resetToCommit, stashChanges,
     discardFileChanges, stageFile, stageFiles, removeIndexLock,
     checkoutBranch, checkoutBranchSmart, createBranch, pushChanges, pullChanges,
-    openTerminal, stashApply, stashPop, stashPreview, stashDrop, stashClear,
+    openTerminal, stashPreview,
     connectGitHub, disconnectGitHub, loginWithGitHubDevice, bootstrapGitHub,
     bootstrapPreferences, changeLanguage, changeFontSize, changeDefaultFolder, pickDefaultFolder,
     setAutoFetchPrefs, setOsNotifications, rebindShortcut, resetShortcutsToDefaults, changeTheme, changeEnableCronometric,
@@ -1697,144 +1691,18 @@ export default function GitCronPage() {
         )}
       </AnimatePresence>
 
-      {/* ──────────── STASH WITH MESSAGE MODAL ──────────── */}
-      <AnimatePresence>
-        {showStashModal && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
-            onClick={() => setShowStashModal(false)}
-          >
-            <motion.form
-              initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
-              className="glass-overlay rounded-xl shadow-2xl p-6 w-[min(calc(100vw-2rem),480px)]"
-              onClick={(e) => e.stopPropagation()}
-              onSubmit={(e) => {
-                e.preventDefault();
-                void handleCreateStash();
-              }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-git-mod flex items-center gap-2">
-                  <Archive size={16} /> {t('stashModal.title')}
-                </h3>
-                <button type="button" onClick={() => setShowStashModal(false)} className="text-text-secondary hover:text-text-primary">
-                  <X size={16} />
-                </button>
-              </div>
-              <label htmlFor="stash-message" className="text-xs text-text-secondary block mb-1">
-                {t('stashModal.messageLabel')}
-              </label>
-              <input
-                id="stash-message"
-                name="stashMessage"
-                value={stashMessage}
-                onChange={(e) => setStashMessage(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Escape') setShowStashModal(false); }}
-                placeholder={t('stashModal.messagePlaceholder')}
-                className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-git-mod/50 mb-2"
-              />
-              <p className="text-[11px] text-text-secondary leading-relaxed mb-5">
-                {t('stashModal.desc')}
-              </p>
-              <div className="flex gap-2 justify-end">
-                <button type="button" onClick={() => setShowStashModal(false)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">
-                  {t('modal.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-gradient-to-br from-[#fd9d1a] to-[#c96c00] hover:from-[#ffb247] hover:to-[#b75f00] shadow-lg shadow-git-mod/10 disabled:opacity-40 disabled:cursor-not-allowed text-[#201100] text-sm font-bold rounded flex items-center gap-2"
-                >
-                  {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} />}
-                  {isLoading ? t('stashModal.saving') : t('stashModal.save')}
-                </button>
-              </div>
-            </motion.form>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ──────────── STASH PREVIEW MODAL ──────────── */}
-      <AnimatePresence>
-        {stashPreviewState && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
-            onClick={() => setStashPreviewState(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
-              className="glass-overlay rounded-xl shadow-2xl p-6 w-[min(calc(100vw-2rem),880px)] max-h-[82vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div className="min-w-0">
-                  <h3 className="font-bold text-secondary flex items-center gap-2">
-                    <FileDiff size={16} /> {t('stashPreview.title', { index: stashPreviewState.index })}
-                  </h3>
-                  <p className="text-xs text-text-secondary mt-1 truncate">{stashPreviewState.message}</p>
-                </div>
-                <button onClick={() => setStashPreviewState(null)} className="text-text-secondary hover:text-text-primary">
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-[220px_minmax(0,1fr)] gap-3 min-h-0 flex-1">
-                <div className="rounded border border-border-subtle/15 bg-bg-base/70 overflow-hidden min-h-0">
-                  <div className="px-3 py-2 border-b border-border-subtle/15 text-[10px] font-bold uppercase tracking-wider text-text-secondary">
-                    {t('stashPreview.files', { count: stashPreviewState.files.length })}
-                  </div>
-                  <div className="max-h-[52vh] overflow-y-auto p-1">
-                    {stashPreviewState.files.length === 0 ? (
-                      <p className="px-2 py-3 text-xs text-text-secondary italic">{t('stashPreview.noFiles')}</p>
-                    ) : stashPreviewState.files.map((filePath) => (
-                      <div key={filePath} className="flex items-center gap-2 px-2 py-1.5 rounded text-xs text-text-primary">
-                        <FileText size={13} className="text-text-secondary shrink-0" />
-                        <span className="truncate font-mono select-text">{filePath}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <pre
-                  tabIndex={0}
-                  className="rounded border border-border-subtle/15 bg-[#06111f] p-3 overflow-auto max-h-[52vh] text-[11px] leading-relaxed text-text-primary font-mono whitespace-pre"
-                >
-                  <code>{stashPreviewState.diff || t('stashPreview.noDiff')}</code>
-                </pre>
-              </div>
-
-              <div className="flex gap-2 justify-end mt-5">
-                <button onClick={() => setStashPreviewState(null)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">
-                  {t('modal.close')}
-                </button>
-                <button
-                  onClick={async () => {
-                    const index = stashPreviewState.index;
-                    setStashPreviewState(null);
-                    await stashApply(index);
-                  }}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-bg-base/70 border border-secondary/30 hover:border-secondary/60 hover:text-secondary disabled:opacity-40 text-sm font-bold rounded flex items-center gap-2"
-                >
-                  <RotateCcw size={14} /> {t('stashPreview.apply')}
-                </button>
-                <button
-                  onClick={async () => {
-                    const index = stashPreviewState.index;
-                    setStashPreviewState(null);
-                    await stashPop(index);
-                  }}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-40 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
-                >
-                  <Upload size={14} /> {t('stashPreview.pop')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ──────────── STASH MODALS: create + preview ──────────── */}
+      <StashCreateModal
+        open={showStashModal}
+        onClose={() => setShowStashModal(false)}
+        message={stashMessage}
+        onMessageChange={setStashMessage}
+        onSubmit={handleCreateStash}
+      />
+      <StashPreviewModal
+        preview={stashPreviewState}
+        onClose={() => setStashPreviewState(null)}
+      />
 
       {/* ──────────── CREATE TAG MODAL ──────────── */}
       <AnimatePresence>

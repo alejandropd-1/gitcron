@@ -4,14 +4,14 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Undo, Redo, Download, Upload, GitBranch, Archive, Terminal,
+  Upload, GitBranch, Archive,
   Settings, Folder, Tag,
   FileText, Trash2, AlertCircle, FolderOpen, Plus, X,
   ArrowLeft, RotateCcw, LogOut,
   Copy, Loader2,
   GitMerge, Check,
   ExternalLink, FileDiff,
-  PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, WrapText, AlignLeft,
+  WrapText, AlignLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useShortcuts } from '@/hooks/use-shortcuts';
@@ -41,13 +41,11 @@ import {
 } from '@/components/RepoActionModals';
 import type { SpeculativeBranch } from '@/types/temporal-agent';
 import { usePanelLayout, FLOATING_PANEL_INSET, GRAPH_SAFE_GAP } from '@/hooks/use-panel-layout';
-import { DeferredPanelLoading, FetchIndicator, GraphColumnHandle, ToolbarButton } from '@/components/PageWidgets';
-import { UpdateControls } from '@/components/UpdateControls';
-import { GraphSearchControl } from '@/components/GraphSearchControl';
-import { BranchFilterDropdown } from '@/components/BranchFilterDropdown';
+import { DeferredPanelLoading, GraphColumnHandle } from '@/components/PageWidgets';
 import { RepoSidebar } from '@/components/RepoSidebar';
 import { RepoDetailsPanel } from '@/components/RepoDetailsPanel';
 import { PageToasts, type PullDecisionToast } from '@/components/PageToasts';
+import { TopBar } from '@/components/TopBar';
 import {
   isSafeDirectoryError, safeDirectoryPathFromError,
   childPath, isPushRejected, cloneUrlFromGitHubCreateResult,
@@ -1004,103 +1002,22 @@ export default function GitCronPage() {
             onReorder={handleReorderRepoTabs}
           />
           {/* ──────────── TOP NAV ──────────── */}
-          <header
-            className={cn(
-              "grid items-center shrink-0 relative z-50 h-12",
-              graphMode === 'chronometric'
-                ? "rounded-b-2xl border-t border-text-primary/[0.06] bg-transparent grid-cols-[minmax(210px,0.8fr)_auto_minmax(360px,1.2fr)] px-3"
-                : "glass-header grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] px-4"
-            )}
-          >
-        <div className="flex items-center gap-4 h-full min-w-0">
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            aria-label={sidebarOpen ? t('toolbar.hideSidebar') : t('toolbar.showSidebar')}
-            aria-pressed={sidebarOpen}
-            title={sidebarOpen ? t('toolbar.hideSidebar') : t('toolbar.showSidebar')}
-            className={cn(
-              'h-9 w-9 shrink-0 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary',
-              'flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
-              'hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary',
-              sidebarOpen && 'text-secondary border-secondary/25 bg-secondary/10',
-            )}
-          >
-            {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
-          </button>
-          <nav className="flex h-full gap-1 shrink-0">
-            {[
-              { key: 'Commit', label: t('tab.commit') },
-              { key: 'Graph', label: t('tab.graph') },
-              { key: 'History', label: t('tab.history') },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => handleTabChange(tab.key)}
-                className={cn(
-                  'px-3 h-full flex items-center text-sm transition-colors relative',
-                  activeTab === tab.key ? 'text-secondary' : 'text-text-secondary hover:text-text-primary',
-                )}
-              >
-                {tab.label}
-                {activeTab === tab.key && (
-                  <motion.div layoutId="activeTab" className="absolute bottom-1.5 left-2 right-2 h-0.5 rounded-full bg-secondary" />
-                )}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        <div className="flex items-center justify-center gap-1 px-2">
-          <ToolbarButton icon={<Undo />} onClick={() => {}} title={t('toolbar.undo')} />
-          <ToolbarButton icon={<Redo />} onClick={() => {}} title={t('toolbar.redo')} />
-          <div className="w-px h-4 bg-border-subtle mx-1" />
-          <ToolbarButton icon={<Download />} onClick={handlePullIntent} title={t('toolbar.pull')} label={t('toolbar.pull')} disabled={!repoPath || isLoading} />
-          <ToolbarButton icon={<Upload />} onClick={handlePushIntent} title={t('toolbar.push')} label={t('toolbar.push')} disabled={!repoPath || isLoading} />
-          <div className="w-px h-4 bg-border-subtle mx-1" />
-          <ToolbarButton
-            icon={<GitBranch />}
-            onClick={() => { setNewBranchFrom(undefined); setShowNewBranch(true); }}
-            title={t('toolbar.newBranch')} label={t('toolbar.branch')} disabled={!repoPath}
-          />
-          <ToolbarButton icon={<Archive />} onClick={handleOpenStashModal} title={t('toolbar.stash')} label={t('toolbar.stash')} disabled={!repoPath || isLoading} />
-          <FetchIndicator onClick={runFetchCycle} />
-        </div>
-
-        <div className="flex items-center justify-end gap-1 min-w-0">
-          {/* Branch filter dropdown — only visible when Graph tab is active */}
-          {activeView === 'repository' && !isRepoStartView && activeTab === 'Graph' && repoPath && enableCronometric && (
-            <div className="bg-bg-overlay/90 border border-border-subtle/20 rounded-md flex items-center p-0.5 mr-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => handleChangeGraphMode('classic')}
-                className={cn(
-                  "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
-                  activeGraphMode === 'classic'
-                    ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
-                    : "text-text-secondary hover:text-text-primary border border-transparent"
-                )}
-                title={t('toolbar.viewClassicTooltip')}
-              >
-                {t('toolbar.viewClassicBtn')}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleChangeGraphMode('chronometric')}
-                className={cn(
-                  "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
-                  activeGraphMode === 'chronometric'
-                    ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
-                    : "text-text-secondary hover:text-text-primary border border-transparent"
-                )}
-                title={t('toolbar.viewChronometricTooltip')}
-              >
-                {t('toolbar.viewChronometricBtn')}
-              </button>
-            </div>
-          )}
-          {/* Version tag + GitHub icon / update status */}
-          <UpdateControls
+          <TopBar
+            graphMode={graphMode}
+            sidebarOpen={sidebarOpen}
+            onToggleSidebar={toggleSidebar}
+            detailsOpen={detailsOpen}
+            onToggleDetails={toggleDetails}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            onPullIntent={handlePullIntent}
+            onPushIntent={handlePushIntent}
+            onNewBranchRequest={() => { setNewBranchFrom(undefined); setShowNewBranch(true); }}
+            onOpenStashModal={handleOpenStashModal}
+            onFetchNow={runFetchCycle}
+            showGraphModeSwitch={activeView === 'repository' && !isRepoStartView && activeTab === 'Graph' && !!repoPath && enableCronometric}
+            activeGraphMode={activeGraphMode}
+            onChangeGraphMode={handleChangeGraphMode}
             updateStatus={updateStatus}
             updateInfo={updateInfo}
             downloadProgress={downloadProgress}
@@ -1110,37 +1027,11 @@ export default function GitCronPage() {
             onCheckForUpdate={handleCheckForUpdate}
             onDownloadUpdate={handleDownloadUpdate}
             onInstallUpdate={handleInstallUpdate}
-          />
-          <div className="w-px h-4 bg-border-subtle mx-1" />
-          <ToolbarButton icon={<Terminal />} onClick={openTerminal} title={t('toolbar.terminal')} disabled={!repoPath} />
-
-          {/* Branch filter dropdown — only visible when Graph tab is active */}
-          {activeTab === 'Graph' && repoPath && <BranchFilterDropdown />}
-          <GraphSearchControl
             filterText={filterText}
             onFilterTextChange={setFilterText}
-            disabled={!repoPath}
-            open={showSearchPopover}
-            onOpenChange={setShowSearchPopover}
+            searchOpen={showSearchPopover}
+            onSearchOpenChange={setShowSearchPopover}
           />
-          <div className="w-px h-4 bg-border-subtle mx-1 shrink-0" />
-          <button
-            type="button"
-            onClick={toggleDetails}
-            aria-label={detailsOpen ? t('toolbar.hideDetails') : t('toolbar.showDetails')}
-            aria-pressed={detailsOpen}
-            title={detailsOpen ? t('toolbar.hideDetails') : t('toolbar.showDetails')}
-            className={cn(
-              'h-9 w-9 shrink-0 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary',
-              'flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
-              'hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary',
-              detailsOpen && 'text-secondary border-secondary/25 bg-secondary/10',
-            )}
-          >
-            {detailsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
-          </button>
-        </div>
-      </header>
         </div>
       </div>
 

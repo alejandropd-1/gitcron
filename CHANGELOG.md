@@ -4,7 +4,30 @@ Changes are listed from newest to oldest.
 
 ---
 
-## [Unreleased] - 2026-06-09
+## [v1.8.0] - 2026-06-12 - Modularización Integral + Hardening de Seguridad
+
+### 🛡️ Seguridad (Electron)
+
+#### Added
+- **Guard de navegación**: la ventana queda fijada a su origen (`localhost` en dev, `app://` en prod); todo link http(s) externo se abre en el navegador del SO vía `shell.openExternal` y los popups arbitrarios se bloquean (`setWindowOpenHandler` + `will-navigate`/`will-redirect`).
+- **Contención de paths en el protocolo `app://`**: el handler valida que el archivo resuelto quede dentro de `out/` (bloquea traversal con `../`) y usa `pathToFileURL` para rutas Windows correctas.
+- **Hardening de handlers shell**: `shell:show-in-folder` y `shell:open-item` validan contención dentro del repo; `shell:open-path` enruta URLs https por `openExternal` y solo acepta directorios existentes (ya no puede lanzar ejecutables arbitrarios).
+
+### 🧱 Modularización (sin cambios de comportamiento)
+
+#### Changed
+- **`electron/main.ts`: 2.542 → 285 líneas**. Los ~55 handlers IPC ahora viven en `electron/ipc/` por dominio: `git-ops`, `git-sync`, `git-repo`, `github`, `ai`, `shell`, `storage`, `watchers`, `app-window`, con helpers compartidos en `shared.ts`.
+- **`hooks/use-git-actions.ts`: 1.272 → 33 líneas**. Ahora es una fachada que compone 6 sub-hooks por dominio en `hooks/git-actions/` (working-tree, branches, history, remote, github-auth, preferences). API pública intacta.
+- **`app/page.tsx`: 3.984 → ~2.430 líneas**. Extraídos: `usePanelLayout` (layout/resize persistido), `useAppUpdate` (flujo de updates), `UpdateControls`, `GraphSearchControl`, `BranchFilterDropdown`, `RepoSidebar`, `RepoDetailsPanel`, `PageToasts`, `PageWidgets` y helpers puros en `lib/page-helpers.ts`.
+
+#### Fixed
+- **`use-shortcuts`**: el ref de handlers se actualiza en un `useEffect` (antes se escribía durante el render, incompatible con concurrent rendering de React 19).
+
+### 🧹 Limpieza
+
+#### Removed
+- 10 exports muertos detectados por Fallow (`runPrediction`, `openingTurnFromBranch`, constantes SQL internas, etc.); Fallow queda en 0 issues con `node:sqlite` y el barrel de `ProviderId` documentados en `.fallowrc.json`.
+
 
 ### 🔵 Vista Cronométrica
 

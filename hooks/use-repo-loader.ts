@@ -482,6 +482,7 @@ export const useRepoLoader = () => {
     trustSafeDirectory,
     restoreLastRepo,
     closeRepo,
+    persistOpenRepos,
     pickFolder,
     initRepo,
     cloneRepo,

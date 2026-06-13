@@ -1,14 +1,15 @@
 # F1 — Reporte de cierre: descomposición de `app/page.tsx`
 
-**Branch:** `fallow/test-v4` · **Fecha:** 2026-06-13 · **Estado:** F1 ejecutada (T1, T3, TANDA EXTRA);
-T2 diferida; **meta <1.400 LOC NO alcanzada** — requiere fase F1.5 (ver abajo). NO mergeado a `main`.
+**Branch:** `fallow/test-v4` · **Fecha:** 2026-06-13 · **Estado:** F1 ejecutada (T1, T3, TANDA EXTRA)
++ F1.5 T1 (PR/file diff views); T2 diferida; **meta <1.400 LOC NO alcanzada** (final 1.711, decisión
+de Ale de parar — ver addendum). NO mergeado a `main`.
 
 ## Resumen ejecutivo
 
-`app/page.tsx`: **2.166 → 1.842 LOC** (−324, −15%). Cero cambio de comportamiento, cero cambio
-de i18n. La meta del brief (<1.400) **no es alcanzable** con las tandas que enumeraba (T1–T3):
-el grueso restante vive en el view-switcher del `<main>` central (~445 LOC), que el brief dejó
-fuera de scope y difirió a T4. Se propone como **F1.5** al final de este reporte.
+`app/page.tsx`: **2.166 → 1.711 LOC** (−455, −21%). Cero cambio de comportamiento, cero cambio
+de i18n. La meta del brief (<1.400) **no se alcanzó**: el resto vive en el view-switcher del
+`<main>` central (graph tab clásico + cronométrico), cuya extracción toca área visualmente
+sensible (invariante #12) y Ale decidió no abordar en esta fase (ver addendum F1.5).
 
 ## Trabajo por tanda
 
@@ -69,6 +70,26 @@ invariante #12) → requiere **QA visual explícito de Ale**. Debe ir en su prop
 - **TANDA 2** (glue de context menus → `ContextMenus.tsx`): ~89 LOC, ahorro neto ~60, sube prop-threading. Diferida por bajo valor (decisión CHECKPOINT 0).
 - **Housekeeping H-dead-code:** 4 issues pre-existentes en `use-panel-layout.ts`.
 
+## Addendum F1.5 (ejecutado parcialmente)
+
+**T1 — vistas de diff → `RepoContentViews.tsx` (hecho).** Se extrajeron `PullRequestDiffView`
+(~78 LOC) y `FileDiffView` (~64 LOC) del `<main>` a su contenedor de dominio (junto a
+HistoryView/CommitTabView), JSX verbatim, handlers por props. No se tocaron `DiffViewer`,
+`ConflictResolver` ni los grafos. De paso se limpió un bloque grande de imports lucide muertos
+en `page.tsx` (5 que orfanó esta extracción + ~9 pre-existentes de extracciones anteriores) y
+los imports de `DiffViewer`/`ConflictResolver`; quedan `FolderOpen` y `Loader2`.
+- **LOC:** 1.842 → **1.711**. tsc 0, tests 122/122, Fallow dupes 8, dead-code 4 (sin cambio).
+- Commit: `F1.5 T1: extraigo PR-diff y file-diff views a RepoContentViews.tsx`.
+
+**Resto — PARADO por decisión de Ale.** Llegar a <1.400 requería extraer el **Graph tab**
+(clásico + cronométrico, ~192 LOC → ~1.550) o, para cumplir el target, todo el view-switcher
+del `<main>` a un `RepoMainView` (~450 LOC → ~1.300). Ambos tocan el área del grafo
+(invariante #12, requiere validación visual). Ale optó por **parar en ~1.711** y dejarlo como
+deuda futura documentada. Sin tocar el grafo.
+
+**Nota de meta:** el objetivo <1.400 del brief resultó no alcanzable sin tocar el render central;
+el resultado entregado (−455 LOC, −21%, cero cambio de comportamiento) es el cierre acordado.
+
 ## Cierre
 Una fase por vez con OK visual de Ale como compuerta vinculante. **STOP.** No mergear a `main`
-hasta el OK de F1 (+ eventual F1.5) y la pasada de docs (README/CHANGELOG) que decide Ale.
+hasta el OK de F1/F1.5 y la pasada de docs (README/CHANGELOG) que decide Ale.

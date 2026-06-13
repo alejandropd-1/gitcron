@@ -5,7 +5,7 @@
 > en el código, **el código manda** — reportá la discrepancia y actualizá este doc al cierre
 > de tu fase. No asumas que existe algo que no esté listado ni que falte algo que sí esté.
 
-**Última actualización:** 2026-06-12 · **Versión:** v1.8.0 · **Branch de trabajo:** `fallow/test-v4`
+**Última actualización:** 2026-06-13 · **Versión:** v1.8.1 + F1 final · **Branch de trabajo:** `fallow/test-v4`
 
 ---
 
@@ -27,25 +27,28 @@ reales y persistencia de decisiones en SQLite para calibración estadística.
 | IA | OpenRouter (HTTP directo, sin SDK) — proveedor primario; stubs para openai/gemini/opencode |
 | DB | `node:sqlite` built-in (prefijo `node:` preservado vía tsup external + onSuccess patch) |
 | Build | tsup (Electron) + electron-builder (NSIS/dmg/AppImage) · puerto dev: 3001 |
-| Tests | Vitest — **9 archivos, 80 tests** (deben quedar verdes en todo cierre de fase) |
-| Calidad | Fallow (`pnpm exec fallow`, config en `.fallowrc.json`, hoy 0 issues) + CodeGraph MCP |
+| Tests | Vitest — **15 archivos, 122 tests** (deben quedar verdes en todo cierre de fase) |
+| Calidad | Fallow (`pnpm exec fallow`, config en `.fallowrc.json`) + CodeGraph MCP. Baseline actual: dead-code 3 issues (2 exports + 1 type), dupes 8 clone groups, health 270 sobre umbral, MI 90.1 (good). |
 
-## 3. Mapa de arquitectura (post-modularización v1.8.0)
+## 3. Mapa de arquitectura (post-modularización v1.8.1 / F1 final)
 
 ### `app/`
-- `page.tsx` — **2.166 líneas. Sigue siendo el target de descomposición** (ver brief F1).
-  Contiene: ~63 useState, ~37 handlers, top nav, layout 3 columnas, panel decorativo LCAR,
-  y modales/menús contextuales todavía inline.
+- `page.tsx` — **1.277 líneas**. F1 alcanzó el objetivo `<1.400 LOC`. Sigue siendo el
+  orquestador principal de estado/handlers, top nav, layout 3 columnas y callbacks, pero el
+  view-switcher central, graph tab y overlay de modales/menús ya viven en componentes dedicados.
 - `layout.tsx` — CSP por meta tag. `connect-src`: api.github.com, github.com, openrouter.ai.
 - `globals.css` — tokens visuales ("The Compiled Soul": navy `#020f1e`, verde `#a3f185`,
   cian `#5ed8ff`, naranja `#fd9d1a`).
 
 ### `components/` (extraídos de page.tsx — NO recrear, reutilizar)
 `TopBar.tsx`, `RepoTabs.tsx`, `RepoSidebar.tsx`, `RepoSidebarParts.tsx`,
-`RepoDetailsPanel.tsx`, `RepoContentViews.tsx` (HistoryView + CommitTabView),
+`RepoDetailsPanel.tsx`, `RepoMainView.tsx` (view-switcher central + graph tab clásico/cronométrico),
+`RepoOverlayLayer.tsx` (modales/menús de página), `RepoContentViews.tsx` (HistoryView + CommitTabView +
+PR diff + file diff),
 `RepoModals.tsx`, `RepoActionModals.tsx` (checkout conflict, reset all, clean untracked,
 amend, squash), `StashModals.tsx`, `ResetCommitModal.tsx`, `DangerConfirmDialog.tsx`,
-`ContextMenus.tsx`, `PageToasts.tsx`, `PageWidgets.tsx`, `GraphSearchControl.tsx`,
+`ContextMenus.tsx` (Commit/File context menus + layer branch/remote), `PageToasts.tsx`,
+`PageWidgets.tsx`, `GraphSearchControl.tsx`,
 `BranchFilterDropdown.tsx`, `SettingsPanel.tsx`, `HelpPanel.tsx`, `ProfilePanel.tsx`,
 `UpdateControls.tsx`, `CopyButton.tsx`, `ChangelogPreview.tsx`.
 
@@ -123,11 +126,11 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
   sigue activo; si SQLite ya es única fuente, retirarlo (fase chica de housekeeping).
 - Diseño completo en `docs/TEMPORAL_AGENT_DESIGN.md` (no rediseñar nada de ahí).
 
-## 6. Paisaje de branches (2026-06-12)
+## 6. Paisaje de branches (2026-06-13)
 
-- `fallow/test-v4` ← **actual**, contiene main + toda la tanda de modularización v1.8.0.
-  Worktree limpio, sincronizada con origin.
-- `main` en `bae5063` (ancestro de fallow/test-v4) — pendiente mergear cuando cierre F1.
+- `fallow/test-v4` ← **actual**, contiene main + F1/F1.5/F1 final. Es la rama de trabajo activa.
+- `main` / `origin/main` y `origin/fallow/test-v4` quedaron sincronizadas en `6d560f5` antes de
+  esta continuación F1; los cambios finales de esta etapa todavía deben cerrarse con commit/QA.
 - ~14 branches viejas de features ya integradas (02-, 13-, 14-, …, 30-db-v1,
   feature/31-…) — candidatas a prune en housekeeping. **No borrar sin OK explícito de Ale.**
 
@@ -135,7 +138,7 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
 
 ```powershell
 npx.cmd tsc --noEmit      # 0 errores
-pnpm test                 # 80/80 verde (o más si agregaste)
+pnpm test                 # 122/122 verde (o más si agregaste)
 pnpm exec fallow          # reportar delta: LOC, duplicación, dead code
 git status --short
 git diff --stat

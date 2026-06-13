@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useT } from '@/hooks/use-translation';
 import type { GitFile } from '@/lib/git-store';
 
@@ -93,7 +93,7 @@ export function CommitContextMenu({
   );
 }
 
-export function BranchContextMenu({
+function BranchContextMenu({
   x, y, branch, currentBranch, tracking,
   onMerge, onRebase, onFastForward, onPull, onPush,
   onCheckout, onRename, onDelete, onCopyName, onCreateFrom, onClose,
@@ -185,7 +185,7 @@ export function FileContextMenu({
   );
 }
 
-export function RemoteBranchContextMenu({
+function RemoteBranchContextMenu({
   x, y, branch,
   onCheckout, onCopyName, onCreateFrom, onClose,
 }: {
@@ -215,5 +215,84 @@ export function RemoteBranchContextMenu({
       <ContextMenuItem onClick={onCopyName} text="Copiar nombre" textSecondary="Ctrl+C" />
       <ContextMenuItem onClick={onClose} text="Cerrar" />
     </motion.div>
+  );
+}
+
+type BranchContextMenuLayerProps = {
+  branchMenu: { x: number; y: number; branch: string } | null;
+  remoteBranchMenu: { x: number; y: number; branch: string } | null;
+  currentBranch: string;
+  branchTracking: Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
+  onMerge: (branch: string) => void;
+  onRebase: (branch: string) => void;
+  onFastForward: (branch: string) => void;
+  onPull: (branch: string) => void;
+  onPush: (branch: string) => void;
+  onCheckout: (branch: string) => void;
+  onRename: (branch: string) => void;
+  onDelete: (branch: string) => void;
+  onCopyName: (branch: string) => void;
+  onCreateFrom: (branch: string) => void;
+  onCloseBranchMenu: () => void;
+  onCloseRemoteBranchMenu: () => void;
+};
+
+export function BranchContextMenuLayer({
+  branchMenu,
+  remoteBranchMenu,
+  currentBranch,
+  branchTracking,
+  onMerge,
+  onRebase,
+  onFastForward,
+  onPull,
+  onPush,
+  onCheckout,
+  onRename,
+  onDelete,
+  onCopyName,
+  onCreateFrom,
+  onCloseBranchMenu,
+  onCloseRemoteBranchMenu,
+}: BranchContextMenuLayerProps) {
+  return (
+    <>
+      <AnimatePresence>
+        {branchMenu && (
+          <BranchContextMenu
+            x={branchMenu.x}
+            y={branchMenu.y}
+            branch={branchMenu.branch}
+            currentBranch={currentBranch}
+            tracking={branchTracking[branchMenu.branch]}
+            onMerge={() => onMerge(branchMenu.branch)}
+            onRebase={() => onRebase(branchMenu.branch)}
+            onFastForward={() => onFastForward(branchMenu.branch)}
+            onPull={() => onPull(branchMenu.branch)}
+            onPush={() => onPush(branchMenu.branch)}
+            onCheckout={() => onCheckout(branchMenu.branch)}
+            onRename={() => onRename(branchMenu.branch)}
+            onDelete={() => onDelete(branchMenu.branch)}
+            onCopyName={() => onCopyName(branchMenu.branch)}
+            onCreateFrom={() => onCreateFrom(branchMenu.branch)}
+            onClose={onCloseBranchMenu}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {remoteBranchMenu && (
+          <RemoteBranchContextMenu
+            x={remoteBranchMenu.x}
+            y={remoteBranchMenu.y}
+            branch={remoteBranchMenu.branch}
+            onCheckout={() => onCheckout(remoteBranchMenu.branch)}
+            onCopyName={() => onCopyName(remoteBranchMenu.branch)}
+            onCreateFrom={() => onCreateFrom(remoteBranchMenu.branch)}
+            onClose={onCloseRemoteBranchMenu}
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 }

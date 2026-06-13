@@ -93,3 +93,42 @@ el resultado entregado (−455 LOC, −21%, cero cambio de comportamiento) es el
 ## Cierre
 Una fase por vez con OK visual de Ale como compuerta vinculante. **STOP.** No mergear a `main`
 hasta el OK de F1/F1.5 y la pasada de docs (README/CHANGELOG) que decide Ale.
+
+## Addendum F1 final — continuación Codex (2026-06-13)
+
+**Ejecutado después del merge/push de `main` y vuelta a `fallow/test-v4`.** Ale decidió no pasar a F2
+todavía y pidió terminar la deuda F1 del `graph/view-switcher central`.
+
+### Qué se hizo
+
+- **`RepoMainView.tsx` (nuevo):** extrae el view-switcher central de `app/page.tsx`:
+  Settings / Help / Profile / RepoStart / PR diff / file diff / History / Commit / Graph.
+- **Graph tab extraído:** el render clásico y cronométrico salió de `page.tsx` sin tocar
+  `CommitGraph.tsx` ni `ChronometricGraph.tsx`; se preservaron transiciones, loading states,
+  safe gaps, columnas redimensionables, chip `N futuros` y HUD props.
+- **`RepoOverlayLayer.tsx` (nuevo):** mueve el layer de modales y menús de página, reutilizando
+  los componentes existentes (`RepoActionModals`, `StashModals`, `ResetCommitModal`,
+  `DangerConfirmDialog`, `ContextMenus`). Los handlers/estado siguen entrando por props.
+- **`ContextMenus.tsx`:** suma `BranchContextMenuLayer`; `BranchContextMenu` y
+  `RemoteBranchContextMenu` quedan internos para no crear dead exports.
+- **`docs/00_FUENTE_DE_VERDAD.md`:** actualizado al estado real post-F1 final.
+
+### Métricas
+
+| Gate | Resultado |
+|---|---|
+| `npx.cmd tsc --noEmit` | **0** |
+| `pnpm test` | **122/122 (15 files)** |
+| Fallow dead-code | **3 issues** (baseline actual: 2 exports + 1 type) |
+| Fallow dupes | **8 clone groups** (sin cambio) |
+| Fallow health | **270 sobre umbral** (+1 por `RepoOverlayLayer`) |
+| Fallow maintainability | **90.1 (good)** |
+| LOC `app/page.tsx` | **1.711 → 1.277** |
+
+### Notas
+
+- F1 finalmente cumple el objetivo original de `page.tsx < 1.400 LOC`.
+- No se tocó lógica Git, Electron, providers IA, SQLite, `CommitGraph.tsx`, `ChronometricGraph.tsx`
+  ni `StagingPanel.tsx`.
+- Queda deuda técnica normal: `RepoOverlayLayer` es un contenedor grande y Fallow lo marca como
+  health nuevo; conviene dejarlo como candidato de refinamiento si se quiere volver de 270 a 269.

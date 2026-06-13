@@ -2,10 +2,14 @@
 
 import { memo, useMemo } from 'react';
 import type { MouseEvent } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, ArrowLeft, ExternalLink, FileDiff, WrapText, AlignLeft, Loader2 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { StatusBadge, FlowStep } from '@/components/HelpModal';
+import { DiffViewer } from '@/components/DiffViewer';
+import { ConflictResolver } from '@/components/ConflictResolver';
 import { useT } from '@/hooks/use-translation';
 import type { Commit, GitFile } from '@/lib/git-store';
+import type { PullRequestDiffData, PullRequestEntry } from '@/types/electron';
 import { cn } from '@/lib/utils';
 import { formatDate, formatInitials } from '@/lib/display-format';
 
@@ -217,5 +221,203 @@ function StatCard({ label, value, accent }: { label: string; value: number; acce
         {value}
       </p>
     </div>
+  );
+}
+
+type PullRequestDiffViewProps = {
+  pullRequest: PullRequestEntry;
+  pullRequestDiff: PullRequestDiffData | null;
+  pullRequestDiffLoading: boolean;
+  wordWrap: boolean;
+  onBack: () => void;
+};
+
+/**
+ * Vista de diff unificado de un Pull Request: cabecera con metadatos + chips de
+ * archivos + DiffViewer. El motion.div lleva la key por número de PR para que
+ * cambiar de PR re-monte la vista.
+ */
+export function PullRequestDiffView({
+  pullRequest,
+  pullRequestDiff,
+  pullRequestDiffLoading,
+  wordWrap,
+  onBack,
+}: PullRequestDiffViewProps) {
+  const t = useT();
+
+  return (
+    <motion.div
+      key={`pr-diff-${pullRequest.number}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className="flex-1 flex flex-col overflow-hidden"
+    >
+      <div className="px-4 py-3 border-b border-border-subtle/15 bg-bg-base/70 shrink-0">
+        <div className="flex items-center gap-2 mb-2">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-secondary transition-colors"
+          >
+            <ArrowLeft size={14} /> {t('prDiff.back')}
+          </button>
+          <span className="text-text-secondary/70">/</span>
+          <span className="text-xs font-mono text-secondary">PR #{pullRequest.number}</span>
+          <div className="flex-1" />
+          {pullRequest.draft && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#697789]/20 text-text-secondary uppercase">
+              {t('sidebar.draft')}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => window.api?.shellOpenExternal(pullRequest.url)}
+            className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-secondary transition-colors"
+          >
+            <ExternalLink size={13} /> {t('prDiff.open')}
+          </button>
+        </div>
+        <div className="flex items-start gap-3">
+          <FileDiff size={18} className="text-primary shrink-0 mt-0.5" />
+          <div className="min-w-0 flex-1">
+            <h2 className="font-semibold text-text-primary truncate">{pullRequest.title}</h2>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-text-secondary">
+              <span>@{pullRequest.author}</span>
+              <span className="text-text-secondary/70">·</span>
+              <span className="font-mono text-primary">{pullRequest.branch}</span>
+              <span className="text-text-secondary/70">→</span>
+              <span className="font-mono text-text-primary">{pullRequest.baseBranch}</span>
+              <span className="text-text-secondary/70">·</span>
+              <span>{t('prDiff.changedFiles', { count: String(pullRequestDiff?.changedFiles ?? pullRequest.changedFiles) })}</span>
+              <span className="font-mono text-secondary">+{pullRequestDiff?.additions ?? pullRequest.additions}</span>
+              <span className="font-mono text-error">-{pullRequestDiff?.deletions ?? pullRequest.deletions}</span>
+            </div>
+          </div>
+        </div>
+        {!!pullRequestDiff?.files.length && (
+          <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+            {pullRequestDiff.files.slice(0, 18).map((file) => (
+              <span
+                key={file.filename}
+                title={file.previousFilename ? `${file.previousFilename} → ${file.filename}` : file.filename}
+                className="shrink-0 max-w-[220px] truncate rounded border border-border-subtle/20 bg-bg-base px-2 py-1 text-[10px] font-mono text-text-secondary"
+              >
+                {file.filename}
+              </span>
+            ))}
+            {pullRequestDiff.files.length > 18 && (
+              <span className="shrink-0 rounded border border-border-subtle/20 bg-bg-base px-2 py-1 text-[10px] font-mono text-text-secondary/70">
+                +{pullRequestDiff.files.length - 18}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+      {pullRequestDiffLoading ? (
+        <div className="flex-1 flex items-center justify-center text-text-secondary text-sm">
+          <Loader2 size={16} className="animate-spin mr-2 text-secondary" />
+          {t('prDiff.loading')}
+        </div>
+      ) : (
+        <DiffViewer diff={pullRequestDiff?.diff ?? ''} filePath={t('prDiff.unifiedDiff', { number: String(pullRequest.number) })} wordWrap={wordWrap} />
+      )}
+    </motion.div>
+  );
+}
+
+type FileDiffViewProps = {
+  file: GitFile;
+  currentDiff: string;
+  wordWrap: boolean;
+  onToggleWordWrap: () => void;
+  onBack: () => void;
+  conflictFileLoading: boolean;
+  conflictFileContent: string;
+  isSaving: boolean;
+  onSaveConflict: (content: string) => Promise<void> | void;
+};
+
+/**
+ * Vista de diff de un archivo del working tree: cabecera con toggle de word-wrap
+ * y badge de estado + ConflictResolver (si el archivo está en conflicto) +
+ * DiffViewer. La key del motion.div incluye path+staged para re-montar al cambiar.
+ */
+export function FileDiffView({
+  file,
+  currentDiff,
+  wordWrap,
+  onToggleWordWrap,
+  onBack,
+  conflictFileLoading,
+  conflictFileContent,
+  isSaving,
+  onSaveConflict,
+}: FileDiffViewProps) {
+  const t = useT();
+  return (
+    <motion.div
+      key={`file-diff-${file.path}-${file.staged}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className="flex-1 flex flex-col overflow-hidden"
+    >
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle/15 bg-bg-base/70 shrink-0">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-secondary transition-colors"
+        >
+          <ArrowLeft size={14} /> Volver al graph
+        </button>
+        <span className="text-text-secondary/70">/</span>
+        <span className="text-xs text-text-primary font-mono truncate">{file.path}</span>
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={onToggleWordWrap}
+          title={wordWrap ? "Ajuste de línea activo (Alt + Z) - Hacer clic para ver a lo largo" : "Ver a lo largo activo (Alt + Z) - Hacer clic para ajustar línea"}
+          className={cn(
+            "p-1 rounded border flex items-center justify-center transition-all cursor-pointer mr-1",
+            wordWrap
+              ? "border-secondary/40 bg-secondary/15 text-secondary hover:bg-secondary/25"
+              : "border-text-primary/10 bg-text-primary/[0.02] text-text-secondary hover:text-text-primary hover:border-text-primary/20"
+          )}
+        >
+          {wordWrap ? <WrapText size={14} /> : <AlignLeft size={14} />}
+        </button>
+        <span
+          className={cn(
+            'text-[10px] px-1.5 py-0.5 rounded font-bold',
+            file.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
+            file.status === 'added' ? 'bg-secondary/20 text-secondary' :
+            file.status === 'renamed' ? 'bg-primary/20 text-primary' :
+            file.status === 'untracked' ? 'bg-[#9eacc0]/20 text-text-secondary' :
+            'bg-error/20 text-error',
+          )}
+        >
+          {file.status.toUpperCase()}
+        </span>
+      </div>
+      {file.conflicted && (
+        conflictFileLoading ? (
+          <div className="px-4 py-3 border-b border-border-subtle/15 bg-bg-base/45 flex items-center gap-2 text-text-secondary text-sm shrink-0">
+            <Loader2 size={16} className="animate-spin text-git-mod" />
+            {t('conflictResolver.loading')}
+          </div>
+        ) : (
+          <ConflictResolver
+            filePath={file.path}
+            content={conflictFileContent}
+            isSaving={isSaving}
+            onSave={onSaveConflict}
+          />
+        )
+      )}
+      <DiffViewer diff={currentDiff} filePath={file.path} wordWrap={wordWrap} />
+    </motion.div>
   );
 }

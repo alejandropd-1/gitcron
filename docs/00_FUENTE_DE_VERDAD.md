@@ -1,0 +1,145 @@
+# GitCron — Fuente de verdad (estado real del repo)
+
+> **Para el agente ejecutor:** este documento describe el estado REAL del código a la fecha
+> indicada. Leelo entero antes de tocar una línea. Si algo de acá no coincide con lo que ves
+> en el código, **el código manda** — reportá la discrepancia y actualizá este doc al cierre
+> de tu fase. No asumas que existe algo que no esté listado ni que falte algo que sí esté.
+
+**Última actualización:** 2026-06-12 · **Versión:** v1.8.0 · **Branch de trabajo:** `fallow/test-v4`
+
+---
+
+## 1. Qué es GitCron
+
+Cliente Git de escritorio (estilo GitKraken/SourceTree) con una vista experimental
+**Cronométrica** (diagonal temporal estilo TCARS/LCARS) y un **Temporal Agent**: IA opt-in
+que proyecta ramas especulativas futuras sobre la diagonal, con materialización a branches
+reales y persistencia de decisiones en SQLite para calibración estadística.
+
+## 2. Stack
+
+| Capa | Tecnología |
+|---|---|
+| UI | Next.js 15 (export estático) + React 19 + Tailwind 4 + motion/react + lucide-react |
+| Estado | Zustand 5 (`lib/git-store.ts`, multi-repo first-class: `openRepos[]` + `activeRepoIdx`) |
+| Desktop | Electron 42 (`contextIsolation: true`, `sandbox: true`, CSP estricta) |
+| Git | `simple-git` (local) + Octokit (`@octokit/rest`, GitHub API) |
+| IA | OpenRouter (HTTP directo, sin SDK) — proveedor primario; stubs para openai/gemini/opencode |
+| DB | `node:sqlite` built-in (prefijo `node:` preservado vía tsup external + onSuccess patch) |
+| Build | tsup (Electron) + electron-builder (NSIS/dmg/AppImage) · puerto dev: 3001 |
+| Tests | Vitest — **9 archivos, 80 tests** (deben quedar verdes en todo cierre de fase) |
+| Calidad | Fallow (`pnpm exec fallow`, config en `.fallowrc.json`, hoy 0 issues) + CodeGraph MCP |
+
+## 3. Mapa de arquitectura (post-modularización v1.8.0)
+
+### `app/`
+- `page.tsx` — **2.166 líneas. Sigue siendo el target de descomposición** (ver brief F1).
+  Contiene: ~63 useState, ~37 handlers, top nav, layout 3 columnas, panel decorativo LCAR,
+  y modales/menús contextuales todavía inline.
+- `layout.tsx` — CSP por meta tag. `connect-src`: api.github.com, github.com, openrouter.ai.
+- `globals.css` — tokens visuales ("The Compiled Soul": navy `#020f1e`, verde `#a3f185`,
+  cian `#5ed8ff`, naranja `#fd9d1a`).
+
+### `components/` (extraídos de page.tsx — NO recrear, reutilizar)
+`TopBar.tsx`, `RepoTabs.tsx`, `RepoSidebar.tsx`, `RepoSidebarParts.tsx`,
+`RepoDetailsPanel.tsx`, `RepoContentViews.tsx` (HistoryView + CommitTabView),
+`RepoModals.tsx`, `RepoActionModals.tsx` (checkout conflict, reset all, clean untracked,
+amend, squash), `StashModals.tsx`, `ResetCommitModal.tsx`, `DangerConfirmDialog.tsx`,
+`ContextMenus.tsx`, `PageToasts.tsx`, `PageWidgets.tsx`, `GraphSearchControl.tsx`,
+`BranchFilterDropdown.tsx`, `SettingsPanel.tsx`, `HelpPanel.tsx`, `ProfilePanel.tsx`,
+`UpdateControls.tsx`, `CopyButton.tsx`, `ChangelogPreview.tsx`.
+
+Núcleo visual: `CommitGraph.tsx` (clásico), `ChronometricGraph.tsx` (diagonal — ENORME y
+visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.tsx`,
+`ConflictResolver.tsx`, `StagingPanel.tsx`, `SpeculativeBranches.tsx`,
+`TemporalAgentSettings.tsx`, `temporal/PredictionDetail.tsx`.
+
+### `hooks/`
+- `use-git-actions.ts` — **fachada de 33 líneas** que compone `hooks/git-actions/`:
+  working-tree, branches, history, remote, github-auth, preferences. API pública intacta.
+- `use-repo-loader.ts` (selectores granulares Zustand), `use-panel-layout.ts` (layout
+  persistido), `use-app-update.ts`, `use-auto-fetch.ts`, `use-canvas-viewport.ts`
+  (pan/zoom cronométrico), `use-shortcuts.ts`, `use-translation.ts`.
+
+### `electron/`
+- `main.ts` — **285 líneas**, solo bootstrap + registro. Los ~55 handlers IPC viven en
+  `electron/ipc/` por dominio: `git-ops`, `git-sync`, `git-repo`, `github`, `ai`, `shell`,
+  `storage`, `watchers`, `app-window` + `shared.ts`.
+- `temporal-agent-ipc.ts`, `ai/` (predict, key-store con safeStorage, providers,
+  provider-parsing), `db/` (SQLite del Temporal Agent: prediction_run /
+  speculative_branch / branch_decision, append-only).
+- Hardening v1.8.0: guard de navegación (origen fijado, links externos → `shell.openExternal`),
+  contención de paths en protocolo `app://`, handlers shell validados.
+
+### `lib/`
+`git-store.ts`, `i18n.ts` (ES fuente de verdad / EN / ZH, ~600 keys),
+`chronometric-projection.ts` (funciones puras + tests), `speculative-projection.ts`,
+`canvas-viewport.ts`, `materialize-idea.ts`, `feedback-context.ts`, `page-helpers.ts`,
+`display-format.ts`, `shortcuts.ts`, `os-notify.ts`, `changelog.ts`, `utils.ts`.
+
+## 4. Inventario de features Git (auditado contra i18n + componentes, v1.8.0)
+
+**Existe y funciona — NO reimplementar:**
+- Repo: abrir / crear (con creación opcional en GitHub) / clonar (lista de repos propios o
+  URL) / multi-repo con tabs drag-to-reorder / carpeta default / auto-fetch con intervalo.
+- Working tree: stage/unstage por archivo y en bloque, discard por archivo con confirmación,
+  clean untracked selectivo (dry-run + checklist), stash completo (nombrado, preview,
+  apply, pop, drop), add-to-gitignore, stash de archivo individual.
+- Commits: commit, amend, squash de últimos N, cherry-pick, revert, reset a commit
+  (soft/mixed/hard con confirmación), búsqueda de commits, "Explicar con IA".
+- Branches: create/rename/delete (con warning not-merged + force), checkout con resolución
+  de conflicto (stash & switch), merge, rebase, fast-forward, pull decision toast
+  (ff / rebase / merge), force-push con confirmación crítica.
+- Conflictos: resolver interactivo por bloques dentro del DiffViewer (local / entrante /
+  ambos órdenes / edición manual), detección en merge/rebase/cherry-pick.
+- Remoto: push/pull/fetch, tags (crear anotado, push, delete), PRs (lista en sidebar +
+  diff unificado), GitHub OAuth Device Flow + token manual (safeStorage).
+- Sidebar lista: branches locales/remotas agrupadas, stashes, tags, **worktrees (solo
+  lectura)**, **submódulos (solo lectura)**, PRs.
+- App: undo/redo de toolbar, atajos personalizables, terminal en repo, notificaciones OS,
+  temas (dark + light experimental), i18n ES/EN/ZH, auto-update con changelog integrado.
+
+**NO existe (brechas reales vs GitKraken/SourceTree — base del roadmap):**
+- Staging por **hunk / línea** (hoy solo por archivo entera) ← la brecha más grande.
+- **Interactive rebase** (reorder / squash / drop / reword visual).
+- **File history** (historial de un archivo) y **blame**.
+- **Reflog** viewer / undo robusto basado en reflog.
+- Gestión de **remotes** (add/edit/remove, múltiples remotes).
+- Worktrees y submódulos: operaciones (add/remove/update) — hoy solo se listan.
+- Git LFS, commit signing (GPG/SSH), patch/apply, archive/export.
+- Drag & drop de branches en el grafo para merge/rebase (firma de GitKraken).
+
+## 5. Temporal Agent — estado
+
+- End-to-end funcional: contexto → OpenRouter → ramas especulativas dibujadas (punteadas,
+  cian, opacidad = confidence) → aceptar/rechazar/diferir → materialización con
+  confirmación (branch `imagined/*` + tag `flight/*` + IDEA.md) → restauración de ramas
+  materializadas borradas vía tag.
+- Persistencia: SQLite global en `userData` (3 tablas, decisiones append-only). HISTORIAL
+  por run + detalle trazable (`PredictionDetail.tsx`) + panel live leyendo de SQLite.
+- HUD Centauro: panel inferior con informe/historial, resize, expand, FUTUROS toggle,
+  brief copiable para agentes en la materialización.
+- Pendiente conocido: verificar si el write path JSON paralelo (`prediction.json` per-repo)
+  sigue activo; si SQLite ya es única fuente, retirarlo (fase chica de housekeeping).
+- Diseño completo en `docs/TEMPORAL_AGENT_DESIGN.md` (no rediseñar nada de ahí).
+
+## 6. Paisaje de branches (2026-06-12)
+
+- `fallow/test-v4` ← **actual**, contiene main + toda la tanda de modularización v1.8.0.
+  Worktree limpio, sincronizada con origin.
+- `main` en `bae5063` (ancestro de fallow/test-v4) — pendiente mergear cuando cierre F1.
+- ~14 branches viejas de features ya integradas (02-, 13-, 14-, …, 30-db-v1,
+  feature/31-…) — candidatas a prune en housekeeping. **No borrar sin OK explícito de Ale.**
+
+## 7. Comandos de cierre de fase (obligatorios)
+
+```powershell
+npx.cmd tsc --noEmit      # 0 errores
+pnpm test                 # 80/80 verde (o más si agregaste)
+pnpm exec fallow          # reportar delta: LOC, duplicación, dead code
+git status --short
+git diff --stat
+```
+
+Para inspección estructural usá **CodeGraph antes de grep**: `codegraph_status`,
+`codegraph_context`, `codegraph_search`, `codegraph_impact`.

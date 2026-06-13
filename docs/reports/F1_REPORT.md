@@ -50,7 +50,7 @@ fuera de scope y difirió a T4. Se propone como **F1.5** al final de este report
 2. **"Tests: 9 archivos, 80 tests" → real 15 archivos, 122 tests.**
 3. **Context menus "inline" → ya estaban extraídos.** Los 4 (Commit/Branch/RemoteBranch/File) ya renderizan desde `components/ContextMenus.tsx`; sólo quedaba el `<AnimatePresence>` + wiring inline (TANDA 2, diferida). El doc y el brief los describían como inline.
 4. **`page.tsx`: "2.166 LOC, ~63 useState"** → era exacto al inicio; ahora **1.842 LOC, 61 useState** (se eliminaron 2 muertos: `amendCurrentMessage`, `showStashClearConfirm` — este último vive y se usa en `RepoSidebar.tsx`, intacto).
-5. **CodeGraph no disponible:** el repo no está indexado (no hay `.codegraph/`). Aun con el binario instalado, los tools `codegraph_*` no aparecen sin `codegraph init` + reinicio de sesión. Se usó Grep/Read para el análisis de impacto (helpers `childPath`/`isPushRejected`/`cloneUrlFromGitHubCreateResult` confirmados de uso exclusivo del chooser).
+5. **CodeGraph:** durante T1–T3 el repo no estaba indexado (sin `.codegraph/`), así que el análisis de impacto se hizo con Grep/Read (helpers `childPath`/`isPushRejected`/`cloneUrlFromGitHubCreateResult` confirmados de uso exclusivo del chooser). **Al cierre de F1 Ale corrió `codegraph init`**: el índice ya está activo y al día (incluye los símbolos creados en esta fase), disponible para F1.5.
 
 ## Pendiente / propuesta (NO ejecutado)
 

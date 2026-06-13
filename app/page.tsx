@@ -52,9 +52,9 @@ import { PageToasts, type PullDecisionToast } from '@/components/PageToasts';
 import { TopBar } from '@/components/TopBar';
 import { StashCreateModal, StashPreviewModal, type StashPreviewState } from '@/components/StashModals';
 import { ResetCommitModal } from '@/components/ResetCommitModal';
+import { useRepoChooser } from '@/hooks/use-repo-chooser';
 import {
   isSafeDirectoryError, safeDirectoryPathFromError,
-  childPath, isPushRejected, cloneUrlFromGitHubCreateResult,
 } from '@/lib/page-helpers';
 
 const ChronometricGraph = dynamic(
@@ -402,11 +402,6 @@ export default function GitCronPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ branch: string; notMerged?: boolean } | null>(null);
   const [deleteTagConfirm, setDeleteTagConfirm] = useState<string | null>(null);
   const [discardConfirmFile, setDiscardConfirmFile] = useState<GitFile | null>(null);
-  const [forcePushConfirm, setForcePushConfirm] = useState<{
-    repoDir: string;
-    githubToken: string;
-    resolve: (value: boolean) => void;
-  } | null>(null);
   const [mergeNeedsCheckout, setMergeNeedsCheckout] = useState<{ sourceBranch: string; targetBranch: string } | null>(null);
   const [showNewBranch, setShowNewBranch] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
@@ -847,86 +842,21 @@ export default function GitCronPage() {
     setShowRepoChooser(true);
   };
 
-  const handleOpenExistingFromChooser = async () => {
-    await openRepo();
-    if (useGitStore.getState().repoPath) {
-      handleCloseRepoChooser();
-    }
-  };
-
-  const handleCreateRepoFromChooser = async (parent: string, name: string, withGitHub: boolean) => {
-    setError(null);
-    const repoDir = childPath(parent, name);
-
-    const existsResult = await window.api.fsExistsAndNotEmpty(parent, name);
-    const existsAndNotEmpty = existsResult.success && existsResult.data;
-
-    if (existsAndNotEmpty) {
-      const r = await initRepo(parent, name, true);
-      if (!r.success) return false;
-
-      if (withGitHub && githubToken) {
-        const gh = await createGitHubRepo(githubToken, name, true, '', false);
-        const cloneUrl = cloneUrlFromGitHubCreateResult(gh, githubUser?.login, name);
-        if (cloneUrl === null) return false;
-
-        if (cloneUrl) {
-          const remoteRes = await window.api.gitCommand(repoDir, ['remote', 'add', 'origin', cloneUrl]);
-          if (!remoteRes.success && !remoteRes.error?.includes('already exists')) {
-            setError(remoteRes.error ?? 'Error al asociar el repositorio remoto');
-            return false;
-          }
-
-          const pushRes = await window.api.gitPushBranch(repoDir, 'main', githubToken);
-          if (!pushRes.success) {
-            if (isPushRejected(pushRes.error)) {
-              const shouldForce = await new Promise<boolean>((resolve) => {
-                setForcePushConfirm({
-                  repoDir,
-                  githubToken,
-                  resolve,
-                });
-              });
-              if (shouldForce) {
-                const forcePushRes = await window.api.gitPushBranch(repoDir, 'main', githubToken, true);
-                if (!forcePushRes.success) {
-                  setError(forcePushRes.error ?? 'Error al forzar la subida a GitHub');
-                  return false;
-                }
-              } else {
-                return false;
-              }
-            } else {
-              setError(pushRes.error ?? 'Error al subir los archivos a GitHub');
-              return false;
-            }
-          }
-        }
-      }
-      await loadAll(repoDir);
-      return true;
-    }
-
-    if (withGitHub && githubToken) {
-      const r = await createGitHubRepo(githubToken, name, true, '', true);
-      const cloneUrl = cloneUrlFromGitHubCreateResult(r, githubUser?.login, name);
-      if (cloneUrl === null) return false;
-
-      if (cloneUrl) {
-        const cl = await cloneRepo(cloneUrl, parent, name, githubToken);
-        return cl.success;
-      }
-      return false;
-    }
-
-    const r = await initRepo(parent, name, true);
-    return r.success;
-  };
-
-  const handleCloneRepoFromChooser = async (url: string, parent: string, name: string) => {
-    const r = await cloneRepo(url, parent, name, githubToken ?? undefined);
-    return r.success;
-  };
+  const {
+    openExisting: handleOpenExistingFromChooser,
+    createRepo: handleCreateRepoFromChooser,
+    cloneRepoFromChooser: handleCloneRepoFromChooser,
+    forcePushConfirmOpen,
+    cancelForcePush,
+    confirmForcePush,
+  } = useRepoChooser({
+    openRepo,
+    initRepo,
+    cloneRepo,
+    createGitHubRepo,
+    loadAll,
+    onCloseChooser: handleCloseRepoChooser,
+  });
 
   const handleSelectRepoTab = async (idx: number) => {
     const repo = openRepos[idx];
@@ -1772,15 +1702,9 @@ export default function GitCronPage() {
 
       {/* ──────────── FORCE PUSH CONFIRM MODAL ──────────── */}
       <ForcePushConfirmModal
-        open={!!forcePushConfirm}
-        onCancel={() => {
-          forcePushConfirm?.resolve(false);
-          setForcePushConfirm(null);
-        }}
-        onConfirm={() => {
-          forcePushConfirm?.resolve(true);
-          setForcePushConfirm(null);
-        }}
+        open={forcePushConfirmOpen}
+        onCancel={cancelForcePush}
+        onConfirm={confirmForcePush}
       />
 
       {/* ──────────── CHECKOUT CONFLICT MODAL ──────────── */}

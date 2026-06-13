@@ -4,12 +4,11 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  GitBranch,
   Settings, Folder, Tag,
-  Trash2, AlertCircle, FolderOpen, Plus, X,
+  Trash2, FolderOpen, X,
   ArrowLeft, RotateCcw, LogOut,
   Copy, Loader2,
-  GitMerge, Check,
+  Check,
   ExternalLink, FileDiff,
   WrapText, AlignLeft,
 } from 'lucide-react';
@@ -38,6 +37,11 @@ import {
   CleanUntrackedModal,
   AmendLastCommitModal,
   SquashCommitsModal,
+  NewBranchModal,
+  CreateTagModal,
+  MergeNeedsCheckoutModal,
+  RenameBranchModal,
+  ForcePushConfirmModal,
 } from '@/components/RepoActionModals';
 import type { SpeculativeBranch } from '@/types/temporal-agent';
 import { usePanelLayout, FLOATING_PANEL_INSET, GRAPH_SAFE_GAP } from '@/hooks/use-panel-layout';
@@ -1644,49 +1648,16 @@ export default function GitCronPage() {
       />
 
       {/* ──────────── NEW BRANCH MODAL ──────────── */}
-      <AnimatePresence>
-        {showNewBranch && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
-            onClick={() => setShowNewBranch(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="glass-overlay rounded-xl shadow-2xl p-6 w-[420px]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-secondary flex items-center gap-2"><GitBranch size={16} /> {t('newBranch.title')}</h3>
-                <button onClick={() => setShowNewBranch(false)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
-              </div>
-              {newBranchFrom && (
-                <p className="text-xs text-text-secondary mb-3">
-                  {t('newBranch.fromCommit')} <span className="font-mono text-secondary">{newBranchFrom.slice(0, 7)}</span>
-                </p>
-              )}
-              <input
-                ref={newBranchInputRef}
-                value={newBranchName}
-                onChange={(e) => setNewBranchName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleCreateBranch(); if (e.key === 'Escape') setShowNewBranch(false); }}
-                placeholder={t('newBranch.namePlaceholder')}
-                className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50 mb-4"
-              />
-              <div className="flex gap-2 justify-end">
-                <button onClick={() => setShowNewBranch(false)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
-                <button
-                  onClick={handleCreateBranch}
-                  disabled={!newBranchName.trim() || isLoading}
-                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
-                >
-                  <Plus size={14} className="inline mr-1" /> {t('modal.create')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <NewBranchModal
+        show={showNewBranch}
+        onClose={() => setShowNewBranch(false)}
+        branchName={newBranchName}
+        onBranchNameChange={setNewBranchName}
+        branchFrom={newBranchFrom}
+        inputRef={newBranchInputRef}
+        onCreate={handleCreateBranch}
+        isLoading={isLoading}
+      />
 
       {/* ──────────── STASH MODALS: create + preview ──────────── */}
       <StashCreateModal
@@ -1702,62 +1673,17 @@ export default function GitCronPage() {
       />
 
       {/* ──────────── CREATE TAG MODAL ──────────── */}
-      <AnimatePresence>
-        {createTagFrom && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
-            onClick={() => setCreateTagFrom(undefined)}
-          >
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="glass-overlay rounded-xl shadow-2xl p-6 w-[420px]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-secondary flex items-center gap-2"><Tag size={16} /> {t('createTag.title')}</h3>
-                <button onClick={() => setCreateTagFrom(undefined)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
-              </div>
-              <p className="text-xs text-text-secondary mb-3">
-                {t('newBranch.fromCommit')} <span className="font-mono text-secondary">{createTagFrom.slice(0, 7)}</span>
-              </p>
-              <div className="flex flex-col gap-3 mb-4">
-                <div>
-                  <label className="text-xs text-text-secondary block mb-1">{t('createTag.nameLabel')}</label>
-                  <input
-                    ref={newTagInputRef}
-                    value={newTagName}
-                    onChange={(e) => setNewTagName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTag(); if (e.key === 'Escape') setCreateTagFrom(undefined); }}
-                    placeholder="v1.0.0"
-                    className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-text-secondary block mb-1">{t('createTag.msgLabel')}</label>
-                  <input
-                    value={newTagMessage}
-                    onChange={(e) => setNewTagMessage(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTag(); if (e.key === 'Escape') setCreateTagFrom(undefined); }}
-                    placeholder="Release v1.0.0"
-                    className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <button onClick={() => setCreateTagFrom(undefined)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
-                <button
-                  onClick={handleCreateTag}
-                  disabled={!newTagName.trim() || isLoading}
-                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
-                >
-                  <Plus size={14} className="inline mr-1" /> {t('createTag.button')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <CreateTagModal
+        commitHash={createTagFrom}
+        onClose={() => setCreateTagFrom(undefined)}
+        tagName={newTagName}
+        onTagNameChange={setNewTagName}
+        tagMessage={newTagMessage}
+        onTagMessageChange={setNewTagMessage}
+        inputRef={newTagInputRef}
+        onCreate={handleCreateTag}
+        isLoading={isLoading}
+      />
 
       {/* ──────────── RESET COMMIT MODAL ──────────── */}
       <ResetCommitModal
@@ -1805,103 +1731,37 @@ export default function GitCronPage() {
       </AnimatePresence>
 
       {/* ──────────── MERGE: needs checkout to target branch first ──────────── */}
-      <AnimatePresence>
-        {mergeNeedsCheckout && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
-            onClick={() => setMergeNeedsCheckout(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="glass-overlay rounded-xl shadow-2xl p-6 w-[580px]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start gap-3 mb-4">
-                <GitMerge size={22} className="text-secondary shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-bold text-text-primary mb-1">{t('mergeCheckout.title', { branch: mergeNeedsCheckout.targetBranch })}</h3>
-                  <p className="text-sm text-text-secondary leading-relaxed">
-                    {t('mergeCheckout.desc', { src: mergeNeedsCheckout.sourceBranch, dst: mergeNeedsCheckout.targetBranch })}
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <button
-                  onClick={() => setMergeNeedsCheckout(null)}
-                  className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
-                >
-                  {t('modal.cancel')}
-                </button>
-                <button
-                  onClick={async () => {
-                    const { sourceBranch, targetBranch } = mergeNeedsCheckout;
-                    setMergeNeedsCheckout(null);
-                    const co = await checkoutBranch(targetBranch);
-                    if (co.success) {
-                      await mergeIntoCurrent(sourceBranch);
-                    } else if (co.conflict) {
-                      setCheckoutConflict({ branch: targetBranch, error: co.error ?? '' });
-                    }
-                  }}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
-                >
-                  <GitMerge size={14} />
-                  {t('mergeCheckout.button', { branch: mergeNeedsCheckout.targetBranch })}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <MergeNeedsCheckoutModal
+        mergeNeedsCheckout={mergeNeedsCheckout}
+        onClose={() => setMergeNeedsCheckout(null)}
+        onConfirm={async () => {
+          if (!mergeNeedsCheckout) return;
+          const { sourceBranch, targetBranch } = mergeNeedsCheckout;
+          setMergeNeedsCheckout(null);
+          const co = await checkoutBranch(targetBranch);
+          if (co.success) {
+            await mergeIntoCurrent(sourceBranch);
+          } else if (co.conflict) {
+            setCheckoutConflict({ branch: targetBranch, error: co.error ?? '' });
+          }
+        }}
+        isLoading={isLoading}
+      />
 
       {/* ──────────── RENAME BRANCH MODAL ──────────── */}
-      <AnimatePresence>
-        {renameModal && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
-            onClick={() => setRenameModal(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="glass-overlay rounded-xl shadow-2xl p-6 w-[420px]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-secondary flex items-center gap-2"><GitBranch size={16} /> {t('rename.title')}</h3>
-                <button onClick={() => setRenameModal(null)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
-              </div>
-              <p className="text-xs text-text-secondary mb-2">{t('rename.renaming')}</p>
-              <p className="text-sm text-text-primary font-mono bg-bg-base px-3 py-1.5 rounded mb-3">{renameModal.oldName}</p>
-              <input
-                autoFocus
-                value={renameModal.newName}
-                onChange={(e) => setRenameModal({ ...renameModal, newName: e.target.value })}
-                onKeyDown={(e) => { if (e.key === 'Escape') setRenameModal(null); }}
-                placeholder={t('rename.newName')}
-                className="w-full bg-bg-base border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50 mb-4"
-              />
-              <div className="flex gap-2 justify-end">
-                <button onClick={() => setRenameModal(null)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
-                <button
-                  onClick={async () => {
-                    const newName = renameModal.newName.trim();
-                    if (!newName || newName === renameModal.oldName) { setRenameModal(null); return; }
-                    const ok = await renameBranch(renameModal.oldName, newName);
-                    if (ok) setRenameModal(null);
-                  }}
-                  disabled={!renameModal.newName.trim() || renameModal.newName === renameModal.oldName || isLoading}
-                  className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
-                >
-                  {t('rename.button')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <RenameBranchModal
+        renameModal={renameModal}
+        onClose={() => setRenameModal(null)}
+        onNewNameChange={(name) => setRenameModal((prev) => (prev ? { ...prev, newName: name } : prev))}
+        onConfirm={async () => {
+          if (!renameModal) return;
+          const newName = renameModal.newName.trim();
+          if (!newName || newName === renameModal.oldName) { setRenameModal(null); return; }
+          const ok = await renameBranch(renameModal.oldName, newName);
+          if (ok) setRenameModal(null);
+        }}
+        isLoading={isLoading}
+      />
 
       <DangerConfirmDialog
         open={deleteConfirm !== null}
@@ -1972,64 +1832,17 @@ export default function GitCronPage() {
       />
 
       {/* ──────────── FORCE PUSH CONFIRM MODAL ──────────── */}
-      <AnimatePresence>
-        {forcePushConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 flex items-center justify-center z-[300]"
-            onClick={() => {
-              forcePushConfirm.resolve(false);
-              setForcePushConfirm(null);
-            }}
-          >
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="bg-[#152335]/98 backdrop-blur-xl border border-[#ffa8a3]/20 rounded-2xl p-6 w-[480px]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start gap-4 mb-5">
-                <div className="p-3 bg-[#9f0519]/25 rounded-xl border border-[#9f0519]/40 text-[#ff8b87] shrink-0">
-                  <AlertCircle size={24} />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-extrabold text-lg text-[#ffdad6] mb-2 tracking-tight">{t('page.modals.forcePush.title')}</h3>
-                  <p className="text-sm text-[#ccdbe8] leading-relaxed mb-3">
-                    {t('page.modals.forcePush.desc')}
-                  </p>
-                  <div className="bg-bg-base/80 border border-border-subtle/25 rounded-xl p-3 mb-1">
-                    <p className="text-[11px] text-[#ff8b87] uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5">
-                      {t('page.modals.forcePush.warningTitle')}
-                    </p>
-                    <p className="text-xs text-text-secondary leading-relaxed">
-                      {t('page.modals.forcePush.warningDesc')}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => {
-                    forcePushConfirm.resolve(false);
-                    setForcePushConfirm(null);
-                  }}
-                  className="px-5 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-[#1a2e44]/50 rounded-xl transition duration-200"
-                >
-                  {t('modal.cancel')}
-                </button>
-                <button
-                  onClick={() => {
-                    forcePushConfirm.resolve(true);
-                    setForcePushConfirm(null);
-                  }}
-                  className="px-5 py-2.5 bg-gradient-to-br from-[#ff8b87] to-[#d63a35] hover:from-[#ff9f9c] hover:to-[#e64742] shadow-lg shadow-[#d63a35]/20 text-[#fff0ef] text-sm font-bold rounded-xl transition duration-200"
-                >
-                  {t('page.modals.forcePush.confirmBtn')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ForcePushConfirmModal
+        open={!!forcePushConfirm}
+        onCancel={() => {
+          forcePushConfirm?.resolve(false);
+          setForcePushConfirm(null);
+        }}
+        onConfirm={() => {
+          forcePushConfirm?.resolve(true);
+          setForcePushConfirm(null);
+        }}
+      />
 
       {/* ──────────── CHECKOUT CONFLICT MODAL ──────────── */}
       <CheckoutConflictModal

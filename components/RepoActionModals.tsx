@@ -2,12 +2,47 @@
 
 import {
   AlertCircle, AlertTriangle, Archive, FileText, Folder,
-  Layers, Loader2, RotateCcw, Trash2, X
+  GitBranch, GitMerge, Layers, Loader2, Plus, RotateCcw, Tag, Trash2, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/use-translation';
 import type { Commit } from '@/lib/git-store';
+
+/* ──────────────────────────────────────────────────────────────────────────
+   SHARED MODAL SHELL — backdrop + centered glass panel + click-outside/stop.
+   Used by the lightweight modals below so the overlay scaffold lives once.
+   ────────────────────────────────────────────────────────────────────────── */
+
+interface ModalShellProps {
+  open: boolean;
+  onClose: () => void;
+  panelClassName: string;
+  backdropClassName?: string;
+  children: React.ReactNode;
+}
+
+function ModalShell({ open, onClose, panelClassName, backdropClassName, children }: ModalShellProps) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className={backdropClassName ?? 'fixed inset-0 bg-black/60 flex items-center justify-center z-[100]'}
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className={panelClassName}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {children}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 /* ──────────────────────────────────────────────────────────────────────────
    1. CHECKOUT CONFLICT MODAL
@@ -502,5 +537,307 @@ export function SquashCommitsModal({
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   6. NEW BRANCH MODAL
+   ────────────────────────────────────────────────────────────────────────── */
+
+interface NewBranchModalProps {
+  show: boolean;
+  onClose: () => void;
+  branchName: string;
+  onBranchNameChange: (name: string) => void;
+  branchFrom?: string;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onCreate: () => void;
+  isLoading: boolean;
+}
+
+export function NewBranchModal({
+  show,
+  onClose,
+  branchName,
+  onBranchNameChange,
+  branchFrom,
+  inputRef,
+  onCreate,
+  isLoading,
+}: NewBranchModalProps) {
+  const t = useT();
+
+  return (
+    <ModalShell open={show} onClose={onClose} panelClassName="glass-overlay rounded-xl shadow-2xl p-6 w-[420px]">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-secondary flex items-center gap-2"><GitBranch size={16} /> {t('newBranch.title')}</h3>
+        <button onClick={onClose} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
+      </div>
+      {branchFrom && (
+        <p className="text-xs text-text-secondary mb-3">
+          {t('newBranch.fromCommit')} <span className="font-mono text-secondary">{branchFrom.slice(0, 7)}</span>
+        </p>
+      )}
+      <input
+        ref={inputRef}
+        value={branchName}
+        onChange={(e) => onBranchNameChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') onCreate(); if (e.key === 'Escape') onClose(); }}
+        placeholder={t('newBranch.namePlaceholder')}
+        className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50 mb-4"
+      />
+      <div className="flex gap-2 justify-end">
+        <button onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
+        <button
+          onClick={onCreate}
+          disabled={!branchName.trim() || isLoading}
+          className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
+        >
+          <Plus size={14} className="inline mr-1" /> {t('modal.create')}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   7. CREATE TAG MODAL
+   ────────────────────────────────────────────────────────────────────────── */
+
+interface CreateTagModalProps {
+  commitHash?: string;
+  onClose: () => void;
+  tagName: string;
+  onTagNameChange: (name: string) => void;
+  tagMessage: string;
+  onTagMessageChange: (msg: string) => void;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onCreate: () => void;
+  isLoading: boolean;
+}
+
+export function CreateTagModal({
+  commitHash,
+  onClose,
+  tagName,
+  onTagNameChange,
+  tagMessage,
+  onTagMessageChange,
+  inputRef,
+  onCreate,
+  isLoading,
+}: CreateTagModalProps) {
+  const t = useT();
+  const shortHash = commitHash ? commitHash.slice(0, 7) : '';
+
+  return (
+    <ModalShell open={!!commitHash} onClose={onClose} panelClassName="glass-overlay rounded-xl shadow-2xl p-6 w-[420px]">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-secondary flex items-center gap-2"><Tag size={16} /> {t('createTag.title')}</h3>
+        <button onClick={onClose} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
+      </div>
+      <p className="text-xs text-text-secondary mb-3">
+        {t('newBranch.fromCommit')} <span className="font-mono text-secondary">{shortHash}</span>
+      </p>
+      <div className="flex flex-col gap-3 mb-4">
+        <div>
+          <label className="text-xs text-text-secondary block mb-1">{t('createTag.nameLabel')}</label>
+          <input
+            ref={inputRef}
+            value={tagName}
+            onChange={(e) => onTagNameChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onCreate(); if (e.key === 'Escape') onClose(); }}
+            placeholder="v1.0.0"
+            className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-text-secondary block mb-1">{t('createTag.msgLabel')}</label>
+          <input
+            value={tagMessage}
+            onChange={(e) => onTagMessageChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onCreate(); if (e.key === 'Escape') onClose(); }}
+            placeholder="Release v1.0.0"
+            className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50"
+          />
+        </div>
+      </div>
+      <div className="flex gap-2 justify-end">
+        <button onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
+        <button
+          onClick={onCreate}
+          disabled={!tagName.trim() || isLoading}
+          className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
+        >
+          <Plus size={14} className="inline mr-1" /> {t('createTag.button')}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   8. MERGE: NEEDS CHECKOUT TO TARGET BRANCH FIRST
+   ────────────────────────────────────────────────────────────────────────── */
+
+interface MergeNeedsCheckoutModalProps {
+  mergeNeedsCheckout: { sourceBranch: string; targetBranch: string } | null;
+  onClose: () => void;
+  onConfirm: () => void | Promise<void>;
+  isLoading: boolean;
+}
+
+export function MergeNeedsCheckoutModal({
+  mergeNeedsCheckout,
+  onClose,
+  onConfirm,
+  isLoading,
+}: MergeNeedsCheckoutModalProps) {
+  const t = useT();
+  const targetBranch = mergeNeedsCheckout?.targetBranch ?? '';
+  const sourceBranch = mergeNeedsCheckout?.sourceBranch ?? '';
+
+  return (
+    <ModalShell open={!!mergeNeedsCheckout} onClose={onClose} panelClassName="glass-overlay rounded-xl shadow-2xl p-6 w-[580px]">
+      <div className="flex items-start gap-3 mb-4">
+        <GitMerge size={22} className="text-secondary shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <h3 className="font-bold text-text-primary mb-1">{t('mergeCheckout.title', { branch: targetBranch })}</h3>
+          <p className="text-sm text-text-secondary leading-relaxed">
+            {t('mergeCheckout.desc', { src: sourceBranch, dst: targetBranch })}
+          </p>
+        </div>
+      </div>
+      <div className="flex gap-2 justify-end">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
+        >
+          {t('modal.cancel')}
+        </button>
+        <button
+          onClick={onConfirm}
+          disabled={isLoading}
+          className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
+        >
+          <GitMerge size={14} />
+          {t('mergeCheckout.button', { branch: targetBranch })}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   9. RENAME BRANCH MODAL
+   ────────────────────────────────────────────────────────────────────────── */
+
+interface RenameBranchModalProps {
+  renameModal: { oldName: string; newName: string } | null;
+  onClose: () => void;
+  onNewNameChange: (name: string) => void;
+  onConfirm: () => void | Promise<void>;
+  isLoading: boolean;
+}
+
+export function RenameBranchModal({
+  renameModal,
+  onClose,
+  onNewNameChange,
+  onConfirm,
+  isLoading,
+}: RenameBranchModalProps) {
+  const t = useT();
+  const oldName = renameModal?.oldName ?? '';
+  const newName = renameModal?.newName ?? '';
+
+  return (
+    <ModalShell open={!!renameModal} onClose={onClose} panelClassName="glass-overlay rounded-xl shadow-2xl p-6 w-[420px]">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-secondary flex items-center gap-2"><GitBranch size={16} /> {t('rename.title')}</h3>
+        <button onClick={onClose} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
+      </div>
+      <p className="text-xs text-text-secondary mb-2">{t('rename.renaming')}</p>
+      <p className="text-sm text-text-primary font-mono bg-bg-base px-3 py-1.5 rounded mb-3">{oldName}</p>
+      <input
+        autoFocus
+        value={newName}
+        onChange={(e) => onNewNameChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+        placeholder={t('rename.newName')}
+        className="w-full bg-bg-base border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50 mb-4"
+      />
+      <div className="flex gap-2 justify-end">
+        <button onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
+        <button
+          onClick={onConfirm}
+          disabled={!newName.trim() || newName === oldName || isLoading}
+          className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
+        >
+          {t('rename.button')}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   10. FORCE PUSH CONFIRM MODAL
+   ────────────────────────────────────────────────────────────────────────── */
+
+interface ForcePushConfirmModalProps {
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+export function ForcePushConfirmModal({
+  open,
+  onCancel,
+  onConfirm,
+}: ForcePushConfirmModalProps) {
+  const t = useT();
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onCancel}
+      backdropClassName="fixed inset-0 bg-black/70 flex items-center justify-center z-[300]"
+      panelClassName="bg-[#152335]/98 backdrop-blur-xl border border-[#ffa8a3]/20 rounded-2xl p-6 w-[480px]"
+    >
+      <div className="flex items-start gap-4 mb-5">
+        <div className="p-3 bg-[#9f0519]/25 rounded-xl border border-[#9f0519]/40 text-[#ff8b87] shrink-0">
+          <AlertCircle size={24} />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-extrabold text-lg text-[#ffdad6] mb-2 tracking-tight">{t('page.modals.forcePush.title')}</h3>
+          <p className="text-sm text-[#ccdbe8] leading-relaxed mb-3">
+            {t('page.modals.forcePush.desc')}
+          </p>
+          <div className="bg-bg-base/80 border border-border-subtle/25 rounded-xl p-3 mb-1">
+            <p className="text-[11px] text-[#ff8b87] uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5">
+              {t('page.modals.forcePush.warningTitle')}
+            </p>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              {t('page.modals.forcePush.warningDesc')}
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="flex gap-3 justify-end">
+        <button
+          onClick={onCancel}
+          className="px-5 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-[#1a2e44]/50 rounded-xl transition duration-200"
+        >
+          {t('modal.cancel')}
+        </button>
+        <button
+          onClick={onConfirm}
+          className="px-5 py-2.5 bg-gradient-to-br from-[#ff8b87] to-[#d63a35] hover:from-[#ff9f9c] hover:to-[#e64742] shadow-lg shadow-[#d63a35]/20 text-[#fff0ef] text-sm font-bold rounded-xl transition duration-200"
+        >
+          {t('page.modals.forcePush.confirmBtn')}
+        </button>
+      </div>
+    </ModalShell>
   );
 }

@@ -4,6 +4,30 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.8.1] - 2026-06-13 - F1: Cierre de la descomposición de `app/page.tsx`
+
+> Fase de refactor pura, **sin cambios de comportamiento ni de i18n**. Cada tanda cerró con
+> `tsc` en 0, **122/122 tests**, Fallow sin regresión (dupes 8, dead-code 4 = baseline) y commit propio.
+
+### 🧱 Modularización (sin cambios de comportamiento)
+
+#### Changed
+- **`app/page.tsx`: 2.166 → 1.711 líneas** (−455, −21% en esta fase). Extracciones:
+  - **5 modales restantes → `components/RepoActionModals.tsx`**: New Branch, Create Tag, Merge-needs-checkout, Rename Branch y Force Push. Comparten un `ModalShell` interno (backdrop + panel glass + click-outside) para no introducir duplicación nueva.
+  - **Panel decorativo LCAR → `components/PageWidgets.tsx`** (`LcarsDecorPanel`), pixel-idéntico.
+  - **Lógica del repo chooser → `hooks/use-repo-chooser.ts`** (abrir existente / crear —opcionalmente en GitHub— / clonar, incluyendo el flujo de confirmación de force-push). El hook recibe las funciones del loader por props para no duplicar el watcher de filesystem.
+  - **Vistas de diff → `components/RepoContentViews.tsx`** (`PullRequestDiffView` y `FileDiffView`), junto a las ya existentes History/Commit.
+- Los handlers que tocan Git permanecen en `page.tsx` y se pasan por props a los componentes/hook extraídos; las claves i18n no cambiaron.
+
+#### Removed
+- 2 `useState` muertos en `page.tsx` (`amendCurrentMessage`, `showStashClearConfirm` — este último sigue vivo y en uso en `RepoSidebar.tsx`).
+- Bloque grande de imports `lucide-react` sin uso en `page.tsx` (orfanados por las extracciones de esta fase y de fases previas) + imports de `DiffViewer`/`ConflictResolver` ya no usados directamente desde la página.
+
+#### Notes
+- La meta de `page.tsx < 1.400 LOC` quedó **pendiente**: el resto vive en el view-switcher central (graph tab clásico + cronométrico), cuya extracción toca área visualmente sensible del grafo y se difiere a una fase futura con validación visual. Reporte completo en [docs/reports/F1_REPORT.md](/docs/reports/F1_REPORT.md).
+
+---
+
 ## [v1.8.0] - 2026-06-12 - Modularización Integral + Hardening de Seguridad
 
 ### 🛡️ Seguridad (Electron)

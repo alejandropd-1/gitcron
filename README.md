@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.7.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.8.1-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -123,7 +123,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Transición de Desvanecimiento Puro (Fade-Only)**: Eliminación definitiva de las distorsiones de escalado bruscas por defecto. Implementación de transiciones de opacidad para una experiencia fluida y prémium al abrir y cerrar paneles.
 - **Guardia de Hidratación (Hydration Guard)**: Implementación de una barrera de renderizado síncrono en el cliente basada en la técnica de Josh W. Comeau para evitar discrepancias de hidratación SSR, introduciendo una pantalla de carga y esqueleto premium durante la sincronización inicial.
 - **Saneamiento Estático y Mantenibilidad de Fallow**: Saneamos la complejidad del grafo clásico (`computeGraph` en `CommitGraph.tsx` simplificada) y modularizamos la hidratación de preferencias en `use-git-actions.ts` hacia helpers modulares independientes, logrando una reducción del 90% en su complejidad cognitiva y elevando el *Maintainability Score* global del proyecto al **90.0% ("Good")**.
-- **Optimización y Componentización Continua**: `app/page.tsx` empezó una segunda etapa de reducción controlada: tabs multi-repo, sidebar de ramas/stashes/tags, vistas internas de History/Commit y confirmaciones destructivas viven ahora en componentes dedicados. La última auditoría de Fallow no detecta dead files ni dead exports, mantiene el *Maintainability Score* en **90.9 ("Good")** y baja la duplicación total a **4.3%**, aunque la página principal sigue siendo el mayor objetivo de saneamiento.
+- **Optimización y Componentización Continua**: `app/page.tsx` siguió su reducción controlada hasta **1.711 LOC** (desde ~3.984 en v1.7.x; −324 en F1 v1.8.1: modales restantes, repo chooser a hook y panel LCAR; −131 adicionales al extraer las vistas de diff PR/archivo). Tabs multi-repo, sidebar, vistas internas, modales de acción y confirmaciones destructivas viven en componentes dedicados. Fallow mantiene el *Maintainability Score* en **90.2 ("Good")**; el view-switcher central (graph tab) queda como mayor objetivo de saneamiento pendiente.
 - **Spanish and English UI strings**.
 
 ### 🟣 Vista Cronométrica (Chronometric View) - En Desarrollo / Experimental
@@ -159,7 +159,9 @@ Renderer:
 - `components/RepoTabs.tsx` renders the draggable multi-repo titlebar tabs and Electron window controls.
 - `components/RepoSidebarParts.tsx` renders reusable sidebar sections, local/remote branch trees, stash rows, tags, and nested branch folders.
 - `components/DangerConfirmDialog.tsx` centralizes destructive confirmation dialogs for branch/tag/file removal flows.
-- `components/RepoContentViews.tsx` renders the History and Commit tab bodies that were extracted from the main page.
+- `components/RepoActionModals.tsx` houses the action modals extracted from the main page (checkout conflict, reset all, clean untracked, amend, squash, new branch, create tag, merge-needs-checkout, rename branch, force push) sharing one internal `ModalShell` overlay scaffold.
+- `components/RepoContentViews.tsx` renders the History and Commit tab bodies plus the pull-request and file diff views, all extracted from the main page.
+- `components/PageWidgets.tsx` holds page mini-widgets (deferred-panel loading, graph column handle, fetch indicator, the LCARS decorative panel).
 - `components/CommitGraph.tsx` renders the SVG graph and graph-table rows.
 - `components/ChronometricGraph.tsx` renders the chronometric diagonal view with speculative branch overlay.
 - `components/SpeculativeBranches.tsx` renders AI-predicted future branches as dotted cyan overlays.
@@ -167,6 +169,7 @@ Renderer:
 - `components/TemporalAgentSettings.tsx` per-repo settings panel for the Temporal Agent.
 - `hooks/use-git-actions.ts` contains repo actions like commit, push, pull, merge, stash, and preferences persistence.
 - `hooks/use-repo-loader.ts` loads repo data and restores persisted repos with selective Zustand subscriptions and shared refresh helpers.
+- `hooks/use-repo-chooser.ts` holds the repo-chooser business logic (open existing, create — optionally on GitHub — and clone, including the force-push confirmation flow).
 - `lib/git-store.ts` holds the Zustand store.
 - `lib/display-format.ts` centralizes renderer date formatting and author initials.
 - `lib/speculative-projection.ts` computes future-branch positions along the chronometric diagonal.
@@ -463,7 +466,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.7.0` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.8.1` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

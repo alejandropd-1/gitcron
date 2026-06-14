@@ -14,7 +14,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  AlertCircle, ArrowLeft, Cloud, Download, ExternalLink, FileText, Folder,
+  Activity, AlertCircle, ArrowLeft, Cloud, Download, ExternalLink, FileText, Folder,
   FolderOpen, GitMerge, Github, Globe, HelpCircle, Layers, Lock, Monitor,
   Plus, RotateCcw, Settings, Sparkles, TreePine, Type, UserCircle2, Zap,
   Trash2, Edit2, Link2, RefreshCw,
@@ -627,6 +627,7 @@ export function RepoSidebar({
                   { id: 'theme', label: t('settings.theme'), icon: <Sparkles size={14} /> },
                   { id: 'cronometric', label: t('settings.timeline'), icon: <Sparkles size={14} /> },
                   { id: 'temporalAgent', label: t('settings.temporalAgent'), icon: <Layers size={14} /> },
+                  { id: 'agentDashboard', label: t('settings.agentDashboard'), icon: <Activity size={14} /> },
                   { id: 'autoFetch', label: t('settings.autoFetch'), icon: <RotateCcw size={14} /> },
                   { id: 'osNotifications', label: t('settings.osNotifications'), icon: <AlertCircle size={14} /> },
                   { id: 'shortcuts', label: t('settings.shortcuts'), icon: <Type size={14} /> },

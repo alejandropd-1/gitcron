@@ -43,6 +43,7 @@ import { useT, tNow } from '@/hooks/use-translation';
 import type { Lang } from '@/lib/i18n';
 import { CopyButton } from './CopyButton';
 import { PredictionDetail } from './temporal/PredictionDetail';
+import { AgentDashboard } from './temporal/AgentDashboard';
 import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Compass, Crosshair, ChevronDown, ChevronUp } from 'lucide-react';
 
 const OUTCOME_COLOR: Record<string, string> = {
@@ -644,7 +645,7 @@ export function ChronometricGraph({
   const [hudExpanded, setHudExpanded] = useState(false);
 
   // Which tab is active inside the expanded Centauro panel.
-  const [centauroTab, setCentauroTab] = useState<'report' | 'history'>('report');
+  const [centauroTab, setCentauroTab] = useState<'report' | 'history' | 'stats'>('report');
 
   // Centauro panel resizable height (in px). Persisted in localStorage.
   const [centauroHeight, setCentauroHeight] = useState(320);
@@ -3505,6 +3506,17 @@ export function ChronometricGraph({
                   >
                     {t('centauro.tabHistory')}
                   </button>
+                  <button
+                    onClick={() => setCentauroTab('stats')}
+                    className={cn(
+                      'px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-colors border-b-2 -mb-[1px]',
+                      centauroTab === 'stats'
+                        ? 'text-[#5ed8ff] border-[#5ed8ff]'
+                        : 'text-[#697789] border-transparent hover:text-[#9eacc0]',
+                    )}
+                  >
+                    {t('centauro.tabStats')}
+                  </button>
                 </div>
 
                 {/* Tab content */}
@@ -3796,6 +3808,10 @@ export function ChronometricGraph({
                           onBack={() => setSelectedHistoryDetail(null)}
                         />
                       )
+                    ) : centauroTab === 'stats' ? (
+                      <div className="px-4 py-3 font-mono">
+                        <AgentDashboard repoPath={repoPath} repoName={repoName ?? ''} />
+                      </div>
                     ) : (
                     <div className="px-4 py-2.5 font-mono">
                       {predictionHistoryLoading && predictionHistory.length === 0 ? (

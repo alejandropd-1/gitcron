@@ -33,6 +33,18 @@ const TemporalAgentSettings = dynamic(
   },
 );
 
+const AgentDashboard = dynamic(
+  () => import('@/components/temporal/AgentDashboard').then((mod) => mod.AgentDashboard),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-48 w-full items-center justify-center text-text-secondary">
+        <Loader2 size={18} className="animate-spin text-secondary" />
+      </div>
+    ),
+  },
+);
+
 const AUTO_FETCH_INTERVALS = [5, 10, 30, 60] as const;
 
 interface AutoFetchSectionProps {
@@ -302,6 +314,7 @@ export function SettingsPanel({
               {selectedSettingsSection === 'theme' && t('settings.theme')}
               {selectedSettingsSection === 'cronometric' && 'Vista Cronométrica (Beta)'}
               {selectedSettingsSection === 'temporalAgent' && 'Temporal Agent (Experimental)'}
+              {selectedSettingsSection === 'agentDashboard' && t('settings.agentDashboard')}
               {selectedSettingsSection === 'autoFetch' && t('settings.autoFetch')}
               {selectedSettingsSection === 'osNotifications' && t('settings.osNotifications')}
               {selectedSettingsSection === 'shortcuts' && t('settings.shortcuts')}
@@ -588,6 +601,15 @@ export function SettingsPanel({
                       Abrí un repositorio para configurar el Temporal Agent.
                     </p>
                   )}
+                </div>
+              )}
+
+              {selectedSettingsSection === 'agentDashboard' && (
+                <div className="space-y-4">
+                  <AgentDashboard
+                    repoPath={repoPath}
+                    repoName={repoName}
+                  />
                 </div>
               )}
 

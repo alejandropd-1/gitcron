@@ -4,6 +4,67 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.9.0] - 2026-06-14 - F6: Dashboard Estadístico (Brier Score) del Temporal Agent
+
+### 🟡 Temporal Agent
+
+#### Added
+- **Dashboard Estadístico (Brier Score)**: Nueva sección "Dashboard temporal" en los ajustes de configuración y pestaña "Estadísticas" integrada en el panel HUD Centauro. Muestra:
+  - Brier Score del agente (con una escala de color que indica la precisión: verde, cian, naranja).
+  - Gráfico interactivo SVG de la **Curva de Calibración** con la línea ideal diagonal y puntos de acierto con tamaño proporcional a la raíz cuadrada de las muestras $n$ del bin.
+  - Gráfico interactivo SVG de **Historial de Decisiones** en formato de barras apiladas verticales.
+  - Ratio de aceptación según el tipo de sugerencia (Mejora, Hito o Tendencia).
+  - Lista comparativa de Brier Score por proveedor y modelo de IA (OpenRouter).
+- **Control de Ámbito (Repo vs Unificado)**: Toggle superior en el dashboard para alternar entre el historial del repositorio actual o unificado para todos los repositorios en base a los datos acumulados en SQLite.
+- **i18n Trilingüe**: Traducción completa de las claves de visualización y explicaciones del dashboard en Español, Inglés y Chino.
+
+#### Changed
+- La consulta de historial `getPredictionHistory` en el proceso Main de Electron ahora admite llamadas sin ruta de repositorio, recurriendo a `getAllRuns()` para recopilar datos de todos los repositorios.
+
+#### Quality
+- TypeScript compila limpio con `npx.cmd tsc --noEmit`.
+- Suite Vitest verde: **176 tests pasados** (+17 nuevos tests específicos para cálculos estadísticos y agrupamientos de Brier/calibración en `agent-stats.test.ts`).
+
+---
+
+## [v1.8.4] - 2026-06-14 - F5: Remotes, Worktrees y Submódulos
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Gestión de Remotos**: Soporte para agregar, renombrar, editar URL y eliminar remotos directamente desde el sidebar. Cuenta con diálogos de confirmación para evitar la remoción accidental de configuraciones.
+- **Operaciones de Worktrees**: Soporte interactivo para agregar nuevos worktrees. Al eliminar un worktree, la aplicación valida el estado del directorio de trabajo; si hay cambios sin confirmar, se bloquea la remoción solicitando confirmación de fuerza (`--force`).
+- **Ciclo de Vida de Submódulos**: Listado de submódulos, adición de nuevos submódulos desde el sidebar (con URL y ruta relativas), sincronización y actualización recursiva.
+
+#### Changed
+- La barra lateral (`RepoSidebar`) muestra permanentemente las secciones de `WORKTREES`, `SUBMODULES` y `REMOTES` si hay un repositorio activo, facilitando el acceso rápido a las nuevas operaciones.
+- Los handlers IPC del proceso Main concentran el flujo seguro y el control de llamadas a `simple-git`.
+
+#### Quality
+- TypeScript compila limpio con `npx.cmd tsc --noEmit`.
+- Suite Vitest verde: **159 tests pasados** (+6 nuevos tests de integración específicos de F5).
+
+---
+
+## [v1.8.3] - 2026-06-14 - F4: Visual Interactive Rebase
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Rebase Interactivo Visual**: Nueva interfaz de Rebase Interactivo integrada en la columna central (en lugar de un modal overlay). Permite reordenar commits localmente mediante drag-and-drop (`motion/react`) y editar acciones (`pick`, `reword`, `squash`, `fixup`, `drop`) y mensajes de commit de manera visual.
+- **Dropdown de Acción Custom (`RebaseActionDropdown`)**: Reemplazo de los selectores nativos por un menú desplegable premium con estilo oscuro transparente (`glass-overlay`), tildes verdes y colores correspondientes por acción.
+- **Soporte de Layout y Redimensionado**: El panel respeta los márgenes y paddings dinámicos de las barras laterales y responde de forma suave al arrastre y redimensionado de las mismas.
+
+#### Changed
+- La capa de modales `RepoOverlayLayer.tsx` ahora delega el renderizado al panel principal `RepoMainView.tsx` cuando se detecta un rebase interactivo en curso.
+- Se configuró el panel decorativo `LcarsDecorPanel` para ocultarse automáticamente cuando el rebase interactivo está activo, garantizando una visibilidad limpia.
+
+#### Quality
+- TypeScript compila limpio con `npx.cmd tsc --noEmit`.
+- Suite Vitest verde: **153 tests pasados**.
+
+---
+
 ## [v1.8.2] - 2026-06-13 - Staging granular + File History/Blame
 
 ### 🟢 Vista Clásica & Core

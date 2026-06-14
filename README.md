@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.8.2-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.9.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -101,6 +101,12 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Pull requests list in the sidebar for the current repo, with an in-app unified diff view.
 - Private repo clone support after login.
 
+#### Remotes, Worktrees & Submodules
+
+- **Multiple Remotes Management**: Add, rename, set/update URLs, and delete remotes directly from the sidebar with safe user confirmations.
+- **Worktree Operations**: Add new worktrees pointing to different branches. Safely remove worktrees by checking for uncommitted changes first, requesting force deletion if data could be lost.
+- **Submodules Lifecycle**: List existing submodules, add new submodules via URL and path, update them, and sync recursively.
+
 #### UX
 
 - Success and error toasts for the main Git actions.
@@ -151,6 +157,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Seguridad**: API keys cifradas con `safeStorage` del OS (DPAPI/Keychain/libsecret). Fingerprint SHA-256 como identificador visible. Las keys nunca salen del proceso main.
 - **Toggle FUTUROS**: Botón en la esquina superior del grafo cronométrico para mostrar/ocultar las ramas especulativas. Se activa automáticamente tras una predicción.
 - **Chip en vista clásica**: Si hay predicciones disponibles, la cabecera del grafo clásico muestra un chip "N futuros →" que cambia a vista cronométrica en un click.
+- **Dashboard Estadístico (Brier Score)**: Nueva sección "Dashboard temporal" en los ajustes del repositorio y pestaña "Estadísticas" en el HUD Centauro. Muestra el Brier Score del agente, la curva de calibración agrupada por 10 bins (con tamaño de punto proporcional a las muestras), el historial de decisiones temporal y la comparativa de Brier por modelo e i18n trilingüe. Soporta vista local o unificada cross-repo.
 
 ---
 
@@ -377,10 +384,11 @@ Since the Classic and Cronometric views share the same global file and base vari
 - [ ] Multi-account GitHub support.
 - [ ] GitLab / Bitbucket support.
 - [x] Pull request diff view (v1.2.0).
-- [ ] Interactive rebase (reorder / drop / reword).
+- [x] Interactive rebase (reorder / drop / reword) (v1.8.3).
 - [x] Remote branch checkout (v1.3.7).
 - [x] Premium Conflict Resolver Card (v1.3.7).
 - [x] Agrupamiento recursivo de ramas en el sidebar (v1.3.7).
+- [x] Multiple Remotes management, Worktrees, and Submodules operations (v1.8.4).
 - [ ] Local AI via LM Studio for commit messages, changelog drafting, project-history notes, and other offline writing helpers.
 - [ ] Upgrade Next.js beyond 15.4.x (currently pinned — verify Electron + Tailwind 4 compatibility before bumping).
 - [x] Remove token-bearing temporary `origin` URLs from authenticated Git operations (v1.2.0).
@@ -419,9 +427,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.8.2.exe`                                             |
-| macOS    | `GitCron-1.8.2.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.8.2.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.8.4.exe`                                             |
+| macOS    | `GitCron-1.8.4.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.8.4.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -470,7 +478,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.8.2` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.8.4` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

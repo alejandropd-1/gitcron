@@ -353,7 +353,7 @@ interface ElectronAPI {
       repoName: string,
       suggestionTitle: string,
     ): Promise<TemporalAgentNotes>;
-    getHistory(repoPath: string): Promise<PredictionHistoryEntry[]>;
+    getHistory(repoPath?: string | null): Promise<PredictionHistoryEntry[]>;
   };
 }
 

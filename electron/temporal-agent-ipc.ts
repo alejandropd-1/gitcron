@@ -19,6 +19,7 @@ import {
   getBranchesForRun,
   getDecisionsForBranch,
   getRunsForRepo,
+  getAllRuns,
   insertDecision,
 } from './db/repository';
 import type {
@@ -67,6 +68,7 @@ interface RecordDecisionOptions {
 
 interface PredictionHistoryOptions {
   readRunsForRepo?: (repoPath: string) => PredictionRunRow[];
+  getAllRuns?: () => PredictionRunRow[];
   readBranchesForRun?: (runId: string) => SpeculativeBranchRow[];
   readDecisionsForBranch?: (branchId: string) => BranchDecisionRow[];
   logError?: (error: unknown) => void;
@@ -312,19 +314,18 @@ export async function loadPrediction(repoPath: string): Promise<PredictionResult
 // ---------------------------------------------------------------------------
 
 export function getPredictionHistory(
-  repoPath: string,
+  repoPath?: string | null,
   options: PredictionHistoryOptions = {},
 ): PredictionHistoryEntry[] {
-  if (typeof repoPath !== 'string' || repoPath.trim().length === 0) {
-    return [];
-  }
-
   try {
-    const readRunsForRepo = options.readRunsForRepo ?? getRunsForRepo;
+    const readRuns = repoPath && repoPath.trim().length > 0
+      ? () => (options.readRunsForRepo ?? getRunsForRepo)(repoPath)
+      : () => (options.getAllRuns ?? getAllRuns)();
+
     const readBranchesForRun = options.readBranchesForRun ?? getBranchesForRun;
     const readDecisionsForBranch = options.readDecisionsForBranch ?? getDecisionsForBranch;
 
-    return [...readRunsForRepo(repoPath)]
+    return [...readRuns()]
       .reverse()
       .map((run) => ({
         run,
@@ -373,7 +374,7 @@ export function registerTemporalAgentHandlers(): void {
       return loadNotes(repoPath, repoName);
     },
   );
-  ipcMain.handle('temporal-agent:get-history', (_e, repoPath: string) =>
+  ipcMain.handle('temporal-agent:get-history', (_e, repoPath?: string | null) =>
     getPredictionHistory(repoPath),
   );
 }

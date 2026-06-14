@@ -99,6 +99,24 @@ export interface PullRequestDiffData extends PullRequestEntry {
   files: PullRequestDiffFile[];
 }
 
+export interface FileHistoryEntry extends CommitData {
+  filePath: string;
+}
+
+export interface BlameLine {
+  lineNo: number;
+  content: string;
+  commitHash: string;
+  shortHash: string;
+  author: string;
+  authorEmail?: string;
+  authorTime: string;
+  summary: string;
+  previousCommitHash?: string;
+  previousPath?: string;
+  isUncommitted: boolean;
+}
+
 interface RemoteOpResult {
   success: boolean;
   error?: string;
@@ -204,6 +222,8 @@ interface ElectronAPI {
   gitSquash: (repoPath: string, n: number, message: string) => Promise<GitResult<{ hash: string; shortHash: string }>>;
   gitShowFiles: (repoPath: string, hash: string) => Promise<GitResult<StatusFile[]>>;
   gitDiffAtCommit: (repoPath: string, filePath: string, hash: string) => Promise<GitResult<string>>;
+  gitFileHistory: (repoPath: string, filePath: string, limit?: number) => Promise<GitResult<FileHistoryEntry[]>>;
+  gitBlame: (repoPath: string, filePath: string, rev?: string) => Promise<GitResult<BlameLine[]>>;
   gitAddToGitignore: (repoPath: string, filePath: string) => Promise<GitResult<{ alreadyIgnored: boolean }>>;
   gitResetAll: (repoPath: string) => Promise<GitResult>;
   gitClean: (repoPath: string, files?: string[]) => Promise<GitResult<GitCleanResult>>;

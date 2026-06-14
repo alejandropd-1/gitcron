@@ -127,6 +127,10 @@ const es: Dict = {
   'diff.hunkApplyError': 'No se pudo aplicar el hunk',
   'diff.wordWrapOn': 'Ajuste de línea activo (Alt + Z) - Hacer clic para ver a lo largo',
   'diff.wordWrapOff': 'Ver a lo largo activo (Alt + Z) - Hacer clic para ajustar línea',
+  'fileMenu.history': 'Ver historial del archivo',
+  'fileHistory.title': 'Historial del archivo',
+  'fileHistory.back': 'Volver',
+  'fileHistory.loadError': 'No se pudo cargar el historial del archivo',
 
   // ── Decisiones del Temporal Agent ──
   'decision.accepted': 'ACEPTADA',
@@ -916,6 +920,10 @@ const en: Dict = {
   'diff.hunkApplyError': 'Could not apply hunk',
   'diff.wordWrapOn': 'Line wrap is on (Alt + Z) - click to view long lines',
   'diff.wordWrapOff': 'Long-line view is on (Alt + Z) - click to wrap lines',
+  'fileMenu.history': 'View file history',
+  'fileHistory.title': 'File history',
+  'fileHistory.back': 'Back',
+  'fileHistory.loadError': 'Could not load file history',
 
   // ── Temporal Agent decisions ──
   'decision.accepted': 'ACCEPTED',
@@ -1690,6 +1698,10 @@ const zh: Dict = {
   'diff.hunkApplyError': '无法应用 hunk',
   'diff.wordWrapOn': '已启用换行 (Alt + Z) - 点击以查看长行',
   'diff.wordWrapOff': '正在查看长行 (Alt + Z) - 点击以换行',
+  'fileMenu.history': '查看文件历史',
+  'fileHistory.title': '文件历史',
+  'fileHistory.back': '返回',
+  'fileHistory.loadError': '无法加载文件历史',
   'decision.accepted': '已接受',
   'decision.materialized': '已实现',
   'decision.rejected': '已拒绝',

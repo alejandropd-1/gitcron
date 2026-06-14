@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('api', {
   githubListUserRepos: (token: string) =>
     ipcRenderer.invoke('github:list-user-repos', token),
   gitLog: (repoPath: string, opts?: { allBranches?: boolean }) => ipcRenderer.invoke('git:log', repoPath, opts),
+  gitFileHistory: (repoPath: string, filePath: string, limit?: number) =>
+    ipcRenderer.invoke('git:file-history', repoPath, filePath, limit),
   gitStatus: (repoPath: string) => ipcRenderer.invoke('git:status', repoPath),
   gitBranches: (repoPath: string) => ipcRenderer.invoke('git:branches', repoPath),
   gitCheckout: (repoPath: string, branch: string) =>

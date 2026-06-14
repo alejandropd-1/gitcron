@@ -10,7 +10,7 @@ import * as os from 'os';
 import { simpleGit } from 'simple-git';
 import type {
   StatusFile, CommitData, BranchData, StashEntry, SubmoduleEntry,
-  BranchTrackingInfo, WorktreeEntry,
+  BranchTrackingInfo, WorktreeEntry, FileHistoryEntry,
 } from '../../types/electron';
 import { parseUnifiedDiff, type ApplyHunkOptions } from '../../lib/hunk-patch';
 import { errMsg, resolveRepoRelativePath, sanitizeForLog } from './shared';
@@ -814,6 +814,56 @@ export function registerGitOpsHandlers(): void {
       }
 
       return { success: true, data: diff };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:file-history', async (_event, targetPath: string, filePath: string, limit: number = 100) => {
+    try {
+      const repoRoot = path.resolve(targetPath);
+      const resolved = resolveRepoRelativePath(repoRoot, filePath);
+      if (!resolved) return { success: false, error: 'Path traversal blocked' };
+
+      const safeLimit = Math.min(Math.max(Math.floor(limit) || 100, 1), 500);
+      const raw = await simpleGit(repoRoot).raw([
+        '-c',
+        'core.quotePath=false',
+        'log',
+        '--follow',
+        `--max-count=${safeLimit}`,
+        '--date-order',
+        '--pretty=format:%H%x1f%P%x1f%an%x1f%ae%x1f%aI%x1f%s%x1f%D',
+        '--',
+        filePath,
+      ]);
+
+      const entries: FileHistoryEntry[] = raw
+        .split('\n')
+        .filter((line) => line.trim())
+        .map((line) => {
+          const [hash, parentsRaw, an, ae, date, msg, decoration] = line.split('\x1f');
+          const parents = (parentsRaw || '').split(' ').filter(Boolean);
+          const refs = (decoration || '')
+            .split(',')
+            .map((ref) => ref.trim())
+            .filter(Boolean)
+            .map((ref) => ref.replace(/^HEAD -> /, ''));
+
+          return {
+            hash,
+            shortHash: hash.slice(0, 7),
+            message: msg ?? '',
+            authorName: an ?? '',
+            authorEmail: ae ?? '',
+            date: date ?? '',
+            parents,
+            refs,
+            filePath,
+          };
+        });
+
+      return { success: true, data: entries };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };
     }

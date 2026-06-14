@@ -10,7 +10,7 @@ import { ConflictResolver } from '@/components/ConflictResolver';
 import { DangerConfirmDialog } from '@/components/DangerConfirmDialog';
 import { useT } from '@/hooks/use-translation';
 import type { Commit, GitFile } from '@/lib/git-store';
-import type { PullRequestDiffData, PullRequestEntry } from '@/types/electron';
+import type { FileHistoryEntry, PullRequestDiffData, PullRequestEntry } from '@/types/electron';
 import { cn } from '@/lib/utils';
 import { formatDate, formatInitials } from '@/lib/display-format';
 
@@ -127,6 +127,63 @@ export const HistoryView = memo(function HistoryView({
     </div>
   );
 });
+
+type FileHistoryViewProps = {
+  file: GitFile;
+  entries: FileHistoryEntry[];
+  selectedHash?: string;
+  isLoading: boolean;
+  onBack: () => void;
+  onSelect: (entry: FileHistoryEntry) => void;
+  onContextMenu: (event: MouseEvent, entry: FileHistoryEntry) => void;
+};
+
+export function FileHistoryView({
+  file,
+  entries,
+  selectedHash,
+  isLoading,
+  onBack,
+  onSelect,
+  onContextMenu,
+}: FileHistoryViewProps) {
+  const t = useT();
+
+  return (
+    <motion.div
+      key={`file-history-${file.path}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className="flex-1 flex flex-col overflow-hidden"
+    >
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle/15 bg-bg-base/70 shrink-0">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-secondary transition-colors"
+        >
+          <ArrowLeft size={14} /> {t('fileHistory.back')}
+        </button>
+        <span className="text-text-secondary/70">/</span>
+        <span className="text-xs text-text-primary font-mono truncate">{file.path}</span>
+        <div className="flex-1" />
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/25 font-bold">
+          {t('fileHistory.title')}
+        </span>
+      </div>
+      <HistoryView
+        commits={entries}
+        selectedHash={selectedHash}
+        filterText=""
+        onSelect={(entry) => onSelect(entry as FileHistoryEntry)}
+        onContextMenu={(event, entry) => onContextMenu(event, entry as FileHistoryEntry)}
+        isLoading={isLoading}
+      />
+    </motion.div>
+  );
+}
 
 type CommitTabViewProps = {
   modifiedFiles: GitFile[];

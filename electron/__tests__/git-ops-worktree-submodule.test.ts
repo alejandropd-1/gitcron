@@ -1,0 +1,153 @@
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+import { execSync } from 'child_process';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { simpleGit } from 'simple-git';
+
+type IpcHandler = (_event: unknown, ...args: unknown[]) => Promise<unknown>;
+
+const mockIpc = vi.hoisted(() => ({
+  handlers: new Map<string, IpcHandler>(),
+  handle: vi.fn((channel: string, handler: IpcHandler) => {
+    mockIpc.handlers.set(channel, handler);
+  }),
+}));
+
+vi.mock('electron', () => ({
+  ipcMain: {
+    handle: mockIpc.handle,
+  },
+}));
+
+describe('git worktree and submodule IPC handlers', () => {
+  let tempDir: string;
+  let handler: (channel: string) => IpcHandler;
+
+  let oldGitAllowProtocol: string | undefined;
+
+  beforeEach(async () => {
+    oldGitAllowProtocol = process.env.GIT_ALLOW_PROTOCOL;
+    process.env.GIT_ALLOW_PROTOCOL = 'file';
+    mockIpc.handlers.clear();
+    mockIpc.handle.mockClear();
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-ops-ipc-'));
+    const { registerGitOpsHandlers } = await import('../../electron/ipc/git-ops');
+    registerGitOpsHandlers();
+    handler = (channel: string) => {
+      const h = mockIpc.handlers.get(channel);
+      if (!h) throw new Error(`No handler registered for channel: ${channel}`);
+      return h;
+    };
+  });
+
+  afterEach(() => {
+    if (oldGitAllowProtocol !== undefined) {
+      process.env.GIT_ALLOW_PROTOCOL = oldGitAllowProtocol;
+    } else {
+      delete process.env.GIT_ALLOW_PROTOCOL;
+    }
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('manages worktrees correctly', async () => {
+    const mainRepoPath = path.join(tempDir, 'main-repo');
+    fs.mkdirSync(mainRepoPath);
+    const git = simpleGit(mainRepoPath);
+    await git.init(['--initial-branch=main']);
+    await git.addConfig('user.name', 'GitCron Test');
+    await git.addConfig('user.email', 'gitcron@example.test');
+
+    // Make initial commit
+    fs.writeFileSync(path.join(mainRepoPath, 'file.txt'), 'hello', 'utf-8');
+    await git.add('file.txt');
+    await git.commit('initial commit');
+
+    // Create a branch to checkout in the worktree
+    await git.branch(['feature-branch']);
+
+    const worktreeAdd = handler('git:worktree-add');
+    const worktreeRemove = handler('git:worktree-remove');
+    const worktreeList = handler('git:worktrees');
+
+    const worktreePath = path.join(tempDir, 'worktree-dir');
+
+    // 1. Add worktree
+    const addResult = await worktreeAdd(null, mainRepoPath, worktreePath, 'feature-branch') as { success: boolean; error?: string };
+    if (!addResult.success) console.error('addResult error:', addResult.error);
+    expect(addResult.success).toBe(true);
+    expect(fs.existsSync(worktreePath)).toBe(true);
+
+    // 2. List worktrees
+    const listResult = await worktreeList(null, mainRepoPath) as { success: boolean; data: any[] };
+    expect(listResult.success).toBe(true);
+    expect(listResult.data).toHaveLength(2); // main-repo and worktree-dir
+    const paths = listResult.data.map(w => path.resolve(w.path));
+    expect(paths).toContain(path.resolve(mainRepoPath));
+    expect(paths).toContain(path.resolve(worktreePath));
+
+    // 3. Try removing with uncommitted changes (without force)
+    fs.writeFileSync(path.join(worktreePath, 'new-file.txt'), 'some change', 'utf-8');
+    const removeResult1 = await worktreeRemove(null, mainRepoPath, worktreePath, false) as { success: boolean; error?: string };
+    expect(removeResult1.success).toBe(false);
+    expect(removeResult1.error).toBe('HAS_CHANGES');
+
+    // 4. Remove with force
+    const removeResult2 = await worktreeRemove(null, mainRepoPath, worktreePath, true) as { success: boolean; error?: string };
+    expect(removeResult2.success).toBe(true);
+    expect(fs.existsSync(worktreePath)).toBe(false);
+  });
+
+  it('manages submodules correctly', async () => {
+    const mainRepoPath = path.join(tempDir, 'main-repo-sub');
+    const subRepoPath = path.join(tempDir, 'sub-repo');
+    fs.mkdirSync(mainRepoPath);
+    fs.mkdirSync(subRepoPath);
+
+    // Setup sub-repo
+    const gitSub = simpleGit(subRepoPath);
+    await gitSub.init(['--initial-branch=main']);
+    await gitSub.addConfig('user.name', 'GitCron Test');
+    await gitSub.addConfig('user.email', 'gitcron@example.test');
+    fs.writeFileSync(path.join(subRepoPath, 'subfile.txt'), 'sub-hello', 'utf-8');
+    await gitSub.add('subfile.txt');
+    await gitSub.commit('initial sub commit');
+
+    // Setup main-repo
+    const gitMain = simpleGit(mainRepoPath);
+    await gitMain.init(['--initial-branch=main']);
+    await gitMain.addConfig('user.name', 'GitCron Test');
+    await gitMain.addConfig('user.email', 'gitcron@example.test');
+    execSync('git config protocol.file.allow always', { cwd: mainRepoPath });
+    fs.writeFileSync(path.join(mainRepoPath, 'mainfile.txt'), 'main-hello', 'utf-8');
+    await gitMain.add('mainfile.txt');
+    await gitMain.commit('initial main commit');
+
+    const submoduleAdd = handler('git:submodule-add');
+    const submoduleUpdate = handler('git:submodule-update');
+    const submoduleSync = handler('git:submodule-sync');
+    const submoduleList = handler('git:submodules');
+
+    // 1. Add submodule (using local path to subRepoPath)
+    // Convert path to use forward slashes for Git on Windows compatibility
+    const normalizedSubPath = subRepoPath.replace(/\\/g, '/');
+    const addSubResult = await submoduleAdd(null, mainRepoPath, normalizedSubPath, 'libs/sub') as { success: boolean; error?: string };
+    if (!addSubResult.success) console.error('addSubResult error:', addSubResult.error);
+    expect(addSubResult.success).toBe(true);
+    expect(fs.existsSync(path.join(mainRepoPath, 'libs/sub', 'subfile.txt'))).toBe(true);
+
+    // 2. List submodules
+    const listSubResult = await submoduleList(null, mainRepoPath) as { success: boolean; data: any[] };
+    expect(listSubResult.success).toBe(true);
+    expect(listSubResult.data).toHaveLength(1);
+    expect(listSubResult.data[0].path).toBe('libs/sub');
+
+    // 3. Sync submodule
+    const syncSubResult = await submoduleSync(null, mainRepoPath) as { success: boolean };
+    expect(syncSubResult.success).toBe(true);
+
+    // 4. Update submodule
+    const updateSubResult = await submoduleUpdate(null, mainRepoPath, 'libs/sub', true) as { success: boolean };
+    expect(updateSubResult.success).toBe(true);
+  });
+});

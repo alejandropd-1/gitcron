@@ -15,11 +15,17 @@ import {
   RenameBranchModal,
   ResetAllConfirmDialog,
   SquashCommitsModal,
+  AddRemoteModal,
+  RenameRemoteModal,
+  SetRemoteUrlModal,
+  NewWorktreeModal,
+  NewSubmoduleModal,
 } from '@/components/RepoActionModals';
 import { ResetCommitModal } from '@/components/ResetCommitModal';
 import { StashCreateModal, StashPreviewModal, type StashPreviewState } from '@/components/StashModals';
 import { useT } from '@/hooks/use-translation';
 import type { Commit, GitFile } from '@/lib/git-store';
+import type { RemoteEntry, WorktreeEntry, SubmoduleEntry } from '@/types/electron';
 // Removed InteractiveRebasePanel import as it is now in RepoMainView
 
 type BranchTracking = Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
@@ -137,6 +143,34 @@ export type RepoOverlayLayerProps = {
   mergeBranch: (hash: string) => Promise<GitResult> | GitResult;
   cherryPickCommit: (hash: string, shortHash?: string) => Promise<GitResult> | GitResult;
   revertCommit: (hash: string) => Promise<GitResult> | GitResult;
+
+  // F5 props
+  // remotes
+  showAddRemote: boolean;
+  setShowAddRemote: (show: boolean) => void;
+  onAddRemote: (name: string, url: string) => Promise<void>;
+  remoteToRename: RemoteEntry | null;
+  setRemoteToRename: (remote: RemoteEntry | null) => void;
+  onRenameRemote: (oldName: string, newName: string) => Promise<void>;
+  remoteToSetUrl: RemoteEntry | null;
+  setRemoteToSetUrl: (remote: RemoteEntry | null) => void;
+  onSetRemoteUrl: (name: string, url: string) => Promise<void>;
+  remoteToDelete: RemoteEntry | null;
+  setRemoteToDelete: (remote: RemoteEntry | null) => void;
+  onDeleteRemote: (name: string) => Promise<void>;
+  // worktrees
+  showAddWorktree: boolean;
+  setShowAddWorktree: (show: boolean) => void;
+  onAddWorktree: (path: string, branch: string) => Promise<void>;
+  onPickWorktreeFolder: () => Promise<string | null>;
+  worktreeToDelete: WorktreeEntry | null;
+  setWorktreeToDelete: (wt: WorktreeEntry | null) => void;
+  onDeleteWorktree: (path: string, force?: boolean) => Promise<void>;
+  branches: string[];
+  // submodules
+  showAddSubmodule: boolean;
+  setShowAddSubmodule: (show: boolean) => void;
+  onAddSubmodule: (url: string, path: string) => Promise<void>;
 };
 
 export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
@@ -408,6 +442,72 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
         )}
       </AnimatePresence>
 
+      {/* F5 Modals */}
+      <AddRemoteModal
+        show={props.showAddRemote}
+        onClose={() => props.setShowAddRemote(false)}
+        onAdd={props.onAddRemote}
+        isLoading={props.isLoading}
+      />
+      <RenameRemoteModal
+        remote={props.remoteToRename}
+        onClose={() => props.setRemoteToRename(null)}
+        onRename={props.onRenameRemote}
+        isLoading={props.isLoading}
+      />
+      <SetRemoteUrlModal
+        remote={props.remoteToSetUrl}
+        onClose={() => props.setRemoteToSetUrl(null)}
+        onSetUrl={props.onSetRemoteUrl}
+        isLoading={props.isLoading}
+      />
+      <DangerConfirmDialog
+        open={!!props.remoteToDelete}
+        title={t('remote.deleteConfirmTitle')}
+        message={t('remote.deleteConfirmDesc', { name: props.remoteToDelete?.name || '' })}
+        confirmLabel={t('sidebar.remoteRemove')}
+        cancelLabel={t('modal.cancel')}
+        disabled={props.isLoading}
+        onCancel={() => props.setRemoteToDelete(null)}
+        onConfirm={async () => {
+          if (props.remoteToDelete) {
+            await props.onDeleteRemote(props.remoteToDelete.name);
+            props.setRemoteToDelete(null);
+          }
+        }}
+      />
+
+      <NewWorktreeModal
+        show={props.showAddWorktree}
+        onClose={() => props.setShowAddWorktree(false)}
+        onAdd={props.onAddWorktree}
+        onPickFolder={props.onPickWorktreeFolder}
+        isLoading={props.isLoading}
+        branches={props.branches}
+      />
+      <DangerConfirmDialog
+        open={!!props.worktreeToDelete}
+        title={t('worktree.deleteConfirmTitle')}
+        message={t('worktree.deleteConfirmDesc', { path: props.worktreeToDelete?.path || '' })}
+        warning={t('worktree.deleteWarning')}
+        confirmLabel={t('sidebar.worktreeRemove')}
+        cancelLabel={t('modal.cancel')}
+        disabled={props.isLoading}
+        onCancel={() => props.setWorktreeToDelete(null)}
+        onConfirm={async () => {
+          if (props.worktreeToDelete) {
+            await props.onDeleteWorktree(props.worktreeToDelete.path);
+            props.setWorktreeToDelete(null);
+          }
+        }}
+      />
+
+      <NewSubmoduleModal
+        show={props.showAddSubmodule}
+        onClose={() => props.setShowAddSubmodule(false)}
+        onAdd={props.onAddSubmodule}
+        isLoading={props.isLoading}
+      />
     </>
   );
 }

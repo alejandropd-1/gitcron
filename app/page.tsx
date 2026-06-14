@@ -84,7 +84,7 @@ import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useAppUpdate } from '@/hooks/use-app-update';
-import type { BlameLine, FileHistoryEntry, PullRequestDiffData, PullRequestEntry } from '@/types/electron';
+import type { BlameLine, FileHistoryEntry, PullRequestDiffData, PullRequestEntry, RemoteEntry, WorktreeEntry, SubmoduleEntry } from '@/types/electron';
 import { buildHunkPatch, parseUnifiedDiff } from '@/lib/hunk-patch';
 
 const FONT_SIZE_OPTIONS: Array<{ key: FontSize; px: number }> = [
@@ -102,7 +102,7 @@ export default function GitCronPage() {
     repoPath,
     currentBranch, branches, remoteBranches,
     commits, modifiedFiles, commitMessage, setCommitMessage,
-    selectedCommit, setSelectedCommit, isLoading, error, setError, success, setSuccess,
+    selectedCommit, setSelectedCommit, isLoading, setLoading, error, setError, success, setSuccess,
     selectedFile, setSelectedFile, currentDiff, setCurrentDiff,
     stashes, tags, submodules,
     githubToken, githubUser,
@@ -137,6 +137,7 @@ export default function GitCronPage() {
   const {
     openRepo, trustSafeDirectory, restoreLastRepo, closeRepo, persistOpenRepos, loadAll, loadDiff, refreshLog,
     refreshStatus, pickFolder, initRepo, cloneRepo, createGitHubRepo, listUserGitHubRepos,
+    refreshRemotes, refreshWorktrees, refreshSubmodules, refreshBranches,
   } = useRepoLoader();
 
   const graphShowAllBranches = useGitStore((s) => s.getActiveRepo()?.graphShowAllBranches ?? true);
@@ -397,6 +398,199 @@ export default function GitCronPage() {
   const [cleanableFiles, setCleanableFiles] = useState<string[]>([]);
   const [selectedCleanFiles, setSelectedCleanFiles] = useState<Set<string>>(() => new Set());
   const [cleanModalLoading, setCleanModalLoading] = useState(false);
+
+  // F5 (Remotes, Worktrees, Submodules) states
+  const [showAddRemote, setShowAddRemote] = useState(false);
+  const [remoteToRename, setRemoteToRename] = useState<RemoteEntry | null>(null);
+  const [remoteToSetUrl, setRemoteToSetUrl] = useState<RemoteEntry | null>(null);
+  const [remoteToDelete, setRemoteToDelete] = useState<RemoteEntry | null>(null);
+  const [showAddWorktree, setShowAddWorktree] = useState(false);
+  const [worktreeToDelete, setWorktreeToDelete] = useState<WorktreeEntry | null>(null);
+  const [showAddSubmodule, setShowAddSubmodule] = useState(false);
+
+  // F5 handlers
+  // Remotes
+  const handleAddRemote = async (name: string, url: string) => {
+    if (!repoPath || !window.api) return;
+    setLoading(true);
+    try {
+      const result = await window.api.gitRemoteAdd(repoPath, name, url);
+      if (result.success) {
+        setSuccess('Remoto agregado con éxito');
+        setShowAddRemote(false);
+        await refreshRemotes(repoPath);
+        await refreshBranches(repoPath);
+      } else {
+        setError(result.error || 'Error al agregar el remoto');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al agregar el remoto');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRenameRemote = async (oldName: string, newName: string) => {
+    if (!repoPath || !window.api) return;
+    setLoading(true);
+    try {
+      const result = await window.api.gitRemoteRename(repoPath, oldName, newName);
+      if (result.success) {
+        setSuccess('Remoto renombrado con éxito');
+        setRemoteToRename(null);
+        await refreshRemotes(repoPath);
+        await refreshBranches(repoPath);
+      } else {
+        setError(result.error || 'Error al renombrar el remoto');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al renombrar el remoto');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSetRemoteUrl = async (name: string, url: string) => {
+    if (!repoPath || !window.api) return;
+    setLoading(true);
+    try {
+      const result = await window.api.gitRemoteSetUrl(repoPath, name, url);
+      if (result.success) {
+        setSuccess('URL del remoto cambiada con éxito');
+        setRemoteToSetUrl(null);
+        await refreshRemotes(repoPath);
+      } else {
+        setError(result.error || 'Error al cambiar la URL del remoto');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al cambiar la URL del remoto');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteRemote = async (name: string) => {
+    if (!repoPath || !window.api) return;
+    setLoading(true);
+    try {
+      const result = await window.api.gitRemoteRemove(repoPath, name);
+      if (result.success) {
+        setSuccess('Remoto eliminado con éxito');
+        setRemoteToDelete(null);
+        await refreshRemotes(repoPath);
+        await refreshBranches(repoPath);
+      } else {
+        setError(result.error || 'Error al eliminar el remoto');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al eliminar el remoto');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Worktrees
+  const handleAddWorktree = async (path: string, branch: string) => {
+    if (!repoPath || !window.api) return;
+    setLoading(true);
+    try {
+      const result = await window.api.gitWorktreeAdd(repoPath, path, branch);
+      if (result.success) {
+        setSuccess('Worktree creado con éxito');
+        setShowAddWorktree(false);
+        await refreshWorktrees(repoPath);
+      } else {
+        setError(result.error || 'Error al crear el worktree');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al crear el worktree');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteWorktree = async (path: string, force: boolean = false) => {
+    if (!repoPath || !window.api) return;
+    setLoading(true);
+    try {
+      const result = await window.api.gitWorktreeRemove(repoPath, path, force);
+      if (result.success) {
+        setSuccess('Worktree eliminado con éxito');
+        setWorktreeToDelete(null);
+        await refreshWorktrees(repoPath);
+      } else if (result.error === 'HAS_CHANGES') {
+        // Confirm force delete
+        if (confirm('Este worktree tiene cambios sin commitear. Si lo eliminás ahora, podrías perder cambios. ¿Querés forzar la eliminación?')) {
+          await handleDeleteWorktree(path, true);
+        } else {
+          setWorktreeToDelete(null);
+        }
+      } else {
+        setError(result.error || 'Error al eliminar el worktree');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al eliminar el worktree');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Submodules
+  const handleAddSubmodule = async (url: string, path: string) => {
+    if (!repoPath || !window.api) return;
+    setLoading(true);
+    try {
+      const result = await window.api.gitSubmoduleAdd(repoPath, url, path);
+      if (result.success) {
+        setSuccess('Submódulo agregado con éxito');
+        setShowAddSubmodule(false);
+        await refreshSubmodules(repoPath);
+      } else {
+        setError(result.error || 'Error al agregar el submódulo');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al agregar el submódulo');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateSubmodule = async (path?: string) => {
+    if (!repoPath || !window.api) return;
+    setLoading(true);
+    try {
+      const result = await window.api.gitSubmoduleUpdate(repoPath, path, true);
+      if (result.success) {
+        setSuccess('Submódulo actualizado con éxito');
+        await refreshSubmodules(repoPath);
+      } else {
+        setError(result.error || 'Error al actualizar el submódulo');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al actualizar el submódulo');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSyncSubmodules = async () => {
+    if (!repoPath || !window.api) return;
+    setLoading(true);
+    try {
+      const result = await window.api.gitSubmoduleSync(repoPath);
+      if (result.success) {
+        setSuccess('Submódulo sincronizado con éxito');
+        await refreshSubmodules(repoPath);
+      } else {
+        setError(result.error || 'Error al sincronizar submódulos');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al sincronizar submódulos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const isMainFullBleed =
     activeView === 'repository'
     && !isRepoStartView
@@ -1178,6 +1372,15 @@ export default function GitCronPage() {
           onSettingsSectionChange={setSelectedSettingsSection}
           selectedHelpSection={selectedHelpSection}
           onHelpSectionChange={setSelectedHelpSection}
+          onAddRemoteRequest={() => setShowAddRemote(true)}
+          onRenameRemoteRequest={setRemoteToRename}
+          onSetRemoteUrlRequest={setRemoteToSetUrl}
+          onDeleteRemoteRequest={setRemoteToDelete}
+          onAddWorktreeRequest={() => setShowAddWorktree(true)}
+          onDeleteWorktreeRequest={setWorktreeToDelete}
+          onAddSubmoduleRequest={() => setShowAddSubmodule(true)}
+          onUpdateSubmodule={handleUpdateSubmodule}
+          onSyncSubmodules={handleSyncSubmodules}
         />
 
         {/* CENTER CANVAS: Full-bleed graph in Graph tab, beautifully centered glass panel in other tabs / diffs */}
@@ -1501,6 +1704,29 @@ export default function GitCronPage() {
         mergeBranch={mergeBranch}
         cherryPickCommit={cherryPickCommit}
         revertCommit={revertCommit}
+        showAddRemote={showAddRemote}
+        setShowAddRemote={setShowAddRemote}
+        onAddRemote={handleAddRemote}
+        remoteToRename={remoteToRename}
+        setRemoteToRename={setRemoteToRename}
+        onRenameRemote={handleRenameRemote}
+        remoteToSetUrl={remoteToSetUrl}
+        setRemoteToSetUrl={setRemoteToSetUrl}
+        onSetRemoteUrl={handleSetRemoteUrl}
+        remoteToDelete={remoteToDelete}
+        setRemoteToDelete={setRemoteToDelete}
+        onDeleteRemote={handleDeleteRemote}
+        showAddWorktree={showAddWorktree}
+        setShowAddWorktree={setShowAddWorktree}
+        onAddWorktree={handleAddWorktree}
+        onPickWorktreeFolder={pickFolder}
+        worktreeToDelete={worktreeToDelete}
+        setWorktreeToDelete={setWorktreeToDelete}
+        onDeleteWorktree={handleDeleteWorktree}
+        branches={branches}
+        showAddSubmodule={showAddSubmodule}
+        setShowAddSubmodule={setShowAddSubmodule}
+        onAddSubmodule={handleAddSubmodule}
       />
     </div>
   );

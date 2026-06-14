@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type {
   StashEntry, SubmoduleEntry, GitHubUser,
-  BranchTrackingInfo, WorktreeEntry, PullRequestEntry, RepoInfo,
+  BranchTrackingInfo, WorktreeEntry, PullRequestEntry, RepoInfo, RemoteEntry,
 } from '@/types/electron';
 import type { Lang } from '@/lib/i18n';
 
@@ -38,6 +38,7 @@ export interface RepoState {
   stashes: StashEntry[];
   tags: string[];
   submodules: SubmoduleEntry[];
+  remotes: RemoteEntry[];
   branchTracking: Record<string, BranchTrackingInfo>;
   worktrees: WorktreeEntry[];
   pullRequests: PullRequestEntry[];
@@ -78,6 +79,7 @@ interface GitStore {
   stashes: StashEntry[];
   tags: string[];
   submodules: SubmoduleEntry[];
+  remotes: RemoteEntry[];
   branchTracking: Record<string, BranchTrackingInfo>;
   worktrees: WorktreeEntry[];
   pullRequests: PullRequestEntry[];
@@ -121,6 +123,7 @@ interface GitStore {
   setStashes: (stashes: StashEntry[]) => void;
   setTags: (tags: string[]) => void;
   setSubmodules: (submodules: SubmoduleEntry[]) => void;
+  setRemotes: (remotes: RemoteEntry[]) => void;
   setBranchTracking: (tracking: Record<string, BranchTrackingInfo>) => void;
   setWorktrees: (worktrees: WorktreeEntry[]) => void;
   setPullRequests: (prs: PullRequestEntry[]) => void;
@@ -159,6 +162,7 @@ function createEmptyRepoFields(): EmptyRepoFields {
     stashes: [],
     tags: [],
     submodules: [],
+    remotes: [],
     branchTracking: {},
     worktrees: [],
     pullRequests: [],
@@ -209,6 +213,7 @@ function legacyFromRepo(repo: RepoState | null) {
     stashes: repo.stashes,
     tags: repo.tags,
     submodules: repo.submodules,
+    remotes: repo.remotes,
     branchTracking: repo.branchTracking,
     worktrees: repo.worktrees,
     pullRequests: repo.pullRequests,
@@ -307,6 +312,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   stashes: [],
   tags: [],
   submodules: [],
+  remotes: [],
   branchTracking: {},
   worktrees: [],
   pullRequests: [],
@@ -374,6 +380,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   setStashes: (stashes) => get().updateActiveRepo({ stashes }),
   setTags: (tags) => get().updateActiveRepo({ tags }),
   setSubmodules: (submodules) => get().updateActiveRepo({ submodules }),
+  setRemotes: (remotes) => get().updateActiveRepo({ remotes }),
   setBranchTracking: (branchTracking) => get().updateActiveRepo({ branchTracking }),
   setWorktrees: (worktrees) => get().updateActiveRepo({ worktrees }),
   setPullRequests: (pullRequests) => get().updateActiveRepo({ pullRequests }),

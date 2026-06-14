@@ -17,6 +17,7 @@ import {
   AlertCircle, ArrowLeft, Cloud, Download, ExternalLink, FileText, Folder,
   FolderOpen, GitMerge, Github, Globe, HelpCircle, Layers, Lock, Monitor,
   Plus, RotateCcw, Settings, Sparkles, TreePine, Type, UserCircle2, Zap,
+  Trash2, Edit2, Link2, RefreshCw,
 } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
@@ -25,7 +26,7 @@ import { cn } from '@/lib/utils';
 import { userInitials } from '@/lib/page-helpers';
 import { FLOATING_PANEL_INSET } from '@/hooks/use-panel-layout';
 import type { RepoStartMode } from '@/components/RepoModals';
-import type { PullRequestEntry } from '@/types/electron';
+import type { PullRequestEntry, RemoteEntry, WorktreeEntry, SubmoduleEntry } from '@/types/electron';
 import {
   BranchTree,
   RemoteBranchTree,
@@ -36,6 +37,154 @@ import {
 } from '@/components/RepoSidebarParts';
 
 type AppView = 'repository' | 'settings' | 'help' | 'profile';
+
+function SidebarRemoteItem({
+  remote,
+  onRename,
+  onSetUrl,
+  onDelete,
+}: {
+  remote: RemoteEntry;
+  onRename: () => void;
+  onSetUrl: () => void;
+  onDelete: () => void;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const titleText = `${remote.name}\nFetch: ${remote.fetchUrl || '-'}\nPush: ${remote.pushUrl || '-'}`;
+  return (
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="px-4 py-1 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
+      title={titleText}
+    >
+      <Globe size={14} className="shrink-0 text-text-secondary" />
+      <div className="flex-1 min-w-0">
+        <span className="truncate text-xs font-semibold block select-text">{remote.name}</span>
+        <span className="truncate text-[10px] text-text-secondary/70 block select-text font-mono">{remote.fetchUrl}</span>
+      </div>
+      <div className={cn(
+        'flex items-center gap-1 shrink-0 z-10 transition-opacity',
+        isHovered ? 'opacity-100' : 'opacity-0 group-focus-within:opacity-100',
+      )}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onSetUrl(); }}
+          className="p-1 hover:text-secondary transition-colors"
+          title="Cambiar URL"
+        >
+          <Link2 size={12} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onRename(); }}
+          className="p-1 hover:text-secondary transition-colors"
+          title="Renombrar"
+        >
+          <Edit2 size={12} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="p-1 hover:text-error transition-colors"
+          title="Eliminar"
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SidebarWorktreeItem({
+  wt,
+  onOpen,
+  onDelete,
+  isMain,
+}: {
+  wt: WorktreeEntry;
+  onOpen: () => void;
+  onDelete: () => void;
+  isMain: boolean;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const name = wt.path.split(/[/\\]/).pop() || wt.path;
+  return (
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="px-4 py-1 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
+      title={wt.path}
+    >
+      <button
+        onClick={onOpen}
+        className="flex-1 min-w-0 text-left flex items-center gap-3"
+      >
+        <TreePine size={14} className={cn("shrink-0", isMain ? "text-secondary" : "text-primary")} />
+        <span className="truncate text-xs flex-1 select-text">{name}</span>
+        {wt.branch && (
+          <span className="text-[10px] font-mono text-text-secondary/70 shrink-0 bg-bg-surface px-1 rounded">{wt.branch}</span>
+        )}
+      </button>
+      {!isMain && (
+        <div className={cn(
+          'flex items-center gap-1 shrink-0 z-10 transition-opacity',
+          isHovered ? 'opacity-100' : 'opacity-0 group-focus-within:opacity-100',
+        )}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="p-1 hover:text-error transition-colors"
+            title="Eliminar worktree"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SidebarSubmoduleItem({
+  sm,
+  onUpdate,
+  onSync,
+}: {
+  sm: SubmoduleEntry;
+  onUpdate: () => void;
+  onSync: () => void;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="px-4 py-1.5 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
+      title={`${sm.path}\nCommit: ${sm.hash}`}
+    >
+      <Layers size={14} className="shrink-0 text-text-secondary" />
+      <div className="flex-1 min-w-0">
+        <span className="truncate text-xs block select-text font-medium">{sm.path}</span>
+        <span className="truncate text-[10px] text-text-secondary/70 block select-text font-mono">{sm.hash.slice(0, 7)}</span>
+      </div>
+      <div className={cn(
+        'flex items-center gap-1 shrink-0 z-10 transition-opacity',
+        isHovered ? 'opacity-100' : 'opacity-0 group-focus-within:opacity-100',
+      )}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onUpdate(); }}
+          className="p-1 hover:text-secondary transition-colors"
+          title="Actualizar (update)"
+        >
+          <RefreshCw size={12} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onSync(); }}
+          className="p-1 hover:text-secondary transition-colors"
+          title="Sincronizar (sync)"
+        >
+          <Link2 size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 type RepoSidebarProps = {
   // layout (estado de usePanelLayout, que vive en la página)
@@ -70,6 +219,19 @@ type RepoSidebarProps = {
   onSettingsSectionChange: (id: string) => void;
   selectedHelpSection: string;
   onHelpSectionChange: (id: string) => void;
+
+  // remotes
+  onAddRemoteRequest?: () => void;
+  onRenameRemoteRequest?: (remote: RemoteEntry) => void;
+  onSetRemoteUrlRequest?: (remote: RemoteEntry) => void;
+  onDeleteRemoteRequest?: (remote: RemoteEntry) => void;
+  // worktrees
+  onAddWorktreeRequest?: () => void;
+  onDeleteWorktreeRequest?: (wt: WorktreeEntry) => void;
+  // submodules
+  onAddSubmoduleRequest?: () => void;
+  onUpdateSubmodule?: (path?: string) => void;
+  onSyncSubmodules?: () => void;
 };
 
 export function RepoSidebar({
@@ -82,11 +244,14 @@ export function RepoSidebar({
   onPreviewStash, onCreateTagRequest, onDeleteTagRequest,
   selectedSettingsSection, onSettingsSectionChange,
   selectedHelpSection, onHelpSectionChange,
+  onAddRemoteRequest, onRenameRemoteRequest, onSetRemoteUrlRequest, onDeleteRemoteRequest,
+  onAddWorktreeRequest, onDeleteWorktreeRequest,
+  onAddSubmoduleRequest, onUpdateSubmodule, onSyncSubmodules,
 }: RepoSidebarProps) {
   const t = useT();
   const {
     repoPath, branches, currentBranch, remoteBranches, branchTracking,
-    stashes, tags, submodules, worktrees, pullRequests,
+    stashes, tags, submodules, remotes, worktrees, pullRequests,
     githubUser, selectedCommit,
   } = useGitStore();
   const { stashApply, stashPop, stashDrop, stashClear, pushTag } = useGitActions();
@@ -334,33 +499,101 @@ export function RepoSidebar({
                   ))}
                 </SidebarSection>
 
-                {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
-                {worktrees.length > 1 && (
-                  <SidebarSection title={t('sidebar.worktrees')} count={worktrees.length}>
-                    {worktrees.map((wt) => {
-                      const name = wt.path.split(/[/\\]/).pop() || wt.path;
-                      return (
-                        <button
-                          key={wt.path}
-                          onClick={() => window.api?.shellOpenPath(wt.path)}
-                          title={wt.path}
-                          className="w-full text-left px-4 py-1.5 flex items-center gap-3 text-sm hover:bg-bg-surface/70 text-text-secondary hover:text-text-primary transition-colors"
-                        >
-                          <TreePine size={14} className="shrink-0 text-primary" />
-                          <span className="truncate flex-1 text-left">{name}</span>
-                          {wt.branch && (
-                            <span className="text-[10px] font-mono text-text-secondary/70 shrink-0">{wt.branch}</span>
-                          )}
-                        </button>
-                      );
-                    })}
+                {/* REMOTES */}
+                {repoPath && (
+                  <SidebarSection
+                    title={t('sidebar.remotes')}
+                    count={remotes.length || undefined}
+                    extra={(
+                      <button
+                        type="button"
+                        onClick={onAddRemoteRequest}
+                        className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
+                        title={t('sidebar.remoteAdd')}
+                      >
+                        <Plus size={12} />
+                      </button>
+                    )}
+                  >
+                    {remotes.length === 0 && (
+                      <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noRemotes')}</p>
+                    )}
+                    {remotes.map((rm) => (
+                      <SidebarRemoteItem
+                        key={rm.name}
+                        remote={rm}
+                        onRename={() => onRenameRemoteRequest?.(rm)}
+                        onSetUrl={() => onSetRemoteUrlRequest?.(rm)}
+                        onDelete={() => onDeleteRemoteRequest?.(rm)}
+                      />
+                    ))}
                   </SidebarSection>
                 )}
 
-                {/* SUBMODULES — only render section if there are any */}
-                {submodules.length > 0 && (
-                  <SidebarSection title={t('sidebar.submodules')} count={submodules.length}>
-                    {submodules.map((sm) => <SidebarItem key={sm.path} icon={<Layers size={16} />} text={sm.path} />)}
+                {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
+                {repoPath && (
+                  <SidebarSection
+                    title={t('sidebar.worktrees')}
+                    count={worktrees.length > 1 ? worktrees.length - 1 : undefined}
+                    extra={(
+                      <button
+                        type="button"
+                        onClick={onAddWorktreeRequest}
+                        className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
+                        title={t('sidebar.worktreeAdd')}
+                      >
+                        <Plus size={12} />
+                      </button>
+                    )}
+                  >
+                    {worktrees.length <= 1 ? (
+                      <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noWorktrees')}</p>
+                    ) : (
+                      worktrees.map((wt) => {
+                        const isMain = wt.path.replace(/\\/g, '/').toLowerCase() === repoPath.replace(/\\/g, '/').toLowerCase();
+                        if (isMain) return null;
+                        return (
+                          <SidebarWorktreeItem
+                            key={wt.path}
+                            wt={wt}
+                            isMain={isMain}
+                            onOpen={() => window.api?.shellOpenPath(wt.path)}
+                            onDelete={() => onDeleteWorktreeRequest?.(wt)}
+                          />
+                        );
+                      })
+                    )}
+                  </SidebarSection>
+                )}
+
+                {/* SUBMODULES */}
+                {repoPath && (
+                  <SidebarSection
+                    title={t('sidebar.submodules')}
+                    count={submodules.length || undefined}
+                    extra={(
+                      <button
+                        type="button"
+                        onClick={onAddSubmoduleRequest}
+                        className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
+                        title={t('sidebar.submoduleAdd')}
+                      >
+                        <Plus size={12} />
+                      </button>
+                    )}
+                  >
+                    {submodules.length === 0 ? (
+                      <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noSubmodules')}</p>
+                    ) : (
+                      submodules.map((sm) => (
+                        <SidebarSubmoduleItem
+                          key={sm.path}
+                          sm={sm}
+                          onUpdate={() => onUpdateSubmodule?.(sm.path)}
+                          onSync={() => onSyncSubmodules?.()}
+                        />
+                      ))
+                    )}
                   </SidebarSection>
                 )}
               </motion.div>

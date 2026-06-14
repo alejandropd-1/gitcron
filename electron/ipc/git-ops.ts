@@ -287,6 +287,41 @@ export function registerGitOpsHandlers(): void {
     }
   });
 
+  ipcMain.handle('git:worktree-add', async (_event, repoPath: string, path: string, branch: string) => {
+    try {
+      await simpleGit(repoPath).raw(['worktree', 'add', path, branch]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:worktree-remove', async (_event, repoPath: string, worktreePath: string, force?: boolean) => {
+    try {
+      if (fs.existsSync(worktreePath)) {
+        try {
+          const status = await simpleGit(worktreePath).status();
+          const hasChanges = status.files.length > 0;
+          if (hasChanges && !force) {
+            return { success: false, error: 'HAS_CHANGES' };
+          }
+        } catch (statusError) {
+          console.warn('Failed to check status in worktree path:', worktreePath, statusError);
+        }
+      }
+
+      const args = ['worktree', 'remove'];
+      if (force) {
+        args.push('--force');
+      }
+      args.push(worktreePath);
+      await simpleGit(repoPath).raw(args);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
   ipcMain.handle('git:checkout', async (_event, targetPath: string, branch: string) => {
     try {
       const g = simpleGit(targetPath);
@@ -1295,6 +1330,41 @@ if (mode === 'sequence') {
         submodules.push({ hash: match[1], path: match[2], describe: match[3] || undefined });
       }
       return { success: true, data: submodules };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:submodule-update', async (_event, repoPath: string, path?: string, init?: boolean) => {
+    try {
+      const args = ['submodule', 'update'];
+      if (init) {
+        args.push('--init');
+      }
+      args.push('--recursive');
+      if (path) {
+        args.push('--', path);
+      }
+      await simpleGit(repoPath).raw(args);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:submodule-add', async (_event, repoPath: string, url: string, path: string) => {
+    try {
+      await simpleGit(repoPath).raw(['submodule', 'add', url, path]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:submodule-sync', async (_event, repoPath: string) => {
+    try {
+      await simpleGit(repoPath).raw(['submodule', 'sync', '--recursive']);
+      return { success: true };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };
     }

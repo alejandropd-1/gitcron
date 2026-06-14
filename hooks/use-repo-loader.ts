@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useGitStore, type RepoState } from '@/lib/git-store';
 import type {
   CommitData, StatusFile, BranchData, StashEntry, SubmoduleEntry,
-  RepoInfo, GitHubRepoInfo, WorktreeEntry, PullRequestEntry,
+  RepoInfo, GitHubRepoInfo, WorktreeEntry, PullRequestEntry, RemoteEntry,
 } from '@/types/electron';
 
 type GraphMode = 'classic' | 'chronometric';
@@ -51,6 +51,7 @@ export const useRepoLoader = () => {
   const setStashes = useGitStore((state) => state.setStashes);
   const setTags = useGitStore((state) => state.setTags);
   const setSubmodules = useGitStore((state) => state.setSubmodules);
+  const setRemotes = useGitStore((state) => state.setRemotes);
   const setBranchTracking = useGitStore((state) => state.setBranchTracking);
   const setWorktrees = useGitStore((state) => state.setWorktrees);
   const setPullRequests = useGitStore((state) => state.setPullRequests);
@@ -408,6 +409,18 @@ export const useRepoLoader = () => {
     } catch (err: any) { console.error('refreshSubmodules error:', err); }
   };
 
+  const refreshRemotes = async (path?: string) => {
+    const ctx = getRefreshTarget(path);
+    if (!ctx || !window.api) return;
+    try {
+      const result = await window.api.gitRemotesList(ctx.target);
+      if (result.success && result.data) {
+        const remotes = result.data as RemoteEntry[];
+        writeRepoData(ctx, { remotes }, () => setRemotes(remotes));
+      }
+    } catch (err: any) { console.error('refreshRemotes error:', err); }
+  };
+
   const loadDiff = async (filePath: string, staged: boolean = false, path?: string) => {
     const hasExplicitPath = path !== undefined;
     const target = path ?? repoPath;
@@ -450,6 +463,7 @@ export const useRepoLoader = () => {
       refreshStashes(target),
       refreshTags(target),
       refreshSubmodules(target),
+      refreshRemotes(target),
       refreshWorktrees(target),
       refreshPullRequests(target),
     ]);
@@ -497,6 +511,7 @@ export const useRepoLoader = () => {
     refreshStashes,
     refreshTags,
     refreshSubmodules,
+    refreshRemotes,
     refreshWorktrees,
     refreshPullRequests,
     loadDiff,

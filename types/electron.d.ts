@@ -161,6 +161,12 @@ export interface SubmoduleEntry {
   describe?: string;
 }
 
+export interface RemoteEntry {
+  name: string;
+  fetchUrl?: string;
+  pushUrl?: string;
+}
+
 interface DeviceCodeInfo {
   deviceCode: string;
   userCode: string;
@@ -282,6 +288,22 @@ interface ElectronAPI {
   gitTags: (repoPath: string) => Promise<GitResult<string[]>>;
   gitSubmodules: (repoPath: string) => Promise<GitResult<SubmoduleEntry[]>>;
   gitWorktrees: (repoPath: string) => Promise<GitResult<WorktreeEntry[]>>;
+
+  // Remotes
+  gitRemotesList: (repoPath: string) => Promise<GitResult<RemoteEntry[]>>;
+  gitRemoteAdd: (repoPath: string, name: string, url: string) => Promise<GitResult>;
+  gitRemoteRemove: (repoPath: string, name: string) => Promise<GitResult>;
+  gitRemoteSetUrl: (repoPath: string, name: string, url: string) => Promise<GitResult>;
+  gitRemoteRename: (repoPath: string, oldName: string, newName: string) => Promise<GitResult>;
+
+  // Worktrees
+  gitWorktreeAdd: (repoPath: string, path: string, branch: string) => Promise<GitResult>;
+  gitWorktreeRemove: (repoPath: string, path: string, force?: boolean) => Promise<GitResult>;
+
+  // Submodules
+  gitSubmoduleUpdate: (repoPath: string, path?: string, init?: boolean) => Promise<GitResult>;
+  gitSubmoduleAdd: (repoPath: string, url: string, path: string) => Promise<GitResult>;
+  gitSubmoduleSync: (repoPath: string) => Promise<GitResult>;
   githubListPRs: (token: string, repoPath: string) => Promise<GitResult<PullRequestEntry[]>>;
   githubGetPRDiff: (token: string, repoPath: string, number: number) => Promise<GitResult<PullRequestDiffData>>;
   terminalOpen: (repoPath: string) => Promise<GitResult>;

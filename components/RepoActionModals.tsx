@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import {
   AlertCircle, AlertTriangle, Archive, FileText, Folder,
-  GitBranch, GitMerge, Layers, Loader2, Plus, RotateCcw, Tag, Trash2, X
+  GitBranch, GitMerge, Layers, Loader2, Plus, RotateCcw, Tag, Trash2, X,
+  FolderOpen, Globe, Link2, TreePine, Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -838,6 +840,431 @@ export function ForcePushConfirmModal({
           {t('page.modals.forcePush.confirmBtn')}
         </button>
       </div>
+    </ModalShell>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   11. REMOTE MODALS (ADD, RENAME, SET URL)
+   ────────────────────────────────────────────────────────────────────────── */
+
+interface AddRemoteModalProps {
+  show: boolean;
+  onClose: () => void;
+  onAdd: (name: string, url: string) => Promise<void> | void;
+  isLoading: boolean;
+}
+
+export function AddRemoteModal({ show, onClose, onAdd, isLoading }: AddRemoteModalProps) {
+  const t = useT();
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+
+  useEffect(() => {
+    if (show) {
+      setName('');
+      setUrl('');
+    }
+  }, [show]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !url.trim()) return;
+    onAdd(name.trim(), url.trim());
+  };
+
+  return (
+    <ModalShell open={show} onClose={onClose} panelClassName="glass-overlay rounded-xl shadow-2xl p-6 w-[480px]">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-text-primary flex items-center gap-2">
+          <Globe size={18} className="text-secondary" />
+          {t('sidebar.remoteAdd')}
+        </h3>
+        <button onClick={onClose} className="text-text-secondary hover:text-text-primary transition-colors">
+          <X size={16} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div>
+          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+            {t('remote.name')}
+          </label>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. upstream"
+            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+            {t('remote.url')}
+          </label>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://github.com/user/repo.git"
+            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
+          />
+        </div>
+        <div className="flex gap-2 justify-end mt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
+          >
+            {t('modal.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || !name.trim() || !url.trim()}
+            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-secondary to-[#68b24f] px-4 text-xs font-extrabold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+            {t('sidebar.remoteAdd')}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
+  );
+}
+
+interface RenameRemoteModalProps {
+  remote: { name: string; fetchUrl?: string } | null;
+  onClose: () => void;
+  onRename: (oldName: string, newName: string) => Promise<void> | void;
+  isLoading: boolean;
+}
+
+export function RenameRemoteModal({ remote, onClose, onRename, isLoading }: RenameRemoteModalProps) {
+  const t = useT();
+  const [newName, setNewName] = useState('');
+
+  useEffect(() => {
+    if (remote) {
+      setNewName(remote.name);
+    }
+  }, [remote]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!remote || !newName.trim() || newName.trim() === remote.name) return;
+    onRename(remote.name, newName.trim());
+  };
+
+  return (
+    <ModalShell open={!!remote} onClose={onClose} panelClassName="glass-overlay rounded-xl shadow-2xl p-6 w-[480px]">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-text-primary flex items-center gap-2">
+          <Globe size={18} className="text-secondary" />
+          {t('sidebar.remoteRename')}
+        </h3>
+        <button onClick={onClose} className="text-text-secondary hover:text-text-primary transition-colors">
+          <X size={16} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div>
+          <span className="text-xs text-text-secondary block mb-1">
+            Renombrando remoto: <strong className="text-text-primary font-bold">{remote?.name}</strong>
+          </span>
+          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+            {t('remote.newName')}
+          </label>
+          <input
+            autoFocus
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="e.g. upstream"
+            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55"
+          />
+        </div>
+        <div className="flex gap-2 justify-end mt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
+          >
+            {t('modal.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || !newName.trim() || newName.trim() === remote?.name}
+            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-secondary to-[#68b24f] px-4 text-xs font-extrabold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+            {t('sidebar.remoteRename')}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
+  );
+}
+
+interface SetRemoteUrlModalProps {
+  remote: { name: string; fetchUrl?: string } | null;
+  onClose: () => void;
+  onSetUrl: (name: string, url: string) => Promise<void> | void;
+  isLoading: boolean;
+}
+
+export function SetRemoteUrlModal({ remote, onClose, onSetUrl, isLoading }: SetRemoteUrlModalProps) {
+  const t = useT();
+  const [url, setUrl] = useState('');
+
+  useEffect(() => {
+    if (remote) {
+      setUrl(remote.fetchUrl || '');
+    }
+  }, [remote]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!remote || !url.trim()) return;
+    onSetUrl(remote.name, url.trim());
+  };
+
+  return (
+    <ModalShell open={!!remote} onClose={onClose} panelClassName="glass-overlay rounded-xl shadow-2xl p-6 w-[480px]">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-text-primary flex items-center gap-2">
+          <Globe size={18} className="text-secondary" />
+          {t('sidebar.remoteSetUrl')}
+        </h3>
+        <button onClick={onClose} className="text-text-secondary hover:text-text-primary transition-colors">
+          <X size={16} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div>
+          <span className="text-xs text-text-secondary block mb-1">
+            Remoto: <strong className="text-text-primary font-bold">{remote?.name}</strong>
+          </span>
+          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+            {t('remote.newUrl')}
+          </label>
+          <input
+            autoFocus
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://github.com/user/repo.git"
+            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
+          />
+        </div>
+        <div className="flex gap-2 justify-end mt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
+          >
+            {t('modal.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || !url.trim()}
+            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-secondary to-[#68b24f] px-4 text-xs font-extrabold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+            {t('sidebar.remoteSetUrl')}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   12. WORKTREE MODALS (ADD)
+   ────────────────────────────────────────────────────────────────────────── */
+
+interface NewWorktreeModalProps {
+  show: boolean;
+  onClose: () => void;
+  onAdd: (path: string, branch: string) => Promise<void> | void;
+  onPickFolder: () => Promise<string | null>;
+  isLoading: boolean;
+  branches: string[];
+}
+
+export function NewWorktreeModal({ show, onClose, onAdd, onPickFolder, isLoading, branches }: NewWorktreeModalProps) {
+  const t = useT();
+  const [folderPath, setFolderPath] = useState('');
+  const [branch, setBranch] = useState('');
+
+  useEffect(() => {
+    if (show) {
+      setFolderPath('');
+      setBranch(branches[0] || '');
+    }
+  }, [show, branches]);
+
+  const handlePickFolder = async () => {
+    const picked = await onPickFolder();
+    if (picked) {
+      setFolderPath(picked);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!folderPath.trim() || !branch.trim()) return;
+    onAdd(folderPath.trim(), branch.trim());
+  };
+
+  return (
+    <ModalShell open={show} onClose={onClose} panelClassName="glass-overlay rounded-xl shadow-2xl p-6 w-[520px]">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-text-primary flex items-center gap-2">
+          <TreePine size={18} className="text-secondary" />
+          {t('sidebar.worktreeAdd')}
+        </h3>
+        <button onClick={onClose} className="text-text-secondary hover:text-text-primary transition-colors">
+          <X size={16} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div>
+          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+            {t('worktree.path')}
+          </label>
+          <div className="flex gap-2">
+            <input
+              readOnly
+              value={folderPath}
+              placeholder="Click al botón para seleccionar..."
+              className="h-10 flex-1 rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-xs text-text-primary outline-none font-mono"
+            />
+            <button
+              type="button"
+              onClick={handlePickFolder}
+              className="h-10 px-4 rounded-lg bg-bg-surface border border-border-subtle/30 text-xs font-bold text-text-primary hover:bg-bg-surface/80 flex items-center gap-2 shrink-0"
+            >
+              <FolderOpen size={14} />
+              Elegir
+            </button>
+          </div>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+            {t('worktree.branch')}
+          </label>
+          <select
+            value={branch}
+            onChange={(e) => setBranch(e.target.value)}
+            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors focus:border-secondary/55"
+          >
+            {branches.map((br) => (
+              <option key={br} value={br} className="bg-bg-base text-text-primary text-xs font-mono">
+                {br}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex gap-2 justify-end mt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
+          >
+            {t('modal.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || !folderPath.trim() || !branch.trim()}
+            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-secondary to-[#68b24f] px-4 text-xs font-extrabold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+            {t('sidebar.worktreeAdd')}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   13. SUBMODULE MODALS (ADD)
+   ────────────────────────────────────────────────────────────────────────── */
+
+interface NewSubmoduleModalProps {
+  show: boolean;
+  onClose: () => void;
+  onAdd: (url: string, path: string) => Promise<void> | void;
+  isLoading: boolean;
+}
+
+export function NewSubmoduleModal({ show, onClose, onAdd, isLoading }: NewSubmoduleModalProps) {
+  const t = useT();
+  const [url, setUrl] = useState('');
+  const [path, setPath] = useState('');
+
+  useEffect(() => {
+    if (show) {
+      setUrl('');
+      setPath('');
+    }
+  }, [show]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url.trim() || !path.trim()) return;
+    onAdd(url.trim(), path.trim());
+  };
+
+  return (
+    <ModalShell open={show} onClose={onClose} panelClassName="glass-overlay rounded-xl shadow-2xl p-6 w-[480px]">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-text-primary flex items-center gap-2">
+          <Layers size={18} className="text-secondary" />
+          {t('sidebar.submoduleAdd')}
+        </h3>
+        <button onClick={onClose} className="text-text-secondary hover:text-text-primary transition-colors">
+          <X size={16} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div>
+          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+            {t('submodule.url')}
+          </label>
+          <input
+            autoFocus
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://github.com/user/repo.git"
+            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+            {t('submodule.path')}
+          </label>
+          <input
+            value={path}
+            onChange={(e) => setPath(e.target.value)}
+            placeholder="e.g. libs/my-submodule"
+            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
+          />
+        </div>
+        <div className="flex gap-2 justify-end mt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
+          >
+            {t('modal.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || !url.trim() || !path.trim()}
+            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-secondary to-[#68b24f] px-4 text-xs font-extrabold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+            {t('sidebar.submoduleAdd')}
+          </button>
+        </div>
+      </form>
     </ModalShell>
   );
 }

@@ -6,6 +6,34 @@
 import { ipcMain } from 'electron';
 import { simpleGit } from 'simple-git';
 import { errMsg, sanitizeForLog, withGitHubToken } from './shared';
+import type { RemoteEntry } from '../../types/electron';
+
+export function parseGitRemotes(raw: string): RemoteEntry[] {
+  const lines = raw.split('\n');
+  const remotesMap = new Map<string, { fetchUrl?: string; pushUrl?: string }>();
+  for (const line of lines) {
+    const trim = line.trim();
+    if (!trim) continue;
+    const match = trim.match(/^(\S+)\s+(\S+)(?:\s+\((fetch|push)\))?$/);
+    if (!match) continue;
+    const [, name, url, type] = match;
+    const entry = remotesMap.get(name) || {};
+    if (type === 'fetch') {
+      entry.fetchUrl = url;
+    } else if (type === 'push') {
+      entry.pushUrl = url;
+    } else {
+      if (!entry.fetchUrl) entry.fetchUrl = url;
+      if (!entry.pushUrl) entry.pushUrl = url;
+    }
+    remotesMap.set(name, entry);
+  }
+  return Array.from(remotesMap.entries()).map(([name, urls]) => ({
+    name,
+    fetchUrl: urls.fetchUrl,
+    pushUrl: urls.pushUrl,
+  }));
+}
 
 async function runExplicitPull(
   targetPath: string,
@@ -173,6 +201,53 @@ export function registerGitSyncHandlers(): void {
         error: errMsg(error),
         data: { success: false, authRequired: isAuth, error: errMsg(error) },
       };
+    }
+  });
+
+  // ── Remotes ──
+  ipcMain.handle('git:remotes-list', async (_event, targetPath: string) => {
+    try {
+      const raw = await simpleGit(targetPath).raw(['remote', '-v']);
+      const remotes = parseGitRemotes(raw);
+      return { success: true, data: remotes };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:remote-add', async (_event, targetPath: string, name: string, url: string) => {
+    try {
+      await simpleGit(targetPath).raw(['remote', 'add', name, url]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:remote-remove', async (_event, targetPath: string, name: string) => {
+    try {
+      await simpleGit(targetPath).raw(['remote', 'remove', name]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:remote-set-url', async (_event, targetPath: string, name: string, url: string) => {
+    try {
+      await simpleGit(targetPath).raw(['remote', 'set-url', name, url]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:remote-rename', async (_event, targetPath: string, oldName: string, newName: string) => {
+    try {
+      await simpleGit(targetPath).raw(['remote', 'rename', oldName, newName]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
     }
   });
 }

@@ -191,6 +191,19 @@ function createWindow() {
   mainWindow.webContents.on('will-navigate', blockForeignNavigation);
   mainWindow.webContents.on('will-redirect', blockForeignNavigation);
 
+  if (isDev) {
+    mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+      const label = level >= 2 ? 'error' : level === 1 ? 'warn' : 'log';
+      console[label](`[renderer:${label}] ${sourceId}:${line} ${message}`);
+    });
+    mainWindow.webContents.on('render-process-gone', (_event, details) => {
+      console.error('[renderer:gone]', details);
+    });
+    mainWindow.webContents.on('preload-error', (_event, preloadPath, error) => {
+      console.error('[renderer:preload-error]', preloadPath, sanitizeForLog(error));
+    });
+  }
+
   mainWindow.loadURL(url);
 
   // Close splash and show main window maximized once ready. Keep the splash

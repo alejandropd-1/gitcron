@@ -94,6 +94,10 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('fs:delete-file', repoPath, relativeFilePath),
   gitDiff: (repoPath: string, filePath: string, staged?: boolean) =>
     ipcRenderer.invoke('git:diff', repoPath, filePath, staged ?? false),
+  gitDiffHunks: (repoPath: string, filePath: string, staged?: boolean) =>
+    ipcRenderer.invoke('git:diff-hunks', repoPath, filePath, staged ?? false),
+  gitApplyHunk: (repoPath: string, filePath: string, hunkPatch: string, options: unknown) =>
+    ipcRenderer.invoke('git:apply-hunk', repoPath, filePath, hunkPatch, options),
   gitStashList: (repoPath: string) => ipcRenderer.invoke('git:stash-list', repoPath),
   gitStashPush: (repoPath: string, message?: string) =>
     ipcRenderer.invoke('git:stash-push', repoPath, message),

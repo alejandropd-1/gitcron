@@ -7,6 +7,7 @@ import type {
   MaterializationResult,
 } from './temporal-agent';
 import type { PredictionHistoryEntry } from '../electron/db/types';
+import type { ApplyHunkOptions, FileDiff } from '../lib/hunk-patch';
 
 interface GitResult<T = unknown> {
   success: boolean;
@@ -213,6 +214,13 @@ interface ElectronAPI {
   shellOpenItem: (repoPath: string, relativeFilePath: string) => Promise<GitResult>;
   fsDeleteFile: (repoPath: string, relativeFilePath: string) => Promise<GitResult>;
   gitDiff: (repoPath: string, filePath: string, staged?: boolean) => Promise<GitResult<string>>;
+  gitDiffHunks: (repoPath: string, filePath: string, staged?: boolean) => Promise<GitResult<FileDiff>>;
+  gitApplyHunk: (
+    repoPath: string,
+    filePath: string,
+    hunkPatch: string,
+    options: ApplyHunkOptions,
+  ) => Promise<GitResult>;
   gitStashList: (repoPath: string) => Promise<GitResult<StashEntry[]>>;
   gitStashPush: (repoPath: string, message?: string) => Promise<GitResult>;
   gitStashApply: (repoPath: string, index: number) => Promise<GitResult>;

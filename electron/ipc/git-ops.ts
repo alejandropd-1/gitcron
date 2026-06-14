@@ -6,11 +6,13 @@
 import { ipcMain } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { simpleGit } from 'simple-git';
 import type {
   StatusFile, CommitData, BranchData, StashEntry, SubmoduleEntry,
   BranchTrackingInfo, WorktreeEntry,
 } from '../../types/electron';
+import { parseUnifiedDiff, type ApplyHunkOptions } from '../../lib/hunk-patch';
 import { errMsg, resolveRepoRelativePath, sanitizeForLog } from './shared';
 
 function isSafeMaterializedRestoreRef(value: string, expectedPrefix: 'imagined/' | 'flight/'): boolean {
@@ -31,6 +33,45 @@ function parseGitCleanDryRun(raw: string): string[] {
     .filter((line) => line.startsWith('Would remove '))
     .map((line) => line.slice('Would remove '.length).trim())
     .filter(Boolean);
+}
+
+function buildSyntheticUntrackedDiff(repoRoot: string, filePath: string): string {
+  const fullPath = path.join(repoRoot, filePath);
+  const content = fs.readFileSync(fullPath, 'utf-8');
+  const lines = content.split('\n');
+  return [
+    `diff --git a/${filePath} b/${filePath}`,
+    '--- /dev/null',
+    `+++ b/${filePath}`,
+    `@@ -0,0 +1,${lines.length} @@`,
+    ...lines.map((line) => `+${line}`),
+  ].join('\n');
+}
+
+function assertPatchMatchesFile(hunkPatch: string, filePath: string): void {
+  const parsed = parseUnifiedDiff(hunkPatch);
+  const touchedPaths = new Set([parsed.filePath, parsed.oldPath, parsed.newPath].filter(Boolean));
+  if (!touchedPaths.has(filePath)) {
+    throw new Error('Patch file does not match requested path');
+  }
+  if (parsed.hunks.length !== 1) {
+    throw new Error('Patch must contain exactly one hunk');
+  }
+}
+
+async function applyPatchFile(repoRoot: string, hunkPatch: string, options: ApplyHunkOptions): Promise<void> {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-hunk-'));
+  const patchPath = path.join(tempDir, 'hunk.patch');
+  try {
+    fs.writeFileSync(patchPath, hunkPatch, 'utf-8');
+    const args = ['apply'];
+    if (options.cached) args.push('--cached');
+    if (options.reverse) args.push('-R');
+    args.push(patchPath);
+    await simpleGit(repoRoot).raw(args);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 }
 
 export function registerGitOpsHandlers(): void {
@@ -777,6 +818,54 @@ export function registerGitOpsHandlers(): void {
       return { success: false, error: errMsg(error) };
     }
   });
+
+  ipcMain.handle('git:diff-hunks', async (_event, targetPath: string, filePath: string, staged: boolean = false) => {
+    try {
+      const repoRoot = path.resolve(targetPath);
+      const resolved = resolveRepoRelativePath(repoRoot, filePath);
+      if (!resolved) return { success: false, error: 'Path traversal blocked' };
+
+      const g = simpleGit(repoRoot);
+      const status = await g.status();
+      const isUntracked = status.not_added.includes(filePath);
+
+      let diff: string;
+      if (isUntracked) {
+        const stat = fs.lstatSync(resolved);
+        if (!stat.isFile()) return { success: false, error: 'Solo se pueden mostrar hunks de archivos comunes' };
+        diff = buildSyntheticUntrackedDiff(repoRoot, filePath);
+      } else if (staged) {
+        diff = await g.diff(['--cached', '--', filePath]);
+      } else {
+        diff = await g.diff(['HEAD', '--', filePath]);
+      }
+
+      return { success: true, data: parseUnifiedDiff(diff) };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle(
+    'git:apply-hunk',
+    async (_event, targetPath: string, filePath: string, hunkPatch: string, options: ApplyHunkOptions = {}) => {
+      try {
+        const repoRoot = path.resolve(targetPath);
+        const resolved = resolveRepoRelativePath(repoRoot, filePath);
+        if (!resolved) return { success: false, error: 'Path traversal blocked' };
+        if (!hunkPatch.trim()) return { success: false, error: 'Patch vacío' };
+
+        assertPatchMatchesFile(hunkPatch, filePath);
+        await applyPatchFile(repoRoot, hunkPatch, {
+          reverse: options.reverse === true,
+          cached: options.cached === true,
+        });
+        return { success: true };
+      } catch (error: any) {
+        return { success: false, error: errMsg(error) };
+      }
+    },
+  );
 
   ipcMain.handle('git:stash-list', async (_event, targetPath: string) => {
     try {

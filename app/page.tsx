@@ -85,12 +85,15 @@ import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useAppUpdate } from '@/hooks/use-app-update';
 import type { PullRequestDiffData, PullRequestEntry } from '@/types/electron';
+import { buildHunkPatch, parseUnifiedDiff } from '@/lib/hunk-patch';
 
 const FONT_SIZE_OPTIONS: Array<{ key: FontSize; px: number }> = [
   { key: 'compact', px: 15 },
   { key: 'normal', px: 16 },
   { key: 'large', px: 17 },
 ];
+
+type HunkApplyIntent = 'stage' | 'unstage' | 'discard';
 
 
 export default function GitCronPage() {
@@ -133,7 +136,7 @@ export default function GitCronPage() {
 
   const {
     openRepo, trustSafeDirectory, restoreLastRepo, closeRepo, persistOpenRepos, loadAll, loadDiff, refreshLog,
-    pickFolder, initRepo, cloneRepo, createGitHubRepo, listUserGitHubRepos,
+    refreshStatus, pickFolder, initRepo, cloneRepo, createGitHubRepo, listUserGitHubRepos,
   } = useRepoLoader();
 
   const graphShowAllBranches = useGitStore((s) => s.getActiveRepo()?.graphShowAllBranches ?? true);
@@ -187,13 +190,15 @@ export default function GitCronPage() {
       return;
     }
     let alive = true;
-    Promise.all([
+    void Promise.allSettled([
       window.api.ai.loadPrediction(repoPath),
       window.api.temporalAgent.loadConfig(repoPath, openRepos[activeRepoIdx]?.name ?? 'repo'),
-    ]).then(([r, cfg]) => {
+    ]).then(([predictionResult, configResult]) => {
       if (!alive) return;
+      const r = predictionResult.status === 'fulfilled' ? predictionResult.value : null;
+      const cfg = configResult.status === 'fulfilled' ? configResult.value : null;
       setConfidenceThreshold(cfg?.skillProfile?.confidenceThreshold ?? 0);
-      if (r.success && r.data) {
+      if (r?.success && r.data) {
         // Patch predictionIndex on old branches that don't have it yet.
         r.data.branches.forEach((b: SpeculativeBranch, i: number) => {
           if (b.sourceId === undefined) b.sourceId = null;
@@ -361,6 +366,8 @@ export default function GitCronPage() {
   const [squashMessage, setSquashMessage] = useState('');
   const [pullRequestDiff, setPullRequestDiff] = useState<PullRequestDiffData | null>(null);
   const [pullRequestDiffLoading, setPullRequestDiffLoading] = useState(false);
+  const [fileDiffMode, setFileDiffMode] = useState<'working-tree' | 'commit' | null>(null);
+  const [hunkActionLoading, setHunkActionLoading] = useState<number | null>(null);
   const [showStashModal, setShowStashModal] = useState(false);
   const [stashMessage, setStashMessage] = useState('');
   const [stashPreviewState, setStashPreviewState] = useState<StashPreviewState | null>(null);
@@ -481,6 +488,8 @@ export default function GitCronPage() {
     setShowCleanModal(false);
     setCleanableFiles([]);
     setSelectedCleanFiles(new Set());
+    setFileDiffMode(null);
+    setHunkActionLoading(null);
   }, [repoPath]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -488,9 +497,9 @@ export default function GitCronPage() {
   useEffect(() => {
     let cancelled = false;
     const hydrateStartup = async () => {
-      bootstrapPreferences();
-      bootstrapGitHub();
-      await restoreLastRepo(); // silently tries to reopen the last repo; no-op if none saved
+      void bootstrapPreferences().catch(() => {});
+      void bootstrapGitHub().catch(() => {});
+      await restoreLastRepo().catch(() => {}); // silently tries to reopen the last repo; no-op if none saved
       if (cancelled) return;
       setIsStartupHydrated(true);
       if (!useGitStore.getState().repoPath) setIsStartupGraphReady(true);
@@ -635,6 +644,8 @@ export default function GitCronPage() {
     setIsTabChanging(true);
     setSelectedPullRequest(null);
     setPullRequestDiff(null);
+    setFileDiffMode('working-tree');
+    setHunkActionLoading(null);
     setSelectedFile(file);
     setTimeout(() => {
       setIsTabChanging(false);
@@ -646,6 +657,8 @@ export default function GitCronPage() {
   const handleOpenCommitFile = async (file: GitFile) => {
     if (!repoPath || !window.api || !selectedCommit) return;
     setIsTabChanging(true);
+    setFileDiffMode('commit');
+    setHunkActionLoading(null);
     const r = await window.api.gitDiffAtCommit(repoPath, file.path, selectedCommit.hash);
     if (r.success && r.data) {
       useGitStore.getState().setCurrentDiff(r.data);
@@ -662,6 +675,8 @@ export default function GitCronPage() {
     setSelectedCommit(null);
     setSelectedFile(null);
     setCurrentDiff('');
+    setFileDiffMode(null);
+    setHunkActionLoading(null);
     setSelectedPullRequest(pr);
     setPullRequestDiff(null);
     setPullRequestDiffLoading(true);
@@ -679,6 +694,33 @@ export default function GitCronPage() {
       setError(err?.message ?? t('prDiff.loadError'));
     } finally {
       setPullRequestDiffLoading(false);
+    }
+  };
+
+  const handleApplyHunk = async (hunkIndex: number, intent: HunkApplyIntent, selectedLines?: number[]) => {
+    if (!repoPath || !window.api || !selectedFile || !currentDiff) return;
+
+    setHunkActionLoading(hunkIndex);
+    setError(null);
+    try {
+      const fileDiff = parseUnifiedDiff(currentDiff);
+      const hunkPatch = buildHunkPatch(fileDiff, hunkIndex, { selectedLines });
+      const result = await window.api.gitApplyHunk(repoPath, selectedFile.path, hunkPatch, {
+        cached: intent === 'stage' || intent === 'unstage',
+        reverse: intent === 'unstage' || intent === 'discard',
+      });
+
+      if (!result.success) {
+        setError(result.error ?? t('diff.hunkApplyError'));
+        return;
+      }
+
+      await refreshStatus(repoPath);
+      await loadDiff(selectedFile.path, selectedFile.staged, repoPath);
+    } catch (err: any) {
+      setError(err?.message ?? t('diff.hunkApplyError'));
+    } finally {
+      setHunkActionLoading(null);
     }
   };
 
@@ -773,6 +815,8 @@ export default function GitCronPage() {
     setSelectedPullRequest(null);
     setPullRequestDiff(null);
     setPullRequestDiffLoading(false);
+    setFileDiffMode(null);
+    setHunkActionLoading(null);
     setTimeout(() => {
       setIsTabChanging(false);
     }, 150);
@@ -806,6 +850,8 @@ export default function GitCronPage() {
     setCurrentDiff('');
     setSelectedPullRequest(null);
     setPullRequestDiff(null);
+    setFileDiffMode(null);
+    setHunkActionLoading(null);
     setRepoStartMode('create');
     handleViewChange('repository');
     setShowRepoChooser(true);
@@ -1081,8 +1127,13 @@ export default function GitCronPage() {
               selectedFile,
               currentDiff,
               wordWrap,
+              fileDiffMode,
+              hunkActionLoading,
               onToggleWordWrap: () => setWordWrap(!wordWrap),
               onCloseDiff: handleCloseDiff,
+              onStageHunk: (hunkIndex, selectedLines) => void handleApplyHunk(hunkIndex, 'stage', selectedLines),
+              onUnstageHunk: (hunkIndex, selectedLines) => void handleApplyHunk(hunkIndex, 'unstage', selectedLines),
+              onDiscardHunk: (hunkIndex, selectedLines) => void handleApplyHunk(hunkIndex, 'discard', selectedLines),
               conflictFileLoading,
               conflictFileContent,
               isSaving: isLoading,

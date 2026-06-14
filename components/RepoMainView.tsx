@@ -12,6 +12,7 @@ import {
   HistoryView,
   PullRequestDiffView,
 } from '@/components/RepoContentViews';
+import type { HunkActionMode } from '@/components/DiffViewer';
 import { RepoStartPanel, type RepoStartMode } from '@/components/RepoModals';
 import { SettingsPanel, type SettingsPanelProps } from '@/components/SettingsPanel';
 import { HelpPanel, type HelpPanelProps } from '@/components/HelpPanel';
@@ -56,8 +57,13 @@ type DiffViewsProps = {
   selectedFile: GitFile | null;
   currentDiff: string;
   wordWrap: boolean;
+  fileDiffMode: 'working-tree' | 'commit' | null;
+  hunkActionLoading: number | null;
   onToggleWordWrap: () => void;
   onCloseDiff: () => void;
+  onStageHunk: (hunkIndex: number, selectedLines?: number[]) => void;
+  onUnstageHunk: (hunkIndex: number, selectedLines?: number[]) => void;
+  onDiscardHunk: (hunkIndex: number, selectedLines?: number[]) => void;
   conflictFileLoading: boolean;
   conflictFileContent: string;
   isSaving: boolean;
@@ -141,13 +147,23 @@ export function RepoMainView({
     );
   }
   if (diffViews.selectedFile) {
+    const hunkActionMode: HunkActionMode | undefined =
+      diffViews.fileDiffMode === 'working-tree'
+        ? diffViews.selectedFile.staged ? 'unstage' : 'stage'
+        : undefined;
+
     return (
       <FileDiffView
         file={diffViews.selectedFile}
         currentDiff={diffViews.currentDiff}
         wordWrap={diffViews.wordWrap}
+        hunkActionMode={hunkActionMode}
+        hunkActionLoading={diffViews.hunkActionLoading}
         onToggleWordWrap={diffViews.onToggleWordWrap}
         onBack={diffViews.onCloseDiff}
+        onStageHunk={diffViews.onStageHunk}
+        onUnstageHunk={diffViews.onUnstageHunk}
+        onDiscardHunk={diffViews.onDiscardHunk}
         conflictFileLoading={diffViews.conflictFileLoading}
         conflictFileContent={diffViews.conflictFileContent}
         isSaving={diffViews.isSaving}

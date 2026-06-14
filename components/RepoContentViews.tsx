@@ -1,12 +1,13 @@
 'use client';
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { FileText, ArrowLeft, ExternalLink, FileDiff, WrapText, AlignLeft, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { StatusBadge, FlowStep } from '@/components/HelpModal';
-import { DiffViewer } from '@/components/DiffViewer';
+import { DiffViewer, type HunkActionMode } from '@/components/DiffViewer';
 import { ConflictResolver } from '@/components/ConflictResolver';
+import { DangerConfirmDialog } from '@/components/DangerConfirmDialog';
 import { useT } from '@/hooks/use-translation';
 import type { Commit, GitFile } from '@/lib/git-store';
 import type { PullRequestDiffData, PullRequestEntry } from '@/types/electron';
@@ -332,8 +333,13 @@ type FileDiffViewProps = {
   file: GitFile;
   currentDiff: string;
   wordWrap: boolean;
+  hunkActionMode?: HunkActionMode;
+  hunkActionLoading?: number | null;
   onToggleWordWrap: () => void;
   onBack: () => void;
+  onStageHunk?: (hunkIndex: number, selectedLines?: number[]) => void;
+  onUnstageHunk?: (hunkIndex: number, selectedLines?: number[]) => void;
+  onDiscardHunk?: (hunkIndex: number, selectedLines?: number[]) => void;
   conflictFileLoading: boolean;
   conflictFileContent: string;
   isSaving: boolean;
@@ -349,14 +355,28 @@ export function FileDiffView({
   file,
   currentDiff,
   wordWrap,
+  hunkActionMode,
+  hunkActionLoading,
   onToggleWordWrap,
   onBack,
+  onStageHunk,
+  onUnstageHunk,
+  onDiscardHunk,
   conflictFileLoading,
   conflictFileContent,
   isSaving,
   onSaveConflict,
 }: FileDiffViewProps) {
   const t = useT();
+  const [pendingDiscardHunk, setPendingDiscardHunk] = useState<{ hunkIndex: number; selectedLines?: number[] } | null>(null);
+  const hasHunkActions = !!hunkActionMode && !file.conflicted;
+
+  const confirmDiscardHunk = () => {
+    if (!pendingDiscardHunk) return;
+    onDiscardHunk?.(pendingDiscardHunk.hunkIndex, pendingDiscardHunk.selectedLines);
+    setPendingDiscardHunk(null);
+  };
+
   return (
     <motion.div
       key={`file-diff-${file.path}-${file.staged}`}
@@ -368,10 +388,11 @@ export function FileDiffView({
     >
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle/15 bg-bg-base/70 shrink-0">
         <button
+          type="button"
           onClick={onBack}
           className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-secondary transition-colors"
         >
-          <ArrowLeft size={14} /> Volver al graph
+          <ArrowLeft size={14} /> {t('diff.backToGraph')}
         </button>
         <span className="text-text-secondary/70">/</span>
         <span className="text-xs text-text-primary font-mono truncate">{file.path}</span>
@@ -379,7 +400,7 @@ export function FileDiffView({
         <button
           type="button"
           onClick={onToggleWordWrap}
-          title={wordWrap ? "Ajuste de línea activo (Alt + Z) - Hacer clic para ver a lo largo" : "Ver a lo largo activo (Alt + Z) - Hacer clic para ajustar línea"}
+          title={wordWrap ? t('diff.wordWrapOn') : t('diff.wordWrapOff')}
           className={cn(
             "p-1 rounded border flex items-center justify-center transition-all cursor-pointer mr-1",
             wordWrap
@@ -417,7 +438,31 @@ export function FileDiffView({
           />
         )
       )}
-      <DiffViewer diff={currentDiff} filePath={file.path} wordWrap={wordWrap} />
+      <DiffViewer
+        diff={currentDiff}
+        filePath={file.path}
+        wordWrap={wordWrap}
+        hunkActions={hasHunkActions ? {
+          mode: hunkActionMode,
+          busyHunkIndex: hunkActionLoading,
+          onStageHunk,
+          onUnstageHunk,
+          onDiscardHunk: hunkActionMode === 'stage' && onDiscardHunk
+            ? (hunkIndex, selectedLines) => setPendingDiscardHunk({ hunkIndex, selectedLines })
+            : undefined,
+        } : undefined}
+      />
+      <DangerConfirmDialog
+        open={pendingDiscardHunk != null}
+        title={t('diff.discardHunkTitle')}
+        message={t('diff.discardHunkMessage')}
+        warning={t('diff.discardHunkWarning')}
+        confirmLabel={t('diff.discardHunkConfirm')}
+        cancelLabel={t('common.cancel')}
+        disabled={hunkActionLoading != null}
+        onCancel={() => setPendingDiscardHunk(null)}
+        onConfirm={confirmDiscardHunk}
+      />
     </motion.div>
   );
 }

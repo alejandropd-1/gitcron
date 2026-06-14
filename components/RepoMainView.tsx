@@ -19,6 +19,7 @@ import { RepoStartPanel, type RepoStartMode } from '@/components/RepoModals';
 import { SettingsPanel, type SettingsPanelProps } from '@/components/SettingsPanel';
 import { HelpPanel, type HelpPanelProps } from '@/components/HelpPanel';
 import { ProfilePanel, type ProfilePanelProps } from '@/components/ProfilePanel';
+import InteractiveRebasePanel from '@/components/InteractiveRebasePanel';
 import { FLOATING_PANEL_INSET, GRAPH_SAFE_GAP, type GraphColumnKey } from '@/hooks/use-panel-layout';
 import { useT } from '@/hooks/use-translation';
 import type { Commit, GitFile } from '@/lib/git-store';
@@ -130,6 +131,10 @@ export type RepoMainViewProps = {
   diffViews: DiffViewsProps;
   tabViews: TabViewsProps;
   graphView: GraphViewProps;
+  interactiveRebase: {
+    interactiveRebaseFrom: string | null;
+    setInteractiveRebaseFrom: (hash: string | null) => void;
+  };
 };
 
 export function RepoMainView({
@@ -142,7 +147,23 @@ export function RepoMainView({
   diffViews,
   tabViews,
   graphView,
+  interactiveRebase,
 }: RepoMainViewProps) {
+  if (interactiveRebase.interactiveRebaseFrom) {
+    return (
+      <InteractiveRebasePanel
+        baseCommitHash={interactiveRebase.interactiveRebaseFrom}
+        onClose={() => interactiveRebase.setInteractiveRebaseFrom(null)}
+        layoutProps={{
+          sidebarOpen: graphView.sidebarOpen,
+          sidebarW: graphView.sidebarW,
+          repositoryDetailsVisible: graphView.repositoryDetailsVisible,
+          detailsW: graphView.detailsW,
+          isDragging: graphView.isDragging,
+        }}
+      />
+    );
+  }
   if (activeView === 'settings') return <SettingsPanel {...settingsPanel} />;
   if (activeView === 'help') return <HelpPanel {...helpPanel} />;
   if (activeView === 'profile') return <ProfilePanel {...profilePanel} />;

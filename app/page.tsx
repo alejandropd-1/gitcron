@@ -1354,6 +1354,10 @@ export default function GitCronPage() {
               onToggleSpeculative: () => setShowSpeculative((v) => !v),
               onClearGraphSelection: handleClearGraphSelection,
             }}
+            interactiveRebase={{
+              interactiveRebaseFrom,
+              setInteractiveRebaseFrom,
+            }}
           />
         </main>
 
@@ -1377,7 +1381,7 @@ export default function GitCronPage() {
 
         {/* LCAR-29 right-side decorative panel — cronométrico only when Graph tab is active and no diff is open */}
         <LcarsDecorPanel
-          show={activeView === 'repository' && !isRepoStartView && activeGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest && !fileHistoryFile && !blameFile}
+          show={activeView === 'repository' && !isRepoStartView && activeGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest && !fileHistoryFile && !blameFile && !interactiveRebaseFrom}
         />
       </div>
 
@@ -1391,7 +1395,6 @@ export default function GitCronPage() {
       />
 
       <RepoOverlayLayer
-        interactiveRebaseFrom={interactiveRebaseFrom}
         setInteractiveRebaseFrom={setInteractiveRebaseFrom}
         isLoading={isLoading}
         currentBranch={currentBranch}

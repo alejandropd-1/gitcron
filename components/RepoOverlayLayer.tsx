@@ -122,6 +122,7 @@ export type RepoOverlayLayerProps = {
   fileContextMenu: FileMenuState;
   setFileContextMenu: (menu: FileMenuState) => void;
   onOpenFileHistory: (file: GitFile) => Promise<void> | void;
+  onOpenFileBlame: (file: GitFile) => Promise<void> | void;
   stageFile: (path: string, stage: boolean) => Promise<void | GitResult> | void | GitResult;
   stashFile: (path: string) => Promise<void | GitResult> | void | GitResult;
   addToGitignore: (path: string) => Promise<GitResult>;
@@ -359,6 +360,7 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
             file={props.fileContextMenu.file}
             onStage={() => { props.stageFile(props.fileContextMenu!.file.path, !props.fileContextMenu!.file.staged); props.setFileContextMenu(null); }}
             onOpenHistory={() => { props.onOpenFileHistory(props.fileContextMenu!.file); props.setFileContextMenu(null); }}
+            onOpenBlame={() => { props.onOpenFileBlame(props.fileContextMenu!.file); props.setFileContextMenu(null); }}
             onDiscard={() => { props.setDiscardConfirmFile(props.fileContextMenu!.file); props.setFileContextMenu(null); }}
             onStashFile={() => { props.stashFile(props.fileContextMenu!.file.path); props.setFileContextMenu(null); }}
             onIgnore={async () => {

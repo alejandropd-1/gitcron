@@ -7,6 +7,7 @@ import type { MouseEvent } from 'react';
 import { CommitGraph, type CommitSelectOptions } from '@/components/CommitGraph';
 import { GraphColumnHandle, DeferredPanelLoading } from '@/components/PageWidgets';
 import {
+  BlameView,
   CommitTabView,
   FileDiffView,
   FileHistoryView,
@@ -23,7 +24,7 @@ import { useT } from '@/hooks/use-translation';
 import type { Commit, GitFile } from '@/lib/git-store';
 import { cn } from '@/lib/utils';
 import type { SpeculativeBranch } from '@/types/temporal-agent';
-import type { FileHistoryEntry, PullRequestDiffData, PullRequestEntry } from '@/types/electron';
+import type { BlameLine, FileHistoryEntry, PullRequestDiffData, PullRequestEntry } from '@/types/electron';
 
 const ChronometricGraph = dynamic(
   () => import('@/components/ChronometricGraph').then((mod) => mod.ChronometricGraph),
@@ -62,11 +63,16 @@ type DiffViewsProps = {
   fileHistoryFile: GitFile | null;
   fileHistoryEntries: FileHistoryEntry[];
   fileHistoryLoading: boolean;
+  blameFile: GitFile | null;
+  blameLines: BlameLine[];
+  blameLoading: boolean;
+  selectedBlameLineNo: number | null;
   hunkActionLoading: number | null;
   onToggleWordWrap: () => void;
   onCloseDiff: () => void;
   onSelectFileHistoryEntry: (entry: FileHistoryEntry) => void;
   onFileHistoryContextMenu: (event: MouseEvent, entry: FileHistoryEntry) => void;
+  onSelectBlameLine: (line: BlameLine) => void;
   onStageHunk: (hunkIndex: number, selectedLines?: number[]) => void;
   onUnstageHunk: (hunkIndex: number, selectedLines?: number[]) => void;
   onDiscardHunk: (hunkIndex: number, selectedLines?: number[]) => void;
@@ -162,6 +168,18 @@ export function RepoMainView({
         onBack={diffViews.onCloseDiff}
         onSelect={diffViews.onSelectFileHistoryEntry}
         onContextMenu={diffViews.onFileHistoryContextMenu}
+      />
+    );
+  }
+  if (diffViews.blameFile) {
+    return (
+      <BlameView
+        file={diffViews.blameFile}
+        lines={diffViews.blameLines}
+        selectedLineNo={diffViews.selectedBlameLineNo}
+        isLoading={diffViews.blameLoading}
+        onBack={diffViews.onCloseDiff}
+        onSelectLine={diffViews.onSelectBlameLine}
       />
     );
   }

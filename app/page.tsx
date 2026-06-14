@@ -84,7 +84,7 @@ import { useT } from '@/hooks/use-translation';
 import { LANGS, type Lang } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useAppUpdate } from '@/hooks/use-app-update';
-import type { FileHistoryEntry, PullRequestDiffData, PullRequestEntry } from '@/types/electron';
+import type { BlameLine, FileHistoryEntry, PullRequestDiffData, PullRequestEntry } from '@/types/electron';
 import { buildHunkPatch, parseUnifiedDiff } from '@/lib/hunk-patch';
 
 const FONT_SIZE_OPTIONS: Array<{ key: FontSize; px: number }> = [
@@ -264,7 +264,6 @@ export default function GitCronPage() {
   const graphMode = getGraphMode(); // Always use premium floating layout
   const activeGraphMode = enableCronometric ? rawGraphMode : 'classic';
   const isRepoStartView = activeView === 'repository' && (!repoPath || showRepoChooser);
-  const isMainFullBleed = activeView === 'repository' && !isRepoStartView && activeTab === 'Graph' && !selectedFile && !selectedPullRequest;
 
   const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
     const activeRepo = useGitStore.getState().getActiveRepo();
@@ -370,6 +369,10 @@ export default function GitCronPage() {
   const [fileHistoryFile, setFileHistoryFile] = useState<GitFile | null>(null);
   const [fileHistoryEntries, setFileHistoryEntries] = useState<FileHistoryEntry[]>([]);
   const [fileHistoryLoading, setFileHistoryLoading] = useState(false);
+  const [blameFile, setBlameFile] = useState<GitFile | null>(null);
+  const [blameLines, setBlameLines] = useState<BlameLine[]>([]);
+  const [blameLoading, setBlameLoading] = useState(false);
+  const [selectedBlameLineNo, setSelectedBlameLineNo] = useState<number | null>(null);
   const [hunkActionLoading, setHunkActionLoading] = useState<number | null>(null);
   const [showStashModal, setShowStashModal] = useState(false);
   const [stashMessage, setStashMessage] = useState('');
@@ -393,6 +396,14 @@ export default function GitCronPage() {
   const [cleanableFiles, setCleanableFiles] = useState<string[]>([]);
   const [selectedCleanFiles, setSelectedCleanFiles] = useState<Set<string>>(() => new Set());
   const [cleanModalLoading, setCleanModalLoading] = useState(false);
+  const isMainFullBleed =
+    activeView === 'repository'
+    && !isRepoStartView
+    && activeTab === 'Graph'
+    && !selectedFile
+    && !selectedPullRequest
+    && !fileHistoryFile
+    && !blameFile;
 
   const openContextMenu = (menu: { x: number; y: number; hash?: string } | null) => {
     setFileContextMenu(null);
@@ -495,6 +506,10 @@ export default function GitCronPage() {
     setFileHistoryFile(null);
     setFileHistoryEntries([]);
     setFileHistoryLoading(false);
+    setBlameFile(null);
+    setBlameLines([]);
+    setBlameLoading(false);
+    setSelectedBlameLineNo(null);
     setHunkActionLoading(null);
   }, [repoPath]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -652,6 +667,9 @@ export default function GitCronPage() {
     setPullRequestDiff(null);
     setFileHistoryFile(null);
     setFileHistoryEntries([]);
+    setBlameFile(null);
+    setBlameLines([]);
+    setSelectedBlameLineNo(null);
     setFileDiffMode('working-tree');
     setHunkActionLoading(null);
     setSelectedFile(file);
@@ -667,6 +685,9 @@ export default function GitCronPage() {
     setIsTabChanging(true);
     setFileHistoryFile(null);
     setFileHistoryEntries([]);
+    setBlameFile(null);
+    setBlameLines([]);
+    setSelectedBlameLineNo(null);
     setFileDiffMode('commit');
     setHunkActionLoading(null);
     const r = await window.api.gitDiffAtCommit(repoPath, file.path, selectedCommit.hash);
@@ -688,6 +709,9 @@ export default function GitCronPage() {
     setCurrentDiff('');
     setFileDiffMode(null);
     setHunkActionLoading(null);
+    setBlameFile(null);
+    setBlameLines([]);
+    setSelectedBlameLineNo(null);
     setFileHistoryFile(file);
     setFileHistoryEntries([]);
     setFileHistoryLoading(true);
@@ -717,6 +741,9 @@ export default function GitCronPage() {
     setPullRequestDiffLoading(false);
     setFileDiffMode('commit');
     setHunkActionLoading(null);
+    setBlameFile(null);
+    setBlameLines([]);
+    setSelectedBlameLineNo(null);
     setSelectedCommit(entry);
     setFileHistoryFile(null);
     setFileHistoryEntries([]);
@@ -734,6 +761,55 @@ export default function GitCronPage() {
     }, 150);
   };
 
+  const handleOpenFileBlame = async (file: GitFile) => {
+    if (!repoPath || !window.api) return;
+    setIsTabChanging(true);
+    setSelectedPullRequest(null);
+    setPullRequestDiff(null);
+    setSelectedFile(null);
+    setCurrentDiff('');
+    setFileDiffMode(null);
+    setFileHistoryFile(null);
+    setFileHistoryEntries([]);
+    setHunkActionLoading(null);
+    setBlameFile(file);
+    setBlameLines([]);
+    setSelectedBlameLineNo(null);
+    setBlameLoading(true);
+    setTimeout(() => {
+      setIsTabChanging(false);
+    }, 150);
+
+    try {
+      const result = await window.api.gitBlame(repoPath, file.path);
+      if (result.success) {
+        setBlameLines(result.data ?? []);
+      } else {
+        setError(result.error ?? t('blame.loadError'));
+      }
+    } catch (err: any) {
+      setError(err?.message ?? t('blame.loadError'));
+    } finally {
+      setBlameLoading(false);
+    }
+  };
+
+  const handleSelectBlameLine = (line: BlameLine) => {
+    setSelectedBlameLineNo(line.lineNo);
+    if (line.isUncommitted) return;
+
+    const existingCommit = commits.find((commit) => commit.hash === line.commitHash);
+    setSelectedCommit(existingCommit ?? {
+      hash: line.commitHash,
+      shortHash: line.shortHash,
+      message: line.summary,
+      authorName: line.author,
+      authorEmail: line.authorEmail ?? '',
+      date: line.authorTime,
+      parents: [],
+    });
+  };
+
   const handleSelectPullRequest = async (pr: PullRequestEntry) => {
     if (!repoPath || !githubToken || !window.api) return;
     setIsTabChanging(true);
@@ -742,6 +818,9 @@ export default function GitCronPage() {
     setCurrentDiff('');
     setFileHistoryFile(null);
     setFileHistoryEntries([]);
+    setBlameFile(null);
+    setBlameLines([]);
+    setSelectedBlameLineNo(null);
     setFileDiffMode(null);
     setHunkActionLoading(null);
     setSelectedPullRequest(pr);
@@ -886,6 +965,10 @@ export default function GitCronPage() {
     setFileHistoryFile(null);
     setFileHistoryEntries([]);
     setFileHistoryLoading(false);
+    setBlameFile(null);
+    setBlameLines([]);
+    setBlameLoading(false);
+    setSelectedBlameLineNo(null);
     setHunkActionLoading(null);
     setTimeout(() => {
       setIsTabChanging(false);
@@ -922,6 +1005,9 @@ export default function GitCronPage() {
     setPullRequestDiff(null);
     setFileHistoryFile(null);
     setFileHistoryEntries([]);
+    setBlameFile(null);
+    setBlameLines([]);
+    setSelectedBlameLineNo(null);
     setFileDiffMode(null);
     setHunkActionLoading(null);
     setRepoStartMode('create');
@@ -956,6 +1042,10 @@ export default function GitCronPage() {
     setFileHistoryFile(null);
     setFileHistoryEntries([]);
     setFileHistoryLoading(false);
+    setBlameFile(null);
+    setBlameLines([]);
+    setBlameLoading(false);
+    setSelectedBlameLineNo(null);
     setActiveRepoIdx(idx);
     if (window.api) {
       await Promise.all([
@@ -1206,11 +1296,16 @@ export default function GitCronPage() {
               fileHistoryFile,
               fileHistoryEntries,
               fileHistoryLoading,
+              blameFile,
+              blameLines,
+              blameLoading,
+              selectedBlameLineNo,
               hunkActionLoading,
               onToggleWordWrap: () => setWordWrap(!wordWrap),
               onCloseDiff: handleCloseDiff,
               onSelectFileHistoryEntry: handleSelectFileHistoryEntry,
               onFileHistoryContextMenu: (event, entry) => openContextMenu({ x: event.clientX, y: event.clientY, hash: entry.hash }),
+              onSelectBlameLine: handleSelectBlameLine,
               onStageHunk: (hunkIndex, selectedLines) => void handleApplyHunk(hunkIndex, 'stage', selectedLines),
               onUnstageHunk: (hunkIndex, selectedLines) => void handleApplyHunk(hunkIndex, 'unstage', selectedLines),
               onDiscardHunk: (hunkIndex, selectedLines) => void handleApplyHunk(hunkIndex, 'discard', selectedLines),
@@ -1281,7 +1376,7 @@ export default function GitCronPage() {
 
         {/* LCAR-29 right-side decorative panel — cronométrico only when Graph tab is active and no diff is open */}
         <LcarsDecorPanel
-          show={activeView === 'repository' && !isRepoStartView && activeGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest}
+          show={activeView === 'repository' && !isRepoStartView && activeGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest && !fileHistoryFile && !blameFile}
         />
       </div>
 
@@ -1387,6 +1482,7 @@ export default function GitCronPage() {
         fileContextMenu={fileContextMenu}
         setFileContextMenu={setFileContextMenu}
         onOpenFileHistory={handleOpenFileHistory}
+        onOpenFileBlame={handleOpenFileBlame}
         stageFile={stageFile}
         stashFile={stashFile}
         addToGitignore={addToGitignore}

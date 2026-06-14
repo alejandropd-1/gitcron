@@ -124,3 +124,37 @@ Estado: completada. STOP para OK antes de TANDA 3.
 - UI central para blame.
 - Accion de menu o boton para abrir blame desde archivo.
 - Seleccion visual de lineas y enlace/detalle de commit.
+
+## TANDA 3 — Blame UI
+
+Estado: completada. STOP para OK antes de cierre/commit.
+
+### Cambios realizados
+
+- Agregada entrada de menu contextual `Ver blame del archivo`.
+  - Visible solo para archivos trackeados/no-untracked.
+  - Cableada desde `ContextMenus` -> `RepoOverlayLayer` -> `app/page.tsx`.
+- Agregada vista central `BlameView` en `components/RepoContentViews.tsx`.
+  - Header con volver, path y badge de blame.
+  - Tabla densa por linea: commit, autor, fecha, numero y contenido.
+  - Color del hash por antiguedad:
+    - uncommitted: git-mod.
+    - reciente: secondary.
+    - medio: primary.
+    - antiguo/desconocido: texto secundario.
+  - Estados de loading y empty.
+- Integrado `gitBlame(repoPath, file.path)` en `app/page.tsx`.
+  - Limpia PR/diff/history al abrir blame.
+  - Limpia blame al abrir diff, PR, chooser o cambiar repo.
+  - Click en linea selecciona visualmente la linea y selecciona el commit asociado.
+  - Lineas uncommitted no intentan seleccionar commit.
+- Ajustado `isMainFullBleed` y `LcarsDecorPanel` para que file-history/blame se muestren como vistas centrales en panel, no como graph full-bleed.
+- Agregadas claves i18n ES/EN/ZH para `fileMenu.blame` y `blame.*`.
+
+### No tocado
+
+- No se modifico geometria del graph.
+- No se agregaron escrituras Git.
+- No Temporal Agent.
+- No Electron DB.
+- No README/CHANGELOG.

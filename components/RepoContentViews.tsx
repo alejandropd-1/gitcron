@@ -10,7 +10,7 @@ import { ConflictResolver } from '@/components/ConflictResolver';
 import { DangerConfirmDialog } from '@/components/DangerConfirmDialog';
 import { useT } from '@/hooks/use-translation';
 import type { Commit, GitFile } from '@/lib/git-store';
-import type { FileHistoryEntry, PullRequestDiffData, PullRequestEntry } from '@/types/electron';
+import type { BlameLine, FileHistoryEntry, PullRequestDiffData, PullRequestEntry } from '@/types/electron';
 import { cn } from '@/lib/utils';
 import { formatDate, formatInitials } from '@/lib/display-format';
 
@@ -183,6 +183,98 @@ export function FileHistoryView({
       />
     </motion.div>
   );
+}
+
+type BlameViewProps = {
+  file: GitFile;
+  lines: BlameLine[];
+  selectedLineNo?: number | null;
+  isLoading: boolean;
+  onBack: () => void;
+  onSelectLine: (line: BlameLine) => void;
+};
+
+export function BlameView({
+  file,
+  lines,
+  selectedLineNo,
+  isLoading,
+  onBack,
+  onSelectLine,
+}: BlameViewProps) {
+  const t = useT();
+
+  return (
+    <motion.div
+      key={`file-blame-${file.path}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className="flex-1 flex flex-col overflow-hidden"
+    >
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle/15 bg-bg-base/70 shrink-0">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-secondary transition-colors"
+        >
+          <ArrowLeft size={14} /> {t('blame.back')}
+        </button>
+        <span className="text-text-secondary/70">/</span>
+        <span className="text-xs text-text-primary font-mono truncate">{file.path}</span>
+        <div className="flex-1" />
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/25 font-bold">
+          {t('blame.title')}
+        </span>
+      </div>
+      <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 grid grid-cols-[9rem_8rem_7rem_4rem_minmax(0,1fr)] gap-2 py-2 px-4 text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
+        <span>{t('blame.commit')}</span>
+        <span>{t('blame.author')}</span>
+        <span>{t('blame.age')}</span>
+        <span className="text-right">{t('blame.line')}</span>
+        <span>{t('blame.content')}</span>
+      </div>
+      <div className="flex-1 overflow-y-auto font-mono text-xs">
+        {lines.length === 0 && isLoading && (
+          <p className="px-4 py-8 text-center text-text-secondary text-sm font-sans">{t('blame.loading')}</p>
+        )}
+        {lines.length === 0 && !isLoading && (
+          <p className="px-4 py-8 text-center text-text-secondary text-sm font-sans">{t('blame.empty')}</p>
+        )}
+        {lines.map((line) => {
+          const isSelected = selectedLineNo === line.lineNo;
+          return (
+            <button
+              key={`${line.lineNo}-${line.commitHash}`}
+              type="button"
+              onClick={() => onSelectLine(line)}
+              className={cn(
+                'w-full grid grid-cols-[9rem_8rem_7rem_4rem_minmax(0,1fr)] gap-2 px-4 py-1.5 border-b border-border-subtle/10 text-left transition-colors select-text',
+                isSelected ? 'bg-secondary/12' : 'hover:bg-bg-surface/70',
+              )}
+            >
+              <span className={cn('truncate', blameAccentClass(line))}>{line.shortHash}</span>
+              <span className="truncate text-text-secondary">{line.author || t('blame.unknown')}</span>
+              <span className="truncate text-text-secondary/75">{formatDate(line.authorTime)}</span>
+              <span className="text-right text-text-secondary/60 tabular-nums">{line.lineNo}</span>
+              <span className="min-w-0 whitespace-pre-wrap break-words text-text-primary">{line.content || ' '}</span>
+            </button>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
+function blameAccentClass(line: BlameLine): string {
+  if (line.isUncommitted) return 'text-git-mod';
+  const timestamp = Date.parse(line.authorTime);
+  if (!Number.isFinite(timestamp)) return 'text-primary';
+  const ageDays = (Date.now() - timestamp) / 86_400_000;
+  if (ageDays <= 14) return 'text-secondary';
+  if (ageDays <= 180) return 'text-primary';
+  return 'text-text-secondary';
 }
 
 type CommitTabViewProps = {

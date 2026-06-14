@@ -148,12 +148,12 @@ function BranchContextMenu({
 export function FileContextMenu({
   x, y, file,
   onStage, onDiscard, onStashFile, onIgnore,
-  onOpenHistory, onOpenInEditor, onShowInFolder, onCopyPath, onDelete, onClose,
+  onOpenHistory, onOpenBlame, onOpenInEditor, onShowInFolder, onCopyPath, onDelete, onClose,
 }: {
   x: number; y: number; file: GitFile;
   onStage: () => void; onDiscard: () => void; onStashFile: () => void;
   onIgnore: () => void; onOpenInEditor: () => void; onShowInFolder: () => void;
-  onOpenHistory: () => void; onCopyPath: () => void; onDelete: () => void; onClose: () => void;
+  onOpenHistory: () => void; onOpenBlame: () => void; onCopyPath: () => void; onDelete: () => void; onClose: () => void;
 }) {
   const t = useT();
   const { ref, coords, isMeasured } = useAdjustedPosition(x, y);
@@ -172,6 +172,7 @@ export function FileContextMenu({
     >
       <ContextMenuItem onClick={onStage} text={file.staged ? 'Unstage' : 'Stage'} />
       <ContextMenuItem onClick={onOpenHistory} text={t('fileMenu.history')} />
+      {file.status !== 'untracked' && <ContextMenuItem onClick={onOpenBlame} text={t('fileMenu.blame')} />}
       <ContextMenuItem onClick={onIgnore} text="Agregar a .gitignore" />
       <ContextMenuItem onClick={onStashFile} text="Stashear este archivo" />
       <div className="h-px bg-border-subtle/20 my-1" />

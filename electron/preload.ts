@@ -74,6 +74,16 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:cherry-pick', repoPath, hash),
   gitSquash: (repoPath: string, n: number, message: string) =>
     ipcRenderer.invoke('git:squash', repoPath, n, message),
+  gitRebasePrepare: (repoPath: string, commitHash: string) =>
+    ipcRenderer.invoke('git:rebase-prepare', repoPath, commitHash),
+  gitRebaseStart: (repoPath: string, baseHash: string, plan: any[]) =>
+    ipcRenderer.invoke('git:rebase-start', repoPath, baseHash, plan),
+  gitRebaseContinue: (repoPath: string) =>
+    ipcRenderer.invoke('git:rebase-continue', repoPath),
+  gitRebaseAbort: (repoPath: string) =>
+    ipcRenderer.invoke('git:rebase-abort', repoPath),
+  gitRebaseUndo: (repoPath: string, targetRef: string) =>
+    ipcRenderer.invoke('git:rebase-undo', repoPath, targetRef),
   gitShowFiles: (repoPath: string, hash: string) =>
     ipcRenderer.invoke('git:show-files', repoPath, hash),
   gitDiffAtCommit: (repoPath: string, filePath: string, hash: string) =>

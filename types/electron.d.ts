@@ -16,6 +16,24 @@ interface GitResult<T = unknown> {
   isAuthError?: boolean;
   status?: number;
   mergeInProgress?: boolean;
+  rebaseInProgress?: boolean;
+}
+
+export interface RebaseCommitInfo {
+  hash: string;
+  shortHash: string;
+  author: string;
+  date: string;
+  subject: string;
+  isPushed: boolean;
+}
+
+export type RebaseAction = 'pick' | 'reword' | 'squash' | 'fixup' | 'drop';
+
+export interface RebasePlanItem {
+  hash: string;
+  action: RebaseAction;
+  newMessage?: string;
 }
 
 
@@ -220,6 +238,15 @@ interface ElectronAPI {
   gitAmend: (repoPath: string, newMessage?: string) => Promise<GitResult<{ hash: string; shortHash: string }>>;
   gitCherryPick: (repoPath: string, hash: string) => Promise<GitResult>;
   gitSquash: (repoPath: string, n: number, message: string) => Promise<GitResult<{ hash: string; shortHash: string }>>;
+  gitRebasePrepare: (repoPath: string, commitHash: string) => Promise<GitResult<RebaseCommitInfo[]>>;
+  gitRebaseStart: (
+    repoPath: string,
+    baseHash: string,
+    plan: RebasePlanItem[],
+  ) => Promise<GitResult<{ success: boolean; conflict?: boolean }>>;
+  gitRebaseContinue: (repoPath: string) => Promise<GitResult<{ success: boolean; conflict?: boolean }>>;
+  gitRebaseAbort: (repoPath: string) => Promise<GitResult>;
+  gitRebaseUndo: (repoPath: string, targetRef: string) => Promise<GitResult>;
   gitShowFiles: (repoPath: string, hash: string) => Promise<GitResult<StatusFile[]>>;
   gitDiffAtCommit: (repoPath: string, filePath: string, hash: string) => Promise<GitResult<string>>;
   gitFileHistory: (repoPath: string, filePath: string, limit?: number) => Promise<GitResult<FileHistoryEntry[]>>;

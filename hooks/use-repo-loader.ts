@@ -55,6 +55,7 @@ export const useRepoLoader = () => {
   const setWorktrees = useGitStore((state) => state.setWorktrees);
   const setPullRequests = useGitStore((state) => state.setPullRequests);
   const setMergeInProgress = useGitStore((state) => state.setMergeInProgress);
+  const setRebaseInProgress = useGitStore((state) => state.setRebaseInProgress);
   const updateRepoByPath = useGitStore((state) => state.updateRepoByPath);
   const addOrActivateRepo = useGitStore((state) => state.addOrActivateRepo);
   const setActiveRepoIdx = useGitStore((state) => state.setActiveRepoIdx);
@@ -311,9 +312,11 @@ export const useRepoLoader = () => {
       if (result.success && result.data) {
         const modifiedFiles = result.data as StatusFile[];
         const mergeInProgress = result.mergeInProgress ?? false;
-        writeRepoData(ctx, { modifiedFiles, mergeInProgress }, () => {
+        const rebaseInProgress = (result as any).rebaseInProgress ?? false;
+        writeRepoData(ctx, { modifiedFiles, mergeInProgress, rebaseInProgress }, () => {
           setModifiedFiles(modifiedFiles);
           setMergeInProgress(mergeInProgress);
+          setRebaseInProgress(rebaseInProgress);
         });
       }
     } catch (err: any) { console.error('refreshStatus error:', err); }

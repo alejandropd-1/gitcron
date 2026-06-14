@@ -6,6 +6,7 @@
 import { useGitStore } from '@/lib/git-store';
 import { useRepoLoader } from '../use-repo-loader';
 import { tNow as t } from '../use-translation';
+import type { GitResult, RebaseCommitInfo, RebasePlanItem } from '@/types/electron';
 
 export const useHistoryActions = () => {
   const {
@@ -195,6 +196,113 @@ export const useHistoryActions = () => {
     }
   };
 
+  const prepareInteractiveRebase = async (commitHash: string): Promise<GitResult<RebaseCommitInfo[]>> => {
+    if (!window.api || !repoPath) return { success: false, error: 'no api' };
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitRebasePrepare(repoPath, commitHash);
+      return r;
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Error al preparar rebase' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startInteractiveRebase = async (baseHash: string, plan: RebasePlanItem[]): Promise<GitResult<{ success: boolean; conflict?: boolean }>> => {
+    if (!window.api || !repoPath) return { success: false, error: 'no api' };
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitRebaseStart(repoPath, baseHash, plan);
+      if (r.success) {
+        setSuccess('Rebase completado con éxito');
+        await refreshLog();
+        await refreshStatus();
+        await refreshBranches();
+      } else if (r.data?.conflict) {
+        setError('Rebase detenido por conflictos. Resolvé los conflictos y continuá.');
+        await refreshStatus();
+      } else {
+        setError(r.error ?? 'Error al iniciar rebase');
+      }
+      return r;
+    } catch (err: any) {
+      setError(err.message || 'Error al iniciar rebase');
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const continueInteractiveRebase = async (): Promise<GitResult<{ success: boolean; conflict?: boolean }>> => {
+    if (!window.api || !repoPath) return { success: false, error: 'no api' };
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitRebaseContinue(repoPath);
+      if (r.success) {
+        setSuccess('Rebase continuado con éxito');
+        await refreshLog();
+        await refreshStatus();
+        await refreshBranches();
+      } else if (r.data?.conflict) {
+        setError('Rebase detenido por conflictos. Resolvé los conflictos y continuá.');
+        await refreshStatus();
+      } else {
+        setError(r.error ?? 'Error al continuar rebase');
+      }
+      return r;
+    } catch (err: any) {
+      setError(err.message || 'Error al continuar rebase');
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const abortInteractiveRebase = async (): Promise<GitResult> => {
+    if (!window.api || !repoPath) return { success: false, error: 'no api' };
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitRebaseAbort(repoPath);
+      if (r.success) {
+        setSuccess('Rebase abortado con éxito');
+        await refreshLog();
+        await refreshStatus();
+        await refreshBranches();
+      } else {
+        setError(r.error ?? 'Error al abortar rebase');
+      }
+      return r;
+    } catch (err: any) {
+      setError(err.message || 'Error al abortar rebase');
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const undoInteractiveRebase = async (targetRef: string): Promise<GitResult> => {
+    if (!window.api || !repoPath) return { success: false, error: 'no api' };
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitRebaseUndo(repoPath, targetRef);
+      if (r.success) {
+        setSuccess('Rebase deshecho con éxito');
+        await refreshLog();
+        await refreshStatus();
+        await refreshBranches();
+      } else {
+        setError(r.error ?? 'Error al deshacer rebase');
+      }
+      return r;
+    } catch (err: any) {
+      setError(err.message || 'Error al deshacer rebase');
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     revertCommit,
     resetToCommit,
@@ -204,5 +312,10 @@ export const useHistoryActions = () => {
     resolveConflict,
     loadConflictFile,
     resolveConflictContent,
+    prepareInteractiveRebase,
+    startInteractiveRebase,
+    continueInteractiveRebase,
+    abortInteractiveRebase,
+    undoInteractiveRebase,
   };
 };

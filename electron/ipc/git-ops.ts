@@ -195,15 +195,20 @@ export function registerGitOpsHandlers(): void {
       }
 
       let mergeInProgress = false;
+      let rebaseInProgress = false;
       try {
         const gitDir = (await g.revparse(['--git-dir'])).trim();
         const mergeHeadPath = path.isAbsolute(gitDir) ? path.join(gitDir, 'MERGE_HEAD') : path.join(targetPath, gitDir, 'MERGE_HEAD');
         mergeInProgress = fs.existsSync(mergeHeadPath);
+
+        const rebaseMergeDir = path.isAbsolute(gitDir) ? path.join(gitDir, 'rebase-merge') : path.join(targetPath, gitDir, 'rebase-merge');
+        const rebaseApplyDir = path.isAbsolute(gitDir) ? path.join(gitDir, 'rebase-apply') : path.join(targetPath, gitDir, 'rebase-apply');
+        rebaseInProgress = fs.existsSync(rebaseMergeDir) || fs.existsSync(rebaseApplyDir);
       } catch (e) {
-        console.error('Error checking merge progress:', e);
+        console.error('Error checking merge/rebase progress:', e);
       }
 
-      return { success: true, data: Array.from(seen.values()), mergeInProgress };
+      return { success: true, data: Array.from(seen.values()), mergeInProgress, rebaseInProgress };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };
     }
@@ -752,6 +757,300 @@ export function registerGitOpsHandlers(): void {
       return { success: false, error: errMsg(error) };
     }
   });
+
+  // Rebase helper script content written dynamically to .git/gitcron-rebase-helper.js
+  const helperScriptContent = `const fs = require('fs');
+const path = require('path');
+
+const mode = process.argv[2]; // 'sequence' or 'editor'
+const targetFile = process.argv[process.argv.length - 1]; // The file to edit
+const planPath = process.env.GITCRON_REBASE_PLAN_PATH;
+
+if (!planPath || !fs.existsSync(planPath)) {
+  process.exit(0);
+}
+
+const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+
+if (mode === 'sequence') {
+  const todoContent = fs.readFileSync(targetFile, 'utf8');
+  const lines = todoContent.split('\\n');
+  const actionLines = [];
+  const otherLines = [];
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      otherLines.push(line);
+      return;
+    }
+    const match = trimmed.match(/^(\\w+)\\s+([0-9a-fA-F]+)\\s+(.*)$/);
+    if (match) {
+      actionLines.push({
+        action: match[1],
+        sha: match[2],
+        subject: match[3],
+        originalLine: line
+      });
+    } else {
+      otherLines.push(line);
+    }
+  });
+
+  const newTodoLines = [];
+  plan.forEach(planItem => {
+    const targetSha = planItem.hash.toLowerCase();
+    const matched = actionLines.find(al => targetSha.startsWith(al.sha.toLowerCase()) || al.sha.toLowerCase().startsWith(targetSha));
+    if (matched) {
+      if (planItem.action !== 'drop') {
+        newTodoLines.push(\`\${planItem.action} \${matched.sha} \${matched.subject}\`);
+      } else {
+        newTodoLines.push(\`# drop \${matched.sha} \${matched.subject}\`);
+      }
+    }
+  });
+
+  const result = newTodoLines.join('\\n') + '\\n' + otherLines.join('\\n');
+  fs.writeFileSync(targetFile, result, 'utf8');
+  process.exit(0);
+
+} else if (mode === 'editor') {
+  const gitDir = path.dirname(targetFile);
+  const rebaseMergeDir = path.join(gitDir, 'rebase-merge');
+  if (fs.existsSync(rebaseMergeDir)) {
+    const donePath = path.join(rebaseMergeDir, 'done');
+    if (fs.existsSync(donePath)) {
+      const doneContent = fs.readFileSync(donePath, 'utf8').trim();
+      const doneLines = doneContent.split('\\n').filter(Boolean);
+      if (doneLines.length > 0) {
+        const lastLine = doneLines[doneLines.length - 1];
+        const match = lastLine.match(/^(\\w+)\\s+([0-9a-fA-F]+)/);
+        if (match) {
+          const currentSha = match[2];
+          const planItem = plan.find(item => item.hash.toLowerCase().startsWith(currentSha.toLowerCase()) || currentSha.toLowerCase().startsWith(item.hash.toLowerCase()));
+          if (planItem && planItem.newMessage) {
+            fs.writeFileSync(targetFile, planItem.newMessage, 'utf8');
+            process.exit(0);
+          }
+        }
+      }
+    }
+  }
+  process.exit(0);
+}
+`;
+
+  function cleanupRebaseFiles(repoPath: string, gitDir: string) {
+    try {
+      const absoluteGitDir = path.isAbsolute(gitDir) ? gitDir : path.join(repoPath, gitDir);
+      const helperPath = path.join(absoluteGitDir, 'gitcron-rebase-helper.js');
+      const planPath = path.join(absoluteGitDir, 'gitcron-rebase-plan.json');
+      if (fs.existsSync(helperPath)) fs.unlinkSync(helperPath);
+      if (fs.existsSync(planPath)) fs.unlinkSync(planPath);
+    } catch (e) {
+      console.error('Error cleaning up rebase helper files:', e);
+    }
+  }
+
+  async function isRebaseInProgress(g: any, targetPath: string): Promise<boolean> {
+    try {
+      const gitDir = (await g.revparse(['--git-dir'])).trim();
+      const rebaseMergeDir = path.isAbsolute(gitDir) ? gitDir : path.join(targetPath, gitDir, 'rebase-merge');
+      const rebaseApplyDir = path.isAbsolute(gitDir) ? gitDir : path.join(targetPath, gitDir, 'rebase-apply');
+      return fs.existsSync(rebaseMergeDir) || fs.existsSync(rebaseApplyDir);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Prepares the list of commits to rebase and checks their pushed status
+  ipcMain.handle('git:rebase-prepare', async (_event, targetPath: string, commitHash: string) => {
+    try {
+      if (!/^[0-9a-f]{7,40}$/i.test(commitHash)) {
+        return { success: false, error: 'Hash inválido' };
+      }
+      const g = simpleGit(targetPath);
+      
+      let logLines: string[] = [];
+      try {
+        // Check if commitHash~1 exists to define range
+        await g.revparse([`${commitHash}~1`]);
+        const output = await g.raw(['log', '--format=%H|%h|%an|%ad|%s', `${commitHash}~1..HEAD`]);
+        logLines = output.trim().split('\n').filter(Boolean);
+      } catch (e) {
+        // Root commit: fetch all commits up to HEAD
+        const output = await g.raw(['log', '--format=%H|%h|%an|%ad|%s', 'HEAD']);
+        logLines = output.trim().split('\n').filter(Boolean);
+      }
+
+      const commits = logLines.map(line => {
+        const [hash, shortHash, author, date, subject] = line.split('|');
+        return {
+          hash,
+          shortHash,
+          author,
+          date,
+          subject,
+          isPushed: false
+        };
+      });
+
+      // Find local-only commits to determine pushed status
+      const localOnlyShas = new Set<string>();
+      try {
+        const upstream = (await g.revparse(['--abbrev-ref', '@{upstream}'])).trim();
+        if (upstream && upstream !== '@{upstream}') {
+          const localOnlyOutput = await g.raw(['log', '--format=%H', `${upstream}..HEAD`]);
+          localOnlyOutput.split('\n').forEach(sha => {
+            const trimmed = sha.trim().toLowerCase();
+            if (trimmed) localOnlyShas.add(trimmed);
+          });
+        }
+      } catch (e) {
+        // No upstream, all commits are local-only
+      }
+
+      commits.forEach(c => {
+        c.isPushed = !localOnlyShas.has(c.hash.toLowerCase());
+      });
+
+      return { success: true, data: commits };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // Starts the visual interactive rebase
+  ipcMain.handle('git:rebase-start', async (_event, targetPath: string, baseHash: string, plan: any[]) => {
+    let gitDir = '.git';
+    try {
+      const g = simpleGit({
+        baseDir: targetPath,
+        unsafe: {
+          allowUnsafeEditor: true
+        }
+      });
+      gitDir = (await g.revparse(['--git-dir'])).trim();
+      const absoluteGitDir = path.isAbsolute(gitDir) ? gitDir : path.join(targetPath, gitDir);
+      
+      const helperPath = path.join(absoluteGitDir, 'gitcron-rebase-helper.js');
+      const planPath = path.join(absoluteGitDir, 'gitcron-rebase-plan.json');
+
+      // 1. Create safety backup ref and tag
+      const timestamp = Date.now();
+      const backupTagName = `gitcron/pre-rebase/${timestamp}`;
+      await g.raw(['tag', backupTagName, 'HEAD']);
+      await g.raw(['update-ref', 'refs/gitcron/pre-rebase', 'HEAD']);
+
+      // 2. Write helper files
+      fs.writeFileSync(helperPath, helperScriptContent, 'utf8');
+      fs.writeFileSync(planPath, JSON.stringify(plan), 'utf8');
+
+      // 3. Execute git rebase -i baseHash
+      const rebaseEnv = {
+        ...process.env,
+        GIT_SEQUENCE_EDITOR: `node "${helperPath}" sequence`,
+        GIT_EDITOR: `node "${helperPath}" editor`,
+        GITCRON_REBASE_PLAN_PATH: planPath
+      };
+
+      await g.env(rebaseEnv).raw(['rebase', '-i', baseHash]);
+
+      // If rebase finishes immediately with no errors, clean up helper files
+      cleanupRebaseFiles(targetPath, gitDir);
+      return { success: true };
+
+    } catch (error: any) {
+      const g = simpleGit(targetPath);
+      const isPaused = await isRebaseInProgress(g, targetPath);
+      if (isPaused) {
+        // Paused for conflicts. Keep helper files so rebase --continue works!
+        const msg = sanitizeForLog(error.message || String(error));
+        return { success: false, data: { conflict: true }, error: msg };
+      } else {
+        // Complete failure, clean up immediately
+        cleanupRebaseFiles(targetPath, gitDir);
+        return { success: false, error: errMsg(error) };
+      }
+    }
+  });
+
+  // Continues the rebase after conflict resolution
+  ipcMain.handle('git:rebase-continue', async (_event, targetPath: string) => {
+    let gitDir = '.git';
+    try {
+      const g = simpleGit({
+        baseDir: targetPath,
+        unsafe: {
+          allowUnsafeEditor: true
+        }
+      });
+      gitDir = (await g.revparse(['--git-dir'])).trim();
+      const absoluteGitDir = path.isAbsolute(gitDir) ? gitDir : path.join(targetPath, gitDir);
+      
+      const helperPath = path.join(absoluteGitDir, 'gitcron-rebase-helper.js');
+      const planPath = path.join(absoluteGitDir, 'gitcron-rebase-plan.json');
+
+      if (!fs.existsSync(helperPath) || !fs.existsSync(planPath)) {
+        return { success: false, error: 'Rebase helper files not found' };
+      }
+
+      const rebaseEnv = {
+        ...process.env,
+        GIT_SEQUENCE_EDITOR: `node "${helperPath}" sequence`,
+        GIT_EDITOR: `node "${helperPath}" editor`,
+        GITCRON_REBASE_PLAN_PATH: planPath
+      };
+
+      // Run continue rebase
+      await g.env(rebaseEnv).raw(['rebase', '--continue']);
+
+      // Finished rebase successfully, clean up
+      cleanupRebaseFiles(targetPath, gitDir);
+      return { success: true };
+
+    } catch (error: any) {
+      const g = simpleGit(targetPath);
+      const isPaused = await isRebaseInProgress(g, targetPath);
+      if (isPaused) {
+        const msg = sanitizeForLog(error.message || String(error));
+        return { success: false, data: { conflict: true }, error: msg };
+      } else {
+        cleanupRebaseFiles(targetPath, gitDir);
+        return { success: false, error: errMsg(error) };
+      }
+    }
+  });
+
+  // Aborts the current rebase
+  ipcMain.handle('git:rebase-abort', async (_event, targetPath: string) => {
+    let gitDir = '.git';
+    try {
+      const g = simpleGit(targetPath);
+      gitDir = (await g.revparse(['--git-dir'])).trim();
+      await g.raw(['rebase', '--abort']);
+      cleanupRebaseFiles(targetPath, gitDir);
+      return { success: true };
+    } catch (error: any) {
+      cleanupRebaseFiles(targetPath, gitDir);
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // Resets branch back to pre-rebase state
+  ipcMain.handle('git:rebase-undo', async (_event, targetPath: string, targetRef: string) => {
+    try {
+      if (!/^[a-zA-Z0-9_/.-]+$/.test(targetRef)) {
+        return { success: false, error: 'Ref inválido' };
+      }
+      const g = simpleGit(targetPath);
+      await g.raw(['reset', '--hard', targetRef]);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
 
   // Returns the list of files changed in a specific commit (for the commit detail panel).
   // Uses `git diff-tree` which is fast and doesn't require a worktree checkout.

@@ -378,6 +378,7 @@ export default function GitCronPage() {
   const [stashMessage, setStashMessage] = useState('');
   const [stashPreviewState, setStashPreviewState] = useState<StashPreviewState | null>(null);
   const [checkoutConflict, setCheckoutConflict] = useState<{ branch: string; error: string } | null>(null);
+  const [interactiveRebaseFrom, setInteractiveRebaseFrom] = useState<string | null>(null);
   const [branchMenu, setBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
   const [remoteBranchMenu, setRemoteBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
   const [renameModal, setRenameModal] = useState<{ oldName: string; newName: string } | null>(null);
@@ -1390,6 +1391,8 @@ export default function GitCronPage() {
       />
 
       <RepoOverlayLayer
+        interactiveRebaseFrom={interactiveRebaseFrom}
+        setInteractiveRebaseFrom={setInteractiveRebaseFrom}
         isLoading={isLoading}
         currentBranch={currentBranch}
         repoPath={repoPath}

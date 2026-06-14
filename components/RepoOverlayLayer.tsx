@@ -20,6 +20,7 @@ import { ResetCommitModal } from '@/components/ResetCommitModal';
 import { StashCreateModal, StashPreviewModal, type StashPreviewState } from '@/components/StashModals';
 import { useT } from '@/hooks/use-translation';
 import type { Commit, GitFile } from '@/lib/git-store';
+import InteractiveRebasePanel from '@/components/InteractiveRebasePanel';
 
 type BranchTracking = Record<string, { ahead: number; behind: number; gone: boolean; upstream: string | null }>;
 type BranchMenuState = { x: number; y: number; branch: string } | null;
@@ -32,6 +33,8 @@ type MergeNeedsCheckoutState = { sourceBranch: string; targetBranch: string } | 
 type GitResult = { success?: boolean; conflict?: boolean; notMerged?: boolean; alreadyIgnored?: boolean; error?: string };
 
 export type RepoOverlayLayerProps = {
+  interactiveRebaseFrom: string | null;
+  setInteractiveRebaseFrom: (hash: string | null) => void;
   isLoading: boolean;
   currentBranch: string;
   repoPath: string | null;
@@ -396,8 +399,20 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
             onCreateBranch={() => { props.setNewBranchFrom(props.contextMenu?.hash); props.setShowNewBranch(true); props.setContextMenu(null); }}
             onCreateTag={() => { props.setCreateTagFrom(props.contextMenu?.hash); props.setNewTagName(''); props.setNewTagMessage(''); props.setContextMenu(null); }}
             onReset={() => { props.setResetCommitFrom(props.contextMenu?.hash); props.setContextMenu(null); }}
+            onInteractiveRebase={() => {
+              if (props.contextMenu?.hash) props.setInteractiveRebaseFrom(props.contextMenu.hash);
+              props.setContextMenu(null);
+            }}
             onCopySha={() => { props.contextMenu?.hash && navigator.clipboard.writeText(props.contextMenu.hash); props.setContextMenu(null); }}
             onClose={() => props.setContextMenu(null)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {props.interactiveRebaseFrom && (
+          <InteractiveRebasePanel
+            baseCommitHash={props.interactiveRebaseFrom}
+            onClose={() => props.setInteractiveRebaseFrom(null)}
           />
         )}
       </AnimatePresence>

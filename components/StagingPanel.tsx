@@ -1,10 +1,11 @@
 'use client';
 
 import { memo, useMemo, useState } from 'react';
-import { FileText, GitBranch, Layers, Minus, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { FileText, GitBranch, Layers, Minus, Plus, RotateCcw, Trash2, AlertCircle, Play } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { type GitFile, useGitStore } from '@/lib/git-store';
 import { cn } from '@/lib/utils';
+import { useGitActions } from '@/hooks/use-git-actions';
 
 type StagingPanelProps = {
   files: GitFile[];
@@ -32,6 +33,8 @@ export const StagingPanel = memo(function StagingPanel({
 }: StagingPanelProps) {
   const t = useT();
   const mergeInProgress = useGitStore((s) => s.mergeInProgress);
+  const rebaseInProgress = useGitStore((s) => s.rebaseInProgress);
+  const { continueInteractiveRebase, abortInteractiveRebase, undoInteractiveRebase } = useGitActions();
   const { unstaged, staged, untrackedCount } = useMemo(() => {
     const nextUnstaged = files.filter((file) => !file.staged);
     const nextStaged = files.filter((file) => file.staged);
@@ -56,6 +59,44 @@ export const StagingPanel = memo(function StagingPanel({
 
   return (
     <div className="flex flex-col h-full">
+      {rebaseInProgress && (
+        <div className="p-3 bg-[#fd9d1a]/10 border-b border-[#fd9d1a]/30 flex flex-col gap-2 shrink-0">
+          <div className="flex items-start gap-2 text-[#fd9d1a]">
+            <AlertCircle size={14} className="shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <span className="text-xs font-bold block">{t('rebase.banner.title')}</span>
+              <span className="text-[10px] text-text-secondary leading-normal block mt-0.5">
+                {t('rebase.banner.desc')}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={async () => {
+                await abortInteractiveRebase();
+              }}
+              disabled={isLoading}
+              className="px-2.5 py-1 text-[10px] font-semibold text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/50 rounded transition-colors disabled:opacity-40"
+            >
+              {t('rebase.banner.btn.abort')}
+            </button>
+            <button
+              onClick={async () => {
+                await continueInteractiveRebase();
+              }}
+              disabled={isLoading}
+              className="px-2.5 py-1 text-[10px] font-bold bg-[#fd9d1a] hover:bg-[#ffb03a] text-black rounded transition-colors disabled:opacity-40 flex items-center gap-1"
+            >
+              {isLoading ? (
+                <div className="w-3 h-3 rounded-full border border-black border-t-transparent animate-spin" />
+              ) : (
+                <Play size={10} className="fill-black" />
+              )}
+              {t('rebase.banner.btn.continue')}
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col min-h-0 flex-1">
         <div className="px-4 py-2 border-b border-border-subtle/15 bg-bg-surface/75 flex items-center justify-between shrink-0">
           <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
@@ -186,6 +227,19 @@ export const StagingPanel = memo(function StagingPanel({
           >
             <Layers size={12} />
             {t('staging.squashBtn')}
+          </button>
+        </div>
+        <div className="mt-2 text-right">
+          <button
+            onClick={async () => {
+              if (confirm(t('rebase.banner.btn.undo') + '?')) {
+                await undoInteractiveRebase('refs/gitcron/pre-rebase');
+              }
+            }}
+            disabled={isLoading}
+            className="text-[10px] text-text-secondary hover:text-secondary hover:underline transition-colors disabled:opacity-40 font-semibold"
+          >
+            {t('rebase.banner.btn.undo')}
           </button>
         </div>
       </div>

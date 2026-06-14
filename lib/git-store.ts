@@ -52,6 +52,7 @@ export interface RepoState {
   success: string | null;
   lastFetchError: string | null;
   mergeInProgress: boolean;
+  rebaseInProgress: boolean;
 }
 
 interface GitStore {
@@ -88,6 +89,7 @@ interface GitStore {
   error: string | null;
   success: string | null;
   mergeInProgress: boolean;
+  rebaseInProgress: boolean;
   // GitHub auth
   githubToken: string | null;
   githubUser: GitHubUser | null;
@@ -142,6 +144,7 @@ interface GitStore {
   setEnableCronometric: (enabled: boolean) => void;
   setCentauroReaderActive: (active: boolean) => void;
   setMergeInProgress: (inProgress: boolean) => void;
+  setRebaseInProgress: (inProgress: boolean) => void;
 }
 
 type EmptyRepoFields = Omit<RepoState, 'path' | 'name'>;
@@ -170,6 +173,7 @@ function createEmptyRepoFields(): EmptyRepoFields {
     success: null,
     lastFetchError: null,
     mergeInProgress: false,
+    rebaseInProgress: false,
   };
 }
 
@@ -216,6 +220,7 @@ function legacyFromRepo(repo: RepoState | null) {
     error: repo.error,
     success: repo.success,
     mergeInProgress: repo.mergeInProgress,
+    rebaseInProgress: repo.rebaseInProgress,
   };
 }
 
@@ -313,6 +318,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   error: null,
   success: null,
   mergeInProgress: false,
+  rebaseInProgress: false,
   // Token starts null. It's hydrated asynchronously on app mount via
   // bootstrapGitHub() -> window.api.storageGet(). We DO NOT use localStorage:
   // tokens live encrypted at-rest via Electron's safeStorage (OS keychain).
@@ -372,6 +378,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   setWorktrees: (worktrees) => get().updateActiveRepo({ worktrees }),
   setPullRequests: (pullRequests) => get().updateActiveRepo({ pullRequests }),
   setMergeInProgress: (mergeInProgress) => get().updateActiveRepo({ mergeInProgress }),
+  setRebaseInProgress: (rebaseInProgress) => get().updateActiveRepo({ rebaseInProgress }),
   setLoading: (isLoading) => {
     const state = get();
     if (state.activeRepoIdx >= 0) state.updateActiveRepo({ isLoading });

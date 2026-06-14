@@ -57,11 +57,12 @@ function ContextMenuItem({
 }
 
 export function CommitContextMenu({
-  x, y, onMerge, onRevert, onCheckout, onCreateBranch, onCreateTag, onReset, onCherryPick, onCopySha, onClose,
+  x, y, onMerge, onRevert, onCheckout, onCreateBranch, onCreateTag, onReset, onCherryPick, onCopySha, onInteractiveRebase, onClose,
 }: {
   x: number; y: number;
   onMerge: () => void; onRevert: () => void; onCheckout: () => void;
-  onCreateBranch: () => void; onCreateTag: () => void; onReset: () => void; onCherryPick: () => void; onCopySha: () => void; onClose: () => void;
+  onCreateBranch: () => void; onCreateTag: () => void; onReset: () => void; onCherryPick: () => void; onCopySha: () => void;
+  onInteractiveRebase: () => void; onClose: () => void;
 }) {
   const t = useT();
   const { ref, coords, isMeasured } = useAdjustedPosition(x, y);
@@ -82,6 +83,7 @@ export function CommitContextMenu({
       <ContextMenuItem onClick={onCherryPick} text={t('commitMenu.cherryPick')} />
       <ContextMenuItem onClick={onRevert} text="Revert commit" />
       <ContextMenuItem onClick={onReset} text={t('commitMenu.reset')} />
+      <ContextMenuItem onClick={onInteractiveRebase} text={t('commitMenu.interactiveRebase')} />
       <div className="h-px bg-border-subtle my-1" />
       <ContextMenuItem onClick={onCheckout} text="Checkout" />
       <ContextMenuItem onClick={onCreateBranch} text="Create branch here" />

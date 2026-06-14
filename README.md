@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.8.1-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.8.2-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -60,12 +60,15 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - WIP row at the top when the working tree is dirty.
 - History tab for a flat chronological view.
 - Commit tab for a staging-focused workflow summary.
+- File context menus can open read-only file history (`git log --follow -- <file>`) and jump from a file-history commit into its file diff.
+- File context menus can open read-only blame (`git blame --line-porcelain`) with line number, author, date, summary, and short hash.
 
 #### Staging and commits
 
 - Separate unstaged and staged sections.
 - **Auto-refresh of the UNSTAGED panel** when files change on disk: a `chokidar` watcher in the main process emits `repo:fs-change` over IPC (debounced 250 ms in main + 150 ms in renderer). A window `focus` listener provides a fallback when the watcher misses an event. Watches ignore `.git`, `node_modules`, `.next`, `dist`, `release`, and `out`.
 - Batch stage / unstage to avoid `index.lock` races.
+- Hunk and selected-line stage / unstage / discard directly from the diff viewer.
 - Diff viewer for staged and unstaged files.
 - Real commits with author, date, refs, and commit details. Clicking a commit shows the files changed **in that commit** with colored status badges (A/M/D/R) and per-file diffs.
 - Amend last commit: reword the message or fold staged changes into the previous commit, with a warning if the commit was already pushed.
@@ -160,7 +163,7 @@ Renderer:
 - `components/RepoSidebarParts.tsx` renders reusable sidebar sections, local/remote branch trees, stash rows, tags, and nested branch folders.
 - `components/DangerConfirmDialog.tsx` centralizes destructive confirmation dialogs for branch/tag/file removal flows.
 - `components/RepoActionModals.tsx` houses the action modals extracted from the main page (checkout conflict, reset all, clean untracked, amend, squash, new branch, create tag, merge-needs-checkout, rename branch, force push) sharing one internal `ModalShell` overlay scaffold.
-- `components/RepoContentViews.tsx` renders the History and Commit tab bodies plus the pull-request and file diff views, all extracted from the main page.
+- `components/RepoContentViews.tsx` renders the History and Commit tab bodies plus pull-request diff, file diff, file history, and blame views.
 - `components/PageWidgets.tsx` holds page mini-widgets (deferred-panel loading, graph column handle, fetch indicator, the LCARS decorative panel).
 - `components/CommitGraph.tsx` renders the SVG graph and graph-table rows.
 - `components/ChronometricGraph.tsx` renders the chronometric diagonal view with speculative branch overlay.
@@ -172,6 +175,7 @@ Renderer:
 - `hooks/use-repo-chooser.ts` holds the repo-chooser business logic (open existing, create — optionally on GitHub — and clone, including the force-push confirmation flow).
 - `lib/git-store.ts` holds the Zustand store.
 - `lib/display-format.ts` centralizes renderer date formatting and author initials.
+- `lib/hunk-patch.ts` and `lib/blame-parse.ts` hold pure patch/blame parsing helpers covered by unit tests.
 - `lib/speculative-projection.ts` computes future-branch positions along the chronometric diagonal.
 - `lib/chronometric-projection.ts` projects commits into the chronometric coordinate system.
 - `lib/feedback-context.ts` builds feedback blocks from the decision log for the AI context.
@@ -415,9 +419,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.7.0.exe`                                             |
-| macOS    | `GitCron-1.7.0.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.7.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.8.2.exe`                                             |
+| macOS    | `GitCron-1.8.2.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.8.2.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -466,7 +470,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.8.1` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.8.2` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

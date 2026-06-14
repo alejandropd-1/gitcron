@@ -5,7 +5,7 @@
 > en el código, **el código manda** — reportá la discrepancia y actualizá este doc al cierre
 > de tu fase. No asumas que existe algo que no esté listado ni que falte algo que sí esté.
 
-**Última actualización:** 2026-06-13 · **Versión:** v1.8.1 + F1 final · **Branch de trabajo:** `fallow/test-v4`
+**Última actualización:** 2026-06-13 · **Versión:** v1.8.2 + F2/F3 final · **Branch de trabajo:** `fallow/test-v4`
 
 ---
 
@@ -27,10 +27,10 @@ reales y persistencia de decisiones en SQLite para calibración estadística.
 | IA | OpenRouter (HTTP directo, sin SDK) — proveedor primario; stubs para openai/gemini/opencode |
 | DB | `node:sqlite` built-in (prefijo `node:` preservado vía tsup external + onSuccess patch) |
 | Build | tsup (Electron) + electron-builder (NSIS/dmg/AppImage) · puerto dev: 3001 |
-| Tests | Vitest — **15 archivos, 122 tests** (deben quedar verdes en todo cierre de fase) |
-| Calidad | Fallow (`pnpm exec fallow`, config en `.fallowrc.json`) + CodeGraph MCP. Baseline actual: dead-code 3 issues (2 exports + 1 type), dupes 8 clone groups, health 270 sobre umbral, MI 90.1 (good). |
+| Tests | Vitest — **18 archivos, 142 tests** (deben quedar verdes en todo cierre de fase) |
+| Calidad | Fallow (`pnpm exec fallow`, config en `.fallowrc.json`) + CodeGraph MCP. Baseline actual: dead-code 3 issues (2 exports + 1 type), dupes 8 clone groups, health 261 sobre umbral, MI 90.2 (good). |
 
-## 3. Mapa de arquitectura (post-modularización v1.8.1 / F1 final)
+## 3. Mapa de arquitectura (post-F2/F3 v1.8.2)
 
 ### `app/`
 - `page.tsx` — **1.277 líneas**. F1 alcanzó el objetivo `<1.400 LOC`. Sigue siendo el
@@ -44,7 +44,7 @@ reales y persistencia de decisiones en SQLite para calibración estadística.
 `TopBar.tsx`, `RepoTabs.tsx`, `RepoSidebar.tsx`, `RepoSidebarParts.tsx`,
 `RepoDetailsPanel.tsx`, `RepoMainView.tsx` (view-switcher central + graph tab clásico/cronométrico),
 `RepoOverlayLayer.tsx` (modales/menús de página), `RepoContentViews.tsx` (HistoryView + CommitTabView +
-PR diff + file diff),
+PR diff + file diff + file history + blame),
 `RepoModals.tsx`, `RepoActionModals.tsx` (checkout conflict, reset all, clean untracked,
 amend, squash), `StashModals.tsx`, `ResetCommitModal.tsx`, `DangerConfirmDialog.tsx`,
 `ContextMenus.tsx` (Commit/File context menus + layer branch/remote), `PageToasts.tsx`,
@@ -78,7 +78,8 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
 `git-store.ts`, `i18n.ts` (ES fuente de verdad / EN / ZH, ~600 keys),
 `chronometric-projection.ts` (funciones puras + tests), `speculative-projection.ts`,
 `canvas-viewport.ts`, `materialize-idea.ts`, `feedback-context.ts`, `page-helpers.ts`,
-`display-format.ts`, `shortcuts.ts`, `os-notify.ts`, `changelog.ts`, `utils.ts`.
+`hunk-patch.ts`, `blame-parse.ts`, `display-format.ts`, `shortcuts.ts`, `os-notify.ts`,
+`changelog.ts`, `utils.ts`.
 
 ## 4. Inventario de features Git (auditado contra i18n + componentes, v1.8.0)
 
@@ -87,7 +88,8 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
   URL) / multi-repo con tabs drag-to-reorder / carpeta default / auto-fetch con intervalo.
 - Working tree: stage/unstage por archivo y en bloque, discard por archivo con confirmación,
   clean untracked selectivo (dry-run + checklist), stash completo (nombrado, preview,
-  apply, pop, drop), add-to-gitignore, stash de archivo individual.
+  apply, pop, drop), add-to-gitignore, stash de archivo individual, stage/unstage/discard
+  por hunk y por líneas seleccionadas desde el diff viewer.
 - Commits: commit, amend, squash de últimos N, cherry-pick, revert, reset a commit
   (soft/mixed/hard con confirmación), búsqueda de commits, "Explicar con IA".
 - Branches: create/rename/delete (con warning not-merged + force), checkout con resolución
@@ -99,13 +101,13 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
   diff unificado), GitHub OAuth Device Flow + token manual (safeStorage).
 - Sidebar lista: branches locales/remotas agrupadas, stashes, tags, **worktrees (solo
   lectura)**, **submódulos (solo lectura)**, PRs.
+- File context menu: file history read-only por path (`git log --follow -- <file>`) y blame
+  read-only (`git blame --line-porcelain`).
 - App: undo/redo de toolbar, atajos personalizables, terminal en repo, notificaciones OS,
   temas (dark + light experimental), i18n ES/EN/ZH, auto-update con changelog integrado.
 
 **NO existe (brechas reales vs GitKraken/SourceTree — base del roadmap):**
-- Staging por **hunk / línea** (hoy solo por archivo entera) ← la brecha más grande.
 - **Interactive rebase** (reorder / squash / drop / reword visual).
-- **File history** (historial de un archivo) y **blame**.
 - **Reflog** viewer / undo robusto basado en reflog.
 - Gestión de **remotes** (add/edit/remove, múltiples remotes).
 - Worktrees y submódulos: operaciones (add/remove/update) — hoy solo se listan.
@@ -128,7 +130,7 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
 
 ## 6. Paisaje de branches (2026-06-13)
 
-- `fallow/test-v4` ← **actual**, contiene main + F1/F1.5/F1 final. Es la rama de trabajo activa.
+- `fallow/test-v4` ← **actual**, contiene main + F1/F2/F3 final. Es la rama de trabajo activa.
 - `main` / `origin/main` y `origin/fallow/test-v4` quedaron sincronizadas en `6d560f5` antes de
   esta continuación F1; los cambios finales de esta etapa todavía deben cerrarse con commit/QA.
 - ~14 branches viejas de features ya integradas (02-, 13-, 14-, …, 30-db-v1,
@@ -138,7 +140,7 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
 
 ```powershell
 npx.cmd tsc --noEmit      # 0 errores
-pnpm test                 # 122/122 verde (o más si agregaste)
+pnpm test                 # 142/142 verde (o más si agregaste)
 pnpm exec fallow          # reportar delta: LOC, duplicación, dead code
 git status --short
 git diff --stat

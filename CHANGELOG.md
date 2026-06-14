@@ -4,6 +4,26 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.8.2] - 2026-06-13 - Staging granular + File History/Blame
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Staging por hunk y líneas seleccionadas**: el diff viewer permite preparar, des-preparar y descartar cambios desde bloques o líneas seleccionadas, usando patches aplicados de forma acotada sobre el índice o el working tree.
+- **File History por archivo**: el menú contextual de archivos abre un historial read-only basado en `git log --follow -- <file>`, con acceso al diff de cada commit para ese path.
+- **Blame por archivo**: el menú contextual suma una vista read-only basada en `git blame --line-porcelain`, agrupando línea, autor, fecha, resumen y hash corto.
+
+#### Changed
+- `RepoContentViews.tsx` ahora concentra también las vistas de historial de archivo y blame, además de History/Commit/PR diff/file diff.
+- Los handlers IPC de Git agregan operaciones read-only para historial/blame y mantienen validación de paths dentro del repositorio.
+
+#### Quality
+- TypeScript compila limpio con `npx.cmd tsc --noEmit`.
+- Suite Vitest verde: **18 archivos / 142 tests**.
+- Fallow queda en la deuda conocida: 3 issues de dead code (2 exports + 1 type), 8 clone groups, health 261 sobre umbral, MI 90.2.
+
+---
+
 ## [v1.8.1] - 2026-06-13 - F1: Cierre de la descomposición de `app/page.tsx`
 
 > Fase de refactor pura, **sin cambios de comportamiento ni de i18n**. Cada tanda cerró con

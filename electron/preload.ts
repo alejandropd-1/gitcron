@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('api', {
   gitLog: (repoPath: string, opts?: { allBranches?: boolean }) => ipcRenderer.invoke('git:log', repoPath, opts),
   gitFileHistory: (repoPath: string, filePath: string, limit?: number) =>
     ipcRenderer.invoke('git:file-history', repoPath, filePath, limit),
+  gitBlame: (repoPath: string, filePath: string, rev?: string) =>
+    ipcRenderer.invoke('git:blame', repoPath, filePath, rev),
   gitStatus: (repoPath: string) => ipcRenderer.invoke('git:status', repoPath),
   gitBranches: (repoPath: string) => ipcRenderer.invoke('git:branches', repoPath),
   gitCheckout: (repoPath: string, branch: string) =>

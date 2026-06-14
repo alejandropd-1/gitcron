@@ -95,3 +95,32 @@ Estado: completada. STOP para OK antes de TANDA 2.
 - No Temporal Agent.
 - No Electron DB.
 - No README/CHANGELOG.
+
+## TANDA 2 — Blame parser + IPC read-only
+
+Estado: completada. STOP para OK antes de TANDA 3.
+
+### Cambios realizados
+
+- Agregado parser puro `parseGitBlamePorcelain` en `lib/blame-parse.ts`.
+  - Parsea headers porcelain de blame.
+  - Normaliza `author-mail` sin brackets.
+  - Convierte `author-time` epoch a ISO.
+  - Extrae `summary`.
+  - Extrae `previous <hash> <path>` conservando paths con espacios.
+  - Marca hash cero como `isUncommitted`.
+- Implementado `git:blame` en `electron/ipc/git-ops.ts`.
+  - Ejecuta `git -c core.quotePath=false blame --line-porcelain [rev] -- <file>`.
+  - Valida path con `resolveRepoRelativePath`.
+  - Rechaza revisiones vacias, con whitespace exterior, `-` inicial, NUL o saltos de linea.
+  - No modifica working tree ni index.
+- Expuesto `gitBlame` en `electron/preload.ts`.
+- Agregados tests:
+  - `lib/__tests__/blame-parse.test.ts` cubre metadata, `previous`, fechas ISO y lineas uncommitted.
+  - `lib/__tests__/git-hunks-ipc.test.ts` cubre IPC real, no modificacion del worktree, path traversal y rev insegura.
+
+### Pendiente para TANDA 3
+
+- UI central para blame.
+- Accion de menu o boton para abrir blame desde archivo.
+- Seleccion visual de lineas y enlace/detalle de commit.

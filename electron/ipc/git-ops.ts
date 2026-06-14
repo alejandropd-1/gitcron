@@ -12,6 +12,7 @@ import type {
   StatusFile, CommitData, BranchData, StashEntry, SubmoduleEntry,
   BranchTrackingInfo, WorktreeEntry, FileHistoryEntry,
 } from '../../types/electron';
+import { parseGitBlamePorcelain } from '../../lib/blame-parse';
 import { parseUnifiedDiff, type ApplyHunkOptions } from '../../lib/hunk-patch';
 import { errMsg, resolveRepoRelativePath, sanitizeForLog } from './shared';
 
@@ -33,6 +34,16 @@ function parseGitCleanDryRun(raw: string): string[] {
     .filter((line) => line.startsWith('Would remove '))
     .map((line) => line.slice('Would remove '.length).trim())
     .filter(Boolean);
+}
+
+function isSafeReadOnlyRevision(value: string): boolean {
+  return (
+    typeof value === 'string'
+    && value.trim() === value
+    && value.length > 0
+    && !value.startsWith('-')
+    && !/[\0\r\n]/.test(value)
+  );
 }
 
 function buildSyntheticUntrackedDiff(repoRoot: string, filePath: string): string {
@@ -864,6 +875,26 @@ export function registerGitOpsHandlers(): void {
         });
 
       return { success: true, data: entries };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:blame', async (_event, targetPath: string, filePath: string, rev?: string) => {
+    try {
+      const repoRoot = path.resolve(targetPath);
+      const resolved = resolveRepoRelativePath(repoRoot, filePath);
+      if (!resolved) return { success: false, error: 'Path traversal blocked' };
+      if (rev !== undefined && !isSafeReadOnlyRevision(rev)) {
+        return { success: false, error: 'Invalid revision' };
+      }
+
+      const args = ['-c', 'core.quotePath=false', 'blame', '--line-porcelain'];
+      if (rev) args.push(rev);
+      args.push('--', filePath);
+
+      const raw = await simpleGit(repoRoot).raw(args);
+      return { success: true, data: parseGitBlamePorcelain(raw) };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };
     }

@@ -133,6 +133,43 @@ describe('git hunk IPC handlers', () => {
       error: 'Path traversal blocked',
     });
   });
+
+  it('returns blame lines without modifying the worktree', async () => {
+    const repoPath = await createRepoWithBlameData(tempDir);
+    const blame = handler('git:blame');
+    const git = simpleGit(repoPath);
+
+    const beforeStatus = await git.status();
+    const result = await blame(null, repoPath, 'blame.txt') as {
+      success: boolean;
+      data: Array<{ lineNo: number; content: string; summary: string; isUncommitted: boolean }>;
+      error?: string;
+    };
+    const afterStatus = await git.status();
+
+    expect(result.success).toBe(true);
+    expect(result.data).toHaveLength(2);
+    expect(result.data.map((line) => line.lineNo)).toEqual([1, 2]);
+    expect(result.data.map((line) => line.content)).toEqual(['first line', 'second line changed']);
+    expect(result.data.map((line) => line.summary)).toEqual(['initial blame file', 'change second line']);
+    expect(result.data.every((line) => line.isUncommitted === false)).toBe(true);
+    expect(afterStatus.isClean()).toBe(beforeStatus.isClean());
+    expect(afterStatus.files).toEqual(beforeStatus.files);
+  });
+
+  it('blocks blame path traversal and unsafe revisions', async () => {
+    const repoPath = await createRepoWithBlameData(tempDir);
+    const blame = handler('git:blame');
+
+    await expect(blame(null, repoPath, '../outside.txt')).resolves.toMatchObject({
+      success: false,
+      error: 'Path traversal blocked',
+    });
+    await expect(blame(null, repoPath, 'blame.txt', '--all')).resolves.toMatchObject({
+      success: false,
+      error: 'Invalid revision',
+    });
+  });
 });
 
 function handler(channel: string): IpcHandler {
@@ -178,6 +215,19 @@ async function createRepoWithRenamedFile(parentDir: string): Promise<string> {
   fs.renameSync(path.join(repoPath, 'original.txt'), path.join(repoPath, 'renamed.txt'));
   await git.raw(['add', '-A']);
   await git.commit('rename file');
+
+  return repoPath;
+}
+
+async function createRepoWithBlameData(parentDir: string): Promise<string> {
+  const { git, repoPath } = await createTestRepo(parentDir);
+
+  fs.writeFileSync(path.join(repoPath, 'blame.txt'), 'first line\nsecond line\n', 'utf-8');
+  await git.add('blame.txt');
+  await git.commit('initial blame file');
+  fs.writeFileSync(path.join(repoPath, 'blame.txt'), 'first line\nsecond line changed\n', 'utf-8');
+  await git.add('blame.txt');
+  await git.commit('change second line');
 
   return repoPath;
 }

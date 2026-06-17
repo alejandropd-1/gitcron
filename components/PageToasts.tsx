@@ -6,8 +6,9 @@
 // Extraído de app/page.tsx. success/error viven en el store; el toast de
 // pull-decision es estado de la página y llega por props.
 
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertCircle, Check, X } from 'lucide-react';
+import { AlertCircle, Check, X, FileText } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useT } from '@/hooks/use-translation';
@@ -36,20 +37,120 @@ export function PageToasts({
   const { success, setSuccess, error, setError, isLoading } = useGitStore();
   const { removeIndexLock } = useGitActions();
 
+  const [hovered, setHovered] = useState(false);
+
+  // Auto-dismiss success toast after 3s (short) or 10s (long pull files list).
+  // Pauses auto-dismiss on hover when a files list exists.
+  useEffect(() => {
+    if (!success) return;
+
+    let isLongList = false;
+    try {
+      const parsed = JSON.parse(success);
+      if (parsed && parsed.type === 'pull' && parsed.files && parsed.files.length > 0) {
+        isLongList = true;
+      }
+    } catch (e) {}
+
+    if (isLongList && hovered) {
+      return;
+    }
+
+    const duration = isLongList ? 10000 : 3000;
+    const timer = setTimeout(() => {
+      setSuccess(null);
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [success, hovered, setSuccess]);
+
+  // Try to parse success as a pull success JSON object
+  let isPullSuccess = false;
+  let pullFiles: string[] = [];
+  let pullSummary = '';
+  let pullMode = '';
+  let displayMessage = success || '';
+
+  if (success) {
+    try {
+      const parsed = JSON.parse(success);
+      if (parsed && parsed.type === 'pull') {
+        isPullSuccess = true;
+        pullFiles = parsed.files || [];
+        pullSummary = parsed.summary || '';
+        pullMode = parsed.mode || 'default';
+      }
+    } catch (e) {
+      // Keep displayMessage as success string
+    }
+  }
+
   return (
     <>
-      {/* ──────────── SUCCESS TOAST (auto-dismiss 3s) ──────────── */}
+      {/* ──────────── SUCCESS TOAST (auto-dismiss 3s/10s) ──────────── */}
       <AnimatePresence>
         {success && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-3 glass-alert-success rounded-lg shadow-2xl flex items-center gap-3 z-50 max-w-xl"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            className={
+              isPullSuccess
+                ? "fixed bottom-4 left-1/2 -translate-x-1/2 p-4 glass-alert-success rounded-lg shadow-2xl flex flex-col items-stretch z-50 w-[min(calc(100vw-2rem),400px)] max-w-md"
+                : "fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-3 glass-alert-success rounded-lg shadow-2xl flex items-center gap-3 z-50 max-w-xl"
+            }
           >
-            <Check size={18} className="shrink-0" />
-            <span className="text-sm font-medium">{success}</span>
-            <button onClick={() => setSuccess(null)} className="ml-3 hover:opacity-70 shrink-0 text-secondary">
-              <X size={14} />
-            </button>
+            {isPullSuccess ? (
+              <>
+                {/* HEADER fijo */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Check size={18} className="shrink-0 text-secondary" />
+                    <span className="text-sm font-semibold truncate text-secondary">
+                      {pullFiles.length === 0
+                        ? t('success.pullTitle')
+                        : pullFiles.length === 1
+                        ? t('success.pullTitleWithFile')
+                        : t('success.pullTitleWithFiles', { count: pullFiles.length })}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setSuccess(null)}
+                    className="hover:opacity-70 shrink-0 text-secondary p-0.5 -mt-0.5 -mr-1"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                {/* BODY (lista de archivos scrolleable) */}
+                {pullFiles.length > 0 && (
+                  <div className="mt-2.5 pt-2 border-t border-secondary/20 flex flex-col gap-2 min-w-0">
+                    <div className="max-h-40 overflow-y-auto pr-1 flex flex-col gap-1.5 scrollbar-thin">
+                      {pullFiles.map((file, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-xs font-mono text-secondary/85 min-w-0">
+                          <FileText size={12} className="shrink-0 opacity-70" />
+                          <span className="truncate" title={file}>{file}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {pullSummary && (
+                      <div className="text-[10px] opacity-75 font-mono text-secondary/90 border-t border-secondary/10 pt-1.5 mt-0.5 truncate" title={pullSummary}>
+                        {pullSummary}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <Check size={18} className="shrink-0" />
+                <span className="text-sm font-medium">{displayMessage}</span>
+                <button onClick={() => setSuccess(null)} className="ml-3 hover:opacity-70 shrink-0 text-secondary">
+                  <X size={14} />
+                </button>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

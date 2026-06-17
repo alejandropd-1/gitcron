@@ -774,12 +774,15 @@ export default function GitCronPage() {
   useEffect(() => { if (showNewBranch) newBranchInputRef.current?.focus(); }, [showNewBranch]);
   useEffect(() => { if (createTagFrom) newTagInputRef.current?.focus(); }, [createTagFrom]);
 
-  // Auto-dismiss success toast after 3 seconds
+  // Auto-dismiss success toast has been moved to components/PageToasts.tsx
+  // to support hover pausing and custom timer durations.
+  /*
   useEffect(() => {
     if (!success) return;
     const timer = setTimeout(() => setSuccess(null), 3000);
     return () => clearTimeout(timer);
   }, [success]); // eslint-disable-line react-hooks/exhaustive-deps
+  */
 
   const handleCreateBranch = async () => {
     const name = newBranchName.trim();

@@ -141,6 +141,7 @@ interface RemoteOpResult {
   authRequired?: boolean;
   conflict?: boolean;
   summary?: string;
+  files?: string[];
 }
 
 export interface StashEntry {

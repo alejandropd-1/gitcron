@@ -4,6 +4,21 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.9.1] - 2026-06-17 - Fix: Visual formatting of Pull Success Toast
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Toast de éxito de Pull Mejorado**: Nueva maquetación estructurada para el toast de Pull exitoso. Cuando el pull trae cambios, se muestra un encabezado fijo localizado ("Pull exitoso · {n} archivos") con el botón de cerrar cruz (`X`) anclado en la parte superior derecha (nunca flotando en el centro vertical) y una lista de archivos modificados en un contenedor interno con límite de altura y scroll vertical (`max-h-40 overflow-y-auto`), evitando que el toast se estire desproporcionadamente.
+- **Pausa de Auto-dismiss al Hover**: En toasts de pull con lista de archivos, el temporizador de auto-dismiss (extendido a 10 segundos para dar tiempo de lectura) se detiene al pasar el puntero del mouse (`hover`) sobre el toast, y se reanuda al quitarlo.
+
+#### Changed
+- La lógica de temporizador de auto-dismiss de éxito se trasladó de `app/page.tsx` a `components/PageToasts.tsx` para permitir comportamientos interactivos específicos según el tipo de toast.
+
+#### Quality
+- TypeScript compila limpio con `tsc --noEmit`.
+- Suite Vitest verde (178 tests pasados, incluyendo unit tests específicos en `remotes-parse.test.ts` para verificar la extracción de archivos modificados a partir de la salida diffstat de Git).
+
 ## [v1.9.0] - 2026-06-14 - F6: Dashboard Estadístico (Brier Score) del Temporal Agent
 
 ### 🟡 Temporal Agent

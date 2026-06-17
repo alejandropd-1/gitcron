@@ -35,18 +35,35 @@ export function parseGitRemotes(raw: string): RemoteEntry[] {
   }));
 }
 
+export function parseFilesFromPullOutput(output: string): string[] {
+  const lines = output.split('\n');
+  const files: string[] = [];
+  for (const line of lines) {
+    const match = line.match(/^\s*(.+?)\s*\|\s*(\d+|Bin)\b/);
+    if (match) {
+      const filepath = match[1].trim();
+      if (filepath && !filepath.includes('...')) {
+        files.push(filepath);
+      }
+    }
+  }
+  return files;
+}
+
 async function runExplicitPull(
   targetPath: string,
   token: string | undefined,
   args: string[],
-): Promise<{ success: boolean; data?: { success: boolean; summary?: string; conflict?: boolean; authRequired?: boolean; error?: string }; error?: string }> {
+): Promise<{ success: boolean; data?: { success: boolean; summary?: string; conflict?: boolean; authRequired?: boolean; error?: string; files?: string[] }; error?: string }> {
   try {
     const output = await withGitHubToken(targetPath, token, (g) => g.raw(['pull', ...args]));
+    const trimmed = output.trim();
     return {
       success: true,
       data: {
         success: true,
-        summary: output.trim() || 'Already up to date.',
+        summary: trimmed || 'Already up to date.',
+        files: parseFilesFromPullOutput(trimmed),
       },
     };
   } catch (error: any) {
@@ -56,7 +73,7 @@ async function runExplicitPull(
     return {
       success: false,
       error: msg,
-      data: { success: false, authRequired: isAuth, conflict: isConflict, error: msg },
+      data: { success: false, authRequired: isAuth, conflict: isConflict, error: msg, files: [] },
     };
   }
 }

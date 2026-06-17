@@ -719,6 +719,9 @@ const es: Dict = {
   'sidebar.pushTagTooltip': 'Subir tag al remoto (GitHub)',
   'success.createTag': 'Tag «{{name}}» creado',
   'success.pushTag': 'Tag «{{name}}» subido al remoto correctamente',
+  'success.pullTitle': 'Pull completado',
+  'success.pullTitleWithFile': 'Pull exitoso · 1 archivo',
+  'success.pullTitleWithFiles': 'Pull exitoso · {{count}} archivos',
 
   // ── Reset Commit Modal ──
   'resetModal.title': 'Resetear a este commit',
@@ -1602,6 +1605,9 @@ const en: Dict = {
   'sidebar.pushTagTooltip': 'Push tag to remote (GitHub)',
   'success.createTag': 'Tag "{{name}}" created',
   'success.pushTag': 'Tag "{{name}}" pushed to remote successfully',
+  'success.pullTitle': 'Pull completed',
+  'success.pullTitleWithFile': 'Pull successful · 1 file',
+  'success.pullTitleWithFiles': 'Pull successful · {{count}} files',
 
   // ── Reset Commit Modal ──
   'resetModal.title': 'Reset to this commit',
@@ -2368,6 +2374,9 @@ const zh: Dict = {
   'sidebar.pushTagTooltip': '推送 Tag 到远程仓库 (GitHub)',
   'success.createTag': 'Tag “{{name}}” 已创建',
   'success.pushTag': 'Tag “{{name}}” 已成功推送到远程',
+  'success.pullTitle': 'Pull 完成',
+  'success.pullTitleWithFile': 'Pull 成功 · 1 个文件',
+  'success.pullTitleWithFiles': 'Pull 成功 · {{count}} 个文件',
 
   // ── Reset Commit Modal ──
   'resetModal.title': '重置到此 Commit',

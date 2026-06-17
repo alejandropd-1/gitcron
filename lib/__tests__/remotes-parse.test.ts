@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseGitRemotes } from '../../electron/ipc/git-sync';
+import { parseGitRemotes, parseFilesFromPullOutput } from '../../electron/ipc/git-sync';
 
 describe('parseGitRemotes', () => {
   it('parses typical git remote -v output correctly', () => {
@@ -53,5 +53,33 @@ describe('parseGitRemotes', () => {
         pushUrl: 'https://github.com/alejandropd-1/gitcron.git',
       },
     ]);
+  });
+});
+
+describe('parseFilesFromPullOutput', () => {
+  it('parses files from git pull diffstat output', () => {
+    const raw = [
+      'Updating 4059fe1..8828943',
+      'Fast-forward',
+      ' app/globals.css                                  |   2 +-',
+      ' app/page.tsx                                     |   5 +-',
+      ' components/PageToasts.tsx                        |  10 +-',
+      ' hooks/git-actions/remote.ts                      |   4 +-',
+      ' path/to/image.png                                | Bin 1024 -> 2048 bytes',
+      ' ... (other files) ...',
+      ' 5 files changed, 12 insertions(+), 10 deletions(-)'
+    ].join('\n');
+
+    expect(parseFilesFromPullOutput(raw)).toEqual([
+      'app/globals.css',
+      'app/page.tsx',
+      'components/PageToasts.tsx',
+      'hooks/git-actions/remote.ts',
+      'path/to/image.png'
+    ]);
+  });
+
+  it('returns empty array when there are no changes', () => {
+    expect(parseFilesFromPullOutput('Already up to date.')).toEqual([]);
   });
 });

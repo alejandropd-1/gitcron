@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.9.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.9.1-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -85,6 +85,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Premium Force Push workflow**: when pushing a branch whose history has diverged from the remote (e.g., during initialization/pushes of overlapping repos), GitCron displays a beautifully styled, high-priority React overlay modal (`z-[300]`) requesting explicit permission before executing a safe `--force` push.
 - Checkout with conflict detection.
 - Merge, rebase, fast-forward, rename, delete, and create branch flows.
+- **Improved Pull Success Toast**: Success toast for pull actions displays a structured header with the file count and a scrollable body containing the list of modified files (using maximum height and `overflow-y: auto`). Auto-dismiss timer pauses on hover so the user has time to read the files list.
 - Cherry-pick a single commit onto the current branch from the commit context menu, with conflict-aware feedback.
 - Per-file stash and full working-tree stash.
 - Advanced stash workflow: create a stash with an optional name, preview stash file lists and patches before applying, and use hover actions for Apply, Pop, or Drop from the sidebar.

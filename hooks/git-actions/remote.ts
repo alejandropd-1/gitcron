@@ -116,12 +116,20 @@ export const useRemoteActions = () => {
     try {
       const result = await window.api.gitPull(repoPath, githubToken ?? undefined);
       if (result.success) {
-        const msg = result.data?.summary ? `Pull completado — ${result.data.summary}` : 'Pull completado';
-        setSuccess(msg);
+        const summary = result.data?.summary || '';
+        const files = result.data?.files || [];
+        const successObj = {
+          type: 'pull',
+          mode: 'default',
+          files,
+          summary,
+        };
+        setSuccess(JSON.stringify(successObj));
+        const plainMsg = summary ? `Pull completado — ${summary}` : 'Pull completado';
         const elapsed = Date.now() - startedAt;
         const unfocused = typeof document !== 'undefined' && document.visibilityState !== 'visible';
         if (elapsed > 3000 || unfocused) {
-          notify('GitCron — Pull completado', { body: msg });
+          notify('GitCron — Pull completado', { body: plainMsg });
         }
         await refreshLog(); await refreshStatus(); await refreshBranches();
       } else {
@@ -150,17 +158,25 @@ export const useRemoteActions = () => {
           : await window.api.gitPullMerge(repoPath, githubToken ?? undefined);
 
       if (result.success) {
+        const summary = result.data?.summary || '';
+        const files = result.data?.files || [];
+        const successObj = {
+          type: 'pull',
+          mode,
+          files,
+          summary,
+        };
+        setSuccess(JSON.stringify(successObj));
         const label = mode === 'ff-only'
           ? 'Fast-forward completado'
           : mode === 'rebase'
             ? 'Pull con rebase completado'
             : 'Pull con merge completado';
-        const msg = result.data?.summary ? `${label} — ${result.data.summary}` : label;
-        setSuccess(msg);
+        const plainMsg = summary ? `${label} — ${summary}` : label;
         const elapsed = Date.now() - startedAt;
         const unfocused = typeof document !== 'undefined' && document.visibilityState !== 'visible';
         if (elapsed > 3000 || unfocused) {
-          notify('GitCron — Pull completado', { body: msg });
+          notify('GitCron — Pull completado', { body: plainMsg });
         }
         await refreshLog(); await refreshStatus(); await refreshBranches();
         return { success: true };

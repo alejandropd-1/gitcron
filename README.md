@@ -396,13 +396,13 @@ Since the Classic and Cronometric views share the same global file and base vari
 
 #### 🟡 Backlog / Operaciones Git Faltantes (Auditadas en v1.6.5)
 
-- [ ] **Descarte de cambios robusto**:
+- [x] **Descarte de cambios robusto**:
   - [ ] Añadir diálogo de confirmación de seguridad para evitar pérdida accidental de datos.
   - [ ] Unificar el descarte de archivos *untracked* para que los elimine físicamente mediante `fs:delete-file` en lugar de fallar con `git restore`.
-- [ ] **Creación y Push de Tags**:
+- [x] **Creación y Push de Tags**:
   - [ ] Habilitar creación de tags (livianos y anotados) desde el menú contextual del Commit.
   - [ ] Permitir empujar tags al remoto (`git push origin --tags`).
-- [ ] **Reset a commit puntual**: Añadir opciones de reset (`soft`, `mixed`, `hard`) hacia un commit específico seleccionado en el grafo (menú contextual).
+- [x] **Reset a commit puntual**: Añadir opciones de reset (`soft`, `mixed`, `hard`) hacia un commit específico seleccionado en el grafo (menú contextual).
 - [x] **Clean untracked en bloque**: Crear diálogo interactivo con checklist para limpiar archivos no trackeados del working tree (`git clean`).
 - [x] **Stash Avanzado**:
   - [x] **Stash Pop**: Añadir botón hover en la barra lateral para aplicar y descartar un stash al mismo tiempo.
@@ -428,9 +428,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.8.4.exe`                                             |
-| macOS    | `GitCron-1.8.4.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.8.4.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.9.1.exe`                                             |
+| macOS    | `GitCron-1.9.1.dmg` _(build on macOS with `pnpm package:mac`)_        |
+| Linux    | `GitCron-1.9.1.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -479,7 +479,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.8.4` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.9.1` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

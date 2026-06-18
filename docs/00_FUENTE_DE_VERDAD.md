@@ -5,7 +5,7 @@
 > en el código, **el código manda** — reportá la discrepancia y actualizá este doc al cierre
 > de tu fase. No asumas que existe algo que no esté listado ni que falte algo que sí esté.
 
-**Última actualización:** 2026-06-13 · **Versión:** v1.8.2 + F2/F3 final · **Branch de trabajo:** `fallow/test-v4`
+**Última actualización:** 2026-06-18 · **Versión:** v1.9.1 · **Branch de trabajo:** (re-auditar con `git branch -vv`; post-F6 avanzó más allá de `fallow/test-v4`)
 
 ---
 
@@ -27,10 +27,10 @@ reales y persistencia de decisiones en SQLite para calibración estadística.
 | IA | OpenRouter (HTTP directo, sin SDK) — proveedor primario; stubs para openai/gemini/opencode |
 | DB | `node:sqlite` built-in (prefijo `node:` preservado vía tsup external + onSuccess patch) |
 | Build | tsup (Electron) + electron-builder (NSIS/dmg/AppImage) · puerto dev: 3001 |
-| Tests | Vitest — **18 archivos, 142 tests** (deben quedar verdes en todo cierre de fase) |
+| Tests | Vitest — **178 tests** (deben quedar verdes en todo cierre de fase) |
 | Calidad | Fallow (`pnpm exec fallow`, config en `.fallowrc.json`) + CodeGraph MCP. Baseline actual: dead-code 3 issues (2 exports + 1 type), dupes 8 clone groups, health 261 sobre umbral, MI 90.2 (good). |
 
-## 3. Mapa de arquitectura (post-F2/F3 v1.8.2)
+## 3. Mapa de arquitectura (snapshot v1.8.2 — cifras de LOC pendientes de refrescar tras F4/F5/F6)
 
 ### `app/`
 - `page.tsx` — **1.277 líneas**. F1 alcanzó el objetivo `<1.400 LOC`. Sigue siendo el
@@ -81,7 +81,7 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
 `hunk-patch.ts`, `blame-parse.ts`, `display-format.ts`, `shortcuts.ts`, `os-notify.ts`,
 `changelog.ts`, `utils.ts`.
 
-## 4. Inventario de features Git (auditado contra i18n + componentes, v1.8.0)
+## 4. Inventario de features Git (auditado v1.9.1)
 
 **Existe y funciona — NO reimplementar:**
 - Repo: abrir / crear (con creación opcional en GitHub) / clonar (lista de repos propios o
@@ -106,13 +106,17 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
 - App: undo/redo de toolbar, atajos personalizables, terminal en repo, notificaciones OS,
   temas (dark + light experimental), i18n ES/EN/ZH, auto-update con changelog integrado.
 
-**NO existe (brechas reales vs GitKraken/SourceTree — base del roadmap):**
-- **Interactive rebase** (reorder / squash / drop / reword visual).
+**Cerrado desde la v1.8.0 (ya existe — NO reimplementar):**
+- **Interactive rebase** visual (reorder / squash / drop / reword) — v1.8.3.
+- Gestión de **remotes** (add / rename / edit URL / remove) — v1.8.4.
+- **Worktrees y submódulos**: operaciones (add/remove/update/sync), no solo listado — v1.8.4.
+- **Dashboard Brier** del Temporal Agent — v1.9.0.
+
+**NO existe (brechas reales que quedan):**
 - **Reflog** viewer / undo robusto basado en reflog.
-- Gestión de **remotes** (add/edit/remove, múltiples remotes).
-- Worktrees y submódulos: operaciones (add/remove/update) — hoy solo se listan.
 - Git LFS, commit signing (GPG/SSH), patch/apply, archive/export.
 - Drag & drop de branches en el grafo para merge/rebase (firma de GitKraken).
+- **Vista Cartografía** (comprensión visual del repo) — track nuevo, aún sin código (ver roadmap).
 
 ## 5. Temporal Agent — estado
 
@@ -126,11 +130,12 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
   brief copiable para agentes en la materialización.
 - Pendiente conocido: verificar si el write path JSON paralelo (`prediction.json` per-repo)
   sigue activo; si SQLite ya es única fuente, retirarlo (fase chica de housekeeping).
+- **Dashboard Brier (F6, v1.9.0)**: sección "Dashboard temporal" en ajustes + pestaña "Estadísticas" en el HUD Centauro — Brier score, curva de calibración (10 bins), historial de decisiones, aceptación por tipo, comparación por proveedor; toggle local/unificado cross-repo desde SQLite.
 - Diseño completo en `docs/TEMPORAL_AGENT_DESIGN.md` (no rediseñar nada de ahí).
 
 ## 6. Paisaje de branches (2026-06-13)
 
-- `fallow/test-v4` ← **actual**, contiene main + F1/F2/F3 final. Es la rama de trabajo activa.
+- Post-F6/v1.9.1 la rama de trabajo avanzó más allá de `fallow/test-v4` (que llegaba hasta F1/F2/F3). **Re-auditar el estado real con `git branch -vv` antes de cualquier prune.**
 - `main` / `origin/main` y `origin/fallow/test-v4` quedaron sincronizadas en `6d560f5` antes de
   esta continuación F1; los cambios finales de esta etapa todavía deben cerrarse con commit/QA.
 - ~14 branches viejas de features ya integradas (02-, 13-, 14-, …, 30-db-v1,

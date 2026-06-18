@@ -1,0 +1,46 @@
+# Fase C0.1 — Andamiaje: flag + vista top-level + lienzo vacío
+
+> Mapea a `GITCRON_CARTOGRAPHY_BRIEF.md` § C0.1. Pegá la caja al agente. Cierra con `tsc` + `pnpm test` + reporte + STOP para QA visual.
+
+```
+Trabajás en GitCron, un cliente Git de escritorio: Next.js 15 + React 19 +
+Electron 42 + Zustand 5 + TypeScript 5.9, con simple-git (backend de Git) y
+Octokit (GitHub). Vamos a empezar una vista nueva llamada "Cartografía" que
+ayuda a entender cualquier repo abierto: dónde están las cosas, qué se relaciona
+con qué, y qué se rompe si tocás algo. Esta fase es solo el ANDAMIAJE, sin datos.
+
+INVARIANTES (no romper): no tocás lógica de Git (esto es solo lectura/
+visualización); nada se escribe en el working tree ni en .git; cero red; cómputo
+pesado en el main, nunca en el renderer; baseline de Electron intacto
+(contextIsolation/sandbox/webSecurity); todo string por lib/i18n.ts en ES/EN/ZH.
+Antes de codear, leé el repo para entender los patrones existentes.
+
+Tareas:
+1. Agregá un feature flag `enableCartography` al store Zustand, persistido cifrado
+   con safeStorage (replicá EXACTAMENTE el patrón del flag `enableCronometric`),
+   apagado por defecto. Sumá su toggle en la pantalla de Ajustes.
+2. Creá `components/cartography/CartographyView.tsx`: por ahora solo un lienzo
+   vacío con estética TCARS y un placeholder localizado ("Cartografía — sin datos aún").
+3. Montá esa vista como una VISTA DE WORKSPACE TOP-LEVEL, hermana de la vista de
+   grafo, siguiendo el MISMO patrón que las vistas integradas existentes
+   (Settings/Ayuda/Perfil): mismo manejo de show/hide del TCAR/LCAR y del switch
+   Clásico/Cronométrico al entrar. NO la agregues como tercer valor del switch
+   classic/chronometric; es una vista aparte.
+4. Agregá un acceso (botón/ícono localizado) visible SOLO con el flag on y con un
+   repo activo abierto.
+5. Guardá en RepoState el sub-estado per-repo de "estoy en Cartografía" (que
+   sobreviva el cambio de tab) y permití volver al grafo.
+6. Definí los tokens `--carto-` en su PROPIO bloque de globals.css, sin tocar los
+   bloques Shared/Classic/Cronometric.
+7. Strings nuevos en lib/i18n.ts (ES/EN/ZH).
+
+NO agregues dependencias nuevas. NO traigas datos todavía.
+
+Aceptación: con el flag off, nada de Cartografía visible ni montado; con el flag
+on y repo activo, se entra y se vuelve sin glitches; el estado es per-repo;
+Classic/Cronométrica/Settings/Ayuda/Perfil/Abrir-Crear-Clonar siguen intactas;
+cero strings hardcodeados.
+
+Al terminar: `tsc --noEmit` limpio + `pnpm test` verde, reporte escrito de
+archivos tocados y por qué, y PARÁ para el QA visual de Alejandro. No sigas.
+```

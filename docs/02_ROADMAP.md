@@ -31,7 +31,7 @@ Detalle por versión en `CHANGELOG.md` (el ledger fiel). Reportes de cierre en `
 ## 🔧 Housekeeping (fases chicas, intercalables) — lo que queda vivo
 
 - **H1**: verificar y retirar el write path JSON paralelo del Temporal Agent (`prediction.json` per-repo) si SQLite ya es única fuente de verdad.
-- **H2**: prune de las branches viejas ya integradas. **Re-auditar primero con `git branch -vv`** y pasar lista — no borrar sin tu OK explícito.
+- **H2**: prune de branches. **Auditado 2026-06-18:** ~30 locales mergeadas a `main` (candidatas), varias bloqueadas por worktrees `.claude/worktrees` activos, y `imagined/*` + `feature/chronometric*`/`tcars*` sin mergear → conservar. Prune pendiente de tu OK explícito.
 - **H3**: deuda de tests señalada — PredictionDetail render/state, materializedRef active/deleted, rename de `centauroExpanded`.
 - **H4**: fix del bug SVG `calc()` en el grafo cronométrico (computar en JS).
 

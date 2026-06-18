@@ -30,10 +30,10 @@ reales y persistencia de decisiones en SQLite para calibración estadística.
 | Tests | Vitest — **178 tests** (deben quedar verdes en todo cierre de fase) |
 | Calidad | Fallow (`pnpm exec fallow`, config en `.fallowrc.json`) + CodeGraph MCP. Baseline actual: dead-code 3 issues (2 exports + 1 type), dupes 8 clone groups, health 261 sobre umbral, MI 90.2 (good). |
 
-## 3. Mapa de arquitectura (snapshot v1.8.2 — cifras de LOC pendientes de refrescar tras F4/F5/F6)
+## 3. Mapa de arquitectura (cifras refrescadas 2026-06-18, v1.9.1)
 
 ### `app/`
-- `page.tsx` — **1.277 líneas**. F1 alcanzó el objetivo `<1.400 LOC`. Sigue siendo el
+- `page.tsx` — **1.622 líneas** (creció con F4/F5/F6; superó el objetivo F1 `<1.400 LOC` → candidato a otra pasada de descomposición). Sigue siendo el
   orquestador principal de estado/handlers, top nav, layout 3 columnas y callbacks, pero el
   view-switcher central, graph tab y overlay de modales/menús ya viven en componentes dedicados.
 - `layout.tsx` — CSP por meta tag. `connect-src`: api.github.com, github.com, openrouter.ai.
@@ -65,7 +65,7 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
   (pan/zoom cronométrico), `use-shortcuts.ts`, `use-translation.ts`.
 
 ### `electron/`
-- `main.ts` — **285 líneas**, solo bootstrap + registro. Los ~55 handlers IPC viven en
+- `main.ts` — **297 líneas**, solo bootstrap + registro. Los ~118 handlers IPC (registros `ipcMain.handle`) viven en
   `electron/ipc/` por dominio: `git-ops`, `git-sync`, `git-repo`, `github`, `ai`, `shell`,
   `storage`, `watchers`, `app-window` + `shared.ts`.
 - `temporal-agent-ipc.ts`, `ai/` (predict, key-store con safeStorage, providers,
@@ -135,7 +135,7 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
 
 ## 6. Paisaje de branches (2026-06-13)
 
-- Post-F6/v1.9.1 la rama de trabajo avanzó más allá de `fallow/test-v4` (que llegaba hasta F1/F2/F3). **Re-auditar el estado real con `git branch -vv` antes de cualquier prune.**
+- Post-F6/v1.9.1 el trabajo está en `main` (rama activa). Auditoría de ramas 2026-06-18 en roadmap H2: ~30 locales mergeadas candidatas a prune (varias bloqueadas por worktrees `.claude/worktrees` activos); prune pendiente de OK.
 - `main` / `origin/main` y `origin/fallow/test-v4` quedaron sincronizadas en `6d560f5` antes de
   esta continuación F1; los cambios finales de esta etapa todavía deben cerrarse con commit/QA.
 - ~14 branches viejas de features ya integradas (02-, 13-, 14-, …, 30-db-v1,

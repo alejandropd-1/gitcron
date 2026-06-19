@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Activity, AlertCircle, ArrowLeft, Cloud, Download, ExternalLink, FileText, Folder,
-  FolderOpen, GitMerge, Github, Globe, HelpCircle, Layers, Lock, Monitor,
+  FolderOpen, GitMerge, Github, Globe, HelpCircle, Layers, Lock, Map, Monitor,
   Plus, RotateCcw, Settings, Sparkles, TreePine, Type, UserCircle2, Zap,
   Trash2, Edit2, Link2, RefreshCw,
 } from 'lucide-react';
@@ -219,6 +219,9 @@ type RepoSidebarProps = {
   onSettingsSectionChange: (id: string) => void;
   selectedHelpSection: string;
   onHelpSectionChange: (id: string) => void;
+  // Cartografía: toggle del sub-estado per-repo (entrar/volver al grafo). El
+  // botón sólo se muestra con el flag on y un repo activo (ambos leídos del store).
+  onToggleCartography: () => void;
 
   // remotes
   onAddRemoteRequest?: () => void;
@@ -244,6 +247,7 @@ export function RepoSidebar({
   onPreviewStash, onCreateTagRequest, onDeleteTagRequest,
   selectedSettingsSection, onSettingsSectionChange,
   selectedHelpSection, onHelpSectionChange,
+  onToggleCartography,
   onAddRemoteRequest, onRenameRemoteRequest, onSetRemoteUrlRequest, onDeleteRemoteRequest,
   onAddWorktreeRequest, onDeleteWorktreeRequest,
   onAddSubmoduleRequest, onUpdateSubmodule, onSyncSubmodules,
@@ -254,6 +258,9 @@ export function RepoSidebar({
     stashes, tags, submodules, remotes, worktrees, pullRequests,
     githubUser, selectedCommit,
   } = useGitStore();
+  const enableCartography = useGitStore((s) => s.enableCartography);
+  const inCartography = useGitStore((s) => s.getActiveRepo()?.inCartography ?? false);
+  const cartographyActive = activeView === 'repository' && inCartography;
   const { stashApply, stashPop, stashDrop, stashClear, pushTag } = useGitActions();
   const [showStashClearConfirm, setShowStashClearConfirm] = useState(false);
 
@@ -626,6 +633,7 @@ export function RepoSidebar({
                   { id: 'defaultFolder', label: t('settings.defaultFolder'), icon: <Folder size={14} /> },
                   { id: 'theme', label: t('settings.theme'), icon: <Sparkles size={14} /> },
                   { id: 'cronometric', label: t('settings.timeline'), icon: <Sparkles size={14} /> },
+                  { id: 'cartography', label: t('settings.cartography'), icon: <Map size={14} /> },
                   { id: 'temporalAgent', label: t('settings.temporalAgent'), icon: <Layers size={14} /> },
                   { id: 'agentDashboard', label: t('settings.agentDashboard'), icon: <Activity size={14} /> },
                   { id: 'autoFetch', label: t('settings.autoFetch'), icon: <RotateCcw size={14} /> },
@@ -762,6 +770,21 @@ export function RepoSidebar({
           >
             <HelpCircle size={17} />
           </button>
+          {enableCartography && repoPath && (
+            <button
+              type="button"
+              onClick={onToggleCartography}
+              title={cartographyActive ? t('cartography.backToGraph') : t('cartography.open')}
+              className={cn(
+                'h-9 w-9 rounded-lg border flex items-center justify-center transition-colors',
+                cartographyActive
+                  ? 'border-secondary/35 bg-secondary/10 text-secondary'
+                  : 'border-text-primary/15 bg-text-primary/[0.035] text-text-secondary hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary'
+              )}
+            >
+              <Map size={17} />
+            </button>
+          )}
           <div className="ml-auto">
             {githubUser ? (
               <button

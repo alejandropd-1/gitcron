@@ -48,6 +48,10 @@ export interface RepoState {
   currentDiff: string;
   graphShowAllBranches: boolean;
   graphMode: 'classic' | 'chronometric';
+  // Cartografía: sub-estado per-repo de "estoy en la vista Cartografía".
+  // Sobrevive el cambio de tab de repo porque vive en RepoState, no en el
+  // estado local de la página. Volver al grafo = ponerlo en false.
+  inCartography: boolean;
   isLoading: boolean;
   error: string | null;
   success: string | null;
@@ -107,6 +111,7 @@ interface GitStore {
   shortcuts: Record<string, string>;
   theme: Theme;
   enableCronometric: boolean;
+  enableCartography: boolean;
   centauroReaderActive: boolean;
 
   setRepoPath: (path: string | null) => void;
@@ -145,6 +150,8 @@ interface GitStore {
   resetShortcuts: () => void;
   setTheme: (theme: Theme) => void;
   setEnableCronometric: (enabled: boolean) => void;
+  setEnableCartography: (enabled: boolean) => void;
+  setInCartography: (active: boolean) => void;
   setCentauroReaderActive: (active: boolean) => void;
   setMergeInProgress: (inProgress: boolean) => void;
   setRebaseInProgress: (inProgress: boolean) => void;
@@ -172,6 +179,7 @@ function createEmptyRepoFields(): EmptyRepoFields {
     currentDiff: '',
     graphShowAllBranches: true,
     graphMode: 'classic',
+    inCartography: false,
     isLoading: false,
     error: null,
     success: null,
@@ -341,6 +349,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   shortcuts: {},
   theme: 'dark',
   enableCronometric: false,
+  enableCartography: false,
   centauroReaderActive: false,
 
   setRepoPath: (repoPath) => set((state) => {
@@ -416,6 +425,8 @@ export const useGitStore = create<GitStore>((set, get) => ({
   resetShortcuts: () => set({ shortcuts: {} }),
   setTheme: (theme) => set({ theme }),
   setEnableCronometric: (enableCronometric) => set({ enableCronometric }),
+  setEnableCartography: (enableCartography) => set({ enableCartography }),
+  setInCartography: (inCartography) => get().updateActiveRepo({ inCartography }),
   setCentauroReaderActive: (centauroReaderActive) => set({ centauroReaderActive }),
   setGithubUser: (githubUser) => set({ githubUser }),
   setOpenRepos: (openRepos) => set((state) => {

@@ -904,6 +904,17 @@ const es: Dict = {
   'commit.loadingFiles': 'Cargando archivos...',
   'commit.changedFilesCount': 'Archivos modificados ({{count}})',
   'commit.noFiles': 'Sin archivos en este commit',
+
+  // ── Cartografía ──
+  'cartography.title': 'Cartografía',
+  'cartography.open': 'Abrir Cartografía',
+  'cartography.backToGraph': 'Volver al grafo',
+  'cartography.empty': 'Cartografía — sin datos aún',
+  'cartography.emptyHint': 'Entendé cualquier repo abierto: dónde están las cosas, qué se relaciona con qué, y qué se rompe si tocás algo.',
+  'settings.cartography': 'Cartografía (Beta)',
+  'settings.cartographyDesc': 'Habilita la vista Cartografía para entender cualquier repo abierto: dónde están las cosas, qué se relaciona con qué y qué se rompe si tocás algo.',
+  'settings.cartographyActive': 'Activa',
+  'settings.cartographyInactive': 'Inactiva',
 };
 
 const en: Dict = {
@@ -1790,6 +1801,17 @@ const en: Dict = {
   'commit.loadingFiles': 'Loading files...',
   'commit.changedFilesCount': 'Changed files ({{count}})',
   'commit.noFiles': 'No files in this commit',
+
+  // ── Cartography ──
+  'cartography.title': 'Cartography',
+  'cartography.open': 'Open Cartography',
+  'cartography.backToGraph': 'Back to graph',
+  'cartography.empty': 'Cartography — no data yet',
+  'cartography.emptyHint': 'Understand any open repo: where things live, what relates to what, and what breaks if you touch something.',
+  'settings.cartography': 'Cartography (Beta)',
+  'settings.cartographyDesc': 'Enables the Cartography view to understand any open repo: where things live, what relates to what, and what breaks if you touch something.',
+  'settings.cartographyActive': 'Active',
+  'settings.cartographyInactive': 'Inactive',
 };
 
 const zh: Dict = {
@@ -2531,6 +2553,17 @@ const zh: Dict = {
   'commit.loadingFiles': '正在加载文件...',
   'commit.changedFilesCount': '已更改文件 ({{count}})',
   'commit.noFiles': '此 Commit 中无文件',
+
+  // ── 制图 (Cartography) ──
+  'cartography.title': '制图',
+  'cartography.open': '打开制图',
+  'cartography.backToGraph': '返回图谱',
+  'cartography.empty': '制图 — 暂无数据',
+  'cartography.emptyHint': '理解任何打开的仓库：各部分在哪里、彼此如何关联、改动会破坏什么。',
+  'settings.cartography': '制图 (测试版)',
+  'settings.cartographyDesc': '启用「制图」视图来理解任何打开的仓库：各部分在哪里、彼此如何关联、改动会破坏什么。',
+  'settings.cartographyActive': '已启用',
+  'settings.cartographyInactive': '未启用',
 };
 
 const dicts: Record<Lang, Dict> = { es, en, zh };

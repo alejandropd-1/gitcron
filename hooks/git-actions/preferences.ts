@@ -88,6 +88,14 @@ const bootstrapCronometric = async () => {
   }
 };
 
+const bootstrapCartography = async () => {
+  if (!window.api) return;
+  const ec = await window.api.storageGet('enableCartography');
+  if (ec.success && typeof ec.data === 'string') {
+    useGitStore.getState().setEnableCartography(ec.data === '1');
+  }
+};
+
 export const usePreferenceActions = () => {
   const {
     setLanguage,
@@ -159,6 +167,13 @@ export const usePreferenceActions = () => {
     await window.api.storageSet('enableCronometric', enabled ? '1' : '0').catch(() => {});
   };
 
+  /** Toggle the Cartography repo-understanding view globally. */
+  const changeEnableCartography = async (enabled: boolean) => {
+    useGitStore.getState().setEnableCartography(enabled);
+    if (!window.api) return;
+    await window.api.storageSet('enableCartography', enabled ? '1' : '0').catch(() => {});
+  };
+
   /** Change default folder for open/clone dialogs and persist. */
   const changeDefaultFolder = async (folder: string | null) => {
     setDefaultFolder(folder);
@@ -191,6 +206,7 @@ export const usePreferenceActions = () => {
     await bootstrapShortcuts();
     await bootstrapTheme();
     await bootstrapCronometric();
+    await bootstrapCartography();
   };
 
   return {
@@ -204,6 +220,7 @@ export const usePreferenceActions = () => {
     resetShortcutsToDefaults,
     changeTheme,
     changeEnableCronometric,
+    changeEnableCartography,
     bootstrapPreferences,
   };
 };

@@ -19,6 +19,7 @@ import { RepoStartPanel, type RepoStartMode } from '@/components/RepoModals';
 import { SettingsPanel, type SettingsPanelProps } from '@/components/SettingsPanel';
 import { HelpPanel, type HelpPanelProps } from '@/components/HelpPanel';
 import { ProfilePanel, type ProfilePanelProps } from '@/components/ProfilePanel';
+import { CartographyView } from '@/components/cartography/CartographyView';
 import InteractiveRebasePanel from '@/components/InteractiveRebasePanel';
 import { FLOATING_PANEL_INSET, GRAPH_SAFE_GAP, type GraphColumnKey } from '@/hooks/use-panel-layout';
 import { useT } from '@/hooks/use-translation';
@@ -124,6 +125,10 @@ type GraphViewProps = {
 export type RepoMainViewProps = {
   activeView: AppView;
   isRepoStartView: boolean;
+  // Cartografía: vista top-level per-repo. Cuando está activa reemplaza al
+  // grafo/diffs/tabs dentro de la vista 'repository'.
+  cartographyActive: boolean;
+  onExitCartography: () => void;
   settingsPanel: SettingsPanelProps;
   helpPanel: HelpPanelProps;
   profilePanel: ProfilePanelProps;
@@ -140,6 +145,8 @@ export type RepoMainViewProps = {
 export function RepoMainView({
   activeView,
   isRepoStartView,
+  cartographyActive,
+  onExitCartography,
   settingsPanel,
   helpPanel,
   profilePanel,
@@ -149,6 +156,7 @@ export function RepoMainView({
   graphView,
   interactiveRebase,
 }: RepoMainViewProps) {
+  if (cartographyActive) return <CartographyView onExit={onExitCartography} />;
   if (interactiveRebase.interactiveRebaseFrom) {
     return (
       <InteractiveRebasePanel

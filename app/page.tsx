@@ -119,6 +119,7 @@ export default function GitCronPage() {
     connectGitHub, disconnectGitHub, loginWithGitHubDevice, bootstrapGitHub,
     bootstrapPreferences, changeLanguage, changeFontSize, changeDefaultFolder, pickDefaultFolder,
     setAutoFetchPrefs, setOsNotifications, rebindShortcut, resetShortcutsToDefaults, changeTheme, changeEnableCronometric,
+    changeEnableCartography,
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, cleanUntracked, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch, amendLastCommit, cherryPickCommit, squashCommits,
@@ -132,6 +133,8 @@ export default function GitCronPage() {
   const defaultFolder = useGitStore((s) => s.defaultFolder);
   const theme = useGitStore((s) => s.theme);
   const enableCronometric = useGitStore((s) => s.enableCronometric);
+  const enableCartography = useGitStore((s) => s.enableCartography);
+  const inCartography = useGitStore((s) => s.getActiveRepo()?.inCartography ?? false);
   const appFontSizePx = FONT_SIZE_OPTIONS.find((option) => option.key === fontSize)?.px ?? 15;
 
   const {
@@ -265,6 +268,23 @@ export default function GitCronPage() {
   const graphMode = getGraphMode(); // Always use premium floating layout
   const activeGraphMode = enableCronometric ? rawGraphMode : 'classic';
   const isRepoStartView = activeView === 'repository' && (!repoPath || showRepoChooser);
+  // Cartografía: vista top-level per-repo, hermana del grafo. Sólo "activa"
+  // dentro de la vista 'repository' con un repo abierto, el flag on y el
+  // sub-estado per-repo encendido. Replaza al grafo/diffs y oculta el switch/LCAR.
+  const cartographyActive =
+    enableCartography && activeView === 'repository' && !isRepoStartView && !!repoPath && inCartography;
+
+  // Entrar/volver de Cartografía. Vive en RepoState (per-repo), así sobrevive el
+  // cambio de tab de repo. Al entrar nos aseguramos de estar en la vista repo.
+  const handleToggleCartography = () => {
+    if (!repoPath) return;
+    const active = useGitStore.getState().getActiveRepo();
+    if (!active) return;
+    const next = !active.inCartography;
+    if (next && activeView !== 'repository') handleViewChange('repository');
+    updateActiveRepo({ inCartography: next });
+  };
+  const handleExitCartography = () => updateActiveRepo({ inCartography: false });
 
   const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
     const activeRepo = useGitStore.getState().getActiveRepo();
@@ -592,13 +612,16 @@ export default function GitCronPage() {
   };
 
   const isMainFullBleed =
-    activeView === 'repository'
-    && !isRepoStartView
-    && activeTab === 'Graph'
-    && !selectedFile
-    && !selectedPullRequest
-    && !fileHistoryFile
-    && !blameFile;
+    cartographyActive
+    || (
+      activeView === 'repository'
+      && !isRepoStartView
+      && activeTab === 'Graph'
+      && !selectedFile
+      && !selectedPullRequest
+      && !fileHistoryFile
+      && !blameFile
+    );
 
   const openContextMenu = (menu: { x: number; y: number; hash?: string } | null) => {
     setFileContextMenu(null);
@@ -632,7 +655,7 @@ export default function GitCronPage() {
     sidebarW, detailsW, sidebarOpen, detailsOpen, isDragging, graphColumns,
     beginColDrag, beginGraphColDrag, toggleSidebar, toggleDetails,
   } = usePanelLayout();
-  const repositoryDetailsVisible = detailsOpen && activeView === 'repository' && !!repoPath && !isRepoStartView;
+  const repositoryDetailsVisible = detailsOpen && activeView === 'repository' && !!repoPath && !isRepoStartView && !cartographyActive;
   const leftGraphSafe = sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
   const rightGraphSafe = repositoryDetailsVisible ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
 
@@ -1316,7 +1339,7 @@ export default function GitCronPage() {
             onNewBranchRequest={() => { setNewBranchFrom(undefined); setShowNewBranch(true); }}
             onOpenStashModal={handleOpenStashModal}
             onFetchNow={runFetchCycle}
-            showGraphModeSwitch={activeView === 'repository' && !isRepoStartView && activeTab === 'Graph' && !!repoPath && enableCronometric}
+            showGraphModeSwitch={activeView === 'repository' && !isRepoStartView && !cartographyActive && activeTab === 'Graph' && !!repoPath && enableCronometric}
             activeGraphMode={activeGraphMode}
             onChangeGraphMode={handleChangeGraphMode}
             updateStatus={updateStatus}
@@ -1375,6 +1398,7 @@ export default function GitCronPage() {
           onSettingsSectionChange={setSelectedSettingsSection}
           selectedHelpSection={selectedHelpSection}
           onHelpSectionChange={setSelectedHelpSection}
+          onToggleCartography={handleToggleCartography}
           onAddRemoteRequest={() => setShowAddRemote(true)}
           onRenameRemoteRequest={setRemoteToRename}
           onSetRemoteUrlRequest={setRemoteToSetUrl}
@@ -1416,6 +1440,8 @@ export default function GitCronPage() {
           <RepoMainView
             activeView={activeView}
             isRepoStartView={isRepoStartView}
+            cartographyActive={cartographyActive}
+            onExitCartography={handleExitCartography}
             settingsPanel={{
               selectedSettingsSection,
               setSelectedSettingsSection,
@@ -1431,6 +1457,8 @@ export default function GitCronPage() {
               changeTheme,
               enableCronometric,
               changeEnableCronometric,
+              enableCartography,
+              changeEnableCartography,
               setAutoFetchPrefs,
               setOsNotifications,
               rebindShortcut,
@@ -1587,7 +1615,7 @@ export default function GitCronPage() {
 
         {/* LCAR-29 right-side decorative panel — cronométrico only when Graph tab is active and no diff is open */}
         <LcarsDecorPanel
-          show={activeView === 'repository' && !isRepoStartView && activeGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest && !fileHistoryFile && !blameFile && !interactiveRebaseFrom}
+          show={activeView === 'repository' && !isRepoStartView && !cartographyActive && activeGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest && !fileHistoryFile && !blameFile && !interactiveRebaseFrom}
         />
       </div>
 

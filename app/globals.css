@@ -83,6 +83,19 @@
   /* Canvas HEAD Target crosshair indicator references the active branch green highlight token (--color-secondary) */
   /* Canvas WIP circular paths and satellite tag orbits reference the warning error token (--color-error) */
   /* Canvas Stash Parking decks and horizontal indicators reference secondary text (--color-text-secondary) */
+
+  /* ==========================================================================
+     D. CARTOGRAPHY VIEW TOKENS (Affects: components/cartography/CartographyView.tsx)
+     Bloque propio y autónomo — NO referencia ni redefine Shared/Classic/Cronometric.
+     Estética TCARS: lienzo profundo, retícula tenue, acento ámbar/cian.
+     ========================================================================= */
+  --color-carto-canvas: #04101d; /* Lienzo de fondo de la vista Cartografía */
+  --color-carto-grid: #16324a; /* Retícula/guías tenues sobre el lienzo */
+  --color-carto-node: #5ed8ff; /* Nodos (archivos/símbolos) — acento cian */
+  --color-carto-edge: #3c6a8a; /* Aristas/relaciones entre nodos */
+  --color-carto-accent: #fdb33a; /* Acento ámbar TCARS para realces y bordes */
+  --color-carto-text: #cfe3fb; /* Texto sobre el lienzo de Cartografía */
+  --color-carto-text-muted: #7d93ad; /* Texto secundario/placeholder */
 }
 
 /* ==========================================================================

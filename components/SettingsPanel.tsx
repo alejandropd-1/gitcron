@@ -242,6 +242,9 @@ export interface SettingsPanelProps {
   enableCronometric: boolean;
   changeEnableCronometric: (enabled: boolean) => void;
 
+  enableCartography: boolean;
+  changeEnableCartography: (enabled: boolean) => void;
+
   setAutoFetchPrefs: (enabled: boolean, intervalMinutes: number) => Promise<void> | void;
   setOsNotifications: (enabled: boolean) => Promise<void> | void;
 
@@ -281,6 +284,8 @@ export function SettingsPanel({
   changeTheme,
   enableCronometric,
   changeEnableCronometric,
+  enableCartography,
+  changeEnableCartography,
   setAutoFetchPrefs,
   setOsNotifications,
   rebindShortcut,
@@ -313,6 +318,7 @@ export function SettingsPanel({
               {selectedSettingsSection === 'defaultFolder' && t('settings.defaultFolder')}
               {selectedSettingsSection === 'theme' && t('settings.theme')}
               {selectedSettingsSection === 'cronometric' && 'Vista Cronométrica (Beta)'}
+              {selectedSettingsSection === 'cartography' && t('settings.cartography')}
               {selectedSettingsSection === 'temporalAgent' && 'Temporal Agent (Experimental)'}
               {selectedSettingsSection === 'agentDashboard' && t('settings.agentDashboard')}
               {selectedSettingsSection === 'autoFetch' && t('settings.autoFetch')}
@@ -482,6 +488,33 @@ export function SettingsPanel({
                       </>
                     ) : (
                       'Inactiva (Usar vista clásica estable)'
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {selectedSettingsSection === 'cartography' && (
+                <div className="space-y-4">
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    {t('settings.cartographyDesc')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => changeEnableCartography(!enableCartography)}
+                    className={cn(
+                      'w-full px-4 py-3 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors font-semibold',
+                      enableCartography
+                        ? 'bg-secondary/15 border-secondary/50 text-secondary'
+                        : 'bg-bg-base/70 border-border-subtle/15 text-text-secondary hover:text-text-primary',
+                    )}
+                  >
+                    {enableCartography ? (
+                      <>
+                        <Check size={14} strokeWidth={3} />
+                        {t('settings.cartographyActive')}
+                      </>
+                    ) : (
+                      t('settings.cartographyInactive')
                     )}
                   </button>
                 </div>

@@ -611,17 +611,18 @@ export default function GitCronPage() {
     }
   };
 
+  // Cartografía NO es full-bleed: tiene chrome propio (header + volver al grafo),
+  // así que vive en el contenedor centrado entre los sidebars y bajo el nav,
+  // igual que Commit/History/Settings. Solo el grafo (canvas/HUD) es full-bleed.
   const isMainFullBleed =
-    cartographyActive
-    || (
-      activeView === 'repository'
-      && !isRepoStartView
-      && activeTab === 'Graph'
-      && !selectedFile
-      && !selectedPullRequest
-      && !fileHistoryFile
-      && !blameFile
-    );
+    !cartographyActive
+    && activeView === 'repository'
+    && !isRepoStartView
+    && activeTab === 'Graph'
+    && !selectedFile
+    && !selectedPullRequest
+    && !fileHistoryFile
+    && !blameFile;
 
   const openContextMenu = (menu: { x: number; y: number; hash?: string } | null) => {
     setFileContextMenu(null);

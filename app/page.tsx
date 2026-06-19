@@ -276,15 +276,25 @@ export default function GitCronPage() {
 
   // Entrar/volver de Cartografía. Vive en RepoState (per-repo), así sobrevive el
   // cambio de tab de repo. Al entrar nos aseguramos de estar en la vista repo.
+  // Levantamos isViewChanging por 150ms (mismo patrón que handleViewChange/
+  // handleTabChange) para SUPRIMIR la transición de geometría del panel central:
+  // el contenedor cambia de full-bleed↔centrado de golpe y solo se ve el fade
+  // del contenido (técnica de hidratación), sin el deslizamiento/encogimiento.
   const handleToggleCartography = () => {
     if (!repoPath) return;
     const active = useGitStore.getState().getActiveRepo();
     if (!active) return;
     const next = !active.inCartography;
-    if (next && activeView !== 'repository') handleViewChange('repository');
+    setIsViewChanging(true);
+    if (next && activeView !== 'repository') setActiveView('repository');
     updateActiveRepo({ inCartography: next });
+    setTimeout(() => setIsViewChanging(false), 150);
   };
-  const handleExitCartography = () => updateActiveRepo({ inCartography: false });
+  const handleExitCartography = () => {
+    setIsViewChanging(true);
+    updateActiveRepo({ inCartography: false });
+    setTimeout(() => setIsViewChanging(false), 150);
+  };
 
   const handleChangeGraphMode = async (mode: 'classic' | 'chronometric') => {
     const activeRepo = useGitStore.getState().getActiveRepo();

@@ -1,6 +1,6 @@
-# Fase C0.1 — Andamiaje: flag + vista top-level + lienzo vacío
+# Fase 1 — Andamiaje: flag + vista top-level + lienzo vacío
 
-> Mapea a `GITCRON_CARTOGRAPHY_BRIEF.md` § C0.1. Pegá la caja al agente. Cierra con `tsc` + `pnpm test` + reporte + STOP para QA visual.
+> Fase 1 de Cartografía · plan completo en `00-indice.md`. Pegá la caja al agente. Cierra con `tsc` + `pnpm test` + reporte + STOP para QA visual.
 
 ```
 Trabajás en GitCron, un cliente Git de escritorio: Next.js 15 + React 19 +

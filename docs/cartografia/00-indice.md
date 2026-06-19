@@ -1,23 +1,31 @@
-# Cartografía · Tier 0 — Índice de fases
+# Cartografía — Índice y plan (reordenado: comprensión primero)
 
-Vista nueva de GitCron para entender cualquier repo abierto: dónde están las cosas, qué se relaciona con qué, y qué se rompe si tocás algo. Documento de arquitectura completo: `GITCRON_CARTOGRAPHY_BRIEF.md`.
+Vista de GitCron para **entender** cualquier repo abierto. La estrella **no es el diagrama** de nodos y líneas (eso es lo que pierde a un no-experto): la estrella es que **la IA te explique el repo en castellano** y puedas **preguntarle**. El grafo y la estructura quedan abajo, alimentando y *verificando* esas explicaciones para que sean verdaderas y no inventadas.
 
-## Orden de las fases (pegá una caja por vez)
+## Principio rector
+Separar **motor** (releva la estructura) de **consumo** (la vista que explica + deja preguntar). La vista habla un contrato normalizado propio (`CartoGraph`); cualquier motor (git, CodeGraph) se adapta a ese contrato. La IA es **opt-in** y corre con proveedor **local (LM Studio) u online**, intercambiable.
 
-| # | Fase | Archivo | Qué entrega |
-|---|------|---------|-------------|
-| 01 | C0.1 — Andamiaje | `fase-01-andamiaje.md` | Flag `enableCartography` + vista top-level + lienzo vacío TCARS |
-| 02 | C0.2 — Explorador | `fase-02-explorador-arbol.md` | Árbol de archivos del repo (filesystem) |
-| 03 | C0.3 — Métricas git | `fase-03-metricas-git.md` | Churn + último toque + co-change (`git log`) |
-| 04 | C0.4 — Lienzo nodos | `fase-04-lienzo-nodos.md` | Grafo React Flow + contrato normalizado + panel de detalle |
-| 05 | C0.5 — Persistencia | `fase-05-persistencia-notas.md` | Notas por nodo persistidas por repo (cierra Tier 0) |
+## Por qué el grounding estructural va antes que la IA
+Si la IA explica sin leer la estructura real, **alucina relaciones con total seguridad** ("esto llama a aquello") y vos no podés verificarlo. CodeGraph (relaciones + impacto reales) es lo que mantiene **honesta** a la explicación. No es overhead: es lo que evita que la ventanita te mienta.
+
+## Orden de fases (pegá una caja por vez · QA visual entre cada una)
+
+| # | Fase | Archivo | Entrega |
+|---|------|---------|---------|
+| 1 | Andamiaje | `fase-01-andamiaje.md` | Flag + vista top-level + estado per-repo + panel vacío |
+| 2 | Explorador | `fase-02-explorador-arbol.md` | Árbol de archivos = superficie de click |
+| 3 | Grounding estructural | `fase-03-grounding-codegraph.md` | Embeber CodeGraph (relaciones + impacto) — mantiene honesta a la IA |
+| 4 | Proveedor de IA | `fase-04-proveedor-ia.md` | Capa enchufable LM Studio local **u** online (costura híbrida) |
+| 5 | ⭐ Explicame esto | `fase-05-explicar-nodo.md` | Click → explicación en castellano, contexto recortado, cacheada |
+| 6 | ⭐ Ventanita de preguntas | `fase-06-ventanita-preguntas.md` | Q&A scoped al repo de la solapa activa |
+| 7+ | (diferidas) | — | Grafo visual + métricas churn/co-change · persistencia de notas · vector store (preguntas difusas) · **agente meta cross-repo** |
+
+Las fases 7+ se detallan al cerrar la 6 (misma disciplina: detallar lo cercano, diferir lo lejano). El grafo visual baja de prioridad a propósito.
+
+## Multi-repo y agente meta (visión)
+- **Subagente por repo = gratis:** el índice es per-repo (`repo_path`), así que la ventanita ya responde sobre el repo de la solapa activa. GitCron → habla de GitCron; OdontoPro → habla de OdontoPro.
+- **Agente meta (último):** resume "en qué estado están tus repos" leyendo **digests compactos por repo** (estado git, actividad, salud, resumen corto cacheado) desde el SQLite global — **no** el código de todos. Sumarización jerárquica (resumir resúmenes) = ahorro de tokens. Mismo patrón que el dashboard Brier cross-repo. Arranca **determinista** (GitCron ya sabe el estado git de cada solapa) y la IA se suma encima.
+- **Vectores:** sirven a nivel **hoja** (preguntas difusas por concepto dentro de un repo), no al meta. Capa aditiva y posterior.
 
 ## Flujo por fase
-
-1. Pegás **una** caja al agente → 2. trabaja y reporta → 3. corrés `tsc --noEmit` + `pnpm test` → 4. **tu QA visual** (gate distinto del CI) → 5. recién ahí pasás a la fase siguiente.
-
-Cada prompt es **auto-contenido**: trae su contexto, invariantes y el estado asumido de las fases previas, así funciona aunque el agente arranque con la cabeza limpia.
-
-## Después del Tier 0
-
-Al cerrar C0.5 con OK visual → se redactan los prompts del **Tier 1 (CodeGraph: impacto real "qué se rompe")** y luego **Tier 2 (Fallow + IA + vista ER)**.
+Pegás una caja → el agente trabaja y reporta → `tsc --noEmit` + `pnpm test` → **tu QA visual** → siguiente.

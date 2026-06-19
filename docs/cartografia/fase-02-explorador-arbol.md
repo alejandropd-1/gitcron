@@ -1,6 +1,6 @@
-# Fase C0.2 — Lente "Explorador": árbol de archivos (filesystem)
+# Fase 2 — Lente "Explorador": árbol de archivos (filesystem)
 
-> Mapea a `GITCRON_CARTOGRAPHY_BRIEF.md` § C0.2. Pegá la caja al agente. Cierra con `tsc` + `pnpm test` + reporte + STOP para QA visual.
+> Fase 2 de Cartografía · plan completo en `00-indice.md`. Pegá la caja al agente. Cierra con `tsc` + `pnpm test` + reporte + STOP para QA visual.
 
 ```
 Continuás la vista "Cartografía" de GitCron (Next.js 15 + React 19 + Electron 42

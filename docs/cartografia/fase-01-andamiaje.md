@@ -13,7 +13,13 @@ INVARIANTES (no romper): no tocás lógica de Git (esto es solo lectura/
 visualización); nada se escribe en el working tree ni en .git; cero red; cómputo
 pesado en el main, nunca en el renderer; baseline de Electron intacto
 (contextIsolation/sandbox/webSecurity); todo string por lib/i18n.ts en ES/EN/ZH.
-Antes de codear, leé el repo para entender los patrones existentes.
+
+Reconocimiento primero (leé estos archivos ANTES de tocar nada, para no pifiarla):
+- lib/git-store.ts → el patrón del flag `enableCronometric` y la forma de RepoState.
+- app/page.tsx + las vistas integradas (Settings/Ayuda/Perfil) → cómo se monta una vista top-level y el show/hide del TCAR/LCAR y del switch.
+- app/globals.css → los bloques de tokens con namespace (Shared/Classic/Cronometric).
+- lib/i18n.ts → la estructura de strings ES/EN/ZH.
+- Referencia de verdad: docs/00_FUENTE_DE_VERDAD.md y docs/01_INVARIANTES.md.
 
 Tareas:
 1. Agregá un feature flag `enableCartography` al store Zustand, persistido cifrado

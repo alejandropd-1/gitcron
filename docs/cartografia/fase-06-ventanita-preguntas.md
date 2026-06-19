@@ -14,6 +14,13 @@ los nodos relevantes (búsqueda por símbolo/nombre + vecinos por relación de C
 repo entero; per-repo (la pregunta va contra el índice del repo activo, keyed por repo_path); IA
 opt-in; strings i18n.
 
+Reconocimiento primero (leé esto ANTES de tocar nada):
+- lib/carto-types.ts + el adapter de CodeGraph → cómo recuperar los nodos relevantes.
+- La capa de proveedor (fase 4) + el panel de la fase 5 → reutilizar el pipeline de IA.
+- lib/git-store.ts / RepoState → cómo saber cuál es el repo activo (per-tab).
+- components/cartography/ → dónde montar la caja de preguntas.
+- Referencia: docs/01_INVARIANTES.md.
+
 Tareas:
 1. Caja de preguntas en la vista, scoped al repo activo. Cambiar de solapa (GitCron → OdontoPro)
    cambia automáticamente el repo consultado, porque el índice es per-repo.

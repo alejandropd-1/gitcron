@@ -13,6 +13,13 @@ INVARIANTES (no romper): no tocás lógica de Git; el IPC nuevo es SOLO de lectu
 cómputo en el main, nunca en el renderer; cero red; nada se escribe en el repo;
 todo string por lib/i18n.ts en ES/EN/ZH.
 
+Reconocimiento primero (leé esto ANTES de tocar nada):
+- electron/main.ts + electron/ipc/ → cómo se registran los handlers IPC por dominio.
+- electron/preload.ts + types/electron.d.ts → cómo se expone y se tipa el bridge.
+- Algún lib/*-projection.ts con sus tests → patrón de funciones puras testeables.
+- components/cartography/CartographyView.tsx → dónde montar la lente.
+- Referencia: docs/00_FUENTE_DE_VERDAD.md y docs/01_INVARIANTES.md.
+
 Tareas:
 1. Agregá un IPC handler de lectura `carto:scan-tree` en electron/main.ts que
    camine el working dir del repo activo y devuelva una estructura de árbol

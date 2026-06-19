@@ -14,6 +14,13 @@ código/firma del nodo + sus relaciones de CodeGraph: callers, callees, impacto)
 el repo entero; ese recorte es la clave del ahorro de tokens y de que la explicación sea verdadera;
 IA opt-in; cacheá para no re-gastar; strings i18n.
 
+Reconocimiento primero (leé esto ANTES de tocar nada):
+- lib/carto-types.ts + lib/carto-from-codegraph.ts → de dónde sale el contexto del nodo.
+- electron/ai/ + la capa de proveedor de la fase 4 → cómo se llama al modelo.
+- electron/db/ del Temporal Agent → patrón de cache/persistencia para cachear explicaciones.
+- components/cartography/ → dónde montar el panel de detalle (estética TCARS).
+- Referencia: docs/01_INVARIANTES.md.
+
 Tareas:
 1. Al seleccionar un nodo, armá un contexto MÍNIMO Y PRECISO desde el contrato CartoGraph: el
    código/firma del nodo + sus callers, callees e impact radius. Nada más.

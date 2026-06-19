@@ -14,6 +14,13 @@ logueados; cualquier dominio de proveedor online se agrega EXPLÍCITAMENTE al co
 CSP y se documenta en SECURITY.md; el proveedor local apunta a localhost:1234 (API compatible
 OpenAI) y también requiere su entrada de CSP documentada; la IA NUNCA dispara sola; strings i18n.
 
+Reconocimiento primero (leé esto ANTES de tocar nada):
+- electron/ai/ (predict, key-store con safeStorage, providers, provider-parsing) → la infra multi-proveedor a REUTILIZAR.
+- app/layout.tsx → el CSP por meta tag (connect-src) que hay que tocar.
+- SECURITY.md → dónde documentar el cambio de CSP.
+- SettingsPanel.tsx → dónde va el selector de proveedor.
+- Referencia: docs/01_INVARIANTES.md (secretos / CSP).
+
 Tareas:
 1. Definí una interfaz de proveedor común (p. ej. CartoAIProvider con métodos `explain(node, contexto)`
    y `ask(pregunta, contexto)`). REUTILIZÁ/alineá con los stubs multi-proveedor que ya existen del

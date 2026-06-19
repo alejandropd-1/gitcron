@@ -14,6 +14,13 @@ INVARIANTES (no romper): cero red (CodeGraph es 100% local, SQLite); cómputo en
 main, nunca en el renderer; no tocás lógica de Git; la vista consume SOLO un contrato
 normalizado propio, nunca la forma cruda de CodeGraph; strings por lib/i18n.ts (ES/EN/ZH).
 
+Reconocimiento primero (leé esto ANTES de tocar nada):
+- electron/ipc/ (p. ej. ai, storage) → patrón de handler IPC y dónde vive la infra del main.
+- electron/db/ del Temporal Agent → cómo se maneja SQLite en el main (patrón a imitar para el índice).
+- lib/carto-types.ts + los adapters / lib/*-projection.ts con tests → patrón de contrato + adapter testeable.
+- package.json → versión de Node de Electron y cómo se agregan dependencias.
+- Referencia: docs/00_FUENTE_DE_VERDAD.md (sección electron/) y docs/01_INVARIANTES.md.
+
 Tareas:
 1. Agregá `@colbymchenry/codegraph` como dependencia. En el main, abrí e indexá el repo
    activo (`CodeGraph.open(repoPath)` + `indexAll` con onProgress) y exponé por IPC de

@@ -21,6 +21,12 @@ Reconocimiento primero (leé esto ANTES de tocar nada):
 - components/cartography/ → dónde montar el panel de detalle (estética TCARS).
 - Referencia: docs/01_INVARIANTES.md.
 
+Branch y entrega:
+- Antes de empezar, creá una branch desde main: `cartografia/fase-05-explicar-nodo`.
+- Hacé todos tus commits en esa branch.
+- Al cerrar (tsc + tests + reporte): pusheá la branch y PARÁ. NO mergees a main.
+- El merge a main lo hace Alejandro tras su QA visual y OK. La fase siguiente sale de main ya con esta mergeada.
+
 Tareas:
 1. Al seleccionar un nodo, armá un contexto MÍNIMO Y PRECISO desde el contrato CartoGraph: el
    código/firma del nodo + sus callers, callees e impact radius. Nada más.

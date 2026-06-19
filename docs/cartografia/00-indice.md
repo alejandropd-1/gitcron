@@ -28,4 +28,4 @@ Las fases 7+ se detallan al cerrar la 6 (misma disciplina: detallar lo cercano, 
 - **Vectores:** sirven a nivel **hoja** (preguntas difusas por concepto dentro de un repo), no al meta. Capa aditiva y posterior.
 
 ## Flujo por fase
-Pegás una caja → el agente trabaja y reporta → `tsc --noEmit` + `pnpm test` → **tu QA visual** → siguiente.
+El agente crea una branch desde main → trabaja y commitea ahí → `tsc --noEmit` + `pnpm test` → pushea la branch (NO mergea) → reporta y PARA → **tu QA visual** → con tu OK, merge a main → la fase siguiente sale de main ya mergeada.

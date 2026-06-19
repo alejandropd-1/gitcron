@@ -20,6 +20,12 @@ Reconocimiento primero (leé esto ANTES de tocar nada):
 - components/cartography/CartographyView.tsx → dónde montar la lente.
 - Referencia: docs/00_FUENTE_DE_VERDAD.md y docs/01_INVARIANTES.md.
 
+Branch y entrega:
+- Antes de empezar, creá una branch desde main: `cartografia/fase-02-explorador-arbol`.
+- Hacé todos tus commits en esa branch.
+- Al cerrar (tsc + tests + reporte): pusheá la branch y PARÁ. NO mergees a main.
+- El merge a main lo hace Alejandro tras su QA visual y OK. La fase siguiente sale de main ya con esta mergeada.
+
 Tareas:
 1. Agregá un IPC handler de lectura `carto:scan-tree` en electron/main.ts que
    camine el working dir del repo activo y devuelva una estructura de árbol

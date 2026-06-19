@@ -21,6 +21,12 @@ Reconocimiento primero (leé esto ANTES de tocar nada):
 - package.json → versión de Node de Electron y cómo se agregan dependencias.
 - Referencia: docs/00_FUENTE_DE_VERDAD.md (sección electron/) y docs/01_INVARIANTES.md.
 
+Branch y entrega:
+- Antes de empezar, creá una branch desde main: `cartografia/fase-03-grounding-codegraph`.
+- Hacé todos tus commits en esa branch.
+- Al cerrar (tsc + tests + reporte): pusheá la branch y PARÁ. NO mergees a main.
+- El merge a main lo hace Alejandro tras su QA visual y OK. La fase siguiente sale de main ya con esta mergeada.
+
 Tareas:
 1. Agregá `@colbymchenry/codegraph` como dependencia. En el main, abrí e indexá el repo
    activo (`CodeGraph.open(repoPath)` + `indexAll` con onProgress) y exponé por IPC de

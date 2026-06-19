@@ -82,6 +82,6 @@ La comprensión asistida por IA se puede entregar por **dos caminos compatibles 
 ## Flujo de trabajo (recordatorio)
 
 1. Pegás el brief de la fase al ejecutor (Claude Code / Codex / Antigravity / OpenCode).
-2. El agente trabaja por tandas, cierra con tsc + tests + fallow + reporte en `docs/reports/` y PARA.
+2. El agente crea una branch desde `main` (`cartografia/fase-NN-...`), trabaja por tandas, cierra con tsc + tests + fallow + reporte en `docs/reports/`, pushea la branch (SIN mergear) y PARA.
 3. Vos hacés QA visual — tu OK es la compuerta vinculante.
-4. Recién ahí me pedís el brief de la fase siguiente (lo escribo con el reporte a la vista).
+4. Con tu OK, merge a main. La fase siguiente sale de main ya mergeada; recién ahí me pedís su brief.

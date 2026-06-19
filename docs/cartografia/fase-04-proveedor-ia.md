@@ -21,6 +21,12 @@ Reconocimiento primero (leé esto ANTES de tocar nada):
 - SettingsPanel.tsx → dónde va el selector de proveedor.
 - Referencia: docs/01_INVARIANTES.md (secretos / CSP).
 
+Branch y entrega:
+- Antes de empezar, creá una branch desde main: `cartografia/fase-04-proveedor-ia`.
+- Hacé todos tus commits en esa branch.
+- Al cerrar (tsc + tests + reporte): pusheá la branch y PARÁ. NO mergees a main.
+- El merge a main lo hace Alejandro tras su QA visual y OK. La fase siguiente sale de main ya con esta mergeada.
+
 Tareas:
 1. Definí una interfaz de proveedor común (p. ej. CartoAIProvider con métodos `explain(node, contexto)`
    y `ask(pregunta, contexto)`). REUTILIZÁ/alineá con los stubs multi-proveedor que ya existen del

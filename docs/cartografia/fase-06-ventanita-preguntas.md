@@ -21,6 +21,12 @@ Reconocimiento primero (leé esto ANTES de tocar nada):
 - components/cartography/ → dónde montar la caja de preguntas.
 - Referencia: docs/01_INVARIANTES.md.
 
+Branch y entrega:
+- Antes de empezar, creá una branch desde main: `cartografia/fase-06-ventanita-preguntas`.
+- Hacé todos tus commits en esa branch.
+- Al cerrar (tsc + tests + reporte): pusheá la branch y PARÁ. NO mergees a main.
+- El merge a main lo hace Alejandro tras su QA visual y OK. La fase siguiente sale de main ya con esta mergeada.
+
 Tareas:
 1. Caja de preguntas en la vista, scoped al repo activo. Cambiar de solapa (GitCron → OdontoPro)
    cambia automáticamente el repo consultado, porque el índice es per-repo.

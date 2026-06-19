@@ -21,6 +21,12 @@ Reconocimiento primero (leé estos archivos ANTES de tocar nada, para no pifiarl
 - lib/i18n.ts → la estructura de strings ES/EN/ZH.
 - Referencia de verdad: docs/00_FUENTE_DE_VERDAD.md y docs/01_INVARIANTES.md.
 
+Branch y entrega:
+- Antes de empezar, creá una branch desde main: `cartografia/fase-01-andamiaje`.
+- Hacé todos tus commits en esa branch.
+- Al cerrar (tsc + tests + reporte): pusheá la branch y PARÁ. NO mergees a main.
+- El merge a main lo hace Alejandro tras su QA visual y OK. La fase siguiente sale de main ya con esta mergeada.
+
 Tareas:
 1. Agregá un feature flag `enableCartography` al store Zustand, persistido cifrado
    con safeStorage (replicá EXACTAMENTE el patrón del flag `enableCronometric`),

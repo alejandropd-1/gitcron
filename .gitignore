@@ -41,6 +41,7 @@ npm-debug.log*
 # VS Code workspace file (optional — delete this line if querés commitearla)
 *.code-workspace
 .fallow/
-.codegraph/codegraph.db
 fallow_report.json
-.codegraph/daemon.pid
+# CodeGraph: índice estructural local de Cartografía (per-repo, nunca versionado).
+# La Fase 3 hace que GitCron lo genere en `<repo>/.codegraph/`.
+.codegraph/

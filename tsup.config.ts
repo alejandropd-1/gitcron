@@ -10,8 +10,13 @@ export default defineConfig([
     target: 'node22',
     bundle: true,
     // Bundle everything except 'electron' (provided by the Electron runtime)
-    noExternal: [/^(?!electron$|node:).+/],
-    external: ['electron', 'node:sqlite'],
+    // and `@colbymchenry/codegraph` (Cartography's CodeGraph engine): it
+    // re-exports a per-platform bundle with WASM/tree-sitter that it resolves via
+    // `require.resolve` at runtime and opens node:sqlite lazily. Bundling it would
+    // break that dynamic resolution, so it stays external and loads from
+    // node_modules at runtime (zero network — the bundle is installed on disk).
+    noExternal: [/^(?!electron$|node:|@colbymchenry\/codegraph$).+/],
+    external: ['electron', 'node:sqlite', '@colbymchenry/codegraph'],
     // tsup/esbuild currently strips `node:` from `node:sqlite` even with the
     // supported flags below and a Node 22 target. Keep this post-build fallback
     // scoped to the main bundle so Electron 42/Node 24 loads the builtin module.

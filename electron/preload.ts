@@ -188,6 +188,30 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('update:download-progress', handler);
   },
   cartoScanTree: (repoPath: string) => ipcRenderer.invoke('carto:scan-tree', repoPath),
+  cartoGraph: {
+    ensure: (repoPath: string) => ipcRenderer.invoke('carto:graph-ensure', repoPath),
+    status: (repoPath: string) => ipcRenderer.invoke('carto:graph-status', repoPath),
+    search: (repoPath: string, query: string, limit?: number) =>
+      ipcRenderer.invoke('carto:graph-search', repoPath, query, limit),
+    callers: (repoPath: string, nodeId: string) =>
+      ipcRenderer.invoke('carto:graph-callers', repoPath, nodeId),
+    callees: (repoPath: string, nodeId: string) =>
+      ipcRenderer.invoke('carto:graph-callees', repoPath, nodeId),
+    impact: (repoPath: string, nodeId: string) =>
+      ipcRenderer.invoke('carto:graph-impact', repoPath, nodeId),
+    fileRelations: (repoPath: string, filePath: string) =>
+      ipcRenderer.invoke('carto:graph-file-relations', repoPath, filePath),
+    onProgress: (cb: (payload: { repoPath: string; status: unknown }) => void) => {
+      const handler = (_e: unknown, payload: { repoPath: string; status: unknown }) => cb(payload);
+      ipcRenderer.on('carto:graph-progress', handler);
+      return () => ipcRenderer.removeListener('carto:graph-progress', handler);
+    },
+    onUpdated: (cb: (payload: { repoPath: string }) => void) => {
+      const handler = (_e: unknown, payload: { repoPath: string }) => cb(payload);
+      ipcRenderer.on('carto:graph-updated', handler);
+      return () => ipcRenderer.removeListener('carto:graph-updated', handler);
+    },
+  },
   repoWatch: (targetPath: string) => ipcRenderer.invoke('repo:watch', targetPath),
   repoUnwatch: (targetPath: string) => ipcRenderer.invoke('repo:unwatch', targetPath),
   onRepoFsChange: (cb: (repoPath: string) => void) => {

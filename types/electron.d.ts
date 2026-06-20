@@ -9,6 +9,13 @@ import type {
 import type { PredictionHistoryEntry } from '../electron/db/types';
 import type { ApplyHunkOptions, FileDiff } from '../lib/hunk-patch';
 import type { CartoScanResult } from '../electron/ipc/carto';
+import type {
+  CartoGraphStatus,
+  CartoSearchHit,
+  CartoRelatedSymbol,
+  CartoImpact,
+  CartoFileRelations,
+} from '../lib/carto-types';
 
 interface GitResult<T = unknown> {
   success: boolean;
@@ -328,6 +335,25 @@ interface ElectronAPI {
   onDownloadProgress: (cb: (info: { percent: number; transferred: number; total: number }) => void) => () => void;
   /** Cartografía: escaneo de SOLO LECTURA del árbol de archivos del repo activo. */
   cartoScanTree: (repoPath: string) => Promise<GitResult<CartoScanResult>>;
+  /**
+   * Cartografía Fase 3: motor CodeGraph embebido (local, solo lectura). Devuelve
+   * SIEMPRE el contrato normalizado (lib/carto-types), nunca la forma cruda del motor.
+   * Las queries devuelven `data: null` mientras el índice no esté `ready`.
+   */
+  cartoGraph: {
+    /** Abre/indexa el repo en background. No bloquea; el avance llega por onProgress. */
+    ensure(repoPath: string): Promise<GitResult<CartoGraphStatus>>;
+    status(repoPath: string): Promise<GitResult<CartoGraphStatus>>;
+    search(repoPath: string, query: string, limit?: number): Promise<GitResult<CartoSearchHit[] | null>>;
+    callers(repoPath: string, nodeId: string): Promise<GitResult<CartoRelatedSymbol[] | null>>;
+    callees(repoPath: string, nodeId: string): Promise<GitResult<CartoRelatedSymbol[] | null>>;
+    impact(repoPath: string, nodeId: string): Promise<GitResult<CartoImpact | null>>;
+    fileRelations(repoPath: string, filePath: string): Promise<GitResult<CartoFileRelations | null>>;
+    /** Avance del indexado del repo. Devuelve un disposer. */
+    onProgress(cb: (payload: { repoPath: string; status: CartoGraphStatus }) => void): () => void;
+    /** El watch re-sincronizó el índice del repo (relaciones frescas). Devuelve un disposer. */
+    onUpdated(cb: (payload: { repoPath: string }) => void): () => void;
+  };
   repoWatch: (targetPath: string) => Promise<GitResult>;
   repoUnwatch: (targetPath: string) => Promise<GitResult>;
   onRepoFsChange: (cb: (repoPath: string) => void) => () => void;

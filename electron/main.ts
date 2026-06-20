@@ -17,6 +17,8 @@ import { registerGitOpsHandlers } from './ipc/git-ops';
 import { registerGitSyncHandlers } from './ipc/git-sync';
 import { registerShellHandlers } from './ipc/shell';
 import { registerCartoHandlers } from './ipc/carto';
+import { registerCartoGraphHandlers } from './ipc/carto-graph';
+import { closeAllGraphs } from './carto/graph-engine';
 import { registerWatcherHandlers, closeAllRepoWatchers } from './ipc/watchers';
 import {
   registerAppWindowHandlers, setupAutoUpdater,
@@ -257,6 +259,7 @@ registerGitOpsHandlers();          // git:* local operations
 registerGitSyncHandlers();         // git push/pull/fetch (network)
 registerShellHandlers();           // shell:* + terminal:open + fs:delete-file
 registerCartoHandlers();           // carto:scan-tree (solo lectura de fs, sin red, sin Git)
+registerCartoGraphHandlers(getMainWindow); // carto:graph-* (CodeGraph embebido, local, solo lectura)
 registerWatcherHandlers(getMainWindow);          // repo:watch/unwatch
 registerAppWindowHandlers(getMainWindow, isDev); // app:* + window:*
 
@@ -324,4 +327,5 @@ if (!gotLock) {
 app.on('before-quit', async () => {
   stopUpdateCheckTimer();
   await closeAllRepoWatchers();
+  closeAllGraphs();
 });

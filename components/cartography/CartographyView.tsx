@@ -17,7 +17,9 @@ import { motion } from 'motion/react';
 import { Map, ArrowLeft, FolderTree, RefreshCw, Loader2, AlertTriangle } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import type { CartoScanResult } from '@/electron/ipc/carto';
+import type { CartoGraphStatus } from '@/lib/carto-types';
 import { ExplorerLens } from './ExplorerLens';
+import { CartoRelationsPanel } from './CartoRelationsPanel';
 
 type CartographyViewProps = {
   /** Ruta del repo activo a escanear. `null` si no hay repo abierto. */
@@ -36,6 +38,14 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
   const [scan, setScan] = useState<CartoScanResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ── Grounding estructural (CodeGraph, Fase 3) ──
+  // Archivo seleccionado en el árbol → relaciones reales en el panel de abajo.
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  // Estado del índice del repo (idle/indexing/ready/error), gobernado por main.
+  const [graphStatus, setGraphStatus] = useState<CartoGraphStatus | null>(null);
+  // Se incrementa cuando el watch re-sincroniza: fuerza refetch de relaciones.
+  const [graphRefresh, setGraphRefresh] = useState(0);
 
   // Token de escaneo: descarta resultados de un repo anterior si el usuario
   // cambia de repo mientras un escaneo está en vuelo.
@@ -74,6 +84,33 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
   useEffect(() => {
     void runScan();
   }, [runScan]);
+
+  // Índice CodeGraph: al entrar/cambiar de repo, pedimos a main que lo abra e
+  // indexe en background (no bloquea el renderer). Nos suscribimos al progreso y
+  // al re-sync del watch para mantener fresco el estado y las relaciones.
+  useEffect(() => {
+    setSelectedFile(null);
+    setGraphStatus(null);
+    if (!repoPath) return;
+
+    let active = true;
+    void window.api.cartoGraph.ensure(repoPath).then((res) => {
+      if (active && res.success && res.data) setGraphStatus(res.data);
+    });
+
+    const offProgress = window.api.cartoGraph.onProgress(({ repoPath: rp, status }) => {
+      if (active && rp === repoPath) setGraphStatus(status);
+    });
+    const offUpdated = window.api.cartoGraph.onUpdated(({ repoPath: rp }) => {
+      if (active && rp === repoPath) setGraphRefresh((n) => n + 1);
+    });
+
+    return () => {
+      active = false;
+      offProgress();
+      offUpdated();
+    };
+  }, [repoPath]);
 
   return (
     <motion.div
@@ -158,7 +195,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
           </div>
 
           {/* Contenido de la lente */}
-          <div className="min-h-0 flex-1 overflow-auto px-2 py-1">
+          <div className="flex min-h-0 flex-1 flex-col">
             {loading ? (
               <CenteredState
                 icon={<Loader2 size={22} className="animate-spin text-carto-accent" />}
@@ -177,9 +214,27 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                 detail={t('cartography.emptyHint')}
               />
             ) : scan && scan.root.length > 0 ? (
-              // `key` por scannedAt: un escaneo nuevo remonta la lente y reinicia
-              // su estado de expansión.
-              <ExplorerLens key={scan.scannedAt} nodes={scan.root} />
+              // Split vertical: árbol arriba, relaciones (CodeGraph) abajo. Al
+              // seleccionar un archivo, el panel inferior muestra sus relaciones
+              // reales. `key` por scannedAt: un escaneo nuevo remonta la lente.
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="min-h-0 flex-1 overflow-auto px-2 py-1">
+                  <ExplorerLens
+                    key={scan.scannedAt}
+                    nodes={scan.root}
+                    selectedPath={selectedFile}
+                    onSelectFile={setSelectedFile}
+                  />
+                </div>
+                <div className="h-2/5 min-h-0 shrink-0 border-t border-carto-accent/20 bg-carto-node/[0.02]">
+                  <CartoRelationsPanel
+                    repoPath={repoPath}
+                    selectedFile={selectedFile}
+                    status={graphStatus}
+                    refreshKey={graphRefresh}
+                  />
+                </div>
+              </div>
             ) : (
               <CenteredState
                 icon={<FolderTree size={22} strokeWidth={1.5} className="text-carto-node" />}

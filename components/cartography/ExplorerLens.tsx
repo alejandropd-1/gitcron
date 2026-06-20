@@ -82,11 +82,15 @@ function iconForFile(name: string): LucideIcon {
 
 type ExplorerLensProps = {
   nodes: CartoTreeNode[];
+  /** Ruta del archivo seleccionado (para resaltarlo), o null. */
+  selectedPath?: string | null;
+  /** Se invoca al hacer click en un ARCHIVO (no carpeta). */
+  onSelectFile?: (path: string) => void;
 };
 
 const INDENT_PX = 14;
 
-export function ExplorerLens({ nodes }: ExplorerLensProps) {
+export function ExplorerLens({ nodes, selectedPath, onSelectFile }: ExplorerLensProps) {
   // Conjunto de rutas de carpeta expandidas. Por defecto todo colapsado salvo
   // las carpetas de primer nivel, para mostrar la silueta del repo sin volcar
   // todo el árbol de una.
@@ -113,7 +117,15 @@ export function ExplorerLens({ nodes }: ExplorerLensProps) {
   return (
     <div role="tree" className="select-none py-1 text-sm">
       {flat.map((row) => (
-        <TreeRow key={row.node.path} node={row.node} depth={row.depth} expanded={expanded} onToggle={toggle} />
+        <TreeRow
+          key={row.node.path}
+          node={row.node}
+          depth={row.depth}
+          expanded={expanded}
+          onToggle={toggle}
+          selectedPath={selectedPath}
+          onSelectFile={onSelectFile}
+        />
       ))}
     </div>
   );
@@ -137,20 +149,28 @@ type TreeRowProps = {
   depth: number;
   expanded: Set<string>;
   onToggle: (path: string) => void;
+  selectedPath?: string | null;
+  onSelectFile?: (path: string) => void;
 };
 
-function TreeRow({ node, depth, expanded, onToggle }: TreeRowProps) {
+function TreeRow({ node, depth, expanded, onToggle, selectedPath, onSelectFile }: TreeRowProps) {
   const isDir = node.type === 'dir';
   const isOpen = isDir && expanded.has(node.path);
+  const isSelected = !isDir && node.path === selectedPath;
   const padLeft = 8 + depth * INDENT_PX;
 
   return (
     <div
       role="treeitem"
       aria-expanded={isDir ? isOpen : undefined}
-      className="group flex cursor-default items-center gap-1.5 rounded py-[3px] pr-2 text-carto-text-muted transition-colors hover:bg-carto-node/5 hover:text-carto-text"
+      aria-selected={isDir ? undefined : isSelected}
+      className={`group flex cursor-default items-center gap-1.5 rounded py-[3px] pr-2 transition-colors ${
+        isSelected
+          ? 'bg-carto-accent/15 text-carto-text'
+          : 'text-carto-text-muted hover:bg-carto-node/5 hover:text-carto-text'
+      }`}
       style={{ paddingLeft: padLeft }}
-      onClick={isDir ? () => onToggle(node.path) : undefined}
+      onClick={isDir ? () => onToggle(node.path) : () => onSelectFile?.(node.path)}
     >
       {isDir ? (
         <ChevronRight

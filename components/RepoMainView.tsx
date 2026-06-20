@@ -128,6 +128,8 @@ export type RepoMainViewProps = {
   // Cartografía: vista top-level per-repo. Cuando está activa reemplaza al
   // grafo/diffs/tabs dentro de la vista 'repository'.
   cartographyActive: boolean;
+  /** Ruta del repo activo: la lente del explorador escanea este working dir. */
+  cartographyRepoPath: string | null;
   onExitCartography: () => void;
   settingsPanel: SettingsPanelProps;
   helpPanel: HelpPanelProps;
@@ -146,6 +148,7 @@ export function RepoMainView({
   activeView,
   isRepoStartView,
   cartographyActive,
+  cartographyRepoPath,
   onExitCartography,
   settingsPanel,
   helpPanel,
@@ -156,7 +159,7 @@ export function RepoMainView({
   graphView,
   interactiveRebase,
 }: RepoMainViewProps) {
-  if (cartographyActive) return <CartographyView onExit={onExitCartography} />;
+  if (cartographyActive) return <CartographyView repoPath={cartographyRepoPath} onExit={onExitCartography} />;
   if (interactiveRebase.interactiveRebaseFrom) {
     return (
       <InteractiveRebasePanel

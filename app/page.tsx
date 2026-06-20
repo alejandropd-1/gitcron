@@ -1452,6 +1452,7 @@ export default function GitCronPage() {
             activeView={activeView}
             isRepoStartView={isRepoStartView}
             cartographyActive={cartographyActive}
+            cartographyRepoPath={repoPath ?? null}
             onExitCartography={handleExitCartography}
             settingsPanel={{
               selectedSettingsSection,

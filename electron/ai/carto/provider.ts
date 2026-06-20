@@ -58,6 +58,12 @@ export async function chatComplete(opts: {
   providerLabel: string;
   friendlyConnError: string;
   maxTokens?: number;
+  /**
+   * Presupuesto de tiempo del request. Los modelos LOCALES (CPU/GPU modesta)
+   * pueden tardar mucho más que un proveedor online, así que el adapter local
+   * pasa una ventana generosa; sin esto, el default de 30s los cortaba siempre.
+   */
+  timeoutMs?: number;
 }): Promise<string> {
   let res: Response;
   try {
@@ -73,7 +79,7 @@ export async function chatComplete(opts: {
           { role: 'user', content: opts.user },
         ],
       }),
-    });
+    }, opts.timeoutMs);
   } catch (err) {
     // Errores de conexión (ECONNREFUSED, DNS, host inalcanzable) → mensaje claro.
     // Los timeouts/cancelaciones del propio fetchWithTimeout ya vienen con texto

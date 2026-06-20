@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Map, ArrowLeft, FolderTree, RefreshCw, Loader2, AlertTriangle } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
+import { useCartoLayout } from '@/hooks/use-carto-layout';
 import type { CartoScanResult } from '@/electron/ipc/carto';
 import type { CartoGraphStatus } from '@/lib/carto-types';
 import { ExplorerLens } from './ExplorerLens';
@@ -47,6 +48,13 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
   const [graphStatus, setGraphStatus] = useState<CartoGraphStatus | null>(null);
   // Se incrementa cuando el watch re-sincroniza: fuerza refetch de relaciones.
   const [graphRefresh, setGraphRefresh] = useState(0);
+
+  // ── Capa de IA (Fase 4) ──
+  // Si está activa (opt-in), montamos la columna de chat a la derecha. La vista
+  // funciona igual sin IA: cuando está apagada, no hay columna ni divisor.
+  const [aiEnabled, setAiEnabled] = useState(false);
+  // Layout arrastrable: ancho de la columna de chat + alto del panel de relaciones.
+  const { chatW, relationsH, isDragging, beginChatDrag, beginRelationsDrag } = useCartoLayout();
 
   // Token de escaneo: descarta resultados de un repo anterior si el usuario
   // cambia de repo mientras un escaneo está en vuelo.
@@ -85,6 +93,18 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
   useEffect(() => {
     void runScan();
   }, [runScan]);
+
+  // Leemos si la IA de Cartografía está activa al montar la vista. Se relee al
+  // volver a entrar (la vista se remonta), así un cambio en Ajustes se refleja.
+  useEffect(() => {
+    let active = true;
+    void window.api.cartoAi.getSettings().then((res) => {
+      if (active) setAiEnabled(res.success && res.data ? res.data.enabled : false);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Índice CodeGraph: al entrar/cambiar de repo, pedimos a main que lo abra e
   // indexe en background (no bloquea el renderer). Nos suscribimos al progreso y
@@ -148,7 +168,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
       </div>
 
       {/* ── Cuerpo: selector de lentes + panel de la lente activa ── */}
-      <div className="relative flex min-h-0 flex-1 overflow-hidden">
+      <div className={`relative flex min-h-0 flex-1 overflow-hidden ${isDragging ? 'select-none' : ''}`}>
         {/* Riel de lentes (TCARS) */}
         <nav className="flex w-44 shrink-0 flex-col gap-1 border-r border-carto-accent/15 bg-carto-node/[0.02] p-3">
           <span className="px-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-carto-text-muted">
@@ -227,7 +247,18 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                     onSelectFile={setSelectedFile}
                   />
                 </div>
-                <div className="h-2/5 min-h-0 shrink-0 border-t border-carto-accent/20 bg-carto-node/[0.02]">
+                {/* Divisor vertical arrastrable: árbol ↕ relaciones. */}
+                <div
+                  onMouseDown={beginRelationsDrag}
+                  className="group relative h-1.5 shrink-0 cursor-row-resize bg-carto-accent/20 transition-colors hover:bg-carto-accent/50"
+                  title={t('cartography.resizeRows')}
+                >
+                  <span className="pointer-events-none absolute left-1/2 top-1/2 h-0.5 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-carto-accent/40 group-hover:bg-carto-accent" />
+                </div>
+                <div
+                  style={{ height: relationsH }}
+                  className="min-h-0 shrink-0 bg-carto-node/[0.02]"
+                >
                   <CartoRelationsPanel
                     repoPath={repoPath}
                     selectedFile={selectedFile}
@@ -235,9 +266,6 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                     refreshKey={graphRefresh}
                   />
                 </div>
-                {/* Capa de IA (Fase 4): "ventanita de preguntas", opt-in. Si la
-                    IA está apagada el componente no renderiza nada. */}
-                <CartoAskBox selectedFile={selectedFile} />
               </div>
             ) : (
               <CenteredState
@@ -247,6 +275,24 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
             )}
           </div>
         </div>
+
+        {/* ── Columna de chat de IA (Fase 4), opt-in ──
+            Sólo se monta si la IA está activa. Divisor horizontal arrastrable
+            entre el explorador y el chat. Con la IA apagada, la vista queda igual. */}
+        {aiEnabled && (
+          <>
+            <div
+              onMouseDown={beginChatDrag}
+              className="group relative w-1.5 shrink-0 cursor-col-resize bg-carto-accent/20 transition-colors hover:bg-carto-accent/50"
+              title={t('cartography.resizeCols')}
+            >
+              <span className="pointer-events-none absolute left-1/2 top-1/2 h-8 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-carto-accent/40 group-hover:bg-carto-accent" />
+            </div>
+            <div style={{ width: chatW }} className="min-w-0 shrink-0 border-l border-carto-accent/15">
+              <CartoAskBox selectedFile={selectedFile} />
+            </div>
+          </>
+        )}
       </div>
     </motion.div>
   );

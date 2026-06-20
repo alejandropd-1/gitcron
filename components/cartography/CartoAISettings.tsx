@@ -3,17 +3,20 @@
 // CartoAISettings — Cartografía, Fase 4.
 //
 // Selector de proveedor de IA en Ajustes: opt-in (apagado por defecto), local vs
-// online, modelo opcional y un botón para probar la conexión sin gastar una
-// generación. Autocontenido: maneja su propio estado vía `window.api.cartoAi`,
-// mismo patrón que TemporalAgentSettings (no enchufa props por el árbol).
+// online, modelo y un botón para probar la conexión sin gastar una generación.
+// Autocontenido: maneja su propio estado vía `window.api.cartoAi`, mismo patrón
+// que TemporalAgentSettings (no enchufa props por el árbol).
 //
-// Secretos: este componente NUNCA toca API keys. El modo online reutiliza la key
-// cifrada del Temporal Agent, que vive y se usa sólo en main.
+// Modo ONLINE: reutiliza la MISMA lógica del Temporal Agent para la API key y el
+// modelo — el mismo vault (`window.api.ai.*` con 'openrouter') y el mismo catálogo
+// de modelos (lib/openrouter-models). La key nunca llega al renderer: sólo se
+// consulta si existe (booleano) y su huella SHA-256; se usa sólo en main.
 
 import { useEffect, useState } from 'react';
-import { Bot, Check, Loader2, Wifi, WifiOff, HardDrive, Globe } from 'lucide-react';
+import { Bot, Check, Loader2, Wifi, WifiOff, HardDrive, Globe, KeyRound } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
+import { OPENROUTER_MODELS, OPENROUTER_PROVIDER_ID } from '@/lib/openrouter-models';
 import type { CartoAISettings as Settings, CartoAIMode, CartoAIProbe } from '@/types/carto-ai';
 
 export function CartoAISettings() {
@@ -89,7 +92,7 @@ export function CartoAISettings() {
         {settings.enabled ? <><Check size={14} strokeWidth={3} />{t('cartography.ai.enabled')}</> : t('cartography.ai.disabled')}
       </button>
 
-      {/* Selector de proveedor + modelo: sólo visible si la IA está activa */}
+      {/* Selector de proveedor + config: sólo visible si la IA está activa */}
       {settings.enabled && (
         <div className="space-y-4">
           <div>
@@ -118,23 +121,30 @@ export function CartoAISettings() {
             <p className="mt-2 text-xs text-text-secondary/80 leading-relaxed">{activeHint}</p>
           </div>
 
-          <div>
-            <label className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-              {t('cartography.ai.modelLabel')}
-            </label>
-            <input
-              type="text"
-              value={settings.model ?? ''}
-              onChange={(e) => setSettings({ ...settings, model: e.target.value })}
-              onBlur={(e) => patch({ model: e.target.value })}
-              placeholder={
-                settings.mode === 'local'
-                  ? t('cartography.ai.modelPlaceholderLocal')
-                  : t('cartography.ai.modelPlaceholderOnline')
-              }
-              className="w-full rounded-lg border border-border-subtle/20 bg-bg-base/70 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-secondary/50 focus:border-secondary/50 focus:outline-none"
+          {/* LOCAL: el modelo es el nombre cargado en LM Studio (texto libre). */}
+          {settings.mode === 'local' && (
+            <div>
+              <label className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                {t('cartography.ai.modelLabel')}
+              </label>
+              <input
+                type="text"
+                value={settings.model ?? ''}
+                onChange={(e) => setSettings({ ...settings, model: e.target.value })}
+                onBlur={(e) => patch({ model: e.target.value })}
+                placeholder={t('cartography.ai.modelPlaceholderLocal')}
+                className="w-full rounded-lg border border-border-subtle/20 bg-bg-base/70 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-secondary/50 focus:border-secondary/50 focus:outline-none"
+              />
+            </div>
+          )}
+
+          {/* ONLINE: misma lógica que el Temporal Agent (key cifrada + modelo). */}
+          {settings.mode === 'online' && (
+            <OnlineAccess
+              model={settings.model ?? ''}
+              onModelChange={(v) => patch({ model: v })}
             />
-          </div>
+          )}
 
           {/* Probar conexión (sin gastar una generación) */}
           <div className="flex items-center gap-3">
@@ -159,5 +169,159 @@ export function CartoAISettings() {
         </div>
       )}
     </section>
+  );
+}
+
+// ── Acceso online: API key (OpenRouter) + selector de modelo ────────────────
+// Reutiliza window.api.ai.* (vault del Temporal Agent) con 'openrouter'. El
+// renderer sólo ve un booleano "hay key" + la huella SHA-256; la key real vive
+// y se usa sólo en main. El modelo se persiste en los settings de Cartografía.
+
+function OnlineAccess({ model, onModelChange }: { model: string; onModelChange: (v: string) => void }) {
+  const t = useT();
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
+  const [fingerprint, setFingerprint] = useState<string | null>(null);
+  const [keyDraft, setKeyDraft] = useState('');
+  const [savingKey, setSavingKey] = useState(false);
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  async function refresh() {
+    const [hasR, fpR] = await Promise.all([
+      window.api.ai.hasKey(OPENROUTER_PROVIDER_ID),
+      window.api.ai.keyFingerprint(OPENROUTER_PROVIDER_ID),
+    ]);
+    setHasKey(hasR.success ? Boolean(hasR.data) : false);
+    setFingerprint(fpR.success ? fpR.data ?? null : null);
+  }
+
+  async function saveKey() {
+    const k = keyDraft.trim();
+    if (!k) return;
+    setSavingKey(true);
+    try {
+      await window.api.ai.setKey(OPENROUTER_PROVIDER_ID, k);
+      setKeyDraft(''); // nunca dejamos la key en estado del componente
+      await refresh();
+    } finally {
+      setSavingKey(false);
+    }
+  }
+
+  async function removeKey() {
+    await window.api.ai.removeKey(OPENROUTER_PROVIDER_ID);
+    await refresh();
+  }
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border-subtle/15 bg-bg-base/40 p-3">
+      <div className="flex items-center gap-2">
+        <KeyRound size={13} className="text-secondary" />
+        <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+          {t('cartography.ai.onlineKeyTitle')}
+        </span>
+        <span className="ml-auto text-xs">
+          {hasKey === null ? (
+            <span className="text-text-secondary/70">{t('cartography.ai.keyChecking')}</span>
+          ) : hasKey ? (
+            <span className="text-secondary">{t('cartography.ai.keyConfigured')}</span>
+          ) : (
+            <span className="text-[#ffa8a3]">{t('cartography.ai.keyNotSet')}</span>
+          )}
+        </span>
+      </div>
+
+      {hasKey && fingerprint && (
+        <code className="block font-mono text-[11px] text-text-secondary/70">
+          {t('cartography.ai.keyFingerprint', { fp: fingerprint })}
+        </code>
+      )}
+
+      <p className="text-xs text-text-secondary/80 leading-relaxed">{t('cartography.ai.sharedKeyHint')}</p>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="password"
+          value={keyDraft}
+          onChange={(e) => setKeyDraft(e.target.value)}
+          autoComplete="off"
+          placeholder={hasKey ? t('cartography.ai.keyPlaceholderReplace') : t('cartography.ai.keyPlaceholderPaste')}
+          className="min-w-0 flex-1 rounded-lg border border-border-subtle/20 bg-bg-base/70 px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-secondary/50 focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => void saveKey()}
+          disabled={savingKey || !keyDraft.trim()}
+          className="shrink-0 rounded-lg border border-secondary/45 bg-secondary/15 px-3 py-2 text-sm font-semibold text-secondary transition-colors hover:bg-secondary/25 disabled:opacity-40"
+        >
+          {savingKey ? t('cartography.ai.saving') : t('cartography.ai.saveKey')}
+        </button>
+        {hasKey && (
+          <button
+            type="button"
+            onClick={() => void removeKey()}
+            className="shrink-0 rounded-lg border border-border-subtle/20 bg-bg-base/70 px-3 py-2 text-sm text-text-secondary transition-colors hover:text-[#ffa8a3] hover:border-[#ffa8a3]/30"
+          >
+            {t('cartography.ai.removeKey')}
+          </button>
+        )}
+      </div>
+
+      {/* Selector de modelo (mismo catálogo que el Temporal Agent) */}
+      <div>
+        <label className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+          {t('cartography.ai.onlineModelLabel')}
+        </label>
+        <ModelSelect value={model} onChange={onModelChange} />
+      </div>
+    </div>
+  );
+}
+
+function ModelSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const t = useT();
+  const knownIds = OPENROUTER_MODELS.map((m) => m.id);
+  const isKnown = knownIds.includes(value);
+  const [customMode, setCustomMode] = useState(!!value && !isKnown);
+  const selectValue = customMode ? '__custom__' : !value ? '' : isKnown ? value : '__custom__';
+
+  return (
+    <div className="flex flex-col gap-2">
+      <select
+        value={selectValue}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === '__custom__') {
+            setCustomMode(true);
+            onChange('');
+          } else {
+            setCustomMode(false);
+            onChange(v);
+          }
+        }}
+        className="w-full rounded-lg border border-border-subtle/20 bg-bg-base/70 px-3 py-2 text-sm text-text-primary focus:border-secondary/50 focus:outline-none"
+      >
+        <option value="">{t('cartography.ai.modelDefaultOption')}</option>
+        {OPENROUTER_MODELS.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.label} — {m.price}/M tokens
+          </option>
+        ))}
+        <option value="__custom__">{t('cartography.ai.modelCustomOption')}</option>
+      </select>
+      {(customMode || (!isKnown && value)) && (
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          spellCheck={false}
+          autoComplete="off"
+          placeholder={t('cartography.ai.modelCustomPlaceholder')}
+          className="w-full rounded-lg border border-border-subtle/20 bg-bg-base/70 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-secondary/50 focus:border-secondary/50 focus:outline-none"
+        />
+      )}
+    </div>
   );
 }

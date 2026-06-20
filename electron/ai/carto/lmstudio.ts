@@ -27,6 +27,11 @@ const MODELS_ENDPOINT = 'http://localhost:1234/v1/models';
 // mandamos un placeholder estable cuando el usuario no fijó uno.
 const DEFAULT_MODEL = 'local-model';
 
+// Ventana de tiempo generosa: un modelo local puede tardar minutos en responder
+// (CPU/GPU modesta, primer prompt sin warm-up). El default de 30s del runtime los
+// cortaba siempre — ver el feedback de QA. 5 min es tope defensivo contra cuelgues.
+const LOCAL_TIMEOUT_MS = 300_000;
+
 const CONN_ERROR =
   'Servidor de IA local no disponible. Abrí LM Studio, cargá un modelo y activá el servidor local (localhost:1234).';
 
@@ -43,6 +48,7 @@ export function createLmStudioProvider(opts?: { model?: string }): CartoAIProvid
       user,
       providerLabel: 'LM Studio',
       friendlyConnError: CONN_ERROR,
+      timeoutMs: LOCAL_TIMEOUT_MS,
     });
     return toResponse(text, providerTag);
   }

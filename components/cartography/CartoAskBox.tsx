@@ -1,20 +1,26 @@
 'use client';
 
-// CartoAskBox — Cartografía, Fase 4. La "ventanita de preguntas".
+// CartoAskBox — Cartografía, Fase 4. Panel de chat de la IA (columna derecha).
 //
+// Conversación con turnos: el usuario pregunta, la IA responde, y el hilo se
+// acumula para poder leer la charla completa (no se pisa la respuesta anterior).
 // Consumidor mínimo de la capa de IA que prueba la aceptación de la fase: desde
-// el repo activo, mandás un prompt al proveedor elegido (local u online) y ves la
-// respuesta. Si la IA está apagada NO se renderiza (la vista sigue igual); si el
-// proveedor está caído, muestra el error claro inline y no rompe nada.
+// el repo activo, mandás prompts al proveedor elegido (local u online) y ves las
+// respuestas. La visibilidad la gobierna la vista (sólo monta esto si la IA está
+// activa), así que acá asumimos que está habilitada.
 //
 // No toca secretos: todo pasa por window.api.cartoAi, que dispara la petición en
-// main. El contexto que adjunta es sólo el archivo seleccionado (anclaje liviano).
+// main. El contexto adjunto es sólo el archivo seleccionado (anclaje liviano).
 
 import { useEffect, useRef, useState } from 'react';
-import { Bot, Send, Loader2, AlertTriangle, X } from 'lucide-react';
+import { Bot, Send, Loader2, AlertTriangle, Trash2, User } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
 import { useT } from '@/hooks/use-translation';
-import type { CartoAIResponse } from '@/types/carto-ai';
+
+type Turn =
+  | { id: number; role: 'user'; text: string }
+  | { id: number; role: 'ai'; text: string; provider: string }
+  | { id: number; role: 'error'; text: string };
 
 type CartoAskBoxProps = {
   /** Archivo seleccionado en el árbol, adjuntado como contexto liviano. */
@@ -24,60 +30,89 @@ type CartoAskBoxProps = {
 export function CartoAskBox({ selectedFile }: CartoAskBoxProps) {
   const t = useT();
   const lang = useGitStore((s) => s.language);
-  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState<CartoAIResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const reqToken = useRef(0);
+  const nextId = useRef(1);
+  const threadRef = useRef<HTMLDivElement>(null);
 
-  // Leemos las preferencias al montar. Si la IA está apagada, no mostramos nada.
+  // Auto-scroll al último turno cuando el hilo crece o llega una respuesta.
   useEffect(() => {
-    let active = true;
-    void window.api.cartoAi.getSettings().then((res) => {
-      if (active) setEnabled(res.success && res.data ? res.data.enabled : false);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
+    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: 'smooth' });
+  }, [turns, loading]);
 
   async function submit() {
     const q = question.trim();
     if (!q || loading) return;
     const token = ++reqToken.current;
+    setTurns((prev) => [...prev, { id: nextId.current++, role: 'user', text: q }]);
+    setQuestion('');
     setLoading(true);
-    setError(null);
-    setAnswer(null);
     try {
       const res = await window.api.cartoAi.ask(q, {
         lang,
         filePath: selectedFile ?? undefined,
       });
       if (token !== reqToken.current) return;
-      if (res.success && res.data) setAnswer(res.data);
-      else setError(res.error ?? t('cartography.ai.error'));
+      if (res.success && res.data) {
+        setTurns((prev) => [...prev, { id: nextId.current++, role: 'ai', text: res.data!.text, provider: res.data!.provider }]);
+      } else {
+        setTurns((prev) => [...prev, { id: nextId.current++, role: 'error', text: res.error ?? t('cartography.ai.error') }]);
+      }
     } catch (err) {
       if (token !== reqToken.current) return;
-      setError(err instanceof Error ? err.message : t('cartography.ai.error'));
+      const msg = err instanceof Error ? err.message : t('cartography.ai.error');
+      setTurns((prev) => [...prev, { id: nextId.current++, role: 'error', text: msg }]);
     } finally {
       if (token === reqToken.current) setLoading(false);
     }
   }
 
-  // IA apagada (o aún cargando preferencias): la vista no muestra IA.
-  if (!enabled) return null;
-
   return (
-    <div className="flex shrink-0 flex-col gap-2 border-t border-carto-accent/20 bg-carto-node/[0.03] px-3 py-2.5">
-      <div className="flex items-center gap-2">
+    <div className="flex h-full min-h-0 flex-col bg-carto-node/[0.02]">
+      {/* Cabecera */}
+      <div className="flex shrink-0 items-center gap-2 border-b border-carto-grid px-3 py-2">
         <Bot size={13} className="shrink-0 text-carto-accent" />
-        <span className="text-[11px] font-bold uppercase tracking-widest text-carto-text-muted">
+        <span className="truncate text-[11px] font-bold uppercase tracking-widest text-carto-text-muted">
           {t('cartography.ai.askTitle')}
         </span>
+        {turns.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setTurns([])}
+            title={t('cartography.ai.clear')}
+            className="ml-auto flex items-center gap-1 text-[11px] text-carto-text-muted transition-colors hover:text-carto-text"
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
       </div>
 
-      <div className="flex items-center gap-2">
+      {/* Hilo de conversación */}
+      <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-2.5">
+        {turns.length === 0 && !loading ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center text-carto-text-muted">
+            <Bot size={20} className="text-carto-accent" />
+            <p className="max-w-[18rem] text-xs leading-relaxed">{t('cartography.ai.askPlaceholder')}</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {turns.map((turn) => (
+              <Bubble key={turn.id} turn={turn} />
+            ))}
+            {loading && (
+              <div className="flex items-center gap-2 text-xs text-carto-text-muted">
+                <Loader2 size={13} className="animate-spin text-carto-accent" />
+                {t('cartography.ai.thinking')}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Caja de entrada */}
+      <div className="flex shrink-0 items-center gap-2 border-t border-carto-grid px-3 py-2.5">
         <input
           type="text"
           value={question}
@@ -96,31 +131,38 @@ export function CartoAskBox({ selectedFile }: CartoAskBoxProps) {
           className="shrink-0 flex items-center gap-1.5 rounded border border-carto-accent/40 bg-carto-accent/10 px-2.5 py-1.5 text-xs font-semibold text-carto-accent transition-colors hover:bg-carto-accent/20 disabled:opacity-40"
         >
           {loading ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-          {loading ? t('cartography.ai.thinking') : t('cartography.ai.send')}
+          {t('cartography.ai.send')}
         </button>
       </div>
+    </div>
+  );
+}
 
-      {error && (
-        <div className="flex items-start gap-1.5 rounded border border-[#ffa8a3]/30 bg-[#ffa8a3]/5 px-2.5 py-1.5 text-[11px] text-[#ffa8a3]">
-          <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-          <span className="min-w-0">{error}</span>
+function Bubble({ turn }: { turn: Turn }) {
+  if (turn.role === 'user') {
+    return (
+      <div className="flex justify-end">
+        <div className="flex max-w-[85%] items-start gap-1.5 rounded-lg border border-carto-accent/30 bg-carto-accent/10 px-2.5 py-1.5 text-xs text-carto-text">
+          <p className="min-w-0 whitespace-pre-wrap break-words">{turn.text}</p>
+          <User size={12} className="mt-0.5 shrink-0 text-carto-accent" />
         </div>
-      )}
-
-      {answer && (
-        <div className="relative rounded border border-carto-grid bg-carto-canvas px-3 py-2 text-xs leading-relaxed text-carto-text">
-          <button
-            type="button"
-            onClick={() => setAnswer(null)}
-            aria-label={t('cartography.ai.clear')}
-            className="absolute right-1.5 top-1.5 text-carto-text-muted hover:text-carto-text"
-          >
-            <X size={13} />
-          </button>
-          <p className="whitespace-pre-wrap pr-5">{answer.text}</p>
-          <p className="mt-1.5 font-mono text-[10px] text-carto-text-muted/70">{answer.provider}</p>
-        </div>
-      )}
+      </div>
+    );
+  }
+  if (turn.role === 'error') {
+    return (
+      <div className="flex items-start gap-1.5 rounded-lg border border-[#ffa8a3]/30 bg-[#ffa8a3]/5 px-2.5 py-1.5 text-[11px] text-[#ffa8a3]">
+        <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+        <span className="min-w-0 break-words">{turn.text}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex justify-start">
+      <div className="max-w-[90%] rounded-lg border border-carto-grid bg-carto-canvas px-2.5 py-1.5 text-xs leading-relaxed text-carto-text">
+        <p className="whitespace-pre-wrap break-words">{turn.text}</p>
+        <p className="mt-1.5 font-mono text-[10px] text-carto-text-muted/70">{turn.provider}</p>
+      </div>
     </div>
   );
 }

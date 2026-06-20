@@ -17,23 +17,15 @@ import { useT } from '@/hooks/use-translation';
 import { useGitStore } from '@/lib/git-store';
 import { Brain } from 'lucide-react';
 import { CopyButton } from './CopyButton';
+import { OPENROUTER_MODELS } from '@/lib/openrouter-models';
 
 const GREEN = '#a3f185';
 const CYAN = '#5ed8ff';
 const ORANGE = '#fd9d1a';
 
 // Phase 3 / Phase 4: OpenRouter is the primary provider (one key → many models).
+// The model catalogue lives in lib/openrouter-models (shared with Cartografía).
 const ACTIVE_PROVIDER = 'openrouter';
-
-const OPENROUTER_MODELS: Array<{ id: string; label: string; price: string }> = [
-  { id: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash (barato)', price: '$0.50 / $3.00' },
-  { id: 'google/gemini-3.5-flash', label: 'Gemini 3.5 Flash', price: '$1.50 / $9.00' },
-  { id: 'deepseek/deepseek-v4-pro', label: 'DeepSeek V4 Pro', price: '$0.44 / $0.87' },
-  { id: 'xiaomi/mimo-v2.5-pro', label: 'MiMo V2.5 Pro', price: '$0.44 / $0.87' },
-  { id: 'minimax/minimax-m2.7', label: 'MiniMax M2.7', price: '$0.26 / $1.20' },
-  { id: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (default)', price: '$3.00 / $15.00' },
-  { id: 'openai/gpt-5.5', label: 'GPT-5.5', price: '$5.00 / $30.00' },
-];
 
 interface Props {
   repoPath: string;

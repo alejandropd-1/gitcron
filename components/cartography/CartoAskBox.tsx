@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Bot, Send, Loader2, AlertTriangle, Trash2, User } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
 import { useT } from '@/hooks/use-translation';
+import type { CartoAIContext } from '@/types/carto-ai';
 
 type Turn =
   | { id: number; role: 'user'; text: string }
@@ -23,11 +24,13 @@ type Turn =
   | { id: number; role: 'error'; text: string };
 
 type CartoAskBoxProps = {
-  /** Archivo seleccionado en el árbol, adjuntado como contexto liviano. */
+  /** Repo activo, para traer las relaciones reales del grafo como grounding. */
+  repoPath: string | null;
+  /** Archivo seleccionado en el árbol; ancla la pregunta a sus relaciones. */
   selectedFile: string | null;
 };
 
-export function CartoAskBox({ selectedFile }: CartoAskBoxProps) {
+export function CartoAskBox({ repoPath, selectedFile }: CartoAskBoxProps) {
   const t = useT();
   const lang = useGitStore((s) => s.language);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -42,6 +45,31 @@ export function CartoAskBox({ selectedFile }: CartoAskBoxProps) {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: 'smooth' });
   }, [turns, loading]);
 
+  // Arma el contexto de la pregunta con las relaciones REALES del grafo (las
+  // mismas del panel "Relaciones"): imports, usado-por e impacto. Sin esto, la IA
+  // sólo recibía el nombre del archivo y — correctamente — decía que no podía
+  // afirmar nada desde el grafo. Si el archivo no está indexado o falla la
+  // lectura, mandamos sólo el filePath (grounding degrada, no rompe).
+  async function buildContext(): Promise<CartoAIContext> {
+    const ctx: CartoAIContext = { lang, filePath: selectedFile ?? undefined };
+    if (!repoPath || !selectedFile) return ctx;
+    try {
+      const rel = await window.api.cartoGraph.fileRelations(repoPath, selectedFile);
+      if (rel.success && rel.data && rel.data.indexed) {
+        ctx.imports = rel.data.imports;
+        ctx.usedBy = rel.data.usedBy;
+        ctx.impact = {
+          fileCount: rel.data.impact.impactedFiles.length,
+          symbolCount: rel.data.impact.total,
+          sampleFiles: rel.data.impact.impactedFiles.slice(0, 15),
+        };
+      }
+    } catch {
+      /* sin relaciones: la IA igual responde con lo que haya */
+    }
+    return ctx;
+  }
+
   async function submit() {
     const q = question.trim();
     if (!q || loading) return;
@@ -50,10 +78,7 @@ export function CartoAskBox({ selectedFile }: CartoAskBoxProps) {
     setQuestion('');
     setLoading(true);
     try {
-      const res = await window.api.cartoAi.ask(q, {
-        lang,
-        filePath: selectedFile ?? undefined,
-      });
+      const res = await window.api.cartoAi.ask(q, await buildContext());
       if (token !== reqToken.current) return;
       if (res.success && res.data) {
         setTurns((prev) => [...prev, { id: nextId.current++, role: 'ai', text: res.data!.text, provider: res.data!.provider }]);

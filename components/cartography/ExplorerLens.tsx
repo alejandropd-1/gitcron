@@ -11,8 +11,74 @@
 // así un repo de cientos de archivos arranca liviano y nunca se cuelga.
 
 import { useMemo, useState } from 'react';
-import { ChevronRight, Folder, FolderOpen, File as FileIcon } from 'lucide-react';
+import {
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  File as FileIcon,
+  FileCode,
+  FileJson,
+  FileText,
+  FileImage,
+  FileVideo,
+  FileAudio,
+  FileArchive,
+  FileCog,
+  FileTerminal,
+  FileKey,
+  FileSpreadsheet,
+  FileType,
+  FileLock2,
+  FileBox,
+  type LucideIcon,
+} from 'lucide-react';
 import type { CartoTreeNode } from '@/lib/carto-tree';
+
+// ── Icono por formato de archivo (puramente estético) ───────────────────────
+// Mantiene un único color muted para no romper la paleta TCARS; sólo cambia la
+// silueta del icono según extensión / nombre conocido.
+const ICON_BY_EXT: Record<string, LucideIcon> = {
+  // Código
+  ts: FileCode, tsx: FileCode, js: FileCode, jsx: FileCode, mjs: FileCode, cjs: FileCode,
+  html: FileCode, htm: FileCode, css: FileCode, scss: FileCode, sass: FileCode, less: FileCode,
+  vue: FileCode, svelte: FileCode, py: FileCode, rb: FileCode, go: FileCode, rs: FileCode,
+  java: FileCode, c: FileCode, cpp: FileCode, h: FileCode, hpp: FileCode, php: FileCode,
+  swift: FileCode, kt: FileCode, sql: FileCode,
+  // Datos / config
+  json: FileJson, jsonc: FileJson,
+  yml: FileCog, yaml: FileCog, toml: FileCog, ini: FileCog, conf: FileCog, xml: FileCog,
+  // Texto
+  md: FileText, mdx: FileText, txt: FileText, rtf: FileText, pdf: FileText,
+  // Tablas
+  csv: FileSpreadsheet, tsv: FileSpreadsheet, xlsx: FileSpreadsheet, xls: FileSpreadsheet,
+  // Imágenes
+  png: FileImage, jpg: FileImage, jpeg: FileImage, gif: FileImage, svg: FileImage,
+  webp: FileImage, ico: FileImage, bmp: FileImage, avif: FileImage,
+  // Audio / video
+  mp4: FileVideo, mov: FileVideo, webm: FileVideo, mkv: FileVideo, avi: FileVideo,
+  mp3: FileAudio, wav: FileAudio, flac: FileAudio, ogg: FileAudio, m4a: FileAudio,
+  // Fuentes
+  woff: FileType, woff2: FileType, ttf: FileType, otf: FileType, eot: FileType,
+  // Archivos comprimidos
+  zip: FileArchive, tar: FileArchive, gz: FileArchive, tgz: FileArchive, rar: FileArchive, '7z': FileArchive,
+  // Shell
+  sh: FileTerminal, bash: FileTerminal, zsh: FileTerminal, ps1: FileTerminal, bat: FileTerminal, cmd: FileTerminal,
+  // Secretos / claves
+  pem: FileKey, key: FileKey, crt: FileKey, cert: FileKey,
+};
+
+function iconForFile(name: string): LucideIcon {
+  const lower = name.toLowerCase();
+  if (lower === '.gitignore' || lower === '.gitattributes' || lower === '.editorconfig') return FileCog;
+  if (lower.startsWith('.env')) return FileKey;
+  if (lower === 'dockerfile' || lower.startsWith('dockerfile.')) return FileBox;
+  if (lower.endsWith('.lock') || lower === 'package-lock.json' || lower === 'pnpm-lock.yaml' || lower === 'yarn.lock') {
+    return FileLock2;
+  }
+  const dot = lower.lastIndexOf('.');
+  const ext = dot > 0 ? lower.slice(dot + 1) : '';
+  return ICON_BY_EXT[ext] ?? FileIcon;
+}
 
 type ExplorerLensProps = {
   nodes: CartoTreeNode[];
@@ -103,7 +169,10 @@ function TreeRow({ node, depth, expanded, onToggle }: TreeRowProps) {
           <Folder size={14} className="shrink-0 text-carto-accent" />
         )
       ) : (
-        <FileIcon size={14} className="shrink-0 text-carto-node/70" />
+        (() => {
+          const Icon = iconForFile(node.name);
+          return <Icon size={14} className="shrink-0 text-carto-node/70" />;
+        })()
       )}
 
       <span className={`truncate ${isDir ? 'font-medium text-carto-text' : ''}`}>{node.name}</span>

@@ -187,6 +187,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('update:download-progress', handler);
     return () => ipcRenderer.removeListener('update:download-progress', handler);
   },
+  cartoScanTree: (repoPath: string) => ipcRenderer.invoke('carto:scan-tree', repoPath),
   repoWatch: (targetPath: string) => ipcRenderer.invoke('repo:watch', targetPath),
   repoUnwatch: (targetPath: string) => ipcRenderer.invoke('repo:unwatch', targetPath),
   onRepoFsChange: (cb: (repoPath: string) => void) => {

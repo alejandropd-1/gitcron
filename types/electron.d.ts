@@ -8,6 +8,7 @@ import type {
 } from './temporal-agent';
 import type { PredictionHistoryEntry } from '../electron/db/types';
 import type { ApplyHunkOptions, FileDiff } from '../lib/hunk-patch';
+import type { CartoScanResult } from '../electron/ipc/carto';
 
 interface GitResult<T = unknown> {
   success: boolean;
@@ -325,6 +326,8 @@ interface ElectronAPI {
   onUpdateDownloaded: (cb: (info: { version: string; currentVersion: string; releaseDate?: string }) => void) => () => void;
   onUpdateError: (cb: (msg: string) => void) => () => void;
   onDownloadProgress: (cb: (info: { percent: number; transferred: number; total: number }) => void) => () => void;
+  /** Cartografía: escaneo de SOLO LECTURA del árbol de archivos del repo activo. */
+  cartoScanTree: (repoPath: string) => Promise<GitResult<CartoScanResult>>;
   repoWatch: (targetPath: string) => Promise<GitResult>;
   repoUnwatch: (targetPath: string) => Promise<GitResult>;
   onRepoFsChange: (cb: (repoPath: string) => void) => () => void;

@@ -16,6 +16,7 @@ import { registerGitRepoHandlers } from './ipc/git-repo';
 import { registerGitOpsHandlers } from './ipc/git-ops';
 import { registerGitSyncHandlers } from './ipc/git-sync';
 import { registerShellHandlers } from './ipc/shell';
+import { registerCartoHandlers } from './ipc/carto';
 import { registerWatcherHandlers, closeAllRepoWatchers } from './ipc/watchers';
 import {
   registerAppWindowHandlers, setupAutoUpdater,
@@ -255,6 +256,7 @@ registerGitRepoHandlers();         // git:open/init/clone + fs:pick-folder/exist
 registerGitOpsHandlers();          // git:* local operations
 registerGitSyncHandlers();         // git push/pull/fetch (network)
 registerShellHandlers();           // shell:* + terminal:open + fs:delete-file
+registerCartoHandlers();           // carto:scan-tree (solo lectura de fs, sin red, sin Git)
 registerWatcherHandlers(getMainWindow);          // repo:watch/unwatch
 registerAppWindowHandlers(getMainWindow, isDev); // app:* + window:*
 

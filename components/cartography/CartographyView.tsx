@@ -20,6 +20,7 @@ import type { CartoScanResult } from '@/electron/ipc/carto';
 import type { CartoGraphStatus } from '@/lib/carto-types';
 import { ExplorerLens } from './ExplorerLens';
 import { CartoRelationsPanel } from './CartoRelationsPanel';
+import { CartoAskBox } from './CartoAskBox';
 
 type CartographyViewProps = {
   /** Ruta del repo activo a escanear. `null` si no hay repo abierto. */
@@ -234,6 +235,9 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                     refreshKey={graphRefresh}
                   />
                 </div>
+                {/* Capa de IA (Fase 4): "ventanita de preguntas", opt-in. Si la
+                    IA está apagada el componente no renderiza nada. */}
+                <CartoAskBox selectedFile={selectedFile} />
               </div>
             ) : (
               <CenteredState

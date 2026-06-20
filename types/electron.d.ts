@@ -16,6 +16,13 @@ import type {
   CartoImpact,
   CartoFileRelations,
 } from '../lib/carto-types';
+import type {
+  CartoAINodeRef,
+  CartoAIContext,
+  CartoAIResponse,
+  CartoAISettings,
+  CartoAIProbe,
+} from './carto-ai';
 
 interface GitResult<T = unknown> {
   success: boolean;
@@ -353,6 +360,20 @@ interface ElectronAPI {
     onProgress(cb: (payload: { repoPath: string; status: CartoGraphStatus }) => void): () => void;
     /** El watch re-sincronizó el índice del repo (relaciones frescas). Devuelve un disposer. */
     onUpdated(cb: (payload: { repoPath: string }) => void): () => void;
+  };
+  /**
+   * Cartografía Fase 4: capa de proveedor de IA (local LM Studio / online).
+   * Opt-in y apagada por defecto. Las API keys nunca cruzan al renderer: se usan
+   * sólo en main. Con la IA apagada o el proveedor caído, los métodos devuelven
+   * `success: false` con un mensaje claro y la vista sigue funcionando sin IA.
+   */
+  cartoAi: {
+    getSettings(): Promise<GitResult<CartoAISettings>>;
+    setSettings(patch: Partial<CartoAISettings>): Promise<GitResult<CartoAISettings>>;
+    /** Sondea disponibilidad sin gastar una generación (servidor local / key online). */
+    probe(): Promise<GitResult<CartoAIProbe>>;
+    explain(node: CartoAINodeRef, context: CartoAIContext): Promise<GitResult<CartoAIResponse>>;
+    ask(question: string, context: CartoAIContext): Promise<GitResult<CartoAIResponse>>;
   };
   repoWatch: (targetPath: string) => Promise<GitResult>;
   repoUnwatch: (targetPath: string) => Promise<GitResult>;

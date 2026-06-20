@@ -9,6 +9,7 @@ export default defineConfig({
       'hooks/__tests__/**/*.test.ts',
       'electron/__tests__/**/*.test.ts',
       'electron/ai/__tests__/**/*.test.ts',
+      'electron/ai/carto/__tests__/**/*.test.ts',
       'electron/db/__tests__/**/*.test.ts',
     ],
   },

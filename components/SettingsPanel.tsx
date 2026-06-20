@@ -33,6 +33,18 @@ const TemporalAgentSettings = dynamic(
   },
 );
 
+const CartoAISettings = dynamic(
+  () => import('@/components/cartography/CartoAISettings').then((mod) => mod.CartoAISettings),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-24 w-full items-center justify-center text-text-secondary">
+        <Loader2 size={18} className="animate-spin text-secondary" />
+      </div>
+    ),
+  },
+);
+
 const AgentDashboard = dynamic(
   () => import('@/components/temporal/AgentDashboard').then((mod) => mod.AgentDashboard),
   {
@@ -517,6 +529,14 @@ export function SettingsPanel({
                       t('settings.cartographyInactive')
                     )}
                   </button>
+
+                  {/* Capa de proveedor de IA (Fase 4): selector local/online,
+                      opt-in e independiente del switch de la vista. */}
+                  {enableCartography && (
+                    <div className="border-t border-border-subtle/15 pt-4">
+                      <CartoAISettings />
+                    </div>
+                  )}
                 </div>
               )}
 

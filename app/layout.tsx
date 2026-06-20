@@ -56,14 +56,16 @@ const scriptSrc = isDev
   ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
   : "script-src 'self' 'unsafe-inline'";
 
-// Temporal Agent: only the ACTIVE AI provider's origin is added. OpenRouter is
-// the active provider (https://openrouter.ai). Do NOT widen this to every
-// provider at once — add a domain only when its provider is the one in use.
-// (The model request itself is made from the MAIN process, but we keep the CSP
-// in lockstep with the documented threat model — see SECURITY.md.)
+// AI providers: only origins of providers we actually use are added. OpenRouter
+// (https://openrouter.ai) serves the online AI for both the Temporal Agent and
+// Cartografía. http://localhost:1234 is the LOCAL provider (LM Studio, OpenAI-
+// compatible) used by Cartografía's AI layer — added explicitly in PROD too
+// because dev's localhost:* wildcard is dropped there. Do NOT widen this to every
+// provider at once. (The model request itself is made from the MAIN process, but
+// we keep the CSP in lockstep with the documented threat model — see SECURITY.md.)
 const connectSrc = isDev
   ? "connect-src 'self' http://localhost:* ws://localhost:* https://api.github.com https://github.com https://openrouter.ai"
-  : "connect-src 'self' https://api.github.com https://github.com https://openrouter.ai";
+  : "connect-src 'self' http://localhost:1234 https://api.github.com https://github.com https://openrouter.ai";
 
 const CSP = [
   "default-src 'self'",

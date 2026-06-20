@@ -29,9 +29,10 @@ Notas sobre el modelo de amenazas, lo que ya está protegido y lo que falta si a
 ### 4. Content Security Policy (CSP)
 - Agregada en `app/layout.tsx` via meta tag.
 - Bloquea scripts/conexiones a dominios no permitidos.
-- Se permite `connect-src` a `api.github.com`, `github.com` y `https://openrouter.ai` (el proveedor de IA **activo** del Temporal Agent), más `localhost`/`ws://localhost` **solo en dev**.
-- Regla: se agrega **únicamente el dominio del proveedor de IA activo**, nunca todos los proveedores a la vez. Si en el futuro se usa OpenCode u otro, se agrega ese endpoint y se quita el que no se use.
-- `'unsafe-eval'` y los orígenes `localhost`/`ws://localhost` siguen siendo **dev-only** (se eliminan en el build empaquetado de producción).
+- Se permite `connect-src` a `api.github.com`, `github.com`, `https://openrouter.ai` (proveedor de IA **online**, usado por Temporal Agent y Cartografía) y `http://localhost:1234` (proveedor de IA **local** de Cartografía: LM Studio, API compatible OpenAI), más `localhost`/`ws://localhost` **solo en dev**.
+- **`http://localhost:1234` (LM Studio).** Es el endpoint del proveedor de IA local de Cartografía. Se declara explícito **también en producción** (donde el comodín `localhost:*` de dev se elimina) porque la doctrina del repo es mantener la CSP en lockstep con el modelo de amenaza, aunque la petición salga del proceso main. Es tráfico hacia *tu propia máquina*: el contexto del repo no sale a ningún tercero cuando se usa el modo local.
+- Regla: se agrega **únicamente el dominio de un proveedor que realmente se usa**, nunca todos a la vez. Si en el futuro se suma otro proveedor online, se agrega ese endpoint y se quita el que no se use.
+- `'unsafe-eval'` y los orígenes `ws://localhost`/`localhost:*` (comodín) siguen siendo **dev-only** (se eliminan en el build empaquetado de producción).
 - `object-src 'none'`, `frame-ancestors 'none'`, `base-uri 'self'`.
 
 ### 5. Electron baseline secure
@@ -51,6 +52,15 @@ El Temporal Agent es una función **opt-in** que proyecta ramas especulativas us
 - **La petición sale del proceso main.** El `fetch` al proveedor se arma y dispara en main (`electron/ai/providers/*`), no en el renderer, así la CSP del renderer permanece cerrada.
 - **CSP en lockstep.** Solo el dominio del proveedor activo (`https://openrouter.ai`) está en `connect-src`, documentado arriba.
 - **Materialización con confirmación.** La única escritura de Git nueva (`git:materialize-idea`) se ejecuta solo tras confirmación explícita del usuario que previsualiza branch, tag y contenido del `IDEA.md`. Usa plumbing (índice temporal + `commit-tree`), sin tocar working tree, índice real ni la branch actual.
+
+### 7. Cartografía — capa de proveedor de IA (opt-in, local u online)
+
+La vista **Cartografía** suma una capa de IA para explicar nodos del grafo y responder preguntas. Reutiliza la infra del Temporal Agent (vault cifrado, `fetchWithTimeout`, doctrina de CSP) y agrega un proveedor **local**. Mitigaciones:
+
+- **Opt-in y apagada por defecto.** `carto-ai.json` en `userData` arranca con `enabled: false`. La IA **nunca se dispara sola**: cada explain/ask sale de una acción explícita del usuario. Con la IA apagada o el proveedor caído, los handlers `carto:ai-*` devuelven un error claro y la vista sigue funcionando sin IA.
+- **Local primero (privacidad).** El default al activar es **LM Studio** en `http://localhost:1234` (compatible OpenAI, **sin API key**). En modo local el contexto del repo **no sale a ningún tercero** — la inferencia es en tu máquina. Si el servidor local no está levantado, se muestra un mensaje accionable y no se rompe nada.
+- **Online reutiliza el vault.** El modo online usa **OpenRouter** con la **misma key cifrada** del Temporal Agent (`getKey('openrouter')`, sólo en main, nunca al renderer ni a logs). No se agrega un dominio nuevo: `https://openrouter.ai` ya estaba en el CSP.
+- **La petición sale del proceso main.** El `fetch` (local u online) se arma y dispara en `electron/ai/carto/*`, no en el renderer. Los settings (`enabled`/`mode`/`model`) no son secreto y viven en JSON plano; las keys siguen sólo en el vault cifrado.
 
 ## ⚠️ Vulnerabilidades conocidas en dependencias
 

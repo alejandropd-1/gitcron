@@ -18,6 +18,7 @@ import { registerGitSyncHandlers } from './ipc/git-sync';
 import { registerShellHandlers } from './ipc/shell';
 import { registerCartoHandlers } from './ipc/carto';
 import { registerCartoGraphHandlers } from './ipc/carto-graph';
+import { registerCartoAiHandlers } from './ipc/carto-ai';
 import { closeAllGraphs } from './carto/graph-engine';
 import { registerWatcherHandlers, closeAllRepoWatchers } from './ipc/watchers';
 import {
@@ -260,6 +261,7 @@ registerGitSyncHandlers();         // git push/pull/fetch (network)
 registerShellHandlers();           // shell:* + terminal:open + fs:delete-file
 registerCartoHandlers();           // carto:scan-tree (solo lectura de fs, sin red, sin Git)
 registerCartoGraphHandlers(getMainWindow); // carto:graph-* (CodeGraph embebido, local, solo lectura)
+registerCartoAiHandlers();         // carto:ai-* (proveedor de IA local/online; opt-in; secretos sólo en main)
 registerWatcherHandlers(getMainWindow);          // repo:watch/unwatch
 registerAppWindowHandlers(getMainWindow, isDev); // app:* + window:*
 

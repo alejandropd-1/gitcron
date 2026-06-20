@@ -212,6 +212,17 @@ contextBridge.exposeInMainWorld('api', {
       return () => ipcRenderer.removeListener('carto:graph-updated', handler);
     },
   },
+  // Cartografía Fase 4: capa de proveedor de IA (local LM Studio / online).
+  // Opt-in, apagada por defecto. Las keys nunca cruzan este límite.
+  cartoAi: {
+    getSettings: () => ipcRenderer.invoke('carto:ai-get-settings'),
+    setSettings: (patch: unknown) => ipcRenderer.invoke('carto:ai-set-settings', patch),
+    probe: () => ipcRenderer.invoke('carto:ai-probe'),
+    explain: (node: unknown, context: unknown) =>
+      ipcRenderer.invoke('carto:ai-explain', node, context),
+    ask: (question: string, context: unknown) =>
+      ipcRenderer.invoke('carto:ai-ask', question, context),
+  },
   repoWatch: (targetPath: string) => ipcRenderer.invoke('repo:watch', targetPath),
   repoUnwatch: (targetPath: string) => ipcRenderer.invoke('repo:unwatch', targetPath),
   onRepoFsChange: (cb: (repoPath: string) => void) => {

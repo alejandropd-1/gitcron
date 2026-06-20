@@ -221,6 +221,14 @@ export function graphFileRelations(repoPath: string, filePath: string): CartoFil
   const cg = readyGraph(repoPath);
   if (!cg) return null;
 
+  // ¿El motor trackea este archivo? Los assets no-código (SVG, imágenes, etc.) no
+  // están en el índice: devolvemos `indexed: false` para que la vista lo distinga
+  // de un archivo de código que sí está pero no tiene relaciones.
+  const indexed = cg.getFile(filePath) !== null;
+  if (!indexed) {
+    return { filePath, indexed, imports: [], usedBy: [], impact: emptyImpact() };
+  }
+
   const imports = cg.getFileDependencies(filePath);
   const usedBy = cg.getFileDependents(filePath);
 
@@ -238,7 +246,12 @@ export function graphFileRelations(repoPath: string, filePath: string): CartoFil
   }
 
   const impact = adaptImpact([...impactedById.values()], { filePath, ids: focalIds });
-  return { filePath, imports, usedBy, impact };
+  return { filePath, indexed, imports, usedBy, impact };
+}
+
+/** Impacto vacío para archivos fuera del grafo (no-código). */
+function emptyImpact(): CartoImpact {
+  return { impactedFiles: [], impactedSymbols: [], total: 0, truncated: false };
 }
 
 /** Cierra el índice de un repo y libera recursos (detiene su watch). */

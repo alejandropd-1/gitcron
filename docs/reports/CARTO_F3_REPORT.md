@@ -60,7 +60,8 @@ todo pasa por un contrato normalizado propio y un adapter testeado.
 ### Vista (QA sin grafo visual — tarea 6)
 - **`components/cartography/CartoRelationsPanel.tsx`** (NUEVO) — panel textual que, al
   seleccionar un archivo, lista **"importa a / es usado por / impacto"** con datos reales
-  del motor. Maneja estados indexando/error/vacío.
+  del motor. Maneja estados indexando/error/vacío, y distingue **assets no-código**
+  (SVG/imágenes, `indexed: false`) de código sin relaciones, para no mostrar un 0 ambiguo.
 - **`components/cartography/ExplorerLens.tsx`** — selección de archivo (resaltado + callback).
 - **`components/cartography/CartographyView.tsx`** — `ensure` del índice al entrar/cambiar
   de repo, suscripción a progreso/refresco, split vertical árbol + panel de relaciones.

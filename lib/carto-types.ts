@@ -108,6 +108,13 @@ export interface CartoImpact {
 export interface CartoFileRelations {
   /** Ruta del archivo focal (relativa al repo, POSIX). */
   filePath: string;
+  /**
+   * `true` si el motor TRACKEA este archivo (es código de un lenguaje soportado y
+   * está en el índice). `false` para assets no-código (SVG, imágenes, etc.), que
+   * no participan del grafo: la vista distingue "fuera del grafo" de "código sin
+   * relaciones" para no mostrar un 0 ambiguo.
+   */
+  indexed: boolean;
   /** Archivos que este archivo importa ("importa a"). */
   imports: string[];
   /** Archivos que importan a este ("es usado por"). */

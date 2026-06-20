@@ -11,7 +11,7 @@
 // sólo consume el contrato normalizado (lib/carto-types) y lo lista. Tokens --carto-*.
 
 import { useEffect, useState } from 'react';
-import { ArrowRight, ArrowLeft, Zap, Loader2, AlertTriangle, Network } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Zap, Loader2, AlertTriangle, Network, FileX } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import type { CartoFileRelations, CartoGraphStatus } from '@/lib/carto-types';
 
@@ -73,6 +73,10 @@ export function CartoRelationsPanel({ repoPath, selectedFile, status, refreshKey
     body = <Hint icon={<Loader2 size={18} className="animate-spin" />} text={t('cartography.graph.indexing')} />;
   } else if (error) {
     body = <Hint icon={<AlertTriangle size={18} />} text={error} />;
+  } else if (data && !data.indexed) {
+    // Asset no-código (SVG, imagen, etc.): no participa del grafo. Lo decimos
+    // explícito para no confundirlo con un archivo de código sin relaciones.
+    body = <Hint icon={<FileX size={18} />} text={t('cartography.graph.notCode')} />;
   } else if (data) {
     body = (
       <div className="flex flex-col gap-3 px-3 py-2">

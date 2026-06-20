@@ -13,7 +13,7 @@
 // main. El contexto adjunto es sólo el archivo seleccionado (anclaje liviano).
 
 import { useEffect, useRef, useState } from 'react';
-import { Bot, Send, Loader2, AlertTriangle, Trash2, User } from 'lucide-react';
+import { Bot, Send, Loader2, AlertTriangle, Trash2, User, FileSearch } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
 import { useT } from '@/hooks/use-translation';
 import type { CartoAIContext } from '@/types/carto-ai';
@@ -136,8 +136,16 @@ export function CartoAskBox({ repoPath, selectedFile }: CartoAskBoxProps) {
         )}
       </div>
 
+      {/* Hint de anclaje: sin archivo seleccionado, la pregunta no tiene grounding. */}
+      {!selectedFile && (
+        <div className="flex shrink-0 items-center gap-1.5 border-t border-carto-grid px-3 py-1.5 text-[11px] text-carto-text-muted">
+          <FileSearch size={12} className="shrink-0 text-carto-accent/70" />
+          <span className="min-w-0">{t('cartography.ai.noFileHint')}</span>
+        </div>
+      )}
+
       {/* Caja de entrada */}
-      <div className="flex shrink-0 items-center gap-2 border-t border-carto-grid px-3 py-2.5">
+      <div className={`flex shrink-0 items-center gap-2 px-3 py-2.5 ${selectedFile ? 'border-t border-carto-grid' : ''}`}>
         <input
           type="text"
           value={question}

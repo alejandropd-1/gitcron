@@ -961,6 +961,7 @@ const es: Dict = {
   'cartography.ai.offHint': 'IA desactivada. Activala en Ajustes → Cartografía.',
   'cartography.ai.error': 'No se pudo obtener respuesta',
   'cartography.ai.clear': 'Limpiar conversación',
+  'cartography.ai.noFileHint': 'Seleccioná un archivo del árbol para anclar la pregunta a sus relaciones.',
   'cartography.resizeRows': 'Arrastrá para redimensionar',
   'cartography.resizeCols': 'Arrastrá para redimensionar las columnas',
   // Acceso online (reutiliza la key y los modelos del Temporal Agent)
@@ -1922,6 +1923,7 @@ const en: Dict = {
   'cartography.ai.offHint': 'AI disabled. Enable it in Settings → Cartography.',
   'cartography.ai.error': 'Could not get a response',
   'cartography.ai.clear': 'Clear conversation',
+  'cartography.ai.noFileHint': 'Select a file from the tree to anchor the question to its relations.',
   'cartography.resizeRows': 'Drag to resize',
   'cartography.resizeCols': 'Drag to resize the columns',
   // Online access (reuses the Temporal Agent key and models)
@@ -2738,6 +2740,7 @@ const zh: Dict = {
   'cartography.ai.offHint': 'AI 已关闭。请在 设置 → 制图 中启用。',
   'cartography.ai.error': '无法获取回复',
   'cartography.ai.clear': '清除对话',
+  'cartography.ai.noFileHint': '从文件树中选择一个文件，把问题锚定到它的关系上。',
   'cartography.resizeRows': '拖动以调整大小',
   'cartography.resizeCols': '拖动以调整列宽',
   // 在线访问（复用 Temporal Agent 的密钥与模型）

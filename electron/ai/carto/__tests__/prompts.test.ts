@@ -51,6 +51,34 @@ describe('buildExplainPrompts', () => {
     const { system } = buildExplainPrompts(node, {});
     expect(system).toMatch(/NO inventes/);
   });
+
+  it('apunta a una audiencia no técnica', () => {
+    const { system, user } = buildExplainPrompts(node, {});
+    expect(system).toMatch(/NO es experto/);
+    expect(user).toMatch(/recién llega al proyecto/);
+  });
+
+  it('incluye el código del nodo recortado cuando se provee', () => {
+    const { user } = buildExplainPrompts(node, { source: 'function calculateTotal() { return 0; }' });
+    expect(user).toContain('Código del nodo (recortado):');
+    expect(user).toContain('function calculateTotal()');
+  });
+
+  it('renderiza callers y callees a nivel símbolo', () => {
+    const { user } = buildExplainPrompts(node, {
+      callers: ['renderCart — components/Cart.tsx'],
+      callees: ['formatMoney — lib/money.ts'],
+    });
+    expect(user).toContain('Lo llaman/usan (1): renderCart — components/Cart.tsx');
+    expect(user).toContain('Llama/usa a (1): formatMoney — lib/money.ts');
+  });
+
+  it('pide los ejes en lenguaje humano (qué hace, qué consume, qué afecta)', () => {
+    const { user } = buildExplainPrompts(node, {});
+    expect(user).toMatch(/qué hace/);
+    expect(user).toMatch(/si tocás esto/);
+    expect(user).toMatch(/suele cambiar junto con/);
+  });
 });
 
 describe('buildAskPrompts', () => {

@@ -24,6 +24,7 @@
 // El índice es naturalmente per-repo: cada repo abierto tiene el suyo.
 
 import * as path from 'node:path';
+import { createHash } from 'node:crypto';
 import { CodeGraph } from '@colbymchenry/codegraph';
 
 // Nombre dedicado del directorio de índice de GitCron (ver bloque de arriba).
@@ -36,6 +37,7 @@ import {
   adaptRelated,
   adaptSearchHits,
   adaptImpact,
+  toCartoNode,
   type RawRelated,
 } from '../../lib/carto-from-codegraph';
 import type {
@@ -44,7 +46,9 @@ import type {
   CartoRelatedSymbol,
   CartoImpact,
   CartoFileRelations,
+  CartoNode,
 } from '../../lib/carto-types';
+import type { CartoNodeContext, CartoAIRelated } from '../../types/carto-ai';
 
 // Profundidad de impacto: 3 niveles es el default del motor y un radio razonable
 // para "qué se rompe si toco esto" sin volverse todo el grafo.
@@ -52,6 +56,15 @@ const IMPACT_DEPTH = 3;
 // Tope de símbolos de un archivo sobre los que calculamos impacto, para acotar el
 // trabajo en archivos enormes (la unión de sus radios sigue siendo representativa).
 const IMPACT_SYMBOL_CAP = 60;
+
+// Recorte del CÓDIGO de un nodo para el contexto de la IA (Fase 5): nunca mandamos
+// el archivo entero. Un símbolo que excede estos topes se trunca — el grounding no
+// necesita el cuerpo completo, sólo lo suficiente para explicar qué hace.
+const NODE_SOURCE_LINE_CAP = 160;
+const NODE_SOURCE_CHAR_CAP = 6000;
+// Tope de callers/callees adjuntos al contexto: una muestra basta para explicar el
+// rol del nodo sin inflar el prompt (el panel ya muestra la lista completa).
+const NODE_RELATED_CAP = 12;
 
 interface EngineEntry {
   cg: CodeGraph | null;
@@ -252,6 +265,98 @@ export function graphFileRelations(repoPath: string, filePath: string): CartoFil
 /** Impacto vacío para archivos fuera del grafo (no-código). */
 function emptyImpact(): CartoImpact {
   return { impactedFiles: [], impactedSymbols: [], total: 0, truncated: false };
+}
+
+/**
+ * Símbolos de un archivo (función/clase/método/…), para el selector de nodos del
+ * panel de detalle. Excluye el nodo `file` (representa el archivo, no un símbolo) y
+ * los `import` (ruido). Ordenados por línea para reflejar el orden del archivo.
+ * `null` si el índice no está listo aún.
+ */
+export function graphFileSymbols(repoPath: string, filePath: string): CartoNode[] | null {
+  const cg = readyGraph(repoPath);
+  if (!cg) return null;
+  return cg
+    .getNodesInFile(filePath)
+    .filter((n) => n.kind !== 'file' && n.kind !== 'import')
+    .sort((a, b) => a.startLine - b.startLine)
+    .map(toCartoNode);
+}
+
+/** Reduce un símbolo relacionado a su forma mínima para contexto/panel. */
+function toRelated(rs: CartoRelatedSymbol): CartoAIRelated {
+  return { name: rs.node.name, kind: rs.node.kind, filePath: rs.node.filePath };
+}
+
+/**
+ * Contexto MÍNIMO Y PRECISO de un nodo para explicarlo (Fase 5): el código/firma
+ * del nodo + sus callers, callees e impacto. NADA más — ni el archivo entero ni el
+ * repo. Recorta el código a topes defensivos y calcula el `contentHash` (clave de
+ * caché): si el código del nodo no cambió, la explicación guardada sigue valiendo.
+ * `null` si el índice no está listo o el nodo no existe.
+ */
+export async function graphNodeContext(
+  repoPath: string,
+  nodeId: string,
+): Promise<CartoNodeContext | null> {
+  const cg = readyGraph(repoPath);
+  if (!cg) return null;
+  const node = cg.getNode(nodeId);
+  if (!node) return null;
+
+  // Código del nodo (el motor lo lee entre startLine/endLine). Lo recortamos para
+  // no mandar cuerpos gigantes: el grounding no los necesita. Si el archivo no se
+  // puede leer (borrado, permisos), degradamos a sin-código: la explicación sigue
+  // valiendo desde las relaciones, y el panel muestra igual la estructura.
+  let source = '';
+  try {
+    source = (await cg.getCode(nodeId)) ?? '';
+  } catch (error) {
+    console.error('[carto-graph] getCode error:', sanitize(error));
+  }
+  let sourceTruncated = false;
+  const lines = source.split('\n');
+  if (lines.length > NODE_SOURCE_LINE_CAP) {
+    source = lines.slice(0, NODE_SOURCE_LINE_CAP).join('\n');
+    sourceTruncated = true;
+  }
+  if (source.length > NODE_SOURCE_CHAR_CAP) {
+    source = source.slice(0, NODE_SOURCE_CHAR_CAP);
+    sourceTruncated = true;
+  }
+
+  const callers = adaptRelated(cg.getCallers(nodeId) as RawRelated[], NODE_RELATED_CAP).map(toRelated);
+  const callees = adaptRelated(cg.getCallees(nodeId) as RawRelated[], NODE_RELATED_CAP).map(toRelated);
+
+  const sg = cg.getImpactRadius(nodeId, IMPACT_DEPTH);
+  const impact = adaptImpact([...sg.nodes.values()], {
+    filePath: node.filePath,
+    ids: new Set([nodeId]),
+  });
+
+  // Hash del CONTENIDO del nodo: identidad cualificada + firma + código. Cambia
+  // exactamente cuando el nodo cambia, invalidando la caché de su explicación.
+  const contentHash = createHash('sha256')
+    .update(`${node.qualifiedName}\n${node.signature ?? ''}\n${source}`)
+    .digest('hex');
+
+  return {
+    node: {
+      name: node.name,
+      kind: node.kind,
+      filePath: node.filePath,
+      startLine: node.startLine,
+      endLine: node.endLine,
+      ...(node.signature ? { signature: node.signature } : {}),
+    },
+    nodePath: `${node.filePath}#${node.name}`,
+    source,
+    sourceTruncated,
+    contentHash,
+    callers,
+    callees,
+    impact,
+  };
 }
 
 /** Cierra el índice de un repo y libera recursos (detiene su watch). */

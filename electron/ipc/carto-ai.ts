@@ -21,6 +21,7 @@ import {
   setCartoAISettings,
   getCartoProvider,
 } from '../ai/carto';
+import { explainNode } from '../ai/carto/explain-node';
 import { errMsg } from './shared';
 
 type Result<T> = { success: boolean; data?: T; error?: string };
@@ -73,6 +74,19 @@ export function registerCartoAiHandlers(): void {
       const provider = getCartoProvider();
       const data = await provider.explain(node, context ?? {});
       return ok(data);
+    } catch (error) {
+      return fail(error);
+    }
+  });
+
+  // ── Explicar un nodo del grafo, con contexto mínimo + caché (Fase 5) ──
+  // Devuelve SIEMPRE la estructura (ruta, relaciones, impacto), y la explicación
+  // de la IA cuando está activa y disponible. No lanza por fallos del modelo: los
+  // reporta en `aiError` para que el panel siga mostrando la estructura.
+  ipcMain.handle('carto:ai-explain-node', async (_e, repoPath: string, nodeId: string, lang?: string) => {
+    try {
+      if (!repoPath || !nodeId) return { success: false, error: 'Parámetros inválidos' };
+      return ok(await explainNode(repoPath, nodeId, lang));
     } catch (error) {
       return fail(error);
     }

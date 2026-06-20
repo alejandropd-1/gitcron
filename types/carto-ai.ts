@@ -12,6 +12,8 @@
 // ya existente y ya en el CSP). La IA NUNCA se dispara sola: todo entra por una
 // acción explícita del usuario y está apagada por defecto.
 
+import type { CartoImpact } from '../lib/carto-types';
+
 /**
  * Proveedor concreto que atiende explain/ask. Alineado con el vocabulario de
  * proveedores del Temporal Agent (`openrouter` se reutiliza tal cual). `lmstudio`
@@ -79,6 +81,66 @@ export interface CartoAIContext {
   usedBy?: string[];
   /** Resumen del radio de impacto, ya agregado por el motor. */
   impact?: { fileCount: number; symbolCount: number; sampleFiles?: string[] };
+  // ── Fase 5: grounding a nivel SÍMBOLO (para explicar un nodo) ──
+  /** Código del nodo, ya RECORTADO en main (nunca el archivo/repo entero). */
+  source?: string;
+  /** Quién llama/usa al nodo, en forma legible `name — filePath`. */
+  callers?: string[];
+  /** Qué llama/usa el nodo, en forma legible `name — filePath`. */
+  callees?: string[];
+}
+
+/**
+ * Símbolo relacionado en forma MÍNIMA, para el panel de detalle y el prompt: sólo
+ * nombre, clase y archivo (sin ids opacos del motor). Es el subconjunto de
+ * {@link import('../lib/carto-types').CartoRelatedSymbol} que la vista necesita.
+ */
+export interface CartoAIRelated {
+  name: string;
+  kind: string;
+  filePath: string;
+}
+
+/**
+ * Contexto MÍNIMO Y PRECISO de un nodo, armado en main desde el grafo CodeGraph:
+ * el código/firma del nodo + sus callers, callees e impacto. NADA más — este
+ * recorte es la clave del ahorro de tokens y de que la explicación sea verdadera
+ * (sólo relaciones reales, nunca el repo entero). Lo consume el panel de detalle
+ * para mostrar estructura aunque la IA esté apagada.
+ */
+export interface CartoNodeContext {
+  /** Identidad del nodo (nombre, clase, ubicación, firma). */
+  node: CartoAINodeRef;
+  /** Ruta estable del nodo para cachear, p. ej. `lib/cart.ts#calculateTotal`. */
+  nodePath: string;
+  /** Código del nodo, recortado. Vacío si el motor no pudo leerlo. */
+  source: string;
+  /** `true` si el código se truncó por tope (líneas o caracteres). */
+  sourceTruncated: boolean;
+  /** Hash del contenido del nodo (clave de caché de la explicación). */
+  contentHash: string;
+  /** Quién llama/usa al nodo (callers), acotado. */
+  callers: CartoAIRelated[];
+  /** Qué llama/usa el nodo (callees), acotado. */
+  callees: CartoAIRelated[];
+  /** Radio de impacto del nodo (qué se rompería si se toca). */
+  impact: CartoImpact;
+}
+
+/**
+ * Resultado de explicar un nodo: SIEMPRE trae el contexto estructural (para el
+ * panel, aun con la IA apagada) y, cuando la IA está activa y disponible, la
+ * explicación en lenguaje natural. `cached` distingue una respuesta reusada de la
+ * caché de una recién generada; `aiError` lleva el mensaje claro si la IA estaba
+ * activa pero falló (servidor caído, sin key…). `promptChars` reporta el tamaño
+ * del contexto enviado al modelo (para verificar el recorte).
+ */
+export interface CartoExplainNodeResult {
+  context: CartoNodeContext;
+  explanation: CartoAIResponse | null;
+  cached: boolean;
+  aiError?: string;
+  promptChars?: number;
 }
 
 /** Respuesta de la IA: texto plano ya generado + procedencia. Sin secretos. */

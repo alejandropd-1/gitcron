@@ -15,6 +15,7 @@ import type {
   CartoRelatedSymbol,
   CartoImpact,
   CartoFileRelations,
+  CartoNode,
 } from '../lib/carto-types';
 import type {
   CartoAINodeRef,
@@ -22,6 +23,7 @@ import type {
   CartoAIResponse,
   CartoAISettings,
   CartoAIProbe,
+  CartoExplainNodeResult,
 } from './carto-ai';
 
 interface GitResult<T = unknown> {
@@ -356,6 +358,8 @@ interface ElectronAPI {
     callees(repoPath: string, nodeId: string): Promise<GitResult<CartoRelatedSymbol[] | null>>;
     impact(repoPath: string, nodeId: string): Promise<GitResult<CartoImpact | null>>;
     fileRelations(repoPath: string, filePath: string): Promise<GitResult<CartoFileRelations | null>>;
+    /** Símbolos de un archivo (selector de nodos del panel de detalle). `null` si el índice no está listo. */
+    fileSymbols(repoPath: string, filePath: string): Promise<GitResult<CartoNode[] | null>>;
     /** Avance del indexado del repo. Devuelve un disposer. */
     onProgress(cb: (payload: { repoPath: string; status: CartoGraphStatus }) => void): () => void;
     /** El watch re-sincronizó el índice del repo (relaciones frescas). Devuelve un disposer. */
@@ -373,6 +377,12 @@ interface ElectronAPI {
     /** Sondea disponibilidad sin gastar una generación (servidor local / key online). */
     probe(): Promise<GitResult<CartoAIProbe>>;
     explain(node: CartoAINodeRef, context: CartoAIContext): Promise<GitResult<CartoAIResponse>>;
+    /**
+     * Cartografía Fase 5: explica un NODO del grafo. Arma el contexto mínimo en main
+     * (código + callers/callees/impacto), cachea por contenido y devuelve SIEMPRE la
+     * estructura — la explicación de la IA sólo si está activa y disponible.
+     */
+    explainNode(repoPath: string, nodeId: string, lang?: string): Promise<GitResult<CartoExplainNodeResult>>;
     ask(question: string, context: CartoAIContext): Promise<GitResult<CartoAIResponse>>;
   };
   repoWatch: (targetPath: string) => Promise<GitResult>;

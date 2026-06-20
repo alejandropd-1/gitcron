@@ -11,9 +11,9 @@
 // sólo consume el contrato normalizado (lib/carto-types) y lo lista. Tokens --carto-*.
 
 import { useEffect, useState } from 'react';
-import { ArrowRight, ArrowLeft, Zap, Loader2, AlertTriangle, Network, FileX } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Zap, Loader2, AlertTriangle, Network, FileX, Sparkles, Code2 } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
-import type { CartoFileRelations, CartoGraphStatus } from '@/lib/carto-types';
+import type { CartoFileRelations, CartoGraphStatus, CartoNode } from '@/lib/carto-types';
 
 type CartoRelationsPanelProps = {
   repoPath: string | null;
@@ -23,11 +23,14 @@ type CartoRelationsPanelProps = {
   status: CartoGraphStatus | null;
   /** Cambia cuando el watch re-sincroniza: fuerza un refetch de las relaciones. */
   refreshKey: number;
+  /** Se invoca al elegir un símbolo del archivo (abre el panel de detalle/IA). */
+  onSelectNode?: (node: CartoNode) => void;
 };
 
-export function CartoRelationsPanel({ repoPath, selectedFile, status, refreshKey }: CartoRelationsPanelProps) {
+export function CartoRelationsPanel({ repoPath, selectedFile, status, refreshKey, onSelectNode }: CartoRelationsPanelProps) {
   const t = useT();
   const [data, setData] = useState<CartoFileRelations | null>(null);
+  const [symbols, setSymbols] = useState<CartoNode[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,18 +39,22 @@ export function CartoRelationsPanel({ repoPath, selectedFile, status, refreshKey
   useEffect(() => {
     if (!repoPath || !selectedFile || !ready) {
       setData(null);
+      setSymbols(null);
       setError(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setError(null);
-    void window.api.cartoGraph
-      .fileRelations(repoPath, selectedFile)
-      .then((res) => {
+    void Promise.all([
+      window.api.cartoGraph.fileRelations(repoPath, selectedFile),
+      window.api.cartoGraph.fileSymbols(repoPath, selectedFile),
+    ])
+      .then(([rel, syms]) => {
         if (cancelled) return;
-        if (res.success) setData(res.data ?? null);
-        else setError(res.error ?? t('cartography.graph.error'));
+        if (rel.success) setData(rel.data ?? null);
+        else setError(rel.error ?? t('cartography.graph.error'));
+        if (syms.success) setSymbols(syms.data ?? null);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -80,6 +87,7 @@ export function CartoRelationsPanel({ repoPath, selectedFile, status, refreshKey
   } else if (data) {
     body = (
       <div className="flex flex-col gap-3 px-3 py-2">
+        <SymbolsSection symbols={symbols} onSelectNode={onSelectNode} />
         <Section
           icon={<ArrowRight size={13} className="text-carto-accent" />}
           title={t('cartography.graph.imports')}
@@ -115,6 +123,56 @@ export function CartoRelationsPanel({ repoPath, selectedFile, status, refreshKey
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-auto">{body}</div>
+    </div>
+  );
+}
+
+const SYMBOLS_CAP = 40;
+
+/**
+ * Lista de símbolos del archivo. Cada uno es clickeable: abre el panel de detalle
+ * donde la IA lo explica (Fase 5). Es la puerta de entrada a "click en un nodo".
+ */
+function SymbolsSection({
+  symbols,
+  onSelectNode,
+}: {
+  symbols: CartoNode[] | null;
+  onSelectNode?: (node: CartoNode) => void;
+}) {
+  const t = useT();
+  if (!symbols || symbols.length === 0) return null;
+  const shown = symbols.slice(0, SYMBOLS_CAP);
+  return (
+    <div>
+      <div className="mb-1 flex items-center gap-1.5">
+        <Code2 size={13} className="text-carto-accent" />
+        <span className="text-[11px] font-bold uppercase tracking-widest text-carto-text-muted">
+          {t('cartography.detail.symbols')}
+        </span>
+        <span className="text-[11px] text-carto-text-muted">· {symbols.length}</span>
+      </div>
+      <ul className="flex flex-col gap-0.5 pl-5">
+        {shown.map((sym) => (
+          <li key={sym.id}>
+            <button
+              type="button"
+              onClick={() => onSelectNode?.(sym)}
+              className="group flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left transition-colors hover:bg-carto-accent/10"
+              title={t('cartography.detail.explainHint', { name: sym.name })}
+            >
+              <Sparkles size={11} className="shrink-0 text-carto-accent/0 transition-colors group-hover:text-carto-accent" />
+              <span className="truncate font-mono text-[11px] text-carto-text">{sym.name}</span>
+              <span className="shrink-0 text-[10px] uppercase tracking-wide text-carto-text-muted/60">{sym.kind}</span>
+            </button>
+          </li>
+        ))}
+        {symbols.length > shown.length && (
+          <li className="text-[11px] text-carto-text-muted">
+            {t('cartography.graph.more', { count: symbols.length - shown.length })}
+          </li>
+        )}
+      </ul>
     </div>
   );
 }

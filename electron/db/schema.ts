@@ -3,11 +3,14 @@ export interface Migration {
   statements: string[];
 }
 
-export const LATEST_SCHEMA_VERSION = 1;
+export const LATEST_SCHEMA_VERSION = 2;
 
 export const PREDICTION_RUN_TABLE = 'prediction_run';
 export const SPECULATIVE_BRANCH_TABLE = 'speculative_branch';
 export const BRANCH_DECISION_TABLE = 'branch_decision';
+
+/** Cartografía Fase 5: caché de explicaciones de nodos (clave por contenido). */
+export const CARTO_EXPLANATION_TABLE = 'carto_explanation';
 
 export const TEMPORAL_AGENT_INDEXES = [
   'idx_run_repo',
@@ -73,6 +76,34 @@ const CREATE_INDEXES = [
   'CREATE INDEX idx_decision_device    ON branch_decision(device_id);',
 ];
 
+// ── Cartografía Fase 5 ──────────────────────────────────────────────────────
+// Caché de explicaciones de nodos generadas por la IA. Reutiliza la disciplina
+// de persistencia del Temporal Agent (misma DB, mismas migraciones), pero es una
+// tabla aparte: una explicación por (repo, nodo, contenido, idioma). La clave por
+// CONTENIDO (`content_hash`) es lo que evita re-gastar el modelo si el nodo no
+// cambió, y lo que invalida la caché en cuanto su código cambia.
+const CREATE_CARTO_EXPLANATION_TABLE = `
+CREATE TABLE carto_explanation (
+  id           TEXT    PRIMARY KEY,
+  repo_path    TEXT    NOT NULL,
+  node_path    TEXT    NOT NULL,
+  content_hash TEXT    NOT NULL,
+  lang         TEXT    NOT NULL,
+  provider     TEXT    NOT NULL,
+  model        TEXT,
+  explanation  TEXT    NOT NULL,
+  generated_at TEXT    NOT NULL,
+  created_at   TEXT    NOT NULL
+) STRICT;
+`;
+
+const CREATE_CARTO_EXPLANATION_INDEXES = [
+  // Clave de búsqueda/caché: misma celda lógica = mismo repo+nodo+contenido+idioma.
+  'CREATE UNIQUE INDEX idx_carto_expl_key ON carto_explanation(repo_path, node_path, content_hash, lang);',
+  // Para podar versiones viejas de un nodo (mismo repo+nodo+idioma, otro hash).
+  'CREATE INDEX idx_carto_expl_node ON carto_explanation(repo_path, node_path, lang);',
+];
+
 export const MIGRATIONS: Migration[] = [
   {
     version: 1,
@@ -81,6 +112,13 @@ export const MIGRATIONS: Migration[] = [
       CREATE_SPECULATIVE_BRANCH_TABLE,
       CREATE_BRANCH_DECISION_TABLE,
       ...CREATE_INDEXES,
+    ],
+  },
+  {
+    version: 2,
+    statements: [
+      CREATE_CARTO_EXPLANATION_TABLE,
+      ...CREATE_CARTO_EXPLANATION_INDEXES,
     ],
   },
 ];

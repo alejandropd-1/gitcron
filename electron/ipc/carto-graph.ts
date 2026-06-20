@@ -20,6 +20,7 @@ import {
   graphCallees,
   graphImpact,
   graphFileRelations,
+  graphFileSymbols,
 } from '../carto/graph-engine';
 import { errMsg } from './shared';
 
@@ -95,6 +96,15 @@ export function registerCartoGraphHandlers(getMainWindow: () => BrowserWindow | 
   ipcMain.handle('carto:graph-file-relations', (_e, repoPath: string, filePath: string) => {
     try {
       return ok(graphFileRelations(repoPath, filePath));
+    } catch (error) {
+      return fail(error);
+    }
+  });
+
+  // Símbolos de un archivo (para el selector de nodos del panel de detalle).
+  ipcMain.handle('carto:graph-file-symbols', (_e, repoPath: string, filePath: string) => {
+    try {
+      return ok(graphFileSymbols(repoPath, filePath));
     } catch (error) {
       return fail(error);
     }

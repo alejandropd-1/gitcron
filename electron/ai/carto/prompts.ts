@@ -30,6 +30,16 @@ const BASE_SYSTEM = [
   'Sé conciso y técnico. Sin relleno, sin disculpas, sin repetir la pregunta.',
 ].join(' ');
 
+// System prompt del EXPLAIN: misma regla de oro (grounding), pero la AUDIENCIA es
+// alguien NO experto. Se le pide bajar a tierra el rol del nodo en lenguaje humano,
+// sin jerga innecesaria, apoyándose en el código y las relaciones reales que se dan.
+const EXPLAIN_SYSTEM = [
+  'Sos un asistente de cartografía de código embebido en GitCron, un cliente Git de escritorio.',
+  'Le explicás una pieza del código a alguien que NO es experto: poca jerga, y si usás un término técnico, aclaralo en una frase.',
+  'REGLA DE ORO: basate ÚNICAMENTE en el contexto que se te da (el código del nodo y sus relaciones reales del grafo). NO inventes funciones, archivos ni relaciones que no aparezcan. Si algo no se puede afirmar desde el contexto, decilo.',
+  'Sé claro y breve. Sin relleno, sin disculpas, sin repetir la consigna. No vuelques el código tal cual: explicá qué hace en palabras.',
+].join(' ');
+
 /** Serializa el contexto estructural a un bloque legible para el modelo. */
 function renderContext(context: CartoAIContext): string {
   const lines: string[] = [];
@@ -39,6 +49,12 @@ function renderContext(context: CartoAIContext): string {
   }
   if (context.usedBy?.length) {
     lines.push(`Es usado por (${context.usedBy.length}): ${context.usedBy.slice(0, 30).join(', ')}`);
+  }
+  if (context.callers?.length) {
+    lines.push(`Lo llaman/usan (${context.callers.length}): ${context.callers.slice(0, 20).join(', ')}`);
+  }
+  if (context.callees?.length) {
+    lines.push(`Llama/usa a (${context.callees.length}): ${context.callees.slice(0, 20).join(', ')}`);
   }
   if (context.impact) {
     const sample = context.impact.sampleFiles?.slice(0, 15).join(', ');
@@ -50,27 +66,38 @@ function renderContext(context: CartoAIContext): string {
   return lines.length ? lines.join('\n') : '(sin relaciones registradas en el grafo)';
 }
 
-/** Prompt para EXPLICAR un nodo del grafo, anclado en sus relaciones reales. */
+/**
+ * Prompt para EXPLICAR un nodo del grafo en lenguaje humano, para alguien no
+ * técnico, anclado en su código y relaciones REALES. Pide: qué hace, a qué le pide
+ * datos / qué consume, qué se afecta si se toca, y con qué suele cambiar junto.
+ */
 export function buildExplainPrompts(
   node: CartoAINodeRef,
   context: CartoAIContext,
 ): { system: string; user: string } {
-  const system = `${BASE_SYSTEM} ${languageDirective(context.lang)}`;
+  const system = `${EXPLAIN_SYSTEM} ${languageDirective(context.lang)}`;
   const loc =
     node.startLine != null
       ? `${node.filePath}:${node.startLine}${node.endLine != null ? `-${node.endLine}` : ''}`
       : node.filePath;
   const user = [
-    `Explicá este símbolo del repositorio:`,
+    `Explicá esta pieza del código para alguien que recién llega al proyecto:`,
     `- Nombre: ${node.name}`,
     `- Tipo: ${node.kind}`,
     `- Ubicación: ${loc}`,
     node.signature ? `- Firma: ${node.signature}` : null,
+    context.source ? '' : null,
+    context.source ? 'Código del nodo (recortado):' : null,
+    context.source ? '```\n' + context.source + '\n```' : null,
     '',
     'Contexto estructural verificado (del grafo de código):',
     renderContext(context),
     '',
-    'Dame: (1) qué es y qué hace, (2) su rol según con qué se relaciona, (3) qué tener en cuenta si se modifica. Breve.',
+    'Respondé en prosa breve, sin encabezados ni listas numeradas, cubriendo:',
+    '- qué hace, en una frase simple;',
+    '- a qué le pide datos o qué consume (en qué se apoya);',
+    '- "si tocás esto, se puede afectar…" (nombrando lo que está en el impacto/relaciones);',
+    '- "suele cambiar junto con…" (si las relaciones lo sugieren).',
   ]
     .filter((l) => l !== null)
     .join('\n');

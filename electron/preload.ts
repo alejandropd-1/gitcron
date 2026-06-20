@@ -201,6 +201,8 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('carto:graph-impact', repoPath, nodeId),
     fileRelations: (repoPath: string, filePath: string) =>
       ipcRenderer.invoke('carto:graph-file-relations', repoPath, filePath),
+    fileSymbols: (repoPath: string, filePath: string) =>
+      ipcRenderer.invoke('carto:graph-file-symbols', repoPath, filePath),
     onProgress: (cb: (payload: { repoPath: string; status: unknown }) => void) => {
       const handler = (_e: unknown, payload: { repoPath: string; status: unknown }) => cb(payload);
       ipcRenderer.on('carto:graph-progress', handler);
@@ -220,6 +222,8 @@ contextBridge.exposeInMainWorld('api', {
     probe: () => ipcRenderer.invoke('carto:ai-probe'),
     explain: (node: unknown, context: unknown) =>
       ipcRenderer.invoke('carto:ai-explain', node, context),
+    explainNode: (repoPath: string, nodeId: string, lang?: string) =>
+      ipcRenderer.invoke('carto:ai-explain-node', repoPath, nodeId, lang),
     ask: (question: string, context: unknown) =>
       ipcRenderer.invoke('carto:ai-ask', question, context),
   },

@@ -18,9 +18,10 @@ import { Map, ArrowLeft, FolderTree, RefreshCw, Loader2, AlertTriangle } from 'l
 import { useT } from '@/hooks/use-translation';
 import { useCartoLayout } from '@/hooks/use-carto-layout';
 import type { CartoScanResult } from '@/electron/ipc/carto';
-import type { CartoGraphStatus } from '@/lib/carto-types';
+import type { CartoGraphStatus, CartoNode } from '@/lib/carto-types';
 import { ExplorerLens } from './ExplorerLens';
 import { CartoRelationsPanel } from './CartoRelationsPanel';
+import { CartoNodeDetail } from './CartoNodeDetail';
 import { CartoAskBox } from './CartoAskBox';
 
 type CartographyViewProps = {
@@ -44,6 +45,10 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
   // ── Grounding estructural (CodeGraph, Fase 3) ──
   // Archivo seleccionado en el árbol → relaciones reales en el panel de abajo.
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  // ── Panel de detalle (Fase 5) ──
+  // Símbolo elegido dentro del archivo → su explicación IA + impacto. Al cambiar
+  // de archivo se limpia (los símbolos son de otro archivo).
+  const [selectedNode, setSelectedNode] = useState<CartoNode | null>(null);
   // Estado del índice del repo (idle/indexing/ready/error), gobernado por main.
   const [graphStatus, setGraphStatus] = useState<CartoGraphStatus | null>(null);
   // Se incrementa cuando el watch re-sincroniza: fuerza refetch de relaciones.
@@ -111,6 +116,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
   // al re-sync del watch para mantener fresco el estado y las relaciones.
   useEffect(() => {
     setSelectedFile(null);
+    setSelectedNode(null);
     setGraphStatus(null);
     if (!repoPath) return;
 
@@ -244,7 +250,10 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                     key={scan.scannedAt}
                     nodes={scan.root}
                     selectedPath={selectedFile}
-                    onSelectFile={setSelectedFile}
+                    onSelectFile={(p) => {
+                      setSelectedFile(p);
+                      setSelectedNode(null); // símbolos del archivo anterior ya no aplican
+                    }}
                   />
                 </div>
                 {/* Divisor vertical arrastrable: árbol ↕ relaciones. */}
@@ -259,12 +268,23 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                   style={{ height: relationsH }}
                   className="min-h-0 shrink-0 bg-carto-node/[0.02]"
                 >
-                  <CartoRelationsPanel
-                    repoPath={repoPath}
-                    selectedFile={selectedFile}
-                    status={graphStatus}
-                    refreshKey={graphRefresh}
-                  />
+                  {selectedNode ? (
+                    // Panel de detalle (Fase 5): explicación IA + impacto del nodo.
+                    <CartoNodeDetail
+                      repoPath={repoPath}
+                      node={selectedNode}
+                      aiEnabled={aiEnabled}
+                      onBack={() => setSelectedNode(null)}
+                    />
+                  ) : (
+                    <CartoRelationsPanel
+                      repoPath={repoPath}
+                      selectedFile={selectedFile}
+                      status={graphStatus}
+                      refreshKey={graphRefresh}
+                      onSelectNode={setSelectedNode}
+                    />
+                  )}
                 </div>
               </div>
             ) : (

@@ -42,6 +42,8 @@ npm-debug.log*
 *.code-workspace
 .fallow/
 fallow_report.json
-# CodeGraph: índice estructural local de Cartografía (per-repo, nunca versionado).
-# La Fase 3 hace que GitCron lo genere en `<repo>/.codegraph/`.
+# CodeGraph: índices estructurales locales (per-repo, nunca versionados).
+# `.codegraph/` lo crea el CLI/daemon de CodeGraph; `.codegraph-gitcron/` es el
+# índice DEDICADO que genera la vista Cartografía (Fase 3) para no colisionar con él.
 .codegraph/
+.codegraph-gitcron/

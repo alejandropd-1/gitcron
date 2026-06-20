@@ -23,6 +23,7 @@ todo pasa por un contrato normalizado propio y un adapter testeado.
 - **`package.json` → `build.asarUnpack`**: `**/node_modules/@colbymchenry/**`, para que
   el WASM/nativo del motor cargue desde fuera del asar en builds de `electron-builder`.
   (No afecta dev/QA; sólo el empaquetado de release.)
+- **`.gitignore`**: se ignoran `.codegraph/` y `.codegraph-gitcron/` (índices locales).
 
 ### Proceso main (todo el cómputo vive acá)
 - **`electron/carto/graph-engine.ts`** (NUEVO) — manager del ciclo de vida del motor,
@@ -74,23 +75,35 @@ todo pasa por un contrato normalizado propio y un adapter testeado.
 
 ## 2. Decisión: dónde vive el índice
 
-**El índice vive en `<repo>/.codegraph/` (ubicación nativa del motor), per-repo.**
+**El índice vive en `<repo>/.codegraph-gitcron/` (nombre DEDICADO), per-repo.**
 
 Se evaluó la opción "preferible" del brief —relocalizar a `userData` keyed por
 `repo_path`— y se **descartó por límite del SDK**: `CodeGraph.open()/init()` derivan el DB
-estrictamente bajo `projectRoot` (`getDatabasePath` → `<root>/.codegraph/codegraph.db`), y
-el único override, `CODEGRAPH_DIR`, acepta **sólo un nombre de carpeta** (rechaza rutas con
+estrictamente bajo `projectRoot` (`getDatabasePath` → `<root>/<CODEGRAPH_DIR>/codegraph.db`),
+y el único override, `CODEGRAPH_DIR`, acepta **sólo un nombre de carpeta** (rechaza rutas con
 separadores, absolutas o `..`). Relocalizar a userData exigiría reconstruir el constructor
-**privado** del motor a mano (forkearlo), violando "consumir el motor, no forkearlo" y
-quedando frágil ante upgrades.
+**privado** del motor a mano (forkearlo), violando "consumir el motor, no forkearlo".
 
-Mitigaciones / por qué es aceptable:
-- El artefacto **ya está gitignoreado** en este proyecto (`.gitignore`: `.codegraph/…`),
-  y el propio motor ignora `.codegraph/` y `.git/` al indexar y al watch-ear.
-- Es **naturalmente per-repo**: cada repo abierto tiene su propio `.codegraph/`.
-- Nota de QA: en repos de usuario sin `.codegraph/` en su `.gitignore`, el índice puede
-  aparecer como untracked. GitCron **no** auto-edita el `.gitignore` del usuario (respeta
-  el repo). Filtrar `.codegraph/` de la vista de status del usuario queda como follow-up.
+**Por qué un nombre dedicado y no el `.codegraph/` por defecto** (corrección post-QA):
+durante el QA visual, `lib/i18n.ts` mostraba `es usado por: 0` pese a estar importado por
+decenas de componentes. Causa raíz: el `.codegraph/` por defecto del repo activo lo había
+construido el **daemon CodeGraph MCP** (que corre sobre gitCron) y estaba **incompleto**
+—5291 aristas vs 7543 en un índice fresco; le faltaban las aristas de imports resueltos—.
+Nuestro engine lo reusaba y sólo hacía `sync()` incremental, heredando los gaps; además dos
+procesos sobre el mismo SQLite arriesgan "database is locked". Fijar `CODEGRAPH_DIR=.codegraph-gitcron`
+le da a GitCron un índice **propio y completo**, aislado de cualquier índice externo de
+CodeGraph (CLI o daemon). Verificado: con el dir dedicado, `i18n.ts` → 7 usado-por,
+`shared.ts` → 12, `carto-types.ts` → 5.
+
+Detalles:
+- El motor reconoce `.codegraph-*` como carpeta de datos suya → la **auto-ignora** al
+  indexar y al watch-ear. Está **gitignoreada** (`.gitignore`: `.codegraph-gitcron/`).
+- Robustez ante upgrades: al reabrir, si el índice propio quedó viejo (`isIndexStale()`)
+  se re-indexa completo; si no, basta un `sync` incremental.
+- Es **naturalmente per-repo**: cada repo abierto tiene su propio `.codegraph-gitcron/`.
+- Nota de QA: en repos de usuario el dir puede aparecer como untracked. GitCron **no**
+  auto-edita el `.gitignore` del usuario (respeta el repo). Filtrarlo de la vista de status
+  queda como follow-up.
 
 **Node/`node:sqlite`**: verificado. CodeGraph necesita Node ≥22.5 por `node:sqlite`.
 - Electron 42 corre Node 22.x y **ya usa `node:sqlite`** (Temporal Agent, `electron/db/`).

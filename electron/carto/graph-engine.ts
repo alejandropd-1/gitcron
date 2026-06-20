@@ -9,16 +9,28 @@
 //     normalizado (lib/carto-types) traducido por el adapter (lib/carto-from-codegraph).
 //   · No toca lógica de Git.
 //
-// Dónde vive el índice (decisión de la fase): en `<repo>/.codegraph/` —la única
-// ubicación que el SDK soporta (`open`/`init` derivan el DB bajo projectRoot, y el
-// override `CODEGRAPH_DIR` es sólo un NOMBRE de carpeta, no una ruta a userData).
-// Relocalizarlo a userData exigiría reconstruir el constructor privado del motor
-// (forkearlo), lo que rompería "consumir el motor, no forkearlo". El artefacto ya
-// está gitignoreado en este proyecto (.gitignore: `.codegraph/`). El índice es
-// naturalmente per-repo: cada repo abierto tiene su propio `.codegraph/`.
+// Dónde vive el índice (decisión de la fase): en `<repo>/.codegraph-gitcron/`.
+// El SDK siempre guarda el DB bajo projectRoot (`open`/`init` lo derivan; el
+// override `CODEGRAPH_DIR` es sólo un NOMBRE de carpeta, no una ruta a userData,
+// y relocalizar a userData exigiría forkear el constructor privado del motor).
+// Usamos un nombre DEDICADO, no el `.codegraph/` por defecto, a propósito:
+//   · Aísla a GitCron de cualquier índice externo de CodeGraph (CLI, o el daemon
+//     MCP que puede correr sobre el mismo repo). Reusar ese índice ajeno nos hacía
+//     heredar un grafo INCOMPLETO (faltaban aristas de imports sin resolver, p. ej.
+//     "es usado por" daba 0 en archivos muy usados) y arriesgaba contención de
+//     SQLite ("database is locked") entre dos procesos sobre el mismo DB.
+//   · El motor reconoce `.codegraph-*` como carpeta de datos suya, así que la
+//     auto-ignora al indexar y al watch-ear. Está gitignoreada en este proyecto.
+// El índice es naturalmente per-repo: cada repo abierto tiene el suyo.
 
 import * as path from 'node:path';
 import { CodeGraph } from '@colbymchenry/codegraph';
+
+// Nombre dedicado del directorio de índice de GitCron (ver bloque de arriba).
+// `CODEGRAPH_DIR` se lee en vivo por el motor, así que basta fijarlo en el env del
+// proceso main antes de cualquier llamada al SDK.
+const GITCRON_CODEGRAPH_DIR = '.codegraph-gitcron';
+process.env.CODEGRAPH_DIR = GITCRON_CODEGRAPH_DIR;
 import type { IndexProgress, Node } from '@colbymchenry/codegraph';
 import {
   adaptRelated,
@@ -109,11 +121,17 @@ async function buildIndex(root: string, entry: EngineEntry, opts: EnsureGraphOpt
 
   let cg: CodeGraph;
   if (CodeGraph.isInitialized(root)) {
-    // Índice previo: abrir y poner al día (incremental) en vez de re-indexar todo.
+    // Ya hay un índice NUESTRO (mismo CODEGRAPH_DIR dedicado). Lo abrimos y, si lo
+    // construyó un motor más viejo (`isIndexStale`), lo re-indexamos completo para
+    // re-resolver todas las relaciones; si no, basta un `sync` incremental.
     cg = await CodeGraph.open(root, { sync: false });
-    await cg.sync({ onProgress: onIndexProgress });
+    if (cg.isIndexStale()) {
+      await cg.indexAll({ onProgress: onIndexProgress });
+    } else {
+      await cg.sync({ onProgress: onIndexProgress });
+    }
   } else {
-    // Primer índice de este repo: crear `.codegraph/` e indexar completo.
+    // Primer índice de este repo: crear `.codegraph-gitcron/` e indexar completo.
     cg = await CodeGraph.init(root, { index: false });
     await cg.indexAll({ onProgress: onIndexProgress });
   }

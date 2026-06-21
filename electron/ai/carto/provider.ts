@@ -15,6 +15,7 @@ import type {
   CartoAIContext,
   CartoAIResponse,
   CartoAIProviderId,
+  CartoAIPanoramaContext,
 } from '../../../types/carto-ai';
 import { fetchWithTimeout } from '../provider-runtime';
 
@@ -27,6 +28,8 @@ export interface CartoAIProvider {
   explain(node: CartoAINodeRef, context: CartoAIContext): Promise<CartoAIResponse>;
   /** Responde una pregunta libre, con el contexto disponible como anclaje. */
   ask(question: string, context: CartoAIContext): Promise<CartoAIResponse>;
+  /** Genera orientación top-down para la lente Panorama, anclada en grupos. */
+  panorama(context: CartoAIPanoramaContext): Promise<CartoAIResponse>;
   /**
    * Sondea disponibilidad SIN gastar una generación (servidor local levantado,
    * key presente, etc.). Lanza con un mensaje claro si no está disponible.

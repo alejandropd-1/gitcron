@@ -14,10 +14,11 @@ import type {
   CartoAINodeRef,
   CartoAIContext,
   CartoAIResponse,
+  CartoAIPanoramaContext,
 } from '../../../types/carto-ai';
 import type { CartoAIProvider } from './provider';
 import { chatComplete, toResponse } from './provider';
-import { buildExplainPrompts, buildAskPrompts } from './prompts';
+import { buildExplainPrompts, buildAskPrompts, buildPanoramaPrompts } from './prompts';
 
 // Endpoint compatible OpenAI de LM Studio. Documentado en SECURITY.md (CSP en
 // lockstep): aunque la petición sale de main, el origen se declara igual.
@@ -64,6 +65,11 @@ export function createLmStudioProvider(opts?: { model?: string }): CartoAIProvid
 
     async ask(question: string, context: CartoAIContext) {
       const { system, user } = buildAskPrompts(question, context);
+      return run(system, user);
+    },
+
+    async panorama(context: CartoAIPanoramaContext) {
+      const { system, user } = buildPanoramaPrompts(context);
       return run(system, user);
     },
 

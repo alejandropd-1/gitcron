@@ -102,6 +102,24 @@ export interface CartoAIContext {
   };
 }
 
+export interface CartoAIPanoramaContext {
+  lang?: string;
+  structureHash: string;
+  totals: { nodes: number; edges: number };
+  groups: Array<{
+    role: string;
+    label: string;
+    fileCount: number;
+    keyFiles: string[];
+  }>;
+  links: Array<{
+    fromRole: string;
+    toRole: string;
+    count: number;
+    samples: string[];
+  }>;
+}
+
 /**
  * Resultado de una pregunta libre scoped al repo activo (la "ventanita de
  * preguntas", Fase 6). Trae la respuesta en lenguaje natural MÁS los nodos que la
@@ -118,6 +136,27 @@ export interface CartoAskResult {
   usedFiles: string[];
   /** Tamaño (caracteres) del contexto enviado al modelo. */
   promptChars: number;
+}
+
+export interface CartoPanoramaFlow {
+  title: string;
+  steps: string[];
+}
+
+export interface CartoPanoramaText {
+  oneLine: string;
+  paragraph: string;
+  flows: CartoPanoramaFlow[];
+  provider: string;
+  generatedAt: string;
+}
+
+export interface CartoPanoramaResult {
+  structureHash: string;
+  panorama: CartoPanoramaText | null;
+  cached: boolean;
+  aiError?: string;
+  promptChars?: number;
 }
 
 /**

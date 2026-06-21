@@ -75,6 +75,12 @@ export interface CartoEdge {
 export interface CartoGraph {
   /** Nodos visibles del tablero, normalmente nodos `file` del motor. */
   nodes: CartoNode[];
+  /**
+   * Set completo de archivos del repo para vistas agregadas por rol. Puede ser
+   * mayor que `nodes`: el tablero "Nodos" se acota por rendimiento, pero
+   * Columnas/Panorama necesitan contar y listar todos los archivos reales.
+   */
+  allNodes?: CartoNode[];
   /** Aristas reales entre nodos visibles. */
   edges: CartoEdge[];
   /** Totales del índice antes del recorte defensivo. */

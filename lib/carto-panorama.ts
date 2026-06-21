@@ -65,7 +65,8 @@ function roleOrder(role: CartoRoleId): number {
 }
 
 function buildStructureHash(graph: CartoGraph, roleByNodeId: Map<string, CartoRoleId>): string {
-  const nodePart = graph.nodes
+  const nodes = graph.allNodes ?? graph.nodes;
+  const nodePart = nodes
     .map((n) => `${n.filePath}:${roleByNodeId.get(n.id) ?? classifyCartoRole(n)}`)
     .sort()
     .join('|');
@@ -175,14 +176,15 @@ function createLinks(groupLinkByKey: GroupLinkAccumulator): CartoPanoramaLink[] 
 }
 
 export function buildCartoPanorama(graph: CartoGraph): CartoPanoramaModel {
-  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
-  const roleByNodeId = createRoleMap(graph.nodes);
+  const nodes = graph.allNodes ?? graph.nodes;
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const roleByNodeId = createRoleMap(nodes);
   const { importsByNode, usedByNode, groupLinkByKey } = collectEdgeStats(
     graph,
     nodeById,
     roleByNodeId,
   );
-  const groups = createGroups(graph.nodes, roleByNodeId, importsByNode, usedByNode);
+  const groups = createGroups(nodes, roleByNodeId, importsByNode, usedByNode);
   const links = createLinks(groupLinkByKey);
   return {
     structureHash: buildStructureHash(graph, roleByNodeId),

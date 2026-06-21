@@ -161,6 +161,7 @@ export function SemanticGraphLens({
   if (!graph || graph.nodes.length === 0) {
     return <GraphHint icon={<Network size={18} />} text={t('cartography.semantic.empty')} />;
   }
+  const allNodeCount = graph.allNodes?.length ?? graph.nodes.length;
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-carto-canvas">
@@ -213,7 +214,7 @@ export function SemanticGraphLens({
           <Network size={13} className="text-carto-accent" />
           <span className="font-mono">
             {t('cartography.semantic.stats', {
-              nodes: viewMode === 'nodes' ? flow.nodes.length : graph.nodes.length,
+              nodes: viewMode === 'nodes' ? flow.nodes.length : allNodeCount,
               totalNodes: graph.totals.nodes,
               edges: viewMode === 'nodes' ? model.selectedEdges.length : graph.edges.length,
               totalEdges: graph.totals.edges,
@@ -293,6 +294,7 @@ function buildGraphModel(
     };
   }
 
+  const roleNodes = graph.allNodes ?? graph.nodes;
   for (const edge of graph.edges) {
     relationCount.set(edge.fromId, (relationCount.get(edge.fromId) ?? 0) + 1);
     relationCount.set(edge.toId, (relationCount.get(edge.toId) ?? 0) + 1);
@@ -306,7 +308,7 @@ function buildGraphModel(
     }
   }
 
-  for (const node of graph.nodes) {
+  for (const node of roleNodes) {
     nodeById.set(node.id, node);
     byRole.get(classifyCartoRole(node))?.push(node);
   }

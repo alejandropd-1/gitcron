@@ -112,9 +112,9 @@ export function registerCartoGraphHandlers(getMainWindow: () => BrowserWindow | 
   });
 
   // Foto global normalizada para la lente Grafo semántico (archivos + relaciones).
-  ipcMain.handle('carto:graph-snapshot', (_e, repoPath: string) => {
+  ipcMain.handle('carto:graph-snapshot', async (_e, repoPath: string) => {
     try {
-      return ok(graphSnapshot(repoPath));
+      return ok(await graphSnapshot(repoPath));
     } catch (error) {
       return fail(error);
     }

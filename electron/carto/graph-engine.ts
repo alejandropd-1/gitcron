@@ -52,6 +52,7 @@ import type {
 } from '../../lib/carto-types';
 import type { CartoNodeContext, CartoAIRelated } from '../../types/carto-ai';
 import { extractQueryTerms } from '../../lib/carto-retrieval';
+import { scanRepoFilePaths } from './repo-files';
 
 // Profundidad de impacto: 3 niveles es el default del motor y un radio razonable
 // para "qué se rompe si toco esto" sin volverse todo el grafo.
@@ -318,19 +319,31 @@ export function graphFileSymbols(repoPath: string, filePath: string): CartoNode[
     .map(toCartoNode);
 }
 
-/** Foto global normalizada para la lente "Grafo": archivos como nodos y aristas reales. */
-export function graphSnapshot(repoPath: string): CartoGraph | null {
-  const cg = readyGraph(repoPath);
-  if (!cg) return null;
+interface SnapshotGraphSource {
+  getFiles(): Array<{ path: string }>;
+  getFileDependencies(filePath: string): string[];
+}
 
+export function buildGraphSnapshot(
+  cg: SnapshotGraphSource,
+  repoFilePaths: string[],
+  repoScanTruncated = false,
+  generatedAt = Date.now(),
+): CartoGraph {
   const fileNodeByPath = new Map<string, CartoNode>();
-  for (const file of cg.getFiles().sort((a, b) => a.path.localeCompare(b.path))) {
+  for (const filePath of repoFilePaths) {
+    fileNodeByPath.set(filePath, toFileCartoNode(filePath));
+  }
+  for (const file of cg.getFiles()) {
     fileNodeByPath.set(file.path, toFileCartoNode(file.path));
   }
 
   const rawEdges = new Map<string, { fromId: string; toId: string; relation: CartoEdgeRelation }>();
   const degreeByNode = new Map<string, number>();
-  for (const [fromPath, fromNode] of fileNodeByPath) {
+  for (const file of cg.getFiles().sort((a, b) => a.path.localeCompare(b.path))) {
+    const fromPath = file.path;
+    const fromNode = fileNodeByPath.get(fromPath);
+    if (!fromNode) continue;
     for (const toPath of cg.getFileDependencies(fromPath)) {
       const toNode = fileNodeByPath.get(toPath);
       if (!toNode || fromNode.id === toNode.id) continue;
@@ -359,11 +372,21 @@ export function graphSnapshot(repoPath: string): CartoGraph | null {
 
   return {
     nodes: visibleNodes,
+    allNodes: rankedNodes,
     edges: visibleEdges,
     totals: { nodes: fileNodeByPath.size, edges: rawEdges.size },
-    truncated: visibleNodes.length < fileNodeByPath.size || visibleEdges.length < rawEdges.size,
-    generatedAt: Date.now(),
+    truncated: repoScanTruncated || visibleNodes.length < fileNodeByPath.size || visibleEdges.length < rawEdges.size,
+    generatedAt,
   };
+}
+
+/** Foto global normalizada para la lente "Grafo": archivos como nodos y aristas reales. */
+export async function graphSnapshot(repoPath: string): Promise<CartoGraph | null> {
+  const cg = readyGraph(repoPath);
+  if (!cg) return null;
+  const root = rootOf(repoPath);
+  const scan = await scanRepoFilePaths(root);
+  return buildGraphSnapshot(cg, scan.paths, scan.truncated);
 }
 
 /**

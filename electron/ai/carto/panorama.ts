@@ -84,7 +84,7 @@ export async function panoramaRepo(
   lang?: string,
   forceRefresh = false,
 ): Promise<CartoPanoramaResult> {
-  const snapshot = graphSnapshot(repoPath);
+  const snapshot = await graphSnapshot(repoPath);
   if (!snapshot) {
     throw new Error('El índice del repo todavía no está listo. Esperá a que termine de indexar.');
   }

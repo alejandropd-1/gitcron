@@ -10,6 +10,8 @@ describe('classifyCartoRole', () => {
   it('prioriza estilos y tokens sobre rutas de UI', () => {
     expect(classifyCartoRole('app/globals.css')).toBe('styles');
     expect(classifyCartoRole('components/Button.module.css')).toBe('styles');
+    expect(classifyCartoRole('styles/foo.scss')).toBe('styles');
+    expect(classifyCartoRole('components/x.module.scss')).toBe('styles');
   });
 
   it('detecta base de datos, SQL y persistencia', () => {

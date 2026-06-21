@@ -23,6 +23,7 @@ import {
 } from '../ai/carto';
 import { explainNode } from '../ai/carto/explain-node';
 import { askRepo } from '../ai/carto/ask-repo';
+import { panoramaRepo } from '../ai/carto/panorama';
 import { errMsg } from './shared';
 
 type Result<T> = { success: boolean; data?: T; error?: string };
@@ -118,4 +119,19 @@ export function registerCartoAiHandlers(): void {
       return fail(error);
     }
   });
+
+  // ── Panorama top-down (Fase 8) ──
+  // Genera orientación sólo si la IA está activa; si hay cache para el hash de
+  // estructura vigente, devuelve el texto guardado sin re-llamar al proveedor.
+  ipcMain.handle(
+    'carto:ai-panorama',
+    async (_e, repoPath: string, lang?: string, forceRefresh?: boolean) => {
+      try {
+        if (!repoPath) return { success: false, error: 'Repo inválido' };
+        return ok(await panoramaRepo(repoPath, lang, Boolean(forceRefresh)));
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
 }

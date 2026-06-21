@@ -13,10 +13,11 @@ import type {
   CartoAINodeRef,
   CartoAIContext,
   CartoAIResponse,
+  CartoAIPanoramaContext,
 } from '../../../types/carto-ai';
 import type { CartoAIProvider } from './provider';
 import { chatComplete, toResponse } from './provider';
-import { buildExplainPrompts, buildAskPrompts } from './prompts';
+import { buildExplainPrompts, buildAskPrompts, buildPanoramaPrompts } from './prompts';
 import { getKey, hasKey } from '../key-store';
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
@@ -59,6 +60,11 @@ export function createCartoOpenRouterProvider(opts?: { model?: string }): CartoA
 
     async ask(question: string, context: CartoAIContext) {
       const { system, user } = buildAskPrompts(question, context);
+      return run(system, user);
+    },
+
+    async panorama(context: CartoAIPanoramaContext) {
+      const { system, user } = buildPanoramaPrompts(context);
       return run(system, user);
     },
 

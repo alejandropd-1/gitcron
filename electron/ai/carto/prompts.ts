@@ -8,7 +8,11 @@
 // (las mismas del panel), así el modelo razona sobre hechos del repo y no inventa
 // aristas. Se lo decimos explícito en el system prompt.
 
-import type { CartoAINodeRef, CartoAIContext } from '../../../types/carto-ai';
+import type {
+  CartoAINodeRef,
+  CartoAIContext,
+  CartoAIPanoramaContext,
+} from '../../../types/carto-ai';
 
 /** Mapea el código de idioma a una instrucción clara para el modelo. */
 function languageDirective(lang?: string): string {
@@ -148,5 +152,60 @@ export function buildAskPrompts(
   ]
     .filter((l) => l !== null)
     .join('\n');
+  return { system, user };
+}
+
+function renderPanoramaContext(context: CartoAIPanoramaContext): string {
+  const lines: string[] = [];
+  lines.push(`Hash estructural: ${context.structureHash}`);
+  lines.push(`Totales del mapa: ${context.totals.nodes} archivos · ${context.totals.edges} relaciones`);
+  lines.push('');
+  lines.push('Grupos deterministas:');
+  for (const group of context.groups) {
+    lines.push(
+      `- ${group.label} (${group.role}): ${group.fileCount} archivos; claves: ${
+        group.keyFiles.length ? group.keyFiles.join(', ') : 'sin archivos clave'
+      }`,
+    );
+  }
+  lines.push('');
+  lines.push('Flechas principales entre grupos:');
+  if (context.links.length === 0) {
+    lines.push('- Sin flechas entre grupos en esta foto.');
+  } else {
+    for (const link of context.links) {
+      lines.push(
+        `- ${link.fromRole} -> ${link.toRole}: ${link.count} relaciones` +
+          (link.samples.length ? `; ejemplos: ${link.samples.join(' | ')}` : ''),
+      );
+    }
+  }
+  return lines.join('\n');
+}
+
+export function buildPanoramaPrompts(context: CartoAIPanoramaContext): { system: string; user: string } {
+  const system = [
+    'Sos un asistente de cartografía de código embebido en GitCron.',
+    'Tu trabajo es dar una orientación top-down antes del detalle técnico.',
+    'REGLA DE ORO: basate ÚNICAMENTE en el mapa de grupos, archivos clave y flechas entre grupos que se te da. NO inventes features ni nombres de archivos.',
+    'No leas ni supongas código crudo. Si el mapa no alcanza para afirmar algo, formulalo como "parece".',
+    'Devolvé SOLO JSON válido, sin markdown.',
+    languageDirective(context.lang),
+  ].join(' ');
+  const user = [
+    'Mapa estructural verificado del repo:',
+    renderPanoramaContext(context),
+    '',
+    'Generá JSON con esta forma exacta:',
+    '{',
+    '  "oneLine": "una frase de qué es el proyecto",',
+    '  "paragraph": "un párrafo corto de 2 a 4 oraciones, claro para no expertos",',
+    '  "flows": [',
+    '    { "title": "nombre de un flujo típico", "steps": ["2 a 4 pasos narrados en lenguaje claro"] }',
+    '  ]',
+    '}',
+    '',
+    'Requisitos: 2 o 3 flujos típicos; mencionar archivos sólo si aparecen como clave o ejemplo; lenguaje claro, no jerga innecesaria.',
+  ].join('\n');
   return { system, user };
 }

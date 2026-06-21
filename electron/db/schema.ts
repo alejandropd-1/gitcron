@@ -3,14 +3,11 @@ export interface Migration {
   statements: string[];
 }
 
-export const LATEST_SCHEMA_VERSION = 2;
+export const LATEST_SCHEMA_VERSION = 3;
 
 export const PREDICTION_RUN_TABLE = 'prediction_run';
 export const SPECULATIVE_BRANCH_TABLE = 'speculative_branch';
 export const BRANCH_DECISION_TABLE = 'branch_decision';
-
-/** Cartografía Fase 5: caché de explicaciones de nodos (clave por contenido). */
-export const CARTO_EXPLANATION_TABLE = 'carto_explanation';
 
 export const TEMPORAL_AGENT_INDEXES = [
   'idx_run_repo',
@@ -104,6 +101,31 @@ const CREATE_CARTO_EXPLANATION_INDEXES = [
   'CREATE INDEX idx_carto_expl_node ON carto_explanation(repo_path, node_path, lang);',
 ];
 
+// ── Cartografía Fase 8 ──────────────────────────────────────────────────────
+// Texto top-down generado por IA para Panorama. La estructura que lo fundamenta
+// se calcula aparte, de forma determinista y local. Esta tabla guarda sólo la
+// narración del proyecto y sus recorridos guiados para un hash estructural dado.
+const CREATE_CARTO_PANORAMA_TABLE = `
+CREATE TABLE carto_panorama (
+  id             TEXT    PRIMARY KEY,
+  repo_path      TEXT    NOT NULL,
+  structure_hash TEXT    NOT NULL,
+  lang           TEXT    NOT NULL,
+  provider       TEXT    NOT NULL,
+  model          TEXT,
+  one_line       TEXT    NOT NULL,
+  paragraph      TEXT    NOT NULL,
+  flows_json     TEXT    NOT NULL,
+  generated_at   TEXT    NOT NULL,
+  created_at     TEXT    NOT NULL
+) STRICT;
+`;
+
+const CREATE_CARTO_PANORAMA_INDEXES = [
+  'CREATE UNIQUE INDEX idx_carto_panorama_key ON carto_panorama(repo_path, structure_hash, lang);',
+  'CREATE INDEX idx_carto_panorama_repo ON carto_panorama(repo_path, lang);',
+];
+
 export const MIGRATIONS: Migration[] = [
   {
     version: 1,
@@ -119,6 +141,13 @@ export const MIGRATIONS: Migration[] = [
     statements: [
       CREATE_CARTO_EXPLANATION_TABLE,
       ...CREATE_CARTO_EXPLANATION_INDEXES,
+    ],
+  },
+  {
+    version: 3,
+    statements: [
+      CREATE_CARTO_PANORAMA_TABLE,
+      ...CREATE_CARTO_PANORAMA_INDEXES,
     ],
   },
 ];

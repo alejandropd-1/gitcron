@@ -14,7 +14,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { Map, ArrowLeft, FolderTree, RefreshCw, Loader2, AlertTriangle, Network } from 'lucide-react';
+import {
+  Map,
+  ArrowLeft,
+  FolderTree,
+  RefreshCw,
+  Loader2,
+  AlertTriangle,
+  Network,
+  Blocks,
+} from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { useCartoLayout } from '@/hooks/use-carto-layout';
 import type { CartoScanResult } from '@/electron/ipc/carto';
@@ -24,6 +33,7 @@ import { CartoRelationsPanel } from './CartoRelationsPanel';
 import { CartoNodeDetail } from './CartoNodeDetail';
 import { CartoAskBox } from './CartoAskBox';
 import { SemanticGraphLens } from './SemanticGraphLens';
+import { CartoPanoramaLens } from './CartoPanoramaLens';
 
 type CartographyViewProps = {
   /** Ruta del repo activo a escanear. `null` si no hay repo abierto. */
@@ -32,13 +42,17 @@ type CartographyViewProps = {
   onExit: () => void;
 };
 
-/** Lentes disponibles: árbol Explorador y mapa visual de roles. */
-type LensId = 'explorer' | 'graph';
+/** Lentes disponibles: Panorama top-down, árbol Explorador y mapa visual de roles. */
+type LensId = 'panorama' | 'explorer' | 'graph';
+type PersonaMode = 'simple' | 'technical';
+
+const PERSONA_MODE_STORAGE_KEY = 'gitcron:cartographyPersonaMode';
 
 export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
   const t = useT();
 
-  const [lens, setLens] = useState<LensId>('explorer');
+  const [lens, setLens] = useState<LensId>('panorama');
+  const [personaMode, setPersonaMode] = useState<PersonaMode>('simple');
   const [scan, setScan] = useState<CartoScanResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +79,16 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
   // Token de escaneo: descarta resultados de un repo anterior si el usuario
   // cambia de repo mientras un escaneo está en vuelo.
   const scanToken = useRef(0);
+
+  const selectLens = (next: LensId) => {
+    setLens(next);
+    setSelectedNode(null);
+  };
+
+  const updatePersonaMode = (next: PersonaMode) => {
+    setPersonaMode(next);
+    localStorage.setItem(PERSONA_MODE_STORAGE_KEY, next);
+  };
 
   const runScan = useCallback(async () => {
     if (!repoPath) {
@@ -110,6 +134,11 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
   useEffect(() => {
     void runScan();
   }, [runScan]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(PERSONA_MODE_STORAGE_KEY);
+    if (saved === 'technical' || saved === 'simple') setPersonaMode(saved);
+  }, []);
 
   // Leemos si la IA de Cartografía está activa al montar la vista. Se relee al
   // volver a entrar (la vista se remonta), así un cambio en Ajustes se refleja.
@@ -194,7 +223,20 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
           </span>
           <button
             type="button"
-            onClick={() => setLens('explorer')}
+            onClick={() => selectLens('panorama')}
+            aria-pressed={lens === 'panorama'}
+            className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold tracking-wide transition-colors ${
+              lens === 'panorama'
+                ? 'bg-carto-accent/15 text-carto-accent'
+                : 'text-carto-text-muted hover:bg-carto-node/5 hover:text-carto-text'
+            }`}
+          >
+            <Blocks size={14} className="shrink-0" />
+            {t('cartography.lens.panorama')}
+          </button>
+          <button
+            type="button"
+            onClick={() => selectLens('explorer')}
             aria-pressed={lens === 'explorer'}
             className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold tracking-wide transition-colors ${
               lens === 'explorer'
@@ -207,7 +249,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
           </button>
           <button
             type="button"
-            onClick={() => setLens('graph')}
+            onClick={() => selectLens('graph')}
             aria-pressed={lens === 'graph'}
             className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold tracking-wide transition-colors ${
               lens === 'graph'
@@ -225,13 +267,21 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
           {/* Barra de la lente: título + métricas + refrescar */}
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-carto-grid px-4 py-2.5">
             <div className="flex min-w-0 items-center gap-2.5">
-              {lens === 'explorer' ? (
+              {lens === 'panorama' ? (
+                <Blocks size={14} className="shrink-0 text-carto-accent" />
+              ) : lens === 'explorer' ? (
                 <FolderTree size={14} className="shrink-0 text-carto-accent" />
               ) : (
                 <Network size={14} className="shrink-0 text-carto-accent" />
               )}
               <span className="truncate text-xs font-bold tracking-wide text-carto-text">
-                {t(lens === 'explorer' ? 'cartography.lens.explorer' : 'cartography.lens.graph')}
+                {t(
+                  lens === 'panorama'
+                    ? 'cartography.lens.panorama'
+                    : lens === 'explorer'
+                      ? 'cartography.lens.explorer'
+                      : 'cartography.lens.graph',
+                )}
               </span>
               {lens === 'explorer' && scan && !loading && (
                 <span className="shrink-0 text-[11px] text-carto-text-muted">
@@ -248,15 +298,34 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                 </span>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => void refreshLens()}
-              disabled={loading || !repoPath}
-              className="shrink-0 flex items-center gap-1.5 rounded border border-carto-grid px-2.5 py-1 text-[11px] font-semibold tracking-wide text-carto-text-muted transition-colors hover:border-carto-accent/50 hover:text-carto-text disabled:opacity-40"
-            >
-              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-              {t('cartography.refresh')}
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="flex overflow-hidden rounded border border-carto-grid">
+                {(['simple', 'technical'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => updatePersonaMode(mode)}
+                    aria-pressed={personaMode === mode}
+                    className={`px-2 py-1 text-[11px] font-semibold tracking-wide transition-colors ${
+                      personaMode === mode
+                        ? 'bg-carto-accent/15 text-carto-accent'
+                        : 'text-carto-text-muted hover:bg-carto-node/5 hover:text-carto-text'
+                    }`}
+                  >
+                    {t(mode === 'simple' ? 'cartography.mode.simple' : 'cartography.mode.technical')}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => void refreshLens()}
+                disabled={loading || !repoPath}
+                className="flex items-center gap-1.5 rounded border border-carto-grid px-2.5 py-1 text-[11px] font-semibold tracking-wide text-carto-text-muted transition-colors hover:border-carto-accent/50 hover:text-carto-text disabled:opacity-40"
+              >
+                <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+                {t('cartography.refresh')}
+              </button>
+            </div>
           </div>
 
           {/* Contenido de la lente */}
@@ -278,6 +347,28 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                 title={t('cartography.empty')}
                 detail={t('cartography.emptyHint')}
               />
+            ) : lens === 'panorama' ? (
+              selectedNode ? (
+                <CartoNodeDetail
+                  repoPath={repoPath}
+                  node={selectedNode}
+                  aiEnabled={aiEnabled}
+                  technicalOpenDefault={personaMode === 'technical'}
+                  onBack={() => setSelectedNode(null)}
+                />
+              ) : (
+                <CartoPanoramaLens
+                  repoPath={repoPath}
+                  status={graphStatus}
+                  refreshKey={graphRefresh}
+                  aiEnabled={aiEnabled}
+                  technicalMode={personaMode === 'technical'}
+                  onSelectNode={(node) => {
+                    setSelectedFile(node.filePath);
+                    setSelectedNode(node);
+                  }}
+                />
+              )
             ) : lens === 'graph' ? (
               <div className="flex min-h-0 flex-1 flex-col">
                 <div className="min-h-0 flex-1">
@@ -309,6 +400,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                         repoPath={repoPath}
                         node={selectedNode}
                         aiEnabled={aiEnabled}
+                        technicalOpenDefault
                         onBack={() => setSelectedNode(null)}
                       />
                     </div>
@@ -349,6 +441,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                       repoPath={repoPath}
                       node={selectedNode}
                       aiEnabled={aiEnabled}
+                      technicalOpenDefault={personaMode === 'technical'}
                       onBack={() => setSelectedNode(null)}
                     />
                   ) : (

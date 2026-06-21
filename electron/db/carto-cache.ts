@@ -34,6 +34,28 @@ export interface CartoExplanationRow {
   generatedAt: string;
 }
 
+/** Clave lógica del panorama cacheado: repo + foto estructural + idioma. */
+export interface CartoPanoramaKey {
+  repoPath: string;
+  structureHash: string;
+  lang: string;
+}
+
+export interface CartoPanoramaFlowRow {
+  title: string;
+  steps: string[];
+}
+
+/** Narración top-down cacheada para la lente Panorama. */
+export interface CartoPanoramaRow {
+  oneLine: string;
+  paragraph: string;
+  flows: CartoPanoramaFlowRow[];
+  provider: string;
+  model: string | null;
+  generatedAt: string;
+}
+
 interface CartoCacheOptions {
   db?: DatabaseSync;
   userDataPath?: string;
@@ -42,6 +64,15 @@ interface CartoCacheOptions {
 
 type CartoExplanationDbRow = {
   explanation: string;
+  provider: string;
+  model: string | null;
+  generated_at: string;
+};
+
+type CartoPanoramaDbRow = {
+  one_line: string;
+  paragraph: string;
+  flows_json: string;
   provider: string;
   model: string | null;
   generated_at: string;
@@ -109,6 +140,91 @@ export function upsertCartoExplanation(
   } catch (error) {
     db.exec('ROLLBACK');
     throw error;
+  }
+}
+
+export function getCartoPanorama(
+  key: CartoPanoramaKey,
+  options: CartoCacheOptions = {},
+): CartoPanoramaRow | null {
+  const row = resolveDatabase(options)
+    .prepare(
+      `SELECT one_line, paragraph, flows_json, provider, model, generated_at
+         FROM carto_panorama
+        WHERE repo_path = ? AND structure_hash = ? AND lang = ?
+        LIMIT 1`,
+    )
+    .get(key.repoPath, key.structureHash, key.lang) as CartoPanoramaDbRow | undefined;
+  if (!row) return null;
+  return {
+    oneLine: row.one_line,
+    paragraph: row.paragraph,
+    flows: parseFlows(row.flows_json),
+    provider: row.provider,
+    model: row.model,
+    generatedAt: row.generated_at,
+  };
+}
+
+export function upsertCartoPanorama(
+  input: CartoPanoramaKey & {
+    provider: string;
+    model?: string | null;
+    oneLine: string;
+    paragraph: string;
+    flows: CartoPanoramaFlowRow[];
+    generatedAt: string;
+  },
+  options: CartoCacheOptions = {},
+): void {
+  const db = resolveDatabase(options);
+  const createdAt = options.now?.() ?? new Date().toISOString();
+
+  db.exec('BEGIN');
+  try {
+    db.prepare('DELETE FROM carto_panorama WHERE repo_path = ? AND lang = ?')
+      .run(input.repoPath, input.lang);
+
+    db.prepare(
+      `INSERT INTO carto_panorama (
+         id, repo_path, structure_hash, lang, provider, model, one_line, paragraph, flows_json, generated_at, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      randomUUID(),
+      input.repoPath,
+      input.structureHash,
+      input.lang,
+      input.provider,
+      input.model ?? null,
+      input.oneLine,
+      input.paragraph,
+      JSON.stringify(input.flows),
+      input.generatedAt,
+      createdAt,
+    );
+
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
+function parseFlows(raw: string): CartoPanoramaFlowRow[] {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const flow = item as { title?: unknown; steps?: unknown };
+        if (typeof flow.title !== 'string' || !Array.isArray(flow.steps)) return null;
+        const steps = flow.steps.filter((step): step is string => typeof step === 'string');
+        return { title: flow.title, steps };
+      })
+      .filter((item): item is CartoPanoramaFlowRow => item !== null);
+  } catch {
+    return [];
   }
 }
 

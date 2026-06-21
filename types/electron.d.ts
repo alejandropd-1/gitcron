@@ -26,6 +26,7 @@ import type {
   CartoAIProbe,
   CartoExplainNodeResult,
   CartoAskResult,
+  CartoPanoramaResult,
 } from './carto-ai';
 
 interface GitResult<T = unknown> {
@@ -395,6 +396,8 @@ interface ElectronAPI {
      * los nodos/archivos usados, para mostrarlos clickeables y abrir su detalle.
      */
     askRepo(repoPath: string, question: string, lang?: string): Promise<GitResult<CartoAskResult>>;
+    /** Cartografía Fase 8: resumen top-down + recorridos guiados, cacheados por estructura. */
+    panorama(repoPath: string, lang?: string, forceRefresh?: boolean): Promise<GitResult<CartoPanoramaResult>>;
   };
   repoWatch: (targetPath: string) => Promise<GitResult>;
   repoUnwatch: (targetPath: string) => Promise<GitResult>;

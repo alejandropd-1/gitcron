@@ -1,7 +1,12 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import type { DatabaseSync } from 'node:sqlite';
 import { openTemporalAgentDatabase } from '../connection';
-import { getCartoExplanation, upsertCartoExplanation } from '../carto-cache';
+import {
+  getCartoExplanation,
+  upsertCartoExplanation,
+  getCartoPanorama,
+  upsertCartoPanorama,
+} from '../carto-cache';
 
 const KEY = {
   repoPath: '/repo',
@@ -72,5 +77,63 @@ describe('carto explanation cache', () => {
     expect(hit?.explanation).toBe('Regenerada.');
     const count = (db.prepare('SELECT COUNT(*) AS n FROM carto_explanation').get() as { n: number }).n;
     expect(count).toBe(1);
+  });
+});
+
+describe('carto panorama cache', () => {
+  let db: DatabaseSync;
+  const opts = () => ({ db, now: () => '2026-06-21T10:00:00.000Z' });
+  const key = { repoPath: '/repo', structureHash: 'panorama-v1-a', lang: 'es' };
+
+  beforeEach(() => {
+    db = openTemporalAgentDatabase(':memory:');
+  });
+
+  it('guarda y recupera panorama por hash estructural', () => {
+    upsertCartoPanorama(
+      {
+        ...key,
+        provider: 'lmstudio:local-model',
+        model: 'local-model',
+        oneLine: 'GitCron es un cliente Git de escritorio.',
+        paragraph: 'Organiza repositorios, ramas y acciones Git con ayuda visual.',
+        flows: [{ title: 'Pull', steps: ['Revisa remoto', 'Actualiza ramas'] }],
+        generatedAt: '2026-06-21T10:00:00.000Z',
+      },
+      opts(),
+    );
+
+    const hit = getCartoPanorama(key, opts());
+    expect(hit?.oneLine).toBe('GitCron es un cliente Git de escritorio.');
+    expect(hit?.flows[0].steps).toEqual(['Revisa remoto', 'Actualiza ramas']);
+  });
+
+  it('no hace hit si cambia la estructura y poda versiones viejas del repo', () => {
+    upsertCartoPanorama(
+      {
+        ...key,
+        provider: 'lmstudio:local-model',
+        oneLine: 'Versión vieja.',
+        paragraph: 'Vieja.',
+        flows: [{ title: 'Viejo', steps: ['Uno'] }],
+        generatedAt: '2026-06-21T10:00:00.000Z',
+      },
+      opts(),
+    );
+    upsertCartoPanorama(
+      {
+        ...key,
+        structureHash: 'panorama-v1-b',
+        provider: 'lmstudio:local-model',
+        oneLine: 'Versión nueva.',
+        paragraph: 'Nueva.',
+        flows: [{ title: 'Nuevo', steps: ['Dos'] }],
+        generatedAt: '2026-06-21T10:01:00.000Z',
+      },
+      opts(),
+    );
+
+    expect(getCartoPanorama(key, opts())).toBeNull();
+    expect(getCartoPanorama({ ...key, structureHash: 'panorama-v1-b' }, opts())?.oneLine).toBe('Versión nueva.');
   });
 });

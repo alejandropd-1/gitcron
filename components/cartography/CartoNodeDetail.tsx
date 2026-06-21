@@ -35,9 +35,17 @@ type CartoNodeDetailProps = {
   aiEnabled: boolean;
   /** Volver a la lista de relaciones/símbolos del archivo. */
   onBack: () => void;
+  /** En Panorama simple, las relaciones técnicas arrancan colapsadas. */
+  technicalOpenDefault?: boolean;
 };
 
-export function CartoNodeDetail({ repoPath, node, aiEnabled, onBack }: CartoNodeDetailProps) {
+export function CartoNodeDetail({
+  repoPath,
+  node,
+  aiEnabled,
+  onBack,
+  technicalOpenDefault = true,
+}: CartoNodeDetailProps) {
   const t = useT();
   const lang = useGitStore((s) => s.language);
   const [result, setResult] = useState<CartoExplainNodeResult | null>(null);
@@ -110,7 +118,14 @@ export function CartoNodeDetail({ repoPath, node, aiEnabled, onBack }: CartoNode
 
         {/* Estructura: impacto + relaciones (siempre que haya contexto) */}
         {ctx && (
-          <div className="mt-4 flex flex-col gap-3">
+          <details
+            className="mt-4 rounded-lg border border-carto-grid bg-carto-node/[0.025] px-3 py-2"
+            open={technicalOpenDefault}
+          >
+            <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-widest text-carto-text-muted transition-colors hover:text-carto-text">
+              {t('cartography.detail.technicalDetails')}
+            </summary>
+            <div className="mt-3 flex flex-col gap-3">
             <ImpactSection
               summary={t('cartography.graph.impactSummary', {
                 files: ctx.impact.impactedFiles.length,
@@ -128,7 +143,8 @@ export function CartoNodeDetail({ repoPath, node, aiEnabled, onBack }: CartoNode
               title={t('cartography.detail.calls')}
               items={ctx.callees}
             />
-          </div>
+            </div>
+          </details>
         )}
       </div>
     </div>

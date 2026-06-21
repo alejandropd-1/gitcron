@@ -81,3 +81,55 @@ Fallow final:
 
 - Queda sin tocar el archivo no trackeado preexistente `docs/cartografia/fase-07-grafo-semantico.md`.
 - La QA visual queda para Alejandro antes de mergear a `main`.
+
+## Addendum - optimizacion visual de Grafo
+
+Pedido posterior de QA visual: la vista de nodos era correcta pero quedaba amuchada y lenta al
+mover/zoomear por exceso de nodos y lineas simultaneas.
+
+Cambios aplicados:
+
+- La lente `Grafo` ahora tiene dos modos elegibles por el usuario:
+  - `Columnas`: vista por barrios/categorias, pensada como default para no expertos.
+  - `Nodos`: vista de tablero similar a la original, pero optimizada.
+- `Columnas` agrupa archivos por rol en columnas horizontales estables, con contadores `usa` y
+  `lo usan`.
+- En `Columnas`, al seleccionar un archivo se destaca:
+  - el foco;
+  - los archivos que usa;
+  - los archivos que lo usan;
+  - el resto queda atenuado.
+- En `Nodos`, las aristas globales ya no se dibujan por defecto. Solo se muestran relaciones del
+  nodo seleccionado, con tope defensivo.
+- En `Nodos` se activo `onlyRenderVisibleElements`, `snapToGrid`, `selectNodesOnDrag={false}` y
+  `nodeClickDistance={5}` para reducir trabajo durante pan/zoom.
+- El minimapa se oculta cuando hay mas de 120 nodos visibles.
+- Se bajo el peso visual de edges removiendo el drop-shadow global.
+- Strings nuevos agregados a ES/EN/ZH.
+
+Validacion posterior:
+
+```powershell
+npx.cmd tsc --noEmit
+# OK
+
+pnpm test
+# OK: 29 files, 243 tests
+
+pnpm exec fallow
+# Auditoria ejecutada; exit 1 por baseline de calidad existente.
+```
+
+Fallow posterior:
+
+- 161 files analyzed.
+- Dead files: 0.0%.
+- Dead exports: 1.6% (`7 of 432`).
+- Dead-code: 6 exports + 1 type + 1 duplicate pair.
+- Duplication: 10 clone groups, 2,355 duplicated LOC (5.5%).
+- Health: 336 functions above threshold.
+- Maintainability: 90.3 (good).
+
+Nota de deuda: `SemanticGraphLens` quedo como candidato futuro a particion interna si la lente sigue
+creciendo, pero la optimizacion evita el principal costo visual: renderizar cientos de aristas
+permanentes.

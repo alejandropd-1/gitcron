@@ -18,9 +18,13 @@ Si la IA explica sin leer la estructura real, **alucina relaciones con total seg
 | 4 | Proveedor de IA | `fase-04-proveedor-ia.md` | Capa enchufable LM Studio local **u** online (costura híbrida) |
 | 5 | ⭐ Explicame esto | `fase-05-explicar-nodo.md` | Click → explicación en castellano, contexto recortado, cacheada |
 | 6 | ⭐ Ventanita de preguntas | `fase-06-ventanita-preguntas.md` | Q&A scoped al repo de la solapa activa |
-| 7+ | (diferidas) | — | Grafo visual + métricas churn/co-change · persistencia de notas · vector store (preguntas difusas) · **agente meta cross-repo** |
+| 7 | Grafo semántico (hecha) | `fase-07-grafo-semantico.md` | Lente visual por rol (columnas/nodos), switch con Explorador |
+| 8 | ⭐ Panorama / Recorrido | `fase-08-panorama.md` | Capa de comprensión: resumen + grupos + recorrido guiado, modo Simple/Técnico, entrada por defecto |
+| 9 | Persistencia | (pendiente) | Historial de chats (columna izq.) + notas por nodo |
+| 10+ | (diferidas) | — | Vector store (preguntas difusas) · agente meta cross-repo |
+| hotfix | Clasificador de estilos | `hotfix-clasificador-estilos.md` | Arregla "ESTILOS · 0" en repos con SCSS |
 
-Las fases 7+ se detallan al cerrar la 6 (misma disciplina: detallar lo cercano, diferir lo lejano). El grafo visual baja de prioridad a propósito.
+Fases 1-7 hechas y mergeadas. La **fase 8 (Panorama)** es el salto que faltaba: una capa semántica/narrativa ARRIBA del grafo (inspirada en los recorridos guiados y la UI-por-persona de Understand-Anything) — que enseñe cómo encaja todo, en vez de tirar 2600 nodos. Las fases 10+ se detallan al cerrar la 9.
 
 ## Multi-repo y agente meta (visión)
 - **Subagente por repo = gratis:** el índice es per-repo (`repo_path`), así que la ventanita ya responde sobre el repo de la solapa activa. GitCron → habla de GitCron; OdontoPro → habla de OdontoPro.

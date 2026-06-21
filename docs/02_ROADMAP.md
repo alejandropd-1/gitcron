@@ -52,9 +52,13 @@ normalizado propio (`CartoGraph`).
 - **C4** Proveedor de IA enchufable (LM Studio local u online; costura híbrida).
 - **C5** ⭐ Panel "explicame esto" (click → castellano, contexto recortado, cacheado).
 - **C6** ⭐ Ventanita de preguntas (Q&A scoped al repo de la solapa activa).
-- **C7+** (diferidas, prompts al cerrar C6): grafo visual React Flow + métricas churn/co-change; persistencia de notas; vector store opcional (preguntas difusas por concepto); y el **agente meta cross-repo** (ver Notas).
+- **C7** Grafo semántico (hecha): lente visual por rol (columnas/nodos), switch con Explorador.
+- **C8** ⭐ Panorama / Recorrido: capa de comprensión ARRIBA del grafo — resumen + grupos + recorrido guiado + modo Simple/Técnico, entrada por defecto (inspirada en Understand-Anything).
+- **C9** Persistencia: historial de chats (columna izquierda) + notas por nodo.
+- **C10+** (diferidas): vector store (preguntas difusas); agente meta cross-repo (ver Notas).
+- **Hotfix** `clasificador-estilos`: arregla "ESTILOS · 0" en repos con SCSS.
 
-Prompts por fase en `docs/cartografia/` (C1–C6 redactados; C7+ al cerrar C6). Un checkpoint por vez con QA visual.
+Prompts por fase en `docs/cartografia/` (C1–C8 + hotfix redactados; C9 y C10+ al cerrar C8). Un checkpoint por vez con QA visual.
 
 ---
 

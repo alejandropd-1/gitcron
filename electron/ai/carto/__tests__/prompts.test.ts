@@ -98,4 +98,22 @@ describe('buildAskPrompts', () => {
     expect(user).toContain('Contexto estructural verificado');
     expect(user).toContain('app/page.tsx');
   });
+
+  it('renderiza los símbolos y relaciones recuperados (Fase 6)', () => {
+    const { user } = buildAskPrompts('¿qué pasa cuando hago un pull?', {
+      retrieved: {
+        symbols: [{ name: 'pullRepo', kind: 'function', filePath: 'electron/git/pull.ts' }],
+        relations: ['handlePull llama a pullRepo'],
+      },
+    });
+    expect(user).toContain('Contexto recuperado del grafo de código');
+    expect(user).toContain('pullRepo (function) — electron/git/pull.ts');
+    expect(user).toContain('handlePull llama a pullRepo');
+    expect(user).toContain('Citá los archivos que mires');
+  });
+
+  it('pide citar archivos sólo cuando hay contexto recuperado', () => {
+    const { user } = buildAskPrompts('hola', {});
+    expect(user).not.toContain('Citá los archivos que mires');
+  });
 });

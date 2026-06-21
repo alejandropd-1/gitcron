@@ -226,6 +226,8 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('carto:ai-explain-node', repoPath, nodeId, lang),
     ask: (question: string, context: unknown) =>
       ipcRenderer.invoke('carto:ai-ask', question, context),
+    askRepo: (repoPath: string, question: string, lang?: string) =>
+      ipcRenderer.invoke('carto:ai-ask-repo', repoPath, question, lang),
   },
   repoWatch: (targetPath: string) => ipcRenderer.invoke('repo:watch', targetPath),
   repoUnwatch: (targetPath: string) => ipcRenderer.invoke('repo:unwatch', targetPath),

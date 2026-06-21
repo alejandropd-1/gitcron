@@ -309,7 +309,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
               <span className="pointer-events-none absolute left-1/2 top-1/2 h-8 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-carto-accent/40 group-hover:bg-carto-accent" />
             </div>
             <div style={{ width: chatW }} className="min-w-0 shrink-0 border-l border-carto-accent/15">
-              <CartoAskBox repoPath={repoPath} selectedFile={selectedFile} />
+              <CartoAskBox repoPath={repoPath} onSelectNode={setSelectedNode} />
             </div>
           </>
         )}

@@ -24,6 +24,7 @@ import type {
   CartoAISettings,
   CartoAIProbe,
   CartoExplainNodeResult,
+  CartoAskResult,
 } from './carto-ai';
 
 interface GitResult<T = unknown> {
@@ -384,6 +385,13 @@ interface ElectronAPI {
      */
     explainNode(repoPath: string, nodeId: string, lang?: string): Promise<GitResult<CartoExplainNodeResult>>;
     ask(question: string, context: CartoAIContext): Promise<GitResult<CartoAIResponse>>;
+    /**
+     * Cartografía Fase 6: pregunta libre scoped al repo activo. Recupera del grafo
+     * los nodos que tocan la pregunta (búsqueda por nombre + vecinos por relación),
+     * arma un contexto chico y responde citando archivos reales. Devuelve también
+     * los nodos/archivos usados, para mostrarlos clickeables y abrir su detalle.
+     */
+    askRepo(repoPath: string, question: string, lang?: string): Promise<GitResult<CartoAskResult>>;
   };
   repoWatch: (targetPath: string) => Promise<GitResult>;
   repoUnwatch: (targetPath: string) => Promise<GitResult>;

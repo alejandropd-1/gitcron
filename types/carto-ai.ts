@@ -12,7 +12,7 @@
 // ya existente y ya en el CSP). La IA NUNCA se dispara sola: todo entra por una
 // acción explícita del usuario y está apagada por defecto.
 
-import type { CartoImpact } from '../lib/carto-types';
+import type { CartoImpact, CartoNode } from '../lib/carto-types';
 
 /**
  * Proveedor concreto que atiende explain/ask. Alineado con el vocabulario de
@@ -88,6 +88,36 @@ export interface CartoAIContext {
   callers?: string[];
   /** Qué llama/usa el nodo, en forma legible `name — filePath`. */
   callees?: string[];
+  // ── Fase 6: grounding RECUPERADO por una pregunta libre (no por un archivo) ──
+  /**
+   * Símbolos relevantes a la pregunta, recuperados estructuralmente del grafo
+   * (búsqueda por nombre + vecinos por relación). Es un contexto CHICO y verificado:
+   * nunca el repo entero, sólo los nodos que tocan la pregunta.
+   */
+  retrieved?: {
+    /** Símbolos recuperados, en forma mínima (nombre, clase, archivo, firma). */
+    symbols?: { name: string; kind: string; filePath: string; signature?: string }[];
+    /** Relaciones entre esos símbolos, en forma legible (p. ej. `A → llama → B`). */
+    relations?: string[];
+  };
+}
+
+/**
+ * Resultado de una pregunta libre scoped al repo activo (la "ventanita de
+ * preguntas", Fase 6). Trae la respuesta en lenguaje natural MÁS los nodos que la
+ * fundamentan: los símbolos recuperados del grafo (clickeables para abrir su
+ * detalle) y los archivos citados. `promptChars` reporta el tamaño del contexto
+ * enviado, para verificar que el recorte se mantiene chico.
+ */
+export interface CartoAskResult {
+  /** Respuesta del modelo (texto + procedencia). */
+  answer: CartoAIResponse;
+  /** Nodos del grafo recuperados que fundamentan la respuesta (para citar/abrir). */
+  usedNodes: CartoNode[];
+  /** Archivos distintos citados, derivados de `usedNodes` (chips clickeables). */
+  usedFiles: string[];
+  /** Tamaño (caracteres) del contexto enviado al modelo. */
+  promptChars: number;
 }
 
 /**

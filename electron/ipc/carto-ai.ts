@@ -22,6 +22,7 @@ import {
   getCartoProvider,
 } from '../ai/carto';
 import { explainNode } from '../ai/carto/explain-node';
+import { askRepo } from '../ai/carto/ask-repo';
 import { errMsg } from './shared';
 
 type Result<T> = { success: boolean; data?: T; error?: string };
@@ -99,6 +100,20 @@ export function registerCartoAiHandlers(): void {
       const provider = getCartoProvider();
       const data = await provider.ask(question, context ?? {});
       return ok(data);
+    } catch (error) {
+      return fail(error);
+    }
+  });
+
+  // ── Pregunta libre scoped al repo, con recuperación estructural (Fase 6) ──
+  // Recupera del grafo los nodos que tocan la pregunta (búsqueda por nombre +
+  // vecinos), arma un contexto chico y responde citando archivos reales. Devuelve
+  // los nodos/archivos usados para mostrarlos clickeables en la vista.
+  ipcMain.handle('carto:ai-ask-repo', async (_e, repoPath: string, question: string, lang?: string) => {
+    try {
+      if (!repoPath) return { success: false, error: 'Repo inválido' };
+      if (!question || !question.trim()) return { success: false, error: 'Pregunta vacía' };
+      return ok(await askRepo(repoPath, question, lang));
     } catch (error) {
       return fail(error);
     }

@@ -104,20 +104,47 @@ export function buildExplainPrompts(
   return { system, user };
 }
 
+/**
+ * Serializa los símbolos RECUPERADOS para una pregunta libre (Fase 6) a un bloque
+ * legible: la lista de símbolos relevantes (nombre · tipo · archivo) y las aristas
+ * reales entre ellos. Es el contexto chico que ancla la respuesta a archivos reales.
+ */
+function renderRetrieved(retrieved: NonNullable<CartoAIContext['retrieved']>): string {
+  const lines: string[] = [];
+  if (retrieved.symbols?.length) {
+    lines.push(`Símbolos relevantes (${retrieved.symbols.length}):`);
+    for (const s of retrieved.symbols) {
+      lines.push(`- ${s.name} (${s.kind}) — ${s.filePath}${s.signature ? ` · ${s.signature}` : ''}`);
+    }
+  }
+  if (retrieved.relations?.length) {
+    lines.push('', `Relaciones reales del grafo (${retrieved.relations.length}):`);
+    for (const r of retrieved.relations) lines.push(`- ${r}`);
+  }
+  return lines.join('\n');
+}
+
 /** Prompt para RESPONDER una pregunta libre, con el contexto disponible como anclaje. */
 export function buildAskPrompts(
   question: string,
   context: CartoAIContext,
 ): { system: string; user: string } {
   const system = `${BASE_SYSTEM} ${languageDirective(context.lang)}`;
-  const hasContext =
+  const hasStructural =
     context.filePath || context.imports?.length || context.usedBy?.length || context.impact;
+  const hasRetrieved = (context.retrieved?.symbols?.length || context.retrieved?.relations?.length) ?? 0;
   const user = [
     'Pregunta del usuario sobre el repositorio:',
     question.trim(),
     '',
-    hasContext ? 'Contexto estructural verificado (del grafo de código):' : null,
-    hasContext ? renderContext(context) : null,
+    // Contexto RECUPERADO por la pregunta (Fase 6): la fuente principal de anclaje.
+    hasRetrieved ? 'Contexto recuperado del grafo de código (símbolos reales que tocan la pregunta):' : null,
+    hasRetrieved ? renderRetrieved(context.retrieved!) : null,
+    hasRetrieved ? '' : null,
+    hasRetrieved ? 'Citá los archivos que mires (por su ruta). Si el contexto no alcanza para responder, decilo.' : null,
+    // Contexto estructural por archivo (anclaje liviano, cuando aplica).
+    hasStructural ? 'Contexto estructural verificado (del grafo de código):' : null,
+    hasStructural ? renderContext(context) : null,
   ]
     .filter((l) => l !== null)
     .join('\n');

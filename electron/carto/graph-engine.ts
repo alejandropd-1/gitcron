@@ -47,8 +47,10 @@ import type {
   CartoImpact,
   CartoFileRelations,
   CartoNode,
+  CartoEdgeRelation,
 } from '../../lib/carto-types';
 import type { CartoNodeContext, CartoAIRelated } from '../../types/carto-ai';
+import { extractQueryTerms } from '../../lib/carto-retrieval';
 
 // Profundidad de impacto: 3 niveles es el default del motor y un radio razonable
 // para "qué se rompe si toco esto" sin volverse todo el grafo.
@@ -65,6 +67,16 @@ const NODE_SOURCE_CHAR_CAP = 6000;
 // Tope de callers/callees adjuntos al contexto: una muestra basta para explicar el
 // rol del nodo sin inflar el prompt (el panel ya muestra la lista completa).
 const NODE_RELATED_CAP = 12;
+
+// ── Recuperación para la ventanita de preguntas (Fase 6) ──
+// La clave de la fase es que el contexto sea CHICO: sólo los nodos que tocan la
+// pregunta, recuperados por nombre + sus vecinos inmediatos por relación. Estos
+// topes acotan ese radio para que el prompt no crezca con el tamaño del repo.
+const RETRIEVE_PER_TERM = 5; // hits por término buscado
+const RETRIEVE_SEED_CAP = 6; // símbolos "semilla" (los mejor rankeados)
+const RETRIEVE_NEIGHBORS_PER_SEED = 4; // vecinos (callers+callees) por semilla
+const RETRIEVE_NODE_CAP = 24; // total de nodos citados (semillas + vecinos)
+const RETRIEVE_RELATION_CAP = 30; // total de aristas legibles para el prompt
 
 interface EngineEntry {
   cg: CodeGraph | null;
@@ -281,6 +293,115 @@ export function graphFileSymbols(repoPath: string, filePath: string): CartoNode[
     .filter((n) => n.kind !== 'file' && n.kind !== 'import')
     .sort((a, b) => a.startLine - b.startLine)
     .map(toCartoNode);
+}
+
+/**
+ * Recuperación ESTRUCTURAL para una pregunta libre (Fase 6): los nodos del grafo
+ * que tocan la pregunta + sus relaciones, listos para fundamentar la respuesta.
+ * `nodes` arranca por las semillas (símbolos que matchean los términos) y sigue con
+ * sus vecinos; `relations` son las aristas reales entre ellos, en forma legible.
+ */
+export interface GraphRetrieval {
+  nodes: CartoNode[];
+  relations: string[];
+}
+
+/** Verbo legible para una relación del grafo (para el prompt y nada más). */
+function relationVerb(relation: CartoEdgeRelation): string {
+  switch (relation) {
+    case 'call':
+      return 'llama a';
+    case 'import':
+      return 'importa';
+    case 'extends':
+      return 'extiende';
+    case 'contains':
+      return 'contiene';
+    case 'export':
+      return 'exporta';
+    default:
+      return 'usa';
+  }
+}
+
+/**
+ * Semillas de la recuperación: busca símbolos por cada término, se queda con el
+ * mejor score por nodo (deduplicado), excluye nodos `file`/`import` (queremos
+ * símbolos reales) y devuelve los mejor rankeados, acotados a `RETRIEVE_SEED_CAP`.
+ */
+function retrieveSeeds(repoPath: string, terms: string[]): CartoNode[] {
+  const bestById = new Map<string, CartoSearchHit>();
+  for (const term of terms) {
+    const hits = searchGraph(repoPath, term, RETRIEVE_PER_TERM) ?? [];
+    for (const hit of hits) {
+      if (hit.node.kind === 'file' || hit.node.kind === 'import') continue;
+      const prev = bestById.get(hit.node.id);
+      if (!prev || hit.score > prev.score) bestById.set(hit.node.id, hit);
+    }
+  }
+  return [...bestById.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, RETRIEVE_SEED_CAP)
+    .map((h) => h.node);
+}
+
+/**
+ * Vecinos por relación de las semillas: para cada una, una muestra de quién la
+ * llama/usa y a qué llama/usa. Acumula los nodos vecinos (deduplicados, junto a las
+ * semillas) y las aristas reales en forma legible, todo acotado por los topes.
+ */
+function retrieveNeighbors(repoPath: string, seeds: CartoNode[]): GraphRetrieval {
+  const nodesById = new Map<string, CartoNode>();
+  for (const s of seeds) nodesById.set(s.id, s);
+  const relations: string[] = [];
+  const seenRel = new Set<string>();
+
+  const addNode = (node: CartoNode) => {
+    if (nodesById.size < RETRIEVE_NODE_CAP && !nodesById.has(node.id)) nodesById.set(node.id, node);
+  };
+  const addRelation = (from: string, verb: string, to: string) => {
+    const key = `${from}|${verb}|${to}`;
+    if (seenRel.has(key) || relations.length >= RETRIEVE_RELATION_CAP) return;
+    seenRel.add(key);
+    relations.push(`${from} ${verb} ${to}`);
+  };
+
+  for (const seed of seeds) {
+    for (const c of (graphCallers(repoPath, seed.id) ?? []).slice(0, RETRIEVE_NEIGHBORS_PER_SEED)) {
+      addNode(c.node);
+      addRelation(c.node.name, relationVerb(c.relation), seed.name);
+    }
+    for (const c of (graphCallees(repoPath, seed.id) ?? []).slice(0, RETRIEVE_NEIGHBORS_PER_SEED)) {
+      addNode(c.node);
+      addRelation(seed.name, relationVerb(c.relation), c.node.name);
+    }
+  }
+
+  return { nodes: [...nodesById.values()], relations };
+}
+
+/**
+ * Recupera, para una pregunta libre, un contexto CHICO y verificado del grafo del
+ * repo: busca símbolos por los términos de la pregunta (búsqueda por nombre), toma
+ * las mejores semillas y suma sus vecinos inmediatos (callers/callees). Devuelve los
+ * nodos citables y las aristas reales entre ellos. NUNCA vuelca el repo entero: todo
+ * está acotado por los topes `RETRIEVE_*`. `null` si el índice no está listo aún.
+ *
+ * La recuperación es por NOMBRE/relación (estructural). La difusa por significado
+ * (embeddings) es una fase posterior — acá no se usa.
+ */
+export function graphRetrieve(repoPath: string, question: string): GraphRetrieval | null {
+  if (!readyGraph(repoPath)) return null;
+
+  // Términos de la pregunta. Si todo eran palabras vacías, caemos a la pregunta
+  // cruda como único término (una pregunta de una sola palabra sigue anclando).
+  let terms = extractQueryTerms(question);
+  if (terms.length === 0) {
+    const raw = question.trim();
+    if (raw) terms = [raw];
+  }
+
+  return retrieveNeighbors(repoPath, retrieveSeeds(repoPath, terms));
 }
 
 /** Reduce un símbolo relacionado a su forma mínima para contexto/panel. */

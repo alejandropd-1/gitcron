@@ -117,7 +117,7 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
 - **Reflog** viewer / undo robusto basado en reflog.
 - Git LFS, commit signing (GPG/SSH), patch/apply, archive/export.
 - Drag & drop de branches en el grafo para merge/rebase (firma de GitKraken).
-- **Cartografía — pendientes:** persistencia de historial de chats + notas (fase 9); vector store (preguntas difusas) y agente meta cross-repo (diferidas); bug conocido: los archivos no-code (CSS/SCSS) faltan en el snapshot del Grafo/Panorama → fix en `docs/cartografia/fix-estilos-en-snapshot.md`.
+- **Cartografía — pendientes:** persistencia de historial de chats + notas (fase 9, redactada); vector store (preguntas difusas) y agente meta cross-repo (diferidas). (Bug de estilos no-code en el snapshot: resuelto.)
 
 ## 5. Temporal Agent — estado
 

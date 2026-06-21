@@ -20,7 +20,7 @@ Si la IA explica sin leer la estructura real, **alucina relaciones con total seg
 | 6 | ⭐ Ventanita de preguntas | `fase-06-ventanita-preguntas.md` | Q&A scoped al repo de la solapa activa |
 | 7 | Grafo semántico (hecha) | `fase-07-grafo-semantico.md` | Lente visual por rol (columnas/nodos), switch con Explorador |
 | 8 | ⭐ Panorama / Recorrido | `fase-08-panorama.md` | Capa de comprensión: resumen + grupos + recorrido guiado, modo Simple/Técnico, entrada por defecto |
-| 9 | Persistencia | (pendiente) | Historial de chats (columna izq.) + notas por nodo |
+| 9 | Persistencia | `fase-09-persistencia.md` | Historial de chats (columna izq.) + notas por nodo |
 | 10+ | (diferidas) | — | Vector store (preguntas difusas) · agente meta cross-repo |
 | hotfix | Clasificador de estilos | `hotfix-clasificador-estilos.md` | Arregla "ESTILOS · 0" en repos con SCSS |
 

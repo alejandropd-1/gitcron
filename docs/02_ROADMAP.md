@@ -58,7 +58,7 @@ normalizado propio (`CartoGraph`).
 - **C10+** (diferidas): vector store (preguntas difusas); agente meta cross-repo (ver Notas).
 - **Hotfix** `clasificador-estilos`: arregla "ESTILOS · 0" en repos con SCSS.
 
-Prompts por fase en `docs/cartografia/` (C1–C8 + hotfix redactados; C9 y C10+ al cerrar C8). Un checkpoint por vez con QA visual.
+Prompts por fase en `docs/cartografia/` (C1–C9 + hotfix redactados; C10+ al cerrar C9). Un checkpoint por vez con QA visual.
 
 ---
 

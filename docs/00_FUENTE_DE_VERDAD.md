@@ -111,12 +111,13 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
 - Gestión de **remotes** (add / rename / edit URL / remove) — v1.8.4.
 - **Worktrees y submódulos**: operaciones (add/remove/update/sync), no solo listado — v1.8.4.
 - **Dashboard Brier** del Temporal Agent — v1.9.0.
+- **Vista Cartografía** (tercera vista, comprensión del repo) — fases 1-8: Explorador (árbol), grounding CodeGraph (relaciones + impacto), IA "explicame esto" + ventanita de preguntas (local LM Studio u online), Grafo semántico por rol, y Panorama (entrada top-down: resumen + recorrido guiado, modo Simple/Técnico). Flag `enableCartography`, per-repo. Código en `lib/carto-*`, `components/cartography/`, `electron/carto/`, `electron/ai/carto/`.
 
 **NO existe (brechas reales que quedan):**
 - **Reflog** viewer / undo robusto basado en reflog.
 - Git LFS, commit signing (GPG/SSH), patch/apply, archive/export.
 - Drag & drop de branches en el grafo para merge/rebase (firma de GitKraken).
-- **Vista Cartografía** (comprensión visual del repo) — track nuevo, aún sin código (ver roadmap).
+- **Cartografía — pendientes:** persistencia de historial de chats + notas (fase 9); vector store (preguntas difusas) y agente meta cross-repo (diferidas); bug conocido: los archivos no-code (CSS/SCSS) faltan en el snapshot del Grafo/Panorama → fix en `docs/cartografia/fix-estilos-en-snapshot.md`.
 
 ## 5. Temporal Agent — estado
 

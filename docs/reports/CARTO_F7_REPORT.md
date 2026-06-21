@@ -133,3 +133,49 @@ Fallow posterior:
 Nota de deuda: `SemanticGraphLens` quedo como candidato futuro a particion interna si la lente sigue
 creciendo, pero la optimizacion evita el principal costo visual: renderizar cientos de aristas
 permanentes.
+
+## Addendum - foco real en modo Nodos
+
+Pedido posterior de QA visual: aunque se seleccionara un archivo como `app/page.tsx`, el modo `Nodos`
+seguia mostrando todos los nodos del repo, por lo que el tablero continuaba ilegible.
+
+Cambios aplicados:
+
+- `Nodos` ya no renderiza todos los archivos del contrato.
+- Sin seleccion, `Nodos` muestra solo un resumen acotado: hasta 8 archivos relevantes por rol.
+- Con seleccion, `Nodos` dibuja un subgrafo de foco:
+  - nodo seleccionado al centro;
+  - archivos que lo usan a la izquierda;
+  - archivos que usa a la derecha;
+  - maximo de 30 vecinos visibles y 90 relaciones visibles;
+  - indicador de vecinos ocultos cuando el foco se recorta.
+- Las posiciones del foco se distribuyen en columnas cortas para evitar que `fitView` aleje todo el
+  tablero y vuelva a hacerlo ilegible.
+- `Columnas` queda sin recorte: sigue siendo la vista completa por categorias.
+- Strings nuevos agregados a ES/EN/ZH.
+
+Validacion posterior:
+
+```powershell
+npx.cmd tsc --noEmit
+# OK
+
+pnpm exec vitest run lib/__tests__/carto-roles.test.ts
+# OK: 7 tests
+
+pnpm test
+# OK: 29 files, 243 tests
+
+pnpm exec fallow
+# Auditoria ejecutada; exit 1 por baseline de calidad existente.
+```
+
+Fallow posterior:
+
+- 161 files analyzed.
+- Dead files: 0.0%.
+- Dead exports: 1.6% (`7 of 432`).
+- Dead-code: 6 exports + 1 type + 1 duplicate pair.
+- Duplication: 10 clone groups, 2,355 duplicated LOC (5.5%).
+- Health: 338 functions above threshold.
+- Maintainability: 90.3 (good).

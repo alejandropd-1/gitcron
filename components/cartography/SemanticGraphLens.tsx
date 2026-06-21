@@ -25,8 +25,9 @@ import {
   type CartoRoleDefinition,
 } from '@/lib/carto-roles';
 
-const MAX_RENDER_EDGES = 420;
 const MAX_FOCUS_EDGES = 90;
+const MAX_FOCUS_NEIGHBORS = 30;
+const MAX_OVERVIEW_NODES_PER_ROLE = 8;
 const NODE_W = 176;
 const NODE_H = 82;
 const ROLE_X = 430;
@@ -52,12 +53,14 @@ type SemanticGraphLensProps = {
 type SemanticViewMode = 'columns' | 'nodes';
 
 type GraphModel = {
+  nodeById: Map<string, CartoNode>;
   relationCount: Map<string, number>;
   dependencyCount: Map<string, number>;
   dependentCount: Map<string, number>;
   incomingToSelected: Set<string>;
   outgoingFromSelected: Set<string>;
   selectedEdges: CartoGraph['edges'];
+  focusHiddenNeighbors: number;
   groupedNodes: Array<{
     role: CartoRoleDefinition;
     label: string;
@@ -210,7 +213,7 @@ export function SemanticGraphLens({
           <Network size={13} className="text-carto-accent" />
           <span className="font-mono">
             {t('cartography.semantic.stats', {
-              nodes: graph.nodes.length,
+              nodes: viewMode === 'nodes' ? flow.nodes.length : graph.nodes.length,
               totalNodes: graph.totals.nodes,
               edges: viewMode === 'nodes' ? model.selectedEdges.length : graph.edges.length,
               totalEdges: graph.totals.edges,
@@ -233,7 +236,12 @@ export function SemanticGraphLens({
         </div>
         {viewMode === 'nodes' && !selectedNodeId ? (
           <div className="pointer-events-auto rounded border border-carto-grid bg-carto-canvas/90 px-2.5 py-1.5 text-[11px] font-semibold text-carto-text-muted">
-            {t('cartography.semantic.selectNodeForLinks')}
+            {t('cartography.semantic.nodesOverview')}
+          </div>
+        ) : null}
+        {viewMode === 'nodes' && selectedNodeId && model.focusHiddenNeighbors > 0 ? (
+          <div className="pointer-events-auto rounded border border-carto-grid bg-carto-canvas/90 px-2.5 py-1.5 text-[11px] font-semibold text-carto-text-muted">
+            {t('cartography.semantic.hiddenNeighbors', { count: model.focusHiddenNeighbors })}
           </div>
         ) : null}
         {graph.truncated || (viewMode === 'nodes' && model.selectedEdges.length >= MAX_FOCUS_EDGES) ? (
@@ -263,6 +271,7 @@ function buildGraphModel(
   t: ReturnType<typeof useT>,
   selectedNodeId: string | null,
 ): GraphModel {
+  const nodeById = new Map<string, CartoNode>();
   const relationCount = new Map<string, number>();
   const dependencyCount = new Map<string, number>();
   const dependentCount = new Map<string, number>();
@@ -272,17 +281,18 @@ function buildGraphModel(
   for (const role of CARTO_ROLE_DEFINITIONS) byRole.set(role.id, []);
   if (!graph) {
     return {
+      nodeById,
       relationCount,
       dependencyCount,
       dependentCount,
       incomingToSelected,
       outgoingFromSelected,
       selectedEdges: [],
+      focusHiddenNeighbors: 0,
       groupedNodes: CARTO_ROLE_DEFINITIONS.map((role) => ({ role, label: t(role.labelKey), nodes: [] })),
     };
   }
 
-  const selectedEdges: CartoGraph['edges'] = [];
   for (const edge of graph.edges) {
     relationCount.set(edge.fromId, (relationCount.get(edge.fromId) ?? 0) + 1);
     relationCount.set(edge.toId, (relationCount.get(edge.toId) ?? 0) + 1);
@@ -290,17 +300,20 @@ function buildGraphModel(
     dependentCount.set(edge.toId, (dependentCount.get(edge.toId) ?? 0) + 1);
     if (selectedNodeId && edge.fromId === selectedNodeId) {
       outgoingFromSelected.add(edge.toId);
-      selectedEdges.push(edge);
     }
     if (selectedNodeId && edge.toId === selectedNodeId) {
       incomingToSelected.add(edge.fromId);
-      selectedEdges.push(edge);
     }
   }
 
   for (const node of graph.nodes) {
+    nodeById.set(node.id, node);
     byRole.get(classifyCartoRole(node))?.push(node);
   }
+
+  const focus = selectedNodeId
+    ? pickFocusEdges(graph.edges, selectedNodeId, relationCount)
+    : { edges: [] as CartoGraph['edges'], hiddenNeighbors: 0 };
   const groupedNodes = CARTO_ROLE_DEFINITIONS.map((role) => ({
     role,
     label: t(role.labelKey),
@@ -311,13 +324,42 @@ function buildGraphModel(
   }));
 
   return {
+    nodeById,
     relationCount,
     dependencyCount,
     dependentCount,
     incomingToSelected,
     outgoingFromSelected,
-    selectedEdges: selectedEdges.slice(0, MAX_FOCUS_EDGES),
+    selectedEdges: focus.edges,
+    focusHiddenNeighbors: focus.hiddenNeighbors,
     groupedNodes,
+  };
+}
+
+function pickFocusEdges(
+  edges: CartoGraph['edges'],
+  selectedNodeId: string,
+  relationCount: Map<string, number>,
+): { edges: CartoGraph['edges']; hiddenNeighbors: number } {
+  const directEdges = edges.filter((edge) => edge.fromId === selectedNodeId || edge.toId === selectedNodeId);
+  const neighborIds = new Set(
+    directEdges.map((edge) => (edge.fromId === selectedNodeId ? edge.toId : edge.fromId)),
+  );
+  const rankedNeighborIds = [...neighborIds].sort((a, b) => {
+    const byRelations = (relationCount.get(b) ?? 0) - (relationCount.get(a) ?? 0);
+    return byRelations || a.localeCompare(b);
+  });
+  const visibleNeighborIds = new Set(rankedNeighborIds.slice(0, MAX_FOCUS_NEIGHBORS));
+  const visibleEdges = directEdges
+    .filter((edge) => {
+      const neighborId = edge.fromId === selectedNodeId ? edge.toId : edge.fromId;
+      return visibleNeighborIds.has(neighborId);
+    })
+    .slice(0, MAX_FOCUS_EDGES);
+
+  return {
+    edges: visibleEdges,
+    hiddenNeighbors: Math.max(0, neighborIds.size - visibleNeighborIds.size),
   };
 }
 
@@ -328,28 +370,41 @@ function buildFlow(
 ): { nodes: SemanticFlowNode[]; edges: FlowEdge[] } {
   if (!graph) return { nodes: [], edges: [] };
   const nodes: SemanticFlowNode[] = [];
-  model.groupedNodes.forEach(({ role, label, nodes: items }, roleIndex) => {
-    const clusterX = (roleIndex % 3) * ROLE_X;
-    const clusterY = Math.floor(roleIndex / 3) * ROLE_Y;
-    const cols = Math.max(1, Math.ceil(Math.sqrt(items.length)));
+  if (selectedNodeId && model.nodeById.has(selectedNodeId)) {
+    const addedNodeIds = new Set<string>();
+    const selectedNode = model.nodeById.get(selectedNodeId);
+    if (selectedNode) {
+      pushFlowNode(nodes, selectedNode, model, { x: 0, y: 0 }, selectedNodeId);
+      addedNodeIds.add(selectedNode.id);
+    }
+    const incoming = [...model.incomingToSelected]
+      .filter((id) => model.selectedEdges.some((edge) => edge.fromId === id))
+      .sort((a, b) => (model.relationCount.get(b) ?? 0) - (model.relationCount.get(a) ?? 0));
+    const outgoing = [...model.outgoingFromSelected]
+      .filter((id) => model.selectedEdges.some((edge) => edge.toId === id))
+      .sort((a, b) => (model.relationCount.get(b) ?? 0) - (model.relationCount.get(a) ?? 0));
 
-    items.forEach((cartoNode, i) => {
-      const x = clusterX + (i % cols) * (NODE_W + 34) + jitter(cartoNode.filePath, 1) - 34;
-      const y = clusterY + Math.floor(i / cols) * (NODE_H + 30) + jitter(cartoNode.filePath, 2) - 24;
-      nodes.push({
-        id: cartoNode.id,
-        type: 'cartoSemantic',
-        position: { x, y },
-        selected: cartoNode.id === selectedNodeId,
-        data: {
-          cartoNode,
-          role: CARTO_ROLE_BY_ID[classifyCartoRole(cartoNode)],
-          roleLabel: label,
-          relationCount: model.relationCount.get(cartoNode.id) ?? 0,
-        },
+    incoming.forEach((id, index) => {
+      const node = model.nodeById.get(id);
+      if (node && !addedNodeIds.has(node.id)) {
+        pushFlowNode(nodes, node, model, focusPosition('incoming', index, incoming.length), selectedNodeId);
+        addedNodeIds.add(node.id);
+      }
+    });
+    outgoing.forEach((id, index) => {
+      const node = model.nodeById.get(id);
+      if (node && !addedNodeIds.has(node.id)) {
+        pushFlowNode(nodes, node, model, focusPosition('outgoing', index, outgoing.length), selectedNodeId);
+        addedNodeIds.add(node.id);
+      }
+    });
+  } else {
+    model.groupedNodes.forEach(({ nodes: items }, roleIndex) => {
+      items.slice(0, MAX_OVERVIEW_NODES_PER_ROLE).forEach((cartoNode, index) => {
+        pushFlowNode(nodes, cartoNode, model, overviewPosition(roleIndex, index), selectedNodeId);
       });
     });
-  });
+  }
 
   const visibleIds = new Set(nodes.map((node) => node.id));
   const edges = model.selectedEdges
@@ -369,6 +424,50 @@ function buildFlow(
     }));
 
   return { nodes, edges };
+}
+
+function pushFlowNode(
+  nodes: SemanticFlowNode[],
+  cartoNode: CartoNode,
+  model: GraphModel,
+  position: { x: number; y: number },
+  selectedNodeId: string | null,
+) {
+  const role = CARTO_ROLE_BY_ID[classifyCartoRole(cartoNode)];
+  nodes.push({
+    id: cartoNode.id,
+    type: 'cartoSemantic',
+    position,
+    selected: cartoNode.id === selectedNodeId,
+    data: {
+      cartoNode,
+      role,
+      roleLabel: role ? model.groupedNodes.find((group) => group.role.id === role.id)?.label ?? role.id : '',
+      relationCount: model.relationCount.get(cartoNode.id) ?? 0,
+    },
+  });
+}
+
+function focusPosition(kind: 'incoming' | 'outgoing', index: number, total: number): { x: number; y: number } {
+  const side = kind === 'incoming' ? -1 : 1;
+  const rowsPerColumn = 10;
+  const column = Math.floor(index / rowsPerColumn);
+  const row = index % rowsPerColumn;
+  const rows = Math.min(rowsPerColumn, total - column * rowsPerColumn);
+  const stepY = NODE_H + 34;
+  const x = side * (310 + column * (NODE_W + 58));
+  const y = row * stepY - ((rows - 1) * stepY) / 2;
+  return { x: x + jitter(`${kind}-${index}`, 1), y };
+}
+
+function overviewPosition(roleIndex: number, index: number): { x: number; y: number } {
+  const clusterX = (roleIndex % 3) * ROLE_X;
+  const clusterY = Math.floor(roleIndex / 3) * ROLE_Y;
+  const cols = 2;
+  return {
+    x: clusterX + (index % cols) * (NODE_W + 36) + jitter(`${roleIndex}-${index}`, 1) - 22,
+    y: clusterY + Math.floor(index / cols) * (NODE_H + 32) + jitter(`${roleIndex}-${index}`, 2) - 18,
+  };
 }
 
 function ModeButton({

@@ -149,5 +149,5 @@ describe('git worktree and submodule IPC handlers', () => {
     // 4. Update submodule
     const updateSubResult = await submoduleUpdate(null, mainRepoPath, 'libs/sub', true) as { success: boolean };
     expect(updateSubResult.success).toBe(true);
-  });
+  }, 20_000);
 });

@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { Map, ArrowLeft, FolderTree, RefreshCw, Loader2, AlertTriangle } from 'lucide-react';
+import { Map, ArrowLeft, FolderTree, RefreshCw, Loader2, AlertTriangle, Network } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { useCartoLayout } from '@/hooks/use-carto-layout';
 import type { CartoScanResult } from '@/electron/ipc/carto';
@@ -23,6 +23,7 @@ import { ExplorerLens } from './ExplorerLens';
 import { CartoRelationsPanel } from './CartoRelationsPanel';
 import { CartoNodeDetail } from './CartoNodeDetail';
 import { CartoAskBox } from './CartoAskBox';
+import { SemanticGraphLens } from './SemanticGraphLens';
 
 type CartographyViewProps = {
   /** Ruta del repo activo a escanear. `null` si no hay repo abierto. */
@@ -31,13 +32,13 @@ type CartographyViewProps = {
   onExit: () => void;
 };
 
-/** Lentes disponibles. En esta fase, sólo el explorador del árbol. */
-type LensId = 'explorer';
+/** Lentes disponibles: árbol Explorador y mapa visual de roles. */
+type LensId = 'explorer' | 'graph';
 
 export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
   const t = useT();
 
-  const [lens] = useState<LensId>('explorer');
+  const [lens, setLens] = useState<LensId>('explorer');
   const [scan, setScan] = useState<CartoScanResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +93,17 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
       if (token === scanToken.current) setLoading(false);
     }
   }, [repoPath, t]);
+
+  const refreshLens = useCallback(async () => {
+    if (lens === 'explorer') {
+      await runScan();
+      return;
+    }
+    if (repoPath) {
+      await window.api.cartoGraph.ensure(repoPath);
+      setGraphRefresh((n) => n + 1);
+    }
+  }, [lens, repoPath, runScan]);
 
   // Escaneo al ENTRAR a la vista o al cambiar de repo. No re-escanea en cada
   // render: el efecto sólo depende de `repoPath`.
@@ -182,6 +194,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
           </span>
           <button
             type="button"
+            onClick={() => setLens('explorer')}
             aria-pressed={lens === 'explorer'}
             className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold tracking-wide transition-colors ${
               lens === 'explorer'
@@ -192,6 +205,19 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
             <FolderTree size={14} className="shrink-0" />
             {t('cartography.lens.explorer')}
           </button>
+          <button
+            type="button"
+            onClick={() => setLens('graph')}
+            aria-pressed={lens === 'graph'}
+            className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold tracking-wide transition-colors ${
+              lens === 'graph'
+                ? 'bg-carto-accent/15 text-carto-accent'
+                : 'text-carto-text-muted hover:bg-carto-node/5 hover:text-carto-text'
+            }`}
+          >
+            <Network size={14} className="shrink-0" />
+            {t('cartography.lens.graph')}
+          </button>
         </nav>
 
         {/* Panel de la lente */}
@@ -199,20 +225,32 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
           {/* Barra de la lente: título + métricas + refrescar */}
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-carto-grid px-4 py-2.5">
             <div className="flex min-w-0 items-center gap-2.5">
-              <FolderTree size={14} className="shrink-0 text-carto-accent" />
+              {lens === 'explorer' ? (
+                <FolderTree size={14} className="shrink-0 text-carto-accent" />
+              ) : (
+                <Network size={14} className="shrink-0 text-carto-accent" />
+              )}
               <span className="truncate text-xs font-bold tracking-wide text-carto-text">
-                {t('cartography.lens.explorer')}
+                {t(lens === 'explorer' ? 'cartography.lens.explorer' : 'cartography.lens.graph')}
               </span>
-              {scan && !loading && (
+              {lens === 'explorer' && scan && !loading && (
                 <span className="shrink-0 text-[11px] text-carto-text-muted">
                   {t('cartography.treeStats', { dirs: scan.dirCount, files: scan.fileCount })}
                   {scan.truncated ? ` · ${t('cartography.truncated')}` : ''}
                 </span>
               )}
+              {lens === 'graph' && graphStatus?.state === 'ready' && graphStatus.stats && (
+                <span className="shrink-0 text-[11px] text-carto-text-muted">
+                  {t('cartography.semantic.indexStats', {
+                    nodes: graphStatus.stats.nodes,
+                    edges: graphStatus.stats.edges,
+                  })}
+                </span>
+              )}
             </div>
             <button
               type="button"
-              onClick={() => void runScan()}
+              onClick={() => void refreshLens()}
               disabled={loading || !repoPath}
               className="shrink-0 flex items-center gap-1.5 rounded border border-carto-grid px-2.5 py-1 text-[11px] font-semibold tracking-wide text-carto-text-muted transition-colors hover:border-carto-accent/50 hover:text-carto-text disabled:opacity-40"
             >
@@ -240,6 +278,43 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                 title={t('cartography.empty')}
                 detail={t('cartography.emptyHint')}
               />
+            ) : lens === 'graph' ? (
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="min-h-0 flex-1">
+                  <SemanticGraphLens
+                    repoPath={repoPath}
+                    status={graphStatus}
+                    refreshKey={graphRefresh}
+                    selectedNodeId={selectedNode?.id ?? null}
+                    onSelectNode={(node) => {
+                      setSelectedFile(node.filePath);
+                      setSelectedNode(node);
+                    }}
+                  />
+                </div>
+                {selectedNode && (
+                  <>
+                    <div
+                      onMouseDown={beginRelationsDrag}
+                      className="group relative h-1.5 shrink-0 cursor-row-resize bg-carto-accent/20 transition-colors hover:bg-carto-accent/50"
+                      title={t('cartography.resizeRows')}
+                    >
+                      <span className="pointer-events-none absolute left-1/2 top-1/2 h-0.5 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-carto-accent/40 group-hover:bg-carto-accent" />
+                    </div>
+                    <div
+                      style={{ height: relationsH }}
+                      className="min-h-0 shrink-0 bg-carto-node/[0.02]"
+                    >
+                      <CartoNodeDetail
+                        repoPath={repoPath}
+                        node={selectedNode}
+                        aiEnabled={aiEnabled}
+                        onBack={() => setSelectedNode(null)}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
             ) : scan && scan.root.length > 0 ? (
               // Split vertical: árbol arriba, relaciones (CodeGraph) abajo. Al
               // seleccionar un archivo, el panel inferior muestra sus relaciones

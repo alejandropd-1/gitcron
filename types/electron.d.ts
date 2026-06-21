@@ -11,6 +11,7 @@ import type { ApplyHunkOptions, FileDiff } from '../lib/hunk-patch';
 import type { CartoScanResult } from '../electron/ipc/carto';
 import type {
   CartoGraphStatus,
+  CartoGraph,
   CartoSearchHit,
   CartoRelatedSymbol,
   CartoImpact,
@@ -361,6 +362,8 @@ interface ElectronAPI {
     fileRelations(repoPath: string, filePath: string): Promise<GitResult<CartoFileRelations | null>>;
     /** Símbolos de un archivo (selector de nodos del panel de detalle). `null` si el índice no está listo. */
     fileSymbols(repoPath: string, filePath: string): Promise<GitResult<CartoNode[] | null>>;
+    /** Foto global normalizada para la lente Grafo semántico. `null` si el índice no está listo. */
+    snapshot(repoPath: string): Promise<GitResult<CartoGraph | null>>;
     /** Avance del indexado del repo. Devuelve un disposer. */
     onProgress(cb: (payload: { repoPath: string; status: CartoGraphStatus }) => void): () => void;
     /** El watch re-sincronizó el índice del repo (relaciones frescas). Devuelve un disposer. */

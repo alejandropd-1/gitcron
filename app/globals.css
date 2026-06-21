@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
 
 /* ==========================================================================
    DESIGN TOKENS - GITCRON SYSTEM (Tailwind CSS v4 `@theme`)
@@ -96,6 +97,13 @@
   --color-carto-accent: #fdb33a; /* Acento ámbar TCARS para realces y bordes */
   --color-carto-text: #cfe3fb; /* Texto sobre el lienzo de Cartografía */
   --color-carto-text-muted: #7d93ad; /* Texto secundario/placeholder */
+  --color-carto-role-ui: #5ed8ff; /* Rol: maqueta/UI */
+  --color-carto-role-styles: #fdb33a; /* Rol: estilos/tokens */
+  --color-carto-role-database: #a3f185; /* Rol: datos/persistencia */
+  --color-carto-role-critical: #ff716c; /* Rol: funcionalidad crítica */
+  --color-carto-role-logic: #d0bcff; /* Rol: lógica/utilidades */
+  --color-carto-role-config: #ffb462; /* Rol: configuración */
+  --color-carto-role-other: #9eacc0; /* Rol: otros */
 }
 
 /* ==========================================================================
@@ -297,4 +305,99 @@ body, .font-sans {
 }
 .font-mono, pre, code {
   font-family: var(--font-mono), "PingFang SC", "Noto Sans SC", "Microsoft YaHei", monospace;
+}
+
+/* ─── CARTOGRAPHY SEMANTIC GRAPH (React Flow skin) ─── */
+.carto-semantic-flow {
+  background:
+    linear-gradient(90deg, rgba(253, 179, 58, 0.08) 0 1px, transparent 1px 100%),
+    linear-gradient(0deg, rgba(94, 216, 255, 0.06) 0 1px, transparent 1px 100%),
+    radial-gradient(circle at 18% 12%, rgba(94, 216, 255, 0.12), transparent 32rem),
+    var(--color-carto-canvas);
+  background-size: 96px 96px, 96px 96px, auto, auto;
+}
+
+.carto-semantic-flow .react-flow__pane {
+  cursor: grab;
+}
+
+.carto-semantic-flow .react-flow__pane:active {
+  cursor: grabbing;
+}
+
+.carto-semantic-flow .react-flow__edge-path {
+  filter: drop-shadow(0 0 4px rgba(94, 216, 255, 0.18));
+}
+
+.carto-semantic-flow .react-flow__handle {
+  width: 2px;
+  height: 2px;
+  min-width: 2px;
+  min-height: 2px;
+  border: 0;
+  background: transparent;
+}
+
+.carto-semantic-node {
+  width: 176px;
+  min-height: 82px;
+  border: 1px solid color-mix(in srgb, var(--carto-role-color) 62%, transparent);
+  border-left-width: 5px;
+  border-radius: 6px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--carto-role-color) 14%, transparent), transparent 58%),
+    rgba(4, 16, 29, 0.94);
+  padding: 9px 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28), inset 0 0 0 1px rgba(207, 227, 251, 0.04);
+}
+
+.carto-semantic-node.is-selected {
+  border-color: var(--color-carto-accent);
+  box-shadow: 0 0 0 1px rgba(253, 179, 58, 0.45), 0 0 24px rgba(253, 179, 58, 0.18);
+}
+
+.carto-semantic-node__icon {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--carto-role-color) 18%, transparent);
+  color: var(--carto-role-color);
+}
+
+.carto-semantic-node__count {
+  min-width: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--carto-role-color) 42%, transparent);
+  border-radius: 999px;
+  padding: 1px 5px;
+  color: var(--carto-role-color);
+  font: 700 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: center;
+}
+
+.carto-semantic-controls {
+  overflow: hidden;
+  border: 1px solid rgba(253, 179, 58, 0.24);
+  border-radius: 6px;
+  background: rgba(4, 16, 29, 0.9);
+}
+
+.carto-semantic-controls button {
+  border-bottom-color: rgba(22, 50, 74, 0.85);
+  background: rgba(4, 16, 29, 0.9);
+  color: var(--color-carto-text);
+}
+
+.carto-semantic-controls button:hover {
+  background: rgba(253, 179, 58, 0.14);
+  color: var(--color-carto-accent);
+}
+
+.carto-semantic-minimap {
+  overflow: hidden;
+  border: 1px solid rgba(22, 50, 74, 0.9);
+  border-radius: 6px;
+  background: rgba(4, 16, 29, 0.9);
 }

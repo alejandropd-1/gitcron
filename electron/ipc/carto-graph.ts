@@ -21,6 +21,7 @@ import {
   graphImpact,
   graphFileRelations,
   graphFileSymbols,
+  graphSnapshot,
 } from '../carto/graph-engine';
 import { errMsg } from './shared';
 
@@ -105,6 +106,15 @@ export function registerCartoGraphHandlers(getMainWindow: () => BrowserWindow | 
   ipcMain.handle('carto:graph-file-symbols', (_e, repoPath: string, filePath: string) => {
     try {
       return ok(graphFileSymbols(repoPath, filePath));
+    } catch (error) {
+      return fail(error);
+    }
+  });
+
+  // Foto global normalizada para la lente Grafo semántico (archivos + relaciones).
+  ipcMain.handle('carto:graph-snapshot', (_e, repoPath: string) => {
+    try {
+      return ok(graphSnapshot(repoPath));
     } catch (error) {
       return fail(error);
     }

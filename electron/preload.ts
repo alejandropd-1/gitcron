@@ -203,6 +203,8 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('carto:graph-file-relations', repoPath, filePath),
     fileSymbols: (repoPath: string, filePath: string) =>
       ipcRenderer.invoke('carto:graph-file-symbols', repoPath, filePath),
+    snapshot: (repoPath: string) =>
+      ipcRenderer.invoke('carto:graph-snapshot', repoPath),
     onProgress: (cb: (payload: { repoPath: string; status: unknown }) => void) => {
       const handler = (_e: unknown, payload: { repoPath: string; status: unknown }) => cb(payload);
       ipcRenderer.on('carto:graph-progress', handler);

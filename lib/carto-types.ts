@@ -37,7 +37,7 @@ export type CartoEdgeRelation =
 
 /** Nodo del grafo cartográfico: un símbolo del código (función, clase, archivo…). */
 export interface CartoNode {
-  /** Id estable del motor (hash de path + nombre cualificado). Opaco para la vista. */
+  /** Id estable opaco. Puede venir del motor o de un nodo normalizado de archivo. */
   id: string;
   /** Nombre simple (p. ej. `calculateTotal`). */
   name: string;
@@ -65,6 +65,27 @@ export interface CartoEdge {
   relation: CartoEdgeRelation;
   /** Línea del sitio de la relación (p. ej. el call site), si se conoce. */
   line?: number;
+}
+
+/**
+ * Foto global, acotada y serializable del grafo cartográfico. En F7 se usa para
+ * la lente "Grafo semántico": la UI dibuja archivos como nodos y relaciones
+ * reales como aristas, siempre desde este contrato normalizado.
+ */
+export interface CartoGraph {
+  /** Nodos visibles del tablero, normalmente nodos `file` del motor. */
+  nodes: CartoNode[];
+  /** Aristas reales entre nodos visibles. */
+  edges: CartoEdge[];
+  /** Totales del índice antes del recorte defensivo. */
+  totals: {
+    nodes: number;
+    edges: number;
+  };
+  /** `true` si la foto se recortó para proteger repos grandes. */
+  truncated: boolean;
+  /** Epoch ms de generación de esta foto. */
+  generatedAt: number;
 }
 
 /**

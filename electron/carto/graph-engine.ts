@@ -42,6 +42,7 @@ import {
 } from '../../lib/carto-from-codegraph';
 import type {
   CartoGraphStatus,
+  CartoGraph,
   CartoSearchHit,
   CartoRelatedSymbol,
   CartoImpact,
@@ -77,6 +78,28 @@ const RETRIEVE_SEED_CAP = 6; // símbolos "semilla" (los mejor rankeados)
 const RETRIEVE_NEIGHBORS_PER_SEED = 4; // vecinos (callers+callees) por semilla
 const RETRIEVE_NODE_CAP = 24; // total de nodos citados (semillas + vecinos)
 const RETRIEVE_RELATION_CAP = 30; // total de aristas legibles para el prompt
+
+// Lente Grafo semántico (F7): la foto global se acota en main para que repos
+// grandes no saturen ni el IPC ni el renderer. La selección prioriza archivos
+// con más relaciones reales; el orden final es determinista.
+const SEMANTIC_GRAPH_NODE_CAP = 220;
+const SEMANTIC_GRAPH_EDGE_CAP = 520;
+const FILE_NODE_PREFIX = 'file:';
+
+function fileNodeId(filePath: string): string {
+  return `${FILE_NODE_PREFIX}${createHash('sha1').update(filePath).digest('hex').slice(0, 18)}`;
+}
+
+function toFileCartoNode(filePath: string): CartoNode {
+  return {
+    id: fileNodeId(filePath),
+    name: path.posix.basename(filePath),
+    kind: 'file',
+    filePath,
+    startLine: 1,
+    endLine: 1,
+  };
+}
 
 interface EngineEntry {
   cg: CodeGraph | null;
@@ -295,6 +318,54 @@ export function graphFileSymbols(repoPath: string, filePath: string): CartoNode[
     .map(toCartoNode);
 }
 
+/** Foto global normalizada para la lente "Grafo": archivos como nodos y aristas reales. */
+export function graphSnapshot(repoPath: string): CartoGraph | null {
+  const cg = readyGraph(repoPath);
+  if (!cg) return null;
+
+  const fileNodeByPath = new Map<string, CartoNode>();
+  for (const file of cg.getFiles().sort((a, b) => a.path.localeCompare(b.path))) {
+    fileNodeByPath.set(file.path, toFileCartoNode(file.path));
+  }
+
+  const rawEdges = new Map<string, { fromId: string; toId: string; relation: CartoEdgeRelation }>();
+  const degreeByNode = new Map<string, number>();
+  for (const [fromPath, fromNode] of fileNodeByPath) {
+    for (const toPath of cg.getFileDependencies(fromPath)) {
+      const toNode = fileNodeByPath.get(toPath);
+      if (!toNode || fromNode.id === toNode.id) continue;
+      const edge = { fromId: fromNode.id, toId: toNode.id, relation: 'import' as const };
+      const key = `${edge.fromId}->${edge.toId}:${edge.relation}`;
+      if (!rawEdges.has(key)) rawEdges.set(key, edge);
+      degreeByNode.set(fromNode.id, (degreeByNode.get(fromNode.id) ?? 0) + 1);
+      degreeByNode.set(toNode.id, (degreeByNode.get(toNode.id) ?? 0) + 1);
+    }
+  }
+
+  const rankedNodes = [...fileNodeByPath.values()].sort((a, b) => {
+    const byDegree = (degreeByNode.get(b.id) ?? 0) - (degreeByNode.get(a.id) ?? 0);
+    return byDegree || a.filePath.localeCompare(b.filePath);
+  });
+  const visibleNodes = rankedNodes.slice(0, SEMANTIC_GRAPH_NODE_CAP);
+  const visibleIds = new Set(visibleNodes.map((n) => n.id));
+  const visibleEdges = [...rawEdges.values()]
+    .filter((edge) => visibleIds.has(edge.fromId) && visibleIds.has(edge.toId))
+    .sort((a, b) => {
+      const aDegree = (degreeByNode.get(a.fromId) ?? 0) + (degreeByNode.get(a.toId) ?? 0);
+      const bDegree = (degreeByNode.get(b.fromId) ?? 0) + (degreeByNode.get(b.toId) ?? 0);
+      return bDegree - aDegree || `${a.fromId}${a.toId}`.localeCompare(`${b.fromId}${b.toId}`);
+    })
+    .slice(0, SEMANTIC_GRAPH_EDGE_CAP);
+
+  return {
+    nodes: visibleNodes,
+    edges: visibleEdges,
+    totals: { nodes: fileNodeByPath.size, edges: rawEdges.size },
+    truncated: visibleNodes.length < fileNodeByPath.size || visibleEdges.length < rawEdges.size,
+    generatedAt: Date.now(),
+  };
+}
+
 /**
  * Recuperación ESTRUCTURAL para una pregunta libre (Fase 6): los nodos del grafo
  * que tocan la pregunta + sus relaciones, listos para fundamentar la respuesta.
@@ -409,6 +480,79 @@ function toRelated(rs: CartoRelatedSymbol): CartoAIRelated {
   return { name: rs.node.name, kind: rs.node.kind, filePath: rs.node.filePath };
 }
 
+function syntheticFilePath(cg: CodeGraph, nodeId: string): string | null {
+  if (!nodeId.startsWith(FILE_NODE_PREFIX)) return null;
+  return cg.getFiles().find((file) => fileNodeId(file.path) === nodeId)?.path ?? null;
+}
+
+async function graphFileNodeContext(cg: CodeGraph, filePath: string): Promise<CartoNodeContext> {
+  const symbols = cg
+    .getNodesInFile(filePath)
+    .filter((n) => n.kind !== 'file' && n.kind !== 'import')
+    .sort((a, b) => a.startLine - b.startLine);
+  const sampledSymbols = symbols.slice(0, NODE_RELATED_CAP);
+
+  let source = '';
+  let sourceTruncated = symbols.length > sampledSymbols.length;
+  for (const symbol of sampledSymbols) {
+    try {
+      const code = (await cg.getCode(symbol.id)) ?? '';
+      if (!code) continue;
+      source += `${source ? '\n\n' : ''}// ${symbol.name} (${symbol.startLine}-${symbol.endLine})\n${code}`;
+    } catch (error) {
+      console.error('[carto-graph] getCode error:', sanitize(error));
+    }
+    if (source.length > NODE_SOURCE_CHAR_CAP) {
+      source = source.slice(0, NODE_SOURCE_CHAR_CAP);
+      sourceTruncated = true;
+      break;
+    }
+  }
+
+  const callersByKey = new Map<string, CartoAIRelated>();
+  const calleesByKey = new Map<string, CartoAIRelated>();
+  for (const symbol of sampledSymbols) {
+    for (const rel of adaptRelated(cg.getCallers(symbol.id) as RawRelated[], 4).map(toRelated)) {
+      callersByKey.set(`${rel.name}|${rel.filePath}|${rel.kind}`, rel);
+    }
+    for (const rel of adaptRelated(cg.getCallees(symbol.id) as RawRelated[], 4).map(toRelated)) {
+      calleesByKey.set(`${rel.name}|${rel.filePath}|${rel.kind}`, rel);
+    }
+  }
+
+  const focalIds = new Set(symbols.map((n) => n.id));
+  const impactedById = new Map<string, Node>();
+  for (const symbol of symbols.slice(0, IMPACT_SYMBOL_CAP)) {
+    const sg = cg.getImpactRadius(symbol.id, IMPACT_DEPTH);
+    for (const node of sg.nodes.values()) {
+      if (!focalIds.has(node.id)) impactedById.set(node.id, node);
+    }
+  }
+
+  const endLine = Math.max(1, ...symbols.map((n) => n.endLine));
+  const contentHash = createHash('sha256')
+    .update(`${filePath}\n${symbols.map((s) => `${s.qualifiedName}:${s.signature ?? ''}`).join('\n')}\n${source}`)
+    .digest('hex');
+
+  return {
+    node: {
+      name: path.posix.basename(filePath),
+      kind: 'file',
+      filePath,
+      startLine: 1,
+      endLine,
+      signature: `${symbols.length} symbols`,
+    },
+    nodePath: filePath,
+    source,
+    sourceTruncated,
+    contentHash,
+    callers: [...callersByKey.values()].slice(0, NODE_RELATED_CAP),
+    callees: [...calleesByKey.values()].slice(0, NODE_RELATED_CAP),
+    impact: adaptImpact([...impactedById.values()], { filePath, ids: focalIds }),
+  };
+}
+
 /**
  * Contexto MÍNIMO Y PRECISO de un nodo para explicarlo (Fase 5): el código/firma
  * del nodo + sus callers, callees e impacto. NADA más — ni el archivo entero ni el
@@ -422,6 +566,9 @@ export async function graphNodeContext(
 ): Promise<CartoNodeContext | null> {
   const cg = readyGraph(repoPath);
   if (!cg) return null;
+  const filePath = syntheticFilePath(cg, nodeId);
+  if (filePath) return graphFileNodeContext(cg, filePath);
+
   const node = cg.getNode(nodeId);
   if (!node) return null;
 

@@ -62,3 +62,15 @@ Tests       238 passed (238)
 Busqueda final en codigo fuente (`components`, `lib`, `app`, `types`,
 `electron`): sin referencias a `CartoPanoramaLens`, `cartography.lenses`,
 `cartography.lens.*` ni claves huerfanas del Panorama/lente anterior.
+
+## Ajuste QA posterior
+
+- Header "Que es" plegado por defecto; ya no muestra el mensaje protagonista
+  "IA desactivada" en la entrada al lienzo.
+- La expansion reserva altura por fila segun los grupos abiertos para que los
+  nodos de archivo no queden por detras de tarjetas grandes.
+- Los nodos del lienzo son draggables y conservan su posicion manual durante la
+  sesion de la vista.
+- Verificacion Playwright con mock: 0 textos "IA desactivada" en el header, 0
+  archivos sueltos al entrar, 10 archivos visibles tras expandir 2 grupos, 0
+  solapes tarjeta/archivo, drag manual confirmado (+164 px, +99 px).

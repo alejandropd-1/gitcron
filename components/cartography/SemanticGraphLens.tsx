@@ -11,6 +11,7 @@ import {
   ReactFlow,
   type Edge as FlowEdge,
   type Node as FlowNode,
+  type NodeChange,
   type NodeProps,
   type NodeTypes,
 } from '@xyflow/react';
@@ -33,8 +34,12 @@ const NODE_W = 176;
 const NODE_H = 82;
 const GROUP_W = 276;
 const GROUP_H = 164;
-const GROUP_X = 360;
-const GROUP_Y = 470;
+const GROUP_COLS = 3;
+const GROUP_X = 456;
+const GROUP_ROW_GAP = 92;
+const GROUP_EXPANDED_GAP = 58;
+const NODE_X_GAP = 38;
+const NODE_Y_GAP = 34;
 
 type SemanticFileNodeData = Record<string, unknown> & {
   kind: 'file';
@@ -103,6 +108,7 @@ export function SemanticGraphLens({
   const [graph, setGraph] = useState<CartoGraph | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [manualPositions, setManualPositions] = useState<Map<string, { x: number; y: number }>>(() => new Map());
   const expandedRoles = useGitStore((s) => {
     const repo = s.getActiveRepo();
     return repo?.path === repoPath ? repo.cartographyExpandedRoles : [];
@@ -157,6 +163,10 @@ export function SemanticGraphLens({
     };
   }, [repoPath, refreshKey, status?.state, status?.error, t]);
 
+  useEffect(() => {
+    setManualPositions(new Map());
+  }, [repoPath, refreshKey]);
+
   const expandedRoleSet = useMemo(() => new Set<CartoRoleId>(expandedRoles), [expandedRoles]);
   const model = useMemo(() => buildGraphModel(graph, t), [graph, t]);
   const toggleGroup = useCallback(
@@ -171,8 +181,31 @@ export function SemanticGraphLens({
     [repoPath, updateRepoByPath],
   );
   const flow = useMemo(
-    () => buildFlow(graph, model, expandedRoleSet, selectedNodeId, t),
-    [graph, model, expandedRoleSet, selectedNodeId, t],
+    () => buildFlow(graph, model, expandedRoleSet, manualPositions, selectedNodeId, t),
+    [graph, model, expandedRoleSet, manualPositions, selectedNodeId, t],
+  );
+  const handleNodesChange = useCallback(
+    (changes: NodeChange<SemanticFlowNode>[]) => {
+      setManualPositions((current) => {
+        let next: Map<string, { x: number; y: number }> | null = null;
+        const ensureNext = () => {
+          next ??= new Map(current);
+          return next;
+        };
+
+        for (const change of changes) {
+          if (change.type === 'position' && change.position) {
+            ensureNext().set(change.id, change.position);
+          }
+          if (change.type === 'remove') {
+            ensureNext().delete(change.id);
+          }
+        }
+
+        return next ?? current;
+      });
+    },
+    [],
   );
 
   if (!repoPath) {
@@ -208,7 +241,9 @@ export function SemanticGraphLens({
         nodes={flow.nodes}
         edges={flow.edges}
         nodeTypes={nodeTypes}
-        nodesDraggable={false}
+        nodesDraggable
+        nodesConnectable={false}
+        onNodesChange={handleNodesChange}
         onlyRenderVisibleElements
         snapToGrid
         snapGrid={[24, 24]}
@@ -309,6 +344,7 @@ function buildFlow(
   graph: CartoGraph | null,
   model: GraphModel,
   expandedRoles: Set<CartoRoleId>,
+  manualPositions: Map<string, { x: number; y: number }>,
   selectedNodeId: string | null,
   t: ReturnType<typeof useT>,
 ): { nodes: SemanticFlowNode[]; edges: FlowEdge[] } {
@@ -317,11 +353,10 @@ function buildFlow(
   const nodes: SemanticFlowNode[] = [];
   const visibleIds = new Set<string>();
   const visibleFileIds = new Set<string>();
-  const groupPositions = new Map<CartoRoleId, { x: number; y: number }>();
+  const groupPositions = buildGroupPositions(model.groups, expandedRoles);
 
   model.groups.forEach((group, index) => {
-    const position = groupPosition(index);
-    groupPositions.set(group.role.id, position);
+    const position = groupPositions.get(group.role.id) ?? { x: 0, y: 0 };
     const expanded = expandedRoles.has(group.role.id);
     const visibleGroupNodes = expanded ? group.nodes.slice(0, MAX_OVERVIEW_NODES_PER_ROLE) : [];
     const hiddenCount = expanded ? Math.max(0, group.nodes.length - visibleGroupNodes.length) : 0;
@@ -330,7 +365,8 @@ function buildFlow(
     nodes.push({
       id: groupNodeIdValue,
       type: 'cartoSemanticGroup',
-      position,
+      position: manualPositions.get(groupNodeIdValue) ?? position,
+      zIndex: expanded ? 2 : 1,
       data: {
         kind: 'group',
         role: group.role,
@@ -354,8 +390,9 @@ function buildFlow(
       nodes.push({
         id: cartoNode.id,
         type: 'cartoSemanticFile',
-        position: expandedFilePosition(position, fileIndex),
+        position: manualPositions.get(cartoNode.id) ?? expandedFilePosition(position, fileIndex),
         selected: cartoNode.id === selectedNodeId,
+        zIndex: 3,
         data: {
           kind: 'file',
           cartoNode,
@@ -454,18 +491,46 @@ function groupNodeId(role: CartoRoleId): string {
   return `carto-group:${role}`;
 }
 
-function groupPosition(index: number): { x: number; y: number } {
-  return {
-    x: (index % 3) * GROUP_X + jitter(`group-${index}`, 1),
-    y: Math.floor(index / 3) * GROUP_Y + jitter(`group-${index}`, 2),
-  };
+function buildGroupPositions(
+  groups: RoleGroup[],
+  expandedRoles: Set<CartoRoleId>,
+): Map<CartoRoleId, { x: number; y: number }> {
+  const positions = new Map<CartoRoleId, { x: number; y: number }>();
+  let y = 0;
+
+  for (let rowStart = 0; rowStart < groups.length; rowStart += GROUP_COLS) {
+    const row = groups.slice(rowStart, rowStart + GROUP_COLS);
+    let rowHeight = GROUP_H;
+
+    row.forEach((group) => {
+      if (!expandedRoles.has(group.role.id)) return;
+      const visibleCount = Math.min(group.nodes.length, MAX_OVERVIEW_NODES_PER_ROLE);
+      if (visibleCount === 0) return;
+      const fileRows = Math.ceil(visibleCount / 2);
+      const expandedHeight =
+        GROUP_H + GROUP_EXPANDED_GAP + fileRows * NODE_H + Math.max(0, fileRows - 1) * NODE_Y_GAP;
+      rowHeight = Math.max(rowHeight, expandedHeight);
+    });
+
+    row.forEach((group, columnIndex) => {
+      const index = rowStart + columnIndex;
+      positions.set(group.role.id, {
+        x: columnIndex * GROUP_X + jitter(`group-${index}`, 1),
+        y: y + jitter(`group-${index}`, 2),
+      });
+    });
+
+    y += rowHeight + GROUP_ROW_GAP;
+  }
+
+  return positions;
 }
 
 function expandedFilePosition(group: { x: number; y: number }, index: number): { x: number; y: number } {
   const cols = 2;
   return {
-    x: group.x + (index % cols) * (NODE_W + 26) + 3,
-    y: group.y + GROUP_H + 46 + Math.floor(index / cols) * (NODE_H + 30),
+    x: group.x + (index % cols) * (NODE_W + NODE_X_GAP) + 3,
+    y: group.y + GROUP_H + GROUP_EXPANDED_GAP + Math.floor(index / cols) * (NODE_H + NODE_Y_GAP),
   };
 }
 

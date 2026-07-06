@@ -15,7 +15,7 @@ import {
   type NodeProps,
   type NodeTypes,
 } from '@xyflow/react';
-import { AlertTriangle, Columns3, FileCode, Loader2, Network, Waypoints } from 'lucide-react';
+import { AlertTriangle, FileCode, Loader2, Network } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import type { CartoGraph, CartoGraphStatus, CartoNode } from '@/lib/carto-types';
 import {
@@ -50,13 +50,9 @@ type SemanticGraphLensProps = {
   onSelectNode: (node: CartoNode) => void;
 };
 
-type SemanticViewMode = 'columns' | 'nodes';
-
 type GraphModel = {
   nodeById: Map<string, CartoNode>;
   relationCount: Map<string, number>;
-  dependencyCount: Map<string, number>;
-  dependentCount: Map<string, number>;
   incomingToSelected: Set<string>;
   outgoingFromSelected: Set<string>;
   selectedEdges: CartoGraph['edges'];
@@ -83,7 +79,6 @@ export function SemanticGraphLens({
   const [graph, setGraph] = useState<CartoGraph | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<SemanticViewMode>('columns');
 
   useEffect(() => {
     if (!repoPath) {
@@ -161,91 +156,67 @@ export function SemanticGraphLens({
   if (!graph || graph.nodes.length === 0) {
     return <GraphHint icon={<Network size={18} />} text={t('cartography.semantic.empty')} />;
   }
-  const allNodeCount = graph.allNodes?.length ?? graph.nodes.length;
-
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-carto-canvas">
-      {viewMode === 'nodes' ? (
-        <ReactFlow<SemanticFlowNode, FlowEdge>
-          className="carto-semantic-flow"
-          nodes={flow.nodes}
-          edges={flow.edges}
-          nodeTypes={nodeTypes}
-          nodesDraggable={false}
-          onlyRenderVisibleElements
-          snapToGrid
-          snapGrid={[24, 24]}
-          selectNodesOnDrag={false}
-          nodeClickDistance={5}
-          fitView
-          fitViewOptions={{ padding: 0.18 }}
-          minZoom={0.22}
-          maxZoom={1.55}
-          onNodeClick={(_event, node) => onSelectNode(node.data.cartoNode)}
-        >
-          <Background
-            variant={BackgroundVariant.Lines}
-            gap={32}
-            color="var(--color-carto-grid)"
-            lineWidth={0.65}
-          />
-          {flow.nodes.length <= 120 && (
-            <MiniMap
-              pannable
-              zoomable
-              nodeStrokeWidth={2}
-              nodeColor={(node) => String((node.data as SemanticNodeData).role.color)}
-              maskColor="rgba(4, 16, 29, 0.72)"
-              className="carto-semantic-minimap"
-            />
-          )}
-          <Controls className="carto-semantic-controls" showInteractive={false} />
-        </ReactFlow>
-      ) : (
-        <ColumnsGraph
-          model={model}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
+      <ReactFlow<SemanticFlowNode, FlowEdge>
+        className="carto-semantic-flow"
+        nodes={flow.nodes}
+        edges={flow.edges}
+        nodeTypes={nodeTypes}
+        nodesDraggable={false}
+        onlyRenderVisibleElements
+        snapToGrid
+        snapGrid={[24, 24]}
+        selectNodesOnDrag={false}
+        nodeClickDistance={5}
+        fitView
+        fitViewOptions={{ padding: 0.18 }}
+        minZoom={0.22}
+        maxZoom={1.55}
+        onNodeClick={(_event, node) => onSelectNode(node.data.cartoNode)}
+      >
+        <Background
+          variant={BackgroundVariant.Lines}
+          gap={32}
+          color="var(--color-carto-grid)"
+          lineWidth={0.65}
         />
-      )}
+        {flow.nodes.length <= 120 && (
+          <MiniMap
+            pannable
+            zoomable
+            nodeStrokeWidth={2}
+            nodeColor={(node) => String((node.data as SemanticNodeData).role.color)}
+            maskColor="rgba(4, 16, 29, 0.72)"
+            className="carto-semantic-minimap"
+          />
+        )}
+        <Controls className="carto-semantic-controls" showInteractive={false} />
+      </ReactFlow>
 
       <div className="pointer-events-none absolute left-3 top-3 flex max-w-[min(56rem,calc(100%-1.5rem))] flex-wrap items-center gap-2">
         <div className="pointer-events-auto flex items-center gap-2 rounded border border-carto-accent/25 bg-carto-canvas/90 px-2.5 py-1.5 text-[11px] text-carto-text-muted shadow-lg shadow-black/20">
           <Network size={13} className="text-carto-accent" />
           <span className="font-mono">
             {t('cartography.semantic.stats', {
-              nodes: viewMode === 'nodes' ? flow.nodes.length : allNodeCount,
+              nodes: flow.nodes.length,
               totalNodes: graph.totals.nodes,
-              edges: viewMode === 'nodes' ? model.selectedEdges.length : graph.edges.length,
+              edges: model.selectedEdges.length,
               totalEdges: graph.totals.edges,
             })}
           </span>
         </div>
-        <div className="pointer-events-auto flex overflow-hidden rounded border border-carto-grid bg-carto-canvas/90 p-0.5">
-          <ModeButton
-            active={viewMode === 'columns'}
-            icon={<Columns3 size={12} />}
-            label={t('cartography.semantic.view.columns')}
-            onClick={() => setViewMode('columns')}
-          />
-          <ModeButton
-            active={viewMode === 'nodes'}
-            icon={<Waypoints size={12} />}
-            label={t('cartography.semantic.view.nodes')}
-            onClick={() => setViewMode('nodes')}
-          />
-        </div>
-        {viewMode === 'nodes' && !selectedNodeId ? (
+        {!selectedNodeId ? (
           <div className="pointer-events-auto rounded border border-carto-grid bg-carto-canvas/90 px-2.5 py-1.5 text-[11px] font-semibold text-carto-text-muted">
             {t('cartography.semantic.nodesOverview')}
           </div>
         ) : null}
-        {viewMode === 'nodes' && selectedNodeId && model.focusHiddenNeighbors > 0 ? (
+        {selectedNodeId && model.focusHiddenNeighbors > 0 ? (
           <div className="pointer-events-auto rounded border border-carto-grid bg-carto-canvas/90 px-2.5 py-1.5 text-[11px] font-semibold text-carto-text-muted">
             {t('cartography.semantic.hiddenNeighbors', { count: model.focusHiddenNeighbors })}
           </div>
         ) : null}
-        {graph.truncated || (viewMode === 'nodes' && model.selectedEdges.length >= MAX_FOCUS_EDGES) ? (
+        {graph.truncated || model.selectedEdges.length >= MAX_FOCUS_EDGES ? (
           <div className="pointer-events-auto rounded border border-carto-accent/25 bg-carto-accent/10 px-2.5 py-1.5 text-[11px] font-semibold text-carto-accent">
             {t('cartography.semantic.limited')}
           </div>
@@ -274,8 +245,6 @@ function buildGraphModel(
 ): GraphModel {
   const nodeById = new Map<string, CartoNode>();
   const relationCount = new Map<string, number>();
-  const dependencyCount = new Map<string, number>();
-  const dependentCount = new Map<string, number>();
   const incomingToSelected = new Set<string>();
   const outgoingFromSelected = new Set<string>();
   const byRole = new Map<string, CartoNode[]>();
@@ -284,8 +253,6 @@ function buildGraphModel(
     return {
       nodeById,
       relationCount,
-      dependencyCount,
-      dependentCount,
       incomingToSelected,
       outgoingFromSelected,
       selectedEdges: [],
@@ -298,8 +265,6 @@ function buildGraphModel(
   for (const edge of graph.edges) {
     relationCount.set(edge.fromId, (relationCount.get(edge.fromId) ?? 0) + 1);
     relationCount.set(edge.toId, (relationCount.get(edge.toId) ?? 0) + 1);
-    dependencyCount.set(edge.fromId, (dependencyCount.get(edge.fromId) ?? 0) + 1);
-    dependentCount.set(edge.toId, (dependentCount.get(edge.toId) ?? 0) + 1);
     if (selectedNodeId && edge.fromId === selectedNodeId) {
       outgoingFromSelected.add(edge.toId);
     }
@@ -328,8 +293,6 @@ function buildGraphModel(
   return {
     nodeById,
     relationCount,
-    dependencyCount,
-    dependentCount,
     incomingToSelected,
     outgoingFromSelected,
     selectedEdges: focus.edges,
@@ -470,148 +433,6 @@ function overviewPosition(roleIndex: number, index: number): { x: number; y: num
     x: clusterX + (index % cols) * (NODE_W + 36) + jitter(`${roleIndex}-${index}`, 1) - 22,
     y: clusterY + Math.floor(index / cols) * (NODE_H + 32) + jitter(`${roleIndex}-${index}`, 2) - 18,
   };
-}
-
-function ModeButton({
-  active,
-  icon,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-bold uppercase transition-colors ${
-        active ? 'bg-carto-accent/20 text-carto-accent' : 'text-carto-text-muted hover:text-carto-text'
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-function ColumnsGraph({
-  model,
-  selectedNodeId,
-  onSelectNode,
-}: {
-  model: GraphModel;
-  selectedNodeId: string | null;
-  onSelectNode: (node: CartoNode) => void;
-}) {
-  const t = useT();
-  return (
-    <div className="carto-columns-map h-full min-h-0 overflow-x-auto overflow-y-hidden px-5 pb-12 pt-16">
-      <div className="flex h-full min-w-max gap-4">
-        {model.groupedNodes.map(({ role, label, nodes }) => (
-          <section
-            key={role.id}
-            className="carto-role-column flex h-full w-72 shrink-0 flex-col"
-            style={{ '--carto-role-color': role.color } as CSSProperties}
-          >
-            <header className="carto-role-column__header">
-              <span className="carto-role-column__dot" />
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate text-xs font-bold uppercase text-carto-text">
-                  {label}
-                </h3>
-                <p className="font-mono text-[10px] text-carto-text-muted">
-                  {t('cartography.semantic.filesCount', { count: nodes.length })}
-                </p>
-              </div>
-            </header>
-            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-              <div className="flex flex-col gap-2">
-                {nodes.map((node) => (
-                  <ColumnFileCard
-                    key={node.id}
-                    node={node}
-                    role={role}
-                    selected={node.id === selectedNodeId}
-                    incoming={model.incomingToSelected.has(node.id)}
-                    outgoing={model.outgoingFromSelected.has(node.id)}
-                    dimmed={Boolean(
-                      selectedNodeId &&
-                        node.id !== selectedNodeId &&
-                        !model.incomingToSelected.has(node.id) &&
-                        !model.outgoingFromSelected.has(node.id),
-                    )}
-                    dependencies={model.dependencyCount.get(node.id) ?? 0}
-                    dependents={model.dependentCount.get(node.id) ?? 0}
-                    onSelect={() => onSelectNode(node)}
-                  />
-                ))}
-              </div>
-            </div>
-          </section>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ColumnFileCard({
-  node,
-  role,
-  selected,
-  incoming,
-  outgoing,
-  dimmed,
-  dependencies,
-  dependents,
-  onSelect,
-}: {
-  node: CartoNode;
-  role: CartoRoleDefinition;
-  selected: boolean;
-  incoming: boolean;
-  outgoing: boolean;
-  dimmed: boolean;
-  dependencies: number;
-  dependents: number;
-  onSelect: () => void;
-}) {
-  const t = useT();
-  const file = node.filePath.split('/').at(-1) ?? node.name;
-  const dir = node.filePath.includes('/') ? node.filePath.split('/').slice(0, -1).join('/') : '.';
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      title={node.filePath}
-      className={`carto-column-card ${selected ? 'is-selected' : ''} ${incoming ? 'is-incoming' : ''} ${
-        outgoing ? 'is-outgoing' : ''
-      } ${dimmed ? 'is-dimmed' : ''}`}
-      style={{ '--carto-role-color': role.color } as CSSProperties}
-    >
-      <span className="carto-column-card__rail" />
-      <span className="min-w-0 flex-1 text-left">
-        <span className="block truncate font-mono text-[11px] font-bold text-carto-text">{file}</span>
-        <span className="block truncate font-mono text-[9px] text-carto-text-muted">{dir}</span>
-        <span className="mt-1 flex gap-1.5 text-[9px] font-bold uppercase text-carto-text-muted">
-          <span>{t('cartography.semantic.usesCount', { count: dependencies })}</span>
-          <span>{t('cartography.semantic.usedByCount', { count: dependents })}</span>
-        </span>
-      </span>
-      {selected || incoming || outgoing ? (
-        <span className="carto-column-card__badge">
-          {selected
-            ? t('cartography.semantic.focus')
-            : incoming
-              ? t('cartography.semantic.usesFocus')
-              : t('cartography.semantic.focusUses')}
-        </span>
-      ) : null}
-    </button>
-  );
 }
 
 function SemanticFileNode({ data, selected }: NodeProps<SemanticFlowNode>) {

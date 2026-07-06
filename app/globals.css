@@ -402,14 +402,6 @@ body, .font-sans {
   background: rgba(4, 16, 29, 0.9);
 }
 
-.carto-columns-map {
-  background:
-    linear-gradient(90deg, rgba(253, 179, 58, 0.05) 0 1px, transparent 1px 100%),
-    linear-gradient(0deg, rgba(94, 216, 255, 0.045) 0 1px, transparent 1px 100%),
-    var(--color-carto-canvas);
-  background-size: 64px 64px;
-}
-
 .carto-role-column {
   border: 1px solid color-mix(in srgb, var(--carto-role-color) 30%, var(--color-carto-grid));
   border-radius: 8px;
@@ -435,63 +427,4 @@ body, .font-sans {
   border-radius: 999px;
   background: var(--carto-role-color);
   box-shadow: 0 0 12px color-mix(in srgb, var(--carto-role-color) 42%, transparent);
-}
-
-.carto-column-card {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  width: 100%;
-  min-height: 4.2rem;
-  overflow: hidden;
-  border: 1px solid rgba(22, 50, 74, 0.95);
-  border-radius: 6px;
-  background: rgba(5, 20, 36, 0.92);
-  padding: 0.55rem 0.6rem;
-  transition: border-color 140ms ease, background-color 140ms ease, opacity 140ms ease, transform 140ms ease;
-}
-
-.carto-column-card:hover {
-  border-color: color-mix(in srgb, var(--carto-role-color) 55%, var(--color-carto-grid));
-  background: rgba(9, 31, 52, 0.96);
-}
-
-.carto-column-card.is-selected {
-  border-color: var(--color-carto-accent);
-  background: rgba(253, 179, 58, 0.12);
-  box-shadow: 0 0 0 1px rgba(253, 179, 58, 0.28);
-}
-
-.carto-column-card.is-incoming {
-  border-color: rgba(163, 241, 133, 0.55);
-}
-
-.carto-column-card.is-outgoing {
-  border-color: rgba(94, 216, 255, 0.55);
-}
-
-.carto-column-card.is-dimmed {
-  opacity: 0.38;
-}
-
-.carto-column-card__rail {
-  width: 0.25rem;
-  align-self: stretch;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: var(--carto-role-color);
-}
-
-.carto-column-card__badge {
-  flex: 0 0 auto;
-  max-width: 5.8rem;
-  border: 1px solid rgba(253, 179, 58, 0.28);
-  border-radius: 999px;
-  padding: 0.15rem 0.4rem;
-  color: var(--color-carto-accent);
-  font-size: 0.55rem;
-  font-weight: 800;
-  line-height: 1.15;
-  text-transform: uppercase;
 }

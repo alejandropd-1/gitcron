@@ -47,3 +47,5 @@ fallow_report.json
 # índice DEDICADO que genera la vista Cartografía (Fase 3) para no colisionar con él.
 .codegraph/
 .codegraph-gitcron/
+
+.understand-anything/

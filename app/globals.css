@@ -310,11 +310,8 @@ body, .font-sans {
 /* ─── CARTOGRAPHY SEMANTIC GRAPH (React Flow skin) ─── */
 .carto-semantic-flow {
   background:
-    linear-gradient(90deg, rgba(253, 179, 58, 0.08) 0 1px, transparent 1px 100%),
-    linear-gradient(0deg, rgba(94, 216, 255, 0.06) 0 1px, transparent 1px 100%),
     radial-gradient(circle at 18% 12%, rgba(94, 216, 255, 0.12), transparent 32rem),
     var(--color-carto-canvas);
-  background-size: 96px 96px, 96px 96px, auto, auto;
 }
 
 .carto-semantic-flow .react-flow__pane {

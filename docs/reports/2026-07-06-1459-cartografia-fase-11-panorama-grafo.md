@@ -71,6 +71,8 @@ Busqueda final en codigo fuente (`components`, `lib`, `app`, `types`,
   nodos de archivo no queden por detras de tarjetas grandes.
 - Los nodos del lienzo son draggables y conservan su posicion manual durante la
   sesion de la vista.
+- Los nodos internos ya no muestran una barra decorativa tipo progreso, y el
+  lienzo ya no renderiza la grilla movil pegada al viewport de React Flow.
 - Verificacion Playwright con mock: 0 textos "IA desactivada" en el header, 0
   archivos sueltos al entrar, 10 archivos visibles tras expandir 2 grupos, 0
   solapes tarjeta/archivo, drag manual confirmado (+164 px, +99 px).

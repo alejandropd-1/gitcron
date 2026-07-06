@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import {
-  Background,
-  BackgroundVariant,
   Controls,
   Handle,
   MarkerType,
@@ -261,12 +259,6 @@ export function SemanticGraphLens({
           onSelectNode(node.data.cartoNode);
         }}
       >
-        <Background
-          variant={BackgroundVariant.Lines}
-          gap={32}
-          color="var(--color-carto-grid)"
-          lineWidth={0.65}
-        />
         <Controls className="carto-semantic-controls" showInteractive={false} />
       </ReactFlow>
 
@@ -609,9 +601,6 @@ function SemanticFileNode({ data, selected }: NodeProps<SemanticFileFlowNode>) {
           <p className="truncate font-mono text-[9px] text-carto-text-muted">{dir}</p>
         </div>
         <span className="carto-semantic-node__count">{data.relationCount}</span>
-      </div>
-      <div className="mt-2 h-1 overflow-hidden rounded-full bg-carto-grid/70">
-        <div className="h-full w-2/3 rounded-full" style={{ background: data.role.color }} />
       </div>
       <p className="mt-1 truncate text-[9px] font-bold uppercase text-carto-text-muted">
         {data.roleLabel}

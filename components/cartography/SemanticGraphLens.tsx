@@ -218,6 +218,15 @@ export function SemanticGraphLens({
       />
     );
   }
+  if (status?.state === 'engine-unavailable') {
+    return (
+      <GraphHint
+        icon={<AlertTriangle size={18} />}
+        text={t('cartography.graph.engineUnavailable')}
+        detail={t('cartography.graph.engineUnavailableHint')}
+      />
+    );
+  }
   if (loading) {
     return (
       <GraphHint
@@ -622,10 +631,12 @@ function SemanticFileNode({ data, selected }: NodeProps<SemanticFileFlowNode>) {
 function GraphHint({
   icon,
   text,
+  detail,
   tone = 'muted',
 }: {
   icon: ReactNode;
   text: string;
+  detail?: string;
   tone?: 'muted' | 'error';
 }) {
   return (
@@ -636,6 +647,7 @@ function GraphHint({
     >
       {icon}
       <p className="max-w-md leading-relaxed">{text}</p>
+      {detail && <p className="max-w-md leading-relaxed text-carto-text-muted/70">{detail}</p>}
     </div>
   );
 }

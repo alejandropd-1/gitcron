@@ -71,7 +71,9 @@ export function CartoPanoramaHeader({ repoPath, status, refreshKey }: CartoPanor
         ) : null}
       </summary>
       <section className="mx-4 mb-3 rounded-lg border border-carto-accent/25 bg-carto-node/[0.035] p-4">
-        {status?.state === 'indexing' || status?.state === 'idle' ? (
+        {status?.state === 'engine-unavailable' ? (
+          <HeaderHint icon={<AlertTriangle size={16} />} text={t('cartography.graph.engineUnavailable')} />
+        ) : status?.state === 'indexing' || status?.state === 'idle' ? (
           <HeaderHint icon={<Loader2 size={16} className="animate-spin" />} text={t('cartography.graph.indexing')} />
         ) : loading ? (
           <HeaderHint icon={<Loader2 size={16} className="animate-spin" />} text={t('cartography.panorama.loading')} />

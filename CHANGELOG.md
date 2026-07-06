@@ -11,6 +11,7 @@ Changes are listed from newest to oldest.
 #### Fixed
 - **La app abre siempre**: el motor de análisis de Cartografía (`@colbymchenry/codegraph`) se carga ahora de forma diferida. Antes, su import estático corría al arranque del proceso main y, si el módulo nativo (`web-tree-sitter`) no resolvía en el empaquetado, tumbaba toda la aplicación antes de mostrar la ventana.
 - **Cartografía degrada con gracia**: si el motor no está disponible en la instalación, Cartografía muestra un aviso ("El motor de análisis no está disponible en esta instalación") en lugar de romper. El cliente Git (Commit, Graph, History, ramas) sigue funcionando con normalidad.
+- **Interop del import dinámico**: `@colbymchenry/codegraph` es CommonJS y re-exporta un bundle por plataforma con un `require` dinámico, así que `await import()` deja la clase bajo `.default.CodeGraph` (el cjs-module-lexer no puede detectar el named export). Se resuelve el export tolerando ambas formas (`.CodeGraph` y `.default.CodeGraph`); antes daba `TypeError: Cannot read properties of undefined (reading 'isInitialized')` al abrir Cartografía.
 
 #### Changed
 - El motor CodeGraph se carga bajo demanda (la primera vez que se usa Cartografía), cacheado y detrás de un guard con `try-catch`; un fallo de carga se traduce al estado `engine-unavailable` en vez de a un error genérico.

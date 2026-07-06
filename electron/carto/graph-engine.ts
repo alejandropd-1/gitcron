@@ -152,15 +152,33 @@ export class CartoEngineUnavailableError extends Error {
 let codeGraphClass: CodeGraphClass | null = null;
 
 /**
+ * Extrae la clase `CodeGraph` del namespace de `await import(...)`, tolerando el
+ * interop CJS/ESM. El paquete es CommonJS y re-exporta un bundle por plataforma con
+ * un `require` dinámico (`module.exports = require(resolveLibrary())`), así que el
+ * cjs-module-lexer NO puede detectar los named exports: `await import()` deja la
+ * clase bajo `.default.CodeGraph`, no en `.CodeGraph`. En el bundle de esbuild, en
+ * cambio, aparece como `.CodeGraph`. Probamos ambas formas. Devuelve `null` si no
+ * encontramos una clase (constructor) — el caller lo trata como motor no disponible.
+ */
+export function resolveCodeGraphExport(mod: unknown): CodeGraphClass | null {
+  const ns = mod as { CodeGraph?: unknown; default?: { CodeGraph?: unknown } };
+  const candidate = ns?.CodeGraph ?? ns?.default?.CodeGraph;
+  return typeof candidate === 'function' ? (candidate as CodeGraphClass) : null;
+}
+
+/**
  * Importa dinámicamente la clase `CodeGraph`, cacheándola. Si el módulo nativo no
- * resuelve, lanza {@link CartoEngineUnavailableError} (nunca un throw crudo), para
- * que quien la invoque pueda degradar con gracia en vez de propagar el crash.
+ * resuelve —o no expone la clase—, lanza {@link CartoEngineUnavailableError} (nunca
+ * un throw crudo), para que quien la invoque pueda degradar con gracia en vez de
+ * propagar el crash.
  */
 async function loadCodeGraph(): Promise<CodeGraphClass> {
   if (codeGraphClass) return codeGraphClass;
   try {
     const mod = await import('@colbymchenry/codegraph');
-    codeGraphClass = mod.CodeGraph;
+    const ctor = resolveCodeGraphExport(mod);
+    if (!ctor) throw new Error('CodeGraph class not found on @colbymchenry/codegraph module');
+    codeGraphClass = ctor;
     return codeGraphClass;
   } catch (error) {
     console.error('[carto-graph] CodeGraph engine unavailable:', sanitize(error));

@@ -651,7 +651,7 @@ export async function graphNodeContext(
 }
 
 /** Cierra el índice de un repo y libera recursos (detiene su watch). */
-export function disposeGraph(repoPath: string): void {
+function disposeGraph(repoPath: string): void {
   const root = rootOf(repoPath);
   const entry = entries.get(root);
   if (!entry) return;

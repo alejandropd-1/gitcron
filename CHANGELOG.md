@@ -4,6 +4,31 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.10.0] - 2026-07-06 - Cartografía: cierre del track de comprensión de repos con IA
+
+### 🧭 Cartografía
+
+#### Added
+- **Vista única de comprensión del repo**: Cartografía queda consolidada como un lienzo integrado de tarjetas por rol, archivos clave y relaciones ponderadas, con expansión on-demand para profundizar sin saltar entre superficies separadas.
+- **Panorama integrado**: El resumen top-down del repositorio combina estructura determinística, grupos por rol y flechas entre áreas, con narración de IA cacheada por repo, idioma y hash estructural.
+- **Grounding CodeGraph + filesystem**: El mapa toma símbolos, relaciones y archivos del repositorio para incluir UI, estilos, lógica, configuración, docs y assets dentro de la lectura estructural.
+- **Explicame esto + Preguntar a la IA**: Detalle de nodos con impacto, callers/callees y explicación de IA; Q&A sobre el repo activo con citas de archivos y símbolos consultados.
+- **Providers OpenRouter / LM Studio**: Soporte opt-in para IA online o local, reutilizando la key cifrada del Temporal Agent para OpenRouter y manteniendo secretos fuera del renderer.
+
+#### Changed
+- Cartografía se documenta como una sola experiencia de producto: mapa por roles, detalle contextual, Q&A y ajustes de IA dentro del mismo workspace.
+- `package.json` sube a `1.10.0` para preparar el release, sin taggear ni publicar desde esta fase.
+
+#### Removed
+- Código muerto confirmado por Fallow y CodeGraph dentro del área Cartografía: panel textual legado de relaciones, export público innecesario de `disposeGraph` y helper `roleColor` sin consumidores.
+- Claves i18n huérfanas ES/EN/ZH asociadas al panel textual legado y placeholders ya no usados.
+
+#### Quality
+- Fallow queda sin dead files ni dead exports dentro del área Cartografía; los hallazgos heredados fuera de scope se reportan en `docs/reports/`.
+- TypeScript y Vitest se validan como parte del cierre de fase.
+
+---
+
 ## [v1.9.1] - 2026-06-17 - Fix: Visual formatting of Pull Success Toast
 
 ### 🟢 Vista Clásica & Core

@@ -12,7 +12,6 @@ export interface CartoPanoramaFile {
   imports: number;
   usedBy: number;
 }
-
 export interface CartoPanoramaGroup {
   id: CartoRoleId;
   labelKey: string;
@@ -194,8 +193,4 @@ export function buildCartoPanorama(graph: CartoGraph): CartoPanoramaModel {
     totals: graph.totals,
     truncated: graph.truncated,
   };
-}
-
-export function roleColor(role: CartoRoleId): string {
-  return CARTO_ROLE_BY_ID[role]?.color ?? CARTO_ROLE_BY_ID.other.color;
 }

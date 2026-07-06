@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.9.1-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.10.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -160,6 +160,14 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Chip en vista clásica**: Si hay predicciones disponibles, la cabecera del grafo clásico muestra un chip "N futuros →" que cambia a vista cronométrica en un click.
 - **Dashboard Estadístico (Brier Score)**: Nueva sección "Dashboard temporal" en los ajustes del repositorio y pestaña "Estadísticas" en el HUD Centauro. Muestra el Brier Score del agente, la curva de calibración agrupada por 10 bins (con tamaño de punto proporcional a las muestras), el historial de decisiones temporal y la comparativa de Brier por modelo e i18n trilingüe. Soporta vista local o unificada cross-repo.
 
+### 🧭 Cartografía — Comprensión de repos con IA (v1.10.0)
+
+- **Vista única de Cartografía**: Un lienzo integrado para entender cualquier repo abierto sin saltar entre tres vistas separadas. El mapa muestra tarjetas por rol, archivos clave y relaciones ponderadas, con expansión on-demand para profundizar cuando hace falta.
+- **Grounding CodeGraph + filesystem**: El modelo combina símbolos, edges y archivos del repo para que componentes, estilos, config, docs y assets entren en la lectura estructural.
+- **Explicaciones y preguntas con citas**: "Explicame esto" abre detalle de nodos con impacto, callers/callees y explicación de IA; "Preguntar a la IA" responde sobre el repo activo citando archivos y símbolos consultados.
+- **Panorama integrado y cacheado**: El resumen del repo se genera desde estructura determinística, se narra con IA cuando está habilitada y se cachea en SQLite por repo, estructura e idioma.
+- **Providers opt-in**: Soporta LM Studio local y OpenRouter, reutilizando la key cifrada del Temporal Agent sin exponer secretos al renderer.
+
 ---
 
 ## Architecture
@@ -175,6 +183,7 @@ Renderer:
 - `components/PageWidgets.tsx` holds page mini-widgets (deferred-panel loading, graph column handle, fetch indicator, the LCARS decorative panel).
 - `components/CommitGraph.tsx` renders the SVG graph and graph-table rows.
 - `components/ChronometricGraph.tsx` renders the chronometric diagonal view with speculative branch overlay.
+- `components/cartography/CartographyView.tsx` renders the single Cartography workspace: panorama header, role-card map, node detail, AI settings, and grounded Q&A.
 - `components/SpeculativeBranches.tsx` renders AI-predicted future branches as dotted cyan overlays.
 - `components/DiffViewer.tsx` renders unified diffs.
 - `components/TemporalAgentSettings.tsx` per-repo settings panel for the Temporal Agent.
@@ -188,6 +197,7 @@ Renderer:
 - `lib/chronometric-projection.ts` projects commits into the chronometric coordinate system.
 - `lib/feedback-context.ts` builds feedback blocks from the decision log for the AI context.
 - `lib/materialize-idea.ts` builds the materialization plan (branch name, tag, IDEA.md content).
+- `lib/carto-panorama.ts`, `lib/carto-groups.ts`, and `lib/carto-roles.ts` build the deterministic Cartography role model used by the renderer and AI prompts.
 
 Main process:
 
@@ -195,6 +205,7 @@ Main process:
 - `electron/preload.ts` exposes the safe renderer bridge via `window.api`.
 - `electron/ai/key-store.ts` manages OS-encrypted API keys (never exposed over IPC).
 - `electron/ai/provider-parsing.ts` normalizes AI-provider JSON extraction and speculative branch parsing across Claude/OpenRouter adapters.
+- `electron/carto/graph-engine.ts`, `electron/ipc/carto-graph.ts`, and `electron/ai/carto/*` provide CodeGraph grounding, filesystem-aware snapshots, providers, and SQLite-backed Cartography AI cache.
 
 Data flow:
 
@@ -428,9 +439,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.9.1.exe`                                             |
-| macOS    | `GitCron-1.9.1.dmg` _(build on macOS with `pnpm package:mac`)_        |
-| Linux    | `GitCron-1.9.1.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.10.0.exe`                                            |
+| macOS    | `GitCron-1.10.0.dmg` _(build on macOS with `pnpm package:mac`)_       |
+| Linux    | `GitCron-1.10.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -479,7 +490,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.9.1` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.10.0` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

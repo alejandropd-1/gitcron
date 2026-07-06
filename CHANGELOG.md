@@ -16,7 +16,10 @@ Changes are listed from newest to oldest.
 - El motor CodeGraph se carga bajo demanda (la primera vez que se usa Cartografía), cacheado y detrás de un guard con `try-catch`; un fallo de carga se traduce al estado `engine-unavailable` en vez de a un error genérico.
 - `package.json` sube a `1.10.1`.
 
-> Nota de build: este hotfix hace que la app **abra** aunque falte el motor. Para que Cartografía **funcione** en el `.exe` todavía hay que resolver el empaquetado de `web-tree-sitter` / `tree-sitter-wasms` (hoisteo a dependencia directa + `asarUnpack` de los `.wasm`/`.node`) — es un paso de build aparte.
+#### Build
+- **Empaquetado del motor nativo**: `@colbymchenry/codegraph-win32-x64` se hoistea a dependencia directa y `asarUnpack` suma el layout de pnpm (`.pnpm/**/@colbymchenry`, `web-tree-sitter`, `tree-sitter-wasms`) y los binarios `**/*.wasm` / `**/*.node`, para que el motor pueda resolverse dentro del `.exe`.
+
+> Nota: la app **abre siempre** aunque el motor falte (carga diferida + guard). Con este cambio de empaquetado, además, Cartografía debería **funcionar** en el `.exe`. La verificación end-to-end sobre el `.exe` reconstruido queda para el QA + rebuild.
 
 ---
 

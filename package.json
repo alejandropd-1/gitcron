@@ -38,7 +38,12 @@
       "package.json"
     ],
     "asarUnpack": [
-      "**/node_modules/@colbymchenry/**"
+      "**/node_modules/@colbymchenry/**",
+      "**/node_modules/.pnpm/**/@colbymchenry/**",
+      "**/node_modules/.pnpm/**/web-tree-sitter/**",
+      "**/node_modules/.pnpm/**/tree-sitter-wasms/**",
+      "**/*.wasm",
+      "**/*.node"
     ],
     "extraResources": [
       {
@@ -111,6 +116,7 @@
   },
   "dependencies": {
     "@colbymchenry/codegraph": "^1.0.1",
+    "@colbymchenry/codegraph-win32-x64": "1.0.1",
     "@octokit/rest": "^22.0.1",
     "@xyflow/react": "^12.11.0",
     "autoprefixer": "^10.4.21",

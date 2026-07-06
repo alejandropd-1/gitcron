@@ -130,8 +130,8 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
     >
       {/* ── Cabecera TCARS ── */}
       <div className="shrink-0 border-b border-carto-accent/25">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
-          <div className="flex min-w-0 items-center gap-2.5">
+        <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-6 py-4">
+          <div className="flex min-w-0 items-center gap-2.5 justify-self-start">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-carto-accent/15 text-carto-accent">
               <Map size={16} />
             </span>
@@ -142,10 +142,41 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
               Beta
             </span>
           </div>
+          <div
+            className="flex h-10 overflow-hidden rounded-lg border border-carto-accent/25 bg-carto-node/[0.045] p-1 shadow-[0_0_0_1px_rgba(253,179,58,0.04),0_12px_32px_rgba(0,0,0,0.18)]"
+            aria-label={t('cartography.lenses')}
+          >
+            <button
+              type="button"
+              onClick={() => selectLens('panorama')}
+              aria-pressed={lens === 'panorama'}
+              className={`flex min-w-32 items-center justify-center gap-2 rounded-md px-4 text-xs font-bold tracking-wide transition-colors ${
+                lens === 'panorama'
+                  ? 'border border-carto-accent/35 bg-carto-accent/20 text-carto-accent shadow-[inset_0_0_0_1px_rgba(253,179,58,0.08)]'
+                  : 'border border-transparent text-carto-text-muted hover:bg-carto-node/10 hover:text-carto-text'
+              }`}
+            >
+              <Blocks size={14} className="shrink-0" />
+              {t('cartography.lens.panorama')}
+            </button>
+            <button
+              type="button"
+              onClick={() => selectLens('graph')}
+              aria-pressed={lens === 'graph'}
+              className={`flex min-w-32 items-center justify-center gap-2 rounded-md px-4 text-xs font-bold tracking-wide transition-colors ${
+                lens === 'graph'
+                  ? 'border border-carto-accent/35 bg-carto-accent/20 text-carto-accent shadow-[inset_0_0_0_1px_rgba(253,179,58,0.08)]'
+                  : 'border border-transparent text-carto-text-muted hover:bg-carto-node/10 hover:text-carto-text'
+              }`}
+            >
+              <Network size={14} className="shrink-0" />
+              {t('cartography.lens.graph')}
+            </button>
+          </div>
           <button
             type="button"
             onClick={onExit}
-            className="shrink-0 flex items-center gap-1.5 rounded border border-carto-grid px-3 py-1 text-xs font-semibold tracking-wide text-carto-text-muted transition-colors hover:border-carto-accent/50 hover:text-carto-text"
+            className="flex shrink-0 items-center gap-1.5 justify-self-end rounded border border-carto-grid px-3 py-1 text-xs font-semibold tracking-wide text-carto-text-muted transition-colors hover:border-carto-accent/50 hover:text-carto-text"
           >
             <ArrowLeft size={13} />
             {t('cartography.backToGraph')}
@@ -153,41 +184,8 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
         </div>
       </div>
 
-      {/* ── Cuerpo: selector de lentes + panel de la lente activa ── */}
+      {/* ── Cuerpo: panel de la lente activa ── */}
       <div className={`relative flex min-h-0 flex-1 overflow-hidden ${isDragging ? 'select-none' : ''}`}>
-        {/* Riel de lentes (TCARS) */}
-        <nav className="flex w-44 shrink-0 flex-col gap-1 border-r border-carto-accent/15 bg-carto-node/[0.02] p-3">
-          <span className="px-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-carto-text-muted">
-            {t('cartography.lenses')}
-          </span>
-          <button
-            type="button"
-            onClick={() => selectLens('panorama')}
-            aria-pressed={lens === 'panorama'}
-            className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold tracking-wide transition-colors ${
-              lens === 'panorama'
-                ? 'bg-carto-accent/15 text-carto-accent'
-                : 'text-carto-text-muted hover:bg-carto-node/5 hover:text-carto-text'
-            }`}
-          >
-            <Blocks size={14} className="shrink-0" />
-            {t('cartography.lens.panorama')}
-          </button>
-          <button
-            type="button"
-            onClick={() => selectLens('graph')}
-            aria-pressed={lens === 'graph'}
-            className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold tracking-wide transition-colors ${
-              lens === 'graph'
-                ? 'bg-carto-accent/15 text-carto-accent'
-                : 'text-carto-text-muted hover:bg-carto-node/5 hover:text-carto-text'
-            }`}
-          >
-            <Network size={14} className="shrink-0" />
-            {t('cartography.lens.graph')}
-          </button>
-        </nav>
-
         {/* Panel de la lente */}
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Barra de la lente: título + métricas + refrescar */}

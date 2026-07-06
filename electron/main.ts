@@ -259,7 +259,7 @@ registerGitRepoHandlers();         // git:open/init/clone + fs:pick-folder/exist
 registerGitOpsHandlers();          // git:* local operations
 registerGitSyncHandlers();         // git push/pull/fetch (network)
 registerShellHandlers();           // shell:* + terminal:open + fs:delete-file
-registerCartoHandlers();           // carto:scan-tree (solo lectura de fs, sin red, sin Git)
+registerCartoHandlers();           // carto:* handlers generales (sin canales activos en Fase 10)
 registerCartoGraphHandlers(getMainWindow); // carto:graph-* (CodeGraph embebido, local, solo lectura)
 registerCartoAiHandlers();         // carto:ai-* (proveedor de IA local/online; opt-in; secretos sólo en main)
 registerWatcherHandlers(getMainWindow);          // repo:watch/unwatch

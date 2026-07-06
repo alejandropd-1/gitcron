@@ -60,6 +60,7 @@ type SemanticGroupNodeData = Record<string, unknown> & {
   actionLabel: string;
   moreLabel: string;
   keyFilesLabel: string;
+  onToggleGroup: (role: CartoRoleId) => void;
 };
 
 type SemanticFileFlowNode = FlowNode<SemanticFileNodeData, 'cartoSemanticFile'>;
@@ -179,8 +180,8 @@ export function SemanticGraphLens({
     [repoPath, updateRepoByPath],
   );
   const flow = useMemo(
-    () => buildFlow(graph, model, expandedRoleSet, manualPositions, selectedNodeId, t),
-    [graph, model, expandedRoleSet, manualPositions, selectedNodeId, t],
+    () => buildFlow(graph, model, expandedRoleSet, manualPositions, selectedNodeId, toggleGroup, t),
+    [graph, model, expandedRoleSet, manualPositions, selectedNodeId, toggleGroup, t],
   );
   const handleNodesChange = useCallback(
     (changes: NodeChange<SemanticFlowNode>[]) => {
@@ -252,10 +253,7 @@ export function SemanticGraphLens({
         minZoom={0.2}
         maxZoom={1.55}
         onNodeClick={(_event, node) => {
-          if (node.data.kind === 'group') {
-            toggleGroup(node.data.role.id);
-            return;
-          }
+          if (node.data.kind === 'group') return;
           onSelectNode(node.data.cartoNode);
         }}
       >
@@ -338,6 +336,7 @@ function buildFlow(
   expandedRoles: Set<CartoRoleId>,
   manualPositions: Map<string, { x: number; y: number }>,
   selectedNodeId: string | null,
+  onToggleGroup: (role: CartoRoleId) => void,
   t: ReturnType<typeof useT>,
 ): { nodes: SemanticFlowNode[]; edges: FlowEdge[] } {
   if (!graph) return { nodes: [], edges: [] };
@@ -372,6 +371,7 @@ function buildFlow(
         actionLabel: expanded ? t('cartography.semantic.collapseGroup') : t('cartography.semantic.expandGroup'),
         moreLabel: t('cartography.semantic.moreFiles', { count: hiddenCount }),
         keyFilesLabel: t('cartography.panorama.keyFiles'),
+        onToggleGroup,
       },
     });
 
@@ -564,12 +564,21 @@ function SemanticGroupNode({ data }: NodeProps<SemanticGroupFlowNode>) {
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-2 text-[10px] font-bold uppercase text-carto-accent">
-        <span className="flex items-center gap-1">
+        <button
+          type="button"
+          className="nodrag nopan flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-left transition-colors hover:bg-carto-accent/10 hover:text-carto-text focus:outline-none focus:ring-1 focus:ring-carto-accent/55"
+          title={data.actionLabel}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            data.onToggleGroup(data.role.id);
+          }}
+        >
           {data.expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           {data.actionLabel}
-        </span>
+        </button>
         {data.expanded && data.hiddenCount > 0 ? (
-          <span className="rounded border border-carto-accent/25 px-1.5 py-0.5 font-mono">
+          <span className="nodrag nopan font-mono text-carto-text-muted/80" title={data.moreLabel}>
             {data.moreLabel}
           </span>
         ) : null}

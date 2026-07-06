@@ -150,8 +150,14 @@ export interface CartoFileRelations {
   impact: CartoImpact;
 }
 
-/** Estado del índice CodeGraph para un repo, expuesto al renderer. */
-export type CartoGraphState = 'idle' | 'indexing' | 'ready' | 'error';
+/**
+ * Estado del índice CodeGraph para un repo, expuesto al renderer.
+ * `engine-unavailable`: el motor nativo no pudo cargarse en esta instalación
+ * (empaquetado sin los binarios de tree-sitter). Cartografía degrada con un aviso;
+ * el resto de GitCron no se ve afectado. Se distingue de `error` (fallo real del
+ * índice) para que la UI muestre un mensaje específico y no alarmante.
+ */
+export type CartoGraphState = 'idle' | 'indexing' | 'ready' | 'error' | 'engine-unavailable';
 
 /** Fase del indexado en curso (espejo acotado de `IndexProgress` del motor). */
 export interface CartoGraphProgress {

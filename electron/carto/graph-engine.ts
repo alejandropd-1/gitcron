@@ -25,14 +25,16 @@
 
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
-import { CodeGraph } from '@colbymchenry/codegraph';
 
 // Nombre dedicado del directorio de índice de GitCron (ver bloque de arriba).
 // `CODEGRAPH_DIR` se lee en vivo por el motor, así que basta fijarlo en el env del
 // proceso main antes de cualquier llamada al SDK.
 const GITCRON_CODEGRAPH_DIR = '.codegraph-gitcron';
 process.env.CODEGRAPH_DIR = GITCRON_CODEGRAPH_DIR;
-import type { IndexProgress, Node } from '@colbymchenry/codegraph';
+// SÓLO TIPOS: `import type` no genera un `require` en runtime, así que este import
+// NO carga el módulo nativo al arrancar. El valor (la clase `CodeGraph`) se carga
+// de forma DIFERIDA — ver `loadCodeGraph()` más abajo.
+import type { CodeGraph, IndexProgress, Node } from '@colbymchenry/codegraph';
 import {
   adaptRelated,
   adaptSearchHits,
@@ -123,6 +125,49 @@ function sanitize(error: unknown): string {
   return String(error);
 }
 
+// ── Carga DIFERIDA del motor CodeGraph ──
+// El paquete `@colbymchenry/codegraph` arrastra binarios nativos (tree-sitter y
+// `web-tree-sitter`) que en algunos empaquetados (p. ej. el `.exe` de producción)
+// no resuelven. Si el import fuera estático (de valor) al tope del módulo, ese
+// `require` correría al ARRANQUE del main —porque el IPC de Cartografía se registra
+// al inicio— y tumbaría TODA la app antes de mostrar ventana. Por eso cargamos la
+// clase la PRIMERA vez que se usa Cartografía, cacheada, y detrás de un guard: si el
+// módulo nativo falta, Cartografía degrada con un aviso y el resto de GitCron sigue.
+type CodeGraphClass = (typeof import('@colbymchenry/codegraph'))['CodeGraph'];
+
+/**
+ * El motor de análisis (CodeGraph) no está disponible en esta instalación: su
+ * módulo nativo no pudo cargarse. Es un fallo ESPERABLE y acotado a Cartografía —
+ * NO debe voltear la app. El handler lo traduce a un estado degradado para la UI.
+ */
+export class CartoEngineUnavailableError extends Error {
+  constructor(cause?: unknown) {
+    super('Carto engine (CodeGraph) is unavailable in this installation');
+    this.name = 'CartoEngineUnavailableError';
+    if (cause !== undefined) this.cause = cause;
+  }
+}
+
+/** Clase `CodeGraph` cacheada tras la primera carga exitosa (no re-importa). */
+let codeGraphClass: CodeGraphClass | null = null;
+
+/**
+ * Importa dinámicamente la clase `CodeGraph`, cacheándola. Si el módulo nativo no
+ * resuelve, lanza {@link CartoEngineUnavailableError} (nunca un throw crudo), para
+ * que quien la invoque pueda degradar con gracia en vez de propagar el crash.
+ */
+async function loadCodeGraph(): Promise<CodeGraphClass> {
+  if (codeGraphClass) return codeGraphClass;
+  try {
+    const mod = await import('@colbymchenry/codegraph');
+    codeGraphClass = mod.CodeGraph;
+    return codeGraphClass;
+  } catch (error) {
+    console.error('[carto-graph] CodeGraph engine unavailable:', sanitize(error));
+    throw new CartoEngineUnavailableError(error);
+  }
+}
+
 export interface EnsureGraphOptions {
   /** Se invoca con cada avance del indexado (para reflejarlo en la UI). */
   onProgress?: (status: CartoGraphStatus) => void;
@@ -152,7 +197,13 @@ export function ensureGraph(repoPath: string, opts: EnsureGraphOptions = {}): Ca
 
   entry.status = { state: 'indexing', progress: { phase: 'scanning', current: 0, total: 0 } };
   entry.task = buildIndex(root, entry, opts).catch((error) => {
-    entry!.status = { state: 'error', error: sanitize(error) };
+    // Si el motor nativo no está disponible, degradamos a un estado DEDICADO
+    // (`engine-unavailable`) que el renderer traduce a un aviso amable, en vez de
+    // un `error` genérico. Cualquier otro fallo sí es un error real del índice.
+    entry!.status =
+      error instanceof CartoEngineUnavailableError
+        ? { state: 'engine-unavailable' }
+        : { state: 'error', error: sanitize(error) };
     console.error('[carto-graph] index error:', sanitize(error));
     opts.onProgress?.(entry!.status);
   });
@@ -168,12 +219,16 @@ async function buildIndex(root: string, entry: EngineEntry, opts: EnsureGraphOpt
     opts.onProgress?.(entry.status);
   };
 
+  // Carga diferida del motor. Si el módulo nativo falta, `loadCodeGraph` lanza
+  // CartoEngineUnavailableError y `ensureGraph` lo traduce a un estado degradado.
+  const Engine = await loadCodeGraph();
+
   let cg: CodeGraph;
-  if (CodeGraph.isInitialized(root)) {
+  if (Engine.isInitialized(root)) {
     // Ya hay un índice NUESTRO (mismo CODEGRAPH_DIR dedicado). Lo abrimos y, si lo
     // construyó un motor más viejo (`isIndexStale`), lo re-indexamos completo para
     // re-resolver todas las relaciones; si no, basta un `sync` incremental.
-    cg = await CodeGraph.open(root, { sync: false });
+    cg = await Engine.open(root, { sync: false });
     if (cg.isIndexStale()) {
       await cg.indexAll({ onProgress: onIndexProgress });
     } else {
@@ -181,7 +236,7 @@ async function buildIndex(root: string, entry: EngineEntry, opts: EnsureGraphOpt
     }
   } else {
     // Primer índice de este repo: crear `.codegraph-gitcron/` e indexar completo.
-    cg = await CodeGraph.init(root, { index: false });
+    cg = await Engine.init(root, { index: false });
     await cg.indexAll({ onProgress: onIndexProgress });
   }
 

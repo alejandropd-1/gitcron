@@ -3,6 +3,7 @@ import type {
   StashEntry, SubmoduleEntry, GitHubUser,
   BranchTrackingInfo, WorktreeEntry, PullRequestEntry, RepoInfo, RemoteEntry,
 } from '@/types/electron';
+import type { CartoRoleId } from '@/lib/carto-roles';
 import type { Lang } from '@/lib/i18n';
 
 export type FontSize = 'compact' | 'normal' | 'large';
@@ -48,6 +49,7 @@ export interface RepoState {
   currentDiff: string;
   graphShowAllBranches: boolean;
   graphMode: 'classic' | 'chronometric';
+  cartographyExpandedRoles: CartoRoleId[];
   // Cartografía: sub-estado per-repo de "estoy en la vista Cartografía".
   // Sobrevive el cambio de tab de repo porque vive en RepoState, no en el
   // estado local de la página. Volver al grafo = ponerlo en false.
@@ -179,6 +181,7 @@ function createEmptyRepoFields(): EmptyRepoFields {
     currentDiff: '',
     graphShowAllBranches: true,
     graphMode: 'classic',
+    cartographyExpandedRoles: [],
     inCartography: false,
     isLoading: false,
     error: null,

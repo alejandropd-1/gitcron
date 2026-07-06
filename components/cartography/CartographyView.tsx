@@ -13,7 +13,6 @@ import {
   ArrowLeft,
   RefreshCw,
   Network,
-  Blocks,
 } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { useCartoLayout } from '@/hooks/use-carto-layout';
@@ -21,7 +20,7 @@ import type { CartoGraphStatus, CartoNode } from '@/lib/carto-types';
 import { CartoNodeDetail } from './CartoNodeDetail';
 import { CartoAskBox } from './CartoAskBox';
 import { SemanticGraphLens } from './SemanticGraphLens';
-import { CartoPanoramaLens } from './CartoPanoramaLens';
+import { CartoPanoramaHeader } from './CartoPanoramaHeader';
 
 type CartographyViewProps = {
   /** Ruta del repo activo. `null` si no hay repo abierto. */
@@ -30,8 +29,6 @@ type CartographyViewProps = {
   onExit: () => void;
 };
 
-/** Lentes disponibles: Panorama top-down y mapa visual de roles. */
-type LensId = 'panorama' | 'graph';
 type PersonaMode = 'simple' | 'technical';
 
 const PERSONA_MODE_STORAGE_KEY = 'gitcron:cartographyPersonaMode';
@@ -39,7 +36,6 @@ const PERSONA_MODE_STORAGE_KEY = 'gitcron:cartographyPersonaMode';
 export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
   const t = useT();
 
-  const [lens, setLens] = useState<LensId>('panorama');
   const [personaMode, setPersonaMode] = useState<PersonaMode>('simple');
 
   // ── Grounding estructural (CodeGraph, Fase 3) ──
@@ -57,11 +53,6 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
   const [aiEnabled, setAiEnabled] = useState(false);
   // Layout arrastrable: ancho de la columna de chat + alto del panel de relaciones.
   const { chatW, relationsH, isDragging, beginChatDrag, beginRelationsDrag } = useCartoLayout();
-
-  const selectLens = (next: LensId) => {
-    setLens(next);
-    setSelectedNode(null);
-  };
 
   const updatePersonaMode = (next: PersonaMode) => {
     setPersonaMode(next);
@@ -130,7 +121,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
     >
       {/* ── Cabecera TCARS ── */}
       <div className="shrink-0 border-b border-carto-accent/25">
-        <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-6 py-4">
+        <div className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-4 px-6 py-4">
           <div className="flex min-w-0 items-center gap-2.5 justify-self-start">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-carto-accent/15 text-carto-accent">
               <Map size={16} />
@@ -141,37 +132,6 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
             <span className="ml-1 rounded-full border border-carto-accent/35 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-carto-accent">
               Beta
             </span>
-          </div>
-          <div
-            className="flex h-10 overflow-hidden rounded-lg border border-carto-accent/25 bg-carto-node/[0.045] p-1 shadow-[0_0_0_1px_rgba(253,179,58,0.04),0_12px_32px_rgba(0,0,0,0.18)]"
-            aria-label={t('cartography.lenses')}
-          >
-            <button
-              type="button"
-              onClick={() => selectLens('panorama')}
-              aria-pressed={lens === 'panorama'}
-              className={`flex min-w-32 items-center justify-center gap-2 rounded-md px-4 text-xs font-bold tracking-wide transition-colors ${
-                lens === 'panorama'
-                  ? 'border border-carto-accent/35 bg-carto-accent/20 text-carto-accent shadow-[inset_0_0_0_1px_rgba(253,179,58,0.08)]'
-                  : 'border border-transparent text-carto-text-muted hover:bg-carto-node/10 hover:text-carto-text'
-              }`}
-            >
-              <Blocks size={14} className="shrink-0" />
-              {t('cartography.lens.panorama')}
-            </button>
-            <button
-              type="button"
-              onClick={() => selectLens('graph')}
-              aria-pressed={lens === 'graph'}
-              className={`flex min-w-32 items-center justify-center gap-2 rounded-md px-4 text-xs font-bold tracking-wide transition-colors ${
-                lens === 'graph'
-                  ? 'border border-carto-accent/35 bg-carto-accent/20 text-carto-accent shadow-[inset_0_0_0_1px_rgba(253,179,58,0.08)]'
-                  : 'border border-transparent text-carto-text-muted hover:bg-carto-node/10 hover:text-carto-text'
-              }`}
-            >
-              <Network size={14} className="shrink-0" />
-              {t('cartography.lens.graph')}
-            </button>
           </div>
           <button
             type="button"
@@ -188,18 +148,14 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
       <div className={`relative flex min-h-0 flex-1 overflow-hidden ${isDragging ? 'select-none' : ''}`}>
         {/* Panel de la lente */}
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Barra de la lente: título + métricas + refrescar */}
+          {/* Barra de la vista: título + métricas + refrescar */}
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-carto-grid px-4 py-2.5">
             <div className="flex min-w-0 items-center gap-2.5">
-              {lens === 'panorama' ? (
-                <Blocks size={14} className="shrink-0 text-carto-accent" />
-              ) : (
-                <Network size={14} className="shrink-0 text-carto-accent" />
-              )}
+              <Network size={14} className="shrink-0 text-carto-accent" />
               <span className="truncate text-xs font-bold tracking-wide text-carto-text">
-                {t(lens === 'panorama' ? 'cartography.lens.panorama' : 'cartography.lens.graph')}
+                {t('cartography.title')}
               </span>
-              {lens === 'graph' && graphStatus?.state === 'ready' && graphStatus.stats && (
+              {graphStatus?.state === 'ready' && graphStatus.stats && (
                 <span className="shrink-0 text-[11px] text-carto-text-muted">
                   {t('cartography.semantic.indexStats', {
                     nodes: graphStatus.stats.nodes,
@@ -246,29 +202,9 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                 title={t('cartography.empty')}
                 detail={t('cartography.emptyHint')}
               />
-            ) : lens === 'panorama' ? (
-              selectedNode ? (
-                <CartoNodeDetail
-                  repoPath={repoPath}
-                  node={selectedNode}
-                  aiEnabled={aiEnabled}
-                  technicalOpenDefault={personaMode === 'technical'}
-                  onBack={() => setSelectedNode(null)}
-                />
-              ) : (
-                <CartoPanoramaLens
-                  repoPath={repoPath}
-                  status={graphStatus}
-                  refreshKey={graphRefresh}
-                  aiEnabled={aiEnabled}
-                  technicalMode={personaMode === 'technical'}
-                  onSelectNode={(node) => {
-                    setSelectedNode(node);
-                  }}
-                />
-              )
-            ) : lens === 'graph' ? (
+            ) : (
               <div className="flex min-h-0 flex-1 flex-col">
+                <CartoPanoramaHeader repoPath={repoPath} status={graphStatus} refreshKey={graphRefresh} />
                 <div className="min-h-0 flex-1">
                   <SemanticGraphLens
                     repoPath={repoPath}
@@ -304,11 +240,6 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                   </>
                 )}
               </div>
-            ) : (
-              <CenteredState
-                icon={<Network size={22} strokeWidth={1.5} className="text-carto-node" />}
-                title={t('cartography.empty')}
-              />
             )}
           </div>
         </div>

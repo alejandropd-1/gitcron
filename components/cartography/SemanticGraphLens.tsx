@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   Background,
   BackgroundVariant,
   Controls,
   Handle,
   MarkerType,
-  MiniMap,
   Position,
   ReactFlow,
   type Edge as FlowEdge,
@@ -15,32 +14,54 @@ import {
   type NodeProps,
   type NodeTypes,
 } from '@xyflow/react';
-import { AlertTriangle, FileCode, Loader2, Network } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, FileCode, Layers3, Loader2, Network } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
-import type { CartoGraph, CartoGraphStatus, CartoNode } from '@/lib/carto-types';
+import { buildGroupModel, type CartoGroupKeyFile, type CartoGroupModel } from '@/lib/carto-groups';
 import {
   CARTO_ROLE_BY_ID,
   CARTO_ROLE_DEFINITIONS,
   classifyCartoRole,
   type CartoRoleDefinition,
+  type CartoRoleId,
 } from '@/lib/carto-roles';
+import type { CartoGraph, CartoGraphStatus, CartoNode } from '@/lib/carto-types';
+import { useGitStore } from '@/lib/git-store';
 
-const MAX_FOCUS_EDGES = 90;
-const MAX_FOCUS_NEIGHBORS = 30;
+const MAX_FLOW_EDGES = 160;
 const MAX_OVERVIEW_NODES_PER_ROLE = 8;
 const NODE_W = 176;
 const NODE_H = 82;
-const ROLE_X = 430;
-const ROLE_Y = 300;
+const GROUP_W = 276;
+const GROUP_H = 164;
+const GROUP_X = 360;
+const GROUP_Y = 470;
 
-type SemanticNodeData = Record<string, unknown> & {
+type SemanticFileNodeData = Record<string, unknown> & {
+  kind: 'file';
   cartoNode: CartoNode;
   role: CartoRoleDefinition;
   roleLabel: string;
   relationCount: number;
 };
 
-type SemanticFlowNode = FlowNode<SemanticNodeData, 'cartoSemantic'>;
+type SemanticGroupNodeData = Record<string, unknown> & {
+  kind: 'group';
+  role: CartoRoleDefinition;
+  roleLabel: string;
+  roleDescription: string;
+  count: number;
+  keyFiles: CartoGroupKeyFile[];
+  summary?: string;
+  expanded: boolean;
+  hiddenCount: number;
+  actionLabel: string;
+  moreLabel: string;
+  keyFilesLabel: string;
+};
+
+type SemanticFileFlowNode = FlowNode<SemanticFileNodeData, 'cartoSemanticFile'>;
+type SemanticGroupFlowNode = FlowNode<SemanticGroupNodeData, 'cartoSemanticGroup'>;
+type SemanticFlowNode = SemanticFileFlowNode | SemanticGroupFlowNode;
 
 type SemanticGraphLensProps = {
   repoPath: string | null;
@@ -50,22 +71,25 @@ type SemanticGraphLensProps = {
   onSelectNode: (node: CartoNode) => void;
 };
 
+type RoleGroup = {
+  role: CartoRoleDefinition;
+  label: string;
+  nodes: CartoNode[];
+  keyFiles: CartoGroupKeyFile[];
+  summary?: string;
+};
+
 type GraphModel = {
   nodeById: Map<string, CartoNode>;
+  roleByNodeId: Map<string, CartoRoleId>;
   relationCount: Map<string, number>;
-  incomingToSelected: Set<string>;
-  outgoingFromSelected: Set<string>;
-  selectedEdges: CartoGraph['edges'];
-  focusHiddenNeighbors: number;
-  groupedNodes: Array<{
-    role: CartoRoleDefinition;
-    label: string;
-    nodes: CartoNode[];
-  }>;
+  groups: RoleGroup[];
+  groupModel: CartoGroupModel;
 };
 
 const nodeTypes: NodeTypes = {
-  cartoSemantic: SemanticFileNode,
+  cartoSemanticFile: SemanticFileNode,
+  cartoSemanticGroup: SemanticGroupNode,
 };
 
 export function SemanticGraphLens({
@@ -79,6 +103,11 @@ export function SemanticGraphLens({
   const [graph, setGraph] = useState<CartoGraph | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const expandedRoles = useGitStore((s) => {
+    const repo = s.getActiveRepo();
+    return repo?.path === repoPath ? repo.cartographyExpandedRoles : [];
+  });
+  const updateRepoByPath = useGitStore((s) => s.updateRepoByPath);
 
   useEffect(() => {
     if (!repoPath) {
@@ -128,8 +157,23 @@ export function SemanticGraphLens({
     };
   }, [repoPath, refreshKey, status?.state, status?.error, t]);
 
-  const model = useMemo(() => buildGraphModel(graph, t, selectedNodeId), [graph, selectedNodeId, t]);
-  const flow = useMemo(() => buildFlow(graph, model, selectedNodeId), [graph, model, selectedNodeId]);
+  const expandedRoleSet = useMemo(() => new Set<CartoRoleId>(expandedRoles), [expandedRoles]);
+  const model = useMemo(() => buildGraphModel(graph, t), [graph, t]);
+  const toggleGroup = useCallback(
+    (role: CartoRoleId) => {
+      if (!repoPath) return;
+      const current = useGitStore.getState().openRepos.find((repo) => repo.path === repoPath);
+      const set = new Set<CartoRoleId>(current?.cartographyExpandedRoles ?? []);
+      if (set.has(role)) set.delete(role);
+      else set.add(role);
+      updateRepoByPath(repoPath, { cartographyExpandedRoles: [...set] });
+    },
+    [repoPath, updateRepoByPath],
+  );
+  const flow = useMemo(
+    () => buildFlow(graph, model, expandedRoleSet, selectedNodeId, t),
+    [graph, model, expandedRoleSet, selectedNodeId, t],
+  );
 
   if (!repoPath) {
     return <GraphHint icon={<Network size={18} />} text={t('cartography.emptyHint')} />;
@@ -153,9 +197,10 @@ export function SemanticGraphLens({
   if (error) {
     return <GraphHint icon={<AlertTriangle size={18} />} text={error} tone="error" />;
   }
-  if (!graph || graph.nodes.length === 0) {
+  if (!graph || (graph.allNodes ?? graph.nodes).length === 0) {
     return <GraphHint icon={<Network size={18} />} text={t('cartography.semantic.empty')} />;
   }
+
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-carto-canvas">
       <ReactFlow<SemanticFlowNode, FlowEdge>
@@ -170,10 +215,16 @@ export function SemanticGraphLens({
         selectNodesOnDrag={false}
         nodeClickDistance={5}
         fitView
-        fitViewOptions={{ padding: 0.18 }}
-        minZoom={0.22}
+        fitViewOptions={{ padding: 0.16 }}
+        minZoom={0.2}
         maxZoom={1.55}
-        onNodeClick={(_event, node) => onSelectNode(node.data.cartoNode)}
+        onNodeClick={(_event, node) => {
+          if (node.data.kind === 'group') {
+            toggleGroup(node.data.role.id);
+            return;
+          }
+          onSelectNode(node.data.cartoNode);
+        }}
       >
         <Background
           variant={BackgroundVariant.Lines}
@@ -181,261 +232,297 @@ export function SemanticGraphLens({
           color="var(--color-carto-grid)"
           lineWidth={0.65}
         />
-        {flow.nodes.length <= 120 && (
-          <MiniMap
-            pannable
-            zoomable
-            nodeStrokeWidth={2}
-            nodeColor={(node) => String((node.data as SemanticNodeData).role.color)}
-            maskColor="rgba(4, 16, 29, 0.72)"
-            className="carto-semantic-minimap"
-          />
-        )}
         <Controls className="carto-semantic-controls" showInteractive={false} />
       </ReactFlow>
 
-      <div className="pointer-events-none absolute left-3 top-3 flex max-w-[min(56rem,calc(100%-1.5rem))] flex-wrap items-center gap-2">
+      <div className="pointer-events-none absolute left-3 top-3 flex max-w-[min(60rem,calc(100%-1.5rem))] flex-wrap items-center gap-2">
         <div className="pointer-events-auto flex items-center gap-2 rounded border border-carto-accent/25 bg-carto-canvas/90 px-2.5 py-1.5 text-[11px] text-carto-text-muted shadow-lg shadow-black/20">
-          <Network size={13} className="text-carto-accent" />
+          <Layers3 size={13} className="text-carto-accent" />
           <span className="font-mono">
-            {t('cartography.semantic.stats', {
-              nodes: flow.nodes.length,
-              totalNodes: graph.totals.nodes,
-              edges: model.selectedEdges.length,
-              totalEdges: graph.totals.edges,
+            {t('cartography.semantic.groupStats', {
+              groups: model.groups.length,
+              nodes: flow.nodes.filter((node) => node.data.kind === 'file').length,
+              edges: flow.edges.length,
             })}
           </span>
         </div>
-        {!selectedNodeId ? (
-          <div className="pointer-events-auto rounded border border-carto-grid bg-carto-canvas/90 px-2.5 py-1.5 text-[11px] font-semibold text-carto-text-muted">
-            {t('cartography.semantic.nodesOverview')}
-          </div>
-        ) : null}
-        {selectedNodeId && model.focusHiddenNeighbors > 0 ? (
-          <div className="pointer-events-auto rounded border border-carto-grid bg-carto-canvas/90 px-2.5 py-1.5 text-[11px] font-semibold text-carto-text-muted">
-            {t('cartography.semantic.hiddenNeighbors', { count: model.focusHiddenNeighbors })}
-          </div>
-        ) : null}
-        {graph.truncated || model.selectedEdges.length >= MAX_FOCUS_EDGES ? (
+        <div className="pointer-events-auto rounded border border-carto-grid bg-carto-canvas/90 px-2.5 py-1.5 text-[11px] font-semibold text-carto-text-muted">
+          {expandedRoles.length > 0
+            ? t('cartography.semantic.expandedGroups', { count: expandedRoles.length })
+            : t('cartography.semantic.groupOverview')}
+        </div>
+        {graph.truncated || flow.edges.length >= MAX_FLOW_EDGES ? (
           <div className="pointer-events-auto rounded border border-carto-accent/25 bg-carto-accent/10 px-2.5 py-1.5 text-[11px] font-semibold text-carto-accent">
             {t('cartography.semantic.limited')}
           </div>
         ) : null}
       </div>
-
-      <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex flex-wrap gap-1.5">
-        {CARTO_ROLE_DEFINITIONS.map((role) => (
-          <div
-            key={role.id}
-            className="pointer-events-auto flex items-center gap-1.5 rounded border border-carto-grid bg-carto-canvas/90 px-2 py-1 text-[10px] font-bold uppercase text-carto-text-muted"
-          >
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: role.color }} />
-            {t(role.labelKey)}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
 
-function buildGraphModel(
-  graph: CartoGraph | null,
-  t: ReturnType<typeof useT>,
-  selectedNodeId: string | null,
-): GraphModel {
+function buildGraphModel(graph: CartoGraph | null, t: ReturnType<typeof useT>): GraphModel {
   const nodeById = new Map<string, CartoNode>();
+  const roleByNodeId = new Map<string, CartoRoleId>();
   const relationCount = new Map<string, number>();
-  const incomingToSelected = new Set<string>();
-  const outgoingFromSelected = new Set<string>();
-  const byRole = new Map<string, CartoNode[]>();
-  for (const role of CARTO_ROLE_DEFINITIONS) byRole.set(role.id, []);
   if (!graph) {
-    return {
-      nodeById,
-      relationCount,
-      incomingToSelected,
-      outgoingFromSelected,
-      selectedEdges: [],
-      focusHiddenNeighbors: 0,
-      groupedNodes: CARTO_ROLE_DEFINITIONS.map((role) => ({ role, label: t(role.labelKey), nodes: [] })),
-    };
+    return { nodeById, roleByNodeId, relationCount, groups: [], groupModel: { groups: [], groupEdges: [] } };
   }
 
-  const roleNodes = graph.allNodes ?? graph.nodes;
+  const groupModel = buildGroupModel(graph);
+  const nodes = graph.allNodes ?? graph.nodes;
+  for (const node of nodes) {
+    nodeById.set(node.id, node);
+    roleByNodeId.set(node.id, classifyCartoRole(node));
+  }
   for (const edge of graph.edges) {
     relationCount.set(edge.fromId, (relationCount.get(edge.fromId) ?? 0) + 1);
     relationCount.set(edge.toId, (relationCount.get(edge.toId) ?? 0) + 1);
-    if (selectedNodeId && edge.fromId === selectedNodeId) {
-      outgoingFromSelected.add(edge.toId);
-    }
-    if (selectedNodeId && edge.toId === selectedNodeId) {
-      incomingToSelected.add(edge.fromId);
-    }
   }
 
-  for (const node of roleNodes) {
-    nodeById.set(node.id, node);
-    byRole.get(classifyCartoRole(node))?.push(node);
-  }
+  const grouped = new Map<CartoRoleId, CartoNode[]>();
+  for (const role of CARTO_ROLE_DEFINITIONS) grouped.set(role.id, []);
+  for (const node of nodes) grouped.get(roleByNodeId.get(node.id) ?? classifyCartoRole(node))?.push(node);
 
-  const focus = selectedNodeId
-    ? pickFocusEdges(graph.edges, selectedNodeId, relationCount)
-    : { edges: [] as CartoGraph['edges'], hiddenNeighbors: 0 };
-  const groupedNodes = CARTO_ROLE_DEFINITIONS.map((role) => ({
-    role,
-    label: t(role.labelKey),
-    nodes: (byRole.get(role.id) ?? []).sort((a, b) => {
-      const byRelations = (relationCount.get(b.id) ?? 0) - (relationCount.get(a.id) ?? 0);
-      return byRelations || a.filePath.localeCompare(b.filePath);
-    }),
-  }));
-
-  return {
-    nodeById,
-    relationCount,
-    incomingToSelected,
-    outgoingFromSelected,
-    selectedEdges: focus.edges,
-    focusHiddenNeighbors: focus.hiddenNeighbors,
-    groupedNodes,
-  };
-}
-
-function pickFocusEdges(
-  edges: CartoGraph['edges'],
-  selectedNodeId: string,
-  relationCount: Map<string, number>,
-): { edges: CartoGraph['edges']; hiddenNeighbors: number } {
-  const directEdges = edges.filter((edge) => edge.fromId === selectedNodeId || edge.toId === selectedNodeId);
-  const neighborIds = new Set(
-    directEdges.map((edge) => (edge.fromId === selectedNodeId ? edge.toId : edge.fromId)),
-  );
-  const rankedNeighborIds = [...neighborIds].sort((a, b) => {
-    const byRelations = (relationCount.get(b) ?? 0) - (relationCount.get(a) ?? 0);
-    return byRelations || a.localeCompare(b);
-  });
-  const visibleNeighborIds = new Set(rankedNeighborIds.slice(0, MAX_FOCUS_NEIGHBORS));
-  const visibleEdges = directEdges
-    .filter((edge) => {
-      const neighborId = edge.fromId === selectedNodeId ? edge.toId : edge.fromId;
-      return visibleNeighborIds.has(neighborId);
+  const groupByRole = new Map(groupModel.groups.map((group) => [group.role, group]));
+  const groups = CARTO_ROLE_DEFINITIONS
+    .map((role) => {
+      const group = groupByRole.get(role.id);
+      const roleNodes = [...(grouped.get(role.id) ?? [])].sort((a, b) => {
+        const byRelations = (relationCount.get(b.id) ?? 0) - (relationCount.get(a.id) ?? 0);
+        return byRelations || a.filePath.localeCompare(b.filePath);
+      });
+      return {
+        role,
+        label: t(role.labelKey),
+        nodes: roleNodes,
+        keyFiles: group?.keyFiles ?? [],
+        summary: group?.summary,
+      };
     })
-    .slice(0, MAX_FOCUS_EDGES);
+    .filter((group) => group.nodes.length > 0);
 
-  return {
-    edges: visibleEdges,
-    hiddenNeighbors: Math.max(0, neighborIds.size - visibleNeighborIds.size),
-  };
+  return { nodeById, roleByNodeId, relationCount, groups, groupModel };
 }
 
 function buildFlow(
   graph: CartoGraph | null,
   model: GraphModel,
+  expandedRoles: Set<CartoRoleId>,
   selectedNodeId: string | null,
+  t: ReturnType<typeof useT>,
 ): { nodes: SemanticFlowNode[]; edges: FlowEdge[] } {
   if (!graph) return { nodes: [], edges: [] };
-  const nodes: SemanticFlowNode[] = [];
-  if (selectedNodeId && model.nodeById.has(selectedNodeId)) {
-    const addedNodeIds = new Set<string>();
-    const selectedNode = model.nodeById.get(selectedNodeId);
-    if (selectedNode) {
-      pushFlowNode(nodes, selectedNode, model, { x: 0, y: 0 }, selectedNodeId);
-      addedNodeIds.add(selectedNode.id);
-    }
-    const incoming = [...model.incomingToSelected]
-      .filter((id) => model.selectedEdges.some((edge) => edge.fromId === id))
-      .sort((a, b) => (model.relationCount.get(b) ?? 0) - (model.relationCount.get(a) ?? 0));
-    const outgoing = [...model.outgoingFromSelected]
-      .filter((id) => model.selectedEdges.some((edge) => edge.toId === id))
-      .sort((a, b) => (model.relationCount.get(b) ?? 0) - (model.relationCount.get(a) ?? 0));
 
-    incoming.forEach((id, index) => {
-      const node = model.nodeById.get(id);
-      if (node && !addedNodeIds.has(node.id)) {
-        pushFlowNode(nodes, node, model, focusPosition('incoming', index, incoming.length), selectedNodeId);
-        addedNodeIds.add(node.id);
-      }
+  const nodes: SemanticFlowNode[] = [];
+  const visibleIds = new Set<string>();
+  const visibleFileIds = new Set<string>();
+  const groupPositions = new Map<CartoRoleId, { x: number; y: number }>();
+
+  model.groups.forEach((group, index) => {
+    const position = groupPosition(index);
+    groupPositions.set(group.role.id, position);
+    const expanded = expandedRoles.has(group.role.id);
+    const visibleGroupNodes = expanded ? group.nodes.slice(0, MAX_OVERVIEW_NODES_PER_ROLE) : [];
+    const hiddenCount = expanded ? Math.max(0, group.nodes.length - visibleGroupNodes.length) : 0;
+    const groupNodeIdValue = groupNodeId(group.role.id);
+    visibleIds.add(groupNodeIdValue);
+    nodes.push({
+      id: groupNodeIdValue,
+      type: 'cartoSemanticGroup',
+      position,
+      data: {
+        kind: 'group',
+        role: group.role,
+        roleLabel: group.label,
+        roleDescription: t(`cartography.panorama.roleDesc.${group.role.id}`),
+        count: group.nodes.length,
+        keyFiles: group.keyFiles,
+        summary: group.summary,
+        expanded,
+        hiddenCount,
+        actionLabel: expanded ? t('cartography.semantic.collapseGroup') : t('cartography.semantic.expandGroup'),
+        moreLabel: t('cartography.semantic.moreFiles', { count: hiddenCount }),
+        keyFilesLabel: t('cartography.panorama.keyFiles'),
+      },
     });
-    outgoing.forEach((id, index) => {
-      const node = model.nodeById.get(id);
-      if (node && !addedNodeIds.has(node.id)) {
-        pushFlowNode(nodes, node, model, focusPosition('outgoing', index, outgoing.length), selectedNodeId);
-        addedNodeIds.add(node.id);
-      }
-    });
-  } else {
-    model.groupedNodes.forEach(({ nodes: items }, roleIndex) => {
-      items.slice(0, MAX_OVERVIEW_NODES_PER_ROLE).forEach((cartoNode, index) => {
-        pushFlowNode(nodes, cartoNode, model, overviewPosition(roleIndex, index), selectedNodeId);
+
+    visibleGroupNodes.forEach((cartoNode, fileIndex) => {
+      const role = CARTO_ROLE_BY_ID[model.roleByNodeId.get(cartoNode.id) ?? classifyCartoRole(cartoNode)];
+      visibleIds.add(cartoNode.id);
+      visibleFileIds.add(cartoNode.id);
+      nodes.push({
+        id: cartoNode.id,
+        type: 'cartoSemanticFile',
+        position: expandedFilePosition(position, fileIndex),
+        selected: cartoNode.id === selectedNodeId,
+        data: {
+          kind: 'file',
+          cartoNode,
+          role,
+          roleLabel: t(role.labelKey),
+          relationCount: model.relationCount.get(cartoNode.id) ?? 0,
+        },
       });
     });
-  }
-
-  const visibleIds = new Set(nodes.map((node) => node.id));
-  const edges = model.selectedEdges
-    .filter((edge) => visibleIds.has(edge.fromId) && visibleIds.has(edge.toId))
-    .map<FlowEdge>((edge, i) => ({
-      id: `${edge.fromId}-${edge.toId}-${edge.relation}-${i}`,
-      source: edge.fromId,
-      target: edge.toId,
-      type: 'smoothstep',
-      interactionWidth: 14,
-      markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--color-carto-edge)' },
-      style: {
-        stroke: 'var(--color-carto-edge)',
-        strokeWidth: edge.fromId === selectedNodeId || edge.toId === selectedNodeId ? 2 : 1,
-        opacity: 0.82,
-      },
-    }));
-
-  return { nodes, edges };
-}
-
-function pushFlowNode(
-  nodes: SemanticFlowNode[],
-  cartoNode: CartoNode,
-  model: GraphModel,
-  position: { x: number; y: number },
-  selectedNodeId: string | null,
-) {
-  const role = CARTO_ROLE_BY_ID[classifyCartoRole(cartoNode)];
-  nodes.push({
-    id: cartoNode.id,
-    type: 'cartoSemantic',
-    position,
-    selected: cartoNode.id === selectedNodeId,
-    data: {
-      cartoNode,
-      role,
-      roleLabel: role ? model.groupedNodes.find((group) => group.role.id === role.id)?.label ?? role.id : '',
-      relationCount: model.relationCount.get(cartoNode.id) ?? 0,
-    },
   });
-}
 
-function focusPosition(kind: 'incoming' | 'outgoing', index: number, total: number): { x: number; y: number } {
-  const side = kind === 'incoming' ? -1 : 1;
-  const rowsPerColumn = 10;
-  const column = Math.floor(index / rowsPerColumn);
-  const row = index % rowsPerColumn;
-  const rows = Math.min(rowsPerColumn, total - column * rowsPerColumn);
-  const stepY = NODE_H + 34;
-  const x = side * (310 + column * (NODE_W + 58));
-  const y = row * stepY - ((rows - 1) * stepY) / 2;
-  return { x: x + jitter(`${kind}-${index}`, 1), y };
-}
-
-function overviewPosition(roleIndex: number, index: number): { x: number; y: number } {
-  const clusterX = (roleIndex % 3) * ROLE_X;
-  const clusterY = Math.floor(roleIndex / 3) * ROLE_Y;
-  const cols = 2;
   return {
-    x: clusterX + (index % cols) * (NODE_W + 36) + jitter(`${roleIndex}-${index}`, 1) - 22,
-    y: clusterY + Math.floor(index / cols) * (NODE_H + 32) + jitter(`${roleIndex}-${index}`, 2) - 18,
+    nodes,
+    edges: buildVisibleEdges(graph, model, expandedRoles, visibleIds, visibleFileIds),
   };
 }
 
-function SemanticFileNode({ data, selected }: NodeProps<SemanticFlowNode>) {
+function buildVisibleEdges(
+  graph: CartoGraph,
+  model: GraphModel,
+  expandedRoles: Set<CartoRoleId>,
+  visibleIds: Set<string>,
+  visibleFileIds: Set<string>,
+): FlowEdge[] {
+  if (expandedRoles.size === 0) {
+    return model.groupModel.groupEdges.map((edge) => groupFlowEdge(edge.from, edge.to, edge.weight));
+  }
+
+  const aggregate = new Map<string, { source: string; target: string; weight: number }>();
+  for (const edge of graph.edges) {
+    const from = model.nodeById.get(edge.fromId);
+    const to = model.nodeById.get(edge.toId);
+    if (!from || !to) continue;
+
+    const source = endpointId(from, model, expandedRoles, visibleFileIds);
+    const target = endpointId(to, model, expandedRoles, visibleFileIds);
+    if (source === target || !visibleIds.has(source) || !visibleIds.has(target)) continue;
+
+    const key = `${source}->${target}`;
+    const current = aggregate.get(key) ?? { source, target, weight: 0 };
+    current.weight += 1;
+    aggregate.set(key, current);
+  }
+
+  return [...aggregate.values()]
+    .sort((a, b) => b.weight - a.weight || a.source.localeCompare(b.source) || a.target.localeCompare(b.target))
+    .slice(0, MAX_FLOW_EDGES)
+    .map((edge, index) => weightedFlowEdge(edge.source, edge.target, edge.weight, index));
+}
+
+function endpointId(
+  node: CartoNode,
+  model: GraphModel,
+  expandedRoles: Set<CartoRoleId>,
+  visibleFileIds: Set<string>,
+): string {
+  const role = model.roleByNodeId.get(node.id) ?? classifyCartoRole(node);
+  if (expandedRoles.has(role) && visibleFileIds.has(node.id)) return node.id;
+  return groupNodeId(role);
+}
+
+function groupFlowEdge(from: CartoRoleId, to: CartoRoleId, weight: number): FlowEdge {
+  return weightedFlowEdge(groupNodeId(from), groupNodeId(to), weight, 0);
+}
+
+function weightedFlowEdge(source: string, target: string, weight: number, index: number): FlowEdge {
+  return {
+    id: `${source}-${target}-${index}`,
+    source,
+    target,
+    type: 'smoothstep',
+    label: String(weight),
+    interactionWidth: 18,
+    markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--color-carto-edge)' },
+    style: {
+      stroke: 'var(--color-carto-edge)',
+      strokeWidth: Math.min(3.4, 1.15 + Math.log2(weight + 1) * 0.45),
+      opacity: 0.84,
+    },
+    labelStyle: {
+      fill: 'var(--color-carto-accent)',
+      fontSize: 10,
+      fontWeight: 800,
+    },
+    labelBgStyle: {
+      fill: 'rgba(4, 16, 29, 0.92)',
+      stroke: 'rgba(253, 179, 58, 0.24)',
+      strokeWidth: 1,
+    },
+    labelBgPadding: [4, 3],
+    labelBgBorderRadius: 4,
+  };
+}
+
+function groupNodeId(role: CartoRoleId): string {
+  return `carto-group:${role}`;
+}
+
+function groupPosition(index: number): { x: number; y: number } {
+  return {
+    x: (index % 3) * GROUP_X + jitter(`group-${index}`, 1),
+    y: Math.floor(index / 3) * GROUP_Y + jitter(`group-${index}`, 2),
+  };
+}
+
+function expandedFilePosition(group: { x: number; y: number }, index: number): { x: number; y: number } {
+  const cols = 2;
+  return {
+    x: group.x + (index % cols) * (NODE_W + 26) + 3,
+    y: group.y + GROUP_H + 46 + Math.floor(index / cols) * (NODE_H + 30),
+  };
+}
+
+function SemanticGroupNode({ data }: NodeProps<SemanticGroupFlowNode>) {
+  return (
+    <div
+      className={`carto-semantic-group ${data.expanded ? 'is-expanded' : ''}`}
+      style={{ '--carto-role-color': data.role.color } as CSSProperties}
+      title={data.actionLabel}
+      data-testid={`carto-group-${data.role.id}`}
+    >
+      <Handle type="target" position={Position.Left} isConnectable={false} />
+      <div className="flex min-w-0 items-start gap-2.5">
+        <span className="carto-semantic-node__icon">
+          <Layers3 size={15} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate text-sm font-bold text-carto-text">{data.roleLabel}</p>
+            <span className="carto-semantic-node__count">{data.count}</span>
+          </div>
+          <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-carto-text-muted">
+            {data.summary ?? data.roleDescription}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 border-t border-carto-grid/70 pt-2">
+        <p className="mb-1.5 text-[9px] font-bold uppercase text-carto-text-muted">{data.keyFilesLabel}</p>
+        <ul className="space-y-1">
+          {data.keyFiles.slice(0, 3).map((file) => (
+            <li key={file.node.id} className="flex min-w-0 items-center gap-1.5 text-[10px]">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: data.role.color }} />
+              <span className="min-w-0 flex-1 truncate font-mono text-carto-text">{file.node.filePath}</span>
+              <span className="shrink-0 font-mono text-carto-text-muted">{file.degree}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-2 text-[10px] font-bold uppercase text-carto-accent">
+        <span className="flex items-center gap-1">
+          {data.expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          {data.actionLabel}
+        </span>
+        {data.expanded && data.hiddenCount > 0 ? (
+          <span className="rounded border border-carto-accent/25 px-1.5 py-0.5 font-mono">
+            {data.moreLabel}
+          </span>
+        ) : null}
+      </div>
+      <Handle type="source" position={Position.Right} isConnectable={false} />
+    </div>
+  );
+}
+
+function SemanticFileNode({ data, selected }: NodeProps<SemanticFileFlowNode>) {
   const node = data.cartoNode;
   const file = node.filePath.split('/').at(-1) ?? node.name;
   const dir = node.filePath.includes('/') ? node.filePath.split('/').slice(0, -1).join('/') : '.';
@@ -445,6 +532,7 @@ function SemanticFileNode({ data, selected }: NodeProps<SemanticFlowNode>) {
       className={`carto-semantic-node ${selected ? 'is-selected' : ''}`}
       style={{ '--carto-role-color': data.role.color } as CSSProperties}
       title={node.filePath}
+      data-testid={`carto-file-${node.id}`}
     >
       <Handle type="target" position={Position.Left} isConnectable={false} />
       <div className="flex min-w-0 items-center gap-2">

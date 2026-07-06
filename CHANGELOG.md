@@ -4,6 +4,22 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.10.1] - 2026-07-06 - Hotfix: la app ya no se cae al arrancar sin el motor de CodeGraph
+
+### 🧭 Cartografía
+
+#### Fixed
+- **La app abre siempre**: el motor de análisis de Cartografía (`@colbymchenry/codegraph`) se carga ahora de forma diferida. Antes, su import estático corría al arranque del proceso main y, si el módulo nativo (`web-tree-sitter`) no resolvía en el empaquetado, tumbaba toda la aplicación antes de mostrar la ventana.
+- **Cartografía degrada con gracia**: si el motor no está disponible en la instalación, Cartografía muestra un aviso ("El motor de análisis no está disponible en esta instalación") en lugar de romper. El cliente Git (Commit, Graph, History, ramas) sigue funcionando con normalidad.
+
+#### Changed
+- El motor CodeGraph se carga bajo demanda (la primera vez que se usa Cartografía), cacheado y detrás de un guard con `try-catch`; un fallo de carga se traduce al estado `engine-unavailable` en vez de a un error genérico.
+- `package.json` sube a `1.10.1`.
+
+> Nota de build: este hotfix hace que la app **abra** aunque falte el motor. Para que Cartografía **funcione** en el `.exe` todavía hay que resolver el empaquetado de `web-tree-sitter` / `tree-sitter-wasms` (hoisteo a dependencia directa + `asarUnpack` de los `.wasm`/`.node`) — es un paso de build aparte.
+
+---
+
 ## [v1.10.0] - 2026-07-06 - Cartografía: cierre del track de comprensión de repos con IA
 
 ### 🧭 Cartografía

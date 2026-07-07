@@ -10,9 +10,11 @@ import {
   ChevronDown,
   ChevronRight,
   Cloud,
+  CloudOff,
   FileDiff,
   Folder,
   GitBranch,
+  HardDrive,
   RotateCcw,
   Tag,
   Trash2,
@@ -243,6 +245,74 @@ function BranchFolderView({
   );
 }
 
+/**
+ * Indicador de estado local/remoto de una branch local. Sustituye al viejo
+ * puntito de color (redundante con el ícono de la izquierda). Todo el estado
+ * proviene de refs locales (BranchTrackingInfo), sin llamadas de red.
+ *
+ *  · solo-local  → HardDrive (muted)         — sin rama remota
+ *  · gone        → CloudOff (error)          — el remoto se eliminó
+ *  · sincronizada→ Cloud + Check (secondary) — al día con el upstream
+ *  · divergida   → Cloud (aviso) + ↑ahead ↓behind
+ */
+function BranchStatusIndicator({ tracking }: { tracking?: BranchTrackingInfo }) {
+  const t = useT();
+  const ahead = tracking?.ahead ?? 0;
+  const behind = tracking?.behind ?? 0;
+  const gone = tracking?.gone ?? false;
+  const hasRemote = tracking?.hasRemote ?? false;
+  const upstream = tracking?.upstream ?? '';
+
+  if (gone) {
+    return (
+      <span className="shrink-0 ml-1" title={t('sidebar.branchStatus.gone', { upstream })}>
+        <CloudOff size={12} className="text-error/80" />
+      </span>
+    );
+  }
+
+  if (!hasRemote) {
+    return (
+      <span className="shrink-0 ml-1" title={t('sidebar.branchStatus.local')}>
+        <HardDrive size={12} className="text-text-secondary/60" />
+      </span>
+    );
+  }
+
+  if (ahead === 0 && behind === 0) {
+    return (
+      <span
+        className="flex items-center gap-0.5 shrink-0 ml-1 text-secondary"
+        title={t('sidebar.branchStatus.synced', { upstream })}
+      >
+        <Cloud size={12} />
+        <Check size={9} strokeWidth={3} />
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="flex items-center gap-1 shrink-0 ml-1 text-[10px] font-mono"
+      title={t('sidebar.branchStatus.diverged', { upstream, ahead, behind })}
+    >
+      <Cloud size={12} className="text-git-mod" />
+      {ahead > 0 && (
+        <span className="flex items-center text-secondary">
+          {ahead}
+          <ArrowUp size={10} strokeWidth={3} />
+        </span>
+      )}
+      {behind > 0 && (
+        <span className="flex items-center text-git-mod">
+          {behind}
+          <ArrowDown size={10} strokeWidth={3} />
+        </span>
+      )}
+    </span>
+  );
+}
+
 function BranchRow({
   name,
   fullPath,
@@ -303,26 +373,6 @@ function BranchRow({
       )}
       <span className="truncate flex-1 text-sm select-text">{name}</span>
 
-      {tracking && !tracking.gone && (tracking.ahead > 0 || tracking.behind > 0) && (
-        <span className="flex items-center gap-1 text-[10px] font-mono shrink-0">
-          {tracking.ahead > 0 && (
-            <span className="flex items-center text-secondary" title={`${tracking.ahead} commit${tracking.ahead === 1 ? '' : 's'} local${tracking.ahead === 1 ? '' : 'es'} pendiente${tracking.ahead === 1 ? '' : 's'} de push`}>
-              {tracking.ahead}
-              <ArrowUp size={10} strokeWidth={3} />
-            </span>
-          )}
-          {tracking.behind > 0 && (
-            <span className="flex items-center text-git-mod" title={`${tracking.behind} commit${tracking.behind === 1 ? '' : 's'} remoto${tracking.behind === 1 ? '' : 's'} pendiente${tracking.behind === 1 ? '' : 's'} de pull`}>
-              {tracking.behind}
-              <ArrowDown size={10} strokeWidth={3} />
-            </span>
-          )}
-        </span>
-      )}
-      {tracking?.gone && (
-        <span className="text-[9px] text-error uppercase shrink-0" title="Upstream eliminado">gone</span>
-      )}
-
       {fullPath.startsWith('imagined/') && isHovered ? (
         <button
           onClick={(event) => {
@@ -335,11 +385,7 @@ function BranchRow({
           <Trash2 size={12} />
         </button>
       ) : (
-        <span
-          className="w-1.5 h-1.5 rounded-full shrink-0 ml-1 shadow-[0_0_4px_rgba(0,0,0,0.25)]"
-          style={{ backgroundColor: branchColor }}
-          title={`Color en el grafo: ${branchColor}`}
-        />
+        <BranchStatusIndicator tracking={tracking} />
       )}
     </div>
   );

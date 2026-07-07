@@ -8,6 +8,106 @@ import { simpleGit } from 'simple-git';
 import { errMsg, sanitizeForLog, withGitHubToken } from './shared';
 import type { RemoteEntry } from '../../types/electron';
 
+const GITHUB_OWNER_SEGMENT = '[A-Za-z0-9](?:[A-Za-z0-9-]{0,38}[A-Za-z0-9])?';
+const GITHUB_REPO_SEGMENT = '[A-Za-z0-9._-]+';
+const GITHUB_HTTPS_REMOTE_RE = new RegExp(
+  `^https://github\\.com/${GITHUB_OWNER_SEGMENT}/${GITHUB_REPO_SEGMENT}(?:\\.git)?$`,
+  'i',
+);
+const GITHUB_SSH_REMOTE_RE = new RegExp(
+  `^git@github\\.com:${GITHUB_OWNER_SEGMENT}/${GITHUB_REPO_SEGMENT}(?:\\.git)?$`,
+  'i',
+);
+
+const GITHUB_REMOTE_URL_ERROR = 'URL de remoto invalida. Usa https://github.com/owner/repo.git o git@github.com:owner/repo.git';
+
+function isAuthErrorMessage(message: string): boolean {
+  return /authentication|credentials|ssh|permission denied|403|401|could not read|not found/i.test(message);
+}
+
+export function isValidExistingGitHubRemoteUrl(remoteUrl: string): boolean {
+  const trimmed = remoteUrl.trim();
+  return GITHUB_HTTPS_REMOTE_RE.test(trimmed) || GITHUB_SSH_REMOTE_RE.test(trimmed);
+}
+
+export async function addExistingGitHubRemoteAndPushMain(
+  targetPath: string,
+  remoteUrl: string,
+  token?: string,
+) {
+  const trimmedUrl = remoteUrl.trim();
+  if (!isValidExistingGitHubRemoteUrl(trimmedUrl)) {
+    return {
+      success: false,
+      error: GITHUB_REMOTE_URL_ERROR,
+      data: {
+        success: false,
+        code: 'invalid-remote-url',
+        localRepoReady: true,
+        retryable: true,
+      },
+    };
+  }
+
+  const g = simpleGit(targetPath);
+  try {
+    await g.raw(['remote', 'add', 'origin', trimmedUrl]);
+  } catch (error: any) {
+    const msg = errMsg(error);
+    return {
+      success: false,
+      error: msg,
+      data: {
+        success: false,
+        code: 'remote-add-failed',
+        localRepoReady: true,
+        retryable: true,
+        error: msg,
+      },
+    };
+  }
+
+  try {
+    await withGitHubToken(targetPath, token, async (authedGit) => {
+      await authedGit.push(['--set-upstream', 'origin', 'main']);
+    });
+    return {
+      success: true,
+      data: {
+        success: true,
+        remoteAdded: true,
+        pushed: true,
+        setUpstream: true,
+      },
+    };
+  } catch (error: any) {
+    const msg = errMsg(error);
+    let remoteRolledBack = false;
+    let rollbackError: string | undefined;
+    try {
+      await simpleGit(targetPath).raw(['remote', 'remove', 'origin']);
+      remoteRolledBack = true;
+    } catch (rollbackErr: any) {
+      rollbackError = errMsg(rollbackErr);
+    }
+    return {
+      success: false,
+      error: msg,
+      data: {
+        success: false,
+        code: 'first-push-failed',
+        authRequired: isAuthErrorMessage(msg),
+        localRepoReady: true,
+        retryable: true,
+        remoteAdded: !remoteRolledBack,
+        remoteRolledBack,
+        rollbackError,
+        error: msg,
+      },
+    };
+  }
+}
+
 export function parseGitRemotes(raw: string): RemoteEntry[] {
   const lines = raw.split('\n');
   const remotesMap = new Map<string, { fetchUrl?: string; pushUrl?: string }>();
@@ -255,6 +355,10 @@ export function registerGitSyncHandlers(): void {
       return { success: false, error: errMsg(error) };
     }
   });
+
+  ipcMain.handle('git:add-existing-github-remote', async (_event, targetPath: string, remoteUrl: string, token?: string) => (
+    addExistingGitHubRemoteAndPushMain(targetPath, remoteUrl, token)
+  ));
 
   ipcMain.handle('git:remote-remove', async (_event, targetPath: string, name: string) => {
     try {

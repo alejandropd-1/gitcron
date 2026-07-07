@@ -38,8 +38,17 @@ type DeleteScope = 'local' | 'remote' | 'both';
 type DeleteBranchState = { branch: string; scope: DeleteScope; notMerged?: boolean } | null;
 type CheckoutConflictState = { branch: string; error: string } | null;
 type MergeNeedsCheckoutState = { sourceBranch: string; targetBranch: string } | null;
-type PendingInitRepoState = { path: string; name: string } | null;
+type PendingInitRepoState = { path: string; name: string; isInitialized?: boolean } | null;
 type GitResult = { success?: boolean; conflict?: boolean; notMerged?: boolean; alreadyIgnored?: boolean; error?: string };
+type InitRemoteProgress = 'validating' | 'initializing' | 'linking';
+type InitRemoteResult = {
+  success: boolean;
+  error?: string;
+  code?: 'invalid-remote-url' | 'remote-add-failed' | 'first-push-failed';
+  authRequired?: boolean;
+  localRepoReady?: boolean;
+  retryable?: boolean;
+};
 
 export type RepoOverlayLayerProps = {
   setInteractiveRebaseFrom: (hash: string | null) => void;
@@ -110,6 +119,10 @@ export type RepoOverlayLayerProps = {
   pendingInitRepo: PendingInitRepoState;
   cancelPendingInitRepo: () => void;
   initializePendingRepo: () => Promise<{ success: boolean }> | { success: boolean };
+  initializePendingRepoWithRemote: (
+    remoteUrl: string,
+    onProgress?: (progress: InitRemoteProgress) => void,
+  ) => Promise<InitRemoteResult> | InitRemoteResult;
   checkoutConflict: CheckoutConflictState;
   setCheckoutConflictModal: (state: CheckoutConflictState) => void;
   checkoutBranchSmart: (branch: string, options?: { stashFirst?: boolean }) => Promise<GitResult> | GitResult;
@@ -416,6 +429,7 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
         onConfirm={async () => {
           await props.initializePendingRepo();
         }}
+        onConfirmRemote={props.initializePendingRepoWithRemote}
         isLoading={props.isLoading}
       />
       <CheckoutConflictModal

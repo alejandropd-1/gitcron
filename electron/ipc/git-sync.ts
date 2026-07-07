@@ -7,17 +7,7 @@ import { ipcMain } from 'electron';
 import { simpleGit } from 'simple-git';
 import { errMsg, sanitizeForLog, withGitHubToken } from './shared';
 import type { RemoteEntry } from '../../types/electron';
-
-const GITHUB_OWNER_SEGMENT = '[A-Za-z0-9](?:[A-Za-z0-9-]{0,38}[A-Za-z0-9])?';
-const GITHUB_REPO_SEGMENT = '[A-Za-z0-9._-]+';
-const GITHUB_HTTPS_REMOTE_RE = new RegExp(
-  `^https://github\\.com/${GITHUB_OWNER_SEGMENT}/${GITHUB_REPO_SEGMENT}(?:\\.git)?$`,
-  'i',
-);
-const GITHUB_SSH_REMOTE_RE = new RegExp(
-  `^git@github\\.com:${GITHUB_OWNER_SEGMENT}/${GITHUB_REPO_SEGMENT}(?:\\.git)?$`,
-  'i',
-);
+import { isValidExistingGitHubRemoteUrl } from '../../lib/github-remote-url';
 
 const GITHUB_REMOTE_URL_ERROR = 'URL de remoto invalida. Usa https://github.com/owner/repo.git o git@github.com:owner/repo.git';
 
@@ -25,10 +15,7 @@ function isAuthErrorMessage(message: string): boolean {
   return /authentication|credentials|ssh|permission denied|403|401|could not read|not found/i.test(message);
 }
 
-export function isValidExistingGitHubRemoteUrl(remoteUrl: string): boolean {
-  const trimmed = remoteUrl.trim();
-  return GITHUB_HTTPS_REMOTE_RE.test(trimmed) || GITHUB_SSH_REMOTE_RE.test(trimmed);
-}
+export { isValidExistingGitHubRemoteUrl };
 
 export async function addExistingGitHubRemoteAndPushMain(
   targetPath: string,

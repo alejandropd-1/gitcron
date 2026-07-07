@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { isValidExistingGitHubRemoteUrl } from '@/lib/github-remote-url';
 import { useT } from '@/hooks/use-translation';
 import type { Commit } from '@/lib/git-store';
 
@@ -845,9 +846,27 @@ export function ForcePushConfirmModal({
 }
 
 interface InitializeRepoGuardModalProps {
-  pendingRepo: { path: string; name: string } | null;
+  pendingRepo: { path: string; name: string; isInitialized?: boolean } | null;
   onCancel: () => void;
   onConfirm: () => Promise<void> | void;
+  onConfirmRemote: (
+    remoteUrl: string,
+    onProgress?: (progress: 'validating' | 'initializing' | 'linking') => void,
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    code?: 'invalid-remote-url' | 'remote-add-failed' | 'first-push-failed';
+    authRequired?: boolean;
+    localRepoReady?: boolean;
+    retryable?: boolean;
+  }> | {
+    success: boolean;
+    error?: string;
+    code?: 'invalid-remote-url' | 'remote-add-failed' | 'first-push-failed';
+    authRequired?: boolean;
+    localRepoReady?: boolean;
+    retryable?: boolean;
+  };
   isLoading: boolean;
 }
 
@@ -855,9 +874,58 @@ export function InitializeRepoGuardModal({
   pendingRepo,
   onCancel,
   onConfirm,
+  onConfirmRemote,
   isLoading,
 }: InitializeRepoGuardModalProps) {
   const t = useT();
+  const [remoteOpen, setRemoteOpen] = useState(false);
+  const [remoteUrl, setRemoteUrl] = useState('');
+  const [remoteError, setRemoteError] = useState<string | null>(null);
+  const [remoteProgress, setRemoteProgress] = useState<'validating' | 'initializing' | 'linking' | null>(null);
+
+  useEffect(() => {
+    if (pendingRepo) {
+      setRemoteOpen(false);
+      setRemoteUrl('');
+      setRemoteError(null);
+      setRemoteProgress(null);
+    }
+  }, [pendingRepo?.path]);
+
+  const isBusy = isLoading || remoteProgress !== null;
+  const remoteProgressLabel = remoteProgress ? t(`initGuard.progress.${remoteProgress}`) : null;
+
+  const readableRemoteError = (result: {
+    code?: 'invalid-remote-url' | 'remote-add-failed' | 'first-push-failed';
+    authRequired?: boolean;
+    localRepoReady?: boolean;
+  }) => {
+    if (result.code === 'invalid-remote-url') return t('initGuard.remoteError.invalidUrl');
+    if (result.code === 'remote-add-failed') return t('initGuard.remoteError.addRemote');
+    if (result.authRequired) return t('initGuard.remoteError.auth');
+    if (result.code === 'first-push-failed') {
+      return result.localRepoReady
+        ? t('initGuard.remoteError.pushLocalReady')
+        : t('initGuard.remoteError.push');
+    }
+    return t('initGuard.remoteError.generic');
+  };
+
+  const handleRemoteSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const trimmedUrl = remoteUrl.trim();
+    setRemoteError(null);
+    if (!isValidExistingGitHubRemoteUrl(trimmedUrl)) {
+      setRemoteError(t('initGuard.remoteError.invalidUrl'));
+      return;
+    }
+    setRemoteProgress('validating');
+    const result = await onConfirmRemote(trimmedUrl, setRemoteProgress);
+    if (!result.success) {
+      setRemoteProgress(null);
+      setRemoteError(readableRemoteError(result));
+    }
+  };
 
   return (
     <ModalShell
@@ -899,23 +967,98 @@ export function InitializeRepoGuardModal({
           </p>
         </div>
 
+        {pendingRepo?.isInitialized && (
+          <div className="mt-4 rounded border border-secondary/25 bg-secondary/10 p-3 text-xs leading-relaxed text-text-secondary">
+            {t('initGuard.localReady')}
+          </div>
+        )}
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isBusy}
+            className="flex min-h-[72px] items-center gap-3 rounded border border-secondary/25 bg-secondary/10 p-3 text-left transition-colors hover:border-secondary/45 hover:bg-secondary/15 disabled:opacity-50"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded bg-secondary/15 text-secondary">
+              {isBusy && !remoteProgress ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-text-primary">{t('initGuard.localAction')}</span>
+              <span className="mt-1 block text-xs leading-snug text-text-secondary">{t('initGuard.localDesc')}</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setRemoteOpen(true);
+              setRemoteError(null);
+            }}
+            disabled={isBusy}
+            className="flex min-h-[72px] items-center gap-3 rounded border border-primary/25 bg-primary/10 p-3 text-left transition-colors hover:border-primary/45 hover:bg-primary/15 disabled:opacity-50"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded bg-primary/15 text-primary">
+              <Link2 size={16} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-text-primary">{t('initGuard.remoteAction')}</span>
+              <span className="mt-1 block text-xs leading-snug text-text-secondary">{t('initGuard.remoteDesc')}</span>
+            </span>
+          </button>
+        </div>
+
+        {remoteOpen && (
+          <form onSubmit={handleRemoteSubmit} className="mt-4 rounded border border-border-subtle/20 bg-bg-base/55 p-3">
+            <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+              {t('initGuard.remoteUrlLabel')}
+            </label>
+            <input
+              autoFocus
+              value={remoteUrl}
+              onChange={(event) => {
+                setRemoteUrl(event.target.value);
+                if (remoteError) setRemoteError(null);
+              }}
+              placeholder={t('initGuard.remoteUrlPlaceholder')}
+              disabled={isBusy}
+              className="h-10 w-full rounded border border-border-subtle/25 bg-bg-base/90 px-3 font-mono text-xs text-text-primary outline-none transition-colors placeholder:text-text-secondary/55 focus:border-primary/60 disabled:opacity-60"
+            />
+            <p className="mt-2 text-xs leading-relaxed text-text-secondary">
+              {t('initGuard.remoteUrlHint')}
+            </p>
+            {remoteProgressLabel && (
+              <div className="mt-3 flex items-center gap-2 rounded border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-semibold text-text-primary">
+                <Loader2 size={14} className="animate-spin text-primary" />
+                {remoteProgressLabel}
+              </div>
+            )}
+            {remoteError && (
+              <div className="mt-3 flex items-start gap-2 rounded border border-[#ff8b87]/25 bg-[#9f0519]/15 px-3 py-2 text-xs leading-relaxed text-[#ffdad6]">
+                <AlertCircle size={14} className="mt-0.5 shrink-0 text-[#ff8b87]" />
+                <span>{remoteError}</span>
+              </div>
+            )}
+            <div className="mt-3 flex justify-end">
+              <button
+                type="submit"
+                disabled={isBusy || !remoteUrl.trim()}
+                className="flex items-center gap-2 rounded bg-gradient-to-br from-primary to-secondary px-4 py-2 text-sm font-bold text-bg-base shadow-lg shadow-primary/15 transition-colors hover:brightness-110 disabled:opacity-50"
+              >
+                {remoteProgress ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
+                {remoteProgress ? t('initGuard.remoteWorking') : t('initGuard.remoteConfirm')}
+              </button>
+            </div>
+          </form>
+        )}
+
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            disabled={isLoading}
+            disabled={isBusy}
             className="rounded px-4 py-2 text-sm text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50"
           >
             {t('modal.cancel')}
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="flex items-center gap-2 rounded bg-gradient-to-br from-[#a3f185] to-[#68b24f] px-4 py-2 text-sm font-bold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:opacity-50"
-          >
-            {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            {isLoading ? t('initGuard.initializing') : t('initGuard.action')}
           </button>
         </div>
       </div>

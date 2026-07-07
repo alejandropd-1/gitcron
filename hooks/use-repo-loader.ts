@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useGitStore, type RepoState } from '@/lib/git-store';
+import { isValidExistingGitHubRemoteUrl } from '@/lib/github-remote-url';
 import type {
   CommitData, StatusFile, BranchData, StashEntry, SubmoduleEntry,
   RepoInfo, GitHubRepoInfo, WorktreeEntry, PullRequestEntry, RemoteEntry,
@@ -9,7 +10,8 @@ import type {
 
 type GraphMode = 'classic' | 'chronometric';
 type RefreshTarget = { target: string; hasExplicitPath: boolean };
-export type PendingInitRepo = { path: string; parentPath: string; name: string };
+export type PendingInitRepo = { path: string; parentPath: string; name: string; isInitialized?: boolean };
+export type InitRemoteProgress = 'validating' | 'initializing' | 'linking';
 
 function isNotARepoResult(result: { success?: boolean; reason?: string; path?: string }): result is { success: false; reason: 'not-a-repo'; path: string } {
   return result.success === false && result.reason === 'not-a-repo' && typeof result.path === 'string';
@@ -278,12 +280,63 @@ export const useRepoLoader = () => {
   const initializePendingRepo = async () => {
     if (!pendingInitRepo) return { success: false as const };
     const targetPath = pendingInitRepo.path;
+    if (pendingInitRepo.isInitialized) {
+      setPendingInitRepo(null);
+      await loadAll(targetPath);
+      return { success: true as const };
+    }
     const r = await initRepo(pendingInitRepo.parentPath, pendingInitRepo.name, true);
     if (r.success) {
       setPendingInitRepo(null);
       await loadAll(targetPath);
     }
     return r;
+  };
+
+  const initializePendingRepoWithRemote = async (
+    remoteUrl: string,
+    onProgress?: (progress: InitRemoteProgress) => void,
+  ) => {
+    if (!pendingInitRepo) return { success: false as const, error: 'No hay repositorio pendiente' };
+    if (!window.api) return { success: false as const, error: 'Electron API no disponible' };
+
+    const trimmedUrl = remoteUrl.trim();
+    onProgress?.('validating');
+    if (!isValidExistingGitHubRemoteUrl(trimmedUrl)) {
+      return { success: false as const, error: 'invalid-remote-url', code: 'invalid-remote-url' as const };
+    }
+
+    const targetPath = pendingInitRepo.path;
+    let localRepoReady = !!pendingInitRepo.isInitialized;
+    if (!localRepoReady) {
+      onProgress?.('initializing');
+      const init = await initRepo(pendingInitRepo.parentPath, pendingInitRepo.name, true);
+      if (!init.success) return init;
+      localRepoReady = true;
+      setPendingInitRepo((current) => (
+        current?.path === targetPath ? { ...current, isInitialized: true } : current
+      ));
+    }
+
+    onProgress?.('linking');
+    const link = await window.api.gitAddExistingGitHubRemote(targetPath, trimmedUrl, githubToken ?? undefined);
+    if (link.success) {
+      setPendingInitRepo(null);
+      await loadAll(targetPath);
+      return { success: true as const };
+    }
+
+    setPendingInitRepo((current) => (
+      current?.path === targetPath ? { ...current, isInitialized: localRepoReady } : current
+    ));
+    return {
+      success: false as const,
+      error: link.error,
+      code: link.data?.code,
+      authRequired: link.data?.authRequired,
+      localRepoReady: link.data?.localRepoReady ?? localRepoReady,
+      retryable: link.data?.retryable,
+    };
   };
 
   /** Clone an existing repo. token is optional (used for private GH repos). */
@@ -538,6 +591,7 @@ export const useRepoLoader = () => {
     pendingInitRepo,
     cancelPendingInitRepo,
     initializePendingRepo,
+    initializePendingRepoWithRemote,
     trustSafeDirectory,
     restoreLastRepo,
     closeRepo,

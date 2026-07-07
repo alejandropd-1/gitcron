@@ -167,6 +167,18 @@ interface RemoteOpResult {
   files?: string[];
 }
 
+interface ExistingGitHubRemoteLinkResult {
+  success: boolean;
+  code?: 'invalid-remote-url' | 'remote-add-failed' | 'first-push-failed';
+  authRequired?: boolean;
+  localRepoReady?: boolean;
+  retryable?: boolean;
+  remoteAdded?: boolean;
+  remoteRolledBack?: boolean;
+  rollbackError?: string;
+  error?: string;
+}
+
 export interface StashEntry {
   index: number;
   message: string;
@@ -318,6 +330,7 @@ interface ElectronAPI {
   // Remotes
   gitRemotesList: (repoPath: string) => Promise<GitResult<RemoteEntry[]>>;
   gitRemoteAdd: (repoPath: string, name: string, url: string) => Promise<GitResult>;
+  gitAddExistingGitHubRemote: (repoPath: string, remoteUrl: string, token?: string) => Promise<GitResult<ExistingGitHubRemoteLinkResult>>;
   gitRemoteRemove: (repoPath: string, name: string) => Promise<GitResult>;
   gitRemoteSetUrl: (repoPath: string, name: string, url: string) => Promise<GitResult>;
   gitRemoteRename: (repoPath: string, oldName: string, newName: string) => Promise<GitResult>;

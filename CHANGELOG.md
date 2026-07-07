@@ -4,6 +4,20 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.10.2] - 2026-07-07 - Hotfix: Cartografía carga el motor en el `.exe` empaquetado
+
+### 🧭 Cartografía
+
+#### Fixed
+- **El motor de análisis ya carga en producción**: en el `.exe`, Cartografía mostraba "El motor de análisis no está disponible en esta instalación". Causa raíz: el bundle nativo `@colbymchenry/codegraph-win32-x64` trae sus deps runtime (`web-tree-sitter`, `commander`, `ignore`, `jsonc-parser`, `picomatch`) en un `lib/node_modules` **anidado**, y electron-builder descarta los `node_modules` anidados de un paquete al empaquetar (no existe opción para incluirlos en la 26.x). El intento previo de copiarlos con `extraResources` ponía los archivos en disco pero **fuera del índice del `app.asar`**, así que el `require` de Electron (que consulta ese índice) no los encontraba.
+
+#### Build
+- **Deps runtime del motor promovidas a dependencias directas** del app (`web-tree-sitter@0.25.10`, `commander@14.0.3`, `ignore@7.0.5`, `jsonc-parser@3.3.1`, `picomatch@4.0.3`, versiones exactas = las vendorizadas). Así electron-builder las colecta al `node_modules` top-level del `app.asar` (con entrada en el índice), y la resolución de Node desde `codegraph-win32-x64/lib/dist/` sube y las encuentra. `web-tree-sitter` va a `asarUnpack` completo (por su `.wasm` + emscripten).
+- Se retira el `extraResources` de `lib/node_modules` (no registraba en el índice del asar) y los patrones `asarUnpack` de `.pnpm/**` (no aplican al layout plano del paquete).
+- Verificado extrayendo el `app.asar` final: `require('@colbymchenry/codegraph')` devuelve `CodeGraph` e `isInitialized()` corre sin tirar (o sea, `web-tree-sitter` resuelve y carga).
+
+---
+
 ## [v1.10.1] - 2026-07-06 - Hotfix: la app ya no se cae al arrancar sin el motor de CodeGraph
 
 ### 🧭 Cartografía
@@ -19,8 +33,9 @@ Changes are listed from newest to oldest.
 
 #### Build
 - **Empaquetado del motor nativo**: `@colbymchenry/codegraph-win32-x64` se hoistea a dependencia directa y `asarUnpack` suma el layout de pnpm (`.pnpm/**/@colbymchenry`, `web-tree-sitter`, `tree-sitter-wasms`) y los binarios `**/*.wasm` / `**/*.node`, para que el motor pueda resolverse dentro del `.exe`.
+- **Deps vendorizadas del bundle win32** (intento incompleto, reemplazado en v1.10.2): se probó copiar el `lib/node_modules` del bundle con `extraResources` hacia `app.asar.unpacked`. No funcionó: `extraResources` deja los archivos en disco pero fuera del índice del `app.asar`, así que el `require` de Electron no los veía. El fix real (deps directas) está en v1.10.2.
 
-> Nota: la app **abre siempre** aunque el motor falte (carga diferida + guard). Con este cambio de empaquetado, además, Cartografía debería **funcionar** en el `.exe`. La verificación end-to-end sobre el `.exe` reconstruido queda para el QA + rebuild.
+> Nota: la app **abre siempre** aunque el motor falte (carga diferida + guard). Que Cartografía **funcione** en el `.exe` se resolvió recién en v1.10.2.
 
 ---
 

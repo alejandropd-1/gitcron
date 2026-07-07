@@ -1,6 +1,6 @@
 {
   "name": "gitcron",
-  "version": "1.10.1",
+  "version": "1.10.2",
   "private": true,
   "main": "dist/main.js",
   "scripts": {
@@ -39,9 +39,7 @@
     ],
     "asarUnpack": [
       "**/node_modules/@colbymchenry/**",
-      "**/node_modules/.pnpm/**/@colbymchenry/**",
-      "**/node_modules/.pnpm/**/web-tree-sitter/**",
-      "**/node_modules/.pnpm/**/tree-sitter-wasms/**",
+      "**/node_modules/web-tree-sitter/**",
       "**/*.wasm",
       "**/*.node"
     ],
@@ -122,15 +120,20 @@
     "autoprefixer": "^10.4.21",
     "chokidar": "^4.0.3",
     "clsx": "^2.1.1",
+    "commander": "14.0.3",
     "electron-updater": "^6.8.3",
+    "ignore": "7.0.5",
+    "jsonc-parser": "3.3.1",
     "lucide-react": "^0.553.0",
     "motion": "^12.38.0",
     "next": "^15.4.9",
+    "picomatch": "4.0.3",
     "postcss": "^8.5.6",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "simple-git": "^3.36.0",
     "tailwind-merge": "^3.6.0",
+    "web-tree-sitter": "0.25.10",
     "zustand": "^5.0.13"
   },
   "devDependencies": {

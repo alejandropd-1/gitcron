@@ -13,6 +13,7 @@ import type {
   BranchTrackingInfo, WorktreeEntry, FileHistoryEntry,
 } from '../../types/electron';
 import { parseGitBlamePorcelain } from '../../lib/blame-parse';
+import { parseBranchTracking } from './branch-tracking';
 import { parseUnifiedDiff, type ApplyHunkOptions } from '../../lib/hunk-patch';
 import { errMsg, resolveRepoRelativePath, sanitizeForLog } from './shared';
 
@@ -222,28 +223,15 @@ export function registerGitOpsHandlers(): void {
 
       // Use `git for-each-ref` to get ahead/behind for ALL local branches in one shot.
       // Format: <name>|<upstream>|<track>   where track looks like "[ahead 1, behind 3]" or "[gone]" or ""
-      const tracking: Record<string, BranchTrackingInfo> = {};
+      // El parseo del estado local/remoto vive en parseBranchTracking (puro + testeable).
+      let tracking: Record<string, BranchTrackingInfo> = {};
       try {
         const raw = await g.raw([
           'for-each-ref',
           '--format=%(refname:short)|%(upstream:short)|%(upstream:track)',
           'refs/heads',
         ]);
-        for (const line of raw.split('\n').filter((l) => l.trim())) {
-          const [name, upstream, track] = line.split('|');
-          let ahead = 0;
-          let behind = 0;
-          const aheadMatch = track?.match(/ahead (\d+)/);
-          const behindMatch = track?.match(/behind (\d+)/);
-          if (aheadMatch) ahead = parseInt(aheadMatch[1], 10);
-          if (behindMatch) behind = parseInt(behindMatch[1], 10);
-          tracking[name] = {
-            upstream: upstream || null,
-            ahead,
-            behind,
-            gone: !!track?.includes('gone'),
-          };
-        }
+        tracking = parseBranchTracking(raw);
       } catch {
         /* ignore - tracking is best-effort */
       }

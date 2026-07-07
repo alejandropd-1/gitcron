@@ -92,6 +92,7 @@ export interface BranchTrackingInfo {
   ahead: number;
   behind: number;
   gone: boolean;       // true when upstream was deleted
+  hasRemote: boolean;  // true when the branch has a live upstream (configured and not gone)
 }
 
 export interface BranchData {

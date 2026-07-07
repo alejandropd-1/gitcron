@@ -142,6 +142,21 @@ export function registerGitSyncHandlers(): void {
     }
   });
 
+  // ── Delete a branch on the remote (git push <remote> --delete <branch>) ──
+  // Misma autenticación/errores que el push existente (withGitHubToken). Operación
+  // de red → vive acá, junto al resto de push/pull, no en git-ops.ts.
+  ipcMain.handle('git:delete-remote-branch', async (_event, targetPath: string, remote: string, branch: string, token?: string) => {
+    try {
+      await withGitHubToken(targetPath, token, async (g) => {
+        await g.push([remote, '--delete', branch]);
+      });
+      return { success: true };
+    } catch (error: any) {
+      const isAuth = /authentication|credentials|permission denied|403|401/i.test(error.message);
+      return { success: false, error: errMsg(error), data: { authRequired: isAuth } };
+    }
+  });
+
   ipcMain.handle('git:push', async (_event, targetPath: string, token?: string) => {
     try {
       let setUpstream = false;

@@ -248,6 +248,8 @@ interface ElectronAPI {
   gitFastForward: (repoPath: string, branch: string, toRef: string) => Promise<GitResult>;
   gitRenameBranch: (repoPath: string, oldName: string, newName: string) => Promise<GitResult>;
   gitDeleteBranch: (repoPath: string, branch: string, force?: boolean) => Promise<GitResult<{ notMerged?: boolean }>>;
+  gitDeleteRemoteBranch: (repoPath: string, remote: string, branch: string, token?: string) => Promise<GitResult<{ authRequired?: boolean }>>;
+  gitIsBranchMerged: (repoPath: string, branch: string, base?: string) => Promise<GitResult<{ merged: boolean; base: string }>>;
   gitPullBranch: (repoPath: string, branch: string, token?: string) => Promise<GitResult>;
   gitPushBranch: (repoPath: string, branch: string, token?: string, force?: boolean) => Promise<GitResult>;
   gitPush: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;

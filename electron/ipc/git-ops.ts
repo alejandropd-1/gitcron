@@ -14,8 +14,29 @@ import type {
 } from '../../types/electron';
 import { parseGitBlamePorcelain } from '../../lib/blame-parse';
 import { parseBranchTracking } from './branch-tracking';
+import { isBranchMerged } from './branch-merge';
 import { parseUnifiedDiff, type ApplyHunkOptions } from '../../lib/hunk-patch';
 import { errMsg, resolveRepoRelativePath, sanitizeForLog } from './shared';
+
+// Resuelve la branch por defecto del repo para consultas de "merged": primero
+// el symbolic-ref de origin/HEAD, luego main/master locales, y como último
+// recurso la branch actual. Solo lee refs locales (sin red).
+async function resolveDefaultBranch(g: ReturnType<typeof simpleGit>): Promise<string> {
+  try {
+    const ref = (await g.raw(['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'])).trim();
+    if (ref) return ref.replace(/^origin\//, '');
+  } catch {
+    /* no origin/HEAD configured */
+  }
+  try {
+    const local = await g.branchLocal();
+    if (local.all.includes('main')) return 'main';
+    if (local.all.includes('master')) return 'master';
+    return local.current || 'main';
+  } catch {
+    return 'main';
+  }
+}
 
 function isSafeMaterializedRestoreRef(value: string, expectedPrefix: 'imagined/' | 'flight/'): boolean {
   return (
@@ -468,6 +489,19 @@ export function registerGitOpsHandlers(): void {
       // Detect "not fully merged" so renderer can offer force delete
       const notMerged = /not fully merged|not yet merged/i.test(msg);
       return { success: false, error: msg, data: { notMerged } };
+    }
+  });
+
+  // ── Is a local branch fully merged into the default branch? ──
+  // Read-only (no network). Se usa para decidir -d vs -D y el texto del diálogo.
+  ipcMain.handle('git:is-branch-merged', async (_event, targetPath: string, branch: string, base?: string) => {
+    try {
+      const g = simpleGit(targetPath);
+      const baseBranch = base || (await resolveDefaultBranch(g));
+      const raw = await g.raw(['branch', '--merged', baseBranch]);
+      return { success: true, data: { merged: isBranchMerged(branch, raw), base: baseBranch } };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
     }
   });
 

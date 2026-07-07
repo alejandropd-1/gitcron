@@ -123,7 +123,7 @@ export default function GitCronPage() {
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, cleanUntracked, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch, amendLastCommit, cherryPickCommit, squashCommits,
-    renameBranch, deleteBranch, deleteTag, createTag, pushTag, pullSpecificBranch, pushSpecificBranch,
+    renameBranch, deleteBranch, deleteRemoteBranch, deleteTag, createTag, pushTag, pullSpecificBranch, pushSpecificBranch,
     pullWithDecision,
   } = useGitActions();
 
@@ -413,7 +413,7 @@ export default function GitCronPage() {
   const [branchMenu, setBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
   const [remoteBranchMenu, setRemoteBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
   const [renameModal, setRenameModal] = useState<{ oldName: string; newName: string } | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ branch: string; notMerged?: boolean } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ branch: string; scope: 'local' | 'remote' | 'both'; notMerged?: boolean } | null>(null);
   const [deleteTagConfirm, setDeleteTagConfirm] = useState<string | null>(null);
   const [discardConfirmFile, setDiscardConfirmFile] = useState<GitFile | null>(null);
   const [mergeNeedsCheckout, setMergeNeedsCheckout] = useState<{ sourceBranch: string; targetBranch: string } | null>(null);
@@ -1395,7 +1395,7 @@ export default function GitCronPage() {
           onSelectBranchInGraph={handleSelectBranchInGraph}
           onBranchContextMenu={openBranchMenu}
           onRemoteBranchContextMenu={openRemoteBranchMenu}
-          onDeleteBranchRequest={(b) => setDeleteConfirm({ branch: b })}
+          onDeleteBranchRequest={(b) => setDeleteConfirm({ branch: b, scope: 'local' })}
           selectedPullRequest={selectedPullRequest}
           onSelectPullRequest={handleSelectPullRequest}
           onPreviewStash={handlePreviewStash}
@@ -1695,6 +1695,7 @@ export default function GitCronPage() {
         deleteConfirm={deleteConfirm}
         setDeleteConfirm={setDeleteConfirm}
         deleteBranch={deleteBranch}
+        deleteRemoteBranch={deleteRemoteBranch}
         deleteTagConfirm={deleteTagConfirm}
         setDeleteTagConfirm={setDeleteTagConfirm}
         deleteTag={deleteTag}

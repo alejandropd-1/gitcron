@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useT } from '@/hooks/use-translation';
+import { cn } from '@/lib/utils';
 import type { GitFile } from '@/lib/git-store';
 
 /**
@@ -43,12 +44,28 @@ function useAdjustedPosition(x: number, y: number) {
 }
 
 function ContextMenuItem({
-  onClick, text, textSecondary,
-}: { onClick: () => void; text: string; textSecondary?: string }) {
+  onClick, text, textSecondary, disabled, title, danger,
+}: {
+  onClick: () => void;
+  text: string;
+  textSecondary?: string;
+  disabled?: boolean;
+  title?: string;
+  danger?: boolean;
+}) {
   return (
     <button
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className="w-full flex items-center justify-between px-4 py-1.5 text-ui-body text-left hover:bg-secondary/20 text-text-primary hover:text-secondary transition-colors"
+      onClick={(e) => { e.stopPropagation(); if (!disabled) onClick(); }}
+      disabled={disabled}
+      title={title}
+      className={cn(
+        'w-full flex items-center justify-between px-4 py-1.5 text-ui-body text-left transition-colors',
+        disabled
+          ? 'text-text-secondary/40 cursor-not-allowed'
+          : danger
+            ? 'text-text-primary hover:bg-error/20 hover:text-error'
+            : 'text-text-primary hover:bg-secondary/20 hover:text-secondary',
+      )}
     >
       <span className="text-left">{text}</span>
       {textSecondary && <span className="text-[10px] opacity-50 ml-4 shrink-0">{textSecondary}</span>}
@@ -98,17 +115,21 @@ export function CommitContextMenu({
 function BranchContextMenu({
   x, y, branch, currentBranch, tracking,
   onMerge, onRebase, onFastForward, onPull, onPush,
-  onCheckout, onRename, onDelete, onCopyName, onCreateFrom, onClose,
+  onCheckout, onRename, onDeleteLocal, onDeleteRemote, onDeleteBoth, onCopyName, onCreateFrom, onClose,
 }: {
   x: number; y: number; branch: string; currentBranch: string;
   tracking?: { ahead: number; behind: number; gone: boolean; upstream: string | null };
   onMerge: () => void; onRebase: () => void; onFastForward: () => void;
   onPull: () => void; onPush: () => void; onCheckout: () => void;
-  onRename: () => void; onDelete: () => void; onCopyName: () => void;
+  onRename: () => void; onDeleteLocal: () => void; onDeleteRemote: () => void;
+  onDeleteBoth: () => void; onCopyName: () => void;
   onCreateFrom: () => void; onClose: () => void;
 }) {
+  const t = useT();
   const isCurrent = branch === currentBranch;
   const hasUpstream = !!tracking?.upstream;
+  // "Remota viva": upstream configurado y NO gone (coherente con hasRemote de la Fase 01).
+  const hasRemote = hasUpstream && !tracking?.gone;
   const canPush = hasUpstream && (tracking?.ahead ?? 0) > 0;
   const canPull = hasUpstream && (tracking?.behind ?? 0) > 0;
   const { ref, coords, isMeasured } = useAdjustedPosition(x, y);
@@ -139,7 +160,23 @@ function BranchContextMenu({
       <div className="h-px bg-border-subtle/15 my-1" />
       <ContextMenuItem onClick={onCreateFrom} text="Crear nueva branch desde acá" />
       <ContextMenuItem onClick={onRename} text="Renombrar..." />
-      {!isCurrent && <ContextMenuItem onClick={onDelete} text="Eliminar" />}
+      {/* Borrado — opciones según estado local/remoto (Fase 01). La branch activa
+          no se puede borrar: las opciones quedan deshabilitadas con tooltip. */}
+      {isCurrent ? (
+        <>
+          <ContextMenuItem onClick={() => {}} disabled title={t('branchMenu.deleteActiveTooltip')} text={t('branchMenu.deleteLocal')} />
+          {hasRemote && <ContextMenuItem onClick={() => {}} disabled title={t('branchMenu.deleteActiveTooltip')} text={t('branchMenu.deleteRemote')} />}
+          {hasRemote && <ContextMenuItem onClick={() => {}} disabled title={t('branchMenu.deleteActiveTooltip')} text={t('branchMenu.deleteBoth')} />}
+        </>
+      ) : hasRemote ? (
+        <>
+          <ContextMenuItem onClick={onDeleteLocal} danger text={t('branchMenu.deleteLocal')} />
+          <ContextMenuItem onClick={onDeleteRemote} danger text={t('branchMenu.deleteRemote')} />
+          <ContextMenuItem onClick={onDeleteBoth} danger text={t('branchMenu.deleteBoth')} />
+        </>
+      ) : (
+        <ContextMenuItem onClick={onDeleteLocal} danger text={t('branchMenu.deleteLocal')} />
+      )}
       <div className="h-px bg-border-subtle/15 my-1" />
       <ContextMenuItem onClick={onCopyName} text="Copiar nombre" textSecondary="Ctrl+C" />
       <ContextMenuItem onClick={onClose} text="Cerrar" />
@@ -235,7 +272,9 @@ type BranchContextMenuLayerProps = {
   onPush: (branch: string) => void;
   onCheckout: (branch: string) => void;
   onRename: (branch: string) => void;
-  onDelete: (branch: string) => void;
+  onDeleteLocal: (branch: string) => void;
+  onDeleteRemote: (branch: string) => void;
+  onDeleteBoth: (branch: string) => void;
   onCopyName: (branch: string) => void;
   onCreateFrom: (branch: string) => void;
   onCloseBranchMenu: () => void;
@@ -254,7 +293,9 @@ export function BranchContextMenuLayer({
   onPush,
   onCheckout,
   onRename,
-  onDelete,
+  onDeleteLocal,
+  onDeleteRemote,
+  onDeleteBoth,
   onCopyName,
   onCreateFrom,
   onCloseBranchMenu,
@@ -277,7 +318,9 @@ export function BranchContextMenuLayer({
             onPush={() => onPush(branchMenu.branch)}
             onCheckout={() => onCheckout(branchMenu.branch)}
             onRename={() => onRename(branchMenu.branch)}
-            onDelete={() => onDelete(branchMenu.branch)}
+            onDeleteLocal={() => onDeleteLocal(branchMenu.branch)}
+            onDeleteRemote={() => onDeleteRemote(branchMenu.branch)}
+            onDeleteBoth={() => onDeleteBoth(branchMenu.branch)}
             onCopyName={() => onCopyName(branchMenu.branch)}
             onCreateFrom={() => onCreateFrom(branchMenu.branch)}
             onClose={onCloseBranchMenu}

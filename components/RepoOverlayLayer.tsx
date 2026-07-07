@@ -33,7 +33,8 @@ type BranchMenuState = { x: number; y: number; branch: string } | null;
 type CommitMenuState = { x: number; y: number; hash?: string } | null;
 type FileMenuState = { x: number; y: number; file: GitFile } | null;
 type RenameModalState = { oldName: string; newName: string } | null;
-type DeleteBranchState = { branch: string; notMerged?: boolean } | null;
+type DeleteScope = 'local' | 'remote' | 'both';
+type DeleteBranchState = { branch: string; scope: DeleteScope; notMerged?: boolean } | null;
 type CheckoutConflictState = { branch: string; error: string } | null;
 type MergeNeedsCheckoutState = { sourceBranch: string; targetBranch: string } | null;
 type GitResult = { success?: boolean; conflict?: boolean; notMerged?: boolean; alreadyIgnored?: boolean; error?: string };
@@ -92,6 +93,7 @@ export type RepoOverlayLayerProps = {
   deleteConfirm: DeleteBranchState;
   setDeleteConfirm: (state: DeleteBranchState) => void;
   deleteBranch: (branch: string, force?: boolean) => Promise<GitResult>;
+  deleteRemoteBranch: (branch: string, remote?: string) => Promise<{ success: boolean; error?: string; authRequired?: boolean }>;
   deleteTagConfirm: string | null;
   setDeleteTagConfirm: (tag: string | null) => void;
   deleteTag: (tag: string) => Promise<GitResult> | GitResult;
@@ -176,6 +178,86 @@ export type RepoOverlayLayerProps = {
 export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
   const t = useT();
 
+  // ── Diálogo de borrado de branch (local / remota / ambas) ──
+  const dc = props.deleteConfirm;
+  const dcImagined = dc?.branch.startsWith('imagined/') ?? false;
+  const dcScope: DeleteScope = dc?.scope ?? 'local';
+  const dcTitle = dcImagined
+    ? 'Descartar futuro materializado'
+    : dcScope === 'remote'
+      ? t('deleteBranch.remoteTitle')
+      : dcScope === 'both'
+        ? t('deleteBranch.bothTitle')
+        : t('deleteBranch.title');
+  const dcMessage = !dc
+    ? ''
+    : dcImagined
+      ? `¿Estás seguro de que deseas descartar este futuro? Esto eliminará de forma permanente la branch real "${dc.branch}" y su tag de flight level asociado.`
+      : dcScope === 'remote'
+        ? t('deleteBranch.remoteConfirm', { branch: dc.branch })
+        : dcScope === 'both'
+          ? t('deleteBranch.bothConfirm', { branch: dc.branch })
+          : t('deleteBranch.confirm', { branch: dc.branch });
+  // La advertencia de "no mergeada" aplica al borrado LOCAL (remota pura no la usa).
+  const dcWarning = dcScope !== 'remote' && dc?.notMerged ? t('deleteBranch.notMergedWarning') : undefined;
+  const dcConfirmLabel = dcScope === 'remote'
+    ? t('deleteBranch.deleteRemote')
+    : dcScope === 'both'
+      ? t('deleteBranch.deleteBoth')
+      : dc?.notMerged ? t('deleteBranch.force') : t('deleteBranch.delete');
+
+  const reportRemoteFailure = (error?: string, authRequired?: boolean) => {
+    props.setError(authRequired
+      ? t('deleteBranch.remoteAuthRequired')
+      : t('deleteBranch.remoteError', { error: error ?? '' }));
+  };
+
+  const handleDeleteConfirm = async () => {
+    const state = props.deleteConfirm;
+    if (!state) return;
+    const force = state.notMerged === true;
+
+    if (state.scope === 'remote') {
+      const r = await props.deleteRemoteBranch(state.branch);
+      if (!r.success) reportRemoteFailure(r.error, r.authRequired);
+      props.setDeleteConfirm(null);
+      return;
+    }
+
+    if (state.scope === 'both') {
+      const local = await props.deleteBranch(state.branch, force);
+      if (!local.success) {
+        // Local no mergeada → escalá a force conservando el scope "both".
+        if (local.notMerged && !state.notMerged) {
+          props.setDeleteConfirm({ branch: state.branch, scope: 'both', notMerged: true });
+          return;
+        }
+        // Otro fallo local: deleteBranch ya seteó el error. No tocamos la remota.
+        props.setDeleteConfirm(null);
+        return;
+      }
+      // Local borrada; intentá la remota y reportá si queda a medias.
+      const remote = await props.deleteRemoteBranch(state.branch);
+      if (!remote.success) {
+        props.setError(remote.authRequired
+          ? t('deleteBranch.remoteAuthRequired')
+          : t('deleteBranch.partialLocalOk', { error: remote.error ?? '' }));
+      }
+      props.setDeleteConfirm(null);
+      return;
+    }
+
+    // scope === 'local'
+    const r = await props.deleteBranch(state.branch, force);
+    if (r.success) {
+      props.setDeleteConfirm(null);
+    } else if (r.notMerged && !state.notMerged) {
+      props.setDeleteConfirm({ branch: state.branch, scope: 'local', notMerged: true });
+    } else {
+      props.setDeleteConfirm(null);
+    }
+  };
+
   return (
     <>
       <NewBranchModal
@@ -224,7 +306,9 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
         onPush={(branch) => { props.pushSpecificBranch(branch); props.setBranchMenu(null); }}
         onCheckout={(branch) => { props.onCheckoutAttempt(branch); props.setBranchMenu(null); props.setRemoteBranchMenu(null); }}
         onRename={(branch) => { props.setRenameModal({ oldName: branch, newName: branch }); props.setBranchMenu(null); }}
-        onDelete={(branch) => { props.setDeleteConfirm({ branch }); props.setBranchMenu(null); }}
+        onDeleteLocal={(branch) => { props.setDeleteConfirm({ branch, scope: 'local' }); props.setBranchMenu(null); }}
+        onDeleteRemote={(branch) => { props.setDeleteConfirm({ branch, scope: 'remote' }); props.setBranchMenu(null); }}
+        onDeleteBoth={(branch) => { props.setDeleteConfirm({ branch, scope: 'both' }); props.setBranchMenu(null); }}
         onCopyName={(branch) => { navigator.clipboard.writeText(branch); props.setBranchMenu(null); props.setRemoteBranchMenu(null); }}
         onCreateFrom={(branch) => { props.setNewBranchFrom(branch); props.setShowNewBranch(true); props.setBranchMenu(null); props.setRemoteBranchMenu(null); }}
         onCloseBranchMenu={() => props.setBranchMenu(null)}
@@ -261,30 +345,14 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
       />
       <DangerConfirmDialog
         open={props.deleteConfirm !== null}
-        title={props.deleteConfirm?.branch.startsWith('imagined/') ? 'Descartar futuro materializado' : t('deleteBranch.title')}
-        message={
-          props.deleteConfirm?.branch.startsWith('imagined/')
-            ? `¿Estás seguro de que deseas descartar este futuro? Esto eliminará de forma permanente la branch real "${props.deleteConfirm.branch}" y su tag de flight level asociado.`
-            : props.deleteConfirm
-              ? t('deleteBranch.confirm', { branch: props.deleteConfirm.branch })
-              : ''
-        }
-        warning={props.deleteConfirm?.notMerged ? t('deleteBranch.notMergedWarning') : undefined}
+        title={dcTitle}
+        message={dcMessage}
+        warning={dcWarning}
         cancelLabel={t('modal.cancel')}
-        confirmLabel={props.deleteConfirm?.notMerged ? t('deleteBranch.force') : t('deleteBranch.delete')}
+        confirmLabel={dcConfirmLabel}
         disabled={props.isLoading}
         onCancel={() => props.setDeleteConfirm(null)}
-        onConfirm={async () => {
-          if (!props.deleteConfirm) return;
-          const r = await props.deleteBranch(props.deleteConfirm.branch, props.deleteConfirm.notMerged === true);
-          if (r.success) {
-            props.setDeleteConfirm(null);
-          } else if (r.notMerged && !props.deleteConfirm.notMerged) {
-            props.setDeleteConfirm({ branch: props.deleteConfirm.branch, notMerged: true });
-          } else {
-            props.setDeleteConfirm(null);
-          }
-        }}
+        onConfirm={handleDeleteConfirm}
       />
       <DangerConfirmDialog
         open={props.deleteTagConfirm !== null}

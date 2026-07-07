@@ -74,6 +74,27 @@ export const useRemoteActions = () => {
     } finally { setLoading(false); }
   };
 
+  // Borra una branch en el remoto (git push origin --delete). Reutiliza el token
+  // de GitHub del store (mismo camino de credenciales que el push). No hace
+  // setError acá: devuelve el resultado para que el diálogo decida el mensaje
+  // (necesario para el caso "ambas", donde hay que reportar fallos parciales).
+  const deleteRemoteBranch = async (
+    branch: string,
+    remote = 'origin',
+  ): Promise<{ success: boolean; error?: string; authRequired?: boolean }> => {
+    if (!window.api || !repoPath) return { success: false, error: 'no api' };
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitDeleteRemoteBranch(repoPath, remote, branch, githubToken ?? undefined);
+      if (r.success) {
+        await refreshBranches();
+        await refreshLog();
+        return { success: true };
+      }
+      return { success: false, error: r.error, authRequired: (r.data as any)?.authRequired };
+    } finally { setLoading(false); }
+  };
+
   const pushChanges = async () => {
     if (!window.api || !repoPath) return;
     const startedAt = Date.now();
@@ -205,6 +226,7 @@ export const useRemoteActions = () => {
     pushTag,
     pullSpecificBranch,
     pushSpecificBranch,
+    deleteRemoteBranch,
     pushChanges,
     pullChanges,
     pullWithDecision,

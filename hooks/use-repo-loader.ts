@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useGitStore, type RepoState } from '@/lib/git-store';
 import type {
   CommitData, StatusFile, BranchData, StashEntry, SubmoduleEntry,
@@ -9,6 +9,23 @@ import type {
 
 type GraphMode = 'classic' | 'chronometric';
 type RefreshTarget = { target: string; hasExplicitPath: boolean };
+export type PendingInitRepo = { path: string; parentPath: string; name: string };
+
+function isNotARepoResult(result: { success?: boolean; reason?: string; path?: string }): result is { success: false; reason: 'not-a-repo'; path: string } {
+  return result.success === false && result.reason === 'not-a-repo' && typeof result.path === 'string';
+}
+
+function splitFolderPath(folderPath: string): PendingInitRepo {
+  const normalized = folderPath.replace(/[\\/]+$/, '');
+  const slash = Math.max(normalized.lastIndexOf('/'), normalized.lastIndexOf('\\'));
+  const name = slash >= 0 ? normalized.slice(slash + 1) : normalized;
+  const parentPath = slash >= 0 ? normalized.slice(0, slash) : '';
+  return {
+    path: normalized,
+    parentPath,
+    name,
+  };
+}
 
 function isGraphMode(value: unknown): value is GraphMode {
   return value === 'classic' || value === 'chronometric';
@@ -41,6 +58,7 @@ function parseRepoGraphModes(raw: unknown): Record<string, GraphMode> {
 }
 
 export const useRepoLoader = () => {
+  const [pendingInitRepo, setPendingInitRepo] = useState<PendingInitRepo | null>(null);
   const repoPath = useGitStore((state) => state.repoPath);
   const githubToken = useGitStore((state) => state.githubToken);
   const setCommits = useGitStore((state) => state.setCommits);
@@ -126,8 +144,14 @@ export const useRepoLoader = () => {
     try {
       const defaultFolder = useGitStore.getState().defaultFolder ?? undefined;
       const result = await window.api.openRepo(defaultFolder);
-      if (result.success && result.data) await applyRepoInfo(result.data);
-      else setError(result.error ?? 'No se pudo abrir el repositorio');
+      if (result.success && result.data) {
+        setPendingInitRepo(null);
+        await applyRepoInfo(result.data);
+      } else if (isNotARepoResult(result)) {
+        setPendingInitRepo(splitFolderPath(result.path));
+      } else {
+        setError(result.error ?? 'No se pudo abrir el repositorio');
+      }
     } catch (err: any) {
       setError(err.message ?? 'Error al abrir el repositorio');
     } finally {
@@ -245,6 +269,21 @@ export const useRepoLoader = () => {
       setLoading(false);
       if (prevPath) updateRepoByPath(prevPath, { isLoading: false });
     }
+  };
+
+  const cancelPendingInitRepo = () => {
+    setPendingInitRepo(null);
+  };
+
+  const initializePendingRepo = async () => {
+    if (!pendingInitRepo) return { success: false as const };
+    const targetPath = pendingInitRepo.path;
+    const r = await initRepo(pendingInitRepo.parentPath, pendingInitRepo.name, true);
+    if (r.success) {
+      setPendingInitRepo(null);
+      await loadAll(targetPath);
+    }
+    return r;
   };
 
   /** Clone an existing repo. token is optional (used for private GH repos). */
@@ -496,6 +535,9 @@ export const useRepoLoader = () => {
 
   return {
     openRepo,
+    pendingInitRepo,
+    cancelPendingInitRepo,
+    initializePendingRepo,
     trustSafeDirectory,
     restoreLastRepo,
     closeRepo,

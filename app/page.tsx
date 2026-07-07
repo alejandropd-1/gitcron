@@ -138,7 +138,8 @@ export default function GitCronPage() {
   const appFontSizePx = FONT_SIZE_OPTIONS.find((option) => option.key === fontSize)?.px ?? 15;
 
   const {
-    openRepo, trustSafeDirectory, restoreLastRepo, closeRepo, persistOpenRepos, loadAll, loadDiff, refreshLog,
+    openRepo, pendingInitRepo, cancelPendingInitRepo, initializePendingRepo,
+    trustSafeDirectory, restoreLastRepo, closeRepo, persistOpenRepos, loadAll, loadDiff, refreshLog,
     refreshStatus, pickFolder, initRepo, cloneRepo, createGitHubRepo, listUserGitHubRepos,
     refreshRemotes, refreshWorktrees, refreshSubmodules, refreshBranches,
   } = useRepoLoader();
@@ -1713,6 +1714,13 @@ export default function GitCronPage() {
         forcePushConfirmOpen={forcePushConfirmOpen}
         cancelForcePush={cancelForcePush}
         confirmForcePush={confirmForcePush}
+        pendingInitRepo={pendingInitRepo}
+        cancelPendingInitRepo={cancelPendingInitRepo}
+        initializePendingRepo={async () => {
+          const r = await initializePendingRepo();
+          if (r.success) handleCloseRepoChooser();
+          return r;
+        }}
         checkoutConflict={checkoutConflict}
         setCheckoutConflictModal={setCheckoutConflict}
         checkoutBranchSmart={checkoutBranchSmart}

@@ -844,6 +844,85 @@ export function ForcePushConfirmModal({
   );
 }
 
+interface InitializeRepoGuardModalProps {
+  pendingRepo: { path: string; name: string } | null;
+  onCancel: () => void;
+  onConfirm: () => Promise<void> | void;
+  isLoading: boolean;
+}
+
+export function InitializeRepoGuardModal({
+  pendingRepo,
+  onCancel,
+  onConfirm,
+  isLoading,
+}: InitializeRepoGuardModalProps) {
+  const t = useT();
+
+  return (
+    <ModalShell
+      open={!!pendingRepo}
+      onClose={onCancel}
+      backdropClassName="fixed inset-0 bg-black/65 flex items-center justify-center z-[220] px-4"
+      panelClassName="glass-overlay rounded-xl shadow-2xl w-[min(calc(100vw-2rem),540px)] overflow-hidden border border-secondary/25"
+    >
+      <div className="h-2 bg-gradient-to-r from-secondary via-primary to-[#ffd98a]" />
+      <div className="p-6">
+        <div className="flex items-start gap-4">
+          <div className="shrink-0 rounded-lg border border-secondary/35 bg-secondary/12 p-3 text-secondary shadow-lg shadow-secondary/10">
+            <GitBranch size={24} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-extrabold text-text-primary">
+              {t('initGuard.title')}
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-text-secondary">
+              {t('initGuard.desc', { name: pendingRepo?.name ?? '' })}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="shrink-0 rounded p-1 text-text-secondary hover:text-text-primary"
+            aria-label={t('modal.close')}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="mt-5 rounded border border-border-subtle/20 bg-bg-base/75 p-3">
+          <p className="mb-1 text-[10px] font-bold uppercase text-text-secondary">
+            {t('initGuard.pathLabel')}
+          </p>
+          <p className="select-text break-all font-mono text-xs text-text-primary">
+            {pendingRepo?.path ?? ''}
+          </p>
+        </div>
+
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isLoading}
+            className="rounded px-4 py-2 text-sm text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50"
+          >
+            {t('modal.cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="flex items-center gap-2 rounded bg-gradient-to-br from-[#a3f185] to-[#68b24f] px-4 py-2 text-sm font-bold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            {isLoading ? t('initGuard.initializing') : t('initGuard.action')}
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
 /* ──────────────────────────────────────────────────────────────────────────
    11. REMOTE MODALS (ADD, RENAME, SET URL)
    ────────────────────────────────────────────────────────────────────────── */

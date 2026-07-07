@@ -398,6 +398,11 @@ const es: Dict = {
   'initRepo.alsoOnGitHubNeedsAuth': 'Crear también en GitHub (necesita login)',
   'initRepo.creating': 'Creando...',
   'initRepo.createButton': 'Crear repositorio',
+  'initGuard.title': 'Esta carpeta todavía no es un repositorio Git',
+  'initGuard.desc': 'GitCron puede inicializar "{{name}}" ahora y abrirlo en el mismo flujo.',
+  'initGuard.pathLabel': 'Carpeta seleccionada',
+  'initGuard.action': 'Inicializar repositorio',
+  'initGuard.initializing': 'Inicializando...',
 
   // ── Modal: Clone Repo ──
   'clone.title': 'Clonar repositorio',
@@ -1298,6 +1303,11 @@ const en: Dict = {
   'initRepo.alsoOnGitHubNeedsAuth': 'Also create on GitHub (sign-in required)',
   'initRepo.creating': 'Creating...',
   'initRepo.createButton': 'Create repository',
+  'initGuard.title': 'This folder is not a Git repository yet',
+  'initGuard.desc': 'GitCron can initialize "{{name}}" now and open it in the same flow.',
+  'initGuard.pathLabel': 'Selected folder',
+  'initGuard.action': 'Initialize repository',
+  'initGuard.initializing': 'Initializing...',
 
   // ── Clone ──
   'clone.title': 'Clone repository',
@@ -2338,6 +2348,11 @@ const zh: Dict = {
   'initRepo.alsoOnGitHubNeedsAuth': '同时在 GitHub 上创建 (需要登录)',
   'initRepo.creating': '正在创建...',
   'initRepo.createButton': '创建仓库',
+  'initGuard.title': '此文件夹还不是 Git 仓库',
+  'initGuard.desc': 'GitCron 可以立即初始化“{{name}}”，并按同一流程打开它。',
+  'initGuard.pathLabel': '已选文件夹',
+  'initGuard.action': '初始化仓库',
+  'initGuard.initializing': '正在初始化...',
   'clone.title': '克隆仓库',
   'clone.myRepos': '我的 GitHub 仓库',
   'clone.manualUrl': '手动 URL',

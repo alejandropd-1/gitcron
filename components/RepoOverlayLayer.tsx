@@ -10,6 +10,7 @@ import {
   CleanUntrackedModal,
   CreateTagModal,
   ForcePushConfirmModal,
+  InitializeRepoGuardModal,
   MergeNeedsCheckoutModal,
   NewBranchModal,
   RenameBranchModal,
@@ -37,6 +38,7 @@ type DeleteScope = 'local' | 'remote' | 'both';
 type DeleteBranchState = { branch: string; scope: DeleteScope; notMerged?: boolean } | null;
 type CheckoutConflictState = { branch: string; error: string } | null;
 type MergeNeedsCheckoutState = { sourceBranch: string; targetBranch: string } | null;
+type PendingInitRepoState = { path: string; name: string } | null;
 type GitResult = { success?: boolean; conflict?: boolean; notMerged?: boolean; alreadyIgnored?: boolean; error?: string };
 
 export type RepoOverlayLayerProps = {
@@ -105,6 +107,9 @@ export type RepoOverlayLayerProps = {
   forcePushConfirmOpen: boolean;
   cancelForcePush: () => void;
   confirmForcePush: () => void;
+  pendingInitRepo: PendingInitRepoState;
+  cancelPendingInitRepo: () => void;
+  initializePendingRepo: () => Promise<{ success: boolean }> | { success: boolean };
   checkoutConflict: CheckoutConflictState;
   setCheckoutConflictModal: (state: CheckoutConflictState) => void;
   checkoutBranchSmart: (branch: string, options?: { stashFirst?: boolean }) => Promise<GitResult> | GitResult;
@@ -404,6 +409,14 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
         open={props.forcePushConfirmOpen}
         onCancel={props.cancelForcePush}
         onConfirm={props.confirmForcePush}
+      />
+      <InitializeRepoGuardModal
+        pendingRepo={props.pendingInitRepo}
+        onCancel={props.cancelPendingInitRepo}
+        onConfirm={async () => {
+          await props.initializePendingRepo();
+        }}
+        isLoading={props.isLoading}
       />
       <CheckoutConflictModal
         checkoutConflict={props.checkoutConflict}

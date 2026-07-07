@@ -30,6 +30,9 @@ import type {
 
 interface GitResult<T = unknown> {
   success: boolean;
+  ok?: boolean;
+  reason?: 'not-a-repo';
+  path?: string;
   data?: T;
   error?: string;
   isAuthError?: boolean;

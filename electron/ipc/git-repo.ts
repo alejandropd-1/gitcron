@@ -11,6 +11,16 @@ import {
   normalizeSafeDirectoryPath, repoAccessErrMsg,
 } from './shared';
 
+function notARepoResult(targetPath: string) {
+  return {
+    success: false,
+    ok: false,
+    reason: 'not-a-repo' as const,
+    path: targetPath,
+    error: `"${path.basename(targetPath)}" no es un repositorio git`,
+  };
+}
+
 export function registerGitRepoHandlers(): void {
   // ── Open a specific path directly (no dialog) — used to restore last repo ──
   ipcMain.handle('git:open-path', async (_event, dirPath: string) => {
@@ -21,7 +31,7 @@ export function registerGitRepoHandlers(): void {
       const testGit = simpleGit(dirPath);
       const isRepo = await testGit.checkIsRepo();
       if (!isRepo) {
-        return { success: false, error: `"${path.basename(dirPath)}" ya no es un repositorio git` };
+        return notARepoResult(dirPath);
       }
       const status = await simpleGit(dirPath).status();
       const info: RepoInfo = {
@@ -54,10 +64,7 @@ export function registerGitRepoHandlers(): void {
       const isRepo = await testGit.checkIsRepo();
 
       if (!isRepo) {
-        return {
-          success: false,
-          error: `"${path.basename(selectedPath)}" no es un repositorio git`,
-        };
+        return notARepoResult(selectedPath);
       }
 
       const status = await simpleGit(selectedPath).status();

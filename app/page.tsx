@@ -1696,6 +1696,12 @@ export default function GitCronPage() {
         setDeleteConfirm={setDeleteConfirm}
         deleteBranch={deleteBranch}
         deleteRemoteBranch={deleteRemoteBranch}
+        checkBranchMerged={async (branch) => {
+          if (!window.api || !repoPath) return true;
+          const r = await window.api.gitIsBranchMerged(repoPath, branch);
+          // Si el chequeo falla, asumí mergeada: no fuerza -D y el flujo reactivo cubre.
+          return r.success ? (r.data?.merged ?? true) : true;
+        }}
         deleteTagConfirm={deleteTagConfirm}
         setDeleteTagConfirm={setDeleteTagConfirm}
         deleteTag={deleteTag}

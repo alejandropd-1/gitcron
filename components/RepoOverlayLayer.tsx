@@ -94,6 +94,7 @@ export type RepoOverlayLayerProps = {
   setDeleteConfirm: (state: DeleteBranchState) => void;
   deleteBranch: (branch: string, force?: boolean) => Promise<GitResult>;
   deleteRemoteBranch: (branch: string, remote?: string) => Promise<{ success: boolean; error?: string; authRequired?: boolean }>;
+  checkBranchMerged: (branch: string) => Promise<boolean>;
   deleteTagConfirm: string | null;
   setDeleteTagConfirm: (tag: string | null) => void;
   deleteTag: (tag: string) => Promise<GitResult> | GitResult;
@@ -306,9 +307,19 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
         onPush={(branch) => { props.pushSpecificBranch(branch); props.setBranchMenu(null); }}
         onCheckout={(branch) => { props.onCheckoutAttempt(branch); props.setBranchMenu(null); props.setRemoteBranchMenu(null); }}
         onRename={(branch) => { props.setRenameModal({ oldName: branch, newName: branch }); props.setBranchMenu(null); }}
-        onDeleteLocal={(branch) => { props.setDeleteConfirm({ branch, scope: 'local' }); props.setBranchMenu(null); }}
+        onDeleteLocal={async (branch) => {
+          props.setBranchMenu(null);
+          // Chequeo proactivo de merge: decide upfront si mostrar el warning de
+          // commits a perder (y usar -D) o el diálogo normal (-d).
+          const merged = await props.checkBranchMerged(branch);
+          props.setDeleteConfirm({ branch, scope: 'local', notMerged: !merged });
+        }}
         onDeleteRemote={(branch) => { props.setDeleteConfirm({ branch, scope: 'remote' }); props.setBranchMenu(null); }}
-        onDeleteBoth={(branch) => { props.setDeleteConfirm({ branch, scope: 'both' }); props.setBranchMenu(null); }}
+        onDeleteBoth={async (branch) => {
+          props.setBranchMenu(null);
+          const merged = await props.checkBranchMerged(branch);
+          props.setDeleteConfirm({ branch, scope: 'both', notMerged: !merged });
+        }}
         onCopyName={(branch) => { navigator.clipboard.writeText(branch); props.setBranchMenu(null); props.setRemoteBranchMenu(null); }}
         onCreateFrom={(branch) => { props.setNewBranchFrom(branch); props.setShowNewBranch(true); props.setBranchMenu(null); props.setRemoteBranchMenu(null); }}
         onCloseBranchMenu={() => props.setBranchMenu(null)}

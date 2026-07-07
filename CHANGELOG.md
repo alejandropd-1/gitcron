@@ -4,6 +4,27 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.10.3] - 2026-07-07 - Git-core: init local con vinculo a remoto existente
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Inicializar y vincular a un remoto existente**: al abrir una carpeta sin Git, el cartel de inicialización ahora ofrece dos caminos: solo `git:init` local o inicializar y conectar un repo de GitHub ya creado por el usuario.
+- **Input de remoto validado**: el flujo acepta URLs `https://github.com/owner/repo(.git)` y `git@github.com:owner/repo(.git)`, validando antes de tocar Git para evitar crear un repo local cuando el input ya es inválido.
+- **Primer push guiado**: el camino remoto hace `git remote add origin <url>` y `git push --set-upstream origin main`, reutilizando el manejo de credenciales existente del push.
+
+#### Fixed
+- **Errores de push accionables**: si GitHub rechaza el primer push por permisos, autenticación o repo inexistente, GitCron muestra un error legible, conserva el repo local inicializado y permite reintentar el vínculo sin recrearlo.
+
+#### Security
+- **Sin tokens en URLs**: la autenticación HTTPS de GitHub sigue usando `http.extraheader` desde main process; no se escriben credenciales en `origin`, storage del renderer ni parámetros de URL.
+
+#### Changed
+- `package.json` sube a `1.10.3` para preparar el draft release de producción.
+- Crear repos nuevos en GitHub vía Octokit queda fuera de esta versión; el flujo actual asume que el repo remoto ya existe.
+
+---
+
 ## [v1.10.2] - 2026-07-07 - Hotfix: Cartografía carga el motor en el `.exe` empaquetado
 
 ### 🧭 Cartografía

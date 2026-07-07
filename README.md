@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.10.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.10.3-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -44,6 +44,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 
 - Open any existing Git repo from a native OS dialog.
 - Create a new repo locally, including **intelligent initialization inside non-empty folders** without losing files or overwriting local content.
+- When opening a folder that is not a Git repo yet, initialize locally or **initialize and link an existing GitHub remote** in one guided flow (`remote add origin` + first push of `main`).
 - Automatic **GitHub collision rescue**: when creating a local repository and selecting "Crear también en GitHub", if the repository already exists on GitHub, GitCron dynamically retrieves its remote URL and configures it seamlessly as `origin`.
 - Clone from any Git URL or from your GitHub repos.
 - Create a GitHub repo and clone it in one flow.
@@ -99,6 +100,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Manual personal access token fallback.
 - Authenticated push / pull / fetch via a process-scoped GitHub authorization header, without writing token-bearing `origin` URLs.
 - Automatic `--set-upstream` on the first push of a new branch.
+- Existing-empty-repo bootstrap: paste an already-created GitHub remote URL during init, validate it, add `origin`, and push `main`; rejected pushes leave the local repo intact and reattemptable.
 - Pull requests list in the sidebar for the current repo, with an in-app unified diff view.
 - Private repo clone support after login.
 
@@ -439,9 +441,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.10.0.exe`                                            |
-| macOS    | `GitCron-1.10.0.dmg` _(build on macOS with `pnpm package:mac`)_       |
-| Linux    | `GitCron-1.10.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.10.3.exe`                                            |
+| macOS    | `GitCron-1.10.3.dmg` _(build on macOS with `pnpm package:mac`)_       |
+| Linux    | `GitCron-1.10.3.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -490,7 +492,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.10.0` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.10.3` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

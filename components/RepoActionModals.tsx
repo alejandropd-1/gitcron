@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   AlertCircle, AlertTriangle, Archive, FileText, Folder,
-  GitBranch, GitMerge, Layers, Loader2, Plus, RotateCcw, Tag, Trash2, X,
-  FolderOpen, Globe, Link2, TreePine, Check
+  GitBranch, GitMerge, Layers, Loader2, Plus, RotateCcw, Tag, Trash2, Upload, X,
+  FolderOpen, Github, Globe, Link2, TreePine, Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -142,28 +142,41 @@ export function ResetAllConfirmDialog({
     <AnimatePresence>
       {show && (
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="fixed top-14 left-1/2 -translate-x-1/2 z-50 glass-alert-error rounded-lg shadow-2xl px-4 py-3 flex items-center gap-4 max-w-2xl"
+          exit={{ opacity: 0, y: 20 }}
+          role="alertdialog"
+          aria-modal="false"
+          aria-labelledby="reset-all-title"
+          aria-describedby="reset-all-description"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[310] glass-alert-error rounded-lg shadow-2xl px-4 py-3 flex items-start gap-3 w-[min(calc(100vw-2rem),760px)]"
         >
-          <AlertCircle size={20} className="text-[#ffdad6] shrink-0" />
-          <span className="text-sm text-[#ffdad6]">
-            {t('resetAll.warning')}
-          </span>
-          <button
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="shrink-0 px-3 py-1.5 text-xs font-bold bg-error hover:bg-[#ff8a86] text-white rounded transition-colors disabled:opacity-50"
-          >
-            {t('resetAll.button')}
-          </button>
-          <button
-            onClick={onClose}
-            className="shrink-0 px-3 py-1.5 text-xs font-medium text-[#ffdad6] hover:text-white"
-          >
-            {t('modal.cancel')}
-          </button>
+          <AlertCircle size={20} className="text-[#ffdad6] shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="flex-1 min-w-0">
+            <p id="reset-all-title" className="text-sm font-bold text-[#ffdad6]">
+              {t('resetAll.title')}
+            </p>
+            <p id="reset-all-description" className="text-xs text-[#ffdad6]/90 mt-0.5 leading-snug">
+              {t('resetAll.warning')}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3 py-1.5 text-xs font-medium text-[#ffdad6] hover:text-white rounded transition-colors"
+            >
+              {t('modal.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={isLoading}
+              className="px-3 py-1.5 text-xs font-bold bg-error hover:bg-[#ff8a86] text-white rounded transition-colors disabled:opacity-50"
+            >
+              {t('resetAll.button')}
+            </button>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -1067,7 +1080,153 @@ export function InitializeRepoGuardModal({
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
-   11. REMOTE MODALS (ADD, RENAME, SET URL)
+   11. PUBLISH REPOSITORY (MISSING REMOTE)
+   ────────────────────────────────────────────────────────────────────────── */
+
+type PublishResult = { success: boolean; error?: string };
+
+interface PublishRepositoryModalProps {
+  show: boolean;
+  repoName: string;
+  githubConnected: boolean;
+  isLoading: boolean;
+  onClose: () => void;
+  onCreateGitHub: () => Promise<PublishResult>;
+  onLinkExisting: (url: string) => Promise<PublishResult>;
+  onConnectGitHub: () => void;
+}
+
+export function PublishRepositoryModal({
+  show,
+  repoName,
+  githubConnected,
+  isLoading,
+  onClose,
+  onCreateGitHub,
+  onLinkExisting,
+  onConnectGitHub,
+}: PublishRepositoryModalProps) {
+  const t = useT();
+  const [mode, setMode] = useState<'choose' | 'link'>('choose');
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const resetAndClose = () => {
+    setMode('choose');
+    setUrl('');
+    setError(null);
+    onClose();
+  };
+
+  const handleCreate = async () => {
+    setError(null);
+    const result = await onCreateGitHub();
+    if (result.success) {
+      resetAndClose();
+      return;
+    }
+    setError(result.error ?? t('publishRemote.errorGeneric'));
+  };
+
+  const handleLink = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const trimmedUrl = url.trim();
+    if (!isValidExistingGitHubRemoteUrl(trimmedUrl)) {
+      setError(t('publishRemote.errorInvalidUrl'));
+      return;
+    }
+    setError(null);
+    const result = await onLinkExisting(trimmedUrl);
+    if (result.success) {
+      resetAndClose();
+      return;
+    }
+    setError(result.error ?? t('publishRemote.errorGeneric'));
+  };
+
+  return (
+    <ModalShell open={show} onClose={resetAndClose} panelClassName="glass-overlay rounded-xl shadow-2xl p-6 w-[min(calc(100vw-2rem),600px)]">
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h3 className="font-bold text-text-primary flex items-center gap-2">
+            <Upload size={18} className="text-secondary" />
+            {t('publishRemote.title')}
+          </h3>
+          <p className="mt-1 text-xs leading-relaxed text-text-secondary">
+            {t('publishRemote.description', { repo: repoName })}
+          </p>
+        </div>
+        <button type="button" onClick={resetAndClose} className="text-text-secondary hover:text-text-primary transition-colors" aria-label={t('modal.cancel')}>
+          <X size={16} />
+        </button>
+      </div>
+
+      {mode === 'choose' ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => void handleCreate()}
+            disabled={isLoading || !githubConnected}
+            className="rounded-lg border border-secondary/25 bg-secondary/[0.07] p-4 text-left transition-colors hover:border-secondary/55 hover:bg-secondary/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Github size={18} className="mb-3 text-secondary" />
+            <span className="block text-sm font-bold text-text-primary">{t('publishRemote.createTitle')}</span>
+            <span className="mt-1 block text-xs leading-snug text-text-secondary">{t('publishRemote.createDesc')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('link'); setError(null); }}
+            disabled={isLoading}
+            className="rounded-lg border border-primary/25 bg-primary/[0.07] p-4 text-left transition-colors hover:border-primary/55 hover:bg-primary/10 disabled:opacity-50"
+          >
+            <Link2 size={18} className="mb-3 text-primary" />
+            <span className="block text-sm font-bold text-text-primary">{t('publishRemote.linkTitle')}</span>
+            <span className="mt-1 block text-xs leading-snug text-text-secondary">{t('publishRemote.linkDesc')}</span>
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleLink}>
+          <label htmlFor="publish-remote-url" className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+            {t('publishRemote.urlLabel')}
+          </label>
+          <input
+            id="publish-remote-url"
+            autoFocus
+            value={url}
+            onChange={(event) => { setUrl(event.target.value); if (error) setError(null); }}
+            placeholder="https://github.com/usuario/repositorio.git"
+            disabled={isLoading}
+            className="h-10 w-full rounded border border-border-subtle/25 bg-bg-base/90 px-3 font-mono text-xs text-text-primary outline-none transition-colors placeholder:text-text-secondary/55 focus:border-primary/60 disabled:opacity-60"
+          />
+          <div className="mt-3 flex justify-between gap-2">
+            <button type="button" onClick={() => { setMode('choose'); setError(null); }} className="px-3 py-2 text-xs text-text-secondary hover:text-text-primary">
+              {t('publishRemote.back')}
+            </button>
+            <button type="submit" disabled={isLoading || !url.trim()} className="flex items-center gap-2 rounded bg-gradient-to-br from-primary to-secondary px-4 py-2 text-sm font-bold text-bg-base disabled:opacity-50">
+              {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+              {t('publishRemote.publish')}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {!githubConnected && mode === 'choose' && (
+        <button type="button" onClick={onConnectGitHub} className="mt-4 text-xs font-semibold text-primary underline hover:text-secondary">
+          {t('publishRemote.connectGitHub')}
+        </button>
+      )}
+      {error && (
+        <div className="mt-4 flex items-start gap-2 rounded border border-[#ff8b87]/25 bg-[#9f0519]/15 px-3 py-2 text-xs leading-relaxed text-[#ffdad6]" role="alert">
+          <AlertCircle size={14} className="mt-0.5 shrink-0 text-[#ff8b87]" />
+          <span>{error}</span>
+        </div>
+      )}
+    </ModalShell>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   12. REMOTE MODALS (ADD, RENAME, SET URL)
    ────────────────────────────────────────────────────────────────────────── */
 
 interface AddRemoteModalProps {

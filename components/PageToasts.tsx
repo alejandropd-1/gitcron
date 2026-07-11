@@ -86,7 +86,11 @@ export function PageToasts({
   }
 
   return (
-    <>
+    <div
+      className="pointer-events-none fixed inset-x-0 bottom-4 z-[300] flex flex-col items-center gap-2 px-4"
+      role="region"
+      aria-label={t('notifications.regionLabel')}
+    >
       {/* ──────────── SUCCESS TOAST (auto-dismiss 3s/10s) ──────────── */}
       <AnimatePresence>
         {success && (
@@ -94,12 +98,14 @@ export function PageToasts({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
+            role="status"
+            aria-live="polite"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             className={
               isPullSuccess
-                ? "fixed bottom-4 left-1/2 -translate-x-1/2 p-4 glass-alert-success rounded-lg shadow-2xl flex flex-col items-stretch z-50 w-[min(calc(100vw-2rem),400px)] max-w-md"
-                : "fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-3 glass-alert-success rounded-lg shadow-2xl flex items-center gap-3 z-50 max-w-xl"
+                ? "pointer-events-auto p-4 glass-alert-success rounded-lg shadow-2xl flex flex-col items-stretch w-[min(calc(100vw-2rem),400px)] max-w-md"
+                : "pointer-events-auto px-4 py-3 glass-alert-success rounded-lg shadow-2xl flex items-center gap-3 w-[min(calc(100vw-2rem),640px)]"
             }
           >
             {isPullSuccess ? (
@@ -117,6 +123,7 @@ export function PageToasts({
                     </span>
                   </div>
                   <button
+                    type="button"
                     onClick={() => setSuccess(null)}
                     className="hover:opacity-70 shrink-0 text-secondary p-0.5 -mt-0.5 -mr-1"
                   >
@@ -146,7 +153,7 @@ export function PageToasts({
               <>
                 <Check size={18} className="shrink-0" />
                 <span className="text-sm font-medium">{displayMessage}</span>
-                <button onClick={() => setSuccess(null)} className="ml-3 hover:opacity-70 shrink-0 text-secondary">
+                <button type="button" onClick={() => setSuccess(null)} className="ml-3 hover:opacity-70 shrink-0 text-secondary">
                   <X size={14} />
                 </button>
               </>
@@ -160,7 +167,9 @@ export function PageToasts({
         {pullDecision && (
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-3 glass-alert-warning text-text-primary rounded-lg shadow-2xl flex items-center gap-3 z-50 w-[min(calc(100vw-2rem),760px)]"
+            role="alertdialog"
+            aria-modal="false"
+            className="pointer-events-auto px-4 py-3 glass-alert-warning text-text-primary rounded-lg shadow-2xl flex items-center gap-3 w-[min(calc(100vw-2rem),760px)]"
           >
             <AlertCircle size={20} className="shrink-0 text-[#f4b942]" />
             <div className="flex-1 min-w-0">
@@ -207,7 +216,7 @@ export function PageToasts({
                 {t('pullDecision.mergeBtn')}
               </button>
             </div>
-            <button onClick={onDismissPullDecision} className="hover:opacity-70 shrink-0 text-[#ffd98a]">
+            <button type="button" onClick={onDismissPullDecision} className="hover:opacity-70 shrink-0 text-[#ffd98a]">
               <X size={16} />
             </button>
           </motion.div>
@@ -219,13 +228,16 @@ export function PageToasts({
         {error && (
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 p-3 bg-[#9f0519] text-[#ffdad6] rounded-lg shadow-2xl flex items-start gap-3 z-50 border border-[#ffa8a3]/20 max-w-xl"
+            role="alert"
+            aria-live="assertive"
+            className="pointer-events-auto p-3 bg-[#9f0519] text-[#ffdad6] rounded-lg shadow-2xl flex items-start gap-3 border border-[#ffa8a3]/20 w-[min(calc(100vw-2rem),640px)]"
           >
             <AlertCircle size={20} className="shrink-0 mt-0.5" />
             <span className="text-sm font-medium flex-1 whitespace-pre-line">{error}</span>
             {/* Recovery action when git index is locked */}
             {error.toLowerCase().includes('index.lock') && (
               <button
+                type="button"
                 onClick={async () => {
                   const ok = await removeIndexLock();
                   if (ok) setError(null);
@@ -238,6 +250,7 @@ export function PageToasts({
             )}
             {canTrustSafeDirectory && (
               <button
+                type="button"
                 onClick={onTrustSafeDirectory}
                 disabled={isLoading}
                 className="shrink-0 px-3 py-1 text-xs font-bold bg-[#ffa8a3]/20 hover:bg-[#ffa8a3]/30 text-[#ffdad6] rounded transition-colors disabled:opacity-50"
@@ -246,12 +259,12 @@ export function PageToasts({
                 Confiar carpeta
               </button>
             )}
-            <button onClick={() => setError(null)} className="hover:opacity-70 shrink-0">
+            <button type="button" onClick={() => setError(null)} className="hover:opacity-70 shrink-0">
               <X size={16} />
             </button>
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
 }

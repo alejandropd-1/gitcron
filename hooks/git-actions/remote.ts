@@ -96,7 +96,7 @@ export const useRemoteActions = () => {
   };
 
   const pushChanges = async () => {
-    if (!window.api || !repoPath) return;
+    if (!window.api || !repoPath) return { success: false as const, error: 'No repo' };
     const startedAt = Date.now();
     setLoading(true); setError(null);
     try {
@@ -111,6 +111,7 @@ export const useRemoteActions = () => {
         if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
           notify('GitCron — Push fallido', { body: errMsg });
         }
+        return result;
       } else {
         const wasNewBranch = (result.data as any)?.setUpstream;
         const msg = wasNewBranch
@@ -125,8 +126,12 @@ export const useRemoteActions = () => {
         }
         await refreshLog();
         await refreshBranches();
+        return result;
       }
-    } catch (err: any) { setError(err.message); }
+    } catch (err: any) {
+      setError(err.message);
+      return { success: false as const, error: err.message as string };
+    }
     finally { setLoading(false); }
   };
 

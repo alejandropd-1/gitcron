@@ -124,19 +124,54 @@ export function RepoDetailsPanel({
           </div>
           {/* WIP banner: visible when commit is selected but there are unsaved changes */}
           {modifiedFiles.length > 0 && (
-            <div className="px-3 py-2 bg-git-mod/10 border-b border-git-mod/20 flex items-center gap-2 shrink-0">
-              <Archive size={13} className="text-git-mod shrink-0" />
-              <span className="text-[11px] text-text-primary flex-1">
-                {t('commit.unstagedChangesCount', { count: modifiedFiles.length })}
-              </span>
-              <button
-                onClick={onOpenStashModal}
-                disabled={isLoading}
-                className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded border border-git-mod/40 transition-colors disabled:opacity-50"
-                title={t('commit.stashTooltip')}
-              >
-                Stash
-              </button>
+            <div className="shrink-0 border-b border-git-mod/20 bg-git-mod/[0.07]">
+              <div className="px-3 py-2 flex items-center gap-2">
+                <Archive size={13} className="text-git-mod shrink-0" />
+                <span className="text-[11px] font-bold text-text-primary flex-1">
+                  {t('commit.liveChangesTitle', { count: modifiedFiles.length })}
+                </span>
+                <button
+                  onClick={() => setSelectedCommit(null)}
+                  className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded border border-git-mod/40 transition-colors"
+                >
+                  {t('commit.viewChangesBtn')}
+                </button>
+                <button
+                  onClick={onOpenStashModal}
+                  disabled={isLoading}
+                  className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded border border-git-mod/40 transition-colors disabled:opacity-50"
+                  title={t('commit.stashTooltip')}
+                >
+                  Stash
+                </button>
+              </div>
+              <div className="max-h-36 overflow-y-auto border-t border-git-mod/15 p-1">
+                {modifiedFiles.map((file) => (
+                  <button
+                    key={`${file.staged ? 'staged' : 'unstaged'}:${file.path}`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCommit(null);
+                      onSelectFile(file);
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1 text-left text-text-secondary hover:bg-git-mod/10 hover:text-text-primary transition-colors"
+                    title={file.path}
+                  >
+                    <span className={cn(
+                      'w-4 shrink-0 text-[9px] font-bold',
+                      file.status === 'deleted' ? 'text-error' : file.status === 'modified' ? 'text-git-mod' : 'text-secondary',
+                    )}>
+                      {file.status === 'added' || file.status === 'untracked'
+                        ? 'A'
+                        : file.status === 'deleted'
+                          ? 'D'
+                          : file.status === 'renamed' ? 'R' : 'M'}
+                    </span>
+                    <span className="truncate text-[11px] flex-1">{file.path}</span>
+                    {file.staged && <span className="text-[9px] text-secondary">{t('commitTab.staged')}</span>}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           <div className="p-4 border-b border-border-subtle/15 bg-bg-surface/75 shrink-0">

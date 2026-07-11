@@ -67,15 +67,31 @@ export function useRepoChooser({
     setError(null);
     const repoDir = childPath(parent, name);
 
+    if (withGitHub && !githubToken) {
+      setError('No hay una sesión válida de GitHub. Reconectá tu cuenta y volvé a intentar. No se creó el repositorio local.');
+      return false;
+    }
+
     const existsResult = await window.api.fsExistsAndNotEmpty(parent, name);
     const existsAndNotEmpty = existsResult.success && existsResult.data;
 
     if (existsAndNotEmpty) {
-      const r = await initRepo(parent, name, true);
-      if (!r.success) return false;
+      // A failed GitHub step may leave a perfectly valid local repository.
+      // Detect that retry state and continue from the remote step instead of
+      // running git:init again (which intentionally rejects existing repos).
+      const existingGit = await window.api.gitCommand(repoDir, ['rev-parse', '--is-inside-work-tree']);
+      const localRepoReady = existingGit.success && String(existingGit.data ?? '').trim() === 'true';
+      if (!localRepoReady) {
+        const r = await initRepo(parent, name, true);
+        if (!r.success) return false;
+      }
 
       if (withGitHub && githubToken) {
         const gh = await createGitHubRepo(githubToken, name, true, '', false);
+        if (!gh.success) {
+          setError(`El repositorio local quedó listo en "${repoDir}", pero GitHub falló: ${gh.error ?? 'error desconocido'}. Reconectá tu cuenta y reintentá; GitCron continuará desde el paso remoto.`);
+          return false;
+        }
         const cloneUrl = cloneUrlFromGitHubCreateResult(gh, githubUser?.login, name);
         if (cloneUrl === null) return false;
 
@@ -103,10 +119,11 @@ export function useRepoChooser({
                   return false;
                 }
               } else {
+                setError(`El repositorio local quedó listo en "${repoDir}". El push inicial fue cancelado; podés reintentar sin volver a inicializarlo.`);
                 return false;
               }
             } else {
-              setError(pushRes.error ?? 'Error al subir los archivos a GitHub');
+              setError(`El repositorio local quedó listo en "${repoDir}", pero el push a GitHub falló: ${pushRes.error ?? 'error desconocido'}. Podés reintentar sin volver a inicializarlo.`);
               return false;
             }
           }
@@ -123,6 +140,9 @@ export function useRepoChooser({
 
       if (cloneUrl) {
         const cl = await cloneRepo(cloneUrl, parent, name, githubToken);
+        if (!cl.success) {
+          setError(`El repositorio se creó en GitHub, pero no se pudo clonar en "${repoDir}": ${cl.error ?? 'error desconocido'}.`);
+        }
         return cl.success;
       }
       return false;

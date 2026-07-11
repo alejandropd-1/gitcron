@@ -13,6 +13,7 @@ import {
   InitializeRepoGuardModal,
   MergeNeedsCheckoutModal,
   NewBranchModal,
+  PublishRepositoryModal,
   RenameBranchModal,
   ResetAllConfirmDialog,
   SquashCommitsModal,
@@ -26,6 +27,7 @@ import { ResetCommitModal } from '@/components/ResetCommitModal';
 import { StashCreateModal, StashPreviewModal, type StashPreviewState } from '@/components/StashModals';
 import { useT } from '@/hooks/use-translation';
 import type { Commit, GitFile } from '@/lib/git-store';
+import { remoteBranchTarget } from '@/lib/branch-upstream';
 import type { RemoteEntry, WorktreeEntry, SubmoduleEntry } from '@/types/electron';
 // Removed InteractiveRebasePanel import as it is now in RepoMainView
 
@@ -35,7 +37,13 @@ type CommitMenuState = { x: number; y: number; hash?: string } | null;
 type FileMenuState = { x: number; y: number; file: GitFile } | null;
 type RenameModalState = { oldName: string; newName: string } | null;
 type DeleteScope = 'local' | 'remote' | 'both';
-type DeleteBranchState = { branch: string; scope: DeleteScope; notMerged?: boolean } | null;
+type DeleteBranchState = {
+  branch: string;
+  scope: DeleteScope;
+  notMerged?: boolean;
+  remote?: string;
+  remoteBranch?: string;
+} | null;
 type CheckoutConflictState = { branch: string; error: string } | null;
 type MergeNeedsCheckoutState = { sourceBranch: string; targetBranch: string } | null;
 type PendingInitRepoState = { path: string; name: string; isInitialized?: boolean } | null;
@@ -156,6 +164,7 @@ export type RepoOverlayLayerProps = {
   stashFile: (path: string) => Promise<void | GitResult> | void | GitResult;
   addToGitignore: (path: string) => Promise<GitResult>;
   setError: (error: string | null) => void;
+  setSuccess: (message: string | null) => void;
   openInDefault: (path: string) => Promise<void | GitResult> | void | GitResult;
   showInFolder: (path: string) => Promise<void | GitResult> | void | GitResult;
   copyFilePath: (path: string) => Promise<void> | void;
@@ -167,6 +176,13 @@ export type RepoOverlayLayerProps = {
 
   // F5 props
   // remotes
+  showPublishRemote: boolean;
+  repoName: string;
+  githubConnected: boolean;
+  setShowPublishRemote: (show: boolean) => void;
+  onCreateGitHubRemote: () => Promise<{ success: boolean; error?: string }>;
+  onLinkExistingRemote: (url: string) => Promise<{ success: boolean; error?: string }>;
+  onConnectGitHub: () => void;
   showAddRemote: boolean;
   setShowAddRemote: (show: boolean) => void;
   onAddRemote: (name: string, url: string) => Promise<void>;
@@ -201,6 +217,10 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
   const dc = props.deleteConfirm;
   const dcImagined = dc?.branch.startsWith('imagined/') ?? false;
   const dcScope: DeleteScope = dc?.scope ?? 'local';
+  const dcRemoteBranch = dc?.remoteBranch ?? dc?.branch ?? '';
+  const dcBranchLabel = dc && dcRemoteBranch !== dc.branch
+    ? `${dc.branch} → ${dcRemoteBranch}`
+    : dc?.branch ?? '';
   const dcTitle = dcImagined
     ? 'Descartar futuro materializado'
     : dcScope === 'remote'
@@ -213,9 +233,9 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
     : dcImagined
       ? `¿Estás seguro de que deseas descartar este futuro? Esto eliminará de forma permanente la branch real "${dc.branch}" y su tag de flight level asociado.`
       : dcScope === 'remote'
-        ? t('deleteBranch.remoteConfirm', { branch: dc.branch })
+        ? t('deleteBranch.remoteConfirm', { branch: dcRemoteBranch })
         : dcScope === 'both'
-          ? t('deleteBranch.bothConfirm', { branch: dc.branch })
+          ? t('deleteBranch.bothConfirm', { branch: dcBranchLabel })
           : t('deleteBranch.confirm', { branch: dc.branch });
   // La advertencia de "no mergeada" aplica al borrado LOCAL (remota pura no la usa).
   const dcWarning = dcScope !== 'remote' && dc?.notMerged ? t('deleteBranch.notMergedWarning') : undefined;
@@ -237,8 +257,17 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
     const force = state.notMerged === true;
 
     if (state.scope === 'remote') {
-      const r = await props.deleteRemoteBranch(state.branch);
+      const r = await props.deleteRemoteBranch(
+        state.remoteBranch ?? state.branch,
+        state.remote ?? 'origin',
+      );
       if (!r.success) reportRemoteFailure(r.error, r.authRequired);
+      else {
+        props.setSuccess(t('deleteBranch.successRemote', {
+          branch: state.remoteBranch ?? state.branch,
+          remote: state.remote ?? 'origin',
+        }));
+      }
       props.setDeleteConfirm(null);
       return;
     }
@@ -248,7 +277,7 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
       if (!local.success) {
         // Local no mergeada → escalá a force conservando el scope "both".
         if (local.notMerged && !state.notMerged) {
-          props.setDeleteConfirm({ branch: state.branch, scope: 'both', notMerged: true });
+          props.setDeleteConfirm({ ...state, notMerged: true });
           return;
         }
         // Otro fallo local: deleteBranch ya seteó el error. No tocamos la remota.
@@ -256,11 +285,20 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
         return;
       }
       // Local borrada; intentá la remota y reportá si queda a medias.
-      const remote = await props.deleteRemoteBranch(state.branch);
+      const remote = await props.deleteRemoteBranch(
+        state.remoteBranch ?? state.branch,
+        state.remote ?? 'origin',
+      );
       if (!remote.success) {
         props.setError(remote.authRequired
           ? t('deleteBranch.remoteAuthRequired')
           : t('deleteBranch.partialLocalOk', { error: remote.error ?? '' }));
+      } else {
+        props.setSuccess(t('deleteBranch.successBoth', {
+          local: state.branch,
+          remoteBranch: state.remoteBranch ?? state.branch,
+          remote: state.remote ?? 'origin',
+        }));
       }
       props.setDeleteConfirm(null);
       return;
@@ -269,6 +307,7 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
     // scope === 'local'
     const r = await props.deleteBranch(state.branch, force);
     if (r.success) {
+      props.setSuccess(t('deleteBranch.successLocal', { branch: state.branch }));
       props.setDeleteConfirm(null);
     } else if (r.notMerged && !state.notMerged) {
       props.setDeleteConfirm({ branch: state.branch, scope: 'local', notMerged: true });
@@ -332,11 +371,22 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
           const merged = await props.checkBranchMerged(branch);
           props.setDeleteConfirm({ branch, scope: 'local', notMerged: !merged });
         }}
-        onDeleteRemote={(branch) => { props.setDeleteConfirm({ branch, scope: 'remote' }); props.setBranchMenu(null); }}
+        onDeleteRemote={(branch) => {
+          const target = remoteBranchTarget(props.branchTracking[branch]?.upstream, branch);
+          props.setDeleteConfirm({ branch, scope: 'remote', remote: target.remote, remoteBranch: target.branch });
+          props.setBranchMenu(null);
+        }}
         onDeleteBoth={async (branch) => {
           props.setBranchMenu(null);
           const merged = await props.checkBranchMerged(branch);
-          props.setDeleteConfirm({ branch, scope: 'both', notMerged: !merged });
+          const target = remoteBranchTarget(props.branchTracking[branch]?.upstream, branch);
+          props.setDeleteConfirm({
+            branch,
+            scope: 'both',
+            notMerged: !merged,
+            remote: target.remote,
+            remoteBranch: target.branch,
+          });
         }}
         onCopyName={(branch) => { navigator.clipboard.writeText(branch); props.setBranchMenu(null); props.setRemoteBranchMenu(null); }}
         onCreateFrom={(branch) => { props.setNewBranchFrom(branch); props.setShowNewBranch(true); props.setBranchMenu(null); props.setRemoteBranchMenu(null); }}
@@ -549,6 +599,16 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
       </AnimatePresence>
 
       {/* F5 Modals */}
+      <PublishRepositoryModal
+        show={props.showPublishRemote}
+        repoName={props.repoName}
+        githubConnected={props.githubConnected}
+        isLoading={props.isLoading}
+        onClose={() => props.setShowPublishRemote(false)}
+        onCreateGitHub={props.onCreateGitHubRemote}
+        onLinkExisting={props.onLinkExistingRemote}
+        onConnectGitHub={props.onConnectGitHub}
+      />
       <AddRemoteModal
         show={props.showAddRemote}
         onClose={() => props.setShowAddRemote(false)}

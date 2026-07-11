@@ -151,6 +151,7 @@ export const useWorkingTreeActions = () => {
       const r = await window.api.gitResetAll(repoPath);
       if (r.success) {
         await refreshStatus();
+        setSuccess(t('success.resetAll'));
         return true;
       }
       setError(r.error ?? 'Error al resetear');

@@ -566,8 +566,9 @@ export const useRepoLoader = () => {
   useEffect(() => {
     if (!repoPath || !window.api) return;
     const target = repoPath;
-
-    window.api.repoWatch(target);
+    void window.api.repoWatch(target).then((result) => {
+      if (!result.success) console.error('repoWatch error:', result.error);
+    });
 
     const unsubFsChange = window.api.onRepoFsChange((changedPath) => {
       if (changedPath !== target) return;
@@ -576,12 +577,30 @@ export const useRepoLoader = () => {
     });
 
     const onFocus = () => refreshStatus(target);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refreshStatus(target);
+    };
     window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    // Chokidar is the fast path. This focused-window heartbeat is a safety net
+    // for filesystem events that Windows, editors or atomic-save flows may drop.
+    const statusHeartbeat = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && document.hasFocus()) {
+        void refreshStatus(target);
+      }
+    }, 2000);
 
     return () => {
       unsubFsChange();
       window.removeEventListener('focus', onFocus);
-      window.api?.repoUnwatch(target);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.clearInterval(statusHeartbeat);
+      if (fsDebounceRef.current) {
+        clearTimeout(fsDebounceRef.current);
+        fsDebounceRef.current = null;
+      }
+      void window.api?.repoUnwatch(target);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoPath]);

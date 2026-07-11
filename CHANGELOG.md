@@ -4,6 +4,29 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.10.4] - 2026-07-11 - Working tree en vivo y operaciones remotas resilientes
+
+### 🟢 Vista Clásica & Core
+
+#### Fixed
+- **Cambios locales realmente en vivo**: el watcher serializa `watch/unwatch` para que un cambio rápido de solapas no deje al repo activo sin observación. Mientras la ventana está enfocada, un heartbeat de `git status` cada 2 segundos recupera eventos que Windows o los guardados atómicos puedan omitir.
+- **Working tree visible al inspeccionar commits**: el panel derecho muestra una sección viva con los archivos locales actuales aunque haya un commit histórico seleccionado, con acceso directo al diff y al área completa de staging.
+- **Borrado remoto por upstream real**: “Borrar local y remota” usa el nombre exacto del upstream. Una local `feat/astro-scaffold` que sigue `origin/feat/astro.scaffold` elimina ahora ambas referencias correctas.
+- **Confirmación al borrar ramas**: los borrados local, remoto y combinado muestran un toast de éxito con las referencias exactas eliminadas.
+- **Confirmación de `reset --hard` legible**: “Borrar TODOS los cambios” deja de aparecer debajo del topbar y usa el mismo viewport inferior que el resto de los avisos, con título, descripción y acciones visibles.
+- **Reintento de publicación en GitHub**: si el paso remoto falla después de crear el repo local, un nuevo intento detecta el `.git` existente y continúa desde GitHub sin ejecutar nuevamente `git init`.
+- **Push sin destino guiado**: al intentar publicar un repo local que todavía no tiene `origin`, GitCron evita el error crudo de Git y ofrece crear un repo privado en GitHub o vincular una URL existente; luego configura el upstream y ejecuta el primer push.
+
+#### Changed
+- **Auto-fetch remoto explícito**: Settings y el tooltip de la barra aclaran que esta función busca commits y ramas en GitHub; no controla la detección de archivos locales.
+- **Notificaciones globales consistentes**: éxito, decisiones y errores comparten un contenedor inferior apilable por encima del shell de la aplicación, con roles accesibles y cierre explícito.
+- `package.json` sube a `1.10.4` para preparar el instalador y el draft release de producción.
+
+#### Quality
+- Tests nuevos para upstreams con nombres distintos y para la carrera `unwatch → rewatch` del mismo repositorio.
+
+---
+
 ## [v1.10.3] - 2026-07-07 - Git-core: init local con vinculo a remoto existente
 
 ### 🟢 Vista Clásica & Core

@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.10.3-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.10.4-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -45,7 +45,8 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Open any existing Git repo from a native OS dialog.
 - Create a new repo locally, including **intelligent initialization inside non-empty folders** without losing files or overwriting local content.
 - When opening a folder that is not a Git repo yet, initialize locally or **initialize and link an existing GitHub remote** in one guided flow (`remote add origin` + first push of `main`).
-- Automatic **GitHub collision rescue**: when creating a local repository and selecting "Crear también en GitHub", if the repository already exists on GitHub, GitCron dynamically retrieves its remote URL and configures it seamlessly as `origin`.
+- Automatic **GitHub collision and retry rescue**: when creating a local repository and selecting "Crear también en GitHub", GitCron can recover an existing remote and, if publication previously failed, continue from the GitHub step without trying to initialize the local repository again.
+- Pushing a local-only repository with no `origin` opens a guided publication flow: create a private GitHub repository or link an existing GitHub URL, then configure the upstream and push without losing local commits.
 - Clone from any Git URL or from your GitHub repos.
 - Create a GitHub repo and clone it in one flow.
 - Multi-repo tabs: keep several repos open at once.
@@ -67,7 +68,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 #### Staging and commits
 
 - Separate unstaged and staged sections.
-- **Auto-refresh of the UNSTAGED panel** when files change on disk: a `chokidar` watcher in the main process emits `repo:fs-change` over IPC (debounced 250 ms in main + 150 ms in renderer). A window `focus` listener provides a fallback when the watcher misses an event. Watches ignore `.git`, `node_modules`, `.next`, `dist`, `release`, and `out`.
+- **Live working tree in the right panel** when files change on disk: a serialized `chokidar` watcher emits `repo:fs-change` over IPC (debounced 250 ms in main + 150 ms in renderer), while a focused-window `git status` heartbeat every 2 seconds recovers filesystem events missed by Windows or atomic saves. Current files remain visible in a dedicated live section even while inspecting a historical commit. Watches ignore `.git`, `node_modules`, `.next`, `dist`, `release`, and `out`.
 - Batch stage / unstage to avoid `index.lock` races.
 - Hunk and selected-line stage / unstage / discard directly from the diff viewer.
 - Diff viewer for staged and unstaged files.
@@ -85,7 +86,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Ahead / behind chips now explain themselves on hover, and Pull / Push open a decision toast when the current branch is behind or diverged.
 - **Premium Force Push workflow**: when pushing a branch whose history has diverged from the remote (e.g., during initialization/pushes of overlapping repos), GitCron displays a beautifully styled, high-priority React overlay modal (`z-[300]`) requesting explicit permission before executing a safe `--force` push.
 - Checkout with conflict detection.
-- Merge, rebase, fast-forward, rename, delete, and create branch flows.
+- Merge, rebase, fast-forward, rename, delete, and create branch flows. Remote deletion resolves the exact configured upstream, including local and remote branches whose names differ.
 - **Improved Pull Success Toast**: Success toast for pull actions displays a structured header with the file count and a scrollable body containing the list of modified files (using maximum height and `overflow-y: auto`). Auto-dismiss timer pauses on hover so the user has time to read the files list.
 - Cherry-pick a single commit onto the current branch from the commit context menu, with conflict-aware feedback.
 - Per-file stash and full working-tree stash.
@@ -118,10 +119,11 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Resizable app columns: sidebar / center / details.
 - Resizable graph columns: Branch/Tag, Graph, Date, Commit.
 - Reworked topbar layout with repo navigation on the left, Git actions centered, and tools on the right.
-- Auto-fetch: background `git fetch --all --prune` on a configurable interval (5 / 10 / 30 / 60 min). Toggle and last-sync time in Settings. Manual trigger via the fetch button next to Stash.
+- Remote auto-fetch: background `git fetch --all --prune` on a configurable interval (5 / 10 / 30 / 60 min). Toggle and last-sync time in Settings. Manual trigger via the fetch button next to Stash. Local file detection is independent and stays live.
 - Default folder: configurable starting directory for open and clone dialogs, saved in encrypted storage.
 - Per-repo loading state: each tab shows its own spinner and error — a slow operation on repo A never blocks repo B.
 - Text size setting in Settings: `Compact`, `Normal`, `Large`.
+- In-app notifications share one bottom-centered, stackable viewport above the application shell. Success, errors and action prompts remain readable; destructive reset and branch deletion flows report their final outcome explicitly.
 - OS notifications: native alerts when push/pull takes >3s or the window is unfocused, and when auto-fetch detects new remote commits.
 - Configurable keyboard shortcuts: 14 actions (commit, push, pull, branch, fetch, search, etc.) editable from Settings with click-to-capture rebind.
 - Theme toggle in Settings: dark (default) and experimental light mode.
@@ -441,9 +443,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.10.3.exe`                                            |
-| macOS    | `GitCron-1.10.3.dmg` _(build on macOS with `pnpm package:mac`)_       |
-| Linux    | `GitCron-1.10.3.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.10.4.exe`                                            |
+| macOS    | `GitCron-1.10.4.dmg` _(build on macOS with `pnpm package:mac`)_       |
+| Linux    | `GitCron-1.10.4.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -492,7 +494,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.10.3` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.10.4` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

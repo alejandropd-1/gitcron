@@ -104,7 +104,7 @@ export default function GitCronPage() {
     commits, modifiedFiles, commitMessage, setCommitMessage,
     selectedCommit, setSelectedCommit, isLoading, setLoading, error, setError, success, setSuccess,
     selectedFile, setSelectedFile, currentDiff, setCurrentDiff,
-    stashes, tags, submodules,
+    stashes, tags, submodules, remotes,
     githubToken, githubUser,
     branchTracking, worktrees, pullRequests,
     setOpenRepos,
@@ -345,6 +345,13 @@ export default function GitCronPage() {
 
   const handlePushIntent = () => {
     if (!repoPath) return;
+    if (!remotes.some((remote) => remote.name === 'origin')) {
+      setError(null);
+      setSuccess(null);
+      setPullDecision(null);
+      setShowPublishRemote(true);
+      return;
+    }
     if (showPullDecisionIfNeeded('push')) return;
     void pushChanges();
   };
@@ -415,7 +422,13 @@ export default function GitCronPage() {
   const [branchMenu, setBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
   const [remoteBranchMenu, setRemoteBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
   const [renameModal, setRenameModal] = useState<{ oldName: string; newName: string } | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ branch: string; scope: 'local' | 'remote' | 'both'; notMerged?: boolean } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    branch: string;
+    scope: 'local' | 'remote' | 'both';
+    notMerged?: boolean;
+    remote?: string;
+    remoteBranch?: string;
+  } | null>(null);
   const [deleteTagConfirm, setDeleteTagConfirm] = useState<string | null>(null);
   const [discardConfirmFile, setDiscardConfirmFile] = useState<GitFile | null>(null);
   const [mergeNeedsCheckout, setMergeNeedsCheckout] = useState<{ sourceBranch: string; targetBranch: string } | null>(null);
@@ -432,6 +445,7 @@ export default function GitCronPage() {
   const [cleanModalLoading, setCleanModalLoading] = useState(false);
 
   // F5 (Remotes, Worktrees, Submodules) states
+  const [showPublishRemote, setShowPublishRemote] = useState(false);
   const [showAddRemote, setShowAddRemote] = useState(false);
   const [remoteToRename, setRemoteToRename] = useState<RemoteEntry | null>(null);
   const [remoteToSetUrl, setRemoteToSetUrl] = useState<RemoteEntry | null>(null);
@@ -460,6 +474,42 @@ export default function GitCronPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const attachOriginAndPush = async (url: string): Promise<{ success: boolean; error?: string }> => {
+    if (!repoPath || !window.api) return { success: false, error: t('publishRemote.errorNoRepo') };
+    setLoading(true);
+    setError(null);
+    try {
+      const add = await window.api.gitRemoteAdd(repoPath, 'origin', url);
+      if (!add.success) {
+        const message = add.error ?? t('publishRemote.errorAddRemote');
+        setError(message);
+        return { success: false, error: message };
+      }
+      await refreshRemotes(repoPath);
+      await refreshBranches(repoPath);
+      // `pushChanges` configures the upstream automatically on the first push.
+      // If GitHub rejects it, origin stays configured so the next Push can retry.
+      await pushChanges();
+      return { success: true };
+    } catch (error: any) {
+      const message = error?.message ?? t('publishRemote.errorGeneric');
+      setError(message);
+      return { success: false, error: message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateGitHubRemote = async (): Promise<{ success: boolean; error?: string }> => {
+    if (!githubToken) return { success: false, error: t('publishRemote.errorAuth') };
+    const name = openRepos[activeRepoIdx]?.name ?? 'repo';
+    const created = await createGitHubRepo(githubToken, name, true, '', false);
+    if (!created.success) return { success: false, error: created.error ?? t('publishRemote.errorCreate') };
+    const cloneUrl = created.data?.cloneUrl;
+    if (!cloneUrl) return { success: false, error: t('publishRemote.errorCreate') };
+    return attachOriginAndPush(cloneUrl);
   };
 
   const handleRenameRemote = async (oldName: string, newName: string) => {
@@ -1623,7 +1673,12 @@ export default function GitCronPage() {
           onRequestAmend={() => setShowAmend(true)}
           onRequestSquash={() => setShowSquash(true)}
           onFileContextMenu={openFileContextMenu}
-          onRequestResetAll={() => setShowResetConfirm(true)}
+          onRequestResetAll={() => {
+            setSuccess(null);
+            setError(null);
+            setPullDecision(null);
+            setShowResetConfirm(true);
+          }}
           onRequestCleanUntracked={handleOpenCleanModal}
         />
 
@@ -1760,6 +1815,7 @@ export default function GitCronPage() {
         stashFile={stashFile}
         addToGitignore={addToGitignore}
         setError={setError}
+        setSuccess={setSuccess}
         openInDefault={openInDefault}
         showInFolder={showInFolder}
         copyFilePath={copyFilePath}
@@ -1769,6 +1825,13 @@ export default function GitCronPage() {
         cherryPickCommit={cherryPickCommit}
         revertCommit={revertCommit}
         showAddRemote={showAddRemote}
+        showPublishRemote={showPublishRemote}
+        repoName={openRepos[activeRepoIdx]?.name ?? 'repo'}
+        githubConnected={!!githubUser}
+        setShowPublishRemote={setShowPublishRemote}
+        onCreateGitHubRemote={handleCreateGitHubRemote}
+        onLinkExistingRemote={attachOriginAndPush}
+        onConnectGitHub={() => { setShowPublishRemote(false); handleViewChange('profile'); }}
         setShowAddRemote={setShowAddRemote}
         onAddRemote={handleAddRemote}
         remoteToRename={remoteToRename}

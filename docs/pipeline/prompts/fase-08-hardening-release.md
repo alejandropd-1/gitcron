@@ -4,8 +4,9 @@
 
 ## Contexto obligatorio
 
-Leé fuente de verdad, invariantes, contexto integral, estado, protocolo, brief F08 y todos los
-reportes Pipeline. Verificá el código: esta fase corrige el track real, no una lista histórica.
+Leé fuente de verdad, invariantes, contexto integral, estado, protocolo,
+`docs/pipeline/briefs/fase-08-hardening-y-release.md` y todos los reportes Pipeline. Verificá el
+código: esta fase corrige el track real, no una lista histórica.
 
 ## Decisiones confirmadas — no volver a preguntar
 
@@ -33,4 +34,3 @@ probe pago, borrado o cambio de packaging necesita autorización aplicable.
 
 No hagas stage/commit/push/merge/tag/release. Entregá exit codes, evidencia visual, archivos,
 desvíos, riesgos, mensaje/comandos sugeridos y STOP para QA y publicación humana.
-

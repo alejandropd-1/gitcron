@@ -4,8 +4,9 @@
 
 ## Contexto obligatorio
 
-Leé fuente de verdad, invariantes, contexto integral, estado, protocolo, contrato F00, brief F03 y
-reporte F02. Esta fase tiene varias tandas/runtimes: no asumas que el mismo agente debe hacerlas todas.
+Leé fuente de verdad, invariantes, contexto integral, estado, protocolo, contrato F00,
+`docs/pipeline/briefs/fase-03-adaptadores-y-telemetria.md` y reporte F02. Esta fase tiene varias
+tandas/runtimes: no asumas que el mismo agente debe hacerlas todas.
 
 ## Decisiones confirmadas — no volver a preguntar
 
@@ -32,4 +33,3 @@ conjunto completo.
 
 Incluí exit codes, procesos/cleanup, compatibilidad, datos desconocidos, desvíos y checklist humano.
 No stage/commit/push/merge. Mensaje y comandos sugeridos; STOP.
-

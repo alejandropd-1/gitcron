@@ -4,8 +4,9 @@
 
 ## Contexto obligatorio
 
-Leé fuente de verdad, invariantes, contexto integral, estado, protocolo, brief F07 y reportes F01–F06.
-No des por suficiente una muestra solo porque existen eventos.
+Leé fuente de verdad, invariantes, contexto integral, estado, protocolo,
+`docs/pipeline/briefs/fase-07-inteligencia-replay.md` y reportes F01–F06. No des por suficiente una
+muestra solo porque existen eventos.
 
 ## Decisiones confirmadas — no volver a preguntar
 
@@ -33,4 +34,3 @@ reglas, pero diferí ranking/predicción. Separá replay, anomaly engine, estima
 
 Reportá privacidad, falsos positivos, incertidumbre, exit codes, desvíos y archivos. No operaciones
 Git de cierre. Mensaje/comandos sugeridos y STOP.
-

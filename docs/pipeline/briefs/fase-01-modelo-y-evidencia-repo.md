@@ -81,7 +81,7 @@ Aplicá docs/pipeline/protocolo-ejecucion-agentes.md. Identificá IA/runtime/mod
 fase, rama, tandas y checkpoints. No escribas ni crees la rama hasta recibir autorización.
 Implementá SOLO Pipeline Fase 01 en C:\www\gitCronos. Leé primero
 docs/00_FUENTE_DE_VERDAD.md, docs/01_INVARIANTES.md, docs/pipeline/00-indice.md y
-docs/pipeline/fase-01-modelo-y-evidencia-repo.md. Confirmá que F00 está mergeada.
+docs/pipeline/briefs/fase-01-modelo-y-evidencia-repo.md. Confirmá que F00 está mergeada.
 
 Branch pipeline/fase-01-modelo-evidencia desde main. TANDA 0 es reconocimiento sin editar:
 trazá tipos, preload, SQLite, watcher, OpenSpec y formatos del scaffold. Presentá firmas,

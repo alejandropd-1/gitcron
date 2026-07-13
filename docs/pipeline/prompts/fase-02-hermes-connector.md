@@ -4,8 +4,9 @@
 
 ## Contexto obligatorio
 
-Leé fuente de verdad, invariantes, contexto integral, estado del track, protocolo, brief F02, ADR F00
-y reporte F01. Confirmá en el código las versiones y contratos; no confíes solo en reportes previos.
+Leé fuente de verdad, invariantes, contexto integral, estado del track, protocolo,
+`docs/pipeline/briefs/fase-02-hermes-connector-readonly.md`, ADR F00 y reporte F01. Confirmá en el
+código las versiones y contratos; no confíes solo en reportes previos.
 
 ## Decisiones confirmadas — no volver a preguntar
 
@@ -31,4 +32,3 @@ reconnect, dedupe, cleanup e IPC read-only.
 
 No ejecutes controles reales ni operaciones Git de cierre. Reportá validaciones con exit code,
 seguridad, degradación, archivos, mensaje/comandos sugeridos y STOP.
-

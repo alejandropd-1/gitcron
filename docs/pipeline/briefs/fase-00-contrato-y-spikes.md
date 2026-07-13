@@ -103,7 +103,7 @@ Aplicá docs/pipeline/protocolo-ejecucion-agentes.md. Identificá IA/runtime/mod
 fase, tandas, checkpoints y rama objetivo antes de actuar. Pedí autorización cuando corresponda.
 Sos el scout de Pipeline Fase 00 en C:\www\gitCronos. Esta fase es AUDIT-ONLY.
 Leé docs/00_FUENTE_DE_VERDAD.md, docs/01_INVARIANTES.md,
-docs/pipeline/00-indice.md y docs/pipeline/fase-00-contrato-y-spikes.md.
+docs/pipeline/00-indice.md y docs/pipeline/briefs/fase-00-contrato-y-spikes.md.
 
 Objetivo: producir evidencia para Pipeline Contract v1. Relevá GitCron, scaffold y las
 interfaces instaladas de Hermes, Claude, Codex, agy, OpenCode y LM Studio. Armá la matriz

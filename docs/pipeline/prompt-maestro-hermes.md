@@ -84,7 +84,7 @@ contexto de conversaciones anteriores.
 ```text
 Sos el fixer aislado de Pipeline Fase NN. Aplicá docs/pipeline/protocolo-ejecucion-agentes.md y leé:
 - docs/01_INVARIANTES.md;
-- docs/pipeline/fase-NN-<slug>.md;
+- docs/pipeline/briefs/fase-NN-<slug>.md;
 - docs/reports/<reporte-de-auditoria>.md.
 
 Aplicá exclusivamente los hallazgos numerados del auditor. No rediseñes, no agregues mejoras,

@@ -4,8 +4,9 @@
 
 ## Contexto obligatorio
 
-Leé fuente de verdad, invariantes, contexto integral, estado, protocolo, brief F05 y reporte F04.
-Revalidá capabilities reales; observar una acción no implica poder controlarla.
+Leé fuente de verdad, invariantes, contexto integral, estado, protocolo,
+`docs/pipeline/briefs/fase-05-control-supervisado.md` y reporte F04. Revalidá capabilities reales;
+observar una acción no implica poder controlarla.
 
 ## Decisiones confirmadas — no volver a preguntar
 
@@ -31,4 +32,3 @@ pause/steer/queue, interrupt/process, approvals/cancel. Detenete antes de toda p
 
 Detallá casos adversariales, exit codes, seguridad, archivos, desvíos y riesgos. No hagas operaciones
 Git de cierre. Entregá mensaje/comandos sugeridos y STOP.
-

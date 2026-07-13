@@ -4,8 +4,9 @@
 
 ## Contexto obligatorio
 
-Leé fuente de verdad, invariantes, contexto integral, estado, protocolo, brief F04 y reporte F03.
-Auditá primero la navegación, stores y componentes existentes que deben reutilizarse.
+Leé fuente de verdad, invariantes, contexto integral, estado, protocolo,
+`docs/pipeline/briefs/fase-04-workspace-pipeline-ui.md` y reporte F03. Auditá primero la navegación,
+stores y componentes existentes que deben reutilizarse.
 
 ## Decisiones confirmadas — no volver a preguntar
 
@@ -32,4 +33,3 @@ cerrá cada una con checkpoint funcional/visual. Si creés necesitar CSS, detene
 
 Reportá typecheck/tests/fallow/QA, consola, archivos, desvíos y ausencia de cambios CSS. No hagas
 stage/commit/push. Entregá mensaje/comandos sugeridos y STOP para QA visual de Ale.
-

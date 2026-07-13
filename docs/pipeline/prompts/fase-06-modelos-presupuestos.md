@@ -4,8 +4,9 @@
 
 ## Contexto obligatorio
 
-Leé fuente de verdad, invariantes, contexto integral, estado, protocolo, brief F06 y reporte F05.
-Verificá catálogos/capabilities actuales sin revelar credenciales ni cambiar configuración.
+Leé fuente de verdad, invariantes, contexto integral, estado, protocolo,
+`docs/pipeline/briefs/fase-06-modelos-presupuestos-contexto.md` y reporte F05. Verificá
+catálogos/capabilities actuales sin revelar credenciales ni cambiar configuración.
 
 ## Decisiones confirmadas — no volver a preguntar
 
@@ -33,4 +34,3 @@ routing, usage/costo/tiempo, contexto y enforcement en tandas separadas.
 
 No cambies credenciales/configuración del usuario ni hagas Git de cierre. Entregá exit codes,
 archivos, desvíos, mensaje/comandos sugeridos y STOP.
-

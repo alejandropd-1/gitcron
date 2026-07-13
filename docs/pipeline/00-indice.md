@@ -1,5 +1,7 @@
 # Pipeline — Torre de control de agentes por repositorio
 
+> Primera vez: empezar por [`EMPEZAR-AQUI.md`](EMPEZAR-AQUI.md).
+
 > Track de producto e implementación para convertir la solapa `Pipeline` de GitCron en una
 > superficie de observabilidad y control de Hermes y de los runtimes que orquesta. Este índice
 > es el tablero de Ale. Los agentes reciben **una sola fase por vez** y deben leer antes
@@ -158,15 +160,15 @@ entregar al ejecutor únicamente la fase activa y respetar sus checkpoints.
 
 | Fase | Resultado | Riesgo | Prerrequisito |
 |---|---|---:|---|
-| [00](fase-00-contrato-y-spikes.md) | Contrato v1, fixtures reales, ADR de conexión y matriz de capacidades | Bajo, audit-only | Ninguno |
-| [01](fase-01-modelo-y-evidencia-repo.md) | Modelo puro + lector OpenSpec/Git/docs/ai/files + persistencia per-repo | Medio | F00 aprobada |
-| [02](fase-02-hermes-connector-readonly.md) | Conexión autenticada a Hermes, solo observación | Alto | F01 mergeada |
-| [03](fase-03-adaptadores-y-telemetria.md) | Claude/Codex/agy/OpenCode/LM Studio normalizados | Alto | F02 mergeada |
-| [04](fase-04-workspace-pipeline-ui.md) | Solapa Pipeline per-repo: vía, agentes, reasoning, economía, diffs | Alto visual | F03 mergeada |
-| [05](fase-05-control-supervisado.md) | Pause/steer/interrupt/subagent/process/approvals con guardrails | Muy alto | F04 validada |
-| [06](fase-06-modelos-presupuestos-contexto.md) | Selección por rol/task/repo, presupuestos, contexto y fallbacks | Muy alto | F05 validada |
-| [07](fase-07-inteligencia-replay.md) | Replay, loops, predicción y comparación de modelos | Medio | Datos reales acumulados |
-| [08](fase-08-hardening-y-release.md) | Seguridad, compatibilidad, docs, packaging y release | Alto | F00–F07 cerradas |
+| [00](briefs/fase-00-contrato-y-spikes.md) | Contrato v1, fixtures reales, ADR de conexión y matriz de capacidades | Bajo, audit-only | Ninguno |
+| [01](briefs/fase-01-modelo-y-evidencia-repo.md) | Modelo puro + lector OpenSpec/Git/docs/ai/files + persistencia per-repo | Medio | F00 aprobada |
+| [02](briefs/fase-02-hermes-connector-readonly.md) | Conexión autenticada a Hermes, solo observación | Alto | F01 mergeada |
+| [03](briefs/fase-03-adaptadores-y-telemetria.md) | Claude/Codex/agy/OpenCode/LM Studio normalizados | Alto | F02 mergeada |
+| [04](briefs/fase-04-workspace-pipeline-ui.md) | Solapa Pipeline per-repo: vía, agentes, reasoning, economía, diffs | Alto visual | F03 mergeada |
+| [05](briefs/fase-05-control-supervisado.md) | Pause/steer/interrupt/subagent/process/approvals con guardrails | Muy alto | F04 validada |
+| [06](briefs/fase-06-modelos-presupuestos-contexto.md) | Selección por rol/task/repo, presupuestos, contexto y fallbacks | Muy alto | F05 validada |
+| [07](briefs/fase-07-inteligencia-replay.md) | Replay, loops, predicción y comparación de modelos | Medio | Datos reales acumulados |
+| [08](briefs/fase-08-hardening-y-release.md) | Seguridad, compatibilidad, docs, packaging y release | Alto | F00–F07 cerradas |
 
 Cada brief define el alcance técnico. Para iniciar una fase se usa su prompt autónomo enlazado desde
 [`00-estado-track.md`](00-estado-track.md); al finalizar se crea un reporte en `docs/reports/` usando

@@ -11,7 +11,7 @@ Studio. Esta fase elimina supuestos antes de diseñar adaptadores. Leé, en orde
 2. `docs/pipeline/CONTEXTO-INTEGRAL.md`;
 3. `docs/pipeline/00-estado-track.md`;
 4. `docs/pipeline/protocolo-ejecucion-agentes.md`;
-5. `docs/pipeline/fase-00-contrato-y-spikes.md`.
+5. `docs/pipeline/briefs/fase-00-contrato-y-spikes.md`.
 
 ## Decisiones confirmadas — no volver a preguntar
 
@@ -39,4 +39,3 @@ Ejecutá solo TANDA 0 y detenete en su checkpoint.
 
 No hagas stage, commit, push, merge, tag ni release. Cerrá con checks aplicables, checklist humano,
 desvíos, riesgos, `git status --short`, mensaje de commit sugerido y `STOP` para QA de Ale.
-

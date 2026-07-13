@@ -4,7 +4,7 @@ Fecha: `YYYY-MM-DD`
 Agente: `<IA / runtime / modelo / rol>`
 Rama: `pipeline/fase-NN-<slug>`
 Estado: `Lista para QA | Bloqueada`
-Brief: `docs/pipeline/fase-NN-<slug>.md`
+Brief: `docs/pipeline/briefs/fase-NN-<slug>.md`
 
 ## Objetivo
 
@@ -102,4 +102,3 @@ git push -u origin pipeline/fase-NN-<slug>
 ## Cierre
 
 `FASE NN LISTA PARA TU QA` o `FASE NN BLOQUEADA`.
-

@@ -335,14 +335,14 @@ Verifica las interfaces reales de Hermes, Claude, Codex, `agy`, OpenCode y LM St
 fixtures, define identidad/eventos/métricas/capabilities/comandos y decide el protocolo de conexión,
 autenticación, versionado y degradación. Es audit-only y no implementa la feature.
 
-Brief: [`fase-00-contrato-y-spikes.md`](fase-00-contrato-y-spikes.md).
+Brief: [`fase-00-contrato-y-spikes.md`](briefs/fase-00-contrato-y-spikes.md).
 
 ### F01 — Modelo y evidencia por repositorio
 
 Construye los tipos, parsers, reducer, lector de evidencia y persistencia SQLite per-repo. Debe
 entender OpenSpec, Git, docs, reportes, tests, archivos y repos sin scaffold, sin UI ni red.
 
-Brief: [`fase-01-modelo-y-evidencia-repo.md`](fase-01-modelo-y-evidencia-repo.md).
+Brief: [`fase-01-modelo-y-evidencia-repo.md`](briefs/fase-01-modelo-y-evidencia-repo.md).
 
 ### F02 — Conector Hermes de solo observación
 
@@ -350,7 +350,7 @@ Implementa la conexión autenticada desde Electron main, negociación de versió
 vínculo explícito por repo, normalización de eventos, reconexión, dedupe y cleanup. Todavía no envía
 prompts ni controles.
 
-Brief: [`fase-02-hermes-connector-readonly.md`](fase-02-hermes-connector-readonly.md).
+Brief: [`fase-02-hermes-connector-readonly.md`](briefs/fase-02-hermes-connector-readonly.md).
 
 ### F03 — Adaptadores y telemetría
 
@@ -358,7 +358,7 @@ Normaliza Hermes, Claude Code, Codex CLI, Antigravity, OpenCode y LM Studio. Cad
 honestamente qué puede observar/controlar, conserva procedencia y degrada campos ausentes. No se
 permite parsing frágil de prosa ni paridad ficticia.
 
-Brief: [`fase-03-adaptadores-y-telemetria.md`](fase-03-adaptadores-y-telemetria.md).
+Brief: [`fase-03-adaptadores-y-telemetria.md`](briefs/fase-03-adaptadores-y-telemetria.md).
 
 ### F04 — Workspace Pipeline por repo
 
@@ -366,7 +366,7 @@ Construye la solapa y sus estados con markup semántico, accesibilidad, i18n ES/
 evidencia visual. Muestra “Ahora”, camino, agentes, actividad, economía, contexto y diffs. Los agentes
 no escriben CSS: Ale realiza la piel visual.
 
-Brief: [`fase-04-workspace-pipeline-ui.md`](fase-04-workspace-pipeline-ui.md).
+Brief: [`fase-04-workspace-pipeline-ui.md`](briefs/fase-04-workspace-pipeline-ui.md).
 
 ### F05 — Control supervisado
 
@@ -374,7 +374,7 @@ Agrega command bus tipado y acciones seguras de pausa, steer, queue, interrupt, 
 cancelación. Incluye state machines, threat model, confirmaciones, audit log, reconciliación y pruebas
 adversariales cross-repo.
 
-Brief: [`fase-05-control-supervisado.md`](fase-05-control-supervisado.md).
+Brief: [`fase-05-control-supervisado.md`](briefs/fase-05-control-supervisado.md).
 
 ### F06 — Modelos, presupuestos y contexto
 
@@ -382,7 +382,7 @@ Agrega catálogo vivo, selección por repo/rol/task, fallbacks, decorrelación b
 presupuestos, tokens, costos, duración y salud de contexto. Nunca cambia configuración global o carga
 modelos locales automáticamente.
 
-Brief: [`fase-06-modelos-presupuestos-contexto.md`](fase-06-modelos-presupuestos-contexto.md).
+Brief: [`fase-06-modelos-presupuestos-contexto.md`](briefs/fase-06-modelos-presupuestos-contexto.md).
 
 ### F07 — Replay e inteligencia operativa
 
@@ -390,7 +390,7 @@ Permite reproducir corridas sin side effects, detectar loops mediante reglas exp
 tiempo/costo con intervalos y comparar modelos por outcomes. Las narraciones deben citar evidencia y
 las muestras insuficientes deben declararse como tales.
 
-Brief: [`fase-07-inteligencia-replay.md`](fase-07-inteligencia-replay.md).
+Brief: [`fase-07-inteligencia-replay.md`](briefs/fase-07-inteligencia-replay.md).
 
 ### F08 — Hardening y preparación de release
 
@@ -398,7 +398,7 @@ Congela contratos, corrige seguridad/privacidad/resiliencia/performance, prueba 
 app empaquetada, valida E2E, sincroniza documentación y prepara un release candidate. No agrega
 features. Ale hace tag y publicación.
 
-Brief: [`fase-08-hardening-y-release.md`](fase-08-hardening-y-release.md).
+Brief: [`fase-08-hardening-y-release.md`](briefs/fase-08-hardening-y-release.md).
 
 ## Riesgos principales
 

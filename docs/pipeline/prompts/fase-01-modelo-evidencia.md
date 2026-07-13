@@ -21,7 +21,7 @@ documentación desactualizada.
 Identificate y anunciá objetivo, scope, rama, tandas, archivos probables y validaciones. Pedí OK para
 crear la rama e iniciar. TANDA 0 es auditoría sin modificar: localizá modelos, DB, preload/IPC y
 helpers reutilizables. Mostrá el mapa y esperá OK. Después ejecutá una tanda autorizada por vez según
-`fase-01-modelo-y-evidencia-repo.md`.
+`docs/pipeline/briefs/fase-01-modelo-y-evidencia-repo.md`.
 
 ## Entregables
 
@@ -33,4 +33,3 @@ helpers reutilizables. Mostrá el mapa y esperá OK. Después ejecutá una tanda
 
 Ejecutá typecheck, tests focalizados, suite y fallow según el brief. No hagas operaciones Git de
 cierre. Entregá exit codes, archivos, desvíos, riesgos, mensaje de commit/comandos sugeridos y STOP.
-

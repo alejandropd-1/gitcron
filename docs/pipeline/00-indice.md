@@ -9,6 +9,9 @@
 Una IA que necesite comprender la propuesta completa antes de recibir una fase debe comenzar por
 [`CONTEXTO-INTEGRAL.md`](CONTEXTO-INTEGRAL.md).
 
+El estado operativo se mantiene en [`00-estado-track.md`](00-estado-track.md). Los encargos
+copiables, separados de sus futuros reportes, están en [`prompts/`](prompts/README.md).
+
 ## Visión en lenguaje de producto
 
 Pipeline responde, para el repo de la solapa activa:
@@ -164,6 +167,10 @@ entregar al ejecutor únicamente la fase activa y respetar sus checkpoints.
 | [06](fase-06-modelos-presupuestos-contexto.md) | Selección por rol/task/repo, presupuestos, contexto y fallbacks | Muy alto | F05 validada |
 | [07](fase-07-inteligencia-replay.md) | Replay, loops, predicción y comparación de modelos | Medio | Datos reales acumulados |
 | [08](fase-08-hardening-y-release.md) | Seguridad, compatibilidad, docs, packaging y release | Alto | F00–F07 cerradas |
+
+Cada brief define el alcance técnico. Para iniciar una fase se usa su prompt autónomo enlazado desde
+[`00-estado-track.md`](00-estado-track.md); al finalizar se crea un reporte en `docs/reports/` usando
+[`PLANTILLA-REPORTE-FASE.md`](PLANTILLA-REPORTE-FASE.md).
 
 ## Proceso obligatorio por fase
 

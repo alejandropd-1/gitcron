@@ -12,8 +12,9 @@ Antes de proponer cambios, el agente debe leer, en este orden:
 2. `docs/01_INVARIANTES.md`.
 3. `docs/pipeline/00-indice.md`.
 4. `docs/pipeline/protocolo-ejecucion-agentes.md`.
-5. Solamente el brief de la fase autorizada.
-6. Los reportes de fases anteriores que el brief declare como prerrequisito.
+5. `docs/pipeline/00-estado-track.md`.
+6. El prompt autónomo y solamente el brief de la fase autorizada.
+7. Los reportes de fases anteriores que el brief declare como prerrequisito.
 
 Después debe inspeccionar el estado real del repositorio. Los documentos orientan, pero el código,
 Git, los tests y las interfaces instaladas son la evidencia actual. No debe confiar en memoria de
@@ -96,6 +97,10 @@ Al terminar, el agente debe detenerse sin iniciar la fase siguiente y entregar:
 6. asuntos pendientes y decisiones para QA;
 7. **mensaje de commit sugerido**, listo para copiar;
 8. **comandos sugeridos**, pero no ejecutados, para que Ale revise, haga commit y push.
+
+El reporte se guarda como `docs/reports/YYYY-MM-DD-pipeline-fase-NN-<slug>.md` y sigue
+`docs/pipeline/PLANTILLA-REPORTE-FASE.md`. También se actualiza `00-estado-track.md` a `Lista para
+QA` o `Bloqueada`; solo Ale puede confirmar `Completada`.
 
 Formato de cierre:
 

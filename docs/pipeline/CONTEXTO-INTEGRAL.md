@@ -14,9 +14,10 @@ Este archivo explica el panorama, pero no autoriza por sí solo a implementar. U
 3. leer `docs/00_FUENTE_DE_VERDAD.md` y `docs/01_INVARIANTES.md`;
 4. leer [`00-indice.md`](00-indice.md) y
    [`protocolo-ejecucion-agentes.md`](protocolo-ejecucion-agentes.md);
-5. recibir de Ale una sola fase autorizada;
-6. leer el brief y los reportes prerrequisito de esa fase;
-7. anunciar el plan y esperar autorización según el protocolo.
+5. consultar [`00-estado-track.md`](00-estado-track.md);
+6. recibir de Ale una sola fase autorizada;
+7. leer su prompt autónomo, el brief y los reportes prerrequisito;
+8. anunciar el plan y esperar autorización según el protocolo.
 
 En el momento de redactar este panorama, el track está en etapa de planificación documental. La IA
 debe verificar branches, reportes y código antes de afirmar que una fase todavía no comenzó.
@@ -463,6 +464,10 @@ Al finalizar una fase, ejecuta las validaciones correspondientes y entrega a Ale
 El protocolo vinculante completo está en
 [`protocolo-ejecucion-agentes.md`](protocolo-ejecucion-agentes.md). Para coordinar con Hermes se usa
 [`prompt-maestro-hermes.md`](prompt-maestro-hermes.md).
+
+Los prompts de arranque están en [`prompts/`](prompts/README.md), el estado resumido en
+[`00-estado-track.md`](00-estado-track.md) y todos los reportes deben seguir
+[`PLANTILLA-REPORTE-FASE.md`](PLANTILLA-REPORTE-FASE.md).
 
 ## Criterio de éxito global
 

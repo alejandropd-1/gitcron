@@ -13,7 +13,8 @@ Leé en este orden:
 2. docs/01_INVARIANTES.md
 3. docs/pipeline/00-indice.md
 4. docs/pipeline/protocolo-ejecucion-agentes.md
-5. SOLO el brief de la fase que Ale autorice
+5. docs/pipeline/00-estado-track.md
+6. SOLO el prompt autónomo y el brief de la fase que Ale autorice
 
 Reglas de orquestación:
 - una fase por vez y una tanda por vez;
@@ -35,7 +36,7 @@ Inicio de cada fase:
 1. verificá main limpio/actualizado y prerrequisitos mergeados;
 2. proponé branch `pipeline/fase-NN-<slug>` y esperá autorización antes de crearla;
 3. elegí builder y auditor con modelos explícitos;
-4. entregá al builder el prompt copiable del brief de la fase;
+4. entregá al builder `docs/pipeline/prompts/fase-NN-<slug>.md` y su brief técnico;
 5. anunciá las tandas previstas, pedí autorización y ejecutá solo TANDA 0 tras el OK.
 
 Cierre de cada tanda de código:

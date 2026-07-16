@@ -60,6 +60,7 @@ ranking/predicción todavía deben diferirse. F08 empieza únicamente cuando F00
 - `00-indice.md`: arquitectura, fases y decisiones del producto.
 - `00-estado-track.md`: qué fase está planificada, activa, bloqueada o lista.
 - `protocolo-ejecucion-agentes.md`: autorizaciones, ramas y cierre humano.
+- `UX-DECISIONES.md`: cómo traducir solicitudes técnicas y separar observación de control.
 - `prompts/`: punto de entrada ejecutable de cada fase.
 - `briefs/`: detalle técnico y criterios de aceptación.
 - `PLANTILLA-REPORTE-FASE.md`: forma obligatoria del reporte final.
@@ -69,4 +70,3 @@ ranking/predicción todavía deben diferirse. F08 empieza únicamente cuando F00
 
 Para ejecutar, dar un archivo de `prompts/`. Para entender el detalle, leer `briefs/`. Para saber qué
 ocurrió realmente, leer `docs/reports/`. No usar un brief técnico aislado como prompt inicial.
-

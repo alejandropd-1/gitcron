@@ -94,7 +94,12 @@ exponerlo: solicitar capacidad scoped en el Connector.
 ### TANDA 4 — Approvals y cancelación de corrida
 
 - Approval requests autenticados, con resumen sanitizado y riesgo.
+- Conectar opciones del inbox definido en `docs/pipeline/UX-DECISIONES.md` solo cuando la capability,
+  target y precondiciones sigan vigentes; opciones no soportadas conservan explicación read-only.
+- Riesgo y consecuencias vienen del contrato/regla/evidencia; no se generan para persuadir.
 - Spec approval/merge son checkpoints de dominio separados de permiso de shell.
+- `merge-ready` sigue siendo informativo: Ale revisa y ejecuta commit/push/merge fuera del command
+  bus de esta fase.
 - Cancel run coordina: pause future delegates → interrupt children/turn → reconcile processes.
 - Resultado puede ser partial; nunca “cancelado” hasta verificar.
 
@@ -160,3 +165,5 @@ con permisos técnicos. Veredicto explícito; cualquier escape cross-repo es REC
 - [ ] Doble comando/reconnect no duplica efectos.
 - [ ] Todas las acciones quedan auditadas.
 - [ ] Emergencia no usa kill global cross-repo.
+- [ ] Inbox responde solo decisiones con capability vigente; F04/F05 comparten `decisionId` y estado.
+- [ ] Ninguna opción ejecuta merge ni inventa riesgo/consecuencia.

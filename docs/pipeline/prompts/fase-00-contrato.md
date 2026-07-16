@@ -11,13 +11,17 @@ Studio. Esta fase elimina supuestos antes de diseñar adaptadores. Leé, en orde
 2. `docs/pipeline/CONTEXTO-INTEGRAL.md`;
 3. `docs/pipeline/00-estado-track.md`;
 4. `docs/pipeline/protocolo-ejecucion-agentes.md`;
-5. `docs/pipeline/briefs/fase-00-contrato-y-spikes.md`.
+5. `docs/pipeline/UX-DECISIONES.md`;
+6. `docs/pipeline/briefs/fase-00-contrato-y-spikes.md`.
 
 ## Decisiones confirmadas — no volver a preguntar
 
 - GitCron observa y controla; Hermes sigue siendo el orquestador.
 - El producto es per-repo y contrasta runtime con Git/OpenSpec/filesystem.
 - Reasoning, costo y contexto conservan procedencia; unknown nunca se inventa.
+- Los tres JSONL del kit son telemetría local/gitignoreada: verificar productores y fixtures, no
+  asumir durabilidad ni campos por documentación.
+- F00 debe cerrar `PipelineAgentRole` y `DecisionRequest` además del envelope de eventos.
 - No ejecutar probes pagos, leer secretos ni instalar dependencias sin autorización.
 - Ale realiza stage, commit y push.
 
@@ -30,7 +34,8 @@ Ejecutá solo TANDA 0 y detenete en su checkpoint.
 
 ## Entregables
 
-- Contrato v1 propuesto, matriz de capabilities, fixtures/procedimiento y ADR de conexión.
+- Contrato v1 propuesto, roles/decisiones, schemas JSONL reales, matriz de capabilities,
+  fixtures/procedimiento y ADR de conexión.
 - Reporte `docs/reports/YYYY-MM-DD-pipeline-fase-00-contrato.md` usando
   `docs/pipeline/PLANTILLA-REPORTE-FASE.md`.
 - Actualización de `docs/pipeline/00-estado-track.md` a `Lista para QA` o `Bloqueada`.

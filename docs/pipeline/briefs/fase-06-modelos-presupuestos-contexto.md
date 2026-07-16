@@ -13,7 +13,8 @@
 ## Objetivo
 
 - Catálogo vivo de proveedores/modelos autenticados y locales.
-- Política por repo: planner, builder, auditor, fixer, scout y tareas auxiliares.
+- Política por repo para los cinco roles R4: `scout`, `planner`, `builder`, `auditor`, `fixer`, más
+  tareas auxiliares y `orchestrator` como actor separado de Hermes.
 - Override por change/task sin cambiar globales por accidente.
 - Fallbacks explícitos.
 - Decorrelación builder/auditor bloqueante.

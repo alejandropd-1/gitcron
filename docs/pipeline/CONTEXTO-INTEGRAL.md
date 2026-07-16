@@ -120,6 +120,10 @@ sesión/repositorio conocidos.
 Estos roles son recomendaciones, no verdades eternas. Cada fase debe verificar versiones,
 capabilities y modelos reales antes de depender de ellos.
 
+El ciclo del método distingue cinco roles: `scout → planner → builder → auditor → fixer`. Hermes
+actúa como `orchestrator`, fuera de esa secuencia. Pipeline preserva rol, proveedor y modelo efectivo
+para poder atribuir actividad/costo y demostrar que builder y auditor pertenecen a familias distintas.
+
 ## Relación consciente entre GitCron y Hermes
 
 Hermes y GitCron tienen responsabilidades diferentes y complementarias:
@@ -162,19 +166,25 @@ No alcanza con inferir la relación por el directorio de trabajo o por texto de 
 La solapa Pipeline pertenece al repo activo. Cada repo conserva su propio vínculo, estado,
 presupuesto, modelos, sesiones e historial.
 
-La pantalla debe priorizar siete zonas conceptuales:
+La pantalla debe priorizar ocho zonas conceptuales:
 
 1. **Ahora:** estado actual, tarea, agente/modelo, tiempo, costo y necesidad humana.
-2. **Camino del cambio:** proposal, spec, tasks, implementación, gates, auditoría y cierre.
-3. **Árbol de agentes:** agente principal, subagentes, roles, modelos y estado.
-4. **Bitácora operativa:** objetivo, hipótesis declarada, acción, observación y próximo paso.
-5. **Economía y contexto:** tokens, costo, tiempo, ventana de contexto y compresiones.
-6. **Evidencia:** archivos, diffs, comandos, tools, tests, reportes y decisiones.
-7. **Control:** pausa, steer, cola, interrupt, approvals y cancelación según capability y riesgo.
+2. **Inbox de decisiones:** qué piden, por qué, opciones, consecuencias, riesgo y evidencia.
+3. **Camino del cambio:** proposal, spec, tasks, implementación, gates, auditoría y cierre.
+4. **Árbol de agentes:** agente principal, subagentes, roles, modelos y estado.
+5. **Bitácora operativa:** objetivo, hipótesis declarada, acción, observación y próximo paso.
+6. **Economía y contexto:** tokens, costo, tiempo, ventana de contexto y compresiones.
+7. **Evidencia:** archivos, diffs, comandos, tools, tests, reportes y decisiones.
+8. **Control:** pausa, steer, cola, interrupt, approvals y cancelación según capability y riesgo.
 
 Los estados vacíos o degradados también son parte del producto: repo sin scaffold, Hermes ausente,
 runtime incompatible, sesión desconectada, uso desconocido, razonamiento no emitido o costo no
-calculable deben explicarse honestamente.
+calculable deben explicarse honestamente. Un repo sin kit pierde gates/logs del método, no Git,
+Hermes ni las demás fuentes disponibles de Pipeline.
+
+La traducción de solicitudes técnicas a decisiones comprensibles está especificada en
+[`UX-DECISIONES.md`](UX-DECISIONES.md). F04 la muestra sin efectos y F05 conecta solo las acciones
+que el backend declare soportadas; commit, push y merge siguen bajo control de Ale.
 
 ## Qué significa “ver lo que piensa la IA”
 
@@ -331,16 +341,18 @@ tener datos. No se predice antes de auditar la calidad de la muestra.
 
 ### F00 — Contrato, seguridad y spikes
 
-Verifica las interfaces reales de Hermes, Claude, Codex, `agy`, OpenCode y LM Studio. Captura
-fixtures, define identidad/eventos/métricas/capabilities/comandos y decide el protocolo de conexión,
-autenticación, versionado y degradación. Es audit-only y no implementa la feature.
+Verifica las interfaces reales de Hermes, Claude, Codex, `agy`, OpenCode y LM Studio, además de los
+tres JSONL locales producidos por el kit. Captura fixtures, define identidad/roles/decisiones,
+eventos/métricas/capabilities/comandos y decide conexión, autenticación, versionado y degradación.
+Es audit-only y no implementa la feature.
 
 Brief: [`fase-00-contrato-y-spikes.md`](briefs/fase-00-contrato-y-spikes.md).
 
 ### F01 — Modelo y evidencia por repositorio
 
-Construye los tipos, parsers, reducer, lector de evidencia y persistencia SQLite per-repo. Debe
-entender OpenSpec, Git, docs, reportes, tests, archivos y repos sin scaffold, sin UI ni red.
+Construye los tipos, parsers JSONL, `DecisionRequest`, reducer, lector de evidencia y persistencia
+SQLite per-repo. Debe entender OpenSpec, Git, docs, reportes, tests, archivos y repos sin scaffold,
+sin UI ni red.
 
 Brief: [`fase-01-modelo-y-evidencia-repo.md`](briefs/fase-01-modelo-y-evidencia-repo.md).
 
@@ -363,16 +375,17 @@ Brief: [`fase-03-adaptadores-y-telemetria.md`](briefs/fase-03-adaptadores-y-tele
 ### F04 — Workspace Pipeline por repo
 
 Construye la solapa y sus estados con markup semántico, accesibilidad, i18n ES/EN/ZH, fixtures y
-evidencia visual. Muestra “Ahora”, camino, agentes, actividad, economía, contexto y diffs. Los agentes
-no escriben CSS: Ale realiza la piel visual.
+evidencia visual. Muestra “Ahora”, inbox de decisiones read-only, camino, agentes, actividad,
+economía, contexto y diffs. Los agentes no escriben CSS: Ale realiza la piel visual.
 
 Brief: [`fase-04-workspace-pipeline-ui.md`](briefs/fase-04-workspace-pipeline-ui.md).
 
 ### F05 — Control supervisado
 
 Agrega command bus tipado y acciones seguras de pausa, steer, queue, interrupt, approvals y
-cancelación. Incluye state machines, threat model, confirmaciones, audit log, reconciliación y pruebas
-adversariales cross-repo.
+cancelación, conectando opciones del inbox por `decisionId` cuando la capability exista. Incluye
+state machines, threat model, confirmaciones, audit log, reconciliación y pruebas adversariales
+cross-repo. No automatiza merge.
 
 Brief: [`fase-05-control-supervisado.md`](briefs/fase-05-control-supervisado.md).
 

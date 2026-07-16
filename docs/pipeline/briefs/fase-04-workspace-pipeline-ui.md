@@ -16,16 +16,20 @@
 Para el repo activo, Pipeline responde primero:
 
 > ¿Qué está pasando, cuánto está costando y necesita algo de mí?
+>
+> ¿Qué me está pidiendo decidir, en lenguaje claro, y qué pasa si digo sí, no o después?
 
 Vistas dentro del workspace:
 
 1. **Ahora:** agente/task/estado/tiempo/costo y acción humana pendiente.
-2. **Vía del change:** propuesta → aprobación → builder/tasks → gates → auditor → fixer → merge.
-3. **Árbol de agentes:** Hermes, hijos, modelos, duración, usage y estado.
-4. **Bitácora consciente:** reasoning emitido + resumen operativo + tools/events.
-5. **Economía y contexto:** tokens, costo con procedencia, contexto y compresiones.
-6. **Actividad y diffs:** archivos del working tree y DiffViewer existente.
-7. **Detalle:** proposal/spec/tasks/auditoría/gates/decisiones.
+2. **Inbox de decisiones:** solicitudes normalizadas, evidencia, opciones, consecuencias y riesgo
+   con procedencia; read-only en esta fase.
+3. **Vía del change:** propuesta → aprobación → builder/tasks → gates → auditor → fixer → merge.
+4. **Árbol de agentes:** Hermes, hijos, roles, modelos, duración, usage y estado.
+5. **Bitácora consciente:** reasoning emitido + resumen operativo + tools/events.
+6. **Economía y contexto:** tokens, costo con procedencia, contexto y compresiones.
+7. **Actividad y diffs:** archivos del working tree y DiffViewer existente.
+8. **Detalle:** proposal/spec/tasks/auditoría/gates/decisiones.
 
 ## Reglas de UX
 
@@ -38,6 +42,8 @@ Vistas dentro del workspace:
 - Reasoning inexistente muestra “este runtime no lo expone”, no un panel vacío engañoso.
 - Costos/contexto desconocidos muestran “sin datos”, nunca `0`.
 - Repo sin kit, Hermes desconectado y runtime degradado son estados normales.
+- Aplicar `docs/pipeline/UX-DECISIONES.md`: riesgo/consecuencia unknown no se rellenan con texto
+  generado; glosario base + términos del repo sanitizados.
 
 ## Tandas
 
@@ -63,7 +69,12 @@ Vistas dentro del workspace:
 - Estaciones y loops de auditoría/fixer.
 - Progreso de tasks.
 - Próximos caminos explicados sin convertirlos en acciones.
-- Indicador prioritario “necesita algo de vos”.
+- **Inbox de decisiones pendientes** contra `docs/pipeline/UX-DECISIONES.md`: zona prioritaria sobre
+  el feed, una decisión por elemento, con qué-piden, por-qué, opciones/consecuencias conocidas,
+  riesgo con procedencia, evidencia y contexto técnico expandible.
+- F04 solo permite navegar, revisar evidencia/diff o copiar una respuesta. Aprobar, rechazar,
+  enviar al fixer o responder a Hermes se muestran como no conectados hasta F05.
+- Un repo sin kit conserva Pipeline con evidencia Git/Hermes/runtime; solo faltan gates/logs del kit.
 - Selector de change cuando haya más de uno; no elegir arbitrariamente.
 
 ### TANDA 3 — Agentes, reasoning y economía
@@ -145,6 +156,8 @@ muestre como cero y derived no se muestre como hecho. Veredicto + hallazgos.
 
 - [ ] Solapa Pipeline funciona por repo y no mezcla tabs.
 - [ ] “Ahora” responde estado, agente, task, tiempo/costo y necesidad humana.
+- [ ] Inbox explica decisiones sin jerga, conserva evidencia/procedencia y no ejecuta controles.
+- [ ] Repo sin kit conserva Git/Hermes/runtime y explica qué fuentes faltan.
 - [ ] Rechazo se ve como retroceso a fixer.
 - [ ] Árbol de agentes + reasoning/tools + economía/contexto funcionan con fixtures/live.
 - [ ] Diffs se reutilizan y cargan lazy.

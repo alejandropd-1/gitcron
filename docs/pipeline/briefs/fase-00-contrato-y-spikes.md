@@ -27,6 +27,8 @@ Cerrar el protocolo `Pipeline Contract v1` y responder con evidencia:
 - Lectura de `C:\www\gitCronos`, `C:\www\scaffold` y la instalación local de Hermes.
 - Ejecutar `--help`, `--version`, estados y probes sin inferencia paga.
 - Capturar/sanitizar fixtures mínimos de eventos **solo si Ale autoriza ejecutar una inferencia**.
+- Leer los productores JSONL de scaffold y sus scripts materializados en `useOdontoPro`; los logs
+  crudos son locales/gitignoreados y no deben copiarse si contienen datos sensibles.
 - Crear únicamente documentos dentro de `docs/pipeline/` y reporte de esta fase.
 - Proponer, no instalar, dependencias.
 
@@ -66,6 +68,9 @@ Definir fixtures sanitizados para:
 - interrupción;
 - error/reconexión;
 - proceso background.
+- `gates.jsonl`, `delegations.jsonl` y `visual-diff-heights.jsonl` del kit, incluyendo variantes de
+  schema entre template y script materializado;
+- decisión humana solicitada/resuelta con evidencia, opciones, consecuencias y riesgo/procedencia.
 
 Si no puede capturarse un fixture sin costo o credenciales, definir el procedimiento de captura
 y marcarlo `PENDIENTE DE ALE`; no inventar payloads como si fueran reales.
@@ -147,8 +152,12 @@ documental concreto. STOP.
 ## Criterios de aceptación
 
 - [ ] Matriz de capacidades con procedencia por runtime.
+- [ ] Schemas de `gates.jsonl`, `delegations.jsonl` y `visual-diff-heights.jsonl` verificados contra
+      templates actuales de scaffold y fixtures reales de `useOdontoPro`, incluyendo campos
+      opcionales, telemetría gitignoreada y discrepancias entre documentación/productor.
 - [ ] Fixtures reales o procedimiento explícito para capturarlos.
-- [ ] Contratos propuestos de identidad, eventos, métricas, capacidades y comandos.
+- [ ] Contratos propuestos de identidad, roles, decisiones, eventos, métricas, capacidades y
+      comandos.
 - [ ] ADR de conexión, autenticación, versionado y degradación.
 - [ ] Ningún secreto inspeccionado o expuesto.
 - [ ] Cero código de producto y cero dependencias nuevas.

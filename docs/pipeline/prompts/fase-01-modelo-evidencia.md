@@ -5,14 +5,16 @@
 ## Contexto obligatorio
 
 Leé fuente de verdad, invariantes, `CONTEXTO-INTEGRAL.md`, `00-estado-track.md`, protocolo común,
-brief F01 y reporte final de F00. Verificá el repo: una IA anterior puede haber dejado la
-documentación desactualizada.
+`docs/pipeline/UX-DECISIONES.md`, brief F01 y reporte final de F00. Verificá el repo: una IA anterior puede haber
+dejado la documentación desactualizada.
 
 ## Decisiones confirmadas — no volver a preguntar
 
 - Modelo y persistencia per-repo; sin UI ni conexión a Hermes en esta fase.
 - Parsers/reducers puros; I/O separado; repos sin scaffold son válidos.
 - Git/OpenSpec/docs/filesystem son evidencia, no texto decorativo.
+- Parsear los tres JSONL locales con schema F00 y normalizar `DecisionRequest` antes de diseñar UI.
+- Repo sin kit es degradación parcial, no ausencia total de Pipeline.
 - Secrets y reasoning crudo no se persisten indiscriminadamente.
 - Ale realiza stage, commit y push.
 
@@ -25,7 +27,8 @@ helpers reutilizables. Mostrá el mapa y esperá OK. Después ejecutá una tanda
 
 ## Entregables
 
-- Dominio, lectores, seguridad de paths, reducer, SQLite e IPC read-only del brief.
+- Dominio, `DecisionRequest`, lectores JSONL, seguridad de paths, reducer, SQLite e IPC read-only
+  del brief.
 - Reporte `docs/reports/YYYY-MM-DD-pipeline-fase-01-modelo-evidencia.md` con la plantilla oficial.
 - Checklist humano para repos con/sin kit y estado `Lista para QA` o `Bloqueada` en el tablero.
 

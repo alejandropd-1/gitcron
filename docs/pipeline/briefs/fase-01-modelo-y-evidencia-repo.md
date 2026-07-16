@@ -31,6 +31,7 @@ Representar sin UI y sin red:
 - Parsers puros y testeables; I/O separado.
 - `RepoEvidenceReader` solo lectura en Electron main.
 - Reducer determinístico `evidence + previousState → PipelineState + semanticEvents`.
+- Modelo normalizado `DecisionRequest` independiente de la UI y del command bus.
 - Persistencia SQLite global particionada por `repo_id`, sin datos secretos ni reasoning crudo
   indiscriminado.
 - IPC de snapshot read-only únicamente después de aprobar tipos y tests.
@@ -51,11 +52,18 @@ Implementar y testear:
 
 - parsing de `[x]`/`[ ]` sin romper texto Markdown;
 - auditoría `APROBADO/RECHAZADO` con hallazgos y diagnósticos;
-- gates JSONL tolerante a líneas parciales/rotadas;
+- parsing de `gates.jsonl`, `delegations.jsonl` y `visual-diff-heights.jsonl` según el contrato
+  cerrado en F00: tail incremental, última línea parcial, línea inválida aislada,
+  truncado/reemplazo y campos opcionales; preservar rol/modelo/tarea en delegaciones;
 - OpenSpec JSON por change;
 - selección de change: branch `feature/<change>` → único abierto → requiere selección;
 - estado `confirmado | inferido | desconocido`;
 - transición semántica: task completada, reporte nuevo, gates cambió, merge/archive.
+
+Normalizar decisiones pendientes desde fuentes verificables (OpenSpec, requests de Hermes,
+auditorías, escaladas y evidencia repo). Un `gates.completed` global no identifica qué cláusula
+falló: una decisión de dependencia requiere constitución + diff de `package.json` o una señal
+estructurada equivalente. Riesgo y consecuencias conservan procedencia y pueden ser `unknown`.
 
 No parsear Markdown con regex para render HTML; esta tanda extrae metadata, no renderiza.
 
@@ -120,8 +128,11 @@ confirmado/inferido/desconocido no se mezclan. Veredicto explícito + hallazgos 
 
 ## Criterios de aceptación
 
-- [ ] Repo sin kit produce `sin-pipeline`, no error.
+- [ ] Repo sin kit produce un set degradado de fuentes, no error: Git/Hermes/runtime siguen
+      disponibles aunque falten gates y logs del método.
 - [ ] Tasks/reportes/gates/merge/archive se derivan con fixtures.
+- [ ] Los tres JSONL locales degradan honestamente cuando faltan, se truncan o cambian de schema.
+- [ ] `DecisionRequest` preserva fuente, evidencia, opciones, consecuencias y riesgo sin inventar.
 - [ ] Múltiples changes no eligen uno arbitrariamente.
 - [ ] Eventos idempotentes y particionados por repo.
 - [ ] Cero escrituras al repo observado.

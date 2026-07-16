@@ -27,6 +27,7 @@ Pipeline responde, para el repo de la solapa activa:
 7. ¿El trabajo avanza, espera, retrocede o está trabado?
 8. ¿Necesita una decisión humana?
 9. ¿Qué controles seguros están disponibles?
+10. ¿Qué me está pidiendo decidir, en lenguaje claro, y qué pasa si digo sí, no o después?
 
 Hermes sigue siendo el orquestador. GitCron no crea un segundo orquestador: se conecta a
 Hermes, normaliza sus eventos y los contrasta con la verdad observable del repo.
@@ -91,6 +92,15 @@ terminal, tokens extraídos de HTML ni formatos privados sin versionar.
 Toda corrida normalizada necesita:
 
 ```ts
+type PipelineAgentRole =
+  | 'scout'
+  | 'planner'
+  | 'builder'
+  | 'auditor'
+  | 'fixer'
+  | 'orchestrator'
+  | 'unknown';
+
 type PipelineIdentity = {
   repoId: string;
   repoPath: string;
@@ -101,10 +111,19 @@ type PipelineIdentity = {
   agentId: string;
   parentAgentId: string | null;
   runtime: 'hermes' | 'claude' | 'codex' | 'agy' | 'opencode' | 'lmstudio';
+  role: PipelineAgentRole;
+  provider: string | null;
+  model: string | null;
 };
 ```
 
-Sin esa correlación solo pueden mostrarse totales de sesión, no costo/tiempo por task.
+Los cinco roles del método son `scout`, `planner`, `builder`, `auditor` y `fixer`; `orchestrator`
+identifica a Hermes fuera del ciclo R4. `unknown` evita inventar un rol. `provider` y `model` son el
+valor efectivo informado para ese evento/unidad segura; si solo existe un string ambiguo de modelo,
+se conserva literal y `provider` queda `null`.
+
+Sin esa correlación solo pueden mostrarse totales de sesión, no costo/tiempo por task ni
+decorrelación auditable.
 
 ## Sobre de eventos normalizado
 
@@ -124,9 +143,47 @@ type PipelineEventEnvelope = {
 };
 ```
 
+### Telemetría local producida por el kit scaffold
+
+Los repos que usan el método pueden producir tres fuentes JSONL. Son evidencia estructurada del
+working copy (`provenance: 'repo'`), pero **local, gitignoreada, potencialmente ausente y no durable**.
+Su ausencia después de un clone no demuestra que nunca hubo actividad. F00 debe verificar el
+schema real contra los productores instalados y capturar fixtures; esta tabla documenta el estado
+observado el 2026-07-16, no congela el contrato.
+
+| Archivo local | Campos observados | Event kind normalizado |
+|---|---|---|
+| `docs/ai/logs/gates.jsonl` | requeridos: `ts`, `mode`, `result`; `result` = `VERDE`, `ROJO` o `PENDIENTE` | `gates.completed` |
+| `docs/ai/logs/delegations.jsonl` | requeridos: `ts`, `rol`, `modelo`, `tarea`; opcionales: `tokens_in`, `tokens_out`, `costo_usd`, `duracion_ms` | `delegation.recorded` |
+| `docs/ai/logs/visual-diff-heights.jsonl` | `run_id`, `ts`, `route`, `viewport`, alturas y anchos baseline/current, deltas de altura y `excepted` | `visualdiff.measured` |
+
+Productores de referencia actuales:
+
+- `scaffold/templates/gates.template.sh`;
+- `scaffold/templates/log-delegation.template.sh`;
+- `scaffold/templates/visual-diff.template.mjs`;
+- scripts materializados dentro del repo observado, que pueden tener otra versión.
+
+El lector tolera última línea incompleta, líneas inválidas aisladas, truncado/reemplazo del archivo y
+campos opcionales ausentes. No interpreta el resultado global de `gates.jsonl` como el detalle de una
+cláusula: por ejemplo, C2 requiere además constitución + diff de `package.json` o un evento
+estructurado futuro. `tarea`, rutas y modelos se sanitizan antes de logs/UI.
+
 Eventos esperados: `run.started`, `agent.started`, `reasoning.delta`, `tool.started`,
 `tool.completed`, `file.changed`, `task.completed`, `usage.updated`, `context.updated`,
-`approval.requested`, `gates.completed`, `audit.completed`, `run.interrupted`, `run.completed`.
+`approval.requested`, `decision.requested`, `decision.resolved`, `gates.completed`,
+`delegation.recorded`, `visualdiff.measured`, `audit.completed`, `run.interrupted`,
+`run.completed`.
+
+## Decisiones humanas como dominio
+
+Pipeline no reduce una decisión a un botón o a texto de un log. F00 cierra el contrato
+`DecisionRequest`, F01 lo normaliza desde Hermes/OpenSpec/auditorías/evidencia, F04 lo presenta en un
+inbox read-only y F05 conecta únicamente options con capability y precondiciones válidas.
+
+La especificación de lenguaje, procedencia, estados y límites está en
+[`UX-DECISIONES.md`](UX-DECISIONES.md). Riesgo y consecuencias pueden ser `unknown`; nunca se
+inventan para completar la interfaz. `merge-ready` informa que Ale puede revisar: no ejecuta merge.
 
 ## Matriz de runtimes verificada el 2026-07-12
 
@@ -161,11 +218,11 @@ entregar al ejecutor únicamente la fase activa y respetar sus checkpoints.
 | Fase | Resultado | Riesgo | Prerrequisito |
 |---|---|---:|---|
 | [00](briefs/fase-00-contrato-y-spikes.md) | Contrato v1, fixtures reales, ADR de conexión y matriz de capacidades | Bajo, audit-only | Ninguno |
-| [01](briefs/fase-01-modelo-y-evidencia-repo.md) | Modelo puro + lector OpenSpec/Git/docs/ai/files + persistencia per-repo | Medio | F00 aprobada |
+| [01](briefs/fase-01-modelo-y-evidencia-repo.md) | Modelo puro + JSONL/evidencia + decisiones + persistencia per-repo | Medio | F00 aprobada |
 | [02](briefs/fase-02-hermes-connector-readonly.md) | Conexión autenticada a Hermes, solo observación | Alto | F01 mergeada |
 | [03](briefs/fase-03-adaptadores-y-telemetria.md) | Claude/Codex/agy/OpenCode/LM Studio normalizados | Alto | F02 mergeada |
-| [04](briefs/fase-04-workspace-pipeline-ui.md) | Solapa Pipeline per-repo: vía, agentes, reasoning, economía, diffs | Alto visual | F03 mergeada |
-| [05](briefs/fase-05-control-supervisado.md) | Pause/steer/interrupt/subagent/process/approvals con guardrails | Muy alto | F04 validada |
+| [04](briefs/fase-04-workspace-pipeline-ui.md) | Solapa per-repo: inbox read-only, vía, agentes, reasoning, economía, diffs | Alto visual | F03 mergeada |
+| [05](briefs/fase-05-control-supervisado.md) | Opciones del inbox + pause/steer/interrupt/approvals con guardrails | Muy alto | F04 validada |
 | [06](briefs/fase-06-modelos-presupuestos-contexto.md) | Selección por rol/task/repo, presupuestos, contexto y fallbacks | Muy alto | F05 validada |
 | [07](briefs/fase-07-inteligencia-replay.md) | Replay, loops, predicción y comparación de modelos | Medio | Datos reales acumulados |
 | [08](briefs/fase-08-hardening-y-release.md) | Seguridad, compatibilidad, docs, packaging y release | Alto | F00–F07 cerradas |

@@ -24,7 +24,8 @@ otra IA ni pedirle al usuario que repita información que pueda verificar localm
 
 El agente no debe empezar silenciosamente. Su primera respuesta debe indicar:
 
-- identidad declarada: IA, runtime, modelo y rol (`builder`, `auditor`, `scout` o `fixer`);
+- identidad declarada: IA, runtime, modelo y rol (`scout`, `planner`, `builder`, `auditor` o
+  `fixer`; `orchestrator` solo para Hermes);
 - fase solicitada, objetivo comprendido y cosas fuera de scope;
 - prerrequisitos comprobados y estado actual de Git, sin mostrar secretos;
 - rama exacta que corresponde a la fase;

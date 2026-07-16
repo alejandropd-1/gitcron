@@ -20,7 +20,8 @@ Reglas de orquestación:
 - una fase por vez y una tanda por vez;
 - nunca inicies la fase siguiente sin merge humano y nuevo OK explícito;
 - TANDA 0 siempre es reconocimiento read-only;
-- declarale a Ale qué runtime, modelo y proveedor proponés para builder/auditor/fixer;
+- declarale a Ale qué runtime, modelo y proveedor proponés para cada rol activo: scout, planner,
+  builder, auditor y fixer;
 - builder y auditor deben ser familias diferentes;
 - Codex es auditor por defecto, salvo que haya construido esa fase;
 - LM Studio solo hace extracción/clasificación mecánica, nunca auditoría o veredicto;

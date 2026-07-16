@@ -5,6 +5,7 @@
 ## Contexto obligatorio
 
 Leé fuente de verdad, invariantes, contexto integral, estado, protocolo,
+`docs/pipeline/UX-DECISIONES.md`,
 `docs/pipeline/briefs/fase-05-control-supervisado.md` y reporte F04. Revalidá capabilities reales;
 observar una acción no implica poder controlarla.
 
@@ -12,7 +13,9 @@ observar una acción no implica poder controlarla.
 
 - Command bus en main, tipado y allowlisted; renderer no envía argv/PID/session libres.
 - Todo target es per-repo y requiere idempotencia, audit log, ack y reconciliación.
+- Las opciones del inbox se conectan por `decisionId` solo con capability/precondiciones vigentes.
 - Stop no es rollback; no kill global ni control de procesos no owned.
+- `merge-ready` es informativo: Ale conserva commit/push/merge.
 - Controles reales o pruebas difíciles de revertir requieren autorización específica.
 - Ale realiza stage, commit y push.
 

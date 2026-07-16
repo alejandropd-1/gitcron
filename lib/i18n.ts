@@ -438,6 +438,8 @@ const es: Dict = {
   'publishRemote.errorAuth': 'Conectá nuevamente tu cuenta de GitHub para crear el repositorio.',
   'publishRemote.errorCreate': 'GitHub no pudo crear o recuperar el repositorio.',
   'publishRemote.errorGeneric': 'No se pudo publicar el repositorio.',
+  'pushPreflight.fetchFailed': 'No se pudo comprobar el estado remoto antes del Push: {{error}}',
+  'pushPreflight.unknownFetchError': 'Error desconocido durante Fetch.',
 
   // ── Modal: Clone Repo ──
   'clone.title': 'Clonar repositorio',
@@ -1385,6 +1387,8 @@ const en: Dict = {
   'publishRemote.errorAuth': 'Reconnect your GitHub account to create the repository.',
   'publishRemote.errorCreate': 'GitHub could not create or retrieve the repository.',
   'publishRemote.errorGeneric': 'Could not publish the repository.',
+  'pushPreflight.fetchFailed': 'Could not check the remote state before Push: {{error}}',
+  'pushPreflight.unknownFetchError': 'Unknown Fetch error.',
 
   // ── Clone ──
   'clone.title': 'Clone repository',
@@ -2472,6 +2476,8 @@ const zh: Dict = {
   'publishRemote.errorAuth': '请重新连接 GitHub 账户以创建仓库。',
   'publishRemote.errorCreate': 'GitHub 无法创建或获取仓库。',
   'publishRemote.errorGeneric': '无法发布仓库。',
+  'pushPreflight.fetchFailed': 'Push 前无法检查远程状态：{{error}}',
+  'pushPreflight.unknownFetchError': 'Fetch 时发生未知错误。',
   'clone.title': '克隆仓库',
   'clone.myRepos': '我的 GitHub 仓库',
   'clone.manualUrl': '手动 URL',

@@ -41,6 +41,7 @@ import { useRepoChooser } from '@/hooks/use-repo-chooser';
 import {
   isSafeDirectoryError, safeDirectoryPathFromError,
 } from '@/lib/page-helpers';
+import { integrationDecisionFromTracking, isFetchFirstPushError } from '@/lib/push-preflight';
 
 // Phase 5 test data — 3 mock speculative branches to validate the overlay
 // without hitting the AI. The real flow swaps these for PredictionResult.branches.
@@ -318,19 +319,17 @@ export default function GitCronPage() {
   };
   const [pullDecision, setPullDecision] = useState<PullDecisionToast | null>(null);
 
-  const showPullDecisionIfNeeded = (source: 'push' | 'pull') => {
-    const tracking = currentBranch ? branchTracking[currentBranch] : undefined;
-    if (!currentBranch || !tracking?.upstream || tracking.gone || tracking.behind <= 0) return false;
+  const showPullDecisionIfNeeded = (source: 'push' | 'pull', repo?: RepoState | null) => {
+    const decision = integrationDecisionFromTracking(
+      source,
+      repo?.currentBranch ?? currentBranch,
+      repo?.branchTracking ?? branchTracking,
+    );
+    if (!decision) return false;
 
     setError(null);
     setSuccess(null);
-    setPullDecision({
-      source,
-      branch: currentBranch,
-      ahead: tracking.ahead,
-      behind: tracking.behind,
-      mode: tracking.ahead > 0 ? 'diverged' : 'behind',
-    });
+    setPullDecision(decision);
     return true;
   };
 
@@ -343,7 +342,35 @@ export default function GitCronPage() {
     await trustSafeDirectory(targetPath);
   };
 
-  const handlePushIntent = () => {
+  const refreshTrackingBeforePush = async (targetPath: string): Promise<RepoState | null> => {
+    if (!window.api) return null;
+    const state = useGitStore.getState();
+    state.setFetchingRemote(true);
+    try {
+      const result = await window.api.gitFetch(targetPath, state.githubToken ?? undefined);
+      if (!result.success) {
+        const detail = result.error ?? t('pushPreflight.unknownFetchError');
+        useGitStore.getState().updateRepoByPath(targetPath, { lastFetchError: detail });
+        setError(t('pushPreflight.fetchFailed', { error: detail }));
+        return null;
+      }
+
+      useGitStore.getState().updateRepoByPath(targetPath, { lastFetchError: null });
+      await refreshBranches(targetPath);
+      const refreshedState = useGitStore.getState();
+      refreshedState.setLastFetchTime(Date.now());
+      return refreshedState.openRepos.find((repo) => repo.path === targetPath) ?? null;
+    } catch (error: any) {
+      const detail = error?.message ?? t('pushPreflight.unknownFetchError');
+      useGitStore.getState().updateRepoByPath(targetPath, { lastFetchError: detail });
+      setError(t('pushPreflight.fetchFailed', { error: detail }));
+      return null;
+    } finally {
+      useGitStore.getState().setFetchingRemote(false);
+    }
+  };
+
+  const handlePushIntent = async () => {
     if (!repoPath) return;
     if (!remotes.some((remote) => remote.name === 'origin')) {
       setError(null);
@@ -352,8 +379,16 @@ export default function GitCronPage() {
       setShowPublishRemote(true);
       return;
     }
-    if (showPullDecisionIfNeeded('push')) return;
-    void pushChanges();
+
+    const refreshedRepo = await refreshTrackingBeforePush(repoPath);
+    if (!refreshedRepo) return;
+    if (showPullDecisionIfNeeded('push', refreshedRepo)) return;
+
+    const result = await pushChanges();
+    if (!result.success && isFetchFirstPushError(result.error)) {
+      const recoveredRepo = await refreshTrackingBeforePush(repoPath);
+      if (recoveredRepo) showPullDecisionIfNeeded('push', recoveredRepo);
+    }
   };
 
   const handlePullIntent = () => {
@@ -367,7 +402,7 @@ export default function GitCronPage() {
   // Settings → Keyboard shortcuts.
   useShortcuts({
     commit: () => { if (commitMessage.trim() && repoPath) void commitChanges(); },
-    push: handlePushIntent,
+    push: () => { void handlePushIntent(); },
     pull: handlePullIntent,
     newBranch: () => { if (repoPath) { setNewBranchFrom(undefined); setShowNewBranch(true); } },
     search: () => setShowSearchPopover(true),

@@ -4,6 +4,22 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.10.5] - 2026-07-16 - Push preventivo con tracking remoto fresco
+
+### 🟢 Vista Clásica & Core
+
+#### Fixed
+- **Flechas y decisión de Push actualizadas**: antes de publicar, GitCron ejecuta Fetch sobre el repo activo, refresca `ahead/behind` y abre el aviso existente de fast-forward, rebase o merge cuando hay commits remotos pendientes.
+- **Recuperación de `fetch first`**: si el remoto cambia entre el chequeo y el Push, GitCron vuelve a sincronizar el tracking y reemplaza el error crudo por el aviso de integración correspondiente.
+
+#### Quality
+- Tests unitarios para decisiones `behind`/`diverged` y detección de rechazos `fetch first`/`non-fast-forward`.
+
+#### Changed
+- `package.json` sube a `1.10.5` para preparar el instalador y el draft release de producción.
+
+---
+
 ## [v1.10.4] - 2026-07-11 - Working tree en vivo y operaciones remotas resilientes
 
 ### 🟢 Vista Clásica & Core

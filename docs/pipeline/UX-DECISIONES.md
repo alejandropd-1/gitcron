@@ -220,3 +220,29 @@ una explicación estable.
 - F05 conecta solo options con capability/precondiciones válidas.
 - Ningún repo sin kit pierde el resto de Pipeline.
 - Ningún riesgo, consecuencia o decisión se inventa desde prosa ambigua.
+
+## Decisiones UX del operador (2026-07-17, post-cierre astro-migration)
+
+Registradas de la conversacion con Claude tras el primer ciclo completo:
+
+1. **Etapas como cards/solapas clickeables.** Cada change de OpenSpec = una
+   carta ("Etapa 1: astro-migration", "Etapa 2: astro-color-tokens"). Grid o
+   timeline. Al entrar: resumen, progreso de tasks (43/44), quien hizo que y
+   con que modelo (delegations.jsonl), historia de gates (gates.jsonl, con
+   los 3 estados VERDE/PENDIENTE/ROJO), reportes del auditor, dolores de la
+   bitacora. Fuente de datos: openspec/changes/ + archive/ + docs/ai/logs/.
+2. **Las etapas archivadas son inmutables** (registro para "verme en 6
+   meses"). Boton "Continuar pendientes" en la carta archivada: junta lo
+   diferido (backlog, tareas [MOVED], hallazgos residuales de reports) y
+   pre-arma el change siguiente, vinculado visualmente (linaje etapa N ->
+   N+1). Jamas se edita una etapa cerrada.
+3. **Plan de despacho como pantalla previa al GO:** tabla task -> familia ->
+   modelo exacto (default: politica de derivacion v2 de HERMES.md), cada
+   fila editable con desplegable para que el operador reasigne antes de
+   ejecutar. Al aprobar, se registra y se despacha. Esta pantalla es la
+   respuesta a "quiero saber de entrada que IA eligio para que, y poder
+   cambiar".
+4. **Boton "kickoff" / arranque de una linea:** la UI (o Hermes por texto,
+   ya codificado en HERMES.md) arma el contexto sola desde el repo; el
+   operador nunca redacta prompts largos. La inteligencia vive en el
+   protocolo, no en el prompt del humano.

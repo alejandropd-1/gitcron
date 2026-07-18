@@ -165,13 +165,6 @@ export function RepoMainView({
       <InteractiveRebasePanel
         baseCommitHash={interactiveRebase.interactiveRebaseFrom}
         onClose={() => interactiveRebase.setInteractiveRebaseFrom(null)}
-        layoutProps={{
-          sidebarOpen: graphView.sidebarOpen,
-          sidebarW: graphView.sidebarW,
-          repositoryDetailsVisible: graphView.repositoryDetailsVisible,
-          detailsW: graphView.detailsW,
-          isDragging: graphView.isDragging,
-        }}
       />
     );
   }

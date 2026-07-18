@@ -243,6 +243,7 @@ interface ElectronAPI {
   openRepo: (defaultPath?: string) => Promise<GitResult<RepoInfo>>;
   openPath: (dirPath: string) => Promise<GitResult<RepoInfo>>;
   pickFolder: (title?: string, defaultPath?: string) => Promise<GitResult<string>>;
+  gitApplyPatchFile: (repoPath: string) => Promise<GitResult<{ fileName: string }> & { canceled?: boolean }>;
   gitInit: (parentPath: string, name: string, withInitialCommit?: boolean) => Promise<GitResult<RepoInfo>>;
   gitClone: (url: string, parentPath: string, folderName: string, token?: string) => Promise<GitResult<RepoInfo>>;
   githubCreateRepo: (token: string, name: string, isPrivate: boolean, description?: string, autoInit?: boolean) => Promise<GitResult<CreatedRepoInfo>>;

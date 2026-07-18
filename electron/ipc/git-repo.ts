@@ -117,6 +117,36 @@ export function registerGitRepoHandlers(): void {
     return { success: true, data: result.filePaths[0] };
   });
 
+  // Pick and apply a unified diff without exposing arbitrary filesystem reads
+  // to the renderer. Git validates the patch and leaves the changes unstaged.
+  ipcMain.handle('git:apply-patch-file', async (_event, repoPath: string) => {
+    try {
+      if (!repoPath || !fs.existsSync(repoPath)) {
+        return { success: false, error: 'El repositorio ya no existe' };
+      }
+
+      const result = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        title: 'Aplicar archivo de parche',
+        defaultPath: repoPath,
+        filters: [
+          { name: 'Parches Git', extensions: ['patch', 'diff'] },
+          { name: 'Todos los archivos', extensions: ['*'] },
+        ],
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, canceled: true };
+      }
+
+      const patchPath = result.filePaths[0];
+      await simpleGit(repoPath).raw(['apply', '--', patchPath]);
+      return { success: true, data: { fileName: path.basename(patchPath) } };
+    } catch (error: any) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
   ipcMain.handle('fs:exists-and-not-empty', async (_event, parentPath: string, name: string) => {
     try {
       const targetPath = path.join(parentPath, name);

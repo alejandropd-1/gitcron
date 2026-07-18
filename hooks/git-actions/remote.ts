@@ -8,17 +8,18 @@ import { useGitStore } from '@/lib/git-store';
 import { useRepoLoader } from '../use-repo-loader';
 import { tNow as t } from '../use-translation';
 import { notify } from '@/lib/os-notify';
+import { setRepoLoading } from './repo-loading';
 
 export const useRemoteActions = () => {
   const {
     repoPath,
-    setLoading,
     setError,
     setSuccess,
     githubToken,
   } = useGitStore();
 
   const { refreshLog, refreshStatus, refreshBranches, refreshTags } = useRepoLoader();
+  const setLoading = (isLoading: boolean) => setRepoLoading(repoPath, isLoading);
 
   const pushTag = async (tagName: string): Promise<{ success: boolean }> => {
     if (!window.api || !repoPath) return { success: false };

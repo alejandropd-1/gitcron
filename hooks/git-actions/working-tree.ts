@@ -6,6 +6,7 @@
 import { useGitStore } from '@/lib/git-store';
 import { useRepoLoader } from '../use-repo-loader';
 import { tNow as t } from '../use-translation';
+import { setRepoLoading } from './repo-loading';
 
 export const useWorkingTreeActions = () => {
   const {
@@ -14,12 +15,12 @@ export const useWorkingTreeActions = () => {
     setCommitMessage,
     modifiedFiles,
     setModifiedFiles,
-    setLoading,
     setError,
     setSuccess,
   } = useGitStore();
 
   const { refreshLog, refreshStatus, refreshBranches, refreshStashes } = useRepoLoader();
+  const setLoading = (isLoading: boolean) => setRepoLoading(repoPath, isLoading);
 
   const commitChanges = async () => {
     if (!commitMessage.trim()) { setError('El mensaje del commit no puede estar vacío'); return; }
@@ -258,6 +259,25 @@ export const useWorkingTreeActions = () => {
     if (!result.success) setError(result.error ?? 'No se pudo abrir el terminal');
   };
 
+  const applyPatchFile = async () => {
+    if (!window.api || !repoPath) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await window.api.gitApplyPatchFile(repoPath);
+      if (result.success) {
+        await refreshStatus();
+        setSuccess(t('success.patchApplied', { file: result.data?.fileName ?? '' }));
+      } else if (!result.canceled) {
+        setError(result.error ?? t('error.patchApply'));
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : t('error.patchApply'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const stashApply = async (index: number) => {
     if (!window.api || !repoPath) return;
     setLoading(true); setError(null);
@@ -349,6 +369,7 @@ export const useWorkingTreeActions = () => {
     removeIndexLock,
     openTerminal,
     stashApply,
+    applyPatchFile,
     stashPop,
     stashPreview,
     stashDrop,

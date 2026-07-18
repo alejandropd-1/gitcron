@@ -10,6 +10,7 @@ import { type RepoStartMode } from '@/components/RepoModals';
 import { useGitStore, Commit, GitFile, type FontSize, type RepoState } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
+import { setRepoLoading } from '@/hooks/git-actions/repo-loading';
 import { useAutoFetch } from '@/hooks/use-auto-fetch';
 import { commitHasBranchRef, normalizeBranchName, type CommitSelectOptions } from '@/components/CommitGraph';
 import { RepoMainView } from '@/components/RepoMainView';
@@ -103,13 +104,14 @@ export default function GitCronPage() {
     repoPath,
     currentBranch, branches, remoteBranches,
     commits, modifiedFiles, commitMessage, setCommitMessage,
-    selectedCommit, setSelectedCommit, isLoading, setLoading, error, setError, success, setSuccess,
+    selectedCommit, setSelectedCommit, isLoading, error, setError, success, setSuccess,
     selectedFile, setSelectedFile, currentDiff, setCurrentDiff,
     stashes, tags, submodules, remotes,
     githubToken, githubUser,
     branchTracking, worktrees, pullRequests,
     setOpenRepos,
   } = useGitStore();
+  const setLoading = (loading: boolean) => setRepoLoading(repoPath, loading);
 
   const {
     loadConflictFile, resolveConflictContent,
@@ -719,7 +721,8 @@ export default function GitCronPage() {
     && !selectedFile
     && !selectedPullRequest
     && !fileHistoryFile
-    && !blameFile;
+    && !blameFile
+    && !interactiveRebaseFrom;
 
   const openContextMenu = (menu: { x: number; y: number; hash?: string } | null) => {
     setFileContextMenu(null);

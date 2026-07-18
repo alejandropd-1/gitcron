@@ -3,6 +3,27 @@
 Changes are listed from newest to oldest.
 
 ---
+## [v1.10.6] - 2026-07-17 - Rebase visual, parches y loading por repositorio
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Aplicar archivos de parche**: la topbar incorpora un selector nativo para archivos `.patch` y `.diff`, ejecuta `git apply` sobre el repositorio activo y refresca inmediatamente el working tree.
+
+#### Fixed
+- **Rebase interactivo con ancho útil**: el panel deja de heredar el layout angosto reservado para las vistas laterales, evitando textos y acciones comprimidos.
+- **Tipografía coherente en menús contextuales**: sus textos usan unidades relativas y respetan los tres tamaños de fuente configurables.
+- **Spinner aislado por repositorio**: las operaciones asíncronas actualizan el estado de carga de la solapa que las inició, incluso si el usuario cambia de repo antes de que terminen.
+
+#### Quality
+- Cobertura de IPC para aplicar parches y prueba de regresión para el cambio de solapa durante una operación pendiente.
+- TypeScript, build web y build de Electron verificados para la release.
+
+#### Changed
+- `package.json` sube a `1.10.6` para preparar los instaladores y el draft release.
+
+---
+
 
 ## [v1.10.5] - 2026-07-16 - Push preventivo con tracking remoto fresco
 

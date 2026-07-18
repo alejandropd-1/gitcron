@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Reorder } from 'motion/react';
@@ -11,18 +11,10 @@ import { useGitActions } from '@/hooks/use-git-actions';
 import { validateRebasePlan, type RebasePlanItem, type RebaseAction } from '@/lib/rebase-plan';
 import type { RebaseCommitInfo } from '@/types/electron';
 import { cn } from '@/lib/utils';
-import { FLOATING_PANEL_INSET, GRAPH_SAFE_GAP } from '@/hooks/use-panel-layout';
 
 interface InteractiveRebasePanelProps {
   baseCommitHash: string;
   onClose: () => void;
-  layoutProps: {
-    sidebarOpen: boolean;
-    sidebarW: number;
-    repositoryDetailsVisible: boolean;
-    detailsW: number;
-    isDragging: boolean;
-  };
 }
 
 interface DropdownProps {
@@ -140,7 +132,6 @@ function RebaseActionDropdown({ value, onChange, actionColors, t }: DropdownProp
 export default function InteractiveRebasePanel({
   baseCommitHash,
   onClose,
-  layoutProps,
 }: InteractiveRebasePanelProps) {
   const t = useT();
   const repoPath = useGitStore((s) => s.repoPath);
@@ -150,7 +141,6 @@ export default function InteractiveRebasePanel({
   const [error, setError] = useState<string | null>(null);
   const [commits, setCommits] = useState<RebaseCommitInfo[]>([]);
   const [planItems, setPlanItems] = useState<RebasePlanItem[]>([]);
-  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Load commits on mount
   useEffect(() => {
@@ -182,16 +172,10 @@ export default function InteractiveRebasePanel({
     load();
   }, [baseCommitHash]);
 
-  // Validate plan whenever it changes
-  useEffect(() => {
-    if (planItems.length > 0) {
-      const res = validateRebasePlan(planItems);
-      if (res.valid) {
-        setValidationError(null);
-      } else {
-        setValidationError(res.error ? t(res.error) : 'Invalid plan');
-      }
-    }
+  const validationError = useMemo(() => {
+    if (planItems.length === 0) return null;
+    const result = validateRebasePlan(planItems);
+    return result.valid ? null : result.error ? t(result.error) : 'Invalid plan';
   }, [planItems, t]);
 
   const handleReorder = (newOrder: RebasePlanItem[]) => {
@@ -258,13 +242,7 @@ export default function InteractiveRebasePanel({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className={cn("absolute inset-0 flex flex-col min-h-0 select-none", !layoutProps.isDragging && "transition-[padding] duration-300")}
-      style={{
-        paddingTop: 96 + FLOATING_PANEL_INSET,
-        paddingBottom: FLOATING_PANEL_INSET,
-        paddingLeft: layoutProps.sidebarOpen ? layoutProps.sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
-        paddingRight: layoutProps.repositoryDetailsVisible ? layoutProps.detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
-      }}
+      className="absolute inset-0 flex flex-col min-h-0 select-none"
     >
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl">
         {/* Header */}

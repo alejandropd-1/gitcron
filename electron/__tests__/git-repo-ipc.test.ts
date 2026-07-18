@@ -19,6 +19,7 @@ const mockDialog = vi.hoisted(() => ({
 const mockGit = vi.hoisted(() => ({
   checkIsRepo: vi.fn(),
   status: vi.fn(),
+  raw: vi.fn(),
 }));
 
 const mockSimpleGit = vi.hoisted(() => vi.fn(() => mockGit));
@@ -44,6 +45,7 @@ describe('git repo IPC handlers', () => {
     mockGit.checkIsRepo.mockReset();
     mockGit.status.mockReset();
     mockGit.checkIsRepo.mockResolvedValue(false);
+    mockGit.raw.mockReset();
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-open-repo-'));
 
     const { registerGitRepoHandlers } = await import('../../electron/ipc/git-repo');
@@ -96,5 +98,40 @@ describe('git repo IPC handlers', () => {
     expect(mockSimpleGit).toHaveBeenCalledWith(selectedFolder);
     expect(mockGit.checkIsRepo).toHaveBeenCalledTimes(1);
     expect(mockGit.status).not.toHaveBeenCalled();
+  });
+
+  it('git:apply-patch-file treats closing the picker as a no-op', async () => {
+    mockDialog.showOpenDialog.mockResolvedValue({
+      canceled: true,
+      filePaths: [],
+    });
+
+    const result = await handler('git:apply-patch-file')(null, tempDir);
+
+    expect(result).toMatchObject({ success: false, canceled: true });
+    expect(mockGit.raw).not.toHaveBeenCalled();
+  });
+
+  it('git:apply-patch-file applies the selected patch in the active repo', async () => {
+    const patchPath = path.join(tempDir, 'fix.diff');
+    fs.writeFileSync(patchPath, 'diff --git a/a.txt b/a.txt\n');
+    mockDialog.showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: [patchPath],
+    });
+    mockGit.raw.mockResolvedValue('');
+
+    const result = await handler('git:apply-patch-file')(null, tempDir);
+
+    expect(result).toEqual({
+      success: true,
+      data: { fileName: 'fix.diff' },
+    });
+    expect(mockSimpleGit).toHaveBeenCalledWith(tempDir);
+    expect(mockGit.raw).toHaveBeenCalledWith(['apply', '--', patchPath]);
+    expect(mockDialog.showOpenDialog).toHaveBeenCalledWith(expect.objectContaining({
+      properties: ['openFile'],
+      defaultPath: tempDir,
+    }));
   });
 });

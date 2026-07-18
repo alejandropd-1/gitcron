@@ -7,16 +7,17 @@ import { useGitStore } from '@/lib/git-store';
 import { useRepoLoader } from '../use-repo-loader';
 import { tNow as t } from '../use-translation';
 import type { GitResult, RebaseCommitInfo, RebasePlanItem } from '@/types/electron';
+import { setRepoLoading } from './repo-loading';
 
 export const useHistoryActions = () => {
   const {
     repoPath,
-    setLoading,
     setError,
     setSuccess,
   } = useGitStore();
 
   const { refreshLog, refreshStatus, refreshBranches, refreshStashes } = useRepoLoader();
+  const setLoading = (isLoading: boolean) => setRepoLoading(repoPath, isLoading);
 
   const runCommand = async (args: string[]) => {
     setLoading(true);

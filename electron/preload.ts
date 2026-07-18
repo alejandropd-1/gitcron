@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
   openRepo: (defaultPath?: string) => ipcRenderer.invoke('git:open-repo', defaultPath),
   openPath: (dirPath: string) => ipcRenderer.invoke('git:open-path', dirPath),
   pickFolder: (title?: string, defaultPath?: string) => ipcRenderer.invoke('fs:pick-folder', title, defaultPath),
+  gitApplyPatchFile: (repoPath: string) => ipcRenderer.invoke('git:apply-patch-file', repoPath),
   gitInit: (parentPath: string, name: string, withInitialCommit?: boolean) =>
     ipcRenderer.invoke('git:init', parentPath, name, withInitialCommit ?? true),
   gitClone: (url: string, parentPath: string, folderName: string, token?: string) =>

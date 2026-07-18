@@ -8,7 +8,7 @@
 
 import { motion } from 'motion/react';
 import {
-  Archive, Download, GitBranch, PanelLeftClose, PanelLeftOpen,
+  Archive, Download, FileInput, GitBranch, PanelLeftClose, PanelLeftOpen,
   PanelRightClose, PanelRightOpen, Redo, Terminal, Undo, Upload,
 } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
@@ -71,7 +71,7 @@ export function TopBar({
   const t = useT();
   const repoPath = useGitStore((s) => s.repoPath);
   const isLoading = useGitStore((s) => s.isLoading);
-  const { openTerminal } = useGitActions();
+  const { applyPatchFile, openTerminal } = useGitActions();
 
   return (
     <header
@@ -134,6 +134,7 @@ export function TopBar({
           title={t('toolbar.newBranch')} label={t('toolbar.branch')} disabled={!repoPath}
         />
         <ToolbarButton icon={<Archive />} onClick={onOpenStashModal} title={t('toolbar.stash')} label={t('toolbar.stash')} disabled={!repoPath || isLoading} />
+        <ToolbarButton icon={<FileInput />} onClick={applyPatchFile} title={t('toolbar.applyPatchTooltip')} label={t('toolbar.patch')} disabled={!repoPath || isLoading} />
         <FetchIndicator onClick={onFetchNow} />
       </div>
 

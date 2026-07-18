@@ -30,6 +30,8 @@ const es: Dict = {
   'toolbar.branch': 'Branch',
   'toolbar.newBranch': 'Nueva branch',
   'toolbar.stash': 'Stash',
+  'toolbar.patch': 'Parche',
+  'toolbar.applyPatchTooltip': 'Aplicar archivo .patch o .diff',
   'toolbar.terminal': 'Abrir terminal en el repo',
   'toolbar.settings': 'Configuración',
   'toolbar.help': 'Ayuda',
@@ -760,6 +762,7 @@ const es: Dict = {
   'success.amend': 'Último commit enmendado correctamente',
   'success.cherryPick': 'Cherry-pick de {{hash}} aplicado',
   'success.cleanUntracked': '{{count}} archivos sin trackear eliminados',
+  'success.patchApplied': 'Parche {{file}} aplicado correctamente',
 
   // ── Amend modal ──
   'amend.title': 'Enmendar último commit',
@@ -802,6 +805,7 @@ const es: Dict = {
   'success.resetAll': 'Todos los cambios locales fueron descartados',
   'error.resetCommit': 'Error al resetear repositorio: {{error}}',
   'error.cleanUntracked': 'Error al limpiar archivos sin trackear: {{error}}',
+  'error.patchApply': 'No se pudo aplicar el archivo de parche',
 
   // ── Temporal Agent Settings ──
   'temporalAgent.experimental': 'experimental',
@@ -1089,6 +1093,8 @@ const en: Dict = {
   'toolbar.branch': 'Branch',
   'toolbar.newBranch': 'New branch',
   'toolbar.stash': 'Stash',
+  'toolbar.patch': 'Patch',
+  'toolbar.applyPatchTooltip': 'Apply a .patch or .diff file',
   'toolbar.terminal': 'Open terminal in repo',
   'toolbar.settings': 'Settings',
   'toolbar.help': 'Help',
@@ -1820,6 +1826,7 @@ const en: Dict = {
   'success.cherryPick': 'Cherry-pick of {{hash}} applied',
   'success.cleanUntracked': '{{count}} untracked files deleted',
 
+  'success.patchApplied': 'Patch {{file}} applied successfully',
   // ── Amend modal ──
   'amend.title': 'Amend last commit',
   'amend.desc': 'Replace the last commit message, or keep the existing one if you only want to fold in staged changes.',
@@ -1862,6 +1869,7 @@ const en: Dict = {
   'error.resetCommit': 'Error resetting repository: {{error}}',
   'error.cleanUntracked': 'Error cleaning untracked files: {{error}}',
 
+  'error.patchApply': 'Could not apply the patch file',
   // ── Temporal Agent Settings ──
   'temporalAgent.experimental': 'experimental',
   'temporalAgent.description': 'Lets an AI propose speculative future branches for {{repo}} on the chronometric graph. Opt-in. Nothing is sent anywhere until you trigger an analysis.',
@@ -2148,6 +2156,8 @@ const zh: Dict = {
   'toolbar.newBranch': '新建 Branch',
   'toolbar.stash': 'Stash',
   'toolbar.terminal': '在仓库中打开终端',
+  'toolbar.patch': '补丁',
+  'toolbar.applyPatchTooltip': '应用 .patch 或 .diff 文件',
   'toolbar.settings': '设置',
   'toolbar.help': '帮助',
   'toolbar.profile': '个人资料',
@@ -2767,6 +2777,7 @@ const zh: Dict = {
   'success.cherryPick': 'Cherry-pick {{hash}} 已应用',
   'amend.title': 'Amend 最后一次 Commit',
   'amend.desc': '替换最后一次 Commit 的消息，或者保持当前消息以仅添加已 Staged 的文件。',
+  'success.patchApplied': '补丁 {{file}} 已成功应用',
   'amend.warning': '⚠ 如果您已经将此 Commit 推送到远程，您稍后将需要执行 force-push。请勿对与他人共享的 Commit 进行 amend。',
   'amend.currentMessage': '当前消息',
   'amend.newMessage': '新消息 (留空 = 保持当前)',
@@ -2803,6 +2814,7 @@ const zh: Dict = {
   'success.resetAll': '所有本地更改均已丢弃',
   'error.resetCommit': '重置仓库失败: {{error}}',
   'temporalAgent.experimental': '实验性',
+  'error.patchApply': '无法应用补丁文件',
   'temporalAgent.description': '允许 AI 在时序图上为 {{repo}} 推荐未来的投机性 Branch。选择加入。在您触发分析之前不会发送任何内容。',
   'temporalAgent.enableLabel': '为此仓库启用',
   'temporalAgent.frequencyLabel': '分析频率',

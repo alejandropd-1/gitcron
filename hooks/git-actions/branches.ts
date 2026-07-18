@@ -6,16 +6,17 @@
 import { useGitStore } from '@/lib/git-store';
 import { useRepoLoader } from '../use-repo-loader';
 import { tNow as t } from '../use-translation';
+import { setRepoLoading } from './repo-loading';
 
 export const useBranchActions = () => {
   const {
     repoPath,
-    setLoading,
     setError,
     setSuccess,
   } = useGitStore();
 
   const { refreshLog, refreshStatus, refreshBranches, refreshTags } = useRepoLoader();
+  const setLoading = (isLoading: boolean) => setRepoLoading(repoPath, isLoading);
 
   const runCommand = async (args: string[]) => {
     setLoading(true);

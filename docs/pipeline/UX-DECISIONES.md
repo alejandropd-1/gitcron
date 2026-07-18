@@ -246,3 +246,20 @@ Registradas de la conversacion con Claude tras el primer ciclo completo:
    ya codificado en HERMES.md) arma el contexto sola desde el repo; el
    operador nunca redacta prompts largos. La inteligencia vive en el
    protocolo, no en el prompt del humano.
+
+### Decision UX adicional (2026-07-18): vista "Economia de la etapa"
+
+Cada carta de etapa muestra DONDE SE FUE el tiempo y los tokens, visual:
+
+- **Barra apilada por categoria**: Producto / Infraestructura / Protocolo /
+  Desperdicio (el desglose que el cierre T6 registra). El operador ve de un
+  vistazo si el dia se fue en el trabajo o en pagar deuda del sistema.
+- **Costo por familia de IA**: torta o barras con tokens/USD por familia
+  (Claude/Codex/Gemini/local/orquestador), de delegations.jsonl.
+- **Velocidad de crucero**: linea comparando duracion vs complejidad entre
+  etapas - la tendencia debe BAJAR para changes similares. Vara visible:
+  "change simple = horas". Si una etapa rompe la tendencia, la barra de
+  categorias explica por que.
+- Origen de la decision: el operador tardo un dia en un change de 1h de
+  producto (deuda del gate) y no tenia forma de VER donde se fue el tiempo
+  sin preguntarle al master. Esta vista elimina esa pregunta.

@@ -45,7 +45,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Open any existing Git repo from a native OS dialog. GitCron requires the selected folder to be the repository root, so a nested folder is never mistaken for a Git repository located higher in the filesystem.
 - Create a new repo locally, including **intelligent initialization inside non-empty folders** without losing files or overwriting local content.
 - Repository opening checks time out after 15 seconds with an actionable message instead of leaving the chooser indefinitely busy.
-- When opening a folder that is not a Git repo yet, initialize locally or **initialize and link an existing GitHub remote** in one guided flow (`remote add origin` + first push of `main`).
+- When opening a folder that is not a Git repo yet, initialize locally or **initialize and link an existing GitHub remote** in one guided flow. GitCron checks remote `main` before creating the first local commit; if history already exists, it can preserve that history and link the folder without force-pushing or deleting local files.
 - Automatic **GitHub collision and retry rescue**: when creating a local repository and selecting "Crear también en GitHub", GitCron can recover an existing remote and, if publication previously failed, continue from the GitHub step without trying to initialize the local repository again.
 - Pushing a local-only repository with no `origin` opens a guided publication flow: create a private GitHub repository or link an existing GitHub URL, then configure the upstream and push without losing local commits.
 - Clone from any Git URL or from your GitHub repos.
@@ -104,7 +104,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Manual personal access token fallback.
 - Authenticated push / pull / fetch via a process-scoped GitHub authorization header, without writing token-bearing `origin` URLs.
 - Automatic `--set-upstream` on the first push of a new branch.
-- Existing-empty-repo bootstrap: paste an already-created GitHub remote URL during init, validate it, add `origin`, and push `main`; rejected pushes leave the local repo intact and reattemptable.
+- Existing-repo bootstrap: paste a GitHub remote URL during init. Empty remotes receive the first `main` push; remotes with history are detected beforehand and can be adopted with a mixed reset that preserves working files and creates a `gitcron/local-before-link-*` backup branch when a local commit already exists.
 - Pull requests list in the sidebar for the current repo, with an in-app unified diff view.
 - Private repo clone support after login.
 

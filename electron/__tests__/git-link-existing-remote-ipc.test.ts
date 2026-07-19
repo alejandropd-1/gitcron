@@ -11,10 +11,13 @@ const mockIpc = vi.hoisted(() => ({
 
 const mockRepoGit = vi.hoisted(() => ({
   raw: vi.fn(),
+  checkIsRepo: vi.fn(),
+  init: vi.fn(),
 }));
 
 const mockAuthedGit = vi.hoisted(() => ({
   push: vi.fn(),
+  raw: vi.fn(),
 }));
 
 const mockSimpleGit = vi.hoisted(() => vi.fn(() => mockRepoGit));
@@ -28,6 +31,7 @@ vi.mock('electron', () => ({
 
 vi.mock('simple-git', () => ({
   simpleGit: mockSimpleGit,
+  CheckRepoActions: { IS_REPO_ROOT: 'is-repo-root' },
 }));
 
 vi.mock('../../electron/ipc/shared', () => ({
@@ -44,7 +48,12 @@ describe('git existing GitHub remote link IPC handlers', () => {
     mockIpc.handlers.clear();
     mockIpc.handle.mockClear();
     mockRepoGit.raw.mockReset();
+    mockRepoGit.checkIsRepo.mockReset();
+    mockRepoGit.checkIsRepo.mockResolvedValue(true);
+    mockRepoGit.init.mockReset();
     mockAuthedGit.push.mockReset();
+    mockAuthedGit.raw.mockReset();
+    mockAuthedGit.raw.mockResolvedValue('');
     mockSimpleGit.mockClear();
     mockWithGitHubToken.mockReset();
     mockWithGitHubToken.mockImplementation(async (_targetPath, _token, fn) => fn(mockAuthedGit));
@@ -106,6 +115,89 @@ describe('git existing GitHub remote link IPC handlers', () => {
         retryable: true,
         remoteAdded: false,
         remoteRolledBack: true,
+      },
+    });
+  });
+
+  it('detects remote main history before adding origin or pushing', async () => {
+    mockAuthedGit.raw.mockResolvedValue('abc123\trefs/heads/main\n');
+
+    const { addExistingGitHubRemoteAndPushMain } = await import('../../electron/ipc/git-sync');
+    const result = await addExistingGitHubRemoteAndPushMain(
+      'C:/repo',
+      'https://github.com/acme/project.git',
+      'gho_secret',
+    );
+
+    expect(mockAuthedGit.raw).toHaveBeenCalledWith([
+      'ls-remote', '--heads', 'https://github.com/acme/project.git', 'refs/heads/main',
+    ]);
+    expect(mockRepoGit.raw).not.toHaveBeenCalled();
+    expect(mockAuthedGit.push).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      success: false,
+      data: {
+        code: 'remote-has-history',
+        remoteHasHistory: true,
+        localRepoReady: true,
+      },
+    });
+  });
+
+  it('adopts remote main with a local backup branch and a mixed reset', async () => {
+    mockRepoGit.raw.mockResolvedValue('');
+
+    const { adoptExistingGitHubRemoteMain } = await import('../../electron/ipc/git-sync');
+    const result = await adoptExistingGitHubRemoteMain(
+      'C:/repo',
+      'https://github.com/acme/project.git',
+      'gho_secret',
+    );
+
+    expect(mockRepoGit.raw).toHaveBeenNthCalledWith(1, [
+      'remote', 'add', 'origin', 'https://github.com/acme/project.git',
+    ]);
+    expect(mockAuthedGit.raw).toHaveBeenCalledWith(['fetch', 'origin', 'main']);
+    expect(mockRepoGit.raw).toHaveBeenNthCalledWith(2, ['rev-parse', '--verify', 'HEAD']);
+    expect(mockRepoGit.raw.mock.calls[2][0]).toEqual([
+      'branch', expect.stringMatching(/^gitcron\/local-before-link-/),
+    ]);
+    expect(mockRepoGit.raw).toHaveBeenNthCalledWith(4, ['reset', '--mixed', 'origin/main']);
+    expect(mockRepoGit.raw).toHaveBeenNthCalledWith(5, ['branch', '--set-upstream-to=origin/main', 'main']);
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        adoptedRemoteHistory: true,
+        preservedWorkingTree: true,
+        backupBranch: expect.stringMatching(/^gitcron\/local-before-link-/),
+      },
+    });
+  });
+
+  it('adopts remote main in a non-repo folder without creating a parallel commit', async () => {
+    mockRepoGit.checkIsRepo.mockResolvedValue(false);
+    mockRepoGit.raw
+      .mockResolvedValueOnce('')
+      .mockRejectedValueOnce(new Error('fatal: Needed a single revision'))
+      .mockResolvedValue('');
+
+    const { adoptExistingGitHubRemoteMain } = await import('../../electron/ipc/git-sync');
+    const result = await adoptExistingGitHubRemoteMain(
+      'C:/folder',
+      'https://github.com/acme/project.git',
+    );
+
+    expect(mockRepoGit.init).toHaveBeenCalledWith(['--initial-branch=main']);
+    expect(mockRepoGit.raw).not.toHaveBeenCalledWith([
+      'branch', expect.stringMatching(/^gitcron\/local-before-link-/),
+    ]);
+    expect(mockRepoGit.raw).toHaveBeenCalledWith(['reset', '--mixed', 'origin/main']);
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        adoptedRemoteHistory: true,
+        preservedWorkingTree: true,
+        backupBranch: undefined,
       },
     });
   });

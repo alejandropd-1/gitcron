@@ -4,7 +4,7 @@
 // con token).
 
 import { ipcMain } from 'electron';
-import { simpleGit } from 'simple-git';
+import { CheckRepoActions, simpleGit } from 'simple-git';
 import { errMsg, sanitizeForLog, withGitHubToken } from './shared';
 import type { RemoteEntry } from '../../types/electron';
 import { isValidExistingGitHubRemoteUrl } from '../../lib/github-remote-url';
@@ -13,6 +13,50 @@ const GITHUB_REMOTE_URL_ERROR = 'URL de remoto invalida. Usa https://github.com/
 
 function isAuthErrorMessage(message: string): boolean {
   return /authentication|credentials|ssh|permission denied|403|401|could not read|not found/i.test(message);
+}
+
+async function remoteMainHasHistory(targetPath: string, remoteUrl: string, token?: string): Promise<boolean> {
+  const output = await withGitHubToken(targetPath, token, async (authedGit) => (
+    authedGit.raw(['ls-remote', '--heads', remoteUrl, 'refs/heads/main'])
+  ));
+  return output.trim().length > 0;
+}
+
+function localBackupBranchName(now = new Date()): string {
+  const stamp = now.toISOString().replace(/\D/g, '');
+  return `gitcron/local-before-link-${stamp}`;
+}
+
+export async function inspectExistingGitHubRemoteMain(
+  targetPath: string,
+  remoteUrl: string,
+  token?: string,
+) {
+  const trimmedUrl = remoteUrl.trim();
+  if (!isValidExistingGitHubRemoteUrl(trimmedUrl)) {
+    return {
+      success: false,
+      error: GITHUB_REMOTE_URL_ERROR,
+      data: { success: false, code: 'invalid-remote-url', retryable: true },
+    };
+  }
+  try {
+    const remoteHasHistory = await remoteMainHasHistory(targetPath, trimmedUrl, token);
+    return { success: true, data: { success: true, remoteHasHistory } };
+  } catch (error: any) {
+    const msg = errMsg(error);
+    return {
+      success: false,
+      error: msg,
+      data: {
+        success: false,
+        code: 'remote-check-failed',
+        authRequired: isAuthErrorMessage(msg),
+        retryable: true,
+        error: msg,
+      },
+    };
+  }
 }
 
 export { isValidExistingGitHubRemoteUrl };
@@ -37,6 +81,36 @@ export async function addExistingGitHubRemoteAndPushMain(
   }
 
   const g = simpleGit(targetPath);
+  try {
+    if (await remoteMainHasHistory(targetPath, trimmedUrl, token)) {
+      return {
+        success: false,
+        error: 'El remoto ya tiene una rama main con historial.',
+        data: {
+          success: false,
+          code: 'remote-has-history',
+          localRepoReady: true,
+          retryable: true,
+          remoteHasHistory: true,
+        },
+      };
+    }
+  } catch (error: any) {
+    const msg = errMsg(error);
+    return {
+      success: false,
+      error: msg,
+      data: {
+        success: false,
+        code: 'remote-check-failed',
+        authRequired: isAuthErrorMessage(msg),
+        localRepoReady: true,
+        retryable: true,
+        error: msg,
+      },
+    };
+  }
+
   try {
     await g.raw(['remote', 'add', 'origin', trimmedUrl]);
   } catch (error: any) {
@@ -89,6 +163,79 @@ export async function addExistingGitHubRemoteAndPushMain(
         remoteAdded: !remoteRolledBack,
         remoteRolledBack,
         rollbackError,
+        error: msg,
+      },
+    };
+  }
+}
+
+export async function adoptExistingGitHubRemoteMain(
+  targetPath: string,
+  remoteUrl: string,
+  token?: string,
+) {
+  const trimmedUrl = remoteUrl.trim();
+  if (!isValidExistingGitHubRemoteUrl(trimmedUrl)) {
+    return {
+      success: false,
+      error: GITHUB_REMOTE_URL_ERROR,
+      data: { success: false, code: 'invalid-remote-url', localRepoReady: true, retryable: true },
+    };
+  }
+
+  const g = simpleGit(targetPath);
+  let remoteAdded = false;
+  try {
+    const isRepoRoot = await g.checkIsRepo(CheckRepoActions.IS_REPO_ROOT);
+    if (!isRepoRoot) {
+      await g.init(['--initial-branch=main']);
+    }
+    await g.raw(['remote', 'add', 'origin', trimmedUrl]);
+    remoteAdded = true;
+    await withGitHubToken(targetPath, token, async (authedGit) => {
+      await authedGit.raw(['fetch', 'origin', 'main']);
+    });
+
+    let backupBranch: string | undefined;
+    try {
+      await g.raw(['rev-parse', '--verify', 'HEAD']);
+      backupBranch = localBackupBranchName();
+      await g.raw(['branch', backupBranch]);
+    } catch {
+      // An unborn repository has no local commit to back up.
+    }
+    await g.raw(['reset', '--mixed', 'origin/main']);
+    await g.raw(['branch', '--set-upstream-to=origin/main', 'main']);
+
+    return {
+      success: true,
+      data: {
+        success: true,
+        remoteAdded: true,
+        remoteHasHistory: true,
+        adoptedRemoteHistory: true,
+        preservedWorkingTree: true,
+        backupBranch,
+      },
+    };
+  } catch (error: any) {
+    const msg = errMsg(error);
+    if (remoteAdded) {
+      try {
+        await g.raw(['remote', 'remove', 'origin']);
+      } catch {
+        // Keep the original failure: the UI can still guide the user to retry.
+      }
+    }
+    return {
+      success: false,
+      error: msg,
+      data: {
+        success: false,
+        code: 'remote-adopt-failed',
+        authRequired: isAuthErrorMessage(msg),
+        localRepoReady: true,
+        retryable: true,
         error: msg,
       },
     };
@@ -345,6 +492,12 @@ export function registerGitSyncHandlers(): void {
 
   ipcMain.handle('git:add-existing-github-remote', async (_event, targetPath: string, remoteUrl: string, token?: string) => (
     addExistingGitHubRemoteAndPushMain(targetPath, remoteUrl, token)
+  ));
+  ipcMain.handle('git:inspect-existing-github-remote', async (_event, targetPath: string, remoteUrl: string, token?: string) => (
+    inspectExistingGitHubRemoteMain(targetPath, remoteUrl, token)
+  ));
+  ipcMain.handle('git:adopt-existing-github-remote', async (_event, targetPath: string, remoteUrl: string, token?: string) => (
+    adoptExistingGitHubRemoteMain(targetPath, remoteUrl, token)
   ));
 
   ipcMain.handle('git:remote-remove', async (_event, targetPath: string, name: string) => {

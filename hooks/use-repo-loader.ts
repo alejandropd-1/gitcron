@@ -11,7 +11,7 @@ import type {
 type GraphMode = 'classic' | 'chronometric';
 type RefreshTarget = { target: string; hasExplicitPath: boolean };
 export type PendingInitRepo = { path: string; parentPath: string; name: string; isInitialized?: boolean };
-export type InitRemoteProgress = 'validating' | 'initializing' | 'linking';
+export type InitRemoteProgress = 'validating' | 'initializing' | 'linking' | 'recovering';
 
 function isNotARepoResult(result: { success?: boolean; reason?: string; path?: string }): result is { success: false; reason: 'not-a-repo'; path: string } {
   return result.success === false && result.reason === 'not-a-repo' && typeof result.path === 'string';
@@ -308,6 +308,30 @@ export const useRepoLoader = () => {
 
     const targetPath = pendingInitRepo.path;
     let localRepoReady = !!pendingInitRepo.isInitialized;
+    const inspection = await window.api.gitInspectExistingGitHubRemote(
+      targetPath,
+      trimmedUrl,
+      githubToken ?? undefined,
+    );
+    if (!inspection.success) {
+      return {
+        success: false as const,
+        error: inspection.error,
+        code: inspection.data?.code,
+        authRequired: inspection.data?.authRequired,
+        localRepoReady,
+        retryable: inspection.data?.retryable,
+      };
+    }
+    if (inspection.data?.remoteHasHistory) {
+      return {
+        success: false as const,
+        error: 'El remoto ya tiene historial',
+        code: 'remote-has-history' as const,
+        localRepoReady,
+        retryable: true,
+      };
+    }
     if (!localRepoReady) {
       onProgress?.('initializing');
       const init = await initRepo(pendingInitRepo.parentPath, pendingInitRepo.name, true);
@@ -336,6 +360,39 @@ export const useRepoLoader = () => {
       authRequired: link.data?.authRequired,
       localRepoReady: link.data?.localRepoReady ?? localRepoReady,
       retryable: link.data?.retryable,
+    };
+  };
+
+  const adoptPendingRepoRemote = async (
+    remoteUrl: string,
+    onProgress?: (progress: InitRemoteProgress) => void,
+  ) => {
+    if (!pendingInitRepo) return { success: false as const, error: 'No hay repositorio pendiente' };
+    if (!window.api) return { success: false as const, error: 'Electron API no disponible' };
+
+    const targetPath = pendingInitRepo.path;
+    onProgress?.('recovering');
+    const result = await window.api.gitAdoptExistingGitHubRemote(
+      targetPath,
+      remoteUrl.trim(),
+      githubToken ?? undefined,
+    );
+    if (result.success) {
+      setPendingInitRepo(null);
+      await loadAll(targetPath);
+      return {
+        success: true as const,
+        backupBranch: result.data?.backupBranch,
+      };
+    }
+
+    return {
+      success: false as const,
+      error: result.error,
+      code: result.data?.code,
+      authRequired: result.data?.authRequired,
+      localRepoReady: true,
+      retryable: result.data?.retryable,
     };
   };
 
@@ -610,7 +667,7 @@ export const useRepoLoader = () => {
     pendingInitRepo,
     cancelPendingInitRepo,
     initializePendingRepo,
-    initializePendingRepoWithRemote,
+    initializePendingRepoWithRemote, adoptPendingRepoRemote,
     trustSafeDirectory,
     restoreLastRepo,
     closeRepo,

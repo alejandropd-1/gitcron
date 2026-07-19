@@ -48,11 +48,11 @@ type CheckoutConflictState = { branch: string; error: string } | null;
 type MergeNeedsCheckoutState = { sourceBranch: string; targetBranch: string } | null;
 type PendingInitRepoState = { path: string; name: string; isInitialized?: boolean } | null;
 type GitResult = { success?: boolean; conflict?: boolean; notMerged?: boolean; alreadyIgnored?: boolean; error?: string };
-type InitRemoteProgress = 'validating' | 'initializing' | 'linking';
+type InitRemoteProgress = 'validating' | 'initializing' | 'linking' | 'recovering';
 type InitRemoteResult = {
   success: boolean;
   error?: string;
-  code?: 'invalid-remote-url' | 'remote-add-failed' | 'first-push-failed';
+  code?: 'invalid-remote-url' | 'remote-add-failed' | 'remote-check-failed' | 'remote-has-history' | 'first-push-failed' | 'remote-adopt-failed';
   authRequired?: boolean;
   localRepoReady?: boolean;
   retryable?: boolean;
@@ -128,6 +128,10 @@ export type RepoOverlayLayerProps = {
   cancelPendingInitRepo: () => void;
   initializePendingRepo: () => Promise<{ success: boolean }> | { success: boolean };
   initializePendingRepoWithRemote: (
+    remoteUrl: string,
+    onProgress?: (progress: InitRemoteProgress) => void,
+  ) => Promise<InitRemoteResult> | InitRemoteResult;
+  adoptPendingRepoRemote: (
     remoteUrl: string,
     onProgress?: (progress: InitRemoteProgress) => void,
   ) => Promise<InitRemoteResult> | InitRemoteResult;
@@ -480,6 +484,7 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
           await props.initializePendingRepo();
         }}
         onConfirmRemote={props.initializePendingRepoWithRemote}
+        onAdoptRemote={props.adoptPendingRepoRemote}
         isLoading={props.isLoading}
       />
       <CheckoutConflictModal

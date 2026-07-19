@@ -12,9 +12,13 @@ Changes are listed from newest to oldest.
 - **La carpeta elegida debe ser la raíz real del repo**: Abrir existente y los reintentos de creación usan `checkIsRepo('root')`, evitando confundir una subcarpeta con un repositorio Git ubicado más arriba. Esto impide que `git status`, `remote add` o Push actúen accidentalmente sobre el repo padre.
 - **“Abriendo…” recuperable**: las validaciones Git del selector tienen un timeout de 15 segundos y devuelven una explicación accionable en lugar de dejar el panel cargando indefinidamente.
 - **Push inicial sin `main` explicado**: `src refspec main does not match any` ahora informa que no existe una rama `main` publicable —normalmente porque falta el primer commit— y aclara que GitHub no recibió archivos.
+- **Remoto existente detectado antes del primer commit**: al inicializar y vincular una carpeta, GitCron consulta primero si GitHub ya tiene `main`. Evita crear y subir un historial paralelo con todos los archivos de una carpeta no vacía.
+
+#### Added
+- **Recuperación guiada “Conservar remoto y vincular”**: si el remoto ya tiene historial, GitCron puede adoptarlo sin force-push. Los archivos locales permanecen intactos y, cuando ya había un commit local, se crea antes una rama `gitcron/local-before-link-*` de respaldo.
 
 #### Quality
-- Cobertura de regresión para carpetas anidadas dentro de otro repositorio y para errores de source ref inexistente.
+- Cobertura de regresión para carpetas anidadas dentro de otro repositorio, errores de source ref inexistente, detección preventiva de `main` remoto y adopción con reset mixto.
 
 #### Changed
 - `package.json` sube a `1.10.7` para preparar los instaladores y el draft release.

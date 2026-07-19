@@ -145,6 +145,10 @@ contextBridge.exposeInMainWorld('api', {
   gitRemoteAdd: (repoPath: string, name: string, url: string) => ipcRenderer.invoke('git:remote-add', repoPath, name, url),
   gitAddExistingGitHubRemote: (repoPath: string, remoteUrl: string, token?: string) =>
     ipcRenderer.invoke('git:add-existing-github-remote', repoPath, remoteUrl, token),
+  gitInspectExistingGitHubRemote: (repoPath: string, remoteUrl: string, token?: string) =>
+    ipcRenderer.invoke('git:inspect-existing-github-remote', repoPath, remoteUrl, token),
+  gitAdoptExistingGitHubRemote: (repoPath: string, remoteUrl: string, token?: string) =>
+    ipcRenderer.invoke('git:adopt-existing-github-remote', repoPath, remoteUrl, token),
   gitRemoteRemove: (repoPath: string, name: string) => ipcRenderer.invoke('git:remote-remove', repoPath, name),
   gitRemoteSetUrl: (repoPath: string, name: string, url: string) => ipcRenderer.invoke('git:remote-set-url', repoPath, name, url),
   gitRemoteRename: (repoPath: string, oldName: string, newName: string) => ipcRenderer.invoke('git:remote-rename', repoPath, oldName, newName),

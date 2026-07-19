@@ -864,21 +864,35 @@ interface InitializeRepoGuardModalProps {
   onConfirm: () => Promise<void> | void;
   onConfirmRemote: (
     remoteUrl: string,
-    onProgress?: (progress: 'validating' | 'initializing' | 'linking') => void,
+    onProgress?: (progress: 'validating' | 'initializing' | 'linking' | 'recovering') => void,
   ) => Promise<{
     success: boolean;
     error?: string;
-    code?: 'invalid-remote-url' | 'remote-add-failed' | 'first-push-failed';
+    code?: 'invalid-remote-url' | 'remote-add-failed' | 'remote-check-failed' | 'remote-has-history' | 'first-push-failed' | 'remote-adopt-failed';
     authRequired?: boolean;
     localRepoReady?: boolean;
     retryable?: boolean;
   }> | {
     success: boolean;
     error?: string;
-    code?: 'invalid-remote-url' | 'remote-add-failed' | 'first-push-failed';
+    code?: 'invalid-remote-url' | 'remote-add-failed' | 'remote-check-failed' | 'remote-has-history' | 'first-push-failed' | 'remote-adopt-failed';
     authRequired?: boolean;
     localRepoReady?: boolean;
     retryable?: boolean;
+  };
+  onAdoptRemote: (
+    remoteUrl: string,
+    onProgress?: (progress: 'validating' | 'initializing' | 'linking' | 'recovering') => void,
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    code?: 'invalid-remote-url' | 'remote-add-failed' | 'remote-check-failed' | 'remote-has-history' | 'first-push-failed' | 'remote-adopt-failed';
+    authRequired?: boolean;
+  }> | {
+    success: boolean;
+    error?: string;
+    code?: 'invalid-remote-url' | 'remote-add-failed' | 'remote-check-failed' | 'remote-has-history' | 'first-push-failed' | 'remote-adopt-failed';
+    authRequired?: boolean;
   };
   isLoading: boolean;
 }
@@ -888,19 +902,22 @@ export function InitializeRepoGuardModal({
   onCancel,
   onConfirm,
   onConfirmRemote,
+  onAdoptRemote,
   isLoading,
 }: InitializeRepoGuardModalProps) {
   const t = useT();
   const [remoteOpen, setRemoteOpen] = useState(false);
   const [remoteUrl, setRemoteUrl] = useState('');
   const [remoteError, setRemoteError] = useState<string | null>(null);
-  const [remoteProgress, setRemoteProgress] = useState<'validating' | 'initializing' | 'linking' | null>(null);
+  const [remoteHasHistory, setRemoteHasHistory] = useState(false);
+  const [remoteProgress, setRemoteProgress] = useState<'validating' | 'initializing' | 'linking' | 'recovering' | null>(null);
 
   useEffect(() => {
     if (pendingRepo) {
       setRemoteOpen(false);
       setRemoteUrl('');
       setRemoteError(null);
+      setRemoteHasHistory(false);
       setRemoteProgress(null);
     }
   }, [pendingRepo?.path]);
@@ -909,13 +926,16 @@ export function InitializeRepoGuardModal({
   const remoteProgressLabel = remoteProgress ? t(`initGuard.progress.${remoteProgress}`) : null;
 
   const readableRemoteError = (result: {
-    code?: 'invalid-remote-url' | 'remote-add-failed' | 'first-push-failed';
+    code?: 'invalid-remote-url' | 'remote-add-failed' | 'remote-check-failed' | 'remote-has-history' | 'first-push-failed' | 'remote-adopt-failed';
     authRequired?: boolean;
     localRepoReady?: boolean;
   }) => {
     if (result.code === 'invalid-remote-url') return t('initGuard.remoteError.invalidUrl');
     if (result.code === 'remote-add-failed') return t('initGuard.remoteError.addRemote');
+    if (result.code === 'remote-check-failed') return t('initGuard.remoteError.check');
+    if (result.code === 'remote-adopt-failed') return t('initGuard.remoteError.adopt');
     if (result.authRequired) return t('initGuard.remoteError.auth');
+    if (result.code === 'remote-has-history') return t('initGuard.remoteHistory.desc');
     if (result.code === 'first-push-failed') {
       return result.localRepoReady
         ? t('initGuard.remoteError.pushLocalReady')
@@ -928,12 +948,26 @@ export function InitializeRepoGuardModal({
     event.preventDefault();
     const trimmedUrl = remoteUrl.trim();
     setRemoteError(null);
+    setRemoteHasHistory(false);
     if (!isValidExistingGitHubRemoteUrl(trimmedUrl)) {
       setRemoteError(t('initGuard.remoteError.invalidUrl'));
       return;
     }
     setRemoteProgress('validating');
     const result = await onConfirmRemote(trimmedUrl, setRemoteProgress);
+    if (!result.success) {
+      setRemoteProgress(null);
+      if (result.code === 'remote-has-history') {
+        setRemoteHasHistory(true);
+        return;
+      }
+      setRemoteError(readableRemoteError(result));
+    }
+  };
+
+  const handleAdoptRemote = async () => {
+    setRemoteError(null);
+    const result = await onAdoptRemote(remoteUrl.trim(), setRemoteProgress);
     if (!result.success) {
       setRemoteProgress(null);
       setRemoteError(readableRemoteError(result));
@@ -1031,6 +1065,7 @@ export function InitializeRepoGuardModal({
               onChange={(event) => {
                 setRemoteUrl(event.target.value);
                 if (remoteError) setRemoteError(null);
+                if (remoteHasHistory) setRemoteHasHistory(false);
               }}
               placeholder={t('initGuard.remoteUrlPlaceholder')}
               disabled={isBusy}
@@ -1049,6 +1084,33 @@ export function InitializeRepoGuardModal({
               <div className="mt-3 flex items-start gap-2 rounded border border-[#ff8b87]/25 bg-[#9f0519]/15 px-3 py-2 text-xs leading-relaxed text-[#ffdad6]">
                 <AlertCircle size={14} className="mt-0.5 shrink-0 text-[#ff8b87]" />
                 <span>{remoteError}</span>
+              </div>
+            )}
+            {remoteHasHistory && (
+              <div className="mt-3 rounded border border-[#ffd98a]/30 bg-[#ffd98a]/10 p-3">
+                <div className="flex items-start gap-2 text-xs leading-relaxed text-text-primary">
+                  <AlertCircle size={14} className="mt-0.5 shrink-0 text-[#ffd98a]" />
+                  <div>
+                    <p className="font-bold">{t('initGuard.remoteHistory.title')}</p>
+                    <p className="mt-1 text-text-secondary">{t('initGuard.remoteHistory.desc')}</p>
+                    <p className="mt-2 text-[11px] text-text-secondary">
+                      {pendingRepo?.isInitialized
+                        ? t('initGuard.remoteHistory.backup')
+                        : t('initGuard.remoteHistory.files')}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleAdoptRemote}
+                    disabled={isBusy}
+                    className="flex items-center gap-2 rounded border border-[#ffd98a]/35 bg-[#ffd98a]/15 px-4 py-2 text-sm font-bold text-[#ffe8ad] transition-colors hover:bg-[#ffd98a]/20 disabled:opacity-50"
+                  >
+                    <GitBranch size={14} />
+                    {t('initGuard.remoteHistory.action')}
+                  </button>
+                </div>
               </div>
             )}
             <div className="mt-3 flex justify-end">

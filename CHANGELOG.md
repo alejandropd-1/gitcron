@@ -4,6 +4,25 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.10.8] - 2026-07-19 - Recuperación segura de remotos con historial
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Recuperación guiada “Conservar remoto y vincular”**: si el remoto ya tiene historial, GitCron puede adoptarlo sin force-push. Los archivos locales permanecen intactos y, cuando ya había un commit local, se crea antes una rama `gitcron/local-before-link-*` de respaldo.
+
+#### Fixed
+- **Remoto existente detectado antes del primer commit**: al inicializar y vincular una carpeta, GitCron consulta primero si GitHub ya tiene `main`. Evita crear y subir un historial paralelo con todos los archivos de una carpeta no vacía.
+
+#### Quality
+- Cobertura de regresión para la detección preventiva de `main` remoto, la adopción con reset mixto y las carpetas que todavía no fueron inicializadas.
+- TypeScript, suite completa y build de Electron verificados para la release.
+
+#### Changed
+- `package.json` sube a `1.10.8` para preparar los instaladores y el draft release.
+
+---
+
 ## [v1.10.7] - 2026-07-19 - Apertura segura de raíces Git y errores de creación claros
 
 ### 🟢 Vista Clásica & Core

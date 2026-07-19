@@ -169,13 +169,17 @@ interface RemoteOpResult {
 
 interface ExistingGitHubRemoteLinkResult {
   success: boolean;
-  code?: 'invalid-remote-url' | 'remote-add-failed' | 'first-push-failed';
+  code?: 'invalid-remote-url' | 'remote-add-failed' | 'remote-check-failed' | 'remote-has-history' | 'first-push-failed' | 'remote-adopt-failed';
   authRequired?: boolean;
   localRepoReady?: boolean;
   retryable?: boolean;
   remoteAdded?: boolean;
   remoteRolledBack?: boolean;
   rollbackError?: string;
+  remoteHasHistory?: boolean;
+  adoptedRemoteHistory?: boolean;
+  preservedWorkingTree?: boolean;
+  backupBranch?: string;
   error?: string;
 }
 
@@ -332,6 +336,8 @@ interface ElectronAPI {
   gitRemotesList: (repoPath: string) => Promise<GitResult<RemoteEntry[]>>;
   gitRemoteAdd: (repoPath: string, name: string, url: string) => Promise<GitResult>;
   gitAddExistingGitHubRemote: (repoPath: string, remoteUrl: string, token?: string) => Promise<GitResult<ExistingGitHubRemoteLinkResult>>;
+  gitInspectExistingGitHubRemote: (repoPath: string, remoteUrl: string, token?: string) => Promise<GitResult<ExistingGitHubRemoteLinkResult>>;
+  gitAdoptExistingGitHubRemote: (repoPath: string, remoteUrl: string, token?: string) => Promise<GitResult<ExistingGitHubRemoteLinkResult>>;
   gitRemoteRemove: (repoPath: string, name: string) => Promise<GitResult>;
   gitRemoteSetUrl: (repoPath: string, name: string, url: string) => Promise<GitResult>;
   gitRemoteRename: (repoPath: string, oldName: string, newName: string) => Promise<GitResult>;

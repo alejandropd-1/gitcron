@@ -142,7 +142,7 @@ export default function GitCronPage() {
 
   const {
     openRepo, pendingInitRepo, cancelPendingInitRepo, initializePendingRepo,
-    initializePendingRepoWithRemote,
+    initializePendingRepoWithRemote, adoptPendingRepoRemote,
     trustSafeDirectory, restoreLastRepo, closeRepo, persistOpenRepos, loadAll, loadDiff, refreshLog,
     refreshStatus, pickFolder, initRepo, cloneRepo, createGitHubRepo, listUserGitHubRepos,
     refreshRemotes, refreshWorktrees, refreshSubmodules, refreshBranches,
@@ -1817,6 +1817,11 @@ export default function GitCronPage() {
         }}
         initializePendingRepoWithRemote={async (remoteUrl, onProgress) => {
           const r = await initializePendingRepoWithRemote(remoteUrl, onProgress);
+          if (r.success) handleCloseRepoChooser();
+          return r;
+        }}
+        adoptPendingRepoRemote={async (remoteUrl, onProgress) => {
+          const r = await adoptPendingRepoRemote(remoteUrl, onProgress);
           if (r.success) handleCloseRepoChooser();
           return r;
         }}

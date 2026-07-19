@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.10.6-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.10.7-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -42,8 +42,9 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 
 #### Repositories
 
-- Open any existing Git repo from a native OS dialog.
+- Open any existing Git repo from a native OS dialog. GitCron requires the selected folder to be the repository root, so a nested folder is never mistaken for a Git repository located higher in the filesystem.
 - Create a new repo locally, including **intelligent initialization inside non-empty folders** without losing files or overwriting local content.
+- Repository opening checks time out after 15 seconds with an actionable message instead of leaving the chooser indefinitely busy.
 - When opening a folder that is not a Git repo yet, initialize locally or **initialize and link an existing GitHub remote** in one guided flow (`remote add origin` + first push of `main`).
 - Automatic **GitHub collision and retry rescue**: when creating a local repository and selecting "Crear también en GitHub", GitCron can recover an existing remote and, if publication previously failed, continue from the GitHub step without trying to initialize the local repository again.
 - Pushing a local-only repository with no `origin` opens a guided publication flow: create a private GitHub repository or link an existing GitHub URL, then configure the upstream and push without losing local commits.
@@ -446,9 +447,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.10.6.exe`                                            |
-| macOS    | `GitCron-1.10.6.dmg` _(build on macOS with `pnpm package:mac`)_       |
-| Linux    | `GitCron-1.10.6.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.10.7.exe`                                            |
+| macOS    | `GitCron-1.10.7.dmg` _(build on macOS with `pnpm package:mac`)_       |
+| Linux    | `GitCron-1.10.7.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -497,7 +498,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.10.6` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.10.7` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

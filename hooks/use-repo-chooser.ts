@@ -11,7 +11,10 @@
 
 import { useState } from 'react';
 import { useGitStore } from '@/lib/git-store';
-import { childPath, isPushRejected, cloneUrlFromGitHubCreateResult } from '@/lib/page-helpers';
+import {
+  childPath, isMissingPushSourceRef, isPushRejected, cloneUrlFromGitHubCreateResult,
+} from '@/lib/page-helpers';
+import { tNow as t } from '@/hooks/use-translation';
 
 interface ForcePushConfirmState {
   repoDir: string;
@@ -56,6 +59,12 @@ export function useRepoChooser({
   // o cancela el force-push. Sólo lo usa el flujo de creación con GitHub.
   const [forcePushConfirm, setForcePushConfirm] = useState<ForcePushConfirmState | null>(null);
 
+  const initialPushError = (repoDir: string, error?: string) => (
+    isMissingPushSourceRef(error)
+      ? t('repoCreate.pushError.noMain', { path: repoDir })
+      : t('repoCreate.pushError.generic', { path: repoDir, error: error ?? t('repoCreate.unknownError') })
+  );
+
   const openExisting = async () => {
     await openRepo();
     if (useGitStore.getState().repoPath) {
@@ -79,8 +88,18 @@ export function useRepoChooser({
       // A failed GitHub step may leave a perfectly valid local repository.
       // Detect that retry state and continue from the remote step instead of
       // running git:init again (which intentionally rejects existing repos).
-      const existingGit = await window.api.gitCommand(repoDir, ['rev-parse', '--is-inside-work-tree']);
-      const localRepoReady = existingGit.success && String(existingGit.data ?? '').trim() === 'true';
+      // `rev-parse --is-inside-work-tree` also succeeds when repoDir is merely
+      // nested under another repository. Reuse the exact-root open contract so
+      // we never attach a remote or run a push against a parent worktree.
+      const existingGit = await window.api.openPath(repoDir);
+      const localRepoReady = existingGit.success;
+      if (!localRepoReady && existingGit.reason !== 'not-a-repo') {
+        setError(t('repoCreate.inspectError', {
+          path: repoDir,
+          error: existingGit.error ?? t('repoCreate.unknownError'),
+        }));
+        return false;
+      }
       if (!localRepoReady) {
         const r = await initRepo(parent, name, true);
         if (!r.success) return false;
@@ -115,7 +134,7 @@ export function useRepoChooser({
               if (shouldForce) {
                 const forcePushRes = await window.api.gitPushBranch(repoDir, 'main', githubToken, true);
                 if (!forcePushRes.success) {
-                  setError(forcePushRes.error ?? 'Error al forzar la subida a GitHub');
+                  setError(initialPushError(repoDir, forcePushRes.error));
                   return false;
                 }
               } else {
@@ -123,7 +142,7 @@ export function useRepoChooser({
                 return false;
               }
             } else {
-              setError(`El repositorio local quedó listo en "${repoDir}", pero el push a GitHub falló: ${pushRes.error ?? 'error desconocido'}. Podés reintentar sin volver a inicializarlo.`);
+              setError(initialPushError(repoDir, pushRes.error));
               return false;
             }
           }

@@ -3,6 +3,24 @@
 Changes are listed from newest to oldest.
 
 ---
+
+## [v1.10.7] - 2026-07-19 - Apertura segura de raíces Git y errores de creación claros
+
+### 🟢 Vista Clásica & Core
+
+#### Fixed
+- **La carpeta elegida debe ser la raíz real del repo**: Abrir existente y los reintentos de creación usan `checkIsRepo('root')`, evitando confundir una subcarpeta con un repositorio Git ubicado más arriba. Esto impide que `git status`, `remote add` o Push actúen accidentalmente sobre el repo padre.
+- **“Abriendo…” recuperable**: las validaciones Git del selector tienen un timeout de 15 segundos y devuelven una explicación accionable en lugar de dejar el panel cargando indefinidamente.
+- **Push inicial sin `main` explicado**: `src refspec main does not match any` ahora informa que no existe una rama `main` publicable —normalmente porque falta el primer commit— y aclara que GitHub no recibió archivos.
+
+#### Quality
+- Cobertura de regresión para carpetas anidadas dentro de otro repositorio y para errores de source ref inexistente.
+
+#### Changed
+- `package.json` sube a `1.10.7` para preparar los instaladores y el draft release.
+
+---
+
 ## [v1.10.6] - 2026-07-17 - Rebase visual, parches y loading por repositorio
 
 ### 🟢 Vista Clásica & Core

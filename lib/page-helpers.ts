@@ -45,6 +45,12 @@ export function isPushRejected(error?: string | null): boolean {
   );
 }
 
+export function isMissingPushSourceRef(error?: string | null): boolean {
+  return Boolean(
+    error && /src refspec .* does not match any|does not have any commits|failed to resolve ref/i.test(error),
+  );
+}
+
 export function cloneUrlFromGitHubCreateResult(
   result: { success: boolean; error?: string | null; data?: { cloneUrl?: string | null } | null },
   ownerLogin: string | undefined,

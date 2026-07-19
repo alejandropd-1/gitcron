@@ -31,6 +31,7 @@ vi.mock('electron', () => ({
 
 vi.mock('simple-git', () => ({
   simpleGit: mockSimpleGit,
+  CheckRepoActions: { IS_REPO_ROOT: 'root' },
 }));
 
 describe('git repo IPC handlers', () => {
@@ -74,8 +75,8 @@ describe('git repo IPC handlers', () => {
       reason: 'not-a-repo',
       path: plainFolder,
     });
-    expect(mockSimpleGit).toHaveBeenCalledWith(plainFolder);
-    expect(mockGit.checkIsRepo).toHaveBeenCalledTimes(1);
+    expect(mockSimpleGit).toHaveBeenCalledWith(plainFolder, { timeout: { block: 15_000 } });
+    expect(mockGit.checkIsRepo).toHaveBeenCalledWith('root');
     expect(mockGit.status).not.toHaveBeenCalled();
   });
 
@@ -95,8 +96,30 @@ describe('git repo IPC handlers', () => {
       reason: 'not-a-repo',
       path: selectedFolder,
     });
-    expect(mockSimpleGit).toHaveBeenCalledWith(selectedFolder);
-    expect(mockGit.checkIsRepo).toHaveBeenCalledTimes(1);
+    expect(mockSimpleGit).toHaveBeenCalledWith(selectedFolder, { timeout: { block: 15_000 } });
+    expect(mockGit.checkIsRepo).toHaveBeenCalledWith('root');
+    expect(mockGit.status).not.toHaveBeenCalled();
+  });
+
+  it('does not treat a descendant of another repository as the selected repo root', async () => {
+    const nestedFolder = path.join(tempDir, 'parent-repo', 'nested-folder');
+    fs.mkdirSync(nestedFolder, { recursive: true });
+    mockDialog.showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: [nestedFolder],
+    });
+    // `checkIsRepo()` would be true for this scenario. The root-scoped check
+    // must be false so GitCron never runs status against the parent worktree.
+    mockGit.checkIsRepo.mockImplementation(async (mode?: string) => mode !== 'root');
+
+    const result = await handler('git:open-repo')(null);
+
+    expect(result).toMatchObject({
+      success: false,
+      reason: 'not-a-repo',
+      path: nestedFolder,
+    });
+    expect(mockGit.checkIsRepo).toHaveBeenCalledWith('root');
     expect(mockGit.status).not.toHaveBeenCalled();
   });
 

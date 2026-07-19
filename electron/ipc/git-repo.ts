@@ -4,12 +4,30 @@
 import { dialog, ipcMain } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
-import { simpleGit } from 'simple-git';
+import { CheckRepoActions, simpleGit } from 'simple-git';
 import type { RepoInfo } from '../../types/electron';
 import {
   errMsg, getGitHubAuthOptions, getNoPromptEnv,
   normalizeSafeDirectoryPath, repoAccessErrMsg,
 } from './shared';
+
+const OPEN_REPO_TIMEOUT_MS = 15_000;
+
+function openRepoGit(targetPath: string) {
+  return simpleGit(targetPath, { timeout: { block: OPEN_REPO_TIMEOUT_MS } });
+}
+
+function openRepoErrMsg(error: unknown, targetPath: string): string {
+  const message = repoAccessErrMsg(error, targetPath);
+  if (/timeout|timed out|block timeout/i.test(message)) {
+    return [
+      `Git tardó más de ${OPEN_REPO_TIMEOUT_MS / 1000} segundos en revisar "${path.basename(targetPath)}".`,
+      'La carpeta puede ser muy grande, estar en una unidad lenta o pertenecer a un repositorio ubicado más arriba.',
+      'GitCron canceló la revisión; elegí la carpeta raíz que contiene su propio .git y volvé a intentar.',
+    ].join('\n');
+  }
+  return message;
+}
 
 function notARepoResult(targetPath: string) {
   return {
@@ -28,8 +46,11 @@ export function registerGitRepoHandlers(): void {
       if (!fs.existsSync(dirPath)) {
         return { success: false, error: `La carpeta ya no existe: ${dirPath}` };
       }
-      const testGit = simpleGit(dirPath);
-      const isRepo = await testGit.checkIsRepo();
+      const testGit = openRepoGit(dirPath);
+      // `checkIsRepo()` also returns true for any descendant of a repository.
+      // GitCron opens repository roots, otherwise `status()` may scan a huge
+      // parent tree (for example the entire Windows user profile).
+      const isRepo = await testGit.checkIsRepo(CheckRepoActions.IS_REPO_ROOT);
       if (!isRepo) {
         return notARepoResult(dirPath);
       }
@@ -42,7 +63,7 @@ export function registerGitRepoHandlers(): void {
       };
       return { success: true, data: info };
     } catch (error: any) {
-      return { success: false, error: repoAccessErrMsg(error, dirPath) };
+      return { success: false, error: openRepoErrMsg(error, dirPath) };
     }
   });
 
@@ -60,8 +81,8 @@ export function registerGitRepoHandlers(): void {
       }
 
       selectedPath = result.filePaths[0];
-      const testGit = simpleGit(selectedPath);
-      const isRepo = await testGit.checkIsRepo();
+      const testGit = openRepoGit(selectedPath);
+      const isRepo = await testGit.checkIsRepo(CheckRepoActions.IS_REPO_ROOT);
 
       if (!isRepo) {
         return notARepoResult(selectedPath);
@@ -76,7 +97,7 @@ export function registerGitRepoHandlers(): void {
       };
       return { success: true, data: repoInfo };
     } catch (error: any) {
-      return { success: false, error: selectedPath ? repoAccessErrMsg(error, selectedPath) : errMsg(error) };
+      return { success: false, error: selectedPath ? openRepoErrMsg(error, selectedPath) : errMsg(error) };
     }
   });
 

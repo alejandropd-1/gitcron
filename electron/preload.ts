@@ -65,8 +65,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:stage', repoPath, filePath),
   gitUnstage: (repoPath: string, filePath: string) =>
     ipcRenderer.invoke('git:unstage', repoPath, filePath),
-  gitStageBatch: (repoPath: string, filePaths: string[]) =>
-    ipcRenderer.invoke('git:stage-batch', repoPath, filePaths),
+  gitStageBatch: (repoPath: string, filePaths: string[], force?: boolean) =>
+    ipcRenderer.invoke('git:stage-batch', repoPath, filePaths, force),
   gitUnstageBatch: (repoPath: string, filePaths: string[]) =>
     ipcRenderer.invoke('git:unstage-batch', repoPath, filePaths),
   gitRemoveLock: (repoPath: string) =>

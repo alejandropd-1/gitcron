@@ -150,4 +150,30 @@ describe('git worktree and submodule IPC handlers', () => {
     const updateSubResult = await submoduleUpdate(null, mainRepoPath, 'libs/sub', true) as { success: boolean };
     expect(updateSubResult.success).toBe(true);
   }, 20_000);
+
+  it('force-stages only the requested file inside an ignored directory', async () => {
+    const repoPath = path.join(tempDir, 'ignored-stage-repo');
+    fs.mkdirSync(repoPath);
+    const git = simpleGit(repoPath);
+    await git.init(['--initial-branch=main']);
+
+    fs.writeFileSync(path.join(repoPath, '.gitignore'), '.astro/\n', 'utf-8');
+    fs.mkdirSync(path.join(repoPath, '.astro'));
+    fs.writeFileSync(path.join(repoPath, '.astro', 'types.d.ts'), 'export {};\n', 'utf-8');
+    fs.writeFileSync(path.join(repoPath, '.astro', 'unrelated.txt'), 'leave me ignored\n', 'utf-8');
+
+    const stageBatch = handler('git:stage-batch');
+    const regularResult = await stageBatch(null, repoPath, ['.astro/types.d.ts']) as { success: boolean };
+    expect(regularResult.success).toBe(false);
+
+    const forcedResult = await stageBatch(null, repoPath, ['.astro/types.d.ts'], true) as { success: boolean };
+    expect(forcedResult.success).toBe(true);
+
+    const stagedPaths = (await git.raw(['diff', '--cached', '--name-only']))
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean);
+    expect(stagedPaths).toContain('.astro/types.d.ts');
+    expect(stagedPaths).not.toContain('.astro/unrelated.txt');
+  });
 });

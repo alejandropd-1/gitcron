@@ -553,10 +553,10 @@ export function registerGitOpsHandlers(): void {
   // Batch stage/unstage: single git command for N files.
   // Critical for "Stage all" — running N parallel `git add` commands
   // causes index.lock collisions because they all try to write to .git/index.
-  ipcMain.handle('git:stage-batch', async (_event, targetPath: string, filePaths: string[]) => {
+  ipcMain.handle('git:stage-batch', async (_event, targetPath: string, filePaths: string[], force = false) => {
     try {
       if (!filePaths || filePaths.length === 0) return { success: true };
-      await simpleGit(targetPath).add(filePaths);
+      await simpleGit(targetPath).raw(['add', ...(force ? ['--force'] : []), '--', ...filePaths]);
       return { success: true };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };

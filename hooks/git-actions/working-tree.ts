@@ -7,6 +7,7 @@ import { useGitStore } from '@/lib/git-store';
 import { useRepoLoader } from '../use-repo-loader';
 import { tNow as t } from '../use-translation';
 import { setRepoLoading } from './repo-loading';
+import { makeGitStageIssueMessage } from '@/lib/git-stage-issue';
 
 export const useWorkingTreeActions = () => {
   const {
@@ -96,7 +97,7 @@ export const useWorkingTreeActions = () => {
         ? await window.api.gitStage(repoPath, filePath)
         : await window.api.gitUnstage(repoPath, filePath);
       if (result.success) await refreshStatus();
-      else setError(result.error ?? 'Error al stagear archivo');
+      else setError(makeGitStageIssueMessage(result.error ?? 'Error al stagear archivo', [filePath]));
     } catch (err: any) { setError(err.message); }
   };
 
@@ -105,21 +106,24 @@ export const useWorkingTreeActions = () => {
    * single git command for all files, avoiding parallel writes to .git/index
    * (which cause "index.lock: File exists" errors).
    */
-  const stageFiles = async (filePaths: string[], stage: boolean) => {
-    if (!window.api || !repoPath || filePaths.length === 0) return;
+  const stageFiles = async (filePaths: string[], stage: boolean, force = false) => {
+    if (!window.api || !repoPath || filePaths.length === 0) return false;
     setLoading(true);
     setError(null);
     try {
       const result = stage
-        ? await window.api.gitStageBatch(repoPath, filePaths)
+        ? await window.api.gitStageBatch(repoPath, filePaths, force)
         : await window.api.gitUnstageBatch(repoPath, filePaths);
       if (result.success) {
         await refreshStatus();
+        return true;
       } else {
-        setError(result.error ?? 'Error al stagear archivos');
+        setError(makeGitStageIssueMessage(result.error ?? 'Error al stagear archivos', filePaths));
+        return false;
       }
     } catch (err: any) {
       setError(err.message);
+      return false;
     } finally {
       setLoading(false);
     }

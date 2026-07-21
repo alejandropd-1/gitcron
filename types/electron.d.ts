@@ -280,7 +280,7 @@ interface ElectronAPI {
   gitFetch: (repoPath: string, token?: string) => Promise<GitResult<RemoteOpResult>>;
   gitStage: (repoPath: string, filePath: string) => Promise<GitResult>;
   gitUnstage: (repoPath: string, filePath: string) => Promise<GitResult>;
-  gitStageBatch: (repoPath: string, filePaths: string[]) => Promise<GitResult>;
+  gitStageBatch: (repoPath: string, filePaths: string[], force?: boolean) => Promise<GitResult>;
   gitUnstageBatch: (repoPath: string, filePaths: string[]) => Promise<GitResult>;
   gitRemoveLock: (repoPath: string) => Promise<GitResult<{ removed: boolean }>>;
   gitTrustSafeDirectory: (repoPath: string) => Promise<GitResult<{ path: string }>>;

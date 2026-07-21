@@ -12,6 +12,7 @@ import { AlertCircle, Check, X, FileText } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useT } from '@/hooks/use-translation';
+import { parseGitStageIssue } from '@/lib/git-stage-issue';
 
 export type PullDecisionToast = {
   source: 'push' | 'pull';
@@ -35,7 +36,7 @@ export function PageToasts({
 }: PageToastsProps) {
   const t = useT();
   const { success, setSuccess, error, setError, isLoading } = useGitStore();
-  const { removeIndexLock } = useGitActions();
+  const { removeIndexLock, stageFiles } = useGitActions();
 
   const [hovered, setHovered] = useState(false);
 
@@ -70,6 +71,7 @@ export function PageToasts({
   let pullSummary = '';
   let pullMode = '';
   let displayMessage = success || '';
+  const stageIssue = error ? parseGitStageIssue(error) : null;
 
   if (success) {
     try {
@@ -223,9 +225,74 @@ export function PageToasts({
         )}
       </AnimatePresence>
 
-      {/* ──────────── ERROR TOAST ──────────── */}
+      {/* ──────────── IGNORED FILES TOAST ──────────── */}
       <AnimatePresence>
-        {error && (
+        {error && stageIssue && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+            role="alertdialog"
+            aria-modal="false"
+            className="pointer-events-auto p-4 glass-alert-warning text-text-primary rounded-lg shadow-2xl flex items-start gap-3 w-[min(calc(100vw-2rem),760px)]"
+          >
+            <AlertCircle size={20} className="shrink-0 mt-0.5 text-[#f4b942]" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#ffd98a] leading-tight">
+                {stageIssue.ignoredPaths.length === 1
+                  ? t('stageIssue.titleOne')
+                  : t('stageIssue.titleMany', { count: stageIssue.ignoredPaths.length })}
+              </p>
+              <p className="text-xs text-text-secondary mt-1 leading-snug">
+                {stageIssue.ignoredPaths.length === 1
+                  ? t('stageIssue.descriptionOne')
+                  : t('stageIssue.descriptionMany')}
+              </p>
+              <div className="mt-2 max-h-24 overflow-y-auto flex flex-col gap-1">
+                {stageIssue.ignoredPaths.map((file) => (
+                  <div key={file} className="flex items-center gap-2 text-xs font-mono text-[#ffd98a]/90">
+                    <FileText size={12} className="shrink-0 opacity-70" />
+                    <span className="truncate" title={file}>{file}</span>
+                  </div>
+                ))}
+              </div>
+              {stageIssue.lineEndingPaths.length > 0 && (
+                <p className="text-[11px] text-text-secondary/80 mt-2 leading-snug">
+                  {stageIssue.lineEndingPaths.length === 1
+                    ? t('stageIssue.lineEndingOne')
+                    : t('stageIssue.lineEndingMany', { count: stageIssue.lineEndingPaths.length })}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0 self-center">
+              <button
+                type="button"
+                onClick={async () => {
+                  const ok = await stageFiles(stageIssue.ignoredPaths, true, true);
+                  if (ok) setError(null);
+                }}
+                disabled={isLoading}
+                className="px-3 py-1.5 text-xs font-bold bg-[#f4b942]/15 hover:bg-[#f4b942]/25 text-[#ffd98a] rounded transition-colors whitespace-nowrap disabled:opacity-50"
+                title={t('stageIssue.forceTooltip')}
+              >
+                {t('stageIssue.force')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="px-3 py-1.5 text-xs font-bold bg-text-secondary/10 hover:bg-text-secondary/20 text-text-primary rounded transition-colors whitespace-nowrap"
+              >
+                {t('stageIssue.dismiss')}
+              </button>
+            </div>
+            <button type="button" onClick={() => setError(null)} className="hover:opacity-70 shrink-0 text-[#ffd98a]">
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ──────────── GENERIC ERROR TOAST ──────────── */}
+      <AnimatePresence>
+        {error && !stageIssue && (
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
             role="alert"

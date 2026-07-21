@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.10.8-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.10.9-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -80,6 +80,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - Reset all with confirmation.
 - Clean untracked in bulk: a safe `Limpiar...` / `Clean...` action appears when untracked files exist, opens a checklist modal from a fresh `git clean -n -d` dry-run, and deletes only selected untracked paths after an explicit warning.
 - Recovery action for `index.lock` errors.
+- Friendly recovery when Git skips ignored files: the warning explains `.gitignore` and Windows line-ending notices separately, then offers **Add anyway** for the exact selected files or **Leave out** to dismiss safely.
 
 #### Branches
 
@@ -405,6 +406,7 @@ Since the Classic and Cronometric views share the same global file and base vari
 - [x] Pull request diff view (v1.2.0).
 - [x] Interactive rebase (reorder / drop / reword) (v1.8.3).
 - [x] Apply patch files (`.patch` / `.diff`) from the topbar (v1.10.6).
+- [x] Actionable ignored-file staging warning with exact-path force add (v1.10.9).
 - [x] Remote branch checkout (v1.3.7).
 - [x] Premium Conflict Resolver Card (v1.3.7).
 - [x] Agrupamiento recursivo de ramas en el sidebar (v1.3.7).
@@ -447,9 +449,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.10.8.exe`                                            |
-| macOS    | `GitCron-1.10.8.dmg` _(build on macOS with `pnpm package:mac`)_       |
-| Linux    | `GitCron-1.10.8.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.10.9.exe`                                            |
+| macOS    | `GitCron-1.10.9.dmg` _(build on macOS with `pnpm package:mac`)_       |
+| Linux    | `GitCron-1.10.9.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 
@@ -498,7 +500,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.10.8` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **Core & Vista Clásica (Estable)**: `v1.10.9` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

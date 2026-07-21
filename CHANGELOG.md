@@ -4,6 +4,28 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.10.9] - 2026-07-20 - Avisos de staging claros y accionables
+
+### 🟢 Vista Clásica & Core
+
+#### Added
+- **Recuperación de archivos ignorados**: cuando `.gitignore` impide preparar un archivo, GitCron muestra un aviso coloquial con las acciones “Agregar igual” y “Dejar afuera”, además del cierre habitual.
+
+#### Fixed
+- **Salida de Git explicada**: las advertencias normales de conversión LF → CRLF se separan del motivo real del bloqueo y dejan de mostrarse como un bloque técnico en rojo.
+- **Force-add acotado**: aunque Git informe una carpeta ignorada como `.astro`, “Agregar igual” usa `git add --force` únicamente sobre los archivos que el usuario había seleccionado, sin incorporar el resto de la carpeta.
+- **Errores desconocidos preservados**: cualquier fallo que no coincida con este caso sigue usando el aviso genérico existente, sin ocultar información útil para diagnóstico.
+
+#### Quality
+- Pruebas unitarias para interpretar la salida combinada de `.gitignore` y LF/CRLF.
+- Prueba IPC con un repositorio temporal que confirma el rechazo normal y el force-add de una ruta exacta.
+- TypeScript, ESLint focalizado y build de producción verificados para la release.
+
+#### Changed
+- `package.json` sube a `1.10.9` para preparar los instaladores y el draft release.
+
+---
+
 ## [v1.10.8] - 2026-07-19 - Recuperación segura de remotos con historial
 
 ### 🟢 Vista Clásica & Core

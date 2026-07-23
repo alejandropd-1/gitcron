@@ -47,7 +47,7 @@ ofrecer interacción gradual sin convertir el renderer en una consola de comando
 ## Objetivo
 
 Construir una superficie de observabilidad, explicación y control supervisado para trabajo con IA,
-aislada por repositorio e integrada conscientemente con Hermes y los runtimes que este coordine.
+aislada por repositorio e integrada conscientemente con Hermes cuando participe y con runtimes directos.
 
 Al completar el track, una persona debe poder abrir un repo en GitCron y responder rápidamente:
 
@@ -102,9 +102,10 @@ historial, muestra estado y expone controles tipados. No reemplaza al orquestado
 
 ### Hermes
 
-Es el orquestador consciente. Administra sesiones, agentes, subagentes, modelos y flujos. Informa a
-GitCron mediante un conector autenticado y recibe únicamente controles seguros y vinculados a una
-sesión/repositorio conocidos.
+Es un orquestador consciente soportado, pero no obligatorio. Cuando participa administra sesiones,
+agentes, subagentes, modelos y flujos; informa a GitCron mediante un conector autenticado y recibe
+únicamente controles seguros y vinculados a una sesión/repositorio conocidos. Pipeline también
+observa sesiones directas de los runtimes mediante sus propios adaptadores.
 
 ### Runtimes y proveedores
 
@@ -120,23 +121,24 @@ sesión/repositorio conocidos.
 Estos roles son recomendaciones, no verdades eternas. Cada fase debe verificar versiones,
 capabilities y modelos reales antes de depender de ellos.
 
-El ciclo del método distingue cinco roles: `scout → planner → builder → auditor → fixer`. Hermes
-actúa como `orchestrator`, fuera de esa secuencia. Pipeline preserva rol, proveedor y modelo efectivo
+El ciclo del método distingue cinco roles: `scout → planner → builder → auditor → fixer`. Quien
+coordina puede actuar como `orchestrator`, fuera de esa secuencia. Pipeline preserva rol, proveedor y modelo efectivo
 para poder atribuir actividad/costo y demostrar que builder y auditor pertenecen a familias distintas.
 
-## Relación consciente entre GitCron y Hermes
+## Relación consciente con Hermes y sesiones directas
 
-Hermes y GitCron tienen responsabilidades diferentes y complementarias:
+Hermes y GitCron tienen responsabilidades diferentes y complementarias cuando Hermes participa;
+los runtimes directos entran al mismo contrato sin pasar por él:
 
 ```text
 Ale
  │ conversa, decide y autoriza
  ▼
-Hermes
- │ crea y coordina runs, agentes, subagentes, tasks y modelos
- │ emite eventos y recibe controles permitidos
+Hermes opcional o runtime directo
+ │ coordina o ejecuta runs, agentes, tasks y modelos
+ │ emite eventos y recibe sólo controles permitidos por su capability
  ▼
-Hermes Connector en GitCron
+Runtime Connector en GitCron
  │ autentica, negocia versión/capabilities y normaliza
  ▼
 PipelineCoordinator
@@ -316,7 +318,8 @@ tipo, fuente, payload y procedencia. Las procedencias principales son:
 - `derived`: inferido de reglas transparentes;
 - `human`: decisión o acción de Ale.
 
-El contrato exacto no se congela hasta F00, luego de capturar fixtures reales.
+F00 propone Pipeline Contract v1 con fixtures reales disponibles; queda listo para QA humano antes
+de considerarlo congelado para F01.
 
 ## Estrategia para lograrlo
 
@@ -341,7 +344,7 @@ tener datos. No se predice antes de auditar la calidad de la muestra.
 
 ### F00 — Contrato, seguridad y spikes
 
-Verifica las interfaces reales de Hermes, Claude, Codex, `agy`, OpenCode y LM Studio, además de los
+Verifica las interfaces reales de Hermes, Claude, Codex, `agy`, OpenCode, Z.ai vía OpenCode y LM Studio, además de los
 tres JSONL locales producidos por el kit. Captura fixtures, define identidad/roles/decisiones,
 eventos/métricas/capabilities/comandos y decide conexión, autenticación, versionado y degradación.
 Es audit-only y no implementa la feature.
@@ -366,7 +369,8 @@ Brief: [`fase-02-hermes-connector-readonly.md`](briefs/fase-02-hermes-connector-
 
 ### F03 — Adaptadores y telemetría
 
-Normaliza Hermes, Claude Code, Codex CLI, Antigravity, OpenCode y LM Studio. Cada adaptador declara
+Normaliza Hermes, Claude Code, Codex CLI, Antigravity y OpenCode; Z.ai y LM Studio quedan modelados
+como providers detrás del cliente agente correspondiente. Cada adaptador declara
 honestamente qué puede observar/controlar, conserva procedencia y degrada campos ausentes. No se
 permite parsing frágil de prosa ni paridad ficticia.
 

@@ -17,7 +17,7 @@ Fecha de creación: 2026-07-12
 
 | Fase | Estado actual | Rama | Prerrequisito | Prompt de ejecución | Reporte |
 |---|---|---|---|---|---|
-| F00 | Planificada | `pipeline/fase-00-contrato` | Ninguno | [`prompts/fase-00-contrato.md`](prompts/fase-00-contrato.md) | Pendiente |
+| F00 | Lista para QA | `pipeline/fase-00-contrato` | Ninguno | [`prompts/fase-00-contrato.md`](prompts/fase-00-contrato.md) | [`2026-07-23-pipeline-fase-00-contrato.md`](../reports/2026-07-23-pipeline-fase-00-contrato.md) |
 | F01 | Planificada | `pipeline/fase-01-modelo-evidencia` | F00 completada | [`prompts/fase-01-modelo-evidencia.md`](prompts/fase-01-modelo-evidencia.md) | Pendiente |
 | F02 | Planificada | `pipeline/fase-02-hermes-connector` | F01 completada | [`prompts/fase-02-hermes-connector.md`](prompts/fase-02-hermes-connector.md) | Pendiente |
 | F03 | Planificada | `pipeline/fase-03-runtime-adapters` | F02 completada | [`prompts/fase-03-runtime-adapters.md`](prompts/fase-03-runtime-adapters.md) | Pendiente |

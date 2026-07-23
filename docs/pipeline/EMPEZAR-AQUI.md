@@ -9,7 +9,7 @@ El primer archivo que se entrega o se señala al agente es:
 Instrucción mínima para copiar en cualquier IA con acceso al repositorio:
 
 ```text
-Trabajá en C:\www\gitCronos.
+Trabajá en C:\www\gitcron.
 Ejecutá exclusivamente las instrucciones de:
 docs/pipeline/prompts/fase-00-contrato.md
 

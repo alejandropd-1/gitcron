@@ -1,0 +1,12 @@
+{
+  "capturedAt": "2026-07-23",
+  "runtimes": [
+    { "runtime": "hermes", "version": "0.19.0", "build": "upstream d9165d7a / local 146f4ed0" },
+    { "runtime": "claude", "version": "2.1.206" },
+    { "runtime": "codex", "version": "0.143.0" },
+    { "runtime": "agy", "version": "1.1.5" },
+    { "runtime": "opencode", "version": "1.18.3", "providers": ["LMStudio", "Z.AI Coding Plan"] },
+    { "runtime": "lmstudio", "version": "cli-9902c3a", "loadedModel": "google/gemma-4-12b-qat" },
+    { "runtime": "openspec", "version": "1.5.0" }
+  ]
+}

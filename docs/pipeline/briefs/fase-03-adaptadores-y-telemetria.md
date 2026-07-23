@@ -72,7 +72,7 @@ ofrece, pero no exponerlos por IPC/UI hasta F05.
 ### TANDA 3 — Antigravity (`agy`)
 
 - Verificar `--print`, `--model`, `--conversation`, `--log-file`, timeout y sandbox.
-- Como `agy` 1.0.10 no anuncia JSON stream, evaluar en orden:
+- Si la versión instalada de `agy` no anuncia JSON stream, evaluar en orden:
   1. plugin/hook oficial estructurado;
   2. log file con schema estable documentado;
   3. wrapper que agrega lifecycle/tiempo/PID/exit code y deja output como texto opaco;
@@ -106,7 +106,7 @@ Suite parametrizada por adaptador:
 ```text
 Aplicá docs/pipeline/protocolo-ejecucion-agentes.md. Identificá IA/runtime/modelo y rol; anunciá
 la tanda, rama y checkpoint. No escribas ni crees la rama hasta recibir autorización.
-Implementá únicamente TANDA 1 de Pipeline F03 en C:\www\gitCronos. Leé invariantes, índice,
+Implementá únicamente TANDA 1 de Pipeline F03 en C:\www\gitcron. Leé invariantes, índice,
 contrato F00 y brief F03. No avances a otros runtimes.
 
 Primero capturá/confirmá fixtures sanitizados de Claude stream-json y Codex --json con permiso
@@ -134,7 +134,7 @@ sin stage/commit/push.
 ```text
 Aplicá docs/pipeline/protocolo-ejecucion-agentes.md. Identificá IA/runtime/modelo y rol y anunciá
 el alcance. Al ser un spike audit-only, no crees rama ni edites antes del checkpoint.
-Sos el scout Antigravity de Pipeline F03 TANDA 3. Audit-only al inicio. Relevá agy 1.0.10:
+Sos el scout Antigravity de Pipeline F03 TANDA 3. Audit-only al inicio. Relevá la versión instalada de `agy`:
 print, model, conversation, continue, log-file, timeout, sandbox y plugins. Buscá una salida
 estructurada oficial o hook estable. No parsees frases humanas ni ANSI como API. Entregá:
 VERIFICADO / NO DISPONIBLE / PENDIENTE, fixture sanitizado si existe, y diseño de wrapper mínimo

@@ -1,0 +1,23 @@
+{
+  "fixtureType": "real-sanitized-structured-review",
+  "runtime": "opencode",
+  "runtimeVersion": "1.18.3",
+  "provider": "Z.AI Coding Plan",
+  "requestedModel": "zai-coding-plan/glm-5.2",
+  "effectiveModel": "inferred-from-successful-selection",
+  "reportedModel": null,
+  "role": "auditor",
+  "result": "approved-with-findings",
+  "durationMs": 190610,
+  "observedTools": ["read", "glob", "grep"],
+  "lastStepUsage": {
+    "total": 37690,
+    "input": 6113,
+    "output": 1078,
+    "reasoning": 4131,
+    "cacheRead": 26368
+  },
+  "runtimeReportedCost": 0,
+  "sessionId": "redacted",
+  "findings": { "p0": 0, "p1": 1, "p2": 3 }
+}

@@ -1,0 +1,22 @@
+{
+  "fixtureType": "real-sanitized-result",
+  "runtime": "claude-code",
+  "runtimeVersion": "2.1.206",
+  "role": "planner",
+  "requestedModel": "sonnet",
+  "effectiveModels": ["claude-sonnet-5", "claude-haiku-4-5-20251001"],
+  "result": "success",
+  "durationMs": 294291,
+  "turns": 27,
+  "usage": {
+    "inputTokens": 5547,
+    "cacheCreationInputTokens": 258270,
+    "cacheReadInputTokens": 1621061,
+    "outputTokens": 26251
+  },
+  "runtimeReportedCostUsd": 2.4472913,
+  "costClassification": "runtime_reported_billing_semantics_unknown",
+  "sessionId": "redacted",
+  "prompt": "redacted",
+  "resultText": "redacted; proposal outline incorporated after independent verification"
+}

@@ -9,7 +9,7 @@
 - **Scout principal:** Antigravity (`agy`) o Claude Code, modo lectura.
 - **Revisor de arquitectura/seguridad:** Codex, sandbox read-only y familia distinta.
 - **LM Studio:** opcional para clasificar fixtures ya capturados; nunca decide el contrato.
-- **Hermes:** orquesta y conserva los dos checkpoints humanos.
+- **Hermes:** orquestador opcional cuando la corrida pase por él; Pipeline también observa sesiones directas.
 
 ## Objetivo
 
@@ -24,7 +24,7 @@ Cerrar el protocolo `Pipeline Contract v1` y responder con evidencia:
 
 ## Scope permitido
 
-- Lectura de `C:\www\gitCronos`, `C:\www\scaffold` y la instalación local de Hermes.
+- Lectura de `C:\www\gitcron`, `C:\www\scaffold` y la instalación local de Hermes.
 - Ejecutar `--help`, `--version`, estados y probes sin inferencia paga.
 - Capturar/sanitizar fixtures mínimos de eventos **solo si Ale autoriza ejecutar una inferencia**.
 - Leer los productores JSONL de scaffold y sus scripts materializados en `useOdontoPro`; los logs
@@ -50,7 +50,7 @@ Cerrar el protocolo `Pipeline Contract v1` y responder con evidencia:
    cleanup/reconexión.
 3. Relevar Hermes `serve`, WebSocket/JSON-RPC, auth, contract version, sesiones, usage,
    reasoning, delegaciones, procesos y modelos.
-4. Relevar Claude, Codex, `agy`, OpenCode y LM Studio con versiones actuales.
+4. Relevar Claude, Codex, `agy`, OpenCode, Z.ai vía OpenCode y LM Studio con versiones actuales.
 5. Entregar tabla `capacidad × runtime`: observe, reasoning, tools, usage, cost, context,
    model-select, pause, interrupt, kill, resume, auth, schema stability.
 6. **CHECKPOINT 0:** evidencia y preguntas abiertas. Esperar OK.
@@ -106,12 +106,12 @@ Definir:
 ```text
 Aplicá docs/pipeline/protocolo-ejecucion-agentes.md. Identificá IA/runtime/modelo y rol; anunciá
 fase, tandas, checkpoints y rama objetivo antes de actuar. Pedí autorización cuando corresponda.
-Sos el scout de Pipeline Fase 00 en C:\www\gitCronos. Esta fase es AUDIT-ONLY.
+Sos el scout de Pipeline Fase 00 en C:\www\gitcron. Esta fase es AUDIT-ONLY.
 Leé docs/00_FUENTE_DE_VERDAD.md, docs/01_INVARIANTES.md,
 docs/pipeline/00-indice.md y docs/pipeline/briefs/fase-00-contrato-y-spikes.md.
 
 Objetivo: producir evidencia para Pipeline Contract v1. Relevá GitCron, scaffold y las
-interfaces instaladas de Hermes, Claude, Codex, agy, OpenCode y LM Studio. Armá la matriz
+interfaces instaladas de Hermes, Claude, Codex, agy, OpenCode, Z.ai vía OpenCode y LM Studio. Armá la matriz
 capacidad × runtime y compará Hermes companion WS/JSON-RPC, ACP, CLI estructurada y hooks.
 
 Reglas:
@@ -131,7 +131,7 @@ y la propuesta de fixtures. STOP para checkpoint humano.
 ```text
 Aplicá docs/pipeline/protocolo-ejecucion-agentes.md. Identificá IA/runtime/modelo y rol; anunciá
 el alcance de la auditoría antes de actuar. No crees rama ni escribas archivos en modo read-only.
-Sos el auditor independiente de Pipeline Fase 00. Trabajá read-only en C:\www\gitCronos.
+Sos el auditor independiente de Pipeline Fase 00. Trabajá read-only en C:\www\gitcron.
 Auditá el relevamiento y ADR propuesto contra docs/01_INVARIANTES.md y el brief de F00.
 
 Buscá especialmente:
@@ -161,7 +161,7 @@ documental concreto. STOP.
 - [ ] ADR de conexión, autenticación, versionado y degradación.
 - [ ] Ningún secreto inspeccionado o expuesto.
 - [ ] Cero código de producto y cero dependencias nuevas.
-- [ ] Reporte `docs/reports/pipeline-fase-00-contrato.md`.
+- [ ] Reporte `docs/reports/YYYY-MM-DD-pipeline-fase-00-contrato.md`.
 
 ## Cierre
 

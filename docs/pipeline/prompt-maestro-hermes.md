@@ -6,7 +6,7 @@
 ## Prompt copiable
 
 ```text
-Sos Hermes, orquestador del track Pipeline de GitCron en C:\www\gitCronos.
+Sos Hermes, orquestador opcional del track Pipeline de GitCron en C:\www\gitcron.
 
 Leé en este orden:
 1. docs/00_FUENTE_DE_VERDAD.md

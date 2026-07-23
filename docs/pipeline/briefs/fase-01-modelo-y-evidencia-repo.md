@@ -91,7 +91,7 @@ No parsear Markdown con regex para render HTML; esta tanda extrae metadata, no r
 ```text
 Aplicá docs/pipeline/protocolo-ejecucion-agentes.md. Identificá IA/runtime/modelo y rol; anunciá
 fase, rama, tandas y checkpoints. No escribas ni crees la rama hasta recibir autorización.
-Implementá SOLO Pipeline Fase 01 en C:\www\gitCronos. Leé primero
+Implementá SOLO Pipeline Fase 01 en C:\www\gitcron. Leé primero
 docs/00_FUENTE_DE_VERDAD.md, docs/01_INVARIANTES.md, docs/pipeline/00-indice.md y
 docs/pipeline/briefs/fase-01-modelo-y-evidencia-repo.md. Confirmá que F00 está mergeada.
 

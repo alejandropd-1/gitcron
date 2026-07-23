@@ -3,7 +3,7 @@
 > Primera vez: empezar por [`EMPEZAR-AQUI.md`](EMPEZAR-AQUI.md).
 
 > Track de producto e implementación para convertir la solapa `Pipeline` de GitCron en una
-> superficie de observabilidad y control de Hermes y de los runtimes que orquesta. Este índice
+> superficie de observabilidad y control de Hermes y de runtimes usados directa o indirectamente. Este índice
 > es el tablero de Ale. Los agentes reciben **una sola fase por vez** y deben leer antes
 > `docs/00_FUENTE_DE_VERDAD.md`, `docs/01_INVARIANTES.md`,
 > [`protocolo-ejecucion-agentes.md`](protocolo-ejecucion-agentes.md) y el brief de esa fase.
@@ -29,22 +29,24 @@ Pipeline responde, para el repo de la solapa activa:
 9. ¿Qué controles seguros están disponibles?
 10. ¿Qué me está pidiendo decidir, en lenguaje claro, y qué pasa si digo sí, no o después?
 
-Hermes sigue siendo el orquestador. GitCron no crea un segundo orquestador: se conecta a
-Hermes, normaliza sus eventos y los contrasta con la verdad observable del repo.
+Hermes es un orquestador soportado, no un gateway obligatorio. GitCron no crea un segundo
+orquestador: normaliza tanto eventos de Hermes como sesiones directas y los contrasta con la verdad
+observable del repo. Runtime, proveedor y modelo son dimensiones separadas.
 
 ```text
-Ale ──conversa/decide──> Hermes ──orquesta──> agentes y runtimes
-                            │                        │
-                            │ eventos/controles      │ archivos/Git/OpenSpec
-                            ▼                        ▼
-                     Hermes Connector <──────> GitCron Pipeline
+Ale ──conversa/decide──> Hermes (opcional) ──orquesta──> agentes
+ │                              │                         │
+ └──────── usa runtime directo ─┴─────────────────────────┤
+                                eventos/controles         │ archivos/Git/OpenSpec
+                                         ▼                ▼
+                         Runtime Connectors <──────> GitCron Pipeline
 ```
 
 ## Principios no negociables
 
 - **Per-repo real:** cada repo abierto tiene vínculo, sesiones, change, agentes, presupuesto e
   historial propios. Nunca se mezclan controles o métricas entre repos.
-- **Dos fuentes de verdad:** Hermes cuenta qué está ocurriendo; Git/OpenSpec/filesystem prueban
+- **Dos fuentes de verdad:** el runtime/orquestador cuenta qué está ocurriendo; Git/OpenSpec/filesystem prueban
   qué ocurrió. Una discrepancia se muestra, no se oculta.
 - **Reasoning honesto:** se muestra reasoning/thinking solo cuando el runtime lo emite. El resto
   se cubre con una bitácora operativa (`objetivo → hipótesis → acción → observación → próximo
@@ -94,34 +96,14 @@ terminal, tokens extraídos de HTML ni formatos privados sin versionar.
 
 Toda corrida normalizada necesita:
 
-```ts
-type PipelineAgentRole =
-  | 'scout'
-  | 'planner'
-  | 'builder'
-  | 'auditor'
-  | 'fixer'
-  | 'orchestrator'
-  | 'unknown';
-
-type PipelineIdentity = {
-  repoId: string;
-  repoPath: string;
-  changeId: string | null;
-  taskId: string | null;
-  runId: string;
-  sessionId: string;
-  agentId: string;
-  parentAgentId: string | null;
-  runtime: 'hermes' | 'claude' | 'codex' | 'agy' | 'opencode' | 'lmstudio';
-  role: PipelineAgentRole;
-  provider: string | null;
-  model: string | null;
-};
-```
+El contrato F00 propuesto agrega `attemptId`, parentage de sesión, modo de orquestación
+`direct | hermes | external | unknown` y modelo solicitado/efectivo/reportado. Los runtimes son
+Hermes, Claude, Codex, `agy` y OpenCode; Z.ai y LM Studio se representan como providers detrás del
+runtime cliente, no como runtimes independientes. La definición TypeScript completa y normativa
+está en [`f00/PIPELINE-CONTRACT-V1.md`](f00/PIPELINE-CONTRACT-V1.md).
 
 Los cinco roles del método son `scout`, `planner`, `builder`, `auditor` y `fixer`; `orchestrator`
-identifica a Hermes fuera del ciclo R4. `unknown` evita inventar un rol. `provider` y `model` son el
+identifica a quien coordina fuera del ciclo R4, sea Hermes u otra ejecución explícita. `unknown` evita inventar un rol. `provider` y `model` son el
 valor efectivo informado para ese evento/unidad segura; si solo existe un string ambiguo de modelo,
 se conserva literal y `provider` queda `null`.
 
@@ -130,21 +112,11 @@ decorrelación auditable.
 
 ## Sobre de eventos normalizado
 
-La forma exacta se cierra en Fase 00, pero todas las fuentes convergen conceptualmente en:
-
-```ts
-type PipelineEventEnvelope = {
-  schemaVersion: 1;
-  eventId: string;
-  sequence: number;
-  ts: string;
-  identity: PipelineIdentity;
-  kind: string;
-  source: string;
-  payload: unknown;
-  provenance: 'runtime' | 'repo' | 'derived' | 'human';
-};
-```
+F00 propone un envelope `1.0` con secuencia acotada por `sequenceScope`, tiempos `emittedAt` y
+`observedAt`, identidad completa, fuente estructurada, procedencia, estado/referencias de evidencia
+y versión de redacción. La definición TypeScript normativa está en
+[`f00/PIPELINE-CONTRACT-V1.md`](f00/PIPELINE-CONTRACT-V1.md); este índice no mantiene una segunda
+shape para evitar deriva.
 
 ### Telemetría local producida por el kit scaffold
 
@@ -188,33 +160,29 @@ La especificación de lenguaje, procedencia, estados y límites está en
 [`UX-DECISIONES.md`](UX-DECISIONES.md). Riesgo y consecuencias pueden ser `unknown`; nunca se
 inventan para completar la interfaz. `merge-ready` informa que Ale puede revisar: no ejecuta merge.
 
-## Matriz de runtimes verificada el 2026-07-12
+## Matriz de runtimes verificada el 2026-07-23
 
-Las versiones son un snapshot local y deben verificarse otra vez en Fase 00.
-
-| Runtime | Versión local | Integración observable | Limitación que no se debe inventar |
-|---|---:|---|---|
-| Hermes | 0.18.0 | JSON-RPC/WebSocket; sesiones; thinking/reasoning; tools; usage; contexto; analytics; subagentes; interrupt/steer/pause/kill; modelos | El protocolo companion para GitCron aún debe formalizar auth/versionado |
-| Claude Code | 2.1.132 | `--output-format=stream-json`; hooks; partial messages; modelo; effort; budget | No asumir que siempre expone reasoning literal ni costo real bajo suscripción |
-| Codex CLI | 0.133.0 | `codex exec --json`; modelo; sandbox; sesiones reanudables | Capturar fixtures reales antes de fijar el schema; costo puede no equivaler a gasto de suscripción |
-| Antigravity (`agy`) | 1.0.10 | `--print`; `--model`; sesiones; log file; sandbox | No anuncia stream JSON estable: Fase 03 debe medir y diseñar wrapper/hook sin parsear prosa frágil |
-| OpenCode | 1.15.10 | `serve`; ACP; `run --format json`; `--thinking`; sesiones; stats de tokens/costo; modelos | Verificar API/event schema real antes de implementar control |
-| LM Studio (`lms`) | CLI commit 9902c3a | server local; `lms ps --json`; logs stream; API OpenAI-compatible | No es un agente/orquestador por sí solo; control y usage dependen del cliente que hace la inferencia |
+F00 relevó las instalaciones actuales y separó interfaz observada, efecto probado y fixture
+pendiente. La matriz completa, con versión, procedencia y referencias por comando, está en
+[`f00/RUNTIME-CAPABILITY-MATRIX.md`](f00/RUNTIME-CAPABILITY-MATRIX.md). Es un snapshot negociable,
+no una promesa permanente de paridad entre runtimes.
 
 ## Reparto recomendado de agentes
 
-- **Hermes:** orquesta fases, conserva checkpoints y registra qué modelo ejecuta cada rol.
+- **Hermes:** puede orquestar fases y conservar checkpoints; no es paso obligatorio para sesiones
+  directas de Claude, Codex, `agy` u OpenCode.
 - **Claude Code:** builder principal para implementaciones multiarchivo y UI/IPC.
 - **Codex:** auditor independiente por defecto; también builder en fases explícitamente asignadas,
   nunca auditor de su propio trabajo.
 - **Antigravity / `agy`:** scout mecánico, spikes acotados y builder alternativo donde exista
   evidencia de salida controlable.
-- **OpenCode:** builder alternativo y dueño natural de su adaptador/ACP, auditado por Codex.
+- **OpenCode:** builder alternativo y dueño natural de su adaptador/ACP; Z.ai es uno de sus
+  providers observados, no un runtime aparte.
 - **LM Studio:** extracción/clasificación mecánica y fixtures baratos; nunca veredicto final.
 
-El prompt para que Hermes coordine el track completo está en
-[`prompt-maestro-hermes.md`](prompt-maestro-hermes.md). No reemplaza los briefs: Hermes debe
-entregar al ejecutor únicamente la fase activa y respetar sus checkpoints.
+El prompt opcional para que Hermes coordine el track completo está en
+[`prompt-maestro-hermes.md`](prompt-maestro-hermes.md). También puede ejecutar el MASTER directamente
+desde Codex u otro orquestador; los briefs y checkpoints siguen siendo obligatorios.
 
 ## Secuencia de fases
 

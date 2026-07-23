@@ -5,7 +5,7 @@
 > en el código, **el código manda** — reportá la discrepancia y actualizá este doc al cierre
 > de tu fase. No asumas que existe algo que no esté listado ni que falte algo que sí esté.
 
-**Última actualización:** 2026-06-18 · **Versión:** v1.9.1 · **Branch de trabajo:** (re-auditar con `git branch -vv`; post-F6 avanzó más allá de `fallow/test-v4`)
+**Última actualización:** 2026-07-23 · **Versión:** v1.10.9 · **Branch de trabajo:** `pipeline/fase-00-contrato` (F00 documental; verificar con `git branch -vv`)
 
 ---
 
@@ -22,18 +22,18 @@ reales y persistencia de decisiones en SQLite para calibración estadística.
 |---|---|
 | UI | Next.js 15 (export estático) + React 19 + Tailwind 4 + motion/react + lucide-react |
 | Estado | Zustand 5 (`lib/git-store.ts`, multi-repo first-class: `openRepos[]` + `activeRepoIdx`) |
-| Desktop | Electron 42 (`contextIsolation: true`, `sandbox: true`, CSP estricta) |
+| Desktop | Electron 42 (`contextIsolation: true`, `webSecurity: true`; `sandbox` actualmente desactivado en código, ver deuda F00) |
 | Git | `simple-git` (local) + Octokit (`@octokit/rest`, GitHub API) |
 | IA | OpenRouter (HTTP directo, sin SDK) — proveedor primario; stubs para openai/gemini/opencode |
 | DB | `node:sqlite` built-in (prefijo `node:` preservado vía tsup external + onSuccess patch) |
 | Build | tsup (Electron) + electron-builder (NSIS/dmg/AppImage) · puerto dev: 3001 |
-| Tests | Vitest — **178 tests** (deben quedar verdes en todo cierre de fase) |
-| Calidad | Fallow (`pnpm exec fallow`, config en `.fallowrc.json`) + CodeGraph MCP. Baseline actual: dead-code 3 issues (2 exports + 1 type), dupes 8 clone groups, health 261 sobre umbral, MI 90.2 (good). |
+| Tests | Vitest — **289 tests / 44 archivos** (verificados verdes 2026-07-23) |
+| Calidad | Fallow (`pnpm exec fallow`, config en `.fallowrc.json`) + CodeGraph MCP. Snapshot 2026-07-23: dead-code 17 issues, dupes 11 clone groups, health 335 sobre umbral, MI 90.5 (good); deuda heredada, F00 no tocó código. |
 
 ## 3. Mapa de arquitectura (cifras refrescadas 2026-06-18, v1.9.1)
 
 ### `app/`
-- `page.tsx` — **1.622 líneas** (creció con F4/F5/F6; superó el objetivo F1 `<1.400 LOC` → candidato a otra pasada de descomposición). Sigue siendo el
+- `page.tsx` — **1.907 líneas** (superó el objetivo F1 `<1.400 LOC` → candidato a otra pasada de descomposición). Sigue siendo el
   orquestador principal de estado/handlers, top nav, layout 3 columnas y callbacks, pero el
   view-switcher central, graph tab y overlay de modales/menús ya viven en componentes dedicados.
 - `layout.tsx` — CSP por meta tag. `connect-src`: api.github.com, github.com, openrouter.ai.
@@ -65,7 +65,7 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
   (pan/zoom cronométrico), `use-shortcuts.ts`, `use-translation.ts`.
 
 ### `electron/`
-- `main.ts` — **297 líneas**, solo bootstrap + registro. Los ~118 handlers IPC (registros `ipcMain.handle`) viven en
+- `main.ts` — **333 líneas**, bootstrap + registro. Los handlers IPC viven en
   `electron/ipc/` por dominio: `git-ops`, `git-sync`, `git-repo`, `github`, `ai`, `shell`,
   `storage`, `watchers`, `app-window` + `shared.ts`.
 - `temporal-agent-ipc.ts`, `ai/` (predict, key-store con safeStorage, providers,
@@ -146,7 +146,7 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
 
 ```powershell
 npx.cmd tsc --noEmit      # 0 errores
-pnpm test                 # 142/142 verde (o más si agregaste)
+pnpm test                 # 289/289 verde (o más si agregaste)
 pnpm exec fallow          # reportar delta: LOC, duplicación, dead code
 git status --short
 git diff --stat
@@ -154,3 +154,12 @@ git diff --stat
 
 Para inspección estructural usá **CodeGraph antes de grep**: `codegraph_status`,
 `codegraph_context`, `codegraph_search`, `codegraph_impact`.
+
+## 8. Deuda de seguridad confirmada por Pipeline F00 (2026-07-23)
+
+- `electron/main.ts` desactiva explícitamente `sandbox`; esto contradice la invariante 5 y no fue
+  corregido porque F00 es documental.
+- El token GitHub todavía vive en Zustand/renderer y cruza IPC; contradice la invariante 2. Pipeline
+  no debe reutilizar ese patrón: auth nueva queda main-only con `safeStorage`.
+- `sanitizeForLog()` actual no cubre todavía todos los bearer/cookies/prompts de futuros runtimes.
+- Estas brechas quedan visibles para una fase de hardening; no autorizan expandir F00 a código.

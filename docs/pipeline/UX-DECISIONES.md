@@ -258,13 +258,13 @@ Registradas de la conversacion con Claude tras el primer ciclo completo:
    pre-arma el change siguiente, vinculado visualmente (linaje etapa N ->
    N+1). Jamas se edita una etapa cerrada.
 3. **Plan de despacho como pantalla previa al GO:** tabla task -> familia ->
-   modelo exacto (default: politica de derivacion v2 de HERMES.md), cada
+   modelo exacto (default: política versionada del runtime/orquestador), cada
    fila editable con desplegable para que el operador reasigne antes de
    ejecutar. Al aprobar, se registra y se despacha. Esta pantalla es la
    respuesta a "quiero saber de entrada que IA eligio para que, y poder
    cambiar".
-4. **Boton "kickoff" / arranque de una linea:** la UI (o Hermes por texto,
-   ya codificado en HERMES.md) arma el contexto sola desde el repo; el
+4. **Boton "kickoff" / arranque de una linea:** la UI o el MASTER actual
+   arma el contexto sola desde el repo siguiendo `prompt-maestro-pipeline.md`; el
    operador nunca redacta prompts largos. La inteligencia vive en el
    protocolo, no en el prompt del humano.
 
@@ -275,8 +275,9 @@ Cada carta de etapa muestra DONDE SE FUE el tiempo y los tokens, visual:
 - **Barra apilada por categoria**: Producto / Infraestructura / Protocolo /
   Desperdicio (el desglose que el cierre T6 registra). El operador ve de un
   vistazo si el dia se fue en el trabajo o en pagar deuda del sistema.
-- **Costo por familia de IA**: torta o barras con tokens/USD por familia
-  (Claude/Codex/Gemini/local/orquestador), de delegations.jsonl.
+- **Costo por familia de IA**: barras/torta de USD sólo cuando la cobertura verificable alcance para
+  comparación; de lo contrario mostrar tokens + clasificación + porcentaje unknown, sin gráfico
+  monetario engañoso (Claude/Codex/Gemini/local/orquestador), desde telemetría con procedencia.
 - **Velocidad de crucero**: linea comparando duracion vs complejidad entre
   etapas - la tendencia debe BAJAR para changes similares. Vara visible:
   "change simple = horas". Si una etapa rompe la tendencia, la barra de

@@ -1,0 +1,15 @@
+{
+  "fixtureType": "real-local-response",
+  "runtime": "lmstudio",
+  "model": "google/gemma-4-12b-qat",
+  "durationMs": 11756,
+  "usage": {
+    "promptTokens": 152,
+    "completionTokens": 500,
+    "reasoningTokens": 497,
+    "totalTokens": 652
+  },
+  "content": "",
+  "result": "degraded-empty-content",
+  "costClassification": "local_unpriced"
+}

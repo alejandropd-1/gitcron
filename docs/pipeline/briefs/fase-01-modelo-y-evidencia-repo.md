@@ -2,7 +2,8 @@
 
 > Construye el núcleo determinístico per-repo: contratos, parsers, state reducer y persistencia
 > local. No conecta todavía con Hermes ni otros runtimes. Requiere F00 aprobada y mergeada.
-> Branch `pipeline/fase-01-modelo-evidencia`.
+> Antes de escribir producto requiere `AGENTS.md`, constitución/perfil y gate base versionados, con
+> `pwsh -NoProfile -File scripts/gates.ps1 fast` en `VERDE`. Branch `pipeline/fase-01-modelo-evidencia`.
 
 ## Agentes recomendados
 
@@ -40,6 +41,9 @@ Representar sin UI y sin red:
 
 ### TANDA 0 — Reconocimiento
 
+- Verificar que `AGENTS.md`, `docs/ai/constitution.md`, `docs/ai/repo-profile.md` y
+  `scripts/gates.ps1` existen en el commit base; correr el gate fast canónico.
+- Si el gate no devuelve `VERDE`, detener F01 antes de escribir código y reportar la cláusula.
 - Verificar contratos actuales de `types/electron.d.ts`, preload, SQLite y watcher.
 - Verificar OpenSpec CLI instalada: `list --json` y `status --change <id> --json`.
 - Leer formatos reales del scaffold actual: `tasks.md`, reports, decisions y gates JSONL.
@@ -91,9 +95,10 @@ No parsear Markdown con regex para render HTML; esta tanda extrae metadata, no r
 ```text
 Aplicá docs/pipeline/protocolo-ejecucion-agentes.md. Identificá IA/runtime/modelo y rol; anunciá
 fase, rama, tandas y checkpoints. No escribas ni crees la rama hasta recibir autorización.
-Implementá SOLO Pipeline Fase 01 en C:\www\gitCronos. Leé primero
+Implementá SOLO Pipeline Fase 01 en C:\www\gitcron. Leé primero
 docs/00_FUENTE_DE_VERDAD.md, docs/01_INVARIANTES.md, docs/pipeline/00-indice.md y
-docs/pipeline/briefs/fase-01-modelo-y-evidencia-repo.md. Confirmá que F00 está mergeada.
+docs/pipeline/briefs/fase-01-modelo-y-evidencia-repo.md. Confirmá que F00 está mergeada y ejecutá
+`pwsh -NoProfile -File scripts/gates.ps1 fast`; si no da VERDE, no escribas producto.
 
 Branch pipeline/fase-01-modelo-evidencia desde main. TANDA 0 es reconocimiento sin editar:
 trazá tipos, preload, SQLite, watcher, OpenSpec y formatos del scaffold. Presentá firmas,
@@ -134,6 +139,7 @@ confirmado/inferido/desconocido no se mezclan. Veredicto explícito + hallazgos 
 
 - [ ] Repo sin kit produce un set degradado de fuentes, no error: Git/Hermes/runtime siguen
       disponibles aunque falten gates y logs del método.
+- [ ] El repo GitCron que implementa Pipeline sí parte de gobernanza versionada y gate fast VERDE.
 - [ ] Tasks/reportes/gates/merge/archive se derivan con fixtures.
 - [ ] Los tres JSONL locales degradan honestamente cuando faltan, se truncan o cambian de schema.
 - [ ] `DecisionRequest` preserva fuente, evidencia, opciones, consecuencias y riesgo sin inventar.

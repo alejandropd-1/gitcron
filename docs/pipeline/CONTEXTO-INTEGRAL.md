@@ -47,7 +47,7 @@ ofrecer interacción gradual sin convertir el renderer en una consola de comando
 ## Objetivo
 
 Construir una superficie de observabilidad, explicación y control supervisado para trabajo con IA,
-aislada por repositorio e integrada conscientemente con Hermes y los runtimes que este coordine.
+aislada por repositorio e integrada conscientemente con Hermes cuando participe y con runtimes directos.
 
 Al completar el track, una persona debe poder abrir un repo en GitCron y responder rápidamente:
 
@@ -102,9 +102,10 @@ historial, muestra estado y expone controles tipados. No reemplaza al orquestado
 
 ### Hermes
 
-Es el orquestador consciente. Administra sesiones, agentes, subagentes, modelos y flujos. Informa a
-GitCron mediante un conector autenticado y recibe únicamente controles seguros y vinculados a una
-sesión/repositorio conocidos.
+Es un orquestador consciente soportado, pero no obligatorio. Cuando participa administra sesiones,
+agentes, subagentes, modelos y flujos; informa a GitCron mediante un conector autenticado y recibe
+únicamente controles seguros y vinculados a una sesión/repositorio conocidos. Pipeline también
+observa sesiones directas de los runtimes mediante sus propios adaptadores.
 
 ### Runtimes y proveedores
 
@@ -120,23 +121,24 @@ sesión/repositorio conocidos.
 Estos roles son recomendaciones, no verdades eternas. Cada fase debe verificar versiones,
 capabilities y modelos reales antes de depender de ellos.
 
-El ciclo del método distingue cinco roles: `scout → planner → builder → auditor → fixer`. Hermes
-actúa como `orchestrator`, fuera de esa secuencia. Pipeline preserva rol, proveedor y modelo efectivo
+El ciclo del método distingue cinco roles: `scout → planner → builder → auditor → fixer`. Quien
+coordina puede actuar como `orchestrator`, fuera de esa secuencia. Pipeline preserva rol, proveedor y modelo efectivo
 para poder atribuir actividad/costo y demostrar que builder y auditor pertenecen a familias distintas.
 
-## Relación consciente entre GitCron y Hermes
+## Relación consciente con Hermes y sesiones directas
 
-Hermes y GitCron tienen responsabilidades diferentes y complementarias:
+Hermes y GitCron tienen responsabilidades diferentes y complementarias cuando Hermes participa;
+los runtimes directos entran al mismo contrato sin pasar por él:
 
 ```text
 Ale
  │ conversa, decide y autoriza
  ▼
-Hermes
- │ crea y coordina runs, agentes, subagentes, tasks y modelos
- │ emite eventos y recibe controles permitidos
+Hermes opcional o runtime directo
+ │ coordina o ejecuta runs, agentes, tasks y modelos
+ │ emite eventos y recibe sólo controles permitidos por su capability
  ▼
-Hermes Connector en GitCron
+Runtime Connector en GitCron
  │ autentica, negocia versión/capabilities y normaliza
  ▼
 PipelineCoordinator
@@ -316,7 +318,8 @@ tipo, fuente, payload y procedencia. Las procedencias principales son:
 - `derived`: inferido de reglas transparentes;
 - `human`: decisión o acción de Ale.
 
-El contrato exacto no se congela hasta F00, luego de capturar fixtures reales.
+F00 propone Pipeline Contract v1 con fixtures reales disponibles; queda listo para QA humano antes
+de considerarlo congelado para F01.
 
 ## Estrategia para lograrlo
 
@@ -325,13 +328,15 @@ El track reduce riesgo mediante una progresión deliberada:
 ```text
 contratos verificados
   → evidencia local per-repo
-  → conexión Hermes read-only
   → adaptadores de runtimes
   → workspace visual
   → controles supervisados
   → modelos, presupuesto y contexto
   → replay e inteligencia
   → hardening y release
+
+evidencia local per-repo
+  └─→ adaptador Hermes read-only (opcional/paralelo)
 ```
 
 No se construyen controles antes de confiar en identidad y eventos. No se comparan modelos antes de
@@ -341,7 +346,7 @@ tener datos. No se predice antes de auditar la calidad de la muestra.
 
 ### F00 — Contrato, seguridad y spikes
 
-Verifica las interfaces reales de Hermes, Claude, Codex, `agy`, OpenCode y LM Studio, además de los
+Verifica las interfaces reales de Hermes, Claude, Codex, `agy`, OpenCode, Z.ai vía OpenCode y LM Studio, además de los
 tres JSONL locales producidos por el kit. Captura fixtures, define identidad/roles/decisiones,
 eventos/métricas/capabilities/comandos y decide conexión, autenticación, versionado y degradación.
 Es audit-only y no implementa la feature.
@@ -356,19 +361,21 @@ sin UI ni red.
 
 Brief: [`fase-01-modelo-y-evidencia-repo.md`](briefs/fase-01-modelo-y-evidencia-repo.md).
 
-### F02 — Conector Hermes de solo observación
+### F02 — Adaptador Hermes opcional de solo observación
 
 Implementa la conexión autenticada desde Electron main, negociación de versión/capabilities,
 vínculo explícito por repo, normalización de eventos, reconexión, dedupe y cleanup. Todavía no envía
-prompts ni controles.
+prompts ni controles. Se ejecuta después de F01 sólo si se desea integrar corridas Hermes; si el
+companion no está listo, F02 puede quedar bloqueada sin impedir F03–F08.
 
-Brief: [`fase-02-hermes-connector-readonly.md`](briefs/fase-02-hermes-connector-readonly.md).
+Brief: [`fase-02-hermes-adapter-opcional.md`](briefs/fase-02-hermes-adapter-opcional.md).
 
 ### F03 — Adaptadores y telemetría
 
-Normaliza Hermes, Claude Code, Codex CLI, Antigravity, OpenCode y LM Studio. Cada adaptador declara
+Normaliza Claude Code, Codex CLI, Antigravity y OpenCode; Z.ai y LM Studio quedan modelados
+como providers detrás del cliente agente correspondiente. Cada adaptador declara
 honestamente qué puede observar/controlar, conserva procedencia y degrada campos ausentes. No se
-permite parsing frágil de prosa ni paridad ficticia.
+permite parsing frágil de prosa ni paridad ficticia. F03 depende de F01 y no espera F02.
 
 Brief: [`fase-03-adaptadores-y-telemetria.md`](briefs/fase-03-adaptadores-y-telemetria.md).
 
@@ -475,8 +482,8 @@ Al finalizar una fase, ejecuta las validaciones correspondientes y entrega a Ale
 - STOP sin comenzar la siguiente fase.
 
 El protocolo vinculante completo está en
-[`protocolo-ejecucion-agentes.md`](protocolo-ejecucion-agentes.md). Para coordinar con Hermes se usa
-[`prompt-maestro-hermes.md`](prompt-maestro-hermes.md).
+[`protocolo-ejecucion-agentes.md`](protocolo-ejecucion-agentes.md). Cualquier MASTER usa
+[`prompt-maestro-pipeline.md`](prompt-maestro-pipeline.md), registrando su modo de orquestación.
 
 Los prompts de arranque están en [`prompts/`](prompts/README.md), el estado resumido en
 [`00-estado-track.md`](00-estado-track.md) y todos los reportes deben seguir
@@ -502,8 +509,8 @@ Además:
 ## Ejemplo de recorrido final
 
 1. Ale abre un repositorio en GitCron y entra a Pipeline.
-2. GitCron muestra si el repo está vinculado a Hermes y sus capabilities.
-3. Hermes inicia un builder Claude para una task y registra modelo/rol.
+2. GitCron muestra las fuentes directas disponibles y, si participa, el vínculo Hermes.
+3. El MASTER actual inicia un builder para una task y registra runtime/modelo/rol.
 4. Pipeline muestra agente, subagentes, tools, archivos, tiempo, tokens y contexto disponibles.
 5. Git y OpenSpec confirman qué task y archivos cambiaron.
 6. Los gates fallan; Pipeline muestra el error y el retorno a fixer.
@@ -520,7 +527,7 @@ Una IA que reciba este documento debe comenzar respondiendo, sin editar:
 
 ```text
 Entendí que Pipeline será una torre de control per-repo para observar y controlar de forma
-supervisada a Hermes y sus runtimes, contrastando sus eventos con evidencia local de GitCron.
+supervisada runtimes directos y orquestadores opcionales, contrastando eventos con evidencia local.
 
 Antes de implementar voy a verificar:
 - estado actual de Git y fases ya cerradas;

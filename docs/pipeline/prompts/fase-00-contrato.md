@@ -4,8 +4,8 @@
 
 ## Contexto obligatorio
 
-GitCron construirá una torre de control per-repo para Hermes, Claude, Codex, `agy`, OpenCode y LM
-Studio. Esta fase elimina supuestos antes de diseñar adaptadores. Leé, en orden:
+GitCron construirá una torre de control per-repo para Hermes, Claude, Codex, `agy`, OpenCode,
+Z.ai vía OpenCode y LM Studio. Esta fase elimina supuestos antes de diseñar adaptadores. Leé, en orden:
 
 1. `docs/00_FUENTE_DE_VERDAD.md` y `docs/01_INVARIANTES.md`;
 2. `docs/pipeline/CONTEXTO-INTEGRAL.md`;
@@ -16,7 +16,7 @@ Studio. Esta fase elimina supuestos antes de diseñar adaptadores. Leé, en orde
 
 ## Decisiones confirmadas — no volver a preguntar
 
-- GitCron observa y controla; Hermes sigue siendo el orquestador.
+- GitCron observa y controla; Hermes puede orquestar, pero las sesiones directas son first-class y no pasan obligatoriamente por él.
 - El producto es per-repo y contrasta runtime con Git/OpenSpec/filesystem.
 - Reasoning, costo y contexto conservan procedencia; unknown nunca se inventa.
 - Los tres JSONL del kit son telemetría local/gitignoreada: verificar productores y fixtures, no

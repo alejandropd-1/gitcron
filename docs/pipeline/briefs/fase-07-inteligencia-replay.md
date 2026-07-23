@@ -1,7 +1,8 @@
 # Pipeline Fase 07 — Replay, loops e inteligencia operativa
 
 > Convierte el historial normalizado en comprensión: replay, explicaciones, anomalías,
-> estimaciones y comparación de modelos. Requiere datos reales acumulados por F01–F06.
+> estimaciones y comparación de modelos. Requiere datos reales acumulados por F01 y F03–F06;
+> F02/Hermes es una fuente opcional.
 > Branch `pipeline/fase-07-inteligencia-replay`.
 
 ## Agentes recomendados

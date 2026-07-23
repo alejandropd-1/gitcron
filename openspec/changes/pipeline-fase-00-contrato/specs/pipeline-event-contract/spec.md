@@ -1,0 +1,29 @@
+## ADDED Requirements
+
+### Requirement: Envelope versionado y trazable
+Todo evento normalizado SHALL incluir schema version, IDs de fuente/evento, timestamps emitido/observado, identidad, kind, payload, procedencia, nivel de evidencia, referencias y versión de redacción.
+
+#### Scenario: Timestamp de fuente ausente
+- **WHEN** una fuente no informa hora de emisión
+- **THEN** `emittedAt` queda `null`, `observedAt` conserva la observación local y la UI no presenta precisión inventada
+
+### Requirement: Orden y deduplicación acotados
+Pipeline SHALL declarar el scope de secuencia y deduplicar por instancia de fuente e ID de evento. SHALL NOT prometer orden global cuando la fuente no lo ofrece.
+
+#### Scenario: Reconnect repite eventos
+- **WHEN** una reconexión reentrega eventos ya observados
+- **THEN** el reducer descarta duplicados sin sumar usage dos veces y conserva evidencia de la reconexión
+
+### Requirement: Unknown y degraded explícitos
+Datos ausentes, incompatibles o sin fixture SHALL representarse como `unknown`, `blocked` o `pending_fixture`; SHALL NOT convertirse en cero, false, verde o low risk.
+
+#### Scenario: Runtime sin reasoning emitido
+- **WHEN** el runtime sólo entrega acciones y resultado final
+- **THEN** Pipeline marca reasoning como no disponible y puede construir una bitácora derivada claramente etiquetada
+
+### Requirement: Métricas tipadas y atribuibles
+Cada métrica SHALL identificar una subdimensión tipada, unidad, clasificación, evidence status/refs y scope de dedupe. Estimaciones SHALL incluir fórmula, pricing source y fecha; sin ellos SHALL quedar unknown.
+
+#### Scenario: Costo bajo suscripción sin billing
+- **WHEN** un runtime informa USD pero no existe evidencia de cargo facturado
+- **THEN** Pipeline lo conserva como runtime-reported con semántica de billing unknown y no como costo real

@@ -1,6 +1,7 @@
 # Prompt de ejecución — Pipeline Fase 08 · Hardening y release candidate
 
-> Rama: `pipeline/fase-08-hardening-release`. Requiere F00–F07 completadas.
+> Rama: `pipeline/fase-08-hardening-release`. Requiere F00/F01/F03–F07 completadas; F02 sólo si
+> la integración Hermes forma parte del release.
 
 ## Contexto obligatorio
 

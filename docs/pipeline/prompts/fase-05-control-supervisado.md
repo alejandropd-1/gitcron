@@ -17,6 +17,8 @@ observar una acción no implica poder controlarla.
 - Stop no es rollback; no kill global ni control de procesos no owned.
 - `merge-ready` es informativo: Ale conserva commit/push/merge.
 - Controles reales o pruebas difíciles de revertir requieren autorización específica.
+- Zona protegida: autorización ligada a diff/archivos/digest; un cambio invalida el permiso y C3
+  queda rojo hasta commit humano.
 - Ale realiza stage, commit y push.
 
 ## Ejecución y checkpoints
@@ -24,6 +26,7 @@ observar una acción no implica poder controlarla.
 Identificate, anunciá threat surface, rama, tandas y pruebas; pedí OK. TANDA 0 entrega threat model,
 state machines y matriz comando/runtime sin editar. Esperá OK. Avanzá gradual: command bus,
 pause/steer/queue, interrupt/process, approvals/cancel. Detenete antes de toda prueba live.
+No pidas OK repetidos para pasos mecánicos ya cubiertos por una autorización vigente.
 
 ## Entregables
 

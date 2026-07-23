@@ -67,6 +67,16 @@ screenshots. Si no aplica, escribir `No aplica`.
 
 Ninguno, o cada desvío con causa, impacto y autorización. No esconder mejoras no pedidas.
 
+## Economía de controles y ceremonia
+
+Nivel aplicado: `ligera | normal | crítica` — motivo verificable.
+
+| Control/checkpoint | Disparó | Encontró problema | Hallazgo aceptado | Falso positivo | Espera humana | Toques humanos | Reintentos | Tiempo de ciclo | Política sugerida |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| | | | | | | | | | `mandatory | conditional | sampled | retire-candidate` |
+
+`retire-candidate` es sólo evidencia para decisión humana; el reporte no desactiva controles.
+
 ## Riesgos, limitaciones y pendientes
 
 - Riesgos conocidos.

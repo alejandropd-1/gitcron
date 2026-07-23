@@ -54,7 +54,11 @@ Implementar y testear:
 - auditoría `APROBADO/RECHAZADO` con hallazgos y diagnósticos;
 - parsing de `gates.jsonl`, `delegations.jsonl` y `visual-diff-heights.jsonl` según el contrato
   cerrado en F00: tail incremental, última línea parcial, línea inválida aislada,
-  truncado/reemplazo y campos opcionales; preservar rol/modelo/tarea en delegaciones;
+  truncado/reemplazo y campos opcionales; preservar rol/modelo/tarea/resultado y, si existen,
+  reintentos, espera humana y toques humanos en delegaciones;
+- normalización de evaluaciones de controles con `triggered`, `issueCaught`, `acceptedFinding`,
+  `falsePositive`, `humanWaitMs`, `humanTouches`, `retries` y `cycleTimeMs`; ausente = unknown,
+  nunca cero inventado;
 - OpenSpec JSON por change;
 - selección de change: branch `feature/<change>` → único abierto → requiere selección;
 - estado `confirmado | inferido | desconocido`;
@@ -133,6 +137,7 @@ confirmado/inferido/desconocido no se mezclan. Veredicto explícito + hallazgos 
 - [ ] Tasks/reportes/gates/merge/archive se derivan con fixtures.
 - [ ] Los tres JSONL locales degradan honestamente cuando faltan, se truncan o cambian de schema.
 - [ ] `DecisionRequest` preserva fuente, evidencia, opciones, consecuencias y riesgo sin inventar.
+- [ ] Autorizaciones de diff protegido preservan archivos, digest y alcance exacto.
 - [ ] Múltiples changes no eligen uno arbitrariamente.
 - [ ] Eventos idempotentes y particionados por repo.
 - [ ] Cero escrituras al repo observado.

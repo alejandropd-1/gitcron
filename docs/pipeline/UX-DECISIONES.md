@@ -27,6 +27,8 @@ La forma exacta se cierra en F00. Este modelo evita que F04 improvise contenido 
 type DecisionKind =
   | 'spec-approval'
   | 'dependency-request'
+  | 'protected-diff-approval'
+  | 'control-policy-review'
   | 'audit-rejected'
   | 'clarification'
   | 'escalation'
@@ -62,6 +64,7 @@ type DecisionRequest = {
   riskProvenance: DecisionProvenance | null;
   evidenceRefs: string[];
   technicalContextRef: string | null;
+  scopeDigest: string | null;
   provenance: DecisionProvenance;
   requestedAt: string;
   resolvedAt: string | null;
@@ -77,6 +80,8 @@ versionada los respalda, se muestran como `unknown`/“sin datos suficientes”.
 |---|---|---|
 | Aprobar spec | request autenticado de Hermes o change OpenSpec esperando aprobación | que exista `proposal.md` |
 | Dependencia nueva | constitución/regla C2 aplicable + diff confirmado de manifest/lockfile + paquete identificado | `gates.jsonl` ROJO global |
+| Aplicar diff protegido | diff exacto + archivos + digest + regla aplicable; auditor independiente si cambia seguridad/umbrales/baselines/exclusiones | aprobación genérica de “arreglalo” |
+| Revisar política de un control | historial comparable con ejecuciones, hallazgos aceptados/falsos positivos y costo humano | una corrida lenta o una opinión aislada |
 | Auditor rechazó | reporte/evento de auditor con veredicto y hallazgos correlacionados | texto libre sin identidad de auditor |
 | Clarificación | request explícito del agente/runtime con target de repo/run/task | una pregunta encontrada en un log cualquiera |
 | Escalada | señal explícita o regla versionada, por ejemplo máximo de fixer loops | inferir frustración por cantidad de tokens |
@@ -178,6 +183,22 @@ una explicación estable.
 - Evidencia: veredicto, hallazgos y archivos afectados.
 - F04: `Ver hallazgos`, `Ver diff`.
 - F05, si está soportado: `Enviar al fixer`, `Pedir aclaración`, `Después`.
+
+### Diff de zona protegida
+
+- Título: `¿Aprobás aplicar este cambio exacto en <archivos>?`
+- Evidencia: diff, digest, alcance, motivo y auditoría independiente cuando corresponda.
+- Consecuencia: el agente lo aplica sin cambiar una línea fuera del diff; C3 sigue rojo hasta el
+  commit humano.
+- F05: `Aprobar este diff`, `Rechazar`, `Pedir cambios`.
+
+### Revisar utilidad de un control
+
+- Título: `El control <nombre> necesita revisión de política.`
+- Evidencia: ejecuciones, problemas encontrados, hallazgos aceptados, falsos positivos, espera
+  humana, intervenciones, reintentos y tiempo de ciclo.
+- Opciones humanas: mantener obligatorio, volver condicional, muestrear o retirar. Pipeline nunca
+  cambia la política automáticamente.
 
 ### Escalada
 

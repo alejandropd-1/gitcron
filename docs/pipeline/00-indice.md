@@ -60,6 +60,9 @@ Ale ──conversa/decide──> Hermes ──orquesta──> agentes y runtimes
 - **Cambio de modelo en unidad segura:** afecta el próximo turno/task/agente. Para cambiar un
   modelo activo: interrumpir → revisar diff → seleccionar → reanudar.
 - **Decorrelación:** builder y auditor no pueden usar la misma familia de modelos.
+- **Ceremonia medible:** cada control explica qué riesgo cubre, qué encontró y cuánto
+  tiempo/reintentos/intervención humana consumió. La ceremonia es ligera, normal o crítica según
+  riesgo; no por costumbre ni por stack.
 - **CSS humano en este track:** los agentes implementan datos, lógica, accesibilidad, markup
   semántico, clases claras y `data-*`; Ale escribe las hojas de estilo. No modificar CSS salvo
   pedido explícito posterior de Ale.
@@ -154,7 +157,7 @@ observado el 2026-07-16, no congela el contrato.
 | Archivo local | Campos observados | Event kind normalizado |
 |---|---|---|
 | `docs/ai/logs/gates.jsonl` | requeridos: `ts`, `mode`, `result`; `result` = `VERDE`, `ROJO` o `PENDIENTE` | `gates.completed` |
-| `docs/ai/logs/delegations.jsonl` | requeridos: `ts`, `rol`, `modelo`, `tarea`; opcionales: `tokens_in`, `tokens_out`, `costo_usd`, `duracion_ms` | `delegation.recorded` |
+| `docs/ai/logs/delegations.jsonl` | requeridos: `ts`, `rol`, `modelo`, `tarea`; opcionales: `tokens_in`, `tokens_out`, `costo_usd`, `duracion_ms`, `resultado`, `reintentos`, `espera_humana_ms`, `toques_humanos` | `delegation.recorded` |
 | `docs/ai/logs/visual-diff-heights.jsonl` | `run_id`, `ts`, `route`, `viewport`, alturas y anchos baseline/current, deltas de altura y `excepted` | `visualdiff.measured` |
 
 Productores de referencia actuales:
@@ -231,15 +234,17 @@ Cada brief define el alcance técnico. Para iniciar una fase se usa su prompt au
 [`00-estado-track.md`](00-estado-track.md); al finalizar se crea un reporte en `docs/reports/` usando
 [`PLANTILLA-REPORTE-FASE.md`](PLANTILLA-REPORTE-FASE.md).
 
-## Proceso obligatorio por fase
+## Proceso por riesgo
 
-1. El agente se identifica, reconstruye el contexto y anuncia fase, rama, tandas y checkpoints.
-2. Espera autorización; luego crea branch `pipeline/fase-NN-<slug>` desde `main` actualizado sin
-   pisar cambios locales.
-3. Ejecuta TANDA 0 de reconocimiento. **No tocar código antes del checkpoint.**
-4. Trabaja una tanda por vez, anuncia su inicio y pide OK en los casos definidos por el protocolo.
-5. Cierra cada tanda de código con `npx.cmd tsc --noEmit` y tests focalizados.
-6. Cierra la fase con:
+1. El agente reconstruye contexto y clasifica la ejecución: **ligera** (acotada/reversible),
+   **normal** (transversal) o **crítica** (seguridad, zona protegida, dependencias, secretos,
+   destructivo, publicación o control real de procesos).
+2. Pide una autorización de alcance. Cubre los pasos mecánicos anunciados; sólo vuelve a detenerse
+   si cambia el alcance/riesgo o aparece una decisión reservada al humano.
+3. TANDA 0/checkpoint previo es obligatorio en nivel crítico; en normal se integra al plan; en
+   ligera puede resolverse con reconocimiento y ejecución continua.
+4. Las validaciones focalizadas corren cuando aportan evidencia. El cierre de una fase de producto
+   conserva los controles integrales requeridos:
    - `npx.cmd tsc --noEmit`
    - `pnpm test`
    - `pnpm exec fallow` con delta, sin expandir scope por deuda heredada
@@ -249,7 +254,8 @@ Cada brief define el alcance técnico. Para iniciar una fase se usa su prompt au
    - estado Git y mensaje de commit sugerido
    - comandos de commit/push sugeridos, **sin ejecutarlos**
    - **STOP, sin iniciar la fase siguiente**
-7. Ale hace QA, stage, commit, push y merge.
+5. Ale hace QA y conserva commit, push y merge. No escribe cambios técnicos que un agente pueda
+   aplicar dentro de un diff ya aprobado.
 
 El detalle vinculante para agentes de cualquier IA está en
 [`protocolo-ejecucion-agentes.md`](protocolo-ejecucion-agentes.md). Si un prompt resumido contradice

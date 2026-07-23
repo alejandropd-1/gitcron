@@ -36,9 +36,15 @@ acotado, citado y sanitizado. Nunca decide gates, auditoría, rollback o control
 - cambios de modelo/fallback;
 - archivos y churn por task;
 - lead time proposal → merge.
+- por control: ejecuciones/disparos, problemas encontrados, hallazgos aceptados, falsos positivos,
+  espera humana, toques humanos, reintentos y tiempo de ciclo;
+- proporción de tiempo de producto, infraestructura, protocolo y desperdicio.
 
 Comparar solo cohorts compatibles (tipo/riesgo/tamaño de task) y mostrar `n`. No afirmar que un
 modelo “es mejor” con dos muestras o trabajos distintos.
+
+La recomendación de política de cada control es `mandatory | conditional | sampled |
+retire-candidate`. Es explicable, cita muestra/período y nunca cambia la configuración por sí sola.
 
 ## Tandas
 
@@ -77,6 +83,7 @@ Cada alerta incluye evidencia, confidence y acción sugerida; no actúa sola.
 - Tiempo/costo restante por distribución histórica y tasks restantes.
 - Intervalo, cohort, n y fecha; sin falsa precisión.
 - Comparación por modelo/proveedor/rol/tipo de task.
+- Comparación de controles por riesgo cubierto, yield de hallazgos aceptados y costo humano.
 - Actual vs estimated costs separados.
 - No entrenar modelo ML complejo: baseline estadístico transparente primero.
 
@@ -141,3 +148,5 @@ Veredicto y hallazgos; un ranking engañoso es rechazo.
 - [ ] Comparación considera outcomes/quality, no solo costo.
 - [ ] Explicaciones citan eventos/reportes/gates.
 - [ ] Notificaciones deduplicadas y per-repo.
+- [ ] Un falso positivo se distingue de un hallazgo aceptado y de “sin datos”.
+- [ ] `retire-candidate` sólo abre una decisión humana; no desactiva el control.

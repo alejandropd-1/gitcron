@@ -15,6 +15,8 @@ muestra solo porque existen eventos.
 - Estimaciones muestran rango, cohort, `n` y fecha; sin muestra se declara insuficiente.
 - No ranking por tokens/precio ni “más reasoning = más calidad”.
 - Narración grounded, citada y opt-in; alertas no ejecutan controles.
+- Evaluar controles por hallazgos aceptados, falsos positivos y costo humano; clasificarlos como
+  mandatory/conditional/sampled/retire-candidate sin modificar su política automáticamente.
 - Ale realiza stage, commit y push.
 
 ## Ejecución y checkpoints

@@ -20,7 +20,7 @@ Después debe inspeccionar el estado real del repositorio. Los documentos orient
 Git, los tests y las interfaces instaladas son la evidencia actual. No debe confiar en memoria de
 otra IA ni pedirle al usuario que repita información que pueda verificar localmente.
 
-## Inicio obligatorio de una fase
+## Inicio y nivel de ceremonia
 
 El agente no debe empezar silenciosamente. Su primera respuesta debe indicar:
 
@@ -33,9 +33,16 @@ El agente no debe empezar silenciosamente. Su primera respuesta debe indicar:
 - riesgos, operaciones pagas o decisiones todavía abiertas;
 - qué hará antes de volver a detenerse.
 
-Luego debe pedir autorización explícita para crear/cambiar a la rama e iniciar la primera tanda.
-Hasta recibirla solo puede hacer reconocimiento read-only. Un auditor o scout estrictamente
-read-only verifica la rama objetivo, pero no la crea ni cambia de rama salvo pedido explícito.
+Luego clasifica la ejecución y pide una sola autorización de alcance:
+
+- **ligera:** cambio acotado, reversible, sin zona protegida ni límites de seguridad;
+- **normal:** varios archivos o impacto transversal sin cambiar límites de seguridad;
+- **crítica:** zona protegida, seguridad, umbrales, baselines, exclusiones, dependencias, secretos,
+  acciones destructivas, publicación o control real de agentes/procesos.
+
+La señal más riesgosa manda. Hasta recibir autorización solo puede hacer reconocimiento read-only.
+Una vez autorizada, los pasos mecánicos declarados no requieren un nuevo OK. Debe detenerse si
+cambia alcance/riesgo, aparece costo no aprobado o una decisión reservada al humano.
 
 ## Rama de trabajo
 
@@ -63,16 +70,21 @@ Antes de empezar una tanda, el agente debe anunciar brevemente:
 Debe pedir autorización y esperar cuando:
 
 - el brief marca `CHECKPOINT` o `Esperar OK`;
-- empieza la primera tanda con escrituras;
+- empieza la primera tanda con escrituras y todavía no existe autorización de alcance vigente;
 - cambia el scope acordado o aparece una decisión arquitectónica;
 - agregaría dependencias, migraciones, configuración, acceso a red o inferencias pagas;
 - ejecutaría procesos/control real de agentes o una acción difícil de revertir;
 - propone borrar, mover o reescribir archivos;
 - los tests revelan un problema fuera de la fase.
 
-Puede continuar sin un nuevo OK solo entre pasos mecánicos ya autorizados de la misma tanda y
-sin cambiar alcance, riesgo ni costo. Aun así debe informar el avance y detenerse en el siguiente
-checkpoint del brief.
+Puede continuar sin un nuevo OK entre todas las tandas/pasos mecánicos cubiertos por la misma
+autorización, sin cambiar alcance, riesgo ni costo. Un checkpoint genérico no obliga a detenerse si
+el nivel ligero/normal y la autorización ya cubren la decisión; checkpoints críticos y decisiones
+humanas reservadas sí detienen.
+
+En zona protegida, el humano aprueba el diff exacto y un agente puede aplicarlo. Cualquier cambio de
+archivo o contenido invalida esa autorización. C3 permanece rojo hasta el commit humano. Seguridad,
+umbrales, baselines y exclusiones requieren auditoría independiente antes de la aprobación.
 
 ## Cierre de cada tanda
 

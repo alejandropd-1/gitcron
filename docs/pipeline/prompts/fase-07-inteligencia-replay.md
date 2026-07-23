@@ -1,11 +1,13 @@
 # Prompt de ejecución — Pipeline Fase 07 · Replay e inteligencia operativa
 
-> Rama: `pipeline/fase-07-inteligencia-replay`. Requiere F01–F06 y una muestra auditable.
+> Rama: `pipeline/fase-07-inteligencia-replay`. Requiere F01 + F03–F06 y una muestra auditable;
+> F02 sólo si aporta datos Hermes.
 
 ## Contexto obligatorio
 
 Leé fuente de verdad, invariantes, contexto integral, estado, protocolo,
-`docs/pipeline/briefs/fase-07-inteligencia-replay.md` y reportes F01–F06. No des por suficiente una
+`docs/pipeline/briefs/fase-07-inteligencia-replay.md` y reportes F01/F03–F06; incluir F02 sólo si
+existe. No des por suficiente una
 muestra solo porque existen eventos.
 
 ## Decisiones confirmadas — no volver a preguntar

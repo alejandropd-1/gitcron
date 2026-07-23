@@ -16,7 +16,8 @@ stores y componentes existentes que deben reutilizarse.
 - Unknown no es cero; derived no es hecho; raw payload/reasoning no se expone por defecto.
 - Reusar `DiffViewer`; i18n ES/EN/ZH y accesibilidad son parte del alcance.
 - Los agentes entregan markup semántico y estado; Ale escribe/modifica CSS.
-- F04 no aprueba, rechaza, responde a Hermes ni mergea; esas opciones explican su indisponibilidad.
+- F04 no aprueba, rechaza, responde a runtimes/orquestadores ni mergea; esas opciones explican su
+  indisponibilidad.
 - Ale realiza stage, commit y push.
 
 ## Ejecución y checkpoints

@@ -12,6 +12,24 @@ Iniciar formalmente Pipeline con un contrato verificable y agnóstico del modelo
 interfaces instaladas y fijar límites de seguridad antes de implementar F01. Una sesión directa —como
 esta corrida Codex— es first-class; Hermes es un orquestador opcional, no un gateway obligatorio.
 
+## Addendum post-QA Claude — 2026-07-23
+
+Tras el commit/push humano `b1a917f`, Claude verificó que la agnosticidad del contrato no se había
+propagado al grafo: F03 dependía de F02 y podía quedar bloqueada por Hermes. La corrección:
+
+- fija el core `F00 → F01 → F03 → F04 → F05 → F06 → F07 → F08`;
+- deja F02/Hermes como adaptador opcional paralelo después de F01;
+- renombra el prompt maestro para cualquier MASTER y los artefactos F02 como opcionales;
+- agrega gobernanza/gate determinístico antes de producto F01, sin dependencias nuevas;
+- documenta que USD quedará mayormente unknown/estimated hasta disponer de billing verificable.
+
+El primer baseline del gate verificó typecheck, tests, OpenSpec strict y build verdes. C3 queda rojo
+hasta el commit humano de la gobernanza. ESLint (76 errores/19 warnings) y Fallow permanecen
+`PENDIENTE` por deuda heredada; no se maquillan como verde ni se corrigen fuera de alcance.
+
+El bloque de estado Git más abajo es el snapshot histórico previo a `b1a917f`; este addendum genera
+un nuevo diff de corrección que Ale debe revisar y commitear por separado.
+
 ## Alcance implementado
 
 - Change OpenSpec completo con proposal, design, seis specs y tasks.
@@ -63,7 +81,7 @@ esta corrida Codex— es first-class; Hermes es un orquestador opcional, no un g
 - `docs/pipeline/briefs/fase-00-contrato-y-spikes.md`: path, direct mode y Z.ai/OpenCode.
 - `docs/pipeline/briefs/fase-01-modelo-y-evidencia-repo.md`: path real.
 - `docs/pipeline/briefs/fase-03-adaptadores-y-telemetria.md`: path real y versión de `agy` no hardcodeada.
-- `docs/pipeline/prompt-maestro-hermes.md`: Hermes opcional y path real.
+- `docs/pipeline/prompt-maestro-pipeline.md`: MASTER agnóstico y grafo core.
 - `docs/pipeline/prompts/fase-00-contrato.md`: decisiones confirmadas, path y Z.ai/OpenCode.
 
 ### Archivos eliminados
@@ -166,7 +184,7 @@ el plan configurado; LM Studio es `local_unpriced`.
  M docs/pipeline/briefs/fase-00-contrato-y-spikes.md
  M docs/pipeline/briefs/fase-01-modelo-y-evidencia-repo.md
  M docs/pipeline/briefs/fase-03-adaptadores-y-telemetria.md
- M docs/pipeline/prompt-maestro-hermes.md
+ M docs/pipeline/prompt-maestro-pipeline.md
  M docs/pipeline/prompts/fase-00-contrato.md
 ?? .agent/
 ?? .codex/

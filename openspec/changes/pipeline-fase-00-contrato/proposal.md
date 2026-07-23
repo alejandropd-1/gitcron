@@ -11,6 +11,10 @@ GitCron necesita observar de forma confiable qué hacen agentes y modelos sobre 
 - Registra un ADR de transporte y seguridad que compara Hermes companion JSON-RPC/WebSocket, ACP, procesos CLI estructurados y filesystem/hooks como degradación.
 - Establece autenticación main-only, scoping per-repo/session, negociación de versión/capabilities, reconexión, backpressure, ownership de procesos, comandos allowlisted y redacción.
 - Mantiene F00 exclusivamente documental: no agrega dependencias ni implementa IPC, adaptadores, persistencia o UI de producto.
+- Propaga la agnosticidad al grafo de entrega: F03 directo depende de F01, mientras el adaptador
+  Hermes F02 es opcional/paralelo y no bloquea el core.
+- Incorpora gobernanza determinística sin dependencias (`AGENTS.md`, constitución, perfil y gate)
+  como prerrequisito de cualquier escritura de producto F01.
 
 ## Capabilities
 
@@ -29,7 +33,8 @@ Ninguna. Es el primer change OpenSpec del repositorio y no existen specs base pr
 
 ## Impact
 
-- Afecta únicamente documentación de F00, artefactos OpenSpec e integraciones de comandos/skills generadas por `openspec init`.
+- Afecta documentación F00, artefactos OpenSpec, integraciones generadas y el kit de gobernanza
+  previo a F01; no modifica código de producto.
 - Documenta superficies futuras de `electron/main`, preload, SQLite, runtime adapters y evidencia del repo, sin modificar código de producto.
 - Corrige dentro del track las referencias obsoletas a `C:\www\gitCronos`; el proyecto real es `C:\www\gitcron`.
 - F01 permanece fuera de alcance y no puede comenzar hasta el QA y cierre humano de F00.

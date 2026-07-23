@@ -20,3 +20,11 @@ Un adaptador SHALL usar sólo protocolos o salidas estructuradas versionables. A
 #### Scenario: agy sólo anuncia print final
 - **WHEN** `agy` no expone stream JSON estable
 - **THEN** Pipeline limita observación a lifecycle grueso y evidencia repo hasta disponer de hook/wrapper probado
+
+### Requirement: Orden de implementación guiado por evidencia
+El camino core SHALL implementar primero las fuentes directas con fixtures verificados. El adaptador
+Hermes SHALL ser opcional y su bloqueo SHALL NOT impedir F03 ni fases core posteriores.
+
+#### Scenario: Companion Hermes sin handshake seguro
+- **WHEN** F02 no puede negociar un contrato autenticado/versionado
+- **THEN** F02 queda bloqueada y F03 continúa desde F01 con adaptadores directos

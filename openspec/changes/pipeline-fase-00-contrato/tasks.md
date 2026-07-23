@@ -31,3 +31,10 @@
 - [x] 5.2 Ejecutar auditoría independiente Codex read-only y aplicar sólo hallazgos concretos, máximo dos ciclos.
 - [x] 5.3 Validar OpenSpec strict, documentos, TypeScript, tests, Fallow, diff/status y ausencia de código/dependencias.
 - [x] 5.4 Crear reporte final, actualizar tablero a Lista para QA y entregar staging/commit/push exactos sin ejecutarlos.
+
+## 6. Corrección post-QA Claude — propagación agnóstica
+
+- [x] 6.1 Reordenar el grafo core para que F03 dependa de F01 y F02/Hermes sea opcional.
+- [x] 6.2 Renombrar el prompt maestro y los artefactos F02 para evitar inferir Hermes obligatorio.
+- [x] 6.3 Versionar AGENTS, constitución, perfil y gate determinístico antes de código F01.
+- [x] 6.4 Propagar dependencias a F04–F08, actualizar reporte/tablero y validar enlaces/gates/OpenSpec.

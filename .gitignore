@@ -50,3 +50,6 @@ fallow_report.json
 
 .understand-anything/
 output/
+
+# Pipeline kit telemetry (local evidence, never versioned)
+docs/ai/logs/

@@ -1,11 +1,12 @@
-# Prompt de ejecución — Pipeline Fase 02 · Hermes Connector read-only
+# Prompt de ejecución — Pipeline Fase 02 · Adaptador Hermes opcional read-only
 
-> Rama: `pipeline/fase-02-hermes-connector`. Requiere F01 completada por Ale.
+> Rama: `pipeline/fase-02-hermes-adapter-opcional`. Requiere F01 completada por Ale. F02 no es
+> prerrequisito de F03 ni del camino core.
 
 ## Contexto obligatorio
 
 Leé fuente de verdad, invariantes, contexto integral, estado del track, protocolo,
-`docs/pipeline/briefs/fase-02-hermes-connector-readonly.md`, ADR F00 y reporte F01. Confirmá en el
+`docs/pipeline/briefs/fase-02-hermes-adapter-opcional.md`, ADR F00 y reporte F01. Confirmá en el
 código las versiones y contratos; no confíes solo en reportes previos.
 
 ## Decisiones confirmadas — no volver a preguntar
@@ -14,6 +15,7 @@ código las versiones y contratos; no confíes solo en reportes previos.
 - Vínculo explícito por repo/session; `cwd` solo no autoriza una asociación.
 - Esta fase solo observa: no prompt, approval, interrupt, steer, model-set ni kill.
 - Sin scraping de token/HTML ni bypass si falta un endpoint de Hermes.
+- Si falta un contrato seguro, marcar sólo F02 `Bloqueada`; las fases directas continúan.
 - Ale realiza stage, commit y push.
 
 ## Ejecución y checkpoint
@@ -25,7 +27,7 @@ reconnect, dedupe, cleanup e IPC read-only.
 ## Entregables
 
 - Connector y pruebas definidas en el brief.
-- Reporte `docs/reports/YYYY-MM-DD-pipeline-fase-02-hermes-connector.md` con plantilla oficial.
+- Reporte `docs/reports/YYYY-MM-DD-pipeline-fase-02-hermes-adapter-opcional.md` con plantilla oficial.
 - Checklist humano de conexión/desconexión y actualización del tablero.
 
 ## Entrega

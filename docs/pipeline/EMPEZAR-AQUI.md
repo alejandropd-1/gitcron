@@ -24,7 +24,7 @@ Agentes sugeridos:
 
 - scout principal: Antigravity (`agy`) o Claude Code;
 - auditor independiente: Codex de otra familia;
-- Hermes: opcional como coordinador, usando `prompt-maestro-hermes.md`.
+- MASTER: Codex, Hermes u otro orquestador compatible, usando `prompt-maestro-pipeline.md`.
 
 ## Conversación durante una fase
 
@@ -39,20 +39,22 @@ Agentes sugeridos:
 
 ## Después de F00
 
-No abrir F01 hasta que el contrato de F00 esté aprobado y su cierre humano esté hecho. Después usar,
-siempre de a uno y respetando prerrequisitos:
+No abrir F01 hasta que F00 esté aprobada y el gate base versionado pase. Después usar el grafo
+core; los números no imponen dependencia:
 
 1. [`prompts/fase-01-modelo-evidencia.md`](prompts/fase-01-modelo-evidencia.md)
-2. [`prompts/fase-02-hermes-connector.md`](prompts/fase-02-hermes-connector.md)
-3. [`prompts/fase-03-runtime-adapters.md`](prompts/fase-03-runtime-adapters.md)
-4. [`prompts/fase-04-workspace-ui.md`](prompts/fase-04-workspace-ui.md)
-5. [`prompts/fase-05-control-supervisado.md`](prompts/fase-05-control-supervisado.md)
-6. [`prompts/fase-06-modelos-presupuestos.md`](prompts/fase-06-modelos-presupuestos.md)
-7. [`prompts/fase-07-inteligencia-replay.md`](prompts/fase-07-inteligencia-replay.md)
-8. [`prompts/fase-08-hardening-release.md`](prompts/fase-08-hardening-release.md)
+2. [`prompts/fase-03-runtime-adapters.md`](prompts/fase-03-runtime-adapters.md)
+3. [`prompts/fase-04-workspace-ui.md`](prompts/fase-04-workspace-ui.md)
+4. [`prompts/fase-05-control-supervisado.md`](prompts/fase-05-control-supervisado.md)
+5. [`prompts/fase-06-modelos-presupuestos.md`](prompts/fase-06-modelos-presupuestos.md)
+6. [`prompts/fase-07-inteligencia-replay.md`](prompts/fase-07-inteligencia-replay.md)
+7. [`prompts/fase-08-hardening-release.md`](prompts/fase-08-hardening-release.md)
 
-F07 necesita datos reales suficientes; aunque figure después de F06, su TANDA 0 puede concluir que
-ranking/predicción todavía deben diferirse. F08 empieza únicamente cuando F00–F07 estén cerradas.
+Extensión opcional desde F01, en paralelo y sin bloquear el core:
+[`prompts/fase-02-hermes-adapter-opcional.md`](prompts/fase-02-hermes-adapter-opcional.md).
+
+F07 necesita datos reales suficientes; su TANDA 0 puede diferir ranking/predicción. F08 requiere
+el core F00/F01/F03–F07; sólo exige F02 cuando el release incluye integración Hermes.
 
 ## Qué archivo cumple cada función
 

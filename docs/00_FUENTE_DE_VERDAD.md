@@ -29,6 +29,7 @@ reales y persistencia de decisiones en SQLite para calibración estadística.
 | Build | tsup (Electron) + electron-builder (NSIS/dmg/AppImage) · puerto dev: 3001 |
 | Tests | Vitest — **289 tests / 44 archivos** (verificados verdes 2026-07-23) |
 | Calidad | Fallow (`pnpm exec fallow`, config en `.fallowrc.json`) + CodeGraph MCP. Snapshot 2026-07-23: dead-code 17 issues, dupes 11 clone groups, health 335 sobre umbral, MI 90.5 (good); deuda heredada, F00 no tocó código. |
+| Gobernanza | `AGENTS.md` + `docs/ai/constitution.md` + `docs/ai/repo-profile.md`; veto canónico en `pwsh -NoProfile -File scripts/gates.ps1 fast|full` y launcher `gates.sh`. F01 no escribe producto hasta baseline `fast` VERDE. |
 
 ## 3. Mapa de arquitectura (cifras refrescadas 2026-06-18, v1.9.1)
 

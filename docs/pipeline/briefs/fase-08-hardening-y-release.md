@@ -1,8 +1,9 @@
 # Pipeline Fase 08 — Hardening, compatibilidad, documentación y release
 
 > Cierra el track completo. No agrega features: corrige hallazgos, prueba app empaquetada,
-> sincroniza documentación y prepara release. Tag/publicación los hace Ale. Requiere F00–F07
-> mergeadas. Branch `pipeline/fase-08-hardening-release`.
+> sincroniza documentación y prepara release. Tag/publicación los hace Ale. Requiere el core
+> F00/F01/F03–F07 mergeado; F02 sólo si la integración Hermes entra al release. Branch
+> `pipeline/fase-08-hardening-release`.
 
 ## Agentes recomendados
 
@@ -53,7 +54,8 @@
 
 ### TANDA 3 — Matriz de runtimes y empaquetado
 
-- Probar degradación de Hermes, Claude, Codex, agy, OpenCode, LM Studio ausentes.
+- Probar degradación de Claude, Codex, agy, OpenCode y LM Studio ausentes. Probar Hermes
+  ausente/incompatible sólo sobre el adaptador opcional, sin degradar el core.
 - Resolver executables sin paths hardcodeados; Windows `.cmd/.ps1/.exe` y `shell:false`.
 - App empaquetada: recursos, node:sqlite, CSP, localhost endpoints y permisos.
 - Verificar que GitCron no mata un backend que no creó.
@@ -122,7 +124,7 @@ tabla PASS/DEGRADED/FAIL con evidencia y reproducción. STOP.
 ```text
 Aplicá docs/pipeline/protocolo-ejecucion-agentes.md. Identificá IA/runtime/modelo y rol y anunciá
 el alcance. Esta auditoría es read-only: no crees rama ni edites.
-Auditá read-only todo el track Pipeline F00–F08 contra docs/pipeline/00-indice.md y
+Auditá read-only el core Pipeline F00/F01/F03–F08 y F02 si fue incluido contra docs/pipeline/00-indice.md y
 docs/01_INVARIANTES.md. Priorizá P0/P1: control cross-repo, secrets, arbitrary command/PID,
 untrusted Markdown/log output, stop con rollback, builder/auditor misma familia, costo falso,
 reasoning privado, double-count, retention, process ownership y packaged-app failures.

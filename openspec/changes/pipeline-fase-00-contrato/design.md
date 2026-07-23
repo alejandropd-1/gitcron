@@ -123,6 +123,18 @@ Reconnect usa backoff con jitter, cursor/resume token si existe y dedupe posteri
 
 Antes de log, SQLite o renderer se redactan bearer/basic tokens, cookies, headers, query secrets, home paths cuando aplique, prompts/tasks sensibles y bloques de reasoning según política. Raw sin sanitizar no se persiste. La versión de redacción queda en el envelope y los fixtures contienen datos ficticios.
 
+### 10. Grafo evidence-first y gobernanza previa a F01
+
+El camino core es `F00 → F01 → F03 → F04 → F05 → F06 → F07 → F08`.
+F02 implementa únicamente la fuente Hermes y puede correr en paralelo después de F01. Si falta
+handshake/fixture/auth seguro, se bloquea F02 sin bloquear adaptadores directos, UI o hardening core.
+Esto prioriza Claude/Codex/OpenCode, que ya tienen mejor evidencia estructurada, sobre el companion
+Hermes todavía pending fixture.
+
+Antes de escribir producto en F01, GitCron versiona instrucciones agnósticas, constitución/perfil
+y un gate sin modelo. El gate fast verifica TypeScript, manifests, zona protegida, tests y OpenSpec
+strict; el full agrega build y ejecuta lint/Fallow heredados como `PENDIENTE`, nunca verde falso.
+
 ## Risks / Trade-offs
 
 - [Schemas reales cambian entre versiones] → negociación, adapters versionados y fixtures por versión.
@@ -133,10 +145,12 @@ Antes de log, SQLite o renderer se redactan bearer/basic tokens, cookies, header
 - [Ack se interpreta como efecto] → estados separados y reconciliación contra evidencia local.
 - [Costo reportado equivale sólo a precio teórico] → clasificación separada; nunca mostrarlo como cargo real sin evidencia de facturación.
 - [Deuda de seguridad preexistente] → F00 la registra; no la corrige fuera de scope y Pipeline no reutiliza esos patrones.
+- [F02 bloqueada por un repo/contrato externo] → el grafo la aísla como extensión opcional.
+- [Un agente cambia el veto para aprobarse] → gobernanza protegida permanece roja hasta commit humano.
 
 ## Migration Plan
 
-No hay migración de producto en F00. El cambio se valida documentalmente, pasa auditoría y queda para QA humano. F01 podrá implementar tipos y parsers detrás de una feature nueva sin modificar flows existentes. Ante rechazo, se corrigen sólo contratos/documentos; no hay rollback de código.
+No hay migración de producto en F00. El cambio se valida documentalmente, pasa auditoría y queda para QA humano. La corrección post-QA agrega sólo gobernanza/gate; después de su commit humano y baseline fast verde, F01 podrá implementar tipos y parsers detrás de una feature nueva sin modificar flows existentes. Ante rechazo, se corrigen sólo contratos/documentos; no hay rollback de código.
 
 ## Open Questions
 

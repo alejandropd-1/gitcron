@@ -27,7 +27,7 @@
 De menor a mayor prioridad:
 
 ```text
-default Hermes/runtime
+default del runtime/orquestador
   < perfil GitCron por repo
   < política del rol
   < override del change
@@ -64,8 +64,8 @@ datos que el proveedor/runtime entrega o una tabla versionada y actualizable con
 
 ### TANDA 0 — Catálogo y política
 
-- Revalidar Hermes model options/assignments, Claude/Codex/agy flags, OpenCode models/stats y
-  LM Studio `lms ps --json`.
+- Revalidar Claude/Codex/agy flags, OpenCode models/stats y LM Studio `lms ps --json`; incluir
+  opciones/assignments Hermes sólo si F02 fue implementada.
 - Definir `ModelDescriptor`, capabilities, provider family y auth/availability.
 - Definir jerarquía, storage y efecto “next safe unit”.
 - Definir cómo se demuestra familia distinta builder/auditor.

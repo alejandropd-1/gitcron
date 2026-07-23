@@ -31,3 +31,11 @@ El connector SHALL aplicar backoff con jitter, dedupe, límites de stream y batc
 #### Scenario: Kill sobre proceso externo
 - **WHEN** una sesión observada pertenece a un proceso que GitCron no creó
 - **THEN** `kill` queda unavailable aunque exista un PID observable
+
+### Requirement: Gate base previo a código Pipeline
+El repositorio SHALL versionar instrucciones agnósticas, constitución/perfil y un gate determinístico
+antes de iniciar escrituras de producto F01. Un estado rojo o pendiente SHALL NOT presentarse verde.
+
+#### Scenario: Gobernanza modificada localmente
+- **WHEN** un agente cambia AGENTS, gate, constitución o perfil sin commit humano
+- **THEN** el gate fast queda rojo y F01 no inicia escrituras de producto

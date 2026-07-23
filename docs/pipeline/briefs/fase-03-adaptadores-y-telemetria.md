@@ -1,12 +1,13 @@
 # Pipeline Fase 03 — Adaptadores de runtimes y telemetría normalizada
 
 > Integra Claude Code, Codex, Antigravity (`agy`), OpenCode y LM Studio bajo el contrato F00.
-> Cada adaptador demuestra sus capacidades con fixtures antes de anunciarse. Requiere F02
-> mergeada. Branch `pipeline/fase-03-runtime-adapters`.
+> Cada adaptador demuestra sus capacidades con fixtures antes de anunciarse. Requiere F01
+> mergeada y es independiente de F02/Hermes. Branch `pipeline/fase-03-runtime-adapters`.
 
 ## Agentes recomendados
 
-- **Orquestador:** Hermes.
+- **MASTER/orquestador:** Codex, Hermes u otro runtime capaz de aplicar el protocolo; declarar
+  `orchestrationMode` y no enrutar adaptadores directos por Hermes obligatoriamente.
 - **Claude adapter:** builder OpenCode o Claude; auditor Codex.
 - **Codex adapter:** builder Claude/OpenCode; auditor Antigravity read-only + auditoría final
   Claude de otra familia. Codex no audita su propio adaptador si lo construyó.
@@ -176,7 +177,8 @@ adaptadores que anuncian control no implementado. Veredicto y hallazgos por runt
 
 ## Criterios de aceptación
 
-- [ ] Seis adaptadores pasan la conformance suite o degradan explícitamente.
+- [ ] Los adaptadores directos y providers cubiertos pasan la conformance suite o degradan
+      explícitamente; Hermes se valida separadamente en F02 si se incluye.
 - [ ] Claude/Codex/OpenCode consumen streams estructurados verificados.
 - [ ] agy no depende de parsing de prosa.
 - [ ] LM Studio reporta modelo/health/usage sin costo ficticio.

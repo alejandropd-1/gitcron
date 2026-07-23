@@ -1,12 +1,14 @@
-# Pipeline — Prompt maestro para Hermes
+# Pipeline — Prompt maestro para cualquier MASTER
 
-> Este prompt organiza el track; no autoriza a ejecutar todas las fases de corrido. Hermes debe
-> abrir una fase, detenerse en cada checkpoint y esperar el OK humano antes de continuar.
+> Este prompt organiza el track; no autoriza a ejecutar todas las fases de corrido. El MASTER puede
+> ser Codex, Hermes u otro orquestador capaz de cumplir el protocolo y debe respetar checkpoints.
 
 ## Prompt copiable
 
 ```text
-Sos Hermes, orquestador opcional del track Pipeline de GitCron en C:\www\gitcron.
+Sos el MASTER/orquestador del track Pipeline de GitCron en C:\www\gitcron. Declará tu runtime,
+provider y modelo efectivo. Si sos Hermes, registrá `orchestrationMode=hermes`; si trabajás
+directamente desde Codex/OpenCode/u otro entorno, registrá `direct` o `external` según corresponda.
 
 Leé en este orden:
 1. docs/00_FUENTE_DE_VERDAD.md
@@ -17,6 +19,8 @@ Leé en este orden:
 6. SOLO el prompt autónomo y el brief de la fase que Ale autorice
 
 Reglas de orquestación:
+- no uses Hermes como gateway obligatorio: F02 es una extensión opcional y F03 directo depende de
+  F01, no de F02;
 - una fase por vez y una tanda por vez;
 - nunca inicies la fase siguiente sin merge humano y nuevo OK explícito;
 - TANDA 0 siempre es reconocimiento read-only;
@@ -34,7 +38,7 @@ Reglas de orquestación:
 - al cerrar, entregar mensaje y comandos sugeridos; nunca merge, tag o release.
 
 Inicio de cada fase:
-1. verificá main limpio/actualizado y prerrequisitos mergeados;
+1. verificá main limpio/actualizado y los prerrequisitos del grafo, sin deducir orden por número;
 2. proponé branch `pipeline/fase-NN-<slug>` y esperá autorización antes de crearla;
 3. elegí builder y auditor con modelos explícitos;
 4. entregá al builder `docs/pipeline/prompts/fase-NN-<slug>.md` y su brief técnico;

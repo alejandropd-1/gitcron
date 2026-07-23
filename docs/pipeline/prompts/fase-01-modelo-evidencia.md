@@ -1,6 +1,7 @@
 # Prompt de ejecución — Pipeline Fase 01 · Modelo y evidencia per-repo
 
-> Rama: `pipeline/fase-01-modelo-evidencia`. Ejecutar solo si F00 fue confirmada por Ale.
+> Rama: `pipeline/fase-01-modelo-evidencia`. Ejecutar solo si F00 fue confirmada por Ale y el gate
+> base versionado devuelve `VERDE`.
 
 ## Contexto obligatorio
 
@@ -20,11 +21,14 @@ dejado la documentación desactualizada.
 - Repo sin kit es degradación parcial, no ausencia total de Pipeline.
 - Secrets y reasoning crudo no se persisten indiscriminadamente.
 - Ale realiza stage, commit y push.
+- Antes de escribir producto, `pwsh -NoProfile -File scripts/gates.ps1 fast` debe dar `VERDE`;
+  `ROJO` o `PENDIENTE`
+  detienen F01 y se reportan sin reinterpretarlos.
 
 ## Ejecución
 
 Identificate y anunciá objetivo, scope, rama, tandas, archivos probables y validaciones. Pedí OK para
-crear la rama e iniciar. TANDA 0 es auditoría sin modificar: localizá modelos, DB, preload/IPC y
+crear la rama e iniciar. TANDA 0 corre primero el gate base y luego audita sin modificar: localizá modelos, DB, preload/IPC y
 helpers reutilizables. Mostrá el mapa y esperá OK. Después ejecutá una tanda autorizada por vez según
 `docs/pipeline/briefs/fase-01-modelo-y-evidencia-repo.md`.
 

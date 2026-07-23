@@ -180,9 +180,9 @@ no una promesa permanente de paridad entre runtimes.
   providers observados, no un runtime aparte.
 - **LM Studio:** extracción/clasificación mecánica y fixtures baratos; nunca veredicto final.
 
-El prompt opcional para que Hermes coordine el track completo está en
-[`prompt-maestro-hermes.md`](prompt-maestro-hermes.md). También puede ejecutar el MASTER directamente
-desde Codex u otro orquestador; los briefs y checkpoints siguen siendo obligatorios.
+El prompt para cualquier MASTER está en
+[`prompt-maestro-pipeline.md`](prompt-maestro-pipeline.md). Puede ejecutarlo Codex, Hermes u otro
+orquestador; los briefs, procedencia y checkpoints siguen siendo obligatorios.
 
 ## Secuencia de fases
 
@@ -190,13 +190,17 @@ desde Codex u otro orquestador; los briefs y checkpoints siguen siendo obligator
 |---|---|---:|---|
 | [00](briefs/fase-00-contrato-y-spikes.md) | Contrato v1, fixtures reales, ADR de conexión y matriz de capacidades | Bajo, audit-only | Ninguno |
 | [01](briefs/fase-01-modelo-y-evidencia-repo.md) | Modelo puro + JSONL/evidencia + decisiones + persistencia per-repo | Medio | F00 aprobada |
-| [02](briefs/fase-02-hermes-connector-readonly.md) | Conexión autenticada a Hermes, solo observación | Alto | F01 mergeada |
-| [03](briefs/fase-03-adaptadores-y-telemetria.md) | Claude/Codex/agy/OpenCode/LM Studio normalizados | Alto | F02 mergeada |
+| [02](briefs/fase-02-hermes-adapter-opcional.md) | Adaptador Hermes opcional, solo observación | Alto/aislado | F01 mergeada; no bloquea core |
+| [03](briefs/fase-03-adaptadores-y-telemetria.md) | Claude/Codex/agy/OpenCode/LM Studio normalizados | Alto | F01 mergeada; independiente de F02 |
 | [04](briefs/fase-04-workspace-pipeline-ui.md) | Solapa per-repo: inbox read-only, vía, agentes, reasoning, economía, diffs | Alto visual | F03 mergeada |
 | [05](briefs/fase-05-control-supervisado.md) | Opciones del inbox + pause/steer/interrupt/approvals con guardrails | Muy alto | F04 validada |
 | [06](briefs/fase-06-modelos-presupuestos-contexto.md) | Selección por rol/task/repo, presupuestos, contexto y fallbacks | Muy alto | F05 validada |
-| [07](briefs/fase-07-inteligencia-replay.md) | Replay, loops, predicción y comparación de modelos | Medio | Datos reales acumulados |
-| [08](briefs/fase-08-hardening-y-release.md) | Seguridad, compatibilidad, docs, packaging y release | Alto | F00–F07 cerradas |
+| [07](briefs/fase-07-inteligencia-replay.md) | Replay, loops, predicción y comparación de modelos | Medio | F01 + F03–F06 y datos reales |
+| [08](briefs/fase-08-hardening-y-release.md) | Seguridad, compatibilidad, docs, packaging y release | Alto | Core F00/F01/F03–F07; F02 si se incluyó |
+
+El orden operativo no es el orden numérico: el camino core es `F00 → F01 → F03 → F04
+→ F05 → F06 → F07 → F08`. F02 puede ejecutarse en paralelo después de F01. Un bloqueo
+del companion Hermes nunca bloquea adaptadores directos, UI, modelos ni hardening del core.
 
 Cada brief define el alcance técnico. Para iniciar una fase se usa su prompt autónomo enlazado desde
 [`00-estado-track.md`](00-estado-track.md); al finalizar se crea un reporte en `docs/reports/` usando

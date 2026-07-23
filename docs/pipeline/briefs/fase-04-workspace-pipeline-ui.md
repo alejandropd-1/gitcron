@@ -1,6 +1,6 @@
 # Pipeline Fase 04 — Workspace visual per-repo
 
-> Construye la solapa Pipeline y sus vistas usando datos F01–F03. Sigue siendo observación:
+> Construye la solapa Pipeline con datos core F01/F03 y F02 sólo cuando exista. Sigue siendo observación:
 > no hay pause/interrupt/model switch. Ale escribe el CSS. Requiere F03 mergeada.
 > Branch `pipeline/fase-04-workspace-ui`.
 
@@ -25,7 +25,8 @@ Vistas dentro del workspace:
 2. **Inbox de decisiones:** solicitudes normalizadas, evidencia, opciones, consecuencias y riesgo
    con procedencia; read-only en esta fase.
 3. **Vía del change:** propuesta → aprobación → builder/tasks → gates → auditor → fixer → merge.
-4. **Árbol de agentes:** Hermes, hijos, roles, modelos, duración, usage y estado.
+4. **Árbol de agentes:** relaciones parent/child del runtime u orquestador presente, roles,
+   modelos, duración, usage y estado.
 5. **Bitácora consciente:** reasoning emitido + resumen operativo + tools/events.
 6. **Economía y contexto:** tokens, costo con procedencia, contexto y compresiones.
 7. **Actividad y diffs:** archivos del working tree y DiffViewer existente.
@@ -41,6 +42,8 @@ Vistas dentro del workspace:
 - Vista avanzada permite ver payload técnico sanitizado, nunca por defecto.
 - Reasoning inexistente muestra “este runtime no lo expone”, no un panel vacío engañoso.
 - Costos/contexto desconocidos muestran “sin datos”, nunca `0`.
+- Si la cobertura USD es insuficiente, no renderizar torta/ranking monetario vacío: mostrar tokens,
+  clasificación (`included_plan`, `estimated`, `local_unpriced`, `unknown`) y cobertura de la muestra.
 - Repo sin kit, Hermes desconectado y runtime degradado son estados normales.
 - Aplicar `docs/pipeline/UX-DECISIONES.md`: riesgo/consecuencia unknown no se rellenan con texto
   generado; glosario base + términos del repo sanitizados.
@@ -73,7 +76,7 @@ Vistas dentro del workspace:
   el feed, una decisión por elemento, con qué-piden, por-qué, opciones/consecuencias conocidas,
   riesgo con procedencia, evidencia y contexto técnico expandible.
 - F04 solo permite navegar, revisar evidencia/diff o copiar una respuesta. Aprobar, rechazar,
-  enviar al fixer o responder a Hermes se muestran como no conectados hasta F05.
+  enviar al fixer o responder al runtime/orquestador se muestran como no conectados hasta F05.
 - Un repo sin kit conserva Pipeline con evidencia Git/Hermes/runtime; solo faltan gates/logs del kit.
 - Selector de change cuando haya más de uno; no elegir arbitrariamente.
 
@@ -160,6 +163,7 @@ muestre como cero y derived no se muestre como hecho. Veredicto + hallazgos.
 - [ ] Repo sin kit conserva Git/Hermes/runtime y explica qué fuentes faltan.
 - [ ] Rechazo se ve como retroceso a fixer.
 - [ ] Árbol de agentes + reasoning/tools + economía/contexto funcionan con fixtures/live.
+- [ ] La economía sigue siendo útil sin USD: tokens y cobertura visibles, sin ceros ni tortas ficticias.
 - [ ] Diffs se reutilizan y cargan lazy.
 - [ ] Empty/degraded/unknown son honestos.
 - [ ] i18n ES/EN/ZH, teclado y visual QA.

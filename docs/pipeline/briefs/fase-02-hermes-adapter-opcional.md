@@ -1,8 +1,9 @@
-# Pipeline Fase 02 — Hermes Connector de solo observación
+# Pipeline Fase 02 — Adaptador Hermes opcional de solo observación
 
-> Conecta GitCron con Hermes usando el contrato aprobado en F00. Esta fase es estrictamente
-> read-only: recibe sesiones/eventos/capacidades, pero no envía prompts, approvals ni controles.
-> Requiere F01 mergeada. Branch `pipeline/fase-02-hermes-connector`.
+> Extensión opcional para corridas coordinadas por Hermes. Es estrictamente read-only: recibe
+> sesiones/eventos/capacidades, pero no envía prompts, approvals ni controles. Requiere F01
+> mergeada, pero **no es prerrequisito de F03 ni bloquea el camino core**. Branch
+> `pipeline/fase-02-hermes-adapter-opcional`.
 
 ## Agentes recomendados
 
@@ -25,8 +26,8 @@
 Renderer → preload tipado → Electron main → `HermesConnector` → backend Hermes local.
 
 El renderer nunca recibe credencial de Hermes ni URL con token. Si el backend actual no ofrece
-un handshake companion seguro, parar y proponer el change mínimo en el repo Hermes. No scrapear
-HTML ni leer archivos secretos como atajo.
+un handshake companion seguro, F02 queda `Bloqueada` con evidencia y puede proponerse un change
+mínimo en Hermes; F03 y las fases core continúan. No scrapear HTML ni leer secretos como atajo.
 
 ## Tandas
 
@@ -68,13 +69,14 @@ HTML ni leer archivos secretos como atajo.
 Aplicá docs/pipeline/protocolo-ejecucion-agentes.md. Identificá IA/runtime/modelo y rol; anunciá
 fase, rama, tandas y checkpoints. No escribas ni crees la rama hasta recibir autorización.
 Implementá SOLO Pipeline Fase 02. Leé fuente de verdad, invariantes, índice Pipeline, F00 ADR y
-brief F02. Confirmá F01 mergeada. Branch pipeline/fase-02-hermes-connector desde main.
+brief F02. Confirmá F01 mergeada. Branch pipeline/fase-02-hermes-adapter-opcional desde main.
 
 TANDA 0 read-only: revalidá Hermes instalado, auth, contract version y fixtures. Mostrá la API
 propuesta y esperá OK. Luego implementá el Connector SOLO en Electron main, con preload tipado
 mínimo. Recibí y normalizá eventos; no envíes prompts, approvals, interrupt, steer, model-set ni
 process-kill. Renderer sin secretos. No scrapees tokens/HTML. Si falta un endpoint companion,
-pará y redactá el change requerido en Hermes; no uses un bypass.
+marcá sólo F02 como bloqueada y redactá el change requerido en Hermes; no uses un bypass ni
+bloquees F03/F04 por esa ausencia.
 
 No UI final, no CSS, no nuevas deps sin aprobación, no README/CHANGELOG. Tests de reconexión,
 dedupe, scoping y cleanup. Cierre estándar + reporte + mensaje/comandos de commit y push

@@ -1,16 +1,18 @@
 # Prompt de ejecución — Pipeline Fase 03 · Adaptadores y telemetría
 
-> Rama: `pipeline/fase-03-runtime-adapters`. Requiere F02 completada.
+> Rama: `pipeline/fase-03-runtime-adapters`. Requiere F01 completada; no requiere F02.
 
 ## Contexto obligatorio
 
 Leé fuente de verdad, invariantes, contexto integral, estado, protocolo, contrato F00,
-`docs/pipeline/briefs/fase-03-adaptadores-y-telemetria.md` y reporte F02. Esta fase tiene varias
+`docs/pipeline/briefs/fase-03-adaptadores-y-telemetria.md` y reporte F01. Si existe F02, leer su
+reporte sólo como integración opcional. Esta fase tiene varias
 tandas/runtimes: no asumas que el mismo agente debe hacerlas todas.
 
 ## Decisiones confirmadas — no volver a preguntar
 
-- Adaptadores: Hermes, Claude, Codex, `agy`, OpenCode y LM Studio.
+- Adaptadores directos: Claude, Codex, `agy` y OpenCode; Z.ai/LM Studio como providers. Hermes
+  pertenece a F02 opcional.
 - Capability ausente se declara; no se simula paridad.
 - No parsear prosa frágil ni presentar reasoning/costo/contexto inferidos como reales.
 - LM Studio es proveedor local, no auditor; ningún control público se habilita todavía.

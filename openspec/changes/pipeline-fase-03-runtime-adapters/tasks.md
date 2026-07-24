@@ -26,9 +26,9 @@
 
 ## 4. TANDA 3 — Antigravity
 
-- [ ] 4.1 Relevar salida estructurada oficial, plugins/hooks y log schema de `agy` 1.1.5 sin inferencia paga
-- [ ] 4.2 Capturar fixture seguro si existe o documentar wrapper lifecycle-only y capabilities desconocidas
-- [ ] 4.3 Implementar adapter `agy` sin regex sobre prosa y ejecutar conformance degradada
+- [x] 4.1 Relevar salida estructurada oficial, plugins/hooks y log schema de `agy` 1.1.5 sin inferencia paga
+- [x] 4.2 Capturar fixture seguro si existe o documentar wrapper lifecycle-only y capabilities desconocidas
+- [x] 4.3 Implementar adapter `agy` sin regex sobre prosa y ejecutar conformance degradada
 
 ## 5. TANDA 4 — LM Studio
 

@@ -1,0 +1,145 @@
+import type {
+  PipelineEventEnvelope,
+  RuntimeDescriptor,
+  RuntimeDiscovery,
+  RuntimeHealth,
+  RuntimeSession,
+  RuntimeTelemetrySnapshot,
+} from '../../../types/pipeline';
+import { unknownTelemetry } from './normalization';
+import { RuntimeProcessRunner } from './process-runner';
+import type { RuntimeAdapter } from './runtime-adapter';
+
+const SUPPORTED_RUNTIME_VERSION = '1.1.5';
+
+export const AGY_WRAPPER_DESCRIPTOR: RuntimeDescriptor = {
+  adapterId: 'agy-wrapper',
+  runtime: 'agy',
+  adapterKind: 'wrapper',
+  transport: 'process-lifecycle',
+  runtimeVersion: SUPPORTED_RUNTIME_VERSION,
+  protocolVersion: null,
+  capabilities: [
+    {
+      capabilityId: 'health',
+      capabilityVersion: '1',
+      availability: 'available',
+      evidenceStatus: 'verified',
+      targetScopes: ['repo'],
+      constraints: ['process probe only; no structured event stream'],
+      evidenceRefs: [],
+    },
+    {
+      capabilityId: 'session.start',
+      capabilityVersion: '1',
+      availability: 'unknown',
+      evidenceStatus: 'pending_fixture',
+      targetScopes: ['repo', 'run'],
+      constraints: ['wrapper lifecycle only; structured stream unavailable'],
+      evidenceRefs: [],
+    },
+    {
+      capabilityId: 'events.stream',
+      capabilityVersion: '1',
+      availability: 'unknown',
+      evidenceStatus: 'pending_fixture',
+      targetScopes: ['session'],
+      constraints: ['no official JSONL stream in agy 1.1.5; no regex on raw terminal text'],
+      evidenceRefs: [],
+    },
+    {
+      capabilityId: 'telemetry.snapshot',
+      capabilityVersion: null,
+      availability: 'unknown',
+      evidenceStatus: 'pending_fixture',
+      targetScopes: ['run', 'session'],
+      constraints: ['usage and cost metrics unavailable without structured telemetry stream'],
+      evidenceRefs: [],
+    },
+  ],
+};
+
+export class AgyWrapperRuntimeAdapter implements RuntimeAdapter {
+  readonly descriptor = AGY_WRAPPER_DESCRIPTOR;
+
+  constructor(
+    private readonly canonicalRepoPath: string,
+    private readonly executable: string = 'agy',
+    private readonly runner = new RuntimeProcessRunner(),
+    private readonly now: () => string = () => new Date().toISOString(),
+  ) {}
+
+  async discover(): Promise<RuntimeDiscovery> {
+    try {
+      const result = await this.runner.run({
+        executable: this.executable,
+        args: ['--version'],
+        cwd: this.canonicalRepoPath,
+        expectedCanonicalCwd: this.canonicalRepoPath,
+        timeoutMs: 10_000,
+        maxStdoutBytes: 16_384,
+        maxStderrBytes: 16_384,
+      });
+      const output = result.stdout.toString('utf8').trim();
+      const installed = result.exitCode === 0 && !result.timedOut && !result.outputLimit;
+      const fixtureCompatible = installed && output === SUPPORTED_RUNTIME_VERSION;
+      return {
+        installed,
+        executable: installed ? this.executable : null,
+        runtimeVersion: fixtureCompatible ? SUPPORTED_RUNTIME_VERSION : null,
+        evidenceStatus: fixtureCompatible ? 'verified' : installed ? 'pending_fixture' : 'unknown',
+        evidenceRefs: [],
+        diagnostics: fixtureCompatible
+          ? []
+          : installed
+            ? ['Installed agy version differs from the supported baseline']
+            : ['agy version probe failed'],
+      };
+    } catch {
+      return {
+        installed: false,
+        executable: null,
+        runtimeVersion: null,
+        evidenceStatus: 'unknown',
+        evidenceRefs: [],
+        diagnostics: ['agy executable unavailable'],
+      };
+    }
+  }
+
+  async health(): Promise<RuntimeHealth> {
+    const startedAt = Date.now();
+    const discovery = await this.discover();
+    return {
+      status: discovery.evidenceStatus === 'verified' ? 'healthy' : discovery.installed ? 'degraded' : 'unavailable',
+      checkedAt: this.now(),
+      latencyMs: Date.now() - startedAt,
+      evidenceStatus: discovery.evidenceStatus,
+      evidenceRefs: discovery.evidenceRefs,
+      diagnostics: discovery.diagnostics,
+    };
+  }
+
+  async *events(_session: RuntimeSession): AsyncIterable<PipelineEventEnvelope> {
+    // Wrapper mode: no structured event stream emitted
+    return;
+  }
+
+  async telemetry(session: RuntimeSession): Promise<RuntimeTelemetrySnapshot> {
+    return unknownTelemetry(session.identity, 'agy-wrapper');
+  }
+
+  async shutdown(_session: RuntimeSession): Promise<void> {
+    // No-op for lifecycle wrapper session without child handle
+    return;
+  }
+}
+
+export function createAgyWrapperRuntimeAdapter(
+  canonicalRepoPath: string,
+  executable = 'agy',
+  runner = new RuntimeProcessRunner(),
+  now?: () => string,
+): AgyWrapperRuntimeAdapter {
+  return new AgyWrapperRuntimeAdapter(canonicalRepoPath, executable, runner, now);
+}

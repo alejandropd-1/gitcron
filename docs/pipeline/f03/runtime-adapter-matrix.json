@@ -73,12 +73,17 @@
       "kind": "wrapper",
       "fixture": null,
       "fixtureStatus": "pending_fixture",
+      "implementationConstraints": [
+        "agy 1.1.5 does not offer an official JSONL event stream CLI flag.",
+        "GitCron models agy as a process lifecycle wrapper without applying regex to raw stdout/stderr text.",
+        "Telemetry and token metrics remain unknown without inventing zero values or assumed billing status."
+      ],
       "capabilities": {
         "discover": "verified",
-        "health": "inferred",
+        "health": "verified",
         "session.start": "pending_fixture",
         "events.stream": "unknown",
-        "lifecycle.wrapper": "inferred",
+        "lifecycle.wrapper": "verified",
         "telemetry.usage": "unknown",
         "telemetry.cost": "unknown",
         "telemetry.context": "unknown",

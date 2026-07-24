@@ -26,14 +26,20 @@ Se revalidó OpenCode `1.18.3` sin ejecutar una inferencia de prompt. La versió
 
 ## Evidencia y Telemetría
 
-- `docs/pipeline/f00/fixtures/opencode-zai-review.sanitized.json` confirma ejecución con provider `Z.AI Coding Plan`, `requestedModel` `zai-coding-plan/glm-5.2`, y costo `0` runtime-reportado.
-- Ese cero se clasifica como `runtime_reported` / `reported`, no como facturación real ni plan gratuito.
+- `docs/pipeline/f00/fixtures/opencode-zai-review.sanitized.json` documenta una ejecución **pasada** con provider
+  `Z.AI Coding Plan`, `requestedModel` `zai-coding-plan/glm-5.2` y costo `0` runtime-reportado. Es evidencia de esa
+  corrida histórica, **no** telemetría de la sesión ACP de F03: el adaptador ya no la usa como valor de sesión.
+- La telemetría de una sesión ACP sale exclusivamente de `session/update`. Como F03 nunca envía `session/prompt`,
+  no hay usage ni costo observados y **todo queda `unknown`**: una corrida no observada no es una corrida de costo cero.
+- Cuando `session/update` sí trae usage, se clasifica `runtime_reported` con `evidenceStatus` **`inferred`**: el runtime
+  reporta el número, pero el mapeo de campos ACP no tiene fixture en 1.18.3.
 - Separación de campos preservada en `PipelineIdentity`: `runtime` (`opencode`), `provider` (`Z.AI`), `requestedModel`, `effectiveModel`, `reportedModel`.
 - `reasoningVisibility` queda `unavailable` porque ACP no emitió deltas de pensamiento explícitos.
 
 ## Veto de evidencia y seguridad
 
-- `session.start` y `telemetry.snapshot` habilitados y marcados `verified` con sus fixtures sanitizados.
+- `session.start` habilitado y marcado `verified` con sus fixtures sanitizados.
+- `telemetry.snapshot` queda `degraded` / `pending_fixture`: sin `session/prompt` no hay stream de usage que verificar.
 - `session/prompt` NO fue enviado: cero inferencias pagas ni prompts arbitrarios en argv.
 - Cero dependencias nuevas, secretos, auth stores, UI, CSS, IPC de control o Hermes obligatorio.
 

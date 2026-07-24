@@ -1,23 +1,59 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   RuntimeProcessRunner,
   createLmStudioProviderAdapter,
+  parseLmStudioCliCommit,
+  parseLmStudioLoadedModels,
+  parseLmStudioModelCatalog,
+  parseOpenAiModelList,
+  parseOpenAiUsage,
   validateRuntimeAdapterContract,
+  type LmStudioHttpClient,
   type RuntimeProcessResult,
   type RuntimeProcessSpec,
 } from '../pipeline/runtime-adapters';
 
+const USAGE_FIXTURE = 'docs/pipeline/f00/fixtures/lmstudio-classification.sanitized.json';
+
+/** Real sanitized local capture from F00; no live inference runs in tests (Invariante 10). */
+function usageFixture(): { promptTokens: number; completionTokens: number; reasoningTokens: number } {
+  const raw = JSON.parse(fs.readFileSync(path.resolve(USAGE_FIXTURE), 'utf8')) as {
+    usage: { promptTokens: number; completionTokens: number; reasoningTokens: number };
+  };
+  return raw.usage;
+}
+
+/** Rebuilds the OpenAI-compatible wire envelope around the fixture's real token counts. */
+function completionResponseFromFixture(): unknown {
+  const usage = usageFixture();
+  return {
+    model: 'google/gemma-4-12b-qat',
+    usage: {
+      prompt_tokens: usage.promptTokens,
+      completion_tokens: usage.completionTokens,
+      total_tokens: usage.promptTokens + usage.completionTokens,
+      completion_tokens_details: { reasoning_tokens: usage.reasoningTokens },
+    },
+  };
+}
+
 class LmStudioTestRunner extends RuntimeProcessRunner {
-  constructor(private readonly stdout: string, private readonly exitCode = 0) {
+  constructor(
+    private readonly outputs: Record<string, string> = {},
+    private readonly exitCode = 0,
+  ) {
     super();
   }
 
-  override async run(_spec: RuntimeProcessSpec): Promise<RuntimeProcessResult> {
+  override async run(spec: RuntimeProcessSpec): Promise<RuntimeProcessResult> {
+    const key = spec.args.join(' ');
     return {
-      processId: 'ps-probe',
+      processId: `probe:${key}`,
       exitCode: this.exitCode,
       signal: null,
-      stdout: Buffer.from(this.stdout),
+      stdout: Buffer.from(this.outputs[key] ?? ''),
       stderr: Buffer.alloc(0),
       durationMs: 1,
       timedOut: false,
@@ -27,10 +63,122 @@ class LmStudioTestRunner extends RuntimeProcessRunner {
   }
 }
 
+const MODEL_LIST_BODY = JSON.stringify({
+  object: 'list',
+  data: [
+    { id: 'google/gemma-4-12b-qat', object: 'model', owned_by: 'organization_owner' },
+    { id: 'qwen/qwen3.6-27b', object: 'model', owned_by: 'organization_owner' },
+  ],
+});
+
+const CATALOG_BODY = JSON.stringify({
+  models: [
+    {
+      type: 'llm',
+      key: 'google/gemma-4-12b-qat',
+      max_context_length: 262144,
+      loaded_instances: [],
+      capabilities: { trained_for_tool_use: true },
+    },
+    {
+      type: 'llm',
+      key: 'qwen/qwen3.6-27b',
+      max_context_length: 131072,
+      loaded_instances: [{ id: 'instance-1' }],
+      capabilities: { trained_for_tool_use: false },
+    },
+  ],
+});
+
+/** Routes by path so the native catalog and the OpenAI-compatible list can differ. */
+function httpStub(bodies: { catalog?: string; openai?: string }): LmStudioHttpClient {
+  return async (url) => {
+    const body = url.pathname === '/api/v1/models' ? bodies.catalog : bodies.openai;
+    return body === undefined ? { status: 404, body: 'not found' } : { status: 200, body };
+  };
+}
+
+/** Modern LM Studio: native /api/v1 catalog available. */
+const nativeHttp = (): LmStudioHttpClient => httpStub({ catalog: CATALOG_BODY, openai: MODEL_LIST_BODY });
+
+/** Older build: only the OpenAI-compatible surface exists. */
+const legacyHttp = (): LmStudioHttpClient => httpStub({ openai: MODEL_LIST_BODY });
+
+function unreachableHttp(): LmStudioHttpClient {
+  return async () => {
+    throw new Error('ECONNREFUSED');
+  };
+}
+
+const session = (adapter: { descriptor: unknown }) => ({
+  identity: {
+    repoId: 'repo-1',
+    repoPath: 'C:\\fixture\\repo',
+    changeId: null,
+    taskId: null,
+    runId: 'run-1',
+    attemptId: 'attempt-1',
+    sessionId: 'session-1',
+    parentSessionId: null,
+    agentId: 'agent-1',
+    parentAgentId: null,
+    orchestrationMode: 'direct' as const,
+    orchestratorRuntime: null,
+    runtime: 'unknown' as const,
+    provider: 'LM Studio',
+    requestedModel: 'google/gemma-4-12b-qat' as string | null,
+    effectiveModel: 'google/gemma-4-12b-qat' as string | null,
+    reportedModel: 'google/gemma-4-12b-qat' as string | null,
+    role: 'builder' as const,
+  },
+  descriptor: adapter.descriptor as never,
+  ownedProcess: false,
+  startedAt: '2026-07-24T00:00:00.000Z',
+});
+
+describe('LM Studio payload parsers', () => {
+  it('reads the CLI commit from the real `lms --version` format', () => {
+    expect(parseLmStudioCliCommit('CLI commit: 9902c3a\n')).toBe('9902c3a');
+    expect(parseLmStudioCliCommit('unrelated output')).toBeNull();
+  });
+
+  it('parses an OpenAI-compatible model list and rejects foreign payloads', () => {
+    expect(parseOpenAiModelList(MODEL_LIST_BODY)).toEqual([
+      'google/gemma-4-12b-qat',
+      'qwen/qwen3.6-27b',
+    ]);
+    expect(parseOpenAiModelList('{"nope":true}')).toBeNull();
+    expect(parseOpenAiModelList('not json')).toBeNull();
+  });
+
+  it('treats an empty `lms ps --json` array as "server up, nothing loaded"', () => {
+    expect(parseLmStudioLoadedModels('[]')).toEqual([]);
+    expect(parseLmStudioLoadedModels('[{"identifier":"m","contextLength":8192}]'))
+      .toEqual([{ identifier: 'm', contextTokens: 8192 }]);
+    expect(parseLmStudioLoadedModels('{}')).toBeNull();
+  });
+
+  it('keeps unreported usage fields null instead of collapsing them to zero', () => {
+    expect(parseOpenAiUsage({ usage: { prompt_tokens: 10 } })).toEqual({
+      inputTokens: 10,
+      outputTokens: null,
+      reasoningTokens: null,
+      model: null,
+    });
+    expect(parseOpenAiUsage({ choices: [] })).toBeNull();
+  });
+});
+
 describe('LM Studio provider adapter', () => {
-  it('probes loaded models and returns healthy status', async () => {
-    const runner = new LmStudioTestRunner('[]\n');
-    const adapter = createLmStudioProviderAdapter('C:\\fixture\\repo', 'lms', runner, () => '2026-07-24T00:00:00.000Z');
+  it('reports healthy only when the OpenAI-compatible endpoint really answers', async () => {
+    const runner = new LmStudioTestRunner({ '--version': 'CLI commit: 9902c3a\n', 'ps --json': '[]' });
+    const adapter = createLmStudioProviderAdapter(
+      'C:\\fixture\\repo',
+      'lms',
+      runner,
+      () => '2026-07-24T00:00:00.000Z',
+      { http: nativeHttp() },
+    );
 
     const discovery = await adapter.discover();
     expect(discovery).toMatchObject({
@@ -40,60 +188,146 @@ describe('LM Studio provider adapter', () => {
     });
 
     const health = await adapter.health();
-    expect(health).toMatchObject({
-      status: 'healthy',
-      evidenceStatus: 'verified',
-    });
-
+    expect(health).toMatchObject({ status: 'healthy', evidenceStatus: 'verified' });
+    expect(await adapter.listModels()).toContain('google/gemma-4-12b-qat');
     expect(validateRuntimeAdapterContract(adapter)).toEqual([]);
   });
 
-  it('normalizes telemetry with local_unpriced cost classification and billingStatus', async () => {
-    const runner = new LmStudioTestRunner('[]\n');
-    const adapter = createLmStudioProviderAdapter('C:\\fixture\\repo', 'lms', runner);
+  it('reads context limits and tool-use capability from the native catalog', async () => {
+    const runner = new LmStudioTestRunner({ '--version': 'CLI commit: 9902c3a\n', 'ps --json': '[]' });
+    const adapter = createLmStudioProviderAdapter('C:\\fixture\\repo', 'lms', runner, undefined, {
+      http: nativeHttp(),
+    });
 
-    const session = {
-      identity: {
-        repoId: 'repo-1',
-        repoPath: 'C:\\fixture\\repo',
-        changeId: null,
-        taskId: null,
-        runId: 'run-1',
-        attemptId: 'attempt-1',
-        sessionId: 'session-1',
-        parentSessionId: null,
-        agentId: 'agent-1',
-        parentAgentId: null,
-        orchestrationMode: 'direct' as const,
-        orchestratorRuntime: null,
-        runtime: 'unknown' as const,
-        provider: 'LM Studio',
-        requestedModel: 'qwen3',
-        effectiveModel: 'qwen3',
-        reportedModel: 'qwen3',
-        role: 'builder' as const,
+    const catalog = await adapter.modelCatalog();
+    expect(catalog).toEqual([
+      {
+        key: 'google/gemma-4-12b-qat',
+        type: 'llm',
+        maxContextTokens: 262144,
+        loadedInstanceCount: 0,
+        trainedForToolUse: true,
       },
-      descriptor: adapter.descriptor,
-      ownedProcess: false,
-      startedAt: '2026-07-24T00:00:00.000Z',
-    };
-
-    const telemetry = await adapter.telemetry(session);
-    expect(telemetry.cost.usd.value).toBe(0);
-    expect(telemetry.cost.usd.classification).toBe('local_unpriced');
-    expect(telemetry.cost.billingStatus).toBe('local_unpriced');
-    expect(telemetry.usage.inputTokens.value).toBe(256);
-    expect(telemetry.usage.outputTokens.value).toBe(64);
+      {
+        key: 'qwen/qwen3.6-27b',
+        type: 'llm',
+        maxContextTokens: 131072,
+        loadedInstanceCount: 1,
+        trainedForToolUse: false,
+      },
+    ]);
   });
 
-  it('handles probe failure gracefully', async () => {
-    const runner = new LmStudioTestRunner('', 1);
-    const adapter = createLmStudioProviderAdapter('C:\\fixture\\repo', 'lms', runner);
+  it('falls back to the OpenAI list when /api/v1 is absent, and says so', async () => {
+    const runner = new LmStudioTestRunner({ '--version': 'CLI commit: 9902c3a\n', 'ps --json': '[]' });
+    const adapter = createLmStudioProviderAdapter('C:\\fixture\\repo', 'lms', runner, undefined, {
+      http: legacyHttp(),
+    });
 
     const health = await adapter.health();
-    expect(health).toMatchObject({
-      status: 'unavailable',
-      evidenceStatus: 'unknown',
+    expect(health.status).toBe('healthy');
+    // Reachable but without the native catalog, so it must not claim verified evidence.
+    expect(health.evidenceStatus).toBe('pending_fixture');
+    expect(health.diagnostics).toContain('LM Studio /api/v1/models returned status 404');
+    expect(await adapter.modelCatalog()).toBeNull();
+    expect(await adapter.listModels()).toContain('qwen/qwen3.6-27b');
+  });
+
+  it('does not attribute a context window when the model is unknown', async () => {
+    const runner = new LmStudioTestRunner({ '--version': 'CLI commit: 9902c3a\n', 'ps --json': '[]' });
+    const adapter = createLmStudioProviderAdapter('C:\\fixture\\repo', 'lms', runner, undefined, {
+      http: nativeHttp(),
     });
+    await adapter.health();
+
+    const anonymous = session(adapter);
+    anonymous.identity.effectiveModel = null;
+    anonymous.identity.reportedModel = null;
+    // Two models exist and only one is loaded, so the loaded one is the honest answer.
+    const telemetry = await adapter.telemetry(anonymous);
+    expect(telemetry.context.maxTokens.value).toBe(131072);
+  });
+
+  it('does not claim a version the CLI never reported', async () => {
+    const runner = new LmStudioTestRunner({ '--version': 'CLI commit: deadbee\n', 'ps --json': '[]' });
+    const adapter = createLmStudioProviderAdapter('C:\\fixture\\repo', 'lms', runner, undefined, {
+      http: nativeHttp(),
+    });
+
+    const discovery = await adapter.discover();
+    expect(discovery.runtimeVersion).toBe('deadbee');
+    expect(discovery.evidenceStatus).toBe('pending_fixture');
+    expect(discovery.diagnostics).toContain('Installed LM Studio CLI commit differs from the verified baseline');
+  });
+
+  it('is unavailable when the HTTP endpoint is unreachable, even if the CLI works', async () => {
+    const runner = new LmStudioTestRunner({ '--version': 'CLI commit: 9902c3a\n', 'ps --json': '[]' });
+    const adapter = createLmStudioProviderAdapter('C:\\fixture\\repo', 'lms', runner, undefined, {
+      http: unreachableHttp(),
+    });
+
+    const health = await adapter.health();
+    expect(health).toMatchObject({ status: 'unavailable', evidenceStatus: 'unknown' });
+    expect(health.diagnostics).toContain('LM Studio HTTP endpoint unreachable on loopback');
+  });
+
+  it('keeps usage unknown until a real response is ingested, without inventing zeros', async () => {
+    const runner = new LmStudioTestRunner({ '--version': 'CLI commit: 9902c3a\n', 'ps --json': '[]' });
+    const adapter = createLmStudioProviderAdapter('C:\\fixture\\repo', 'lms', runner, undefined, {
+      http: nativeHttp(),
+    });
+
+    const telemetry = await adapter.telemetry(session(adapter));
+    expect(telemetry.usage.inputTokens.value).toBeNull();
+    expect(telemetry.usage.inputTokens.classification).toBe('unknown');
+    expect(telemetry.usage.outputTokens.value).toBeNull();
+    expect(telemetry.context.maxTokens.value).toBeNull();
+    // Local inference has no per-token price; that is not the same as "measured 0 usage".
+    expect(telemetry.cost.usd.value).toBe(0);
+    expect(telemetry.cost.usd.classification).toBe('local_unpriced');
+    expect(telemetry.cost.usd.evidenceStatus).toBe('inferred');
+    expect(telemetry.cost.billingStatus).toBe('local_unpriced');
+  });
+
+  it('reports the token counts the provider actually returned', async () => {
+    const runner = new LmStudioTestRunner({
+      '--version': 'CLI commit: 9902c3a\n',
+      'ps --json': '[{"identifier":"google/gemma-4-12b-qat","contextLength":8192}]',
+    });
+    const adapter = createLmStudioProviderAdapter('C:\\fixture\\repo', 'lms', runner, undefined, {
+      http: nativeHttp(),
+    });
+
+    await adapter.health();
+    expect(adapter.recordCompletionUsage(completionResponseFromFixture())).toBe(true);
+
+    const fixture = usageFixture();
+    const telemetry = await adapter.telemetry(session(adapter));
+    expect(telemetry.usage.inputTokens.value).toBe(fixture.promptTokens);
+    expect(telemetry.usage.outputTokens.value).toBe(fixture.completionTokens);
+    expect(telemetry.usage.reasoningTokens.value).toBe(fixture.reasoningTokens);
+    expect(telemetry.usage.inputTokens.classification).toBe('runtime_reported');
+    // Resolved by model key against the native catalog, not by the stale CLI probe.
+    expect(telemetry.context.maxTokens.value).toBe(262144);
+    expect(telemetry.context.maxTokens.classification).toBe('runtime_reported');
+    expect(telemetry.cost.usd.evidenceStatus).toBe('verified');
+    expect(telemetry.reasoningVisibility).toBe('summary');
+  });
+
+  it('ignores a payload with no usage block instead of guessing', async () => {
+    const runner = new LmStudioTestRunner({ '--version': 'CLI commit: 9902c3a\n', 'ps --json': '[]' });
+    const adapter = createLmStudioProviderAdapter('C:\\fixture\\repo', 'lms', runner, undefined, {
+      http: nativeHttp(),
+    });
+
+    expect(adapter.recordCompletionUsage({ choices: [] })).toBe(false);
+    const telemetry = await adapter.telemetry(session(adapter));
+    expect(telemetry.usage.outputTokens.value).toBeNull();
+  });
+
+  it('refuses a non-loopback base URL', () => {
+    expect(() => createLmStudioProviderAdapter('C:\\fixture\\repo', 'lms', new LmStudioTestRunner(), undefined, {
+      baseUrl: 'http://10.0.0.5:1234',
+    })).toThrow(/loopback/);
   });
 });

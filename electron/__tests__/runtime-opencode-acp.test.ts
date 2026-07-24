@@ -145,14 +145,70 @@ describe('OpenCode ACP adapter', () => {
     expect(events.length).toBeGreaterThan(0);
     expect(events[0].kind).toBe('session.update');
 
+    // F03 never sends session/prompt, so nothing was billed and nothing was measured.
+    // An unobserved run must stay unknown rather than collapse to a zero-cost run.
     const telemetry = await adapter.telemetry(session);
-    expect(telemetry.cost.usd.value).toBe(0);
-    expect(telemetry.cost.usd.classification).toBe('runtime_reported');
-    expect(telemetry.cost.billingStatus).toBe('reported');
+    expect(telemetry.cost.usd.value).toBeNull();
+    expect(telemetry.cost.usd.classification).toBe('unknown');
+    expect(telemetry.cost.billingStatus).toBe('unknown');
+    expect(telemetry.usage.inputTokens.value).toBeNull();
+    expect(telemetry.usage.outputTokens.value).toBeNull();
     expect(telemetry.reasoningVisibility).toBe('unavailable');
 
     await adapter.shutdown(session);
     expect(runner.terminated).toBe(true);
+  });
+
+  it('reports usage as inferred when session/update actually carries it', async () => {
+    const usageNotification = Buffer.from(`${JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'session/update',
+      params: {
+        sessionId: 'ses_sanitized_0000000000000000000000',
+        usage: { inputTokens: 6113, outputTokens: 1078, reasoningTokens: 4131, cacheReadTokens: 26368 },
+      },
+    })}\n`);
+    const runner = new AcpFixtureRunner([
+      initFixtureResponse(),
+      sessionNewFixtureResponse(),
+      usageNotification,
+    ]);
+    const adapter = createOpenCodeAcpRuntimeAdapter(
+      'C:\\fixture\\repo',
+      'C:\\fixture\\opencode.exe',
+      runner,
+      () => '2026-07-24T00:00:00.000Z',
+    );
+
+    const session = await adapter.start({
+      repoId: 'repo-123',
+      canonicalRepoPath: 'C:\\fixture\\repo',
+      changeId: null,
+      taskId: null,
+      runId: 'run-1',
+      attemptId: 'attempt-1',
+      parentSessionId: null,
+      parentAgentId: null,
+      orchestrationMode: 'direct',
+      orchestratorRuntime: null,
+      provider: 'Z.AI',
+      requestedModel: 'zai-coding-plan/glm-5.2',
+      role: 'builder',
+      instruction: 'Do not execute prompt',
+    });
+
+    const telemetry = await adapter.telemetry(session);
+    expect(telemetry.usage.inputTokens.value).toBe(6113);
+    expect(telemetry.usage.outputTokens.value).toBe(1078);
+    expect(telemetry.usage.reasoningTokens.value).toBe(4131);
+    expect(telemetry.usage.cacheReadTokens.value).toBe(26368);
+    expect(telemetry.usage.inputTokens.classification).toBe('runtime_reported');
+    // The ACP field mapping has no fixture in 1.18.3, so it is inferred, not verified.
+    expect(telemetry.usage.inputTokens.evidenceStatus).toBe('inferred');
+    // Cost is still unknown: usage is not a price.
+    expect(telemetry.cost.usd.value).toBeNull();
+
+    await adapter.shutdown(session);
   });
 
   it('degrades an incompatible ACP response without enabling sessions', async () => {

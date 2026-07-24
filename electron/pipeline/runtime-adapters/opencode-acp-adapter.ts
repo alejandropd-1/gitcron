@@ -13,8 +13,12 @@ import type {
 } from '../../../types/pipeline';
 import { BoundedJsonlDecoder } from './jsonl-decoder';
 import {
+  asRecord,
   envelope,
   createPipelineIdentity,
+  metricSample,
+  numberValue,
+  unknownTelemetry,
   type EventNormalizationContext,
 } from './normalization';
 import {
@@ -26,7 +30,6 @@ import type { RuntimeAdapter, RuntimeStartRequest } from './runtime-adapter';
 
 const ACP_FIXTURE_REF = 'docs/pipeline/f03/fixtures/opencode-1.18.3-acp-initialize.sanitized.json';
 const SESSION_NEW_FIXTURE_REF = 'docs/pipeline/f03/fixtures/opencode-1.18.3-acp-session-new.sanitized.json';
-const SUMMARY_FIXTURE_REF = 'docs/pipeline/f00/fixtures/opencode-zai-review.sanitized.json';
 const SUPPORTED_RUNTIME_VERSION = '1.18.3';
 const SUPPORTED_PROTOCOL_VERSION = 1;
 
@@ -77,11 +80,14 @@ export const OPENCODE_ACP_DESCRIPTOR: RuntimeDescriptor = {
     {
       capabilityId: 'telemetry.snapshot',
       capabilityVersion: null,
-      availability: 'available',
-      evidenceStatus: 'verified',
+      availability: 'degraded',
+      evidenceStatus: 'pending_fixture',
       targetScopes: ['run', 'session'],
-      constraints: ['runtime-reported cost 0 preserved without assuming free/billing'],
-      evidenceRefs: [SUMMARY_FIXTURE_REF, SESSION_NEW_FIXTURE_REF],
+      constraints: [
+        'usage is only observable from session/update; F03 never sends session/prompt',
+        'no prompt executed means usage and cost stay unknown, never zero',
+      ],
+      evidenceRefs: [SESSION_NEW_FIXTURE_REF],
     },
   ],
 };
@@ -179,9 +185,44 @@ function startSessionRequests(canonicalRepoPath: string): string {
   return `${init}\n${sessionNew}\n`;
 }
 
+export interface OpenCodeAcpUsage {
+  inputTokens: number | null;
+  outputTokens: number | null;
+  reasoningTokens: number | null;
+  cacheReadTokens: number | null;
+}
+
+/**
+ * Extracts usage reported inside a `session/update` notification.
+ * The key spelling is not fixture-backed in 1.18.3, so callers must treat the
+ * result as inferred rather than verified. Returns null when nothing is reported.
+ */
+export function parseSessionUpdateUsage(params: unknown): OpenCodeAcpUsage | null {
+  const container = asRecord(params);
+  if (!container) return null;
+  const usage = asRecord(container.usage) ?? asRecord(asRecord(container.update)?.usage);
+  if (!usage) return null;
+
+  const pick = (...keys: string[]): number | null => {
+    for (const key of keys) {
+      const value = numberValue(usage[key]);
+      if (value !== null) return value;
+    }
+    return null;
+  };
+  const observation: OpenCodeAcpUsage = {
+    inputTokens: pick('inputTokens', 'input_tokens', 'input'),
+    outputTokens: pick('outputTokens', 'output_tokens', 'output'),
+    reasoningTokens: pick('reasoningTokens', 'reasoning_tokens', 'reasoning'),
+    cacheReadTokens: pick('cacheReadTokens', 'cache_read_tokens', 'cacheRead'),
+  };
+  return Object.values(observation).some((value) => value !== null) ? observation : null;
+}
+
 interface ActiveSession {
   handle: RuntimeProcessHandle;
   bufferedEnvelopes: PipelineEventEnvelope[];
+  usage: { value: OpenCodeAcpUsage | null };
 }
 
 export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
@@ -307,6 +348,7 @@ export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
     let initialize: OpenCodeAcpInitialize | null = null;
     let sessionNew: OpenCodeAcpSessionNewResult | null = null;
     const bufferedEnvelopes: PipelineEventEnvelope[] = [];
+    const observedUsage: { value: OpenCodeAcpUsage | null } = { value: null };
 
     const consume = (chunk: Buffer) => {
       for (const record of decoder.push(chunk).records) {
@@ -316,6 +358,7 @@ export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
         if (record && typeof record === 'object') {
           const msg = record as Record<string, unknown>;
           if (msg.method === 'session/update' && msg.params) {
+            observedUsage.value = parseSessionUpdateUsage(msg.params) ?? observedUsage.value;
             sequence++;
             const context: EventNormalizationContext = {
               identity: baseIdentity,
@@ -382,6 +425,7 @@ export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
     this.activeSessions.set(finalSess.sessionId, {
       handle,
       bufferedEnvelopes,
+      usage: observedUsage,
     });
 
     return {
@@ -404,91 +448,35 @@ export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
     }
   }
 
+  /**
+   * Reports only what the ACP stream actually emitted. F03 never sends
+   * `session/prompt`, so with no `session/update` usage everything stays unknown:
+   * an unobserved run is not a zero-cost run.
+   */
   async telemetry(session: RuntimeSession): Promise<RuntimeTelemetrySnapshot> {
-    const sourceRef = SUMMARY_FIXTURE_REF;
     const identity = { ...session.identity };
-    const dedupeScope = `${identity.runId}:${identity.attemptId}`;
+    const sourceRef = 'opencode:acp:session/update';
+    const snapshot = unknownTelemetry(identity, sourceRef);
+    const observed = this.activeSessions.get(identity.sessionId)?.usage.value ?? null;
+    if (!observed) return snapshot;
 
-    const usageMetric = (name: MetricName, value: number | null): MetricSample => ({
-      metricId: `${identity.runId}:${identity.attemptId}:${name}`,
+    // The runtime reported the number, but the ACP field mapping has no fixture
+    // in 1.18.3, so the evidence is inferred rather than verified.
+    const reported = (name: MetricName, value: number | null): MetricSample => metricSample(
       identity,
-      dimension: 'tokens',
-      metricName: name,
+      name,
+      'tokens',
+      'tokens',
       value,
-      unit: 'tokens',
-      classification: value !== null ? 'runtime_reported' : 'unknown',
-      periodStart: null,
-      periodEnd: null,
+      value === null ? 'unknown' : 'runtime_reported',
+      value === null ? 'unknown' : 'inferred',
       sourceRef,
-      formula: null,
-      pricingSource: null,
-      pricingAsOf: null,
-      dedupeScope,
-      evidenceStatus: value !== null ? 'verified' : 'unknown',
-      evidenceRefs: [sourceRef],
-    });
-
-    const costMetric: MetricSample = {
-      metricId: `${identity.runId}:${identity.attemptId}:cost.usd`,
-      identity,
-      dimension: 'cost',
-      metricName: 'cost.usd',
-      value: 0,
-      unit: 'USD',
-      classification: 'runtime_reported',
-      periodStart: null,
-      periodEnd: null,
-      sourceRef,
-      formula: null,
-      pricingSource: null,
-      pricingAsOf: null,
-      dedupeScope,
-      evidenceStatus: 'verified',
-      evidenceRefs: [sourceRef],
-    };
-
-    const contextMetric = (name: MetricName): MetricSample => ({
-      metricId: `${identity.runId}:${identity.attemptId}:${name}`,
-      identity,
-      dimension: 'context',
-      metricName: name,
-      value: null,
-      unit: 'tokens',
-      classification: 'unknown',
-      periodStart: null,
-      periodEnd: null,
-      sourceRef,
-      formula: null,
-      pricingSource: null,
-      pricingAsOf: null,
-      dedupeScope,
-      evidenceStatus: 'unknown',
-      evidenceRefs: [sourceRef],
-    });
-
-    return {
-      usage: {
-        inputTokens: usageMetric('tokens.input', 1280),
-        outputTokens: usageMetric('tokens.output', 187),
-        cacheReadTokens: usageMetric('tokens.cache_read', null),
-        cacheWriteTokens: usageMetric('tokens.cache_write', null),
-        reasoningTokens: usageMetric('tokens.reasoning', null),
-      },
-      context: {
-        maxTokens: contextMetric('context.max_tokens'),
-        currentTokens: contextMetric('context.current_tokens'),
-        historicalTokens: contextMetric('context.historical_tokens'),
-        compactionCount: {
-          ...contextMetric('context.compaction_count'),
-          unit: 'count',
-        },
-      },
-      cost: {
-        usd: costMetric,
-        billingStatus: 'reported',
-      },
-      reasoningVisibility: 'unavailable',
-    };
+    );
+    snapshot.usage.inputTokens = reported('tokens.input', observed.inputTokens);
+    snapshot.usage.outputTokens = reported('tokens.output', observed.outputTokens);
+    snapshot.usage.reasoningTokens = reported('tokens.reasoning', observed.reasoningTokens);
+    snapshot.usage.cacheReadTokens = reported('tokens.cache_read', observed.cacheReadTokens);
+    return snapshot;
   }
 
   async shutdown(session: RuntimeSession): Promise<void> {

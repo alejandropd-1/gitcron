@@ -46,11 +46,12 @@
       "kind": "structured-cli",
       "transport": "acp-ndjson-stdio",
       "fixture": "fixtures/opencode-1.18.3-acp-session-new.sanitized.json",
-      "telemetryFixture": "../f00/fixtures/opencode-zai-review.sanitized.json",
       "fixtureStatus": "verified",
       "implementationConstraints": [
         "ACP initialize and session/new are verified via stdio NDJSON in a temporary repository without requesting prompt inference.",
-        "The telemetry fixture is a sanitized execution summary; runtime-reported cost 0 is preserved without assuming free or real billing.",
+        "Session telemetry comes only from session/update. F03 never sends session/prompt, so usage and cost stay unknown: an unobserved run is not a zero-cost run.",
+        "../f00/fixtures/opencode-zai-review.sanitized.json documents a past run and is no longer used as this session's telemetry value.",
+        "When session/update does carry usage it is runtime_reported with evidenceStatus inferred: the ACP field mapping has no fixture in 1.18.3.",
         "opencode run accepts the prompt as a positional argument in argv; GitCron uses ACP stdio exclusively.",
         "session/prompt and prompt-time session/update streaming remain pending separate human approval."
       ],
@@ -60,8 +61,8 @@
         "session.start": "verified",
         "session.resume": "pending_fixture",
         "events.stream": "pending_fixture",
-        "telemetry.usage": "verified",
-        "telemetry.cost": "verified",
+        "telemetry.usage": "pending_fixture",
+        "telemetry.cost": "unknown",
         "telemetry.context": "pending_fixture",
         "reasoning.emitted": "unavailable"
       }
@@ -73,10 +74,13 @@
       "kind": "wrapper",
       "fixture": null,
       "fixtureStatus": "pending_fixture",
+      "capabilityNote": "The wrapper modeling is about OBSERVABILITY, not about what Antigravity can do. As an agent it is a full peer of Claude Code / Codex / OpenCode: agy exposes --print (non-interactive), --model, --effort, --mode (plan|accept-edits), --sandbox, --add-dir, --conversation (resume by id), plus agents, models and plugin subcommands. What it lacks is a machine-readable event stream.",
       "implementationConstraints": [
-        "agy 1.1.5 does not offer an official JSONL event stream CLI flag.",
+        "agy 1.1.5/1.1.6 exposes no --json / --output-format / --stream flag: --print emits prose, so there is nothing structured to parse.",
         "GitCron models agy as a process lifecycle wrapper without applying regex to raw stdout/stderr text.",
-        "Telemetry and token metrics remain unknown without inventing zero values or assumed billing status."
+        "Telemetry and token metrics remain unknown without inventing zero values or assumed billing status.",
+        "VERSION DRIFT: the adapter baseline is 1.1.5 but the operator machine has 1.1.6 installed; discover() degrades to pending_fixture as designed. Revalidation pending.",
+        "UNEXPLORED: agy exposes --remote-control, a mode not documented in --help. If it carries a structured protocol, agy could become a first-class adapter instead of a blind wrapper. Tracked in docs/02_ROADMAP.md."
       ],
       "capabilities": {
         "discover": "verified",
@@ -96,15 +100,28 @@
       "provider": "LM Studio",
       "version": "9902c3a",
       "kind": "openai-compatible",
-      "fixture": "../f00/fixtures/lmstudio-classification.sanitized.json",
+      "transport": "openai-http",
+      "fixture": "fixtures/lmstudio-9902c3a-openai-http.sanitized.json",
+      "usageFixture": "../f00/fixtures/lmstudio-classification.sanitized.json",
       "fixtureStatus": "verified",
+      "scopeNote": "F03 models LM Studio as an observable provider only. LM Studio also exposes POST /api/v1/chat with MCP integrations and a server-side agentic loop, which would qualify it as a runtime; that is out of F03 scope and tracked in docs/02_ROADMAP.md.",
+      "implementationConstraints": [
+        "health and models.list prefer the native GET /api/v1/models catalog (max_context_length, loaded_instances, trained_for_tool_use) and fall back to /v1/models, which downgrades evidence to pending_fixture.",
+        "context.max_tokens is resolved by model key against the catalog; with an unknown model and more than one loaded instance it stays unknown instead of guessing.",
+        "all HTTP goes over node:http to loopback only; a non-loopback base URL is rejected.",
+        "discover parses the real `CLI commit: <sha>` from lms --version; a different commit degrades to pending_fixture instead of claiming the baseline.",
+        "telemetry.usage stays unknown until a real OpenAI-compatible response is ingested via recordCompletionUsage(); fields the provider omits stay null, never zero.",
+        "cost 0 is local_unpriced because local inference has no per-token price; evidenceStatus is inferred until a real response is observed.",
+        "No inference is executed: POST /v1/chat/completions, model load and unload are never invoked."
+      ],
       "capabilities": {
         "discover": "verified",
         "health": "verified",
+        "models.list": "verified",
         "models.loaded": "verified",
-        "telemetry.usage": "verified",
+        "telemetry.usage": "degraded",
         "telemetry.cost.local_unpriced": "verified",
-        "telemetry.context": "verified",
+        "telemetry.context": "degraded",
         "reasoning.emitted": "not_applicable"
       }
     }

@@ -115,8 +115,13 @@ observa sesiones directas de los runtimes mediante sus propios adaptadores.
   integrable comprobada.
 - **OpenCode:** builder alternativo y candidato fuerte para integración estructurada mediante
   sesiones, JSON y ACP.
-- **LM Studio:** proveedor local y herramienta de extracción/clasificación mecánica; no es un
-  orquestador ni el auditor final.
+- **LM Studio:** proveedor local y herramienta de extracción/clasificación mecánica; no es el auditor final.
+  > ⚠️ **Actualización 2026-07-24 (auditoría F03).** La frase original decía además "no es un orquestador".
+  > Eso quedó desactualizado: LM Studio expone `POST /api/v1/chat` con integraciones MCP y corre el bucle
+  > agéntico del lado del servidor (devuelve `output[]` con `tool_call` y `stats` con usage), tiene daemon
+  > headless (`llmster`) y app agéntica separada (Bionic). **Sí puede actuar como runtime.** F03 lo implementó
+  > sólo como proveedor observable; el runtime agéntico está anotado en `docs/02_ROADMAP.md` como fase aparte.
+  > Lo que sigue vigente es el criterio de rol: no se le delega veredicto ni auditoría final.
 
 Estos roles son recomendaciones, no verdades eternas. Cada fase debe verificar versiones,
 capabilities y modelos reales antes de depender de ellos.

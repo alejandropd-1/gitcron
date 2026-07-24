@@ -83,6 +83,35 @@ La comprensión asistida por IA se puede entregar por **dos caminos compatibles 
 
 ---
 
+## 🔭 Hallazgo Pipeline F03 (2026-07-24) — LM Studio ya no es sólo un proveedor
+
+Detectado durante la auditoría de F03, **fuera del alcance de esa fase**. Queda anotado acá, sin implementar.
+
+La premisa de F00/F03 ("LM Studio es proveedor local, no orquestador" — `docs/pipeline/CONTEXTO-INTEGRAL.md`)
+quedó desactualizada. Verificado contra la instalación real (LM Studio 0.4.19, CLI `9902c3a`):
+
+- `POST /api/v1/chat` **existe** (400 con body inválido, no 404). Según la documentación acepta un campo
+  `integrations` (MCP efímero o servidores del `mcp.json`) y **corre el bucle agéntico del lado del servidor**:
+  el modelo llama herramientas, LM Studio las ejecuta, y devuelve `output[]` con entradas `reasoning`,
+  `message` y `tool_call`, más `stats` con `input_tokens`, `total_output_tokens` y `reasoning_output_tokens`.
+- `GET /api/v1/models` expone `max_context_length`, `loaded_instances` y `capabilities.trained_for_tool_use`.
+  En esta máquina: **11 de 12 modelos son tool-use capable**, con ventanas de hasta 262144 tokens.
+- **`llmster`** es el daemon headless de LM Studio (sin GUI) para servidores y CI.
+- **Bionic** es una app separada con *Code Projects* (file, search, Git y shell tools).
+
+**Implicancia para el track Pipeline:** LM Studio califica como *runtime* observable, no sólo como provider —
+y con un stream más rico que `agy`. Sería un adaptador nuevo (`session/start` sobre `/api/v1/chat`, eventos
+desde `output[]`, telemetría desde `stats`). Merece su propia fase y su propio brief: implica **ejecutar
+inferencia real** para capturar fixtures, lo cual requiere autorización explícita.
+
+**Además, deuda menor detectada:** el adaptador `agy` fija la baseline en `1.1.5` pero la CLI instalada es
+**`1.1.6`** (degrada a `pending_fixture` correctamente, pero conviene revalidar). Y `agy` expone
+**`--remote-control`**, un modo sin documentar en `--help` que podría ser una superficie estructurada:
+si lo fuera, `agy` dejaría de estar modelado como wrapper ciego y pasaría a adaptador de primera clase.
+Vale una exploración acotada.
+
+---
+
 ## Flujo de trabajo (recordatorio)
 
 1. Pegás el brief de la fase al ejecutor (Claude Code / Codex / Antigravity / OpenCode).

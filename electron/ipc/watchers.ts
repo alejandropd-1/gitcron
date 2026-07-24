@@ -29,7 +29,10 @@ function enqueueWatcherOperation<T>(targetPath: string, operation: () => Promise
   return next;
 }
 
-export function registerWatcherHandlers(getMainWindow: () => BrowserWindow | null): void {
+export function registerWatcherHandlers(
+  getMainWindow: () => BrowserWindow | null,
+  onRepoChanged?: (repoPath: string) => void,
+): void {
   ipcMain.handle('repo:watch', (_event, targetPath: string) => (
     enqueueWatcherOperation(targetPath, () => {
       if (repoWatchers.has(targetPath)) return { success: true };
@@ -45,6 +48,7 @@ export function registerWatcherHandlers(getMainWindow: () => BrowserWindow | nul
           if (debounceTimer) clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
             getMainWindow()?.webContents.send('repo:fs-change', { repoPath: targetPath });
+            onRepoChanged?.(targetPath);
           }, 250);
         };
         watcher.on('add', emit).on('change', emit).on('unlink', emit)

@@ -21,6 +21,7 @@ import { registerCartoGraphHandlers } from './ipc/carto-graph';
 import { registerCartoAiHandlers } from './ipc/carto-ai';
 import { closeAllGraphs } from './carto/graph-engine';
 import { registerWatcherHandlers, closeAllRepoWatchers } from './ipc/watchers';
+import { registerPipelineHandlers } from './ipc/pipeline';
 import {
   registerAppWindowHandlers, setupAutoUpdater,
   silentCheckForUpdates, stopUpdateCheckTimer,
@@ -262,7 +263,8 @@ registerShellHandlers();           // shell:* + terminal:open + fs:delete-file
 registerCartoHandlers();           // carto:* handlers generales (sin canales activos en Fase 10)
 registerCartoGraphHandlers(getMainWindow); // carto:graph-* (CodeGraph embebido, local, solo lectura)
 registerCartoAiHandlers();         // carto:ai-* (proveedor de IA local/online; opt-in; secretos sólo en main)
-registerWatcherHandlers(getMainWindow);          // repo:watch/unwatch
+const notifyPipelineRepoChanged = registerPipelineHandlers(getMainWindow); // pipeline:* read-only
+registerWatcherHandlers(getMainWindow, notifyPipelineRepoChanged);          // repo:watch/unwatch
 registerAppWindowHandlers(getMainWindow, isDev); // app:* + window:*
 
 // Single-instance lock: if a second instance is launched (e.g. user

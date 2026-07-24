@@ -20,9 +20,9 @@
 
 - [x] 3.1 Comparar JSON CLI, ACP y server con evidencia de versión actual y documentar transporte elegido
 - [x] 3.2 Capturar o confirmar fixture OpenCode directo y fixture Z.ai vía OpenCode con autorización
-- [ ] 3.3 Implementar normalizador/adaptador OpenCode con thinking opt-in y provider/model separados
-- [ ] 3.4 Normalizar stats de tokens/costo con procedencia, filtro por proyecto y dedupe
-- [ ] 3.5 Ejecutar conformance focalizada de OpenCode/Z.ai, loopback y cleanup
+- [x] 3.3 Implementar normalizador/adaptador OpenCode con thinking opt-in y provider/model separados
+- [x] 3.4 Normalizar stats de tokens/costo con procedencia, filtro por proyecto y dedupe
+- [x] 3.5 Ejecutar conformance focalizada de OpenCode/Z.ai, loopback y cleanup
 
 ## 4. TANDA 3 — Antigravity
 

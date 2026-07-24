@@ -1,0 +1,82 @@
+{
+  "capturedAt": "2026-07-24",
+  "runtime": "opencode",
+  "version": "1.18.3",
+  "transport": "acp-ndjson-stdio",
+  "request": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "session/new",
+    "params": {
+      "cwd": "/sanitized/repo/path",
+      "mcpServers": []
+    }
+  },
+  "response": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+      "sessionId": "ses_sanitized_0000000000000000000000",
+      "configOptions": [
+        {
+          "id": "model",
+          "name": "Model",
+          "category": "model",
+          "type": "select",
+          "currentValue": "opencode/big-pickle",
+          "options": [
+            {
+              "value": "zai-coding-plan/glm-5.2",
+              "name": "Z.AI Coding Plan/GLM-5.2"
+            },
+            {
+              "value": "opencode/big-pickle",
+              "name": "OpenCode Zen/Big Pickle"
+            }
+          ]
+        },
+        {
+          "id": "mode",
+          "name": "Session Mode",
+          "category": "mode",
+          "type": "select",
+          "currentValue": "build",
+          "options": [
+            {
+              "value": "build",
+              "name": "build",
+              "description": "The default agent. Executes tools based on configured permissions."
+            },
+            {
+              "value": "plan",
+              "name": "plan",
+              "description": "Plan mode. Disallows all edit tools."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "notifications": [
+    {
+      "jsonrpc": "2.0",
+      "method": "session/update",
+      "params": {
+        "sessionId": "ses_sanitized_0000000000000000000000",
+        "update": {
+          "sessionUpdate": "available_commands_update",
+          "availableCommands": [
+            {
+              "name": "init",
+              "description": "guided AGENTS.md setup"
+            },
+            {
+              "name": "review",
+              "description": "review changes [commit|branch|pr], defaults to uncommitted"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

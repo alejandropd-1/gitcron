@@ -45,14 +45,14 @@
       "version": "1.18.3",
       "kind": "structured-cli",
       "transport": "acp-ndjson-stdio",
-      "fixture": "fixtures/opencode-1.18.3-acp-initialize.sanitized.json",
+      "fixture": "fixtures/opencode-1.18.3-acp-session-new.sanitized.json",
       "telemetryFixture": "../f00/fixtures/opencode-zai-review.sanitized.json",
-      "fixtureStatus": "verified_degraded",
+      "fixtureStatus": "verified",
       "implementationConstraints": [
-        "ACP initialize is verified without creating a session or requesting inference.",
-        "The telemetry fixture is a sanitized execution summary, not the raw session/update stream.",
-        "opencode run accepts the prompt as a positional argument; GitCron does not expose arbitrary instructions through argv.",
-        "session/new, session/prompt and session/update remain pending_fixture for runtime 1.18.3."
+        "ACP initialize and session/new are verified via stdio NDJSON in a temporary repository without requesting prompt inference.",
+        "The telemetry fixture is a sanitized execution summary; runtime-reported cost 0 is preserved without assuming free or real billing.",
+        "opencode run accepts the prompt as a positional argument in argv; GitCron uses ACP stdio exclusively.",
+        "session/prompt and prompt-time session/update streaming remain pending separate human approval."
       ],
       "capabilities": {
         "discover": "verified",
@@ -63,7 +63,7 @@
         "telemetry.usage": "verified",
         "telemetry.cost": "verified",
         "telemetry.context": "pending_fixture",
-        "reasoning.emitted": "pending_fixture"
+        "reasoning.emitted": "unavailable"
       }
     },
     {

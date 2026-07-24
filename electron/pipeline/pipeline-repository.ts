@@ -59,6 +59,26 @@ export class PipelineRepository {
     }
   }
 
+  persistRuntimeEnvelope(binding: PipelineRepoBinding, envelope: unknown): { sequence: number } {
+    this.db.exec('BEGIN');
+    try {
+      const row = this.db.prepare('SELECT COALESCE(MAX(sequence), 0) AS sequence FROM pipeline_event WHERE repo_id = ?').get(binding.repoId) as { sequence: number };
+      const sequence = Number(row.sequence) + 1;
+      const envObj = envelope as { eventId?: string; kind?: string; observedAt?: string };
+      const eventId = envObj.eventId ?? randomUUID();
+      const kind = envObj.kind ?? 'runtime.envelope';
+      const observedAt = envObj.observedAt ?? this.now();
+      this.db.prepare(`INSERT INTO pipeline_event (repo_id, event_id, sequence, kind, observed_at, payload_json) VALUES (?, ?, ?, ?, ?, ?)`)
+        .run(binding.repoId, eventId, sequence, kind, observedAt, stringifyPipelineValue(envelope));
+      this.db.prepare('UPDATE pipeline_repo SET updated_at = ? WHERE repo_id = ?').run(this.now(), binding.repoId);
+      this.db.exec('COMMIT');
+      return { sequence };
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
   loadSnapshot(repoId: string): { sequence: number; state: PipelineState; capturedAt: string } | null {
     const row = this.db.prepare('SELECT sequence, state_json, captured_at FROM pipeline_snapshot WHERE repo_id = ?').get(repoId) as SnapshotRow | undefined;
     return row ? { sequence: row.sequence, state: JSON.parse(row.state_json) as PipelineState, capturedAt: row.captured_at } : null;

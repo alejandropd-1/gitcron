@@ -61,4 +61,28 @@ describe('PipelineRepository', () => {
       db.close();
     }
   });
+
+  it('persists sanitized runtime envelopes per repo', () => {
+    const db = openTemporalAgentDatabase(':memory:');
+    try {
+      const repository = new PipelineRepository(db, () => '2026-07-23T20:00:00.000Z');
+      const binding = repository.getOrCreateBinding('C:/repo', 'digest');
+      const envelope = {
+        schemaVersion: '1.0',
+        eventId: 'env-1',
+        sequence: 1,
+        kind: 'session.update',
+        observedAt: '2026-07-24T00:00:00.000Z',
+        payload: { status: 'active', authorization: 'do-not-store' },
+      };
+      const result = repository.persistRuntimeEnvelope(binding, envelope);
+      expect(result.sequence).toBe(1);
+      expect(repository.eventCount(binding.repoId)).toBe(1);
+      const raw = db.prepare('SELECT payload_json FROM pipeline_event WHERE repo_id = ? AND event_id = ?').get(binding.repoId, 'env-1') as { payload_json: string };
+      expect(raw.payload_json).not.toContain('do-not-store');
+      expect(raw.payload_json).toContain('[REDACTED]');
+    } finally {
+      db.close();
+    }
+  });
 });

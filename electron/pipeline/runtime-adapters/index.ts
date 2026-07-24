@@ -5,6 +5,7 @@ export * from './codex-adapter';
 export * from './codex-normalizer';
 export * from './conformance';
 export * from './jsonl-decoder';
+export * from './lmstudio-adapter';
 export * from './opencode-acp-adapter';
 export * from './process-runner';
 export * from './runtime-adapter';

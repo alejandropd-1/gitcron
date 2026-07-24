@@ -32,16 +32,16 @@
 
 ## 5. TANDA 4 — LM Studio
 
-- [ ] 5.1 Revalidar health y `lms ps --json` sin auto-start, load o unload
-- [ ] 5.2 Implementar provider LM Studio mediante cliente main-only/OpenAI-compatible sin exponer socket al renderer
-- [ ] 5.3 Normalizar modelo, contexto y usage; clasificar costo `local_unpriced`
-- [ ] 5.4 Probar server caído, modelo ausente, usage ausente y respuesta local sanitizada
+- [x] 5.1 Revalidar health y `lms ps --json` sin auto-start, load o unload
+- [x] 5.2 Implementar provider LM Studio mediante cliente main-only/OpenAI-compatible sin exponer socket al renderer
+- [x] 5.3 Normalizar modelo, contexto y usage; clasificar costo `local_unpriced`
+- [x] 5.4 Probar server caído, modelo ausente, usage ausente y respuesta local sanitizada
 
 ## 6. TANDA 5 — Integración y cierre
 
-- [ ] 6.1 Integrar envelopes y métricas sanitizados con persistencia per-repo sin control público
-- [ ] 6.2 Ejecutar conformance completa de orden, dedupe, parciales, crash, timeout, cleanup, unknown y redacción
-- [ ] 6.3 Ejecutar typecheck, tests, gate full y Fallow; registrar exit codes y deuda heredada separada
-- [ ] 6.4 Solicitar auditoría independiente de otra familia y corregir hallazgos P0/P1
-- [ ] 6.5 Escribir reporte por runtime, tabla PASS/DEGRADED/NO SOPORTADO y actualizar tablero a Lista para QA
-- [ ] 6.6 Entregar diff y comandos exactos sugeridos sin stage, commit ni push; STOP
+- [x] 6.1 Integrar envelopes y métricas sanitizados con persistencia per-repo sin control público
+- [x] 6.2 Ejecutar conformance completa de orden, dedupe, parciales, crash, timeout, cleanup, unknown y redacción
+- [x] 6.3 Ejecutar typecheck, tests, gate full y Fallow; registrar exit codes y deuda heredada separada
+- [x] 6.4 Solicitar auditoría independiente de otra familia y corregir hallazgos P0/P1
+- [x] 6.5 Escribir reporte por runtime, tabla PASS/DEGRADED/NO SOPORTADO y actualizar tablero a Lista para QA
+- [x] 6.6 Entregar diff y comandos exactos sugeridos sin stage, commit ni push; STOP

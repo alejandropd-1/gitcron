@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "1.0",
+  "capturedAt": "2026-07-24",
+  "adapters": [
+    {
+      "adapterId": "claude-code",
+      "runtime": "claude",
+      "version": "2.1.206",
+      "kind": "native-stream",
+      "fixture": "fixtures/claude-2.1.206-stream.sanitized.jsonl",
+      "fixtureStatus": "verified",
+      "capabilities": {
+        "discover": "verified",
+        "health": "inferred",
+        "session.start": "verified",
+        "events.stream": "verified",
+        "telemetry.usage": "verified",
+        "telemetry.cost": "verified",
+        "telemetry.context": "verified",
+        "reasoning.emitted": "verified"
+      }
+    },
+    {
+      "adapterId": "codex-cli",
+      "runtime": "codex",
+      "version": "0.143.0",
+      "kind": "structured-cli",
+      "fixture": "fixtures/codex-0.143.0-exec.sanitized.jsonl",
+      "fixtureStatus": "verified_degraded",
+      "capabilities": {
+        "discover": "verified",
+        "health": "inferred",
+        "session.start": "verified",
+        "session.resume": "pending_fixture",
+        "events.stream": "verified",
+        "telemetry.usage": "verified",
+        "telemetry.cost": "unknown",
+        "telemetry.context": "unknown",
+        "reasoning.emitted": "unavailable"
+      }
+    },
+    {
+      "adapterId": "opencode",
+      "runtime": "opencode",
+      "version": "1.18.3",
+      "kind": "structured-cli",
+      "transport": "acp-ndjson-stdio",
+      "fixture": "fixtures/opencode-1.18.3-acp-initialize.sanitized.json",
+      "telemetryFixture": "../f00/fixtures/opencode-zai-review.sanitized.json",
+      "fixtureStatus": "verified_degraded",
+      "implementationConstraints": [
+        "ACP initialize is verified without creating a session or requesting inference.",
+        "The telemetry fixture is a sanitized execution summary, not the raw session/update stream.",
+        "opencode run accepts the prompt as a positional argument; GitCron does not expose arbitrary instructions through argv.",
+        "session/new, session/prompt and session/update remain pending_fixture for runtime 1.18.3."
+      ],
+      "capabilities": {
+        "discover": "verified",
+        "health": "verified",
+        "session.start": "verified",
+        "session.resume": "pending_fixture",
+        "events.stream": "pending_fixture",
+        "telemetry.usage": "verified",
+        "telemetry.cost": "verified",
+        "telemetry.context": "pending_fixture",
+        "reasoning.emitted": "pending_fixture"
+      }
+    },
+    {
+      "adapterId": "agy-wrapper",
+      "runtime": "agy",
+      "version": "1.1.5",
+      "kind": "wrapper",
+      "fixture": null,
+      "fixtureStatus": "pending_fixture",
+      "capabilities": {
+        "discover": "verified",
+        "health": "inferred",
+        "session.start": "pending_fixture",
+        "events.stream": "unknown",
+        "lifecycle.wrapper": "inferred",
+        "telemetry.usage": "unknown",
+        "telemetry.cost": "unknown",
+        "telemetry.context": "unknown",
+        "reasoning.emitted": "unknown"
+      }
+    },
+    {
+      "adapterId": "lmstudio-provider",
+      "runtime": "unknown",
+      "provider": "LM Studio",
+      "version": "9902c3a",
+      "kind": "openai-compatible",
+      "fixture": "../f00/fixtures/lmstudio-classification.sanitized.json",
+      "fixtureStatus": "verified",
+      "capabilities": {
+        "discover": "verified",
+        "health": "verified",
+        "models.loaded": "verified",
+        "telemetry.usage": "verified",
+        "telemetry.cost.local_unpriced": "verified",
+        "telemetry.context": "verified",
+        "reasoning.emitted": "not_applicable"
+      }
+    }
+  ]
+}

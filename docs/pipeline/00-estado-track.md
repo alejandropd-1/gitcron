@@ -18,9 +18,9 @@ Fecha de creación: 2026-07-12
 | Fase | Estado actual | Rama | Prerrequisito | Prompt de ejecución | Reporte |
 |---|---|---|---|---|---|
 | F00 | Completada | `pipeline/fase-00-contrato` | Ninguno | [`prompts/fase-00-contrato.md`](prompts/fase-00-contrato.md) | [`2026-07-23-pipeline-fase-00-contrato.md`](../reports/2026-07-23-pipeline-fase-00-contrato.md) |
-| F01 | Lista para QA | `pipeline/fase-01-modelo-evidencia` | F00 completada + gate base versionado/verde | [`prompts/fase-01-modelo-evidencia.md`](prompts/fase-01-modelo-evidencia.md) | [`2026-07-23-pipeline-fase-01-modelo-evidencia.md`](../reports/2026-07-23-pipeline-fase-01-modelo-evidencia.md) |
+| F01 | Completada | `pipeline/fase-01-modelo-evidencia` | F00 completada + gate base versionado/verde | [`prompts/fase-01-modelo-evidencia.md`](prompts/fase-01-modelo-evidencia.md) | [`2026-07-23-pipeline-fase-01-modelo-evidencia.md`](../reports/2026-07-23-pipeline-fase-01-modelo-evidencia.md) |
 | F02 (opcional) | Planificada | `pipeline/fase-02-hermes-adapter-opcional` | F01 completada; no bloquea el core | [`prompts/fase-02-hermes-adapter-opcional.md`](prompts/fase-02-hermes-adapter-opcional.md) | Pendiente |
-| F03 | Planificada | `pipeline/fase-03-runtime-adapters` | F01 completada; independiente de F02 | [`prompts/fase-03-runtime-adapters.md`](prompts/fase-03-runtime-adapters.md) | Pendiente |
+| F03 | En curso | `pipeline/fase-03-runtime-adapters` | F01 completada; independiente de F02 | [`prompts/fase-03-runtime-adapters.md`](prompts/fase-03-runtime-adapters.md) | Pendiente |
 | F04 | Planificada | `pipeline/fase-04-workspace-ui` | F03 completada | [`prompts/fase-04-workspace-ui.md`](prompts/fase-04-workspace-ui.md) | Pendiente |
 | F05 | Planificada | `pipeline/fase-05-control-supervisado` | F04 completada y QA visual | [`prompts/fase-05-control-supervisado.md`](prompts/fase-05-control-supervisado.md) | Pendiente |
 | F06 | Planificada | `pipeline/fase-06-modelos-presupuestos` | F05 completada | [`prompts/fase-06-modelos-presupuestos.md`](prompts/fase-06-modelos-presupuestos.md) | Pendiente |

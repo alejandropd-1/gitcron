@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0",
+  "runtime": "claude",
+  "runtimeVersion": "2.1.206",
+  "transport": "stream-json",
+  "capturedAt": "2026-07-24",
+  "orchestrationMode": "direct",
+  "fixtureStatus": "verified",
+  "rawEventCount": 33,
+  "retainedRepresentativeEventCount": 8,
+  "exitCode": 0,
+  "stderrBytes": 0,
+  "requestedModel": null,
+  "reportedModel": "claude-sonnet-5",
+  "resultMatchedFixture": true,
+  "billingSemantics": "runtime_reported_billing_unknown",
+  "captureAttemptCount": 2,
+  "captureNotes": [
+    "The first command was rejected before inference because variadic tool flags consumed the prompt.",
+    "The successful capture used a fictitious repository and Read-only tool allowlist.",
+    "Raw output was stored outside the repository and removed after sanitization."
+  ]
+}

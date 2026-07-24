@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureType": "real-sanitized-acp-initialize",
+  "runtime": "opencode",
+  "runtimeVersion": "1.18.3",
+  "transport": "acp-ndjson-stdio",
+  "request": {
+    "jsonrpc": "2.0",
+    "id": 0,
+    "method": "initialize",
+    "params": {
+      "protocolVersion": 1,
+      "clientCapabilities": {},
+      "clientInfo": {
+        "name": "gitcron-fixture",
+        "title": "GitCron Fixture",
+        "version": "0.0.0"
+      }
+    }
+  },
+  "response": {
+    "jsonrpc": "2.0",
+    "id": 0,
+    "result": {
+      "protocolVersion": 1,
+      "agentCapabilities": {
+        "loadSession": true,
+        "mcpCapabilities": {
+          "http": true,
+          "sse": true
+        },
+        "promptCapabilities": {
+          "embeddedContext": true,
+          "image": true
+        },
+        "sessionCapabilities": {
+          "close": {},
+          "fork": {},
+          "list": {},
+          "resume": {}
+        }
+      },
+      "agentInfo": {
+        "name": "OpenCode",
+        "title": null,
+        "version": "1.18.3"
+      },
+      "authMethodCount": 1,
+      "authMethodFieldSets": [
+        [
+          "description",
+          "id",
+          "name"
+        ]
+      ]
+    }
+  },
+  "capture": {
+    "inferenceRequested": false,
+    "sessionCreated": false,
+    "stderrBytes": 0,
+    "ownedProcessClosed": true
+  }
+}

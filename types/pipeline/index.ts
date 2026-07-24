@@ -140,3 +140,5 @@ export interface ReductionResult {
   state: PipelineState;
   events: PipelineSemanticEvent[];
 }
+
+export * from './runtime';

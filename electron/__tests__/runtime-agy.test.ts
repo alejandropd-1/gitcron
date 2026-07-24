@@ -28,14 +28,16 @@ class AgyTestRunner extends RuntimeProcessRunner {
 }
 
 describe('Antigravity (agy) wrapper adapter', () => {
-  it('probes version and returns healthy status for baseline 1.1.5', async () => {
-    const runner = new AgyTestRunner('1.1.5\n');
+  // Both surfaces were audited for the wrapper contract: neither exposes a
+  // structured output flag, so both are legitimate verified baselines.
+  it.each(['1.1.5', '1.1.6'])('probes version and returns healthy status for audited %s', async (version) => {
+    const runner = new AgyTestRunner(`${version}\n`);
     const adapter = createAgyWrapperRuntimeAdapter('C:\\fixture\\repo', 'agy', runner, () => '2026-07-24T00:00:00.000Z');
 
     const discovery = await adapter.discover();
     expect(discovery).toMatchObject({
       installed: true,
-      runtimeVersion: '1.1.5',
+      runtimeVersion: version,
       evidenceStatus: 'verified',
     });
 
@@ -46,6 +48,16 @@ describe('Antigravity (agy) wrapper adapter', () => {
     });
 
     expect(validateRuntimeAdapterContract(adapter)).toEqual([]);
+  });
+
+  it('reports the real version it observed even when it is outside the baseline', async () => {
+    const runner = new AgyTestRunner('1.2.0\n');
+    const adapter = createAgyWrapperRuntimeAdapter('C:\\fixture\\repo', 'agy', runner);
+
+    const discovery = await adapter.discover();
+    expect(discovery.runtimeVersion).toBe('1.2.0');
+    expect(discovery.evidenceStatus).toBe('pending_fixture');
+    expect(discovery.diagnostics).toContain('Installed agy version is outside the audited baseline set');
   });
 
   it('returns unknown telemetry without assuming dummy zeros or free billing', async () => {
@@ -87,7 +99,7 @@ describe('Antigravity (agy) wrapper adapter', () => {
     expect(telemetry.reasoningVisibility).toBe('unavailable');
   });
 
-  it('degrades when installed agy version differs from expected 1.1.5 baseline', async () => {
+  it('degrades when the installed agy version is far outside the baseline', async () => {
     const runner = new AgyTestRunner('2.0.0\n');
     const adapter = createAgyWrapperRuntimeAdapter('C:\\fixture\\repo', 'agy', runner);
 

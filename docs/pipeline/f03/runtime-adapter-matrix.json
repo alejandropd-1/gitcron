@@ -70,16 +70,17 @@
     {
       "adapterId": "agy-wrapper",
       "runtime": "agy",
-      "version": "1.1.5",
+      "version": "1.1.6",
+      "auditedVersions": ["1.1.5", "1.1.6"],
       "kind": "wrapper",
-      "fixture": null,
-      "fixtureStatus": "pending_fixture",
+      "fixture": "fixtures/agy-1.1.6-cli-surface.sanitized.json",
+      "fixtureStatus": "verified",
       "capabilityNote": "The wrapper modeling is about OBSERVABILITY, not about what Antigravity can do. As an agent it is a full peer of Claude Code / Codex / OpenCode: agy exposes --print (non-interactive), --model, --effort, --mode (plan|accept-edits), --sandbox, --add-dir, --conversation (resume by id), plus agents, models and plugin subcommands. What it lacks is a machine-readable event stream.",
       "implementationConstraints": [
         "agy 1.1.5/1.1.6 exposes no --json / --output-format / --stream flag: --print emits prose, so there is nothing structured to parse.",
         "GitCron models agy as a process lifecycle wrapper without applying regex to raw stdout/stderr text.",
         "Telemetry and token metrics remain unknown without inventing zero values or assumed billing status.",
-        "VERSION DRIFT: the adapter baseline is 1.1.5 but the operator machine has 1.1.6 installed; discover() degrades to pending_fixture as designed. Revalidation pending.",
+        "1.1.6 revalidated on 2026-07-24: --help exposes zero json/output-format/stream/jsonl flags, so the wrapper contract holds unchanged. Both 1.1.5 and 1.1.6 are audited baselines; anything else degrades to pending_fixture while still reporting the version actually observed.",
         "UNEXPLORED: agy exposes --remote-control, a mode not documented in --help. If it carries a structured protocol, agy could become a first-class adapter instead of a blind wrapper. Tracked in docs/02_ROADMAP.md."
       ],
       "capabilities": {
@@ -102,7 +103,7 @@
       "kind": "openai-compatible",
       "transport": "openai-http",
       "fixture": "fixtures/lmstudio-9902c3a-openai-http.sanitized.json",
-      "usageFixture": "../f00/fixtures/lmstudio-classification.sanitized.json",
+      "usageFixture": "fixtures/lmstudio-9902c3a-usage.sanitized.json",
       "fixtureStatus": "verified",
       "scopeNote": "F03 models LM Studio as an observable provider only. LM Studio also exposes POST /api/v1/chat with MCP integrations and a server-side agentic loop, which would qualify it as a runtime; that is out of F03 scope and tracked in docs/02_ROADMAP.md.",
       "implementationConstraints": [
@@ -111,6 +112,7 @@
         "all HTTP goes over node:http to loopback only; a non-loopback base URL is rejected.",
         "discover parses the real `CLI commit: <sha>` from lms --version; a different commit degrades to pending_fixture instead of claiming the baseline.",
         "telemetry.usage stays unknown until a real OpenAI-compatible response is ingested via recordCompletionUsage(); fields the provider omits stay null, never zero.",
+        "Verified end to end on 2026-07-24 against a real local completion: prompt_tokens 18, completion_tokens 32, reasoning_tokens 32 under usage.completion_tokens_details, context 262144 resolved from the catalog. LM Studio reports no cache tokens, so those stay null.",
         "cost 0 is local_unpriced because local inference has no per-token price; evidenceStatus is inferred until a real response is observed.",
         "No inference is executed: POST /v1/chat/completions, model load and unload are never invoked."
       ],
@@ -119,9 +121,9 @@
         "health": "verified",
         "models.list": "verified",
         "models.loaded": "verified",
-        "telemetry.usage": "degraded",
+        "telemetry.usage": "verified",
         "telemetry.cost.local_unpriced": "verified",
-        "telemetry.context": "degraded",
+        "telemetry.context": "verified",
         "reasoning.emitted": "not_applicable"
       }
     }

@@ -104,11 +104,17 @@ y con un stream más rico que `agy`. Sería un adaptador nuevo (`session/start` 
 desde `output[]`, telemetría desde `stats`). Merece su propia fase y su propio brief: implica **ejecutar
 inferencia real** para capturar fixtures, lo cual requiere autorización explícita.
 
-**Además, deuda menor detectada:** el adaptador `agy` fija la baseline en `1.1.5` pero la CLI instalada es
-**`1.1.6`** (degrada a `pending_fixture` correctamente, pero conviene revalidar). Y `agy` expone
-**`--remote-control`**, un modo sin documentar en `--help` que podría ser una superficie estructurada:
-si lo fuera, `agy` dejaría de estar modelado como wrapper ciego y pasaría a adaptador de primera clase.
-Vale una exploración acotada.
+**Deuda menor: ya resuelta.** La deriva `agy` 1.1.5 → 1.1.6 se revalidó el 2026-07-24 (el contrato wrapper
+se mantiene; ambas versiones quedaron como baselines auditadas con fixture). La telemetría de LM Studio se
+verificó de punta a punta con una inferencia local real.
+
+**Sigue abierto — `agy --remote-control`:** modo sin documentar en `--help`. Si expone un protocolo
+estructurado, `agy` dejaría de estar modelado como wrapper ciego y pasaría a adaptador de primera clase,
+con eventos y telemetría reales. Vale una exploración acotada.
+
+**Sigue abierto — telemetría de OpenCode:** cerrarla exige enviar `session/prompt`, o sea **una inferencia
+paga contra el plan Z.AI**. Decisión de gasto de Ale. El parseo ya está implementado y testeado; falta
+sólo el fixture de una corrida real.
 
 ---
 

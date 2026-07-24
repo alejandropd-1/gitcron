@@ -26,11 +26,18 @@ Se auditó `agy` (baseline `1.1.5`):
 | Stream JSONL | Sin flag en 1.1.5/1.1.6 | Eventos y métricas permanecen `unknown` o `pending_fixture`. |
 | `agy --remote-control` | Sin documentar en `--help` | **No explorado.** Si expone protocolo estructurado, `agy` dejaría de ser wrapper ciego. Anotado en ROADMAP. |
 
-## Deriva de versión detectada (auditoría 2026-07-24)
+## Revalidación contra 1.1.6 (auditoría 2026-07-24) — RESUELTA
 
-La máquina del operador tiene **`agy 1.1.6`**, no la `1.1.5` que fija el adaptador. El comportamiento es el
-correcto por diseño — `discover()` degrada a `pending_fixture` y no afirma la baseline — pero conviene
-revalidar la baseline contra 1.1.6 antes de cerrar la fase.
+La máquina del operador tiene **`agy 1.1.6`**. Se revalidó la superficie CLI y el contrato wrapper **se
+mantiene sin cambios**: `agy --help` en 1.1.6 sigue sin exponer ningún flag `json`, `output-format`,
+`stream` ni `jsonl` (búsqueda case-insensitive: 0 coincidencias). Evidencia capturada en
+`docs/pipeline/f03/fixtures/agy-1.1.6-cli-surface.sanitized.json`.
+
+En consecuencia el adaptador pasó de fijar una sola versión a un **conjunto de baselines auditadas**
+(`1.1.5` y `1.1.6`), y `discover()` ahora reporta **la versión realmente observada** en vez de `null`
+cuando queda fuera del conjunto — degradando a `pending_fixture` sin ocultar el dato.
+
+No se ejecutó `agy --print`: consumiría cuota de Antigravity y no hace falta para el contrato wrapper.
 
 ## Seguridad y Reglas de Integración
 

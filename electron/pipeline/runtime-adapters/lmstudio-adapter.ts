@@ -13,7 +13,7 @@ import { asRecord, metricSample, numberValue, stringValue, unknownTelemetry } fr
 import { RuntimeProcessRunner } from './process-runner';
 import type { RuntimeAdapter } from './runtime-adapter';
 
-const USAGE_FIXTURE_REF = 'docs/pipeline/f00/fixtures/lmstudio-classification.sanitized.json';
+const USAGE_FIXTURE_REF = 'docs/pipeline/f03/fixtures/lmstudio-9902c3a-usage.sanitized.json';
 const PROBE_FIXTURE_REF = 'docs/pipeline/f03/fixtures/lmstudio-9902c3a-openai-http.sanitized.json';
 const SUPPORTED_CLI_COMMIT = '9902c3a';
 const CLI_COMMIT_PREFIX = 'cli commit:';
@@ -235,7 +235,8 @@ export const LMSTUDIO_DESCRIPTOR: RuntimeDescriptor = {
       evidenceStatus: 'verified',
       targetScopes: ['run', 'session'],
       constraints: [
-        'usage requires an ingested OpenAI-compatible response; unknown until then',
+        'provider mode: GitCron observes responses, so usage requires an ingested response and stays unknown until then',
+        'verified end to end against a real local completion; cache tokens are not reported by LM Studio',
         'cost is local_unpriced: local inference has no per-token price',
       ],
       evidenceRefs: [USAGE_FIXTURE_REF],

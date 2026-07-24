@@ -27,9 +27,13 @@ Se verificó el proveedor local LM Studio contra la instancia real del operador:
   desconocido y hay más de una instancia cargada, queda `unknown` en vez de adivinar.
 - Usage: `unknown` hasta que se ingiere una respuesta OpenAI-compatible real vía `recordCompletionUsage()`.
   **No se inventan tokens.** Los campos que el proveedor no reporta quedan `null`, no cero.
-- Los conteos de tokens del test salen de `docs/pipeline/f00/fixtures/lmstudio-classification.sanitized.json`
-  (captura local real: 152 prompt / 500 completion / 497 reasoning), reenvueltos en el formato de cable OpenAI.
-- `context.max_tokens` sale del `contextLength` real de `lms ps --json`; sin modelo cargado queda `unknown`.
+- **Verificado de punta a punta** con una inferencia local real (2026-07-24, aprobada por Ale, GPU propia,
+  sin proveedor pago): `docs/pipeline/f03/fixtures/lmstudio-9902c3a-usage.sanitized.json` guarda el payload
+  de cable textual — `prompt_tokens` 18, `completion_tokens` 32, `reasoning_tokens` 32 bajo
+  `usage.completion_tokens_details`. El test lee ese fixture directamente: ya no reconstruye el sobre.
+- Confirmado que LM Studio **no reporta** tokens de caché: `cache_read` y `cache_write` quedan `null`.
+- `context.max_tokens` se resuelve contra el catálogo nativo (262144 observados para el modelo real);
+  `lms ps --json` queda como fallback para builds sin `/api/v1`.
 - Costo: `0` con clasificación `local_unpriced` — la inferencia local no tiene precio por token.
   `evidenceStatus` es `inferred` mientras no se haya observado una respuesta real, y `verified` recién después.
 - `reasoningVisibility` es `summary` cuando el proveedor reporta reasoning tokens; `unavailable` si no.

@@ -102,3 +102,56 @@ caso "respuesta sin bloque usage".
 - La telemetría de usage de OpenCode y LM Studio queda `degraded`: el camino de parseo está implementado y testeado,
   pero ninguna de las dos tiene fixture de una corrida con usage real capturada bajo ACP / HTTP en F03. Levantar eso
   a `verified` exige autorización explícita para ejecutar un prompt real (`session/prompt`) y una inferencia local.
+
+---
+
+## 7. Cierre de pendientes previo al merge (2026-07-24)
+
+Ejecutado con autorización de Ale para dejar la fase lista de una sola pasada.
+
+### `agy` — revalidación 1.1.6 (RESUELTA)
+
+La CLI instalada es `1.1.6`, no la `1.1.5` de la baseline. Revalidada: `agy --help` en 1.1.6 no expone
+ningún flag `json` / `output-format` / `stream` / `jsonl` (0 coincidencias), así que **el contrato wrapper
+se mantiene**. El adaptador pasó de una versión única a un conjunto de baselines auditadas (`1.1.5`, `1.1.6`)
+y ahora `discover()` reporta la versión realmente observada aunque quede fuera del conjunto.
+
+Nuevo fixture: `docs/pipeline/f03/fixtures/agy-1.1.6-cli-surface.sanitized.json`, que además documenta la
+superficie completa de agente (`--print`, `--model`, `--effort`, `--mode`, `--sandbox`, `--conversation`,
+subcomandos `agents`/`models`/`plugin`) para dejar explícito que `wrapper` describe la **observabilidad**
+y no la capacidad de Antigravity. No se ejecutó `agy --print`: consumiría cuota y no hace al contrato.
+
+### LM Studio — telemetría verificada de punta a punta (RESUELTA)
+
+Se ejecutó **una inferencia local real** (GPU propia, proveedor local, sin costo por token, aprobada por Ale)
+para capturar el formato de cable auténtico. Resultado en
+`docs/pipeline/f03/fixtures/lmstudio-9902c3a-usage.sanitized.json`:
+
+- `prompt_tokens` 18, `completion_tokens` 32, `reasoning_tokens` 32 bajo `usage.completion_tokens_details`
+  — confirma que el parseo defensivo apuntaba al campo correcto.
+- LM Studio **no reporta** tokens de caché: `cache_read` y `cache_write` quedan `null`, nunca cero.
+- `context.max_tokens` resuelto contra el catálogo nativo: 262144 para el modelo real.
+- Costo `0` `local_unpriced` con `evidenceStatus` `verified` tras observar la respuesta.
+
+El test ahora lee ese fixture **verbatim**: ya no reconstruye el sobre OpenAI a mano.
+`telemetry.usage` y `telemetry.context` de LM Studio pasan de `degraded` a `verified` en la matriz.
+
+### Nota: el guard del repo funcionó
+
+El primer intento de fixture usó la clave `authorization`, y la suite de conformance lo rechazó por su
+escaneo de secretos antes de que llegara a commitearse. Se renombró a `consentNote`.
+
+### Verificación final
+
+- `pnpm exec tsc --noEmit`: exit 0.
+- `pnpm test`: `59 archivos / 367 tests` verde.
+- `pnpm exec openspec validate --strict`: válido.
+- `pwsh scripts/gates.ps1 fast`: VERDE.
+- `pwsh scripts/gates.ps1 full`: PENDIENTE — C7 build OK; C5 lint y C8 fallow son **deuda heredada previa
+  a F03** (baseline al 2026-07-23, pendiente de decisión de Ale). Los archivos de F03 dan lint limpio.
+
+### Único pendiente que queda abierto
+
+La telemetría de usage de **OpenCode** sigue en `degraded`. Cerrarla exige enviar `session/prompt`, es decir
+**una inferencia paga contra el plan Z.AI**. No se ejecutó: es una decisión de gasto de Ale, no del agente.
+El camino de parseo está implementado y testeado; sólo falta el fixture de una corrida real.

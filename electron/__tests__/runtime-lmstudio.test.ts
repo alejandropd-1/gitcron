@@ -15,28 +15,32 @@ import {
   type RuntimeProcessSpec,
 } from '../pipeline/runtime-adapters';
 
-const USAGE_FIXTURE = 'docs/pipeline/f00/fixtures/lmstudio-classification.sanitized.json';
+const USAGE_FIXTURE = 'docs/pipeline/f03/fixtures/lmstudio-9902c3a-usage.sanitized.json';
 
-/** Real sanitized local capture from F00; no live inference runs in tests (Invariante 10). */
-function usageFixture(): { promptTokens: number; completionTokens: number; reasoningTokens: number } {
+/**
+ * Verbatim response captured from a real local completion (F03).
+ * The fixture stores the actual wire payload, so nothing is reconstructed here
+ * and no live inference runs in tests (Invariante 10).
+ */
+function completionResponseFromFixture(): {
+  model: string;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    completion_tokens_details: { reasoning_tokens: number };
+  };
+} {
   const raw = JSON.parse(fs.readFileSync(path.resolve(USAGE_FIXTURE), 'utf8')) as {
-    usage: { promptTokens: number; completionTokens: number; reasoningTokens: number };
+    observedResponse: {
+      model: string;
+      usage: {
+        prompt_tokens: number;
+        completion_tokens: number;
+        completion_tokens_details: { reasoning_tokens: number };
+      };
+    };
   };
-  return raw.usage;
-}
-
-/** Rebuilds the OpenAI-compatible wire envelope around the fixture's real token counts. */
-function completionResponseFromFixture(): unknown {
-  const usage = usageFixture();
-  return {
-    model: 'google/gemma-4-12b-qat',
-    usage: {
-      prompt_tokens: usage.promptTokens,
-      completion_tokens: usage.completionTokens,
-      total_tokens: usage.promptTokens + usage.completionTokens,
-      completion_tokens_details: { reasoning_tokens: usage.reasoningTokens },
-    },
-  };
+  return raw.observedResponse;
 }
 
 class LmStudioTestRunner extends RuntimeProcessRunner {
@@ -86,6 +90,14 @@ const CATALOG_BODY = JSON.stringify({
       max_context_length: 131072,
       loaded_instances: [{ id: 'instance-1' }],
       capabilities: { trained_for_tool_use: false },
+    },
+    {
+      // Mirrors the model used for the real capture in the usage fixture.
+      type: 'llm',
+      key: 'qwen/qwen3.5-9b',
+      max_context_length: 262144,
+      loaded_instances: [],
+      capabilities: { trained_for_tool_use: true },
     },
   ],
 });
@@ -215,6 +227,13 @@ describe('LM Studio provider adapter', () => {
         loadedInstanceCount: 1,
         trainedForToolUse: false,
       },
+      {
+        key: 'qwen/qwen3.5-9b',
+        type: 'llm',
+        maxContextTokens: 262144,
+        loadedInstanceCount: 0,
+        trainedForToolUse: true,
+      },
     ]);
   });
 
@@ -299,13 +318,18 @@ describe('LM Studio provider adapter', () => {
     });
 
     await adapter.health();
-    expect(adapter.recordCompletionUsage(completionResponseFromFixture())).toBe(true);
+    const captured = completionResponseFromFixture();
+    expect(adapter.recordCompletionUsage(captured)).toBe(true);
 
-    const fixture = usageFixture();
-    const telemetry = await adapter.telemetry(session(adapter));
-    expect(telemetry.usage.inputTokens.value).toBe(fixture.promptTokens);
-    expect(telemetry.usage.outputTokens.value).toBe(fixture.completionTokens);
-    expect(telemetry.usage.reasoningTokens.value).toBe(fixture.reasoningTokens);
+    const live = session(adapter);
+    live.identity.effectiveModel = captured.model;
+    live.identity.reportedModel = captured.model;
+    const telemetry = await adapter.telemetry(live);
+    expect(telemetry.usage.inputTokens.value).toBe(captured.usage.prompt_tokens);
+    expect(telemetry.usage.outputTokens.value).toBe(captured.usage.completion_tokens);
+    expect(telemetry.usage.reasoningTokens.value).toBe(captured.usage.completion_tokens_details.reasoning_tokens);
+    // LM Studio does not report cache tokens; they must stay null, never zero.
+    expect(telemetry.usage.cacheReadTokens.value).toBeNull();
     expect(telemetry.usage.inputTokens.classification).toBe('runtime_reported');
     // Resolved by model key against the native catalog, not by the stale CLI probe.
     expect(telemetry.context.maxTokens.value).toBe(262144);

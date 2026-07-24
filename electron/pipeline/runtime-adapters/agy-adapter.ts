@@ -10,14 +10,22 @@ import { unknownTelemetry } from './normalization';
 import { RuntimeProcessRunner } from './process-runner';
 import type { RuntimeAdapter } from './runtime-adapter';
 
-const SUPPORTED_RUNTIME_VERSION = '1.1.5';
+const CLI_SURFACE_FIXTURE_REF = 'docs/pipeline/f03/fixtures/agy-1.1.6-cli-surface.sanitized.json';
+
+/**
+ * Versions whose CLI surface was audited for the wrapper contract: neither
+ * exposes a --json / --output-format / --stream flag, so there is no structured
+ * stream to normalize. 1.1.5 audited in tanda 3, 1.1.6 in the F03 audit.
+ */
+const SUPPORTED_RUNTIME_VERSIONS = ['1.1.5', '1.1.6'] as const;
+const BASELINE_RUNTIME_VERSION = '1.1.6';
 
 export const AGY_WRAPPER_DESCRIPTOR: RuntimeDescriptor = {
   adapterId: 'agy-wrapper',
   runtime: 'agy',
   adapterKind: 'wrapper',
   transport: 'process-lifecycle',
-  runtimeVersion: SUPPORTED_RUNTIME_VERSION,
+  runtimeVersion: BASELINE_RUNTIME_VERSION,
   protocolVersion: null,
   capabilities: [
     {
@@ -27,7 +35,7 @@ export const AGY_WRAPPER_DESCRIPTOR: RuntimeDescriptor = {
       evidenceStatus: 'verified',
       targetScopes: ['repo'],
       constraints: ['process probe only; no structured event stream'],
-      evidenceRefs: [],
+      evidenceRefs: [CLI_SURFACE_FIXTURE_REF],
     },
     {
       capabilityId: 'session.start',
@@ -36,7 +44,7 @@ export const AGY_WRAPPER_DESCRIPTOR: RuntimeDescriptor = {
       evidenceStatus: 'pending_fixture',
       targetScopes: ['repo', 'run'],
       constraints: ['wrapper lifecycle only; structured stream unavailable'],
-      evidenceRefs: [],
+      evidenceRefs: [CLI_SURFACE_FIXTURE_REF],
     },
     {
       capabilityId: 'events.stream',
@@ -44,8 +52,8 @@ export const AGY_WRAPPER_DESCRIPTOR: RuntimeDescriptor = {
       availability: 'unknown',
       evidenceStatus: 'pending_fixture',
       targetScopes: ['session'],
-      constraints: ['no official JSONL stream in agy 1.1.5; no regex on raw terminal text'],
-      evidenceRefs: [],
+      constraints: ['no --json/--output-format/--stream flag in 1.1.5 or 1.1.6; no regex on raw terminal text'],
+      evidenceRefs: [CLI_SURFACE_FIXTURE_REF],
     },
     {
       capabilityId: 'telemetry.snapshot',
@@ -54,7 +62,7 @@ export const AGY_WRAPPER_DESCRIPTOR: RuntimeDescriptor = {
       evidenceStatus: 'pending_fixture',
       targetScopes: ['run', 'session'],
       constraints: ['usage and cost metrics unavailable without structured telemetry stream'],
-      evidenceRefs: [],
+      evidenceRefs: [CLI_SURFACE_FIXTURE_REF],
     },
   ],
 };
@@ -82,17 +90,19 @@ export class AgyWrapperRuntimeAdapter implements RuntimeAdapter {
       });
       const output = result.stdout.toString('utf8').trim();
       const installed = result.exitCode === 0 && !result.timedOut && !result.outputLimit;
-      const fixtureCompatible = installed && output === SUPPORTED_RUNTIME_VERSION;
+      const detectedVersion = installed && output ? output : null;
+      const fixtureCompatible = detectedVersion !== null
+        && (SUPPORTED_RUNTIME_VERSIONS as readonly string[]).includes(detectedVersion);
       return {
         installed,
         executable: installed ? this.executable : null,
-        runtimeVersion: fixtureCompatible ? SUPPORTED_RUNTIME_VERSION : null,
+        runtimeVersion: detectedVersion,
         evidenceStatus: fixtureCompatible ? 'verified' : installed ? 'pending_fixture' : 'unknown',
-        evidenceRefs: [],
+        evidenceRefs: [CLI_SURFACE_FIXTURE_REF],
         diagnostics: fixtureCompatible
           ? []
           : installed
-            ? ['Installed agy version differs from the supported baseline']
+            ? ['Installed agy version is outside the audited baseline set']
             : ['agy version probe failed'],
       };
     } catch {
@@ -101,7 +111,7 @@ export class AgyWrapperRuntimeAdapter implements RuntimeAdapter {
         executable: null,
         runtimeVersion: null,
         evidenceStatus: 'unknown',
-        evidenceRefs: [],
+        evidenceRefs: [CLI_SURFACE_FIXTURE_REF],
         diagnostics: ['agy executable unavailable'],
       };
     }

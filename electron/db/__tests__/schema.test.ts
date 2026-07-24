@@ -8,6 +8,10 @@ import {
   PREDICTION_RUN_TABLE,
   SPECULATIVE_BRANCH_TABLE,
   TEMPORAL_AGENT_INDEXES,
+  PIPELINE_REPO_TABLE,
+  PIPELINE_SNAPSHOT_TABLE,
+  PIPELINE_EVENT_TABLE,
+  PIPELINE_CURSOR_TABLE,
 } from '../schema';
 
 type SqliteNameRow = { name: string };
@@ -93,6 +97,17 @@ describe('Temporal Agent SQLite schema', () => {
         PREDICTION_RUN_TABLE,
         SPECULATIVE_BRANCH_TABLE,
         BRANCH_DECISION_TABLE,
+      ]));
+    });
+  });
+
+  it('creates the Pipeline evidence tables', () => {
+    withDb((db) => {
+      expect(sqliteNames(db, 'table')).toEqual(expect.arrayContaining([
+        PIPELINE_REPO_TABLE,
+        PIPELINE_SNAPSHOT_TABLE,
+        PIPELINE_EVENT_TABLE,
+        PIPELINE_CURSOR_TABLE,
       ]));
     });
   });

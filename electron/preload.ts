@@ -250,6 +250,14 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('repo:fs-change', handler);
     return () => ipcRenderer.removeListener('repo:fs-change', handler);
   },
+  pipelineGetSnapshot: (repoPath: string) => ipcRenderer.invoke('pipeline:get-snapshot', repoPath),
+  pipelineSubscribe: (repoPath: string) => ipcRenderer.invoke('pipeline:subscribe', repoPath),
+  pipelineUnsubscribe: (repoPath: string) => ipcRenderer.invoke('pipeline:unsubscribe', repoPath),
+  onPipelineSnapshotUpdated: (cb: (repoPath: string, snapshot: unknown) => void) => {
+    const handler = (_e: unknown, payload: { repoPath: string; snapshot: unknown }) => cb(payload.repoPath, payload.snapshot);
+    ipcRenderer.on('pipeline:snapshot-updated', handler);
+    return () => ipcRenderer.removeListener('pipeline:snapshot-updated', handler);
+  },
   materializeIdea: (repoPath: string, idea: unknown) =>
     ipcRenderer.invoke('git:materialize-idea', repoPath, idea),
   ai: {

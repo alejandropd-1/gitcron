@@ -7,6 +7,7 @@ import type {
   MaterializationResult,
 } from './temporal-agent';
 import type { PredictionHistoryEntry } from '../electron/db/types';
+import type { PipelineState } from './pipeline';
 import type { ApplyHunkOptions, FileDiff } from '../lib/hunk-patch';
 import type {
   CartoGraphStatus,
@@ -425,6 +426,10 @@ interface ElectronAPI {
   repoWatch: (targetPath: string) => Promise<GitResult>;
   repoUnwatch: (targetPath: string) => Promise<GitResult>;
   onRepoFsChange: (cb: (repoPath: string) => void) => () => void;
+  pipelineGetSnapshot: (repoPath: string) => Promise<GitResult<PipelineState>>;
+  pipelineSubscribe: (repoPath: string) => Promise<GitResult<PipelineState>>;
+  pipelineUnsubscribe: (repoPath: string) => Promise<GitResult>;
+  onPipelineSnapshotUpdated: (cb: (repoPath: string, snapshot: PipelineState) => void) => () => void;
   materializeIdea(repoPath: string, idea: MaterializeIdeaInput): Promise<GitResult<MaterializationResult>>;
   ai: {
     predictTimelines(repoPath: string, repoName: string, lang?: string): Promise<GitResult<PredictionResult>>;

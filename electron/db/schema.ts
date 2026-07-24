@@ -3,11 +3,15 @@ export interface Migration {
   statements: string[];
 }
 
-export const LATEST_SCHEMA_VERSION = 3;
+export const LATEST_SCHEMA_VERSION = 4;
 
 export const PREDICTION_RUN_TABLE = 'prediction_run';
 export const SPECULATIVE_BRANCH_TABLE = 'speculative_branch';
 export const BRANCH_DECISION_TABLE = 'branch_decision';
+export const PIPELINE_REPO_TABLE = 'pipeline_repo';
+export const PIPELINE_SNAPSHOT_TABLE = 'pipeline_snapshot';
+export const PIPELINE_EVENT_TABLE = 'pipeline_event';
+export const PIPELINE_CURSOR_TABLE = 'pipeline_cursor';
 
 export const TEMPORAL_AGENT_INDEXES = [
   'idx_run_repo',
@@ -126,6 +130,42 @@ const CREATE_CARTO_PANORAMA_INDEXES = [
   'CREATE INDEX idx_carto_panorama_repo ON carto_panorama(repo_path, lang);',
 ];
 
+const CREATE_PIPELINE_TABLES = [
+  `CREATE TABLE pipeline_repo (
+    repo_id               TEXT PRIMARY KEY,
+    canonical_path        TEXT NOT NULL UNIQUE,
+    git_common_dir_digest TEXT NOT NULL,
+    created_at            TEXT NOT NULL,
+    updated_at            TEXT NOT NULL
+  ) STRICT;`,
+  `CREATE TABLE pipeline_snapshot (
+    repo_id     TEXT PRIMARY KEY REFERENCES pipeline_repo(repo_id) ON DELETE CASCADE,
+    sequence    INTEGER NOT NULL,
+    state_json  TEXT NOT NULL,
+    captured_at TEXT NOT NULL
+  ) STRICT;`,
+  `CREATE TABLE pipeline_event (
+    repo_id      TEXT NOT NULL REFERENCES pipeline_repo(repo_id) ON DELETE CASCADE,
+    event_id     TEXT NOT NULL,
+    sequence     INTEGER NOT NULL,
+    kind         TEXT NOT NULL,
+    observed_at  TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    PRIMARY KEY (repo_id, event_id),
+    UNIQUE (repo_id, sequence)
+  ) STRICT;`,
+  `CREATE TABLE pipeline_cursor (
+    repo_id     TEXT NOT NULL REFERENCES pipeline_repo(repo_id) ON DELETE CASCADE,
+    source_ref  TEXT NOT NULL,
+    offset      INTEGER NOT NULL,
+    pending     TEXT NOT NULL,
+    generation  TEXT,
+    updated_at  TEXT NOT NULL,
+    PRIMARY KEY (repo_id, source_ref)
+  ) STRICT;`,
+  'CREATE INDEX idx_pipeline_event_repo_sequence ON pipeline_event(repo_id, sequence);',
+];
+
 export const MIGRATIONS: Migration[] = [
   {
     version: 1,
@@ -149,5 +189,9 @@ export const MIGRATIONS: Migration[] = [
       CREATE_CARTO_PANORAMA_TABLE,
       ...CREATE_CARTO_PANORAMA_INDEXES,
     ],
+  },
+  {
+    version: 4,
+    statements: CREATE_PIPELINE_TABLES,
   },
 ];

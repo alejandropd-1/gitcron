@@ -5,7 +5,14 @@
  * testeable sin montar React y sin tocar el DOM.
  */
 
-import type { ChangeStation, DecisionRequest, NowState } from './pipeline-domain';
+import type {
+  ActivityEntry,
+  AgentNode,
+  ChangeStation,
+  DecisionRequest,
+  EconomyState,
+  NowState,
+} from './pipeline-domain';
 
 export type PipelineSource = 'git' | 'hermes' | 'runtime' | 'kit';
 
@@ -21,6 +28,9 @@ export type PipelineSnapshot = {
   now: NowState;
   stations: ChangeStation[];
   decisions: DecisionRequest[];
+  agents: AgentNode[];
+  activity: ActivityEntry[];
+  economy: EconomyState;
 };
 
 export type PipelineViewState =

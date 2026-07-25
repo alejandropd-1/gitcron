@@ -951,3 +951,257 @@ body, .font-sans {
     box-shadow: none;
   }
 }
+
+/* ─── Árbol de agentes (F04 tanda 3) ─── */
+
+.pipeline-agents__tree,
+.pipeline-agent__children {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+}
+
+/* Sangría + guía vertical: la jerarquía se ve, y el lector de pantalla ya la
+   anuncia por las listas anidadas nativas. */
+.pipeline-agent__children {
+  margin-top: 0.5rem;
+  margin-left: 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--color-border-subtle);
+}
+
+.pipeline-agent {
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-surface);
+}
+
+.pipeline-agent[data-estado="running"] { border-left: 3px solid var(--color-primary); }
+.pipeline-agent[data-estado="done"] { border-left: 3px solid var(--color-secondary); }
+.pipeline-agent[data-estado="failed"] { border-left: 3px solid var(--color-error); }
+.pipeline-agent[data-estado="unknown"] {
+  border-left: 3px dotted var(--color-text-secondary);
+}
+
+.pipeline-agent__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.pipeline-agent__runtime {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.pipeline-agent__role {
+  font-size: 0.6875rem;
+  padding: 0.0625rem 0.375rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-accent-purple);
+  color: var(--color-accent-purple);
+}
+
+.pipeline-agent__state {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-agent__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem;
+}
+
+.pipeline-agent__meta dt {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-agent__meta dd {
+  font-size: 0.75rem;
+  color: var(--color-text-primary);
+}
+
+.pipeline-agent__tokens { font-variant-numeric: tabular-nums; }
+
+.pipeline-agents__empty {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+/* ─── Actividad ─── */
+
+.pipeline-activity__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
+}
+
+.pipeline-activity__filter {
+  padding: 0.1875rem 0.625rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+/* El filtro activo se marca con relleno y borde, no sólo con color: sigue
+   siendo distinguible en alto contraste. */
+.pipeline-activity__filter[aria-pressed="true"] {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.pipeline-activity__filter[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.pipeline-activity__no-reasoning {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.pipeline-activity__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  list-style: none;
+}
+
+.pipeline-activity__entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.3125rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--color-border-subtle);
+  background-color: var(--color-bg-surface);
+  font-size: 0.8125rem;
+}
+
+.pipeline-activity__entry[data-channel="reasoning"] { border-left-color: var(--color-accent-purple); }
+.pipeline-activity__entry[data-channel="tool"] { border-left-color: var(--color-primary); }
+.pipeline-activity__entry[data-channel="file"] { border-left-color: var(--color-git-mod); }
+.pipeline-activity__entry[data-channel="system"] { border-left-color: var(--color-text-secondary); }
+
+.pipeline-activity__channel {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+  min-width: 6rem;
+}
+
+.pipeline-activity__agent {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-activity__text {
+  flex: 1;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* Contador de deltas colapsados. */
+.pipeline-activity__count {
+  font-size: 0.625rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0 0.3125rem;
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg-overlay);
+  color: var(--color-text-secondary);
+}
+
+.pipeline-activity__empty {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+/* ─── Economía y contexto ─── */
+
+.pipeline-economy {
+  padding: 1rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-surface);
+}
+
+.pipeline-economy__tokens,
+.pipeline-economy__context {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.625rem;
+}
+
+.pipeline-economy__context {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.pipeline-economy__row dt {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-economy__row dd {
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.pipeline-economy__number { font-variant-numeric: tabular-nums; }
+
+.pipeline-economy__cost {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.pipeline-economy__cost-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-economy__basis {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+}
+
+/* Cobertura parcial: la advertencia es texto, no un gráfico degradado. Un
+   ranking en dinero compararía agentes medidos contra agentes sin medir. */
+.pipeline-economy__coverage {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  border-left: 2px dotted var(--color-git-mod);
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-overlay);
+  border-radius: var(--radius-sm);
+}

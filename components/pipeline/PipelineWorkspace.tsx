@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useT } from '@/hooks/use-translation';
+import { ActivityFeed } from './ActivityFeed';
+import { AgentTree } from './AgentTree';
 import { ChangePath } from './ChangePath';
+import { EconomyPanel } from './EconomyPanel';
 import { DecisionInbox } from './DecisionInbox';
 import { PipelineEmptyState } from './PipelineEmptyState';
 import { PipelineNow } from './PipelineNow';
@@ -117,6 +120,15 @@ export function PipelineWorkspace({
           {/* El inbox va por encima del feed: es zona prioritaria, no un feed. */}
           <DecisionInbox decisions={state.snapshot.decisions} />
           <ChangePath stations={state.snapshot.stations} />
+          <AgentTree agents={state.snapshot.agents} />
+          <EconomyPanel economy={state.snapshot.economy} />
+          <ActivityFeed
+            entries={state.snapshot.activity}
+            reasoningAvailable={state.snapshot.economy.reasoningAvailable}
+            agentRuntimes={Object.fromEntries(
+              state.snapshot.agents.map((agent) => [agent.agentId, agent.runtime]),
+            )}
+          />
         </>
       ) : (
         <PipelineEmptyState state={state} onRetry={handleRetry} />

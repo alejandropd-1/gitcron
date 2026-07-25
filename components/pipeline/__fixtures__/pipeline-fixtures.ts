@@ -28,6 +28,18 @@ const BASE: PipelineSnapshot = {
   },
   stations: [],
   decisions: [],
+  agents: [],
+  activity: [],
+  economy: {
+    tokens: { input: null, output: null, reasoning: null, cacheRead: null },
+    costUsd: null,
+    costBasis: 'unknown',
+    costCoverage: { withCost: 0, total: 0 },
+    contextMaxTokens: null,
+    contextCurrentTokens: null,
+    compactionCount: null,
+    reasoningAvailable: false,
+  },
 };
 
 /** Auditoría en curso, costo informado por el runtime. */
@@ -54,6 +66,65 @@ export const RUNNING_SNAPSHOT: PipelineSnapshot = {
     { id: 'fixer', state: 'possible', humanGate: false, detailKey: null },
     { id: 'merge', state: 'possible', humanGate: true, detailKey: null },
   ],
+  agents: [
+    {
+      agentId: 'orch-1',
+      parentAgentId: null,
+      runtime: 'claude',
+      provider: 'Anthropic',
+      model: 'claude-opus-5',
+      role: 'orchestrator',
+      state: 'running',
+      elapsedMs: 12 * 60_000,
+      inputTokens: 1280,
+      outputTokens: 640,
+    },
+    {
+      agentId: 'aud-1',
+      parentAgentId: 'orch-1',
+      runtime: 'codex',
+      provider: 'OpenAI',
+      model: 'codex-cli',
+      role: 'auditor',
+      state: 'running',
+      elapsedMs: 8 * 60_000,
+      inputTokens: 6113,
+      outputTokens: 1078,
+    },
+    {
+      // Runtime sin telemetría: tokens en null, nunca en cero.
+      agentId: 'scout-1',
+      parentAgentId: 'orch-1',
+      runtime: 'agy',
+      provider: null,
+      model: null,
+      role: 'scout',
+      state: 'done',
+      elapsedMs: 90_000,
+      inputTokens: null,
+      outputTokens: null,
+    },
+  ],
+  activity: [
+    { entryId: 'a1', channel: 'narrative', text: 'Arranca la auditoría del change.', at: null, agentId: 'orch-1' },
+    { entryId: 'a2', channel: 'reasoning', text: 'Reviso el contrato del adaptador…', at: null, agentId: 'aud-1' },
+    { entryId: 'a3', channel: 'reasoning', text: 'Comparo contra el fixture citado…', at: null, agentId: 'aud-1' },
+    { entryId: 'a4', channel: 'reasoning', text: 'Los valores no coinciden.', at: null, agentId: 'aud-1' },
+    { entryId: 'a5', channel: 'tool', text: 'leer archivo runtime-adapter.ts', at: null, agentId: 'aud-1' },
+    { entryId: 'a6', channel: 'file', text: 'electron/pipeline/runtime-adapters/lmstudio-adapter.ts', at: null, agentId: 'aud-1' },
+    { entryId: 'a7', channel: 'system', text: 'Controles automáticos: VERDE', at: null, agentId: null },
+  ],
+  economy: {
+    tokens: { input: 7393, output: 1718, reasoning: 4131, cacheRead: 26368 },
+    costUsd: 0.9881,
+    costBasis: 'runtime_reported',
+    // Un agente de tres no informó costo: la comparación en dinero no es representativa.
+    costCoverage: { withCost: 2, total: 3 },
+    contextMaxTokens: 262144,
+    contextCurrentTokens: 37690,
+    compactionCount: 0,
+    reasoningAvailable: true,
+  },
 };
 
 /**

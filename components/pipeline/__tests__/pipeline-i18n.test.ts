@@ -42,6 +42,40 @@ const PIPELINE_KEYS = [
   'pipeline.evidence.unknown',
   'pipeline.evidence.blocked',
   'pipeline.evidence.pending_fixture',
+  'pipeline.option.viewEvidence',
+  'pipeline.option.approve',
+  'pipeline.option.copyAnswer',
+  'pipeline.agents.title',
+  'pipeline.agents.empty',
+  'pipeline.agent.model',
+  'pipeline.agent.provider',
+  'pipeline.agent.tokens',
+  'pipeline.agentState.running',
+  'pipeline.agentState.done',
+  'pipeline.agentState.failed',
+  'pipeline.agentState.unknown',
+  'pipeline.role.builder',
+  'pipeline.role.auditor',
+  'pipeline.role.orchestrator',
+  'pipeline.role.scout',
+  'pipeline.activity.title',
+  'pipeline.activity.filters',
+  'pipeline.activity.empty',
+  'pipeline.activity.noReasoning',
+  'pipeline.channel.narrative',
+  'pipeline.channel.reasoning',
+  'pipeline.channel.tool',
+  'pipeline.channel.file',
+  'pipeline.channel.system',
+  'pipeline.economy.title',
+  'pipeline.economy.input',
+  'pipeline.economy.output',
+  'pipeline.economy.reasoning',
+  'pipeline.economy.cacheRead',
+  'pipeline.economy.cost',
+  'pipeline.economy.contextMax',
+  'pipeline.economy.contextCurrent',
+  'pipeline.economy.compactions',
 ] as const;
 
 describe('Pipeline i18n', () => {
@@ -63,6 +97,22 @@ describe('Pipeline i18n', () => {
       const text = translate('pipeline.incompatible.body', lang, { version: '9.9' });
       expect(text).toContain('9.9');
       expect(text).not.toContain('{version}');
+    }
+  });
+
+  it('interpolates every multi-variable string in all languages', () => {
+    for (const lang of LANGUAGES) {
+      const coverage = translate('pipeline.economy.partialCoverage', lang, { withCost: 2, total: 3 });
+      expect(coverage).toContain('2');
+      expect(coverage).toContain('3');
+      expect(coverage).not.toMatch(/\{\{/);
+
+      const tokens = translate('pipeline.agent.tokensValue', lang, { input: 10, output: 20 });
+      expect(tokens).toContain('10');
+      expect(tokens).not.toMatch(/\{\{/);
+
+      const progress = translate('pipeline.now.taskProgress', lang, { done: 3, total: 7 });
+      expect(progress).not.toMatch(/\{\{/);
     }
   });
 

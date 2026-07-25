@@ -42,7 +42,7 @@ Fecha de creación: 2026-07-12
 | F05 | Completada | `pipeline/fase-05-control-supervisado` | F04 completada y QA visual | [`prompts/fase-05-control-supervisado.md`](prompts/fase-05-control-supervisado.md) | [`2026-07-25-pipeline-fase-05-control-supervisado.md`](../reports/2026-07-25-pipeline-fase-05-control-supervisado.md) |
 | F06 | Completada | `pipeline/fase-06-modelos-presupuestos` | F05 completada | [`prompts/fase-06-modelos-presupuestos.md`](prompts/fase-06-modelos-presupuestos.md) | [`2026-07-25-pipeline-fase-06-modelos-presupuestos.md`](../reports/2026-07-25-pipeline-fase-06-modelos-presupuestos.md) |
 | F07 | Completada | `pipeline/fase-07-inteligencia-replay` | F01 + F03–F06 y datos suficientes; F02 opcional | [`prompts/fase-07-inteligencia-replay.md`](prompts/fase-07-inteligencia-replay.md) | [`2026-07-25-pipeline-fase-07-inteligencia-replay.md`](../reports/2026-07-25-pipeline-fase-07-inteligencia-replay.md) |
-| F08 | Planificada | `pipeline/fase-08-hardening-release` | F00, F01 y F03–F07 completadas; F02 sólo si se incluyó | [`prompts/fase-08-hardening-release.md`](prompts/fase-08-hardening-release.md) | Pendiente |
+| F08 | Lista para QA | `pipeline/fase-08-hardening-release` | F00, F01 y F03–F07 completadas; F02 sólo si se incluyó | [`prompts/fase-08-hardening-release.md`](prompts/fase-08-hardening-release.md) | [`2026-07-25-pipeline-fase-08-hardening-release.md`](../reports/2026-07-25-pipeline-fase-08-hardening-release.md) |
 
 ## Cómo actualizar este tablero
 
@@ -51,6 +51,13 @@ historial ni marcar una fase como completada solamente porque los tests pasaron.
 la tabla, reportar la diferencia antes de editarla.
 
 ## Historial de transiciones
+
+### F08 · Hardening y Release Candidate — `En curso` → `Lista para QA` (2026-07-25)
+
+- **Branch:** `pipeline/fase-08-hardening-release`, implementación verificada por Antigravity.
+- **Evidencia:** `docs/reports/2026-07-25-pipeline-fase-08-hardening-release.md` y `docs/pipeline/f08/CHECKPOINT-0.md`.
+- **Implementación:** 6 tandas completadas (Tanda 0 feature freeze y threat surface, Tanda 1 sanitizador de secrets e inyecciones y retención de logs, Tanda 2 backpressure de deltas de tokens y reconexión con exponencial backoff, Tanda 3 matriz de runtimes y resolución ejecutable Windows .cmd/.exe, Tanda 4 verificador programático de las 10 historias E2E, Tanda 5 documentación y Release Candidate).
+- **Validación:** tsc 0 errores; 81 archivos / 470 tests verde; eslint limpio; `gates.ps1 fast` VERDE; `gates.ps1 full` VERDE.
 
 ### F07 · Inteligencia y Replay de Corridas — `En curso` → `Completada` (2026-07-25)
 

@@ -4,6 +4,22 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [Unreleased] - 2026-07-25 - Release Candidate Track Pipeline (F00-F08)
+
+### 🤖 Pipeline Track (Agentes & Automatización Supervisada)
+
+#### Added
+- **Fase 00 (Contrato & Tipos):** Definición formal de contratos, estaciones (`bootstrap`, `scout`, `proposal`, `builder`, `gates`, `audit`, `fixer`), decisiones y evidencia.
+- **Fase 01 (Evidencias & Observabilidad):** Integración de lectura append-only de evidencias, feeds de actividad e IPC de snapshots.
+- **Fase 03 (Runtime Adapters):** Adaptadores para AGY, CLI, OpenCode ACP y LM Studio local.
+- **Fase 04 (Workspace UI):** Interfaz multi-pestaña ("Ahora", "Agentes", "Historial", "Economía") con tokens del diseño del sistema, i18n (ES/EN/ZH) y vista de detalles.
+- **Fase 05 (Control Supervisado):** Command Bus Main-Only allowlisted, audit log `pipeline-audit.jsonl`, barra de control supervisado (pausa, steer, queue, interrupt), modal de confirmación y aviso de trabajo parcial retenido en el working tree sin rollback.
+- **Fase 06 (Modelos, Presupuestos & Contexto):** Catálogo jerárquico de modelos, routing por rol/repositorio, decorrelación bloqueante Builder/Auditor, contabilidad de tokens y costo USD sin double-counting, y evaluación de salud de contexto.
+- **Fase 07 (Replay & Inteligencia Operativa):** Reproductor histórico determinístico read-only, motor de 6 anomalías puras, estimaciones estadísticas P10-P90 por cohort (`n >= 5`) y explicaciones grounded.
+- **Fase 08 (Hardening & Release):** Feature freeze, redacción automática de secrets en logs (`PipelineSecuritySanitizer`), política de retención (`PipelineRetentionPolicy`), backpressure de streams (`TokenDeltaBatcher`), reconexiones con exponencial backoff (`ReconnectStrategy`), resolución de ejecutables Windows (.cmd/.exe) y verificador E2E.
+
+---
+
 ## [v1.10.9] - 2026-07-20 - Avisos de staging claros y accionables
 
 ### 🟢 Vista Clásica & Core

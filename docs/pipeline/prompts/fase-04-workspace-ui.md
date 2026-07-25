@@ -15,7 +15,8 @@ stores y componentes existentes que deben reutilizarse.
 - Implementar el inbox read-only según `docs/pipeline/UX-DECISIONES.md`.
 - Unknown no es cero; derived no es hecho; raw payload/reasoning no se expone por defecto.
 - Reusar `DiffViewer`; i18n ES/EN/ZH y accesibilidad son parte del alcance.
-- Los agentes entregan markup semántico y estado; Ale escribe/modifica CSS.
+- Los agentes entregan markup semántico, estado **y CSS** sobre los tokens del design system.
+  (Revertido el 2026-07-24: antes el CSS lo hacía Ale. Ver brief F04.)
 - F04 no aprueba, rechaza, responde a runtimes/orquestadores ni mergea; esas opciones explican su
   indisponibilidad.
 - Ale realiza stage, commit y push.
@@ -24,7 +25,7 @@ stores y componentes existentes que deben reutilizarse.
 
 Identificate, anunciá rama/tandas/componentes/validaciones y pedí OK. TANDA 0 entrega wireframe
 textual, árbol de componentes, props y fixtures sin editar. Esperá OK. Implementá una tanda por vez y
-cerrá cada una con checkpoint funcional/visual. Si creés necesitar CSS, detenete y pedí dirección.
+cerrá cada una con checkpoint funcional/visual, incluyendo el CSS sobre tokens del design system.
 
 ## Entregables
 

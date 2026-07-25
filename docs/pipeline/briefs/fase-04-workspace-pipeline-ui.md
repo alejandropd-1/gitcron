@@ -1,7 +1,12 @@
 # Pipeline Fase 04 — Workspace visual per-repo
 
 > Construye la solapa Pipeline con datos core F01/F03 y F02 sólo cuando exista. Sigue siendo observación:
-> no hay pause/interrupt/model switch. Ale escribe el CSS. Requiere F03 mergeada.
+> no hay pause/interrupt/model switch. Requiere F03 mergeada.
+>
+> **CAMBIO DE POLÍTICA (2026-07-24, decisión de Ale):** el CSS lo hace el agente que construye la UI,
+> no Ale. Queda revertida la regla original "Ale escribe el CSS" y el criterio "cero cambios CSS
+> hechos por agentes". El agente respeta el design system: tokens de `app/globals.css`, clases
+> nombradas siguiendo el patrón de Cartografía (`.carto-*`), sin colores literales nuevos.
 > Branch `pipeline/fase-04-workspace-ui`.
 
 ## Agentes recomendados
@@ -9,7 +14,7 @@
 - **Builder markup/estado:** Claude Code.
 - **Revisión accesibilidad/estados:** OpenCode o Antigravity.
 - **Auditor funcional/seguridad:** Codex.
-- **CSS:** Ale, fuera de la ejecución del agente.
+- **CSS:** el agente que construye la UI, respetando el design system (revertido 2026-07-24).
 
 ## Resultado de producto
 
@@ -97,10 +102,9 @@ Vistas dentro del workspace:
 
 ### TANDA 5 — Integración CSS de Ale y QA
 
-1. Agente entrega markup funcional y screenshot sin maquillar. STOP.
-2. Ale escribe/modifica CSS y avisa qué tocó.
-3. Agente relee esos archivos; no pisa CSS.
-4. QA visual en resoluciones acordadas, keyboard, reduced motion y estados fixtures.
+1. Agente entrega markup y CSS sobre tokens, con evidencia visual real.
+2. Ale revisa y pide ajustes de piel si algo no le cierra.
+3. QA visual en resoluciones acordadas, keyboard, reduced motion y estados fixtures.
 
 ## Prompt copiable — builder Claude
 
@@ -147,7 +151,7 @@ muestre como cero y derived no se muestre como hecho. Veredicto + hallazgos.
 
 ## Qué NO hacer
 
-- No CSS, estilos inline ni utility styling.
+- No estilos inline ni colores literales fuera de los tokens del design system.
 - No copiar la terminal/TUI de Hermes dentro de GitCron.
 - No controles, prompts ni approvals.
 - No gráficos decorativos que oculten datos.
@@ -167,4 +171,4 @@ muestre como cero y derived no se muestre como hecho. Veredicto + hallazgos.
 - [ ] Diffs se reutilizan y cargan lazy.
 - [ ] Empty/degraded/unknown son honestos.
 - [ ] i18n ES/EN/ZH, teclado y visual QA.
-- [ ] Cero cambios CSS hechos por agentes.
+- [ ] El CSS usa tokens del design system y no introduce colores literales nuevos.

@@ -5,6 +5,8 @@
  * testeable sin montar React y sin tocar el DOM.
  */
 
+import type { ChangeStation, DecisionRequest, NowState } from './pipeline-domain';
+
 export type PipelineSource = 'git' | 'hermes' | 'runtime' | 'kit';
 
 /** Versión de sobre que esta build sabe interpretar (F01/F03). */
@@ -16,6 +18,9 @@ export type PipelineSnapshot = {
   availableSources: PipelineSource[];
   hermesConnected: boolean;
   hasPipelineActivity: boolean;
+  now: NowState;
+  stations: ChangeStation[];
+  decisions: DecisionRequest[];
 };
 
 export type PipelineViewState =

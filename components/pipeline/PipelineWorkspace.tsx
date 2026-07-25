@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useT } from '@/hooks/use-translation';
+import { ChangePath } from './ChangePath';
+import { DecisionInbox } from './DecisionInbox';
 import { PipelineEmptyState } from './PipelineEmptyState';
+import { PipelineNow } from './PipelineNow';
 import {
   resolvePipelineViewState,
   type PipelineSnapshot,
@@ -108,9 +111,16 @@ export function PipelineWorkspace({
         {state.kind === 'loading' ? t('pipeline.loading') : ''}
       </p>
 
-      {state.kind === 'ready'
-        ? null /* Las vistas del workspace llegan en TANDA 2. */
-        : <PipelineEmptyState state={state} onRetry={handleRetry} />}
+      {state.kind === 'ready' ? (
+        <>
+          <PipelineNow now={state.snapshot.now} />
+          {/* El inbox va por encima del feed: es zona prioritaria, no un feed. */}
+          <DecisionInbox decisions={state.snapshot.decisions} />
+          <ChangePath stations={state.snapshot.stations} />
+        </>
+      ) : (
+        <PipelineEmptyState state={state} onRetry={handleRetry} />
+      )}
     </section>
   );
 }

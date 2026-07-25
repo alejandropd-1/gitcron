@@ -4,9 +4,11 @@ import {
   SUPPORTED_SNAPSHOT_VERSION,
   type PipelineSnapshot,
 } from '../pipeline-view-state';
+import { RUNNING_SNAPSHOT } from '../__fixtures__/pipeline-fixtures';
 
 function snapshot(overrides: Partial<PipelineSnapshot> = {}): PipelineSnapshot {
   return {
+    ...RUNNING_SNAPSHOT,
     schemaVersion: SUPPORTED_SNAPSHOT_VERSION,
     repoId: 'repo-1',
     availableSources: ['git', 'runtime', 'kit'],

@@ -129,13 +129,24 @@ export function PipelineControlBar({
     );
   };
 
-  const handleConfirmInterruptTurn = () => {
+  const handleConfirmModalAction = () => {
+    const actionToConfirm = pendingModalAction;
     setPendingModalAction(null);
-    void dispatchControl(
-      'interrupt-turn',
-      (nonce) => ({ repoPath, sessionId, target: 'turn', nonce }),
-      'interrupt'
-    );
+    if (!actionToConfirm) return;
+
+    if (actionToConfirm === 'cancel-run') {
+      void dispatchControl(
+        'cancel-run',
+        (nonce) => ({ repoPath, sessionId, nonce }),
+        'interrupt'
+      );
+    } else {
+      void dispatchControl(
+        'interrupt-turn',
+        (nonce) => ({ repoPath, sessionId, target: 'turn', nonce }),
+        'interrupt'
+      );
+    }
   };
 
   return (
@@ -221,6 +232,21 @@ export function PipelineControlBar({
         >
           {t('pipeline.control.interruptTurn')}
         </button>
+
+        <button
+          type="button"
+          disabled={!capabilities.includes('cancel-run')}
+          aria-disabled={!capabilities.includes('cancel-run')}
+          title={
+            !capabilities.includes('cancel-run')
+              ? t('pipeline.control.unsupportedReason', { runtime: runtime ?? 'este runtime' })
+              : t('pipeline.control.cancelRunHelp')
+          }
+          className="pipeline-control-bar__btn pipeline-control-bar__btn--danger-heavy"
+          onClick={() => setPendingModalAction('cancel-run')}
+        >
+          {t('pipeline.control.cancelRun')}
+        </button>
       </div>
 
       {isSteerOpen && (
@@ -271,7 +297,7 @@ export function PipelineControlBar({
           isOpen={true}
           action={pendingModalAction}
           targetName={runtime ?? undefined}
-          onConfirm={handleConfirmInterruptTurn}
+          onConfirm={handleConfirmModalAction}
           onCancel={() => setPendingModalAction(null)}
         />
       )}

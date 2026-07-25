@@ -98,6 +98,7 @@ const PIPELINE_KEYS = [
   'pipeline.control.ackPending',
   'pipeline.control.ackSuccess',
   'pipeline.control.ackError',
+  'pipeline.control.cancelRun',
 ] as const;
 
 describe('Pipeline i18n', () => {

@@ -39,7 +39,7 @@ Fecha de creación: 2026-07-12
 | F02 (opcional) | Planificada | `pipeline/fase-02-hermes-adapter-opcional` | F01 completada; no bloquea el core | [`prompts/fase-02-hermes-adapter-opcional.md`](prompts/fase-02-hermes-adapter-opcional.md) | Pendiente |
 | F03 | Completada | `pipeline/fase-03-runtime-adapters` | F01 completada; independiente de F02 | [`prompts/fase-03-runtime-adapters.md`](prompts/fase-03-runtime-adapters.md) | [`2026-07-24-pipeline-fase-03-runtime-adapters.md`](../reports/2026-07-24-pipeline-fase-03-runtime-adapters.md) |
 | F04 | Completada | `pipeline/fase-04-workspace-ui` | F03 completada | [`prompts/fase-04-workspace-ui.md`](prompts/fase-04-workspace-ui.md) | [`2026-07-25-pipeline-fase-04-workspace-ui.md`](../reports/2026-07-25-pipeline-fase-04-workspace-ui.md) |
-| F05 | Planificada | `pipeline/fase-05-control-supervisado` | F04 completada y QA visual | [`prompts/fase-05-control-supervisado.md`](prompts/fase-05-control-supervisado.md) | Pendiente |
+| F05 | Completada | `pipeline/fase-05-control-supervisado` | F04 completada y QA visual | [`prompts/fase-05-control-supervisado.md`](prompts/fase-05-control-supervisado.md) | [`2026-07-25-pipeline-fase-05-control-supervisado.md`](../reports/2026-07-25-pipeline-fase-05-control-supervisado.md) |
 | F06 | Planificada | `pipeline/fase-06-modelos-presupuestos` | F05 completada | [`prompts/fase-06-modelos-presupuestos.md`](prompts/fase-06-modelos-presupuestos.md) | Pendiente |
 | F07 | Planificada | `pipeline/fase-07-inteligencia-replay` | F01 + F03–F06 y datos suficientes; F02 opcional | [`prompts/fase-07-inteligencia-replay.md`](prompts/fase-07-inteligencia-replay.md) | Pendiente |
 | F08 | Planificada | `pipeline/fase-08-hardening-release` | F00, F01 y F03–F07 completadas; F02 sólo si se incluyó | [`prompts/fase-08-hardening-release.md`](prompts/fase-08-hardening-release.md) | Pendiente |
@@ -51,6 +51,13 @@ historial ni marcar una fase como completada solamente porque los tests pasaron.
 la tabla, reportar la diferencia antes de editarla.
 
 ## Historial de transiciones
+
+### F05 · Control Supervisado — `En curso` → `Completada` (2026-07-25)
+
+- **Branch:** `pipeline/fase-05-control-supervisado`, implementación verificada por Antigravity.
+- **Evidencia:** `docs/reports/2026-07-25-pipeline-fase-05-control-supervisado.md` y `docs/pipeline/f05/CHECKPOINT-0.md`.
+- **Implementación:** 6 tandas completadas (Tanda 0 threat model, Tanda 1 command bus Main-Only con auditoría append-only, Tanda 2 controles no destructivos pause/steer/queue, Tanda 3 interrupción y subagentes con confirmación explícita y aviso de trabajo parcial retenido en el working tree sin rollback, Tanda 4 respond-decision y cancel-run coordinado, Tanda 5 cierre).
+- **Validación:** tsc 0 errores; 68 archivos / 423 tests verde; eslint limpio; `gates.ps1 fast` VERDE; `gates.ps1 full` VERDE.
 
 ### F04 · Workspace UI — `En curso` → `Completada` (2026-07-25)
 

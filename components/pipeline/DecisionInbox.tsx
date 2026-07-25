@@ -7,6 +7,7 @@ import { sortDecisionsByHumanNeed, type DecisionRequest } from './pipeline-domai
 
 export type DecisionInboxProps = {
   decisions: DecisionRequest[];
+  onRespondDecision?: (decisionId: string, optionId: string) => void;
 };
 
 /**
@@ -15,7 +16,7 @@ export type DecisionInboxProps = {
  * No es un feed. Se ordena por necesidad humana —riesgo primero— y no por el
  * último delta recibido, que es la diferencia que pide el brief.
  */
-export function DecisionInbox({ decisions }: DecisionInboxProps) {
+export function DecisionInbox({ decisions, onRespondDecision }: DecisionInboxProps) {
   const t = useT();
   const ordered = useMemo(() => sortDecisionsByHumanNeed(decisions), [decisions]);
 
@@ -37,7 +38,7 @@ export function DecisionInbox({ decisions }: DecisionInboxProps) {
           <ul className="pipeline-inbox__list">
             {ordered.map((decision) => (
               <li key={decision.decisionId}>
-                <DecisionCard decision={decision} />
+                <DecisionCard decision={decision} onRespondOption={onRespondDecision} />
               </li>
             ))}
           </ul>

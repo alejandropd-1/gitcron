@@ -7,6 +7,7 @@ import type { DecisionRequest } from './pipeline-domain';
 
 export type DecisionCardProps = {
   decision: DecisionRequest;
+  onRespondOption?: (decisionId: string, optionId: string) => void;
 };
 
 /**
@@ -14,11 +15,10 @@ export type DecisionCardProps = {
  * qué te piden, por qué ahora, opciones y consecuencias, riesgo con
  * procedencia, evidencia, y contexto técnico expandible.
  *
- * En F04 ninguna opción ejecuta nada. Se muestran igual —con `aria-disabled` y
- * el motivo escrito— porque ocultarlas dejaría a la persona sin saber qué va a
- * poder hacer. La razón se explica, no se insinúa con un gris.
+ * En F05 las opciones con `pending-f05` pasan a estar conectadas mediante
+ * respond-decision sobre el command bus de Main.
  */
-export function DecisionCard({ decision }: DecisionCardProps) {
+export function DecisionCard({ decision, onRespondOption }: DecisionCardProps) {
   const t = useT();
 
   return (
@@ -46,7 +46,11 @@ export function DecisionCard({ decision }: DecisionCardProps) {
 
       <ul className="pipeline-decision__options">
         {decision.options.map((option) => {
-          const disabled = option.availability !== 'informational';
+          const isEnabled =
+            option.availability === 'informational' ||
+            (option.availability === 'pending-f05' && Boolean(onRespondOption));
+          const disabled = !isEnabled;
+
           return (
             <li
               key={option.id}
@@ -58,6 +62,11 @@ export function DecisionCard({ decision }: DecisionCardProps) {
                 className="pipeline-decision__option-button"
                 aria-disabled={disabled || undefined}
                 disabled={disabled}
+                onClick={() => {
+                  if (isEnabled && onRespondOption) {
+                    onRespondOption(decision.decisionId, option.id);
+                  }
+                }}
               >
                 {t(option.labelKey)}
               </button>

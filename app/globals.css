@@ -1755,6 +1755,18 @@ body, .font-sans {
   border-color: var(--color-error);
 }
 
+.pipeline-control-bar__btn--danger-heavy {
+  border-color: var(--color-error);
+  background-color: color-mix(in srgb, var(--color-error) 12%, transparent);
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.pipeline-control-bar__btn--danger-heavy:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--color-error) 25%, transparent);
+  border-color: var(--color-error);
+}
+
 /* Modal de Confirmación para Acciones de Riesgo Alto */
 
 .pipeline-modal-backdrop {

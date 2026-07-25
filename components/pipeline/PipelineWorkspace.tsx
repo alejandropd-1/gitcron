@@ -110,6 +110,29 @@ export function PipelineWorkspace({
     error: result?.error ?? null,
   });
 
+  const handleRespondDecision = useCallback((decisionId: string, optionId: string) => {
+    if (!repoPath) return;
+    const nonce = `nonce-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const win = typeof window !== 'undefined'
+      ? (window as unknown as {
+          electronAPI?: {
+            pipelineControl?: {
+              respondDecision?: (payload: unknown) => Promise<{ success: boolean }>;
+            };
+          };
+        })
+      : null;
+    if (win?.electronAPI?.pipelineControl?.respondDecision) {
+      void win.electronAPI.pipelineControl.respondDecision({
+        repoPath,
+        sessionId: 'session-active',
+        decisionId,
+        optionId,
+        nonce,
+      });
+    }
+  }, [repoPath]);
+
   return (
     <section
       className="pipeline-workspace"
@@ -133,7 +156,7 @@ export function PipelineWorkspace({
         <>
           <PipelineNow now={state.snapshot.now} repoPath={repoPath} />
           {/* El inbox va por encima del feed: es zona prioritaria, no un feed. */}
-          <DecisionInbox decisions={state.snapshot.decisions} />
+          <DecisionInbox decisions={state.snapshot.decisions} onRespondDecision={handleRespondDecision} />
           <ChangePath stations={state.snapshot.stations} />
           <AgentTree agents={state.snapshot.agents} />
           <EconomyPanel economy={state.snapshot.economy} />

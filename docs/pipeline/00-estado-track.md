@@ -41,7 +41,7 @@ Fecha de creación: 2026-07-12
 | F04 | Completada | `pipeline/fase-04-workspace-ui` | F03 completada | [`prompts/fase-04-workspace-ui.md`](prompts/fase-04-workspace-ui.md) | [`2026-07-25-pipeline-fase-04-workspace-ui.md`](../reports/2026-07-25-pipeline-fase-04-workspace-ui.md) |
 | F05 | Completada | `pipeline/fase-05-control-supervisado` | F04 completada y QA visual | [`prompts/fase-05-control-supervisado.md`](prompts/fase-05-control-supervisado.md) | [`2026-07-25-pipeline-fase-05-control-supervisado.md`](../reports/2026-07-25-pipeline-fase-05-control-supervisado.md) |
 | F06 | Completada | `pipeline/fase-06-modelos-presupuestos` | F05 completada | [`prompts/fase-06-modelos-presupuestos.md`](prompts/fase-06-modelos-presupuestos.md) | [`2026-07-25-pipeline-fase-06-modelos-presupuestos.md`](../reports/2026-07-25-pipeline-fase-06-modelos-presupuestos.md) |
-| F07 | Planificada | `pipeline/fase-07-inteligencia-replay` | F01 + F03–F06 y datos suficientes; F02 opcional | [`prompts/fase-07-inteligencia-replay.md`](prompts/fase-07-inteligencia-replay.md) | Pendiente |
+| F07 | Completada | `pipeline/fase-07-inteligencia-replay` | F01 + F03–F06 y datos suficientes; F02 opcional | [`prompts/fase-07-inteligencia-replay.md`](prompts/fase-07-inteligencia-replay.md) | [`2026-07-25-pipeline-fase-07-inteligencia-replay.md`](../reports/2026-07-25-pipeline-fase-07-inteligencia-replay.md) |
 | F08 | Planificada | `pipeline/fase-08-hardening-release` | F00, F01 y F03–F07 completadas; F02 sólo si se incluyó | [`prompts/fase-08-hardening-release.md`](prompts/fase-08-hardening-release.md) | Pendiente |
 
 ## Cómo actualizar este tablero
@@ -51,6 +51,13 @@ historial ni marcar una fase como completada solamente porque los tests pasaron.
 la tabla, reportar la diferencia antes de editarla.
 
 ## Historial de transiciones
+
+### F07 · Inteligencia y Replay de Corridas — `En curso` → `Completada` (2026-07-25)
+
+- **Branch:** `pipeline/fase-07-inteligencia-replay`, implementación verificada por Antigravity.
+- **Evidencia:** `docs/reports/2026-07-25-pipeline-fase-07-inteligencia-replay.md` y `docs/pipeline/f07/CHECKPOINT-0.md`.
+- **Implementación:** 5 tandas completadas (Tanda 0 data quality report, Tanda 1 reproductor histórico determinístico read-only, Tanda 2 motor de anomalías y loops con 6 reglas puras, Tanda 3 estimaciones estadísticas por cohort con regla muestral n >= 5 e intervalos P10-P90, Tanda 4 explicación grounded y deduplicador de notificaciones).
+- **Validación:** tsc 0 errores; 77 archivos / 459 tests verde; eslint limpio; `gates.ps1 fast` VERDE; `gates.ps1 full` VERDE.
 
 ### F06 · Modelos, Presupuestos y Contexto — `En curso` → `Completada` (2026-07-25)
 

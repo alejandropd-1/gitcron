@@ -457,9 +457,15 @@ body, .font-sans {
   gap: 1.5rem;
   padding: var(--spacing-container-padding);
   overflow-y: auto;
-  height: 100%;
-  background-color: var(--color-bg-base);
+  /* `flex: 1` + `min-height: 0` como el resto de las solapas, para llenar el
+     contenedor sin romper el scroll interno. */
+  flex: 1;
+  min-height: 0;
   color: var(--color-text-primary);
+  /* Sin background propio, igual que Commit e History: se hereda del
+     contenedor. Eso importa porque en modo cronométrico ese contenedor es un
+     panel de cristal (bg-bg-overlay/60 + blur + borde redondeado) y un fondo
+     opaco propio lo taparía. */
 }
 
 .pipeline-workspace__title {

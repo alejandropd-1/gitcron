@@ -1,8 +1,8 @@
-'use client';
-
 import React, { useState } from 'react';
 import { useT } from '@/hooks/use-translation';
 import type { PipelineControlAction } from '../../electron/pipeline/control/control-bus-types';
+import { ConfirmControlModal } from './ConfirmControlModal';
+import { PartialWorkBanner } from './PartialWorkBanner';
 
 export type PipelineControlBarProps = {
   repoPath: string | null;
@@ -17,7 +17,7 @@ export function PipelineControlBar({
   repoPath,
   sessionId = 'session-active',
   runtime,
-  capabilities = ['pause-delegations', 'pause-after-task', 'steer', 'queue'],
+  capabilities = ['pause-delegations', 'pause-after-task', 'steer', 'queue', 'interrupt-turn'],
   onCommandDispatched,
 }: PipelineControlBarProps) {
   const t = useT();
@@ -26,16 +26,19 @@ export function PipelineControlBar({
   const [activeAck, setActiveAck] = useState<string | null>(null);
   const [isSteerOpen, setIsSteerOpen] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const [pendingModalAction, setPendingModalAction] = useState<PipelineControlAction | null>(null);
+  const [interruptedNotice, setInterruptedNotice] = useState<string | null>(null);
 
   const canPauseDelegations = capabilities.includes('pause-delegations');
   const canPauseAfterTask = capabilities.includes('pause-after-task');
   const canSteer = capabilities.includes('steer');
   const canQueue = capabilities.includes('queue');
+  const canInterruptTurn = capabilities.includes('interrupt-turn');
 
   const dispatchControl = async (
     action: PipelineControlAction,
     payloadBuilder: (nonce: string) => unknown,
-    ipcCallName: 'pause' | 'steer' | 'queue'
+    ipcCallName: 'pause' | 'steer' | 'queue' | 'interrupt'
   ) => {
     if (!repoPath || !sessionId) return;
     const nonce = `nonce-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -56,6 +59,9 @@ export function PipelineControlBar({
         const res = await win.electronAPI.pipelineControl[ipcCallName](payload);
         if (res.success) {
           setActiveAck(t('pipeline.control.ackSuccess'));
+          if (action === 'interrupt-turn' || action === 'interrupt-subagent') {
+            setInterruptedNotice(action);
+          }
           onCommandDispatched?.(action, 'ack');
         } else {
           setActiveAck(res.error?.message ?? t('pipeline.control.ackError'));
@@ -64,6 +70,9 @@ export function PipelineControlBar({
       } else {
         // Modo desarrollo / Fixture sin Electron IPC
         setActiveAck(t('pipeline.control.ackSuccess'));
+        if (action === 'interrupt-turn' || action === 'interrupt-subagent') {
+          setInterruptedNotice(action);
+        }
         onCommandDispatched?.(action, 'ack');
       }
     } catch {
@@ -117,6 +126,15 @@ export function PipelineControlBar({
       'queue',
       (nonce) => ({ repoPath, sessionId, instruction: text, nonce }),
       'queue'
+    );
+  };
+
+  const handleConfirmInterruptTurn = () => {
+    setPendingModalAction(null);
+    void dispatchControl(
+      'interrupt-turn',
+      (nonce) => ({ repoPath, sessionId, target: 'turn', nonce }),
+      'interrupt'
     );
   };
 
@@ -188,6 +206,21 @@ export function PipelineControlBar({
         >
           {t('pipeline.control.queue')}
         </button>
+
+        <button
+          type="button"
+          disabled={!canInterruptTurn}
+          aria-disabled={!canInterruptTurn}
+          title={
+            !canInterruptTurn
+              ? t('pipeline.control.unsupportedReason', { runtime: runtime ?? 'este runtime' })
+              : t('pipeline.control.interruptTurnHelp')
+          }
+          className="pipeline-control-bar__btn pipeline-control-bar__btn--danger"
+          onClick={() => setPendingModalAction('interrupt-turn')}
+        >
+          {t('pipeline.control.interruptTurn')}
+        </button>
       </div>
 
       {isSteerOpen && (
@@ -227,6 +260,22 @@ export function PipelineControlBar({
           {activeAck}
         </div>
       )}
+
+      <PartialWorkBanner
+        interruptedAction={interruptedNotice}
+        onDismiss={() => setInterruptedNotice(null)}
+      />
+
+      {pendingModalAction && (
+        <ConfirmControlModal
+          isOpen={true}
+          action={pendingModalAction}
+          targetName={runtime ?? undefined}
+          onConfirm={handleConfirmInterruptTurn}
+          onCancel={() => setPendingModalAction(null)}
+        />
+      )}
     </div>
   );
 }
+

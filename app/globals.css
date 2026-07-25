@@ -1745,4 +1745,151 @@ body, .font-sans {
   padding-top: 0.25rem;
 }
 
+.pipeline-control-bar__btn--danger {
+  border-color: color-mix(in srgb, var(--color-error) 40%, transparent);
+  color: var(--color-error);
+}
+
+.pipeline-control-bar__btn--danger:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--color-error) 15%, transparent);
+  border-color: var(--color-error);
+}
+
+/* Modal de Confirmación para Acciones de Riesgo Alto */
+
+.pipeline-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: color-mix(in srgb, var(--color-bg-base) 80%, transparent);
+  backdrop-filter: blur(4px);
+}
+
+.pipeline-modal {
+  width: 90%;
+  max-width: 28rem;
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-surface);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.pipeline-modal__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.pipeline-modal__body {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.pipeline-modal__warning {
+  padding: 0.625rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  border-left: 3px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-overlay);
+  color: var(--color-text-secondary);
+}
+
+.pipeline-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.pipeline-modal__btn {
+  padding: 0.375rem 0.875rem;
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.pipeline-modal__btn--cancel {
+  border: 1px solid var(--color-border-subtle);
+  background-color: var(--color-bg-overlay);
+  color: var(--color-text-primary);
+}
+
+.pipeline-modal__btn--confirm {
+  border: 1px solid var(--color-error);
+  background-color: var(--color-error);
+  color: var(--color-text-primary);
+}
+
+/* Partial Work Banner */
+
+.pipeline-partial-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, var(--color-warning) 10%, transparent);
+}
+
+.pipeline-partial-banner__content {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.pipeline-partial-banner__badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-warning);
+  color: var(--color-bg-base);
+}
+
+.pipeline-partial-banner__text {
+  font-size: 0.75rem;
+  color: var(--color-text-primary);
+}
+
+.pipeline-partial-banner__close {
+  background: transparent;
+  border: none;
+  font-size: 1.125rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
+
+.pipeline-agent__interrupt-btn {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid color-mix(in srgb, var(--color-error) 40%, transparent);
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: var(--color-error);
+  cursor: pointer;
+}
+
+.pipeline-agent__interrupt-btn:hover {
+  background-color: color-mix(in srgb, var(--color-error) 15%, transparent);
+}
+
+
 

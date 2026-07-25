@@ -12,9 +12,18 @@ import {
 
 export type AgentTreeProps = {
   agents: AgentNode[];
+  onInterruptSubagent?: (subagentId: string) => void;
 };
 
-function AgentBranch({ node, depth }: { node: AgentTreeNode; depth: number }) {
+function AgentBranch({
+  node,
+  depth,
+  onInterruptSubagent,
+}: {
+  node: AgentTreeNode;
+  depth: number;
+  onInterruptSubagent?: (subagentId: string) => void;
+}) {
   const t = useT();
   const elapsed = formatElapsed(node.elapsedMs);
   const runtime = runtimeDisplayName(node.runtime);
@@ -27,6 +36,16 @@ function AgentBranch({ node, depth }: { node: AgentTreeNode; depth: number }) {
         </span>
         {node.role && <span className="pipeline-agent__role">{t(`pipeline.role.${node.role}`)}</span>}
         <span className="pipeline-agent__state">{t(`pipeline.agentState.${node.state}`)}</span>
+        {node.state === 'running' && node.parentAgentId !== null && onInterruptSubagent && (
+          <button
+            type="button"
+            className="pipeline-agent__interrupt-btn"
+            title={t('pipeline.control.interruptSubagentHelp')}
+            onClick={() => onInterruptSubagent(node.agentId)}
+          >
+            {t('pipeline.control.interruptSubagent')}
+          </button>
+        )}
       </div>
 
       <dl className="pipeline-agent__meta">
@@ -62,7 +81,12 @@ function AgentBranch({ node, depth }: { node: AgentTreeNode; depth: number }) {
       {node.children.length > 0 && (
         <ul className="pipeline-agent__children">
           {node.children.map((child) => (
-            <AgentBranch key={child.agentId} node={child} depth={depth + 1} />
+            <AgentBranch
+              key={child.agentId}
+              node={child}
+              depth={depth + 1}
+              onInterruptSubagent={onInterruptSubagent}
+            />
           ))}
         </ul>
       )}
@@ -76,7 +100,7 @@ function AgentBranch({ node, depth }: { node: AgentTreeNode; depth: number }) {
  * Usa listas anidadas nativas: un lector de pantalla anuncia la profundidad sin
  * que haya que declarar `role="tree"` ni gestionar foco a mano.
  */
-export function AgentTree({ agents }: AgentTreeProps) {
+export function AgentTree({ agents, onInterruptSubagent }: AgentTreeProps) {
   const t = useT();
   const roots = buildAgentTree(agents);
 
@@ -91,7 +115,12 @@ export function AgentTree({ agents }: AgentTreeProps) {
       ) : (
         <ul className="pipeline-agents__tree">
           {roots.map((node) => (
-            <AgentBranch key={node.agentId} node={node} depth={0} />
+            <AgentBranch
+              key={node.agentId}
+              node={node}
+              depth={0}
+              onInterruptSubagent={onInterruptSubagent}
+            />
           ))}
         </ul>
       )}

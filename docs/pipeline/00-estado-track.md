@@ -40,7 +40,7 @@ Fecha de creación: 2026-07-12
 | F03 | Completada | `pipeline/fase-03-runtime-adapters` | F01 completada; independiente de F02 | [`prompts/fase-03-runtime-adapters.md`](prompts/fase-03-runtime-adapters.md) | [`2026-07-24-pipeline-fase-03-runtime-adapters.md`](../reports/2026-07-24-pipeline-fase-03-runtime-adapters.md) |
 | F04 | Completada | `pipeline/fase-04-workspace-ui` | F03 completada | [`prompts/fase-04-workspace-ui.md`](prompts/fase-04-workspace-ui.md) | [`2026-07-25-pipeline-fase-04-workspace-ui.md`](../reports/2026-07-25-pipeline-fase-04-workspace-ui.md) |
 | F05 | Completada | `pipeline/fase-05-control-supervisado` | F04 completada y QA visual | [`prompts/fase-05-control-supervisado.md`](prompts/fase-05-control-supervisado.md) | [`2026-07-25-pipeline-fase-05-control-supervisado.md`](../reports/2026-07-25-pipeline-fase-05-control-supervisado.md) |
-| F06 | Planificada | `pipeline/fase-06-modelos-presupuestos` | F05 completada | [`prompts/fase-06-modelos-presupuestos.md`](prompts/fase-06-modelos-presupuestos.md) | Pendiente |
+| F06 | Completada | `pipeline/fase-06-modelos-presupuestos` | F05 completada | [`prompts/fase-06-modelos-presupuestos.md`](prompts/fase-06-modelos-presupuestos.md) | [`2026-07-25-pipeline-fase-06-modelos-presupuestos.md`](../reports/2026-07-25-pipeline-fase-06-modelos-presupuestos.md) |
 | F07 | Planificada | `pipeline/fase-07-inteligencia-replay` | F01 + F03–F06 y datos suficientes; F02 opcional | [`prompts/fase-07-inteligencia-replay.md`](prompts/fase-07-inteligencia-replay.md) | Pendiente |
 | F08 | Planificada | `pipeline/fase-08-hardening-release` | F00, F01 y F03–F07 completadas; F02 sólo si se incluyó | [`prompts/fase-08-hardening-release.md`](prompts/fase-08-hardening-release.md) | Pendiente |
 
@@ -51,6 +51,13 @@ historial ni marcar una fase como completada solamente porque los tests pasaron.
 la tabla, reportar la diferencia antes de editarla.
 
 ## Historial de transiciones
+
+### F06 · Modelos, Presupuestos y Contexto — `En curso` → `Completada` (2026-07-25)
+
+- **Branch:** `pipeline/fase-06-modelos-presupuestos`, implementación verificada por Antigravity.
+- **Evidencia:** `docs/reports/2026-07-25-pipeline-fase-06-modelos-presupuestos.md` y `docs/pipeline/f06/CHECKPOINT-0.md`.
+- **Implementación:** 6 tandas completadas (Tanda 0 threat model, Tanda 1 catálogo y selección jerárquica, Tanda 2 routing y decorrelación Builder/Auditor con detección de drift, Tanda 3 contabilidad de tokens/costos sin double-counting y local_unpriced, Tanda 4 salud de contexto y headroom, Tanda 5 enforcement de presupuestos, i18n y cierre).
+- **Validación:** tsc 0 errores; 73 archivos / 445 tests verde; eslint limpio; `gates.ps1 fast` VERDE; `gates.ps1 full` VERDE.
 
 ### F05 · Control Supervisado — `En curso` → `Completada` (2026-07-25)
 

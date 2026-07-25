@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useT } from '@/hooks/use-translation';
+import { PipelineDetails } from './PipelineDetails';
 import { ActivityFeed } from './ActivityFeed';
 import { AgentTree } from './AgentTree';
 import { ChangePath } from './ChangePath';
@@ -143,6 +144,7 @@ export function PipelineWorkspace({
               state.snapshot.agents.map((agent) => [agent.agentId, agent.runtime]),
             )}
           />
+          <PipelineDetails snapshot={state.snapshot} />
         </>
       ) : (
         <PipelineEmptyState state={state} onRetry={handleRetry} />

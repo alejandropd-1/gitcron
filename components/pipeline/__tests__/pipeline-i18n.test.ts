@@ -76,6 +76,19 @@ const PIPELINE_KEYS = [
   'pipeline.economy.contextMax',
   'pipeline.economy.contextCurrent',
   'pipeline.economy.compactions',
+  'pipeline.details.title',
+  'pipeline.details.proposal',
+  'pipeline.details.diffs',
+  'pipeline.details.auditorFindings',
+  'pipeline.details.gateHistory',
+  'pipeline.details.touchedFiles',
+  'pipeline.details.provenance',
+  'pipeline.details.location',
+  'pipeline.details.recommendation',
+  'pipeline.details.noProposal',
+  'pipeline.details.noDiffs',
+  'pipeline.details.noFindings',
+  'pipeline.details.noGateHistory',
 ] as const;
 
 describe('Pipeline i18n', () => {

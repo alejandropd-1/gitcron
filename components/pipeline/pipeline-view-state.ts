@@ -8,10 +8,14 @@
 import type {
   ActivityEntry,
   AgentNode,
+  AuditorFinding,
   ChangeStation,
   DecisionRequest,
   EconomyState,
+  GateHistoryEntry,
   NowState,
+  PipelineDiffItem,
+  PipelineProposal,
 } from './pipeline-domain';
 
 export type PipelineSource = 'git' | 'hermes' | 'runtime' | 'kit';
@@ -31,6 +35,10 @@ export type PipelineSnapshot = {
   agents: AgentNode[];
   activity: ActivityEntry[];
   economy: EconomyState;
+  proposal?: PipelineProposal | null;
+  diffs?: PipelineDiffItem[];
+  auditorFindings?: AuditorFinding[];
+  gateHistory?: GateHistoryEntry[];
 };
 
 export type PipelineViewState =

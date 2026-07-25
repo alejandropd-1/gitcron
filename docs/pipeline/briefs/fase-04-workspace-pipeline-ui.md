@@ -117,10 +117,7 @@ F04. Confirmá F03 mergeada. Branch pipeline/fase-04-workspace-ui desde main.
 TANDA 0 primero: trazá TopBar/RepoMainView/page/store y entregá wireframe semántico, componentes,
 props y estados. Esperá OK. Luego una tanda por vez.
 
-Regla especial: NO escribas ni modifiques CSS, no agregues utility classes de estilo y no
-inventes visuales inline. Entregá HTML/React semántico, accesible, clases claras y data-* para
-que Ale haga la piel. Reusá DiffViewer y contratos existentes. No agregues controles ni model
-selection. Strings ES/EN/ZH. No pongas estado global de Pipeline en app/page.tsx.
+Regla especial: Escribí el CSS sobre los tokens del design system (sin colores literales), entregá HTML/React semántico, accesible, clases claras y data-*. Reusá DiffViewer y contratos existentes. No agregues controles ni model selection. Strings ES/EN/ZH. No pongas estado global de Pipeline en app/page.tsx.
 
 Checkpoint visual tras cada tanda. Cierre tsc/test/fallow/reporte, mensaje y comandos de
 commit/push sugeridos sin ejecutarlos, y STOP.

@@ -125,6 +125,60 @@ export const RUNNING_SNAPSHOT: PipelineSnapshot = {
     compactionCount: 0,
     reasoningAvailable: true,
   },
+  proposal: {
+    title: 'Fase 04 — Workspace visual per-repo',
+    version: '1.0.0',
+    markdownContent: `# Propuesta F04 — Workspace Pipeline UI
+
+## Objetivos principales
+- Construir el workspace visual per-repo en la solapa Pipeline.
+- Respetar honestidad de datos: \`unknown\` nunca es 0.
+- Reutilizar \`DiffViewer\` perezosamente y mostrar auditoría estructurada.
+
+> **Nota:** La evidencia de ejecución no inventa valores faltantes.`,
+  },
+  diffs: [
+    {
+      filePath: 'components/pipeline/PipelineWorkspace.tsx',
+      agentId: 'orch-1',
+      taskId: 'setup-workspace',
+      diffContent: `@@ -1,5 +1,8 @@
+ import { useT } from '@/hooks/use-translation';
++import { PipelineDetails } from './PipelineDetails';
+ 
+ export function PipelineWorkspace() {
++  // Integración de vista de detalles
+ }`,
+    },
+    {
+      filePath: 'electron/pipeline/runtime-adapters/lmstudio-adapter.ts',
+      agentId: null,
+      taskId: null,
+      diffContent: `@@ -10,4 +10,6 @@
+ export function adaptLmStudioEnvelope(data: unknown) {
++  // Mapeo honesto de costo local sin precio
+   return { costUsd: null, costBasis: 'local_unpriced' };
+ }`,
+    },
+  ],
+  auditorFindings: [
+    {
+      id: 'find-1',
+      category: 'Seguridad / Datos',
+      description: 'Verificar que las claves sensibles o payload no autorizado no se rendericen en plano.',
+      file: 'components/pipeline/PipelineWorkspace.tsx',
+      line: 42,
+      risk: 'low',
+      recommendation: 'Mantener sanitización estricta antes de renderizar.',
+    },
+  ],
+  gateHistory: [
+    { gateId: 'C1', name: 'Typecheck (tsc)', status: 'VERDE', checkedAt: '17:40:00', details: '0 errores' },
+    { gateId: 'C2', name: 'Dependencias (deps)', status: 'VERDE', checkedAt: '17:40:05', details: 'Sin librerías prohibidas' },
+    { gateId: 'C3', name: 'Gobernanza protegida', status: 'VERDE', checkedAt: '17:40:10', details: 'Sin modificación de reglas base' },
+    { gateId: 'C4', name: 'Pruebas (tests)', status: 'VERDE', checkedAt: '17:40:15', details: '409/409 tests OK' },
+    { gateId: 'C6', name: 'OpenSpec strict', status: 'VERDE', checkedAt: '17:40:20', details: 'Esquema conforme' },
+  ],
 };
 
 /**
@@ -214,6 +268,24 @@ export const REJECTED_SNAPSHOT: PipelineSnapshot = {
       provenance: 'runtime',
       evidenceStatus: 'unknown',
     },
+  ],
+  auditorFindings: [
+    {
+      id: 'find-rej-1',
+      category: 'Dependencias no aprobadas',
+      description: 'Intento de agregar paquete no autorizado "react-markdown" sin aprobación explícita.',
+      file: 'package.json',
+      line: 116,
+      risk: 'high',
+      recommendation: 'Usar formateador seguro propio o pedir autorización explícita a Ale.',
+    },
+  ],
+  gateHistory: [
+    { gateId: 'C1', name: 'Typecheck (tsc)', status: 'VERDE', checkedAt: '17:40:00', details: '0 errores' },
+    { gateId: 'C2', name: 'Dependencias (deps)', status: 'ROJO', checkedAt: '17:40:05', details: 'Falló por nueva dependencia no aprobada' },
+    { gateId: 'C3', name: 'Gobernanza protegida', status: 'VERDE', checkedAt: '17:40:10', details: 'OK' },
+    { gateId: 'C4', name: 'Pruebas (tests)', status: 'VERDE', checkedAt: '17:40:15', details: 'OK' },
+    { gateId: 'C6', name: 'OpenSpec strict', status: 'VERDE', checkedAt: '17:40:20', details: 'OK' },
   ],
 };
 

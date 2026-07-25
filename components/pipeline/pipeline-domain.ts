@@ -269,3 +269,37 @@ export function hasUsableCostCoverage(economy: EconomyState): boolean {
   if (total <= 0 || withCost <= 0) return false;
   return withCost === total;
 }
+
+/* ─────────── TANDA 4: detalle, diffs, auditoría y gates ─────────── */
+
+export type PipelineProposal = {
+  title: string;
+  markdownContent: string;
+  version?: string | null;
+};
+
+export type PipelineDiffItem = {
+  filePath: string;
+  diffContent: string;
+  agentId?: string | null;
+  taskId?: string | null;
+};
+
+export type AuditorFinding = {
+  id: string;
+  category: string;
+  description: string;
+  file?: string | null;
+  line?: number | null;
+  risk: 'high' | 'medium' | 'low';
+  recommendation: string;
+};
+
+export type GateHistoryEntry = {
+  gateId: string;
+  name: string;
+  status: 'VERDE' | 'ROJO' | 'PENDIENTE';
+  checkedAt: string | null;
+  details?: string | null;
+};
+

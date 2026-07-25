@@ -36,5 +36,4 @@ cerrá cada una con checkpoint funcional/visual, incluyendo el CSS sobre tokens 
 
 ## Entrega
 
-Reportá typecheck/tests/fallow/QA, consola, archivos, desvíos y ausencia de cambios CSS. No hagas
-stage/commit/push. Entregá mensaje/comandos sugeridos y STOP para QA visual de Ale.
+Reportá typecheck/tests/fallow/QA, consola, archivos, desvíos y cumplimiento del CSS sobre tokens del design system (sin colores literales). No hagas stage/commit/push. Entregá mensaje/comandos sugeridos y STOP para QA visual de Ale.

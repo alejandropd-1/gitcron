@@ -131,7 +131,7 @@ export function PipelineWorkspace({
 
       {state.kind === 'ready' ? (
         <>
-          <PipelineNow now={state.snapshot.now} />
+          <PipelineNow now={state.snapshot.now} repoPath={repoPath} />
           {/* El inbox va por encima del feed: es zona prioritaria, no un feed. */}
           <DecisionInbox decisions={state.snapshot.decisions} />
           <ChangePath stations={state.snapshot.stations} />

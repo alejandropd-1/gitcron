@@ -89,6 +89,15 @@ const PIPELINE_KEYS = [
   'pipeline.details.noDiffs',
   'pipeline.details.noFindings',
   'pipeline.details.noGateHistory',
+  'pipeline.control.title',
+  'pipeline.control.pauseDelegations',
+  'pipeline.control.pauseAfterTask',
+  'pipeline.control.steer',
+  'pipeline.control.queue',
+  'pipeline.control.send',
+  'pipeline.control.ackPending',
+  'pipeline.control.ackSuccess',
+  'pipeline.control.ackError',
 ] as const;
 
 describe('Pipeline i18n', () => {

@@ -3,9 +3,14 @@
 import { useT } from '@/hooks/use-translation';
 import { UnknownValue } from './primitives/UnknownValue';
 import { formatElapsed, runtimeDisplayName, type NowState } from './pipeline-domain';
+import { PipelineControlBar } from './PipelineControlBar';
+import type { PipelineControlAction } from '../../electron/pipeline/control/control-bus-types';
 
 export type PipelineNowProps = {
   now: NowState;
+  repoPath?: string | null;
+  sessionId?: string | null;
+  capabilities?: PipelineControlAction[];
 };
 
 /**
@@ -15,7 +20,7 @@ export type PipelineNowProps = {
  * técnicos después. Un costo ausente se renderiza con `UnknownValue`, nunca
  * como `0`.
  */
-export function PipelineNow({ now }: PipelineNowProps) {
+export function PipelineNow({ now, repoPath, sessionId, capabilities }: PipelineNowProps) {
   const t = useT();
   const elapsed = formatElapsed(now.elapsedMs);
   // Se muestra el nombre comercial; la identidad cruda sigue en data-runtime.
@@ -75,6 +80,15 @@ export function PipelineNow({ now }: PipelineNowProps) {
       <p className="pipeline-now__human" data-needs-human={now.needsHuman}>
         {now.needsHuman ? t('pipeline.now.needsHuman') : t('pipeline.now.noHumanNeeded')}
       </p>
+
+      {repoPath && (
+        <PipelineControlBar
+          repoPath={repoPath}
+          sessionId={sessionId}
+          runtime={runtime}
+          capabilities={capabilities}
+        />
+      )}
     </section>
   );
 }

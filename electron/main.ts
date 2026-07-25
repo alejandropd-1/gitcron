@@ -22,6 +22,8 @@ import { registerCartoAiHandlers } from './ipc/carto-ai';
 import { closeAllGraphs } from './carto/graph-engine';
 import { registerWatcherHandlers, closeAllRepoWatchers } from './ipc/watchers';
 import { registerPipelineHandlers } from './ipc/pipeline';
+import { PipelineControlBus } from './pipeline/control/control-bus';
+import { registerPipelineControlHandlers } from './ipc/pipeline-control';
 import {
   registerAppWindowHandlers, setupAutoUpdater,
   silentCheckForUpdates, stopUpdateCheckTimer,
@@ -264,6 +266,8 @@ registerCartoHandlers();           // carto:* handlers generales (sin canales ac
 registerCartoGraphHandlers(getMainWindow); // carto:graph-* (CodeGraph embebido, local, solo lectura)
 registerCartoAiHandlers();         // carto:ai-* (proveedor de IA local/online; opt-in; secretos sólo en main)
 const notifyPipelineRepoChanged = registerPipelineHandlers(getMainWindow); // pipeline:* read-only
+const pipelineControlBus = new PipelineControlBus();
+registerPipelineControlHandlers(pipelineControlBus); // pipeline:control:*
 registerWatcherHandlers(getMainWindow, notifyPipelineRepoChanged);          // repo:watch/unwatch
 registerAppWindowHandlers(getMainWindow, isDev); // app:* + window:*
 

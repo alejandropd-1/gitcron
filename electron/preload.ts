@@ -258,6 +258,15 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('pipeline:snapshot-updated', handler);
     return () => ipcRenderer.removeListener('pipeline:snapshot-updated', handler);
   },
+  pipelineControl: {
+    pause: (payload: unknown) => ipcRenderer.invoke('pipeline:control:pause', payload),
+    steer: (payload: unknown) => ipcRenderer.invoke('pipeline:control:steer', payload),
+    queue: (payload: unknown) => ipcRenderer.invoke('pipeline:control:queue', payload),
+    interrupt: (payload: unknown) => ipcRenderer.invoke('pipeline:control:interrupt', payload),
+    killProcess: (payload: unknown) => ipcRenderer.invoke('pipeline:control:kill-process', payload),
+    cancel: (payload: unknown) => ipcRenderer.invoke('pipeline:control:cancel', payload),
+    respondDecision: (payload: unknown) => ipcRenderer.invoke('pipeline:control:respond-decision', payload),
+  },
   materializeIdea: (repoPath: string, idea: unknown) =>
     ipcRenderer.invoke('git:materialize-idea', repoPath, idea),
   ai: {

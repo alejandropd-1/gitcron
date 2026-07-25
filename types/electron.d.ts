@@ -430,6 +430,15 @@ interface ElectronAPI {
   pipelineSubscribe: (repoPath: string) => Promise<GitResult<PipelineState>>;
   pipelineUnsubscribe: (repoPath: string) => Promise<GitResult>;
   onPipelineSnapshotUpdated: (cb: (repoPath: string, snapshot: PipelineState) => void) => () => void;
+  pipelineControl: {
+    pause: (payload: unknown) => Promise<unknown>;
+    steer: (payload: unknown) => Promise<unknown>;
+    queue: (payload: unknown) => Promise<unknown>;
+    interrupt: (payload: unknown) => Promise<unknown>;
+    killProcess: (payload: unknown) => Promise<unknown>;
+    cancel: (payload: unknown) => Promise<unknown>;
+    respondDecision: (payload: unknown) => Promise<unknown>;
+  };
   materializeIdea(repoPath: string, idea: MaterializeIdeaInput): Promise<GitResult<MaterializationResult>>;
   ai: {
     predictTimelines(repoPath: string, repoName: string, lang?: string): Promise<GitResult<PredictionResult>>;

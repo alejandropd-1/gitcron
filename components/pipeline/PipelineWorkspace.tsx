@@ -2,10 +2,19 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useT } from '@/hooks/use-translation';
+import { ActivityFeed } from './ActivityFeed';
+import { AgentTree } from './AgentTree';
 import { ChangePath } from './ChangePath';
+import { EconomyPanel } from './EconomyPanel';
 import { DecisionInbox } from './DecisionInbox';
 import { PipelineEmptyState } from './PipelineEmptyState';
 import { PipelineNow } from './PipelineNow';
+import {
+  DEV_FIXTURES_ENABLED,
+  PipelineDevFixturePicker,
+  loadDevFixture,
+  type DevFixtureName,
+} from './PipelineDevFixtures';
 import {
   resolvePipelineViewState,
   type PipelineSnapshot,
@@ -56,8 +65,10 @@ export function PipelineWorkspace({
   const t = useT();
   const [result, setResult] = useState<LoadResult | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  // Sólo desarrollo: permite recorrer los estados sin lector de evidencia.
+  const [devFixture, setDevFixture] = useState<DevFixtureName>('live');
 
-  const loadKey = `${repoPath ?? ''}#${reloadToken}`;
+  const loadKey = `${repoPath ?? ''}#${reloadToken}#${devFixture}`;
   // Derivado en vez de almacenado: no puede quedar desincronizado del pedido
   // que está realmente en curso.
   const isLoading = Boolean(repoPath) && result?.key !== loadKey;
@@ -66,7 +77,11 @@ export function PipelineWorkspace({
     if (!repoPath) return undefined;
     const controller = new AbortController();
 
-    loadSnapshot(repoPath, controller.signal)
+    const load = DEV_FIXTURES_ENABLED && devFixture !== 'live'
+      ? loadDevFixture(devFixture)
+      : loadSnapshot(repoPath, controller.signal);
+
+    load
       .then((snapshot) => {
         if (controller.signal.aborted) return;
         setResult({ key: loadKey, snapshot, error: null });
@@ -81,7 +96,7 @@ export function PipelineWorkspace({
       });
 
     return () => controller.abort();
-  }, [repoPath, loadKey, loadSnapshot]);
+  }, [repoPath, loadKey, loadSnapshot, devFixture]);
 
   const handleRetry = useCallback(() => {
     setReloadToken((token) => token + 1);
@@ -105,6 +120,8 @@ export function PipelineWorkspace({
         {t('pipeline.title')}
       </h2>
 
+      <PipelineDevFixturePicker value={devFixture} onChange={setDevFixture} />
+
       {/* Polite y no assertive: el feed de actividad no debe interrumpir al
           lector de pantalla en cada cambio de estado. */}
       <p role="status" aria-live="polite" className="pipeline-workspace__status">
@@ -117,6 +134,15 @@ export function PipelineWorkspace({
           {/* El inbox va por encima del feed: es zona prioritaria, no un feed. */}
           <DecisionInbox decisions={state.snapshot.decisions} />
           <ChangePath stations={state.snapshot.stations} />
+          <AgentTree agents={state.snapshot.agents} />
+          <EconomyPanel economy={state.snapshot.economy} />
+          <ActivityFeed
+            entries={state.snapshot.activity}
+            reasoningAvailable={state.snapshot.economy.reasoningAvailable}
+            agentRuntimes={Object.fromEntries(
+              state.snapshot.agents.map((agent) => [agent.agentId, agent.runtime]),
+            )}
+          />
         </>
       ) : (
         <PipelineEmptyState state={state} onRetry={handleRetry} />

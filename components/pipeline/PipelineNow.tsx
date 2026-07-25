@@ -2,7 +2,7 @@
 
 import { useT } from '@/hooks/use-translation';
 import { UnknownValue } from './primitives/UnknownValue';
-import { formatElapsed, type NowState } from './pipeline-domain';
+import { formatElapsed, runtimeDisplayName, type NowState } from './pipeline-domain';
 
 export type PipelineNowProps = {
   now: NowState;
@@ -18,6 +18,8 @@ export type PipelineNowProps = {
 export function PipelineNow({ now }: PipelineNowProps) {
   const t = useT();
   const elapsed = formatElapsed(now.elapsedMs);
+  // Se muestra el nombre comercial; la identidad cruda sigue en data-runtime.
+  const runtime = runtimeDisplayName(now.runtime);
   const hasTaskProgress = now.tasksDone !== null && now.tasksTotal !== null;
 
   return (
@@ -31,13 +33,13 @@ export function PipelineNow({ now }: PipelineNowProps) {
       </h3>
 
       <p className="pipeline-now__headline">
-        {t(now.headlineKey, now.runtime ? { runtime: now.runtime } : undefined)}
+        {t(now.headlineKey, runtime ? { runtime } : undefined)}
       </p>
 
       <dl className="pipeline-now__facts">
         <div className="pipeline-now__fact" data-runtime={now.runtime ?? undefined}>
           <dt>{t('pipeline.now.agent')}</dt>
-          <dd>{now.runtime ?? <UnknownValue reason="not-reported" />}</dd>
+          <dd>{runtime ?? <UnknownValue reason="not-reported" />}</dd>
         </div>
 
         <div className="pipeline-now__fact">

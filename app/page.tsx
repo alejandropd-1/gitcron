@@ -1656,6 +1656,7 @@ export default function GitCronPage() {
             }}
             tabViews={{
               activeTab,
+              repoPath,
               commits,
               selectedCommit,
               currentBranch,

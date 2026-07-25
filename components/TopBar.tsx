@@ -103,6 +103,7 @@ export function TopBar({
             { key: 'Commit', label: t('tab.commit') },
             { key: 'Graph', label: t('tab.graph') },
             { key: 'History', label: t('tab.history') },
+            { key: 'Pipeline', label: t('tab.pipeline') },
           ].map((tab) => (
             <button
               key={tab.key}

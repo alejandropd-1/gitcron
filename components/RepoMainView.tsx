@@ -24,6 +24,7 @@ import InteractiveRebasePanel from '@/components/InteractiveRebasePanel';
 import { FLOATING_PANEL_INSET, GRAPH_SAFE_GAP, type GraphColumnKey } from '@/hooks/use-panel-layout';
 import { useT } from '@/hooks/use-translation';
 import type { Commit, GitFile } from '@/lib/git-store';
+import { PipelineWorkspace } from '@/components/pipeline/PipelineWorkspace';
 import { cn } from '@/lib/utils';
 import type { SpeculativeBranch } from '@/types/temporal-agent';
 import type { BlameLine, FileHistoryEntry, PullRequestDiffData, PullRequestEntry } from '@/types/electron';
@@ -86,6 +87,8 @@ type DiffViewsProps = {
 
 type TabViewsProps = {
   activeTab: string;
+  /** Repo activo. Lo consume el workspace de Pipeline, que scopea todo per-repo. */
+  repoPath: string | null;
   commits: Commit[];
   selectedCommit: Commit | null;
   currentBranch?: string;
@@ -235,6 +238,11 @@ export function RepoMainView({
   }
   if (tabViews.activeTab === 'History') return <HistoryTabView {...tabViews} />;
   if (tabViews.activeTab === 'Commit') return <CommitWorkspaceView {...tabViews} />;
+  // `key` per-repo: cambiar de repositorio desmonta y remonta el workspace, así
+  // no se muestra el snapshot del repo anterior mientras carga el nuevo.
+  if (tabViews.activeTab === 'Pipeline') {
+    return <PipelineWorkspace key={tabViews.repoPath ?? 'no-repo'} repoPath={tabViews.repoPath} />;
+  }
   return <GraphTabView tabViews={tabViews} graphView={graphView} />;
 }
 

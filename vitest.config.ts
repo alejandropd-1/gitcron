@@ -11,6 +11,9 @@ export default defineConfig({
       'electron/ai/__tests__/**/*.test.ts',
       'electron/ai/carto/__tests__/**/*.test.ts',
       'electron/db/__tests__/**/*.test.ts',
+      // F04 introduce lógica de UI testeable sin DOM (resolución de estado del
+      // workspace Pipeline), que vive junto a sus componentes.
+      'components/**/__tests__/**/*.test.ts',
     ],
   },
   resolve: {

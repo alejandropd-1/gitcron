@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useT } from '@/hooks/use-translation';
 import { PipelineDetails } from './PipelineDetails';
+import { toPipelineSnapshot } from './pipeline-adapter';
 import { ActivityFeed } from './ActivityFeed';
 import { AgentTree } from './AgentTree';
 import { ChangePath } from './ChangePath';
@@ -28,13 +29,22 @@ export type PipelineSnapshotLoader = (
 ) => Promise<PipelineSnapshot | null>;
 
 /**
- * Fuente por defecto de TANDA 1.
+ * Lector real de evidencia per-repo.
  *
- * La lectura real de evidencia per-repo se conecta en TANDA 2, junto con la
- * vista que la consume. Hasta entonces no se fabrica un snapshot: se responde
- * honestamente "no hay actividad", que es un estado legítimo del workspace.
+ * Llama al canal `pipeline:get-snapshot` de Main —que lee el store SQLite
+ * per-repo de F01— y traduce el `PipelineState` al snapshot del workspace.
+ *
+ * Devuelve `null` cuando el canal no existe (build web sin Electron) o cuando
+ * el repo no tiene evidencia todavía. Eso resuelve al estado "sin actividad",
+ * que es honesto: no se fabrica un snapshot para llenar la pantalla.
  */
-const loadNoSnapshotYet: PipelineSnapshotLoader = async () => null;
+const loadRealSnapshot: PipelineSnapshotLoader = async (repoPath) => {
+  const api = typeof window !== 'undefined' ? window.api : undefined;
+  if (!api?.pipelineGetSnapshot) return null;
+  const result = await api.pipelineGetSnapshot(repoPath);
+  if (!result?.success || !result.data) return null;
+  return toPipelineSnapshot(result.data);
+};
 
 type LoadResult = {
   key: string;
@@ -61,7 +71,7 @@ export type PipelineWorkspaceProps = {
  */
 export function PipelineWorkspace({
   repoPath,
-  loadSnapshot = loadNoSnapshotYet,
+  loadSnapshot = loadRealSnapshot,
 }: PipelineWorkspaceProps) {
   const t = useT();
   const [result, setResult] = useState<LoadResult | null>(null);
@@ -98,6 +108,28 @@ export function PipelineWorkspace({
 
     return () => controller.abort();
   }, [repoPath, loadKey, loadSnapshot, devFixture]);
+
+  // Suscripción a cambios del repo. Main reemite el estado cuando detecta
+  // evidencia nueva; el fixture de desarrollo no se pisa.
+  useEffect(() => {
+    const api = typeof window !== 'undefined' ? window.api : undefined;
+    if (!repoPath || !api?.pipelineSubscribe || (DEV_FIXTURES_ENABLED && devFixture !== 'live')) {
+      return undefined;
+    }
+    void api.pipelineSubscribe(repoPath);
+    const off = api.onPipelineSnapshotUpdated?.((changedRepo, state) => {
+      if (changedRepo !== repoPath) return;
+      // Actualización funcional: conserva la clave del pedido vigente sin
+      // necesitar un ref, que no puede escribirse durante el render.
+      setResult((prev) => (prev
+        ? { ...prev, snapshot: toPipelineSnapshot(state), error: null }
+        : prev));
+    });
+    return () => {
+      off?.();
+      void api.pipelineUnsubscribe?.(repoPath);
+    };
+  }, [repoPath, devFixture]);
 
   const handleRetry = useCallback(() => {
     setReloadToken((token) => token + 1);

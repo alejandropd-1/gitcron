@@ -468,6 +468,13 @@ body, .font-sans {
      opaco propio lo taparía. */
 }
 
+/* Las secciones no se comprimen: son un flujo vertical con scroll propio del
+   workspace, no cajas que se achican para entrar. Sin esto, la que tiene
+   contenido menos rígido colapsa cuando el resto crece. */
+.pipeline-workspace > * {
+  flex-shrink: 0;
+}
+
 .pipeline-workspace__title {
   font-size: 1.125rem;
   font-weight: 600;
@@ -657,114 +664,203 @@ body, .font-sans {
   font-weight: 500;
 }
 
-/* ─── Vía del change: recorrido en diagonal ───
-   Toma la lectura visual de la vista cronométrica. La pendiente se declara como
-   token propio, derivado de DEFAULT_CHRONOMETRIC_SLOPE (0.85), para que las dos
-   vistas se sientan de la misma familia sin acoplar sus motores. */
+/* ─── Vía del change: multistep de nodos ───
+   ADN de la línea de tiempo cronométrica: nodos sobre un riel con desnivel
+   progresivo. El desnivel usa `margin-top` y NO `transform`, porque transform
+   no aporta altura al layout y hacía colapsar la sección dentro del flex
+   padre. La pendiente deriva de DEFAULT_CHRONOMETRIC_SLOPE (0.85). */
 
 .pipeline-path {
   --pipeline-slope: 0.85;
-  --pipeline-station-rise: calc(var(--pipeline-slope) * 2.25rem);
+  --pipeline-station-rise: calc(var(--pipeline-slope) * 0.75rem);
+  /* Sin esto el flex padre comprime la sección hasta colapsarla. */
+  flex-shrink: 0;
   padding: 1rem;
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   background-color: var(--color-bg-surface);
-  overflow-x: auto;
+}
+
+.pipeline-path__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* Contador de paso: el dato que responde "¿en qué fase estoy?" de un vistazo. */
+.pipeline-path__counter {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.pipeline-path__counter-step {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+}
+
+.pipeline-path__counter[data-has-current="true"] .pipeline-path__counter-step {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.pipeline-path__counter-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
 .pipeline-path__track {
   display: flex;
   align-items: flex-start;
   list-style: none;
-  min-width: max-content;
-  /* Aire para que la última estación, la más baja, no quede cortada. */
-  padding-bottom: calc(var(--pipeline-station-rise) * 6);
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
 }
 
 .pipeline-path__station {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1875rem;
-  min-width: 8.25rem;
-  padding-right: 1rem;
-  /* La diagonal: cada estación baja un escalón respecto de la anterior. */
-  transform: translateY(calc(var(--station-index) * var(--pipeline-station-rise)));
+  flex: 1 0 7.5rem;
+  min-width: 7.5rem;
+  /* El desnivel: ocupa lugar real, a diferencia de transform. */
+  margin-top: calc(var(--station-index) * var(--pipeline-station-rise));
 }
 
-/* Riel entre estaciones. Sólido = ocurrió; punteado = camino posible. */
-.pipeline-path__station::after {
+/* Riel entre nodos. Sólido = ocurrió; punteado = camino posible. */
+.pipeline-path__station:not(:last-child)::after {
   content: "";
   position: absolute;
-  left: 0.3125rem;
-  top: 0.3125rem;
-  width: 100%;
-  height: var(--pipeline-station-rise);
-  border-left: 2px solid var(--color-border-subtle);
-  border-bottom: 2px solid var(--color-border-subtle);
-  border-bottom-left-radius: var(--radius-md);
+  top: 1.125rem;
+  left: calc(50% + 1.25rem);
+  right: calc(-50% + 1.25rem);
+  height: 2px;
+  background-color: var(--color-border-subtle);
   pointer-events: none;
 }
 
-.pipeline-path__station:last-child::after { display: none; }
-
-.pipeline-path__station[data-estado="possible"]::after,
-.pipeline-path__station[data-estado="skipped"]::after {
-  border-style: dashed;
-}
-
-.pipeline-path__station[data-estado="done"]::after {
-  border-color: var(--color-secondary);
-}
-
-.pipeline-path__station[data-estado="current"]::after {
-  border-color: var(--color-primary);
-}
-
-/* Rechazo del auditor: el riel vuelve atrás, hacia el fixer. */
-.pipeline-path__station[data-estado="rejected"]::after {
-  border-color: var(--color-error);
-  border-style: dashed;
-}
-
-.pipeline-path__marker {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: var(--radius-full);
-  border: 2px solid var(--color-border-subtle);
-  background-color: var(--color-bg-base);
-  z-index: 1;
-}
-
-.pipeline-path__station[data-estado="done"] .pipeline-path__marker {
-  border-color: var(--color-secondary);
+.pipeline-path__station[data-estado="done"]:not(:last-child)::after {
   background-color: var(--color-secondary);
 }
 
-.pipeline-path__station[data-estado="current"] .pipeline-path__marker {
+.pipeline-path__station[data-estado="current"]:not(:last-child)::after {
+  background-image: linear-gradient(
+    to right,
+    var(--color-primary),
+    var(--color-border-subtle)
+  );
+}
+
+.pipeline-path__station[data-estado="possible"]:not(:last-child)::after,
+.pipeline-path__station[data-estado="skipped"]:not(:last-child)::after {
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--color-border-subtle) 0 4px,
+    transparent 4px 8px
+  );
+}
+
+/* Rechazo: el riel vuelve rojo hacia el fixer. */
+.pipeline-path__station[data-estado="rejected"]:not(:last-child)::after {
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--color-error) 0 4px,
+    transparent 4px 8px
+  );
+}
+
+.pipeline-path__node {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0 0.25rem 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  border-radius: var(--radius-md);
+}
+
+.pipeline-path__node:hover .pipeline-path__number {
+  border-color: var(--color-primary);
+}
+
+.pipeline-path__node:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* El nodo. El número dice el paso; forma y relleno dicen el estado. */
+.pipeline-path__number {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-border-subtle);
+  background-color: var(--color-bg-base);
+  color: var(--color-text-secondary);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pipeline-path__station[data-estado="done"] .pipeline-path__number {
+  border-color: var(--color-secondary);
+  background-color: var(--color-secondary);
+  color: var(--color-bg-base);
+}
+
+/* La fase actual domina: más grande, con halo y color de marca. */
+.pipeline-path__station[data-estado="current"] .pipeline-path__number {
   border-color: var(--color-primary);
   background-color: var(--color-primary);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 25%, transparent);
+  color: var(--color-bg-base);
+  transform: scale(1.15);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-primary) 22%, transparent);
 }
 
-.pipeline-path__station[data-estado="rejected"] .pipeline-path__marker {
+.pipeline-path__station[data-estado="rejected"] .pipeline-path__number {
   border-color: var(--color-error);
   background-color: var(--color-error);
+  color: var(--color-bg-base);
 }
 
-.pipeline-path__station[data-estado="possible"] .pipeline-path__marker {
+.pipeline-path__station[data-estado="possible"] .pipeline-path__number,
+.pipeline-path__station[data-estado="skipped"] .pipeline-path__number {
   border-style: dashed;
+  opacity: 0.7;
 }
 
-/* Compuerta humana: marcador cuadrado, no redondo. La forma dice "acá decide
-   una persona" sin depender del color. */
-.pipeline-path__station[data-human-gate] .pipeline-path__marker {
-  border-radius: var(--radius-sm);
+/* Compuerta humana: nodo cuadrado. La forma dice "acá decidís vos" sin color. */
+.pipeline-path__station[data-human-gate] .pipeline-path__number {
+  border-radius: var(--radius-default);
+}
+
+.pipeline-path__station[data-selected] .pipeline-path__number {
+  outline: 2px solid var(--color-accent-purple);
+  outline-offset: 3px;
 }
 
 .pipeline-path__label {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 500;
+  line-height: 1.25;
   color: var(--color-text-primary);
 }
 
@@ -773,13 +869,35 @@ body, .font-sans {
   color: var(--color-text-secondary);
 }
 
+.pipeline-path__station[data-estado="current"] .pipeline-path__label {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
 .pipeline-path__state,
 .pipeline-path__human {
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
+  line-height: 1.2;
   color: var(--color-text-secondary);
 }
 
 .pipeline-path__human { color: var(--color-accent-purple); }
+
+.pipeline-path__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  border-left: 3px solid var(--color-accent-purple);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-overlay);
+  color: var(--color-text-secondary);
+}
+
+.pipeline-path__detail strong { color: var(--color-text-primary); }
 
 .pipeline-path__note {
   font-size: 0.75rem;
@@ -787,23 +905,34 @@ body, .font-sans {
   margin-top: 0.5rem;
 }
 
-/* En pantallas angostas la diagonal se endereza: sigue siendo una lista. */
+@media (prefers-reduced-motion: reduce) {
+  .pipeline-path__number { transition: none; }
+}
+
+/* En pantallas angostas el multistep se endereza: sigue siendo una lista. */
 @media (max-width: 900px) {
-  .pipeline-path__track {
-    flex-direction: column;
-    padding-bottom: 0;
-  }
+  .pipeline-path__track { flex-direction: column; }
 
   .pipeline-path__station {
-    transform: none;
-    padding-right: 0;
-    padding-bottom: 0.75rem;
+    margin-top: 0;
+    flex: none;
+    width: 100%;
   }
 
-  .pipeline-path__station::after {
-    width: var(--pipeline-station-rise);
-    height: 100%;
-    border-bottom: none;
+  .pipeline-path__station:not(:last-child)::after {
+    top: auto;
+    bottom: -0.25rem;
+    left: 1.125rem;
+    right: auto;
+    width: 2px;
+    height: 0.75rem;
+  }
+
+  .pipeline-path__node {
+    flex-direction: row;
+    gap: 0.5rem;
+    text-align: left;
+    padding-bottom: 0.75rem;
   }
 }
 

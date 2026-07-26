@@ -1,238 +1,179 @@
-# GitCron — Handoff Pipeline F04 (tandas 4 y 5)
+# GitCron — Estado de Pipeline F04 y handoff para el siguiente agente
 
-**De:** Claude Opus 5 (builder de markup, estado y CSS, tandas 0–3)
-**Para:** Antigravity (u otro agente que continúe)
-**Repositorio:** `C:\www\gitcron`
-**Rama:** `pipeline/fase-04-workspace-ui`
-**Estado al entregar:** tandas 0–3 completas, commiteadas y pusheadas. Árbol limpio, en sync con origin.
-**Último commit:** `613529b fix(pipeline): heredar el fondo del contenedor en el workspace F04`
+**Última actualización:** 2026-07-25 por Claude Opus 5
+**Repositorio:** `C:\www\gitcron` · **Rama:** `pipeline/fase-04-workspace-ui`
+**Último commit:** `bce1a8d feat(pipeline): conectar el lector real de evidencia per-repo al workspace F04`
 
----
-
-## 0. LEER ESTO PRIMERO — el brief está desactualizado en un punto crítico
-
-El brief `docs/pipeline/briefs/fase-04-workspace-pipeline-ui.md` y el prompt
-`docs/pipeline/prompts/fase-04-workspace-ui.md` dicen:
-
-> *"Ale escribe el CSS"* · *"NO escribas ni modifiques CSS"* · criterio de aceptación:
-> *"Cero cambios CSS hechos por agentes"*
-
-**Eso fue revertido por Ale el 2026-07-25, textualmente:**
-
-> *"acordate que yo no voy a hacer nada de CSS, por ende lo tenés que hacer vos o la IA de turno que
-> le toque hacer la UI/UX (…) tenés rienda libre para crear lo necesario respetando el Design system"*
-
-**El CSS es tuyo.** Las tandas 0–3 ya se entregaron con CSS escrito por el agente. Si seguís la regla
-vieja vas a entregar markup sin piel y Ale no lo va a estilar.
-
-Los documentos de brief/prompt **todavía no se actualizaron**. Actualizarlos es parte de tu trabajo
-(ver §7), para que el próximo agente no herede la regla muerta.
+> Este documento reemplaza al handoff original de tandas 4–5, que quedó obsoleto:
+> Antigravity avanzó hasta F08 y las tandas que quedaban pendientes ya están hechas.
 
 ---
 
-## 1. Qué está hecho
+## 1. Estado real
 
-| Tanda | Entrega | Commit |
+| Bloque | Quién | Estado |
 |---|---|---|
-| 0 | Wireframe, árbol de componentes, contrato de props, fixtures | `ba85297` |
-| 1 | Cuarta pestaña + shell per-repo + 7 estados + i18n ES/EN/ZH | `ba85297` |
-| 2 | Vía del change en diagonal, "Ahora", inbox de decisiones, CSS | `186d2ed` |
-| 3 | Árbol de agentes, actividad con filtros, economía | `e753b91` |
-| — | Selector de fixtures sólo-desarrollo | `e753b91` |
-| — | Fix de fondo heredado | `613529b` |
+| Tandas 0–3 (shell, vía, Ahora, inbox, agentes, actividad, economía) | Claude | hecho |
+| Tanda 4 (detalle, diffs, auditoría, gates) | Antigravity | hecho |
+| Controles F05, hardening F06–F08 | Antigravity | hecho |
+| Piel visual (CSS) | Claude | hecho |
+| Lector real de evidencia per-repo | Claude | **hecho** (`bce1a8d`) |
 
-Checkpoints en `docs/pipeline/f04/CHECKPOINT-0.md`, `-1.md`, `-3.md`.
+Validación al cierre: `tsc` 0 · **82 archivos / 482 tests** · `eslint` limpio en `components/pipeline/`
+· build OK · `gates.ps1 fast` VERDE.
 
-### Archivos de la feature
+### Componentes
 
 ```
 components/pipeline/
-├── PipelineWorkspace.tsx        dueño ÚNICO del estado de la feature
-├── PipelineEmptyState.tsx       7 estados no-ready
-├── PipelineNow.tsx              "¿qué pasa, cuánto cuesta, me necesita?"
-├── DecisionInbox.tsx            zona prioritaria, por encima del feed
-├── DecisionCard.tsx
-├── ChangePath.tsx               vía en diagonal
-├── AgentTree.tsx                jerarquía parent/child
-├── ActivityFeed.tsx             filtros + agrupación de deltas
-├── EconomyPanel.tsx             tokens, costo, contexto
-├── PipelineDevFixtures.tsx      selector sólo-desarrollo
-├── pipeline-domain.ts           lógica pura (ordenamiento, árbol, agrupación)
-├── pipeline-view-state.ts       resolución de estado, testeable sin DOM
-├── primitives/UnknownValue.tsx  ← LEER §3
-├── primitives/ProvenanceBadge.tsx
-├── __fixtures__/pipeline-fixtures.ts
-└── __tests__/                   4 archivos, 42 tests
+├── PipelineWorkspace.tsx     dueño ÚNICO del estado; carga y suscripción
+├── pipeline-adapter.ts       PipelineState (F01) → snapshot del workspace  ← LEER §3
+├── pipeline-domain.ts        lógica pura: orden, árbol, agrupación, cobertura
+├── pipeline-view-state.ts    resolución de estado, testeable sin DOM
+├── PipelineNow / ChangePath / DecisionInbox / DecisionCard
+├── AgentTree / ActivityFeed / EconomyPanel
+├── PipelineDetails / AuditorFindings / GateHistory / LazyDiffViewer / SafeMarkdown
+├── PipelineControlBar / ConfirmControlModal / PartialWorkBanner
+├── PipelineDevFixtures.tsx   selector sólo-desarrollo  ← LEER §4
+├── primitives/UnknownValue · ProvenanceBadge
+└── __tests__/  9 archivos
 ```
 
-CSS: `app/globals.css`, bloque `PIPELINE (F04)` al final, ~700 líneas.
+CSS: `app/globals.css`, bloque `PIPELINE (F04)`, ~800 líneas, **cero colores literales**.
 
 ---
 
-## 2. Arquitectura — la regla que no se rompe
+## 2. La regla que no se rompe: `app/page.tsx` no sabe nada de Pipeline
 
-**`app/page.tsx` no sabe nada de Pipeline.** Tiene 1908 líneas y el brief advierte contra inflarlo.
-Creció **exactamente 1 línea**: pasar `repoPath`, un dato que ya tenía en scope.
+Tiene ~1900 líneas. Creció **una sola línea** en toda la fase: pasar `repoPath`, que ya tenía en scope.
+Todo el estado vive en `PipelineWorkspace`.
 
-Todo el estado vive en `PipelineWorkspace`. Los tres puntos de integración son:
+Puntos de integración, sólo tres:
+`components/TopBar.tsx` (la 4ª tab) · `components/RepoMainView.tsx` (rama del router) ·
+`app/page.tsx` (`repoPath` dentro de `tabViews`).
 
-- `components/TopBar.tsx:105` — la 4ª entrada de tab
-- `components/RepoMainView.tsx:243` — la rama del router
-- `app/page.tsx:~1658` — `repoPath` dentro de `tabViews`
+Si necesitás estado nuevo, va **dentro del workspace**.
 
-Si TANDA 4 necesita estado nuevo (diff seleccionado, archivo abierto), va **dentro de
-`PipelineWorkspace`**, no en `page.tsx`.
-
-### Scoping per-repo, en tres capas
-
-1. `key={repoPath}` en el llamador → cambiar de repo desmonta y remonta.
-2. `AbortController` → cancela la request anterior.
-3. `loadKey` → descarta respuestas en vuelo que lleguen tarde.
-
-`isLoading` es **derivado**, no almacenado. No lo conviertas en estado.
+Scoping per-repo en tres capas: `key={repoPath}` desmonta al cambiar de repo, `AbortController`
+cancela la request anterior, y `loadKey` descarta respuestas que lleguen tarde. `isLoading` es
+**derivado**, no almacenado — no lo conviertas en estado.
 
 ---
 
 ## 3. Las reglas de honestidad — el corazón de la fase
 
-Esta fase existe para no mentirle al usuario. Si rompés esto, rompiste la fase.
+Si rompés esto, rompiste la fase. `pipeline-adapter.ts` es la frontera donde se decide qué se puede
+afirmar, y su regla es: **lo que la evidencia no dice queda `null`**.
 
-- **`unknown` NUNCA es `0`.** Todo valor ausente se renderiza con `<UnknownValue>`. Ese componente
-  existe para que la regla sea **estructural** y no una convención repetida que alguna copia rompe.
-  Si en TANDA 4 mostrás un número, preguntate qué pasa cuando no está.
-- **Derivado ≠ hecho.** `ProvenanceBadge` marca `runtime | repo | derived | human` y el estado de
-  evidencia. La distinción va también en `data-provenance` / `data-evidence`, no sólo en color.
-- **Lo que no se informó, no se inventa.** `consequence: null` → "sin datos". No se rellena con
-  texto generado. Vale igual para riesgo, "por qué" y hallazgos.
-- **Un runtime que no expone algo lo dice.** `"Este runtime no expone su razonamiento"`, no un panel
+- **`unknown` NUNCA es `0`.** Todo valor ausente pasa por `<UnknownValue>`. Ese componente existe
+  para que la regla sea estructural y no una convención repetida que alguna copia rompe.
+  `sumOrNull()` devuelve `null` si ningún registro aportó el dato: sumar nada da cero, y cero mentiría.
+- **No se inventa lo que nadie observó.** El adaptador no arma jerarquía de agentes (la evidencia de
+  F01 no tiene ids padre/hijo) ni adivina el runtime (registra el modelo, no quién lo ejecutó).
+- **Derivado ≠ hecho.** `ProvenanceBadge` marca origen y estado de evidencia, en `data-*` además de
+  color.
+- **Un runtime que no expone algo lo dice.** "Este runtime no expone su razonamiento", no un panel
   vacío que se lea como "no pensó nada".
 - **Sin cobertura total de costo, no hay comparación en dinero.** `hasUsableCostCoverage()` sólo es
-  `true` con cobertura completa; si no, se muestran tokens y el texto de cobertura. Un ranking
-  parcial compararía agentes medidos contra agentes sin medir.
-- **F04 no ejecuta nada.** Las opciones de F05 se muestran deshabilitadas **con el motivo escrito**
-  (`aria-disabled` + texto). Un control gris sin explicación es una trampa.
+  `true` con cobertura completa; si no, tokens + texto de cobertura. Un ranking parcial compararía
+  agentes medidos contra agentes sin medir.
+
+Hay tests por cada una de estas reglas en `__tests__/pipeline-adapter.test.ts`.
 
 ---
 
 ## 4. Convenciones de CSS
 
-Patrón: el de Cartografía. **Clases nombradas en `globals.css` sobre los tokens del design system.**
+**El CSS lo escribe el agente**, no Ale. La regla original está revertida y el brief ya lo refleja.
 
-- **Cero colores literales.** Verificado: `grep -cE "#[0-9a-fA-F]{3,6}|rgb\("` sobre el bloque
-  Pipeline devuelve `0`. Usá `var(--color-*)`, `var(--radius-*)`, `var(--spacing-*)`.
-- **El estado no se comunica sólo con color.** Compuerta humana = marcador cuadrado vs redondo.
-  Riesgo desconocido = borde punteado. Filtro activo = relleno + borde. Sobrevive a daltonismo y
-  alto contraste.
-- **No declares `background-color` en el contenedor raíz de una vista.** El contenedor padre cambia
-  según el modo del grafo: en cronométrico es un panel de cristal
-  (`bg-bg-overlay/60 backdrop-blur-md border rounded-xl`). Un fondo opaco propio lo tapa — ese fue
-  el bug de `613529b`. Usá `flex: 1` + `min-height: 0` y dejá heredar.
-- La diagonal de `ChangePath` usa `--pipeline-slope: 0.85`, derivado de
-  `DEFAULT_CHRONOMETRIC_SLOPE` en `lib/chronometric-projection.ts`, para que se sienta de la misma
-  familia que la vista cronométrica **sin acoplar los motores**.
+Patrón: el de Cartografía — clases nombradas en `globals.css` sobre los tokens del design system.
 
----
+- **Cero colores literales.** Usá `var(--color-*)`, `var(--radius-*)`, `var(--spacing-*)`.
+- **El estado no se comunica sólo con color.** Vocabulario ya establecido, mantenelo:
+  compuerta humana = nodo cuadrado · riesgo desconocido = borde punteado · archivos = nodo cuadrado
+  · sistema = nodo hueco · filtro activo = relleno + borde. Sobrevive a daltonismo y alto contraste.
+- **No declares `background-color` en el contenedor raíz de una vista.** El padre cambia según el
+  modo del grafo: en cronométrico es un panel de cristal (`bg-bg-overlay/60 + blur + rounded`). Un
+  fondo opaco propio lo tapa. Usá `flex: 1` + `min-height: 0` y dejá heredar.
+- Las tres vistas principales comparten el vocabulario de **nodos sobre riel**: vía del change,
+  árbol de agentes y feed de actividad. La pendiente de la vía sale de
+  `DEFAULT_CHRONOMETRIC_SLOPE` para sentirse de la misma familia que la vista cronométrica.
 
-## 5. Trampas concretas que me costaron tiempo
-
-1. **i18n interpola con llaves DOBLES.** `translate()` usa `{{version}}`, no `{version}`
-   (`lib/i18n.ts:3251`). Escribí `{version}` y la UI habría mostrado el literal en los 3 idiomas.
-   No lo agarra ni typecheck ni lint — lo agarró un test. Hay uno de interpolación: extendelo.
-2. **Los diccionarios son 3 y están en un solo archivo.** `lib/i18n.ts`, `const es` (~línea 23),
-   `const en` (~1107), `const zh` (~2191). Agregá la clave en los tres o el test de paridad falla.
-3. **La suite de conformance escanea secretos en fixtures.** Un fixture con la clave
-   `authorization` fue rechazado antes del commit. Renombrá (`consentNote`, etc.).
-4. **`vitest.config.ts` tuvo que ampliarse** para incluir `components/**/__tests__`. Ya está hecho.
-5. **Con repo cerrado no renderiza ninguna tab.** `RepoMainView.tsx:178` tiene
-   `if (isRepoStartView) return <RepoStartView/>` **antes** del router. No es un bug de Pipeline.
-6. **Si editás archivos con scripts Python en Windows**, se reescriben con CRLF. Git lo normaliza en
-   commit, pero deja archivos "modificados" con diff vacío. Preferí Edit/Write.
-7. **El texto de decisiones es texto plano sanitizado, NO clave i18n.** Contrato en
-   `docs/pipeline/UX-DECISIONES.md`: `title`, `why` y `consequence` son strings de la fuente. Los
-   `labelKey` de las opciones sí son claves. Yo lo modelé mal primero y hubo que corregirlo.
+Para ver el workspace sin corridas reales: `pnpm run electron:dev` → pestaña Pipeline → selector
+violeta **"Vista previa (sólo desarrollo)"** con 4 fixtures. Está detrás de
+`process.env.NODE_ENV === 'development'` con import dinámico; verificado que no entra al build de
+producción. **No lo saques.**
 
 ---
 
-## 6. Cómo ver el workspace
+## 5. Trampas que costaron tiempo real
 
-El lector de evidencia per-repo **no está conectado** (ver §8), así que en la app real la pestaña
-muestra el estado vacío. Para ver el diseño:
-
-```bash
-pnpm run electron:dev
-```
-
-Abrí un repo → pestaña **Pipeline** → arriba hay un selector con borde punteado violeta,
-**"Vista previa (sólo desarrollo)"**, con 4 opciones: datos reales, auditoría en curso, proveedor
-local sin precio, y auditor rechazó + decisiones.
-
-Está detrás de `process.env.NODE_ENV === 'development'` con import dinámico de los fixtures.
-Verificado contra el build de producción: no aparece en `out/` ni `.next/static`. **No lo saques.**
+1. **El parche de verificación sobrevive a los apagones.** Para ver el workspace sin repo abierto se
+   parchea `RepoMainView` con una ruta hardcodeada. Ya se escapó dos veces, una de ellas por un corte
+   de luz. **Antes de cualquier commit:**
+   ```bash
+   grep -n "repoPath={'C:/www/gitcron'}" components/RepoMainView.tsx
+   ```
+   Si devuelve algo, la pestaña mostraría siempre ese repo sin importar cuál se abra.
+2. **En el multistep usá `margin-top`, no `transform`.** `transform` no aporta altura al layout, así
+   que el contenedor colapsa cuando el flex padre necesita espacio. Fue un bug real de la vía.
+3. **i18n interpola con llaves DOBLES:** `{{version}}`, no `{version}` (`lib/i18n.ts`). No lo agarra
+   typecheck ni lint — lo agarró un test. Hay uno de interpolación: extendelo.
+4. **Los diccionarios son 3 y están en un solo archivo:** `const es`, `const en`, `const zh` en
+   `lib/i18n.ts`. Agregá la clave en los tres o falla el test de paridad.
+5. **`GateRecord` expone `result`, no `status`.** Y `ChangeSelection` pide `confidence`,
+   `selectionRequired` y `reason`.
+6. **No escribas un ref durante el render:** viola `react-hooks/refs`. Para actualizar estado desde
+   un listener, usá actualización funcional (`setResult(prev => ...)`).
+7. **La suite de conformance escanea secretos en fixtures.** Una clave llamada `authorization` fue
+   rechazada antes del commit; renombrá.
+8. **Con repo cerrado no renderiza ninguna tab.** `RepoMainView` corta con `isRepoStartView` antes
+   del router. No es un bug de Pipeline.
+9. **Editar con scripts Python en Windows reescribe con CRLF**: deja archivos "modificados" con diff
+   vacío. Preferí Edit/Write.
+10. **El texto de decisiones es texto plano sanitizado, NO clave i18n** (`title`, `why`,
+    `consequence`). Los `labelKey` de las opciones sí son claves.
 
 ---
 
-## 7. Lo que falta — tu trabajo
+## 6. Deuda abierta — no la escondas
 
-### TANDA 4 — detalle y diffs
+El lector real ya está conectado, pero **lee evidencia del repo, no streams de runtime**. Eso deja
+tres huecos declarados en el adaptador:
 
-Del brief, sección "TANDA 4":
+| Hueco | Por qué | Qué haría falta |
+|---|---|---|
+| `activity: []` | la evidencia del repo no tiene bitácora | conectar el stream de los runtime adapters de F03 |
+| `agents` en plano | F01 no registra ids padre/hijo | ídem |
+| `reasoningAvailable: false` | esa fuente no transporta reasoning | ídem |
 
-- Reusar `components/DiffViewer.tsx` **con carga lazy por archivo/branch**. No reescribirlo.
-- Proposal/Markdown seguro. **Prohibido `dangerouslySetInnerHTML`.**
-- Hallazgos del auditor como estructura (no texto libre), historial de gates y decisiones.
-- Archivo tocado muestra agente/task cuando la correlación exista; `unknown` si no.
+También: `contextMaxTokens`, `contextCurrentTokens`, `compactionCount` y los tokens de
+reasoning/caché quedan `null` desde la fuente real. Los fixtures sí los muestran, así que **no
+confundas lo que ves en vista previa con lo que hay en datos reales**.
 
-### TANDA 5 — QA visual
-
-Resoluciones acordadas, recorrido por teclado, `prefers-reduced-motion` (ya hay una regla base),
-y los estados de los fixtures. Ale **no** va a escribir CSS: los ajustes visuales son tuyos.
-
-### Documentación a corregir
-
-Actualizar el brief y el prompt de F04 para reflejar la inversión de la política de CSS (§0). Hoy
-dicen lo contrario de lo que Ale decidió. Es el mismo error que ya pasó una vez en este proyecto:
-en F03 quedó escrito *"LM Studio no es un orquestador"* mucho después de dejar de ser cierto, y un
-agente lo heredó como verdad.
+`gates.ps1 full` da **PENDIENTE** por deuda de lint (76 errores) y fallow previa a F04, con baseline
+al 2026-07-23. No es de esta fase y no se presenta como verde.
 
 ### Decisión pendiente de Ale
 
-`RepoDetailsPanel`: el brief pide *"ocultar panel derecho histórico irrelevante si el workspace
-ocupa el detalle propio"*. Confirmado que `repositoryDetailsVisible` (`app/page.tsx:759`) **no mira
-la pestaña activa**, así que el panel derecho se muestra también sobre Pipeline. Es un cambio de una
-línea. **No lo toques sin el OK de Ale**: es UI que usa todos los días.
+`RepoDetailsPanel`: `repositoryDetailsVisible` (`app/page.tsx:759`) **no mira la pestaña activa**, así
+que el panel derecho se muestra también sobre Pipeline. Es un cambio de una línea. **No lo toques sin
+su OK**: es UI que usa todos los días.
 
 ---
 
-## 8. Deuda declarada — no la escondas
-
-**El lector real de evidencia per-repo no está conectado.** `PipelineWorkspace` usa un loader que
-devuelve `null` a propósito, para no fabricar un snapshot falso. Conectarlo contra el store SQLite
-per-repo de F01/F03 (`PipelineRepository`, `persistRuntimeEnvelope`) es trabajo real que queda
-pendiente y **no está asignado a ninguna tanda**.
-
-Ojo: aunque lo conectes, no vas a ver nada hasta que exista una corrida registrada para ese repo.
-
----
-
-## 9. Validación obligatoria
-
-Antes y después de cada tanda:
+## 7. Validación y gobernanza
 
 ```powershell
-pnpm exec tsc --noEmit                          # 0 errores
-pnpm test                                        # 63 archivos / 409 tests al entregar
-pnpm build                                       # export estático OK
-pnpm exec eslint components/pipeline/            # limpio
-pwsh -NoProfile -File scripts/gates.ps1 fast     # VERDE
+pnpm exec tsc --noEmit
+pnpm test
+pnpm build
+pnpm exec eslint components/pipeline/
+pwsh -NoProfile -File scripts/gates.ps1 fast
 ```
-
-`gates.ps1 full` da **PENDIENTE** por deuda heredada de lint (76 errores) y fallow, previa a F04 y
-con baseline al 2026-07-23. No es tuya y no la presentes como verde.
-
-### Reglas de gobernanza
 
 - **Ale hace stage, commit y push.** Entregá los comandos, no los ejecutes (`AGENTS.md`).
 - Cero dependencias npm nuevas sin aprobación explícita.
 - No toques `AGENTS.md`, `scripts/gates.ps1`, `docs/ai/constitution.md` ni `docs/ai/repo-profile.md`:
   el gate C3 los protege.
-- Verificá contra Git y disco. Este handoff no sustituye evidencia actual.
+- Verificá contra Git y disco. Este documento no sustituye evidencia actual.

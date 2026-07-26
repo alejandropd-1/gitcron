@@ -2175,3 +2175,98 @@ body, .font-sans {
 
 
 
+
+/* ─── HUD de estado (TCARS) ───
+   Se suma al lenguaje visual que ya usan la vista cronométrica y Cartografía.
+   Jerarquía deliberada: lo que reclama a la persona domina; el resto es
+   telemetría de apoyo. Un HUD donde todo grita no dice nada. */
+
+.pipeline-hud {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  overflow-x: auto;
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-xl);
+  background-color: var(--color-bg-overlay);
+  padding: 2px;
+}
+
+/* Codo LCARS: bloque ámbar macizo que ancla la barra a la izquierda. */
+.pipeline-hud__elbow {
+  flex-shrink: 0;
+  width: 2.75rem;
+  border-radius: var(--radius-md) 0 0 var(--radius-xl);
+  background-color: var(--color-carto-accent);
+}
+
+.pipeline-hud__segment {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.0625rem;
+  min-width: 8.5rem;
+  padding: 0.5rem 0.875rem;
+  background-color: var(--color-bg-surface);
+  border-radius: var(--radius-sm);
+}
+
+.pipeline-hud__segment:last-child {
+  border-radius: var(--radius-sm) var(--radius-lg) var(--radius-lg) var(--radius-sm);
+}
+
+.pipeline-hud__label {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-secondary);
+}
+
+/* Lectura numérica: tabular y grande, como un instrumento. */
+.pipeline-hud__readout {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.pipeline-hud__caption {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Cada segmento con su acento, para poder ubicarlos sin leer la etiqueta. */
+.pipeline-hud__segment[data-segment="phase"] .pipeline-hud__readout { color: var(--color-carto-accent); }
+.pipeline-hud__segment[data-segment="agent"] .pipeline-hud__readout { color: var(--color-primary); }
+
+/* Estado que reclama a la persona: ámbar macizo, invertido. Es el único
+   segmento que cambia de fondo, así se encuentra sin buscarlo. */
+.pipeline-hud__segment[data-segment="decisions"][data-pending="true"] {
+  background-color: var(--color-git-mod);
+}
+
+.pipeline-hud__segment[data-segment="decisions"][data-pending="true"] .pipeline-hud__label,
+.pipeline-hud__segment[data-segment="decisions"][data-pending="true"] .pipeline-hud__readout,
+.pipeline-hud__segment[data-segment="decisions"][data-pending="true"] .pipeline-hud__caption {
+  color: var(--color-bg-base);
+}
+
+.pipeline-hud__segment[data-segment="decisions"][data-pending="false"] .pipeline-hud__readout {
+  color: var(--color-secondary);
+}
+
+/* Un rechazo del auditor tiñe el codo: se ve antes de leer nada. */
+.pipeline-hud[data-rejected] .pipeline-hud__elbow {
+  background-color: var(--color-error);
+}
+
+@media (max-width: 900px) {
+  .pipeline-hud__elbow { display: none; }
+  .pipeline-hud { flex-wrap: wrap; }
+}

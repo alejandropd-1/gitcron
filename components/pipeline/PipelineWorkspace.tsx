@@ -10,6 +10,7 @@ import { ChangePath } from './ChangePath';
 import { EconomyPanel } from './EconomyPanel';
 import { DecisionInbox } from './DecisionInbox';
 import { PipelineEmptyState } from './PipelineEmptyState';
+import { PipelineHud } from './PipelineHud';
 import { PipelineNow } from './PipelineNow';
 import {
   DEV_FIXTURES_ENABLED,
@@ -186,6 +187,7 @@ export function PipelineWorkspace({
 
       {state.kind === 'ready' ? (
         <>
+          <PipelineHud snapshot={state.snapshot} />
           <PipelineNow now={state.snapshot.now} repoPath={repoPath} />
           {/* El inbox va por encima del feed: es zona prioritaria, no un feed. */}
           <DecisionInbox decisions={state.snapshot.decisions} onRespondDecision={handleRespondDecision} />

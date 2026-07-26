@@ -100,6 +100,12 @@ const PIPELINE_KEYS = [
   'pipeline.control.ackError',
   'pipeline.control.cancelRun',
   'pipeline.health.healthy',
+  'pipeline.hud.title',
+  'pipeline.hud.phase',
+  'pipeline.hud.noPhase',
+  'pipeline.hud.decisions',
+  'pipeline.hud.needsYou',
+  'pipeline.hud.allClear',
 ] as const;
 
 describe('Pipeline i18n', () => {

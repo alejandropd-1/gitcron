@@ -1087,7 +1087,9 @@ body, .font-sans {
   }
 }
 
-/* ─── Árbol de agentes (F04 tanda 3) ─── */
+/* ─── Árbol de agentes ───
+   Misma gramática visual que la vía del change: cada agente es un nodo cuyo
+   relleno y forma dicen el estado, y el riel dice la relación con su padre. */
 
 .pipeline-agents__tree,
 .pipeline-agent__children {
@@ -1097,20 +1099,33 @@ body, .font-sans {
   list-style: none;
 }
 
-/* Sangría + guía vertical: la jerarquía se ve, y el lector de pantalla ya la
-   anuncia por las listas anidadas nativas. */
+/* Riel vertical de jerarquía. La sangría más el riel hacen visible la relación
+   padre/hijo; las listas anidadas nativas ya la anuncian al lector de pantalla. */
 .pipeline-agent__children {
+  position: relative;
   margin-top: 0.5rem;
-  margin-left: 0.75rem;
-  padding-left: 0.75rem;
-  border-left: 1px solid var(--color-border-subtle);
+  margin-left: 1.125rem;
+  padding-left: 1.25rem;
+  border-left: 2px solid var(--color-border-subtle);
 }
 
 .pipeline-agent {
+  position: relative;
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   background-color: var(--color-bg-surface);
+}
+
+/* Conector horizontal del riel al nodo hijo. */
+.pipeline-agent__children > .pipeline-agent::before {
+  content: "";
+  position: absolute;
+  top: 1.375rem;
+  left: -1.25rem;
+  width: 1.25rem;
+  height: 2px;
+  background-color: var(--color-border-subtle);
 }
 
 .pipeline-agent[data-estado="running"] { border-left: 3px solid var(--color-primary); }
@@ -1123,15 +1138,63 @@ body, .font-sans {
 .pipeline-agent__head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
+}
+
+/* El nodo del agente: inicial del runtime dentro de un marcador. */
+.pipeline-agent__node {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-border-subtle);
+  background-color: var(--color-bg-base);
+  color: var(--color-text-secondary);
+}
+
+/* El agente activo domina, igual que la fase en curso de la vía.
+   Los selectores usan `>` hasta el head a propósito: un descendiente suelto
+   pintaba también los nodos de los subagentes anidados, y un hijo terminado
+   heredaba el halo de su padre en curso. */
+.pipeline-agent[data-estado="running"] > .pipeline-agent__head > .pipeline-agent__node {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: var(--color-bg-base);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.pipeline-agent[data-estado="done"] > .pipeline-agent__head > .pipeline-agent__node {
+  border-color: var(--color-secondary);
+  background-color: var(--color-secondary);
+  color: var(--color-bg-base);
+}
+
+.pipeline-agent[data-estado="failed"] > .pipeline-agent__head > .pipeline-agent__node {
+  border-color: var(--color-error);
+  background-color: var(--color-error);
+  color: var(--color-bg-base);
+}
+
+/* Sin estado informado: contorno punteado. No se pinta de un color que
+   sugiera que sabemos algo que no sabemos. */
+.pipeline-agent[data-estado="unknown"] > .pipeline-agent__head > .pipeline-agent__node {
+  border-style: dotted;
 }
 
 .pipeline-agent__runtime {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+.pipeline-agent[data-estado="running"] > .pipeline-agent__head > .pipeline-agent__runtime {
+  color: var(--color-primary);
 }
 
 .pipeline-agent__role {
@@ -1147,10 +1210,27 @@ body, .font-sans {
   color: var(--color-text-secondary);
 }
 
+.pipeline-agent__interrupt-btn {
+  margin-left: auto;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-default);
+  background-color: transparent;
+  color: var(--color-error);
+  cursor: pointer;
+}
+
+.pipeline-agent__interrupt-btn:hover {
+  background-color: color-mix(in srgb, var(--color-error) 15%, transparent);
+}
+
+/* La metadata se alinea con el texto del nodo, no con el marcador. */
 .pipeline-agent__meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: 0.5rem;
+  padding-left: 2.25rem;
 }
 
 .pipeline-agent__meta dt {
@@ -1170,6 +1250,10 @@ body, .font-sans {
 .pipeline-agents__empty {
   font-size: 0.8125rem;
   color: var(--color-text-secondary);
+}
+
+@media (max-width: 900px) {
+  .pipeline-agent__meta { padding-left: 0; }
 }
 
 /* ─── Actividad ─── */

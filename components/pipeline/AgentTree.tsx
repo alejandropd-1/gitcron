@@ -31,6 +31,11 @@ function AgentBranch({
   return (
     <li className="pipeline-agent" data-estado={node.state} data-depth={depth}>
       <div className="pipeline-agent__head">
+        {/* Nodo: misma gramática visual que la vía del change. El estado se lee
+            por relleno y forma, no sólo por color. */}
+        <span className="pipeline-agent__node" aria-hidden="true">
+          {(runtime ?? '?').charAt(0)}
+        </span>
         <span className="pipeline-agent__runtime">
           {runtime ?? <UnknownValue reason="not-reported" />}
         </span>

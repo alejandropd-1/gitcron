@@ -80,6 +80,9 @@ export function ActivityFeed({ entries, reasoningAvailable, agentRuntimes = {} }
         <ol className="pipeline-activity__list">
           {groups.map((group) => (
             <li key={group.key} className="pipeline-activity__entry" data-channel={group.channel}>
+              {/* Nodo sobre el riel temporal: mismo vocabulario que la vía y el
+                  árbol de agentes. El canal se lee por forma y color. */}
+              <span className="pipeline-activity__dot" aria-hidden="true" />
               <span className="pipeline-activity__channel">{t(`pipeline.channel.${group.channel}`)}</span>
               {group.agentId && agentRuntimes[group.agentId] && (
                 <span className="pipeline-activity__agent">

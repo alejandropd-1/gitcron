@@ -1256,7 +1256,10 @@ body, .font-sans {
   .pipeline-agent__meta { padding-left: 0; }
 }
 
-/* ─── Actividad ─── */
+/* ─── Actividad ───
+   Riel temporal con un nodo por entrada. Mismo vocabulario que la vía del
+   change y el árbol de agentes: la forma y el relleno del nodo dicen de qué
+   canal viene, sin depender sólo del color. */
 
 .pipeline-activity__filters {
   display: flex;
@@ -1296,29 +1299,83 @@ body, .font-sans {
   margin-bottom: 0.5rem;
 }
 
+/* El riel corre por detrás de los nodos y une toda la secuencia. */
 .pipeline-activity__list {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   list-style: none;
+  padding-left: 1.125rem;
+}
+
+.pipeline-activity__list::before {
+  content: "";
+  position: absolute;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  left: 0.3125rem;
+  width: 2px;
+  background-color: var(--color-border-subtle);
 }
 
 .pipeline-activity__entry {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.5rem;
   padding: 0.3125rem 0.5rem;
   border-radius: var(--radius-sm);
-  border-left: 2px solid var(--color-border-subtle);
   background-color: var(--color-bg-surface);
   font-size: 0.8125rem;
 }
 
-.pipeline-activity__entry[data-channel="reasoning"] { border-left-color: var(--color-accent-purple); }
-.pipeline-activity__entry[data-channel="tool"] { border-left-color: var(--color-primary); }
-.pipeline-activity__entry[data-channel="file"] { border-left-color: var(--color-git-mod); }
-.pipeline-activity__entry[data-channel="system"] { border-left-color: var(--color-text-secondary); }
+/* El nodo, alineado sobre el riel. */
+.pipeline-activity__dot {
+  position: absolute;
+  left: -1rem;
+  top: 0.625rem;
+  width: 0.6875rem;
+  height: 0.6875rem;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-border-subtle);
+  background-color: var(--color-bg-base);
+}
+
+.pipeline-activity__entry[data-channel="reasoning"] .pipeline-activity__dot {
+  border-color: var(--color-accent-purple);
+  background-color: var(--color-accent-purple);
+}
+
+.pipeline-activity__entry[data-channel="tool"] .pipeline-activity__dot {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+}
+
+/* Archivos: nodo cuadrado. Un cambio en disco no es lo mismo que un mensaje. */
+.pipeline-activity__entry[data-channel="file"] .pipeline-activity__dot {
+  border-color: var(--color-git-mod);
+  background-color: var(--color-git-mod);
+  border-radius: var(--radius-sm);
+}
+
+/* Sistema: hueco, para que se lea como contexto y no como acción de un agente. */
+.pipeline-activity__entry[data-channel="system"] .pipeline-activity__dot {
+  border-color: var(--color-text-secondary);
+  background-color: var(--color-bg-base);
+}
+
+.pipeline-activity__entry[data-channel="narrative"] .pipeline-activity__dot {
+  border-color: var(--color-text-primary);
+  background-color: var(--color-text-primary);
+}
+
+.pipeline-activity__entry[data-channel="reasoning"] { border-left: 2px solid var(--color-accent-purple); }
+.pipeline-activity__entry[data-channel="tool"] { border-left: 2px solid var(--color-primary); }
+.pipeline-activity__entry[data-channel="file"] { border-left: 2px solid var(--color-git-mod); }
+.pipeline-activity__entry[data-channel="system"] { border-left: 2px solid var(--color-text-secondary); }
+.pipeline-activity__entry[data-channel="narrative"] { border-left: 2px solid var(--color-border-subtle); }
 
 .pipeline-activity__channel {
   font-size: 0.625rem;

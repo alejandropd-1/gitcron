@@ -1411,6 +1411,102 @@ body, .font-sans {
   color: var(--color-text-secondary);
 }
 
+/* ─── Sesión de runtime (lanzador) ─── */
+
+/* Única superficie de Pipeline que abre procesos: se separa del resto con un
+   borde de acento para que no se confunda con los paneles de sólo lectura. */
+.pipeline-launcher {
+  padding: 1rem;
+  border: 1px solid var(--color-border-subtle);
+  border-left-width: 3px;
+  border-left-color: var(--color-primary);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-surface);
+  margin-bottom: 1rem;
+}
+
+.pipeline-launcher__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pipeline-launcher__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pipeline-launcher__label {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-launcher__select,
+.pipeline-launcher__instruction {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-overlay);
+  color: var(--color-text-primary);
+  font-size: 0.8125rem;
+  font-family: inherit;
+}
+
+.pipeline-launcher__instruction {
+  resize: vertical;
+  min-height: 3.5rem;
+}
+
+.pipeline-launcher__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pipeline-launcher__button {
+  padding: 0.4375rem 0.875rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-overlay);
+  color: var(--color-text-primary);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+/* Cortar una corrida es destructivo respecto del trabajo en vuelo: se marca
+   con borde lleno además del color, para que sobreviva a alto contraste. */
+.pipeline-launcher__button[data-action='stop'] {
+  border-color: var(--color-error);
+  border-width: 2px;
+  color: var(--color-error);
+}
+
+.pipeline-launcher__button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pipeline-launcher__empty,
+.pipeline-launcher__blocked {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-top: 0.5rem;
+}
+
+/* Un runtime bloqueado se marca con borde punteado: mismo vocabulario que
+   "riesgo desconocido" en la vía del change. */
+.pipeline-launcher__blocked {
+  border-left: 2px dashed var(--color-border-subtle);
+  padding-left: 0.5rem;
+}
+
+.pipeline-launcher__error,
+.pipeline-workspace__notice {
+  font-size: 0.75rem;
+  color: var(--color-error);
+  margin-top: 0.5rem;
+}
+
 /* ─── Economía y contexto ─── */
 
 .pipeline-economy {

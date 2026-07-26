@@ -142,3 +142,4 @@ export interface ReductionResult {
 }
 
 export * from './runtime';
+export * from './projection';

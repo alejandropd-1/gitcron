@@ -2,9 +2,11 @@ import type {
   DelegationRecord,
   GateRecord,
   PipelineState,
+  RuntimeProjection,
   DecisionRequest as EvidenceDecision,
 } from '@/types/pipeline';
 import type {
+  ActivityEntry,
   ChangeStation,
   DecisionRequest,
   EconomyState,
@@ -63,8 +65,100 @@ function toEconomy(delegations: DelegationRecord[]): EconomyState {
     contextMaxTokens: null,
     contextCurrentTokens: null,
     compactionCount: null,
-    // Sin stream de runtime conectado no hay reasoning que mostrar, y se dice.
-    reasoningAvailable: false,
+    // Sin sesión de runtime adjunta no sabemos si el runtime expone reasoning.
+    // `false` afirmaría que no lo expone, y nadie lo dijo.
+    reasoningAvailable: null,
+  };
+}
+
+/**
+ * Traduce la visibilidad de razonamiento del stream al tri-estado de la vista.
+ *
+ * `unknown` del stream y "no hay stream" colapsan al mismo `null`, y está bien:
+ * en los dos casos la evidencia disponible no alcanza para afirmar nada.
+ */
+function toReasoningAvailable(projection: RuntimeProjection | null): boolean | null {
+  if (!projection) return null;
+  if (projection.reasoningVisibility === 'emitted' || projection.reasoningVisibility === 'summary') return true;
+  if (projection.reasoningVisibility === 'unavailable') return false;
+  return null;
+}
+
+/**
+ * Agentes observados por el stream de runtime.
+ *
+ * A diferencia de `toAgents`, acá SÍ hay jerarquía, porque `PipelineIdentity`
+ * transporta `agentId` y `parentAgentId` reales. No se deriva ni se completa:
+ * si el runtime emite un solo agente, el árbol tiene un solo nodo.
+ *
+ * Los tokens quedan `null` a propósito. El stream sólo reporta totales de
+ * sesión al cerrar; repartirlos entre agentes inventaría una atribución que
+ * nadie midió. Los totales viven en la economía, que es donde son ciertos.
+ */
+function toRuntimeAgents(projection: RuntimeProjection | null): AgentNode[] {
+  if (!projection) return [];
+  return projection.agents.map((agent) => ({
+    agentId: agent.agentId,
+    parentAgentId: agent.parentAgentId,
+    runtime: agent.runtime,
+    provider: agent.provider,
+    model: agent.model,
+    role: agent.role,
+    state: agent.state,
+    elapsedMs: agent.elapsedMs,
+    inputTokens: null,
+    outputTokens: null,
+  }));
+}
+
+function toActivity(projection: RuntimeProjection | null): ActivityEntry[] {
+  if (!projection) return [];
+  return projection.activity.map((entry) => ({
+    entryId: entry.entryId,
+    channel: entry.channel,
+    text: entry.text,
+    at: entry.at,
+    agentId: entry.agentId,
+  }));
+}
+
+/**
+ * Completa la economía con lo que el stream sí midió.
+ *
+ * La regla que gobierna este merge: **el runtime rellena huecos, nunca suma**.
+ * Las dos fuentes pueden describir la misma corrida —la bitácora de
+ * delegaciones del repo la escribe un orquestador que quizá ejecutó este mismo
+ * runtime—, así que sumar tokens o costo contaría dos veces lo mismo. Un total
+ * inflado miente igual que un cero.
+ *
+ * Por eso cada campo se toma del repo si el repo lo sabe, y del runtime sólo si
+ * el repo lo dejó `null`. `contextMaxTokens`, `contextCurrentTokens`,
+ * `compactionCount` y los tokens de reasoning/caché sólo pueden venir del
+ * runtime: la evidencia del repo no los transporta.
+ */
+function mergeEconomy(base: EconomyState, projection: RuntimeProjection | null): EconomyState {
+  const telemetry = projection?.telemetry ?? null;
+  const fill = (repoValue: number | null, runtimeValue: number | null): number | null => (
+    repoValue !== null ? repoValue : runtimeValue
+  );
+
+  const costUsd = fill(base.costUsd, telemetry?.costUsd ?? null);
+  return {
+    ...base,
+    tokens: {
+      input: fill(base.tokens.input, telemetry?.inputTokens ?? null),
+      output: fill(base.tokens.output, telemetry?.outputTokens ?? null),
+      reasoning: fill(base.tokens.reasoning, telemetry?.reasoningTokens ?? null),
+      cacheRead: fill(base.tokens.cacheRead, telemetry?.cacheReadTokens ?? null),
+    },
+    costUsd,
+    // La base del costo describe de dónde salió el número que quedó: si el
+    // repo no aportó costo y el runtime sí, manda la clasificación del runtime.
+    costBasis: base.costUsd !== null ? base.costBasis : telemetry?.costBasis ?? base.costBasis,
+    contextMaxTokens: fill(base.contextMaxTokens, telemetry?.contextMaxTokens ?? null),
+    contextCurrentTokens: fill(base.contextCurrentTokens, telemetry?.contextCurrentTokens ?? null),
+    compactionCount: fill(base.compactionCount, telemetry?.compactionCount ?? null),
+    reasoningAvailable: toReasoningAvailable(projection),
   };
 }
 
@@ -173,9 +267,24 @@ function toSources(state: PipelineState): PipelineSource[] {
   return sources;
 }
 
-export function toPipelineSnapshot(state: PipelineState): PipelineSnapshot {
+/**
+ * Une la evidencia del repo (F01) con la sesión de runtime viva (F03).
+ *
+ * Son dos observaciones distintas del mismo repositorio, no dos mitades de una:
+ * la del repo es el registro durable de lo que quedó escrito, la del runtime es
+ * lo que está pasando ahora y desaparece al cerrar la sesión. Por eso conviven
+ * en vez de fundirse, y por eso ningún número se suma entre las dos.
+ *
+ * `projection` es opcional: sin sesión adjunta el snapshot es exactamente el
+ * que producía la lectura per-repo, salvo que ahora `reasoningAvailable` dice
+ * `null` ("no sabemos") en lugar de `false` ("el runtime no lo expone").
+ */
+export function toPipelineSnapshot(
+  state: PipelineState,
+  projection: RuntimeProjection | null = null,
+): PipelineSnapshot {
   const economy = toEconomy(state.delegations);
-  return {
+  const base: PipelineSnapshot = {
     schemaVersion: SUPPORTED_SNAPSHOT_VERSION,
     repoId: state.repoId,
     availableSources: toSources(state),
@@ -192,8 +301,50 @@ export function toPipelineSnapshot(state: PipelineState): PipelineSnapshot {
     stations: toStations(state),
     decisions: toDecisions(state.decisions),
     agents: toAgents(state.delegations),
-    // La bitácora necesita el stream de runtime, que esta lectura no cubre.
+    // La bitácora sólo puede venir del stream: esta lectura no la cubre.
     activity: [],
+    economy,
+  };
+  return mergeRuntimeIntoSnapshot(base, projection);
+}
+
+/**
+ * Aplica una sesión de runtime viva sobre un snapshot ya armado.
+ *
+ * Va aparte de `toPipelineSnapshot` porque el snapshot no siempre nace de la
+ * evidencia del repo: el selector de vista previa produce snapshots de fixture,
+ * y una sesión real tiene que poder superponerse a cualquiera de los dos sin
+ * duplicar estas reglas.
+ *
+ * Con `projection` en `null` devuelve el snapshot intacto: la ausencia de
+ * sesión no cambia nada de lo que el repo ya demostró.
+ */
+export function mergeRuntimeIntoSnapshot(
+  snapshot: PipelineSnapshot,
+  projection: RuntimeProjection | null,
+): PipelineSnapshot {
+  const economy = mergeEconomy(snapshot.economy, projection);
+  if (!projection) return { ...snapshot, economy };
+
+  return {
+    ...snapshot,
+    availableSources: snapshot.availableSources.includes('runtime')
+      ? snapshot.availableSources
+      : [...snapshot.availableSources, 'runtime'],
+    // Una sesión viva es actividad aunque el repo todavía no haya escrito nada:
+    // es justamente el caso de la primera corrida sobre un repo limpio.
+    hasPipelineActivity: true,
+    now: {
+      ...snapshot.now,
+      // El runtime que corre sí lo sabemos cuando hay sesión: viene de la
+      // identidad del sobre, no de una inferencia sobre el modelo registrado.
+      runtime: projection.active ? projection.runtime : snapshot.now.runtime,
+    },
+    // Los dos orígenes conviven: los ids no chocan (`delegation-N` contra los
+    // UUID del runtime) y se distinguen en la vista porque sólo los del stream
+    // traen `runtime` no nulo.
+    agents: [...snapshot.agents, ...toRuntimeAgents(projection)],
+    activity: [...snapshot.activity, ...toActivity(projection)],
     economy,
   };
 }

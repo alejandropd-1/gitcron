@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useT } from '@/hooks/use-translation';
+import type { RuntimeProjection } from '@/types/pipeline';
 import { PipelineDetails } from './PipelineDetails';
-import { toPipelineSnapshot } from './pipeline-adapter';
+import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
+import { mergeRuntimeIntoSnapshot, toPipelineSnapshot } from './pipeline-adapter';
 import { ActivityFeed } from './ActivityFeed';
 import { AgentTree } from './AgentTree';
 import { ChangePath } from './ChangePath';
@@ -79,6 +81,11 @@ export function PipelineWorkspace({
   const [reloadToken, setReloadToken] = useState(0);
   // Sólo desarrollo: permite recorrer los estados sin lector de evidencia.
   const [devFixture, setDevFixture] = useState<DevFixtureName>('live');
+  // Sesión de runtime viva. Vive separada del snapshot porque tiene otro ciclo
+  // de vida: el snapshot se recarga, la sesión se abre y se cierra.
+  const [projection, setProjection] = useState<RuntimeProjection | null>(null);
+  // Por qué un control no se pudo ejecutar. Clave i18n, nunca texto libre.
+  const [controlNotice, setControlNotice] = useState<string | null>(null);
 
   const loadKey = `${repoPath ?? ''}#${reloadToken}#${devFixture}`;
   // Derivado en vez de almacenado: no puede quedar desincronizado del pedido
@@ -132,39 +139,83 @@ export function PipelineWorkspace({
     };
   }, [repoPath, devFixture]);
 
+  // Sesión de runtime: estado inicial y empuje de deltas coalescidos por Main.
+  useEffect(() => {
+    const api = typeof window !== 'undefined' ? window.api : undefined;
+    if (!repoPath || !api?.pipelineRuntime) return undefined;
+
+    let cancelled = false;
+    void api.pipelineRuntime.get(repoPath).then((response) => {
+      if (cancelled) return;
+      setProjection(response?.success ? response.data ?? null : null);
+    });
+
+    const off = api.onPipelineRuntimeUpdated?.((changedRepo, next) => {
+      if (changedRepo !== repoPath) return;
+      setProjection(next);
+    });
+
+    return () => {
+      cancelled = true;
+      off?.();
+    };
+  }, [repoPath]);
+
   const handleRetry = useCallback(() => {
     setReloadToken((token) => token + 1);
   }, []);
 
+  // La sesión viva se superpone al snapshot, venga éste de la evidencia real o
+  // de un fixture de desarrollo.
+  const mergedSnapshot = result?.snapshot
+    ? mergeRuntimeIntoSnapshot(result.snapshot, projection)
+    : null;
+
   const state: PipelineViewState = resolvePipelineViewState({
     repoPath,
-    snapshot: result?.snapshot ?? null,
+    snapshot: mergedSnapshot,
     isLoading,
     error: result?.error ?? null,
   });
 
+  /**
+   * Responde una decisión contra la sesión de runtime real.
+   *
+   * Antes mandaba el literal `'session-active'` a un global inexistente
+   * (`window.electronAPI`; el preload expone `window.api`), así que la
+   * respuesta no salía nunca y, si hubiera salido, el bus la habría rechazado
+   * con `UNAUTHORIZED_TARGET`. Ahora usa el `sessionId` que el hub registró.
+   *
+   * Las dos guardas previas no son defensivas de más: son los dos motivos
+   * reales por los que responder puede no ser posible, y cada uno se dice con
+   * su nombre en vez de fallar en silencio.
+   */
   const handleRespondDecision = useCallback((decisionId: string, optionId: string) => {
-    if (!repoPath) return;
-    const nonce = `nonce-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const win = typeof window !== 'undefined'
-      ? (window as unknown as {
-          electronAPI?: {
-            pipelineControl?: {
-              respondDecision?: (payload: unknown) => Promise<{ success: boolean }>;
-            };
-          };
-        })
-      : null;
-    if (win?.electronAPI?.pipelineControl?.respondDecision) {
-      void win.electronAPI.pipelineControl.respondDecision({
-        repoPath,
-        sessionId: 'session-active',
-        decisionId,
-        optionId,
-        nonce,
-      });
+    const api = typeof window !== 'undefined' ? window.api : undefined;
+    if (!repoPath || !api?.pipelineControl?.respondDecision) return;
+
+    if (!projection?.active) {
+      setControlNotice('pipeline.control.noSession');
+      return;
     }
-  }, [repoPath]);
+    // Un CLI estructurado cierra su stdin al mandar la instrucción: no puede
+    // recibir una respuesta a mitad de corrida. El hub no declara la capacidad
+    // y acá se explica, en vez de mandar un comando que el bus va a rechazar.
+    if (!projection.controlCapabilities.includes('respond-decision')) {
+      setControlNotice('pipeline.control.respondUnsupported');
+      return;
+    }
+
+    setControlNotice(null);
+    const nonce = `nonce-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    void api.pipelineControl.respondDecision({
+      repoPath,
+      sessionId: projection.sessionId,
+      decisionId,
+      optionId,
+      nonce,
+    });
+  }, [repoPath, projection]);
 
   return (
     <section
@@ -185,6 +236,12 @@ export function PipelineWorkspace({
         {state.kind === 'loading' ? t('pipeline.loading') : ''}
       </p>
 
+      {repoPath && <PipelineRuntimeLauncher repoPath={repoPath} projection={projection} />}
+
+      {controlNotice && (
+        <p className="pipeline-workspace__notice" role="alert">{t(controlNotice)}</p>
+      )}
+
       {state.kind === 'ready' ? (
         <>
           <PipelineHud snapshot={state.snapshot} />
@@ -197,6 +254,7 @@ export function PipelineWorkspace({
           <ActivityFeed
             entries={state.snapshot.activity}
             reasoningAvailable={state.snapshot.economy.reasoningAvailable}
+            runtimeAttached={projection !== null}
             agentRuntimes={Object.fromEntries(
               state.snapshot.agents.map((agent) => [agent.agentId, agent.runtime]),
             )}

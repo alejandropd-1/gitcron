@@ -7,7 +7,7 @@ import type {
   MaterializationResult,
 } from './temporal-agent';
 import type { PredictionHistoryEntry } from '../electron/db/types';
-import type { PipelineState } from './pipeline';
+import type { PipelineState, RuntimeDiscoveryEntry, RuntimeProjection } from './pipeline';
 import type { ApplyHunkOptions, FileDiff } from '../lib/hunk-patch';
 import type {
   CartoGraphStatus,
@@ -430,6 +430,22 @@ interface ElectronAPI {
   pipelineSubscribe: (repoPath: string) => Promise<GitResult<PipelineState>>;
   pipelineUnsubscribe: (repoPath: string) => Promise<GitResult>;
   onPipelineSnapshotUpdated: (cb: (repoPath: string, snapshot: PipelineState) => void) => () => void;
+  pipelineRuntime: {
+    discover: (repoPath: string) => Promise<GitResult<RuntimeDiscoveryEntry[]>>;
+    get: (repoPath: string) => Promise<GitResult<RuntimeProjection | null>>;
+    start: (payload: {
+      repoPath: string;
+      runtime: string;
+      instruction: string;
+      role?: string;
+      requestedModel?: string | null;
+      changeId?: string | null;
+    }) => Promise<GitResult<{ sessionId: string }>>;
+    stop: (repoPath: string) => Promise<GitResult<boolean>>;
+  };
+  onPipelineRuntimeUpdated: (
+    cb: (repoPath: string, projection: RuntimeProjection | null) => void,
+  ) => () => void;
   pipelineControl: {
     pause: (payload: unknown) => Promise<unknown>;
     steer: (payload: unknown) => Promise<unknown>;

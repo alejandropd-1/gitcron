@@ -13,9 +13,14 @@ const CHANNELS: ActivityChannel[] = ['narrative', 'reasoning', 'tool', 'file', '
 
 export type ActivityFeedProps = {
   entries: ActivityEntry[];
-  /** `false` cuando el runtime no emite reasoning. */
-  reasoningAvailable: boolean;
+  /**
+   * `true` lo emite · `false` el runtime declara que no lo expone · `null`
+   * todavía no lo sabemos (no hay sesión de runtime adjunta).
+   */
+  reasoningAvailable: boolean | null;
   agentRuntimes?: Record<string, string | null>;
+  /** `true` cuando hay una sesión de runtime viva alimentando la bitácora. */
+  runtimeAttached?: boolean;
 };
 
 /**
@@ -24,7 +29,12 @@ export type ActivityFeedProps = {
  * Los deltas consecutivos se agrupan antes de renderizar: un stream de
  * reasoning produciría un nodo por token y volvería la vista inservible.
  */
-export function ActivityFeed({ entries, reasoningAvailable, agentRuntimes = {} }: ActivityFeedProps) {
+export function ActivityFeed({
+  entries,
+  reasoningAvailable,
+  agentRuntimes = {},
+  runtimeAttached = false,
+}: ActivityFeedProps) {
   const t = useT();
   const [active, setActive] = useState<Set<ActivityChannel>>(() => new Set(CHANNELS));
 
@@ -50,7 +60,7 @@ export function ActivityFeed({ entries, reasoningAvailable, agentRuntimes = {} }
 
       <div className="pipeline-activity__filters" role="group" aria-label={t('pipeline.activity.filters')}>
         {CHANNELS.map((channel) => {
-          const disabled = channel === 'reasoning' && !reasoningAvailable;
+          const disabled = channel === 'reasoning' && reasoningAvailable !== true;
           const pressed = active.has(channel) && !disabled;
           return (
             <button
@@ -69,13 +79,20 @@ export function ActivityFeed({ entries, reasoningAvailable, agentRuntimes = {} }
       </div>
 
       {/* El brief es explícito: un runtime sin reasoning lo dice, no muestra un
-          panel vacío que se lea como "no pensó nada". */}
-      {!reasoningAvailable && (
+          panel vacío que se lea como "no pensó nada".
+          Y "todavía no sabemos" (`null`) tampoco puede leerse como "no expone":
+          sin sesión adjunta no hay runtime que haya declarado nada. */}
+      {reasoningAvailable === false && (
         <p className="pipeline-activity__no-reasoning">{t('pipeline.activity.noReasoning')}</p>
+      )}
+      {reasoningAvailable === null && (
+        <p className="pipeline-activity__no-reasoning">{t('pipeline.activity.reasoningUnknown')}</p>
       )}
 
       {groups.length === 0 ? (
-        <p className="pipeline-activity__empty">{t('pipeline.activity.empty')}</p>
+        <p className="pipeline-activity__empty">
+          {runtimeAttached ? t('pipeline.activity.empty') : t('pipeline.activity.noRuntime')}
+        </p>
       ) : (
         <ol className="pipeline-activity__list">
           {groups.map((group) => (

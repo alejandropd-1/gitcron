@@ -253,8 +253,16 @@ export type EconomyState = {
   contextMaxTokens: number | null;
   contextCurrentTokens: number | null;
   compactionCount: number | null;
-  /** `false` cuando el runtime no emite reasoning: se dice, no se deja vacío. */
-  reasoningAvailable: boolean;
+  /**
+   * `true` el runtime lo emite · `false` el runtime declara que no lo expone ·
+   * `null` todavía no lo sabemos.
+   *
+   * El tercer estado no es un lujo: sin sesión de runtime adjunta no hay
+   * evidencia de ninguna de las dos cosas, y devolver `false` haría que la UI
+   * afirmara "este runtime no expone su razonamiento" sin que ningún runtime lo
+   * haya dicho. Es exactamente el mismo error que `unknown` valiendo `0`.
+   */
+  reasoningAvailable: boolean | null;
 };
 
 /**

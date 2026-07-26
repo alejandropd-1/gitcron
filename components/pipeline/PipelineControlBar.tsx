@@ -47,16 +47,16 @@ export function PipelineControlBar({
     setActiveAck(t('pipeline.control.ackPending'));
 
     try {
-      const win = typeof window !== 'undefined'
-        ? (window as unknown as {
-            electronAPI?: {
-              pipelineControl?: Record<string, (payload: unknown) => Promise<{ success: boolean; error?: { message: string } }>>;
-            };
-          })
-        : null;
+      // El preload expone `window.api`, no `window.electronAPI`: con el nombre
+      // viejo esta rama nunca se tomaba y el comando no salía jamás.
+      const control = typeof window !== 'undefined'
+        ? (window.api as unknown as {
+            pipelineControl?: Record<string, (payload: unknown) => Promise<{ success: boolean; error?: { message: string } }>>;
+          } | undefined)?.pipelineControl
+        : undefined;
 
-      if (win?.electronAPI?.pipelineControl) {
-        const res = await win.electronAPI.pipelineControl[ipcCallName](payload);
+      if (control) {
+        const res = await control[ipcCallName](payload);
         if (res.success) {
           setActiveAck(t('pipeline.control.ackSuccess'));
           if (action === 'interrupt-turn' || action === 'interrupt-subagent') {
@@ -68,12 +68,11 @@ export function PipelineControlBar({
           onCommandDispatched?.(action, 'error', res.error?.message);
         }
       } else {
-        // Modo desarrollo / Fixture sin Electron IPC
-        setActiveAck(t('pipeline.control.ackSuccess'));
-        if (action === 'interrupt-turn' || action === 'interrupt-subagent') {
-          setInterruptedNotice(action);
-        }
-        onCommandDispatched?.(action, 'ack');
+        // Sin canal IPC (build web o preview sin Electron) el comando no se
+        // mandó. Reportarlo como ACK exitoso afirmaba un acuse que nadie dio:
+        // es la misma mentira que `unknown` valiendo 0, en otra superficie.
+        setActiveAck(t('pipeline.control.ackUnavailable'));
+        onCommandDispatched?.(action, 'error', 'ipc_unavailable');
       }
     } catch {
       setActiveAck(t('pipeline.control.ackError'));

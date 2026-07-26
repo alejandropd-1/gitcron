@@ -5,16 +5,11 @@
  * enviar argv, PIDs, shells ni cadenas de comando crudas.
  */
 
-export type PipelineControlAction =
-  | 'pause-delegations'
-  | 'pause-after-task'
-  | 'steer'
-  | 'queue'
-  | 'interrupt-turn'
-  | 'interrupt-subagent'
-  | 'kill-process'
-  | 'cancel-run'
-  | 'respond-decision';
+// La unión canónica vive en `types/pipeline/projection.ts`: el renderer también
+// la necesita, y `types/` no puede importar desde `electron/`.
+import type { PipelineControlAction } from '../../../types/pipeline/projection';
+
+export type { PipelineControlAction };
 
 export type PipelineControlErrorCode =
   | 'INVALID_REPO'

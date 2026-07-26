@@ -258,6 +258,17 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('pipeline:snapshot-updated', handler);
     return () => ipcRenderer.removeListener('pipeline:snapshot-updated', handler);
   },
+  pipelineRuntime: {
+    discover: (repoPath: string) => ipcRenderer.invoke('pipeline:runtime:discover', repoPath),
+    get: (repoPath: string) => ipcRenderer.invoke('pipeline:runtime:get', repoPath),
+    start: (payload: unknown) => ipcRenderer.invoke('pipeline:runtime:start', payload),
+    stop: (repoPath: string) => ipcRenderer.invoke('pipeline:runtime:stop', repoPath),
+  },
+  onPipelineRuntimeUpdated: (cb: (repoPath: string, projection: unknown) => void) => {
+    const handler = (_e: unknown, payload: { repoPath: string; projection: unknown }) => cb(payload.repoPath, payload.projection);
+    ipcRenderer.on('pipeline:runtime:updated', handler);
+    return () => ipcRenderer.removeListener('pipeline:runtime:updated', handler);
+  },
   pipelineControl: {
     pause: (payload: unknown) => ipcRenderer.invoke('pipeline:control:pause', payload),
     steer: (payload: unknown) => ipcRenderer.invoke('pipeline:control:steer', payload),

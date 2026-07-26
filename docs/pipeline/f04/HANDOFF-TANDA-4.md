@@ -138,6 +138,9 @@ producción. **No lo saques.**
 
 ## 6. Deuda abierta — no la escondas
 
+> **Actualizado 2026-07-26** (rama `pipeline/f04-runtime-streams`). Los tres huecos de abajo están
+> cerrados: ver §8. Se dejan escritos porque explican por qué el adaptador tiene la forma que tiene.
+
 El lector real ya está conectado, pero **lee evidencia del repo, no streams de runtime**. Eso deja
 tres huecos declarados en el adaptador:
 
@@ -177,3 +180,100 @@ pwsh -NoProfile -File scripts/gates.ps1 fast
 - No toques `AGENTS.md`, `scripts/gates.ps1`, `docs/ai/constitution.md` ni `docs/ai/repo-profile.md`:
   el gate C3 los protege.
 - Verificá contra Git y disco. Este documento no sustituye evidencia actual.
+
+---
+
+## 8. Streams de runtime conectados (2026-07-26)
+
+**Rama:** `pipeline/f04-runtime-streams` · deuda de F04, no una fase del track.
+
+### Lo que faltaba de verdad
+
+Los adaptadores de F03 eran **librería sin cablear**: `electron/pipeline/runtime-adapters/index.ts`
+no tenía dependientes fuera de sus propios tests y nadie llamaba `start()` ni drenaba `events()`.
+No había stream al que enchufarse; faltaba toda la capa del medio. Eso es lo que se construyó:
+
+```
+types/pipeline/projection.ts              contrato compartido Main ↔ renderer
+electron/pipeline/runtime/
+├── runtime-projection.ts                 reductor PURO de sobres → proyección  ← las reglas viven acá
+└── runtime-session-hub.ts                dueño de sesiones; drena el stream; registra en el bus F05
+electron/ipc/pipeline-runtime.ts          canales pipeline:runtime:* (única superficie que abre procesos)
+components/pipeline/PipelineRuntimeLauncher.tsx
+components/pipeline/pipeline-adapter.ts   + mergeRuntimeIntoSnapshot()
+```
+
+### Los tres huecos, cerrados
+
+| Hueco | Ahora | De dónde sale |
+|---|---|---|
+| `activity: []` | bitácora real por canal | `agent.message`, `reasoning.delta`, `tool.*`, `run.*` del stream |
+| `agents` en plano | jerarquía **observada** | `PipelineIdentity.agentId` / `parentAgentId` |
+| `reasoningAvailable: false` | tri-estado `true`/`false`/`null` | `reasoningVisibility` de la telemetría |
+
+`contextMaxTokens`, `contextCurrentTokens`, `compactionCount` y los tokens de reasoning/caché ahora
+se llenan desde la telemetría del runtime — pero **sólo al cerrar la corrida**, porque
+`telemetry()` de `StructuredCliRuntimeAdapter` espera a que el proceso termine. Durante la corrida
+siguen `null`: no se estima nada a mitad de camino.
+
+### Reglas nuevas que el stream obligó a escribir
+
+1. **El runtime rellena huecos, nunca suma.** Las dos fuentes pueden describir la misma corrida
+   (la bitácora de delegaciones la escribe un orquestador que quizá ejecutó este mismo runtime), así
+   que sumar tokens o costo contaría dos veces lo mismo. Un total inflado miente igual que un cero.
+   Cada campo se toma del repo si el repo lo sabe, y del runtime sólo si el repo lo dejó `null`.
+2. **`reasoningAvailable` pasó de `boolean` a `boolean | null`.** `false` se renderiza como "este
+   runtime no expone su razonamiento": afirmarlo sin sesión adjunta era la misma clase de mentira
+   que `unknown` valiendo `0`. El test que exigía `false` codificaba el bug y se corrigió.
+3. **Los tokens por agente quedan `null`.** El stream sólo reporta totales de sesión al cerrar;
+   repartirlos entre agentes inventaría una atribución que nadie midió.
+4. **El canal `file` queda vacío a propósito.** Los normalizadores redactan las rutas, así que
+   deducir "archivo" del nombre de la herramienta (`Edit`, `Write`) afirmaría una escritura que
+   nadie observó: una llamada pedida no es un archivo tocado.
+5. **Un agente que seguía corriendo cuando el stream se cortó queda `unknown`, no `done`.**
+   Dejar de observar no es ver terminar.
+6. **`droppedActivity` cuenta lo que descartó el buffer acotado** (2.000 entradas). Un feed truncado
+   en silencio se leería como completo.
+
+### El cuarto hueco, que el handoff no declaraba
+
+`PipelineControlBus.registerSession()` tampoco se llamaba nunca en producción. Además —peor— el
+renderer hablaba con `window.electronAPI`, **que no existe**: el preload expone `window.api`. O sea:
+
+- `PipelineWorkspace` mandaba el literal `'session-active'` a un global inexistente. La respuesta a
+  una decisión no salía nunca, y si hubiera salido el bus la habría rechazado.
+- `PipelineControlBar` caía siempre en su rama de fallback, que hacía `setActiveAck(ackSuccess)`:
+  **afirmaba un ACK que nadie dio**. Todos los controles de F05 eran no-ops que reportaban éxito.
+
+Corregido: el hub registra la sesión con las capacidades que el adaptador **implementa de verdad**
+(no las del `descriptor`, que declara capacidades de protocolo), y el renderer usa el `sessionId`
+real. Un `StructuredCliRuntimeAdapter` cierra su stdin al mandar la instrucción, así que **no**
+declara `respond-decision` ni `steer`: la UI lo explica en vez de mandar un comando condenado.
+
+### Qué se puede lanzar, y qué no
+
+Sólo `claude` y `codex`: son los únicos que implementan `start()` con stream real
+(`StructuredCliRuntimeAdapter`). Y `start()` aborta salvo que la versión instalada coincida exacto
+con el fixture auditado — verificado en esta máquina: `claude --version` → `2.1.206 (Claude Code)` y
+`codex --version` → `codex-cli 0.143.0`, las dos coinciden.
+
+- `agy` es un **wrapper de ciclo de vida**: no tiene `start()` y su `events()` no emite nada.
+  Aparece en discovery como no lanzable, con el motivo.
+- `lmstudio` queda fuera del registro: su descriptor declara `runtime: 'unknown'` porque es un
+  **proveedor de modelos**, no un runtime de agente, y la unión `PipelineRuntime` lo excluye a
+  propósito. Meterlo bajo `'unknown'` le inventaría una identidad que su propio adaptador se niega
+  a afirmar.
+- `opencode` queda fuera: su factory exige una ruta de ejecutable que hoy no se configura.
+
+### Deuda que queda abierta
+
+- **Sin QA visual.** Se validó con typecheck, 517 tests, build y `gates.ps1 fast`, pero **no** se
+  abrió Electron para ver una corrida real: eso exigía el parche de `RepoMainView` que §5.1 prohíbe
+  commitear. Falta la pasada visual de Ale.
+- **`telemetry()` bloquea hasta que cierra el proceso**, así que la economía no se mueve durante la
+  corrida. Que el stream emita métricas incrementales es trabajo de F03, no de acá.
+- **Una sesión por repo.** Dos corridas simultáneas sobre el mismo working tree se pisarían los
+  archivos y la vista no podría atribuir qué hizo cuál.
+- **`gates.ps1 full` sigue en PENDIENTE** por la deuda de lint previa a F04 (baseline 2026-07-23).
+  No es de esta rama y no se presenta como verde.
+- Sigue pendiente la decisión de Ale sobre `RepoDetailsPanel` (§6).

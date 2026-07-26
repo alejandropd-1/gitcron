@@ -24,6 +24,8 @@ import { registerWatcherHandlers, closeAllRepoWatchers } from './ipc/watchers';
 import { registerPipelineHandlers } from './ipc/pipeline';
 import { PipelineControlBus } from './pipeline/control/control-bus';
 import { registerPipelineControlHandlers } from './ipc/pipeline-control';
+import { registerPipelineRuntimeHandlers } from './ipc/pipeline-runtime';
+import { RuntimeSessionHub } from './pipeline/runtime/runtime-session-hub';
 import {
   registerAppWindowHandlers, setupAutoUpdater,
   silentCheckForUpdates, stopUpdateCheckTimer,
@@ -268,6 +270,18 @@ registerCartoAiHandlers();         // carto:ai-* (proveedor de IA local/online; 
 const notifyPipelineRepoChanged = registerPipelineHandlers(getMainWindow); // pipeline:* read-only
 const pipelineControlBus = new PipelineControlBus();
 registerPipelineControlHandlers(pipelineControlBus); // pipeline:control:*
+// Sesiones de runtime vivas (F03 → F04). Es la única superficie de Pipeline que
+// puede abrir procesos, por eso va en su propio módulo de canales.
+const pipelineRuntimeHub = new RuntimeSessionHub(
+  pipelineControlBus,
+  (repoPath) => {
+    getMainWindow()?.webContents.send('pipeline:runtime:updated', {
+      repoPath,
+      projection: pipelineRuntimeHub.get(repoPath),
+    });
+  },
+);
+registerPipelineRuntimeHandlers(pipelineRuntimeHub); // pipeline:runtime:*
 registerWatcherHandlers(getMainWindow, notifyPipelineRepoChanged);          // repo:watch/unwatch
 registerAppWindowHandlers(getMainWindow, isDev); // app:* + window:*
 
@@ -336,4 +350,7 @@ app.on('before-quit', async () => {
   stopUpdateCheckTimer();
   await closeAllRepoWatchers();
   closeAllGraphs();
+  // Cerrar el hub antes de salir: un proceso de runtime que sobreviva a la app
+  // sigue escribiendo en el working tree sin nadie mirando.
+  await pipelineRuntimeHub.disposeAll();
 });

@@ -35,11 +35,17 @@ export type PipelineDevFixturePickerProps = {
   onChange: (name: DevFixtureName) => void;
 };
 
+/**
+ * `live` decía "(sin conectar)" cuando no existía stream de runtime. Desde que
+ * el hub lo conecta, ese paréntesis mentía cada vez que se leía. Los otros tres
+ * llevan "fixture" en el nombre porque el rótulo de arriba se lee una vez y
+ * después se olvida: el que importa es el que estás mirando en el desplegable.
+ */
 const LABELS: Record<DevFixtureName, string> = {
-  live: 'Datos reales (sin conectar)',
-  running: 'Auditoría en curso',
-  localUnpriced: 'Proveedor local sin precio',
-  rejected: 'Auditor rechazó + decisiones',
+  live: 'Datos reales',
+  running: 'Fixture · Auditoría en curso',
+  localUnpriced: 'Fixture · Proveedor local sin precio',
+  rejected: 'Fixture · Auditor rechazó + decisiones',
 };
 
 export function PipelineDevFixturePicker({ value, onChange }: PipelineDevFixturePickerProps) {

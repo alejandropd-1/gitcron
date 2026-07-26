@@ -8,6 +8,15 @@ import { runtimeDisplayName } from './pipeline-domain';
 export type PipelineRuntimeLauncherProps = {
   repoPath: string;
   projection: RuntimeProjection | null;
+  /**
+   * `true` cuando hay un fixture de desarrollo en pantalla.
+   *
+   * Con datos inventados a la vista, arrancar una sesión real produciría una
+   * pantalla donde lo observado y lo inventado son indistinguibles. Se bloquea
+   * y se dice por qué, en vez de esconderlo: ocultarlo haría parecer que la
+   * función no existe.
+   */
+  blockedByFixture?: boolean;
 };
 
 /**
@@ -22,7 +31,11 @@ export type PipelineRuntimeLauncherProps = {
  * deshabilitado con su motivo: `start()` abortaría igual, y un botón que tira
  * es peor que un botón ausente.
  */
-export function PipelineRuntimeLauncher({ repoPath, projection }: PipelineRuntimeLauncherProps) {
+export function PipelineRuntimeLauncher({
+  repoPath,
+  projection,
+  blockedByFixture = false,
+}: PipelineRuntimeLauncherProps) {
   const t = useT();
   const [discovery, setDiscovery] = useState<RuntimeDiscoveryEntry[] | null>(null);
   const [runtime, setRuntime] = useState<string>('');
@@ -31,6 +44,9 @@ export function PipelineRuntimeLauncher({ repoPath, projection }: PipelineRuntim
   const [error, setError] = useState<string | null>(null);
 
   const active = projection?.active === true;
+  // Un solo booleano para todos los controles: si hay fixture en pantalla, nada
+  // acá puede tocarse, ni siquiera cortar una sesión que ya venía corriendo.
+  const locked = blockedByFixture || busy;
 
   useEffect(() => {
     let cancelled = false;
@@ -50,7 +66,7 @@ export function PipelineRuntimeLauncher({ repoPath, projection }: PipelineRuntim
 
   const handleStart = useCallback(async () => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
-    if (!api?.pipelineRuntime || !runtime || !instruction.trim()) return;
+    if (blockedByFixture || !api?.pipelineRuntime || !runtime || !instruction.trim()) return;
     setBusy(true);
     setError(null);
     const result = await api.pipelineRuntime.start({ repoPath, runtime, instruction });
@@ -58,25 +74,35 @@ export function PipelineRuntimeLauncher({ repoPath, projection }: PipelineRuntim
     // El error llega como código estable desde Main; se muestra crudo en vez de
     // traducirse a una frase amable que oculte la causa.
     if (!result?.success) setError(result?.error ?? 'start_failed');
-  }, [repoPath, runtime, instruction]);
+  }, [repoPath, runtime, instruction, blockedByFixture]);
 
   const handleStop = useCallback(async () => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
-    if (!api?.pipelineRuntime) return;
+    if (blockedByFixture || !api?.pipelineRuntime) return;
     setBusy(true);
     await api.pipelineRuntime.stop(repoPath);
     setBusy(false);
-  }, [repoPath]);
+  }, [repoPath, blockedByFixture]);
 
   if (!discovery) return null;
 
   const launchable = discovery.filter((entry) => entry.launchable);
 
   return (
-    <section className="pipeline-launcher" aria-labelledby="pipeline-launcher-title">
+    <section
+      className="pipeline-launcher"
+      aria-labelledby="pipeline-launcher-title"
+      data-blocked={blockedByFixture || undefined}
+    >
       <h3 id="pipeline-launcher-title" className="pipeline-section__title">
         {t('pipeline.launcher.title')}
       </h3>
+
+      {/* El bloqueo se comunica por texto y por atributo, no sólo por opacidad:
+          el estado no puede depender únicamente de una señal visual. */}
+      {blockedByFixture && (
+        <p className="pipeline-launcher__blocked-fixture">{t('pipeline.launcher.blockedByFixture')}</p>
+      )}
 
       {launchable.length === 0 ? (
         <p className="pipeline-launcher__empty">{t('pipeline.launcher.noneAvailable')}</p>
@@ -87,7 +113,7 @@ export function PipelineRuntimeLauncher({ repoPath, projection }: PipelineRuntim
             <select
               className="pipeline-launcher__select"
               value={runtime}
-              disabled={active || busy}
+              disabled={active || locked}
               onChange={(event) => setRuntime(event.target.value)}
             >
               {launchable.map((entry) => (
@@ -105,14 +131,14 @@ export function PipelineRuntimeLauncher({ repoPath, projection }: PipelineRuntim
               className="pipeline-launcher__instruction"
               value={instruction}
               rows={3}
-              disabled={active || busy}
+              disabled={active || locked}
               onChange={(event) => setInstruction(event.target.value)}
             />
           </label>
 
           <div className="pipeline-launcher__actions">
             {active ? (
-              <button type="button" className="pipeline-launcher__button" data-action="stop" disabled={busy} onClick={handleStop}>
+              <button type="button" className="pipeline-launcher__button" data-action="stop" disabled={locked} onClick={handleStop}>
                 {t('pipeline.launcher.stop')}
               </button>
             ) : (
@@ -120,7 +146,7 @@ export function PipelineRuntimeLauncher({ repoPath, projection }: PipelineRuntim
                 type="button"
                 className="pipeline-launcher__button"
                 data-action="start"
-                disabled={busy || !instruction.trim()}
+                disabled={locked || !instruction.trim()}
                 onClick={handleStart}
               >
                 {t('pipeline.launcher.start')}

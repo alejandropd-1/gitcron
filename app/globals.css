@@ -1500,6 +1500,19 @@ body, .font-sans {
   padding-left: 0.5rem;
 }
 
+/* Bloqueado por fixture: borde punteado y color de aviso. El estado nunca se
+   comunica sólo con color — también va en `data-blocked` y en el texto. */
+.pipeline-launcher[data-blocked] {
+  border-style: dashed;
+  border-left-color: var(--color-git-mod);
+}
+
+.pipeline-launcher__blocked-fixture {
+  font-size: 0.75rem;
+  color: var(--color-git-mod);
+  margin-bottom: 0.75rem;
+}
+
 .pipeline-launcher__error,
 .pipeline-workspace__notice {
   font-size: 0.75rem;

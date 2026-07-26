@@ -165,10 +165,16 @@ export function PipelineWorkspace({
     setReloadToken((token) => token + 1);
   }, []);
 
-  // La sesión viva se superpone al snapshot, venga éste de la evidencia real o
-  // de un fixture de desarrollo.
+  const fixtureActive = DEV_FIXTURES_ENABLED && devFixture !== 'live';
+
+  // La sesión viva se superpone SÓLO al snapshot de evidencia real.
+  //
+  // Superponerla a un fixture dejaba el stream verdadero y los datos inventados
+  // indistinguibles en la misma pantalla, que es exactamente lo que esta fase
+  // existe para impedir. Con un fixture elegido, la sesión no se mezcla —siga
+  // corriendo o no— y el lanzador queda bloqueado.
   const mergedSnapshot = result?.snapshot
-    ? mergeRuntimeIntoSnapshot(result.snapshot, projection)
+    ? mergeRuntimeIntoSnapshot(result.snapshot, fixtureActive ? null : projection)
     : null;
 
   const state: PipelineViewState = resolvePipelineViewState({
@@ -236,7 +242,13 @@ export function PipelineWorkspace({
         {state.kind === 'loading' ? t('pipeline.loading') : ''}
       </p>
 
-      {repoPath && <PipelineRuntimeLauncher repoPath={repoPath} projection={projection} />}
+      {repoPath && (
+        <PipelineRuntimeLauncher
+          repoPath={repoPath}
+          projection={projection}
+          blockedByFixture={fixtureActive}
+        />
+      )}
 
       {controlNotice && (
         <p className="pipeline-workspace__notice" role="alert">{t(controlNotice)}</p>
@@ -254,7 +266,7 @@ export function PipelineWorkspace({
           <ActivityFeed
             entries={state.snapshot.activity}
             reasoningAvailable={state.snapshot.economy.reasoningAvailable}
-            runtimeAttached={projection !== null}
+            runtimeAttached={!fixtureActive && projection !== null}
             agentRuntimes={Object.fromEntries(
               state.snapshot.agents.map((agent) => [agent.agentId, agent.runtime]),
             )}

@@ -620,33 +620,62 @@ body, .font-sans {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding-left: 0.5rem;
-  border-radius: var(--radius-lg);
+  padding-left: var(--spine-width);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
   background-color: var(--color-bg-surface);
   overflow: visible;
 }
 
-/* La espina: el flanco sólido del bloque. */
+/*
+   Geometría del marco. Los cuatro números están atados entre sí: el codo es un
+   SVG de 64×64 dibujado a escala 1:1, así que su brazo vertical (24) tiene que
+   ser el ancho de la espina y su brazo horizontal (28) el alto del encabezado.
+   Si alguno se mueve solo, aparece un escalón en la unión.
+*/
+.pipeline-card {
+  --elbow-size: 64px;
+  --spine-width: 24px;
+  --header-height: 28px;
+}
+
+/* El codo, dibujado como path. Hereda el tono por `currentColor`. */
+.pipeline-card__frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--elbow-size);
+  height: var(--elbow-size);
+  color: var(--card-spine);
+  pointer-events: none;
+  transition: color 0.18s ease;
+}
+
+/* La espina: continúa el brazo vertical del codo hasta el pie del panel.
+   Arranca donde el codo termina, así que entre las dos piezas no hay costura. */
 .pipeline-card::before {
   content: "";
   position: absolute;
-  inset-block: 0;
+  top: var(--elbow-size);
+  bottom: 0;
   left: 0;
-  width: 0.5rem;
-  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  width: var(--spine-width);
+  border-radius: 0 0 0 var(--radius-lg);
   background-color: var(--card-spine);
   transition: background-color 0.18s ease;
 }
 
+/* El encabezado arranca donde termina el codo y toma su mismo alto: así el
+   brazo horizontal del path y la barra se leen como una sola pieza doblada. */
 .pipeline-card__header {
   position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
-  padding: 0.4rem 0.75rem;
-  /* El codo: el encabezado se funde con la espina en vez de apoyarse encima. */
-  border-radius: 0 var(--radius-lg) 0 0;
+  height: var(--header-height);
+  margin-left: calc(var(--elbow-size) - var(--spine-width));
+  padding: 0 0.75rem;
+  border-radius: 0 var(--radius-sm) 0 0;
   background-color: color-mix(in srgb, var(--card-spine) 22%, var(--color-bg-overlay));
 }
 
@@ -706,15 +735,15 @@ body, .font-sans {
 }
 
 /* Barrido en la card viva: dice "esto está entrando ahora" sin texto que
-   parpadee ni un spinner que gire sin significar nada. */
+   parpadee ni un spinner que gire sin significar nada. Recorre la espina, no
+   el codo: el codo es estructura y no debe moverse. */
 .pipeline-card[data-tone="live"]::after {
   content: "";
   position: absolute;
-  top: 0;
+  top: var(--elbow-size);
   left: 0;
-  width: 0.5rem;
+  width: var(--spine-width);
   height: 25%;
-  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
   background: linear-gradient(
     to bottom,
     transparent,

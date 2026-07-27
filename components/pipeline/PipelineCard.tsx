@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { PipelineElbow } from './PipelineElbow';
 
 export type PipelineCardTone = 'neutral' | 'attention' | 'live';
 
@@ -92,6 +93,7 @@ export function PipelineCard({
         data-collapsible="true"
         open={defaultOpen}
       >
+        <PipelineElbow corner="top-left" className="pipeline-card__frame" />
         <summary className="pipeline-card__header">
           <span className="pipeline-card__chevron" aria-hidden="true" />
           <Header titleId={titleId} title={title} icon={icon} count={count} aside={aside} />
@@ -109,6 +111,10 @@ export function PipelineCard({
       data-scrolls={scrolls || undefined}
       aria-labelledby={titleId}
     >
+      {/* El codo se dibuja como path, no con `border-radius`: la pieza tiene un
+          radio exterior amplio y uno interior cerrado a la vez, y una caja CSS
+          sólo sabe redondear sus propias esquinas. */}
+      <PipelineElbow corner="top-left" className="pipeline-card__frame" />
       <header className="pipeline-card__header">
         <Header titleId={titleId} title={title} icon={icon} count={count} aside={aside} />
       </header>

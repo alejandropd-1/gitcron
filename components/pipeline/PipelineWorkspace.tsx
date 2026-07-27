@@ -11,6 +11,17 @@ import { AgentTree } from './AgentTree';
 import { ChangePath } from './ChangePath';
 import { EconomyPanel } from './EconomyPanel';
 import { DecisionInbox } from './DecisionInbox';
+import { PipelineCard } from './PipelineCard';
+import {
+  IconActivity,
+  IconAgents,
+  IconDecision,
+  IconEconomy,
+  IconFile,
+  IconNow,
+  IconPath,
+  IconRuntime,
+} from './PipelineIcons';
 import { PipelineEmptyState } from './PipelineEmptyState';
 import { PipelineHud } from './PipelineHud';
 import { PipelineNow } from './PipelineNow';
@@ -223,6 +234,16 @@ export function PipelineWorkspace({
     });
   }, [repoPath, projection]);
 
+  const decisionCount = state.kind === 'ready' ? state.snapshot.decisions.length : 0;
+  // Cuánta evidencia hay detrás del panel plegado, para que el contador diga
+  // si vale la pena abrirlo sin tener que abrirlo.
+  const detailsCount = state.kind === 'ready'
+    ? (state.snapshot.diffs?.length ?? 0)
+      + (state.snapshot.auditorFindings?.length ?? 0)
+      + (state.snapshot.gateHistory?.length ?? 0)
+      + (state.snapshot.proposal ? 1 : 0)
+    : 0;
+
   return (
     <section
       className="pipeline-workspace"
@@ -230,51 +251,160 @@ export function PipelineWorkspace({
       data-repo-path={repoPath ?? undefined}
       data-estado={state.kind}
     >
-      <h2 id="pipeline-title" className="pipeline-workspace__title">
-        {t('pipeline.title')}
-      </h2>
+      {/* Franja de andamio: el selector de fixtures no es producto, así que no
+          entra en la grilla del tablero. Va pegado al borde superior, fuera del
+          flujo de las cards, para que no se lea como una barra de pestañas. */}
+      <div className="pipeline-workspace__scaffold">
+        <PipelineDevFixturePicker value={devFixture} onChange={setDevFixture} />
+      </div>
 
-      <PipelineDevFixturePicker value={devFixture} onChange={setDevFixture} />
-
-      {/* Polite y no assertive: el feed de actividad no debe interrumpir al
-          lector de pantalla en cada cambio de estado. */}
-      <p role="status" aria-live="polite" className="pipeline-workspace__status">
-        {state.kind === 'loading' ? t('pipeline.loading') : ''}
-      </p>
-
-      {repoPath && (
-        <PipelineRuntimeLauncher
-          repoPath={repoPath}
-          projection={projection}
-          blockedByFixture={fixtureActive}
-        />
-      )}
+      <header className="pipeline-workspace__bar">
+        <h2 id="pipeline-title" className="pipeline-workspace__title">
+          {t('pipeline.title')}
+        </h2>
+        {/* Polite y no assertive: la bitácora no debe interrumpir al lector de
+            pantalla en cada cambio de estado. */}
+        <p role="status" aria-live="polite" className="pipeline-workspace__status">
+          {state.kind === 'loading' ? t('pipeline.loading') : ''}
+        </p>
+      </header>
 
       {controlNotice && (
         <p className="pipeline-workspace__notice" role="alert">{t(controlNotice)}</p>
       )}
 
       {state.kind === 'ready' ? (
-        <>
-          <PipelineHud snapshot={state.snapshot} />
-          <PipelineNow now={state.snapshot.now} repoPath={repoPath} />
-          {/* El inbox va por encima del feed: es zona prioritaria, no un feed. */}
-          <DecisionInbox decisions={state.snapshot.decisions} onRespondDecision={handleRespondDecision} />
-          <ChangePath stations={state.snapshot.stations} />
-          <AgentTree agents={state.snapshot.agents} />
-          <EconomyPanel economy={state.snapshot.economy} />
-          <ActivityFeed
-            entries={state.snapshot.activity}
-            reasoningAvailable={state.snapshot.economy.reasoningAvailable}
-            runtimeAttached={!fixtureActive && projection !== null}
-            agentRuntimes={Object.fromEntries(
-              state.snapshot.agents.map((agent) => [agent.agentId, agent.runtime]),
+        /**
+         * Tablero, no pila.
+         *
+         * Las áreas se declaran en CSS y cada card scrollea por dentro, así que
+         * el conjunto entra en una pantalla y ninguna sección empuja a la
+         * siguiente fuera de vista. El orden del DOM sigue siendo el orden de
+         * lectura —ahora, decisiones, vía, agentes, economía, bitácora—, que es
+         * también el orden de tabulación: la grilla reubica en pantalla sin
+         * reordenar para el teclado ni para un lector.
+         */
+        <div className="pipeline-grid">
+          {/* El HUD es el único panel sin `PipelineCard`, así que necesita su
+              área explícita. Sin ella la grilla lo auto-ubicaba en una sola
+              columna y el segmento de decisiones quedaba partido al medio. */}
+          <div className="pipeline-grid__hud">
+            <PipelineHud snapshot={state.snapshot} />
+          </div>
+
+          <PipelineCard
+            area="now"
+            titleId="pipeline-now-title"
+            title={t('pipeline.now.title')}
+            icon={<IconNow />}
+            tone={state.snapshot.now.needsHuman ? 'attention' : 'neutral'}
+          >
+            <PipelineNow now={state.snapshot.now} repoPath={repoPath} />
+          </PipelineCard>
+
+          {/* Zona prioritaria, no un feed: va arriba a la derecha y se tiñe
+              cuando hay algo esperando. */}
+          <PipelineCard
+            area="decisions"
+            titleId="pipeline-decisions-title"
+            title={t('pipeline.inbox.title')}
+            icon={<IconDecision />}
+            tone={decisionCount > 0 ? 'attention' : 'neutral'}
+            count={decisionCount}
+            scrolls
+          >
+            <DecisionInbox decisions={state.snapshot.decisions} onRespondDecision={handleRespondDecision} />
+          </PipelineCard>
+
+          <PipelineCard
+            area="path"
+            titleId="pipeline-path-title"
+            title={t('pipeline.path.title')}
+            icon={<IconPath />}
+          >
+            <ChangePath stations={state.snapshot.stations} />
+          </PipelineCard>
+
+          <PipelineCard
+            area="agents"
+            titleId="pipeline-agents-title"
+            title={t('pipeline.agents.title')}
+            icon={<IconAgents />}
+            count={state.snapshot.agents.length}
+            scrolls
+          >
+            <AgentTree agents={state.snapshot.agents} />
+          </PipelineCard>
+
+          <PipelineCard
+            area="economy"
+            titleId="pipeline-economy-title"
+            title={t('pipeline.economy.title')}
+            icon={<IconEconomy />}
+            scrolls
+          >
+            <EconomyPanel economy={state.snapshot.economy} />
+          </PipelineCard>
+
+          <PipelineCard
+            area="activity"
+            titleId="pipeline-activity-title"
+            title={t('pipeline.activity.title')}
+            icon={<IconActivity />}
+            tone={!fixtureActive && projection?.active ? 'live' : 'neutral'}
+            count={state.snapshot.activity.length}
+            scrolls
+          >
+            <ActivityFeed
+              entries={state.snapshot.activity}
+              reasoningAvailable={state.snapshot.economy.reasoningAvailable}
+              runtimeAttached={!fixtureActive && projection !== null}
+              agentRuntimes={Object.fromEntries(
+                state.snapshot.agents.map((agent) => [agent.agentId, agent.runtime]),
+              )}
+            />
+          </PipelineCard>
+
+          <PipelineCard
+            area="runtime"
+            titleId="pipeline-runtime-title"
+            title={t('pipeline.launcher.title')}
+            icon={<IconRuntime />}
+            tone={!fixtureActive && projection?.active ? 'live' : 'neutral'}
+            collapsible
+            defaultOpen={!fixtureActive && projection?.active === true}
+          >
+            {repoPath && (
+              <PipelineRuntimeLauncher
+                repoPath={repoPath}
+                projection={projection}
+                blockedByFixture={fixtureActive}
+              />
             )}
-          />
-          <PipelineDetails snapshot={state.snapshot} />
-        </>
+          </PipelineCard>
+
+          <PipelineCard
+            area="details"
+            titleId="pipeline-details-title"
+            title={t('pipeline.details.title')}
+            icon={<IconFile />}
+            count={detailsCount}
+            collapsible
+          >
+            <PipelineDetails snapshot={state.snapshot} />
+          </PipelineCard>
+        </div>
       ) : (
-        <PipelineEmptyState state={state} onRetry={handleRetry} />
+        <div className="pipeline-workspace__empty">
+          {repoPath && (
+            <PipelineRuntimeLauncher
+              repoPath={repoPath}
+              projection={projection}
+              blockedByFixture={fixtureActive}
+            />
+          )}
+          <PipelineEmptyState state={state} onRetry={handleRetry} />
+        </div>
       )}
     </section>
   );

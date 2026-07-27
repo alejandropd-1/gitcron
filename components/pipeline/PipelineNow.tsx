@@ -28,15 +28,7 @@ export function PipelineNow({ now, repoPath, sessionId, capabilities }: Pipeline
   const hasTaskProgress = now.tasksDone !== null && now.tasksTotal !== null;
 
   return (
-    <section
-      className="pipeline-now"
-      aria-labelledby="pipeline-now-title"
-      data-needs-human={now.needsHuman || undefined}
-    >
-      <h3 id="pipeline-now-title" className="pipeline-section__title">
-        {t('pipeline.now.title')}
-      </h3>
-
+    <div className="pipeline-now" data-needs-human={now.needsHuman || undefined}>
       <p className="pipeline-now__headline">
         {t(now.headlineKey, runtime ? { runtime } : undefined)}
       </p>
@@ -89,6 +81,6 @@ export function PipelineNow({ now, repoPath, sessionId, capabilities }: Pipeline
           capabilities={capabilities}
         />
       )}
-    </section>
+    </div>
   );
 }

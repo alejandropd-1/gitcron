@@ -8,8 +8,25 @@ import {
   type ActivityChannel,
   type ActivityEntry,
 } from './pipeline-domain';
+import {
+  IconFile,
+  IconNarrative,
+  IconReasoning,
+  IconSystem,
+  IconTool,
+  type PipelineIconProps,
+} from './PipelineIcons';
 
 const CHANNELS: ActivityChannel[] = ['narrative', 'reasoning', 'tool', 'file', 'system'];
+
+/** Un icono por canal: el filtro se reconoce por forma antes que por texto. */
+const CHANNEL_ICONS: Record<ActivityChannel, React.ComponentType<PipelineIconProps>> = {
+  narrative: IconNarrative,
+  reasoning: IconReasoning,
+  tool: IconTool,
+  file: IconFile,
+  system: IconSystem,
+};
 
 export type ActivityFeedProps = {
   entries: ActivityEntry[];
@@ -53,26 +70,28 @@ export function ActivityFeed({
   );
 
   return (
-    <section className="pipeline-activity" aria-labelledby="pipeline-activity-title">
-      <h3 id="pipeline-activity-title" className="pipeline-section__title">
-        {t('pipeline.activity.title')}
-      </h3>
-
-      <div className="pipeline-activity__filters" role="group" aria-label={t('pipeline.activity.filters')}>
+    <div className="pipeline-activity">
+      {/* Filtros: control terciario. Van en una fila sola, arriba del contenido
+          que gobiernan, con icono + palabra. `aria-pressed` es lo que comunica
+          el encendido a un lector de pantalla; el relleno es sólo su reflejo
+          visual. Nunca compiten con el botón de decisión, que es la acción. */}
+      <div className="pipeline-filters" role="group" aria-label={t('pipeline.activity.filters')}>
         {CHANNELS.map((channel) => {
           const disabled = channel === 'reasoning' && reasoningAvailable !== true;
           const pressed = active.has(channel) && !disabled;
+          const Icon = CHANNEL_ICONS[channel];
           return (
             <button
               key={channel}
               type="button"
-              className="pipeline-activity__filter"
+              className="pipeline-filter"
               data-channel={channel}
               aria-pressed={pressed}
               disabled={disabled}
               onClick={() => toggle(channel)}
             >
-              {t(`pipeline.channel.${channel}`)}
+              <Icon />
+              <span>{t(`pipeline.channel.${channel}`)}</span>
             </button>
           );
         })}
@@ -99,23 +118,25 @@ export function ActivityFeed({
             <li key={group.key} className="pipeline-activity__entry" data-channel={group.channel}>
               {/* Nodo sobre el riel temporal: mismo vocabulario que la vía y el
                   árbol de agentes. El canal se lee por forma y color. */}
+              {/* Las cuatro celdas se emiten SIEMPRE, incluso vacías. La fila
+                  es una grilla de columnas fijas: si una entrada sin agente
+                  omitiera su celda, el texto treparía a la columna del agente y
+                  la alineación se rompería fila por medio. */}
               <span className="pipeline-activity__dot" aria-hidden="true" />
               <span className="pipeline-activity__channel">{t(`pipeline.channel.${group.channel}`)}</span>
-              {group.agentId && agentRuntimes[group.agentId] && (
-                <span className="pipeline-activity__agent">
-                  {runtimeDisplayName(agentRuntimes[group.agentId])}
-                </span>
-              )}
+              <span className="pipeline-activity__agent">
+                {group.agentId && agentRuntimes[group.agentId]
+                  ? runtimeDisplayName(agentRuntimes[group.agentId])
+                  : ''}
+              </span>
               <span className="pipeline-activity__text">{group.text}</span>
-              {group.count > 1 && (
-                <span className="pipeline-activity__count">
-                  {t('pipeline.activity.grouped', { count: group.count })}
-                </span>
-              )}
+              <span className="pipeline-activity__count">
+                {group.count > 1 ? t('pipeline.activity.grouped', { count: group.count }) : ''}
+              </span>
             </li>
           ))}
         </ol>
       )}
-    </section>
+    </div>
   );
 }

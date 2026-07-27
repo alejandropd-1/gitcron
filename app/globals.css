@@ -454,13 +454,20 @@ body, .font-sans {
 .pipeline-workspace {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0.75rem;
   padding: var(--spacing-container-padding);
-  overflow-y: auto;
   /* `flex: 1` + `min-height: 0` como el resto de las solapas, para llenar el
-     contenedor sin romper el scroll interno. */
+     contenedor sin romper el scroll interno. El workspace YA NO scrollea: el
+     scroll vive dentro de cada card. Ése era el problema de fondo — con la
+     página entera scrolleando, todo quedaba "una cosa debajo de la otra" y no
+     había forma de ver el estado de un vistazo. */
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+  /* Ancla de las container queries de abajo: el tablero debe responder al
+     ancho REAL del panel, no al de la ventana. Con la barra lateral abierta
+     esos dos números difieren mucho, y una media query se equivocaría. */
+  container-type: inline-size;
   color: var(--color-text-primary);
   /* Sin background propio, igual que Commit e History: se hereda del
      contenedor. Eso importa porque en modo cronométrico ese contenedor es un
@@ -468,11 +475,24 @@ body, .font-sans {
      opaco propio lo taparía. */
 }
 
-/* Las secciones no se comprimen: son un flujo vertical con scroll propio del
-   workspace, no cajas que se achican para entrar. Sin esto, la que tiene
-   contenido menos rígido colapsa cuando el resto crece. */
-.pipeline-workspace > * {
+/* Andamio de desarrollo: no es producto, así que no participa de la grilla ni
+   del ritmo visual del tablero. Se lo aparta con opacidad y escala chica para
+   que no compita con las cards ni se lea como una barra de pestañas. */
+.pipeline-workspace__scaffold {
   flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.pipeline-workspace__scaffold:hover,
+.pipeline-workspace__scaffold:focus-within {
+  opacity: 1;
+}
+
+.pipeline-workspace__bar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: baseline;
+  gap: 0.75rem;
 }
 
 .pipeline-workspace__title {
@@ -484,6 +504,480 @@ body, .font-sans {
 /* Live region: se anuncia, no ocupa lugar cuando está vacía. */
 .pipeline-workspace__status:empty {
   display: none;
+}
+
+.pipeline-workspace__empty {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ─── El tablero ───
+   Áreas nombradas: la grilla reubica en pantalla sin tocar el orden del DOM,
+   así que el orden de lectura y el de tabulación siguen siendo el orden lógico
+   (ahora → decisiones → vía → agentes → economía → bitácora). */
+.pipeline-grid {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr);
+  /*
+     FLUIDO, NO RÍGIDO.
+
+     Las filas de contenido acotado van en `auto`: se dimensionan por lo que
+     tienen adentro. Sólo la fila de listas toma `1fr`, porque es la única que
+     puede crecer sin techo.
+
+     La versión anterior daba `1.15fr / 1fr / 0.9fr` a las tres filas por igual
+     y repartía el alto disponible entre ellas. Con eso "Ahora" recibía ~190px
+     para titular + cuatro datos + barra de control, y terminaba cortando sus
+     propios datos a mitad de palabra. Una card que scrollea para mostrar
+     cuatro cifras es peor que una página que scrollea.
+
+     Y si aun así no entra, scrollea el tablero completo (`overflow-y`) en vez
+     de guillotinar paneles: degradar es aceptable, cortar contenido no.
+  */
+  /*
+     TODAS `auto`. Ninguna `fr`.
+
+     La version anterior daba `minmax(0, 1fr)` a la fila de "Ahora" y
+     decisiones. `1fr` reparte el espacio SOBRANTE, y con las filas de abajo en
+     `auto` creciendo con su contenido, el sobrante llegaba a cero: el `min` de
+     `minmax(0, …)` dejaba entonces colapsar la fila hasta 0px y de "Ahora" y
+     "Decisiones" quedaba nada más que el encabezado.
+
+     Con todas en `auto`, cada fila mide lo que mide su contenido y ninguna
+     puede aplastar a otra. El tope de las listas lo pone `max-height` sobre la
+     card, no la grilla.
+  */
+  grid-template-rows: auto auto auto auto auto;
+  /* La bitácora toma la columna derecha entera: es el relato, y sin altura se
+     lee como tres renglones sueltos en vez de como una historia. */
+  grid-template-areas:
+    "hud       hud       hud"
+    "path      path      path"
+    "now       decisions activity"
+    "agents    economy   activity"
+    "runtime   details   details";
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.pipeline-grid__hud {
+  grid-area: hud;
+  min-width: 0;
+}
+
+@container (max-width: 1200px) {
+  .pipeline-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "hud       hud"
+      "path      path"
+      "now       decisions"
+      "activity  activity"
+      "agents    economy"
+      "runtime   details";
+    grid-template-rows: auto auto auto minmax(14rem, 1fr) auto auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .pipeline-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "hud" "path" "now" "decisions" "activity" "agents" "economy" "runtime" "details";
+    grid-template-rows: none;
+    grid-auto-rows: minmax(min-content, auto);
+  }
+}
+
+/* Las áreas del tablero que no entran en la fila principal se acomodan al pie.
+   `runtime` y `details` son secundarias: consulta, no vigilancia. */
+.pipeline-grid > .pipeline-card {
+  min-height: 0;
+}
+
+/* ─── Card: bloque encapsulado, no rectángulo con borde ───
+
+   Gramática LCARS: el panel no es una caja delineada, es un BLOQUE. Una espina
+   de color baja por el flanco izquierdo, dobla en codo bajo el encabezado y el
+   contenido cuelga de ahí. El encabezado no está "sobre" el panel: es parte de
+   la misma pieza sólida.
+
+   `overflow` va VISIBLE a propósito. La versión anterior usaba `hidden` para
+   recortar el encabezado al radio, y eso convertía cualquier error de cálculo
+   de altura en contenido invisible —el botón cortado abajo de la vía—. Sin
+   contenedor que recorte, un descuadre se desborda a la vista en vez de
+   desaparecer: un error visible se arregla, uno invisible se descubre tarde.
+*/
+.pipeline-card {
+  --card-spine: var(--color-border-subtle);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-left: 0.5rem;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-surface);
+  overflow: visible;
+}
+
+/* La espina: el flanco sólido del bloque. */
+.pipeline-card::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 0.5rem;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  background-color: var(--card-spine);
+  transition: background-color 0.18s ease;
+}
+
+.pipeline-card__header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding: 0.4rem 0.75rem;
+  /* El codo: el encabezado se funde con la espina en vez de apoyarse encima. */
+  border-radius: 0 var(--radius-lg) 0 0;
+  background-color: color-mix(in srgb, var(--card-spine) 22%, var(--color-bg-overlay));
+}
+
+.pipeline-card__icon {
+  display: inline-flex;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-card__title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-card__aside {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: auto;
+}
+
+.pipeline-card__body {
+  min-height: 0;
+  padding: 0.75rem;
+}
+
+/*
+   El tope de una lista lo pone la card, no la grilla.
+
+   `scrolls` marca lo genuinamente ilimitado —bitácora, decisiones, agentes—:
+   crece con su contenido hasta un techo y recién ahí scrollea por dentro. Un
+   panel de cifras acotadas nunca lleva `scrolls`, así que se ve entero siempre.
+   Ésa es la diferencia entre "esta lista sigue" y "te corté los datos".
+*/
+.pipeline-card[data-scrolls] .pipeline-card__body {
+  max-height: 26rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* La bitácora abarca dos filas: merece más aire, es el relato. */
+.pipeline-card[style*="activity"] .pipeline-card__body {
+  max-height: none;
+  min-height: 14rem;
+}
+
+/* Tono: tiñe la espina entera, que es la pieza que se ve de reojo. Refuerza,
+   nunca reemplaza al texto que ya dice qué pasa. */
+.pipeline-card[data-tone="attention"] { --card-spine: var(--color-git-mod); }
+.pipeline-card[data-tone="live"] { --card-spine: var(--color-primary); }
+
+.pipeline-card[data-tone] .pipeline-card__icon,
+.pipeline-card[data-tone] .pipeline-card__title {
+  color: var(--card-spine);
+}
+
+/* Barrido en la card viva: dice "esto está entrando ahora" sin texto que
+   parpadee ni un spinner que gire sin significar nada. */
+.pipeline-card[data-tone="live"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0.5rem;
+  height: 25%;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--color-text-primary) 55%, transparent),
+    transparent
+  );
+  animation: pipeline-spine-sweep 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pipeline-spine-sweep {
+  0%, 100% { transform: translateY(0); opacity: 0; }
+  50% { transform: translateY(300%); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pipeline-card[data-tone="live"]::after { animation: none; opacity: 0; }
+}
+
+/* ─── Piezas compartidas ─── */
+.pipeline-icon {
+  flex-shrink: 0;
+}
+
+.pipeline-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--radius-full);
+  background-color: var(--color-border-subtle);
+  color: var(--color-text-primary);
+}
+
+/* Cero también se muestra: que algo esté vacío es información, y esconder el
+   contador obligaría a abrir el panel para descubrirlo. Se atenúa, no se va. */
+.pipeline-badge[data-tone="empty"] {
+  background-color: transparent;
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.pipeline-card[data-tone="attention"] .pipeline-badge:not([data-tone="empty"]) {
+  background-color: var(--color-git-mod);
+  color: var(--color-bg-base);
+}
+
+/* ─── Cards plegables (paneles secundarios) ───
+   `<details>` nativo: el teclado, el foco y el anuncio de expandido/colapsado
+   los da el navegador. Un `aria-expanded` a mano habría sido más código y
+   menos confiable. */
+.pipeline-card[data-collapsible] > .pipeline-card__header {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+/* Oculta el triangulito nativo en ambos motores; ponemos el nuestro. */
+.pipeline-card[data-collapsible] > .pipeline-card__header::-webkit-details-marker {
+  display: none;
+}
+
+.pipeline-card[data-collapsible] > .pipeline-card__header:hover .pipeline-card__title {
+  color: var(--color-text-primary);
+}
+
+.pipeline-card[data-collapsible] > .pipeline-card__header:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.pipeline-card__chevron {
+  width: 0.55rem;
+  height: 0.55rem;
+  flex-shrink: 0;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  color: var(--color-text-secondary);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.pipeline-card[open] > .pipeline-card__header .pipeline-card__chevron {
+  transform: rotate(45deg);
+}
+
+/* Plegada, la card no reserva alto: el tablero recupera esa fila entera. */
+.pipeline-card[data-collapsible]:not([open]) {
+  align-self: start;
+}
+
+.pipeline-card[data-collapsible][open] > .pipeline-card__body {
+  max-height: 22rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pipeline-card__chevron { transition: none; }
+}
+
+/* Filtros: control terciario. Se leen como chips, no como acciones — nunca
+   compiten con el botón de decisión. 24px de alto mínimo (WCAG 2.5.8). */
+.pipeline-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.625rem;
+}
+
+/* Cápsula, igual que los controles, pero rellena en gris: mismo lenguaje, otro
+   peso. Un filtro nunca debe leerse como una acción. */
+.pipeline-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 24px;
+  padding: 0.1875rem 0.6rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: none;
+  border-radius: var(--radius-full);
+  background-color: color-mix(in srgb, var(--color-border-subtle) 32%, transparent);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.pipeline-filter:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--color-border-subtle) 60%, transparent);
+  color: var(--color-text-primary);
+}
+
+.pipeline-filter:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Encendido: relleno + borde. `aria-pressed` es lo que lo comunica de verdad;
+   esto es su reflejo visual, no su único canal. */
+.pipeline-filter[aria-pressed="true"] {
+  background-color: var(--color-primary);
+  color: var(--color-bg-base);
+}
+
+/* Apagado: relleno hueco y punteado. No depende del color para leerse. */
+.pipeline-filter:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: transparent;
+  outline: 1px dashed var(--color-border-subtle);
+  outline-offset: -1px;
+}
+
+/* Stat tiles: la forma correcta para cifras que suelen faltar. */
+.pipeline-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.pipeline-stat {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, var(--color-bg-overlay) 35%, transparent);
+}
+
+.pipeline-stat__label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-stat__value {
+  margin: 0.25rem 0 0;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.pipeline-stat__number {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Medidor de una sola serie: ilustra, pero el número escrito al lado es el que
+   manda. Si el relleno no se distingue, el dato sigue siendo legible. */
+.pipeline-meter {
+  margin: 0.75rem 0;
+}
+
+.pipeline-meter__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.pipeline-meter__label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-meter__value {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.pipeline-meter__track {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-border-subtle);
+  overflow: hidden;
+}
+
+.pipeline-meter__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+}
+
+/* Número héroe: la cifra que se busca primero. */
+.pipeline-economy__hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.pipeline-economy__hero-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-economy__hero-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.pipeline-economy__hero-basis {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
 }
 
 .pipeline-section__title {
@@ -671,22 +1165,15 @@ body, .font-sans {
    padre. La pendiente deriva de DEFAULT_CHRONOMETRIC_SLOPE (0.85). */
 
 .pipeline-path {
-  --pipeline-slope: 0.85;
-  --pipeline-station-rise: calc(var(--pipeline-slope) * 0.75rem);
-  /* Sin esto el flex padre comprime la sección hasta colapsarla. */
-  flex-shrink: 0;
-  padding: 1rem;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  background-color: var(--color-bg-surface);
-}
-
-.pipeline-path__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
+  /* Retícula diagonal tenue de fondo: el parentesco con la vista cronométrica
+     lo aporta la atmósfera, no un escalonado de los nodos. Siete escalones
+     leían como una escalera rota; una diagonal de fondo, no. */
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--color-border-subtle) 22%, transparent) 0 1px,
+    transparent 1px 14px
+  );
+  border-radius: var(--radius-md);
 }
 
 /* Contador de paso: el dato que responde "¿en qué fase estoy?" de un vistazo. */
@@ -694,7 +1181,7 @@ body, .font-sans {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  margin: 0.75rem 0 0;
 }
 
 .pipeline-path__counter-step {
@@ -719,49 +1206,45 @@ body, .font-sans {
   color: var(--color-text-primary);
 }
 
+/*
+   El riel se dibuja DOS VECES SOBRE LA PISTA, no una vez por estación.
+   Ésa es la corrección: con un `::after` por nodo, cada tramo traía su propio
+   corte y sus propios extremos, y en las uniones quedaban costuras — los nodos
+   "no se unían". Ahora hay una línea única de punta a punta (`::before`) y otra
+   encima que cubre sólo lo recorrido (`::after`). Una sola geometría, cero
+   empalmes.
+
+   Ambas arrancan y terminan en el CENTRO del primer y del último nodo: media
+   columna de sangrado a cada lado, calculada desde `--path-count`, que el
+   componente publica junto con `--path-progress`.
+*/
 .pipeline-path__track {
-  display: flex;
-  align-items: flex-start;
-  list-style: none;
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
-}
-
-.pipeline-path__station {
+  --path-half-column: calc(100% / var(--path-count, 7) / 2);
+  --path-rail-y: 1.625rem;
   position: relative;
-  flex: 1 0 7.5rem;
-  min-width: 7.5rem;
-  /* El desnivel: ocupa lugar real, a diferencia de transform. */
-  margin-top: calc(var(--station-index) * var(--pipeline-station-rise));
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(5.5rem, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
-/* Riel entre nodos. Sólido = ocurrió; punteado = camino posible. */
-.pipeline-path__station:not(:last-child)::after {
+/* Riel completo: el camino que existe, todavía no recorrido. */
+.pipeline-path__track::before,
+.pipeline-path__track::after {
   content: "";
   position: absolute;
-  top: 1.125rem;
-  left: calc(50% + 1.25rem);
-  right: calc(-50% + 1.25rem);
+  top: var(--path-rail-y);
   height: 2px;
-  background-color: var(--color-border-subtle);
   pointer-events: none;
 }
 
-.pipeline-path__station[data-estado="done"]:not(:last-child)::after {
-  background-color: var(--color-secondary);
-}
-
-.pipeline-path__station[data-estado="current"]:not(:last-child)::after {
-  background-image: linear-gradient(
-    to right,
-    var(--color-primary),
-    var(--color-border-subtle)
-  );
-}
-
-.pipeline-path__station[data-estado="possible"]:not(:last-child)::after,
-.pipeline-path__station[data-estado="skipped"]:not(:last-child)::after {
-  background-color: transparent;
+.pipeline-path__track::before {
+  left: var(--path-half-column);
+  right: var(--path-half-column);
   background-image: repeating-linear-gradient(
     to right,
     var(--color-border-subtle) 0 4px,
@@ -769,14 +1252,23 @@ body, .font-sans {
   );
 }
 
-/* Rechazo: el riel vuelve rojo hacia el fixer. */
-.pipeline-path__station[data-estado="rejected"]:not(:last-child)::after {
-  background-color: transparent;
-  background-image: repeating-linear-gradient(
-    to right,
-    var(--color-error) 0 4px,
-    transparent 4px 8px
-  );
+/* Riel recorrido: sólido, con halo. Termina EN el nodo alcanzado. */
+.pipeline-path__track::after {
+  left: var(--path-half-column);
+  width: max(0px, calc(var(--path-progress, 0%) - var(--path-half-column)));
+  background-color: var(--color-primary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
+/* Rechazo: el recorrido se pinta en rojo, porque volvió sobre sus pasos. */
+.pipeline-path[data-has-rejection] .pipeline-path__track::after {
+  background-color: var(--color-error);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-error) 45%, transparent);
+}
+
+.pipeline-path__station {
+  position: relative;
+  min-width: 0;
 }
 
 .pipeline-path__node {
@@ -787,12 +1279,22 @@ body, .font-sans {
   align-items: center;
   gap: 0.25rem;
   width: 100%;
+  min-height: 24px;
   padding: 0 0.25rem 0.5rem;
   background: none;
   border: none;
   cursor: pointer;
   text-align: center;
   border-radius: var(--radius-md);
+}
+
+/* El marcador tapa el riel a su paso: el disco opaco es lo que hace que la
+   línea entre y salga del nodo en vez de cruzarlo por detrás. */
+.pipeline-path__marker {
+  display: grid;
+  place-items: center;
+  padding: 0 0.35rem;
+  background-color: var(--color-bg-surface);
 }
 
 .pipeline-path__node:hover .pipeline-path__number {
@@ -1261,36 +1763,8 @@ body, .font-sans {
    change y el árbol de agentes: la forma y el relleno del nodo dicen de qué
    canal viene, sin depender sólo del color. */
 
-.pipeline-activity__filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  margin-bottom: 0.75rem;
-}
-
-.pipeline-activity__filter {
-  padding: 0.1875rem 0.625rem;
-  font-size: 0.75rem;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-full);
-  background-color: transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-}
-
-/* El filtro activo se marca con relleno y borde, no sólo con color: sigue
-   siendo distinguible en alto contraste. */
-.pipeline-activity__filter[aria-pressed="true"] {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
-}
-
-.pipeline-activity__filter[disabled] {
-  opacity: 0.45;
-  cursor: not-allowed;
-  border-style: dashed;
-}
+/* Los filtros de la bitácora usan ahora `.pipeline-filter`, compartido con el
+   resto del tablero: un solo control terciario en vez de uno por sección. */
 
 .pipeline-activity__no-reasoning {
   font-size: 0.75rem;
@@ -1309,6 +1783,12 @@ body, .font-sans {
   padding-left: 1.125rem;
 }
 
+/* Riel único y continuo, igual que la vía del change: una sola línea de punta
+   a punta, y los marcadores se apoyan encima tapándola a su paso. Antes había
+   DOS verticales compitiendo —este riel y un `border-left` de color por
+   entrada— y el borde arrancaba y cortaba en cada fila, así que el conjunto se
+   leía como una columna dentada al lado de una línea recta. Ésa era la fealdad:
+   no el riel, sino que hubiera dos. */
 .pipeline-activity__list::before {
   content: "";
   position: absolute;
@@ -1316,13 +1796,29 @@ body, .font-sans {
   bottom: 0.75rem;
   left: 0.3125rem;
   width: 2px;
-  background-color: var(--color-border-subtle);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--color-border-subtle) 0 4px,
+    transparent 4px 8px
+  );
 }
 
+/*
+   Columnas fijas, no texto que se desborda.
+
+   Antes era un `flex-wrap` y cada entrada envolvía donde le tocaba: el canal,
+   el agente y el texto quedaban en posiciones distintas fila a fila, y una ruta
+   larga tiraba todo a un segundo renglón. Alineado en columnas —canal, agente,
+   texto, repeticiones— la vista se barre en vertical leyendo una sola columna,
+   que es como la referencia LCARS mete mucha información en poco alto.
+
+   El texto es la única columna elástica: es la que puede crecer, así que es la
+   que absorbe el ancho sobrante.
+*/
 .pipeline-activity__entry {
   position: relative;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 4.75rem auto minmax(0, 1fr) auto;
   align-items: baseline;
   gap: 0.5rem;
   padding: 0.3125rem 0.5rem;
@@ -1331,7 +1827,20 @@ body, .font-sans {
   font-size: 0.8125rem;
 }
 
-/* El nodo, alineado sobre el riel. */
+/* Angosto: el agente se va de la fila antes que el texto, que es el dato. */
+@container (max-width: 1200px) {
+  .pipeline-activity__entry {
+    grid-template-columns: 4.75rem minmax(0, 1fr) auto;
+  }
+
+  .pipeline-activity__agent {
+    display: none;
+  }
+}
+
+/* El marcador: mismo vocabulario que el nodo de la vía —relleno = ocurrió,
+   hueco = contexto del sistema, cuadrado = tocó disco— y con el mismo truco de
+   fondo opaco para que el riel entre y salga en vez de cruzarlo por detrás. */
 .pipeline-activity__dot {
   position: absolute;
   left: -1rem;
@@ -1341,6 +1850,7 @@ body, .font-sans {
   border-radius: var(--radius-full);
   border: 2px solid var(--color-border-subtle);
   background-color: var(--color-bg-base);
+  box-shadow: 0 0 0 3px var(--color-bg-surface);
 }
 
 .pipeline-activity__entry[data-channel="reasoning"] .pipeline-activity__dot {
@@ -1371,39 +1881,43 @@ body, .font-sans {
   background-color: var(--color-text-primary);
 }
 
-.pipeline-activity__entry[data-channel="reasoning"] { border-left: 2px solid var(--color-accent-purple); }
-.pipeline-activity__entry[data-channel="tool"] { border-left: 2px solid var(--color-primary); }
-.pipeline-activity__entry[data-channel="file"] { border-left: 2px solid var(--color-git-mod); }
-.pipeline-activity__entry[data-channel="system"] { border-left: 2px solid var(--color-text-secondary); }
-.pipeline-activity__entry[data-channel="narrative"] { border-left: 2px solid var(--color-border-subtle); }
+/* Los `border-left` de color por entrada se quitaron: eran la segunda vertical
+   que peleaba con el riel. La identidad del canal ya viaja por tres canales
+   —forma del marcador, icono del filtro y la palabra escrita—, así que el
+   listón no aportaba información, sólo ruido. */
 
 .pipeline-activity__channel {
   font-size: 0.625rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-secondary);
-  min-width: 6rem;
+  /* El ancho lo fija la columna del grid; un `min-width` acá la desbordaba. */
 }
 
 .pipeline-activity__agent {
   font-size: 0.6875rem;
   color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
 .pipeline-activity__text {
-  flex: 1;
   color: var(--color-text-primary);
   overflow-wrap: anywhere;
 }
 
-/* Contador de deltas colapsados. */
+/* Contador de deltas colapsados. Vacío no dibuja nada: la celda existe para
+   sostener la columna, no para mostrar una cápsula en blanco. */
 .pipeline-activity__count {
   font-size: 0.625rem;
   font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.pipeline-activity__count:not(:empty) {
   padding: 0 0.3125rem;
   border-radius: var(--radius-full);
   background-color: var(--color-bg-overlay);
-  color: var(--color-text-secondary);
 }
 
 .pipeline-activity__empty {
@@ -1529,49 +2043,9 @@ body, .font-sans {
   background-color: var(--color-bg-surface);
 }
 
-.pipeline-economy__tokens,
-.pipeline-economy__context {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: 0.625rem;
-}
-
-.pipeline-economy__context {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-border-subtle);
-}
-
-.pipeline-economy__row dt {
-  font-size: 0.625rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-secondary);
-}
-
-.pipeline-economy__row dd {
-  font-size: 0.875rem;
-  color: var(--color-text-primary);
-}
-
-.pipeline-economy__number { font-variant-numeric: tabular-nums; }
-
-.pipeline-economy__cost {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-border-subtle);
-}
-
-.pipeline-economy__cost-label {
-  font-size: 0.625rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-secondary);
-}
+/* Las cifras pasaron a `.pipeline-stats` / `.pipeline-stat` (tiles) y el costo
+   a `.pipeline-economy__hero` (número héroe). Las reglas viejas de filas y
+   grillas propias se fueron con ellas. */
 
 .pipeline-economy__basis {
   font-size: 0.6875rem;
@@ -2065,20 +2539,37 @@ body, .font-sans {
   gap: 0.375rem;
 }
 
+/*
+   Cápsula LCARS: el control ES la interfaz, no un rectángulo dibujado encima.
+
+   Bloque relleno, extremo derecho redondeado, rótulo en mayúscula compacta.
+   Sin borde: el color de fondo es el que define la pieza, igual que en la
+   referencia. Se apagan bajando el relleno, no agregando líneas.
+*/
 .pipeline-control-bar__btn {
-  padding: 0.25rem 0.625rem;
-  font-size: 0.75rem;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-bg-overlay);
+  --btn-fill: var(--color-border-subtle);
+  min-height: 24px;
+  padding: 0.28rem 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: none;
+  border-radius: var(--radius-sm) var(--radius-full) var(--radius-full) var(--radius-sm);
+  background-color: color-mix(in srgb, var(--btn-fill) 30%, var(--color-bg-overlay));
   color: var(--color-text-primary);
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .pipeline-control-bar__btn:hover:not(:disabled) {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-border);
+  background-color: var(--btn-fill);
+  color: var(--color-bg-base);
+}
+
+.pipeline-control-bar__btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .pipeline-control-bar__btn:disabled {
@@ -2087,8 +2578,14 @@ body, .font-sans {
 }
 
 .pipeline-control-bar__btn--active {
-  border-color: var(--color-primary);
-  background-color: var(--color-bg-hover);
+  background-color: var(--color-primary);
+  color: var(--color-bg-base);
+}
+
+/* Destructivo: la pieza se tiñe entera. No compite con las demás por atención,
+   se distingue por temperatura — y lleva su palabra, no sólo su color. */
+.pipeline-control-bar__btn[data-variant="danger"] {
+  --btn-fill: var(--color-error);
 }
 
 .pipeline-control-bar__form {

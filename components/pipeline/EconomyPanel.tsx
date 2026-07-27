@@ -8,16 +8,70 @@ export type EconomyPanelProps = {
   economy: EconomyState;
 };
 
-function TokenRow({ labelKey, value }: { labelKey: string; value: number | null }) {
+/**
+ * Stat tile: rótulo arriba, número grande abajo.
+ *
+ * Es la forma correcta para estas cifras, y la elección tiene fundamento: la
+ * fuente real deja casi todo en `null`, y un gráfico de cuatro categorías sobre
+ * datos ausentes dibuja un hueco que parece un error. Un tile con
+ * `<UnknownValue>` dice "no lo sabemos" con la misma prolijidad con la que
+ * diría un número.
+ *
+ * (Se descartó además una barra apilada de 4 colores: los tokens del design
+ * system caen todos en la misma banda de luminosidad y no separan por
+ * daltonismo. Corregirlo exigía colores literales nuevos, prohibidos acá.)
+ */
+function StatTile({
+  labelKey,
+  value,
+  reason = 'not-reported',
+}: {
+  labelKey: string;
+  value: number | null;
+  reason?: 'not-reported' | 'not-applicable';
+}) {
   const t = useT();
   return (
-    <div className="pipeline-economy__row">
-      <dt>{t(labelKey)}</dt>
-      <dd>
+    <div className="pipeline-stat">
+      <dt className="pipeline-stat__label">{t(labelKey)}</dt>
+      <dd className="pipeline-stat__value">
         {value === null
-          ? <UnknownValue reason="not-reported" />
-          : <span className="pipeline-economy__number">{value.toLocaleString()}</span>}
+          ? <UnknownValue reason={reason} />
+          : <span className="pipeline-stat__number">{value.toLocaleString()}</span>}
       </dd>
+    </div>
+  );
+}
+
+/**
+ * Medidor de cobertura de costo.
+ *
+ * Una sola serie y un solo tono: no es una comparación entre categorías, es
+ * "qué proporción de la muestra está medida". Lleva el número escrito al lado,
+ * así que la barra ilustra pero no es la única forma de leerlo — si no se
+ * distingue el relleno, el texto sigue estando.
+ */
+function CoverageMeter({ withCost, total }: { withCost: number; total: number }) {
+  const t = useT();
+  const pct = total > 0 ? Math.round((withCost / total) * 100) : 0;
+  return (
+    <div className="pipeline-meter">
+      <div className="pipeline-meter__head">
+        <span className="pipeline-meter__label">{t('pipeline.economy.coverageLabel')}</span>
+        <span className="pipeline-meter__value">
+          {t('pipeline.economy.coverageRatio', { withCost, total })}
+        </span>
+      </div>
+      <div
+        className="pipeline-meter__track"
+        role="meter"
+        aria-valuenow={withCost}
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-label={t('pipeline.economy.coverageLabel')}
+      >
+        <span className="pipeline-meter__fill" style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
@@ -36,27 +90,21 @@ export function EconomyPanel({ economy }: EconomyPanelProps) {
   const { withCost, total } = economy.costCoverage;
 
   return (
-    <section className="pipeline-economy" aria-labelledby="pipeline-economy-title">
-      <h3 id="pipeline-economy-title" className="pipeline-section__title">
-        {t('pipeline.economy.title')}
-      </h3>
-
-      <dl className="pipeline-economy__tokens">
-        <TokenRow labelKey="pipeline.economy.input" value={economy.tokens.input} />
-        <TokenRow labelKey="pipeline.economy.output" value={economy.tokens.output} />
-        <TokenRow labelKey="pipeline.economy.reasoning" value={economy.tokens.reasoning} />
-        <TokenRow labelKey="pipeline.economy.cacheRead" value={economy.tokens.cacheRead} />
-      </dl>
-
-      <div className="pipeline-economy__cost" data-cost-basis={economy.costBasis} data-usable={costUsable}>
-        <span className="pipeline-economy__cost-label">{t('pipeline.economy.cost')}</span>
-        {economy.costUsd === null ? (
-          <UnknownValue reason={economy.costBasis === 'local_unpriced' ? 'not-applicable' : 'not-reported'} />
-        ) : (
-          <span className="pipeline-economy__number">{`US$ ${economy.costUsd.toFixed(4)}`}</span>
-        )}
-        <span className="pipeline-economy__basis">{t(`pipeline.costBasis.${economy.costBasis}`)}</span>
+    <div className="pipeline-economy">
+      {/* El costo es la cifra que se busca primero: va como número héroe. */}
+      <div className="pipeline-economy__hero" data-cost-basis={economy.costBasis} data-usable={costUsable}>
+        <span className="pipeline-economy__hero-label">{t('pipeline.economy.cost')}</span>
+        <span className="pipeline-economy__hero-value">
+          {economy.costUsd === null ? (
+            <UnknownValue reason={economy.costBasis === 'local_unpriced' ? 'not-applicable' : 'not-reported'} />
+          ) : (
+            `US$ ${economy.costUsd.toFixed(4)}`
+          )}
+        </span>
+        <span className="pipeline-economy__hero-basis">{t(`pipeline.costBasis.${economy.costBasis}`)}</span>
       </div>
+
+      {total > 0 && <CoverageMeter withCost={withCost} total={total} />}
 
       {!costUsable && total > 0 && (
         <p className="pipeline-economy__coverage">
@@ -64,11 +112,15 @@ export function EconomyPanel({ economy }: EconomyPanelProps) {
         </p>
       )}
 
-      <dl className="pipeline-economy__context">
-        <TokenRow labelKey="pipeline.economy.contextMax" value={economy.contextMaxTokens} />
-        <TokenRow labelKey="pipeline.economy.contextCurrent" value={economy.contextCurrentTokens} />
-        <TokenRow labelKey="pipeline.economy.compactions" value={economy.compactionCount} />
+      <dl className="pipeline-stats">
+        <StatTile labelKey="pipeline.economy.input" value={economy.tokens.input} />
+        <StatTile labelKey="pipeline.economy.output" value={economy.tokens.output} />
+        <StatTile labelKey="pipeline.economy.reasoning" value={economy.tokens.reasoning} />
+        <StatTile labelKey="pipeline.economy.cacheRead" value={economy.tokens.cacheRead} />
+        <StatTile labelKey="pipeline.economy.contextMax" value={economy.contextMaxTokens} />
+        <StatTile labelKey="pipeline.economy.contextCurrent" value={economy.contextCurrentTokens} />
+        <StatTile labelKey="pipeline.economy.compactions" value={economy.compactionCount} />
       </dl>
-    </section>
+    </div>
   );
 }

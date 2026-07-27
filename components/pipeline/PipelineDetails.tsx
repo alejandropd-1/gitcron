@@ -27,12 +27,8 @@ export function PipelineDetails({ snapshot }: PipelineDetailsProps) {
   );
 
   return (
-    <section className="pipeline-details" aria-labelledby="pipeline-details-title">
+    <div className="pipeline-details">
       <div className="pipeline-details__header">
-        <h3 id="pipeline-details-title" className="pipeline-details__title">
-          {t('pipeline.details.title')}
-        </h3>
-
         <div className="pipeline-details__tabs" role="tablist" aria-label={t('pipeline.details.title')}>
           <button
             type="button"
@@ -110,6 +106,6 @@ export function PipelineDetails({ snapshot }: PipelineDetailsProps) {
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }

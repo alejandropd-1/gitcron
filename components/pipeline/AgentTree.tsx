@@ -110,11 +110,7 @@ export function AgentTree({ agents, onInterruptSubagent }: AgentTreeProps) {
   const roots = buildAgentTree(agents);
 
   return (
-    <section className="pipeline-agents" aria-labelledby="pipeline-agents-title">
-      <h3 id="pipeline-agents-title" className="pipeline-section__title">
-        {t('pipeline.agents.title')}
-      </h3>
-
+    <div className="pipeline-agents">
       {roots.length === 0 ? (
         <p className="pipeline-agents__empty">{t('pipeline.agents.empty')}</p>
       ) : (
@@ -129,6 +125,6 @@ export function AgentTree({ agents, onInterruptSubagent }: AgentTreeProps) {
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

@@ -21,15 +21,7 @@ export function DecisionInbox({ decisions, onRespondDecision }: DecisionInboxPro
   const ordered = useMemo(() => sortDecisionsByHumanNeed(decisions), [decisions]);
 
   return (
-    <section
-      className="pipeline-inbox"
-      aria-labelledby="pipeline-inbox-title"
-      data-count={ordered.length}
-    >
-      <h3 id="pipeline-inbox-title" className="pipeline-section__title">
-        {t('pipeline.inbox.title')}
-      </h3>
-
+    <div className="pipeline-inbox" data-count={ordered.length}>
       {ordered.length === 0 ? (
         <p className="pipeline-inbox__empty">{t('pipeline.inbox.empty')}</p>
       ) : (
@@ -44,6 +36,6 @@ export function DecisionInbox({ decisions, onRespondDecision }: DecisionInboxPro
           </ul>
         </>
       )}
-    </section>
+    </div>
   );
 }

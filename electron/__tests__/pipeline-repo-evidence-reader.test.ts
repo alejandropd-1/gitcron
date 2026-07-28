@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { RepoEvidenceReader } from '../pipeline/repo-evidence-reader';
+import { defaultListOpenSpecChanges, RepoEvidenceReader } from '../pipeline/repo-evidence-reader';
 
 describe('RepoEvidenceReader', () => {
   let root: string;
@@ -26,6 +26,26 @@ describe('RepoEvidenceReader', () => {
     expect(snapshot.evidence).toMatchObject({ repoId: 'repo-1', activeChanges: [], tasks: [], gates: [] });
     expect(snapshot.evidence.diagnostics.map((item) => item.code)).toContain('openspec.unavailable');
     expect(snapshot.selection).toMatchObject({ changeId: null, selectionRequired: false });
+  });
+
+  // Regresión: esto salía por `execFile('openspec', ...)`, que en Windows no
+  // resuelve `openspec.cmd` (ENOENT), y con la extensión Node lo rechaza por la
+  // mitigación de CVE-2024-27980 (EINVAL). El lector caía en su `catch` y
+  // reportaba cero cambios activos aunque el scaffold existiera.
+  it('lists active changes from the scaffold without spawning the OpenSpec CLI', async () => {
+    await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-a'), { recursive: true });
+    await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-b'), { recursive: true });
+    await fs.mkdir(path.join(root, 'openspec', 'changes', 'archive', '2026-07-23-old-change'), { recursive: true });
+
+    const active = await defaultListOpenSpecChanges(root);
+
+    expect(active).toEqual(['feature-a', 'feature-b']);
+    // `archive` es el contenedor de los cerrados, no un cambio activo.
+    expect(active).not.toContain('archive');
+  });
+
+  it('reports no active changes when the scaffold is absent', async () => {
+    expect(await defaultListOpenSpecChanges(root)).toEqual([]);
   });
 
   it('reads tasks, gates, reports and archives for one selected change', async () => {

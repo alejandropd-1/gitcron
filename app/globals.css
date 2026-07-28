@@ -2056,6 +2056,55 @@ body, .font-sans {
   margin-bottom: 0.75rem;
 }
 
+/* Sin runtime lanzable, la salida es accionable: el texto explica y el botón
+   permite volver a comprobar sin recargar la app. */
+.pipeline-launcher__empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pipeline-launcher__empty > p {
+  margin: 0;
+}
+
+/* La disponibilidad se dice antes del CTA, no después de que falle. */
+.pipeline-launcher__availability {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-launcher__availability[data-launchable='false'] {
+  color: var(--color-git-mod);
+}
+
+.pipeline-launcher__disclosure {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.pipeline-launcher__disclosure:hover {
+  color: var(--color-text-primary);
+}
+
+/* La instrucción ya compuesta se lee, no se edita, salvo que se pida. */
+.pipeline-launcher__instruction-preview {
+  margin: 0.4rem 0 0;
+  padding: 0.5rem 0.65rem;
+  overflow-x: auto;
+  border: 1px solid var(--color-border-subtle);
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .pipeline-launcher__error,
 .pipeline-workspace__notice {
   font-size: 0.75rem;

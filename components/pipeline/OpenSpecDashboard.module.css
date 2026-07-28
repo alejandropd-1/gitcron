@@ -518,6 +518,125 @@
 .completedSummary dd { overflow-wrap: anywhere; color: #d4e0eb; }
 .noActiveChange { align-items: center; text-align: center; color: var(--os-cyan); }
 
+/* Siguiente paso
+   Bloque compacto: el tope de contenido es estructural (etiqueta, título, una
+   frase, una acción primaria y una secundaria condicional), así que el estilo
+   sólo tiene que sostenerlo, no contenerlo. */
+.nextStep {
+  margin-top: 1rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--os-border-strong);
+  border-left: 2px solid var(--os-cyan);
+  background: rgba(10, 31, 49, 0.78);
+}
+
+.nextStepHeader { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+
+.nextStepBadge {
+  color: var(--os-cyan);
+  font: 700 0.6rem var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.nextStepCounter { color: var(--os-muted); font: 0.62rem var(--font-mono), ui-monospace, monospace; }
+.nextStepTitle { margin: 0.5rem 0 0; color: #edf4fb; font: 700 0.95rem var(--font-mono), ui-monospace, monospace; }
+.nextStepHelp { margin: 0.35rem 0 0; color: var(--os-muted); font: 0.68rem var(--font-mono), ui-monospace, monospace; }
+.nextStepActions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.85rem; }
+
+/* La decisión pendiente y el fallo no pueden leerse igual que el curso normal. */
+.nextStep[data-kind='decision-pending'] { border-left-color: var(--os-amber); }
+.nextStep[data-kind='decision-pending'] .nextStepBadge { color: var(--os-amber); }
+.nextStep[data-kind='session-retry'] { border-left-color: var(--color-error); }
+.nextStep[data-kind='session-retry'] .nextStepBadge { color: var(--color-error); }
+.nextStep[data-kind='validation-failed'] { border-left-color: var(--color-error); }
+.nextStep[data-kind='validation-failed'] .nextStepBadge { color: var(--color-error); }
+.nextStep[data-kind='ready-to-archive'] { border-left-color: var(--os-green); }
+.nextStep[data-kind='ready-to-archive'] .nextStepBadge { color: var(--os-green); }
+/* La vista previa se apaga: no compite con el trabajo real. */
+.nextStep[data-kind='fixture-preview'] { border-left-color: var(--os-muted); opacity: 0.85; }
+.nextStep[data-kind='fixture-preview'] .nextStepBadge { color: var(--os-muted); }
+
+.nextStepDisclosure { margin-top: 0.75rem; }
+
+.disclosureToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--os-muted);
+  font: 0.64rem var(--font-mono), ui-monospace, monospace;
+  cursor: pointer;
+}
+
+.disclosureToggle:hover { color: var(--os-cyan); }
+.disclosureToggle svg { transition: transform 140ms ease; }
+.disclosureToggle svg[data-open='true'] { transform: rotate(180deg); }
+
+.instructionPreview {
+  margin: 0.55rem 0 0;
+  padding: 0.65rem 0.8rem;
+  overflow-x: auto;
+  border: 1px solid var(--os-border);
+  background: rgba(5, 18, 30, 0.85);
+  color: #cfdcea;
+  font: 0.66rem var(--font-mono), ui-monospace, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Flujo de cambio nuevo */
+.newChangeFlow { width: min(100%, 44rem); margin-top: 1rem; text-align: left; }
+.intentSwitch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+
+.intentOption {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.2rem;
+  background: rgba(126, 151, 178, 0.08);
+  color: #d5e0eb;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.intentOption[data-selected='true'] { border-color: var(--os-cyan); background: rgba(94, 216, 255, 0.12); }
+.intentOption:hover { border-color: rgba(94, 216, 255, 0.48); }
+.intentOption strong { font: 700 0.7rem var(--font-mono), ui-monospace, monospace; }
+.intentOption span { color: var(--os-muted); font: 0.63rem var(--font-mono), ui-monospace, monospace; }
+
+.flowFields { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 1rem; }
+.flowField { display: flex; flex-direction: column; gap: 0.35rem; }
+.flowField > span { color: var(--os-muted); font: 700 0.64rem var(--font-mono), ui-monospace, monospace; }
+
+.flowField textarea,
+.flowField input {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.2rem;
+  background: rgba(5, 18, 30, 0.85);
+  color: #e3ecf5;
+  font: 0.7rem var(--font-mono), ui-monospace, monospace;
+  resize: vertical;
+}
+
+.flowField textarea:focus-visible,
+.flowField input:focus-visible { outline: 2px solid var(--os-cyan); outline-offset: 1px; }
+.flowField [aria-invalid='true'] { border-color: var(--color-error); }
+.flowError { color: var(--color-error); font: 0.63rem var(--font-mono), ui-monospace, monospace; font-style: normal; }
+.flowHint { color: var(--os-muted); font: 0.62rem var(--font-mono), ui-monospace, monospace; font-style: normal; }
+
+/* Los estados vacíos centran su contenido, pero la guía y el formulario se leen
+   como bloques: se alinean a la izquierda dentro de ese contexto. */
+.completedSummary .nextStep,
+.noActiveChange .nextStep { width: min(100%, 44rem); text-align: left; }
+
 @container (max-width: 1180px) {
   .body,
   .dashboard[data-left-open='false'] .body,
@@ -560,6 +679,10 @@
   }
   .summaryBar { grid-template-columns: auto minmax(0, 1fr); min-height: 5rem; }
   .repoHealth { display: none; }
+  /* Dos opciones lado a lado se vuelven ilegibles acá: pasan a apilarse, y las
+     acciones del siguiente paso ocupan el ancho para no quedar cortadas. */
+  .intentSwitch { grid-template-columns: minmax(0, 1fr); }
+  .nextStepActions > button { flex: 1 1 auto; }
   .summaryFacts > div { padding-inline: 0.55rem; }
   .summaryFacts dt { display: none; }
   .changeHeader { grid-template-columns: minmax(0, 1fr); gap: 0.9rem; }

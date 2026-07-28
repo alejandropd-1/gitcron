@@ -41,16 +41,24 @@ function issue(code: string, message: string, sourceRef: string): PipelineDiagno
   return { code, message, severity: 'warning', sourceRef };
 }
 
-async function defaultListOpenSpecChanges(repoPath: string): Promise<string[]> {
-  const { stdout } = await execFileAsync('openspec', ['list', '--json'], {
-    cwd: repoPath,
-    timeout: 10_000,
-    windowsHide: true,
-    maxBuffer: 2 * 1024 * 1024,
-    env: { ...process.env, OPENSPEC_TELEMETRY_DISABLED: '1', DO_NOT_TRACK: '1' },
-  });
-  const parsed = JSON.parse(stdout) as { changes?: Array<{ name?: unknown }> };
-  return (parsed.changes ?? []).map((change) => change.name).filter((name): name is string => typeof name === 'string');
+/**
+ * Cambios activos leídos del scaffold, sin subproceso.
+ *
+ * Antes esto invocaba `openspec list --json` con `execFile`. En Windows el CLI
+ * se instala como `openspec.cmd`, que `execFile` no puede resolver (ENOENT), y
+ * si se lo nombra con extensión Node lo rechaza por la mitigación de
+ * CVE-2024-27980 (EINVAL) salvo que se habilite un shell. El resultado era que
+ * el lector caía siempre en su `catch` y reportaba cero cambios activos, aunque
+ * el scaffold existiera: los archivados aparecían —se leen del disco— y los
+ * activos no.
+ *
+ * Leerlo del disco elimina la dependencia del PATH, del CLI instalado y de un
+ * shell, y usa el mismo camino contenido que ya se usa para `archive`.
+ */
+export async function defaultListOpenSpecChanges(repoPath: string): Promise<string[]> {
+  const entries = await safeListRepoDirectory(repoPath, 'openspec/changes');
+  // `archive` es el contenedor de los cerrados, no un cambio.
+  return entries.filter((entry) => entry !== 'archive');
 }
 
 async function defaultCurrentBranch(repoPath: string): Promise<string> {

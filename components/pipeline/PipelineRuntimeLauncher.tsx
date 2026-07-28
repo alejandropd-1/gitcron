@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeDiscoveryEntry, RuntimeProjection } from '@/types/pipeline';
 import { runtimeDisplayName } from './pipeline-domain';
+import { canStartRuntimeSession } from './pipeline-guided-forms';
 
 export type PipelineRuntimeLauncherProps = {
   repoPath: string;
@@ -20,6 +21,14 @@ export type PipelineRuntimeLauncherProps = {
    * función no existe.
    */
   blockedByFixture?: boolean;
+  /**
+   * Etiqueta del CTA final. Por defecto es el genérico `Iniciar`; el flujo
+   * guiado lo reemplaza por `Iniciar propuesta` / `Iniciar exploración`, que
+   * dicen qué va a pasar en vez de sólo que algo pasará.
+   */
+  startLabelKey?: string;
+  /** Se avisa después de un arranque exitoso, para que el compositor reaccione. */
+  onStarted?: () => void;
 };
 
 /**
@@ -41,6 +50,8 @@ export function PipelineRuntimeLauncher({
   changeId = null,
   taskId = null,
   blockedByFixture = false,
+  startLabelKey = 'pipeline.launcher.start',
+  onStarted,
 }: PipelineRuntimeLauncherProps) {
   const t = useT();
   const [discovery, setDiscovery] = useState<RuntimeDiscoveryEntry[] | null>(null);
@@ -48,6 +59,8 @@ export function PipelineRuntimeLauncher({
   const [instruction, setInstruction] = useState(initialInstruction);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [discoveryToken, setDiscoveryToken] = useState(0);
+  const [editingInstruction, setEditingInstruction] = useState(false);
 
   const active = projection?.active === true;
   // Un solo booleano para todos los controles: si hay fixture en pantalla, nada
@@ -73,11 +86,21 @@ export function PipelineRuntimeLauncher({
     });
 
     return () => { cancelled = true; };
-  }, [repoPath]);
+  }, [repoPath, discoveryToken]);
+
+  const selectedEntry = discovery?.find((entry) => entry.runtime === runtime) ?? null;
+  const canStart = canStartRuntimeSession({
+    blockedByFixture,
+    runtimeSelected: runtime,
+    runtimeLaunchable: selectedEntry?.launchable === true,
+    instruction,
+    sessionActive: active,
+    busy,
+  });
 
   const handleStart = useCallback(async () => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
-    if (blockedByFixture || !api?.pipelineRuntime || !runtime || !instruction.trim()) return;
+    if (!canStart || !api?.pipelineRuntime) return;
     setBusy(true);
     setError(null);
     const result = await api.pipelineRuntime.start({ repoPath, runtime, instruction, changeId, taskId });
@@ -85,7 +108,8 @@ export function PipelineRuntimeLauncher({
     // El error llega como código estable desde Main; se muestra crudo en vez de
     // traducirse a una frase amable que oculte la causa.
     if (!result?.success) setError(result?.error ?? 'start_failed');
-  }, [repoPath, runtime, instruction, blockedByFixture, changeId, taskId]);
+    else onStarted?.();
+  }, [canStart, repoPath, runtime, instruction, changeId, taskId, onStarted]);
 
   const handleStop = useCallback(async () => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
@@ -116,7 +140,21 @@ export function PipelineRuntimeLauncher({
       )}
 
       {launchable.length === 0 ? (
-        <p className="pipeline-launcher__empty">{t('pipeline.launcher.noneAvailable')}</p>
+        // Sin runtime lanzable la salida tiene que ser accionable: qué falta y
+        // cómo volver a comprobarlo. Los motivos por runtime se listan abajo,
+        // tal como los reportó el adaptador.
+        <div className="pipeline-launcher__empty">
+          <p>{t('pipeline.launcher.noneAvailable')}</p>
+          <button
+            type="button"
+            className="pipeline-launcher__button"
+            data-action="recheck"
+            disabled={locked}
+            onClick={() => setDiscoveryToken((token) => token + 1)}
+          >
+            {t('pipeline.launcher.recheck')}
+          </button>
+        </div>
       ) : (
         <div className="pipeline-launcher__form">
           <label className="pipeline-launcher__field">
@@ -136,16 +174,45 @@ export function PipelineRuntimeLauncher({
             </select>
           </label>
 
-          <label className="pipeline-launcher__field">
-            <span className="pipeline-launcher__label">{t('pipeline.launcher.instruction')}</span>
-            <textarea
-              className="pipeline-launcher__instruction"
-              value={instruction}
-              rows={3}
-              disabled={active || locked}
-              onChange={(event) => setInstruction(event.target.value)}
-            />
-          </label>
+          {/* La disponibilidad del runtime elegido se dice antes del CTA, no
+              después de que falle. */}
+          {selectedEntry && (
+            <p className="pipeline-launcher__availability" data-launchable={selectedEntry.launchable}>
+              {selectedEntry.runtimeVersion
+                ? t('pipeline.launcher.availabilityVersion', {
+                  runtime: runtimeDisplayName(selectedEntry.runtime) ?? selectedEntry.runtime,
+                  version: selectedEntry.runtimeVersion,
+                })
+                : t('pipeline.launcher.availabilityUnknownVersion', {
+                  runtime: runtimeDisplayName(selectedEntry.runtime) ?? selectedEntry.runtime,
+                })}
+            </p>
+          )}
+
+          {/* La instrucción ya viene compuesta desde el flujo guiado. Editarla es
+              una salida avanzada, no el primer campo que la persona enfrenta. */}
+          <div className="pipeline-launcher__field">
+            <button
+              type="button"
+              className="pipeline-launcher__disclosure"
+              aria-expanded={editingInstruction}
+              onClick={() => setEditingInstruction((value) => !value)}
+            >
+              {editingInstruction ? t('pipeline.launcher.hideInstruction') : t('pipeline.launcher.showInstruction')}
+            </button>
+            {editingInstruction ? (
+              <textarea
+                className="pipeline-launcher__instruction"
+                aria-label={t('pipeline.launcher.instruction')}
+                value={instruction}
+                rows={4}
+                disabled={active || locked}
+                onChange={(event) => setInstruction(event.target.value)}
+              />
+            ) : (
+              <pre className="pipeline-launcher__instruction-preview">{instruction}</pre>
+            )}
+          </div>
 
           <div className="pipeline-launcher__actions">
             {active ? (
@@ -157,10 +224,10 @@ export function PipelineRuntimeLauncher({
                 type="button"
                 className="pipeline-launcher__button"
                 data-action="start"
-                disabled={locked || !instruction.trim()}
+                disabled={!canStart}
                 onClick={handleStart}
               >
-                {t('pipeline.launcher.start')}
+                {t(startLabelKey)}
               </button>
             )}
           </div>

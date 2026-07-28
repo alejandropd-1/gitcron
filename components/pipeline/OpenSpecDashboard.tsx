@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Activity,
-  Archive,
   BookOpen,
   Check,
   CheckCircle2,
@@ -13,8 +12,6 @@ import {
   FileText,
   FolderOpen,
   GitBranch,
-  Pause,
-  Play,
   ShieldCheck,
   Wrench,
   MessageSquareText,
@@ -26,6 +23,14 @@ import { ActivityFeed } from './ActivityFeed';
 import { DecisionInbox } from './DecisionInbox';
 import { PipelineDetails } from './PipelineDetails';
 import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
+import { PipelineNextStepGuide } from './PipelineNextStepGuide';
+import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
+import {
+  composeApplyInstruction,
+  composeArchiveInstruction,
+  derivePipelineNextAction,
+  type PipelineActionIntent,
+} from './pipeline-next-action';
 import { groupActivity, runtimeDisplayName, type ActivityChannel } from './pipeline-domain';
 import type { OpenSpecChangeSummary, PipelineSnapshot } from './pipeline-view-state';
 import styles from './OpenSpecDashboard.module.css';
@@ -43,6 +48,10 @@ type OpenSpecDashboardProps = {
   onResizeRight: (event: React.MouseEvent) => void;
   projection: RuntimeProjection | null;
   runtimeHistory: RuntimeProjection[];
+  /** Hay datos de vista previa en pantalla: nada ejecutable puede habilitarse. */
+  fixtureActive?: boolean;
+  /** Relee la evidencia del repo. Es el fallback explícito del watcher. */
+  onRefresh?: () => void;
   onPauseAfterTask: () => void;
   onRespondDecision: (decisionId: string, optionId: string) => void;
 };
@@ -106,6 +115,8 @@ export function OpenSpecDashboard({
   onResizeRight,
   projection,
   runtimeHistory,
+  fixtureActive = false,
+  onRefresh,
   onPauseAfterTask,
   onRespondDecision,
 }: OpenSpecDashboardProps) {
@@ -116,6 +127,8 @@ export function OpenSpecDashboard({
   const [showEvidence, setShowEvidence] = useState(false);
   const [launchInstruction, setLaunchInstruction] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [flowMode, setFlowMode] = useState<PipelineNewChangeMode | null>(null);
+  const attentionRef = useRef<HTMLElement>(null);
 
   const activeChanges = openSpec?.activeChanges ?? [];
   const archivedChanges = openSpec?.archivedChanges ?? [];
@@ -133,7 +146,6 @@ export function OpenSpecDashboard({
   const nextTask = selectedChange?.tasks.find((task) => !task.completed) ?? null;
   const stages = lifecycle(selectedChange, selectedArchive !== null);
   const runtimeActive = projection?.active === true;
-  const canPause = runtimeActive && projection.controlCapabilities.includes('pause-after-task');
   const runtimeSessions = [projection, ...runtimeHistory]
     .filter((entry): entry is RuntimeProjection => entry !== null)
     .filter((entry, index, list) => list.findIndex((candidate) => candidate.sessionId === entry.sessionId) === index)
@@ -160,17 +172,101 @@ export function OpenSpecDashboard({
   const completedTasks = activeChanges.reduce((total, change) => total + change.tasks.filter((task) => task.completed).length, 0);
   const taskPercent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
 
+  const nextAction = derivePipelineNextAction({
+    fixtureActive,
+    selectedChange,
+    selectedArchivedChangeId: selectedArchive?.changeId ?? null,
+    decisions: snapshot.decisions,
+    projection,
+  });
+
   const selectChange = (changeId: string) => {
     setSelection(changeId);
     setCenterTab('work');
     setShowEvidence(false);
     setLaunchInstruction(null);
+    setFlowMode(null);
   };
 
-  const startFlow = (instruction: string) => {
-    setLaunchInstruction(instruction);
-    setCenterTab('work');
+  /**
+   * Traduce el intent ya resuelto por la derivación a un efecto de UI.
+   *
+   * No decide nada por su cuenta: si un intent llegó hasta acá, la función pura
+   * ya determinó que corresponde en este estado.
+   */
+  const handleIntent = (intent: PipelineActionIntent) => {
+    switch (intent.kind) {
+      case 'open-propose-flow':
+      case 'open-explore-flow':
+        setFlowMode(intent.kind === 'open-propose-flow' ? 'propose' : 'explore');
+        setLaunchInstruction(null);
+        setCenterTab('work');
+        break;
+      case 'start-apply': {
+        const task = selectedChange?.tasks.find((item) => item.id === intent.taskId);
+        if (!task) break;
+        setFlowMode(null);
+        setLaunchInstruction(composeApplyInstruction(intent.changeId, task.id, task.text));
+        setCenterTab('work');
+        break;
+      }
+      case 'start-archive':
+        setFlowMode(null);
+        setLaunchInstruction(composeArchiveInstruction(intent.changeId));
+        setCenterTab('work');
+        break;
+      case 'focus-decision':
+        // El centro no duplica la decisión: lleva el foco al control real, que
+        // vive en el panel de actividad.
+        attentionRef.current?.focus();
+        break;
+      case 'view-activity':
+        setCenterTab('activity');
+        break;
+      case 'view-evidence':
+      case 'view-diff':
+        setShowEvidence(true);
+        break;
+      case 'refresh-validation':
+        onRefresh?.();
+        break;
+      case 'pause-after-task':
+        onPauseAfterTask();
+        break;
+    }
   };
+
+  // Una sesión nueva pasa a estar seleccionada mientras corre: si la persona
+  // estaba mirando una sesión vieja, quedarse ahí escondería la que arranca.
+  const liveSessionId = projection?.active === true ? projection.sessionId : null;
+  const [lastLiveSessionId, setLastLiveSessionId] = useState<string | null>(null);
+  if (liveSessionId !== lastLiveSessionId) {
+    setLastLiveSessionId(liveSessionId);
+    if (liveSessionId) setSelectedSessionId(liveSessionId);
+  }
+
+  // Selección del change recién creado, sólo cuando puede identificarse de forma
+  // verificable: exactamente un identificador nuevo respecto de la lectura
+  // anterior. Con cero o con varios no se adivina.
+  const [previousChangeIds, setPreviousChangeIds] = useState<string[] | null>(null);
+  const activeChangeIds = activeChanges.map((change) => change.changeId);
+  const changeIdsDiffer = previousChangeIds === null
+    || previousChangeIds.length !== activeChangeIds.length
+    || activeChangeIds.some((id, index) => previousChangeIds[index] !== id);
+  if (changeIdsDiffer) {
+    setPreviousChangeIds(activeChangeIds);
+    if (previousChangeIds !== null) {
+      const added = activeChangeIds.filter((id) => !previousChangeIds.includes(id));
+      // Exactamente uno: con cero o con varios no hay forma verificable de saber
+      // cual corresponde a la sesion que acaba de cerrar, y se deja la seleccion
+      // como estaba en vez de adivinar.
+      if (added.length === 1) {
+        setSelection(added[0]);
+        setFlowMode(null);
+        setLaunchInstruction(null);
+      }
+    }
+  }
 
   return (
     <div
@@ -286,6 +382,8 @@ export function OpenSpecDashboard({
                 </ol>
               </header>
 
+              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} />
+
               <div className={styles.tabs} role="tablist" aria-label={t('pipeline.openspec.tabs.label')}>
                 <button type="button" role="tab" aria-selected={centerTab === 'work'} onClick={() => setCenterTab('work')}>{t('pipeline.openspec.tabs.work')}</button>
                 <button type="button" role="tab" aria-selected={centerTab === 'activity'} onClick={() => setCenterTab('activity')}>{t('pipeline.openspec.tabs.activity')}</button>
@@ -319,19 +417,9 @@ export function OpenSpecDashboard({
                     {selectedChange.tasks.length === 0 && <li className={styles.taskEmpty}>{t('pipeline.openspec.tasks.empty')}</li>}
                   </ol>
 
+                  {/* La guía es dueña del CTA del momento. Acá sólo queda la
+                      evidencia, que es consulta permanente y no un paso. */}
                   <div className={styles.actions}>
-                    {nextTask ? (
-                      <button type="button" className={styles.primaryAction} disabled={runtimeActive} onClick={() => startFlow(`/opsx:apply ${selectedChange.changeId}\n\nContinuar con ${nextTask.id}: ${nextTask.text}`)}>
-                        <Play size={14} /> {t('pipeline.openspec.actions.continue', { task: nextTask.id })}
-                      </button>
-                    ) : (
-                      <button type="button" className={styles.primaryAction} disabled={runtimeActive || selectedChange.validation !== 'passed'} onClick={() => startFlow(`/opsx:archive ${selectedChange.changeId}`)}>
-                        <Archive size={14} /> {t('pipeline.openspec.actions.archive')}
-                      </button>
-                    )}
-                    <button type="button" className={styles.secondaryAction} disabled={!canPause} onClick={onPauseAfterTask}>
-                      <Pause size={14} /> {t('pipeline.openspec.actions.pause')}
-                    </button>
                     <button type="button" className={styles.secondaryAction} disabled={(snapshot.diffs?.length ?? 0) === 0} onClick={() => setShowEvidence((value) => !value)}>
                       <Code2 size={14} /> {t('pipeline.openspec.actions.diff')}
                     </button>
@@ -346,6 +434,9 @@ export function OpenSpecDashboard({
                         initialInstruction={launchInstruction}
                         changeId={selectedChange.changeId}
                         taskId={nextTask?.id ?? null}
+                        blockedByFixture={fixtureActive}
+                        startLabelKey={nextTask ? 'pipeline.launcher.startApply' : 'pipeline.launcher.startArchive'}
+                        onStarted={() => setCenterTab('activity')}
                       />
                     </div>
                   )}
@@ -373,19 +464,31 @@ export function OpenSpecDashboard({
                 <div><dt>{t('pipeline.openspec.completed.specsUpdated')}</dt><dd>{t('pipeline.openspec.completed.preserved')}</dd></div>
                 <div><dt>{t('pipeline.openspec.completed.activity')}</dt><dd>{t('pipeline.openspec.completed.preserved')}</dd></div>
               </dl>
-              <button type="button" className={styles.primaryAction} onClick={() => startFlow('/opsx:propose')}><Play size={14} /> {t('pipeline.openspec.actions.newChange')}</button>
-              {launchInstruction && <div className={styles.launcherPanel}><PipelineRuntimeLauncher repoPath={repoPath} projection={projection} initialInstruction={launchInstruction} /></div>}
+              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} />
+              {flowMode && (
+                <PipelineNewChangeFlow
+                  repoPath={repoPath}
+                  projection={projection}
+                  initialMode={flowMode}
+                  blockedByFixture={fixtureActive}
+                  onStarted={() => setCenterTab('activity')}
+                />
+              )}
             </section>
           ) : (
             <section className={styles.noActiveChange}>
               <BookOpen size={34} />
               <h3>{t('pipeline.openspec.noActive.title')}</h3>
-              <p>{t('pipeline.openspec.noActive.body')}</p>
-              <div className={styles.actions}>
-                <button type="button" className={styles.primaryAction} onClick={() => startFlow('/opsx:propose')}><FileText size={14} /> {t('pipeline.openspec.actions.propose')}</button>
-                <button type="button" className={styles.secondaryAction} onClick={() => startFlow('/opsx:explore')}><BookOpen size={14} /> {t('pipeline.openspec.actions.explore')}</button>
-              </div>
-              {launchInstruction && <div className={styles.launcherPanel}><PipelineRuntimeLauncher repoPath={repoPath} projection={projection} initialInstruction={launchInstruction} /></div>}
+              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} />
+              {flowMode && (
+                <PipelineNewChangeFlow
+                  repoPath={repoPath}
+                  projection={projection}
+                  initialMode={flowMode}
+                  blockedByFixture={fixtureActive}
+                  onStarted={() => setCenterTab('activity')}
+                />
+              )}
             </section>
           )}
 
@@ -456,7 +559,13 @@ export function OpenSpecDashboard({
                 </ol>
               )}
             </section>
-            <section className={styles.attention} data-needed={snapshot.decisions.length > 0}>
+            <section
+              className={styles.attention}
+              data-needed={snapshot.decisions.length > 0}
+              ref={attentionRef}
+              tabIndex={-1}
+              aria-label={t('pipeline.openspec.attention.title')}
+            >
               <h4>{t('pipeline.openspec.attention.title')}</h4>
               <DecisionInbox decisions={snapshot.decisions} onRespondDecision={onRespondDecision} />
             </section>

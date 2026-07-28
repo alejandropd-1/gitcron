@@ -219,6 +219,8 @@ export function PipelineWorkspace({
           onResizeRight={onResizeRight}
           projection={fixtureActive ? null : projection}
           runtimeHistory={fixtureActive ? [] : runtimeHistory}
+          fixtureActive={fixtureActive}
+          onRefresh={handleRetry}
           onPauseAfterTask={handlePauseAfterTask}
           onRespondDecision={handleRespondDecision}
         />

@@ -2905,3 +2905,756 @@ body, .font-sans {
   .pipeline-hud__elbow { display: none; }
   .pipeline-hud { flex-wrap: wrap; }
 }
+
+/* ===========================================================================
+   PIPELINE — LCARS composition system
+
+   This layer turns the workspace into connected instrumentation blocks. The
+   data hierarchy remains unchanged; only the spatial and visual grammar is
+   strengthened: dark wells, solid rails, asymmetric blocks and compact
+   readouts. All colour continues to come from the GitCron token system.
+   ========================================================================== */
+
+.pipeline-workspace {
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: var(--color-bg-base);
+}
+
+.pipeline-workspace__scaffold {
+  padding: 0.25rem 0.5rem;
+  border-left: 2px solid var(--color-accent-purple);
+  background-color: color-mix(in srgb, var(--color-accent-purple) 7%, var(--color-bg-base));
+}
+
+.pipeline-workspace__bar {
+  min-height: 2.25rem;
+  align-items: center;
+  padding: 0 0.5rem;
+  border-bottom: 2px solid var(--color-border-subtle);
+}
+
+.pipeline-workspace__title {
+  font-family: var(--font-mono);
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  line-height: 1;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pipeline-grid {
+  column-gap: 0.45rem;
+  row-gap: 0.55rem;
+  grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.92fr) minmax(18rem, 0.9fr);
+  grid-template-areas:
+    "hud       hud       hud"
+    "path      path      path"
+    "main      main      main"
+    "runtime   details   details";
+  padding: 0.25rem 0.15rem 0.5rem;
+}
+
+/* Carcasa principal: un solo contenedor abraza los cinco instrumentos. El
+   borde izquierdo es ancho en la lectura superior, se afina en la fila baja y
+   vuelve a ensancharse al cerrar; los bloques internos se encastran en esos
+   cambios de profundidad en vez de terminar en cápsulas independientes. */
+.pipeline-grid__instrument-shell {
+  grid-area: main;
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.92fr) minmax(18rem, 0.9fr);
+  grid-template-areas:
+    "now    now     decisions"
+    "agents economy activity";
+  gap: 0.45rem;
+  min-height: 0;
+  padding: 0.6rem 0.45rem 0.8rem 0;
+  border-top: 0;
+  border-bottom: 0.9rem solid var(--color-border-subtle);
+  border-left: 3.4rem solid var(--color-carto-accent);
+  border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+  background-color: var(--color-bg-base);
+}
+
+.pipeline-grid__instrument-shell > .pipeline-card {
+  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  background-color: color-mix(in srgb, var(--color-bg-surface) 30%, var(--color-bg-base));
+  overflow: hidden;
+}
+
+.pipeline-grid__instrument-shell > .pipeline-card::before,
+.pipeline-grid__instrument-shell > .pipeline-card > .pipeline-card__frame {
+  display: none;
+}
+
+.pipeline-grid__instrument-shell > .pipeline-card > .pipeline-card__header {
+  margin: 0;
+  border-radius: 0;
+}
+
+/* La primera ventana entra más profundo en la carcasa; la fila inferior
+   recupera parte de ese ancho, produciendo el escalón que muestra la fuente. */
+.pipeline-grid__instrument-shell > .pipeline-card[data-area="now"] {
+  margin-left: 0;
+}
+
+.pipeline-grid__instrument-shell > .pipeline-card[data-area="agents"] {
+  margin-left: -1.25rem;
+}
+
+.pipeline-grid__instrument-shell > .pipeline-card[data-area="activity"] {
+  margin-right: 0.35rem;
+}
+
+/* El canvas ancho trabaja como una columna dominante de dos tercios y una
+   columna instrumental derecha. Cada región cierra su propio rail: las bandas
+   gruesas no se cortan ni se fingen continuas entre contenidos distintos. */
+@container (min-width: 1201px) {
+  .pipeline-card[data-area="now"] {
+    min-width: 0;
+  }
+}
+
+.pipeline-grid__hud,
+.pipeline-grid > .pipeline-card {
+  animation: pipeline-block-enter 360ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.pipeline-card[data-area="path"] { animation-delay: 35ms; }
+.pipeline-card[data-area="now"] { animation-delay: 70ms; }
+.pipeline-card[data-area="decisions"] { animation-delay: 105ms; }
+.pipeline-card[data-area="activity"] { animation-delay: 140ms; }
+.pipeline-card[data-area="agents"] { animation-delay: 175ms; }
+.pipeline-card[data-area="economy"] { animation-delay: 210ms; }
+.pipeline-card[data-area="runtime"],
+.pipeline-card[data-area="details"] { animation-delay: 245ms; }
+
+@keyframes pipeline-block-enter {
+  from { opacity: 0; transform: translateY(0.45rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* The block is not a card: its coloured rail is the container. */
+.pipeline-card {
+  border-radius: 0;
+  background-color: color-mix(in srgb, var(--color-bg-surface) 30%, var(--color-bg-base));
+}
+
+.pipeline-card[data-framed] {
+  padding-bottom: var(--header-height);
+}
+
+.pipeline-card[data-framed]::before {
+  bottom: var(--elbow-size);
+  border-radius: 0;
+}
+
+.pipeline-card__header {
+  margin-right: 0.65rem;
+  padding: 0 0.7rem;
+  border-radius: 0;
+  background-color: var(--card-spine);
+}
+
+/* Dos filetes separados acompañan a la banda gruesa. No son bordes de card:
+   son las líneas de instrumentación paralelas de la referencia. */
+.pipeline-card[data-framed] > .pipeline-card__header::after {
+  content: none;
+}
+
+.pipeline-card__icon,
+.pipeline-card__title {
+  color: var(--color-text-primary);
+}
+
+.pipeline-card[data-tone] .pipeline-card__icon,
+.pipeline-card[data-tone] .pipeline-card__title {
+  color: var(--color-bg-base);
+}
+
+.pipeline-card__title {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.pipeline-card__body {
+  padding: 0.8rem 0.85rem 0.9rem;
+}
+
+/* `Now` contains bounded facts plus the complete control surface. It must
+   participate in the grid's intrinsic row size instead of flex-shrinking and
+   letting the controls paint underneath the following instrument. */
+.pipeline-card[data-area="now"] > .pipeline-card__body {
+  flex-shrink: 0;
+}
+
+.pipeline-card__frame--bottom {
+  top: auto;
+  bottom: 0;
+}
+
+.pipeline-card__foot {
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0;
+  left: var(--elbow-size);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  height: var(--header-height);
+  padding: 0 0.5rem;
+  background-color: var(--card-spine);
+  color: var(--color-bg-base);
+  border-radius: 0;
+  pointer-events: none;
+}
+
+.pipeline-card__foot::before,
+.pipeline-card__foot::after {
+  content: none;
+}
+
+/* Small cut-out window in the lower rail, matching the reference's segmented
+   instrumentation without inventing information. */
+.pipeline-card__window {
+  width: clamp(2.5rem, 18%, 5.5rem);
+  height: 0.38rem;
+  margin-right: auto;
+  background-color: var(--color-bg-base);
+}
+
+.pipeline-card__code {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Wide functional zones get distinct rail weights, so repeated content does
+   not collapse into a uniform wall of panels. */
+.pipeline-card[data-area="path"] { --card-spine: var(--color-border-subtle); }
+.pipeline-card[data-area="now"] { --card-spine: var(--color-carto-accent); }
+.pipeline-card[data-area="agents"] {
+  --card-spine: color-mix(in srgb, var(--color-primary) 58%, var(--color-border-subtle));
+}
+.pipeline-card[data-area="economy"] { --card-spine: var(--color-border-subtle); }
+
+.pipeline-card[data-area="activity"] .pipeline-card__window,
+.pipeline-card[data-area="path"] .pipeline-card__window {
+  width: clamp(5rem, 28%, 12rem);
+}
+
+/* HUD: first reading plane, wider and louder than the supporting blocks. */
+.pipeline-hud {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(7.5rem, 0.72fr) minmax(9rem, 1fr) minmax(10rem, 1.1fr) minmax(7.5rem, 0.75fr);
+  min-height: 6rem;
+  gap: 2px;
+  padding: 0;
+  border-radius: var(--radius-xl) var(--radius-lg) var(--radius-lg) var(--radius-xl);
+  background-color: var(--color-bg-base);
+  overflow: hidden;
+}
+
+.pipeline-hud__elbow {
+  width: auto;
+  border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+}
+
+.pipeline-hud__segment {
+  min-width: 0;
+  padding: 0.65rem 0.9rem;
+  border-radius: 0;
+  background-color: var(--color-bg-overlay);
+}
+
+.pipeline-hud__segment:last-child {
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+
+.pipeline-hud__label,
+.pipeline-hud__caption {
+  font-family: var(--font-mono);
+}
+
+.pipeline-hud__readout {
+  font-family: var(--font-mono);
+  font-size: clamp(1.45rem, 1.9vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+
+.pipeline-hud__segment[data-segment="phase"] .pipeline-hud__readout {
+  font-size: clamp(1.8rem, 2.25vw, 2.35rem);
+}
+
+/* Information windows: flat, squared and aligned. The strong contrast comes
+   from hierarchy, not from placing another card inside every block. */
+.pipeline-now,
+.pipeline-economy,
+.pipeline-details,
+.pipeline-launcher {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+}
+
+.pipeline-now[data-needs-human] {
+  border: 0;
+}
+
+.pipeline-now__headline {
+  max-width: 34ch;
+  margin-bottom: 0.42rem;
+  font-family: var(--font-mono);
+  font-size: clamp(1.05rem, 1.3vw, 1.4rem);
+  line-height: 1.2;
+  font-weight: 650;
+}
+
+.pipeline-now__facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  background-color: var(--color-bg-base);
+}
+
+.pipeline-now__fact {
+  min-height: 2.2rem;
+  padding: 0.24rem 0.5rem;
+  background-color: var(--color-bg-overlay);
+  transition: background-color 150ms ease;
+}
+
+.pipeline-now__fact:hover {
+  background-color: color-mix(in srgb, var(--color-bg-overlay) 72%, var(--color-border-subtle));
+}
+
+.pipeline-now__fact dt,
+.pipeline-stat__label,
+.pipeline-agent__meta dt {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+}
+
+.pipeline-now__fact dd {
+  margin-top: 0.06rem;
+  font-size: 0.78rem;
+}
+
+.pipeline-now__human {
+  margin-top: 0.28rem;
+  padding-left: 0.55rem;
+  font-size: 0.68rem;
+  border-left: 3px solid var(--color-border-subtle);
+}
+
+.pipeline-now__human[data-needs-human="true"] {
+  border-left-color: var(--color-git-mod);
+}
+
+.pipeline-control-bar {
+  margin-top: 0.25rem;
+  padding-top: 0.2rem;
+}
+
+.pipeline-control-bar__actions {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+
+/* Los comandos forman una columna funcional dentro de la ventana de Ahora.
+   La información queda a su derecha, como los controles laterales encastrados
+   de la referencia. */
+.pipeline-card[data-area="now"] .pipeline-now {
+  display: grid;
+  grid-template-columns: minmax(9.5rem, 0.3fr) minmax(0, 1fr);
+  grid-template-areas:
+    "controls headline"
+    "controls facts"
+    "controls human";
+  column-gap: 0.7rem;
+  align-items: start;
+}
+
+.pipeline-card[data-area="now"] .pipeline-now__headline { grid-area: headline; }
+.pipeline-card[data-area="now"] .pipeline-now__facts { grid-area: facts; }
+.pipeline-card[data-area="now"] .pipeline-now__human { grid-area: human; }
+
+.pipeline-card[data-area="now"] .pipeline-control-bar {
+  grid-area: controls;
+  align-self: stretch;
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+
+.pipeline-card[data-area="now"] .pipeline-control-bar__btn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  border-radius: 0;
+}
+
+@container (min-width: 1201px) {
+  .pipeline-card[data-area="now"] .pipeline-control-bar__actions {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .pipeline-card[data-area="now"] .pipeline-control-bar__btn {
+    min-height: 24px;
+    padding: 0.24rem 0.5rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.035em;
+    white-space: nowrap;
+  }
+}
+
+.pipeline-control-bar__btn,
+.pipeline-filter,
+.pipeline-details__tab,
+.pipeline-decision__option-button {
+  min-height: 26px;
+  border-radius: var(--radius-sm) var(--radius-full) var(--radius-full) var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.075em;
+  transition: color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.pipeline-control-bar__btn:hover:not(:disabled),
+.pipeline-filter:hover:not(:disabled),
+.pipeline-decision__option-button:not([disabled]):hover {
+  transform: translateX(2px);
+}
+
+/* Change path is a full-width command band, not another inset surface. */
+.pipeline-path {
+  padding: 0.15rem 0.25rem 0.1rem;
+  border-radius: 0;
+  background-color: transparent;
+  background-image: none;
+}
+
+.pipeline-path__track {
+  --path-rail-y: 1.72rem;
+  padding-top: 0.55rem;
+}
+
+.pipeline-path__track::before,
+.pipeline-path__track::after {
+  height: 3px;
+}
+
+.pipeline-path__number {
+  width: 2.4rem;
+  height: 2.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+}
+
+.pipeline-path__station[data-estado="current"] .pipeline-path__number {
+  animation: pipeline-current-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes pipeline-current-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 18%, transparent); }
+  50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-primary) 28%, transparent); }
+}
+
+.pipeline-path__label {
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.pipeline-path__state,
+.pipeline-path__human {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+.pipeline-path__counter {
+  margin-top: 0.45rem;
+}
+
+.pipeline-path__counter-step {
+  border-radius: var(--radius-sm) var(--radius-full) var(--radius-full) var(--radius-sm);
+  font-family: var(--font-mono);
+}
+
+/* Decision windows are prioritised by the coloured side rail; a surrounding
+   outline would turn them back into nested cards. */
+.pipeline-inbox__list {
+  gap: 0.45rem;
+}
+
+.pipeline-decision {
+  padding: 0.75rem 0.8rem;
+  border: 0;
+  border-left: 5px solid var(--color-border-subtle);
+  border-radius: 0;
+  background-color: var(--color-bg-overlay);
+}
+
+.pipeline-decision__title {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.pipeline-decision__why {
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.pipeline-decision__options {
+  gap: 0.35rem;
+}
+
+.pipeline-decision__option-button {
+  border: 0;
+  background-color: color-mix(in srgb, var(--color-border-subtle) 38%, var(--color-bg-base));
+  text-transform: uppercase;
+}
+
+/* Agent blocks become an actual hierarchy of connected data wells. */
+.pipeline-agent {
+  padding: 0.6rem 0.7rem;
+  border: 0;
+  border-left: 4px solid var(--color-border-subtle);
+  border-radius: 0;
+  background-color: var(--color-bg-overlay);
+}
+
+.pipeline-agent__runtime {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+}
+
+.pipeline-agent__role,
+.pipeline-agent__state {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+
+.pipeline-agent__meta {
+  gap: 2px;
+  background-color: var(--color-bg-base);
+}
+
+.pipeline-agent__meta > div {
+  min-height: 2.7rem;
+  padding: 0.4rem 0.5rem;
+  background-color: color-mix(in srgb, var(--color-bg-surface) 72%, var(--color-bg-overlay));
+}
+
+/* Economy is intentionally denser than Agents: numbers get small squared
+   windows and one large readout, matching their different information load. */
+.pipeline-economy__hero {
+  padding: 0 0 0.6rem;
+  border-bottom-width: 2px;
+}
+
+.pipeline-economy__hero-value {
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 2.6vw, 2.75rem);
+  font-weight: 700;
+}
+
+.pipeline-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  background-color: var(--color-bg-base);
+}
+
+.pipeline-stat {
+  min-height: 3.4rem;
+  padding: 0.45rem 0.55rem;
+  border: 0;
+  border-radius: 0;
+  background-color: var(--color-bg-overlay);
+}
+
+.pipeline-stat__number {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+}
+
+.pipeline-meter__track,
+.pipeline-meter__fill {
+  border-radius: 0;
+}
+
+/* Activity is the tallest narrative region. Rows lose their box treatment and
+   read as a continuous instrument log aligned to one temporal rail. */
+.pipeline-filters {
+  gap: 2px;
+  padding-bottom: 0.45rem;
+  border-bottom: 2px solid var(--color-border-subtle);
+}
+
+.pipeline-activity__entry {
+  padding: 0.36rem 0.45rem;
+  border-radius: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-subtle) 40%, transparent);
+  background-color: transparent;
+  font-size: 0.77rem;
+}
+
+.pipeline-activity__entry:hover {
+  background-color: color-mix(in srgb, var(--color-bg-overlay) 55%, transparent);
+}
+
+.pipeline-activity__dot {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-bg-surface) 48%, var(--color-bg-base));
+}
+
+.pipeline-activity__channel,
+.pipeline-activity__agent,
+.pipeline-activity__count {
+  font-family: var(--font-mono);
+}
+
+.pipeline-details__header {
+  padding-bottom: 0.45rem;
+  border-bottom-width: 2px;
+}
+
+.pipeline-details__tabs {
+  gap: 2px;
+}
+
+.pipeline-details__tab {
+  border: 0;
+  background-color: var(--color-bg-overlay);
+  text-transform: uppercase;
+}
+
+.pipeline-details__tab--active {
+  background-color: var(--color-primary);
+  color: var(--color-bg-base);
+}
+
+@container (max-width: 1200px) {
+  .pipeline-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "hud     hud"
+      "path    path"
+      "main    main"
+      "runtime details";
+  }
+
+  .pipeline-grid__instrument-shell {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "now      decisions"
+      "agents   economy"
+      "activity activity";
+  }
+
+  .pipeline-hud {
+    grid-template-columns: 2.75rem repeat(4, minmax(8rem, 1fr));
+    overflow-x: auto;
+  }
+
+  .pipeline-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .pipeline-workspace {
+    padding: 0.5rem;
+  }
+
+  .pipeline-workspace__title {
+    font-size: 1.05rem;
+  }
+
+  .pipeline-grid {
+    gap: 0.6rem;
+    grid-template-areas:
+      "hud"
+      "path"
+      "main"
+      "runtime"
+      "details";
+  }
+
+  .pipeline-grid__instrument-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "now"
+      "decisions"
+      "agents"
+      "economy"
+      "activity";
+    border-left-width: 1.5rem;
+  }
+
+  .pipeline-grid__instrument-shell > .pipeline-card[data-area] {
+    margin-right: 0;
+    margin-left: 0;
+  }
+
+  .pipeline-card[data-area="now"] .pipeline-now {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "headline"
+      "facts"
+      "human"
+      "controls";
+    row-gap: 0.5rem;
+  }
+
+  .pipeline-hud {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .pipeline-hud__segment:last-child {
+    border-radius: 0;
+  }
+
+  .pipeline-card__body {
+    padding-right: 0.65rem;
+    padding-left: 0.65rem;
+  }
+
+  .pipeline-now__facts,
+  .pipeline-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pipeline-grid__hud,
+  .pipeline-grid > .pipeline-card,
+  .pipeline-path__station[data-estado="current"] .pipeline-path__number {
+    animation: none;
+  }
+
+  .pipeline-now__fact,
+  .pipeline-control-bar__btn,
+  .pipeline-filter,
+  .pipeline-details__tab,
+  .pipeline-decision__option-button {
+    transition: none;
+  }
+}

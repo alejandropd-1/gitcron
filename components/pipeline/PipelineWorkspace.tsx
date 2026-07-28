@@ -293,31 +293,9 @@ export function PipelineWorkspace({
           </div>
 
           <PipelineCard
-            area="now"
-            titleId="pipeline-now-title"
-            title={t('pipeline.now.title')}
-            icon={<IconNow />}
-            tone={state.snapshot.now.needsHuman ? 'attention' : 'neutral'}
-          >
-            <PipelineNow now={state.snapshot.now} repoPath={repoPath} />
-          </PipelineCard>
-
-          {/* Zona prioritaria, no un feed: va arriba a la derecha y se tiñe
-              cuando hay algo esperando. */}
-          <PipelineCard
-            area="decisions"
-            titleId="pipeline-decisions-title"
-            title={t('pipeline.inbox.title')}
-            icon={<IconDecision />}
-            tone={decisionCount > 0 ? 'attention' : 'neutral'}
-            count={decisionCount}
-            scrolls
-          >
-            <DecisionInbox decisions={state.snapshot.decisions} onRespondDecision={handleRespondDecision} />
-          </PipelineCard>
-
-          <PipelineCard
             area="path"
+            frameEnd
+            zoneCode="04.30"
             titleId="pipeline-path-title"
             title={t('pipeline.path.title')}
             icon={<IconPath />}
@@ -325,45 +303,74 @@ export function PipelineWorkspace({
             <ChangePath stations={state.snapshot.stations} />
           </PipelineCard>
 
-          <PipelineCard
-            area="agents"
-            titleId="pipeline-agents-title"
-            title={t('pipeline.agents.title')}
-            icon={<IconAgents />}
-            count={state.snapshot.agents.length}
-            scrolls
-          >
-            <AgentTree agents={state.snapshot.agents} />
-          </PipelineCard>
+          {/* Una sola carcasa abraza los instrumentos principales. Sus entrantes
+              cambian de profundidad por fila, como el marco de la referencia;
+              los paneles internos ya no simulan seis cards cerradas. */}
+          <div className="pipeline-grid__instrument-shell">
+            <PipelineCard
+              area="now"
+              titleId="pipeline-now-title"
+              title={t('pipeline.now.title')}
+              icon={<IconNow />}
+              tone={state.snapshot.now.needsHuman ? 'attention' : 'neutral'}
+            >
+              <PipelineNow now={state.snapshot.now} repoPath={repoPath} />
+            </PipelineCard>
 
-          <PipelineCard
-            area="economy"
-            titleId="pipeline-economy-title"
-            title={t('pipeline.economy.title')}
-            icon={<IconEconomy />}
-            scrolls
-          >
-            <EconomyPanel economy={state.snapshot.economy} />
-          </PipelineCard>
+            {/* Zona prioritaria, no un feed: ocupa el encastre superior de la
+                columna derecha y se tiñe cuando algo espera a una persona. */}
+            <PipelineCard
+              area="decisions"
+              titleId="pipeline-decisions-title"
+              title={t('pipeline.inbox.title')}
+              icon={<IconDecision />}
+              tone={decisionCount > 0 ? 'attention' : 'neutral'}
+              count={decisionCount}
+              scrolls
+            >
+              <DecisionInbox decisions={state.snapshot.decisions} onRespondDecision={handleRespondDecision} />
+            </PipelineCard>
 
-          <PipelineCard
-            area="activity"
-            titleId="pipeline-activity-title"
-            title={t('pipeline.activity.title')}
-            icon={<IconActivity />}
-            tone={!fixtureActive && projection?.active ? 'live' : 'neutral'}
-            count={state.snapshot.activity.length}
-            scrolls
-          >
-            <ActivityFeed
-              entries={state.snapshot.activity}
-              reasoningAvailable={state.snapshot.economy.reasoningAvailable}
-              runtimeAttached={!fixtureActive && projection !== null}
-              agentRuntimes={Object.fromEntries(
-                state.snapshot.agents.map((agent) => [agent.agentId, agent.runtime]),
-              )}
-            />
-          </PipelineCard>
+            <PipelineCard
+              area="agents"
+              titleId="pipeline-agents-title"
+              title={t('pipeline.agents.title')}
+              icon={<IconAgents />}
+              count={state.snapshot.agents.length}
+              scrolls
+            >
+              <AgentTree agents={state.snapshot.agents} />
+            </PipelineCard>
+
+            <PipelineCard
+              area="economy"
+              titleId="pipeline-economy-title"
+              title={t('pipeline.economy.title')}
+              icon={<IconEconomy />}
+              scrolls
+            >
+              <EconomyPanel economy={state.snapshot.economy} />
+            </PipelineCard>
+
+            <PipelineCard
+              area="activity"
+              titleId="pipeline-activity-title"
+              title={t('pipeline.activity.title')}
+              icon={<IconActivity />}
+              tone={!fixtureActive && projection?.active ? 'live' : 'neutral'}
+              count={state.snapshot.activity.length}
+              scrolls
+            >
+              <ActivityFeed
+                entries={state.snapshot.activity}
+                reasoningAvailable={state.snapshot.economy.reasoningAvailable}
+                runtimeAttached={!fixtureActive && projection !== null}
+                agentRuntimes={Object.fromEntries(
+                  state.snapshot.agents.map((agent) => [agent.agentId, agent.runtime]),
+                )}
+              />
+            </PipelineCard>
+          </div>
 
           <PipelineCard
             area="runtime"

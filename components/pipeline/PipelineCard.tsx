@@ -34,6 +34,10 @@ export type PipelineCardProps = {
    */
   collapsible?: boolean;
   defaultOpen?: boolean;
+  /** Cierra el bloque con un segundo codo y una barra de instrumentación. */
+  frameEnd?: boolean;
+  /** Código técnico decorativo de la zona, no una string traducible. */
+  zoneCode?: string;
   children: ReactNode;
 };
 
@@ -80,6 +84,8 @@ export function PipelineCard({
   scrolls = false,
   collapsible = false,
   defaultOpen = false,
+  frameEnd = false,
+  zoneCode,
   children,
 }: PipelineCardProps) {
   const toneAttr = tone === 'neutral' ? undefined : tone;
@@ -89,8 +95,10 @@ export function PipelineCard({
       <details
         className="pipeline-card"
         style={{ gridArea: area }}
+        data-area={area}
         data-tone={toneAttr}
         data-collapsible="true"
+        data-framed={frameEnd || undefined}
         open={defaultOpen}
       >
         <PipelineElbow corner="top-left" className="pipeline-card__frame" />
@@ -99,6 +107,15 @@ export function PipelineCard({
           <Header titleId={titleId} title={title} icon={icon} count={count} aside={aside} />
         </summary>
         <div className="pipeline-card__body">{children}</div>
+        {frameEnd && (
+          <>
+            <PipelineElbow corner="bottom-left" className="pipeline-card__frame pipeline-card__frame--bottom" />
+            <span className="pipeline-card__foot" aria-hidden="true">
+              <span className="pipeline-card__window" />
+              {zoneCode && <span className="pipeline-card__code">{zoneCode}</span>}
+            </span>
+          </>
+        )}
       </details>
     );
   }
@@ -107,8 +124,10 @@ export function PipelineCard({
     <section
       className="pipeline-card"
       style={{ gridArea: area }}
+      data-area={area}
       data-tone={toneAttr}
       data-scrolls={scrolls || undefined}
+      data-framed={frameEnd || undefined}
       aria-labelledby={titleId}
     >
       {/* El codo se dibuja como path, no con `border-radius`: la pieza tiene un
@@ -119,6 +138,15 @@ export function PipelineCard({
         <Header titleId={titleId} title={title} icon={icon} count={count} aside={aside} />
       </header>
       <div className="pipeline-card__body">{children}</div>
+      {frameEnd && (
+        <>
+          <PipelineElbow corner="bottom-left" className="pipeline-card__frame pipeline-card__frame--bottom" />
+          <span className="pipeline-card__foot" aria-hidden="true">
+            <span className="pipeline-card__window" />
+            {zoneCode && <span className="pipeline-card__code">{zoneCode}</span>}
+          </span>
+        </>
+      )}
     </section>
   );
 }

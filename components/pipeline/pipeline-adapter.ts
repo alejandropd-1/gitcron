@@ -13,7 +13,7 @@ import type {
   NowState,
   AgentNode,
 } from './pipeline-domain';
-import type { PipelineSnapshot, PipelineSource } from './pipeline-view-state';
+import type { OpenSpecWorkspaceSnapshot, PipelineSnapshot, PipelineSource } from './pipeline-view-state';
 import { SUPPORTED_SNAPSHOT_VERSION } from './pipeline-view-state';
 
 /**
@@ -267,6 +267,32 @@ function toSources(state: PipelineState): PipelineSource[] {
   return sources;
 }
 
+function toOpenSpecWorkspace(state: PipelineState): OpenSpecWorkspaceSnapshot {
+  const activeChanges = state.openSpecChanges?.map((change) => ({ ...change }))
+    ?? state.activeChanges.map((changeId) => ({
+      changeId,
+      intent: null,
+      tasks: state.selection.changeId === changeId ? state.tasks : [],
+      proposalExists: false,
+      designExists: false,
+      specsCount: 0,
+      validation: 'unknown' as const,
+    }));
+  const archivedChanges = state.openSpecArchivedChanges?.map((change) => ({ ...change }))
+    ?? state.archivedChanges.map((changeId) => ({ changeId, archivedAt: null, sourceRef: 'openspec/changes/archive' }));
+  const latestGate = state.gates[state.gates.length - 1] ?? null;
+  return {
+    selectedChangeId: state.selection.changeId ?? activeChanges[0]?.changeId ?? null,
+    activeChanges,
+    archivedChanges,
+    specifications: state.openSpecSpecifications?.map((specification) => ({ ...specification })) ?? [],
+    reports: [...state.reports],
+    diagnostics: state.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+    observedAt: state.observedAt,
+    latestGate: latestGate ? { ...latestGate } : null,
+  };
+}
+
 /**
  * Une la evidencia del repo (F01) con la sesión de runtime viva (F03).
  *
@@ -304,6 +330,7 @@ export function toPipelineSnapshot(
     // La bitácora sólo puede venir del stream: esta lectura no la cubre.
     activity: [],
     economy,
+    openSpec: toOpenSpecWorkspace(state),
   };
   return mergeRuntimeIntoSnapshot(base, projection);
 }

@@ -3,55 +3,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
-import { PipelineDetails } from './PipelineDetails';
-import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { mergeRuntimeIntoSnapshot, toPipelineSnapshot } from './pipeline-adapter';
-import { ActivityFeed } from './ActivityFeed';
-import { AgentTree } from './AgentTree';
-import { ChangePath } from './ChangePath';
-import { EconomyPanel } from './EconomyPanel';
-import { DecisionInbox } from './DecisionInbox';
-import { PipelineCard } from './PipelineCard';
-import {
-  IconActivity,
-  IconAgents,
-  IconDecision,
-  IconEconomy,
-  IconFile,
-  IconNow,
-  IconPath,
-  IconRuntime,
-} from './PipelineIcons';
+import { DEV_FIXTURE_NAMES, DEV_FIXTURES_ENABLED, loadDevFixture, type DevFixtureName } from './PipelineDevFixtures';
 import { PipelineEmptyState } from './PipelineEmptyState';
-import { PipelineHud } from './PipelineHud';
-import { PipelineNow } from './PipelineNow';
-import {
-  DEV_FIXTURES_ENABLED,
-  PipelineDevFixturePicker,
-  loadDevFixture,
-  type DevFixtureName,
-} from './PipelineDevFixtures';
-import {
-  resolvePipelineViewState,
-  type PipelineSnapshot,
-  type PipelineViewState,
-} from './pipeline-view-state';
+import { OpenSpecDashboard } from './OpenSpecDashboard';
+import { SUPPORTED_SNAPSHOT_VERSION, type PipelineSnapshot, type PipelineViewState } from './pipeline-view-state';
+import styles from './OpenSpecDashboard.module.css';
 
 export type PipelineSnapshotLoader = (
   repoPath: string,
   signal: AbortSignal,
 ) => Promise<PipelineSnapshot | null>;
 
-/**
- * Lector real de evidencia per-repo.
- *
- * Llama al canal `pipeline:get-snapshot` de Main —que lee el store SQLite
- * per-repo de F01— y traduce el `PipelineState` al snapshot del workspace.
- *
- * Devuelve `null` cuando el canal no existe (build web sin Electron) o cuando
- * el repo no tiene evidencia todavía. Eso resuelve al estado "sin actividad",
- * que es honesto: no se fabrica un snapshot para llenar la pantalla.
- */
 const loadRealSnapshot: PipelineSnapshotLoader = async (repoPath) => {
   const api = typeof window !== 'undefined' ? window.api : undefined;
   if (!api?.pipelineGetSnapshot) return null;
@@ -68,45 +31,57 @@ type LoadResult = {
 
 export type PipelineWorkspaceProps = {
   repoPath: string | null;
-  /** Inyectable para tests y para que TANDA 2 sustituya la fuente real. */
+  currentBranch?: string;
+  workingTreeClean?: boolean;
+  leftOpen?: boolean;
+  rightOpen?: boolean;
+  leftWidth?: number;
+  rightWidth?: number;
+  onResizeLeft?: (event: React.MouseEvent) => void;
+  onResizeRight?: (event: React.MouseEvent) => void;
   loadSnapshot?: PipelineSnapshotLoader;
 };
 
 /**
- * Dueño único del estado de la feature Pipeline.
+ * Frontera única de la solapa Pipeline.
  *
- * `app/page.tsx` (1900+ líneas) no aprende nada de Pipeline: sólo pasa
- * `repoPath`, un dato que ya tenía. Fetch, snapshot y ciclo de vida viven acá.
- *
- * Dos mecanismos evitan mezclar snapshots entre repos:
- * - el llamador monta con `key={repoPath}`, así que cambiar de repo desmonta;
- * - `loadKey` descarta cualquier respuesta en vuelo que llegue tarde, y el
- *   `AbortController` cancela la request vieja al cambiar de repo o reintentar.
+ * La carcasa global sólo entrega el estado de sus dos paneles. Este componente
+ * conserva la lectura per-repo, el stream vivo y los controles supervisados,
+ * pero presenta la evidencia como un workspace OpenSpec en lugar del tablero
+ * experimental de siete fases.
  */
 export function PipelineWorkspace({
   repoPath,
+  currentBranch = '',
+  workingTreeClean = true,
+  leftOpen = true,
+  rightOpen = true,
+  leftWidth = 288,
+  rightWidth = 320,
+  onResizeLeft = () => undefined,
+  onResizeRight = () => undefined,
   loadSnapshot = loadRealSnapshot,
 }: PipelineWorkspaceProps) {
   const t = useT();
   const [result, setResult] = useState<LoadResult | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  // Sólo desarrollo: permite recorrer los estados sin lector de evidencia.
-  const [devFixture, setDevFixture] = useState<DevFixtureName>('live');
-  // Sesión de runtime viva. Vive separada del snapshot porque tiene otro ciclo
-  // de vida: el snapshot se recarga, la sesión se abre y se cierra.
+  const [devFixture] = useState<DevFixtureName>(() => {
+    if (!DEV_FIXTURES_ENABLED || typeof window === 'undefined') return 'live';
+    const fixture = new URLSearchParams(window.location.search).get('pipelineFixture');
+    return fixture && DEV_FIXTURE_NAMES.includes(fixture as DevFixtureName)
+      ? fixture as DevFixtureName
+      : 'live';
+  });
   const [projection, setProjection] = useState<RuntimeProjection | null>(null);
-  // Por qué un control no se pudo ejecutar. Clave i18n, nunca texto libre.
+  const [runtimeHistory, setRuntimeHistory] = useState<RuntimeProjection[]>([]);
   const [controlNotice, setControlNotice] = useState<string | null>(null);
 
   const loadKey = `${repoPath ?? ''}#${reloadToken}#${devFixture}`;
-  // Derivado en vez de almacenado: no puede quedar desincronizado del pedido
-  // que está realmente en curso.
   const isLoading = Boolean(repoPath) && result?.key !== loadKey;
 
   useEffect(() => {
     if (!repoPath) return undefined;
     const controller = new AbortController();
-
     const load = DEV_FIXTURES_ENABLED && devFixture !== 'live'
       ? loadDevFixture(devFixture)
       : loadSnapshot(repoPath, controller.signal);
@@ -118,31 +93,20 @@ export function PipelineWorkspace({
       })
       .catch(() => {
         if (controller.signal.aborted) return;
-        setResult({
-          key: loadKey,
-          snapshot: null,
-          error: { messageKey: 'pipeline.error.title', canRetry: true },
-        });
+        setResult({ key: loadKey, snapshot: null, error: { messageKey: 'pipeline.error.title', canRetry: true } });
       });
-
     return () => controller.abort();
   }, [repoPath, loadKey, loadSnapshot, devFixture]);
 
-  // Suscripción a cambios del repo. Main reemite el estado cuando detecta
-  // evidencia nueva; el fixture de desarrollo no se pisa.
   useEffect(() => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
-    if (!repoPath || !api?.pipelineSubscribe || (DEV_FIXTURES_ENABLED && devFixture !== 'live')) {
-      return undefined;
-    }
+    if (!repoPath || !api?.pipelineSubscribe || (DEV_FIXTURES_ENABLED && devFixture !== 'live')) return undefined;
     void api.pipelineSubscribe(repoPath);
     const off = api.onPipelineSnapshotUpdated?.((changedRepo, state) => {
       if (changedRepo !== repoPath) return;
-      // Actualización funcional: conserva la clave del pedido vigente sin
-      // necesitar un ref, que no puede escribirse durante el render.
-      setResult((prev) => (prev
-        ? { ...prev, snapshot: toPipelineSnapshot(state), error: null }
-        : prev));
+      setResult((previous) => previous
+        ? { ...previous, snapshot: toPipelineSnapshot(state), error: null }
+        : previous);
     });
     return () => {
       off?.();
@@ -150,269 +114,119 @@ export function PipelineWorkspace({
     };
   }, [repoPath, devFixture]);
 
-  // Sesión de runtime: estado inicial y empuje de deltas coalescidos por Main.
   useEffect(() => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!repoPath || !api?.pipelineRuntime) return undefined;
-
     let cancelled = false;
-    void api.pipelineRuntime.get(repoPath).then((response) => {
+    void Promise.all([
+      api.pipelineRuntime.get(repoPath),
+      api.pipelineRuntime.history(repoPath, 30),
+    ]).then(([currentResponse, historyResponse]) => {
       if (cancelled) return;
-      setProjection(response?.success ? response.data ?? null : null);
+      setProjection(currentResponse?.success ? currentResponse.data ?? null : null);
+      setRuntimeHistory(historyResponse?.success ? historyResponse.data ?? [] : []);
     });
-
     const off = api.onPipelineRuntimeUpdated?.((changedRepo, next) => {
       if (changedRepo !== repoPath) return;
       setProjection(next);
+      if (next) {
+        setRuntimeHistory((previous) => [
+          next,
+          ...previous.filter((entry) => entry.sessionId !== next.sessionId),
+        ].slice(0, 30));
+      }
     });
-
     return () => {
       cancelled = true;
       off?.();
     };
   }, [repoPath]);
 
-  const handleRetry = useCallback(() => {
-    setReloadToken((token) => token + 1);
-  }, []);
-
+  const handleRetry = useCallback(() => setReloadToken((token) => token + 1), []);
   const fixtureActive = DEV_FIXTURES_ENABLED && devFixture !== 'live';
-
-  // La sesión viva se superpone SÓLO al snapshot de evidencia real.
-  //
-  // Superponerla a un fixture dejaba el stream verdadero y los datos inventados
-  // indistinguibles en la misma pantalla, que es exactamente lo que esta fase
-  // existe para impedir. Con un fixture elegido, la sesión no se mezcla —siga
-  // corriendo o no— y el lanzador queda bloqueado.
-  const mergedSnapshot = result?.snapshot
+  const snapshot = result?.snapshot
     ? mergeRuntimeIntoSnapshot(result.snapshot, fixtureActive ? null : projection)
     : null;
 
-  const state: PipelineViewState = resolvePipelineViewState({
-    repoPath,
-    snapshot: mergedSnapshot,
-    isLoading,
-    error: result?.error ?? null,
-  });
-
-  /**
-   * Responde una decisión contra la sesión de runtime real.
-   *
-   * Antes mandaba el literal `'session-active'` a un global inexistente
-   * (`window.electronAPI`; el preload expone `window.api`), así que la
-   * respuesta no salía nunca y, si hubiera salido, el bus la habría rechazado
-   * con `UNAUTHORIZED_TARGET`. Ahora usa el `sessionId` que el hub registró.
-   *
-   * Las dos guardas previas no son defensivas de más: son los dos motivos
-   * reales por los que responder puede no ser posible, y cada uno se dice con
-   * su nombre en vez de fallar en silencio.
-   */
   const handleRespondDecision = useCallback((decisionId: string, optionId: string) => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!repoPath || !api?.pipelineControl?.respondDecision) return;
-
     if (!projection?.active) {
       setControlNotice('pipeline.control.noSession');
       return;
     }
-    // Un CLI estructurado cierra su stdin al mandar la instrucción: no puede
-    // recibir una respuesta a mitad de corrida. El hub no declara la capacidad
-    // y acá se explica, en vez de mandar un comando que el bus va a rechazar.
     if (!projection.controlCapabilities.includes('respond-decision')) {
       setControlNotice('pipeline.control.respondUnsupported');
       return;
     }
-
     setControlNotice(null);
-    const nonce = `nonce-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     void api.pipelineControl.respondDecision({
       repoPath,
       sessionId: projection.sessionId,
       decisionId,
       optionId,
-      nonce,
+      nonce: `nonce-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     });
   }, [repoPath, projection]);
 
-  const decisionCount = state.kind === 'ready' ? state.snapshot.decisions.length : 0;
-  // Cuánta evidencia hay detrás del panel plegado, para que el contador diga
-  // si vale la pena abrirlo sin tener que abrirlo.
-  const detailsCount = state.kind === 'ready'
-    ? (state.snapshot.diffs?.length ?? 0)
-      + (state.snapshot.auditorFindings?.length ?? 0)
-      + (state.snapshot.gateHistory?.length ?? 0)
-      + (state.snapshot.proposal ? 1 : 0)
-    : 0;
+  const handlePauseAfterTask = useCallback(() => {
+    const api = typeof window !== 'undefined' ? window.api : undefined;
+    if (!repoPath || !projection?.active || !api?.pipelineControl?.pause) {
+      setControlNotice('pipeline.control.noSession');
+      return;
+    }
+    if (!projection.controlCapabilities.includes('pause-after-task')) {
+      setControlNotice('pipeline.control.respondUnsupported');
+      return;
+    }
+    setControlNotice('pipeline.control.ackPending');
+    void api.pipelineControl.pause({
+      repoPath,
+      sessionId: projection.sessionId,
+      mode: 'after-task',
+      nonce: `nonce-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    }).then((response) => {
+      const success = (response as { success?: boolean } | null)?.success === true;
+      setControlNotice(success ? 'pipeline.control.ackSuccess' : 'pipeline.control.ackError');
+    }).catch(() => setControlNotice('pipeline.control.ackError'));
+  }, [repoPath, projection]);
+
+  let nonReadyState: Exclude<PipelineViewState, { kind: 'ready' }> | null = null;
+  if (!repoPath) nonReadyState = { kind: 'no-repo' };
+  else if (result?.error) nonReadyState = { kind: 'error', ...result.error };
+  else if (isLoading) nonReadyState = { kind: 'loading' };
+  else if (!snapshot) nonReadyState = { kind: 'no-pipeline' };
+  else if (snapshot.schemaVersion !== SUPPORTED_SNAPSHOT_VERSION) {
+    nonReadyState = { kind: 'incompatible', foundVersion: snapshot.schemaVersion || null };
+  }
 
   return (
-    <section
-      className="pipeline-workspace"
-      aria-labelledby="pipeline-title"
-      data-repo-path={repoPath ?? undefined}
-      data-estado={state.kind}
-    >
-      {/* Franja de andamio: el selector de fixtures no es producto, así que no
-          entra en la grilla del tablero. Va pegado al borde superior, fuera del
-          flujo de las cards, para que no se lea como una barra de pestañas. */}
-      <div className="pipeline-workspace__scaffold">
-        <PipelineDevFixturePicker value={devFixture} onChange={setDevFixture} />
-      </div>
-
-      <header className="pipeline-workspace__bar">
-        <h2 id="pipeline-title" className="pipeline-workspace__title">
-          {t('pipeline.title')}
-        </h2>
-        {/* Polite y no assertive: la bitácora no debe interrumpir al lector de
-            pantalla en cada cambio de estado. */}
-        <p role="status" aria-live="polite" className="pipeline-workspace__status">
-          {state.kind === 'loading' ? t('pipeline.loading') : ''}
-        </p>
-      </header>
-
+    <section className={styles.workspace} aria-label={t('pipeline.title')} data-repo-path={repoPath ?? undefined}>
       {controlNotice && (
-        <p className="pipeline-workspace__notice" role="alert">{t(controlNotice)}</p>
+        <p className="pipeline-workspace__notice" role="status" aria-live="polite">{t(controlNotice)}</p>
       )}
-
-      {state.kind === 'ready' ? (
-        /**
-         * Tablero, no pila.
-         *
-         * Las áreas se declaran en CSS y cada card scrollea por dentro, así que
-         * el conjunto entra en una pantalla y ninguna sección empuja a la
-         * siguiente fuera de vista. El orden del DOM sigue siendo el orden de
-         * lectura —ahora, decisiones, vía, agentes, economía, bitácora—, que es
-         * también el orden de tabulación: la grilla reubica en pantalla sin
-         * reordenar para el teclado ni para un lector.
-         */
-        <div className="pipeline-grid">
-          {/* El HUD es el único panel sin `PipelineCard`, así que necesita su
-              área explícita. Sin ella la grilla lo auto-ubicaba en una sola
-              columna y el segmento de decisiones quedaba partido al medio. */}
-          <div className="pipeline-grid__hud">
-            <PipelineHud snapshot={state.snapshot} />
-          </div>
-
-          <PipelineCard
-            area="path"
-            frameEnd
-            zoneCode="04.30"
-            titleId="pipeline-path-title"
-            title={t('pipeline.path.title')}
-            icon={<IconPath />}
-          >
-            <ChangePath stations={state.snapshot.stations} />
-          </PipelineCard>
-
-          {/* Una sola carcasa abraza los instrumentos principales. Sus entrantes
-              cambian de profundidad por fila, como el marco de la referencia;
-              los paneles internos ya no simulan seis cards cerradas. */}
-          <div className="pipeline-grid__instrument-shell">
-            <PipelineCard
-              area="now"
-              titleId="pipeline-now-title"
-              title={t('pipeline.now.title')}
-              icon={<IconNow />}
-              tone={state.snapshot.now.needsHuman ? 'attention' : 'neutral'}
-            >
-              <PipelineNow now={state.snapshot.now} repoPath={repoPath} />
-            </PipelineCard>
-
-            {/* Zona prioritaria, no un feed: ocupa el encastre superior de la
-                columna derecha y se tiñe cuando algo espera a una persona. */}
-            <PipelineCard
-              area="decisions"
-              titleId="pipeline-decisions-title"
-              title={t('pipeline.inbox.title')}
-              icon={<IconDecision />}
-              tone={decisionCount > 0 ? 'attention' : 'neutral'}
-              count={decisionCount}
-              scrolls
-            >
-              <DecisionInbox decisions={state.snapshot.decisions} onRespondDecision={handleRespondDecision} />
-            </PipelineCard>
-
-            <PipelineCard
-              area="agents"
-              titleId="pipeline-agents-title"
-              title={t('pipeline.agents.title')}
-              icon={<IconAgents />}
-              count={state.snapshot.agents.length}
-              scrolls
-            >
-              <AgentTree agents={state.snapshot.agents} />
-            </PipelineCard>
-
-            <PipelineCard
-              area="economy"
-              titleId="pipeline-economy-title"
-              title={t('pipeline.economy.title')}
-              icon={<IconEconomy />}
-              scrolls
-            >
-              <EconomyPanel economy={state.snapshot.economy} />
-            </PipelineCard>
-
-            <PipelineCard
-              area="activity"
-              titleId="pipeline-activity-title"
-              title={t('pipeline.activity.title')}
-              icon={<IconActivity />}
-              tone={!fixtureActive && projection?.active ? 'live' : 'neutral'}
-              count={state.snapshot.activity.length}
-              scrolls
-            >
-              <ActivityFeed
-                entries={state.snapshot.activity}
-                reasoningAvailable={state.snapshot.economy.reasoningAvailable}
-                runtimeAttached={!fixtureActive && projection !== null}
-                agentRuntimes={Object.fromEntries(
-                  state.snapshot.agents.map((agent) => [agent.agentId, agent.runtime]),
-                )}
-              />
-            </PipelineCard>
-          </div>
-
-          <PipelineCard
-            area="runtime"
-            titleId="pipeline-runtime-title"
-            title={t('pipeline.launcher.title')}
-            icon={<IconRuntime />}
-            tone={!fixtureActive && projection?.active ? 'live' : 'neutral'}
-            collapsible
-            defaultOpen={!fixtureActive && projection?.active === true}
-          >
-            {repoPath && (
-              <PipelineRuntimeLauncher
-                repoPath={repoPath}
-                projection={projection}
-                blockedByFixture={fixtureActive}
-              />
-            )}
-          </PipelineCard>
-
-          <PipelineCard
-            area="details"
-            titleId="pipeline-details-title"
-            title={t('pipeline.details.title')}
-            icon={<IconFile />}
-            count={detailsCount}
-            collapsible
-          >
-            <PipelineDetails snapshot={state.snapshot} />
-          </PipelineCard>
-        </div>
-      ) : (
+      {snapshot && repoPath && !nonReadyState ? (
+        <OpenSpecDashboard
+          snapshot={snapshot}
+          repoPath={repoPath}
+          currentBranch={currentBranch}
+          workingTreeClean={workingTreeClean}
+          leftOpen={leftOpen}
+          rightOpen={rightOpen}
+          leftWidth={leftWidth}
+          rightWidth={rightWidth}
+          onResizeLeft={onResizeLeft}
+          onResizeRight={onResizeRight}
+          projection={fixtureActive ? null : projection}
+          runtimeHistory={fixtureActive ? [] : runtimeHistory}
+          onPauseAfterTask={handlePauseAfterTask}
+          onRespondDecision={handleRespondDecision}
+        />
+      ) : nonReadyState ? (
         <div className="pipeline-workspace__empty">
-          {repoPath && (
-            <PipelineRuntimeLauncher
-              repoPath={repoPath}
-              projection={projection}
-              blockedByFixture={fixtureActive}
-            />
-          )}
-          <PipelineEmptyState state={state} onRetry={handleRetry} />
+          <PipelineEmptyState state={nonReadyState} onRetry={handleRetry} />
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

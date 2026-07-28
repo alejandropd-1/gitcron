@@ -96,6 +96,14 @@ type TabViewsProps = {
   modifiedFiles: GitFile[];
   hasGithubUser: boolean;
   isLoading: boolean;
+  pipelineLayout: {
+    leftOpen: boolean;
+    rightOpen: boolean;
+    leftWidth: number;
+    rightWidth: number;
+    onResizeLeft: (event: MouseEvent) => void;
+    onResizeRight: (event: MouseEvent) => void;
+  };
   onSelectCommit: (commit: Commit, options?: CommitSelectOptions) => void;
   onCommitContextMenu: (event: MouseEvent, commit: Commit) => void;
 };
@@ -162,6 +170,10 @@ export function RepoMainView({
   graphView,
   interactiveRebase,
 }: RepoMainViewProps) {
+  const pipelineFixturePreview = process.env.NODE_ENV === 'development'
+    && typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).has('pipelineFixture');
+
   if (cartographyActive) return <CartographyView repoPath={cartographyRepoPath} onExit={onExitCartography} />;
   if (interactiveRebase.interactiveRebaseFrom) {
     return (
@@ -174,6 +186,25 @@ export function RepoMainView({
   if (activeView === 'settings') return <SettingsPanel {...settingsPanel} />;
   if (activeView === 'help') return <HelpPanel {...helpPanel} />;
   if (activeView === 'profile') return <ProfilePanel {...profilePanel} />;
+  // QA visual sin Electron: conserva el topbar real y monta sólo el interior de
+  // Pipeline con el fixture indicado por query string. Producción elimina esta
+  // rama y jamás recibe una ruta de repositorio inventada.
+  if (pipelineFixturePreview && tabViews.activeTab === 'Pipeline') {
+    return (
+      <PipelineWorkspace
+        key="pipeline-fixture-preview"
+        repoPath={tabViews.repoPath ?? 'C:\\gitcron-pipeline-preview'}
+        currentBranch={tabViews.currentBranch || 'feature/resume-builder'}
+        workingTreeClean={true}
+        leftOpen={tabViews.pipelineLayout.leftOpen}
+        rightOpen={tabViews.pipelineLayout.rightOpen}
+        leftWidth={tabViews.pipelineLayout.leftWidth}
+        rightWidth={tabViews.pipelineLayout.rightWidth}
+        onResizeLeft={tabViews.pipelineLayout.onResizeLeft}
+        onResizeRight={tabViews.pipelineLayout.onResizeRight}
+      />
+    );
+  }
   if (isRepoStartView) return <RepoStartView {...repoStart} />;
   if (diffViews.selectedPullRequest) {
     return (
@@ -241,7 +272,20 @@ export function RepoMainView({
   // `key` per-repo: cambiar de repositorio desmonta y remonta el workspace, así
   // no se muestra el snapshot del repo anterior mientras carga el nuevo.
   if (tabViews.activeTab === 'Pipeline') {
-    return <PipelineWorkspace key={tabViews.repoPath ?? 'no-repo'} repoPath={tabViews.repoPath} />;
+    return (
+      <PipelineWorkspace
+        key={tabViews.repoPath ?? 'no-repo'}
+        repoPath={tabViews.repoPath}
+        currentBranch={tabViews.currentBranch}
+        workingTreeClean={tabViews.modifiedFiles.length === 0}
+        leftOpen={tabViews.pipelineLayout.leftOpen}
+        rightOpen={tabViews.pipelineLayout.rightOpen}
+        leftWidth={tabViews.pipelineLayout.leftWidth}
+        rightWidth={tabViews.pipelineLayout.rightWidth}
+        onResizeLeft={tabViews.pipelineLayout.onResizeLeft}
+        onResizeRight={tabViews.pipelineLayout.onResizeRight}
+      />
+    );
   }
   return <GraphTabView tabViews={tabViews} graphView={graphView} />;
 }

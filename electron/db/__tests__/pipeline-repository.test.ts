@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { openTemporalAgentDatabase } from '../connection';
 import { PipelineRepository } from '../../pipeline/pipeline-repository';
-import type { PipelineSemanticEvent, PipelineState } from '../../../types/pipeline';
+import type { PipelineSemanticEvent, PipelineState, RuntimeProjection } from '../../../types/pipeline';
+
+function runtimeProjection(repoId: string, over: Partial<RuntimeProjection> = {}): RuntimeProjection {
+  return {
+    schemaVersion: '1.0', repoId, sessionId: 'session-1', runtime: 'codex',
+    changeId: 'change-1', taskId: '1.1', role: 'builder', active: true, outcome: 'running',
+    startedAt: '2026-07-28T10:00:00.000Z', endedAt: null, agents: [], activity: [],
+    reasoningVisibility: 'unknown', telemetry: null, controlCapabilities: [],
+    droppedActivity: 0, diagnostics: [], ...over,
+  };
+}
 
 function state(repoId: string, revision = 1): PipelineState {
   return {
@@ -81,6 +91,34 @@ describe('PipelineRepository', () => {
       const raw = db.prepare('SELECT payload_json FROM pipeline_event WHERE repo_id = ? AND event_id = ?').get(binding.repoId, 'env-1') as { payload_json: string };
       expect(raw.payload_json).not.toContain('do-not-store');
       expect(raw.payload_json).toContain('[REDACTED]');
+    } finally {
+      db.close();
+    }
+  });
+
+  it('upserts durable runtime projections and returns newest sessions first', () => {
+    const db = openTemporalAgentDatabase(':memory:');
+    try {
+      const repository = new PipelineRepository(db, () => '2026-07-28T10:10:00.000Z');
+      const binding = repository.getOrCreateBinding('C:/repo', 'digest');
+      repository.persistRuntimeProjection(runtimeProjection(binding.repoId));
+      repository.persistRuntimeProjection(runtimeProjection(binding.repoId, {
+        active: false,
+        outcome: 'completed',
+        endedAt: '2026-07-28T10:05:00.000Z',
+        activity: [{ entryId: 'done', channel: 'system', text: 'run.completed', at: '2026-07-28T10:05:00.000Z', agentId: null }],
+      }));
+      repository.persistRuntimeProjection(runtimeProjection(binding.repoId, {
+        sessionId: 'session-2',
+        changeId: 'change-2',
+        startedAt: '2026-07-28T11:00:00.000Z',
+      }));
+
+      const history = repository.loadRuntimeProjections(binding.repoId);
+      expect(history.map((entry) => entry.sessionId)).toEqual(['session-2', 'session-1']);
+      expect(history[1]).toMatchObject({ outcome: 'completed', active: false, changeId: 'change-1' });
+      expect(history[1].reasoningVisibility).toBe('unknown');
+      expect(history[1].activity).toHaveLength(1);
     } finally {
       db.close();
     }

@@ -160,6 +160,9 @@ export interface RuntimeProjectionInit {
   repoId: string;
   sessionId: string;
   runtime: PipelineRuntime;
+  changeId: string | null;
+  taskId: string | null;
+  role: string;
   startedAt: string;
   controlCapabilities: PipelineControlAction[];
 }
@@ -174,6 +177,7 @@ export class RuntimeProjectionBuilder {
   private telemetry: RuntimeTelemetryValues | null = null;
   private droppedActivity = 0;
   private active = true;
+  private outcome: RuntimeProjection['outcome'] = 'running';
   private endedAt: string | null = null;
 
   constructor(private readonly init: RuntimeProjectionInit) {}
@@ -202,6 +206,10 @@ export class RuntimeProjectionBuilder {
     });
   }
 
+  addObservedActivity(entry: RuntimeActivityEntry): void {
+    this.push({ ...entry, text: this.sanitizer.sanitizeOutput(entry.text) });
+  }
+
   /**
    * Cierra la sesión.
    *
@@ -209,9 +217,17 @@ export class RuntimeProjectionBuilder {
    * no `done`: dejamos de observarlo, que no es lo mismo que verlo terminar.
    * Sólo un fallo explícito del proceso lo marca `failed`.
    */
-  close(endedAt: string, outcome: 'completed' | 'failed'): void {
+  close(endedAt: string, outcome: Exclude<RuntimeProjection['outcome'], 'running' | 'unknown'>): void {
     this.active = false;
+    this.outcome = outcome;
     this.endedAt = endedAt;
+    this.push({
+      entryId: `${this.init.sessionId}:${outcome}`,
+      channel: 'system',
+      text: `session.${outcome}`,
+      at: endedAt,
+      agentId: null,
+    });
     for (const accumulator of this.agents.values()) {
       if (accumulator.observation.state !== 'running') continue;
       accumulator.observation.state = outcome === 'failed'
@@ -242,7 +258,11 @@ export class RuntimeProjectionBuilder {
       repoId: this.init.repoId,
       sessionId: this.init.sessionId,
       runtime: this.init.runtime,
+      changeId: this.init.changeId,
+      taskId: this.init.taskId,
+      role: this.init.role,
       active: this.active,
+      outcome: this.outcome,
       startedAt: this.init.startedAt,
       endedAt: this.endedAt,
       agents: [...this.agents.values()].map((entry) => ({ ...entry.observation })),

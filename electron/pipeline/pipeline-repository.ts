@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import type { PipelineSemanticEvent, PipelineState } from '../../types/pipeline';
+import type { PipelineSemanticEvent, PipelineState, RuntimeProjection } from '../../types/pipeline';
 import type { JsonlCursor } from '../../types/pipeline';
 import { stringifyPipelineValue } from './persistence-sanitizer';
 
@@ -12,6 +12,7 @@ export interface PipelineRepoBinding {
 
 type BindingRow = { repo_id: string; canonical_path: string; git_common_dir_digest: string };
 type SnapshotRow = { sequence: number; state_json: string; captured_at: string };
+type RuntimeProjectionRow = { projection_json: string };
 
 export class PipelineRepository {
   constructor(private readonly db: DatabaseSync, private readonly now: () => string = () => new Date().toISOString()) {}
@@ -77,6 +78,54 @@ export class PipelineRepository {
       this.db.exec('ROLLBACK');
       throw error;
     }
+  }
+
+  persistRuntimeProjection(projection: RuntimeProjection): void {
+    this.db.prepare(`
+      INSERT INTO pipeline_runtime_session (
+        repo_id, session_id, change_id, task_id, runtime, role, outcome,
+        started_at, ended_at, projection_json, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(repo_id, session_id) DO UPDATE SET
+        change_id = excluded.change_id,
+        task_id = excluded.task_id,
+        runtime = excluded.runtime,
+        role = excluded.role,
+        outcome = excluded.outcome,
+        ended_at = excluded.ended_at,
+        projection_json = excluded.projection_json,
+        updated_at = excluded.updated_at
+    `).run(
+      projection.repoId,
+      projection.sessionId,
+      projection.changeId,
+      projection.taskId,
+      projection.runtime,
+      projection.role,
+      projection.outcome,
+      projection.startedAt,
+      projection.endedAt,
+      stringifyPipelineValue(projection),
+      this.now(),
+    );
+  }
+
+  loadRuntimeProjections(repoId: string, limit = 20): RuntimeProjection[] {
+    const safeLimit = Math.max(1, Math.min(Math.trunc(limit), 100));
+    const rows = this.db.prepare(`
+      SELECT projection_json
+      FROM pipeline_runtime_session
+      WHERE repo_id = ?
+      ORDER BY started_at DESC
+      LIMIT ?
+    `).all(repoId, safeLimit) as RuntimeProjectionRow[];
+    return rows.flatMap((row) => {
+      try {
+        return [JSON.parse(row.projection_json) as RuntimeProjection];
+      } catch {
+        return [];
+      }
+    });
   }
 
   loadSnapshot(repoId: string): { sequence: number; state: PipelineState; capturedAt: string } | null {

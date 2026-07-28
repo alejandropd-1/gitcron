@@ -54,6 +54,19 @@ export function registerPipelineRuntimeHandlers(
     }
   });
 
+  ipcMain.handle('pipeline:runtime:history', async (_event, repoPath: unknown, requestedLimit: unknown) => {
+    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+    const limit = typeof requestedLimit === 'number' && Number.isFinite(requestedLimit)
+      ? Math.max(1, Math.min(Math.trunc(requestedLimit), 100))
+      : 20;
+    try {
+      const { repoId } = await service.resolveBinding(repoPath);
+      return { success: true, data: hub.history(repoId, limit) };
+    } catch (error) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
   ipcMain.handle('pipeline:runtime:start', async (_event, payload: unknown) => {
     const input = asRecord(payload);
     const repoPath = input.repoPath;
@@ -83,6 +96,9 @@ export function registerPipelineRuntimeHandlers(
     const changeId = typeof input.changeId === 'string' && input.changeId.length > 0
       ? input.changeId
       : null;
+    const taskId = typeof input.taskId === 'string' && input.taskId.length > 0 && input.taskId.length <= 256
+      ? input.taskId
+      : null;
 
     try {
       const { canonicalPath, repoId } = await service.resolveBinding(repoPath);
@@ -94,6 +110,7 @@ export function registerPipelineRuntimeHandlers(
         role,
         requestedModel,
         changeId,
+        taskId,
       });
       return result.ok
         ? { success: true, data: { sessionId: result.sessionId } }

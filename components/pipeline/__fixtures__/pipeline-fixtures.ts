@@ -40,6 +40,16 @@ const BASE: PipelineSnapshot = {
     compactionCount: null,
     reasoningAvailable: false,
   },
+  openSpec: {
+    selectedChangeId: null,
+    activeChanges: [],
+    archivedChanges: [],
+    specifications: [],
+    reports: [],
+    diagnostics: [],
+    observedAt: '2026-07-28T10:05:00.000Z',
+    latestGate: null,
+  },
 };
 
 /** Auditoría en curso, costo informado por el runtime. */
@@ -106,13 +116,13 @@ export const RUNNING_SNAPSHOT: PipelineSnapshot = {
     },
   ],
   activity: [
-    { entryId: 'a1', channel: 'narrative', text: 'Arranca la auditoría del change.', at: null, agentId: 'orch-1' },
-    { entryId: 'a2', channel: 'reasoning', text: 'Reviso el contrato del adaptador…', at: null, agentId: 'aud-1' },
-    { entryId: 'a3', channel: 'reasoning', text: 'Comparo contra el fixture citado…', at: null, agentId: 'aud-1' },
-    { entryId: 'a4', channel: 'reasoning', text: 'Los valores no coinciden.', at: null, agentId: 'aud-1' },
-    { entryId: 'a5', channel: 'tool', text: 'leer archivo runtime-adapter.ts', at: null, agentId: 'aud-1' },
-    { entryId: 'a6', channel: 'file', text: 'electron/pipeline/runtime-adapters/lmstudio-adapter.ts', at: null, agentId: 'aud-1' },
-    { entryId: 'a7', channel: 'system', text: 'Controles automáticos: VERDE', at: null, agentId: null },
+    { entryId: 'a1', channel: 'narrative', text: 'Leyó proposal.md, design.md, specs/ y tasks.md para entender el contexto.', at: '2026-07-28T10:02:00.000Z', agentId: 'orch-1' },
+    { entryId: 'a2', channel: 'reasoning', text: 'Reviso el contrato del adaptador…', at: '2026-07-28T10:03:00.000Z', agentId: 'aud-1' },
+    { entryId: 'a3', channel: 'reasoning', text: 'Comparo contra el fixture citado…', at: '2026-07-28T10:03:10.000Z', agentId: 'aud-1' },
+    { entryId: 'a4', channel: 'reasoning', text: 'Los valores no coinciden.', at: '2026-07-28T10:03:20.000Z', agentId: 'aud-1' },
+    { entryId: 'a5', channel: 'tool', text: 'Ejecutando pnpm run validate', at: '2026-07-28T10:04:00.000Z', agentId: 'aud-1' },
+    { entryId: 'a6', channel: 'file', text: 'Añadidas variables base para colores y modo oscuro.', at: '2026-07-28T10:04:20.000Z', agentId: 'aud-1' },
+    { entryId: 'a7', channel: 'system', text: 'openspec validate: passing', at: '2026-07-28T10:05:00.000Z', agentId: null },
   ],
   economy: {
     tokens: { input: 7393, output: 1718, reasoning: 4131, cacheRead: 26368 },
@@ -179,6 +189,45 @@ export const RUNNING_SNAPSHOT: PipelineSnapshot = {
     { gateId: 'C4', name: 'Pruebas (tests)', status: 'VERDE', checkedAt: '17:40:15', details: '409/409 tests OK' },
     { gateId: 'C6', name: 'OpenSpec strict', status: 'VERDE', checkedAt: '17:40:20', details: 'Esquema conforme' },
   ],
+  openSpec: {
+    selectedChangeId: 'add-dark-mode',
+    activeChanges: [{
+      changeId: 'add-dark-mode',
+      intent: 'Añadir modo oscuro con variables CSS y detección de preferencia del sistema.',
+      tasks: [
+        { id: '1.1', text: 'Add theme context provider', completed: true, line: 1, sourceRef: 'openspec/changes/add-dark-mode/tasks.md' },
+        { id: '1.2', text: 'Create toggle component', completed: true, line: 2, sourceRef: 'openspec/changes/add-dark-mode/tasks.md' },
+        { id: '2.1', text: 'Add CSS variables', completed: false, line: 3, sourceRef: 'openspec/changes/add-dark-mode/tasks.md' },
+        { id: '2.2', text: 'Wire up localStorage', completed: false, line: 4, sourceRef: 'openspec/changes/add-dark-mode/tasks.md' },
+      ],
+      proposalExists: true,
+      designExists: true,
+      specsCount: 1,
+      validation: 'unknown',
+    }],
+    archivedChanges: [
+      { changeId: 'add-slash-command-support', archivedAt: '2025-01-23', sourceRef: 'openspec/changes/archive/2025-01-23-add-slash-command-support' },
+      { changeId: 'sort-active-changes-by-progress', archivedAt: '2025-01-19', sourceRef: 'openspec/changes/archive/2025-01-19-sort-active-changes-by-progress' },
+      { changeId: 'update-agent-file-name', archivedAt: '2025-01-16', sourceRef: 'openspec/changes/archive/2025-01-16-update-agent-file-name' },
+      { changeId: 'update-agent-instructions', archivedAt: '2025-01-15', sourceRef: 'openspec/changes/archive/2025-01-15-update-agent-instructions' },
+    ],
+    specifications: [
+      { specificationId: 'cli-archive', requirements: 10, sourceRef: 'openspec/specs/cli-archive/spec.md' },
+      { specificationId: 'openspec-conventions', requirements: 10, sourceRef: 'openspec/specs/openspec-conventions/spec.md' },
+      { specificationId: 'cli-validate', requirements: 9, sourceRef: 'openspec/specs/cli-validate/spec.md' },
+      { specificationId: 'cli-list', requirements: 7, sourceRef: 'openspec/specs/cli-list/spec.md' },
+      { specificationId: 'cli-view', requirements: 7, sourceRef: 'openspec/specs/cli-view/spec.md' },
+      { specificationId: 'cli-init', requirements: 5, sourceRef: 'openspec/specs/cli-init/spec.md' },
+      { specificationId: 'cli-update', requirements: 5, sourceRef: 'openspec/specs/cli-update/spec.md' },
+      { specificationId: 'cli-change', requirements: 4, sourceRef: 'openspec/specs/cli-change/spec.md' },
+      { specificationId: 'cli-spec', requirements: 4, sourceRef: 'openspec/specs/cli-spec/spec.md' },
+      { specificationId: 'cli-show', requirements: 3, sourceRef: 'openspec/specs/cli-show/spec.md' },
+    ],
+    reports: ['docs/reports/add-dark-mode.md'],
+    diagnostics: [],
+    observedAt: '2026-07-28T10:05:00.000Z',
+    latestGate: { result: 'VERDE', mode: 'fast', ts: '2026-07-28T10:05:00.000Z' },
+  },
 };
 
 /**

@@ -3,7 +3,7 @@ export interface Migration {
   statements: string[];
 }
 
-export const LATEST_SCHEMA_VERSION = 4;
+export const LATEST_SCHEMA_VERSION = 5;
 
 export const PREDICTION_RUN_TABLE = 'prediction_run';
 export const SPECULATIVE_BRANCH_TABLE = 'speculative_branch';
@@ -12,6 +12,7 @@ export const PIPELINE_REPO_TABLE = 'pipeline_repo';
 export const PIPELINE_SNAPSHOT_TABLE = 'pipeline_snapshot';
 export const PIPELINE_EVENT_TABLE = 'pipeline_event';
 export const PIPELINE_CURSOR_TABLE = 'pipeline_cursor';
+export const PIPELINE_RUNTIME_SESSION_TABLE = 'pipeline_runtime_session';
 
 export const TEMPORAL_AGENT_INDEXES = [
   'idx_run_repo',
@@ -166,6 +167,25 @@ const CREATE_PIPELINE_TABLES = [
   'CREATE INDEX idx_pipeline_event_repo_sequence ON pipeline_event(repo_id, sequence);',
 ];
 
+const CREATE_PIPELINE_RUNTIME_SESSION_TABLES = [
+  `CREATE TABLE pipeline_runtime_session (
+    repo_id         TEXT NOT NULL REFERENCES pipeline_repo(repo_id) ON DELETE CASCADE,
+    session_id      TEXT NOT NULL,
+    change_id       TEXT,
+    task_id         TEXT,
+    runtime         TEXT NOT NULL,
+    role            TEXT NOT NULL,
+    outcome         TEXT NOT NULL CHECK (outcome IN ('running', 'completed', 'failed', 'interrupted', 'unknown')),
+    started_at      TEXT NOT NULL,
+    ended_at        TEXT,
+    projection_json TEXT NOT NULL,
+    updated_at      TEXT NOT NULL,
+    PRIMARY KEY (repo_id, session_id)
+  ) STRICT;`,
+  'CREATE INDEX idx_pipeline_runtime_session_repo_started ON pipeline_runtime_session(repo_id, started_at DESC);',
+  'CREATE INDEX idx_pipeline_runtime_session_change ON pipeline_runtime_session(repo_id, change_id, started_at DESC);',
+];
+
 export const MIGRATIONS: Migration[] = [
   {
     version: 1,
@@ -193,5 +213,9 @@ export const MIGRATIONS: Migration[] = [
   {
     version: 4,
     statements: CREATE_PIPELINE_TABLES,
+  },
+  {
+    version: 5,
+    statements: CREATE_PIPELINE_RUNTIME_SESSION_TABLES,
   },
 ];

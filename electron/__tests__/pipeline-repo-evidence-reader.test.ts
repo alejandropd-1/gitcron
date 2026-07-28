@@ -31,7 +31,12 @@ describe('RepoEvidenceReader', () => {
   it('reads tasks, gates, reports and archives for one selected change', async () => {
     await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-a'), { recursive: true });
     await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-a', 'tasks.md'), '- [x] done\n- [ ] open\n');
+    await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-a', 'proposal.md'), '## Why\n\nShip one grounded workflow.\n\n## What Changes\n\n- UI\n');
+    await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-a', 'design.md'), '## Context\n\nDesign.\n');
+    await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-a', 'specs', 'feature-a'), { recursive: true });
     await fs.mkdir(path.join(root, 'openspec', 'changes', 'archive', '2026-07-23-old-change'), { recursive: true });
+    await fs.mkdir(path.join(root, 'openspec', 'specs', 'feature-a'), { recursive: true });
+    await fs.writeFile(path.join(root, 'openspec', 'specs', 'feature-a', 'spec.md'), '### Requirement: First\n\n### Requirement: Second\n');
     await fs.mkdir(path.join(root, 'docs', 'ai', 'logs'), { recursive: true });
     await fs.writeFile(path.join(root, 'docs', 'ai', 'logs', 'gates.jsonl'), '{"ts":"t","mode":"fast","result":"VERDE"}\n');
     await fs.writeFile(path.join(root, 'docs', 'ai', 'logs', 'delegations.jsonl'), '{"ts":"t","rol":"builder","modelo":"zai/model","tarea":"audit"}\n');
@@ -43,6 +48,7 @@ describe('RepoEvidenceReader', () => {
       listOpenSpecChanges: async () => ['feature-a'],
       currentBranch: async () => 'feature/feature-a',
       mergedChanges: async (_repoPath, candidates) => candidates.filter((candidate) => candidate === 'old-change'),
+      validateOpenSpecChange: async () => 'passed',
       now: () => '2026-07-23T20:00:00.000Z',
     });
     const snapshot = await reader.read(root, 'repo-1');
@@ -55,6 +61,24 @@ describe('RepoEvidenceReader', () => {
     expect(snapshot.evidence.decisions).toMatchObject([{ kind: 'audit-rejected', risk: 'unknown', evidenceRefs: ['docs/reports/audit.md'] }]);
     expect(snapshot.evidence.archivedChanges).toEqual(['old-change']);
     expect(snapshot.evidence.mergedChanges).toEqual(['old-change']);
+    expect(snapshot.evidence.openSpecChanges).toMatchObject([{
+      changeId: 'feature-a',
+      intent: 'Ship one grounded workflow.',
+      proposalExists: true,
+      designExists: true,
+      specsCount: 1,
+      validation: 'passed',
+    }]);
+    expect(snapshot.evidence.openSpecArchivedChanges).toEqual([{
+      changeId: 'old-change',
+      archivedAt: '2026-07-23',
+      sourceRef: 'openspec/changes/archive/2026-07-23-old-change',
+    }]);
+    expect(snapshot.evidence.openSpecSpecifications).toEqual([{
+      specificationId: 'feature-a',
+      requirements: 2,
+      sourceRef: 'openspec/specs/feature-a/spec.md',
+    }]);
   });
 
   it('does not choose among multiple unmatched active changes', async () => {

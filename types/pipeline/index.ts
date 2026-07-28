@@ -17,6 +17,31 @@ export interface TaskEvidence {
   sourceRef: string;
 }
 
+export type OpenSpecValidationStatus = 'passed' | 'failed' | 'unknown';
+
+/** Evidencia durable de un change activo, leída sólo desde el scaffold OpenSpec. */
+export interface OpenSpecChangeEvidence {
+  changeId: string;
+  intent: string | null;
+  tasks: TaskEvidence[];
+  proposalExists: boolean;
+  designExists: boolean;
+  specsCount: number;
+  validation: OpenSpecValidationStatus;
+}
+
+export interface OpenSpecArchivedChangeEvidence {
+  changeId: string;
+  archivedAt: string | null;
+  sourceRef: string;
+}
+
+export interface OpenSpecSpecificationEvidence {
+  specificationId: string;
+  requirements: number | null;
+  sourceRef: string;
+}
+
 export interface AuditEvidence {
   verdict: 'approved' | 'rejected' | 'unknown';
   findings: string[];
@@ -114,6 +139,13 @@ export interface PipelineEvidence {
   mergedChanges: string[];
   diagnostics: PipelineDiagnostic[];
   selection: ChangeSelection;
+  /**
+   * Proyección rica para el dashboard. Son opcionales para poder abrir snapshots
+   * SQLite escritos por versiones anteriores sin fingir datos ausentes.
+   */
+  openSpecChanges?: OpenSpecChangeEvidence[];
+  openSpecArchivedChanges?: OpenSpecArchivedChangeEvidence[];
+  openSpecSpecifications?: OpenSpecSpecificationEvidence[];
 }
 
 export interface PipelineState extends PipelineEvidence {

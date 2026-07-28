@@ -7,7 +7,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { pathToFileURL } from 'url';
 import { registerTemporalAgentHandlers } from './temporal-agent-ipc';
-import { bootstrapDatabase, temporalAgentDatabasePath } from './db/connection';
+import { bootstrapDatabase, getDatabase, temporalAgentDatabasePath } from './db/connection';
 import { sanitizeForLog } from './ipc/shared';
 import { registerStorageHandlers } from './ipc/storage';
 import { registerAiHandlers } from './ipc/ai';
@@ -26,6 +26,8 @@ import { PipelineControlBus } from './pipeline/control/control-bus';
 import { registerPipelineControlHandlers } from './ipc/pipeline-control';
 import { registerPipelineRuntimeHandlers } from './ipc/pipeline-runtime';
 import { RuntimeSessionHub } from './pipeline/runtime/runtime-session-hub';
+import { PipelineRepository } from './pipeline/pipeline-repository';
+import { DefaultRuntimeSessionEvidenceCollector } from './pipeline/runtime/runtime-session-evidence';
 import {
   registerAppWindowHandlers, setupAutoUpdater,
   silentCheckForUpdates, stopUpdateCheckTimer,
@@ -270,6 +272,14 @@ registerCartoAiHandlers();         // carto:ai-* (proveedor de IA local/online; 
 const notifyPipelineRepoChanged = registerPipelineHandlers(getMainWindow); // pipeline:* read-only
 const pipelineControlBus = new PipelineControlBus();
 registerPipelineControlHandlers(pipelineControlBus); // pipeline:control:*
+const pipelineRuntimeHistory = {
+  persistRuntimeProjection(projection: Parameters<PipelineRepository['persistRuntimeProjection']>[0]) {
+    new PipelineRepository(getDatabase(app.getPath('userData'))).persistRuntimeProjection(projection);
+  },
+  loadRuntimeProjections(repoId: string, limit?: number) {
+    return new PipelineRepository(getDatabase(app.getPath('userData'))).loadRuntimeProjections(repoId, limit);
+  },
+};
 // Sesiones de runtime vivas (F03 → F04). Es la única superficie de Pipeline que
 // puede abrir procesos, por eso va en su propio módulo de canales.
 const pipelineRuntimeHub = new RuntimeSessionHub(
@@ -280,6 +290,10 @@ const pipelineRuntimeHub = new RuntimeSessionHub(
       projection: pipelineRuntimeHub.get(repoPath),
     });
   },
+  undefined,
+  undefined,
+  pipelineRuntimeHistory,
+  new DefaultRuntimeSessionEvidenceCollector(),
 );
 registerPipelineRuntimeHandlers(pipelineRuntimeHub); // pipeline:runtime:*
 registerWatcherHandlers(getMainWindow, notifyPipelineRepoChanged);          // repo:watch/unwatch

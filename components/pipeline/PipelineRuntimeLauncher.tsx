@@ -8,6 +8,9 @@ import { runtimeDisplayName } from './pipeline-domain';
 export type PipelineRuntimeLauncherProps = {
   repoPath: string;
   projection: RuntimeProjection | null;
+  initialInstruction?: string;
+  changeId?: string | null;
+  taskId?: string | null;
   /**
    * `true` cuando hay un fixture de desarrollo en pantalla.
    *
@@ -34,12 +37,15 @@ export type PipelineRuntimeLauncherProps = {
 export function PipelineRuntimeLauncher({
   repoPath,
   projection,
+  initialInstruction = '',
+  changeId = null,
+  taskId = null,
   blockedByFixture = false,
 }: PipelineRuntimeLauncherProps) {
   const t = useT();
   const [discovery, setDiscovery] = useState<RuntimeDiscoveryEntry[] | null>(null);
   const [runtime, setRuntime] = useState<string>('');
-  const [instruction, setInstruction] = useState('');
+  const [instruction, setInstruction] = useState(initialInstruction);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,7 +57,12 @@ export function PipelineRuntimeLauncher({
   useEffect(() => {
     let cancelled = false;
     const api = typeof window !== 'undefined' ? window.api : undefined;
-    if (!api?.pipelineRuntime) return undefined;
+    if (!api?.pipelineRuntime) {
+      queueMicrotask(() => {
+        if (!cancelled) setDiscovery([]);
+      });
+      return undefined;
+    }
 
     void api.pipelineRuntime.discover(repoPath).then((result) => {
       if (cancelled) return;
@@ -69,12 +80,12 @@ export function PipelineRuntimeLauncher({
     if (blockedByFixture || !api?.pipelineRuntime || !runtime || !instruction.trim()) return;
     setBusy(true);
     setError(null);
-    const result = await api.pipelineRuntime.start({ repoPath, runtime, instruction });
+    const result = await api.pipelineRuntime.start({ repoPath, runtime, instruction, changeId, taskId });
     setBusy(false);
     // El error llega como código estable desde Main; se muestra crudo en vez de
     // traducirse a una frase amable que oculte la causa.
     if (!result?.success) setError(result?.error ?? 'start_failed');
-  }, [repoPath, runtime, instruction, blockedByFixture]);
+  }, [repoPath, runtime, instruction, blockedByFixture, changeId, taskId]);
 
   const handleStop = useCallback(async () => {
     const api = typeof window !== 'undefined' ? window.api : undefined;

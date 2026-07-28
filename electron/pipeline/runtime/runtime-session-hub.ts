@@ -13,6 +13,7 @@ import { createCodexRuntimeAdapter } from '../runtime-adapters/codex-adapter';
 import { createAgyWrapperRuntimeAdapter } from '../runtime-adapters/agy-adapter';
 import type { RuntimeAdapter } from '../runtime-adapters/runtime-adapter';
 import { RuntimeProjectionBuilder } from './runtime-projection';
+import type { RuntimeSessionEvidenceCollector, RuntimeWorkingTreeEvidence } from './runtime-session-evidence';
 
 /**
  * Dueño de las sesiones de runtime vivas en Main.
@@ -28,7 +29,8 @@ import { RuntimeProjectionBuilder } from './runtime-projection';
  *   adaptador **implementa de verdad**;
  * - avisar a quien corresponda que la proyección cambió.
  *
- * No decide UI, no persiste y no traduce: eso vive del otro lado del IPC.
+ * No decide UI ni traduce. La persistencia se delega a un repositorio inyectado
+ * para que una corrida cerrada siga existiendo después de reiniciar GitCron.
  */
 
 /**
@@ -91,6 +93,7 @@ export interface StartRuntimeSessionInput {
   role: PipelineAgentRole;
   requestedModel: string | null;
   changeId: string | null;
+  taskId: string | null;
 }
 
 export type StartRuntimeSessionResult =
@@ -105,7 +108,14 @@ type LiveSession = {
   builder: RuntimeProjectionBuilder;
   abort: AbortController;
   drained: Promise<void>;
+  stopRequested: boolean;
+  workingTreeBefore: RuntimeWorkingTreeEvidence | null;
 };
+
+export interface RuntimeSessionHistoryStore {
+  persistRuntimeProjection(projection: RuntimeProjection): void;
+  loadRuntimeProjections(repoId: string, limit?: number): RuntimeProjection[];
+}
 
 export class RuntimeSessionHub {
   private readonly live = new Map<string, LiveSession>();
@@ -116,6 +126,8 @@ export class RuntimeSessionHub {
     private readonly onProjectionChanged: (repoPath: string) => void,
     private readonly now: () => string = () => new Date().toISOString(),
     private readonly adapters: AdapterEntry[] = ADAPTERS,
+    private readonly historyStore: RuntimeSessionHistoryStore | null = null,
+    private readonly evidenceCollector: RuntimeSessionEvidenceCollector | null = null,
   ) {}
 
   /** Qué runtimes hay instalados y cuáles se pueden lanzar de verdad. */
@@ -145,6 +157,10 @@ export class RuntimeSessionHub {
     return this.live.get(canonicalRepoPath)?.builder.snapshot() ?? null;
   }
 
+  history(repoId: string, limit = 20): RuntimeProjection[] {
+    return this.historyStore?.loadRuntimeProjections(repoId, limit) ?? [];
+  }
+
   async start(input: StartRuntimeSessionInput): Promise<StartRuntimeSessionResult> {
     const instruction = input.instruction.trim();
     if (!instruction) return { ok: false, error: 'instruction_required' };
@@ -162,13 +178,16 @@ export class RuntimeSessionHub {
     if (!adapter.start) return { ok: false, error: 'runtime_not_launchable' };
 
     const abort = new AbortController();
+    const workingTreeBefore = this.evidenceCollector
+      ? await this.evidenceCollector.captureWorkingTree(input.canonicalRepoPath).catch(() => null)
+      : null;
     let session: RuntimeSession;
     try {
       session = await adapter.start({
         repoId: input.repoId,
         canonicalRepoPath: input.canonicalRepoPath,
         changeId: input.changeId,
-        taskId: null,
+        taskId: input.taskId,
         runId: randomUUID(),
         attemptId: randomUUID(),
         parentSessionId: null,
@@ -191,6 +210,9 @@ export class RuntimeSessionHub {
       repoId: input.repoId,
       sessionId: session.identity.sessionId,
       runtime: session.identity.runtime,
+      changeId: session.identity.changeId,
+      taskId: session.identity.taskId,
+      role: session.identity.role,
       startedAt: session.startedAt,
       controlCapabilities: entry.controlCapabilities,
     });
@@ -210,9 +232,12 @@ export class RuntimeSessionHub {
       builder,
       abort,
       drained: Promise.resolve(),
+      stopRequested: false,
+      workingTreeBefore,
     };
     record.drained = this.drain(record);
     this.live.set(input.canonicalRepoPath, record);
+    this.persist(record);
     this.notify(input.canonicalRepoPath);
 
     return { ok: true, sessionId: session.identity.sessionId };
@@ -222,6 +247,7 @@ export class RuntimeSessionHub {
   async stop(canonicalRepoPath: string): Promise<boolean> {
     const record = this.live.get(canonicalRepoPath);
     if (!record || !record.builder.snapshot().active) return false;
+    record.stopRequested = true;
     record.abort.abort();
     try {
       await record.adapter.shutdown(record.session);
@@ -266,9 +292,48 @@ export class RuntimeSessionHub {
       );
     }
 
-    record.builder.close(this.now(), outcome);
+    if (this.evidenceCollector) {
+      const observedAt = this.now();
+      try {
+        const after = await this.evidenceCollector.captureWorkingTree(record.repoPath);
+        if (record.workingTreeBefore && after.signature !== record.workingTreeBefore.signature) {
+          const additions = after.additions === null ? 'unknown' : after.additions;
+          const deletions = after.deletions === null ? 'unknown' : after.deletions;
+          record.builder.addObservedActivity({
+            entryId: `${record.sessionId}:working-tree`,
+            channel: 'file',
+            text: `git.changed files=${after.filesChanged} additions=${additions} deletions=${deletions}`,
+            at: observedAt,
+            agentId: null,
+          });
+        }
+      } catch {
+        record.builder.addDiagnostic('working_tree_evidence_unavailable');
+      }
+      if (record.session.identity.changeId) {
+        const validation = await this.evidenceCollector.validateChange(record.repoPath, record.session.identity.changeId);
+        record.builder.addObservedActivity({
+          entryId: `${record.sessionId}:validation`,
+          channel: 'system',
+          text: `openspec.validation.${validation}`,
+          at: this.now(),
+          agentId: null,
+        });
+      }
+    }
+
+    record.builder.close(this.now(), record.stopRequested ? 'interrupted' : outcome);
     this.controlBus.unregisterSession(record.sessionId);
     this.flushNotify(record.repoPath);
+  }
+
+  private persist(record: LiveSession): void {
+    if (!this.historyStore) return;
+    try {
+      this.historyStore.persistRuntimeProjection(record.builder.snapshot());
+    } catch {
+      record.builder.addDiagnostic('history_persist_failed');
+    }
   }
 
   /** Aviso coalescido: agrupa ráfagas de deltas en un solo push. */
@@ -276,6 +341,8 @@ export class RuntimeSessionHub {
     if (this.notifyTimers.has(repoPath)) return;
     const timer = setTimeout(() => {
       this.notifyTimers.delete(repoPath);
+      const record = this.live.get(repoPath);
+      if (record) this.persist(record);
       this.onProjectionChanged(repoPath);
     }, NOTIFY_WINDOW_MS);
     timer.unref?.();
@@ -289,6 +356,8 @@ export class RuntimeSessionHub {
       clearTimeout(timer);
       this.notifyTimers.delete(repoPath);
     }
+    const record = this.live.get(repoPath);
+    if (record) this.persist(record);
     this.onProjectionChanged(repoPath);
   }
 }

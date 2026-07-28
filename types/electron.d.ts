@@ -433,6 +433,7 @@ interface ElectronAPI {
   pipelineRuntime: {
     discover: (repoPath: string) => Promise<GitResult<RuntimeDiscoveryEntry[]>>;
     get: (repoPath: string) => Promise<GitResult<RuntimeProjection | null>>;
+    history: (repoPath: string, limit?: number) => Promise<GitResult<RuntimeProjection[]>>;
     start: (payload: {
       repoPath: string;
       runtime: string;
@@ -440,6 +441,7 @@ interface ElectronAPI {
       role?: string;
       requestedModel?: string | null;
       changeId?: string | null;
+      taskId?: string | null;
     }) => Promise<GitResult<{ sessionId: string }>>;
     stop: (repoPath: string) => Promise<GitResult<boolean>>;
   };

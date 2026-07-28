@@ -6,9 +6,11 @@ import type {
   RuntimeHealth,
   RuntimeSession,
   RuntimeTelemetrySnapshot,
+  RuntimeProjection,
 } from '../../types/pipeline';
 import type { RuntimeAdapter, RuntimeStartRequest } from '../pipeline/runtime-adapters/runtime-adapter';
 import { RuntimeSessionHub } from '../pipeline/runtime/runtime-session-hub';
+import type { RuntimeSessionEvidenceCollector } from '../pipeline/runtime/runtime-session-evidence';
 
 const DESCRIPTOR: RuntimeDescriptor = {
   adapterId: 'fake', runtime: 'claude', adapterKind: 'structured-cli',
@@ -54,7 +56,7 @@ class FakeAdapter implements RuntimeAdapter {
   async start(request: RuntimeStartRequest): Promise<RuntimeSession> {
     return {
       identity: {
-        repoId: request.repoId, repoPath: request.canonicalRepoPath, changeId: null, taskId: null,
+        repoId: request.repoId, repoPath: request.canonicalRepoPath, changeId: request.changeId, taskId: request.taskId,
         runId: request.runId, attemptId: request.attemptId, sessionId: 'session-1',
         parentSessionId: null, agentId: 'agent-1', parentAgentId: null,
         orchestrationMode: 'direct', orchestratorRuntime: null, runtime: 'claude',
@@ -78,16 +80,23 @@ class FakeAdapter implements RuntimeAdapter {
   }
 }
 
-function makeHub(adapter: RuntimeAdapter, launchable = true) {
+function makeHub(adapter: RuntimeAdapter, launchable = true, evidenceCollector: RuntimeSessionEvidenceCollector | null = null) {
   const bus = { registerSession: vi.fn(), unregisterSession: vi.fn() };
   const notified: string[] = [];
+  const history = new Map<string, RuntimeProjection>();
+  const historyStore = {
+    persistRuntimeProjection: (projection: RuntimeProjection) => history.set(projection.sessionId, structuredClone(projection)),
+    loadRuntimeProjections: (repoId: string) => [...history.values()].filter((projection) => projection.repoId === repoId),
+  };
   const hub = new RuntimeSessionHub(
     bus,
     (repoPath) => notified.push(repoPath),
     () => '2026-07-26T00:05:00.000Z',
     [{ runtime: 'claude', create: () => adapter, controlCapabilities: ['cancel-run'], launchable }],
+    historyStore,
+    evidenceCollector,
   );
-  return { hub, bus, notified };
+  return { hub, bus, notified, history };
 }
 
 const START = {
@@ -97,7 +106,8 @@ const START = {
   instruction: 'auditá el repo',
   role: 'builder' as const,
   requestedModel: null,
-  changeId: null,
+  changeId: 'change-1',
+  taskId: '1.1',
 };
 
 describe('RuntimeSessionHub', () => {
@@ -128,6 +138,7 @@ describe('RuntimeSessionHub', () => {
     await hub.stop('C:/repo');
     expect(bus.unregisterSession).toHaveBeenCalledWith('session-1');
     expect(hub.get('C:/repo')?.active).toBe(false);
+    expect(hub.get('C:/repo')).toMatchObject({ outcome: 'interrupted', changeId: 'change-1', taskId: '1.1' });
   });
 
   it('refuses a second session on the same repo', async () => {
@@ -158,6 +169,43 @@ describe('RuntimeSessionHub', () => {
     const projection = hub.get('C:/repo');
     expect(projection?.telemetry).toBeNull();
     expect(projection?.diagnostics.some((line) => line.startsWith('telemetry_unavailable'))).toBe(true);
+  });
+
+  it('persists the closed projection so it remains available in session history', async () => {
+    const adapter = new FakeAdapter({ events: [envelope('run.completed', { success: true })] });
+    const { hub } = makeHub(adapter);
+    await hub.start(START);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const [saved] = hub.history('repo-1');
+    expect(saved).toMatchObject({
+      sessionId: 'session-1',
+      changeId: 'change-1',
+      taskId: '1.1',
+      outcome: 'completed',
+      active: false,
+    });
+  });
+
+  it('adds only locally observed Git and OpenSpec evidence to the durable activity', async () => {
+    let captures = 0;
+    const evidenceCollector: RuntimeSessionEvidenceCollector = {
+      captureWorkingTree: vi.fn(async () => {
+        captures += 1;
+        return captures === 1
+          ? { signature: 'before', filesChanged: 0, additions: 0, deletions: 0 }
+          : { signature: 'after', filesChanged: 2, additions: 12, deletions: 3 };
+      }),
+      validateChange: vi.fn(async () => 'passed' as const),
+    };
+    const { hub } = makeHub(new FakeAdapter({ events: [envelope('run.completed', { success: true })] }), true, evidenceCollector);
+    await hub.start(START);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const [saved] = hub.history('repo-1');
+    expect(saved.activity.map((entry) => entry.text)).toEqual(expect.arrayContaining([
+      'git.changed files=2 additions=12 deletions=3',
+      'openspec.validation.passed',
+      'session.completed',
+    ]));
   });
 
   it('marks a runtime unlaunchable when the installed version has no verified fixture', async () => {

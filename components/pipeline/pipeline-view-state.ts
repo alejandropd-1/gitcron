@@ -17,11 +17,41 @@ import type {
   PipelineDiffItem,
   PipelineProposal,
 } from './pipeline-domain';
+import type { OpenSpecValidationStatus, TaskEvidence } from '@/types/pipeline';
 
 export type PipelineSource = 'git' | 'hermes' | 'runtime' | 'kit';
 
 /** Versión de sobre que esta build sabe interpretar (F01/F03). */
 export const SUPPORTED_SNAPSHOT_VERSION = '1.0';
+
+export type OpenSpecChangeSummary = {
+  changeId: string;
+  intent: string | null;
+  tasks: TaskEvidence[];
+  proposalExists: boolean;
+  designExists: boolean;
+  specsCount: number;
+  validation: OpenSpecValidationStatus;
+};
+
+export type OpenSpecWorkspaceSnapshot = {
+  selectedChangeId: string | null;
+  activeChanges: OpenSpecChangeSummary[];
+  archivedChanges: Array<{
+    changeId: string;
+    archivedAt: string | null;
+    sourceRef: string;
+  }>;
+  specifications: Array<{
+    specificationId: string;
+    requirements: number | null;
+    sourceRef: string;
+  }>;
+  reports: string[];
+  diagnostics: Array<{ code: string; message: string; severity: string; sourceRef: string }>;
+  observedAt: string | null;
+  latestGate: { result: 'VERDE' | 'ROJO' | 'PENDIENTE'; mode: string; ts: string } | null;
+};
 
 export type PipelineSnapshot = {
   schemaVersion: string;
@@ -39,6 +69,8 @@ export type PipelineSnapshot = {
   diffs?: PipelineDiffItem[];
   auditorFindings?: AuditorFinding[];
   gateHistory?: GateHistoryEntry[];
+  /** Vista OpenSpec. Opcional para snapshots/fixtures históricos. */
+  openSpec?: OpenSpecWorkspaceSnapshot;
 };
 
 export type PipelineViewState =

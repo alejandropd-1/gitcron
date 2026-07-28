@@ -2,7 +2,17 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { CheckRepoActions, simpleGit } from 'simple-git';
-import type { ChangeSelection, DecisionRequest, JsonlCursor, PipelineDiagnostic, PipelineEvidence } from '../../types/pipeline';
+import type {
+  ChangeSelection,
+  DecisionRequest,
+  JsonlCursor,
+  OpenSpecArchivedChangeEvidence,
+  OpenSpecChangeEvidence,
+  OpenSpecSpecificationEvidence,
+  OpenSpecValidationStatus,
+  PipelineDiagnostic,
+  PipelineEvidence,
+} from '../../types/pipeline';
 import { selectPipelineChange } from './change-selection';
 import { normalizeDelegation, normalizeGate, normalizeVisualDiff, parseAudit, parseJsonlChunk, parseMarkdownTasks } from './parsers';
 import { safeListRepoDirectory, safeReadRepoFile } from './repo-paths';
@@ -13,6 +23,7 @@ export interface RepoEvidenceReaderDependencies {
   listOpenSpecChanges(repoPath: string): Promise<string[]>;
   currentBranch(repoPath: string): Promise<string>;
   mergedChanges(repoPath: string, candidates: string[]): Promise<string[]>;
+  validateOpenSpecChange?(repoPath: string, changeId: string): Promise<OpenSpecValidationStatus>;
   now(): string;
 }
 
@@ -54,9 +65,51 @@ async function defaultMergedChanges(repoPath: string, candidates: string[]): Pro
   return candidates.filter((candidate) => messages.split('\0').some((message) => message.includes(candidate)));
 }
 
+async function defaultValidateOpenSpecChange(
+  repoPath: string,
+  changeId: string,
+): Promise<OpenSpecValidationStatus> {
+  try {
+    await execFileAsync('openspec', ['validate', changeId, '--strict', '--no-interactive'], {
+      cwd: repoPath,
+      timeout: 15_000,
+      windowsHide: true,
+      maxBuffer: 2 * 1024 * 1024,
+      env: { ...process.env, OPENSPEC_TELEMETRY_DISABLED: '1', DO_NOT_TRACK: '1' },
+    });
+    return 'passed';
+  } catch (error) {
+    const exitCode = (error as { code?: unknown })?.code;
+    return typeof exitCode === 'number' ? 'failed' : 'unknown';
+  }
+}
+
 function archivedChangeId(entry: string): string | null {
   const match = /^\d{4}-\d{2}-\d{2}-(.+)$/.exec(entry);
   return match?.[1] ?? null;
+}
+
+function archivedChange(entry: string): OpenSpecArchivedChangeEvidence | null {
+  const match = /^(\d{4}-\d{2}-\d{2})-(.+)$/.exec(entry);
+  if (!match) return null;
+  return {
+    changeId: match[2],
+    archivedAt: match[1],
+    sourceRef: `openspec/changes/archive/${entry}`,
+  };
+}
+
+function firstWhyParagraph(markdown: string): string | null {
+  const section = /^## Why\s*$([\s\S]*?)(?=^##\s|(?![\s\S]))/im.exec(markdown)?.[1] ?? '';
+  const paragraph = section
+    .split(/\r?\n\s*\r?\n/)
+    .map((part) => part.replace(/\s+/g, ' ').trim())
+    .find((part) => part.length > 0 && !part.startsWith('#'));
+  return paragraph || null;
+}
+
+function countRequirements(markdown: string): number {
+  return Array.from(markdown.matchAll(/^### Requirement:\s+.+$/gm)).length;
 }
 
 export class RepoEvidenceReader {
@@ -64,6 +117,7 @@ export class RepoEvidenceReader {
     listOpenSpecChanges: defaultListOpenSpecChanges,
     currentBranch: defaultCurrentBranch,
     mergedChanges: defaultMergedChanges,
+    validateOpenSpecChange: defaultValidateOpenSpecChange,
     now: () => new Date().toISOString(),
   }) {}
 
@@ -84,13 +138,37 @@ export class RepoEvidenceReader {
     }
     const selection = selectPipelineChange(branch, activeChanges);
 
-    const tasks = [];
-    if (selection.changeId && /^[a-z0-9][a-z0-9-]*$/.test(selection.changeId)) {
-      const sourceRef = `openspec/changes/${selection.changeId}/tasks.md`;
-      const taskFile = await safeReadRepoFile(repoPath, sourceRef);
-      diagnostics.push(...taskFile.diagnostics);
-      if (taskFile.content !== null) tasks.push(...parseMarkdownTasks(taskFile.content, sourceRef));
+    const safeActiveChanges = activeChanges.filter((changeId) => /^[a-z0-9][a-z0-9-]*$/.test(changeId));
+    const openSpecChanges: OpenSpecChangeEvidence[] = [];
+    for (const changeId of safeActiveChanges) {
+      const changeRoot = `openspec/changes/${changeId}`;
+      const taskRef = `${changeRoot}/tasks.md`;
+      const proposalRef = `${changeRoot}/proposal.md`;
+      const designRef = `${changeRoot}/design.md`;
+      const [taskFile, proposalFile, designFile, deltaSpecs, validation] = await Promise.all([
+        safeReadRepoFile(repoPath, taskRef),
+        safeReadRepoFile(repoPath, proposalRef),
+        safeReadRepoFile(repoPath, designRef),
+        safeListRepoDirectory(repoPath, `${changeRoot}/specs`),
+        this.dependencies.validateOpenSpecChange?.(repoPath, changeId) ?? Promise.resolve('unknown' as const),
+      ]);
+      if (taskFile.status !== 'missing') diagnostics.push(...taskFile.diagnostics);
+      if (proposalFile.status !== 'missing') diagnostics.push(...proposalFile.diagnostics);
+      if (designFile.status !== 'missing') diagnostics.push(...designFile.diagnostics);
+      openSpecChanges.push({
+        changeId,
+        intent: proposalFile.content ? firstWhyParagraph(proposalFile.content) : null,
+        tasks: taskFile.content ? parseMarkdownTasks(taskFile.content, taskRef) : [],
+        proposalExists: proposalFile.content !== null,
+        designExists: designFile.content !== null,
+        specsCount: deltaSpecs.length,
+        validation,
+      });
     }
+
+    const tasks = selection.changeId
+      ? openSpecChanges.find((change) => change.changeId === selection.changeId)?.tasks ?? []
+      : [];
 
     const readJsonl = async (sourceRef: string): Promise<unknown[]> => {
       const file = await safeReadRepoFile(repoPath, sourceRef);
@@ -111,10 +189,16 @@ export class RepoEvidenceReader {
 
     let reports: string[] = [];
     let archivedChanges: string[] = [];
+    let openSpecArchivedChanges: OpenSpecArchivedChangeEvidence[] = [];
     const decisions: DecisionRequest[] = [];
     try {
       reports = (await safeListRepoDirectory(repoPath, 'docs/reports')).filter((name) => name.endsWith('.md')).map((name) => `docs/reports/${name}`);
-      archivedChanges = (await safeListRepoDirectory(repoPath, 'openspec/changes/archive')).map(archivedChangeId).filter((id): id is string => id !== null);
+      const archiveEntries = await safeListRepoDirectory(repoPath, 'openspec/changes/archive');
+      archivedChanges = archiveEntries.map(archivedChangeId).filter((id): id is string => id !== null);
+      openSpecArchivedChanges = archiveEntries
+        .map(archivedChange)
+        .filter((entry): entry is OpenSpecArchivedChangeEvidence => entry !== null)
+        .sort((a, b) => (b.archivedAt ?? '').localeCompare(a.archivedAt ?? ''));
       for (const report of reports) {
         const file = await safeReadRepoFile(repoPath, report, { maxBytes: 512 * 1024 });
         if (file.content === null) continue;
@@ -147,6 +231,23 @@ export class RepoEvidenceReader {
       diagnostics.push(issue('git.merge-evidence-unavailable', 'No se pudo comprobar evidencia de merges.', 'git'));
     }
 
+    const openSpecSpecifications: OpenSpecSpecificationEvidence[] = [];
+    try {
+      const specificationIds = await safeListRepoDirectory(repoPath, 'openspec/specs');
+      for (const specificationId of specificationIds.filter((id) => /^[a-z0-9][a-z0-9-]*$/.test(id))) {
+        const sourceRef = `openspec/specs/${specificationId}/spec.md`;
+        const specFile = await safeReadRepoFile(repoPath, sourceRef);
+        if (specFile.status !== 'missing') diagnostics.push(...specFile.diagnostics);
+        openSpecSpecifications.push({
+          specificationId,
+          requirements: specFile.content === null ? null : countRequirements(specFile.content),
+          sourceRef,
+        });
+      }
+    } catch {
+      diagnostics.push(issue('openspec.specifications-unavailable', 'No se pudieron listar las especificaciones OpenSpec.', 'openspec/specs'));
+    }
+
     return {
       selection,
       evidence: {
@@ -163,6 +264,9 @@ export class RepoEvidenceReader {
         mergedChanges,
         diagnostics,
         selection,
+        openSpecChanges,
+        openSpecArchivedChanges,
+        openSpecSpecifications,
       },
     };
   }

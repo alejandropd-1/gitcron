@@ -55,6 +55,9 @@ function builder() {
     repoId: 'repo-1',
     sessionId: 'session-1',
     runtime: 'claude',
+    changeId: 'change-1',
+    taskId: '1.1',
+    role: 'builder',
     startedAt: '2026-07-26T00:00:00.000Z',
     controlCapabilities: ['cancel-run'],
   });

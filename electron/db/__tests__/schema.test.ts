@@ -12,6 +12,7 @@ import {
   PIPELINE_SNAPSHOT_TABLE,
   PIPELINE_EVENT_TABLE,
   PIPELINE_CURSOR_TABLE,
+  PIPELINE_RUNTIME_SESSION_TABLE,
 } from '../schema';
 
 type SqliteNameRow = { name: string };
@@ -108,6 +109,7 @@ describe('Temporal Agent SQLite schema', () => {
         PIPELINE_SNAPSHOT_TABLE,
         PIPELINE_EVENT_TABLE,
         PIPELINE_CURSOR_TABLE,
+        PIPELINE_RUNTIME_SESSION_TABLE,
       ]));
     });
   });
@@ -224,6 +226,17 @@ describe('Temporal Agent SQLite schema', () => {
       runMigrations(db);
       expect(pragmaNumber(db, 'user_version')).toBe(LATEST_SCHEMA_VERSION);
       expect(sqliteNames(db, 'table').filter((name) => name === PREDICTION_RUN_TABLE)).toHaveLength(1);
+    });
+  });
+
+  it('upgrades an existing Pipeline v4 database without recreating its evidence tables', () => {
+    withDb((db) => {
+      db.exec(`DROP TABLE ${PIPELINE_RUNTIME_SESSION_TABLE}`);
+      db.exec('PRAGMA user_version = 4');
+      runMigrations(db);
+      expect(pragmaNumber(db, 'user_version')).toBe(5);
+      expect(sqliteNames(db, 'table')).toContain(PIPELINE_RUNTIME_SESSION_TABLE);
+      expect(sqliteNames(db, 'table')).toContain(PIPELINE_SNAPSHOT_TABLE);
     });
   });
 });

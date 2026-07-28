@@ -1,10 +1,11 @@
 const SENSITIVE_KEY = /(authorization|cookie|token|secret|api[_-]?key|password|prompt|reasoning)/i;
+const SAFE_REASONING_METADATA_KEYS = new Set(['reasoningVisibility', 'reasoningTokens']);
 const MAX_STRING_LENGTH = 16_384;
 const MAX_ARRAY_LENGTH = 1_000;
 const MAX_DEPTH = 12;
 
 function sanitizePipelineValue(value: unknown, key = '', depth = 0): unknown {
-  if (SENSITIVE_KEY.test(key)) return '[REDACTED]';
+  if (SENSITIVE_KEY.test(key) && !SAFE_REASONING_METADATA_KEYS.has(key)) return '[REDACTED]';
   if (depth > MAX_DEPTH) return '[TRUNCATED_DEPTH]';
   if (typeof value === 'string') return value.length > MAX_STRING_LENGTH ? `${value.slice(0, MAX_STRING_LENGTH)}…[TRUNCATED]` : value;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;

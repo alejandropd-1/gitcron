@@ -1471,7 +1471,7 @@ export default function GitCronPage() {
         <RepoSidebar
           graphMode={graphMode}
           sidebarW={sidebarW}
-          sidebarOpen={sidebarOpen}
+          sidebarOpen={activeTab === 'Pipeline' ? false : sidebarOpen}
           isDragging={isDragging}
           onResizeStart={(e) => beginColDrag('sidebar', e)}
           activeView={activeView}
@@ -1532,8 +1532,12 @@ export default function GitCronPage() {
                 : {
                     top: 96 + FLOATING_PANEL_INSET,
                     bottom: FLOATING_PANEL_INSET,
-                    left: sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
-                    right: repositoryDetailsVisible ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
+                    left: activeTab === 'Pipeline'
+                      ? FLOATING_PANEL_INSET
+                      : sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
+                    right: activeTab === 'Pipeline'
+                      ? FLOATING_PANEL_INSET
+                      : repositoryDetailsVisible ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
                   }
               : undefined
           }
@@ -1664,6 +1668,14 @@ export default function GitCronPage() {
               modifiedFiles,
               hasGithubUser: !!githubUser,
               isLoading,
+              pipelineLayout: {
+                leftOpen: sidebarOpen,
+                rightOpen: detailsOpen,
+                leftWidth: sidebarW,
+                rightWidth: detailsW,
+                onResizeLeft: (event) => beginColDrag('sidebar', event),
+                onResizeRight: (event) => beginColDrag('details', event),
+              },
               onSelectCommit: handleSelectCommit,
               onCommitContextMenu: (event, commit) => openContextMenu({ x: event.clientX, y: event.clientY, hash: commit.hash }),
             }}
@@ -1702,7 +1714,7 @@ export default function GitCronPage() {
         <RepoDetailsPanel
           graphMode={graphMode}
           detailsW={detailsW}
-          visible={repositoryDetailsVisible}
+          visible={activeTab === 'Pipeline' ? false : repositoryDetailsVisible}
           isDragging={isDragging}
           onResizeStart={(e) => beginColDrag('details', e)}
           onOpenStashModal={handleOpenStashModal}

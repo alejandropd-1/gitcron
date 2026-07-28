@@ -261,6 +261,7 @@ contextBridge.exposeInMainWorld('api', {
   pipelineRuntime: {
     discover: (repoPath: string) => ipcRenderer.invoke('pipeline:runtime:discover', repoPath),
     get: (repoPath: string) => ipcRenderer.invoke('pipeline:runtime:get', repoPath),
+    history: (repoPath: string, limit?: number) => ipcRenderer.invoke('pipeline:runtime:history', repoPath, limit),
     start: (payload: unknown) => ipcRenderer.invoke('pipeline:runtime:start', payload),
     stop: (repoPath: string) => ipcRenderer.invoke('pipeline:runtime:stop', repoPath),
   },

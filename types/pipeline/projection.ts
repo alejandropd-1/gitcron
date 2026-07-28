@@ -73,6 +73,8 @@ export interface RuntimeAgentObservation {
  */
 export type RuntimeReasoningVisibility = 'emitted' | 'summary' | 'unavailable' | 'unknown';
 
+export type RuntimeSessionOutcome = 'running' | 'completed' | 'failed' | 'interrupted' | 'unknown';
+
 export interface RuntimeTelemetryValues {
   inputTokens: number | null;
   outputTokens: number | null;
@@ -90,8 +92,12 @@ export interface RuntimeProjection {
   repoId: string;
   sessionId: string;
   runtime: PipelineRuntime;
+  changeId: string | null;
+  taskId: string | null;
+  role: string;
   /** `true` mientras el proceso vive y el stream sigue abierto. */
   active: boolean;
+  outcome: RuntimeSessionOutcome;
   startedAt: string;
   endedAt: string | null;
   agents: RuntimeAgentObservation[];

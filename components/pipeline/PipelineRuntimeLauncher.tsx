@@ -61,6 +61,7 @@ export function PipelineRuntimeLauncher({
   const [error, setError] = useState<string | null>(null);
   const [discoveryToken, setDiscoveryToken] = useState(0);
   const [editingInstruction, setEditingInstruction] = useState(false);
+  const [writeConfirmed, setWriteConfirmed] = useState(false);
 
   const active = projection?.active === true;
   // Un solo booleano para todos los controles: si hay fixture en pantalla, nada
@@ -89,6 +90,7 @@ export function PipelineRuntimeLauncher({
   }, [repoPath, discoveryToken]);
 
   const selectedEntry = discovery?.find((entry) => entry.runtime === runtime) ?? null;
+  const modifiesRepo = selectedEntry?.startModifiesRepo === true;
   const canStart = canStartRuntimeSession({
     blockedByFixture,
     runtimeSelected: runtime,
@@ -96,6 +98,8 @@ export function PipelineRuntimeLauncher({
     instruction,
     sessionActive: active,
     busy,
+    modifiesRepo,
+    writeConfirmed,
   });
 
   const handleStart = useCallback(async () => {
@@ -189,6 +193,27 @@ export function PipelineRuntimeLauncher({
             </p>
           )}
 
+          {/* El alcance declarado va antes del CTA. Un runtime que corre con
+              herramientas de sólo lectura puede analizar y reportar, pero no
+              modificar el repositorio, y eso hay que decirlo antes de gastar
+              una corrida, no después. */}
+          {/* El campo llega por IPC: si un Main más viejo no lo emite, no se
+              inventa un alcance, simplemente no se afirma nada. */}
+          {modifiesRepo && (
+            <p className="pipeline-launcher__scope" data-availability="writes">
+              {t('pipeline.launcher.scope.writes')}
+              {(selectedEntry?.startConstraints ?? []).length > 0
+                && ` · ${(selectedEntry?.startConstraints ?? []).join(' · ')}`}
+            </p>
+          )}
+          {selectedEntry?.startAvailability && selectedEntry.startAvailability !== 'available' && (
+            <p className="pipeline-launcher__scope" data-availability={selectedEntry.startAvailability}>
+              {t(`pipeline.launcher.scope.${selectedEntry.startAvailability}`)}
+              {(selectedEntry.startConstraints ?? []).length > 0
+                && ` · ${(selectedEntry.startConstraints ?? []).join(' · ')}`}
+            </p>
+          )}
+
           {/* La instrucción ya viene compuesta desde el flujo guiado. Editarla es
               una salida avanzada, no el primer campo que la persona enfrenta. */}
           <div className="pipeline-launcher__field">
@@ -213,6 +238,20 @@ export function PipelineRuntimeLauncher({
               <pre className="pipeline-launcher__instruction-preview">{instruction}</pre>
             )}
           </div>
+
+          {/* Una sesión que edita el repositorio se confirma a mano. El aviso
+              dice qué va a pasar y qué queda afuera, no un "¿estás seguro?". */}
+          {modifiesRepo && !active && (
+            <label className="pipeline-launcher__confirm">
+              <input
+                type="checkbox"
+                checked={writeConfirmed}
+                disabled={locked}
+                onChange={(event) => setWriteConfirmed(event.target.checked)}
+              />
+              <span>{t('pipeline.launcher.confirmWrite')}</span>
+            </label>
+          )}
 
           <div className="pipeline-launcher__actions">
             {active ? (

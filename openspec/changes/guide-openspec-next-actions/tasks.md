@@ -17,7 +17,7 @@
 
 - [x] 3.1 Propagar `fixtureActive` de `PipelineWorkspace` a `OpenSpecDashboard`
 - [x] 3.2 Pasar `blockedByFixture` desde `OpenSpecDashboard` a `PipelineRuntimeLauncher`
-- [ ] 3.3 Probar que con fixture activo el lanzador queda bloqueado y no puede iniciar sesión real
+- [x] 3.3 Probar que con fixture activo el lanzador queda bloqueado y no puede iniciar sesión real
 
 ## 4. Componente de guía
 
@@ -52,7 +52,7 @@
 - [x] 7.4 Informar el caso sesión terminada con tarea aún pendiente y ofrecer reintento con la misma instrucción
 - [x] 7.5 Seleccionar el cambio recién creado sólo cuando pueda identificarse de forma verificable
 - [x] 7.6 Dejar la sesión nueva seleccionada en Actividad mientras está activa
-- [ ] 7.7 Probar continuación con contexto conservado, cierre que refresca evidencia y persistencia de sesión tras reinicio
+- [x] 7.7 Probar continuación con contexto conservado, cierre que refresca evidencia y persistencia de sesión tras reinicio
 
 ## 8. i18n y accesibilidad
 

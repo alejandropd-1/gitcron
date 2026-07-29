@@ -119,7 +119,11 @@ Cuando ningún runtime resulta lanzable, la guía SHALL mostrar los diagnóstico
 - **THEN** aparece deshabilitado con el motivo declarado por el adaptador
 
 ### Requirement: Guía densa, contextual y traducida
-La guía SHALL ocupar un bloque compacto con a lo sumo etiqueta de estado, título corto, una frase de ayuda, una acción primaria y una secundaria sólo cuando exista alternativa real. SHALL NOT introducir onboarding permanente ni textos explicativos extensos. Toda string nueva SHALL existir en español, inglés y chino.
+La guía SHALL adoptar la forma mínima que el contexto ya permita. Con un cambio activo, donde el ciclo de vida ya indica la etapa y la acción nombra su tarea, SHALL reducirse a una sola frase sobre la barra de acciones, sin bloque ni encabezado propios. Sin cambio activo o con uno archivado, donde no hay ni ciclo ni tareas que mostrar, SHALL presentarse como bloque compacto con a lo sumo etiqueta de estado, título corto, una frase, una acción primaria y una secundaria. En ningún caso SHALL introducir onboarding permanente ni textos explicativos extensos, ni duplicar un control que ya exista en pantalla. Toda string nueva SHALL existir en español, inglés y chino.
+
+#### Scenario: Cambio activo seleccionado
+- **WHEN** hay un cambio activo con su ciclo de vida y su lista de tareas a la vista
+- **THEN** la guía aporta una única frase y la barra de acciones, sin repetir la etapa ni envolverse en un bloque aparte
 
 #### Scenario: Sin alternativa real
 - **WHEN** el estado no ofrece una segunda opción significativa

@@ -14,8 +14,16 @@ export default defineConfig({
       // F04 introduce lógica de UI testeable sin DOM (resolución de estado del
       // workspace Pipeline), que vive junto a sus componentes.
       'components/**/__tests__/**/*.test.ts',
+      // Los tests de componentes declaran `@vitest-environment jsdom` en su
+      // cabecera. El entorno por defecto sigue siendo `node`: montar un DOM
+      // para las suites de dominio sería más lento sin aportar nada.
+      'components/**/__tests__/**/*.test.tsx',
     ],
   },
+  // `tsconfig.json` declara `jsx: preserve` porque la transformación la hace
+  // Next. Vitest usa rolldown/oxc y necesita hacerla por su cuenta para poder
+  // montar componentes.
+  oxc: { jsx: { runtime: 'automatic' } },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),

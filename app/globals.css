@@ -864,23 +864,23 @@ body, .font-sans {
 .pipeline-filter {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  min-height: 24px;
-  padding: 0.1875rem 0.6rem;
-  font-size: 0.6875rem;
+  gap: 0.35rem;
+  min-height: 1.9rem;
+  padding: 0.25rem 0.65rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.64rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: none;
-  border-radius: var(--radius-full);
-  background-color: color-mix(in srgb, var(--color-border-subtle) 32%, transparent);
+  letter-spacing: 0.04em;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.2rem;
+  background-color: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: border-color 0.14s ease, background-color 0.14s ease, color 0.14s ease;
 }
 
 .pipeline-filter:hover:not(:disabled) {
-  background-color: color-mix(in srgb, var(--color-border-subtle) 60%, transparent);
+  border-color: color-mix(in srgb, var(--color-primary) 48%, transparent);
   color: var(--color-text-primary);
 }
 
@@ -892,8 +892,9 @@ body, .font-sans {
 /* Encendido: relleno + borde. `aria-pressed` es lo que lo comunica de verdad;
    esto es su reflejo visual, no su único canal. */
 .pipeline-filter[aria-pressed="true"] {
-  background-color: var(--color-primary);
-  color: var(--color-bg-base);
+  border-color: var(--color-primary);
+  background-color: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
 }
 
 /* Apagado: relleno hueco y punteado. No depende del color para leerse. */
@@ -2078,6 +2079,38 @@ body, .font-sans {
 
 .pipeline-launcher__availability[data-launchable='false'] {
   color: var(--color-git-mod);
+}
+
+/* El alcance declarado se marca como aviso, no como error: el runtime funciona,
+   pero no hace todo lo que el botón podría sugerir. */
+.pipeline-launcher__scope {
+  margin: 0.4rem 0 0;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--color-git-mod);
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+}
+
+/* Una sesión que escribe se marca con el color de aviso, no con el de error:
+   es lo que la persona pidió, pero tiene que verlo antes de confirmarlo. */
+.pipeline-launcher__scope[data-availability='writes'] {
+  border-left-color: var(--color-git-add);
+  color: var(--color-text-primary);
+}
+
+.pipeline-launcher__confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.pipeline-launcher__confirm input {
+  margin-top: 0.1rem;
+  accent-color: var(--color-primary);
 }
 
 .pipeline-launcher__disclosure {

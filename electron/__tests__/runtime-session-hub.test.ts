@@ -36,7 +36,9 @@ function envelope(kind: string, payload: unknown = {}): PipelineEventEnvelope {
 
 /** Adaptador de mentira: mismo contrato que F03, sin proceso hijo. */
 class FakeAdapter implements RuntimeAdapter {
-  readonly descriptor = DESCRIPTOR;
+  // Copia por instancia: un test que agregue capabilities no debe filtrarlas al
+  // siguiente a través del descriptor compartido del módulo.
+  readonly descriptor: RuntimeDescriptor = { ...DESCRIPTOR, capabilities: [...DESCRIPTOR.capabilities] };
   shutdownCalls = 0;
 
   constructor(private readonly options: { verified?: boolean; events?: PipelineEventEnvelope[] } = {}) {}
@@ -80,7 +82,12 @@ class FakeAdapter implements RuntimeAdapter {
   }
 }
 
-function makeHub(adapter: RuntimeAdapter, launchable = true, evidenceCollector: RuntimeSessionEvidenceCollector | null = null) {
+function makeHub(
+  adapter: RuntimeAdapter,
+  launchable = true,
+  evidenceCollector: RuntimeSessionEvidenceCollector | null = null,
+  modifiesRepo = false,
+) {
   const bus = { registerSession: vi.fn(), unregisterSession: vi.fn() };
   const notified: string[] = [];
   const history = new Map<string, RuntimeProjection>();
@@ -92,7 +99,7 @@ function makeHub(adapter: RuntimeAdapter, launchable = true, evidenceCollector: 
     bus,
     (repoPath) => notified.push(repoPath),
     () => '2026-07-26T00:05:00.000Z',
-    [{ runtime: 'claude', create: () => adapter, controlCapabilities: ['cancel-run'], launchable }],
+    [{ runtime: 'claude', create: () => adapter, controlCapabilities: ['cancel-run'], launchable, modifiesRepo }],
     historyStore,
     evidenceCollector,
   );
@@ -213,6 +220,43 @@ describe('RuntimeSessionHub', () => {
     const [entry] = await hub.discover('C:/repo');
     expect(entry.installed).toBe(true);
     expect(entry.launchable).toBe(false);
+  });
+
+  // Un runtime lanzable no es necesariamente un runtime que pueda hacer el
+  // trabajo: los adaptadores nativos corren hoy con herramientas de sólo lectura
+  // y lo declaran en `session.start`. Si el alcance no viaja al renderer, la UI
+  // termina prometiendo algo que el adaptador niega.
+  it('propagates the declared scope of session.start to discovery', async () => {
+    const adapter = new FakeAdapter();
+    adapter.descriptor.capabilities.push({
+      capabilityId: 'session.start',
+      capabilityVersion: null,
+      availability: 'degraded',
+      evidenceStatus: 'verified',
+      targetScopes: ['repo'],
+      constraints: ['read-only tools in F03'],
+      evidenceRefs: [],
+    });
+    const { hub } = makeHub(adapter);
+    const [entry] = await hub.discover('C:/repo');
+    expect(entry.launchable).toBe(true);
+    expect(entry.startAvailability).toBe('degraded');
+    expect(entry.startConstraints).toEqual(['read-only tools in F03']);
+  });
+
+  it('propagates whether a session can write to the working tree', async () => {
+    const [readOnly] = await makeHub(new FakeAdapter()).hub.discover('C:/repo');
+    expect(readOnly.startModifiesRepo).toBe(false);
+
+    const [writer] = await makeHub(new FakeAdapter(), true, null, true).hub.discover('C:/repo');
+    expect(writer.startModifiesRepo).toBe(true);
+  });
+
+  it('reports an unknown scope when the adapter declares no session.start', async () => {
+    const { hub } = makeHub(new FakeAdapter());
+    const [entry] = await hub.discover('C:/repo');
+    expect(entry.startAvailability).toBe('unknown');
+    expect(entry.startConstraints).toEqual([]);
   });
 
   it('shuts every session down on dispose so no process outlives the app', async () => {

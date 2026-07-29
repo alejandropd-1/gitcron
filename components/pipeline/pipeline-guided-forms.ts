@@ -70,11 +70,19 @@ export function canStartRuntimeSession(input: {
   instruction: string;
   sessionActive: boolean;
   busy: boolean;
+  /** `true` si la sesión puede escribir en el working tree. */
+  modifiesRepo?: boolean;
+  /** Confirmación explícita de la persona para una sesión que escribe. */
+  writeConfirmed?: boolean;
 }): boolean {
   if (input.blockedByFixture) return false;
   if (input.busy) return false;
   if (input.sessionActive) return false;
   if (!input.runtimeSelected) return false;
   if (!input.runtimeLaunchable) return false;
+  // Una sesión que edita el repositorio no se lanza con un solo clic. La
+  // confirmación se exige acá y no en el render para que no dependa de que un
+  // componente se acuerde de pedirla.
+  if (input.modifiesRepo && !input.writeConfirmed) return false;
   return input.instruction.trim().length > 0;
 }

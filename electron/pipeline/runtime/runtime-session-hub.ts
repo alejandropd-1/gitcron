@@ -69,6 +69,13 @@ type AdapterEntry = {
    * ocultarlos y parecer que no existen.
    */
   launchable: boolean;
+  /**
+   * `true` cuando una sesión de este adaptador puede escribir en el working
+   * tree. Se declara acá, explícito por adaptador, en vez de inferirse de los
+   * argumentos: una sesión que edita el repo exige confirmación humana, y esa
+   * decisión no puede depender de leer un string de flags.
+   */
+  modifiesRepo: boolean;
 };
 
 /**
@@ -80,9 +87,9 @@ type AdapterEntry = {
  * ejecutable explícita que hoy no se configura en ningún lado.
  */
 const ADAPTERS: AdapterEntry[] = [
-  { runtime: 'claude', create: (repo) => createClaudeRuntimeAdapter(repo), controlCapabilities: STRUCTURED_CLI_CONTROLS, launchable: true },
-  { runtime: 'codex', create: (repo) => createCodexRuntimeAdapter(repo), controlCapabilities: STRUCTURED_CLI_CONTROLS, launchable: true },
-  { runtime: 'agy', create: (repo) => createAgyWrapperRuntimeAdapter(repo), controlCapabilities: [], launchable: false },
+  { runtime: 'claude', create: (repo) => createClaudeRuntimeAdapter(repo), controlCapabilities: STRUCTURED_CLI_CONTROLS, launchable: true, modifiesRepo: true },
+  { runtime: 'codex', create: (repo) => createCodexRuntimeAdapter(repo), controlCapabilities: STRUCTURED_CLI_CONTROLS, launchable: true, modifiesRepo: false },
+  { runtime: 'agy', create: (repo) => createAgyWrapperRuntimeAdapter(repo), controlCapabilities: [], launchable: false, modifiesRepo: false },
 ];
 
 export interface StartRuntimeSessionInput {
@@ -136,11 +143,20 @@ export class RuntimeSessionHub {
       const adapter = entry.create(canonicalRepoPath);
       const discovery = await adapter.discover();
       const versionVerified = discovery.installed && discovery.evidenceStatus === 'verified';
+      // El alcance real de una sesión lo declara el adaptador, no lo infiere la
+      // UI: hoy los nativos corren con herramientas de sólo lectura y lo dicen
+      // en `session.start`. Se propaga para que el renderer no prometa trabajo
+      // que el runtime no puede hacer.
+      const startCapability = adapter.descriptor.capabilities
+        .find((capability) => capability.capabilityId === 'session.start');
       return {
         runtime: entry.runtime,
         adapterId: adapter.descriptor.adapterId,
         installed: discovery.installed,
         runtimeVersion: discovery.runtimeVersion,
+        startAvailability: startCapability?.availability ?? 'unknown',
+        startConstraints: startCapability?.constraints ?? [],
+        startModifiesRepo: entry.modifiesRepo,
         // Lanzable requiere las tres cosas: que el adaptador tenga `start()`,
         // que el binario esté, y que la versión coincida con el fixture
         // auditado. `start()` aborta si falta la última, así que ofrecerlo

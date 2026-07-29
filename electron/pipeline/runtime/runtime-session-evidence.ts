@@ -1,9 +1,6 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { simpleGit } from 'simple-git';
 import type { OpenSpecValidationStatus } from '../../../types/pipeline';
-
-const execFileAsync = promisify(execFile);
+import { validateOpenSpecChangeWithCli } from '../openspec-cli';
 
 export interface RuntimeWorkingTreeEvidence {
   signature: string;
@@ -48,17 +45,6 @@ export class DefaultRuntimeSessionEvidenceCollector implements RuntimeSessionEvi
   }
 
   async validateChange(repoPath: string, changeId: string): Promise<OpenSpecValidationStatus> {
-    try {
-      await execFileAsync('openspec', ['validate', changeId, '--strict', '--no-interactive'], {
-        cwd: repoPath,
-        timeout: 15_000,
-        windowsHide: true,
-        maxBuffer: 2 * 1024 * 1024,
-        env: { ...process.env, OPENSPEC_TELEMETRY_DISABLED: '1', DO_NOT_TRACK: '1' },
-      });
-      return 'passed';
-    } catch (error) {
-      return typeof (error as { code?: unknown })?.code === 'number' ? 'failed' : 'unknown';
-    }
+    return validateOpenSpecChangeWithCli(repoPath, changeId);
   }
 }

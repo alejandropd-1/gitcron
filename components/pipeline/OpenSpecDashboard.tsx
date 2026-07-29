@@ -12,7 +12,11 @@ import {
   FileText,
   FolderOpen,
   GitBranch,
+  GitCompare,
+  Pause,
+  Play,
   ShieldCheck,
+  User,
   Wrench,
   MessageSquareText,
   BrainCircuit,
@@ -26,9 +30,9 @@ import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { PipelineNextStepGuide } from './PipelineNextStepGuide';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
 import {
-  composeApplyInstruction,
-  composeArchiveInstruction,
   derivePipelineNextAction,
+  resolveTaskLabel,
+  resolveTaskText,
   type PipelineActionIntent,
 } from './pipeline-next-action';
 import { groupActivity, runtimeDisplayName, type ActivityChannel } from './pipeline-domain';
@@ -142,7 +146,6 @@ export function OpenSpecDashboard({
     : openSpec?.selectedChangeId ?? activeChanges[0]?.changeId ?? archivedChanges[0]?.changeId ?? null;
   const selectedChange = activeChanges.find((change) => change.changeId === selectedId) ?? null;
   const selectedArchive = archivedChanges.find((change) => change.changeId === selectedId) ?? null;
-  const progress = selectedChange ? taskProgress(selectedChange) : { completed: 0, total: 0, percent: 0 };
   const nextTask = selectedChange?.tasks.find((task) => !task.completed) ?? null;
   const stages = lifecycle(selectedChange, selectedArchive !== null);
   const runtimeActive = projection?.active === true;
@@ -179,6 +182,30 @@ export function OpenSpecDashboard({
     decisions: snapshot.decisions,
     projection,
   });
+  // Se sacan a constantes para que el render no repita el chequeo de nulos ni
+  // necesite aserciones: si existen, son válidas.
+  const primaryAction = nextAction.primary;
+  const secondaryAction = nextAction.secondary;
+
+  /**
+   * Evidencia observada de la sesión ligada al cambio seleccionado.
+   *
+   * Es evidencia **de sesión**, no de tarea: ningún runtime atribuye archivos ni
+   * líneas a una tarea concreta de `tasks.md`. Mostrarla como si fuera por tarea
+   * sería inventar la atribución, así que se rotula por lo que realmente es y
+   * queda `null` cuando el stream no la reportó.
+   */
+  const changeSession = projection && selectedChange && projection.changeId === selectedChange.changeId
+    ? projection
+    : null;
+  const gitDelta = (() => {
+    const entry = changeSession?.activity.find((item) => item.text.startsWith('git.changed '));
+    const match = entry ? /^git\.changed files=(\d+) additions=(\d+|unknown) deletions=(\d+|unknown)$/.exec(entry.text) : null;
+    return match ? { files: match[1], additions: match[2], deletions: match[3] } : null;
+  })();
+  const lastObservedActivity = changeSession?.activity
+    .filter((item) => item.channel === 'narrative' || item.channel === 'tool')
+    .at(-1)?.text ?? null;
 
   const selectChange = (changeId: string) => {
     setSelection(changeId);
@@ -202,17 +229,13 @@ export function OpenSpecDashboard({
         setLaunchInstruction(null);
         setCenterTab('work');
         break;
-      case 'start-apply': {
-        const task = selectedChange?.tasks.find((item) => item.id === intent.taskId);
-        if (!task) break;
-        setFlowMode(null);
-        setLaunchInstruction(composeApplyInstruction(intent.changeId, task.id, task.text));
-        setCenterTab('work');
-        break;
-      }
+      // Se usa la instrucción que la derivación ya compuso, que es exactamente la
+      // que se muestra bajo "Ver instrucción". Recomponerla acá abriría la puerta
+      // a que lo mostrado y lo ejecutado dejaran de coincidir.
+      case 'start-apply':
       case 'start-archive':
         setFlowMode(null);
-        setLaunchInstruction(composeArchiveInstruction(intent.changeId));
+        setLaunchInstruction(nextAction.instruction);
         setCenterTab('work');
         break;
       case 'focus-decision':
@@ -225,6 +248,9 @@ export function OpenSpecDashboard({
         break;
       case 'view-evidence':
       case 'view-diff':
+        // La evidencia vive en Trabajo: si se pide desde Actividad hay que
+        // llevar a la persona donde efectivamente se muestra.
+        setCenterTab('work');
         setShowEvidence(true);
         break;
       case 'refresh-validation':
@@ -370,7 +396,11 @@ export function OpenSpecDashboard({
               <header className={styles.changeHeader}>
                 <div className={styles.changeTitle}>
                   <h3>{t('pipeline.openspec.change.active')}: <strong>{selectedChange.changeId}</strong></h3>
-                  <p><span>{t('pipeline.openspec.intent')}:</span> {selectedChange.intent ?? t('pipeline.openspec.intentUnknown')}</p>
+                  {/* El recorte visual es de tres líneas; el texto completo queda
+                      accesible acá y sin recortar en el panel izquierdo. */}
+                  <p title={selectedChange.intent ?? undefined}>
+                    <span>{t('pipeline.openspec.intent')}:</span> {selectedChange.intent ?? t('pipeline.openspec.intentUnknown')}
+                  </p>
                 </div>
                 <ol className={styles.lifecycle} aria-label={t('pipeline.openspec.lifecycle.label')}>
                   {stages.map((stage, index) => (
@@ -382,15 +412,64 @@ export function OpenSpecDashboard({
                 </ol>
               </header>
 
-              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} />
-
-              <div className={styles.tabs} role="tablist" aria-label={t('pipeline.openspec.tabs.label')}>
-                <button type="button" role="tab" aria-selected={centerTab === 'work'} onClick={() => setCenterTab('work')}>{t('pipeline.openspec.tabs.work')}</button>
-                <button type="button" role="tab" aria-selected={centerTab === 'activity'} onClick={() => setCenterTab('activity')}>{t('pipeline.openspec.tabs.activity')}</button>
+              {/* Las acciones comparten fila con las pestañas: es el punto más
+                  alto y estable del panel, así el CTA no se va con el scroll de
+                  la lista de tareas. */}
+              <div className={styles.tabsRow}>
+                <div className={styles.tabs} role="tablist" aria-label={t('pipeline.openspec.tabs.label')}>
+                  <button type="button" role="tab" aria-selected={centerTab === 'work'} onClick={() => setCenterTab('work')}>{t('pipeline.openspec.tabs.work')}</button>
+                  <button type="button" role="tab" aria-selected={centerTab === 'activity'} onClick={() => setCenterTab('activity')}>{t('pipeline.openspec.tabs.activity')}</button>
+                </div>
+                <div className={styles.actions}>
+                  {primaryAction && (
+                    <button
+                      type="button"
+                      className={styles.primaryAction}
+                      disabled={fixtureActive && primaryAction.executable}
+                      title={t(nextAction.helpKey, nextAction.helpParams)}
+                      onClick={() => handleIntent(primaryAction.intent)}
+                    >
+                      {primaryAction.executable ? <Play size={14} /> : <Activity size={14} />}
+                      {t(primaryAction.labelKey, primaryAction.labelParams)}
+                    </button>
+                  )}
+                  {secondaryAction && (
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      disabled={fixtureActive && secondaryAction.executable}
+                      onClick={() => handleIntent(secondaryAction.intent)}
+                    >
+                      {secondaryAction.intent.kind === 'pause-after-task' && <Pause size={14} />}
+                      {t(secondaryAction.labelKey, secondaryAction.labelParams)}
+                    </button>
+                  )}
+                  <button type="button" className={styles.secondaryAction} disabled={(snapshot.diffs?.length ?? 0) === 0} onClick={() => handleIntent({ kind: 'view-diff' })}>
+                    <Code2 size={14} /> {t('pipeline.openspec.actions.diff')}
+                  </button>
+                </div>
               </div>
 
               {centerTab === 'work' ? (
                 <div className={styles.workArea}>
+                  <p className={styles.nextStepInline}>{t(nextAction.helpKey, nextAction.helpParams)}</p>
+                  {/* El lanzador aparece arriba, junto al botón que lo abrió, y no
+                      al final de una lista que puede requerir scroll. */}
+                  {launchInstruction && (
+                    <div className={styles.launcherPanel}>
+                      <PipelineRuntimeLauncher
+                        key={`${selectedChange.changeId}:${nextTask ? resolveTaskLabel(nextTask) : 'archive'}`}
+                        repoPath={repoPath}
+                        projection={projection}
+                        initialInstruction={launchInstruction}
+                        changeId={selectedChange.changeId}
+                        taskId={nextTask ? resolveTaskLabel(nextTask) : null}
+                        blockedByFixture={fixtureActive}
+                        startLabelKey={nextTask ? 'pipeline.launcher.startApply' : 'pipeline.launcher.startArchive'}
+                        onStarted={() => setCenterTab('activity')}
+                      />
+                    </div>
+                  )}
                   <h4>{t('pipeline.openspec.tasks.title')}</h4>
                   <ol className={styles.taskList}>
                     {selectedChange.tasks.map((task) => {
@@ -398,16 +477,44 @@ export function OpenSpecDashboard({
                       return (
                         <li key={task.id} data-completed={task.completed} data-current={current}>
                           <span className={styles.taskStatus}>{task.completed ? <Check size={14} /> : <Circle size={14} />}</span>
-                          <strong>{task.id}</strong>
-                          <span>{task.text}</span>
+                          {/* La numeración se toma del texto: `task.id` es un hash
+                              estable, útil como clave pero ilegible como etiqueta. */}
+                          <strong>{resolveTaskLabel(task)}</strong>
+                          <span>{resolveTaskText(task)}</span>
                           {current && runtimeActive && <em>{t('pipeline.openspec.task.running')}</em>}
                           {current && (
                             <div className={styles.taskDetail}>
                               <dl>
-                                <div><dt>{t('pipeline.openspec.task.agent')}</dt><dd>{runningName}</dd></div>
-                                <div><dt>{t('pipeline.openspec.task.source')}</dt><dd>{task.sourceRef}</dd></div>
-                                <div><dt>{t('pipeline.openspec.task.progress')}</dt><dd>{t('pipeline.openspec.progress', { completed: progress.completed, total: progress.total })}</dd></div>
-                                <div><dt>{t('pipeline.openspec.task.validation')}</dt><dd>{t(`pipeline.openspec.validation.${selectedChange.validation}`)}</dd></div>
+                                <div>
+                                  <span className={styles.taskDetailIcon} aria-hidden="true"><User size={13} /></span>
+                                  <dt>{t('pipeline.openspec.task.agent')}</dt>
+                                  <dd>{changeSession ? runningName : t('pipeline.openspec.task.noSession')}</dd>
+                                </div>
+                                <div>
+                                  <span className={styles.taskDetailIcon} aria-hidden="true"><FileText size={13} /></span>
+                                  <dt>{t('pipeline.openspec.task.source')}</dt>
+                                  <dd>{task.sourceRef}</dd>
+                                </div>
+                                <div>
+                                  {/* Lo que se mide es `git diff --numstat HEAD` al cerrar la
+                                      sesión, no lo que escribió esta tarea. El rótulo dice eso:
+                                      atribuir el delta a la tarea exigiría snapshots de
+                                      contenido por tarea, que hoy no se capturan. */}
+                                  <span className={styles.taskDetailIcon} aria-hidden="true"><GitCompare size={13} /></span>
+                                  <dt>{t('pipeline.openspec.task.workingTree')}</dt>
+                                  <dd>{gitDelta
+                                    ? t('pipeline.openspec.task.workingTreeValue', {
+                                      files: gitDelta.files,
+                                      additions: gitDelta.additions === 'unknown' ? '—' : gitDelta.additions,
+                                      deletions: gitDelta.deletions === 'unknown' ? '—' : gitDelta.deletions,
+                                    })
+                                    : t('pipeline.openspec.task.notReported')}</dd>
+                                </div>
+                                <div>
+                                  <span className={styles.taskDetailIcon} aria-hidden="true"><Activity size={13} /></span>
+                                  <dt>{t('pipeline.openspec.task.lastActivity')}</dt>
+                                  <dd>{lastObservedActivity ?? t('pipeline.openspec.task.notReported')}</dd>
+                                </div>
                               </dl>
                             </div>
                           )}
@@ -417,29 +524,6 @@ export function OpenSpecDashboard({
                     {selectedChange.tasks.length === 0 && <li className={styles.taskEmpty}>{t('pipeline.openspec.tasks.empty')}</li>}
                   </ol>
 
-                  {/* La guía es dueña del CTA del momento. Acá sólo queda la
-                      evidencia, que es consulta permanente y no un paso. */}
-                  <div className={styles.actions}>
-                    <button type="button" className={styles.secondaryAction} disabled={(snapshot.diffs?.length ?? 0) === 0} onClick={() => setShowEvidence((value) => !value)}>
-                      <Code2 size={14} /> {t('pipeline.openspec.actions.diff')}
-                    </button>
-                  </div>
-
-                  {launchInstruction && (
-                    <div className={styles.launcherPanel}>
-                      <PipelineRuntimeLauncher
-                        key={`${selectedChange.changeId}:${nextTask?.id ?? 'archive'}`}
-                        repoPath={repoPath}
-                        projection={projection}
-                        initialInstruction={launchInstruction}
-                        changeId={selectedChange.changeId}
-                        taskId={nextTask?.id ?? null}
-                        blockedByFixture={fixtureActive}
-                        startLabelKey={nextTask ? 'pipeline.launcher.startApply' : 'pipeline.launcher.startArchive'}
-                        onStarted={() => setCenterTab('activity')}
-                      />
-                    </div>
-                  )}
                   {showEvidence && <div className={styles.evidencePanel}><PipelineDetails snapshot={snapshot} /></div>}
                 </div>
               ) : (

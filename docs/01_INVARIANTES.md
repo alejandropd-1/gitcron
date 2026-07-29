@@ -1,4 +1,4 @@
-# GitCron — Invariantes (aplican a TODA fase, de TODO brief, sin excepción)
+# GitCron — Invariantes (aplican a TODO change, sin excepción)
 
 > Estas reglas son condición de aceptación. Si una invariante choca con "que funcione",
 > **pará y preguntá**. No degrades nada para destrabar algo.
@@ -45,12 +45,14 @@
 
 ## Proceso
 
-13. **Una fase por vez.** No empezar la siguiente sin el OK visual de Ale sobre la actual.
-14. **Cierre de fase obligatorio:** `npx.cmd tsc --noEmit` en 0 + `pnpm test` verde +
-    `pnpm exec fallow` con delta reportado + **reporte escrito en `docs/reports/`**
-    (qué tocaste, qué NO tocaste, métricas) + **STOP**.
-15. **Scope cerrado.** No tocar `README.md` ni `CHANGELOG.md` durante fases de código —
+13. **Un change por vez.** El alcance es el que declaran los artefactos OpenSpec del change.
+    Lo que no está en el change no es parte del trabajo; si hace falta, se amplía el change.
+14. **Cierre obligatorio:** `pnpm exec tsc --noEmit` en 0 + `pnpm test` verde +
+    `openspec validate <change> --strict` válido + **reporte escrito en `docs/reports/`**
+    (qué tocaste, qué NO tocaste, resultado real de esas comprobaciones) + **STOP**.
+15. **Scope cerrado.** No tocar `README.md` ni `CHANGELOG.md` mientras se implementa —
     la documentación se actualiza en una pasada propia al cierre, indicada por Ale.
-16. **No revertir cambios ajenos.** No eliminar código solo porque Fallow marque
+16. **No revertir cambios ajenos.** No eliminar código sólo porque un análisis marque
     complejidad: confirmar primero con CodeGraph que no sostiene features vivas.
-17. Ante cualquier ambigüedad de alcance: **preguntar, no asumir.**
+17. **Fallow y CodeGraph son rutinas que pide Ale**, no automatismos del cierre.
+18. Ante cualquier ambigüedad de alcance: **preguntar, no asumir.**

@@ -1,34 +1,76 @@
 # GitCron — instrucciones operativas para agentes
 
-Estas reglas aplican a Codex, Hermes, Claude, OpenCode, Antigravity y cualquier otro ejecutor.
-El runtime que coordina se declara como `orchestrator`; Hermes no es un gateway obligatorio.
+Estas reglas aplican a Codex, Claude, OpenCode, Antigravity y cualquier otro ejecutor.
 
-## Fuente y alcance
+## Cómo se trabaja acá
 
-1. Leer `docs/00_FUENTE_DE_VERDAD.md`, `docs/01_INVARIANTES.md` y el prompt/brief autorizado.
-2. Verificar Git y disco: reportes o handoffs no sustituyen evidencia actual.
-3. Si existe `.codegraph/`, usar CodeGraph antes de grep/lectura amplia para localizar arquitectura.
-4. Para Pipeline, respetar `docs/pipeline/00-estado-track.md` y su grafo de prerrequisitos; el orden
-   numérico no vuelve obligatoria a F02.
-5. No iniciar una fase posterior, cambiar dependencias, secretos, configuración global, CSS,
-   publicación o acciones destructivas sin autorización humana correspondiente.
+El método es **OpenSpec**, y no hay otro. Todo trabajo de producto pasa por un change:
 
-## Veto determinístico
+1. `openspec list --json` para ver qué hay activo.
+2. `openspec new change "<slug>"` para abrir uno. El slug empieza con letra y sólo admite
+   minúsculas, dígitos y guiones, sin guiones consecutivos ni finales.
+3. `openspec status --change "<slug>" --json` para saber qué artefacto toca.
+4. `openspec instructions <artefacto> --change "<slug>" --json` antes de escribir cada uno.
+5. Implementar contra `tasks.md`, marcando cada casilla al terminarla.
+6. `openspec validate <slug> --strict` antes de entregar.
 
-- `pwsh -NoProfile -File scripts/gates.ps1 fast` es el veto base antes y después de cada tanda.
-- `pwsh -NoProfile -File scripts/gates.ps1 full` agrega lint, build y análisis lento al cierre.
-- `scripts/gates.sh` es sólo un launcher para entornos donde `bash` y `pwsh` están disponibles.
-- `ROJO` bloquea. `PENDIENTE` se informa y nunca se presenta como verde.
-- El agente no modifica gates, constitución, perfil o estas instrucciones para hacer pasar su
-  propio cambio. Esos archivos requieren diff exacto aprobado y commit humano.
+Los artefactos son la fuente de verdad del alcance. Si algo no está en el change, no es parte
+del trabajo; si hace falta, se amplía el change explícitamente, no de palabra.
+
+## Antes de tocar código
+
+1. Leer `docs/00_FUENTE_DE_VERDAD.md` y `docs/01_INVARIANTES.md`.
+2. Verificar Git y disco. Un reporte o un handoff describen lo que era cierto cuando se
+   escribieron, no lo que hay ahora.
+3. Si existe `.codegraph/`, usar CodeGraph antes de grep o lectura amplia.
+
+## Cierre de tanda
+
+Sólo dos comprobaciones son obligatorias, y no por ceremonia sino para no romper el build:
+
+- `pnpm exec tsc --noEmit` en cero.
+- `pnpm test` en verde.
+
+Más `openspec validate <slug> --strict` válido.
+
+Además, un **reporte escrito en `docs/reports/`** con qué se tocó, qué no se tocó y el
+resultado real de esas comprobaciones. Declarar "verificado" sin haber corrido el comando es
+la única falta que invalida una tanda entera.
+
+## Rutinas que pide Ale
+
+Estas **no** se ejecutan por iniciativa del agente. Se corren cuando Ale las pide:
+
+- `pnpm exec fallow` — análisis de complejidad y deuda.
+- CodeGraph — mapa de arquitectura e impacto.
+- `pnpm exec eslint` sobre el repo completo, `pnpm run package:build`, u otros análisis lentos.
+
+Sobre los archivos que se tocan, el lint sí se corre y se deja limpio.
+
+## Honestidad de la evidencia
+
+Es la regla que más importa y la que ya se violó una vez: en F03 se encontró telemetría
+fabricada, con valores hardcodeados marcados como verificados citando fixtures que decían otra
+cosa.
+
+- Dato ausente, incompatible o sin fixture se representa como `unknown`, `blocked` o
+  `pending_fixture`. **Nunca** como cero, false, verde o low risk.
+- Una capacidad se anuncia disponible sólo si existe el método implementado y evidencia que lo
+  respalde. Interfaz anunciada sin efecto probado no se declara disponible.
+- Un proceso que termina no prueba que la tarea se hizo. El resultado se relee de la evidencia.
+- Los fixtures versionados en `docs/pipeline/f03/` son evidencia viva: los adaptadores los
+  citan y un test de conformance los lee. No se borran ni se editan a mano.
 
 ## Seguridad y Git
 
-- No leer, imprimir ni persistir secrets, `.env`, tokens, cookies o reasoning privado no emitido.
-- Renderer no recibe credenciales, sockets privilegiados, shell/argv/PID libres ni paths sin validar.
-- No agregar dependencias sin aprobación explícita.
-- No ejecutar `git add`, commit, push, merge, tag o release salvo autorización explícita de Ale.
-- Cuando se sugiera staging, enumerar archivos exactos; nunca force-add de un directorio completo.
+- No leer, imprimir ni persistir secrets, `.env`, tokens, cookies ni reasoning privado no emitido.
+- El renderer no recibe credenciales, sockets privilegiados, shell/argv/PID libres ni paths sin validar.
+- No agregar dependencias sin aprobación explícita de Ale.
+- No ejecutar `git add`, commit, push, merge, tag ni release salvo autorización explícita de Ale.
+- Cuando se sugiera staging, enumerar los archivos exactos. Nunca agregar un directorio completo.
+- Una sesión de agente que escriba en el working tree exige confirmación humana explícita antes
+  de arrancar.
 
-La constitución verificable vive en `docs/ai/constitution.md` y el stack/comandos en
-`docs/ai/repo-profile.md`.
+## Ante la duda
+
+Preguntar, no asumir. Frenar y reportar cuesta una vuelta; adivinar cuesta una tanda.

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { translate } from '@/lib/i18n';
 import type { RuntimeProjection } from '@/types/pipeline';
 import type { DecisionRequest } from '../pipeline-domain';
 import type { OpenSpecChangeSummary } from '../pipeline-view-state';
@@ -9,11 +10,23 @@ import {
   composeProposeInstruction,
   derivePipelineNextAction,
   isValidChangeSlug,
+  resolveTaskLabel,
+  resolveTaskText,
   type PipelineNextActionInput,
 } from '../pipeline-next-action';
 
-function task(id: string, completed: boolean, text = `tarea ${id}`) {
-  return { id, text, completed, line: 1, sourceRef: 'tasks.md' };
+/**
+ * Forma real de la evidencia: `id` es el hash estable que produce
+ * `parseMarkdownTasks`, y la numeración humana vive dentro del texto.
+ */
+function task(label: string, completed: boolean, text = `hacer ${label}`) {
+  return {
+    id: `hash-${label.replace('.', '-')}`,
+    text: `${label} ${text}`,
+    completed,
+    line: 1,
+    sourceRef: 'tasks.md',
+  };
 }
 
 function change(overrides: Partial<OpenSpecChangeSummary> = {}): OpenSpecChangeSummary {
@@ -107,7 +120,7 @@ describe('derivePipelineNextAction · matriz de estados', () => {
     expect(result.kind).toBe('task-pending');
     expect(result.titleParams).toMatchObject({ task: '1.2', completed: 1, total: 2 });
     expect(result.primary?.intent).toEqual({ kind: 'start-apply', changeId: 'demo-change', taskId: '1.2' });
-    expect(result.instruction).toBe('/opsx:apply demo-change\n\nContinuar con 1.2: tarea 1.2');
+    expect(result.instruction).toBe('/opsx:apply demo-change\n\nContinuar con 1.2: hacer 1.2');
   });
 
   it('con sesión activa dirige a la actividad y no ofrece arrancar otra', () => {
@@ -142,7 +155,7 @@ describe('derivePipelineNextAction · matriz de estados', () => {
     }));
     expect(result.kind).toBe('session-retry');
     expect(result.primary?.intent).toEqual({ kind: 'start-apply', changeId: 'demo-change', taskId: '1.2' });
-    expect(result.instruction).toBe('/opsx:apply demo-change\n\nContinuar con 1.2: tarea 1.2');
+    expect(result.instruction).toBe('/opsx:apply demo-change\n\nContinuar con 1.2: hacer 1.2');
   });
 
   it('una sesión interrumpida también ofrece reintentar', () => {
@@ -293,6 +306,67 @@ describe('composición de instrucciones', () => {
 
   it('compone Explore', () => {
     expect(composeExploreInstruction('  una idea  ')).toBe('/opsx:explore\n\nQuiero explorar: una idea');
+  });
+});
+
+describe('interpolación de textos', () => {
+  // Se escapó a producción una frase que mostraba "{{completed}} of {{total}}"
+  // porque la ayuda se renderizaba sin sus parámetros. Esta prueba recorre la
+  // matriz y verifica que ningún texto quede con marcadores sin resolver.
+  const scenarios: Array<[string, PipelineNextActionInput]> = [
+    ['fixture', input({ fixtureActive: true, selectedChange: change() })],
+    ['sin cambio activo', input()],
+    ['archivado', input({ selectedArchivedChangeId: 'viejo' })],
+    ['tarea pendiente', input({ selectedChange: change() })],
+    ['sesión activa', input({ selectedChange: change(), projection: projection({ active: true, outcome: 'running' }) })],
+    ['decisión', input({ selectedChange: change(), decisions: [decision()] })],
+    ['reintento', input({ selectedChange: change(), projection: projection({ outcome: 'failed' }) })],
+    ['validación desconocida', input({ selectedChange: change({ tasks: [task('1.1', true)], validation: 'unknown' }) })],
+    ['validación fallida', input({ selectedChange: change({ tasks: [task('1.1', true)], validation: 'failed' }) })],
+    ['listo para archivar', input({ selectedChange: change({ tasks: [task('1.1', true)], validation: 'passed' }) })],
+  ];
+
+  for (const [name, scenario] of scenarios) {
+    it(`resuelve todos los marcadores en "${name}"`, () => {
+      const action = derivePipelineNextAction(scenario);
+      const rendered = [
+        translate(action.titleKey, 'es', action.titleParams),
+        translate(action.helpKey, 'es', action.helpParams),
+        action.primary ? translate(action.primary.labelKey, 'es', action.primary.labelParams) : '',
+        action.secondary ? translate(action.secondary.labelKey, 'es', action.secondary.labelParams) : '',
+      ];
+      for (const text of rendered) expect(text).not.toMatch(/\{\{|\}\}/);
+    });
+  }
+});
+
+describe('resolveTaskLabel / resolveTaskText', () => {
+  // `parseMarkdownTasks` siempre asigna un hash como `id`; el "2.1" queda en el
+  // texto. Mostrar el hash era exactamente lo que se veía roto en pantalla.
+  it('toma la numeración del texto, no el hash', () => {
+    const item = { id: 'a1b2c3d4e5f6', text: '2.1 Add CSS variables' };
+    expect(resolveTaskLabel(item)).toBe('2.1');
+    expect(resolveTaskText(item)).toBe('Add CSS variables');
+  });
+
+  it('admite numeración de un solo nivel y de tres', () => {
+    expect(resolveTaskLabel({ id: 'h', text: '3 Preparar' })).toBe('3');
+    expect(resolveTaskLabel({ id: 'h', text: '1.2.3 Preparar' })).toBe('1.2.3');
+  });
+
+  it('admite el punto o el paréntesis tras el número', () => {
+    expect(resolveTaskLabel({ id: 'h', text: '4. Cerrar' })).toBe('4');
+    expect(resolveTaskText({ id: 'h', text: '4) Cerrar' })).toBe('Cerrar');
+  });
+
+  it('cae al hash cuando la tarea no trae numeración', () => {
+    const item = { id: 'a1b2c3d4e5f6', text: 'Sin numerar' };
+    expect(resolveTaskLabel(item)).toBe('a1b2c3d4e5f6');
+    expect(resolveTaskText(item)).toBe('Sin numerar');
+  });
+
+  it('no confunde una versión dentro del texto con la numeración', () => {
+    expect(resolveTaskLabel({ id: 'h', text: 'Actualizar a 2.1 el paquete' })).toBe('h');
   });
 });
 

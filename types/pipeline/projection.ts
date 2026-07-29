@@ -1,4 +1,4 @@
-import type { PipelineRuntime } from './runtime';
+import type { PipelineRuntime, RuntimeCapabilityAvailability } from './runtime';
 
 /**
  * Acciones de control supervisado (F05).
@@ -127,5 +127,22 @@ export interface RuntimeDiscoveryEntry {
   runtimeVersion: string | null;
   /** `true` sólo si la versión instalada coincide con el fixture verificado. */
   launchable: boolean;
+  /**
+   * Disponibilidad declarada de `session.start` por el adaptador.
+   *
+   * `launchable` dice si el proceso puede abrirse; esto dice **con qué alcance**.
+   * Hoy los adaptadores nativos corren con herramientas de sólo lectura y lo
+   * declaran como `degraded`: un botón que prometa "el agente trabaja la tarea"
+   * estaría afirmando algo que el adaptador niega.
+   */
+  startAvailability: RuntimeCapabilityAvailability;
+  /** Restricciones declaradas de `session.start`, tal como las emite el adaptador. */
+  startConstraints: string[];
+  /**
+   * `true` cuando una sesión de este runtime puede escribir en el working tree.
+   * El renderer lo usa para exigir confirmación explícita antes de arrancar: un
+   * agente que edita el repo no puede lanzarse con un solo clic.
+   */
+  startModifiesRepo: boolean;
   diagnostics: string[];
 }

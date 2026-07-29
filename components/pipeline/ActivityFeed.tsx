@@ -75,6 +75,9 @@ export function ActivityFeed({
           que gobiernan, con icono + palabra. `aria-pressed` es lo que comunica
           el encendido a un lector de pantalla; el relleno es sólo su reflejo
           visual. Nunca compiten con el botón de decisión, que es la acción. */}
+      {/* Sin una sola entrada no hay nada que filtrar: la fila de controles
+          sería ruido y, peor, sugeriría que algo quedó oculto por el filtro. */}
+      {entries.length > 0 && (
       <div className="pipeline-filters" role="group" aria-label={t('pipeline.activity.filters')}>
         {CHANNELS.map((channel) => {
           const disabled = channel === 'reasoning' && reasoningAvailable !== true;
@@ -96,6 +99,7 @@ export function ActivityFeed({
           );
         })}
       </div>
+      )}
 
       {/* El brief es explícito: un runtime sin reasoning lo dice, no muestra un
           panel vacío que se lea como "no pensó nada".

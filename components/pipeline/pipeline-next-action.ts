@@ -86,6 +86,8 @@ export type PipelineNextAction = {
   titleParams?: Record<string, string | number>;
   /** Una sola frase. El tope es estructural, no estilístico. */
   helpKey: string;
+  /** Parámetros de la frase de ayuda. Sin esto los `{{...}}` llegan crudos a pantalla. */
+  helpParams?: Record<string, string | number>;
   primary: PipelineNextActionButton | null;
   /** Sólo cuando existe una alternativa real; nunca relleno. */
   secondary: PipelineNextActionButton | null;
@@ -113,6 +115,25 @@ function button(
     ...(labelParams ? { labelParams } : {}),
     executable: EXECUTABLE_INTENTS.has(intent.kind),
   };
+}
+
+/**
+ * Numeración humana de una tarea, tomada del propio texto de `tasks.md`.
+ *
+ * `TaskEvidence.id` es un hash estable derivado de archivo, línea y contenido:
+ * sirve para identificar la tarea aunque se renumere, pero no es lo que la
+ * persona escribió ni lo que un agente entiende. El "2.1" vive dentro del texto,
+ * así que se extrae de ahí y el hash queda para uso interno.
+ */
+const TASK_LABEL_PATTERN = /^(\d+(?:\.\d+)*)[.)]?\s+(.*)$/;
+
+export function resolveTaskLabel(task: { id: string; text: string }): string {
+  return TASK_LABEL_PATTERN.exec(task.text)?.[1] ?? task.id;
+}
+
+/** El texto sin su numeración, para no repetirla al lado de la etiqueta. */
+export function resolveTaskText(task: { id: string; text: string }): string {
+  return TASK_LABEL_PATTERN.exec(task.text)?.[2] ?? task.text;
 }
 
 export function composeApplyInstruction(changeId: string, taskId: string, taskText: string): string {
@@ -212,8 +233,11 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
   //     pendiente en `tasks.md`. Ese último caso es el que evita declarar éxito
   //     porque el proceso terminó.
   if (projection && selectedChange && projection.changeId === selectedChange.changeId) {
+    // Se compara contra la etiqueta humana porque es lo que se envió como
+    // `taskId` al iniciar la sesión. Compararlo contra el hash no coincidiría
+    // nunca y el reintento jamás se ofrecería.
     const targetTask = projection.taskId
-      ? selectedChange.tasks.find((task) => task.id === projection.taskId) ?? null
+      ? selectedChange.tasks.find((task) => resolveTaskLabel(task) === projection.taskId) ?? null
       : null;
     const failed = projection.outcome === 'failed' || projection.outcome === 'interrupted';
     const stalled = targetTask !== null && !targetTask.completed;
@@ -222,15 +246,19 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
         kind: 'session-retry',
         step: { index: 3, total: LIFECYCLE_TOTAL },
         titleKey: failed ? 'pipeline.next.retry.title' : 'pipeline.next.retry.stalledTitle',
-        titleParams: { task: targetTask.id },
+        titleParams: { task: resolveTaskLabel(targetTask) },
         helpKey: failed ? 'pipeline.next.retry.help' : 'pipeline.next.retry.stalledHelp',
         primary: button(
-          { kind: 'start-apply', changeId: selectedChange.changeId, taskId: targetTask.id },
+          { kind: 'start-apply', changeId: selectedChange.changeId, taskId: resolveTaskLabel(targetTask) },
           'pipeline.next.retry.action',
-          { task: targetTask.id },
+          { task: resolveTaskLabel(targetTask) },
         ),
         secondary: button({ kind: 'view-activity' }, 'pipeline.next.retry.activity'),
-        instruction: composeApplyInstruction(selectedChange.changeId, targetTask.id, targetTask.text),
+        instruction: composeApplyInstruction(
+          selectedChange.changeId,
+          resolveTaskLabel(targetTask),
+          resolveTaskText(targetTask),
+        ),
       };
     }
   }
@@ -269,15 +297,20 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
       kind: 'task-pending',
       step: { index: 3, total: LIFECYCLE_TOTAL },
       titleKey: 'pipeline.next.task.title',
-      titleParams: { task: nextTask.id, completed: counts.completed, total: counts.total },
+      titleParams: { task: resolveTaskLabel(nextTask), completed: counts.completed, total: counts.total },
       helpKey: 'pipeline.next.task.help',
+      helpParams: { completed: counts.completed, total: counts.total },
       primary: button(
-        { kind: 'start-apply', changeId: selectedChange.changeId, taskId: nextTask.id },
+        { kind: 'start-apply', changeId: selectedChange.changeId, taskId: resolveTaskLabel(nextTask) },
         'pipeline.next.task.action',
-        { task: nextTask.id },
+        { task: resolveTaskLabel(nextTask) },
       ),
       secondary: null,
-      instruction: composeApplyInstruction(selectedChange.changeId, nextTask.id, nextTask.text),
+      instruction: composeApplyInstruction(
+        selectedChange.changeId,
+        resolveTaskLabel(nextTask),
+        resolveTaskText(nextTask),
+      ),
     };
   }
 

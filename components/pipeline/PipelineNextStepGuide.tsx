@@ -57,7 +57,7 @@ export function PipelineNextStepGuide({ action, onAct, executionBlocked = false 
       </header>
 
       <h4 className={styles.nextStepTitle}>{t(action.titleKey, action.titleParams)}</h4>
-      <p className={styles.nextStepHelp}>{t(action.helpKey)}</p>
+      <p className={styles.nextStepHelp}>{t(action.helpKey, action.helpParams)}</p>
 
       {(action.primary || action.secondary) && (
         <div className={styles.nextStepActions}>

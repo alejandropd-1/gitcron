@@ -87,4 +87,21 @@ describe('canStartRuntimeSession', () => {
   it('no arranca mientras hay una operación en curso', () => {
     expect(canStartRuntimeSession({ ...launchable, busy: true })).toBe(false);
   });
+
+  // Una sesión que edita el repositorio no puede lanzarse con un solo clic.
+  it('exige confirmación explícita cuando la sesión escribe en el repositorio', () => {
+    expect(canStartRuntimeSession({ ...launchable, modifiesRepo: true })).toBe(false);
+    expect(canStartRuntimeSession({ ...launchable, modifiesRepo: true, writeConfirmed: false })).toBe(false);
+    expect(canStartRuntimeSession({ ...launchable, modifiesRepo: true, writeConfirmed: true })).toBe(true);
+  });
+
+  it('no pide confirmación cuando la sesión no escribe', () => {
+    expect(canStartRuntimeSession({ ...launchable, modifiesRepo: false })).toBe(true);
+  });
+
+  it('la confirmación no habilita nada si hay datos de vista previa', () => {
+    expect(canStartRuntimeSession({
+      ...launchable, blockedByFixture: true, modifiesRepo: true, writeConfirmed: true,
+    })).toBe(false);
+  });
 });

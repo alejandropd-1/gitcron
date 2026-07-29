@@ -14,12 +14,25 @@ export const CLAUDE_DESCRIPTOR: RuntimeDescriptor = {
   runtimeVersion: '2.1.206',
   protocolVersion: null,
   capabilities: [
-    { capabilityId: 'session.start', capabilityVersion: null, availability: 'degraded', evidenceStatus: 'verified', targetScopes: ['repo', 'run'], constraints: ['read-only tools in F03'], evidenceRefs: [FIXTURE_REF] },
+    { capabilityId: 'session.start', capabilityVersion: null, availability: 'available', evidenceStatus: 'verified', targetScopes: ['repo', 'run'], constraints: ['edita archivos con Read, Grep, Glob, Edit y Write', 'permission-mode acceptEdits', 'sin acceso a shell'], evidenceRefs: [FIXTURE_REF] },
     { capabilityId: 'events.stream', capabilityVersion: null, availability: 'available', evidenceStatus: 'verified', targetScopes: ['session'], constraints: ['bounded JSONL'], evidenceRefs: [FIXTURE_REF] },
     { capabilityId: 'telemetry.snapshot', capabilityVersion: null, availability: 'available', evidenceStatus: 'verified', targetScopes: ['run', 'session'], constraints: ['billing semantics remain unknown'], evidenceRefs: [FIXTURE_REF] },
     { capabilityId: 'session.resume', capabilityVersion: null, availability: 'unknown', evidenceStatus: 'pending_fixture', targetScopes: ['session'], constraints: ['effect not tested'], evidenceRefs: [] },
   ],
 };
+
+/**
+ * Superficie de herramientas de una sesión de Apply.
+ *
+ * `Edit` y `Write` están porque sin ellas la sesión no puede completar una tarea
+ * ni marcarla en `tasks.md`: el ciclo Apply quedaba decorativo.
+ *
+ * `Bash` queda **deliberadamente afuera**. Editar archivos es acotado y visible
+ * en el diff; ejecutar comandos arbitrarios no lo es, y habilitarlo desde un
+ * botón daría acceso a `git push`, borrado y red. Si alguna sesión necesita
+ * correr tests, eso se decide y se audita aparte.
+ */
+const CLAUDE_TOOLS = 'Read,Grep,Glob,Edit,Write';
 
 function buildClaudeArgs(request: RuntimeStartRequest): string[] {
   const args = [
@@ -27,9 +40,12 @@ function buildClaudeArgs(request: RuntimeStartRequest): string[] {
     '--output-format', 'stream-json',
     '--verbose',
     '--include-partial-messages',
-    '--permission-mode', 'manual',
-    '--tools=Read,Grep,Glob',
-    '--allowedTools=Read,Grep,Glob',
+    // `manual` es inservible en modo headless: no hay quién responda el pedido
+    // de permiso y la sesión se cuelga en la primera escritura. `acceptEdits`
+    // acepta ediciones de archivo sin habilitar todo lo demás.
+    '--permission-mode', 'acceptEdits',
+    `--tools=${CLAUDE_TOOLS}`,
+    `--allowedTools=${CLAUDE_TOOLS}`,
   ];
   if (request.requestedModel) args.push('--model', request.requestedModel);
   return args;

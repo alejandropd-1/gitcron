@@ -240,9 +240,15 @@
   transition: width 240ms ease;
 }
 
+/* Recortado a cuatro líneas: el intent viene del primer párrafo de
+   `proposal.md`, que puede ser extenso, y la tarjeta del cambio no debe empujar
+   fuera de vista a "Completados recientes" y "Especificaciones". */
 .changeIntent {
-  display: block;
+  display: -webkit-box;
+  overflow: hidden;
   margin: 0 0.15rem 0.75rem 1.1rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
   color: var(--os-muted);
   font-size: 0.67rem;
   line-height: 1.45;
@@ -284,7 +290,10 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: rgba(3, 19, 34, 0.56);
+  /* Opaco a propósito. Con fondo translúcido, el contenedor que scrollea acá
+     adentro deja restos de repintados anteriores en Electron: se llegaban a ver
+     hashes de commit de otra vista por detrás de las tareas. */
+  background: #031322;
 }
 
 .changeHeader {
@@ -292,6 +301,10 @@
   grid-template-columns: minmax(14rem, 0.9fr) minmax(25rem, 1.2fr);
   align-items: center;
   gap: 1.4rem;
+  /* `flex: 0 0 auto` no es decorativo: sin él este bloque es un item flexible
+     dentro de un contenedor con `overflow: hidden`, se comprime hasta el
+     `min-height` y un intent largo se derrama por encima de las pestañas. */
+  flex: 0 0 auto;
   min-height: 7.6rem;
   padding: 1.1rem 1.5rem;
   border-bottom: 1px solid var(--os-border);
@@ -299,7 +312,18 @@
 
 .changeTitle h3 { margin: 0 0 0.65rem; color: #dce7f3; font: 650 0.84rem var(--font-mono), ui-monospace, monospace; letter-spacing: 0.04em; }
 .changeTitle h3 strong { color: #f1f6fb; }
-.changeTitle p { margin: 0; color: var(--os-muted); font: 0.68rem/1.45 var(--font-mono), ui-monospace, monospace; }
+/* El intent sale del primer párrafo de `proposal.md` y puede ser largo. Se
+   recorta a tres líneas para que el encabezado no se coma el área de trabajo;
+   el texto completo queda en el `title` y en el panel izquierdo. */
+.changeTitle p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--os-muted);
+  font: 0.68rem/1.45 var(--font-mono), ui-monospace, monospace;
+}
 .changeTitle p span { color: #c8d5e3; }
 
 .lifecycle {
@@ -347,14 +371,33 @@
 .lifecycle em { font-size: 0.62rem; font-style: normal; white-space: nowrap; }
 .lifecycle li[data-current='true'] em { color: var(--os-cyan); }
 
+/* Pestañas a la izquierda y acciones a la derecha, en la misma fila: el CTA
+   queda en el punto más alto y estable del panel, fuera del scroll. */
+.tabsRow {
+  display: flex;
+  /* Mismo motivo que en `.changeHeader`: sin esto la barra se comprime y las
+     pestañas terminan solapadas con el contenido. */
+  flex: 0 0 auto;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding-right: 1.5rem;
+  border-bottom: 1px solid var(--os-border);
+}
+
 .tabs {
   display: flex;
   gap: 2.3rem;
+  min-width: 0;
   height: 3.2rem;
   align-items: end;
   padding: 0 1.5rem;
-  border-bottom: 1px solid var(--os-border);
 }
+
+/* En esta fila las acciones son compactas: compiten en altura con las pestañas,
+   no con el contenido. */
+.tabsRow .actions { flex: 0 0 auto; margin: 0 0 0.5rem; }
+.tabsRow .actions button { min-height: 2.1rem; padding: 0.35rem 0.8rem; }
 
 .tabs button {
   position: relative;
@@ -380,16 +423,24 @@
 
 .workArea > h4 { margin: 0 0 0.7rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--os-border); font: 650 0.78rem var(--font-mono), ui-monospace, monospace; letter-spacing: 0.04em; }
 .taskList { margin: 0; padding: 0; list-style: none; }
-.taskList > li { display: grid; grid-template-columns: 1.25rem 2.4rem minmax(0, 1fr) auto; align-items: center; min-height: 3rem; padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--os-border); color: #d6e1ec; font: 0.74rem var(--font-mono), ui-monospace, monospace; }
+.taskList > li { display: grid; grid-template-columns: 1.25rem 3rem minmax(0, 1fr) auto; align-items: start; min-height: 3rem; padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--os-border); color: #d6e1ec; font: 0.74rem/1.5 var(--font-mono), ui-monospace, monospace; }
+/* La etiqueta se recorta en vez de invadir la columna del texto: si una tarea
+   no trae numeración, el fallback es el hash y sin esto se solapaban. */
+.taskList > li > strong { overflow: hidden; color: var(--os-cyan); text-overflow: ellipsis; white-space: nowrap; }
+.taskList > li[data-completed='true'] > strong { color: var(--os-muted); }
 .taskList > li[data-current='true'] { border-left: 3px solid var(--os-cyan); background: var(--os-surface); }
 .taskList > li[data-completed='true'] .taskStatus { color: var(--os-green); }
 .taskList > li > em { color: var(--os-cyan); font-size: 0.6rem; font-style: normal; text-transform: uppercase; }
 .taskStatus { display: grid; place-items: center; color: var(--os-muted); }
 .taskDetail { grid-column: 1 / -1; margin: 0.75rem 0.2rem 0 2.9rem; padding-top: 0.75rem; border-top: 1px solid var(--os-border-strong); }
-.taskDetail dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem 1.5rem; }
-.taskDetail dl > div { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: 0.75rem; }
+/* Una fila por dato, no dos columnas: los valores son rutas y frases, y
+   partirlos en media caja los volvia ilegibles. El valor envuelve en vez de
+   recortarse con puntos suspensivos — una ruta a medias no dice nada. */
+.taskDetail dl { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; margin: 0; }
+.taskDetail dl > div { display: grid; grid-template-columns: 1.1rem 7rem minmax(0, 1fr); gap: 0.75rem; align-items: start; }
 .taskDetail dt { color: var(--os-muted); }
-.taskDetail dd { overflow: hidden; color: #dce6f0; text-overflow: ellipsis; white-space: nowrap; }
+.taskDetail dd { margin: 0; color: #dce6f0; overflow-wrap: anywhere; }
+.taskDetailIcon { display: grid; place-items: center; height: 1.05rem; color: var(--os-muted); }
 .taskEmpty { color: var(--os-muted) !important; }
 
 .actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1rem; }
@@ -556,6 +607,17 @@
 /* La vista previa se apaga: no compite con el trabajo real. */
 .nextStep[data-kind='fixture-preview'] { border-left-color: var(--os-muted); opacity: 0.85; }
 .nextStep[data-kind='fixture-preview'] .nextStepBadge { color: var(--os-muted); }
+
+/* Con cambio activo la guía no es un bloque aparte: el stepper ya dice dónde
+   estás y el CTA lleva la tarea en el nombre. Queda una sola línea sobre los
+   botones, que explica qué va a pasar al confirmarlos. */
+.nextStepInline {
+  margin: 1rem 0 0;
+  color: var(--os-muted);
+  font: 0.68rem var(--font-mono), ui-monospace, monospace;
+}
+
+.nextStepInline + .actions { margin-top: 0.5rem; }
 
 .nextStepDisclosure { margin-top: 0.75rem; }
 

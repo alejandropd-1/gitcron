@@ -5,16 +5,16 @@ import { CheckRepoActions, simpleGit } from 'simple-git';
 import type {
   ChangeSelection,
   DecisionRequest,
-  JsonlCursor,
   OpenSpecArchivedChangeEvidence,
   OpenSpecChangeEvidence,
+  OpenSpecDeltaSpec,
   OpenSpecSpecificationEvidence,
   OpenSpecValidationStatus,
   PipelineDiagnostic,
   PipelineEvidence,
 } from '../../types/pipeline';
 import { selectPipelineChange } from './change-selection';
-import { parseAudit, parseJsonlChunk, parseMarkdownTasks } from './parsers';
+import { parseAudit, parseMarkdownTasks } from './parsers';
 import { validateOpenSpecChangeWithCli } from './openspec-cli';
 import { safeListRepoDirectory, safeReadRepoFile } from './repo-paths';
 
@@ -26,11 +26,6 @@ export interface RepoEvidenceReaderDependencies {
   mergedChanges(repoPath: string, candidates: string[]): Promise<string[]>;
   validateOpenSpecChange?(repoPath: string, changeId: string): Promise<OpenSpecValidationStatus>;
   now(): string;
-}
-
-export interface PipelineCursorStore {
-  loadCursor(repoId: string, sourceRef: string): JsonlCursor;
-  saveCursor(repoId: string, sourceRef: string, cursor: JsonlCursor): void;
 }
 
 export interface RepoEvidenceSnapshot {
@@ -118,7 +113,29 @@ export class RepoEvidenceReader {
     now: () => new Date().toISOString(),
   }) {}
 
-  async read(repoPath: string, repoId: string, cursorStore?: PipelineCursorStore): Promise<RepoEvidenceSnapshot> {
+  /**
+   * Lee el `spec.md` de cada capacidad tocada por el cambio.
+   *
+   * Sólo corre para el cambio seleccionado, así que la cantidad de lecturas
+   * está acotada por las capacidades de un único change. Una capacidad sin
+   * `spec.md` conserva su nombre con contenido `null`: existe la carpeta y eso
+   * es evidencia, aunque el archivo falte.
+   */
+  private async readDeltaSpecs(
+    repoPath: string,
+    changeRoot: string,
+    capabilities: string[],
+    diagnostics: PipelineDiagnostic[],
+  ): Promise<OpenSpecDeltaSpec[]> {
+    return Promise.all(capabilities.map(async (capability) => {
+      const sourceRef = `${changeRoot}/specs/${capability}/spec.md`;
+      const file = await safeReadRepoFile(repoPath, sourceRef);
+      if (file.status !== 'missing') diagnostics.push(...file.diagnostics);
+      return { capability, content: file.content, sourceRef };
+    }));
+  }
+
+  async read(repoPath: string, repoId: string): Promise<RepoEvidenceSnapshot> {
     const diagnostics: PipelineDiagnostic[] = [];
     let branch = '';
     try {
@@ -160,17 +177,22 @@ export class RepoEvidenceReader {
         designExists: designFile.content !== null,
         specsCount: deltaSpecs.length,
         validation,
+        // El markdown ya está leído: hasta ahora se descartaba después de
+        // extraer el intent. Se conserva sólo para el cambio seleccionado.
+        artifacts: changeId === selection.changeId
+          ? {
+            proposal: proposalFile.content,
+            design: designFile.content,
+            tasks: taskFile.content,
+            specs: await this.readDeltaSpecs(repoPath, changeRoot, deltaSpecs, diagnostics),
+          }
+          : null,
       });
     }
 
     const tasks = selection.changeId
       ? openSpecChanges.find((change) => change.changeId === selection.changeId)?.tasks ?? []
       : [];
-
-    // La lectura incremental por cursor existía para los JSONL del kit retirado.
-    // El mecanismo (`PipelineCursorStore` y la tabla `pipeline_cursor`) se
-    // conserva porque es genérico y quitarlo exigiría migrar el esquema, que
-    // este change dejó fuera de alcance. Hoy no tiene ninguna fuente que leer.
 
     let reports: string[] = [];
     let archivedChanges: string[] = [];

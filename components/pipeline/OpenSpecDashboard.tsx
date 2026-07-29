@@ -10,6 +10,7 @@ import {
   Code2,
   FileCode2,
   FileText,
+  ChevronDown,
   FolderOpen,
   GitBranch,
   GitCompare,
@@ -25,7 +26,7 @@ import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
 import { DecisionInbox } from './DecisionInbox';
-import { PipelineDetails } from './PipelineDetails';
+import { PipelineDetails, type DetailTab } from './PipelineDetails';
 import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { PipelineNextStepGuide } from './PipelineNextStepGuide';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
@@ -129,6 +130,12 @@ export function OpenSpecDashboard({
   const [selection, setSelection] = useState<string | null>(null);
   const [centerTab, setCenterTab] = useState<CenterTab>('work');
   const [showEvidence, setShowEvidence] = useState(false);
+  const [evidenceTab, setEvidenceTab] = useState<DetailTab>('proposal');
+  /**
+   * Cambios desplegados. Sin entrada, un cambio sigue al seleccionado: los
+   * activos se apilan y tenerlos todos abiertos vuelve la columna inusable.
+   */
+  const [expandedChanges, setExpandedChanges] = useState<Record<string, boolean>>({});
   const [launchInstruction, setLaunchInstruction] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [flowMode, setFlowMode] = useState<PipelineNewChangeMode | null>(null);
@@ -206,6 +213,20 @@ export function OpenSpecDashboard({
   const lastObservedActivity = changeSession?.activity
     .filter((item) => item.channel === 'narrative' || item.channel === 'tool')
     .at(-1)?.text ?? null;
+
+  /**
+   * Abre un artefacto en la columna central.
+   *
+   * Selecciona el cambio primero: el markdown sólo viaja para el seleccionado,
+   * así que abrir un archivo de otro cambio exige traerlo antes.
+   */
+  const openArtifact = (changeId: string, tab: DetailTab | null) => {
+    if (tab === null) return;
+    setSelection(changeId);
+    setCenterTab('work');
+    setEvidenceTab(tab);
+    setShowEvidence(true);
+  };
 
   const selectChange = (changeId: string) => {
     setSelection(changeId);
@@ -332,30 +353,70 @@ export function OpenSpecDashboard({
               ) : activeChanges.map((change) => {
                 const itemProgress = taskProgress(change);
                 const isSelected = change.changeId === selectedId;
-                return (
+                const isExpanded = expandedChanges[change.changeId] ?? isSelected;
+                const tasksDone = itemProgress.completed === itemProgress.total && itemProgress.total > 0;
+                // Sólo el cambio seleccionado transporta el markdown: en los
+                // demás el archivo se lista pero todavía no se puede abrir.
+                const readable = change.artifacts;
+
+                const artifactRow = (
+                  label: string,
+                  exists: boolean,
+                  stateLabel: string,
+                  tab: DetailTab | null,
+                  icon: React.ReactNode,
+                ) => (
                   <button
                     type="button"
-                    key={change.changeId}
-                    className={styles.activeChange}
-                    data-selected={isSelected}
-                    onClick={() => selectChange(change.changeId)}
+                    className={styles.artifactRow}
+                    disabled={!exists || tab === null || readable === null}
+                    onClick={() => openArtifact(change.changeId, tab)}
+                    title={exists ? t('pipeline.openspec.artifact.open', { file: label }) : undefined}
                   >
-                    <span className={styles.changeHeading}>
-                      <span className={styles.changeDot} aria-hidden="true" />
-                      <strong>{change.changeId}</strong>
-                      <span>{itemProgress.percent}%</span>
-                    </span>
-                    <span className={styles.progressTrack} aria-label={t('pipeline.openspec.progress', { completed: itemProgress.completed, total: itemProgress.total })}>
-                      <span style={{ width: `${itemProgress.percent}%` }} />
-                    </span>
-                    <span className={styles.changeIntent}>{change.intent ?? t('pipeline.openspec.intentUnknown')}</span>
-                    <span className={styles.artifactList}>
-                      <span><FileText size={13} /> proposal.md <em data-done={change.proposalExists}>{change.proposalExists ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending')}</em></span>
-                      <span><FileText size={13} /> design.md <em data-done={change.designExists}>{change.designExists ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending')}</em></span>
-                      <span><FolderOpen size={13} /> specs/ <em data-done={change.specsCount > 0}>{change.specsCount > 0 ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending')}</em></span>
-                      <span><FileText size={13} /> tasks.md <em data-done={itemProgress.completed === itemProgress.total && itemProgress.total > 0}>{itemProgress.completed === itemProgress.total && itemProgress.total > 0 ? t('pipeline.openspec.complete') : t('pipeline.openspec.inProgress')}</em></span>
-                    </span>
+                    {icon} {label} <em data-done={exists}>{stateLabel}</em>
                   </button>
+                );
+
+                return (
+                  <div key={change.changeId} className={styles.activeChange} data-selected={isSelected}>
+                    <div className={styles.changeHeadingRow}>
+                      <button
+                        type="button"
+                        className={styles.changeSelect}
+                        onClick={() => selectChange(change.changeId)}
+                      >
+                        <span className={styles.changeHeading}>
+                          <span className={styles.changeDot} aria-hidden="true" />
+                          <strong>{change.changeId}</strong>
+                          <span>{itemProgress.percent}%</span>
+                        </span>
+                        <span className={styles.progressTrack} aria-label={t('pipeline.openspec.progress', { completed: itemProgress.completed, total: itemProgress.total })}>
+                          <span style={{ width: `${itemProgress.percent}%` }} />
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.changeToggle}
+                        aria-expanded={isExpanded}
+                        aria-label={t(isExpanded ? 'pipeline.openspec.change.collapse' : 'pipeline.openspec.change.expand', { change: change.changeId })}
+                        onClick={() => setExpandedChanges((current) => ({ ...current, [change.changeId]: !isExpanded }))}
+                      >
+                        <ChevronDown size={14} data-expanded={isExpanded} />
+                      </button>
+                    </div>
+
+                    {isExpanded && (
+                      <>
+                        <p className={styles.changeIntent}>{change.intent ?? t('pipeline.openspec.intentUnknown')}</p>
+                        <div className={styles.artifactList}>
+                          {artifactRow('proposal.md', change.proposalExists, change.proposalExists ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending'), 'proposal', <FileText size={13} />)}
+                          {artifactRow('design.md', change.designExists, change.designExists ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending'), 'design', <FileText size={13} />)}
+                          {artifactRow('specs/', change.specsCount > 0, change.specsCount > 0 ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending'), 'specs', <FolderOpen size={13} />)}
+                          {artifactRow('tasks.md', itemProgress.total > 0, tasksDone ? t('pipeline.openspec.complete') : t('pipeline.openspec.inProgress'), 'tasks', <FileText size={13} />)}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 );
               })}
             </section>
@@ -524,7 +585,16 @@ export function OpenSpecDashboard({
                     {selectedChange.tasks.length === 0 && <li className={styles.taskEmpty}>{t('pipeline.openspec.tasks.empty')}</li>}
                   </ol>
 
-                  {showEvidence && <div className={styles.evidencePanel}><PipelineDetails snapshot={snapshot} /></div>}
+                  {showEvidence && (
+                    <div className={styles.evidencePanel}>
+                      <PipelineDetails
+                        snapshot={snapshot}
+                        selectedChange={selectedChange}
+                        tab={evidenceTab}
+                        onTabChange={setEvidenceTab}
+                      />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className={styles.fullActivity}>

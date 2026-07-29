@@ -8,16 +8,11 @@
 import type {
   ActivityEntry,
   AgentNode,
-  AuditorFinding,
-  ChangeStation,
   DecisionRequest,
   EconomyState,
-  GateHistoryEntry,
-  NowState,
   PipelineDiffItem,
-  PipelineProposal,
 } from './pipeline-domain';
-import type { OpenSpecValidationStatus, TaskEvidence } from '@/types/pipeline';
+import type { OpenSpecChangeArtifacts, OpenSpecValidationStatus, TaskEvidence } from '@/types/pipeline';
 
 export type PipelineSource = 'git' | 'openspec' | 'runtime';
 
@@ -32,6 +27,8 @@ export type OpenSpecChangeSummary = {
   designExists: boolean;
   specsCount: number;
   validation: OpenSpecValidationStatus;
+  /** Markdown de los artefactos. Sólo lo trae el cambio seleccionado. */
+  artifacts: OpenSpecChangeArtifacts | null;
 };
 
 export type OpenSpecWorkspaceSnapshot = {
@@ -58,13 +55,10 @@ export type PipelineSnapshot = {
   repoId: string;
   availableSources: PipelineSource[];
   hasPipelineActivity: boolean;
-  now: NowState;
-  stations: ChangeStation[];
   decisions: DecisionRequest[];
   agents: AgentNode[];
   activity: ActivityEntry[];
   economy: EconomyState;
-  proposal?: PipelineProposal | null;
   diffs?: PipelineDiffItem[];
   /** Vista OpenSpec. Opcional para snapshots/fixtures históricos. */
   openSpec?: OpenSpecWorkspaceSnapshot;

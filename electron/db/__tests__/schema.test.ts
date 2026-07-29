@@ -108,7 +108,21 @@ describe('Temporal Agent SQLite schema', () => {
         PIPELINE_REPO_TABLE,
         PIPELINE_SNAPSHOT_TABLE,
         PIPELINE_EVENT_TABLE,
-        PIPELINE_CURSOR_TABLE,
+        PIPELINE_RUNTIME_SESSION_TABLE,
+      ]));
+    });
+  });
+
+  // La tabla se creaba en la migracion 4 y la 6 la elimina: registraba el avance
+  // de lectura de los JSONL del kit retirado y ya no tiene nada que registrar.
+  it('drops the cursor table while keeping the rest of the Pipeline schema', () => {
+    withDb((db) => {
+      const tables = sqliteNames(db, 'table');
+      expect(tables).not.toContain(PIPELINE_CURSOR_TABLE);
+      expect(tables).toEqual(expect.arrayContaining([
+        PIPELINE_REPO_TABLE,
+        PIPELINE_SNAPSHOT_TABLE,
+        PIPELINE_EVENT_TABLE,
         PIPELINE_RUNTIME_SESSION_TABLE,
       ]));
     });
@@ -231,12 +245,26 @@ describe('Temporal Agent SQLite schema', () => {
 
   it('upgrades an existing Pipeline v4 database without recreating its evidence tables', () => {
     withDb((db) => {
+      // Se reconstruye el estado de una base v4 real: sin la tabla de sesiones,
+      // que llega en la 5, y **con** la de cursores, que la 6 elimina.
       db.exec(`DROP TABLE ${PIPELINE_RUNTIME_SESSION_TABLE}`);
+      db.exec(`CREATE TABLE ${PIPELINE_CURSOR_TABLE} (
+        repo_id TEXT NOT NULL, source_ref TEXT NOT NULL, offset INTEGER NOT NULL,
+        pending TEXT NOT NULL, generation TEXT, updated_at TEXT NOT NULL,
+        PRIMARY KEY (repo_id, source_ref)
+      ) STRICT;`);
       db.exec('PRAGMA user_version = 4');
+
       runMigrations(db);
-      expect(pragmaNumber(db, 'user_version')).toBe(5);
-      expect(sqliteNames(db, 'table')).toContain(PIPELINE_RUNTIME_SESSION_TABLE);
-      expect(sqliteNames(db, 'table')).toContain(PIPELINE_SNAPSHOT_TABLE);
+
+      expect(pragmaNumber(db, 'user_version')).toBe(6);
+      const tables = sqliteNames(db, 'table');
+      expect(tables).toContain(PIPELINE_RUNTIME_SESSION_TABLE);
+      expect(tables).toContain(PIPELINE_SNAPSHOT_TABLE);
+      // La migración elimina sólo la tabla de cursores: el resto sobrevive.
+      expect(tables).not.toContain(PIPELINE_CURSOR_TABLE);
+      expect(tables).toContain(PIPELINE_EVENT_TABLE);
+      expect(tables).toContain(PIPELINE_REPO_TABLE);
     });
   });
 });

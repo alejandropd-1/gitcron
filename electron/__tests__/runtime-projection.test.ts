@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PipelineEventEnvelope, PipelineIdentity, RuntimeTelemetrySnapshot } from '../../types/pipeline';
-import { RuntimeProjectionBuilder } from '../pipeline/runtime/runtime-projection';
+import { coalescePersistedActivity, RuntimeProjectionBuilder } from '../pipeline/runtime/runtime-projection';
 
 function identity(over: Partial<PipelineIdentity> = {}): PipelineIdentity {
   return {
@@ -192,5 +192,91 @@ describe('RuntimeProjectionBuilder', () => {
     const projection = builder();
     projection.ingest(event('runtime.schema.degraded', { reason: 'record_not_object' }));
     expect(projection.snapshot().diagnostics[0]).toContain('runtime.schema.degraded');
+  });
+});
+
+/**
+ * Un runtime que emite mensajes parciales manda el texto en fragmentos. Sin
+ * acumularlos, la actividad mostraba un mensaje partido en varias entradas que
+ * empezaban a mitad de palabra.
+ */
+describe('RuntimeProjectionBuilder - narrativa coalescida', () => {
+  it('une los deltas consecutivos de un mismo agente en una entrada', () => {
+    const projection = builder();
+    for (const piece of ['Voy a ', 'leer el ', 'archivo.']) {
+      projection.ingest(event('agent.message.delta', { text: piece }));
+    }
+    const narrative = projection.snapshot().activity.filter((entry) => entry.channel === 'narrative');
+    expect(narrative).toHaveLength(1);
+    expect(narrative[0].text).toBe('Voy a leer el archivo.');
+  });
+
+  it('cierra la acumulacion cuando llega un evento de otra clase', () => {
+    const projection = builder();
+    projection.ingest(event('agent.message.delta', { text: 'antes' }));
+    projection.ingest(event('tool.started', { name: 'Read' }));
+    projection.ingest(event('agent.message.delta', { text: 'despues' }));
+
+    const texts = projection.snapshot().activity.map((entry) => entry.text);
+    // El orden observado se conserva: el evento intermedio no queda absorbido.
+    expect(texts).toEqual(['antes', 'Read', 'despues']);
+  });
+
+  it('no mezcla el texto de dos agentes distintos', () => {
+    const projection = builder();
+    projection.ingest(event('agent.message.delta', { text: 'del uno' }, { identity: identity({ agentId: 'agent-1' }) }));
+    projection.ingest(event('agent.message.delta', { text: 'del dos' }, { identity: identity({ agentId: 'agent-2' }) }));
+
+    const narrative = projection.snapshot().activity.filter((entry) => entry.channel === 'narrative');
+    expect(narrative).toHaveLength(2);
+    expect(narrative[0].text).toBe('del uno');
+    expect(narrative[1].text).toBe('del dos');
+  });
+
+  it('no absorbe un mensaje completo dentro de una corriente de deltas', () => {
+    const projection = builder();
+    projection.ingest(event('agent.message.delta', { text: 'parcial' }));
+    projection.ingest(event('agent.message', { text: 'completo' }));
+
+    const narrative = projection.snapshot().activity.filter((entry) => entry.channel === 'narrative');
+    expect(narrative.map((entry) => entry.text)).toEqual(['parcial', 'completo']);
+  });
+});
+
+/**
+ * Las sesiones guardadas antes de que existiera la acumulacion conservan el
+ * mensaje partido. Se reparan al cargarlas: la proyeccion se persiste tal cual
+ * y volver a correr la sesion costaria una inferencia paga.
+ */
+describe('coalescePersistedActivity', () => {
+  const entry = (over = {}) => ({
+    entryId: 'e', channel: 'narrative' as const, text: '', at: null, agentId: 'agent-1', ...over,
+  });
+
+  it('une los fragmentos de narrativa consecutivos del mismo agente', () => {
+    const repaired = coalescePersistedActivity([
+      entry({ entryId: 'e1', text: 'enido ' }),
+      entry({ entryId: 'e2', text: 'central se ' }),
+      entry({ entryId: 'e3', text: 'reacomoda' }),
+    ]);
+    expect(repaired).toHaveLength(1);
+    expect(repaired[0].text).toBe('enido central se reacomoda');
+    // Conserva el id del primero: la deduplicacion aguas abajo sigue funcionando.
+    expect(repaired[0].entryId).toBe('e1');
+  });
+
+  it('no une a traves de otro canal ni entre agentes distintos', () => {
+    const repaired = coalescePersistedActivity([
+      entry({ entryId: 'e1', text: 'uno' }),
+      entry({ entryId: 'e2', channel: 'tool', text: 'Read' }),
+      entry({ entryId: 'e3', text: 'dos' }),
+      entry({ entryId: 'e4', text: 'de otro', agentId: 'agent-2' }),
+    ]);
+    expect(repaired.map((item) => item.text)).toEqual(['uno', 'Read', 'dos', 'de otro']);
+  });
+
+  it('deja intacta una actividad que ya llega entera', () => {
+    const entries = [entry({ entryId: 'e1', text: 'mensaje completo' })];
+    expect(coalescePersistedActivity(entries)).toEqual(entries);
   });
 });

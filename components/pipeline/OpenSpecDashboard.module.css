@@ -207,6 +207,25 @@
   background: rgba(28, 66, 91, 0.34);
 }
 
+/* El encabezado se parte en dos controles: seleccionar el cambio y plegarlo son
+   acciones distintas, y con varios cambios apilados hace falta poder cerrar uno
+   sin dejar de trabajar en él. */
+.changeHeadingRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 0.4rem; }
+.changeSelect { display: grid; gap: 0.4rem; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; }
+.changeToggle {
+  display: grid;
+  width: 1.6rem;
+  height: 1.6rem;
+  place-items: center;
+  border: 0;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: var(--os-muted);
+}
+.changeToggle:hover { background: rgba(94, 216, 255, 0.12); color: var(--os-cyan); }
+.changeToggle svg { transition: transform 140ms ease; }
+.changeToggle svg[data-expanded='false'] { transform: rotate(-90deg); }
+
 .changeHeading {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -254,8 +273,25 @@
   line-height: 1.45;
 }
 
-.artifactList { display: grid; gap: 0.45rem; margin-left: 1.1rem; }
-.artifactList > span { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.5rem; color: #c4d1df; font: 0.67rem var(--font-mono), ui-monospace, monospace; }
+.artifactList { display: grid; gap: 0.15rem; margin-left: 1.1rem; }
+/* Cada archivo es un control: abre su contenido en la columna central. */
+.artifactRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.24rem 0.35rem;
+  border: 0;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: #c4d1df;
+  font: 0.67rem var(--font-mono), ui-monospace, monospace;
+  text-align: left;
+}
+.artifactRow:hover:not(:disabled) { background: rgba(94, 216, 255, 0.1); color: var(--os-cyan); }
+/* Deshabilitado significa que ese archivo todavía no se puede leer, no que esté
+   roto: se atenúa sin desaparecer, porque su estado sigue siendo información. */
+.artifactRow:disabled { cursor: default; opacity: 0.55; }
 .artifactList em { color: var(--os-amber); font-size: 0.6rem; font-style: normal; }
 .artifactList em[data-done='true'] { color: var(--os-green); }
 

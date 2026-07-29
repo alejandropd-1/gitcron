@@ -5,10 +5,8 @@ import type {
 } from '@/types/pipeline';
 import type {
   ActivityEntry,
-  ChangeStation,
   DecisionRequest,
   EconomyState,
-  NowState,
   AgentNode,
 } from './pipeline-domain';
 import type { OpenSpecWorkspaceSnapshot, PipelineSnapshot, PipelineSource } from './pipeline-view-state';
@@ -177,73 +175,6 @@ function toDecisions(decisions: EvidenceDecision[]): DecisionRequest[] {
     }));
 }
 
-/**
- * Deriva las estaciones de la vía a partir de lo que la evidencia demuestra.
- *
- * Cada estación se marca `done` sólo con evidencia positiva. Sin señal, queda
- * `possible`: un camino que todavía no ocurrió, no un paso saltado.
- */
-function toStations(state: PipelineState): ChangeStation[] {
-  const hasChange = state.activeChanges.length > 0 || state.mergedChanges.length > 0;
-  const tasksDone = state.tasks.filter((task) => task.completed).length;
-  const hasTasks = state.tasks.length > 0;
-  // El veto determinístico del kit se retiró: ya no hay evidencia de gates que
-  // permita afirmar que esa estación pasó o falló.
-  const gatesGreen = false;
-  const rejected = state.decisions.some((d) => d.kind === 'audit-rejected' && d.status === 'pending');
-  const merged = state.mergedChanges.length > 0;
-
-  const station = (
-    id: ChangeStation['id'],
-    done: boolean,
-    humanGate = false,
-  ): ChangeStation => ({
-    id,
-    state: done ? 'done' : 'possible',
-    humanGate,
-    detailKey: null,
-  });
-
-  const stations: ChangeStation[] = [
-    station('proposal', hasChange),
-    station('approval', hasChange, true),
-    station('builder', hasTasks && tasksDone > 0),
-    station('gates', gatesGreen),
-    { id: 'auditor', state: rejected ? 'rejected' : gatesGreen ? 'done' : 'possible', humanGate: false, detailKey: null },
-    { id: 'fixer', state: rejected ? 'current' : 'possible', humanGate: false, detailKey: null },
-    station('merge', merged, true),
-  ];
-
-  // Marca "en curso" la primera estación no cumplida, salvo que el rechazo ya
-  // haya puesto al fixer en curso.
-  if (!rejected) {
-    const next = stations.find((s) => s.state === 'possible');
-    if (next && !merged) next.state = 'current';
-  }
-  return stations;
-}
-
-function toNow(state: PipelineState, economy: EconomyState): NowState {
-  const tasksTotal = state.tasks.length;
-  const tasksDone = state.tasks.filter((task) => task.completed).length;
-  const pendingDecisions = state.decisions.filter((d) => d.status === 'pending').length;
-
-  return {
-    headlineKey: tasksTotal > 0 ? 'pipeline.now.title' : 'pipeline.now.idle',
-    // La evidencia del repo no identifica el runtime, el rol ni la duración: el
-    // registro de delegaciones que los aportaba pertenecía al kit retirado, y la
-    // sesión real es la fuente de eso ahora.
-    runtime: null,
-    role: null,
-    taskLabel: state.activeChanges[0] ?? null,
-    tasksDone: tasksTotal > 0 ? tasksDone : null,
-    tasksTotal: tasksTotal > 0 ? tasksTotal : null,
-    elapsedMs: null,
-    costUsd: economy.costUsd,
-    costBasis: economy.costBasis,
-    needsHuman: pendingDecisions > 0,
-  };
-}
 
 function toSources(state: PipelineState): PipelineSource[] {
   const sources: PipelineSource[] = ['git'];
@@ -263,6 +194,7 @@ function toOpenSpecWorkspace(state: PipelineState): OpenSpecWorkspaceSnapshot {
       designExists: false,
       specsCount: 0,
       validation: 'unknown' as const,
+      artifacts: null,
     }));
   const archivedChanges = state.openSpecArchivedChanges?.map((change) => ({ ...change }))
     ?? state.archivedChanges.map((changeId) => ({ changeId, archivedAt: null, sourceRef: 'openspec/changes/archive' }));
@@ -303,8 +235,6 @@ export function toPipelineSnapshot(
       state.tasks.length > 0
       || state.activeChanges.length > 0
       || state.mergedChanges.length > 0,
-    now: toNow(state, economy),
-    stations: toStations(state),
     decisions: toDecisions(state.decisions),
     agents: toAgents(),
     // La bitácora sólo puede venir del stream: esta lectura no la cubre.
@@ -341,12 +271,6 @@ export function mergeRuntimeIntoSnapshot(
     // Una sesión viva es actividad aunque el repo todavía no haya escrito nada:
     // es justamente el caso de la primera corrida sobre un repo limpio.
     hasPipelineActivity: true,
-    now: {
-      ...snapshot.now,
-      // El runtime que corre sí lo sabemos cuando hay sesión: viene de la
-      // identidad del sobre, no de una inferencia sobre el modelo registrado.
-      runtime: projection.active ? projection.runtime : snapshot.now.runtime,
-    },
     // Los dos orígenes conviven: los ids no chocan (`delegation-N` contra los
     // UUID del runtime) y se distinguen en la vista porque sólo los del stream
     // traen `runtime` no nulo.

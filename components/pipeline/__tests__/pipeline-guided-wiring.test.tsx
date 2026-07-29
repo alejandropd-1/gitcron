@@ -53,6 +53,7 @@ function snapshot(): PipelineSnapshot {
         designExists: true,
         specsCount: 1,
         validation: 'unknown',
+        artifacts: null,
       }],
       archivedChanges: [],
       specifications: [],

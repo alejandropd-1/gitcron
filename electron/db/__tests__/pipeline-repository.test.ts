@@ -60,18 +60,6 @@ describe('PipelineRepository', () => {
     }
   });
 
-  it('persists JSONL cursors outside the observed repo', () => {
-    const db = openTemporalAgentDatabase(':memory:');
-    try {
-      const repository = new PipelineRepository(db, () => '2026-07-23T20:00:00.000Z');
-      const binding = repository.getOrCreateBinding('C:/repo', 'digest');
-      repository.saveCursor(binding.repoId, 'docs/ai/logs/gates.jsonl', { offset: 42, pending: '{"partial":', generation: null });
-      expect(repository.loadCursor(binding.repoId, 'docs/ai/logs/gates.jsonl')).toEqual({ offset: 42, pending: '{"partial":', generation: null });
-    } finally {
-      db.close();
-    }
-  });
-
   it('persists sanitized runtime envelopes per repo', () => {
     const db = openTemporalAgentDatabase(':memory:');
     try {

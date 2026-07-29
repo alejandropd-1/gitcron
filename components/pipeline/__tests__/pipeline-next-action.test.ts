@@ -38,6 +38,7 @@ function change(overrides: Partial<OpenSpecChangeSummary> = {}): OpenSpecChangeS
     designExists: true,
     specsCount: 1,
     validation: 'unknown',
+    artifacts: null,
     ...overrides,
   };
 }

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { PipelineSemanticEvent, PipelineState, RuntimeProjection } from '../../types/pipeline';
-import type { JsonlCursor } from '../../types/pipeline';
 import { stringifyPipelineValue } from './persistence-sanitizer';
+import { coalescePersistedActivity } from './runtime/runtime-projection';
 
 export interface PipelineRepoBinding {
   repoId: string;
@@ -121,7 +121,10 @@ export class PipelineRepository {
     `).all(repoId, safeLimit) as RuntimeProjectionRow[];
     return rows.flatMap((row) => {
       try {
-        return [JSON.parse(row.projection_json) as RuntimeProjection];
+        const projection = JSON.parse(row.projection_json) as RuntimeProjection;
+        // Las sesiones guardadas antes de que existiera la acumulación traen los
+        // mensajes partidos en fragmentos. Se reparan acá, al entrar.
+        return [{ ...projection, activity: coalescePersistedActivity(projection.activity) }];
       } catch {
         return [];
       }
@@ -138,16 +141,4 @@ export class PipelineRepository {
     return Number(row.count);
   }
 
-  loadCursor(repoId: string, sourceRef: string): JsonlCursor {
-    const row = this.db.prepare('SELECT offset, pending, generation FROM pipeline_cursor WHERE repo_id = ? AND source_ref = ?').get(repoId, sourceRef) as { offset: number; pending: string; generation: string | null } | undefined;
-    return row ?? { offset: 0, pending: '', generation: null };
-  }
-
-  saveCursor(repoId: string, sourceRef: string, cursor: JsonlCursor): void {
-    this.db.prepare(`
-      INSERT INTO pipeline_cursor (repo_id, source_ref, offset, pending, generation, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(repo_id, source_ref) DO UPDATE SET offset = excluded.offset, pending = excluded.pending, generation = excluded.generation, updated_at = excluded.updated_at
-    `).run(repoId, sourceRef, cursor.offset, cursor.pending, cursor.generation, this.now());
-  }
 }

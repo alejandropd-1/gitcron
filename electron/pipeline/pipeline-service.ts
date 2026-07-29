@@ -45,7 +45,7 @@ export class PipelineService {
     const repository = new PipelineRepository(getDatabase(app.getPath('userData')));
     const binding = repository.getOrCreateBinding(canonicalPath, digest(gitCommonDir));
     const previous = repository.loadSnapshot(binding.repoId)?.state;
-    const { evidence } = await this.reader.read(canonicalPath, binding.repoId, repository);
+    const { evidence } = await this.reader.read(canonicalPath, binding.repoId);
     const reduction = reducePipelineEvidence(evidence, previous);
     repository.persist(binding, reduction.state, reduction.events);
     return reduction.state;

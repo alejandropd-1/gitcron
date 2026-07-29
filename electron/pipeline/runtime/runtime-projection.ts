@@ -72,6 +72,46 @@ function channelForKind(kind: string): RuntimeActivityChannel | null {
 }
 
 /**
+ * Clave de la corriente de fragmentos, o `null` si el evento no es un delta.
+ *
+ * Sólo los eventos que transportan texto parcial se acumulan. Un `agent.message`
+ * completo no lleva clave: llega entero y no tiene nada que absorber.
+ */
+function coalesceKeyForEvent(kind: string, agentId: string | null): string | null {
+  if (kind !== 'agent.message.delta' && kind !== 'reasoning.delta') return null;
+  return `${kind}:${agentId ?? 'unknown'}`;
+}
+
+/**
+ * Une los fragmentos de una actividad ya persistida.
+ *
+ * Las sesiones guardadas antes de que la acumulación existiera conservan un
+ * mensaje partido en varias entradas. Se reparan al cargarlas, con la misma
+ * regla que aplica la ingesta.
+ *
+ * La diferencia con la ingesta es que acá la clase de evento ya se perdió: una
+ * entrada guardada no dice si fue un delta o un mensaje completo. Por eso se
+ * unen las entradas de narrativa consecutivas del mismo agente, asumiendo que
+ * dos mensajes distintos del mismo agente aparecen separados por algún otro
+ * evento. Es lo máximo que la evidencia almacenada permite afirmar.
+ */
+export function coalescePersistedActivity(entries: RuntimeActivityEntry[]): RuntimeActivityEntry[] {
+  const merged: RuntimeActivityEntry[] = [];
+  for (const entry of entries) {
+    const last = merged[merged.length - 1];
+    const joinable = entry.channel === 'narrative'
+      && last?.channel === 'narrative'
+      && last.agentId === entry.agentId;
+    if (joinable) {
+      merged[merged.length - 1] = { ...last, text: last.text + entry.text, at: entry.at ?? last.at };
+      continue;
+    }
+    merged.push(entry);
+  }
+  return merged;
+}
+
+/**
  * Texto ya legible para cada evento.
  *
  * Los eventos de sistema se describen con una cadena técnica compacta en vez de
@@ -170,6 +210,8 @@ export interface RuntimeProjectionInit {
 export class RuntimeProjectionBuilder {
   private readonly agents = new Map<string, AgentAccumulator>();
   private readonly activity: RuntimeActivityEntry[] = [];
+  /** Corriente de deltas abierta, o `null` si la última entrada la cerró. */
+  private openStream: string | null = null;
   private readonly diagnostics: string[] = [];
   private readonly sanitizer = new PipelineSecuritySanitizer();
 
@@ -203,7 +245,7 @@ export class RuntimeProjectionBuilder {
       text: this.sanitizer.sanitizeOutput(rawText),
       at: event.emittedAt ?? event.observedAt,
       agentId: event.identity.agentId,
-    });
+    }, coalesceKeyForEvent(event.kind, event.identity.agentId));
   }
 
   addObservedActivity(entry: RuntimeActivityEntry): void {
@@ -275,7 +317,33 @@ export class RuntimeProjectionBuilder {
     };
   }
 
-  private push(entry: RuntimeActivityEntry): void {
+  /**
+   * Agrega una entrada, acumulando los deltas consecutivos del mismo agente.
+   *
+   * Un runtime que emite mensajes parciales manda el texto en fragmentos, y sin
+   * acumularlos la actividad muestra un mensaje partido en varias entradas que
+   * empiezan a mitad de palabra. `coalesceKey` identifica la corriente abierta:
+   * mientras no cambie, el texto se concatena sobre la última entrada.
+   *
+   * Cualquier entrada sin clave —o con una clave distinta— cierra la corriente,
+   * así el orden observado se conserva y dos agentes nunca se mezclan.
+   */
+  private push(entry: RuntimeActivityEntry, coalesceKey: string | null = null): void {
+    const last = this.activity[this.activity.length - 1];
+    if (coalesceKey !== null && coalesceKey === this.openStream && last !== undefined) {
+      // Se reemplaza en vez de mutar: la proyección entrega copias superficiales
+      // y mutar una entrada ya leída la cambiaría a espaldas del consumidor.
+      // El saneo corre sobre el texto unido, así un secreto partido entre dos
+      // fragmentos tampoco se escapa.
+      this.activity[this.activity.length - 1] = {
+        ...last,
+        text: this.sanitizer.sanitizeOutput(last.text + entry.text),
+        at: entry.at,
+      };
+      return;
+    }
+
+    this.openStream = coalesceKey;
     this.activity.push(entry);
     if (this.activity.length > MAX_ACTIVITY_ENTRIES) {
       this.activity.shift();

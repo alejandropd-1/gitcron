@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { RUNNING_SNAPSHOT } from '../__fixtures__/pipeline-fixtures';
 
 describe('Pipeline details', () => {
-  it('includes proposal and diffs in RUNNING_SNAPSHOT', () => {
-    expect(RUNNING_SNAPSHOT.proposal).toBeDefined();
+  // La propuesta ya no viaja en un campo propio del snapshot: llega dentro de
+  // los artefactos del cambio seleccionado, que es lo que lee el panel.
+  it('carries the selected change artifacts and the diffs', () => {
+    const selected = RUNNING_SNAPSHOT.openSpec?.activeChanges[0];
+    expect(selected?.artifacts?.proposal).toBeTruthy();
     expect(RUNNING_SNAPSHOT.diffs).toBeDefined();
     expect(RUNNING_SNAPSHOT.diffs?.length).toBeGreaterThan(0);
   });

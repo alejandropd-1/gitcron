@@ -60,27 +60,6 @@ describe('toPipelineSnapshot', () => {
     expect(snapshot.agents).toEqual([]);
   });
 
-  it('does not guess which runtime ran from repo evidence', () => {
-    const snapshot = toPipelineSnapshot(state({ activeChanges: ['change-1'] }));
-    expect(snapshot.now.runtime).toBeNull();
-    expect(snapshot.now.role).toBeNull();
-    expect(snapshot.now.elapsedMs).toBeNull();
-  });
-
-  it('sends the path back to the fixer when the auditor rejected', () => {
-    const snapshot = toPipelineSnapshot(state({
-      activeChanges: ['change-1'],
-      decisions: [{
-        decisionId: 'd1', repoId: 'repo-1', changeId: null, kind: 'audit-rejected',
-        status: 'pending', title: 'rechazo', summary: '', risk: 'high', riskReason: null,
-        provenance: 'repo', evidenceRefs: [], requestedAt: '2026-07-25T00:00:00.000Z',
-      }],
-    }));
-    const byId = new Map(snapshot.stations.map((s) => [s.id, s.state]));
-    expect(byId.get('auditor')).toBe('rejected');
-    expect(byId.get('fixer')).toBe('current');
-  });
-
   // La fuente `kit` describía el andamiaje multi-agente retirado. Lo que se
   // declara ahora es OpenSpec, y sólo cuando hay cambios observados.
   it('only advertises OpenSpec as a source when there are observed changes', () => {
@@ -106,7 +85,6 @@ describe('toPipelineSnapshot', () => {
     }));
     expect(snapshot.decisions.map((d) => d.decisionId)).toEqual(['d1']);
     expect(snapshot.decisions[0].options.every((o) => o.availability === 'informational')).toBe(true);
-    expect(snapshot.now.needsHuman).toBe(true);
   });
 
   it('leaves the activity log empty because this source has no runtime stream', () => {
@@ -221,14 +199,6 @@ describe('mergeRuntimeIntoSnapshot', () => {
     const merged = mergeRuntimeIntoSnapshot(base, projection());
     expect(merged.hasPipelineActivity).toBe(true);
     expect(merged.availableSources).toContain('runtime');
-  });
-
-  it('names the running runtime only while the session is active', () => {
-    const base = toPipelineSnapshot(state());
-    expect(mergeRuntimeIntoSnapshot(base, projection({ active: true })).now.runtime).toBe('claude');
-    // Cerrada la sesión, el runtime deja de estar corriendo: no se sigue
-    // afirmando en "Ahora" algo que ya no está pasando.
-    expect(mergeRuntimeIntoSnapshot(base, projection({ active: false })).now.runtime).toBeNull();
   });
 
   it('brings the activity log the repo evidence could never carry', () => {

@@ -1,34 +1,5 @@
 import type { PipelineDataProvenance, PipelineEvidenceStatus } from '@/types/pipeline';
 
-/** Estaciones de la vía del change, en orden del método. */
-export const CHANGE_STATIONS = [
-  'proposal',
-  'approval',
-  'builder',
-  'gates',
-  'auditor',
-  'fixer',
-  'merge',
-] as const;
-
-export type ChangeStationId = (typeof CHANGE_STATIONS)[number];
-
-/**
- * `done` ocurrió · `current` está pasando · `possible` todavía no ocurrió ·
- * `rejected` se recorrió y volvió atrás · `skipped` no aplica a este change.
- *
- * `possible` existe para poder dibujar el camino punteado sin afirmar que va a
- * pasar: es un futuro posible, no un plan comprometido.
- */
-export type ChangeStationState = 'done' | 'current' | 'possible' | 'rejected' | 'skipped';
-
-export type ChangeStation = {
-  id: ChangeStationId;
-  state: ChangeStationState;
-  /** Verdadero cuando la estación depende de una persona, no de una IA. */
-  humanGate: boolean;
-  detailKey: string | null;
-};
 
 export type DecisionOption = {
   id: string;
@@ -63,20 +34,6 @@ export type DecisionRequest = {
   evidenceStatus: PipelineEvidenceStatus;
 };
 
-export type NowState = {
-  /** Clave de la frase humana: "Codex está auditando". */
-  headlineKey: string;
-  runtime: string | null;
-  role: string | null;
-  taskLabel: string | null;
-  tasksDone: number | null;
-  tasksTotal: number | null;
-  elapsedMs: number | null;
-  /** `null` cuando el runtime no reportó costo. Nunca se sustituye por 0. */
-  costUsd: number | null;
-  costBasis: 'runtime_reported' | 'estimated' | 'included_plan' | 'local_unpriced' | 'unknown';
-  needsHuman: boolean;
-};
 
 /**
  * Ordena las decisiones por necesidad humana, no por el último delta recibido.
@@ -247,7 +204,7 @@ export type TokenTotals = {
 export type EconomyState = {
   tokens: TokenTotals;
   costUsd: number | null;
-  costBasis: NowState['costBasis'];
+  costBasis: 'runtime_reported' | 'estimated' | 'included_plan' | 'local_unpriced' | 'unknown';
   /** Cuántos agentes de la corrida aportaron costo en USD, sobre el total. */
   costCoverage: { withCost: number; total: number };
   contextMaxTokens: number | null;
@@ -278,14 +235,6 @@ export function hasUsableCostCoverage(economy: EconomyState): boolean {
   return withCost === total;
 }
 
-/* ─────────── TANDA 4: detalle, diffs, auditoría y gates ─────────── */
-
-export type PipelineProposal = {
-  title: string;
-  markdownContent: string;
-  version?: string | null;
-};
-
 export type PipelineDiffItem = {
   filePath: string;
   diffContent: string;
@@ -293,21 +242,5 @@ export type PipelineDiffItem = {
   taskId?: string | null;
 };
 
-export type AuditorFinding = {
-  id: string;
-  category: string;
-  description: string;
-  file?: string | null;
-  line?: number | null;
-  risk: 'high' | 'medium' | 'low';
-  recommendation: string;
-};
 
-export type GateHistoryEntry = {
-  gateId: string;
-  name: string;
-  status: 'VERDE' | 'ROJO' | 'PENDIENTE';
-  checkedAt: string | null;
-  details?: string | null;
-};
 

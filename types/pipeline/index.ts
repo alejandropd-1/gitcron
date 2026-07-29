@@ -28,6 +28,30 @@ export interface OpenSpecChangeEvidence {
   designExists: boolean;
   specsCount: number;
   validation: OpenSpecValidationStatus;
+  /**
+   * Markdown de los artefactos, para poder leerlos sin abrir el repositorio por
+   * fuera de la aplicación.
+   *
+   * Se transporta **sólo para el cambio seleccionado**: el contenido completo de
+   * cada change activo haría crecer el snapshot sin que nadie lo mire. `null`
+   * distingue "no existe" de "existe y está vacío"; los demás cambios lo dejan
+   * en `null` aunque el archivo exista, y para eso está `proposalExists`.
+   */
+  artifacts: OpenSpecChangeArtifacts | null;
+}
+
+export interface OpenSpecChangeArtifacts {
+  proposal: string | null;
+  design: string | null;
+  tasks: string | null;
+  /** Un spec delta por capacidad tocada, en el orden en que están en disco. */
+  specs: OpenSpecDeltaSpec[];
+}
+
+export interface OpenSpecDeltaSpec {
+  capability: string;
+  content: string | null;
+  sourceRef: string;
 }
 
 export interface OpenSpecArchivedChangeEvidence {

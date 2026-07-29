@@ -13,19 +13,6 @@ const BASE: PipelineSnapshot = {
   repoId: 'fixture-repo',
   availableSources: ['git', 'openspec', 'runtime'],
   hasPipelineActivity: true,
-  now: {
-    headlineKey: 'pipeline.now.idle',
-    runtime: null,
-    role: null,
-    taskLabel: null,
-    tasksDone: null,
-    tasksTotal: null,
-    elapsedMs: null,
-    costUsd: null,
-    costBasis: 'unknown',
-    needsHuman: false,
-  },
-  stations: [],
   decisions: [],
   agents: [],
   activity: [],
@@ -54,27 +41,6 @@ const BASE: PipelineSnapshot = {
 /** Auditoría en curso, costo informado por el runtime. */
 export const RUNNING_SNAPSHOT: PipelineSnapshot = {
   ...BASE,
-  now: {
-    headlineKey: 'pipeline.now.auditing',
-    runtime: 'codex',
-    role: 'auditor',
-    taskLabel: 'runtime-adapters',
-    tasksDone: 3,
-    tasksTotal: 7,
-    elapsedMs: 8 * 60 * 1000 + 12 * 1000,
-    costUsd: 0.9881,
-    costBasis: 'runtime_reported',
-    needsHuman: false,
-  },
-  stations: [
-    { id: 'proposal', state: 'done', humanGate: false, detailKey: null },
-    { id: 'approval', state: 'done', humanGate: true, detailKey: null },
-    { id: 'builder', state: 'done', humanGate: false, detailKey: null },
-    { id: 'gates', state: 'done', humanGate: false, detailKey: null },
-    { id: 'auditor', state: 'current', humanGate: false, detailKey: null },
-    { id: 'fixer', state: 'possible', humanGate: false, detailKey: null },
-    { id: 'merge', state: 'possible', humanGate: true, detailKey: null },
-  ],
   agents: [
     {
       agentId: 'orch-1',
@@ -134,18 +100,6 @@ export const RUNNING_SNAPSHOT: PipelineSnapshot = {
     compactionCount: 0,
     reasoningAvailable: true,
   },
-  proposal: {
-    title: 'Fase 04 — Workspace visual per-repo',
-    version: '1.0.0',
-    markdownContent: `# Propuesta F04 — Workspace Pipeline UI
-
-## Objetivos principales
-- Construir el workspace visual per-repo en la solapa Pipeline.
-- Respetar honestidad de datos: \`unknown\` nunca es 0.
-- Reutilizar \`DiffViewer\` perezosamente y mostrar auditoría estructurada.
-
-> **Nota:** La evidencia de ejecución no inventa valores faltantes.`,
-  },
   diffs: [
     {
       filePath: 'components/pipeline/PipelineWorkspace.tsx',
@@ -185,6 +139,16 @@ export const RUNNING_SNAPSHOT: PipelineSnapshot = {
       designExists: true,
       specsCount: 1,
       validation: 'unknown',
+      artifacts: {
+        proposal: '## Why\n\nEl sistema no respeta la preferencia de color del sistema operativo.\n\n## What Changes\n\n- Variables CSS por modo\n- Deteccion de `prefers-color-scheme`\n',
+        design: '## Context\n\nDatos de vista previa: este contenido no proviene de ningun repositorio.\n',
+        tasks: '- [x] 1.1 Add theme context provider\n- [x] 1.2 Create toggle component\n- [ ] 2.1 Add CSS variables\n- [ ] 2.2 Wire up localStorage\n',
+        specs: [{
+          capability: 'theme-preference',
+          content: '## ADDED Requirements\n\n### Requirement: Respeta la preferencia del sistema\n',
+          sourceRef: 'openspec/changes/add-dark-mode/specs/theme-preference/spec.md',
+        }],
+      },
     }],
     archivedChanges: [
       { changeId: 'add-slash-command-support', archivedAt: '2025-01-23', sourceRef: 'openspec/changes/archive/2025-01-23-add-slash-command-support' },
@@ -217,9 +181,11 @@ export const RUNNING_SNAPSHOT: PipelineSnapshot = {
  */
 export const LOCAL_UNPRICED_SNAPSHOT: PipelineSnapshot = {
   ...RUNNING_SNAPSHOT,
-  now: {
-    ...RUNNING_SNAPSHOT.now,
-    runtime: 'lmstudio',
+  economy: {
+    ...RUNNING_SNAPSHOT.economy,
+    // Cero real por ausencia de precio, no por descuento: el proveedor corre en
+    // la máquina y nadie le puso tarifa. `null` con base `local_unpriced` lo
+    // dice; un 0 en dólares afirmaría que la corrida salió gratis.
     costUsd: null,
     costBasis: 'local_unpriced',
   },
@@ -228,26 +194,6 @@ export const LOCAL_UNPRICED_SNAPSHOT: PipelineSnapshot = {
 /** El auditor rechazó: el recorrido vuelve al fixer. */
 export const REJECTED_SNAPSHOT: PipelineSnapshot = {
   ...BASE,
-  now: {
-    ...BASE.now,
-    headlineKey: 'pipeline.now.fixing',
-    runtime: 'claude',
-    role: 'fixer',
-    taskLabel: 'corregir hallazgos',
-    elapsedMs: 45 * 1000,
-    costUsd: null,
-    costBasis: 'unknown',
-    needsHuman: true,
-  },
-  stations: [
-    { id: 'proposal', state: 'done', humanGate: false, detailKey: null },
-    { id: 'approval', state: 'done', humanGate: true, detailKey: null },
-    { id: 'builder', state: 'done', humanGate: false, detailKey: null },
-    { id: 'gates', state: 'done', humanGate: false, detailKey: null },
-    { id: 'auditor', state: 'rejected', humanGate: false, detailKey: null },
-    { id: 'fixer', state: 'current', humanGate: false, detailKey: null },
-    { id: 'merge', state: 'possible', humanGate: true, detailKey: null },
-  ],
   decisions: [
     {
       decisionId: 'dec-1',

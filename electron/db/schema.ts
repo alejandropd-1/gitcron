@@ -3,7 +3,7 @@ export interface Migration {
   statements: string[];
 }
 
-export const LATEST_SCHEMA_VERSION = 5;
+export const LATEST_SCHEMA_VERSION = 6;
 
 export const PREDICTION_RUN_TABLE = 'prediction_run';
 export const SPECULATIVE_BRANCH_TABLE = 'speculative_branch';
@@ -217,5 +217,17 @@ export const MIGRATIONS: Migration[] = [
   {
     version: 5,
     statements: CREATE_PIPELINE_RUNTIME_SESSION_TABLES,
+  },
+  {
+    // `pipeline_cursor` guardaba el avance de lectura de los JSONL del kit
+    // multi-agente retirado. Sin esas fuentes la tabla no tiene qué registrar.
+    //
+    // Se elimina en una migración nueva en vez de editar la 4: una migración ya
+    // distribuida describe el estado de bases que existen allá afuera, y
+    // cambiarla las dejaría en una versión que ningún paso reproduce. Una
+    // instalación limpia crea la tabla en la 4 y la elimina acá, que es más
+    // ruidoso pero correcto.
+    version: 6,
+    statements: ['DROP TABLE IF EXISTS pipeline_cursor;'],
   },
 ];

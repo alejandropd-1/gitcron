@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CHANGE_STATIONS,
   formatElapsed,
   sortDecisionsByHumanNeed,
   type DecisionRequest,
@@ -64,27 +63,11 @@ describe('formatElapsed', () => {
 });
 
 describe('fixtures', () => {
-  it('keeps every change station covered in the running fixture', () => {
-    const ids = FIXTURES.running.stations.map((station) => station.id);
-    expect(ids).toEqual([...CHANGE_STATIONS]);
-  });
-
+  // El costo cero de un proveedor local es ausencia de precio, no un descuento.
   it('models a local provider as unpriced, never as a zero cost', () => {
-    const { now } = FIXTURES.localUnpriced;
-    expect(now.costUsd).toBeNull();
-    expect(now.costBasis).toBe('local_unpriced');
-  });
-
-  it('sends the rejected run back to the fixer', () => {
-    const byId = new Map(FIXTURES.rejected.stations.map((s) => [s.id, s.state]));
-    expect(byId.get('auditor')).toBe('rejected');
-    expect(byId.get('fixer')).toBe('current');
-    expect(byId.get('merge')).toBe('possible');
-  });
-
-  it('marks approval and merge as human gates', () => {
-    const humanGates = FIXTURES.running.stations.filter((s) => s.humanGate).map((s) => s.id);
-    expect(humanGates).toEqual(['approval', 'merge']);
+    const { economy } = FIXTURES.localUnpriced;
+    expect(economy.costUsd).toBeNull();
+    expect(economy.costBasis).toBe('local_unpriced');
   });
 
   it('never exposes an F05 control as usable in F04', () => {

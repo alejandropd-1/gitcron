@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type {
-  AuditEvidence, ControlEvaluation, DelegationRecord, GateRecord, JsonlCursor,
-  ParsedJsonl, PipelineDiagnostic, TaskEvidence, VisualDiffRecord,
+  AuditEvidence, ControlEvaluation, JsonlCursor,
+  ParsedJsonl, PipelineDiagnostic, TaskEvidence,
 } from '../../types/pipeline';
 
 type JsonObject = Record<string, unknown>;
@@ -110,46 +110,6 @@ export function parseJsonlChunk<T = JsonObject>(
       generation: options.generation,
     },
   };
-}
-
-export function normalizeGate(value: unknown): GateRecord | null {
-  const row = object(value);
-  const ts = string(row?.ts);
-  const mode = string(row?.mode);
-  const result = string(row?.result);
-  return ts && mode && (result === 'VERDE' || result === 'ROJO' || result === 'PENDIENTE')
-    ? { ts, mode, result }
-    : null;
-}
-
-export function normalizeDelegation(value: unknown): DelegationRecord | null {
-  const row = object(value);
-  const ts = string(row?.ts);
-  const role = string(row?.rol ?? row?.role);
-  const model = string(row?.modelo ?? row?.model);
-  const task = string(row?.tarea ?? row?.task);
-  if (!ts || !role || !model || !task) return null;
-  return {
-    ts, role, model, task,
-    result: string(row?.resultado ?? row?.result),
-    tokensIn: number(row?.tokens_in ?? row?.tokensIn),
-    tokensOut: number(row?.tokens_out ?? row?.tokensOut),
-    costUsd: number(row?.costo_usd ?? row?.costUsd),
-    durationMs: number(row?.duracion_ms ?? row?.durationMs),
-    retries: number(row?.reintentos ?? row?.retries),
-    humanWaitMs: number(row?.espera_humana_ms ?? row?.humanWaitMs),
-    humanTouches: number(row?.toques_humanos ?? row?.humanTouches),
-  };
-}
-
-export function normalizeVisualDiff(value: unknown): VisualDiffRecord | null {
-  const row = object(value);
-  const runId = string(row?.run_id ?? row?.runId);
-  const ts = string(row?.ts);
-  const route = string(row?.route);
-  if (!runId || !ts || !route) return null;
-  const rawMeasurements = Object.fromEntries(Object.entries(row ?? {}).filter(([, item]) => number(item) !== null)) as Record<string, number>;
-  return { runId, ts, route, viewport: row?.viewport ?? null, excepted: boolean(row?.excepted), rawMeasurements };
 }
 
 export function normalizeControlEvaluation(value: unknown): ControlEvaluation {

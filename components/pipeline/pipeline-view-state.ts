@@ -19,7 +19,7 @@ import type {
 } from './pipeline-domain';
 import type { OpenSpecValidationStatus, TaskEvidence } from '@/types/pipeline';
 
-export type PipelineSource = 'git' | 'hermes' | 'runtime' | 'kit';
+export type PipelineSource = 'git' | 'openspec' | 'runtime';
 
 /** Versión de sobre que esta build sabe interpretar (F01/F03). */
 export const SUPPORTED_SNAPSHOT_VERSION = '1.0';
@@ -57,7 +57,6 @@ export type PipelineSnapshot = {
   schemaVersion: string;
   repoId: string;
   availableSources: PipelineSource[];
-  hermesConnected: boolean;
   hasPipelineActivity: boolean;
   now: NowState;
   stations: ChangeStation[];
@@ -67,8 +66,6 @@ export type PipelineSnapshot = {
   economy: EconomyState;
   proposal?: PipelineProposal | null;
   diffs?: PipelineDiffItem[];
-  auditorFindings?: AuditorFinding[];
-  gateHistory?: GateHistoryEntry[];
   /** Vista OpenSpec. Opcional para snapshots/fixtures históricos. */
   openSpec?: OpenSpecWorkspaceSnapshot;
 };
@@ -77,8 +74,6 @@ export type PipelineViewState =
   | { kind: 'loading' }
   | { kind: 'no-repo' }
   | { kind: 'no-pipeline' }
-  | { kind: 'no-kit'; availableSources: PipelineSource[] }
-  | { kind: 'hermes-offline' }
   | { kind: 'incompatible'; foundVersion: string | null }
   | { kind: 'error'; messageKey: string; canRetry: boolean }
   | { kind: 'ready'; snapshot: PipelineSnapshot };
@@ -111,9 +106,8 @@ export function resolvePipelineViewState(input: {
     return { kind: 'incompatible', foundVersion: snapshot.schemaVersion || null };
   }
   if (!snapshot.hasPipelineActivity) return { kind: 'no-pipeline' };
-  if (!snapshot.availableSources.includes('kit')) {
-    return { kind: 'no-kit', availableSources: snapshot.availableSources };
-  }
-  if (!snapshot.hermesConnected) return { kind: 'hermes-offline' };
+  // Ya no se exige la presencia del kit multi-agente ni una conexión con un
+  // orquestador: el workspace se muestra con la evidencia de OpenSpec y Git, y
+  // resuelve por sí mismo el caso de no tener ningún cambio activo.
   return { kind: 'ready', snapshot };
 }

@@ -14,7 +14,7 @@ import type {
   PipelineEvidence,
 } from '../../types/pipeline';
 import { selectPipelineChange } from './change-selection';
-import { normalizeDelegation, normalizeGate, normalizeVisualDiff, parseAudit, parseJsonlChunk, parseMarkdownTasks } from './parsers';
+import { parseAudit, parseJsonlChunk, parseMarkdownTasks } from './parsers';
 import { validateOpenSpecChangeWithCli } from './openspec-cli';
 import { safeListRepoDirectory, safeReadRepoFile } from './repo-paths';
 
@@ -167,22 +167,10 @@ export class RepoEvidenceReader {
       ? openSpecChanges.find((change) => change.changeId === selection.changeId)?.tasks ?? []
       : [];
 
-    const readJsonl = async (sourceRef: string): Promise<unknown[]> => {
-      const file = await safeReadRepoFile(repoPath, sourceRef);
-      diagnostics.push(...file.diagnostics);
-      if (file.content === null) return [];
-      const previous = cursorStore?.loadCursor(repoId, sourceRef) ?? { offset: 0, pending: '', generation: null };
-      const bytes = Buffer.from(file.content);
-      const startOffset = previous.offset <= bytes.length ? previous.offset : 0;
-      const parsed = parseJsonlChunk<unknown>(bytes.subarray(startOffset).toString('utf8'), previous, sourceRef, { startOffset, generation: file.generation ?? null });
-      diagnostics.push(...parsed.diagnostics);
-      cursorStore?.saveCursor(repoId, sourceRef, parsed.cursor);
-      return parsed.records;
-    };
-
-    const gates = (await readJsonl('docs/ai/logs/gates.jsonl')).map(normalizeGate).filter((row): row is NonNullable<ReturnType<typeof normalizeGate>> => row !== null);
-    const delegations = (await readJsonl('docs/ai/logs/delegations.jsonl')).map(normalizeDelegation).filter((row): row is NonNullable<ReturnType<typeof normalizeDelegation>> => row !== null);
-    const visualDiffs = (await readJsonl('docs/ai/logs/visual-diff-heights.jsonl')).map(normalizeVisualDiff).filter((row): row is NonNullable<ReturnType<typeof normalizeVisualDiff>> => row !== null);
+    // La lectura incremental por cursor existía para los JSONL del kit retirado.
+    // El mecanismo (`PipelineCursorStore` y la tabla `pipeline_cursor`) se
+    // conserva porque es genérico y quitarlo exigiría migrar el esquema, que
+    // este change dejó fuera de alcance. Hoy no tiene ninguna fuente que leer.
 
     let reports: string[] = [];
     let archivedChanges: string[] = [];
@@ -252,9 +240,6 @@ export class RepoEvidenceReader {
         observedAt: this.dependencies.now(),
         tasks,
         reports,
-        gates,
-        delegations,
-        visualDiffs,
         decisions,
         activeChanges,
         archivedChanges,

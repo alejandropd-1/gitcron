@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  normalizeControlEvaluation, normalizeDelegation, normalizeGate, normalizeVisualDiff,
+  normalizeControlEvaluation,
   parseAudit, parseJsonlChunk, parseMarkdownTasks,
 } from '../parsers';
 
@@ -42,9 +42,6 @@ describe('Pipeline pure parsers', () => {
   });
 
   it('normalizes known producer shapes and preserves unknown metrics as null', () => {
-    expect(normalizeGate({ ts: 't', mode: 'fast', result: 'VERDE' })).toEqual({ ts: 't', mode: 'fast', result: 'VERDE' });
-    expect(normalizeDelegation({ ts: 't', rol: 'builder', modelo: 'm', tarea: 'x' })).toMatchObject({ retries: null, humanWaitMs: null, humanTouches: null });
-    expect(normalizeVisualDiff({ run_id: 'r', ts: 't', route: '/', delta_height: 2 })).toMatchObject({ runId: 'r', excepted: null, rawMeasurements: { delta_height: 2 } });
     expect(normalizeControlEvaluation({ triggered: true })).toEqual({
       triggered: true, issueCaught: null, acceptedFinding: null, falsePositive: null,
       humanWaitMs: null, humanTouches: null, retries: null, cycleTimeMs: null,

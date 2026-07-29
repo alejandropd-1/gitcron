@@ -612,12 +612,10 @@
    estás y el CTA lleva la tarea en el nombre. Queda una sola línea sobre los
    botones, que explica qué va a pasar al confirmarlos. */
 .nextStepInline {
-  margin: 1rem 0 0;
+  margin: 0 0 1.1rem;
   color: var(--os-muted);
-  font: 0.68rem var(--font-mono), ui-monospace, monospace;
+  font: 0.68rem/1.5 var(--font-mono), ui-monospace, monospace;
 }
-
-.nextStepInline + .actions { margin-top: 0.5rem; }
 
 .nextStepDisclosure { margin-top: 0.75rem; }
 

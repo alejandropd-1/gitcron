@@ -15,8 +15,8 @@ function runtimeProjection(repoId: string, over: Partial<RuntimeProjection> = {}
 
 function state(repoId: string, revision = 1): PipelineState {
   return {
-    repoId, revision, observedAt: '2026-07-23T20:00:00.000Z', tasks: [], reports: [], gates: [],
-    activeChanges: [], archivedChanges: [], mergedChanges: [], diagnostics: [], delegations: [], visualDiffs: [], decisions: [],
+    repoId, revision, observedAt: '2026-07-23T20:00:00.000Z', tasks: [], reports: [],
+    activeChanges: [], archivedChanges: [], mergedChanges: [], diagnostics: [], decisions: [],
     selection: { changeId: null, confidence: 'unknown', selectionRequired: false, reason: 'no-active-change' },
   };
 }

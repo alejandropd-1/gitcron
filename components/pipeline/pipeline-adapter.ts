@@ -1,6 +1,4 @@
 import type {
-  DelegationRecord,
-  GateRecord,
   PipelineState,
   RuntimeProjection,
   DecisionRequest as EvidenceDecision,
@@ -31,42 +29,33 @@ function sumOrNull(values: (number | null)[]): number | null {
   return present.length === 0 ? null : present.reduce((a, b) => a + b, 0);
 }
 
-function toAgents(delegations: DelegationRecord[]): AgentNode[] {
-  return delegations.map((record, index) => ({
-    // La evidencia de F01 no expone ids de agente ni jerarquía padre/hijo, así
-    // que se listan en plano. Inventar un árbol sería afirmar una relación que
-    // nadie observó.
-    agentId: `delegation-${index}`,
-    parentAgentId: null,
-    runtime: null,
-    provider: null,
-    model: record.model || null,
-    role: record.role || null,
-    state: record.result ? 'done' : 'unknown',
-    elapsedMs: record.durationMs,
-    inputTokens: record.tokensIn,
-    outputTokens: record.tokensOut,
-  }));
+/**
+ * Agentes observados en la evidencia del repositorio.
+ *
+ * El registro de delegaciones que los aportaba pertenecía al kit multi-agente
+ * retirado. La lectura del repositorio ya no observa agentes: los que existen
+ * de verdad vienen de la sesión de runtime, que es una fuente distinta.
+ */
+function toAgents(): AgentNode[] {
+  return [];
 }
 
-function toEconomy(delegations: DelegationRecord[]): EconomyState {
-  const withCost = delegations.filter((d) => d.costUsd !== null).length;
+/**
+ * Economía observada en la evidencia del repositorio.
+ *
+ * Tokens y costo provenían del registro de delegaciones del kit retirado. Sin
+ * esa fuente no se observa nada, y `unknown` es la única respuesta honesta:
+ * cero afirmaría que no hubo consumo.
+ */
+function toEconomy(): EconomyState {
   return {
-    tokens: {
-      input: sumOrNull(delegations.map((d) => d.tokensIn)),
-      output: sumOrNull(delegations.map((d) => d.tokensOut)),
-      // La evidencia de F01 no separa reasoning ni caché: quedan desconocidos.
-      reasoning: null,
-      cacheRead: null,
-    },
-    costUsd: sumOrNull(delegations.map((d) => d.costUsd)),
-    costBasis: withCost > 0 ? 'runtime_reported' : 'unknown',
-    costCoverage: { withCost, total: delegations.length },
+    tokens: { input: null, output: null, reasoning: null, cacheRead: null },
+    costUsd: null,
+    costBasis: 'unknown',
+    costCoverage: { withCost: 0, total: 0 },
     contextMaxTokens: null,
     contextCurrentTokens: null,
     compactionCount: null,
-    // Sin sesión de runtime adjunta no sabemos si el runtime expone reasoning.
-    // `false` afirmaría que no lo expone, y nadie lo dijo.
     reasoningAvailable: null,
   };
 }
@@ -198,9 +187,9 @@ function toStations(state: PipelineState): ChangeStation[] {
   const hasChange = state.activeChanges.length > 0 || state.mergedChanges.length > 0;
   const tasksDone = state.tasks.filter((task) => task.completed).length;
   const hasTasks = state.tasks.length > 0;
-  const gatesGreen = state.gates.length > 0
-    && state.gates.every((gate: GateRecord) => gate.result === 'VERDE');
-  const gatesRed = state.gates.some((gate: GateRecord) => gate.result === 'ROJO');
+  // El veto determinístico del kit se retiró: ya no hay evidencia de gates que
+  // permita afirmar que esa estación pasó o falló.
+  const gatesGreen = false;
   const rejected = state.decisions.some((d) => d.kind === 'audit-rejected' && d.status === 'pending');
   const merged = state.mergedChanges.length > 0;
 
@@ -231,10 +220,6 @@ function toStations(state: PipelineState): ChangeStation[] {
     const next = stations.find((s) => s.state === 'possible');
     if (next && !merged) next.state = 'current';
   }
-  if (gatesRed) {
-    const gates = stations.find((s) => s.id === 'gates');
-    if (gates) gates.state = 'rejected';
-  }
   return stations;
 }
 
@@ -242,17 +227,18 @@ function toNow(state: PipelineState, economy: EconomyState): NowState {
   const tasksTotal = state.tasks.length;
   const tasksDone = state.tasks.filter((task) => task.completed).length;
   const pendingDecisions = state.decisions.filter((d) => d.status === 'pending').length;
-  const last = state.delegations[state.delegations.length - 1] ?? null;
 
   return {
     headlineKey: tasksTotal > 0 ? 'pipeline.now.title' : 'pipeline.now.idle',
-    // La evidencia del repo no identifica el runtime que corrió: no se adivina.
+    // La evidencia del repo no identifica el runtime, el rol ni la duración: el
+    // registro de delegaciones que los aportaba pertenecía al kit retirado, y la
+    // sesión real es la fuente de eso ahora.
     runtime: null,
-    role: last?.role ?? null,
+    role: null,
     taskLabel: state.activeChanges[0] ?? null,
     tasksDone: tasksTotal > 0 ? tasksDone : null,
     tasksTotal: tasksTotal > 0 ? tasksTotal : null,
-    elapsedMs: last?.durationMs ?? null,
+    elapsedMs: null,
     costUsd: economy.costUsd,
     costBasis: economy.costBasis,
     needsHuman: pendingDecisions > 0,
@@ -261,9 +247,9 @@ function toNow(state: PipelineState, economy: EconomyState): NowState {
 
 function toSources(state: PipelineState): PipelineSource[] {
   const sources: PipelineSource[] = ['git'];
-  // El kit aporta gates y reportes: si hay alguno, el kit está presente.
-  if (state.gates.length > 0 || state.reports.length > 0) sources.push('kit');
-  if (state.delegations.length > 0) sources.push('runtime');
+  // La fuente `kit` describía el andamiaje multi-agente retirado. Lo que se
+  // observa hoy son los artefactos de OpenSpec.
+  if (state.openSpecChanges?.length || state.activeChanges.length > 0) sources.push('openspec');
   return sources;
 }
 
@@ -280,7 +266,6 @@ function toOpenSpecWorkspace(state: PipelineState): OpenSpecWorkspaceSnapshot {
     }));
   const archivedChanges = state.openSpecArchivedChanges?.map((change) => ({ ...change }))
     ?? state.archivedChanges.map((changeId) => ({ changeId, archivedAt: null, sourceRef: 'openspec/changes/archive' }));
-  const latestGate = state.gates[state.gates.length - 1] ?? null;
   return {
     selectedChangeId: state.selection.changeId ?? activeChanges[0]?.changeId ?? null,
     activeChanges,
@@ -289,7 +274,7 @@ function toOpenSpecWorkspace(state: PipelineState): OpenSpecWorkspaceSnapshot {
     reports: [...state.reports],
     diagnostics: state.diagnostics.map((diagnostic) => ({ ...diagnostic })),
     observedAt: state.observedAt,
-    latestGate: latestGate ? { ...latestGate } : null,
+    latestGate: null,
   };
 }
 
@@ -309,24 +294,19 @@ export function toPipelineSnapshot(
   state: PipelineState,
   projection: RuntimeProjection | null = null,
 ): PipelineSnapshot {
-  const economy = toEconomy(state.delegations);
+  const economy = toEconomy();
   const base: PipelineSnapshot = {
     schemaVersion: SUPPORTED_SNAPSHOT_VERSION,
     repoId: state.repoId,
     availableSources: toSources(state),
-    // Hermes no es gateway obligatorio y esta lectura no lo consulta: se
-    // reporta conectado para no disparar un estado degradado que no observamos.
-    hermesConnected: true,
     hasPipelineActivity:
       state.tasks.length > 0
       || state.activeChanges.length > 0
-      || state.mergedChanges.length > 0
-      || state.gates.length > 0
-      || state.delegations.length > 0,
+      || state.mergedChanges.length > 0,
     now: toNow(state, economy),
     stations: toStations(state),
     decisions: toDecisions(state.decisions),
-    agents: toAgents(state.delegations),
+    agents: toAgents(),
     // La bitácora sólo puede venir del stream: esta lectura no la cubre.
     activity: [],
     economy,

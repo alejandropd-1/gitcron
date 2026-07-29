@@ -10,8 +10,8 @@ const ipc = vi.hoisted(() => ({
 vi.mock('electron', () => ({ ipcMain: { handle: ipc.handle } }));
 
 const snapshot: PipelineState = {
-  repoId: 'repo-1', revision: 1, observedAt: '2026-07-23T20:00:00.000Z', tasks: [], reports: [], gates: [],
-  activeChanges: [], archivedChanges: [], mergedChanges: [], diagnostics: [], delegations: [], visualDiffs: [], decisions: [],
+  repoId: 'repo-1', revision: 1, observedAt: '2026-07-23T20:00:00.000Z', tasks: [], reports: [],
+  activeChanges: [], archivedChanges: [], mergedChanges: [], diagnostics: [], decisions: [],
   selection: { changeId: null, confidence: 'unknown', selectionRequired: false, reason: 'no-active-change' },
 };
 

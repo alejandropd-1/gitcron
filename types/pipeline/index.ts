@@ -62,36 +62,6 @@ export interface ParsedJsonl<T> {
   reset: boolean;
 }
 
-export interface GateRecord {
-  ts: string;
-  mode: string;
-  result: 'VERDE' | 'ROJO' | 'PENDIENTE';
-}
-
-export interface DelegationRecord {
-  ts: string;
-  role: string;
-  model: string;
-  task: string;
-  result: string | null;
-  tokensIn: number | null;
-  tokensOut: number | null;
-  costUsd: number | null;
-  durationMs: number | null;
-  retries: number | null;
-  humanWaitMs: number | null;
-  humanTouches: number | null;
-}
-
-export interface VisualDiffRecord {
-  runId: string;
-  ts: string;
-  route: string;
-  viewport: unknown;
-  excepted: boolean | null;
-  rawMeasurements: Record<string, number>;
-}
-
 export interface ControlEvaluation {
   triggered: boolean | null;
   issueCaught: boolean | null;
@@ -130,9 +100,6 @@ export interface PipelineEvidence {
   observedAt: string;
   tasks: TaskEvidence[];
   reports: string[];
-  gates: GateRecord[];
-  delegations: DelegationRecord[];
-  visualDiffs: VisualDiffRecord[];
   decisions: DecisionRequest[];
   activeChanges: string[];
   archivedChanges: string[];

@@ -10,9 +10,6 @@ function state(overrides: Partial<PipelineState> = {}): PipelineState {
     revision: 1,
     tasks: [],
     reports: [],
-    gates: [],
-    delegations: [],
-    visualDiffs: [],
     decisions: [],
     activeChanges: [],
     archivedChanges: [],
@@ -23,77 +20,51 @@ function state(overrides: Partial<PipelineState> = {}): PipelineState {
   };
 }
 
-const delegation = (over: Partial<PipelineState['delegations'][number]> = {}) => ({
-  ts: '2026-07-25T00:00:00.000Z',
-  role: 'builder',
-  model: 'claude-opus-5',
-  task: 'x',
-  result: 'ok',
-  tokensIn: 100,
-  tokensOut: 50,
-  costUsd: 0.5,
-  durationMs: 1000,
-  retries: null,
-  humanWaitMs: null,
-  humanTouches: null,
-  ...over,
-});
-
 describe('toPipelineSnapshot', () => {
   it('reports no activity for an empty repo instead of inventing one', () => {
     expect(toPipelineSnapshot(state()).hasPipelineActivity).toBe(false);
   });
 
+  // El registro de delegaciones era la unica fuente de economia en la lectura
+  // del repositorio. Sin el no se observa nada, y cero afirmaria que no hubo
+  // consumo: null y unknown son la unica respuesta honesta.
   it('never turns missing telemetry into zero', () => {
-    const snapshot = toPipelineSnapshot(state({
-      delegations: [delegation({ tokensIn: null, tokensOut: null, costUsd: null })],
-    }));
+    const snapshot = toPipelineSnapshot(state({ activeChanges: ['change-1'] }));
     expect(snapshot.economy.tokens.input).toBeNull();
     expect(snapshot.economy.tokens.output).toBeNull();
-    expect(snapshot.economy.costUsd).toBeNull();
-    expect(snapshot.economy.costBasis).toBe('unknown');
-  });
-
-  it('keeps reasoning and cache tokens unknown: this source does not carry them', () => {
-    const snapshot = toPipelineSnapshot(state({ delegations: [delegation()] }));
     expect(snapshot.economy.tokens.reasoning).toBeNull();
     expect(snapshot.economy.tokens.cacheRead).toBeNull();
+    expect(snapshot.economy.costUsd).toBeNull();
+    expect(snapshot.economy.costBasis).toBe('unknown');
+    expect(snapshot.economy.costCoverage).toEqual({ withCost: 0, total: 0 });
   });
 
   // Antes esto afirmaba `false`, que se renderiza como "este runtime no expone
   // su razonamiento". Sin sesión adjunta ningún runtime declaró tal cosa: es la
   // misma clase de mentira que `unknown` valiendo 0, y por eso ahora es `null`.
   it('does not claim the runtime hides its reasoning when no session declared it', () => {
-    const snapshot = toPipelineSnapshot(state({ delegations: [delegation()] }));
+    const snapshot = toPipelineSnapshot(state({ activeChanges: ['change-1'] }));
     expect(snapshot.economy.reasoningAvailable).toBeNull();
   });
 
-  it('sums only the records that reported a value', () => {
-    const snapshot = toPipelineSnapshot(state({
-      delegations: [delegation({ tokensIn: 100 }), delegation({ tokensIn: null })],
-    }));
-    expect(snapshot.economy.tokens.input).toBe(100);
-  });
-
-  it('marks cost coverage as partial when some delegations lack it', () => {
-    const snapshot = toPipelineSnapshot(state({
-      delegations: [delegation({ costUsd: 0.5 }), delegation({ costUsd: null })],
-    }));
-    expect(snapshot.economy.costCoverage).toEqual({ withCost: 1, total: 2 });
+  it('reports no usable cost coverage when nothing was observed', () => {
+    const snapshot = toPipelineSnapshot(state({ activeChanges: ['change-1'] }));
     expect(hasUsableCostCoverage(snapshot.economy)).toBe(false);
   });
 
-  it('does not invent a parent/child tree the evidence never recorded', () => {
-    const snapshot = toPipelineSnapshot(state({
-      delegations: [delegation(), delegation()],
-    }));
-    expect(snapshot.agents.every((agent) => agent.parentAgentId === null)).toBe(true);
-    expect(snapshot.agents.every((agent) => agent.runtime === null)).toBe(true);
+  // Los agentes que se veian aca salian del registro de delegaciones del kit.
+  // La lectura del repositorio ya no observa ninguno: los reales llegan por la
+  // sesion de runtime, que es una fuente distinta.
+  it('observes no agents from repo evidence alone', () => {
+    const snapshot = toPipelineSnapshot(state({ activeChanges: ['change-1'] }));
+    expect(snapshot.agents).toEqual([]);
   });
 
   it('does not guess which runtime ran from repo evidence', () => {
-    const snapshot = toPipelineSnapshot(state({ delegations: [delegation()] }));
+    const snapshot = toPipelineSnapshot(state({ activeChanges: ['change-1'] }));
     expect(snapshot.now.runtime).toBeNull();
+    expect(snapshot.now.role).toBeNull();
+    expect(snapshot.now.elapsedMs).toBeNull();
   });
 
   it('sends the path back to the fixer when the auditor rejected', () => {
@@ -110,17 +81,12 @@ describe('toPipelineSnapshot', () => {
     expect(byId.get('fixer')).toBe('current');
   });
 
-  it('marks a red gate as rejected rather than merely pending', () => {
-    const snapshot = toPipelineSnapshot(state({
-      gates: [{ ts: '2026-07-25T00:00:00.000Z', mode: 'fast', result: 'ROJO' }],
-    }));
-    expect(snapshot.stations.find((s) => s.id === 'gates')?.state).toBe('rejected');
-  });
-
-  it('only advertises the kit as a source when gates or reports exist', () => {
+  // La fuente `kit` describía el andamiaje multi-agente retirado. Lo que se
+  // declara ahora es OpenSpec, y sólo cuando hay cambios observados.
+  it('only advertises OpenSpec as a source when there are observed changes', () => {
     expect(toPipelineSnapshot(state()).availableSources).toEqual(['git']);
-    const withKit = toPipelineSnapshot(state({ reports: ['r.md'] }));
-    expect(withKit.availableSources).toContain('kit');
+    const withChanges = toPipelineSnapshot(state({ activeChanges: ['demo-change'] }));
+    expect(withChanges.availableSources).toContain('openspec');
   });
 
   it('surfaces only pending decisions and never exposes an executable option', () => {
@@ -144,7 +110,7 @@ describe('toPipelineSnapshot', () => {
   });
 
   it('leaves the activity log empty because this source has no runtime stream', () => {
-    expect(toPipelineSnapshot(state({ delegations: [delegation()] })).activity).toEqual([]);
+    expect(toPipelineSnapshot(state({ activeChanges: ['change-1'] })).activity).toEqual([]);
   });
 });
 
@@ -185,23 +151,15 @@ const telemetry = (over: Partial<NonNullable<RuntimeProjection['telemetry']>> = 
 
 describe('mergeRuntimeIntoSnapshot', () => {
   it('leaves the snapshot untouched when no session is attached', () => {
-    const base = toPipelineSnapshot(state({ delegations: [delegation()] }));
+    const base = toPipelineSnapshot(state({ activeChanges: ['change-1'] }));
     expect(mergeRuntimeIntoSnapshot(base, null)).toEqual(base);
   });
 
-  // La regla más importante del merge: las dos fuentes pueden describir la
-  // misma corrida, así que sumarlas contaría dos veces lo mismo. Un total
-  // inflado miente igual que un cero.
-  it('never adds runtime tokens on top of what the repo already reported', () => {
-    const base = toPipelineSnapshot(state({ delegations: [delegation({ tokensIn: 100 })] }));
-    const merged = mergeRuntimeIntoSnapshot(base, projection({
-      telemetry: telemetry({ inputTokens: 700 }),
-    }));
-    expect(merged.economy.tokens.input).toBe(100);
-  });
-
-  it('fills only the gaps the repo evidence left unknown', () => {
-    const base = toPipelineSnapshot(state({ delegations: [delegation({ tokensIn: null })] }));
+  // Antes esta regla evitaba contar dos veces la misma corrida, porque el repo
+  // y el runtime podían describirla a la vez. Retirado el registro de
+  // delegaciones, el repo ya no aporta economía y el runtime es la única fuente.
+  it('fills the economy entirely from the runtime session', () => {
+    const base = toPipelineSnapshot(state({ activeChanges: ['change-1'] }));
     const merged = mergeRuntimeIntoSnapshot(base, projection({
       telemetry: telemetry({ inputTokens: 700, reasoningTokens: 42, contextMaxTokens: 200_000 }),
     }));
@@ -211,7 +169,7 @@ describe('mergeRuntimeIntoSnapshot', () => {
   });
 
   it('keeps context and compaction unknown while the run has no telemetry yet', () => {
-    const base = toPipelineSnapshot(state({ delegations: [delegation()] }));
+    const base = toPipelineSnapshot(state({ activeChanges: ['change-1'] }));
     const merged = mergeRuntimeIntoSnapshot(base, projection({ telemetry: null }));
     expect(merged.economy.contextMaxTokens).toBeNull();
     expect(merged.economy.contextCurrentTokens).toBeNull();
@@ -246,14 +204,15 @@ describe('mergeRuntimeIntoSnapshot', () => {
     expect(merged.agents[0].outputTokens).toBeNull();
   });
 
-  it('keeps repo delegations alongside runtime agents instead of replacing them', () => {
-    const base = toPipelineSnapshot(state({ delegations: [delegation()] }));
+  // Antes se sumaban a los del registro de delegaciones. Retirado ese registro,
+  // los únicos agentes observados son los que emite la sesión.
+  it('lists only the agents the runtime session emitted', () => {
+    const base = toPipelineSnapshot(state({ activeChanges: ['change-1'] }));
     const merged = mergeRuntimeIntoSnapshot(base, projection({
       agents: [{ agentId: 'a', parentAgentId: null, runtime: 'claude', provider: null, model: null, role: 'builder', state: 'running', firstSeenAt: null, lastSeenAt: null, elapsedMs: null }],
     }));
-    expect(merged.agents).toHaveLength(2);
-    // Sólo los del stream traen runtime: así se distinguen en la vista.
-    expect(merged.agents.filter((agent) => agent.runtime !== null)).toHaveLength(1);
+    expect(merged.agents).toHaveLength(1);
+    expect(merged.agents[0].runtime).toBe('claude');
   });
 
   it('treats a live session as activity even on a repo that wrote nothing yet', () => {

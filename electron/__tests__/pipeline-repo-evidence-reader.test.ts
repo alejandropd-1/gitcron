@@ -23,7 +23,7 @@ describe('RepoEvidenceReader', () => {
       now: () => '2026-07-23T20:00:00.000Z',
     });
     const snapshot = await reader.read(root, 'repo-1');
-    expect(snapshot.evidence).toMatchObject({ repoId: 'repo-1', activeChanges: [], tasks: [], gates: [] });
+    expect(snapshot.evidence).toMatchObject({ repoId: 'repo-1', activeChanges: [], tasks: [] });
     expect(snapshot.evidence.diagnostics.map((item) => item.code)).toContain('openspec.unavailable');
     expect(snapshot.selection).toMatchObject({ changeId: null, selectionRequired: false });
   });
@@ -48,7 +48,7 @@ describe('RepoEvidenceReader', () => {
     expect(await defaultListOpenSpecChanges(root)).toEqual([]);
   });
 
-  it('reads tasks, gates, reports and archives for one selected change', async () => {
+  it('reads tasks, reports and archives for one selected change', async () => {
     await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-a'), { recursive: true });
     await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-a', 'tasks.md'), '- [x] done\n- [ ] open\n');
     await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-a', 'proposal.md'), '## Why\n\nShip one grounded workflow.\n\n## What Changes\n\n- UI\n');
@@ -57,10 +57,6 @@ describe('RepoEvidenceReader', () => {
     await fs.mkdir(path.join(root, 'openspec', 'changes', 'archive', '2026-07-23-old-change'), { recursive: true });
     await fs.mkdir(path.join(root, 'openspec', 'specs', 'feature-a'), { recursive: true });
     await fs.writeFile(path.join(root, 'openspec', 'specs', 'feature-a', 'spec.md'), '### Requirement: First\n\n### Requirement: Second\n');
-    await fs.mkdir(path.join(root, 'docs', 'ai', 'logs'), { recursive: true });
-    await fs.writeFile(path.join(root, 'docs', 'ai', 'logs', 'gates.jsonl'), '{"ts":"t","mode":"fast","result":"VERDE"}\n');
-    await fs.writeFile(path.join(root, 'docs', 'ai', 'logs', 'delegations.jsonl'), '{"ts":"t","rol":"builder","modelo":"zai/model","tarea":"audit"}\n');
-    await fs.writeFile(path.join(root, 'docs', 'ai', 'logs', 'visual-diff-heights.jsonl'), '{"run_id":"r","ts":"t","route":"/pipeline","excepted":false}\n');
     await fs.mkdir(path.join(root, 'docs', 'reports'), { recursive: true });
     await fs.writeFile(path.join(root, 'docs', 'reports', 'report.md'), '# report');
     await fs.writeFile(path.join(root, 'docs', 'reports', 'audit.md'), '## Veredicto: RECHAZADO\n\n- Hallazgo concreto\n');
@@ -74,9 +70,6 @@ describe('RepoEvidenceReader', () => {
     const snapshot = await reader.read(root, 'repo-1');
     expect(snapshot.selection).toMatchObject({ changeId: 'feature-a', confidence: 'confirmed' });
     expect(snapshot.evidence.tasks).toHaveLength(2);
-    expect(snapshot.evidence.gates).toEqual([{ ts: 't', mode: 'fast', result: 'VERDE' }]);
-    expect(snapshot.evidence.delegations).toHaveLength(1);
-    expect(snapshot.evidence.visualDiffs).toHaveLength(1);
     expect(snapshot.evidence.reports).toEqual(['docs/reports/audit.md', 'docs/reports/report.md']);
     expect(snapshot.evidence.decisions).toMatchObject([{ kind: 'audit-rejected', risk: 'unknown', evidenceRefs: ['docs/reports/audit.md'] }]);
     expect(snapshot.evidence.archivedChanges).toEqual(['old-change']);
@@ -113,21 +106,18 @@ describe('RepoEvidenceReader', () => {
     expect(snapshot.evidence.tasks).toEqual([]);
   });
 
-  it('continues JSONL from a cursor persisted outside the repo', async () => {
+  // Escenario declarado en la spec: un repositorio puede conservar los registros
+  // del kit retirado en disco, y Pipeline debe ignorarlos por completo.
+  it('ignores leftover kit logs still present on disk', async () => {
     await fs.mkdir(path.join(root, 'docs', 'ai', 'logs'), { recursive: true });
-    const gatePath = path.join(root, 'docs', 'ai', 'logs', 'gates.jsonl');
-    await fs.writeFile(gatePath, '{"ts":"1","mode":"fast","result":"ROJO"}\n');
-    const cursors = new Map<string, { offset: number; pending: string; generation: string | null }>();
-    const cursorStore = {
-      loadCursor: (_repoId: string, sourceRef: string) => cursors.get(sourceRef) ?? { offset: 0, pending: '', generation: null },
-      saveCursor: (_repoId: string, sourceRef: string, cursor: { offset: number; pending: string; generation: string | null }) => { cursors.set(sourceRef, cursor); },
-    };
+    await fs.writeFile(path.join(root, 'docs', 'ai', 'logs', 'gates.jsonl'), '{"ts":"1","mode":"fast","result":"ROJO"}\n');
     const reader = new RepoEvidenceReader({
       listOpenSpecChanges: async () => [], currentBranch: async () => 'main', mergedChanges: async () => [],
       now: () => '2026-07-23T20:00:00.000Z',
     });
-    expect((await reader.read(root, 'repo-1', cursorStore)).evidence.gates.map((gate) => gate.ts)).toEqual(['1']);
-    await fs.appendFile(gatePath, '{"ts":"2","mode":"fast","result":"VERDE"}\n');
-    expect((await reader.read(root, 'repo-1', cursorStore)).evidence.gates.map((gate) => gate.ts)).toEqual(['2']);
+    const snapshot = await reader.read(root, 'repo-1');
+    expect(snapshot.evidence).not.toHaveProperty('gates');
+    expect(snapshot.evidence).not.toHaveProperty('delegations');
+    expect(snapshot.evidence).not.toHaveProperty('visualDiffs');
   });
 });

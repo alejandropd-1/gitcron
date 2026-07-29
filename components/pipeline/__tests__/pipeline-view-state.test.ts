@@ -11,8 +11,7 @@ function snapshot(overrides: Partial<PipelineSnapshot> = {}): PipelineSnapshot {
     ...RUNNING_SNAPSHOT,
     schemaVersion: SUPPORTED_SNAPSHOT_VERSION,
     repoId: 'repo-1',
-    availableSources: ['git', 'runtime', 'kit'],
-    hermesConnected: true,
+    availableSources: ['git', 'runtime', 'openspec'],
     hasPipelineActivity: true,
     ...overrides,
   };
@@ -50,22 +49,20 @@ describe('resolvePipelineViewState', () => {
     // Si no sabemos leer el sobre, no podemos afirmar nada sobre su contenido.
     const state = resolvePipelineViewState({
       ...base,
-      snapshot: snapshot({ schemaVersion: '', hermesConnected: false, availableSources: ['git'] }),
+      snapshot: snapshot({ schemaVersion: '', availableSources: ['git'] }),
     });
     expect(state).toEqual({ kind: 'incompatible', foundVersion: null });
   });
 
-  it('keeps the remaining sources when the repo has no governance kit', () => {
+  // El workspace ya no exige la presencia del kit multi-agente retirado: con un
+  // snapshot legible alcanza, y la ausencia de cambios la resuelve la propia
+  // guía dentro del workspace.
+  it('reaches ready with only Git as a source', () => {
     const state = resolvePipelineViewState({
       ...base,
-      snapshot: snapshot({ availableSources: ['git', 'hermes', 'runtime'] }),
+      snapshot: snapshot({ availableSources: ['git'] }),
     });
-    expect(state).toEqual({ kind: 'no-kit', availableSources: ['git', 'hermes', 'runtime'] });
-  });
-
-  it('treats a disconnected Hermes as a normal state, not a failure', () => {
-    const state = resolvePipelineViewState({ ...base, snapshot: snapshot({ hermesConnected: false }) });
-    expect(state.kind).toBe('hermes-offline');
+    expect(state.kind).toBe('ready');
   });
 
   it('reaches ready only with a compatible, complete snapshot', () => {

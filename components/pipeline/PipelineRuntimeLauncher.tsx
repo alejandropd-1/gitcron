@@ -13,6 +13,12 @@ export type PipelineRuntimeLauncherProps = {
   changeId?: string | null;
   taskId?: string | null;
   /**
+   * Se invoca cuando el estado de descubrimiento cambia. El contenedor lo usa
+   * para no pintar su marco mientras el launcher aún carga: un panel con marco
+   * cuyo interior está vacío se percibe como un recuadro roto.
+   */
+  onDiscoveringChange?: (loading: boolean) => void;
+  /**
    * `true` cuando hay un fixture de desarrollo en pantalla.
    *
    * Con datos inventados a la vista, arrancar una sesión real produciría una
@@ -52,6 +58,7 @@ export function PipelineRuntimeLauncher({
   blockedByFixture = false,
   startLabelKey = 'pipeline.launcher.start',
   onStarted,
+  onDiscoveringChange,
 }: PipelineRuntimeLauncherProps) {
   const t = useT();
   const [discovery, setDiscovery] = useState<RuntimeDiscoveryEntry[] | null>(null);
@@ -89,6 +96,13 @@ export function PipelineRuntimeLauncher({
     return () => { cancelled = true; };
   }, [repoPath, discoveryToken]);
 
+  // El contenedor pinta un marco apenas el launcher existe. Si el descubrimiento
+  // todavía no resolvió, ese marco encierra un espacio vacío: se le avisa para
+  // que no lo ofrezca hasta que haya algo que mostrar.
+  useEffect(() => {
+    onDiscoveringChange?.(discovery === null);
+  }, [discovery, onDiscoveringChange]);
+
   const selectedEntry = discovery?.find((entry) => entry.runtime === runtime) ?? null;
   const modifiesRepo = selectedEntry?.startModifiesRepo === true;
   const canStart = canStartRuntimeSession({
@@ -123,7 +137,19 @@ export function PipelineRuntimeLauncher({
     setBusy(false);
   }, [repoPath, blockedByFixture]);
 
-  if (!discovery) return null;
+  if (!discovery) {
+    // No se devuelve null: un null dentro de un panel con marco deja un recuadro
+    // vacío hasta que el IPC responde. Se dice qué está pasando y se ofrece
+    // reintentar, igual que cuando el descubrimiento no encuentra nada lanzable.
+    return (
+      <section className="pipeline-launcher" aria-busy="true" aria-live="polite">
+        <h3 className="pipeline-section__title">{t('pipeline.launcher.title')}</h3>
+        <div className="pipeline-launcher__empty">
+          <p>{t('pipeline.launcher.discovering')}</p>
+        </div>
+      </section>
+    );
+  }
 
   const launchable = discovery.filter((entry) => entry.launchable);
 

@@ -137,6 +137,12 @@ export function OpenSpecDashboard({
    */
   const [expandedChanges, setExpandedChanges] = useState<Record<string, boolean>>({});
   const [launchInstruction, setLaunchInstruction] = useState<string | null>(null);
+  /**
+   * El launcher descubre los runtimes de forma asíncrona. Mientras no resolvió,
+   * su interior está vacío; el panel contenedor no pinta su marco hasta que haya
+   * algo para ver, para no ofrecer un recuadro vacío.
+   */
+  const [launcherLoading, setLauncherLoading] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [flowMode, setFlowMode] = useState<PipelineNewChangeMode | null>(null);
   const attentionRef = useRef<HTMLElement>(null);
@@ -517,7 +523,10 @@ export function OpenSpecDashboard({
                   {/* El lanzador aparece arriba, junto al botón que lo abrió, y no
                       al final de una lista que puede requerir scroll. */}
                   {launchInstruction && (
-                    <div className={styles.launcherPanel}>
+                    <div
+                      className={styles.launcherPanel}
+                      data-launcher-loading={launcherLoading || undefined}
+                    >
                       <PipelineRuntimeLauncher
                         key={`${selectedChange.changeId}:${nextTask ? resolveTaskLabel(nextTask) : 'archive'}`}
                         repoPath={repoPath}
@@ -528,6 +537,7 @@ export function OpenSpecDashboard({
                         blockedByFixture={fixtureActive}
                         startLabelKey={nextTask ? 'pipeline.launcher.startApply' : 'pipeline.launcher.startArchive'}
                         onStarted={() => setCenterTab('activity')}
+                        onDiscoveringChange={setLauncherLoading}
                       />
                     </div>
                   )}

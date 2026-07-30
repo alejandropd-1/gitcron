@@ -185,4 +185,33 @@ describe('cableado de la guía con el lanzador', () => {
     expect(screen.queryByRole('button', { name: /launcher\.startApply/ })).toBeNull();
     expect(start).not.toHaveBeenCalled();
   });
+
+  it('muestra un estado de carga y no un panel con marco vacío mientras discover no resolvió', async () => {
+    // discover que nunca resuelve: el launcher queda en discovery === null, que
+    // es justo el estado que antes devolvía null dentro de un panel con marco.
+    let neverResolve: () => void = () => undefined;
+    const discover = vi.fn().mockImplementation(
+      () => new Promise((resolve) => { neverResolve = () => resolve({ success: true, data: [] }); }),
+    );
+    const start = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, 'api', {
+      configurable: true,
+      value: { pipelineRuntime: { discover, start, stop: vi.fn() } },
+    });
+
+    renderDashboard();
+    screen.getByRole('button', { name: /pipeline\.next\.task\.action/ }).click();
+
+    // El descubrimiento está en curso: hay un mensaje de carga accionable.
+    await vi.waitFor(() => expect(screen.getByText('pipeline.launcher.discovering')).toBeTruthy());
+    // Y el panel contenedor no pinta su marco mientras carga.
+    const loadingPanel = document.querySelector('[data-launcher-loading]');
+    expect(loadingPanel).not.toBeNull();
+
+    // Al resolver, el estado de carga desaparece y no queda marco vacío.
+    neverResolve();
+    await vi.waitFor(() => expect(screen.queryByText('pipeline.launcher.discovering')).toBeNull());
+    const stillLoading = document.querySelector('[data-launcher-loading]');
+    expect(stillLoading).toBeNull();
+  });
 });

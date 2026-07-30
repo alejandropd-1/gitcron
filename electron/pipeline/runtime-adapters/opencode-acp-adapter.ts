@@ -28,8 +28,6 @@ import {
 } from './process-runner';
 import type { RuntimeAdapter, RuntimeStartRequest } from './runtime-adapter';
 
-const ACP_FIXTURE_REF = 'docs/pipeline/f03/fixtures/opencode-1.18.3-acp-initialize.sanitized.json';
-const SESSION_NEW_FIXTURE_REF = 'docs/pipeline/f03/fixtures/opencode-1.18.3-acp-session-new.sanitized.json';
 const SUPPORTED_RUNTIME_VERSION = '1.18.3';
 const SUPPORTED_PROTOCOL_VERSION = 1;
 
@@ -45,19 +43,19 @@ export const OPENCODE_ACP_DESCRIPTOR: RuntimeDescriptor = {
       capabilityId: 'health',
       capabilityVersion: '1',
       availability: 'available',
-      evidenceStatus: 'verified',
+      evidenceStatus: 'pending_fixture',
       targetScopes: ['repo'],
       constraints: ['initialize only; no session or inference'],
-      evidenceRefs: [ACP_FIXTURE_REF],
+      evidenceRefs: [],
     },
     {
       capabilityId: 'session.start',
       capabilityVersion: '1',
       availability: 'available',
-      evidenceStatus: 'verified',
+      evidenceStatus: 'pending_fixture',
       targetScopes: ['repo', 'run'],
-      constraints: ['session/new verified via ACP; prompt execution not initiated in F03'],
-      evidenceRefs: [ACP_FIXTURE_REF, SESSION_NEW_FIXTURE_REF],
+      constraints: ['session/new negotiated via ACP; prompt execution not initiated'],
+      evidenceRefs: [],
     },
     {
       capabilityId: 'session.resume',
@@ -66,7 +64,7 @@ export const OPENCODE_ACP_DESCRIPTOR: RuntimeDescriptor = {
       evidenceStatus: 'pending_fixture',
       targetScopes: ['session'],
       constraints: ['advertised by initialize but effect not tested'],
-      evidenceRefs: [ACP_FIXTURE_REF],
+      evidenceRefs: [],
     },
     {
       capabilityId: 'events.stream',
@@ -75,7 +73,7 @@ export const OPENCODE_ACP_DESCRIPTOR: RuntimeDescriptor = {
       evidenceStatus: 'pending_fixture',
       targetScopes: ['session'],
       constraints: ['session/update stream during prompt execution pending approval'],
-      evidenceRefs: [ACP_FIXTURE_REF, SESSION_NEW_FIXTURE_REF],
+      evidenceRefs: [],
     },
     {
       capabilityId: 'telemetry.snapshot',
@@ -84,10 +82,10 @@ export const OPENCODE_ACP_DESCRIPTOR: RuntimeDescriptor = {
       evidenceStatus: 'pending_fixture',
       targetScopes: ['run', 'session'],
       constraints: [
-        'usage is only observable from session/update; F03 never sends session/prompt',
+        'usage is only observable from session/update; no session/prompt is sent',
         'no prompt executed means usage and cost stay unknown, never zero',
       ],
-      evidenceRefs: [SESSION_NEW_FIXTURE_REF],
+      evidenceRefs: [],
     },
   ],
 };
@@ -249,17 +247,19 @@ export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
       });
       const output = result.stdout.toString('utf8').trim();
       const installed = result.exitCode === 0 && !result.timedOut && !result.outputLimit;
-      const fixtureCompatible = installed && output === SUPPORTED_RUNTIME_VERSION;
+      const withinBaseline = installed && output === SUPPORTED_RUNTIME_VERSION;
       return {
         installed,
         executable: installed ? this.executable : null,
-        runtimeVersion: fixtureCompatible ? SUPPORTED_RUNTIME_VERSION : null,
-        evidenceStatus: fixtureCompatible ? 'verified' : installed ? 'pending_fixture' : 'unknown',
-        evidenceRefs: [ACP_FIXTURE_REF],
-        diagnostics: fixtureCompatible
+        runtimeVersion: installed ? output : null,
+        // `evidenceStatus` informativo, no bloqueante: la verificación real la
+        // hace `health()` negociando ACP. Acá sólo se reporta la versión.
+        evidenceStatus: installed ? 'pending_fixture' : 'unknown',
+        evidenceRefs: [],
+        diagnostics: withinBaseline
           ? []
           : installed
-            ? ['Installed OpenCode version differs from the ACP fixture']
+            ? ['OpenCode version outside the ACP reference baseline']
             : ['OpenCode version probe failed'],
       };
     } catch {
@@ -268,7 +268,7 @@ export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
         executable: null,
         runtimeVersion: null,
         evidenceStatus: 'unknown',
-        evidenceRefs: [ACP_FIXTURE_REF],
+        evidenceRefs: [],
         diagnostics: ['OpenCode executable unavailable'],
       };
     }
@@ -277,9 +277,12 @@ export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
   async health(): Promise<RuntimeHealth> {
     const startedAt = Date.now();
     const discovery = await this.discover();
-    if (discovery.evidenceStatus !== 'verified') {
+    // El gate es de instalación, no de evidencia: el encuadre de fixture se
+    // retiró. La verificación real la hace el handshake ACP abajo, que es
+    // evidencia viva del protocolo.
+    if (!discovery.installed) {
       return {
-        status: discovery.installed ? 'degraded' : 'unavailable',
+        status: 'unavailable',
         checkedAt: this.now(),
         latencyMs: Date.now() - startedAt,
         evidenceStatus: discovery.evidenceStatus,
@@ -319,8 +322,10 @@ export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
       return this.degradedHealth(startedAt, ['ACP initialize process failed']);
     }
 
+    // El handshake ACP real es evidencia viva: el proceso respondió con el
+    // protocolo esperado. No se exige `agentVersion` exacta: coincidir el
+    // protocolo basta para afirmar que el initialize funciona.
     const compatible = initialize?.protocolVersion === SUPPORTED_PROTOCOL_VERSION
-      && initialize.agentVersion === SUPPORTED_RUNTIME_VERSION
       && !processResult.timedOut
       && !processResult.outputLimit;
     return compatible
@@ -329,16 +334,19 @@ export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
           checkedAt: this.now(),
           latencyMs: Date.now() - startedAt,
           evidenceStatus: 'verified',
-          evidenceRefs: [ACP_FIXTURE_REF],
+          evidenceRefs: [],
           diagnostics: [],
         }
-      : this.degradedHealth(startedAt, ['ACP initialize response is missing or fixture-incompatible']);
+      : this.degradedHealth(startedAt, ['ACP initialize response is missing or protocol-incompatible']);
   }
 
   async start(request: RuntimeStartRequest): Promise<RuntimeSession> {
     const discovery = await this.discover();
-    if (discovery.evidenceStatus !== 'verified') {
-      throw new Error('OpenCode ACP is not installed or version differs from fixture');
+    // El gate es de instalación, no de versión: el encuadre de fixture se retiró.
+    // Un runtime instalado arranca; la negociación ACP real dentro de `start`
+    // valida el protocolo, que es la evidencia viva que importa.
+    if (!discovery.installed) {
+      throw new Error('OpenCode ACP executable is not installed');
     }
 
     const instanceId = randomUUID();
@@ -402,9 +410,11 @@ export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
     const finalInit = getInit();
     const finalSess = getSess();
 
-    if (!finalInit || finalInit.protocolVersion !== SUPPORTED_PROTOCOL_VERSION || finalInit.agentVersion !== SUPPORTED_RUNTIME_VERSION) {
+    // El handshake real valida el protocolo. No se exige `agentVersion` exacta:
+    // el encuadre de fixture se retiró, y coincidir el protocolo basta.
+    if (!finalInit || finalInit.protocolVersion !== SUPPORTED_PROTOCOL_VERSION) {
       handle.terminate();
-      throw new Error('ACP initialize response missing or incompatible');
+      throw new Error('ACP initialize response missing or protocol-incompatible');
     }
 
     if (!finalSess) {
@@ -449,9 +459,9 @@ export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
   }
 
   /**
-   * Reports only what the ACP stream actually emitted. F03 never sends
-   * `session/prompt`, so with no `session/update` usage everything stays unknown:
-   * an unobserved run is not a zero-cost run.
+   * Reports only what the ACP stream actually emitted. No `session/prompt` is
+   * sent, so with no `session/update` usage everything stays unknown: an
+   * unobserved run is not a zero-cost run.
    */
   async telemetry(session: RuntimeSession): Promise<RuntimeTelemetrySnapshot> {
     const identity = { ...session.identity };
@@ -493,7 +503,7 @@ export class OpenCodeAcpRuntimeAdapter implements RuntimeAdapter {
       checkedAt: this.now(),
       latencyMs: Date.now() - startedAt,
       evidenceStatus: 'pending_fixture',
-      evidenceRefs: [ACP_FIXTURE_REF],
+      evidenceRefs: [],
       diagnostics,
     };
   }

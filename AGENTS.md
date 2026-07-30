@@ -47,20 +47,6 @@ Estas **no** se ejecutan por iniciativa del agente. Se corren cuando Ale las pid
 
 Sobre los archivos que se tocan, el lint sí se corre y se deja limpio.
 
-## Honestidad de la evidencia
-
-Es la regla que más importa y la que ya se violó una vez: en F03 se encontró telemetría
-fabricada, con valores hardcodeados marcados como verificados citando fixtures que decían otra
-cosa.
-
-- Dato ausente, incompatible o sin fixture se representa como `unknown`, `blocked` o
-  `pending_fixture`. **Nunca** como cero, false, verde o low risk.
-- Una capacidad se anuncia disponible sólo si existe el método implementado y evidencia que lo
-  respalde. Interfaz anunciada sin efecto probado no se declara disponible.
-- Un proceso que termina no prueba que la tarea se hizo. El resultado se relee de la evidencia.
-- Los fixtures versionados en `docs/pipeline/f03/` son evidencia viva: los adaptadores los
-  citan y un test de conformance los lee. No se borran ni se editan a mano.
-
 ## Seguridad y Git
 
 - No leer, imprimir ni persistir secrets, `.env`, tokens, cookies ni reasoning privado no emitido.

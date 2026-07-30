@@ -148,7 +148,7 @@ export class RepoEvidenceReader {
     try {
       activeChanges = await this.dependencies.listOpenSpecChanges(repoPath);
     } catch {
-      diagnostics.push(issue('openspec.unavailable', 'OpenSpec no está disponible o el repositorio no tiene scaffold.', 'openspec'));
+      diagnostics.push(issue('openspec.unavailable', 'OpenSpec no está disponible o el repositorio no tiene openspec/changes.', 'openspec'));
     }
     const selection = selectPipelineChange(branch, activeChanges);
 

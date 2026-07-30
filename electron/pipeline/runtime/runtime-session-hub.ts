@@ -142,7 +142,6 @@ export class RuntimeSessionHub {
     return Promise.all(this.adapters.map(async (entry) => {
       const adapter = entry.create(canonicalRepoPath);
       const discovery = await adapter.discover();
-      const versionVerified = discovery.installed && discovery.evidenceStatus === 'verified';
       // El alcance real de una sesión lo declara el adaptador, no lo infiere la
       // UI: hoy los nativos corren con herramientas de sólo lectura y lo dicen
       // en `session.start`. Se propaga para que el renderer no prometa trabajo
@@ -154,14 +153,19 @@ export class RuntimeSessionHub {
         adapterId: adapter.descriptor.adapterId,
         installed: discovery.installed,
         runtimeVersion: discovery.runtimeVersion,
+        // Metadato informativo, no bloqueante: el renderer lo usa para avisar si
+        // el runtime está verificado, no para decidir si se ofrece.
+        evidenceStatus: discovery.evidenceStatus,
         startAvailability: startCapability?.availability ?? 'unknown',
         startConstraints: startCapability?.constraints ?? [],
         startModifiesRepo: entry.modifiesRepo,
-        // Lanzable requiere las tres cosas: que el adaptador tenga `start()`,
-        // que el binario esté, y que la versión coincida con el fixture
-        // auditado. `start()` aborta si falta la última, así que ofrecerlo
-        // sería ofrecer un botón que tira.
-        launchable: entry.launchable && versionVerified,
+        // Lanzable requiere dos cosas: que el adaptador tenga `start()` (lo
+        // declara `entry.launchable`) y que el binario esté instalado. La
+        // coincidencia de versión con un fixture de referencia dejó de ser
+        // condición: ese encuadre se retiró, y exigirlo bloqueaba el arranque
+        // en cada actualización de CLI. La verificación sigue como metadato
+        // informativo (`evidenceStatus`), no como compuerta.
+        launchable: entry.launchable && discovery.installed,
         diagnostics: entry.launchable
           ? discovery.diagnostics
           : [...discovery.diagnostics, 'adapter_has_no_event_stream'],

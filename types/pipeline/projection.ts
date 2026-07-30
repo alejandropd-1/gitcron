@@ -1,4 +1,4 @@
-import type { PipelineRuntime, RuntimeCapabilityAvailability } from './runtime';
+import type { PipelineEvidenceStatus, PipelineRuntime, RuntimeCapabilityAvailability } from './runtime';
 
 /**
  * Acciones de control supervisado (F05).
@@ -125,8 +125,17 @@ export interface RuntimeDiscoveryEntry {
   adapterId: string;
   installed: boolean;
   runtimeVersion: string | null;
-  /** `true` sólo si la versión instalada coincide con el fixture verificado. */
+  /** `true` cuando el binario está y el adaptador declara `start()`. */
   launchable: boolean;
+  /**
+   * Estado de evidencia del runtime, informativo y no bloqueante.
+   *
+   * `verified` cuando hubo handshake/observación viva que respalda la versión;
+   * `pending_fixture` cuando la versión no se contrastó contra una referencia.
+   * Tras retirar el gate de versión, esto NO decide `launchable`: el renderer lo
+   * usa sólo para avisar a la persona si el runtime está verificado.
+   */
+  evidenceStatus?: PipelineEvidenceStatus;
   /**
    * Disponibilidad declarada de `session.start` por el adaptador.
    *

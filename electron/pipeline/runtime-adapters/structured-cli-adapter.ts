@@ -57,14 +57,20 @@ export class StructuredCliRuntimeAdapter implements RuntimeAdapter {
         maxStderrBytes: 16_384,
       });
       const installed = result.exitCode === 0 && !result.timedOut && !result.outputLimit;
-      const fixtureCompatible = installed && this.config.matchesFixtureVersion(result.stdout.toString('utf8').trim());
+      // La versión instalada se reporta siempre que el binario responda: es
+      // información útil para la persona, independientemente de si coincide con
+      // una referencia verificada. Ya no se descarta cuando no coincide.
+      const versionOutput = result.stdout.toString('utf8').trim();
+      const matchesReference = installed && this.config.matchesFixtureVersion(versionOutput);
       return {
         installed,
         executable: installed ? this.config.executable : null,
-        runtimeVersion: fixtureCompatible ? this.descriptor.runtimeVersion : null,
-        evidenceStatus: fixtureCompatible ? 'verified' : installed ? 'pending_fixture' : 'unknown',
-        evidenceRefs: [this.config.evidenceRef],
-        diagnostics: fixtureCompatible ? [] : installed ? ['Installed runtime version differs from the verified fixture'] : ['Runtime version probe failed'],
+        runtimeVersion: installed ? (matchesReference ? this.descriptor.runtimeVersion : versionOutput) : null,
+        // `evidenceStatus` es informativo, no bloqueante: que la versión no
+        // coincida con una referencia no impide arrancar, sólo se avisa.
+        evidenceStatus: matchesReference ? 'verified' : installed ? 'pending_fixture' : 'unknown',
+        evidenceRefs: this.config.evidenceRef ? [this.config.evidenceRef] : [],
+        diagnostics: matchesReference ? [] : installed ? ['Runtime version not verified against a reference'] : ['Runtime version probe failed'],
       };
     } catch {
       return {
@@ -72,7 +78,7 @@ export class StructuredCliRuntimeAdapter implements RuntimeAdapter {
         executable: null,
         runtimeVersion: null,
         evidenceStatus: 'unknown',
-        evidenceRefs: [this.config.evidenceRef],
+        evidenceRefs: this.config.evidenceRef ? [this.config.evidenceRef] : [],
         diagnostics: ['Runtime executable unavailable'],
       };
     }
@@ -97,7 +103,9 @@ export class StructuredCliRuntimeAdapter implements RuntimeAdapter {
     if (!request.instruction.trim()) throw new Error('instruction is required');
     const discovery = await this.discover();
     if (!discovery.installed) throw new Error('Runtime executable unavailable');
-    if (discovery.evidenceStatus !== 'verified') throw new Error('Runtime version has no compatible verified fixture');
+    // El gate de versión se retiró: un runtime instalado arranca aunque su
+    // evidencia sea `pending_fixture`. La negociación real del stream abajo es
+    // la evidencia viva; exigir fixture bloqueaba cada actualización de CLI.
     const identity = createPipelineIdentity(request, this.descriptor);
     const session: RuntimeSession = {
       identity,

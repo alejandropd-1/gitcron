@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-30
+goal: Construir el loop agente sobre la API OpenAI-compatible de LM Studio para
+  que modelos locales ejecuten tareas con tool calling

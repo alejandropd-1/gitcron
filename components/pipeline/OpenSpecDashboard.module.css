@@ -504,6 +504,9 @@
 
 .launcherPanel,
 .evidencePanel { margin-top: 1rem; padding: 1rem; border: 1px solid var(--os-border-strong); background: rgba(10, 31, 49, 0.78); }
+/* Mientras el launcher descubre runtimes su interior está vacío: el marco se
+   retira para no ofrecer un recuadro vacío. El estado de carga vive adentro. */
+.launcherPanel[data-launcher-loading] { padding: 0; border: 0; background: transparent; }
 .fullActivity { padding-top: 1rem; }
 
 .evidenceStrip {

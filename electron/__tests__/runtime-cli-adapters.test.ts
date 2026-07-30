@@ -126,7 +126,10 @@ describe('structured CLI runtime adapters', () => {
     expect(runner.capturedSpec).toBeNull();
   });
 
-  it('degrades and refuses to parse an installed version without a matching fixture', async () => {
+  it('launches an installed runtime whose version has no matching reference, degrading evidence', async () => {
+    // Tras retirar el gate de versión, un runtime instalado arranca aunque su
+    // evidencia sea `pending_fixture`. La degradación es informativa, no un
+    // rechazo: el gate que abortaba con "no compatible verified fixture" se quitó.
     class NewVersionRunner extends FixtureRunner {
       override async run(spec: RuntimeProcessSpec): Promise<RuntimeProcessResult> {
         return { ...(await super.run(spec)), stdout: Buffer.from('codex-cli 0.144.0\n') };
@@ -135,9 +138,8 @@ describe('structured CLI runtime adapters', () => {
     const runner = new NewVersionRunner(Buffer.alloc(0));
     const adapter = createCodexRuntimeAdapter(baseRequest.canonicalRepoPath, runner);
     await expect(adapter.health()).resolves.toMatchObject({ status: 'degraded', evidenceStatus: 'pending_fixture' });
-    await expect(adapter.start?.({ ...baseRequest, instruction: 'safe' })).rejects.toThrow(
-      'Runtime version has no compatible verified fixture',
-    );
-    expect(runner.capturedSpec).toBeNull();
+    // El arranque procede: ya no se rechaza por falta de fixture.
+    const session = await adapter.start?.({ ...baseRequest, instruction: 'safe' });
+    expect(session).toBeDefined();
   });
 });

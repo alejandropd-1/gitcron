@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-30
+goal: Registrar el adaptador ACP de OpenCode en el hub para sumar Z.ai como
+  runtime lanzable

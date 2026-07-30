@@ -13,8 +13,6 @@ import { asRecord, metricSample, numberValue, stringValue, unknownTelemetry } fr
 import { RuntimeProcessRunner } from './process-runner';
 import type { RuntimeAdapter } from './runtime-adapter';
 
-const USAGE_FIXTURE_REF = 'docs/pipeline/f03/fixtures/lmstudio-9902c3a-usage.sanitized.json';
-const PROBE_FIXTURE_REF = 'docs/pipeline/f03/fixtures/lmstudio-9902c3a-openai-http.sanitized.json';
 const SUPPORTED_CLI_COMMIT = '9902c3a';
 const CLI_COMMIT_PREFIX = 'cli commit:';
 const DEFAULT_BASE_URL = 'http://127.0.0.1:1234';
@@ -208,38 +206,38 @@ export const LMSTUDIO_DESCRIPTOR: RuntimeDescriptor = {
       capabilityId: 'health',
       capabilityVersion: '1',
       availability: 'available',
-      evidenceStatus: 'verified',
+      evidenceStatus: 'pending_fixture',
       targetScopes: ['repo'],
       constraints: [
         'loopback GET /api/v1/models, falling back to /v1/models; main-only',
         'no auto-start, load or unload',
       ],
-      evidenceRefs: [PROBE_FIXTURE_REF],
+      evidenceRefs: [],
     },
     {
       capabilityId: 'models.list',
       capabilityVersion: '1',
       availability: 'available',
-      evidenceStatus: 'verified',
+      evidenceStatus: 'pending_fixture',
       targetScopes: ['repo'],
       constraints: [
         'native catalog exposes max_context_length, loaded_instances and trained_for_tool_use',
         'OpenAI-compatible fallback only yields ids',
       ],
-      evidenceRefs: [PROBE_FIXTURE_REF],
+      evidenceRefs: [],
     },
     {
       capabilityId: 'telemetry.snapshot',
       capabilityVersion: null,
       availability: 'degraded',
-      evidenceStatus: 'verified',
+      evidenceStatus: 'pending_fixture',
       targetScopes: ['run', 'session'],
       constraints: [
         'provider mode: GitCron observes responses, so usage requires an ingested response and stays unknown until then',
         'verified end to end against a real local completion; cache tokens are not reported by LM Studio',
         'cost is local_unpriced: local inference has no per-token price',
       ],
-      evidenceRefs: [USAGE_FIXTURE_REF],
+      evidenceRefs: [],
     },
   ],
 };
@@ -282,18 +280,21 @@ export class LmStudioProviderAdapter implements RuntimeAdapter {
       });
       const installed = result.exitCode === 0 && !result.timedOut && !result.outputLimit;
       const detectedCommit = installed ? parseLmStudioCliCommit(result.stdout.toString('utf8')) : null;
-      const fixtureCompatible = detectedCommit === SUPPORTED_CLI_COMMIT;
+      const withinBaseline = detectedCommit === SUPPORTED_CLI_COMMIT;
       const diagnostics: string[] = [];
       if (!installed) diagnostics.push('LM Studio CLI version probe failed');
       else if (!detectedCommit) diagnostics.push('LM Studio CLI did not report a commit identifier');
-      else if (!fixtureCompatible) diagnostics.push('Installed LM Studio CLI commit differs from the verified baseline');
+      else if (!withinBaseline) diagnostics.push('LM Studio CLI commit differs from the reference baseline');
 
       return {
         installed,
         executable: installed ? this.executable : null,
         runtimeVersion: detectedCommit,
-        evidenceStatus: fixtureCompatible ? 'verified' : installed ? 'pending_fixture' : 'unknown',
-        evidenceRefs: [PROBE_FIXTURE_REF],
+        // `evidenceStatus` aquí es informativo y depende del commit del CLI, no
+        // de observación viva: la verificación real la hace `health()` sobre el
+        // servidor. No bloquea el listado del proveedor.
+        evidenceStatus: installed ? 'pending_fixture' : 'unknown',
+        evidenceRefs: [],
         diagnostics,
       };
     } catch {
@@ -302,7 +303,7 @@ export class LmStudioProviderAdapter implements RuntimeAdapter {
         executable: null,
         runtimeVersion: null,
         evidenceStatus: 'unknown',
-        evidenceRefs: [PROBE_FIXTURE_REF],
+        evidenceRefs: [],
         diagnostics: ['LM Studio CLI executable unavailable'],
       };
     }
@@ -340,7 +341,7 @@ export class LmStudioProviderAdapter implements RuntimeAdapter {
         checkedAt: this.now(),
         latencyMs: Date.now() - startedAt,
         evidenceStatus: 'unknown',
-        evidenceRefs: [PROBE_FIXTURE_REF],
+        evidenceRefs: [],
         diagnostics,
       };
     }
@@ -351,7 +352,7 @@ export class LmStudioProviderAdapter implements RuntimeAdapter {
       checkedAt: this.now(),
       latencyMs: Date.now() - startedAt,
       evidenceStatus: nativeCatalog ? 'verified' : 'pending_fixture',
-      evidenceRefs: [PROBE_FIXTURE_REF],
+      evidenceRefs: [],
       diagnostics,
     };
   }

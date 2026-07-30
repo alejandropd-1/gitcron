@@ -10,12 +10,10 @@ import { unknownTelemetry } from './normalization';
 import { RuntimeProcessRunner } from './process-runner';
 import type { RuntimeAdapter } from './runtime-adapter';
 
-const CLI_SURFACE_FIXTURE_REF = 'docs/pipeline/f03/fixtures/agy-1.1.6-cli-surface.sanitized.json';
-
 /**
  * Versions whose CLI surface was audited for the wrapper contract: neither
  * exposes a --json / --output-format / --stream flag, so there is no structured
- * stream to normalize. 1.1.5 audited in tanda 3, 1.1.6 in the F03 audit.
+ * stream to normalize.
  */
 const SUPPORTED_RUNTIME_VERSIONS = ['1.1.5', '1.1.6'] as const;
 const BASELINE_RUNTIME_VERSION = '1.1.6';
@@ -32,10 +30,10 @@ export const AGY_WRAPPER_DESCRIPTOR: RuntimeDescriptor = {
       capabilityId: 'health',
       capabilityVersion: '1',
       availability: 'available',
-      evidenceStatus: 'verified',
+      evidenceStatus: 'pending_fixture',
       targetScopes: ['repo'],
       constraints: ['process probe only; no structured event stream'],
-      evidenceRefs: [CLI_SURFACE_FIXTURE_REF],
+      evidenceRefs: [],
     },
     {
       capabilityId: 'session.start',
@@ -44,7 +42,7 @@ export const AGY_WRAPPER_DESCRIPTOR: RuntimeDescriptor = {
       evidenceStatus: 'pending_fixture',
       targetScopes: ['repo', 'run'],
       constraints: ['wrapper lifecycle only; structured stream unavailable'],
-      evidenceRefs: [CLI_SURFACE_FIXTURE_REF],
+      evidenceRefs: [],
     },
     {
       capabilityId: 'events.stream',
@@ -52,8 +50,8 @@ export const AGY_WRAPPER_DESCRIPTOR: RuntimeDescriptor = {
       availability: 'unknown',
       evidenceStatus: 'pending_fixture',
       targetScopes: ['session'],
-      constraints: ['no --json/--output-format/--stream flag in 1.1.5 or 1.1.6; no regex on raw terminal text'],
-      evidenceRefs: [CLI_SURFACE_FIXTURE_REF],
+      constraints: ['no --json/--output-format/--stream flag; no regex on raw terminal text'],
+      evidenceRefs: [],
     },
     {
       capabilityId: 'telemetry.snapshot',
@@ -62,7 +60,7 @@ export const AGY_WRAPPER_DESCRIPTOR: RuntimeDescriptor = {
       evidenceStatus: 'pending_fixture',
       targetScopes: ['run', 'session'],
       constraints: ['usage and cost metrics unavailable without structured telemetry stream'],
-      evidenceRefs: [CLI_SURFACE_FIXTURE_REF],
+      evidenceRefs: [],
     },
   ],
 };
@@ -91,18 +89,20 @@ export class AgyWrapperRuntimeAdapter implements RuntimeAdapter {
       const output = result.stdout.toString('utf8').trim();
       const installed = result.exitCode === 0 && !result.timedOut && !result.outputLimit;
       const detectedVersion = installed && output ? output : null;
-      const fixtureCompatible = detectedVersion !== null
+      const withinBaseline = detectedVersion !== null
         && (SUPPORTED_RUNTIME_VERSIONS as readonly string[]).includes(detectedVersion);
       return {
         installed,
         executable: installed ? this.executable : null,
         runtimeVersion: detectedVersion,
-        evidenceStatus: fixtureCompatible ? 'verified' : installed ? 'pending_fixture' : 'unknown',
-        evidenceRefs: [CLI_SURFACE_FIXTURE_REF],
-        diagnostics: fixtureCompatible
+        // `evidenceStatus` es informativo: `pending_fixture` porque el fixture
+        // de referencia se retiró. No bloquea el listado del runtime.
+        evidenceStatus: installed ? 'pending_fixture' : 'unknown',
+        evidenceRefs: [],
+        diagnostics: withinBaseline
           ? []
           : installed
-            ? ['Installed agy version is outside the audited baseline set']
+            ? ['agy version outside the reference baseline set']
             : ['agy version probe failed'],
       };
     } catch {
@@ -111,7 +111,7 @@ export class AgyWrapperRuntimeAdapter implements RuntimeAdapter {
         executable: null,
         runtimeVersion: null,
         evidenceStatus: 'unknown',
-        evidenceRefs: [CLI_SURFACE_FIXTURE_REF],
+        evidenceRefs: [],
         diagnostics: ['agy executable unavailable'],
       };
     }

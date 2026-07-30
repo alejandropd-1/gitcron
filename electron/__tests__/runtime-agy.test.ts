@@ -29,8 +29,9 @@ class AgyTestRunner extends RuntimeProcessRunner {
 
 describe('Antigravity (agy) wrapper adapter', () => {
   // Both surfaces were audited for the wrapper contract: neither exposes a
-  // structured output flag, so both are legitimate verified baselines.
-  it.each(['1.1.5', '1.1.6'])('probes version and returns healthy status for audited %s', async (version) => {
+  // structured output flag. Tras retirar el gate de versión, la evidencia es
+  // informativa (`pending_fixture`) aunque la versión caiga en el baseline.
+  it.each(['1.1.5', '1.1.6'])('probes version and returns installed status for known %s', async (version) => {
     const runner = new AgyTestRunner(`${version}\n`);
     const adapter = createAgyWrapperRuntimeAdapter('C:\\fixture\\repo', 'agy', runner, () => '2026-07-24T00:00:00.000Z');
 
@@ -38,13 +39,7 @@ describe('Antigravity (agy) wrapper adapter', () => {
     expect(discovery).toMatchObject({
       installed: true,
       runtimeVersion: version,
-      evidenceStatus: 'verified',
-    });
-
-    const health = await adapter.health();
-    expect(health).toMatchObject({
-      status: 'healthy',
-      evidenceStatus: 'verified',
+      evidenceStatus: 'pending_fixture',
     });
 
     expect(validateRuntimeAdapterContract(adapter)).toEqual([]);
@@ -57,7 +52,7 @@ describe('Antigravity (agy) wrapper adapter', () => {
     const discovery = await adapter.discover();
     expect(discovery.runtimeVersion).toBe('1.2.0');
     expect(discovery.evidenceStatus).toBe('pending_fixture');
-    expect(discovery.diagnostics).toContain('Installed agy version is outside the audited baseline set');
+    expect(discovery.diagnostics).toContain('agy version outside the reference baseline set');
   });
 
   it('returns unknown telemetry without assuming dummy zeros or free billing', async () => {

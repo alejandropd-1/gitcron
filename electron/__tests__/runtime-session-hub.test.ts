@@ -215,11 +215,14 @@ describe('RuntimeSessionHub', () => {
     ]));
   });
 
-  it('marks a runtime unlaunchable when the installed version has no verified fixture', async () => {
+  it('launches an installed runtime even when its version has no verified reference', async () => {
+    // El gate de versión se retiró: un runtime instalado es lanzable aunque su
+    // evidencia sea `pending_fixture`. La verificación es informativa, no
+    // bloqueante.
     const { hub } = makeHub(new FakeAdapter({ verified: false }));
     const [entry] = await hub.discover('C:/repo');
     expect(entry.installed).toBe(true);
-    expect(entry.launchable).toBe(false);
+    expect(entry.launchable).toBe(true);
   });
 
   // Un runtime lanzable no es necesariamente un runtime que pueda hacer el

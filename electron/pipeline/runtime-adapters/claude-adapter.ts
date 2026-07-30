@@ -4,7 +4,7 @@ import { RuntimeProcessRunner } from './process-runner';
 import type { RuntimeStartRequest } from './runtime-adapter';
 import { StructuredCliRuntimeAdapter } from './structured-cli-adapter';
 
-const FIXTURE_REF = 'docs/pipeline/f03/fixtures/claude-2.1.206-stream.sanitized.jsonl';
+const FIXTURE_REF = '';
 
 export const CLAUDE_DESCRIPTOR: RuntimeDescriptor = {
   adapterId: 'claude-code',
@@ -14,9 +14,9 @@ export const CLAUDE_DESCRIPTOR: RuntimeDescriptor = {
   runtimeVersion: '2.1.206',
   protocolVersion: null,
   capabilities: [
-    { capabilityId: 'session.start', capabilityVersion: null, availability: 'available', evidenceStatus: 'verified', targetScopes: ['repo', 'run'], constraints: ['edita archivos con Read, Grep, Glob, Edit y Write', 'permission-mode acceptEdits', 'sin acceso a shell'], evidenceRefs: [FIXTURE_REF] },
-    { capabilityId: 'events.stream', capabilityVersion: null, availability: 'available', evidenceStatus: 'verified', targetScopes: ['session'], constraints: ['bounded JSONL'], evidenceRefs: [FIXTURE_REF] },
-    { capabilityId: 'telemetry.snapshot', capabilityVersion: null, availability: 'available', evidenceStatus: 'verified', targetScopes: ['run', 'session'], constraints: ['billing semantics remain unknown'], evidenceRefs: [FIXTURE_REF] },
+    { capabilityId: 'session.start', capabilityVersion: null, availability: 'available', evidenceStatus: 'pending_fixture', targetScopes: ['repo', 'run'], constraints: ['edita archivos con Read, Grep, Glob, Edit, Write', 'permission-mode acceptEdits', 'sin acceso a shell'], evidenceRefs: [] },
+    { capabilityId: 'events.stream', capabilityVersion: null, availability: 'available', evidenceStatus: 'pending_fixture', targetScopes: ['session'], constraints: ['bounded JSONL'], evidenceRefs: [] },
+    { capabilityId: 'telemetry.snapshot', capabilityVersion: null, availability: 'available', evidenceStatus: 'pending_fixture', targetScopes: ['run', 'session'], constraints: ['billing semantics remain unknown'], evidenceRefs: [] },
     { capabilityId: 'session.resume', capabilityVersion: null, availability: 'unknown', evidenceStatus: 'pending_fixture', targetScopes: ['session'], constraints: ['effect not tested'], evidenceRefs: [] },
   ],
 };

@@ -196,7 +196,10 @@ describe('LM Studio provider adapter', () => {
     expect(discovery).toMatchObject({
       installed: true,
       runtimeVersion: '9902c3a',
-      evidenceStatus: 'verified',
+      // `discover` sólo reporta el commit del CLI: la verificación real la hace
+      // `health` contra el servidor HTTP vivo. El commit es referencia, no
+      // evidencia, así que el estado es informativo.
+      evidenceStatus: 'pending_fixture',
     });
 
     const health = await adapter.health();
@@ -276,7 +279,7 @@ describe('LM Studio provider adapter', () => {
     const discovery = await adapter.discover();
     expect(discovery.runtimeVersion).toBe('deadbee');
     expect(discovery.evidenceStatus).toBe('pending_fixture');
-    expect(discovery.diagnostics).toContain('Installed LM Studio CLI commit differs from the verified baseline');
+    expect(discovery.diagnostics).toContain('LM Studio CLI commit differs from the reference baseline');
   });
 
   it('is unavailable when the HTTP endpoint is unreachable, even if the CLI works', async () => {

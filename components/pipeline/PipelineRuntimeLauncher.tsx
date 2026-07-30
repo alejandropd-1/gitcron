@@ -219,6 +219,16 @@ export function PipelineRuntimeLauncher({
             </p>
           )}
 
+          {/* `evidenceStatus` es informativo, no bloqueante: tras retirar el gate
+              de versión, un runtime no verificado igual arranca. Se avisa antes
+              del CTA para que la persona sepa que el protocolo no se probó contra
+              una referencia, no para impedir el arranque. */}
+          {selectedEntry && selectedEntry.evidenceStatus && selectedEntry.evidenceStatus !== 'verified' && (
+            <p className="pipeline-launcher__unverified" data-evidence={selectedEntry.evidenceStatus}>
+              {t('pipeline.launcher.unverified')}
+            </p>
+          )}
+
           {/* El alcance declarado va antes del CTA. Un runtime que corre con
               herramientas de sólo lectura puede analizar y reportar, pero no
               modificar el repositorio, y eso hay que decirlo antes de gastar

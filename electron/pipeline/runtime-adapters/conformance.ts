@@ -27,8 +27,14 @@ export function validateRuntimeAdapterContract(adapter: RuntimeAdapter): string[
     if (method && IMPLEMENTABLE.includes(capability.availability) && typeof adapter[method] !== 'function') {
       errors.push(`${capability.capabilityId} is ${capability.availability} but ${method} is not implemented`);
     }
-    if (capability.availability === 'available' && capability.evidenceStatus !== 'verified') {
-      errors.push(`${capability.capabilityId} is available without verified evidence`);
+    // `available` ya no exige `verified`: tras retirar el encuadre de fixtures,
+    // una capability implementada puede declararse `available` con evidencia
+    // `pending_fixture` y seguir siendo lanzable. La honestidad vive en no
+    // afirmar `verified` sin respaldo, no en bloquear lo disponible.
+    if (capability.availability === 'available'
+      && capability.evidenceStatus !== 'verified'
+      && capability.evidenceStatus !== 'pending_fixture') {
+      errors.push(`${capability.capabilityId} is available but evidenceStatus is ${capability.evidenceStatus}`);
     }
   }
   return errors;

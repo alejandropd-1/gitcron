@@ -78,14 +78,17 @@ describe('runtime adapter TANDA 0 conformance', () => {
     );
   });
 
-  it('rejects available capabilities without verified evidence', () => {
+  it('accepts available capabilities with pending_fixture evidence after the fixture gate retired', () => {
+    // Tras retirar el gate de versión, una capability implementada puede
+    // declararse `available` con evidencia `pending_fixture` y seguir siendo
+    // lanzable. La honestidad vive en no afirmar `verified` sin respaldo.
     const candidate = adapter();
     candidate.descriptor.capabilities[0] = {
       ...candidate.descriptor.capabilities[0],
       evidenceStatus: 'pending_fixture',
     };
-    expect(validateRuntimeAdapterContract(candidate)).toContain(
-      'events.stream is available without verified evidence',
+    expect(validateRuntimeAdapterContract(candidate)).not.toContain(
+      'events.stream is available but evidenceStatus is pending_fixture',
     );
   });
 

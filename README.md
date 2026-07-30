@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.10.9-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.11.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -176,6 +176,18 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Panorama integrado y cacheado**: El resumen del repo se genera desde estructura determinística, se narra con IA cuando está habilitada y se cachea en SQLite por repo, estructura e idioma.
 - **Providers opt-in**: Soporta LM Studio local y OpenRouter, reutilizando la key cifrada del Temporal Agent sin exponer secretos al renderer.
 
+### 🔵 Pipeline — Workspace OpenSpec (v1.11.0)
+
+Pipeline muestra en qué punto del ciclo de OpenSpec está el repositorio abierto y qué corresponde hacer a continuación, sin exigir conocer los comandos `/opsx:*`.
+
+- **Workspace de tres zonas**: navegación de cambios activos, archivados y especificaciones a la izquierda; trabajo al centro con el ciclo Explore → Propose → Apply → Validate → Archive; actividad y alertas a la derecha.
+- **Guía del próximo paso**: una función pura deriva el estado real —tarea pendiente, sesión corriendo, validación fallida, listo para archivar, decisión esperando— y de ahí salen la etiqueta y la habilitación de cada acción. Archivar no aparece antes de que la validación pase.
+- **Empezar un cambio sin escribir comandos**: dos ramas, Propose para una tarea definida y Explore para una idea por definir. Pide objetivo, nombre validado contra el mismo contrato del CLI y restricciones opcionales; la instrucción generada queda visible bajo divulgación progresiva.
+- **Ejecutar con el runtime que tengas**: descubre los runtimes instalados, informa el alcance que cada uno declara y abre una sesión que puede editar el repositorio. Toda sesión que escriba exige confirmación explícita antes de arrancar.
+- **Leer los artefactos sin salir de la app**: `proposal.md`, `design.md`, `tasks.md` y los spec delta por capacidad se abren desde la navegación y se leen en la columna central. El markdown viaja dentro de la evidencia ya contenida al repositorio; el renderer no lee archivos.
+- **Evidencia sin inventar**: un dato ausente, incompatible o sin fixture se representa como `unknown` o `pending_fixture`, nunca como cero o verde. Un proceso que termina no marca una tarea como hecha: el progreso se relee de `tasks.md`.
+- **Sesiones persistidas**: cada corrida guarda runtime, cambio, tarea, tiempos y resultado en SQLite, y el historial sobrevive a reinicios.
+
 ---
 
 ## Architecture
@@ -293,10 +305,16 @@ gitCronos/
 |  `- globals.css
 |- components/
 |  |- CommitGraph.tsx
-|  `- DiffViewer.tsx
+|  |- DiffViewer.tsx
+|  `- pipeline/            # workspace OpenSpec: guia, flujo y lanzador
 |- electron/
 |  |- main.ts
-|  `- preload.ts
+|  |- preload.ts
+|  |- db/                  # SQLite (node:sqlite), migraciones aditivas
+|  `- pipeline/
+|     |- repo-evidence-reader.ts   # lee OpenSpec y Git del repo abierto
+|     |- runtime/                  # sesiones, proyeccion y persistencia
+|     `- runtime-adapters/         # un adaptador por runtime, con fixture
 |- hooks/
 |  |- use-git-actions.ts
 |  |- use-repo-loader.ts
@@ -305,8 +323,13 @@ gitCronos/
 |  |- git-store.ts
 |  |- i18n.ts
 |  `- utils.ts
+|- openspec/               # metodo de trabajo: changes y specs vigentes
+|  |- changes/
+|  `- specs/
 |- types/
-|  `- electron.d.ts
+|  |- electron.d.ts
+|  `- pipeline/
+|- AGENTS.md               # instrucciones operativas para agentes
 |- SECURITY.md
 |- CHANGELOG.md
 `- README.md
@@ -449,9 +472,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.10.9.exe`                                            |
-| macOS    | `GitCron-1.10.9.dmg` _(build on macOS with `pnpm package:mac`)_       |
-| Linux    | `GitCron-1.10.9.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.11.0.exe`                                            |
+| macOS    | `GitCron-1.11.0.dmg` _(build on macOS with `pnpm package:mac`)_       |
+| Linux    | `GitCron-1.11.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 

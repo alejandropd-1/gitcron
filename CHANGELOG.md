@@ -4,19 +4,43 @@ Changes are listed from newest to oldest.
 
 ---
 
-## [Unreleased] - 2026-07-25 - Release Candidate Track Pipeline (F00-F08)
+## [Unreleased] - 2026-07-30 - Pipeline es un workspace OpenSpec
 
-### 🤖 Pipeline Track (Agentes & Automatización Supervisada)
+Cambio de perspectiva de la pestaña Pipeline. Dejó de ser una torre de control de agentes múltiples —con Hermes como orquestador, delegaciones entre IA, economía y un veto determinístico de gates— y pasó a ser un tablero del ciclo de vida de OpenSpec sobre el repositorio abierto.
+
+La capa de runtime se conserva y se amplió: cualquier proveedor puede ejecutar OpenSpec desde la app. Lo que se retiró es el andamiaje que la rodeaba.
+
+### 🤖 Pipeline
 
 #### Added
-- **Fase 00 (Contrato & Tipos):** Definición formal de contratos, estaciones (`bootstrap`, `scout`, `proposal`, `builder`, `gates`, `audit`, `fixer`), decisiones y evidencia.
-- **Fase 01 (Evidencias & Observabilidad):** Integración de lectura append-only de evidencias, feeds de actividad e IPC de snapshots.
-- **Fase 03 (Runtime Adapters):** Adaptadores para AGY, CLI, OpenCode ACP y LM Studio local.
-- **Fase 04 (Workspace UI):** Interfaz multi-pestaña ("Ahora", "Agentes", "Historial", "Economía") con tokens del diseño del sistema, i18n (ES/EN/ZH) y vista de detalles.
-- **Fase 05 (Control Supervisado):** Command Bus Main-Only allowlisted, audit log `pipeline-audit.jsonl`, barra de control supervisado (pausa, steer, queue, interrupt), modal de confirmación y aviso de trabajo parcial retenido en el working tree sin rollback.
-- **Fase 06 (Modelos, Presupuestos & Contexto):** Catálogo jerárquico de modelos, routing por rol/repositorio, decorrelación bloqueante Builder/Auditor, contabilidad de tokens y costo USD sin double-counting, y evaluación de salud de contexto.
-- **Fase 07 (Replay & Inteligencia Operativa):** Reproductor histórico determinístico read-only, motor de 6 anomalías puras, estimaciones estadísticas P10-P90 por cohort (`n >= 5`) y explicaciones grounded.
-- **Fase 08 (Hardening & Release):** Feature freeze, redacción automática de secrets en logs (`PipelineSecuritySanitizer`), política de retención (`PipelineRetentionPolicy`), backpressure de streams (`TokenDeltaBatcher`), reconexiones con exponencial backoff (`ReconnectStrategy`), resolución de ejecutables Windows (.cmd/.exe) y verificador E2E.
+- **Workspace OpenSpec de tres zonas:** navegación de cambios a la izquierda, trabajo al centro y actividad a la derecha, con el ciclo Explore → Propose → Apply → Validate → Archive representado como stepper.
+- **Guía contextual del próximo paso:** una función pura deriva qué corresponde hacer según el estado real —cambio activo, tarea pendiente, sesión corriendo, validación fallida, listo para archivar— y de ahí salen la etiqueta, el destino y la habilitación de cada botón. Archivar no puede ofrecerse antes de que la validación pase.
+- **Flujo guiado para empezar un cambio:** dos ramas, Propose para una tarea definida y Explore para una idea por definir, con objetivo, nombre validado contra el mismo contrato del CLI y restricciones opcionales. La instrucción `/opsx:*` queda bajo divulgación progresiva.
+- **Sesiones que aplican de verdad:** el runtime puede editar el repositorio con `Read, Grep, Glob, Edit, Write` y `--permission-mode acceptEdits`. Toda sesión que escriba exige confirmación humana explícita antes de arrancar, y esa condición vive en la compuerta pura que decide si el arranque se habilita.
+- **Lectura de artefactos dentro de la app:** `proposal.md`, `design.md`, `tasks.md` y los spec delta por capacidad se abren desde la navegación y se leen en la columna central, sin salir de GitCron. El markdown viaja dentro de la evidencia ya contenida al repositorio; el renderer no lee archivos.
+- **Cambios activos plegables** individualmente, para que la columna siga siendo usable cuando se apilan.
+- **Alcance declarado antes de ejecutar:** el lanzador informa qué puede hacer el runtime elegido, tomado de las capabilities que el propio adaptador declara, en vez de prometer trabajo que no puede hacer.
+
+#### Fixed
+- **Cambios activos invisibles en Windows.** `execFile('openspec', ...)` no resuelve `openspec.CMD` (ENOENT) y con la extensión explícita Node lo rechaza con EINVAL por la mitigación de CVE-2024-27980. Había tres copias de esa llamada y las tres fallaban: el lector caía siempre en su `catch` y reportaba cero cambios activos aunque el scaffold existiera. El listado pasa a leerse del disco, sin subproceso, y la validación a un módulo único con resolución por plataforma.
+- **Panel central desbordado.** El encabezado y las pestañas no declaraban `flex-shrink: 0` dentro de un contenedor con `overflow: hidden`: con un intent largo el bloque se comprimía y el texto se derramaba por encima del contenido.
+- **Numeración de tareas ilegible.** `parseMarkdownTasks` asigna a `id` un hash estable y deja el `2.1` dentro del texto. La interfaz mostraba el hash y, peor, la instrucción enviada al agente decía `Continuar con 0bbbc5c…` en vez de `Continuar con 1.1`.
+- **Narrativa partida en fragmentos.** Cada delta de texto del runtime se guardaba como una entrada separada, así que un mensaje aparecía cortado en varios pedazos a mitad de palabra. Ahora se acumulan por mensaje, y las sesiones ya persistidas se reparan al cargarlas sin exigir volver a ejecutarlas.
+- **Marcadores de i18n sin resolver** en la frase de ayuda del próximo paso.
+- **Vista previa capaz de iniciar procesos reales:** `fixtureActive` se calculaba pero no se propagaba hasta el lanzador.
+
+#### Changed
+- **Método de trabajo:** OpenSpec es el único. `AGENTS.md` se reescribió en consecuencia y las comprobaciones obligatorias de cierre pasan a ser `tsc --noEmit` en cero, `pnpm test` en verde y `openspec validate --strict` válido. Fallow y CodeGraph quedan como rutinas que pide Ale, no como automatismos.
+- **Esquema SQLite v6:** se elimina `pipeline_cursor` mediante migración aditiva.
+
+#### Removed
+- **Andamiaje multi-agente:** Hermes, el track de fases F00–F08 con sus briefs y prompts, el veto determinístico `gates.ps1`/`gates.sh`, la constitución y el perfil de repositorio.
+- **Capa de evidencia del kit:** `GateRecord`, `DelegationRecord`, `VisualDiffRecord`, `hermesConnected`, `stations` y `now`, de punta a punta —parsers, reducer, lector, adaptador, tipos, i18n y vista— junto con `GateHistory` y `AuditorFindings`.
+- **Módulos sin ningún consumidor de producción:** presupuestos, catálogo y routing de modelos, salud de contexto, replay, anomalías, estimación, explicación y retención. Tenían pruebas propias, así que la suite pasaba en verde y su desuso no se notaba.
+
+Se conservan los fixtures de `docs/pipeline/f03`, que no son documentación sino evidencia citada por los adaptadores y leída por la suite de conformance.
+
+**Validación:** `tsc --noEmit` en 0 · 76 archivos y 547 pruebas en verde · `openspec validate --strict` válido.
 
 ---
 

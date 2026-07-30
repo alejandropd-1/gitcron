@@ -5,7 +5,7 @@
 > en el código, **el código manda** — reportá la discrepancia y actualizá este doc al cierre
 > de tu fase. No asumas que existe algo que no esté listado ni que falte algo que sí esté.
 
-**Última actualización:** 2026-07-23 · **Versión:** v1.10.9 · **Branch de trabajo:** `pipeline/fase-00-contrato` (F00 documental; verificar con `git branch -vv`)
+**Última actualización:** 2026-07-30 · **Versión:** v1.11.0 · **Branch de trabajo:** `main` (verificar con `git branch -vv`)
 
 ---
 
@@ -27,7 +27,7 @@ reales y persistencia de decisiones en SQLite para calibración estadística.
 | IA | OpenRouter (HTTP directo, sin SDK) — proveedor primario; stubs para openai/gemini/opencode |
 | DB | `node:sqlite` built-in (prefijo `node:` preservado vía tsup external + onSuccess patch) |
 | Build | tsup (Electron) + electron-builder (NSIS/dmg/AppImage) · puerto dev: 3001 |
-| Tests | Vitest — **289 tests / 44 archivos** (verificados verdes 2026-07-23) |
+| Tests | Vitest — **547 tests / 76 archivos** (verificados verdes 2026-07-30). Componentes con jsdom + testing-library, declarado por archivo con `@vitest-environment jsdom` |
 | Calidad | Fallow (`pnpm exec fallow`, config en `.fallowrc.json`) + CodeGraph MCP. Snapshot 2026-07-23: dead-code 17 issues, dupes 11 clone groups, health 335 sobre umbral, MI 90.5 (good); deuda heredada, F00 no tocó código. |
 | Gobernanza | `AGENTS.md`. El método es OpenSpec: todo trabajo pasa por un change y se cierra con `openspec validate --strict`. Cierre obligatorio: `tsc --noEmit` en cero, `pnpm test` verde y reporte en `docs/reports/`. Fallow y CodeGraph son rutinas que pide Ale, no automatismos. |
 

@@ -5,9 +5,7 @@
 Definir el contrato común de los adaptadores de runtime (`RuntimeAdapter`) que observan
 ejecuciones de runtimes directos y proveedores locales sin requerir Hermes como gateway
 obligatorio, con degradación explícita por runtime y conformance parametrizada.
-
 ## Requirements
-
 ### Requirement: Interfaz común con degradación explícita
 Cada `RuntimeAdapter` SHALL declarar identidad, transporte, versión y capabilities negociadas, y SHALL implementar sólo los métodos respaldados por esa declaración.
 
@@ -35,3 +33,15 @@ Cada adapter SHALL pasar una suite común para identidad, orden, dedupe, parcial
 #### Scenario: Capability sin método
 - **WHEN** un fixture declara una capability disponible pero el adapter no implementa su método
 - **THEN** la conformance falla
+
+### Requirement: Adaptadores sin citas a fixtures retirados
+Los adaptadores SHALL NOT citar `evidenceRefs` que apunten a archivos retirados del repositorio. Una capability cuyo único respaldo era un fixture retirado SHALL declararse `pending_fixture` y SHALL seguir siendo lanzable. La detección de versión instalada SHALL continuar para reportar `runtimeVersion`, pero SHALL NOT decidir lanzabilidad ni `evidenceStatus`.
+
+#### Scenario: Adaptador de runtime estructurado tras el retiro
+- **WHEN** el adaptador detecta un runtime instalado cuya versión ya no tiene fixture
+- **THEN** reporta la versión instalada, declara sus capabilities `pending_fixture` y el runtime es lanzable
+
+#### Scenario: Adaptador sin stream estructurado
+- **WHEN** un adaptador (p. ej. `agy`) no expone stream estructurado
+- **THEN** se declara no lanzable por diseño, se lista con su motivo, y no se le exige fixture
+

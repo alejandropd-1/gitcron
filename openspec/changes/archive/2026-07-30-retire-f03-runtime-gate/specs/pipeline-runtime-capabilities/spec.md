@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Lanzabilidad basada en instalación, no en fixture
 Un runtime SHALL ser lanzable cuando el adaptador lo declara lanzable y el binario está instalado. La coincidencia exacta de versión con un fixture auditado SHALL NOT ser condición de lanzamiento. `evidenceStatus` SHALL ser un metadato informativo que la UI muestra; SHALL NOT bloquear el arranque.

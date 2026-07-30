@@ -44,4 +44,4 @@
 - [x] 7.3 `pnpm exec eslint` limpio sobre lo tocado
 - [x] 7.4 `openspec validate retire-f03-runtime-gate --strict` válido
 - [x] 7.5 Reporte en `docs/reports/`
-- [ ] 7.6 Frenar antes de staging y entregar a Ale con la QA visual pendiente
+- [x] 7.6 Frenar antes de staging y entregar a Ale con la QA visual pendiente

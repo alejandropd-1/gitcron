@@ -13,12 +13,13 @@ import styles from './OpenSpecDashboard.module.css';
 export type PipelineSnapshotLoader = (
   repoPath: string,
   signal: AbortSignal,
+  selectedChangeId?: string | null,
 ) => Promise<PipelineSnapshot | null>;
 
-const loadRealSnapshot: PipelineSnapshotLoader = async (repoPath) => {
+const loadRealSnapshot: PipelineSnapshotLoader = async (repoPath, _signal, selectedChangeId) => {
   const api = typeof window !== 'undefined' ? window.api : undefined;
   if (!api?.pipelineGetSnapshot) return null;
-  const result = await api.pipelineGetSnapshot(repoPath);
+  const result = await api.pipelineGetSnapshot(repoPath, selectedChangeId ?? null);
   if (!result?.success || !result.data) return null;
   return toPipelineSnapshot(result.data);
 };
@@ -75,8 +76,18 @@ export function PipelineWorkspace({
   const [projection, setProjection] = useState<RuntimeProjection | null>(null);
   const [runtimeHistory, setRuntimeHistory] = useState<RuntimeProjection[]>([]);
   const [controlNotice, setControlNotice] = useState<string | null>(null);
+  // Selección manual de change (del renderer). Al cambiar de repo se reinicia:
+  // un changeId de otro repo no tendría sentido. Tiene precedencia sobre la
+  // selección automática por rama que hace el backend. El reset se hace durante
+  // el render trackeando el repo previo (sin effect), patrón aceptado por React.
+  const [manualSelection, setManualSelection] = useState<string | null>(null);
+  const [manualSelectionRepo, setManualSelectionRepo] = useState<string | null>(null);
+  if (manualSelectionRepo !== repoPath) {
+    setManualSelectionRepo(repoPath);
+    setManualSelection(null);
+  }
 
-  const loadKey = `${repoPath ?? ''}#${reloadToken}#${devFixture}`;
+  const loadKey = `${repoPath ?? ''}#${reloadToken}#${devFixture}#${manualSelection ?? ''}`;
   const isLoading = Boolean(repoPath) && result?.key !== loadKey;
 
   useEffect(() => {
@@ -84,7 +95,7 @@ export function PipelineWorkspace({
     const controller = new AbortController();
     const load = DEV_FIXTURES_ENABLED && devFixture !== 'live'
       ? loadDevFixture(devFixture)
-      : loadSnapshot(repoPath, controller.signal);
+      : loadSnapshot(repoPath, controller.signal, manualSelection);
 
     load
       .then((snapshot) => {
@@ -96,12 +107,12 @@ export function PipelineWorkspace({
         setResult({ key: loadKey, snapshot: null, error: { messageKey: 'pipeline.error.title', canRetry: true } });
       });
     return () => controller.abort();
-  }, [repoPath, loadKey, loadSnapshot, devFixture]);
+  }, [repoPath, loadKey, loadSnapshot, devFixture, manualSelection]);
 
   useEffect(() => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!repoPath || !api?.pipelineSubscribe || (DEV_FIXTURES_ENABLED && devFixture !== 'live')) return undefined;
-    void api.pipelineSubscribe(repoPath);
+    void api.pipelineSubscribe(repoPath, manualSelection);
     const off = api.onPipelineSnapshotUpdated?.((changedRepo, state) => {
       if (changedRepo !== repoPath) return;
       setResult((previous) => previous
@@ -112,7 +123,7 @@ export function PipelineWorkspace({
       off?.();
       void api.pipelineUnsubscribe?.(repoPath);
     };
-  }, [repoPath, devFixture]);
+  }, [repoPath, devFixture, manualSelection]);
 
   useEffect(() => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
@@ -223,6 +234,7 @@ export function PipelineWorkspace({
           onRefresh={handleRetry}
           onPauseAfterTask={handlePauseAfterTask}
           onRespondDecision={handleRespondDecision}
+          onSelectChange={setManualSelection}
         />
       ) : nonReadyState ? (
         <div className="pipeline-workspace__empty">

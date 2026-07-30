@@ -57,11 +57,16 @@ type OpenSpecDashboardProps = {
   fixtureActive?: boolean;
   /** Relee la evidencia del repo. Es el fallback explícito del watcher. */
   onRefresh?: () => void;
+  /**
+   * Se avisa cuando el renderer selecciona un change manualmente, para que el
+   * backend transporte el contenido de sus artefactos sin depender de la rama.
+   */
+  onSelectChange?: (changeId: string) => void;
   onPauseAfterTask: () => void;
   onRespondDecision: (decisionId: string, optionId: string) => void;
 };
 
-type CenterTab = 'work' | 'activity';
+type CenterTab = 'work' | 'activity' | 'artifacts';
 
 const ACTIVITY_ICONS: Record<ActivityChannel, React.ComponentType<{ size?: number }>> = {
   narrative: MessageSquareText,
@@ -122,6 +127,7 @@ export function OpenSpecDashboard({
   runtimeHistory,
   fixtureActive = false,
   onRefresh,
+  onSelectChange,
   onPauseAfterTask,
   onRespondDecision,
 }: OpenSpecDashboardProps) {
@@ -129,7 +135,6 @@ export function OpenSpecDashboard({
   const openSpec = snapshot.openSpec;
   const [selection, setSelection] = useState<string | null>(null);
   const [centerTab, setCenterTab] = useState<CenterTab>('work');
-  const [showEvidence, setShowEvidence] = useState(false);
   const [evidenceTab, setEvidenceTab] = useState<DetailTab>('proposal');
   /**
    * Cambios desplegados. Sin entrada, un cambio sigue al seleccionado: los
@@ -229,15 +234,15 @@ export function OpenSpecDashboard({
   const openArtifact = (changeId: string, tab: DetailTab | null) => {
     if (tab === null) return;
     setSelection(changeId);
-    setCenterTab('work');
+    onSelectChange?.(changeId);
+    setCenterTab('artifacts');
     setEvidenceTab(tab);
-    setShowEvidence(true);
   };
 
   const selectChange = (changeId: string) => {
     setSelection(changeId);
+    onSelectChange?.(changeId);
     setCenterTab('work');
-    setShowEvidence(false);
     setLaunchInstruction(null);
     setFlowMode(null);
   };
@@ -275,10 +280,9 @@ export function OpenSpecDashboard({
         break;
       case 'view-evidence':
       case 'view-diff':
-        // La evidencia vive en Trabajo: si se pide desde Actividad hay que
-        // llevar a la persona donde efectivamente se muestra.
-        setCenterTab('work');
-        setShowEvidence(true);
+        // Los artefactos/diffs viven en su propia pestaña ahora.
+        setCenterTab('artifacts');
+        if (intent.kind === 'view-diff') setEvidenceTab('diffs');
         break;
       case 'refresh-validation':
         onRefresh?.();
@@ -486,6 +490,7 @@ export function OpenSpecDashboard({
                 <div className={styles.tabs} role="tablist" aria-label={t('pipeline.openspec.tabs.label')}>
                   <button type="button" role="tab" aria-selected={centerTab === 'work'} onClick={() => setCenterTab('work')}>{t('pipeline.openspec.tabs.work')}</button>
                   <button type="button" role="tab" aria-selected={centerTab === 'activity'} onClick={() => setCenterTab('activity')}>{t('pipeline.openspec.tabs.activity')}</button>
+                  <button type="button" role="tab" aria-selected={centerTab === 'artifacts'} onClick={() => setCenterTab('artifacts')}>{t('pipeline.openspec.tabs.artifacts')}</button>
                 </div>
                 <div className={styles.actions}>
                   {primaryAction && (
@@ -594,17 +599,18 @@ export function OpenSpecDashboard({
                     })}
                     {selectedChange.tasks.length === 0 && <li className={styles.taskEmpty}>{t('pipeline.openspec.tasks.empty')}</li>}
                   </ol>
-
-                  {showEvidence && (
-                    <div className={styles.evidencePanel}>
-                      <PipelineDetails
-                        snapshot={snapshot}
-                        selectedChange={selectedChange}
-                        tab={evidenceTab}
-                        onTabChange={setEvidenceTab}
-                      />
-                    </div>
-                  )}
+                </div>
+              ) : centerTab === 'artifacts' ? (
+                /* Los artefactos del cambio seleccionado tienen su propia pestaña,
+                   al lado de Trabajo y Actividad: antes colgaban al final del panel
+                   de Trabajo, lo que hacía la lectura incómoda. */
+                <div className={styles.evidencePanel}>
+                  <PipelineDetails
+                    snapshot={snapshot}
+                    selectedChange={selectedChange}
+                    tab={evidenceTab}
+                    onTabChange={setEvidenceTab}
+                  />
                 </div>
               ) : (
                 <div className={styles.fullActivity}>

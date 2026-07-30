@@ -38,14 +38,14 @@ export class PipelineService {
     return { repoId: binding.repoId, canonicalPath };
   }
 
-  async refresh(repoPath: string): Promise<PipelineState> {
+  async refresh(repoPath: string, selectedChangeId?: string | null): Promise<PipelineState> {
     const canonicalPath = await fs.realpath(repoPath);
     const gitCommonDirRaw = (await simpleGit(canonicalPath, { timeout: { block: 10_000 } }).raw(['rev-parse', '--git-common-dir'])).trim();
     const gitCommonDir = path.resolve(canonicalPath, gitCommonDirRaw);
     const repository = new PipelineRepository(getDatabase(app.getPath('userData')));
     const binding = repository.getOrCreateBinding(canonicalPath, digest(gitCommonDir));
     const previous = repository.loadSnapshot(binding.repoId)?.state;
-    const { evidence } = await this.reader.read(canonicalPath, binding.repoId);
+    const { evidence } = await this.reader.read(canonicalPath, binding.repoId, selectedChangeId);
     const reduction = reducePipelineEvidence(evidence, previous);
     repository.persist(binding, reduction.state, reduction.events);
     return reduction.state;

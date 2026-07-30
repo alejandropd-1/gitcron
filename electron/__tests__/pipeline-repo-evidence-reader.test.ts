@@ -120,4 +120,42 @@ describe('RepoEvidenceReader', () => {
     expect(snapshot.evidence).not.toHaveProperty('delegations');
     expect(snapshot.evidence).not.toHaveProperty('visualDiffs');
   });
+
+  it('honors a manual selection over the automatic branch match', async () => {
+    // Dos changes activos en `main`: la selección automática es null (la rama
+    // no coincide con ninguno y hay varios). Con selección manual, ése es el
+    // que transporta contenido.
+    await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-a'), { recursive: true });
+    await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-a', 'tasks.md'), '- [ ] one\n');
+    await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-a', 'proposal.md'), '## Why\n\nA\n');
+    await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-b'), { recursive: true });
+    await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-b', 'tasks.md'), '- [ ] two\n');
+    await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-b', 'proposal.md'), '## Why\n\nB\n');
+
+    const reader = new RepoEvidenceReader({
+      listOpenSpecChanges: async () => ['feature-a', 'feature-b'],
+      currentBranch: async () => 'main',
+      mergedChanges: async () => [],
+      validateOpenSpecChange: async () => 'unknown',
+      now: () => '2026-07-23T20:00:00.000Z',
+    });
+
+    // Sin selección manual: ningún change transporta contenido (ambos null).
+    const automatic = await reader.read(root, 'repo-1');
+    expect(automatic.selection.changeId).toBeNull();
+
+    // Con selección manual de feature-b: ése transporta su contenido, el otro no.
+    const manual = await reader.read(root, 'repo-1', 'feature-b');
+    expect(manual.selection).toMatchObject({ changeId: 'feature-b', confidence: 'confirmed', reason: 'manual' });
+    const changes = manual.evidence.openSpecChanges ?? [];
+    const b = changes.find((c) => c.changeId === 'feature-b');
+    const a = changes.find((c) => c.changeId === 'feature-a');
+    expect(b?.artifacts?.proposal).toBe('## Why\n\nB\n');
+    // El change no seleccionado no transporta contenido (artifacts ausente).
+    expect(a?.artifacts?.proposal ?? null).toBeNull();
+
+    // Un selectedChangeId que no está entre los activos se ignora (fallback).
+    const ignored = await reader.read(root, 'repo-1', 'does-not-exist');
+    expect(ignored.selection.changeId).toBeNull();
+  });
 });

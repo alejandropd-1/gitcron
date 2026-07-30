@@ -135,7 +135,7 @@ export class RepoEvidenceReader {
     }));
   }
 
-  async read(repoPath: string, repoId: string): Promise<RepoEvidenceSnapshot> {
+  async read(repoPath: string, repoId: string, selectedChangeId?: string | null): Promise<RepoEvidenceSnapshot> {
     const diagnostics: PipelineDiagnostic[] = [];
     let branch = '';
     try {
@@ -150,7 +150,16 @@ export class RepoEvidenceReader {
     } catch {
       diagnostics.push(issue('openspec.unavailable', 'OpenSpec no está disponible o el repositorio no tiene openspec/changes.', 'openspec'));
     }
-    const selection = selectPipelineChange(branch, activeChanges);
+    // La selección manual (del renderer) tiene precedencia sobre la automática
+    // por rama. Sin ella, se conserva el comportamiento histórico: la rama
+    // decide, y si no hay match el changeId queda null y ningún change
+    // transporta contenido.
+    const autoSelection = selectPipelineChange(branch, activeChanges);
+    const manualValid = typeof selectedChangeId === 'string'
+      && activeChanges.includes(selectedChangeId);
+    const selection = manualValid
+      ? { changeId: selectedChangeId as string, confidence: 'confirmed' as const, selectionRequired: false, reason: 'manual' as const }
+      : autoSelection;
 
     const safeActiveChanges = activeChanges.filter((changeId) => /^[a-z0-9][a-z0-9-]*$/.test(changeId));
     const openSpecChanges: OpenSpecChangeEvidence[] = [];

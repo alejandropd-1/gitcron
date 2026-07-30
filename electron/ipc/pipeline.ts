@@ -19,19 +19,22 @@ export function registerPipelineHandlers(
     if (senders?.size === 0) subscriptions.delete(repoPath);
   };
 
-  const refresh = async (repoPath: unknown) => {
+  const refresh = async (repoPath: unknown, selectedChangeId?: unknown) => {
     if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
     try {
-      return { success: true, data: await service.refresh(repoPath) };
+      // selectedChangeId es opcional: si llega como string se respeta como
+      // selección manual; cualquier otro tipo se ignora (fallback a automática).
+      const manual = typeof selectedChangeId === 'string' ? selectedChangeId : null;
+      return { success: true, data: await service.refresh(repoPath, manual) };
     } catch (error) {
       return { success: false, error: errMsg(error) };
     }
   };
 
-  ipcMain.handle('pipeline:get-snapshot', (_event, repoPath: unknown) => refresh(repoPath));
-  ipcMain.handle('pipeline:subscribe', async (event, repoPath: unknown) => {
+  ipcMain.handle('pipeline:get-snapshot', (_event, repoPath: unknown, selectedChangeId?: unknown) => refresh(repoPath, selectedChangeId));
+  ipcMain.handle('pipeline:subscribe', async (event, repoPath: unknown, selectedChangeId?: unknown) => {
     if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
-    const result = await refresh(repoPath);
+    const result = await refresh(repoPath, selectedChangeId);
     if (result.success) {
       const senders = subscriptions.get(repoPath) ?? new Set<number>();
       senders.add(event.sender.id);

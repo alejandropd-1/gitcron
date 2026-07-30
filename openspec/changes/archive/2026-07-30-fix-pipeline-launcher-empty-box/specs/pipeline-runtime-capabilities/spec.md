@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Descubrimiento de runtimes sin panel vacío
 Mientras el descubrimiento de runtimes para el repositorio abierto no resolvió, la superficie de arranque SHALL mostrar un estado de carga explícito y accionable, y SHALL NOT pintar un panel con marco cuyo interior esté vacío. El contenido del launcher SHALL aparecer dentro del mismo marco que ya estaba visible, sin un salto visual desde un recuadro vacío a un recuadro lleno.

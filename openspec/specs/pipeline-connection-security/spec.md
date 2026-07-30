@@ -3,15 +3,17 @@
 ## Purpose
 
 Definir transportes, aislamiento, negociación y controles seguros para todas las fuentes de Pipeline.
-
 ## Requirements
-
 ### Requirement: Selección de transporte por fuente
-Pipeline SHALL preferir protocolo estructurado/versionado, luego ACP, luego CLI JSON/JSONL y finalmente hooks/filesystem como degradación. Hermes SHALL NOT ser transporte obligatorio para sesiones directas.
+Pipeline SHALL preferir protocolo estructurado/versionado, luego ACP, luego CLI JSON/JSONL y finalmente hooks/filesystem como degradación. Pipeline SHALL NOT depender de un gateway orquestador para abrir sesiones directas, y SHALL NOT exponer estado de conexión con uno.
 
 #### Scenario: Codex directo
-- **WHEN** una sesión Codex expone JSONL o app-server sin Hermes
-- **THEN** el adaptador directo normaliza sus eventos bajo el mismo contrato
+- **WHEN** una sesión Codex expone JSONL o app-server
+- **THEN** el adaptador directo normaliza sus eventos bajo el mismo contrato, sin intermediarios
+
+#### Scenario: Sin estado de gateway en el renderer
+- **WHEN** el renderer recibe un snapshot de Pipeline
+- **THEN** no contiene ningún campo que declare conexión o desconexión con un orquestador externo
 
 ### Requirement: Auth y scoping main-only
 Conexiones, tokens, sockets y procesos SHALL vivir en Electron main. Cada sesión/control SHALL vincularse explícitamente a repo/run/session y el renderer SHALL recibir sólo DTOs sanitizados y métodos allowlisted.
@@ -62,3 +64,4 @@ Cada proceso creado por F03 SHALL tener límites de stream, timeout o señal de 
 #### Scenario: Proceso externo observado
 - **WHEN** Pipeline conoce una sesión que GitCron no creó
 - **THEN** ninguna capability de señal o kill queda disponible
+

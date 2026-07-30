@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-30
+goal: Implementar start en el adaptador agy para que Antigravity arranque
+  sesiones con observacion de lifecycle

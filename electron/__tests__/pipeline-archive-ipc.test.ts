@@ -68,7 +68,7 @@ describe('IPC de archivado de un change', () => {
     const written: Array<{ relative: string; content: string }> = [];
     const write: WriteRepoFile = async (_repo, relative, content) => { written.push({ relative, content }); };
     const { registerPipelineArchiveHandlers } = await import('../ipc/pipeline-archive');
-    registerPipelineArchiveHandlers(archive, binding as never, git, read, write);
+    registerPipelineArchiveHandlers(() => null, archive, binding as never, git, read, write);
     return {
       plan: ipc.handlers.get('pipeline:archive-plan')!,
       run: ipc.handlers.get('pipeline:archive-change')!,

@@ -257,6 +257,12 @@ contextBridge.exposeInMainWorld('api', {
   pipelineArchivePlan: (repoPath: string, changeId: string) => ipcRenderer.invoke('pipeline:archive-plan', repoPath, changeId),
   /** Archiva un change. `commit` confirma también los dos commits. Nunca publica. */
   pipelineArchiveChange: (repoPath: string, changeId: string, commit?: boolean) => ipcRenderer.invoke('pipeline:archive-change', repoPath, changeId, commit === true),
+  /** El historial cambió: hay commits nuevos hechos por la aplicación. */
+  onRepoCommitsChanged: (cb: (repoPath: string) => void) => {
+    const handler = (_e: unknown, payload: { repoPath: string }) => cb(payload.repoPath);
+    ipcRenderer.on('repo:commits-changed', handler);
+    return () => ipcRenderer.removeListener('repo:commits-changed', handler);
+  },
   onPipelineSnapshotUpdated: (cb: (repoPath: string, snapshot: unknown) => void) => {
     const handler = (_e: unknown, payload: { repoPath: string; snapshot: unknown }) => cb(payload.repoPath, payload.snapshot);
     ipcRenderer.on('pipeline:snapshot-updated', handler);

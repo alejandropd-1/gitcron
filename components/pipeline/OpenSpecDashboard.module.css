@@ -554,10 +554,24 @@
 }
 
 .archiveConfirm {
-  flex: 0 0 auto;
+  /* Se acota y desplaza dentro de sí misma: en ventanas bajas el final del
+     panel —con los botones— quedaba fuera de pantalla y la acción era
+     inalcanzable. Encoge antes que empujar los botones fuera de vista. */
+  flex: 0 1 auto;
+  overflow-y: auto;
+  max-height: 46vh;
   padding: 0.9rem 1.5rem;
   border-bottom: 1px solid var(--os-border-strong);
   background: rgba(10, 31, 49, 0.9);
+  scrollbar-width: thin;
+}
+/* Los botones quedan pegados abajo del panel: siempre alcanzables sin llegar
+   al final del scroll. */
+.archiveConfirm .actions {
+  position: sticky;
+  bottom: 0;
+  padding-top: 0.6rem;
+  background: rgba(10, 31, 49, 0.96);
 }
 .archiveConfirmHead { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; }
 .archiveConfirmHead > strong { color: var(--os-cyan); font: 650 0.78rem var(--font-mono), ui-monospace, monospace; }
@@ -909,4 +923,21 @@
 .archiveScope ul[data-tone='out'] { color: var(--os-amber); }
 .archiveCommitToggle { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.7rem; color: var(--os-muted); font: 0.72rem var(--font-mono), ui-monospace, monospace; }
 /* Artefactos de un cambio ya archivado, dentro de su ficha. */
-.archivedArtifacts { width: 100%; margin-top: 1rem; text-align: left; }
+/* Artefactos de un cambio ya archivado, dentro de su ficha.
+   La ficha centra su contenido y tiene ancho acotado; el visor necesita el
+   ancho completo y alineación propia, o el markdown queda centrado y angosto. */
+.archivedArtifacts {
+  width: 100%;
+  max-width: none;
+  margin-top: 1.25rem;
+  text-align: left;
+}
+/* `justify-content: center` recorta el comienzo del contenido cuando desborda,
+   y ese recorte no se puede alcanzar con scroll. `safe` centra sólo mientras
+   entra y se alinea al inicio cuando no: por eso la ficha se veía cortada desde
+   arriba al mostrar los artefactos. */
+.completedSummary { justify-content: safe center; scrollbar-width: thin; }
+
+/* Con el visor adentro, el respiro lateral de la ficha —hasta 5rem por lado—
+   angosta el markdown. Se reduce sólo en ese caso. */
+.completedSummary:has(.archivedArtifacts) { padding-inline: clamp(1rem, 2vw, 2rem); }

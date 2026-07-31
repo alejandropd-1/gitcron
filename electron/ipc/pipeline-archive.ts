@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { BrowserWindow } from 'electron';
 import { ipcMain } from 'electron';
 import { simpleGit } from 'simple-git';
 import { withRepoLock } from '../git/repo-queue';
@@ -119,6 +120,14 @@ async function buildPlan(git: ArchiveGit, read: ReadRepoFile, repoPath: string, 
 }
 
 export function registerPipelineArchiveHandlers(
+  /**
+   * Para avisar que el historial cambió.
+   *
+   * El watcher ya emite `repo:fs-change`, pero eso sólo relee el estado del
+   * árbol: el grafo y el log se quedaban en el commit anterior, así que los
+   * commits eran reales y la vista los desconocía.
+   */
+  getMainWindow: () => BrowserWindow | null = () => null,
   archive = archiveOpenSpecChangeWithCli,
   service = new PipelineService(),
   git: ArchiveGit = defaultGit,
@@ -193,6 +202,7 @@ export function registerPipelineArchiveHandlers(
         }
       }
 
+      if (shouldCommit) getMainWindow()?.webContents.send('repo:commits-changed', { repoPath: canonicalPath });
       return { success: true };
     } catch (error) {
       return { success: false, error: errMsg(error) };

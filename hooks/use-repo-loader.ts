@@ -633,6 +633,17 @@ export const useRepoLoader = () => {
       fsDebounceRef.current = setTimeout(() => refreshStatus(target), 150);
     });
 
+    // Commits hechos por la propia aplicación —el archivado de un change—.
+    // `repo:fs-change` sólo relee el estado del árbol, así que el grafo y el
+    // log se quedaban en el commit anterior: los commits eran reales y la vista
+    // los desconocía.
+    const unsubCommits = window.api.onRepoCommitsChanged?.((changedPath) => {
+      if (changedPath !== target) return;
+      void refreshLog(target);
+      void refreshStatus(target);
+      void refreshBranches(target);
+    });
+
     const onFocus = () => refreshStatus(target);
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') void refreshStatus(target);
@@ -650,6 +661,7 @@ export const useRepoLoader = () => {
 
     return () => {
       unsubFsChange();
+      unsubCommits?.();
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.clearInterval(statusHeartbeat);

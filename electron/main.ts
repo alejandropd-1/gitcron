@@ -297,7 +297,7 @@ const pipelineRuntimeHub = new RuntimeSessionHub(
   new DefaultRuntimeSessionEvidenceCollector(),
 );
 registerPipelineRuntimeHandlers(pipelineRuntimeHub); // pipeline:runtime:*
-registerPipelineArchiveHandlers();  // pipeline:archive-change (escribe: fuera del módulo read-only)
+registerPipelineArchiveHandlers(getMainWindow);  // pipeline:archive-change (escribe: fuera del módulo read-only)
 registerWatcherHandlers(getMainWindow, notifyPipelineRepoChanged);          // repo:watch/unwatch
 registerAppWindowHandlers(getMainWindow, isDev); // app:* + window:*
 

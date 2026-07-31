@@ -58,6 +58,15 @@ export interface OpenSpecArchivedChangeEvidence {
   changeId: string;
   archivedAt: string | null;
   sourceRef: string;
+  /**
+   * Contenido de los artefactos, sólo para el archivado seleccionado.
+   *
+   * Lo que quedó archivado es el registro de lo que se hizo —incluida la firma
+   * humana—, y revisarlo obligaba a salir de la aplicación. Viaja acotado al
+   * seleccionado por el mismo motivo que en los activos: transportar el markdown
+   * de todos haría crecer el snapshot sin que nadie lo mire.
+   */
+  artifacts?: OpenSpecChangeArtifacts | null;
 }
 
 export interface OpenSpecSpecificationEvidence {

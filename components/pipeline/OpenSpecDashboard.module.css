@@ -908,3 +908,5 @@
 .archiveScope p[data-tone='out'] strong,
 .archiveScope ul[data-tone='out'] { color: var(--os-amber); }
 .archiveCommitToggle { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.7rem; color: var(--os-muted); font: 0.72rem var(--font-mono), ui-monospace, monospace; }
+/* Artefactos de un cambio ya archivado, dentro de su ficha. */
+.archivedArtifacts { width: 100%; margin-top: 1rem; text-align: left; }

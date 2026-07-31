@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { CheckRepoActions, simpleGit } from 'simple-git';
+import { withRepoLock } from '../git/repo-queue';
 import type {
   ChangeSelection,
   DecisionRequest,
@@ -58,14 +59,20 @@ export async function defaultListOpenSpecChanges(repoPath: string): Promise<stri
 }
 
 async function defaultCurrentBranch(repoPath: string): Promise<string> {
-  const git = simpleGit(repoPath, { timeout: { block: 10_000 } });
-  if (!await git.checkIsRepo(CheckRepoActions.IS_REPO_ROOT)) throw new Error('not-a-repo-root');
-  return (await git.branchLocal()).current;
+  // Por la cola: el watcher relee mientras la persona commitea o archiva, y
+  // esas lecturas también tocan el índice.
+  return withRepoLock(repoPath, async () => {
+    const git = simpleGit(repoPath, { timeout: { block: 10_000 } });
+    if (!await git.checkIsRepo(CheckRepoActions.IS_REPO_ROOT)) throw new Error('not-a-repo-root');
+    return (await git.branchLocal()).current;
+  });
 }
 
 async function defaultMergedChanges(repoPath: string, candidates: string[]): Promise<string[]> {
   if (candidates.length === 0) return [];
-  const messages = await simpleGit(repoPath, { timeout: { block: 10_000 } }).raw(['log', '--merges', '--format=%B%x00', '-n', '200']);
+  const messages = await withRepoLock(repoPath, () => (
+    simpleGit(repoPath, { timeout: { block: 10_000 } }).raw(['log', '--merges', '--format=%B%x00', '-n', '200'])
+  ));
   return candidates.filter((candidate) => messages.split('\0').some((message) => message.includes(candidate)));
 }
 
@@ -229,6 +236,26 @@ export class RepoEvidenceReader {
         .map(archivedChange)
         .filter((entry): entry is OpenSpecArchivedChangeEvidence => entry !== null)
         .sort((a, b) => (b.archivedAt ?? '').localeCompare(a.archivedAt ?? ''));
+      // El archivado seleccionado transporta sus artefactos: lo archivado es el
+      // registro de lo que se hizo, y revisarlo no debería obligar a salir de la
+      // aplicación. Acotado al seleccionado, como en los activos.
+      const selectedArchived = openSpecArchivedChanges
+        .find((entry) => entry.changeId === selectedChangeId);
+      if (selectedArchived) {
+        const root = selectedArchived.sourceRef;
+        const [proposal, design, tasks, capabilities] = await Promise.all([
+          safeReadRepoFile(repoPath, `${root}/proposal.md`),
+          safeReadRepoFile(repoPath, `${root}/design.md`),
+          safeReadRepoFile(repoPath, `${root}/tasks.md`),
+          safeListRepoDirectory(repoPath, `${root}/specs`),
+        ]);
+        selectedArchived.artifacts = {
+          proposal: proposal.content,
+          design: design.content,
+          tasks: tasks.content,
+          specs: await this.readDeltaSpecs(repoPath, root, capabilities, diagnostics),
+        };
+      }
       for (const report of reports) {
         const file = await safeReadRepoFile(repoPath, report, { maxBytes: 512 * 1024 });
         if (file.content === null) continue;

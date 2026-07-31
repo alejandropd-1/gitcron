@@ -871,6 +871,28 @@ export function OpenSpecDashboard({
                 <div><dt>{t('pipeline.openspec.completed.activity')}</dt><dd>{t('pipeline.openspec.completed.preserved')}</dd></div>
               </dl>
               <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} />
+              {/* Lo archivado es el registro de lo que se hizo, incluida la
+                  firma humana. Revisarlo no debería obligar a salir de la
+                  aplicación ni a leer el diff del commit de archivado. */}
+              {selectedArchive.artifacts && (
+                <div className={styles.archivedArtifacts}>
+                  <PipelineDetails
+                    snapshot={snapshot}
+                    selectedChange={{
+                      changeId: selectedArchive.changeId,
+                      intent: null,
+                      tasks: [],
+                      proposalExists: selectedArchive.artifacts.proposal !== null,
+                      designExists: selectedArchive.artifacts.design !== null,
+                      specsCount: selectedArchive.artifacts.specs.length,
+                      validation: 'unknown',
+                      artifacts: selectedArchive.artifacts,
+                    }}
+                    tab={evidenceTab}
+                    onTabChange={setEvidenceTab}
+                  />
+                </div>
+              )}
               {flowMode && (
                 <PipelineNewChangeFlow
                   repoPath={repoPath}

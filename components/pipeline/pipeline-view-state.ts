@@ -38,6 +38,8 @@ export type OpenSpecWorkspaceSnapshot = {
     changeId: string;
     archivedAt: string | null;
     sourceRef: string;
+    /** Sólo el archivado seleccionado transporta contenido. */
+    artifacts?: OpenSpecChangeSummary['artifacts'];
   }>;
   specifications: Array<{
     specificationId: string;

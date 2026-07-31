@@ -16,6 +16,7 @@ import { parseGitBlamePorcelain } from '../../lib/blame-parse';
 import { parseBranchTracking } from './branch-tracking';
 import { isBranchMerged } from './branch-merge';
 import { parseUnifiedDiff, type ApplyHunkOptions } from '../../lib/hunk-patch';
+import { withRepoLock } from '../git/repo-queue';
 import { errMsg, resolveRepoRelativePath, sanitizeForLog } from './shared';
 
 // Resuelve la branch por defecto del repo para consultas de "merged": primero
@@ -108,7 +109,7 @@ async function applyPatchFile(repoRoot: string, hunkPatch: string, options: Appl
 }
 
 export function registerGitOpsHandlers(): void {
-  ipcMain.handle('git:command', async (_event, targetPath: string, args: string[]) => {
+  ipcMain.handle('git:command', async (_event, targetPath: string, args: string[]) => withRepoLock(targetPath, async () => {
     try {
       console.log('Executing git command:', targetPath, sanitizeForLog(args));
       const scopedGit = simpleGit(targetPath);
@@ -145,7 +146,7 @@ export function registerGitOpsHandlers(): void {
       console.error('Git Command Error:', sanitizeForLog(error));
       return { success: false, error: errMsg(error) };
     }
-  });
+  }));
 
   ipcMain.handle('git:log', async (_event, targetPath: string, opts?: { allBranches?: boolean }) => {
     try {
@@ -532,14 +533,14 @@ export function registerGitOpsHandlers(): void {
     }
   });
 
-  ipcMain.handle('git:stage', async (_event, targetPath: string, filePath: string) => {
+  ipcMain.handle('git:stage', async (_event, targetPath: string, filePath: string) => withRepoLock(targetPath, async () => {
     try {
       await simpleGit(targetPath).add(filePath);
       return { success: true };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };
     }
-  });
+  }));
 
   ipcMain.handle('git:unstage', async (_event, targetPath: string, filePath: string) => {
     try {
@@ -553,7 +554,7 @@ export function registerGitOpsHandlers(): void {
   // Batch stage/unstage: single git command for N files.
   // Critical for "Stage all" — running N parallel `git add` commands
   // causes index.lock collisions because they all try to write to .git/index.
-  ipcMain.handle('git:stage-batch', async (_event, targetPath: string, filePaths: string[], force = false) => {
+  ipcMain.handle('git:stage-batch', async (_event, targetPath: string, filePaths: string[], force = false) => withRepoLock(targetPath, async () => {
     try {
       if (!filePaths || filePaths.length === 0) return { success: true };
       await simpleGit(targetPath).raw(['add', ...(force ? ['--force'] : []), '--', ...filePaths]);
@@ -561,7 +562,7 @@ export function registerGitOpsHandlers(): void {
     } catch (error: any) {
       return { success: false, error: errMsg(error) };
     }
-  });
+  }));
 
   ipcMain.handle('git:unstage-batch', async (_event, targetPath: string, filePaths: string[]) => {
     try {

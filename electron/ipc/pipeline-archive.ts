@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { ipcMain } from 'electron';
 import { simpleGit } from 'simple-git';
+import { withRepoLock } from '../git/repo-queue';
 import {
   archiveCommitPaths,
   deterministicChangePaths,

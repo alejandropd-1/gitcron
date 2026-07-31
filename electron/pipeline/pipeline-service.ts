@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { app } from 'electron';
 import { simpleGit } from 'simple-git';
+import { withRepoLock } from '../git/repo-queue';
 import type { PipelineState } from '../../types/pipeline';
 import { getDatabase } from '../db/connection';
 import { PipelineRepository } from './pipeline-repository';
@@ -31,7 +32,7 @@ export class PipelineService {
    */
   async resolveBinding(repoPath: string): Promise<PipelineRepoBinding> {
     const canonicalPath = await fs.realpath(repoPath);
-    const gitCommonDirRaw = (await simpleGit(canonicalPath, { timeout: { block: 10_000 } }).raw(['rev-parse', '--git-common-dir'])).trim();
+    const gitCommonDirRaw = (await withRepoLock(canonicalPath, () => simpleGit(canonicalPath, { timeout: { block: 10_000 } }).raw(['rev-parse', '--git-common-dir']))).trim();
     const gitCommonDir = path.resolve(canonicalPath, gitCommonDirRaw);
     const repository = new PipelineRepository(getDatabase(app.getPath('userData')));
     const binding = repository.getOrCreateBinding(canonicalPath, digest(gitCommonDir));
@@ -40,7 +41,7 @@ export class PipelineService {
 
   async refresh(repoPath: string, selectedChangeId?: string | null): Promise<PipelineState> {
     const canonicalPath = await fs.realpath(repoPath);
-    const gitCommonDirRaw = (await simpleGit(canonicalPath, { timeout: { block: 10_000 } }).raw(['rev-parse', '--git-common-dir'])).trim();
+    const gitCommonDirRaw = (await withRepoLock(canonicalPath, () => simpleGit(canonicalPath, { timeout: { block: 10_000 } }).raw(['rev-parse', '--git-common-dir']))).trim();
     const gitCommonDir = path.resolve(canonicalPath, gitCommonDirRaw);
     const repository = new PipelineRepository(getDatabase(app.getPath('userData')));
     const binding = repository.getOrCreateBinding(canonicalPath, digest(gitCommonDir));

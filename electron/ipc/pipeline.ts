@@ -1,7 +1,26 @@
 import type { BrowserWindow } from 'electron';
 import { ipcMain } from 'electron';
+import type { PipelineState } from '../../types/pipeline';
 import { PipelineService } from '../pipeline/pipeline-service';
 import { errMsg } from './shared';
+
+type RefreshResult =
+  | { success: true; data: PipelineState }
+  | { success: false; error: string };
+
+/** Suscripción viva de un repo: quiénes lo observan y con qué change elegido. */
+interface RepoSubscription {
+  senders: Set<number>;
+  /**
+   * Última selección manual informada por el renderer.
+   *
+   * El watcher no la conoce por su cuenta: refrescaba sin ella y el snapshot
+   * emitido revertía a la selección automática por branch, pisando lo que el
+   * usuario había elegido. `pipeline:subscribe` ya recibe el valor y el renderer
+   * re-suscribe cuando cambia, así que alcanza con recordarlo acá.
+   */
+  selectedChangeId: string | null;
+}
 
 function validRepoPath(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 32_768;
@@ -11,23 +30,51 @@ export function registerPipelineHandlers(
   getMainWindow: () => BrowserWindow | null,
   service = new PipelineService(),
 ): (repoPath: string) => void {
-  const subscriptions = new Map<string, Set<number>>();
+  const subscriptions = new Map<string, RepoSubscription>();
+  /**
+   * Lecturas en curso, por repo y selección.
+   *
+   * Leer evidencia cuesta segundos y el renderer dispara `get-snapshot` y
+   * `subscribe` casi a la vez con la misma selección: sin esto, cada uno paga
+   * una lectura completa. La clave incluye la selección porque dos selecciones
+   * distintas producen snapshots distintos y no pueden compartir resultado.
+   */
+  const inFlight = new Map<string, Promise<RefreshResult>>();
+  /** Repos que recibieron una notificación mientras tenían una lectura en vuelo. */
+  const pendingRerun = new Set<string>();
+
+  const readKey = (repoPath: string, selectedChangeId: string | null) => `${repoPath}\0${selectedChangeId ?? ''}`;
 
   const removeSubscription = (repoPath: string, senderId: number) => {
-    const senders = subscriptions.get(repoPath);
-    senders?.delete(senderId);
-    if (senders?.size === 0) subscriptions.delete(repoPath);
+    const subscription = subscriptions.get(repoPath);
+    subscription?.senders.delete(senderId);
+    if (subscription && subscription.senders.size === 0) {
+      subscriptions.delete(repoPath);
+      pendingRerun.delete(repoPath);
+    }
   };
 
-  const refresh = async (repoPath: unknown, selectedChangeId?: unknown) => {
+  const refresh = async (repoPath: unknown, selectedChangeId?: unknown): Promise<RefreshResult> => {
     if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+    // selectedChangeId es opcional: si llega como string se respeta como
+    // selección manual; cualquier otro tipo se ignora (fallback a automática).
+    const manual = typeof selectedChangeId === 'string' ? selectedChangeId : null;
+    const key = readKey(repoPath, manual);
+    const existing = inFlight.get(key);
+    if (existing) return existing;
+
+    const pending = (async (): Promise<RefreshResult> => {
+      try {
+        return { success: true, data: await service.refresh(repoPath, manual) };
+      } catch (error) {
+        return { success: false, error: errMsg(error) };
+      }
+    })();
+    inFlight.set(key, pending);
     try {
-      // selectedChangeId es opcional: si llega como string se respeta como
-      // selección manual; cualquier otro tipo se ignora (fallback a automática).
-      const manual = typeof selectedChangeId === 'string' ? selectedChangeId : null;
-      return { success: true, data: await service.refresh(repoPath, manual) };
-    } catch (error) {
-      return { success: false, error: errMsg(error) };
+      return await pending;
+    } finally {
+      if (inFlight.get(key) === pending) inFlight.delete(key);
     }
   };
 
@@ -36,9 +83,10 @@ export function registerPipelineHandlers(
     if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
     const result = await refresh(repoPath, selectedChangeId);
     if (result.success) {
-      const senders = subscriptions.get(repoPath) ?? new Set<number>();
-      senders.add(event.sender.id);
-      subscriptions.set(repoPath, senders);
+      const subscription = subscriptions.get(repoPath) ?? { senders: new Set<number>(), selectedChangeId: null };
+      subscription.senders.add(event.sender.id);
+      subscription.selectedChangeId = typeof selectedChangeId === 'string' ? selectedChangeId : null;
+      subscriptions.set(repoPath, subscription);
       event.sender.once('destroyed', () => removeSubscription(repoPath, event.sender.id));
     }
     return result;
@@ -49,10 +97,23 @@ export function registerPipelineHandlers(
     return { success: true };
   });
 
-  return (repoPath: string) => {
-    if ((subscriptions.get(repoPath)?.size ?? 0) === 0) return;
-    void refresh(repoPath).then((result) => {
+  const refreshAndPush = (repoPath: string): void => {
+    const subscription = subscriptions.get(repoPath);
+    if (!subscription || subscription.senders.size === 0) return;
+    const key = readKey(repoPath, subscription.selectedChangeId);
+    // Una notificación que llega durante una lectura en vuelo no puede unirse a
+    // ella: esa lectura observó el disco *antes* del cambio que la disparó. Se
+    // marca el repo como sucio y se corre exactamente una relectura al final,
+    // así N notificaciones producen una relectura y no N lecturas superpuestas.
+    if (inFlight.has(key)) {
+      pendingRerun.add(repoPath);
+      return;
+    }
+    void refresh(repoPath, subscription.selectedChangeId).then((result) => {
       if (result.success) getMainWindow()?.webContents.send('pipeline:snapshot-updated', { repoPath, snapshot: result.data });
+      if (pendingRerun.delete(repoPath)) refreshAndPush(repoPath);
     });
   };
+
+  return refreshAndPush;
 }

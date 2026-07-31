@@ -253,6 +253,10 @@ contextBridge.exposeInMainWorld('api', {
   pipelineGetSnapshot: (repoPath: string, selectedChangeId?: string | null) => ipcRenderer.invoke('pipeline:get-snapshot', repoPath, selectedChangeId ?? null),
   pipelineSubscribe: (repoPath: string, selectedChangeId?: string | null) => ipcRenderer.invoke('pipeline:subscribe', repoPath, selectedChangeId ?? null),
   pipelineUnsubscribe: (repoPath: string) => ipcRenderer.invoke('pipeline:unsubscribe', repoPath),
+  /** Plan del archivado: mensajes, archivos incluidos y los que quedan fuera. No ejecuta nada. */
+  pipelineArchivePlan: (repoPath: string, changeId: string) => ipcRenderer.invoke('pipeline:archive-plan', repoPath, changeId),
+  /** Archiva un change. `commit` confirma también los dos commits. Nunca publica. */
+  pipelineArchiveChange: (repoPath: string, changeId: string, commit?: boolean) => ipcRenderer.invoke('pipeline:archive-change', repoPath, changeId, commit === true),
   onPipelineSnapshotUpdated: (cb: (repoPath: string, snapshot: unknown) => void) => {
     const handler = (_e: unknown, payload: { repoPath: string; snapshot: unknown }) => cb(payload.repoPath, payload.snapshot);
     ipcRenderer.on('pipeline:snapshot-updated', handler);

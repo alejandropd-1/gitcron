@@ -191,6 +191,16 @@
 .navSection[data-tone='specifications'] h3 { color: var(--os-violet); }
 .navSection h3 span { color: var(--os-muted); }
 
+/* Alto acotado con desplazamiento propio.
+   Sin tope, la lista crecía indefinidamente: dejaba cambios fuera de vista sin
+   ninguna señal y empujaba Completados y Especificaciones detrás de ella. El
+   tope es relativo al viewport para no imponer un alto fijo en ventanas chicas. */
+.activeList {
+  overflow-y: auto;
+  max-height: 34vh;
+  scrollbar-width: thin;
+}
+
 .activeChange {
   width: 100%;
   padding: 0.45rem 0.65rem 0.65rem;
@@ -414,6 +424,13 @@
   /* Mismo motivo que en `.changeHeader`: sin esto la barra se comprime y las
      pestañas terminan solapadas con el contenido. */
   flex: 0 0 auto;
+  /* Las acciones bajan a su propia línea antes que pisar las pestañas. Con los
+     dos paneles laterales abiertos, pestañas + cuatro acciones no entran en un
+     renglón: sin esto, `.tabs` se encogía por debajo de su contenido y sus
+     botones desbordaban su caja, quedando pintados debajo de las acciones. El
+     texto se veía duplicado y el click aterrizaba en la pestaña de abajo en vez
+     del botón de arriba. */
+  flex-wrap: wrap;
   align-items: end;
   justify-content: space-between;
   gap: 1.5rem;
@@ -424,15 +441,17 @@
 .tabs {
   display: flex;
   gap: 2.3rem;
-  min-width: 0;
+  /* No se encoge por debajo de su contenido: es lo que producía el solape. */
+  flex: 0 0 auto;
   height: 3.2rem;
   align-items: end;
   padding: 0 1.5rem;
 }
 
 /* En esta fila las acciones son compactas: compiten en altura con las pestañas,
-   no con el contenido. */
-.tabsRow .actions { flex: 0 0 auto; margin: 0 0 0.5rem; }
+   no con el contenido. Ocupan el resto del renglón y se alinean a la derecha;
+   cuando no entran, el renglón envuelve y quedan en su propia línea. */
+.tabsRow .actions { flex: 1 1 auto; justify-content: flex-end; margin: 0 0 0.5rem; }
 .tabsRow .actions button { min-height: 2.1rem; padding: 0.35rem 0.8rem; }
 
 .tabs button {
@@ -507,6 +526,86 @@
 /* Mientras el launcher descubre runtimes su interior está vacío: el marco se
    retira para no ofrecer un recuadro vacío. El estado de carga vive adentro. */
 .launcherPanel[data-launcher-loading] { padding: 0; border: 0; background: transparent; }
+/* El comando que se va a ejecutar, textual. Se muestra tal cual porque es
+   exactamente lo que corre: si se resumiera, lo mostrado y lo ejecutado
+   podrían divergir. */
+/* Relectura en curso sobre contenido ya visible. Una banda fina arriba de todo:
+   informa sin desplazar el layout ni tapar nada. */
+.revalidating {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--os-cyan), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: revalidatingSweep 1.1s linear infinite;
+}
+
+@keyframes revalidatingSweep {
+  from { background-position: -40% 0; }
+  to { background-position: 140% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .revalidating { background: var(--os-cyan); background-size: 100% 100%; animation: none; opacity: 0.55; }
+}
+
+.archiveConfirm {
+  flex: 0 0 auto;
+  padding: 0.9rem 1.5rem;
+  border-bottom: 1px solid var(--os-border-strong);
+  background: rgba(10, 31, 49, 0.9);
+}
+.archiveConfirmHead { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; }
+.archiveConfirmHead > strong { color: var(--os-cyan); font: 650 0.78rem var(--font-mono), ui-monospace, monospace; }
+.archiveConfirmHead > span { color: var(--os-muted); font: 0.72rem var(--font-mono), ui-monospace, monospace; }
+.archiveConfirm .actions { margin-top: 0; }
+
+/* El ciclo late mientras se relee la evidencia: es el elemento que va a
+   cambiar cuando termine, así que la espera se declara ahí y no sólo en un
+   indicador global lejos de la acción. */
+.lifecycle[data-revalidating] > li > span { animation: lifecyclePulse 1.2s ease-in-out infinite; }
+.lifecycle[data-revalidating] > li:nth-child(2) > span { animation-delay: 0.12s; }
+.lifecycle[data-revalidating] > li:nth-child(3) > span { animation-delay: 0.24s; }
+.lifecycle[data-revalidating] > li:nth-child(4) > span { animation-delay: 0.36s; }
+.lifecycle[data-revalidating] > li:nth-child(5) > span { animation-delay: 0.48s; }
+
+@keyframes lifecyclePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.38; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lifecycle[data-revalidating] > li > span { animation: none; opacity: 0.6; }
+}
+
+.spin { animation: archiveSpin 0.9s linear infinite; }
+@keyframes archiveSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+
+.archiveCommand {
+  overflow-x: auto;
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--os-border);
+  background: var(--os-surface);
+  color: var(--os-cyan);
+  font: 0.74rem/1.5 var(--font-mono), ui-monospace, monospace;
+}
+/* El motivo real del CLI puede ser largo y multilínea: envuelve y se acota en
+   alto en vez de estirar el panel sin fin. */
+.archiveError {
+  overflow-y: auto;
+  max-height: 9rem;
+  margin: 0 0 0.5rem;
+  color: var(--os-red, #ff6b6b);
+  font: 0.72rem/1.5 var(--font-mono), ui-monospace, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .fullActivity { padding-top: 1rem; }
 
 .evidenceStrip {
@@ -796,3 +895,16 @@
   .primaryAction,
   .secondaryAction { transition: none; }
 }
+
+/* Alcance del archivado: mensajes, lo que entra y lo que queda fuera. Lo último
+   se muestra a propósito — un manifiesto con una omisión es el modo de fallo más
+   silencioso que tiene esto. */
+.archiveScope { margin: 0 0 0.75rem; color: var(--os-muted); font: 0.72rem/1.6 var(--font-mono), ui-monospace, monospace; }
+.archiveScope p { margin: 0.35rem 0 0.15rem; }
+.archiveScope strong { color: #c9d8e8; font-weight: 650; }
+.archiveScope code { color: var(--os-cyan); }
+.archiveScope ul { margin: 0; padding-left: 1.1rem; max-height: 7rem; overflow-y: auto; scrollbar-width: thin; }
+.archiveScope p[data-tone='sign'] { color: var(--os-green); }
+.archiveScope p[data-tone='out'] strong,
+.archiveScope ul[data-tone='out'] { color: var(--os-amber); }
+.archiveCommitToggle { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.7rem; color: var(--os-muted); font: 0.72rem var(--font-mono), ui-monospace, monospace; }

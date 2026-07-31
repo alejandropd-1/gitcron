@@ -168,12 +168,26 @@ export class RepoEvidenceReader {
       const taskRef = `${changeRoot}/tasks.md`;
       const proposalRef = `${changeRoot}/proposal.md`;
       const designRef = `${changeRoot}/design.md`;
+      // El trabajo caro se paga sólo por el cambio que la vista muestra.
+      //
+      // Validar con el CLI cuesta ~2,4 s por change (en Windows cada invocación
+      // es `cmd.exe → node → openspec`), y el bucle es secuencial: con cuatro
+      // changes activos eran ~9 s por refresco, y el watcher refresca en cada
+      // guardado de archivo. Ningún consumidor lee `validation` de un change que
+      // no sea el seleccionado, así que tres cuartos de ese costo no alimentaban
+      // nada. Es el mismo criterio que ya regía para `artifacts`.
+      const isSelected = changeId === selection.changeId;
       const [taskFile, proposalFile, designFile, deltaSpecs, validation] = await Promise.all([
         safeReadRepoFile(repoPath, taskRef),
         safeReadRepoFile(repoPath, proposalRef),
         safeReadRepoFile(repoPath, designRef),
         safeListRepoDirectory(repoPath, `${changeRoot}/specs`),
-        this.dependencies.validateOpenSpecChange?.(repoPath, changeId) ?? Promise.resolve('unknown' as const),
+        // `unknown` no es un default optimista: es lo que el propio wrapper del
+        // CLI devuelve cuando no pudo ejecutarse. No saber si un cambio es
+        // válido no es lo mismo que saber que no lo es.
+        isSelected
+          ? this.dependencies.validateOpenSpecChange?.(repoPath, changeId) ?? Promise.resolve('unknown' as const)
+          : Promise.resolve('unknown' as const),
       ]);
       if (taskFile.status !== 'missing') diagnostics.push(...taskFile.diagnostics);
       if (proposalFile.status !== 'missing') diagnostics.push(...proposalFile.diagnostics);
@@ -188,7 +202,7 @@ export class RepoEvidenceReader {
         validation,
         // El markdown ya está leído: hasta ahora se descartaba después de
         // extraer el intent. Se conserva sólo para el cambio seleccionado.
-        artifacts: changeId === selection.changeId
+        artifacts: isSelected
           ? {
             proposal: proposalFile.content,
             design: designFile.content,

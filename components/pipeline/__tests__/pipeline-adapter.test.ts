@@ -25,6 +25,28 @@ describe('toPipelineSnapshot', () => {
     expect(toPipelineSnapshot(state()).hasPipelineActivity).toBe(false);
   });
 
+  // Antes esto caía a `activeChanges[0]`, y ese fallback volvía indistinguible
+  // "el backend eligió este" de "no eligió ninguno". Con la distinción perdida,
+  // la vista no sabía que tenía algo que informar: se leía la evidencia de
+  // ningún cambio y el que estaba en pantalla quedaba sin validar ni artefactos.
+  it('keeps an unresolved selection unresolved instead of picking one', () => {
+    const snapshot = toPipelineSnapshot(state({
+      activeChanges: ['change-1', 'change-2'],
+      selection: { changeId: null, confidence: 'confirmed', selectionRequired: true, reason: 'ambiguous-active-changes' },
+    }));
+    expect(snapshot.openSpec?.selectedChangeId).toBeNull();
+    // Los cambios siguen estando: lo que no se inventa es cuál está elegido.
+    expect(snapshot.openSpec?.activeChanges).toHaveLength(2);
+  });
+
+  it('conserves the selection the backend did resolve', () => {
+    const snapshot = toPipelineSnapshot(state({
+      activeChanges: ['change-1', 'change-2'],
+      selection: { changeId: 'change-2', confidence: 'confirmed', selectionRequired: false, reason: 'branch-match' },
+    }));
+    expect(snapshot.openSpec?.selectedChangeId).toBe('change-2');
+  });
+
   // El registro de delegaciones era la unica fuente de economia en la lectura
   // del repositorio. Sin el no se observa nada, y cero afirmaria que no hubo
   // consumo: null y unknown son la unica respuesta honesta.

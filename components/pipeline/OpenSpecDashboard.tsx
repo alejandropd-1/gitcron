@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Activity,
   BookOpen,
@@ -14,6 +14,7 @@ import {
   FolderOpen,
   GitBranch,
   GitCompare,
+  Loader2,
   Pause,
   Play,
   ShieldCheck,
@@ -22,6 +23,7 @@ import {
   MessageSquareText,
   BrainCircuit,
 } from 'lucide-react';
+import { useGitStore } from '@/lib/git-store';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
@@ -31,6 +33,8 @@ import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { PipelineNextStepGuide } from './PipelineNextStepGuide';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
 import {
+  composeArchiveInstruction,
+  deriveArchiveAvailability,
   derivePipelineNextAction,
   resolveTaskLabel,
   resolveTaskText,
@@ -55,6 +59,14 @@ type OpenSpecDashboardProps = {
   runtimeHistory: RuntimeProjection[];
   /** Hay datos de vista previa en pantalla: nada ejecutable puede habilitarse. */
   fixtureActive?: boolean;
+  /**
+   * Hay una relectura de evidencia en curso.
+   *
+   * Se declara en el ciclo de vida, que es el elemento que va a cambiar cuando
+   * termine: un indicador sólo global queda lejos de donde ocurre y la espera se
+   * lee como que la aplicación no respondió.
+   */
+  revalidating?: boolean;
   /** Relee la evidencia del repo. Es el fallback explícito del watcher. */
   onRefresh?: () => void;
   /**
@@ -126,28 +138,71 @@ export function OpenSpecDashboard({
   projection,
   runtimeHistory,
   fixtureActive = false,
+  revalidating = false,
   onRefresh,
   onSelectChange,
   onPauseAfterTask,
   onRespondDecision,
 }: OpenSpecDashboardProps) {
   const t = useT();
+  const setSuccess = useGitStore((state) => state.setSuccess);
   const openSpec = snapshot.openSpec;
   const [selection, setSelection] = useState<string | null>(null);
   const [centerTab, setCenterTab] = useState<CenterTab>('work');
   const [evidenceTab, setEvidenceTab] = useState<DetailTab>('proposal');
   /**
-   * Cambios desplegados. Sin entrada, un cambio sigue al seleccionado: los
-   * activos se apilan y tenerlos todos abiertos vuelve la columna inusable.
+   * Cambios desplegados. Sin entrada, un cambio va plegado.
+   *
+   * Antes seguía a la selección, y desplegado ocupa varias veces el alto de un
+   * ítem plegado: al cambiar de cambio se plegaba el anterior, se liberaba
+   * espacio y aparecía otro que hasta entonces estaba fuera de vista. Desplegar
+   * es una acción que se pide con su control, no un efecto de seleccionar.
    */
   const [expandedChanges, setExpandedChanges] = useState<Record<string, boolean>>({});
-  const [launchInstruction, setLaunchInstruction] = useState<string | null>(null);
+  /**
+   * Instrucción a lanzar y su destino.
+   *
+   * El `taskId` viaja con la instrucción en vez de volver a derivarse de la
+   * próxima tarea pendiente al renderizar el lanzador. Re-derivarlo permitía que
+   * lo ejecutado dejara de coincidir con lo confirmado: un archivado con tareas
+   * pendientes arrancaba atado a una de ellas y quedaba registrado como un
+   * intento sobre esa tarea, que es justo lo que traba un change.
+   */
+  const [launchTarget, setLaunchTarget] = useState<{ instruction: string; taskId: string | null } | null>(null);
   /**
    * El launcher descubre los runtimes de forma asíncrona. Mientras no resolvió,
    * su interior está vacío; el panel contenedor no pinta su marco hasta que haya
    * algo para ver, para no ofrecer un recuadro vacío.
    */
   const [launcherLoading, setLauncherLoading] = useState(false);
+  /**
+   * Archivado pendiente de confirmación humana.
+   *
+   * Archivar escribe en el repositorio —mueve el change y consolida sus specs—,
+   * así que no se dispara con el click del control: primero se muestra el
+   * comando exacto y recién al confirmarlo se ejecuta.
+   */
+  const [archiveRequest, setArchiveRequest] = useState<{ changeId: string; command: string } | null>(null);
+  /** Alcance de lo que va a ocurrir. Se pide antes de ejecutar y se muestra entero. */
+  const [archivePlan, setArchivePlan] = useState<{
+    workMessage: string | null;
+    archiveMessage: string;
+    included: string[];
+    excluded: string[];
+    signature: boolean;
+  } | null>(null);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  /**
+   * Confirmar también en Git.
+   *
+   * Archivar y commitear son decisiones distintas. Con varios changes encimados
+   * sobre los mismos archivos el commit por change no es separable —Git
+   * commitea archivos enteros—, y ahí conviene archivar sin tocar Git y
+   * commitear a mano.
+   */
+  const [archiveCommit, setArchiveCommit] = useState(true);
+  /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
+  const [archiveError, setArchiveError] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [flowMode, setFlowMode] = useState<PipelineNewChangeMode | null>(null);
   const attentionRef = useRef<HTMLElement>(null);
@@ -164,8 +219,29 @@ export function OpenSpecDashboard({
     : openSpec?.selectedChangeId ?? activeChanges[0]?.changeId ?? archivedChanges[0]?.changeId ?? null;
   const selectedChange = activeChanges.find((change) => change.changeId === selectedId) ?? null;
   const selectedArchive = archivedChanges.find((change) => change.changeId === selectedId) ?? null;
+  /**
+   * Cuando el cambio en pantalla lo resolvió el fallback de la vista, hay que
+   * avisarlo: si no, se lee la evidencia de ningún cambio y el que se muestra
+   * queda con `validation: 'unknown'` y sin artefactos, aunque valide.
+   *
+   * El backend no elige por su cuenta con varios activos y sin match de rama, y
+   * eso está bien —no debe adivinar—. Lo que no puede quedar es que la elección
+   * que igual hace la vista para mostrar algo sea invisible para quien lee.
+   *
+   * Sólo para cambios activos: uno archivado no tiene evidencia que leer.
+   */
+  const unreportedSelection = selectedChange !== null
+    && openSpec?.selectedChangeId !== selectedChange.changeId
+      ? selectedChange.changeId
+      : null;
+  useEffect(() => {
+    if (unreportedSelection) onSelectChange?.(unreportedSelection);
+  }, [unreportedSelection, onSelectChange]);
   const nextTask = selectedChange?.tasks.find((task) => !task.completed) ?? null;
   const stages = lifecycle(selectedChange, selectedArchive !== null);
+  // Archivar responde "¿qué me está permitido hacer?", no "¿qué conviene ahora?".
+  // Por eso vive fuera de la derivación del siguiente paso.
+  const archive = deriveArchiveAvailability(selectedChange, selectedArchive !== null);
   const runtimeActive = projection?.active === true;
   const runtimeSessions = [projection, ...runtimeHistory]
     .filter((entry): entry is RuntimeProjection => entry !== null)
@@ -239,11 +315,42 @@ export function OpenSpecDashboard({
     setEvidenceTab(tab);
   };
 
+  /**
+   * Ejecuta el archivado ya confirmado.
+   *
+   * El resultado se lee de lo que devuelve el CLI, no del hecho de que la
+   * llamada terminó: un fallo muestra el motivo real y el cambio sigue activo.
+   */
+  const confirmArchive = () => {
+    const api = typeof window !== 'undefined' ? window.api : undefined;
+    if (!archiveRequest || archiveBusy || fixtureActive || !api?.pipelineArchiveChange) return;
+    setArchiveBusy(true);
+    setArchiveError(null);
+    void api.pipelineArchiveChange(repoPath, archiveRequest.changeId, archiveCommit)
+      .then((response) => {
+        const result = response as { success?: boolean; error?: string } | null;
+        if (result?.success) {
+          setArchiveRequest(null);
+          // Por la superficie de notificaciones de la aplicación, no por una
+          // propia: el éxito de archivar no es una clase de aviso distinta de
+          // las demás, y el toast ya resuelve autocierre y cierre manual.
+          setSuccess(t('pipeline.openspec.archive.done', { change: archiveRequest.changeId }));
+          // La evidencia se relee: el cambio pasa a figurar entre los archivados
+          // porque el disco lo dice, no porque la llamada haya vuelto sin error.
+          onRefresh?.();
+          return;
+        }
+        setArchiveError(result?.error || 'unknown');
+      })
+      .catch((error: unknown) => setArchiveError(error instanceof Error ? error.message : 'unknown'))
+      .finally(() => setArchiveBusy(false));
+  };
+
   const selectChange = (changeId: string) => {
     setSelection(changeId);
     onSelectChange?.(changeId);
     setCenterTab('work');
-    setLaunchInstruction(null);
+    setLaunchTarget(null);
     setFlowMode(null);
   };
 
@@ -258,18 +365,43 @@ export function OpenSpecDashboard({
       case 'open-propose-flow':
       case 'open-explore-flow':
         setFlowMode(intent.kind === 'open-propose-flow' ? 'propose' : 'explore');
-        setLaunchInstruction(null);
+        setLaunchTarget(null);
         setCenterTab('work');
         break;
       // Se usa la instrucción que la derivación ya compuso, que es exactamente la
       // que se muestra bajo "Ver instrucción". Recomponerla acá abriría la puerta
       // a que lo mostrado y lo ejecutado dejaran de coincidir.
+      //
+      // El destino sale del propio intent, no de la evidencia: `start-apply`
+      // nombra su tarea y `start-archive` no tiene ninguna. Volver a derivarlo
+      // del estado hacía que archivar con tareas pendientes arrancara atado a
+      // una de ellas.
       case 'start-apply':
-      case 'start-archive':
         setFlowMode(null);
-        setLaunchInstruction(nextAction.instruction);
+        setLaunchTarget(nextAction.instruction ? { instruction: nextAction.instruction, taskId: intent.taskId } : null);
         setCenterTab('work');
         break;
+      // Archivar NO abre un runtime: lo ejecuta el proceso principal con el CLI.
+      // Delegarlo en un agente agregaba un intermediario que podía no tener el
+      // comando ni shell para correrlo, y devolver éxito sin hacer nada. Acá se
+      // pide confirmación mostrando el comando exacto que se va a ejecutar.
+      case 'start-archive': {
+        setFlowMode(null);
+        setLaunchTarget(null);
+        setArchiveError(null);
+        setArchivePlan(null);
+        setArchiveRequest({ changeId: intent.changeId, command: composeArchiveInstruction(intent.changeId) });
+        setCenterTab('work');
+        // El alcance se pide antes de ejecutar nada: mensajes, archivos que
+        // entran y —sobre todo— los modificados que quedan fuera, para que una
+        // omisión del manifiesto se vea antes y no después.
+        const api = typeof window !== 'undefined' ? window.api : undefined;
+        void api?.pipelineArchivePlan?.(repoPath, intent.changeId).then((response) => {
+          const result = response as { success?: boolean; data?: typeof archivePlan } | null;
+          if (result?.success && result.data) setArchivePlan(result.data);
+        }).catch(() => undefined);
+        break;
+      }
       case 'focus-decision':
         // El centro no duplica la decisión: lleva el foco al control real, que
         // vive en el panel de actividad.
@@ -320,7 +452,7 @@ export function OpenSpecDashboard({
       if (added.length === 1) {
         setSelection(added[0]);
         setFlowMode(null);
-        setLaunchInstruction(null);
+        setLaunchTarget(null);
       }
     }
   }
@@ -358,12 +490,20 @@ export function OpenSpecDashboard({
             <div className={styles.resizeHandleLeft} role="separator" aria-orientation="vertical" title={t('pipeline.openspec.resize.left')} onMouseDown={onResizeLeft} />
             <section className={styles.navSection} data-tone="active">
               <h3>{t('pipeline.openspec.active.title')} <span>{activeChanges.length}</span></h3>
+              {/* La lista se desplaza dentro de su propio alto: sin esto crecía
+                  sin tope, dejaba cambios fuera de vista sin señal y empujaba
+                  las secciones de abajo detrás de toda la lista. */}
+              <div className={styles.activeList}>
               {activeChanges.length === 0 ? (
                 <p className={styles.navEmpty}>{t('pipeline.openspec.active.empty')}</p>
               ) : activeChanges.map((change) => {
                 const itemProgress = taskProgress(change);
                 const isSelected = change.changeId === selectedId;
-                const isExpanded = expandedChanges[change.changeId] ?? isSelected;
+                // Plegado por defecto: desplegar es una acción que se pide, no
+                // un efecto de seleccionar. Siguiendo a la selección, el
+                // desplegado ocupaba varias veces el alto de un ítem plegado, y
+                // al cambiar de cambio aparecía otro que estaba oculto.
+                const isExpanded = expandedChanges[change.changeId] ?? false;
                 const tasksDone = itemProgress.completed === itemProgress.total && itemProgress.total > 0;
                 // Sólo el cambio seleccionado transporta el markdown: en los
                 // demás el archivo se lista pero todavía no se puede abrir.
@@ -429,6 +569,7 @@ export function OpenSpecDashboard({
                   </div>
                 );
               })}
+              </div>
             </section>
 
             <section className={styles.navSection} data-tone="completed">
@@ -473,7 +614,12 @@ export function OpenSpecDashboard({
                     <span>{t('pipeline.openspec.intent')}:</span> {selectedChange.intent ?? t('pipeline.openspec.intentUnknown')}
                   </p>
                 </div>
-                <ol className={styles.lifecycle} aria-label={t('pipeline.openspec.lifecycle.label')}>
+                <ol
+                  className={styles.lifecycle}
+                  aria-label={t('pipeline.openspec.lifecycle.label')}
+                  data-revalidating={revalidating || undefined}
+                  aria-busy={revalidating || undefined}
+                >
                   {stages.map((stage, index) => (
                     <li key={stage.key} data-done={stage.done} data-current={stage.current}>
                       <span>{stage.done ? <Check size={14} /> : index + 1}</span>
@@ -516,31 +662,121 @@ export function OpenSpecDashboard({
                       {t(secondaryAction.labelKey, secondaryAction.labelParams)}
                     </button>
                   )}
+                  {/* Archivar siempre está a la vista mientras el cambio no esté
+                      archivado: si no se puede, se dice por qué en vez de
+                      desaparecer. Con tareas pendientes se declara cuántas, para
+                      que archivar no sea una decisión tomada a ciegas. */}
+                  {selectedArchive === null && (
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      disabled={!archive.available || fixtureActive}
+                      title={archive.reasonKey ? t(archive.reasonKey) : t('pipeline.openspec.archive.help')}
+                      onClick={() => handleIntent({ kind: 'start-archive', changeId: selectedChange.changeId })}
+                    >
+                      <FolderOpen size={14} />
+                      {archive.pendingTasks > 0
+                        ? t('pipeline.openspec.archive.actionPending', { count: archive.pendingTasks })
+                        : t('pipeline.openspec.archive.action')}
+                    </button>
+                  )}
                   <button type="button" className={styles.secondaryAction} disabled={(snapshot.diffs?.length ?? 0) === 0} onClick={() => handleIntent({ kind: 'view-diff' })}>
                     <Code2 size={14} /> {t('pipeline.openspec.actions.diff')}
                   </button>
                 </div>
               </div>
 
+              {/* Pegada a la fila de acciones y FUERA del área con scroll.
+                  Adentro, pedir el archivado con la lista de tareas desplazada
+                  abría la confirmación fuera de pantalla: había que volver
+                  arriba para encontrar lo que uno acababa de pedir. */}
+              {archiveRequest && (
+                <div className={styles.archiveConfirm}>
+                  <div className={styles.archiveConfirmHead}>
+                    <strong>{t('pipeline.openspec.archive.confirmTitle')}</strong>
+                    <span>{t('pipeline.openspec.archive.confirmHelp')}</span>
+                  </div>
+                  <pre className={styles.archiveCommand}><code>{archiveRequest.command}</code></pre>
+                  {archivePlan && (
+                    <div className={styles.archiveScope}>
+                      {archivePlan.signature && (
+                        <p data-tone="sign">{t('pipeline.openspec.archive.signs')}</p>
+                      )}
+                      {archivePlan.workMessage && (
+                        <p><strong>{t('pipeline.openspec.archive.commitWork')}</strong> <code>{archivePlan.workMessage.split(/\r?\n/)[0]}</code></p>
+                      )}
+                      <p><strong>{t('pipeline.openspec.archive.commitArchive')}</strong> <code>{archivePlan.archiveMessage}</code></p>
+                      <p><strong>{t('pipeline.openspec.archive.included', { count: archivePlan.included.length })}</strong></p>
+                      <ul>{archivePlan.included.map((file) => <li key={file}>{file}</li>)}</ul>
+                      {archivePlan.excluded.length > 0 && (
+                        <>
+                          {/* Lo que queda fuera se muestra a propósito: un manifiesto
+                              con una omisión es el modo de fallo más silencioso. */}
+                          <p data-tone="out"><strong>{t('pipeline.openspec.archive.excluded', { count: archivePlan.excluded.length })}</strong></p>
+                          <ul data-tone="out">{archivePlan.excluded.map((file) => <li key={file}>{file}</li>)}</ul>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {archiveError && (
+                    <p className={styles.archiveError} role="alert">
+                      {t('pipeline.openspec.archive.failed')} {archiveError}
+                    </p>
+                  )}
+                  <label className={styles.archiveCommitToggle}>
+                    <input
+                      type="checkbox"
+                      checked={archiveCommit}
+                      disabled={archiveBusy}
+                      onChange={(event) => setArchiveCommit(event.target.checked)}
+                    />
+                    {t('pipeline.openspec.archive.alsoCommit')}
+                  </label>
+                  <div className={styles.actions}>
+                    <button
+                      type="button"
+                      className={styles.primaryAction}
+                      disabled={archiveBusy || fixtureActive}
+                      onClick={confirmArchive}
+                    >
+                      {archiveBusy
+                        ? <Loader2 size={14} className={styles.spin} />
+                        : <FolderOpen size={14} />}
+                      {archiveBusy
+                        ? t('pipeline.openspec.archive.running')
+                        : t('pipeline.openspec.archive.confirmAction')}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      disabled={archiveBusy}
+                      onClick={() => { setArchiveRequest(null); setArchivePlan(null); setArchiveError(null); }}
+                    >
+                      {t('pipeline.openspec.archive.cancel')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {centerTab === 'work' ? (
                 <div className={styles.workArea}>
                   <p className={styles.nextStepInline}>{t(nextAction.helpKey, nextAction.helpParams)}</p>
                   {/* El lanzador aparece arriba, junto al botón que lo abrió, y no
                       al final de una lista que puede requerir scroll. */}
-                  {launchInstruction && (
+                  {launchTarget && (
                     <div
                       className={styles.launcherPanel}
                       data-launcher-loading={launcherLoading || undefined}
                     >
                       <PipelineRuntimeLauncher
-                        key={`${selectedChange.changeId}:${nextTask ? resolveTaskLabel(nextTask) : 'archive'}`}
+                        key={`${selectedChange.changeId}:${launchTarget.taskId ?? 'archive'}`}
                         repoPath={repoPath}
                         projection={projection}
-                        initialInstruction={launchInstruction}
+                        initialInstruction={launchTarget.instruction}
                         changeId={selectedChange.changeId}
-                        taskId={nextTask ? resolveTaskLabel(nextTask) : null}
+                        taskId={launchTarget.taskId}
                         blockedByFixture={fixtureActive}
-                        startLabelKey={nextTask ? 'pipeline.launcher.startApply' : 'pipeline.launcher.startArchive'}
+                        startLabelKey={launchTarget.taskId ? 'pipeline.launcher.startApply' : 'pipeline.launcher.startArchive'}
                         onStarted={() => setCenterTab('activity')}
                         onDiscoveringChange={setLauncherLoading}
                       />

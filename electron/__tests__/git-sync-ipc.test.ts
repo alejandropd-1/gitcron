@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { removeTempDir } from '@/test-utils/temp-dir';
 import { simpleGit } from 'simple-git';
 
 type IpcHandler = (_event: unknown, ...args: unknown[]) => Promise<unknown>;
@@ -37,7 +38,7 @@ describe('git remote IPC handlers', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    removeTempDir(tempDir);
   });
 
   it('manages remotes correctly', async () => {

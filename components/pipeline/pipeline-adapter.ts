@@ -199,7 +199,18 @@ function toOpenSpecWorkspace(state: PipelineState): OpenSpecWorkspaceSnapshot {
   const archivedChanges = state.openSpecArchivedChanges?.map((change) => ({ ...change }))
     ?? state.archivedChanges.map((changeId) => ({ changeId, archivedAt: null, sourceRef: 'openspec/changes/archive' }));
   return {
-    selectedChangeId: state.selection.changeId ?? activeChanges[0]?.changeId ?? null,
+    // Lo que el backend seleccionó de verdad, sin inventar.
+    //
+    // Antes caía a `activeChanges[0]`, y ese fallback enmascaraba el caso en que
+    // la selección no resolvió: la vista no podía distinguir "el backend eligió
+    // este" de "el backend no eligió ninguno y yo muestro el primero". Como
+    // consecuencia nunca informaba su elección, y se leía la evidencia de ningún
+    // cambio: el que estaba en pantalla quedaba con `validation: 'unknown'` y sin
+    // artefactos aunque validara.
+    //
+    // El fallback para *mostrar* sigue existiendo, donde corresponde: en la
+    // vista, que además ahora lo informa.
+    selectedChangeId: state.selection.changeId,
     activeChanges,
     archivedChanges,
     specifications: state.openSpecSpecifications?.map((specification) => ({ ...specification })) ?? [],

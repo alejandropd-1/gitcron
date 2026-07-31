@@ -88,7 +88,21 @@ export function PipelineWorkspace({
   }
 
   const loadKey = `${repoPath ?? ''}#${reloadToken}#${devFixture}#${manualSelection ?? ''}`;
-  const isLoading = Boolean(repoPath) && result?.key !== loadKey;
+  /**
+   * Revalidando: hay una lectura en curso para la clave actual.
+   *
+   * No es lo mismo que "cargando". Con un snapshot ya en pantalla, caer al
+   * estado de carga desmonta el dashboard entero y con él todo estado efímero
+   * —incluido el aviso de un archivado recién hecho, que moría antes de poder
+   * leerse—. Además se percibe como una recarga de la página en vez de una
+   * actualización.
+   *
+   * El componente está keyeado por repo en `RepoMainView`, así que cambiar de
+   * repositorio remonta y no hay snapshot viejo que conservar: ahí sí se ve el
+   * estado de carga, que es cuando corresponde.
+   */
+  const isRevalidating = Boolean(repoPath) && result?.key !== loadKey;
+  const isLoading = isRevalidating && !result?.snapshot;
 
   useEffect(() => {
     if (!repoPath) return undefined;
@@ -213,6 +227,15 @@ export function PipelineWorkspace({
 
   return (
     <section className={styles.workspace} aria-label={t('pipeline.title')} data-repo-path={repoPath ?? undefined}>
+      {/* Se declara que hay una relectura en curso sin tapar lo que ya está en
+          pantalla. Antes esto era un blanqueo completo del workspace. */}
+      {isRevalidating && !isLoading && (
+        <span
+          className={styles.revalidating}
+          role="progressbar"
+          aria-label={t('pipeline.revalidating')}
+        />
+      )}
       {controlNotice && (
         <p className="pipeline-workspace__notice" role="status" aria-live="polite">{t(controlNotice)}</p>
       )}
@@ -231,6 +254,7 @@ export function PipelineWorkspace({
           projection={fixtureActive ? null : projection}
           runtimeHistory={fixtureActive ? [] : runtimeHistory}
           fixtureActive={fixtureActive}
+          revalidating={isRevalidating}
           onRefresh={handleRetry}
           onPauseAfterTask={handlePauseAfterTask}
           onRespondDecision={handleRespondDecision}

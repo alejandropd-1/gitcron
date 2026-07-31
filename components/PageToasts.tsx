@@ -107,7 +107,10 @@ export function PageToasts({
             className={
               isPullSuccess
                 ? "pointer-events-auto p-4 glass-alert-success rounded-lg shadow-2xl flex flex-col items-stretch w-[min(calc(100vw-2rem),400px)] max-w-md"
-                : "pointer-events-auto px-4 py-3 glass-alert-success rounded-lg shadow-2xl flex items-center gap-3 w-[min(calc(100vw-2rem),640px)]"
+                // Ancho de contenido con tope: una frase corta no tiene por que
+                // ocupar 640px. Los toasts con acciones conservan ancho fijo,
+                // donde sostiene la disposicion de los botones.
+                : "pointer-events-auto px-4 py-3 glass-alert-success rounded-lg shadow-2xl flex items-center gap-3 max-w-[min(calc(100vw-2rem),640px)]"
             }
           >
             {isPullSuccess ? (
@@ -297,7 +300,7 @@ export function PageToasts({
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
             role="alert"
             aria-live="assertive"
-            className="pointer-events-auto p-3 bg-[#9f0519] text-[#ffdad6] rounded-lg shadow-2xl flex items-start gap-3 border border-[#ffa8a3]/20 w-[min(calc(100vw-2rem),640px)]"
+            className="pointer-events-auto p-3 bg-[#9f0519] text-[#ffdad6] rounded-lg shadow-2xl flex items-start gap-3 border border-[#ffa8a3]/20 max-w-[min(calc(100vw-2rem),640px)]"
           >
             <AlertCircle size={20} className="shrink-0 mt-0.5" />
             <span className="text-sm font-medium flex-1 whitespace-pre-line">{error}</span>

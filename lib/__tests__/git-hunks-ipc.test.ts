@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { removeTempDir } from '@/test-utils/temp-dir';
 import { simpleGit } from 'simple-git';
 import { buildHunkPatch, type FileDiff } from '../hunk-patch';
 
@@ -32,7 +33,7 @@ describe('git hunk IPC handlers', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    removeTempDir(tempDir);
   });
 
   it('round-trips stage, unstage, and discard for a single hunk', async () => {

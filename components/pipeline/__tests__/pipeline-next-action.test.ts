@@ -8,6 +8,7 @@ import {
   composeArchiveInstruction,
   composeExploreInstruction,
   composeProposeInstruction,
+  deriveArchiveAvailability,
   derivePipelineNextAction,
   isValidChangeSlug,
   resolveTaskLabel,
@@ -188,7 +189,7 @@ describe('derivePipelineNextAction · matriz de estados', () => {
     }));
     expect(result.kind).toBe('ready-to-archive');
     expect(result.primary?.intent).toEqual({ kind: 'start-archive', changeId: 'demo-change' });
-    expect(result.instruction).toBe('/opsx:archive demo-change');
+    expect(result.instruction).toBe('openspec archive demo-change --yes');
   });
 
   it('distingue el archivo en curso de una tarea en curso', () => {
@@ -292,7 +293,7 @@ describe('composición de instrucciones', () => {
   });
 
   it('compone Archive', () => {
-    expect(composeArchiveInstruction('c1')).toBe('/opsx:archive c1');
+    expect(composeArchiveInstruction('c1')).toBe('openspec archive c1 --yes');
   });
 
   it('compone Propose con restricciones', () => {
@@ -368,6 +369,56 @@ describe('resolveTaskLabel / resolveTaskText', () => {
 
   it('no confunde una versión dentro del texto con la numeración', () => {
     expect(resolveTaskLabel({ id: 'h', text: 'Actualizar a 2.1 el paquete' })).toBe('h');
+  });
+});
+
+/**
+ * Archivar no puede depender de que no queden tareas: la convención de
+ * `tasks.md` cierra cada change con una tarea de handoff humano que ningún
+ * runtime tilda, así que exigir cero pendientes lo volvía inalcanzable siempre.
+ * La validación sigue siendo condición; el pendiente se declara, no se esconde.
+ */
+describe('deriveArchiveAvailability', () => {
+  it('habilita el archivo con validación aprobada y todo tildado', () => {
+    const result = deriveArchiveAvailability(
+      change({ validation: 'passed', tasks: [task('1.1', true)] }),
+      false,
+    );
+    expect(result).toEqual({ available: true, reasonKey: null, pendingTasks: 0 });
+  });
+
+  it('habilita el archivo con validación aprobada aunque queden tareas, y dice cuántas', () => {
+    const result = deriveArchiveAvailability(
+      change({ validation: 'passed', tasks: [task('1.1', true), task('1.2', false), task('1.3', false)] }),
+      false,
+    );
+    expect(result.available).toBe(true);
+    expect(result.pendingTasks).toBe(2);
+  });
+
+  it('bloquea con validación fallida y declara el motivo', () => {
+    const result = deriveArchiveAvailability(change({ validation: 'failed' }), false);
+    expect(result.available).toBe(false);
+    expect(result.reasonKey).toBe('pipeline.openspec.archive.blockedFailed');
+  });
+
+  it('bloquea con validación sin comprobar y declara el motivo', () => {
+    const result = deriveArchiveAvailability(change({ validation: 'unknown' }), false);
+    expect(result.available).toBe(false);
+    expect(result.reasonKey).toBe('pipeline.openspec.archive.blockedUnknown');
+  });
+
+  it('no ofrece archivar un cambio ya archivado ni sin cambio seleccionado', () => {
+    expect(deriveArchiveAvailability(change({ validation: 'passed' }), true).available).toBe(false);
+    expect(deriveArchiveAvailability(null, false).available).toBe(false);
+  });
+
+  it('traduce los motivos en los tres idiomas', () => {
+    for (const key of ['pipeline.openspec.archive.blockedFailed', 'pipeline.openspec.archive.blockedUnknown']) {
+      for (const locale of ['es', 'en', 'zh'] as const) {
+        expect(translate(key, locale)).not.toBe(key);
+      }
+    }
   });
 });
 

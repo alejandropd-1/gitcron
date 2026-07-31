@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { removeTempDir } from '@/test-utils/temp-dir';
 import { simpleGit } from 'simple-git';
 
 type IpcHandler = (_event: unknown, ...args: unknown[]) => Promise<unknown>;
@@ -47,7 +48,7 @@ describe('git worktree and submodule IPC handlers', () => {
     } else {
       delete process.env.GIT_ALLOW_PROTOCOL;
     }
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    removeTempDir(tempDir);
   });
 
   it('manages worktrees correctly', async () => {

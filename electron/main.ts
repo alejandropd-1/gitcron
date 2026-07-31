@@ -24,6 +24,7 @@ import { registerWatcherHandlers, closeAllRepoWatchers } from './ipc/watchers';
 import { registerPipelineHandlers } from './ipc/pipeline';
 import { PipelineControlBus } from './pipeline/control/control-bus';
 import { registerPipelineControlHandlers } from './ipc/pipeline-control';
+import { registerPipelineArchiveHandlers } from './ipc/pipeline-archive';
 import { registerPipelineRuntimeHandlers } from './ipc/pipeline-runtime';
 import { RuntimeSessionHub } from './pipeline/runtime/runtime-session-hub';
 import { PipelineRepository } from './pipeline/pipeline-repository';
@@ -296,6 +297,7 @@ const pipelineRuntimeHub = new RuntimeSessionHub(
   new DefaultRuntimeSessionEvidenceCollector(),
 );
 registerPipelineRuntimeHandlers(pipelineRuntimeHub); // pipeline:runtime:*
+registerPipelineArchiveHandlers();  // pipeline:archive-change (escribe: fuera del módulo read-only)
 registerWatcherHandlers(getMainWindow, notifyPipelineRepoChanged);          // repo:watch/unwatch
 registerAppWindowHandlers(getMainWindow, isDev); // app:* + window:*
 

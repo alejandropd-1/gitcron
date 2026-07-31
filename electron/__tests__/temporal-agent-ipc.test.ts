@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { removeTempDir } from '@/test-utils/temp-dir';
 import { closeDatabase } from '../db/connection';
 import { DEVICE_IDENTITY_FILENAME } from '../db/device';
 import {
@@ -96,7 +97,7 @@ beforeEach(() => {
 afterEach(() => {
   closeDatabase();
   if (electronMock.userDataPath.startsWith(os.tmpdir())) {
-    fs.rmSync(electronMock.userDataPath, { recursive: true, force: true });
+    removeTempDir(electronMock.userDataPath);
   }
 });
 

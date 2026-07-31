@@ -140,8 +140,19 @@ export function composeApplyInstruction(changeId: string, taskId: string, taskTe
   return `/opsx:apply ${changeId}\n\nContinuar con ${taskId}: ${taskText}`;
 }
 
+/**
+ * Comando real de archivado.
+ *
+ * Antes devolvía `/opsx:archive <id>`, un slash command que Claude Code no
+ * tiene —los lee de `.claude/commands/`, y ahí no existe `opsx`—. La sesión
+ * cerraba en milisegundos con `"Unknown command"` e `is_error: false`, así que
+ * la app declaraba éxito sin haber archivado nada.
+ *
+ * Ahora archiva el proceso principal invocando el CLI, y esto es literalmente
+ * lo que se ejecuta: lo mostrado y lo ejecutado no pueden divergir.
+ */
 export function composeArchiveInstruction(changeId: string): string {
-  return `/opsx:archive ${changeId}`;
+  return `openspec archive ${changeId} --yes`;
 }
 
 /**
@@ -165,6 +176,51 @@ function taskCounts(change: OpenSpecChangeSummary): { completed: number; total: 
     completed: change.tasks.filter((task) => task.completed).length,
     total: change.tasks.length,
   };
+}
+
+/** Disponibilidad del archivado, con su motivo y lo que queda pendiente. */
+export type ArchiveAvailability = {
+  available: boolean;
+  /** Por qué no se puede archivar. `null` cuando sí se puede. */
+  reasonKey: string | null;
+  /** Tareas sin tildar. Se muestra para que archivar no sea una decisión a ciegas. */
+  pendingTasks: number;
+};
+
+/**
+ * Si archivar está permitido, y qué queda pendiente si lo está.
+ *
+ * Responde una pregunta distinta a la de `derivePipelineNextAction`. Esa dice
+ * qué *conviene* hacer ahora; ésta dice qué está *permitido* hacer. Mezclarlas
+ * obligaba a elegir entre mentir —anunciar el archivo como siguiente paso con
+ * tareas pendientes— y bloquear, que es lo que pasaba.
+ *
+ * La validación aprobada es la única condición. Las tareas pendientes NO lo
+ * son, y no por comodidad: la convención de `tasks.md` cierra cada change con
+ * una tarea de handoff humano que ningún runtime tilda, así que exigir cero
+ * pendientes volvía el archivo inalcanzable en todos los changes, siempre. Una
+ * sesión persistida tampoco bloquea: es historia, no un permiso.
+ *
+ * Lo que sí se conserva es que sin validación aprobada no se archiva, y que el
+ * pendiente se declara en vez de esconderse.
+ */
+export function deriveArchiveAvailability(
+  change: OpenSpecChangeSummary | null,
+  archived: boolean,
+): ArchiveAvailability {
+  if (!change || archived) return { available: false, reasonKey: null, pendingTasks: 0 };
+  const counts = taskCounts(change);
+  const pendingTasks = counts.total - counts.completed;
+  if (change.validation !== 'passed') {
+    return {
+      available: false,
+      reasonKey: change.validation === 'failed'
+        ? 'pipeline.openspec.archive.blockedFailed'
+        : 'pipeline.openspec.archive.blockedUnknown',
+      pendingTasks,
+    };
+  }
+  return { available: true, reasonKey: null, pendingTasks };
 }
 
 /**

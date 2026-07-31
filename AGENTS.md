@@ -24,6 +24,37 @@ del trabajo; si hace falta, se amplía el change explícitamente, no de palabra.
    escribieron, no lo que hay ahora.
 3. Si existe `.codegraph/`, usar CodeGraph antes de grep o lectura amplia.
 
+## Cierre de un change: firma y manifiesto
+
+Cada change termina con una tarea de firma cuyo texto es **literal** y no se parafrasea:
+
+```
+- [ ] X.Y Archivado confirmado por Ale desde la aplicación
+```
+
+La marca esa tarea el botón de archivar, y **sólo** esa. Dice lo que el click prueba —que una
+persona confirmó el archivado con el alcance a la vista— y nada más: no afirma que se haya revisado
+el resultado, porque el gesto no lo demuestra. Las demás tareas sin marcar quedan sin marcar; si
+hay pendiente real, el archivo tiene que decirlo.
+
+Cada change lleva además `commit.md` con el alcance de su commit de trabajo. Hace falta declararlo
+porque el árbol puede tener varios changes en curso y nada dice qué archivo es de cuál:
+
+```markdown
+## Mensaje
+
+feat(alcance): una línea
+
+## Archivos
+
+- ruta/uno.ts
+- ruta/dos.tsx
+```
+
+Los artefactos del propio change y su reporte no se enumeran: son rutas deterministas y entran
+solas. Antes de ejecutar, la aplicación muestra ambos mensajes, los archivos que entran y **los
+modificados que quedan fuera**, para que una omisión del manifiesto se vea antes y no después.
+
 ## Cierre de tanda
 
 Sólo dos comprobaciones son obligatorias, y no por ceremonia sino para no romper el build:
@@ -53,6 +84,9 @@ Sobre los archivos que se tocan, el lint sí se corre y se deja limpio.
 - El renderer no recibe credenciales, sockets privilegiados, shell/argv/PID libres ni paths sin validar.
 - No agregar dependencias sin aprobación explícita de Ale.
 - No ejecutar `git add`, commit, push, merge, tag ni release salvo autorización explícita de Ale.
+- La aplicación sí puede confirmar en Git al archivar un change, y esa es la única excepción: el
+  click de archivado ES la autorización, por acción, con el mensaje y la lista exacta de archivos a
+  la vista antes de ejecutar. Nunca publica: `push`, `merge` y `tag` siguen siendo manuales.
 - Cuando se sugiera staging, enumerar los archivos exactos. Nunca agregar un directorio completo.
 - Una sesión de agente que escriba en el working tree exige confirmación humana explícita antes
   de arrancar.

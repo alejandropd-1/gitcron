@@ -41,4 +41,4 @@
 - [x] 6.3 `pnpm exec eslint` limpio sobre los archivos tocados
 - [x] 6.4 `openspec validate sign-and-commit-from-archive --strict` válido
 - [x] 6.5 Reporte en `docs/reports/`
-- [ ] 6.6 Archivado confirmado por Ale desde la aplicación
+- [x] 6.6 Archivado confirmado por Ale desde la aplicación

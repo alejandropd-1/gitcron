@@ -21,4 +21,4 @@
 - [x] 3.3 `pnpm exec eslint` limpio sobre los archivos tocados
 - [x] 3.4 `openspec validate sync-displayed-change-selection --strict` válido
 - [x] 3.5 Reporte en `docs/reports/`
-- [ ] 3.6 Archivado confirmado por Ale desde la aplicación
+- [x] 3.6 Archivado confirmado por Ale desde la aplicación

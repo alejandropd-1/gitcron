@@ -27,4 +27,4 @@
 - [x] 4.3 `pnpm exec eslint` limpio sobre los archivos tocados
 - [x] 4.4 `openspec validate unify-feedback-surfaces --strict` válido
 - [x] 4.5 Reporte en `docs/reports/`
-- [ ] 4.6 Archivado confirmado por Ale desde la aplicación
+- [x] 4.6 Archivado confirmado por Ale desde la aplicación

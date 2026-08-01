@@ -335,7 +335,12 @@
 .center {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  /* El centro entero es el único con scroll. Antes cada región se desplazaba
+     por su cuenta y la confirmación de archivado tenía que retirar al resto para
+     no repartirse un alto que no alcanzaba. Con un solo scroll, el panel empuja
+     lo de abajo en vez de reemplazarlo. */
+  overflow-y: auto;
+  scrollbar-width: thin;
   /* Opaco a propósito. Con fondo translúcido, el contenedor que scrollea acá
      adentro deja restos de repintados anteriores en Electron: se llegaban a ver
      hashes de commit de otra vista por detrás de las tareas. */
@@ -469,11 +474,8 @@
 
 .workArea,
 .fullActivity {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
+  flex: 0 0 auto;
   padding: 1.2rem 1.5rem;
-  scrollbar-width: thin;
 }
 
 .workArea > h4 { margin: 0 0 0.7rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--os-border); font: 650 0.78rem var(--font-mono), ui-monospace, monospace; letter-spacing: 0.04em; }
@@ -554,25 +556,15 @@
 }
 
 .archiveConfirm {
-  /* Se acota y desplaza dentro de sí misma: en ventanas bajas el final del
-     panel —con los botones— quedaba fuera de pantalla y la acción era
-     inalcanzable. Encoge antes que empujar los botones fuera de vista. */
-  flex: 0 1 auto;
-  overflow-y: auto;
-  max-height: 46vh;
+  /* Empuja lo de abajo en vez de reemplazarlo. Sin scroll propio ni alto
+     acotado: el centro entero se desplaza como una sola pieza, así que el panel
+     puede crecer lo que necesite y lo que sigue baja con él. */
+  flex: 0 0 auto;
   padding: 0.9rem 1.5rem;
   border-bottom: 1px solid var(--os-border-strong);
   background: rgba(10, 31, 49, 0.9);
-  scrollbar-width: thin;
 }
-/* Los botones quedan pegados abajo del panel: siempre alcanzables sin llegar
-   al final del scroll. */
-.archiveConfirm .actions {
-  position: sticky;
-  bottom: 0;
-  padding-top: 0.6rem;
-  background: rgba(10, 31, 49, 0.96);
-}
+.archiveConfirm .actions { padding-top: 0.6rem; }
 .archiveConfirmHead { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; }
 .archiveConfirmHead > strong { color: var(--os-cyan); font: 650 0.78rem var(--font-mono), ui-monospace, monospace; }
 .archiveConfirmHead > span { color: var(--os-muted); font: 0.72rem var(--font-mono), ui-monospace, monospace; }
@@ -932,12 +924,29 @@
   margin-top: 1.25rem;
   text-align: left;
 }
-/* `justify-content: center` recorta el comienzo del contenido cuando desborda,
-   y ese recorte no se puede alcanzar con scroll. `safe` centra sólo mientras
-   entra y se alinea al inicio cuando no: por eso la ficha se veía cortada desde
-   arriba al mostrar los artefactos. */
-.completedSummary { justify-content: safe center; scrollbar-width: thin; }
+/* Alineada al inicio, no centrada.
+   `justify-content: center` recorta el comienzo del contenido al desbordar y ese
+   recorte no se alcanza con scroll. `safe center` lo evita, pero si el motor no
+   lo soporta la declaración entera se descarta y vuelve a quedar `center`: el
+   defecto reaparecería sin ninguna señal. Con los artefactos adentro el contenido
+   siempre desborda, así que centrar no aporta nada y alinear al inicio hace que
+   todo se recorra como una sola pieza. */
+.completedSummary { flex: 0 0 auto; justify-content: flex-start; overflow: visible; }
 
 /* Con el visor adentro, el respiro lateral de la ficha —hasta 5rem por lado—
    angosta el markdown. Se reduce sólo en ese caso. */
 .completedSummary:has(.archivedArtifacts) { padding-inline: clamp(1rem, 2vw, 2rem); }
+
+/* Identidad del cambio archivado. Agrupada, pero parte del flujo: se intentó
+   fijarla arriba y el resto pasaba por debajo asomándose contra su fondo. El
+   contenido del cuerpo se recorre entero, de una sola pieza. */
+.completedHeader {
+  align-self: stretch;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--os-border);
+}
+.completedHeader > dl { margin-bottom: 0; }
+/* Reserva de espacio para los artefactos del archivado, para que la vista no
+   salte de una ficha corta a una pantalla entera cuando llega la relectura. */
+.archivedArtifacts[data-pending] { display: grid; place-items: center; min-height: 18rem; }
+.archivedPending { margin: 0; color: var(--os-muted); font: 0.74rem var(--font-mono), ui-monospace, monospace; }

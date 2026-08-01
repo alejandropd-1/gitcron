@@ -861,21 +861,33 @@ export function OpenSpecDashboard({
             </>
           ) : selectedArchive ? (
             <section className={styles.completedSummary}>
-              <CheckCircle2 size={38} />
-              <p>{t('pipeline.openspec.change.completed')}</p>
-              <h3>{selectedArchive.changeId}</h3>
-              <span>{selectedArchive.archivedAt ?? t('pipeline.openspec.dateUnknown')}</span>
-              <dl>
-                <div><dt>{t('pipeline.openspec.completed.location')}</dt><dd>{selectedArchive.sourceRef}</dd></div>
-                <div><dt>{t('pipeline.openspec.completed.specsUpdated')}</dt><dd>{t('pipeline.openspec.completed.preserved')}</dd></div>
-                <div><dt>{t('pipeline.openspec.completed.activity')}</dt><dd>{t('pipeline.openspec.completed.preserved')}</dd></div>
-              </dl>
+              {/* La identidad del cambio queda fija arriba mientras se recorren
+                  sus artefactos: al llegar el contenido, el resumen se iba de
+                  vista con el scroll y se perdía de qué cambio se estaba
+                  mirando. */}
+              <div className={styles.completedHeader}>
+                <CheckCircle2 size={38} />
+                <p>{t('pipeline.openspec.change.completed')}</p>
+                <h3>{selectedArchive.changeId}</h3>
+                <span>{selectedArchive.archivedAt ?? t('pipeline.openspec.dateUnknown')}</span>
+                <dl>
+                  <div><dt>{t('pipeline.openspec.completed.location')}</dt><dd>{selectedArchive.sourceRef}</dd></div>
+                  <div><dt>{t('pipeline.openspec.completed.specsUpdated')}</dt><dd>{t('pipeline.openspec.completed.preserved')}</dd></div>
+                  <div><dt>{t('pipeline.openspec.completed.activity')}</dt><dd>{t('pipeline.openspec.completed.preserved')}</dd></div>
+                </dl>
+              </div>
               <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} />
               {/* Lo archivado es el registro de lo que se hizo, incluida la
                   firma humana. Revisarlo no debería obligar a salir de la
                   aplicación ni a leer el diff del commit de archivado. */}
-              {selectedArchive.artifacts && (
-                <div className={styles.archivedArtifacts}>
+              {/* La región existe desde el primer render, aunque el contenido
+                  todavía no haya llegado: al seleccionar un archivado hay una
+                  relectura de por medio, y sin reservar el espacio la vista
+                  saltaba de una ficha corta a una pantalla entera. */}
+              <div className={styles.archivedArtifacts} data-pending={!selectedArchive.artifacts || undefined}>
+                {!selectedArchive.artifacts ? (
+                  <p className={styles.archivedPending}>{t('pipeline.revalidating')}</p>
+                ) : (
                   <PipelineDetails
                     snapshot={snapshot}
                     selectedChange={{
@@ -891,8 +903,8 @@ export function OpenSpecDashboard({
                     tab={evidenceTab}
                     onTabChange={setEvidenceTab}
                   />
-                </div>
-              )}
+                )}
+              </div>
               {flowMode && (
                 <PipelineNewChangeFlow
                   repoPath={repoPath}

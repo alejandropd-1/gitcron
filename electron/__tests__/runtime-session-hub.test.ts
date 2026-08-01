@@ -168,6 +168,32 @@ describe('RuntimeSessionHub', () => {
     expect(result).toEqual({ ok: false, error: 'runtime_not_launchable' });
   });
 
+  it('closes the session as failed when a run declares failure without the process failing', async () => {
+    // Un runtime que rechaza la instrucción sale con código 0: si el desenlace
+    // sólo mirara el proceso, la actividad registraría el error y la sesión
+    // afirmaría "finalizada correctamente" en el mismo registro.
+    const adapter = new FakeAdapter({
+      events: [envelope('run.completed', { success: false, reason: 'Unknown command: /opsx:apply' })],
+    });
+    const { hub } = makeHub(adapter);
+    await hub.start(START);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(hub.get('C:/repo')).toMatchObject({ active: false, outcome: 'failed' });
+    expect(hub.get('C:/repo')?.activity.map((entry) => entry.text)).toContain('session.failed');
+  });
+
+  it('describes a session the user stopped as interrupted even after a failed run', async () => {
+    const adapter = new FakeAdapter({
+      events: [envelope('run.completed', { success: false, reason: 'Unknown command: /opsx:apply' })],
+    });
+    const { hub } = makeHub(adapter);
+    await hub.start(START);
+    await hub.stop('C:/repo');
+
+    expect(hub.get('C:/repo')).toMatchObject({ outcome: 'interrupted' });
+  });
+
   it('records a diagnostic instead of crashing when telemetry is unavailable', async () => {
     const adapter = new FakeAdapter({ events: [envelope('run.completed', { success: true })] });
     const { hub } = makeHub(adapter);

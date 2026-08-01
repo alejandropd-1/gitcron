@@ -11,6 +11,7 @@ import type { PipelineControlBus } from '../control/control-bus';
 import { createClaudeRuntimeAdapter } from '../runtime-adapters/claude-adapter';
 import { createCodexRuntimeAdapter } from '../runtime-adapters/codex-adapter';
 import { createAgyWrapperRuntimeAdapter } from '../runtime-adapters/agy-adapter';
+import { asRecord } from '../runtime-adapters/normalization';
 import type { RuntimeAdapter } from '../runtime-adapters/runtime-adapter';
 import { RuntimeProjectionBuilder } from './runtime-projection';
 import type { RuntimeSessionEvidenceCollector, RuntimeWorkingTreeEvidence } from './runtime-session-evidence';
@@ -291,7 +292,12 @@ export class RuntimeSessionHub {
     try {
       for await (const event of record.adapter.events(record.session, record.abort.signal)) {
         record.builder.ingest(event);
+        // Un fracaso puede venir declarado dentro del stream sin que el proceso
+        // falle: un runtime que rechaza la instrucción sale con código 0. Leer
+        // sólo el fallo del proceso hacía que la actividad registrara el error y
+        // el desenlace afirmara lo contrario, para la misma sesión.
         if (event.kind === 'runtime.process.failed') outcome = 'failed';
+        if (event.kind === 'run.completed' && asRecord(event.payload)?.success === false) outcome = 'failed';
         this.notify(record.repoPath);
       }
     } catch (error) {

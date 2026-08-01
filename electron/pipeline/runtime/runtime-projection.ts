@@ -140,6 +140,9 @@ function textForEvent(kind: string, payload: unknown): string | null {
       const parts = [
         data.success === true ? 'ok' : data.success === false ? 'error' : null,
         str(data.stopReason),
+        // El motivo del rechazo se cita acá porque es la línea donde se lee el
+        // desenlace del run. Sin él, `run.completed · error` no explica nada.
+        str(data.reason),
         num(data.durationMs) !== null ? `${num(data.durationMs)}ms` : null,
       ].filter(Boolean);
       return `run.completed${parts.length ? ` · ${parts.join(' · ')}` : ''}`;

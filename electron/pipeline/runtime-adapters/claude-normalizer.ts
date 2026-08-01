@@ -7,6 +7,31 @@ function contentItems(value: unknown): Record<string, unknown>[] {
   return values.map(asRecord).filter((item): item is Record<string, unknown> => item !== null);
 }
 
+/**
+ * Prefijo con el que el CLI rechaza una instrucción sin llegar a ejecutarla.
+ *
+ * Claude devuelve `is_error: false`, exit 0 y `num_turns: 0` para un slash
+ * command inexistente: el rechazo viaja **sólo** dentro de `result`. Derivar el
+ * éxito de `is_error` traducía ese rechazo a "Sesión finalizada correctamente".
+ *
+ * Es un contrato de facto con el CLI: si el texto cambia, la detección deja de
+ * disparar. Por eso se compara textual, se exige además cero turnos, y el motivo
+ * se conserva tal cual vino en vez de reescribirse.
+ */
+const REJECTED_COMMAND_PREFIX = 'Unknown command:';
+
+/**
+ * Motivo del rechazo, o `null` si el run efectivamente corrió.
+ *
+ * Cero turnos por sí solo no alcanza: un run legítimo puede terminar sin turnos
+ * y declararlo fallido sería el mismo error de hoy con el signo invertido.
+ */
+function rejectionReason(record: Record<string, unknown>): string | null {
+  if (numberValue(record.num_turns) !== 0) return null;
+  const result = stringValue(record.result);
+  return result?.startsWith(REJECTED_COMMAND_PREFIX) ? result : null;
+}
+
 export class ClaudeStreamNormalizer implements RuntimeStreamNormalizer {
   private usage: Record<string, unknown> | null = null;
   private modelUsage: Record<string, unknown> | null = null;
@@ -87,12 +112,23 @@ export class ClaudeStreamNormalizer implements RuntimeStreamNormalizer {
       this.usage = asRecord(record.usage);
       this.modelUsage = asRecord(record.modelUsage);
       this.costUsd = numberValue(record.total_cost_usd);
-      return [envelope(scopedContext, 'run.completed', {
-        success: record.is_error === false,
+      const reason = rejectionReason(record);
+      const completed = envelope(scopedContext, 'run.completed', {
+        success: reason === null && record.is_error === false,
         stopReason: stringValue(record.stop_reason),
         durationMs: numberValue(record.duration_ms),
         turns: numberValue(record.num_turns),
-      })];
+        reason,
+      });
+      if (reason === null) return [completed];
+      // El `uuid` del record viene redactado en los fixtures, así que el sufijo
+      // se aplica sobre el id efectivo del sobre y no sobre `sourceEventId`:
+      // de lo contrario los dos eventos compartirían `eventId`.
+      const baseEventId = scopedContext.sourceEventId ?? `${scopedContext.instanceId}:${scopedContext.sequence}`;
+      return [
+        envelope({ ...scopedContext, sourceEventId: `${baseEventId}:rejected` }, 'runtime.error', { message: reason }),
+        completed,
+      ];
     }
 
     if (type === 'rate_limit_event') {

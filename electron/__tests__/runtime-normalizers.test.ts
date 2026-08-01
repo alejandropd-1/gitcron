@@ -72,6 +72,55 @@ describe('ClaudeStreamNormalizer', () => {
   });
 });
 
+describe('ClaudeStreamNormalizer · resultado sin ejecución', () => {
+  const normalizeResult = (record: Record<string, unknown>) => new ClaudeStreamNormalizer().normalize(record, {
+    identity: identity('claude'),
+    descriptor: CLAUDE_DESCRIPTOR,
+    instanceId: 'claude-rechazo',
+    observedAt: '2026-08-01T00:00:00.000Z',
+    sequence: 1,
+    sourceEventId: null,
+  });
+
+  const resultRecord = (overrides: Record<string, unknown>) => ({
+    type: 'result',
+    subtype: 'success',
+    is_error: false,
+    duration_ms: 18,
+    num_turns: 0,
+    total_cost_usd: 0,
+    ...overrides,
+  });
+
+  it('does not declare success for a command the runtime refused to run', () => {
+    // El CLI sale con código 0 e `is_error: false` para un slash command
+    // inexistente: el rechazo viaja sólo dentro de `result`.
+    const events = normalizeResult(resultRecord({ result: 'Unknown command: /opsx:archive' }));
+
+    expect(events.find(({ kind }) => kind === 'run.completed')?.payload)
+      .toMatchObject({ success: false, reason: 'Unknown command: /opsx:archive', turns: 0 });
+    expect(events.find(({ kind }) => kind === 'runtime.error')?.payload)
+      .toMatchObject({ message: 'Unknown command: /opsx:archive' });
+    expect(new Set(events.map(({ eventId }) => eventId)).size).toBe(events.length);
+  });
+
+  it('keeps declaring success when the run actually took turns', () => {
+    const events = normalizeResult(resultRecord({ num_turns: 2, result: 'listo', stop_reason: 'end_turn' }));
+
+    expect(events).toHaveLength(1);
+    expect(events[0].payload).toMatchObject({ success: true, reason: null });
+  });
+
+  it('does not invent a failure when zero turns come with another reason', () => {
+    // Declarar fallido todo run sin turnos sería el mismo error con el signo
+    // invertido: afirmar sin evidencia.
+    const events = normalizeResult(resultRecord({ result: 'sin cambios que aplicar' }));
+
+    expect(events).toHaveLength(1);
+    expect(events[0].payload).toMatchObject({ success: true, reason: null });
+  });
+});
+
 describe('CodexStreamNormalizer', () => {
   it('keeps cost/context unknown while retaining reported usage and tool failure', () => {
     const runtimeIdentity = identity('codex');

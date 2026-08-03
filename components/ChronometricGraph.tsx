@@ -17,6 +17,8 @@ import {
   worldToScreen,
 } from '@/lib/canvas-viewport';
 import { useCanvasViewport } from '@/hooks/use-canvas-viewport';
+import { CommitNodesLayer } from '@/components/graph/CommitNodesLayer';
+import { useLatestCallback } from '@/hooks/use-latest-callback';
 import { useRepoLoader } from '@/hooks/use-repo-loader';
 import {
   colorForBranch,
@@ -1835,6 +1837,24 @@ export function ChronometricGraph({
   const [hoveredHash, setHoveredHash] = useState<string | null>(null);
   const [hoveredPos, setHoveredPos] = useState<{ x: number; y: number } | null>(null);
 
+  // Manijas de identidad estable para la capa de nodos memoizada.
+  // `selectGraphCommit` se declara en el cuerpo y `onContextMenu` es una prop:
+  // pasarlas tal cual anularía `memo` en silencio.
+  const handleSelectCommitNode = useLatestCallback(
+    (commit: Commit, options?: CommitSelectOptions) => selectGraphCommit(commit, options),
+  );
+  const handleCommitNodeContextMenu = useLatestCallback(
+    (event: React.MouseEvent, commit: Commit) => onContextMenu(event, commit),
+  );
+  const handleHoverCommitNode = useCallback((hash: string, position: { x: number; y: number }) => {
+    setHoveredHash(hash);
+    setHoveredPos(position);
+  }, []);
+  const handleLeaveCommitNode = useCallback(() => {
+    setHoveredHash(null);
+    setHoveredPos(null);
+  }, []);
+
   const hoveredNode = useMemo(() => {
     if (!hoveredHash) return null;
 
@@ -2529,98 +2549,22 @@ export function ChronometricGraph({
                 });
               })}
 
-              {/* Commit Nodes */}
-              {projectedCommits.map((node) => {
-                const isSelected = selectedHash === node.commit.hash;
-                const isHovered = hoveredHash === node.commit.hash;
-                const isHead = headCommitNode && node.commit.hash === headCommitNode.commit.hash;
-                const isEntering = isCommitEntering(node.commit.hash);
-                const isBranchHighlighted = Boolean(
-                  selectedBranchName &&
-                  (node.branchName === selectedBranchName || commitHasBranchRef(node.commit, selectedBranchName) || (selectedBranchColor && node.laneColor === selectedBranchColor))
-                );
-
-                return (
-                  <g
-                    key={`node-${node.commit.hash}`}
-                    className={cn('cursor-pointer', isEntering && 'chrono-node-enter')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      selectGraphCommit(node.commit, { branchName: node.branchName });
-                    }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      onContextMenu(e, node.commit);
-                    }}
-                    onMouseEnter={(e) => {
-                      setHoveredHash(node.commit.hash);
-                      setHoveredPos({
-                        x: node.x,
-                        y: node.y,
-                      });
-                    }}
-                    onMouseLeave={() => {
-                      setHoveredHash(null);
-                      setHoveredPos(null);
-                    }}
-                  >
-                    {/* Outer selection ring */}
-                    {(isSelected || isBranchHighlighted) && (
-                      <circle
-                        cx={node.x}
-                        cy={node.y}
-                        r={isHead ? 36 : isSelected ? 19 : 16}
-                        fill="url(#selected-glow)"
-                        stroke={isSelected ? 'var(--color-secondary)' : node.laneColor}
-                        strokeWidth={isSelected ? (isHead ? 3 : 1.5) : 1}
-                        opacity={isSelected ? 1 : 0.65}
-                        style={{
-                          transformOrigin: `${node.x}px ${node.y}px`,
-                          animation: isSelected ? 'selected-breath 3s ease-in-out infinite' : undefined,
-                        }}
-                      />
-                    )}
-
-                    {/* Hover visual scale guide */}
-                    {isHovered && (
-                      <circle
-                        cx={node.x}
-                        cy={node.y}
-                        r={isHead ? 28 : 14}
-                        fill="none"
-                        stroke={isHead ? 'none' : node.laneColor}
-                        strokeWidth={isHead ? 2 : 1}
-                        opacity={0.4}
-                      />
-                    )}
-
-                    {/* Core Commit Circle */}
-                    <circle
-                      cx={node.x}
-                      cy={node.y}
-                      r={isHead ? 21 : 10.5}
-                      fill={isHead ? 'transparent' : 'var(--color-bg-base)'}
-                      stroke={isHead ? 'transparent' : (isSelected ? 'var(--color-secondary)' : node.laneColor)}
-                      strokeWidth={isSelected ? (isHead ? 6 : 3) : isBranchHighlighted ? (isHead ? 4 : 2.8) : (isHead ? 4 : 2)}
-                      className="transition-all duration-150"
-                    />
-
-                    {/* Initials Text Inside Circle */}
-                    <text
-                      x={node.x}
-                      y={node.y}
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fontSize={fs(isHead ? 15 : 7.5)}
-                      fontWeight="700"
-                      fill={isSelected ? 'var(--color-secondary)' : node.laneColor}
-                      className="font-mono select-none pointer-events-none"
-                    >
-                      {initials(node.commit.authorName)}
-                    </text>
-                  </g>
-                );
-              })}
+              {/* Commit Nodes — capa memoizada: no recibe el encuadre, así
+                  arrastrar y hacer zoom no la reconstruyen. */}
+              <CommitNodesLayer
+                nodes={projectedCommits}
+                selectedHash={selectedHash}
+                hoveredHash={hoveredHash}
+                headHash={headCommitNode?.commit.hash ?? null}
+                selectedBranchName={selectedBranchName}
+                selectedBranchColor={selectedBranchColor}
+                textScale={textScale}
+                isCommitEntering={isCommitEntering}
+                onSelectCommit={handleSelectCommitNode}
+                onContextMenu={handleCommitNodeContextMenu}
+                onHoverNode={handleHoverCommitNode}
+                onLeaveNode={handleLeaveCommitNode}
+              />
             </g>
 
             {/* Layer 3: Overlay Labels Layer */}

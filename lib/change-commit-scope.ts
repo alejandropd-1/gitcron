@@ -23,14 +23,35 @@ export interface ChangeCommitScope {
 }
 
 const CHANGES_ROOT = 'openspec/changes/';
+const SPECS_ROOT = 'openspec/specs/';
 
-/** A qué cambio pertenece un artefacto, si es que es uno. */
-function artifactChangeId(file: string): string | null {
-  if (!file.startsWith(CHANGES_ROOT)) return null;
-  const rest = file.slice(CHANGES_ROOT.length);
-  if (rest.startsWith('archive/')) return null;
-  const [id] = rest.split('/');
-  return id || null;
+/**
+ * Clasificación de un archivo modificado.
+ *
+ * Tres clases, no dos valores: antes `archive/` y el código compartían el
+ * mismo `null`, y el loop los mandaba juntos a `own` cuando no había
+ * ambigüedad. Los restos de un archivado pertenecen a su propia confirmación,
+ * no al change activo, así que se distinguen del código que sí puede
+ * atribuirse por descarte.
+ */
+type ArtifactOwner =
+  | { kind: 'change'; id: string }
+  | { kind: 'archived' }
+  | { kind: 'code' };
+
+/** A qué cambia pertenece un archivo modificado, si es que es de alguno. */
+function artifactOwner(file: string): ArtifactOwner {
+  if (file.startsWith(CHANGES_ROOT)) {
+    const rest = file.slice(CHANGES_ROOT.length);
+    if (rest.startsWith('archive/')) return { kind: 'archived' };
+    const [id] = rest.split('/');
+    return id ? { kind: 'change', id } : { kind: 'archived' };
+  }
+  // Las specs consolidadas también son producto del archivado: viven bajo
+  // `openspec/specs/` y acompañan a `archive/…`. Se tratan como archivadas
+  // para que no caigan en el alcance del change activo por defecto.
+  if (file.startsWith(SPECS_ROOT)) return { kind: 'archived' };
+  return { kind: 'code' };
 }
 
 /**
@@ -91,19 +112,32 @@ export function deriveChangeCommitScope(
 ): ChangeCommitScope {
   const otherChangesTouched = new Set(
     changedFiles
-      .map(artifactChangeId)
-      .filter((id): id is string => id !== null && id !== changeId),
+      .map(artifactOwner)
+      .filter((owner): owner is { kind: 'change'; id: string } =>
+        owner.kind === 'change' && owner.id !== changeId,
+      )
+      .map((owner) => owner.id),
   );
   const codeIsAmbiguous = otherChangesTouched.size > 0;
 
   const own: string[] = [];
   const foreign: string[] = [];
   for (const file of changedFiles) {
-    const owner = artifactChangeId(file);
-    if (owner === changeId) own.push(file);
-    else if (owner !== null) foreign.push(file);
-    else if (codeIsAmbiguous) foreign.push(file);
-    else own.push(file);
+    const owner = artifactOwner(file);
+    // Los restos de un archivado —`archive/…` y `openspec/specs/…`— son
+    // siempre ajenos al change activo: pertenecen al commit del archivado.
+    if (owner.kind === 'archived') {
+      foreign.push(file);
+    } else if (owner.kind === 'change') {
+      if (owner.id === changeId) own.push(file);
+      else foreign.push(file);
+    } else {
+      // Código no atribuible: entra en `own` cuando no hay ambigüedad, porque
+      // ningún otro change lo reclama; con varios cambios en curso no se
+      // adivina y queda para elegir a mano.
+      if (codeIsAmbiguous) foreign.push(file);
+      else own.push(file);
+    }
   }
 
   return {

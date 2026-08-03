@@ -35,15 +35,37 @@ describe('atribución de archivos a un cambio', () => {
     ]);
   });
 
-  it('un cambio archivado no cuenta como cambio en curso', () => {
+  it('un cambio archivado no cuenta como cambio en curso, y sus restos no entran en el propio', () => {
+    // El archivo archivado pertenece al commit del archivado, no al trabajo en
+    // curso: aunque sea el único change activo y no haya ambigüedad, queda fuera.
+    // El código sí entra en `own` por descarte, porque ningún otro change lo reclama.
     const scope = deriveChangeCommitScope('mi-cambio', [
       'openspec/changes/mi-cambio/tasks.md',
       'openspec/changes/archive/2026-08-01-viejo/tasks.md',
       'components/algo.tsx',
     ], '');
 
-    expect(scope.own).toContain('components/algo.tsx');
-    expect(scope.foreign).toEqual([]);
+    expect(scope.own).toEqual([
+      'openspec/changes/mi-cambio/tasks.md',
+      'components/algo.tsx',
+    ]);
+    expect(scope.foreign).toEqual(['openspec/changes/archive/2026-08-01-viejo/tasks.md']);
+  });
+
+  it('las specs consolidadas del archivado también quedan fuera del cambio activo', () => {
+    // `openspec/specs/…` sólo cambia por consolidación de archivado o por
+    // edición manual: en el primer caso acompaña a `archive/…` y se trata igual.
+    const scope = deriveChangeCommitScope('mi-cambio', [
+      'openspec/changes/mi-cambio/tasks.md',
+      'openspec/specs/pipeline-guided-workflow/spec.md',
+      'components/algo.tsx',
+    ], '');
+
+    expect(scope.own).toEqual([
+      'openspec/changes/mi-cambio/tasks.md',
+      'components/algo.tsx',
+    ]);
+    expect(scope.foreign).toEqual(['openspec/specs/pipeline-guided-workflow/spec.md']);
   });
 
   it('no confunde un cambio con otro cuyo identificador lo prefija', () => {

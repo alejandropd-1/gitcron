@@ -24,6 +24,8 @@ import {
   BrainCircuit,
 } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
+import { useGitActions } from '@/hooks/use-git-actions';
+import { deriveChangeCommitScope } from '@/lib/change-commit-scope';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
@@ -146,6 +148,10 @@ export function OpenSpecDashboard({
 }: OpenSpecDashboardProps) {
   const t = useT();
   const setSuccess = useGitStore((state) => state.setSuccess);
+  const modifiedFiles = useGitStore((state) => state.modifiedFiles);
+  const commitMessage = useGitStore((state) => state.commitMessage);
+  const setCommitMessage = useGitStore((state) => state.setCommitMessage);
+  const { stageFiles } = useGitActions();
   const openSpec = snapshot.openSpec;
   const [selection, setSelection] = useState<string | null>(null);
   const [centerTab, setCenterTab] = useState<CenterTab>('work');
@@ -184,6 +190,12 @@ export function OpenSpecDashboard({
    */
   const [archiveRequest, setArchiveRequest] = useState<{ changeId: string; command: string } | null>(null);
   const [archiveBusy, setArchiveBusy] = useState(false);
+  /**
+   * Archivos que no se le pueden atribuir al cambio y que se eligieron sumar
+   * igual. Vacío por defecto: incluirlos sin pedirlo metería trabajo ajeno.
+   */
+  const [extraFiles, setExtraFiles] = useState<string[]>([]);
+  const [prepareBusy, setPrepareBusy] = useState(false);
   /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -296,6 +308,47 @@ export function OpenSpecDashboard({
     onSelectChange?.(changeId);
     setCenterTab('artifacts');
     setEvidenceTab(tab);
+  };
+
+  /**
+   * Alcance derivado del cambio seleccionado.
+   *
+   * Sale del estado real —qué está modificado y qué otros cambios tienen
+   * artefactos tocados—, sin que ningún artefacto lo declare.
+   */
+  // Sin `useMemo`: la derivación es filtrar dos arrays, y el compilador de React
+  // memoiza por su cuenta. Memoizarlo a mano acá le impedía optimizar el
+  // componente entero, que sale más caro que recalcular esto.
+  //
+  // Sin cambio seleccionado no hay alcance que derivar: la preparación no se
+  // ofrece, en vez de ofrecerse vacía.
+  const commitScope = selectedChange
+    ? deriveChangeCommitScope(
+      selectedChange.changeId,
+      modifiedFiles.map((file) => file.path),
+      commitMessage,
+    )
+    : { own: [], foreign: [], suggestedMessage: null };
+
+  /**
+   * Deja el commit listo: archivos preparados y mensaje sugerido escrito.
+   *
+   * **No confirma.** Confirmar es del flujo de commit, con el mensaje a la vista
+   * y su botón propio: preparar es reversible y confirmar queda en la historia.
+   */
+  const prepareCommit = async () => {
+    const files = [...commitScope.own, ...extraFiles];
+    if (prepareBusy || fixtureActive || files.length === 0) return;
+    setPrepareBusy(true);
+    try {
+      const staged = await stageFiles(files, true);
+      if (!staged) return;
+      // La sugerencia es `null` cuando ya hay un mensaje escrito: no se pisa.
+      if (commitScope.suggestedMessage) setCommitMessage(commitScope.suggestedMessage);
+      setSuccess(t('pipeline.openspec.prepare.done', { count: files.length }));
+    } finally {
+      setPrepareBusy(false);
+    }
   };
 
   /**
@@ -697,6 +750,66 @@ export function OpenSpecDashboard({
                       onClick={() => { setArchiveRequest(null); setArchiveError(null); }}
                     >
                       {t('pipeline.openspec.archive.cancel')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Preparar el commit del cambio. Deja archivos y mensaje listos;
+                  confirmar sigue siendo del flujo de commit, con su botón. */}
+              {commitScope.own.length > 0 && (
+                <div className={styles.archiveConfirm}>
+                  <div className={styles.archiveConfirmHead}>
+                    <strong>{t('pipeline.openspec.prepare.title')}</strong>
+                    <span>{t('pipeline.openspec.prepare.help')}</span>
+                  </div>
+                  <p>
+                    <strong>{t('pipeline.openspec.prepare.included', { count: commitScope.own.length })}</strong>
+                  </p>
+                  <ul>{commitScope.own.map((file) => <li key={file}>{file}</li>)}</ul>
+                  {commitScope.suggestedMessage && (
+                    <p>
+                      <strong>{t('pipeline.openspec.prepare.message')}</strong>{' '}
+                      <code>{commitScope.suggestedMessage}</code>
+                    </p>
+                  )}
+                  {commitScope.foreign.length > 0 && (
+                    <>
+                      {/* Lo que no se le puede atribuir se muestra a propósito:
+                          una omisión es el modo de fallo más silencioso. */}
+                      <p data-tone="out">
+                        <strong>{t('pipeline.openspec.prepare.foreign', { count: commitScope.foreign.length })}</strong>
+                      </p>
+                      <ul data-tone="out">
+                        {commitScope.foreign.map((file) => (
+                          <li key={file}>
+                            <label>
+                              <input
+                                type="checkbox"
+                                checked={extraFiles.includes(file)}
+                                disabled={prepareBusy}
+                                onChange={(event) => setExtraFiles((current) => (
+                                  event.target.checked
+                                    ? [...current, file]
+                                    : current.filter((entry) => entry !== file)
+                                ))}
+                              />
+                              {file}
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  <div className={styles.actions}>
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      disabled={prepareBusy || fixtureActive}
+                      onClick={() => void prepareCommit()}
+                    >
+                      {prepareBusy ? <Loader2 size={14} className={styles.spin} /> : <GitBranch size={14} />}
+                      {t('pipeline.openspec.prepare.action')}
                     </button>
                   </div>
                 </div>

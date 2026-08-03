@@ -1,20 +1,64 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+# Contexto y reglas que el CLI entrega a cualquier ejecutor vía
+# `openspec instructions <artefacto> --change <id> --json`.
+#
+# Éste es el canal por el que viaja la metodología. Una regla que sólo exista en
+# un archivo suelto no la ve quien no lo abra: eso ya pasó acá, con un runtime
+# que nunca tuvo instalados los comandos y trabajó con reglas locales sin saberlo.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+context: |
+  GitCron es un cliente Git de escritorio en Electron + Next.js + TypeScript, con una vista
+  cronométrica (diagonal temporal) y un Temporal Agent de IA opt-in. Español como idioma del
+  producto y de la documentación.
+
+  Stack: Next.js 15 export estático + React 19 + Tailwind 4 en el renderer; Electron en el main;
+  Zustand para estado; simple-git y Octokit para Git y GitHub; node:sqlite para persistencia;
+  tsup + electron-builder para el build; Vitest para tests.
+
+  Las restricciones de producto —seguridad, estética y features que no se tocan— están en
+  `docs/01_INVARIANTES.md`. Son condición de aceptación, no sugerencias: si una invariante choca
+  con hacer que algo funcione, hay que parar y preguntar, no degradarla. El estado real del
+  código está en `docs/00_FUENTE_DE_VERDAD.md`; si contradice al código, manda el código.
+
+  Cierre de una tanda: `pnpm exec tsc --noEmit` en cero y `pnpm test` en verde, más
+  `openspec validate <change> --strict`. La suite tiene un flake conocido en los archivos que
+  crean repositorios Git reales, así que conviene correrla más de una vez antes de declararla
+  verde. Sobre los archivos que se tocan, el lint se corre y se deja limpio.
+
+  Declarar "verificado" sin haber corrido el comando invalida la tanda entera. Reportar el
+  resultado real —incluido "no mejoró" o "sigue fallando"— vale más que declarar un verde.
+
+  Git: no ejecutar `git add`, commit, push, merge, tag ni release salvo autorización explícita.
+  Cuando se sugiera preparar archivos, enumerarlos uno por uno; nunca un directorio completo.
+  No agregar dependencias sin aprobación explícita.
+
+  Fallow y CodeGraph son rutinas que se corren cuando se piden, no automatismos de cierre.
+
+  Ante ambigüedad de alcance: preguntar, no asumir. Frenar y reportar cuesta una vuelta;
+  adivinar cuesta una tanda.
+
+rules:
+  proposal:
+    - "Escribir en español, en prosa densa y sin relleno. Nada de listas de viñetas donde alcanza una frase."
+    - "Declarar explícitamente qué queda fuera de alcance, no sólo qué entra."
+    - "Si el cambio corrige un defecto, citar la evidencia concreta que lo prueba: salida de un comando, una medición, o archivo y línea."
+    - "No prometer una mejora que no se midió. Si el beneficio es una hipótesis, decir que lo es."
+
+  specs:
+    - "Cada requisito lleva su palabra normativa dentro de los primeros 100 caracteres del texto. El parser trunca ahí y rechaza el requisito si no la encuentra."
+    - "Un requisito nuevo dentro de una capacidad que ya existe va bajo ADDED Requirements, no MODIFIED. MODIFIED es sólo para cambiar el comportamiento de uno existente, y exige copiar el bloque entero, no un fragmento."
+    - "Los escenarios llevan exactamente cuatro almohadillas. Con tres, o con viñetas, el parser los ignora en silencio."
+    - "Todo requisito necesita al menos un escenario, y un change sin ningún delta de spec no valida."
+    - "Explicar el fundamento del requisito, no sólo la regla: qué se rompe si no se cumple."
+
+  design:
+    - "Cada decisión va con la alternativa que se descartó y el motivo. Una decisión sin alternativa considerada no es una decisión, es una descripción."
+    - "Los riesgos van con su mitigación concreta, no como advertencia genérica."
+    - "Si algo no se midió, declararlo. No presentar una expectativa como si fuera un resultado."
+
+  tasks:
+    - "Cada tarea es una casilla con texto verificable. Si no se puede saber cuándo está hecha, está mal escrita."
+    - "No crear tareas que ningún actor pueda marcar. Si una tarea depende de una validación humana, tiene que quedar claro quién la marca."
+    - "Marcar una casilla sólo después de haber hecho lo que dice, nunca al planificarla."
+    - "No se implementa encima de un change archivado: verificar antes que el change sigue activo."

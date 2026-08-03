@@ -27,9 +27,9 @@ reales y persistencia de decisiones en SQLite para calibración estadística.
 | IA | OpenRouter (HTTP directo, sin SDK) — proveedor primario; stubs para openai/gemini/opencode |
 | DB | `node:sqlite` built-in (prefijo `node:` preservado vía tsup external + onSuccess patch) |
 | Build | tsup (Electron) + electron-builder (NSIS/dmg/AppImage) · puerto dev: 3001 |
-| Tests | Vitest — **547 tests / 76 archivos** (verificados verdes 2026-07-30). Componentes con jsdom + testing-library, declarado por archivo con `@vitest-environment jsdom` |
+| Tests | Vitest. Componentes con jsdom + testing-library, declarado por archivo con `@vitest-environment jsdom`. La cifra exacta se obtiene corriendo `pnpm test`: escribirla acá la desactualiza a la semana siguiente, y este documento ya llegó a declarar tres números distintos a la vez |
 | Calidad | Fallow (`pnpm exec fallow`, config en `.fallowrc.json`) + CodeGraph MCP. Snapshot 2026-07-23: dead-code 17 issues, dupes 11 clone groups, health 335 sobre umbral, MI 90.5 (good); deuda heredada, F00 no tocó código. |
-| Gobernanza | `AGENTS.md`. El método es OpenSpec: todo trabajo pasa por un change y se cierra con `openspec validate --strict`. Cierre obligatorio: `tsc --noEmit` en cero, `pnpm test` verde y reporte en `docs/reports/`. Fallow y CodeGraph son rutinas que pide Ale, no automatismos. |
+| Gobernanza | El método es OpenSpec. Las reglas de trabajo viven en `openspec/config.yaml` y el CLI las entrega vía `openspec instructions`; `AGENTS.md` es la puerta de entrada. Cierre: `tsc --noEmit` en cero, `pnpm test` verde y `openspec validate --strict`. Archivar no toca Git. Fallow y CodeGraph son rutinas que pide Ale, no automatismos. |
 
 ## 3. Mapa de arquitectura (cifras refrescadas 2026-06-18, v1.9.1)
 
@@ -143,18 +143,21 @@ visualmente delicado, no tocar geometría sin validación visual), `DiffViewer.t
 - ~14 branches viejas de features ya integradas (02-, 13-, 14-, …, 30-db-v1,
   feature/31-…) — candidatas a prune en housekeeping. **No borrar sin OK explícito de Ale.**
 
-## 7. Comandos de cierre de fase (obligatorios)
+## 7. Cierre de una tanda
 
 ```powershell
-npx.cmd tsc --noEmit      # 0 errores
-pnpm test                 # 289/289 verde (o más si agregaste)
-pnpm exec fallow          # reportar delta: LOC, duplicación, dead code
+pnpm exec tsc --noEmit                  # 0 errores
+pnpm test                               # verde
+openspec validate <change> --strict     # válido
 git status --short
-git diff --stat
 ```
 
-Para inspección estructural usá **CodeGraph antes de grep**: `codegraph_status`,
-`codegraph_context`, `codegraph_search`, `codegraph_impact`.
+La suite tiene un flake conocido en los archivos que crean repositorios Git reales, así que
+conviene correrla más de una vez antes de declararla verde.
+
+`pnpm exec fallow` y CodeGraph **no** son parte del cierre: son rutinas que se corren cuando Ale
+las pide (invariante 17). Para inspección estructural, CodeGraph antes de grep:
+`codegraph_status`, `codegraph_search`, `codegraph_impact`, `codegraph_callers`.
 
 ## 8. Deuda de seguridad confirmada por Pipeline F00 (2026-07-23)
 

@@ -430,10 +430,10 @@ interface ElectronAPI {
   pipelineGetSnapshot: (repoPath: string, selectedChangeId?: string | null) => Promise<GitResult<PipelineState>>;
   pipelineSubscribe: (repoPath: string, selectedChangeId?: string | null) => Promise<GitResult<PipelineState>>;
   pipelineUnsubscribe: (repoPath: string) => Promise<GitResult>;
-  /** Plan del archivado: mensajes, incluidos y excluidos. No ejecuta nada. */
+  /** Plan del archivado: el comando que se va a ejecutar. No ejecuta nada. */
   pipelineArchivePlan: (repoPath: string, changeId: string) => Promise<GitResult>;
-  /** Archiva un change desde el proceso principal. `commit` confirma los dos commits. */
-  pipelineArchiveChange: (repoPath: string, changeId: string, commit?: boolean) => Promise<GitResult>;
+  /** Archiva un change desde el proceso principal. No toca Git. */
+  pipelineArchiveChange: (repoPath: string, changeId: string) => Promise<GitResult>;
   onPipelineSnapshotUpdated: (cb: (repoPath: string, snapshot: PipelineState) => void) => () => void;
   pipelineRuntime: {
     discover: (repoPath: string) => Promise<GitResult<RuntimeDiscoveryEntry[]>>;

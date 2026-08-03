@@ -198,7 +198,7 @@ describe('archivado explícito de un cambio', () => {
     const confirm = await screen.findByRole('button', { name: /openspec\.archive\.confirmAction/ });
     confirm.click();
 
-    await vi.waitFor(() => expect(pipelineArchiveChange).toHaveBeenCalledWith('C:/repo', 'demo-change', true));
+    await vi.waitFor(() => expect(pipelineArchiveChange).toHaveBeenCalledWith('C:/repo', 'demo-change'));
     // El cambio figura archivado porque se relee el disco, no porque la llamada
     // haya vuelto sin error.
     await vi.waitFor(() => expect(onRefresh).toHaveBeenCalled());
@@ -211,39 +211,26 @@ describe('archivado explícito de un cambio', () => {
     });
   });
 
-  it('muestra el alcance antes de ejecutar, y lo que muestra es lo que ejecuta', async () => {
+  it('muestra qué va a ejecutar antes de hacerlo, y no toca nada por mostrarlo', async () => {
+    // El panel mostraba además los dos mensajes de commit, los archivos que
+    // entraban y los que quedaban fuera. Eso se retiró al desacoplar el
+    // archivado del commit: archivar hace lo que OpenSpec define y nada más,
+    // así que el único alcance que hay para declarar es el comando.
     const pipelineArchiveChange = vi.fn().mockResolvedValue({ success: true });
-    const pipelineArchivePlan = vi.fn().mockResolvedValue({
-      success: true,
-      data: {
-        workMessage: 'feat(pipeline): el trabajo',
-        archiveMessage: 'chore(openspec): archivar demo-change',
-        included: ['components/algo.tsx'],
-        excluded: ['components/de-otro-change.tsx'],
-        signature: true,
-      },
-    });
     Object.defineProperty(window, 'api', {
       configurable: true,
-      value: { pipelineArchiveChange, pipelineArchivePlan, pipelineRuntime: { discover: vi.fn(), start: vi.fn(), stop: vi.fn() } },
+      value: { pipelineArchiveChange, pipelineRuntime: { discover: vi.fn(), start: vi.fn(), stop: vi.fn() } },
     });
 
     renderDashboard({ validation: 'passed' });
     screen.getByRole('button', { name: /openspec\.archive\.actionPending/ }).click();
 
-    // Los dos mensajes, lo que entra, y —sobre todo— lo que queda fuera: un
-    // manifiesto con una omisión es el modo de fallo más silencioso.
-    await vi.waitFor(() => expect(screen.getByText('feat(pipeline): el trabajo')).toBeTruthy());
-    expect(screen.getByText('chore(openspec): archivar demo-change')).toBeTruthy();
-    expect(screen.getByText('components/algo.tsx')).toBeTruthy();
-    expect(screen.getByText('components/de-otro-change.tsx')).toBeTruthy();
-    // Se avisa que la firma va a quedar marcada.
-    expect(screen.getByText(/openspec\.archive\.signs/)).toBeTruthy();
-    // Nada se ejecutó por mostrarlo.
+    const confirm = await screen.findByRole('button', { name: /openspec\.archive\.confirmAction/ });
+    // Nada se ejecutó por pedirlo: primero se muestra, después se confirma.
     expect(pipelineArchiveChange).not.toHaveBeenCalled();
 
-    screen.getByRole('button', { name: /openspec\.archive\.confirmAction/ }).click();
-    await vi.waitFor(() => expect(pipelineArchiveChange).toHaveBeenCalledWith('C:/repo', 'demo-change', true));
+    confirm.click();
+    await vi.waitFor(() => expect(pipelineArchiveChange).toHaveBeenCalledWith('C:/repo', 'demo-change'));
   });
 
   it('no declara archivado cuando el CLI falló', async () => {

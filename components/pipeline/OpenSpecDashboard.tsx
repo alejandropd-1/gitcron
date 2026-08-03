@@ -183,24 +183,7 @@ export function OpenSpecDashboard({
    * comando exacto y recién al confirmarlo se ejecuta.
    */
   const [archiveRequest, setArchiveRequest] = useState<{ changeId: string; command: string } | null>(null);
-  /** Alcance de lo que va a ocurrir. Se pide antes de ejecutar y se muestra entero. */
-  const [archivePlan, setArchivePlan] = useState<{
-    workMessage: string | null;
-    archiveMessage: string;
-    included: string[];
-    excluded: string[];
-    signature: boolean;
-  } | null>(null);
   const [archiveBusy, setArchiveBusy] = useState(false);
-  /**
-   * Confirmar también en Git.
-   *
-   * Archivar y commitear son decisiones distintas. Con varios changes encimados
-   * sobre los mismos archivos el commit por change no es separable —Git
-   * commitea archivos enteros—, y ahí conviene archivar sin tocar Git y
-   * commitear a mano.
-   */
-  const [archiveCommit, setArchiveCommit] = useState(true);
   /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -326,7 +309,7 @@ export function OpenSpecDashboard({
     if (!archiveRequest || archiveBusy || fixtureActive || !api?.pipelineArchiveChange) return;
     setArchiveBusy(true);
     setArchiveError(null);
-    void api.pipelineArchiveChange(repoPath, archiveRequest.changeId, archiveCommit)
+    void api.pipelineArchiveChange(repoPath, archiveRequest.changeId)
       .then((response) => {
         const result = response as { success?: boolean; error?: string } | null;
         if (result?.success) {
@@ -389,17 +372,8 @@ export function OpenSpecDashboard({
         setFlowMode(null);
         setLaunchTarget(null);
         setArchiveError(null);
-        setArchivePlan(null);
         setArchiveRequest({ changeId: intent.changeId, command: composeArchiveInstruction(intent.changeId) });
         setCenterTab('work');
-        // El alcance se pide antes de ejecutar nada: mensajes, archivos que
-        // entran y —sobre todo— los modificados que quedan fuera, para que una
-        // omisión del manifiesto se vea antes y no después.
-        const api = typeof window !== 'undefined' ? window.api : undefined;
-        void api?.pipelineArchivePlan?.(repoPath, intent.changeId).then((response) => {
-          const result = response as { success?: boolean; data?: typeof archivePlan } | null;
-          if (result?.success && result.data) setArchivePlan(result.data);
-        }).catch(() => undefined);
         break;
       }
       case 'focus-decision':
@@ -697,41 +671,11 @@ export function OpenSpecDashboard({
                     <span>{t('pipeline.openspec.archive.confirmHelp')}</span>
                   </div>
                   <pre className={styles.archiveCommand}><code>{archiveRequest.command}</code></pre>
-                  {archivePlan && (
-                    <div className={styles.archiveScope}>
-                      {archivePlan.signature && (
-                        <p data-tone="sign">{t('pipeline.openspec.archive.signs')}</p>
-                      )}
-                      {archivePlan.workMessage && (
-                        <p><strong>{t('pipeline.openspec.archive.commitWork')}</strong> <code>{archivePlan.workMessage.split(/\r?\n/)[0]}</code></p>
-                      )}
-                      <p><strong>{t('pipeline.openspec.archive.commitArchive')}</strong> <code>{archivePlan.archiveMessage}</code></p>
-                      <p><strong>{t('pipeline.openspec.archive.included', { count: archivePlan.included.length })}</strong></p>
-                      <ul>{archivePlan.included.map((file) => <li key={file}>{file}</li>)}</ul>
-                      {archivePlan.excluded.length > 0 && (
-                        <>
-                          {/* Lo que queda fuera se muestra a propósito: un manifiesto
-                              con una omisión es el modo de fallo más silencioso. */}
-                          <p data-tone="out"><strong>{t('pipeline.openspec.archive.excluded', { count: archivePlan.excluded.length })}</strong></p>
-                          <ul data-tone="out">{archivePlan.excluded.map((file) => <li key={file}>{file}</li>)}</ul>
-                        </>
-                      )}
-                    </div>
-                  )}
                   {archiveError && (
                     <p className={styles.archiveError} role="alert">
                       {t('pipeline.openspec.archive.failed')} {archiveError}
                     </p>
                   )}
-                  <label className={styles.archiveCommitToggle}>
-                    <input
-                      type="checkbox"
-                      checked={archiveCommit}
-                      disabled={archiveBusy}
-                      onChange={(event) => setArchiveCommit(event.target.checked)}
-                    />
-                    {t('pipeline.openspec.archive.alsoCommit')}
-                  </label>
                   <div className={styles.actions}>
                     <button
                       type="button"
@@ -750,7 +694,7 @@ export function OpenSpecDashboard({
                       type="button"
                       className={styles.secondaryAction}
                       disabled={archiveBusy}
-                      onClick={() => { setArchiveRequest(null); setArchivePlan(null); setArchiveError(null); }}
+                      onClick={() => { setArchiveRequest(null); setArchiveError(null); }}
                     >
                       {t('pipeline.openspec.archive.cancel')}
                     </button>

@@ -286,69 +286,6 @@ descubre por rebote de otra acción no está realmente presentado.
 - **WHEN** se activa el control de desplegado de un cambio
 - **THEN** ese cambio muestra su detalle, con independencia de cuál esté seleccionado
 
-### Requirement: El archivado registra la firma humana y sólo eso
-
-Archivar desde la aplicación SHALL marcar completada la tarea de firma del cambio, y SHALL NOT
-marcar ninguna otra. La tarea de firma SHALL identificarse por un texto literal declarado en la
-convención, nunca por heurística sobre prosa ni por su posición en la lista.
-
-Su texto SHALL declarar exactamente lo que el click prueba —que una persona confirmó el archivado
-desde la aplicación— y SHALL NOT afirmar nada que el click no demuestre, como haber revisado el
-resultado. Marcar toda tarea pendiente al archivar convertiría el checkbox en "se apretó el botón" y
-haría que el archivo afirme trabajo que nadie hizo.
-
-Si el cambio no declara tarea de firma, el archivado SHALL proceder sin marcar ninguna.
-
-#### Scenario: Cambio con tarea de firma
-
-- **WHEN** se confirma el archivado de un cambio que declara su tarea de firma
-- **THEN** esa tarea queda marcada y las demás conservan su estado
-
-#### Scenario: Tareas pendientes reales
-
-- **WHEN** el cambio tiene tareas sin marcar que no son la de firma
-- **THEN** siguen sin marcar, y el cambio se archiva declarando ese pendiente
-
-#### Scenario: Cambio sin tarea de firma
-
-- **WHEN** el cambio no declara ninguna tarea de firma
-- **THEN** se archiva sin marcar ninguna tarea
-
-### Requirement: Confirmar el trabajo en Git con alcance declarado y a la vista
-
-Archivar SHALL poder confirmar el trabajo en Git en dos commits —el del trabajo y el del archivado—
-y SHALL mostrar antes de ejecutar el mensaje de cada uno, los archivos que entran y **los archivos
-modificados que quedan fuera**.
-
-El alcance del commit del trabajo SHALL leerse de un manifiesto declarado por el cambio, porque el
-árbol puede contener varios cambios en curso y no es deducible cuál archivo pertenece a cuál. Los
-archivos SHALL enumerarse uno por uno; SHALL NOT agregarse directorios completos.
-
-El archivado SHALL NOT ejecutar `push`, `merge`, `tag` ni ninguna operación que publique. La
-confirmación humana autoriza esa acción concreta y nada más.
-
-Si el commit del trabajo falla, el archivado SHALL NOT continuar, y el motivo real SHALL mostrarse.
-
-#### Scenario: Alcance a la vista antes de ejecutar
-
-- **WHEN** se pide archivar un cambio que declara manifiesto
-- **THEN** se muestran los mensajes, los archivos incluidos y los modificados que quedan fuera, y nada se ejecuta hasta confirmar
-
-#### Scenario: Manifiesto equivocado
-
-- **WHEN** un archivo modificado que corresponde al cambio no figura en el manifiesto
-- **THEN** aparece entre los que quedan fuera, de modo que el error se vea antes de confirmar
-
-#### Scenario: Falla el commit del trabajo
-
-- **WHEN** el commit del trabajo falla
-- **THEN** no se archiva ni se commitea nada más, y se muestra el motivo informado por Git
-
-#### Scenario: Nada se publica
-
-- **WHEN** se completa el archivado con sus dos commits
-- **THEN** no se ejecuta ningún `push` ni `merge`, y publicar sigue siendo una acción manual
-
 ### Requirement: Pipeline no inventa superficies de aviso propias
 
 Los avisos de Pipeline SHALL emitirse por la superficie de notificaciones de la aplicación, y
@@ -444,4 +381,42 @@ oculta contexto que la persona no pidió esconder.
 
 - **WHEN** hay una confirmación abierta
 - **THEN** el contenido de trabajo sigue estando, debajo, alcanzable con el mismo desplazamiento
+
+### Requirement: Archivar hace lo que OpenSpec define y nada más
+Archivar desde la aplicación SHALL ejecutar el archivado de OpenSpec —mover el cambio a su histórico
+y consolidar las especificaciones— y SHALL NOT realizar ninguna operación de control de versiones.
+La aplicación SHALL mostrar qué va a ocurrir antes de ejecutar, y SHALL NOT declarar éxito si el
+archivado falló.
+
+El fundamento es que OpenSpec declara explícitamente que deja el control de versiones al usuario:
+gestiona artefactos de planificación, no commits. Fusionar ambas cosas obligó a inventar un
+manifiesto y una tarea de firma que sólo existen en este repositorio, y que ningún ejecutor puede
+descubrir consultando la herramienta.
+
+#### Scenario: Archivado pedido desde la aplicación
+- **WHEN** una persona confirma el archivado de un cambio
+- **THEN** el cambio queda archivado con sus especificaciones consolidadas, y el estado de Git no se
+  modifica
+
+#### Scenario: El archivado falla
+- **WHEN** el archivado de OpenSpec devuelve un error
+- **THEN** se informa el motivo real y no se declara éxito
+
+### Requirement: La metodología viaja por el canal de la herramienta
+Las reglas de trabajo que un ejecutor debe respetar SHALL declararse donde el CLI de OpenSpec las
+entrega —contexto del proyecto y reglas por artefacto—, de modo que cualquier ejecutor las reciba al
+pedir instrucciones. Una regla que sólo exista en un archivo suelto SHALL NOT considerarse vigente
+para agentes.
+
+El fundamento es que una convención que depende de que alguien abra un archivo se pierde en cuanto
+el ejecutor no lo tiene: en este repositorio, un runtime sin los comandos instalados nunca vio el
+flujo y trabajó con reglas locales sin saberlo.
+
+#### Scenario: Ejecutor que pide instrucciones para un artefacto
+- **WHEN** un ejecutor consulta las instrucciones de un artefacto de un cambio
+- **THEN** recibe el contexto del proyecto y las reglas que apliquen a ese artefacto
+
+#### Scenario: Regla que contradice a la herramienta
+- **WHEN** una regla local impone un paso que la herramienta no define
+- **THEN** se retira o se declara por el canal de la herramienta, y no queda en un archivo suelto
 

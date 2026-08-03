@@ -48,8 +48,9 @@
 13. **Un change por vez.** El alcance es el que declaran los artefactos OpenSpec del change.
     Lo que no está en el change no es parte del trabajo; si hace falta, se amplía el change.
 14. **Cierre obligatorio:** `pnpm exec tsc --noEmit` en 0 + `pnpm test` verde +
-    `openspec validate <change> --strict` válido + **reporte escrito en `docs/reports/`**
-    (qué tocaste, qué NO tocaste, resultado real de esas comprobaciones) + **STOP**.
+    `openspec validate <change> --strict` válido + **STOP**. Un reporte en `docs/reports/` no es
+    obligatorio, pero sigue siendo la forma de dejar registrado lo que las comprobaciones no
+    demuestran: qué se tocó, qué no, y el resultado real —incluido "no mejoró"—.
 15. **Scope cerrado.** No tocar `README.md` ni `CHANGELOG.md` mientras se implementa —
     la documentación se actualiza en una pasada propia al cierre, indicada por Ale.
 16. **No revertir cambios ajenos.** No eliminar código sólo porque un análisis marque

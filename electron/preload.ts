@@ -253,10 +253,10 @@ contextBridge.exposeInMainWorld('api', {
   pipelineGetSnapshot: (repoPath: string, selectedChangeId?: string | null) => ipcRenderer.invoke('pipeline:get-snapshot', repoPath, selectedChangeId ?? null),
   pipelineSubscribe: (repoPath: string, selectedChangeId?: string | null) => ipcRenderer.invoke('pipeline:subscribe', repoPath, selectedChangeId ?? null),
   pipelineUnsubscribe: (repoPath: string) => ipcRenderer.invoke('pipeline:unsubscribe', repoPath),
-  /** Plan del archivado: mensajes, archivos incluidos y los que quedan fuera. No ejecuta nada. */
+  /** Plan del archivado: el comando que se va a ejecutar. No ejecuta nada. */
   pipelineArchivePlan: (repoPath: string, changeId: string) => ipcRenderer.invoke('pipeline:archive-plan', repoPath, changeId),
-  /** Archiva un change. `commit` confirma también los dos commits. Nunca publica. */
-  pipelineArchiveChange: (repoPath: string, changeId: string, commit?: boolean) => ipcRenderer.invoke('pipeline:archive-change', repoPath, changeId, commit === true),
+  /** Archiva un change: mueve el cambio y consolida specs. No toca Git. */
+  pipelineArchiveChange: (repoPath: string, changeId: string) => ipcRenderer.invoke('pipeline:archive-change', repoPath, changeId),
   /** El historial cambió: hay commits nuevos hechos por la aplicación. */
   onRepoCommitsChanged: (cb: (repoPath: string) => void) => {
     const handler = (_e: unknown, payload: { repoPath: string }) => cb(payload.repoPath);

@@ -9,7 +9,7 @@ import { BranchContextMenuLayer, CommitContextMenu, FileContextMenu } from '@/co
 import { type RepoStartMode } from '@/components/RepoModals';
 import { useGitStore, Commit, GitFile, type FontSize, type RepoState } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
-import { useRepoLoader } from '@/hooks/use-repo-loader';
+import { useRepoLoader, useRepoWatch } from '@/hooks/use-repo-loader';
 import { setRepoLoading } from '@/hooks/git-actions/repo-loading';
 import { useAutoFetch } from '@/hooks/use-auto-fetch';
 import { commitHasBranchRef, normalizeBranchName, type CommitSelectOptions } from '@/components/CommitGraph';
@@ -147,6 +147,11 @@ export default function GitCronPage() {
     refreshStatus, pickFolder, initRepo, cloneRepo, createGitHubRepo, listUserGitHubRepos,
     refreshRemotes, refreshWorktrees, refreshSubmodules, refreshBranches,
   } = useRepoLoader();
+
+  // Única observación del repositorio de toda la aplicación. Vive acá porque la
+  // raíz dura lo que dura la aplicación, que es exactamente lo que debe durar la
+  // observación; montarla más abajo la ataría a una vista.
+  useRepoWatch();
 
   const graphShowAllBranches = useGitStore((s) => s.getActiveRepo()?.graphShowAllBranches ?? true);
   const rawGraphMode = useGitStore((s) => s.getActiveRepo()?.graphMode ?? 'classic');

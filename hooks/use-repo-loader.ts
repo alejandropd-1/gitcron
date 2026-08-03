@@ -618,6 +618,69 @@ export const useRepoLoader = () => {
     ]);
   };
 
+  return {
+    openRepo,
+    pendingInitRepo,
+    cancelPendingInitRepo,
+    initializePendingRepo,
+    initializePendingRepoWithRemote, adoptPendingRepoRemote,
+    trustSafeDirectory,
+    restoreLastRepo,
+    closeRepo,
+    persistOpenRepos,
+    pickFolder,
+    initRepo,
+    cloneRepo,
+    createGitHubRepo,
+    listUserGitHubRepos,
+    refreshLog,
+    refreshStatus,
+    refreshBranches,
+    refreshStashes,
+    refreshTags,
+    refreshSubmodules,
+    refreshRemotes,
+    refreshWorktrees,
+    refreshPullRequests,
+    loadDiff,
+    loadAll,
+  };
+};
+
+/**
+ * Cuántas observaciones hay montadas a la vez.
+ *
+ * Sólo informa: no decide quién observa. Un contador que elige comportamiento
+ * dependería del orden de montaje, que ningún consumidor declara; uno que sólo
+ * declara una condición no puede romper nada.
+ */
+let mountedWatchers = 0;
+
+/**
+ * Observación del repositorio abierto. **Se monta una sola vez**, en la raíz.
+ *
+ * Vivía dentro de `useRepoLoader`, que se llama desde ocho lugares por sus
+ * funciones de refresco. Cada llamada montaba su propia suscripción y su propio
+ * intervalo: la consola declaraba `11 repo:fs-change listeners added`, y un solo
+ * cambio de archivo disparaba once `git status` sin deduplicar. Ninguno de esos
+ * consumidores pidió observar; lo heredaban por pedir las funciones.
+ */
+export const useRepoWatch = () => {
+  const repoPath = useGitStore((state) => state.repoPath);
+  const { refreshStatus, refreshLog, refreshBranches } = useRepoLoader();
+
+  useEffect(() => {
+    mountedWatchers += 1;
+    if (process.env.NODE_ENV !== 'production' && mountedWatchers > 1) {
+      console.warn(
+        `[useRepoWatch] hay ${mountedWatchers} observaciones montadas a la vez. `
+        + 'Debe montarse una sola, en la raíz: cada una duplica las suscripciones '
+        + 'y el intervalo de refresco.'
+      );
+    }
+    return () => { mountedWatchers -= 1; };
+  }, []);
+
   // Watch working-tree for changes so UNSTAGED updates without a manual git action.
   const fsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -673,32 +736,4 @@ export const useRepoLoader = () => {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoPath]);
-
-  return {
-    openRepo,
-    pendingInitRepo,
-    cancelPendingInitRepo,
-    initializePendingRepo,
-    initializePendingRepoWithRemote, adoptPendingRepoRemote,
-    trustSafeDirectory,
-    restoreLastRepo,
-    closeRepo,
-    persistOpenRepos,
-    pickFolder,
-    initRepo,
-    cloneRepo,
-    createGitHubRepo,
-    listUserGitHubRepos,
-    refreshLog,
-    refreshStatus,
-    refreshBranches,
-    refreshStashes,
-    refreshTags,
-    refreshSubmodules,
-    refreshRemotes,
-    refreshWorktrees,
-    refreshPullRequests,
-    loadDiff,
-    loadAll,
-  };
 };

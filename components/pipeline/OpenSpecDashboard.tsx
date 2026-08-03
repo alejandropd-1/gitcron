@@ -692,8 +692,16 @@ export function OpenSpecDashboard({
                   {/* Archivar siempre está a la vista mientras el cambio no esté
                       archivado: si no se puede, se dice por qué en vez de
                       desaparecer. Con tareas pendientes se declara cuántas, para
-                      que archivar no sea una decisión tomada a ciegas. */}
-                  {selectedArchive === null && (
+                      que archivar no sea una decisión tomada a ciegas.
+
+                      Excepción: cuando la acción primaria derivada ya es archivar
+                      (validación aprobada y sin tareas pendientes), este botón no
+                      se renderiza. Renderizarlo duplicaría el control con el mismo
+                      texto y el mismo efecto, lo que la guía prohíbe. En los demás
+                      estados sí aporta: con tareas pendientes ofrece archivar
+                      declarando cuántas, y con validación no aprobada muestra el
+                      motivo por el que no se puede. */}
+                  {selectedArchive === null && primaryAction?.intent.kind !== 'start-archive' && (
                     <button
                       type="button"
                       className={styles.secondaryAction}

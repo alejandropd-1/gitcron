@@ -12,7 +12,7 @@ import type {
   EconomyState,
   PipelineDiffItem,
 } from './pipeline-domain';
-import type { OpenSpecChangeArtifacts, OpenSpecValidationStatus, TaskEvidence } from '@/types/pipeline';
+import type { OpenSpecChangeArtifacts, OpenSpecChangeStatus, OpenSpecValidationStatus, TaskEvidence } from '@/types/pipeline';
 
 export type PipelineSource = 'git' | 'openspec' | 'runtime';
 
@@ -29,6 +29,11 @@ export type OpenSpecChangeSummary = {
   validation: OpenSpecValidationStatus;
   /** Markdown de los artefactos. Sólo lo trae el cambio seleccionado. */
   artifacts: OpenSpecChangeArtifacts | null;
+  /**
+   * Grafo de artefactos con estados `blocked` / `ready` / `done`. Sólo lo
+   * trae el cambio seleccionado; `null` para los demás.
+   */
+  status?: OpenSpecChangeStatus | null;
 };
 
 export type OpenSpecWorkspaceSnapshot = {

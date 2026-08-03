@@ -38,6 +38,13 @@ export interface OpenSpecChangeEvidence {
    * en `null` aunque el archivo exista, y para eso está `proposalExists`.
    */
   artifacts: OpenSpecChangeArtifacts | null;
+  /**
+   * Grafo de artefactos con estados `blocked` / `ready` / `done`, leído del
+   * CLI. Opcional para no romper snapshots viejos; `null` para los cambios no
+   * seleccionados, porque la lectura cuesta y ningún consumidor la mira en
+   * ellos (mismo criterio que `artifacts` y `validation`).
+   */
+  status?: OpenSpecChangeStatus | null;
 }
 
 export interface OpenSpecChangeArtifacts {
@@ -52,6 +59,39 @@ export interface OpenSpecDeltaSpec {
   capability: string;
   content: string | null;
   sourceRef: string;
+}
+
+/**
+ * Estado de un artefacto dentro del grafo de dependencias de OpenSpec.
+ *
+ * `state` es el estado del nodo, no del change: `blocked` cuando le faltan
+ * dependencias, `ready` cuando sus dependencias están `done`, y `done` cuando
+ * el archivo existe en disco. Es el grafo real que el CLI devuelve, no una
+ * derivación propia.
+ */
+export type OpenSpecArtifactState = 'blocked' | 'ready' | 'done';
+
+export interface OpenSpecArtifactStatus {
+  id: string;
+  state: OpenSpecArtifactState;
+  /** Artefactos de los que depende y que todavía no están `done`. */
+  missingDeps: string[];
+}
+
+/**
+ * Grafo de artefactos de un change, leído del CLI (`openspec status`).
+ *
+ * `available` distingue "el CLI no pudo ejecutarse" de "el grafo está vacío":
+ * no poder leer el estado real no es lo mismo que saber que no hay nada. En
+ * ese caso `artifacts` va vacío y `isComplete` en `false`, y el consumidor
+ * sabe que no hay grafo para mostrar en vez de leerlo como "todo listo".
+ */
+export interface OpenSpecChangeStatus {
+  available: boolean;
+  artifacts: OpenSpecArtifactStatus[];
+  /** Artefactos que `apply` exige que estén `done`. */
+  applyRequires: string[];
+  isComplete: boolean;
 }
 
 export interface OpenSpecArchivedChangeEvidence {

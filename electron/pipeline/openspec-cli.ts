@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { OpenSpecValidationStatus } from '../../types/pipeline';
+import type { OpenSpecArtifactState, OpenSpecArtifactStatus, OpenSpecChangeStatus, OpenSpecValidationStatus } from '../../types/pipeline';
 
 const execFileAsync = promisify(execFile);
 
@@ -102,5 +102,89 @@ export async function validateOpenSpecChangeWithCli(
     return 'passed';
   } catch (error) {
     return typeof (error as { code?: unknown })?.code === 'number' ? 'failed' : 'unknown';
+  }
+}
+
+/**
+ * Forma cruda del JSON que devuelve `openspec status --json`. Se mapea a los
+ * tipos propios antes de salir del wrapper, para no filtrar la forma del CLI
+ * al resto del código.
+ */
+interface OpenSpecStatusCliArtifact {
+  id?: unknown;
+  status?: unknown;
+  missingDeps?: unknown;
+}
+interface OpenSpecStatusCliOutput {
+  artifacts?: unknown;
+  applyRequires?: unknown;
+  isComplete?: unknown;
+}
+
+const ARTIFACT_STATES: ReadonlySet<string> = new Set(['blocked', 'ready', 'done']);
+
+/**
+ * Mapea el `status` del CLI al `state` del tipo propio, tolerando lo que no
+ * encaja. Un artefacto sin `id` o con un `status` desconocido se descarta en
+ * vez de romper todo el grafo: una versión futura del CLI podría sumar estados,
+ * y un crash acá dejaría al panel sin snapshot.
+ */
+function mapCliArtifact(raw: OpenSpecStatusCliArtifact): OpenSpecArtifactStatus | null {
+  if (typeof raw.id !== 'string' || raw.id.length === 0) return null;
+  const state = typeof raw.status === 'string' && ARTIFACT_STATES.has(raw.status)
+    ? (raw.status as OpenSpecArtifactState)
+    : null;
+  if (state === null) return null;
+  const missingDeps = Array.isArray(raw.missingDeps)
+    ? raw.missingDeps.filter((dep): dep is string => typeof dep === 'string')
+    : [];
+  return { id: raw.id, state, missingDeps };
+}
+
+/**
+ * Lee el grafo de artefactos de un change con `openspec status --json`.
+ *
+ * `available: false` significa que no se pudo leer el grafo —el CLI no está,
+ * timed out, o la salida no era JSON válido—. No es lo mismo que un grafo
+ * vacío, y por eso se distingue: el consumidor declara "no hay grafo" en vez
+ * de leerlo como "todo listo". Es el mismo principio que `validate → unknown`.
+ *
+ * Vale la misma nota de seguridad que los demás wrappers: los argumentos son
+ * literales y `changeId` pasó `CHANGE_ID_PATTERN`.
+ */
+export async function statusOpenSpecChangeWithCli(
+  repoPath: string,
+  changeId: string,
+): Promise<OpenSpecChangeStatus> {
+  const unavailable: OpenSpecChangeStatus = { available: false, artifacts: [], applyRequires: [], isComplete: false };
+  if (!CHANGE_ID_PATTERN.test(changeId)) return unavailable;
+  try {
+    const { stdout } = await execFileAsync(CLI.command, ['status', changeId, '--json'], {
+      cwd: repoPath,
+      timeout: 15_000,
+      windowsHide: true,
+      shell: CLI.shell,
+      maxBuffer: 2 * 1024 * 1024,
+      env: { ...process.env, OPENSPEC_TELEMETRY_DISABLED: '1', DO_NOT_TRACK: '1' },
+    });
+    const parsed = JSON.parse(stdout) as OpenSpecStatusCliOutput;
+    const artifacts = Array.isArray(parsed.artifacts)
+      ? parsed.artifacts
+        .map((raw) => mapCliArtifact(raw as OpenSpecStatusCliArtifact))
+        .filter((artifact): artifact is OpenSpecArtifactStatus => artifact !== null)
+      : [];
+    const applyRequires = Array.isArray(parsed.applyRequires)
+      ? parsed.applyRequires.filter((req): req is string => typeof req === 'string')
+      : [];
+    return {
+      available: true,
+      artifacts,
+      applyRequires,
+      isComplete: parsed.isComplete === true,
+    };
+  } catch {
+    // No distinguir fallo de validación de indisponibilidad del binario: acá no
+    // hay nada que validar, sólo leer. Cualquier fallo es "no hay grafo".
+    return unavailable;
   }
 }

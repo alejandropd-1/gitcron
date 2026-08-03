@@ -8,6 +8,7 @@ import type {
   DecisionRequest,
   OpenSpecArchivedChangeEvidence,
   OpenSpecChangeEvidence,
+  OpenSpecChangeStatus,
   OpenSpecDeltaSpec,
   OpenSpecSpecificationEvidence,
   OpenSpecValidationStatus,
@@ -16,7 +17,7 @@ import type {
 } from '../../types/pipeline';
 import { selectPipelineChange } from './change-selection';
 import { parseAudit, parseMarkdownTasks } from './parsers';
-import { validateOpenSpecChangeWithCli } from './openspec-cli';
+import { statusOpenSpecChangeWithCli, validateOpenSpecChangeWithCli } from './openspec-cli';
 import { safeListRepoDirectory, safeReadRepoFile } from './repo-paths';
 
 const execFileAsync = promisify(execFile);
@@ -26,6 +27,13 @@ export interface RepoEvidenceReaderDependencies {
   currentBranch(repoPath: string): Promise<string>;
   mergedChanges(repoPath: string, candidates: string[]): Promise<string[]>;
   validateOpenSpecChange?(repoPath: string, changeId: string): Promise<OpenSpecValidationStatus>;
+  /**
+   * Grafo de artefactos del change (`openspec status --json`). Igual que
+   * `validateOpenSpecChange` y `artifacts`, se invoca sólo para el cambio
+   * seleccionado: el spawn del CLI cuesta y ningún consumidor lo mira en los
+   * demás.
+   */
+  statusOpenSpecChange?(repoPath: string, changeId: string): Promise<OpenSpecChangeStatus>;
   now(): string;
 }
 
@@ -117,6 +125,7 @@ export class RepoEvidenceReader {
     currentBranch: defaultCurrentBranch,
     mergedChanges: defaultMergedChanges,
     validateOpenSpecChange: defaultValidateOpenSpecChange,
+    statusOpenSpecChange: statusOpenSpecChangeWithCli,
     now: () => new Date().toISOString(),
   }) {}
 
@@ -184,7 +193,7 @@ export class RepoEvidenceReader {
       // no sea el seleccionado, así que tres cuartos de ese costo no alimentaban
       // nada. Es el mismo criterio que ya regía para `artifacts`.
       const isSelected = changeId === selection.changeId;
-      const [taskFile, proposalFile, designFile, deltaSpecs, validation] = await Promise.all([
+      const [taskFile, proposalFile, designFile, deltaSpecs, validation, status] = await Promise.all([
         safeReadRepoFile(repoPath, taskRef),
         safeReadRepoFile(repoPath, proposalRef),
         safeReadRepoFile(repoPath, designRef),
@@ -195,6 +204,12 @@ export class RepoEvidenceReader {
         isSelected
           ? this.dependencies.validateOpenSpecChange?.(repoPath, changeId) ?? Promise.resolve('unknown' as const)
           : Promise.resolve('unknown' as const),
+        // El grafo de artefactos sigue el mismo criterio que `validate` y
+        // `artifacts`: sólo para el seleccionado. Para los demás queda en
+        // `null`, que es distinto de un grafo vacío o indisponible.
+        isSelected
+          ? this.dependencies.statusOpenSpecChange?.(repoPath, changeId) ?? Promise.resolve(null as OpenSpecChangeStatus | null)
+          : Promise.resolve(null as OpenSpecChangeStatus | null),
       ]);
       if (taskFile.status !== 'missing') diagnostics.push(...taskFile.diagnostics);
       if (proposalFile.status !== 'missing') diagnostics.push(...proposalFile.diagnostics);
@@ -217,6 +232,7 @@ export class RepoEvidenceReader {
             specs: await this.readDeltaSpecs(repoPath, changeRoot, deltaSpecs, diagnostics),
           }
           : null,
+        status,
       });
     }
 

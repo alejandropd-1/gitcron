@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { OpenSpecChangeStatus } from '../../types/pipeline';
 import { RepoEvidenceReader } from '../pipeline/repo-evidence-reader';
 
 /**
@@ -10,7 +11,17 @@ import { RepoEvidenceReader } from '../pipeline/repo-evidence-reader';
  * refresco, y el watcher refresca en cada guardado de archivo. Estas pruebas
  * fijan que ese costo se pague sólo por el cambio seleccionado, que es el único
  * cuya validación alguna vista consume.
+ *
+ * Lo mismo rige para `statusOpenSpecChange` (el grafo de artefactos): mismo
+ * spawn, mismo costo, mismo criterio de pago-sólo-el-seleccionado.
  */
+const STATUS_GRAPH: OpenSpecChangeStatus = {
+  available: true,
+  artifacts: [{ id: 'proposal', state: 'ready', missingDeps: [] }],
+  applyRequires: ['tasks'],
+  isComplete: false,
+};
+
 describe('Alcance de la validación por CLI', () => {
   let root: string;
 
@@ -85,5 +96,48 @@ describe('Alcance de la validación por CLI', () => {
 
     expect(snapshot.selection.changeId).toBeNull();
     expect(validateOpenSpecChange).not.toHaveBeenCalled();
+  });
+
+  it('lee el grafo una sola vez, y sólo para el cambio seleccionado', async () => {
+    await writeChange('feature-a');
+    await writeChange('feature-b');
+    await writeChange('feature-c');
+    const statusOpenSpecChange = vi.fn(async () => STATUS_GRAPH);
+
+    const snapshot = await new RepoEvidenceReader({
+      listOpenSpecChanges: async () => ['feature-a', 'feature-b', 'feature-c'],
+      currentBranch: async () => 'feature/feature-a',
+      mergedChanges: async () => [],
+      validateOpenSpecChange: async () => 'unknown',
+      statusOpenSpecChange,
+      now: () => '2026-07-31T00:00:00.000Z',
+    }).read(root, 'repo-1');
+
+    expect(statusOpenSpecChange).toHaveBeenCalledTimes(1);
+    expect(statusOpenSpecChange).toHaveBeenCalledWith(root, 'feature-a');
+
+    const changes = snapshot.evidence.openSpecChanges ?? [];
+    expect(changes.find((item) => item.changeId === 'feature-a')?.status).toEqual(STATUS_GRAPH);
+    // Los no seleccionados transportan `null`: no es lo mismo que un grafo
+    // vacío o indisponible, es que no se leyó porque nadie lo consume.
+    expect(changes.find((item) => item.changeId === 'feature-b')?.status).toBeNull();
+    expect(changes.find((item) => item.changeId === 'feature-c')?.status).toBeNull();
+  });
+
+  it('no lee el grafo cuando la selección es ambigua', async () => {
+    await writeChange('feature-a');
+    await writeChange('feature-b');
+    const statusOpenSpecChange = vi.fn(async () => STATUS_GRAPH);
+
+    const snapshot = await new RepoEvidenceReader({
+      listOpenSpecChanges: async () => ['feature-a', 'feature-b'],
+      currentBranch: async () => 'main',
+      mergedChanges: async () => [],
+      statusOpenSpecChange,
+      now: () => '2026-07-31T00:00:00.000Z',
+    }).read(root, 'repo-1');
+
+    expect(snapshot.selection.changeId).toBeNull();
+    expect(statusOpenSpecChange).not.toHaveBeenCalled();
   });
 });

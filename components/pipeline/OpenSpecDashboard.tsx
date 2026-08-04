@@ -221,6 +221,15 @@ export function OpenSpecDashboard({
    * sostiene el resultado a la vista hasta que haya algo nuevo que preparar.
    */
   const [lastPreparedCount, setLastPreparedCount] = useState<number | null>(null);
+  /**
+   * Desmarcado pendiente de confirmación.
+   *
+   * Marcar agrega una afirmación que su autor hace en ese momento; desmarcar
+   * borra la constancia de algo que alguien afirmó antes, y además queda escrito
+   * en el registro. Por eso sólo esta dirección pregunta.
+   */
+  const [uncheckRequest, setUncheckRequest] = useState<{ line: number; text: string; label: string } | null>(null);
+  const [taskError, setTaskError] = useState<string | null>(null);
   /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -402,6 +411,30 @@ export function OpenSpecDashboard({
     } finally {
       setPrepareBusy(false);
     }
+  };
+
+  /**
+   * Cambia el estado de una tarea.
+   *
+   * El texto viaja para que el proceso principal verifique que sigue siendo la
+   * misma tarea: con el watcher andando, el archivo puede haber cambiado entre
+   * que se dibujó esta lista y llegó el clic.
+   */
+  const setTaskChecked = async (line: number, text: string, completed: boolean) => {
+    const api = typeof window !== 'undefined' ? window.api : undefined;
+    if (!selectedChange || fixtureActive || !api?.pipelineSetTaskChecked) return;
+    setTaskError(null);
+    const response = await api.pipelineSetTaskChecked(repoPath, selectedChange.changeId, line, text, completed);
+    const result = response as { success?: boolean; error?: string } | null;
+    if (result?.success) {
+      // La lista se relee del disco: la casilla cambia porque el archivo lo
+      // dice, no porque la llamada haya vuelto sin error.
+      onRefresh?.();
+      return;
+    }
+    setTaskError(result?.error === 'mismatch'
+      ? t('pipeline.openspec.task.mismatch')
+      : t('pipeline.openspec.task.failed'));
   };
 
   /**
@@ -823,6 +856,40 @@ export function OpenSpecDashboard({
                 </div>
               )}
 
+              {/* Desmarcar borra la constancia de algo que alguien afirmó haber
+                  hecho, y queda escrito en el registro: un clic accidental
+                  escribiría algo que nadie quiso. Marcar no pregunta. */}
+              {uncheckRequest && (
+                <div className={styles.archiveConfirm}>
+                  <div className={styles.archiveConfirmHead}>
+                    <strong>{t('pipeline.openspec.task.uncheckTitle', { task: uncheckRequest.label })}</strong>
+                    <span>{t('pipeline.openspec.task.uncheckHelp')}</span>
+                  </div>
+                  <div className={styles.actions}>
+                    <button
+                      type="button"
+                      className={styles.primaryAction}
+                      onClick={() => {
+                        void setTaskChecked(uncheckRequest.line, uncheckRequest.text, false);
+                        setUncheckRequest(null);
+                      }}
+                    >
+                      {t('pipeline.openspec.task.uncheckConfirm')}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      onClick={() => setUncheckRequest(null)}
+                    >
+                      {t('pipeline.openspec.archive.cancel')}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {taskError && (
+                <p className={styles.archiveError} role="alert">{taskError}</p>
+              )}
+
               {centerTab === 'commit' ? (
                 /* Confirmar en Git tiene su propia pestaña: mezclarlo con el
                    trabajo hacía que archivar y commitear parecieran lo mismo. */
@@ -956,7 +1023,31 @@ export function OpenSpecDashboard({
                       const current = task.id === nextTask?.id;
                       return (
                         <li key={task.id} data-completed={task.completed} data-current={current}>
-                          <span className={styles.taskStatus}>{task.completed ? <Check size={14} /> : <Circle size={14} />}</span>
+                          {/* El estado deja de ser decorativo: se puede cambiar
+                              desde acá. Un cambio archivado no se edita, y el
+                              control lo declara en vez de desaparecer. */}
+                          <button
+                            type="button"
+                            className={styles.taskStatus}
+                            disabled={fixtureActive}
+                            aria-pressed={task.completed}
+                            title={t(task.completed
+                              ? 'pipeline.openspec.task.uncheck'
+                              : 'pipeline.openspec.task.check')}
+                            onClick={() => {
+                              if (!task.completed) {
+                                void setTaskChecked(task.line, task.text, true);
+                                return;
+                              }
+                              setUncheckRequest({
+                                line: task.line,
+                                text: task.text,
+                                label: resolveTaskLabel(task),
+                              });
+                            }}
+                          >
+                            {task.completed ? <Check size={14} /> : <Circle size={14} />}
+                          </button>
                           {/* La numeración se toma del texto: `task.id` es un hash
                               estable, útil como clave pero ilegible como etiqueta. */}
                           <strong>{resolveTaskLabel(task)}</strong>

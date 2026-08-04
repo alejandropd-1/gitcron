@@ -434,6 +434,14 @@ interface ElectronAPI {
   pipelineArchivePlan: (repoPath: string, changeId: string) => Promise<GitResult>;
   /** Archiva un change desde el proceso principal. No toca Git. */
   pipelineArchiveChange: (repoPath: string, changeId: string) => Promise<GitResult>;
+  /** Cambia el estado de una tarea del change. `expectedText` verifica que sea la misma. */
+  pipelineSetTaskChecked: (
+    repoPath: string,
+    changeId: string,
+    line: number,
+    expectedText: string,
+    completed: boolean,
+  ) => Promise<GitResult>;
   onPipelineSnapshotUpdated: (cb: (repoPath: string, snapshot: PipelineState) => void) => () => void;
   pipelineRuntime: {
     discover: (repoPath: string) => Promise<GitResult<RuntimeDiscoveryEntry[]>>;

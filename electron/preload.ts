@@ -257,6 +257,9 @@ contextBridge.exposeInMainWorld('api', {
   pipelineArchivePlan: (repoPath: string, changeId: string) => ipcRenderer.invoke('pipeline:archive-plan', repoPath, changeId),
   /** Archiva un change: mueve el cambio y consolida specs. No toca Git. */
   pipelineArchiveChange: (repoPath: string, changeId: string) => ipcRenderer.invoke('pipeline:archive-change', repoPath, changeId),
+  /** Cambia el estado de una tarea. `expectedText` verifica que sea la misma. */
+  pipelineSetTaskChecked: (repoPath: string, changeId: string, line: number, expectedText: string, completed: boolean) =>
+    ipcRenderer.invoke('pipeline:set-task-checked', repoPath, changeId, line, expectedText, completed),
   /** El historial cambió: hay commits nuevos hechos por la aplicación. */
   onRepoCommitsChanged: (cb: (repoPath: string) => void) => {
     const handler = (_e: unknown, payload: { repoPath: string }) => cb(payload.repoPath);

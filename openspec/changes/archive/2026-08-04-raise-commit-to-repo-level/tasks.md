@@ -34,4 +34,4 @@
 - [x] 5.2 Correr `pnpm test` más de una vez y reportar el resultado real, distinguiendo el flake conocido de los repositorios Git reales de una regresión
 - [x] 5.3 Correr el lint sobre los archivos tocados y dejarlo limpio
 - [x] 5.4 Dejar `openspec validate raise-commit-to-repo-level --strict` válido
-- [ ] 5.5 Ale valida visualmente el panel nuevo y marca esta casilla: que la preparación se alcance sin cambio seleccionado, que los grupos se distingan, y si el panel debe abrirse solo al detectar el árbol sucio tras archivar o seguir siendo a pedido
+- [x] 5.5 Ale valida visualmente el panel nuevo y marca esta casilla: que la preparación se alcance sin cambio seleccionado, que los grupos se distingan, y si el panel debe abrirse solo al detectar el árbol sucio tras archivar o seguir siendo a pedido

@@ -122,7 +122,9 @@ describe('derivePipelineNextAction · matriz de estados', () => {
     expect(result.kind).toBe('task-pending');
     expect(result.titleParams).toMatchObject({ task: '1.2', completed: 1, total: 2 });
     expect(result.primary?.intent).toEqual({ kind: 'start-apply', changeId: 'demo-change', taskId: '1.2' });
-    expect(result.instruction).toBe('/opsx:apply demo-change\n\nContinuar con 1.2: hacer 1.2');
+    expect(result.instruction).toContain('tarea 1.2');
+    expect(result.instruction).toContain('hacer 1.2');
+    expect(result.instruction).toContain('«demo-change»');
   });
 
   it('con sesión activa dirige a la actividad y no ofrece arrancar otra', () => {
@@ -157,7 +159,9 @@ describe('derivePipelineNextAction · matriz de estados', () => {
     }));
     expect(result.kind).toBe('session-retry');
     expect(result.primary?.intent).toEqual({ kind: 'start-apply', changeId: 'demo-change', taskId: '1.2' });
-    expect(result.instruction).toBe('/opsx:apply demo-change\n\nContinuar con 1.2: hacer 1.2');
+    // Reintentar entrega la misma instrucción que la primera vez: si difiriera,
+    // el reintento no sería del mismo trabajo.
+    expect(result.instruction).toBe(composeApplyInstruction('demo-change', '1.2', 'hacer 1.2'));
   });
 
   it('una sesión interrumpida también ofrece reintentar', () => {
@@ -288,26 +292,66 @@ describe('derivePipelineNextAction · honestidad de la evidencia', () => {
 });
 
 describe('composición de instrucciones', () => {
-  it('compone Apply con cambio, tarea y texto', () => {
-    expect(composeApplyInstruction('c1', '2.1', 'hacer algo')).toBe('/opsx:apply c1\n\nContinuar con 2.1: hacer algo');
+  /**
+   * Las tres instrucciones que empezaban con un comando de extensión —`/opsx:…`—
+   * sólo funcionaban si el runtime lo tenía instalado. Con Claude no existe
+   * `.claude/commands/`, así que la sesión terminaba sin hacer nada. Ahora
+   * nombran los comandos del CLI, que es lo que esos guiones hacen igual.
+   */
+  it('la instrucción de implementación nombra cambio, tarea y texto', () => {
+    const instruction = composeApplyInstruction('c1', '2.1', 'hacer algo');
+
+    expect(instruction).toContain('«c1»');
+    expect(instruction).toContain('tarea 2.1');
+    expect(instruction).toContain('hacer algo');
+    // Los comandos que respaldan la acción, para que no haya que inferirlos.
+    expect(instruction).toContain('openspec status --change "c1" --json');
+    expect(instruction).toContain('openspec instructions tasks --change "c1" --json');
   });
 
   it('compone Archive', () => {
     expect(composeArchiveInstruction('c1')).toBe('openspec archive c1 --yes');
   });
 
-  it('compone Propose con restricciones', () => {
-    expect(composeProposeInstruction('mi-cambio', 'lograr X', 'sin tocar Y'))
-      .toBe('/opsx:propose mi-cambio\n\nObjetivo: lograr X\nAlcance y restricciones: sin tocar Y');
+  it('la instrucción de propuesta nombra el slug, el objetivo y las restricciones', () => {
+    const instruction = composeProposeInstruction('mi-cambio', 'lograr X', 'sin tocar Y');
+
+    expect(instruction).toContain('«mi-cambio»');
+    expect(instruction).toContain('openspec new change "mi-cambio"');
+    expect(instruction).toContain('Objetivo: lograr X');
+    expect(instruction).toContain('Alcance y restricciones: sin tocar Y');
   });
 
   it('omite la línea de alcance cuando no hay restricciones', () => {
-    expect(composeProposeInstruction('mi-cambio', 'lograr X')).toBe('/opsx:propose mi-cambio\n\nObjetivo: lograr X');
-    expect(composeProposeInstruction('mi-cambio', 'lograr X', '   ')).toBe('/opsx:propose mi-cambio\n\nObjetivo: lograr X');
+    // Emitirla vacía le pediría respetar una restricción que nadie escribió.
+    expect(composeProposeInstruction('mi-cambio', 'lograr X')).not.toContain('Alcance y restricciones');
+    expect(composeProposeInstruction('mi-cambio', 'lograr X', '   ')).not.toContain('Alcance y restricciones');
   });
 
-  it('compone Explore', () => {
-    expect(composeExploreInstruction('  una idea  ')).toBe('/opsx:explore\n\nQuiero explorar: una idea');
+  it('la instrucción de exploración no compromete estructura', () => {
+    const instruction = composeExploreInstruction('  una idea  ');
+
+    expect(instruction).toContain('Quiero explorar: una idea');
+    // Explorar es pensar antes de decidir: crear un change acá convertiría la
+    // duda en una decisión tomada.
+    expect(instruction).toContain('sin crear ningún change');
+    expect(instruction).not.toContain('openspec new change');
+  });
+
+  it('ninguna instrucción depende de un comando de extensión', () => {
+    // Ésta es la red contra la regresión: un `/opsx:…` vuelve a atar la acción
+    // a que el runtime tenga el guion instalado, y su ausencia no se anuncia.
+    const composed = [
+      composeApplyInstruction('c1', '2.1', 'hacer algo'),
+      composeArchiveInstruction('c1'),
+      composeProposeInstruction('mi-cambio', 'lograr X', 'sin tocar Y'),
+      composeExploreInstruction('una idea'),
+    ];
+
+    for (const instruction of composed) {
+      expect(instruction).not.toContain('/opsx:');
+      expect(instruction.startsWith('/')).toBe(false);
+    }
   });
 });
 

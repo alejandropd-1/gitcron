@@ -103,6 +103,17 @@ function renderDashboard() {
   );
 }
 
+/**
+ * Abre la pestaña Commit, donde vive el panel de preparación.
+ *
+ * Vivía suelto arriba del panel de trabajo, y eso hacía que archivar y
+ * commitear parecieran lo mismo. Ahora tiene pestaña propia, así que hay que
+ * entrar antes de encontrar sus controles.
+ */
+function openCommitTab() {
+  fireEvent.click(screen.getByRole('tab', { name: /openspec\.tabs\.commit/ }));
+}
+
 const ORIGINAL_API = (globalThis as { window?: { api?: unknown } }).window?.api;
 
 beforeEach(() => {
@@ -137,6 +148,7 @@ afterEach(() => {
 describe('preparar el commit desde la guía', () => {
   it('deja archivos y mensaje listos y NO confirma', async () => {
     renderDashboard();
+    openCommitTab();
 
     // El control de preparar aparece porque el cambio tiene archivos en `own`.
     const button = screen.getByRole('button', { name: /openspec\.prepare\.action/ });
@@ -170,6 +182,7 @@ describe('preparar el commit desde la guía', () => {
     });
 
     renderDashboard();
+    openCommitTab();
     fireEvent.click(screen.getByRole('button', { name: /openspec\.prepare\.action/ }));
 
     await vi.waitFor(() => expect(stageFiles).toHaveBeenCalled());
@@ -186,6 +199,7 @@ describe('preparar el commit desde la guía', () => {
     useGitStore.setState({ commitMessage: 'fix: algo que escribí' });
 
     renderDashboard();
+    openCommitTab();
     fireEvent.click(screen.getByRole('button', { name: /openspec\.prepare\.action/ }));
 
     await vi.waitFor(() => expect(stageFiles).toHaveBeenCalled());

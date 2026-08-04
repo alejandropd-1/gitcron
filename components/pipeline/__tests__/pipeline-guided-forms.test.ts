@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { canStartRuntimeSession, validateExploreForm, validateProposeForm } from '../pipeline-guided-forms';
+import { composeExploreInstruction, composeProposeInstruction } from '../pipeline-next-action';
 
 const launchable = {
   blockedByFixture: false,
   runtimeSelected: 'claude',
   runtimeLaunchable: true,
-  instruction: '/opsx:apply c1',
+  instruction: 'una instrucción cualquiera, no vacía',
   sessionActive: false,
   busy: false,
 };
@@ -31,16 +32,18 @@ describe('validateProposeForm', () => {
     expect(result.errors.slug).toBe('pipeline.newChange.error.slug');
   });
 
-  it('compone la instrucción exacta cuando es válido', () => {
+  it('entrega la instrucción que compone la función, sin reescribirla', () => {
+    // El formulario valida y delega: si armara su propio texto, lo que se
+    // muestra bajo "Ver instrucción" y lo que se ejecuta podrían divergir.
     const result = validateProposeForm({ objective: 'lograr X', slug: 'mi-cambio', constraints: 'sin tocar Y' });
     expect(result.errors).toEqual({});
     expect(result.focus).toBeNull();
-    expect(result.instruction).toBe('/opsx:propose mi-cambio\n\nObjetivo: lograr X\nAlcance y restricciones: sin tocar Y');
+    expect(result.instruction).toBe(composeProposeInstruction('mi-cambio', 'lograr X', 'sin tocar Y'));
   });
 
   it('no emite una línea de alcance vacía', () => {
     const result = validateProposeForm({ objective: 'lograr X', slug: 'mi-cambio', constraints: '   ' });
-    expect(result.instruction).toBe('/opsx:propose mi-cambio\n\nObjetivo: lograr X');
+    expect(result.instruction).not.toContain('Alcance y restricciones');
   });
 });
 
@@ -52,9 +55,9 @@ describe('validateExploreForm', () => {
     expect(result.instruction).toBeNull();
   });
 
-  it('compone la instrucción exacta', () => {
+  it('entrega la instrucción que compone la función, sin reescribirla', () => {
     const result = validateExploreForm({ description: 'una idea' });
-    expect(result.instruction).toBe('/opsx:explore\n\nQuiero explorar: una idea');
+    expect(result.instruction).toBe(composeExploreInstruction('una idea'));
     expect(result.focus).toBeNull();
   });
 });

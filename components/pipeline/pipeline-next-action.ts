@@ -136,8 +136,30 @@ export function resolveTaskText(task: { id: string; text: string }): string {
   return TASK_LABEL_PATTERN.exec(task.text)?.[2] ?? task.text;
 }
 
+/**
+ * Instrucción de implementación, autosuficiente.
+ *
+ * Antes empezaba con `/opsx:apply`, un comando de extensión que sólo existe si
+ * el runtime lo tiene instalado. En este repositorio viven en
+ * `.agent/workflows/` y `.opencode/commands/`, pero `.claude/commands/` no
+ * existe: con Claude la sesión terminaba sin hacer nada. Es el mismo defecto que
+ * ya se corrigió en `composeArchiveInstruction`, que quedó a medias.
+ *
+ * Esos comandos son guiones en markdown que indican correr el CLI. Nombrar esos
+ * comandos acá hace lo mismo sin depender de que el guion esté instalado.
+ */
 export function composeApplyInstruction(changeId: string, taskId: string, taskText: string): string {
-  return `/opsx:apply ${changeId}\n\nContinuar con ${taskId}: ${taskText}`;
+  return [
+    `Implementá la tarea ${taskId} del change «${changeId}» en este repositorio.`,
+    '',
+    'Antes de escribir, consultá el estado y las instrucciones del artefacto:',
+    `  openspec status --change "${changeId}" --json`,
+    `  openspec instructions tasks --change "${changeId}" --json`,
+    '',
+    `Tarea ${taskId}: ${taskText}`,
+    '',
+    'Marcá la casilla en tasks.md sólo después de haberla completado.',
+  ].join('\n');
 }
 
 /**
@@ -156,19 +178,44 @@ export function composeArchiveInstruction(changeId: string): string {
 }
 
 /**
- * Instrucción de propuesta. La línea de alcance se omite entera cuando no hay
- * texto: emitirla vacía le pediría al agente que respete una restricción que
- * nadie escribió.
+ * Instrucción de propuesta, autosuficiente por el mismo motivo que la de
+ * implementación.
+ *
+ * La línea de alcance se omite entera cuando no hay texto: emitirla vacía le
+ * pediría al agente que respete una restricción que nadie escribió.
  */
 export function composeProposeInstruction(slug: string, objective: string, constraints?: string): string {
   const scope = constraints?.trim();
-  const lines = [`Objetivo: ${objective.trim()}`];
+  const lines = [
+    `Creá el change «${slug}» en este repositorio y generá sus artefactos de planificación.`,
+    '',
+    `  openspec new change "${slug}"`,
+    `  openspec status --change "${slug}" --json`,
+    '',
+    'Para cada artefacto que quede en estado `ready`, pedí sus instrucciones antes de escribirlo:',
+    `  openspec instructions <artefacto> --change "${slug}" --json`,
+    '',
+    `Objetivo: ${objective.trim()}`,
+  ];
   if (scope) lines.push(`Alcance y restricciones: ${scope}`);
-  return `/opsx:propose ${slug}\n\n${lines.join('\n')}`;
+  return lines.join('\n');
 }
 
+/**
+ * Instrucción de exploración.
+ *
+ * No crea nada a propósito: explorar es pensar en voz alta antes de comprometer
+ * estructura, y arrancar creando un change convertiría la duda en una decisión.
+ */
 export function composeExploreInstruction(description: string): string {
-  return `/opsx:explore\n\nQuiero explorar: ${description.trim()}`;
+  return [
+    'Explorá esta idea en el repositorio sin crear ningún change ni artefacto todavía.',
+    '',
+    `Quiero explorar: ${description.trim()}`,
+    '',
+    'Mirá cómo está resuelto hoy, proponé el camino más limpio y decime qué alcance tendría.',
+    'Si la idea se sostiene, el change se crea después, como paso aparte.',
+  ].join('\n');
 }
 
 function taskCounts(change: OpenSpecChangeSummary): { completed: number; total: number } {

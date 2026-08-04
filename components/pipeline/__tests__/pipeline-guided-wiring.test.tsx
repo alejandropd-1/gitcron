@@ -3,6 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
+import { composeApplyInstruction } from '../pipeline-next-action';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 
 /**
@@ -156,7 +157,9 @@ describe('cableado de la guía con el lanzador', () => {
       changeId: 'demo-change',
       taskId: '1.2',
     });
-    expect(start.mock.calls[0][0].instruction).toBe('/opsx:apply demo-change\n\nContinuar con 1.2: tarea 1.2');
+    // Lo que se lanza es exactamente lo que la guía compuso: si se recompusiera
+    // acá, lo mostrado bajo "Ver instrucción" y lo ejecutado podrían divergir.
+    expect(start.mock.calls[0][0].instruction).toBe(composeApplyInstruction('demo-change', '1.2', 'tarea 1.2'));
   });
 
   it('no permite arrancar una sesión real desde datos de vista previa', async () => {

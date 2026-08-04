@@ -53,3 +53,8 @@ output/
 
 # Pipeline kit telemetry (local evidence, never versioned)
 docs/ai/logs/
+
+# Planes de sesión de herramientas externas: son de la máquina y de la sesión,
+# no del proyecto. Se colaban en cada preparación de commit como si fueran
+# trabajo del change en curso.
+.zcode/

@@ -523,6 +523,21 @@
 .primaryAction:disabled,
 .secondaryAction:disabled { cursor: not-allowed; opacity: 0.38; }
 
+/* Acción textual dentro de una línea de texto: sumar o quitar toda la lista.
+   No compite con el botón de preparar, que es la acción real del panel. */
+.linkAction {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--os-cyan);
+  font: 700 0.62rem var(--font-mono), ui-monospace, monospace;
+  text-decoration: underline;
+  text-underline-offset: 0.18rem;
+  cursor: pointer;
+}
+.linkAction:hover:not(:disabled) { color: #d5e0eb; }
+.linkAction:disabled { cursor: not-allowed; opacity: 0.38; }
+
 .launcherPanel,
 .evidencePanel { margin-top: 1rem; padding: 1rem; border: 1px solid var(--os-border-strong); background: rgba(10, 31, 49, 0.78); }
 /* Mientras el launcher descubre runtimes su interior está vacío: el marco se

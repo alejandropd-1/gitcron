@@ -895,9 +895,41 @@ export function OpenSpecDashboard({
                    trabajo hacía que archivar y commitear parecieran lo mismo. */
                 <div className={styles.workArea}>
                   <div className={styles.archiveConfirm}>
-                    <div className={styles.archiveConfirmHead}>
-                      <strong>{t('pipeline.openspec.prepare.title')}</strong>
-                      <span>{t('pipeline.openspec.prepare.help')}</span>
+                    {/* Las acciones comparten fila con el título, arriba y a la
+                        derecha: al final de la lista quedaban fuera de vista con
+                        veinte archivos y había que bajar para encontrarlas. */}
+                    <div className={styles.prepareHead}>
+                      <div className={styles.archiveConfirmHead}>
+                        <strong>{t('pipeline.openspec.prepare.title')}</strong>
+                        <span>{t('pipeline.openspec.prepare.help')}</span>
+                      </div>
+                      {!nothingLeftToPrepare && (
+                        <div className={styles.prepareActions}>
+                          {commitScope.foreign.length > 0 && (
+                            <button
+                              type="button"
+                              className={styles.secondaryAction}
+                              disabled={prepareBusy}
+                              onClick={() => setExtraFiles((current) => (
+                                current.length === commitScope.foreign.length ? [] : [...commitScope.foreign]
+                              ))}
+                            >
+                              {extraFiles.length === commitScope.foreign.length
+                                ? t('pipeline.openspec.prepare.deselectAll')
+                                : t('pipeline.openspec.prepare.selectAll')}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className={styles.primaryAction}
+                            disabled={prepareBusy || fixtureActive || commitScope.own.length + extraFiles.length === 0}
+                            onClick={() => void prepareCommit()}
+                          >
+                            {prepareBusy ? <Loader2 size={14} className={styles.spin} /> : <GitBranch size={14} />}
+                            {t('pipeline.openspec.prepare.action')}
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {nothingLeftToPrepare ? (
@@ -962,33 +994,6 @@ export function OpenSpecDashboard({
                             </ul>
                           </div>
                         ))}
-                        {commitScope.foreign.length > 0 && (
-                          <div className={styles.actions}>
-                            <button
-                              type="button"
-                              className={styles.secondaryAction}
-                              disabled={prepareBusy}
-                              onClick={() => setExtraFiles((current) => (
-                                current.length === commitScope.foreign.length ? [] : [...commitScope.foreign]
-                              ))}
-                            >
-                              {extraFiles.length === commitScope.foreign.length
-                                ? t('pipeline.openspec.prepare.deselectAll')
-                                : t('pipeline.openspec.prepare.selectAll')}
-                            </button>
-                          </div>
-                        )}
-                        <div className={styles.actions}>
-                          <button
-                            type="button"
-                            className={styles.secondaryAction}
-                            disabled={prepareBusy || fixtureActive || commitScope.own.length + extraFiles.length === 0}
-                            onClick={() => void prepareCommit()}
-                          >
-                            {prepareBusy ? <Loader2 size={14} className={styles.spin} /> : <GitBranch size={14} />}
-                            {t('pipeline.openspec.prepare.action')}
-                          </button>
-                        </div>
                       </>
                     )}
                   </div>

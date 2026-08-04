@@ -488,7 +488,25 @@
 .taskList > li[data-current='true'] { border-left: 3px solid var(--os-cyan); background: var(--os-surface); }
 .taskList > li[data-completed='true'] .taskStatus { color: var(--os-green); }
 .taskList > li > em { color: var(--os-cyan); font-size: 0.6rem; font-style: normal; text-transform: uppercase; }
-.taskStatus { display: grid; place-items: center; color: var(--os-muted); }
+/* Control, no adorno: cambia el estado de la tarea.
+   Nació como `span` y al volverse accionable quedó sin señal de que se podía
+   apretar, y con un área del tamaño del ícono —14px— que obligaba a apuntar. El
+   padding negativo compensa el área agrandada para no mover la fila. */
+.taskStatus {
+  display: grid;
+  place-items: center;
+  padding: 0.35rem;
+  margin: -0.35rem;
+  border: 0;
+  border-radius: 0.2rem;
+  background: none;
+  color: var(--os-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.taskStatus:hover:not(:disabled) { background: rgba(94, 216, 255, 0.14); color: var(--os-cyan); }
+.taskStatus:focus-visible { outline: 1px solid var(--os-cyan); outline-offset: 1px; }
+.taskStatus:disabled { cursor: not-allowed; opacity: 0.45; }
 .taskDetail { grid-column: 1 / -1; margin: 0.75rem 0.2rem 0 2.9rem; padding-top: 0.75rem; border-top: 1px solid var(--os-border-strong); }
 /* Una fila por dato, no dos columnas: los valores son rutas y frases, y
    partirlos en media caja los volvia ilegibles. El valor envuelve en vez de
@@ -522,6 +540,19 @@
 .secondaryAction:hover:not(:disabled) { border-color: rgba(94, 216, 255, 0.48); color: var(--os-cyan); }
 .primaryAction:disabled,
 .secondaryAction:disabled { cursor: not-allowed; opacity: 0.38; }
+
+/* Título y acciones en la misma fila. Las acciones a la derecha y arriba: al
+   final de la lista quedaban fuera de vista con veinte archivos, y había que
+   bajar hasta el fondo para encontrar el botón de lo que uno acababa de elegir. */
+.prepareHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.prepareHead > div:first-child { flex: 1 1 18rem; min-width: 0; }
+.prepareActions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; }
 
 /* Lista de archivos a preparar. Aireada a propósito: en filas apretadas la ruta
    y su checkbox se leían como un bloque y había que apuntar con el mouse. */

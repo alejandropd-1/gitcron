@@ -523,6 +523,54 @@
 .primaryAction:disabled,
 .secondaryAction:disabled { cursor: not-allowed; opacity: 0.38; }
 
+/* Lista de archivos a preparar. Aireada a propósito: en filas apretadas la ruta
+   y su checkbox se leían como un bloque y había que apuntar con el mouse. */
+.fileList { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.35rem 0 0.75rem; }
+.fileList li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.12rem 0;
+  font: 500 0.68rem var(--font-mono), ui-monospace, monospace;
+  /* El contenido se puede copiar: una ruta se pega en una terminal y un título
+     se cita afuera. Impedirlo obligaba a transcribir a mano lo que ya está. */
+  user-select: text;
+}
+.fileList li span { min-width: 0; overflow-wrap: anywhere; }
+.fileGroup + .fileGroup { margin-top: 0.35rem; }
+
+/* Estado del archivo, con los mismos colores que el panel de preparación de Git.
+   `M` modificado, `A` agregado, `D` borrado, `R` renombrado, `U` sin seguimiento. */
+.fileStatus {
+  display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.15rem;
+  font: 700 0.55rem var(--font-mono), ui-monospace, monospace;
+  background: rgba(126, 151, 178, 0.16);
+  color: #9eacc0;
+}
+.fileStatus[data-status='modified'] { background: rgba(253, 157, 26, 0.18); color: #fd9d1a; }
+.fileStatus[data-status='added'] { background: rgba(163, 241, 133, 0.18); color: var(--os-green, #a3f185); }
+.fileStatus[data-status='deleted'] { background: rgba(255, 113, 108, 0.18); color: #ff716c; }
+.fileStatus[data-status='renamed'] { background: rgba(94, 216, 255, 0.18); color: var(--os-cyan); }
+
+/* A qué cambio pertenece un artefacto ajeno. Sólo aparece cuando hay algo que
+   decir: para el código no hay identificador, y repetir "sin atribuir" en cada
+   fila diría lo que el rótulo del grupo ya dice una vez. */
+.originPill {
+  flex: 0 0 auto;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.6rem;
+  font: 700 0.55rem var(--font-mono), ui-monospace, monospace;
+  font-style: normal;
+  color: #9eacc0;
+}
+
 /* Acción textual dentro de una línea de texto: sumar o quitar toda la lista.
    No compite con el botón de preparar, que es la acción real del panel. */
 .linkAction {

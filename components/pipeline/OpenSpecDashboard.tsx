@@ -23,9 +23,9 @@ import {
   MessageSquareText,
   BrainCircuit,
 } from 'lucide-react';
-import { useGitStore } from '@/lib/git-store';
+import { useGitStore, type GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
-import { deriveChangeCommitScope } from '@/lib/change-commit-scope';
+import { deriveChangeCommitScope, suggestCommitMessage, type CommitFileEntry } from '@/lib/change-commit-scope';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
@@ -81,6 +81,24 @@ type OpenSpecDashboardProps = {
 };
 
 type CenterTab = 'work' | 'commit' | 'activity' | 'artifacts';
+
+/**
+ * Estado de un archivo, con la misma representación que el panel de preparación
+ * de Git: un recuadro con la inicial del estado.
+ *
+ * Se reutiliza en vez de inventar otra para que la misma información no se lea
+ * de dos maneras según la pantalla. El estado sale del store, no del alcance
+ * derivado: la derivación responde de dónde viene el archivo, no en qué estado
+ * está.
+ */
+function FileStatusBadge({ path, files }: { path: string; files: GitFile[] }) {
+  const status = files.find((file) => file.path === path)?.status ?? 'modified';
+  return (
+    <span className={styles.fileStatus} data-status={status} title={status} aria-label={status}>
+      {status[0].toUpperCase()}
+    </span>
+  );
+}
 
 const ACTIVITY_ICONS: Record<ActivityChannel, React.ComponentType<{ size?: number }>> = {
   narrative: MessageSquareText,
@@ -337,8 +355,26 @@ export function OpenSpecDashboard({
       modifiedFiles.filter((file) => !file.staged).map((file) => file.path),
       commitMessage,
     )
-    : { own: [], foreign: [], suggestedMessage: null };
-  const nothingLeftToPrepare = commitScope.own.length === 0 && commitScope.foreign.length === 0;
+    : { files: [], own: [], foreign: [], suggestedMessage: null };
+  const nothingLeftToPrepare = commitScope.files.length === 0;
+  /** Los ajenos, agrupados por procedencia. Un grupo vacío no se muestra. */
+  const foreignGroups: Array<{ key: string; label: string; entries: CommitFileEntry[] }> = [
+    {
+      key: 'archived',
+      label: t('pipeline.openspec.prepare.groupArchived'),
+      entries: commitScope.files.filter((entry) => entry.origin.kind === 'archived'),
+    },
+    {
+      key: 'unattributed',
+      label: t('pipeline.openspec.prepare.groupUnattributed'),
+      entries: commitScope.files.filter((entry) => entry.origin.kind === 'unattributed'),
+    },
+    {
+      key: 'other',
+      label: t('pipeline.openspec.prepare.groupOther'),
+      entries: commitScope.files.filter((entry) => entry.origin.kind === 'other'),
+    },
+  ].filter((group) => group.entries.length > 0);
 
   /**
    * Deja el commit listo: archivos preparados y mensaje sugerido escrito.
@@ -348,13 +384,16 @@ export function OpenSpecDashboard({
    */
   const prepareCommit = async () => {
     const files = [...commitScope.own, ...extraFiles];
-    if (prepareBusy || fixtureActive || files.length === 0) return;
+    if (!selectedChange || prepareBusy || fixtureActive || files.length === 0) return;
     setPrepareBusy(true);
     try {
       const staged = await stageFiles(files, true);
       if (!staged) return;
-      // La sugerencia es `null` cuando ya hay un mensaje escrito: no se pisa.
-      if (commitScope.suggestedMessage) setCommitMessage(commitScope.suggestedMessage);
+      // El mensaje se compone acá, sobre el conjunto que realmente se envía.
+      // Derivarlo sólo de los propios daba una sugerencia que no correspondía al
+      // commit: con ningún archivo propio y todo elegido a mano, no podía sacar
+      // alcance de nada.
+      if (!commitMessage.trim()) setCommitMessage(suggestCommitMessage(selectedChange.changeId, files));
       setLastPreparedCount(files.length);
       // Lo elegido a mano ya viajó: dejarlo marcado haría que una segunda
       // preparación volviera a incluir archivos que ya no están en la lista.
@@ -804,56 +843,73 @@ export function OpenSpecDashboard({
                       </p>
                     ) : (
                       <>
-                        <p>
-                          <strong>{t('pipeline.openspec.prepare.included', { count: commitScope.own.length })}</strong>
-                        </p>
-                        <ul>{commitScope.own.map((file) => <li key={file}>{file}</li>)}</ul>
+                        {commitScope.own.length > 0 && (
+                          <>
+                            <p>
+                              <strong>{t('pipeline.openspec.prepare.included', { count: commitScope.own.length })}</strong>
+                            </p>
+                            <ul className={styles.fileList}>
+                              {commitScope.own.map((file) => (
+                                <li key={file}>
+                                  <FileStatusBadge path={file} files={modifiedFiles} />
+                                  <span>{file}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
                         {commitScope.suggestedMessage && (
                           <p>
                             <strong>{t('pipeline.openspec.prepare.message')}</strong>{' '}
                             <code>{commitScope.suggestedMessage}</code>
                           </p>
                         )}
-                        {commitScope.foreign.length > 0 && (
-                          <>
-                            {/* Lo que no se le puede atribuir se muestra a propósito:
-                                una omisión es el modo de fallo más silencioso. */}
+                        {/* Lo que no se le puede atribuir se muestra agrupado por
+                            procedencia: en una bolsa única había que recordar qué
+                            se tocó en cada trabajo para poder elegir. */}
+                        {foreignGroups.map((group) => (
+                          <div key={group.key} className={styles.fileGroup}>
                             <p data-tone="out">
-                              <strong>{t('pipeline.openspec.prepare.foreign', { count: commitScope.foreign.length })}</strong>
-                              {' '}
-                              <button
-                                type="button"
-                                className={styles.linkAction}
-                                disabled={prepareBusy}
-                                onClick={() => setExtraFiles((current) => (
-                                  current.length === commitScope.foreign.length ? [] : [...commitScope.foreign]
-                                ))}
-                              >
-                                {extraFiles.length === commitScope.foreign.length
-                                  ? t('pipeline.openspec.prepare.deselectAll')
-                                  : t('pipeline.openspec.prepare.selectAll')}
-                              </button>
+                              <strong>{group.label} ({group.entries.length})</strong>
                             </p>
-                            <ul data-tone="out">
-                              {commitScope.foreign.map((file) => (
-                                <li key={file}>
-                                  <label>
-                                    <input
-                                      type="checkbox"
-                                      checked={extraFiles.includes(file)}
-                                      disabled={prepareBusy}
-                                      onChange={(event) => setExtraFiles((current) => (
-                                        event.target.checked
-                                          ? [...current, file]
-                                          : current.filter((entry) => entry !== file)
-                                      ))}
-                                    />
-                                    {file}
-                                  </label>
+                            <ul data-tone="out" className={styles.fileList}>
+                              {group.entries.map((entry) => (
+                                <li key={entry.path}>
+                                  <input
+                                    type="checkbox"
+                                    checked={extraFiles.includes(entry.path)}
+                                    disabled={prepareBusy}
+                                    onChange={(event) => setExtraFiles((current) => (
+                                      event.target.checked
+                                        ? [...current, entry.path]
+                                        : current.filter((file) => file !== entry.path)
+                                    ))}
+                                  />
+                                  <FileStatusBadge path={entry.path} files={modifiedFiles} />
+                                  <span>{entry.path}</span>
+                                  {entry.origin.kind === 'other' && (
+                                    <em className={styles.originPill}>{entry.origin.changeId}</em>
+                                  )}
                                 </li>
                               ))}
                             </ul>
-                          </>
+                          </div>
+                        ))}
+                        {commitScope.foreign.length > 0 && (
+                          <div className={styles.actions}>
+                            <button
+                              type="button"
+                              className={styles.secondaryAction}
+                              disabled={prepareBusy}
+                              onClick={() => setExtraFiles((current) => (
+                                current.length === commitScope.foreign.length ? [] : [...commitScope.foreign]
+                              ))}
+                            >
+                              {extraFiles.length === commitScope.foreign.length
+                                ? t('pipeline.openspec.prepare.deselectAll')
+                                : t('pipeline.openspec.prepare.selectAll')}
+                            </button>
+                          </div>
                         )}
                         <div className={styles.actions}>
                           <button

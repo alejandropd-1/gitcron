@@ -153,6 +153,27 @@ describe('pestaña Commit', () => {
     expect(foreignBoxes().every((box) => !box.checked)).toBe(true);
   });
 
+  it('agrupa por procedencia y muestra el estado de cada archivo', () => {
+    // En una bolsa única había que recordar qué se tocó en cada trabajo para
+    // poder elegir; agrupado, el motivo de cada archivo se lee del rótulo.
+    setModified([
+      { path: 'openspec/changes/demo-change/tasks.md', staged: false },
+      { path: 'openspec/changes/otro-cambio/proposal.md', staged: false },
+      { path: 'openspec/changes/archive/2026-08-01-viejo/tasks.md', staged: false },
+      { path: 'components/algo.tsx', staged: false },
+    ]);
+    renderDashboard();
+    openCommitTab();
+
+    expect(screen.getByText(/openspec\.prepare\.groupOther/)).toBeTruthy();
+    expect(screen.getByText(/openspec\.prepare\.groupArchived/)).toBeTruthy();
+    expect(screen.getByText(/openspec\.prepare\.groupUnattributed/)).toBeTruthy();
+    // El artefacto ajeno dice de qué cambio es; el código no tiene qué decir.
+    expect(screen.getByText('otro-cambio')).toBeTruthy();
+    // Y cada archivo muestra su estado con la inicial, como el panel de staging.
+    expect(screen.getAllByLabelText('modified').length).toBeGreaterThan(0);
+  });
+
   it('sin archivos por preparar muestra el resumen en vez de la lista', async () => {
     renderDashboard();
     openCommitTab();

@@ -10,15 +10,39 @@
  * Puro y sin dependencias: se prueba entero con tablas de entrada y salida.
  */
 
+/**
+ * De dónde viene un archivo modificado.
+ *
+ * `other` lleva el identificador del cambio al que pertenece: esa atribución
+ * existe —un artefacto vive bajo la carpeta de su cambio— y descartarla obligaba
+ * a recordar qué se tocó en cada trabajo para poder elegir.
+ */
+export type CommitFileOrigin =
+  | { kind: 'own' }
+  | { kind: 'other'; changeId: string }
+  | { kind: 'archived' }
+  | { kind: 'unattributed' };
+
+export interface CommitFileEntry {
+  path: string;
+  origin: CommitFileOrigin;
+}
+
 export interface ChangeCommitScope {
-  /** Archivos atribuibles al cambio. */
+  /** Todos los modificados, cada uno con su procedencia. */
+  files: CommitFileEntry[];
+  /** Archivos atribuibles al cambio. Se deriva de `files`. */
   own: string[];
   /**
    * Modificados que no se le pueden atribuir con certeza. Se muestran para que
    * una omisión se vea, y se suman sólo por elección explícita.
    */
   foreign: string[];
-  /** Sugerencia para el campo de commit, o `null` si no corresponde pisar lo escrito. */
+  /**
+   * Sugerencia inicial para el campo de commit, o `null` si no corresponde pisar
+   * lo escrito. Es el valor a mostrar antes de que se elija nada: al preparar,
+   * el mensaje se recompone sobre el conjunto que realmente se envía.
+   */
   suggestedMessage: string | null;
 }
 
@@ -120,27 +144,29 @@ export function deriveChangeCommitScope(
   );
   const codeIsAmbiguous = otherChangesTouched.size > 0;
 
-  const own: string[] = [];
-  const foreign: string[] = [];
-  for (const file of changedFiles) {
-    const owner = artifactOwner(file);
+  const files: CommitFileEntry[] = changedFiles.map((path) => {
+    const owner = artifactOwner(path);
     // Los restos de un archivado —`archive/…` y `openspec/specs/…`— son
     // siempre ajenos al change activo: pertenecen al commit del archivado.
-    if (owner.kind === 'archived') {
-      foreign.push(file);
-    } else if (owner.kind === 'change') {
-      if (owner.id === changeId) own.push(file);
-      else foreign.push(file);
-    } else {
-      // Código no atribuible: entra en `own` cuando no hay ambigüedad, porque
-      // ningún otro change lo reclama; con varios cambios en curso no se
-      // adivina y queda para elegir a mano.
-      if (codeIsAmbiguous) foreign.push(file);
-      else own.push(file);
+    if (owner.kind === 'archived') return { path, origin: { kind: 'archived' } };
+    if (owner.kind === 'change') {
+      return owner.id === changeId
+        ? { path, origin: { kind: 'own' } }
+        : { path, origin: { kind: 'other', changeId: owner.id } };
     }
-  }
+    // Código no atribuible: es del cambio cuando no hay ambigüedad, porque
+    // ningún otro lo reclama; con varios en curso no se adivina y queda para
+    // elegir a mano.
+    return { path, origin: codeIsAmbiguous ? { kind: 'unattributed' } : { kind: 'own' } };
+  });
+
+  // `own` y `foreign` salen de los grupos y no se calculan aparte: dos fuentes
+  // para la misma pregunta terminarían contradiciéndose.
+  const own = files.filter((entry) => entry.origin.kind === 'own').map((entry) => entry.path);
+  const foreign = files.filter((entry) => entry.origin.kind !== 'own').map((entry) => entry.path);
 
   return {
+    files,
     own,
     foreign,
     suggestedMessage: currentMessage.trim() ? null : suggestCommitMessage(changeId, own),

@@ -99,14 +99,44 @@
   color: #d9e5f3;
 }
 
+/* Control, no rótulo: abre la preparación del commit del repositorio. Nació como
+   `div` informativo, así que necesita el reset de botón; el área clickeable es
+   toda la caja para no obligar a apuntar al texto. */
 .repoHealth {
   display: flex;
   align-items: flex-start;
   gap: 0.65rem;
   min-width: 13rem;
+  padding: 0.4rem 0.55rem;
+  margin: -0.4rem -0.55rem;
   justify-content: flex-end;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: none;
   color: var(--os-muted);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
 }
+
+.repoHealth:hover,
+.repoHealth:focus-visible { border-color: var(--os-border-strong); background: var(--os-surface); }
+.repoHealth[aria-expanded='true'] { border-color: var(--os-cyan); background: var(--os-surface); }
+
+.repoHealthCta {
+  align-self: center;
+  color: var(--os-cyan);
+  font: 650 0.62rem var(--font-mono), ui-monospace, monospace;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.repoHealth:hover .repoHealthCta,
+.repoHealth:focus-visible .repoHealthCta,
+.repoHealth[aria-expanded='true'] .repoHealthCta { opacity: 1; }
 
 .repoHealth > div { display: grid; gap: 0.25rem; }
 .repoHealth strong { color: #c9d8e8; font-size: 0.74rem; font-weight: 600; }
@@ -568,7 +598,69 @@
   user-select: text;
 }
 .fileList li span { min-width: 0; overflow-wrap: anywhere; }
-.fileGroup + .fileGroup { margin-top: 0.35rem; }
+.fileGroup + .fileGroup { margin-top: 0.9rem; }
+
+/* Panel de preparación del repositorio. Ocupa el centro y desplaza con su propio
+   scroll: con veinte archivos modificados, un flotante anclado al encabezado
+   quedaba apretado, y una sección fija le comía alto al panel aun sin nada que
+   confirmar. */
+.prepareArea {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.2rem 1.5rem;
+  overflow-y: auto;
+}
+
+.prepareArea > p { margin: 0 0 0.35rem; color: var(--os-muted); font: 0.72rem var(--font-mono), ui-monospace, monospace; }
+.prepareArea code { color: var(--os-cyan); user-select: text; }
+.prepareEmpty { padding-top: 0.6rem; }
+
+.prepareCount {
+  align-self: center;
+  color: var(--os-muted);
+  font: 0.68rem var(--font-mono), ui-monospace, monospace;
+}
+
+.fileGroup > p {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--os-border);
+}
+.fileGroup > p > strong { color: #c9d8e8; font: 650 0.72rem var(--font-mono), ui-monospace, monospace; }
+
+.groupToggle {
+  padding: 0.1rem 0.3rem;
+  border: 0;
+  background: none;
+  color: var(--os-cyan);
+  cursor: pointer;
+  font: 600 0.62rem var(--font-mono), ui-monospace, monospace;
+}
+.groupToggle:hover { text-decoration: underline; }
+.groupToggle:disabled { color: var(--os-muted); cursor: default; text-decoration: none; }
+
+/* La etiqueta envuelve la fila entera: con el área del tamaño de la casilla
+   había que apuntar, que es el mismo defecto que ya se corrigió en la lista de
+   tareas. El padding negativo compensa para no mover la fila. */
+.fileChoice {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.4rem;
+  margin: -0.3rem -0.4rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+}
+.fileChoice:hover { background: var(--os-surface); }
+.fileChoice input { cursor: pointer; }
 
 /* Estado del archivo, con los mismos colores que el panel de preparación de Git.
    `M` modificado, `A` agregado, `D` borrado, `R` renombrado, `U` sin seguimiento. */
@@ -589,18 +681,6 @@
 .fileStatus[data-status='deleted'] { background: rgba(255, 113, 108, 0.18); color: #ff716c; }
 .fileStatus[data-status='renamed'] { background: rgba(94, 216, 255, 0.18); color: var(--os-cyan); }
 
-/* A qué cambio pertenece un artefacto ajeno. Sólo aparece cuando hay algo que
-   decir: para el código no hay identificador, y repetir "sin atribuir" en cada
-   fila diría lo que el rótulo del grupo ya dice una vez. */
-.originPill {
-  flex: 0 0 auto;
-  padding: 0.05rem 0.35rem;
-  border: 1px solid var(--os-border-strong);
-  border-radius: 0.6rem;
-  font: 700 0.55rem var(--font-mono), ui-monospace, monospace;
-  font-style: normal;
-  color: #9eacc0;
-}
 
 /* Acción textual dentro de una línea de texto: sumar o quitar toda la lista.
    No compite con el botón de preparar, que es la acción real del panel. */
@@ -976,7 +1056,13 @@
     box-shadow: 1rem 0 2rem rgba(0, 0, 0, 0.42);
   }
   .summaryBar { grid-template-columns: auto minmax(0, 1fr); min-height: 5rem; }
-  .repoHealth { display: none; }
+  /* Se encoge, no se oculta: dejó de ser un rótulo decorativo y es la única
+     puerta a la preparación del commit. Ocultarlo acá retiraba la capacidad
+     entera en anchos angostos. Queda el punto de estado y la llamada, que es lo
+     accionable; la rama se sigue leyendo en el resto de las vistas de Git. */
+  .repoHealth { min-width: 0; }
+  .repoHealth > div { display: none; }
+  .repoHealthCta { opacity: 1; }
   /* Dos opciones lado a lado se vuelven ilegibles acá: pasan a apilarse, y las
      acciones del siguiente paso ocupan el ancho para no quedar cortadas. */
   .intentSwitch { grid-template-columns: minmax(0, 1fr); }

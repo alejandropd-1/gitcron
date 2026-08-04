@@ -1,126 +1,102 @@
 import { describe, expect, it } from 'vitest';
-import { deriveChangeCommitScope, deriveScope, suggestCommitMessage } from '../change-commit-scope';
-
-describe('atribución de archivos a un cambio', () => {
-  it('con un solo cambio en curso, todo lo modificado es suyo', () => {
-    // Nadie tiene que declararlo: si ningún otro cambio tiene artefactos
-    // tocados, no hay ambigüedad que resolver.
-    const scope = deriveChangeCommitScope('mi-cambio', [
-      'openspec/changes/mi-cambio/tasks.md',
-      'components/algo.tsx',
-      'electron/ipc/otro.ts',
-    ], '');
-
-    expect(scope.own).toEqual([
-      'openspec/changes/mi-cambio/tasks.md',
-      'components/algo.tsx',
-      'electron/ipc/otro.ts',
-    ]);
-    expect(scope.foreign).toEqual([]);
-  });
-
-  it('con varios cambios en curso, el código queda fuera por ambiguo', () => {
-    // Nada dice a qué cambio pertenece un archivo de código, y adivinarlo
-    // metería trabajo ajeno en el commit.
-    const scope = deriveChangeCommitScope('mi-cambio', [
-      'openspec/changes/mi-cambio/tasks.md',
-      'openspec/changes/otro-cambio/proposal.md',
-      'components/algo.tsx',
-    ], '');
-
-    expect(scope.own).toEqual(['openspec/changes/mi-cambio/tasks.md']);
-    expect(scope.foreign).toEqual([
-      'openspec/changes/otro-cambio/proposal.md',
-      'components/algo.tsx',
-    ]);
-  });
-
-  it('un cambio archivado no cuenta como cambio en curso, y sus restos no entran en el propio', () => {
-    // El archivo archivado pertenece al commit del archivado, no al trabajo en
-    // curso: aunque sea el único change activo y no haya ambigüedad, queda fuera.
-    // El código sí entra en `own` por descarte, porque ningún otro change lo reclama.
-    const scope = deriveChangeCommitScope('mi-cambio', [
-      'openspec/changes/mi-cambio/tasks.md',
-      'openspec/changes/archive/2026-08-01-viejo/tasks.md',
-      'components/algo.tsx',
-    ], '');
-
-    expect(scope.own).toEqual([
-      'openspec/changes/mi-cambio/tasks.md',
-      'components/algo.tsx',
-    ]);
-    expect(scope.foreign).toEqual(['openspec/changes/archive/2026-08-01-viejo/tasks.md']);
-  });
-
-  it('las specs consolidadas del archivado también quedan fuera del cambio activo', () => {
-    // `openspec/specs/…` sólo cambia por consolidación de archivado o por
-    // edición manual: en el primer caso acompaña a `archive/…` y se trata igual.
-    const scope = deriveChangeCommitScope('mi-cambio', [
-      'openspec/changes/mi-cambio/tasks.md',
-      'openspec/specs/pipeline-guided-workflow/spec.md',
-      'components/algo.tsx',
-    ], '');
-
-    expect(scope.own).toEqual([
-      'openspec/changes/mi-cambio/tasks.md',
-      'components/algo.tsx',
-    ]);
-    expect(scope.foreign).toEqual(['openspec/specs/pipeline-guided-workflow/spec.md']);
-  });
-
-  it('no confunde un cambio con otro cuyo identificador lo prefija', () => {
-    const scope = deriveChangeCommitScope('mi-cambio', [
-      'openspec/changes/mi-cambio-largo/tasks.md',
-    ], '');
-
-    expect(scope.own).toEqual([]);
-    expect(scope.foreign).toEqual(['openspec/changes/mi-cambio-largo/tasks.md']);
-  });
-});
+import {
+  deriveRepoCommitScope,
+  deriveScope,
+  fileOrigin,
+  soleChangeId,
+  suggestCommitMessage,
+} from '../change-commit-scope';
 
 describe('procedencia de cada archivo', () => {
-  it('agrupa por origen y nombra el cambio de los artefactos ajenos', () => {
-    // La atribución existe —un artefacto vive bajo la carpeta de su cambio— y
-    // antes se descartaba: todo lo ajeno caía en una bolsa indistinta.
-    const scope = deriveChangeCommitScope('mi-cambio', [
+  it('deduce el origen de la ubicación, sin cambio de referencia', () => {
+    expect(fileOrigin('openspec/changes/mi-cambio/tasks.md')).toEqual({ kind: 'change', changeId: 'mi-cambio' });
+    expect(fileOrigin('openspec/changes/archive/2026-08-01-viejo/tasks.md')).toEqual({ kind: 'archived' });
+    expect(fileOrigin('openspec/specs/una-capacidad/spec.md')).toEqual({ kind: 'archived' });
+    expect(fileOrigin('components/algo.tsx')).toEqual({ kind: 'unattributed' });
+  });
+
+  it('nombra el cambio de cada artefacto, sin privilegiar ninguno', () => {
+    // Antes había un cambio de referencia y todo lo demás caía en una bolsa
+    // ajena. Sin referencia, cada grupo se nombra por lo que es.
+    const scope = deriveRepoCommitScope([
       'openspec/changes/mi-cambio/tasks.md',
       'openspec/changes/otro-cambio/proposal.md',
       'openspec/changes/archive/2026-08-01-viejo/tasks.md',
       'openspec/specs/una-capacidad/spec.md',
       'components/algo.tsx',
-    ], '');
+    ]);
 
     expect(scope.files).toEqual([
-      { path: 'openspec/changes/mi-cambio/tasks.md', origin: { kind: 'own' } },
-      { path: 'openspec/changes/otro-cambio/proposal.md', origin: { kind: 'other', changeId: 'otro-cambio' } },
+      { path: 'openspec/changes/mi-cambio/tasks.md', origin: { kind: 'change', changeId: 'mi-cambio' } },
+      { path: 'openspec/changes/otro-cambio/proposal.md', origin: { kind: 'change', changeId: 'otro-cambio' } },
       { path: 'openspec/changes/archive/2026-08-01-viejo/tasks.md', origin: { kind: 'archived' } },
       { path: 'openspec/specs/una-capacidad/spec.md', origin: { kind: 'archived' } },
-      // Hay otro cambio en curso, así que el código no es atribuible.
       { path: 'components/algo.tsx', origin: { kind: 'unattributed' } },
     ]);
   });
 
-  it('sin otro cambio en curso el código es del cambio, no queda sin atribuir', () => {
-    const scope = deriveChangeCommitScope('mi-cambio', [
+  it('no confunde un cambio con otro cuyo identificador lo prefija', () => {
+    const scope = deriveRepoCommitScope([
+      'openspec/changes/mi-cambio/tasks.md',
+      'openspec/changes/mi-cambio-largo/tasks.md',
+    ]);
+
+    expect(scope.groups.map((group) => group.key)).toEqual(['change:mi-cambio', 'change:mi-cambio-largo']);
+  });
+});
+
+describe('agrupación por procedencia', () => {
+  it('un grupo por cambio, más los restos de archivado y lo sin atribuir', () => {
+    const scope = deriveRepoCommitScope([
       'openspec/changes/mi-cambio/tasks.md',
       'components/algo.tsx',
-    ], '');
+      'openspec/changes/otro-cambio/proposal.md',
+      'openspec/changes/archive/2026-08-01-viejo/tasks.md',
+      'openspec/changes/mi-cambio/design.md',
+    ]);
 
-    expect(scope.files.map((entry) => entry.origin.kind)).toEqual(['own', 'own']);
+    // Los cambios primero, en el orden en que aparecen sus archivos; los dos
+    // grupos fijos al final.
+    expect(scope.groups.map((group) => group.key)).toEqual([
+      'change:mi-cambio',
+      'change:otro-cambio',
+      'archived',
+      'unattributed',
+    ]);
+    expect(scope.groups[0].entries.map((entry) => entry.path)).toEqual([
+      'openspec/changes/mi-cambio/tasks.md',
+      'openspec/changes/mi-cambio/design.md',
+    ]);
   });
 
-  it('own y foreign se derivan de los grupos, no se calculan aparte', () => {
+  it('los grupos contienen exactamente los mismos archivos que la lista plana', () => {
     // Dos fuentes para la misma pregunta terminarían contradiciéndose.
-    const scope = deriveChangeCommitScope('mi-cambio', [
+    const scope = deriveRepoCommitScope([
       'openspec/changes/mi-cambio/tasks.md',
-      'openspec/changes/otro-cambio/proposal.md',
+      'openspec/specs/una-capacidad/spec.md',
       'components/algo.tsx',
-    ], '');
+    ]);
 
-    const ownFromGroups = scope.files.filter((entry) => entry.origin.kind === 'own').map((entry) => entry.path);
-    const foreignFromGroups = scope.files.filter((entry) => entry.origin.kind !== 'own').map((entry) => entry.path);
-    expect(scope.own).toEqual(ownFromGroups);
-    expect(scope.foreign).toEqual(foreignFromGroups);
+    expect(scope.groups.flatMap((group) => group.entries).map((entry) => entry.path).sort())
+      .toEqual(scope.files.map((entry) => entry.path).sort());
+  });
+
+  it('sin archivos modificados no hay nada que agrupar', () => {
+    const scope = deriveRepoCommitScope([]);
+    expect(scope.files).toEqual([]);
+    expect(scope.groups).toEqual([]);
+  });
+
+  it('los restos de un archivado se agrupan aunque no haya ningún cambio activo', () => {
+    // El caso que motivó subir el commit de nivel: después de archivar no queda
+    // ningún cambio desde el cual mirar, y estos archivos igual hay que confirmarlos.
+    const scope = deriveRepoCommitScope([
+      'openspec/changes/archive/2026-08-01-viejo/tasks.md',
+      'openspec/specs/una-capacidad/spec.md',
+    ]);
+
+    expect(scope.groups.map((group) => group.key)).toEqual(['archived']);
+    expect(scope.groups[0].entries).toHaveLength(2);
   });
 });
 
@@ -151,45 +127,79 @@ describe('alcance derivado del directorio', () => {
   });
 });
 
+describe('el cambio al que pertenece un conjunto', () => {
+  it('es el único que aparece, aunque haya código sin atribuir', () => {
+    // El caso corriente: se trabaja en un cambio tocando sus artefactos y algo
+    // de código. El código no tiene dueño con el cual entrar en conflicto.
+    expect(soleChangeId([
+      'openspec/changes/mi-cambio/tasks.md',
+      'components/algo.tsx',
+    ])).toBe('mi-cambio');
+  });
+
+  it('no hay ninguno cuando aparecen dos cambios', () => {
+    expect(soleChangeId([
+      'openspec/changes/mi-cambio/tasks.md',
+      'openspec/changes/otro-cambio/proposal.md',
+    ])).toBeNull();
+  });
+
+  it('los restos de un archivado no aportan identificador', () => {
+    // Pertenecen a otra confirmación: dejarlos nombrar el mensaje diría que el
+    // commit es de un trabajo que ya se cerró.
+    expect(soleChangeId([
+      'openspec/changes/archive/2026-08-01-viejo/tasks.md',
+      'components/algo.tsx',
+    ])).toBeNull();
+  });
+});
+
 describe('mensaje sugerido', () => {
-  it('usa tipo, alcance e identificador del cambio', () => {
-    expect(suggestCommitMessage('confirm-work-in-git', ['components/pipeline/a.tsx']))
-      .toBe('chore(pipeline): confirm-work-in-git');
+  it('usa tipo, alcance e identificador cuando el conjunto es de un solo cambio', () => {
+    expect(suggestCommitMessage([
+      'openspec/changes/confirm-work-in-git/tasks.md',
+      'components/pipeline/a.tsx',
+    ])).toBe('chore(pipeline): confirm-work-in-git');
   });
 
   it('omite el paréntesis cuando no hay alcance derivable', () => {
-    expect(suggestCommitMessage('mi-cambio', ['components/a.tsx', 'electron/b.ts']))
-      .toBe('chore: mi-cambio');
+    expect(suggestCommitMessage([
+      'openspec/changes/mi-cambio/tasks.md',
+      'components/a.tsx',
+      'electron/b.ts',
+    ])).toBe('chore: mi-cambio');
   });
 
-  it('no se sugiere nada si ya hay un mensaje escrito', () => {
-    // Pisarlo perdería lo que alguien estaba redactando, y sólo se notaría
-    // después de confirmar.
-    const scope = deriveChangeCommitScope('mi-cambio', ['components/a.tsx'], 'fix: algo que escribí');
-    expect(scope.suggestedMessage).toBeNull();
-  });
-
-  it('un campo con sólo espacios cuenta como vacío', () => {
-    const scope = deriveChangeCommitScope('mi-cambio', ['components/pipeline/a.tsx'], '   ');
-    expect(scope.suggestedMessage).toBe('chore(pipeline): mi-cambio');
-  });
-
-  it('se compone sobre los propios más los elegidos a mano', () => {
-    // El defecto observado: la sugerencia se derivaba sólo de `own`, pero se
-    // prepara `own` más lo elegido. Con `own` vacío no podía sacar alcance de
-    // nada, y el mensaje no correspondía al commit que se iba a hacer.
-    const scope = deriveChangeCommitScope('mi-cambio', [
+  it('deja la descripción vacía cuando el conjunto abarca varios cambios', () => {
+    // Deliberado: que deje de nombrar un cambio es la señal de que el commit
+    // está mezclando trabajos, y llega antes de confirmar. El prefijo queda
+    // listo para que una persona complete la descripción.
+    expect(suggestCommitMessage([
+      'openspec/changes/mi-cambio/tasks.md',
       'openspec/changes/otro-cambio/proposal.md',
       'components/pipeline/a.tsx',
-      'components/pipeline/b.tsx',
-    ], '');
-    // Sin archivos propios, la sugerencia inicial no puede derivar alcance.
-    expect(scope.own).toEqual([]);
-    expect(scope.suggestedMessage).toBe('chore: mi-cambio');
+    ])).toBe('chore(pipeline): ');
+  });
 
-    // Al preparar se compone sobre lo que realmente se envía.
-    const elegidos = ['components/pipeline/a.tsx', 'components/pipeline/b.tsx'];
-    expect(suggestCommitMessage('mi-cambio', [...scope.own, ...elegidos]))
-      .toBe('chore(pipeline): mi-cambio');
+  it('deja la descripción vacía cuando no hay ningún cambio en el conjunto', () => {
+    expect(suggestCommitMessage([
+      'openspec/changes/archive/2026-08-01-viejo/tasks.md',
+      'openspec/specs/una-capacidad/spec.md',
+    ])).toBe('chore: ');
+  });
+
+  it('se compone sobre el conjunto elegido, no sobre todo lo modificado', () => {
+    // El defecto que ya se había corregido y que no vuelve: la sugerencia tiene
+    // que describir el commit que se va a hacer, no el árbol entero.
+    const todo = deriveRepoCommitScope([
+      'openspec/changes/mi-cambio/tasks.md',
+      'openspec/changes/otro-cambio/proposal.md',
+      'components/pipeline/a.tsx',
+    ]);
+    const elegidos = todo.files
+      .filter((entry) => entry.origin.kind !== 'change' || entry.origin.changeId === 'mi-cambio')
+      .map((entry) => entry.path);
+
+    expect(suggestCommitMessage(elegidos)).toBe('chore(pipeline): mi-cambio');
   });
 });

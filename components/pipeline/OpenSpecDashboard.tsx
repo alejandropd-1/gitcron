@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useGitStore, type GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
-import { deriveChangeCommitScope, suggestCommitMessage, type CommitFileEntry } from '@/lib/change-commit-scope';
+import { deriveRepoCommitScope, suggestCommitMessage, type CommitFileOrigin } from '@/lib/change-commit-scope';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
@@ -80,7 +80,7 @@ type OpenSpecDashboardProps = {
   onRespondDecision: (decisionId: string, optionId: string) => void;
 };
 
-type CenterTab = 'work' | 'commit' | 'activity' | 'artifacts';
+type CenterTab = 'work' | 'activity' | 'artifacts';
 
 /**
  * Estado de un archivo, con la misma representación que el panel de preparación
@@ -209,15 +209,23 @@ export function OpenSpecDashboard({
   const [archiveRequest, setArchiveRequest] = useState<{ changeId: string; command: string } | null>(null);
   const [archiveBusy, setArchiveBusy] = useState(false);
   /**
-   * Archivos que no se le pueden atribuir al cambio y que se eligieron sumar
-   * igual. Vacío por defecto: incluirlos sin pedirlo metería trabajo ajeno.
+   * Archivos elegidos para preparar. Vacío por defecto y para todos los grupos:
+   * sin un cambio de referencia no hay criterio para que ninguno entre solo, y
+   * preseleccionar el que estuviera enfocado en la lista lateral produciría un
+   * commit distinto según dónde estuviera el foco.
    */
-  const [extraFiles, setExtraFiles] = useState<string[]>([]);
+  const [chosenFiles, setChosenFiles] = useState<string[]>([]);
   const [prepareBusy, setPrepareBusy] = useState(false);
+  /**
+   * Panel de preparación abierto. Se abre a pedido desde el estado del árbol y
+   * no al detectar que hay algo sin confirmar: abrirse solo taparía lo que se
+   * estaba mirando sin que nadie lo pidiera.
+   */
+  const [prepareOpen, setPrepareOpen] = useState(false);
   /**
    * Cuántos archivos se enviaron en la última preparación.
    *
-   * El toast se va solo y deja la pestaña sin rastro de lo que pasó. Esto
+   * El toast se va solo y deja el panel sin rastro de lo que pasó. Esto
    * sostiene el resultado a la vista hasta que haya algo nuevo que preparar.
    */
   const [lastPreparedCount, setLastPreparedCount] = useState<number | null>(null);
@@ -345,45 +353,44 @@ export function OpenSpecDashboard({
   };
 
   /**
-   * Alcance derivado del cambio seleccionado.
+   * Alcance del repositorio: todo lo modificado, agrupado por procedencia.
    *
-   * Sale del estado real —qué está modificado y qué otros cambios tienen
-   * artefactos tocados—, sin que ningún artefacto lo declare.
+   * No depende del cambio seleccionado. El commit describe el estado del árbol,
+   * y atarlo a la selección dejaba estados reales sin ninguna superficie desde
+   * la cual prepararse —los restos de un archivado sobre un repositorio sin
+   * cambios activos—.
    */
-  // Sin `useMemo`: la derivación es filtrar dos arrays, y el compilador de React
-  // memoiza por su cuenta. Memoizarlo a mano acá le impedía optimizar el
-  // componente entero, que sale más caro que recalcular esto.
+  // Sin `useMemo`: la derivación es recorrer un array y agruparlo, y el
+  // compilador de React memoiza por su cuenta. Memoizarlo a mano acá le impedía
+  // optimizar el componente entero, que sale más caro que recalcular esto.
   //
-  // Sin cambio seleccionado no hay alcance que derivar: la preparación no se
-  // ofrece, en vez de ofrecerse vacía.
-  const commitScope = selectedChange
-    ? deriveChangeCommitScope(
-      selectedChange.changeId,
-      // Los ya preparados salen del cálculo: si siguieran, la lista mostraría
-      // como pendiente lo que se acaba de enviar, y el conteo no bajaría nunca.
-      modifiedFiles.filter((file) => !file.staged).map((file) => file.path),
-      commitMessage,
-    )
-    : { files: [], own: [], foreign: [], suggestedMessage: null };
+  // Los ya preparados salen del cálculo: si siguieran, la lista mostraría como
+  // pendiente lo que se acaba de enviar, y el conteo no bajaría nunca.
+  const commitScope = deriveRepoCommitScope(
+    modifiedFiles.filter((file) => !file.staged).map((file) => file.path),
+  );
   const nothingLeftToPrepare = commitScope.files.length === 0;
-  /** Los ajenos, agrupados por procedencia. Un grupo vacío no se muestra. */
-  const foreignGroups: Array<{ key: string; label: string; entries: CommitFileEntry[] }> = [
-    {
-      key: 'archived',
-      label: t('pipeline.openspec.prepare.groupArchived'),
-      entries: commitScope.files.filter((entry) => entry.origin.kind === 'archived'),
-    },
-    {
-      key: 'unattributed',
-      label: t('pipeline.openspec.prepare.groupUnattributed'),
-      entries: commitScope.files.filter((entry) => entry.origin.kind === 'unattributed'),
-    },
-    {
-      key: 'other',
-      label: t('pipeline.openspec.prepare.groupOther'),
-      entries: commitScope.files.filter((entry) => entry.origin.kind === 'other'),
-    },
-  ].filter((group) => group.entries.length > 0);
+  /** Etiqueta de un grupo. El del cambio nombra cuál, que es la atribución real. */
+  const groupLabel = (origin: CommitFileOrigin): string => (
+    origin.kind === 'change'
+      ? t('pipeline.openspec.prepare.groupChange', { change: origin.changeId })
+      : origin.kind === 'archived'
+        ? t('pipeline.openspec.prepare.groupArchived')
+        : t('pipeline.openspec.prepare.groupUnattributed')
+  );
+  /** Elegidos que siguen existiendo entre lo modificado, en el orden del árbol. */
+  const chosen = commitScope.files
+    .filter((entry) => chosenFiles.includes(entry.path))
+    .map((entry) => entry.path);
+
+  /** Suma o quita un conjunto entero: el total o un grupo. */
+  const toggleMany = (paths: string[]) => {
+    const allChosen = paths.every((path) => chosenFiles.includes(path));
+    setChosenFiles((current) => (allChosen
+      ? current.filter((path) => !paths.includes(path))
+      : [...new Set([...current, ...paths])]
+    ));
+  };
 
   /**
    * Deja el commit listo: archivos preparados y mensaje sugerido escrito.
@@ -392,22 +399,19 @@ export function OpenSpecDashboard({
    * y su botón propio: preparar es reversible y confirmar queda en la historia.
    */
   const prepareCommit = async () => {
-    const files = [...commitScope.own, ...extraFiles];
-    if (!selectedChange || prepareBusy || fixtureActive || files.length === 0) return;
+    if (prepareBusy || fixtureActive || chosen.length === 0) return;
     setPrepareBusy(true);
     try {
-      const staged = await stageFiles(files, true);
+      const staged = await stageFiles(chosen, true);
       if (!staged) return;
-      // El mensaje se compone acá, sobre el conjunto que realmente se envía.
-      // Derivarlo sólo de los propios daba una sugerencia que no correspondía al
-      // commit: con ningún archivo propio y todo elegido a mano, no podía sacar
-      // alcance de nada.
-      if (!commitMessage.trim()) setCommitMessage(suggestCommitMessage(selectedChange.changeId, files));
-      setLastPreparedCount(files.length);
-      // Lo elegido a mano ya viajó: dejarlo marcado haría que una segunda
-      // preparación volviera a incluir archivos que ya no están en la lista.
-      setExtraFiles([]);
-      setSuccess(t('pipeline.openspec.prepare.done', { count: files.length }));
+      // El mensaje se compone sobre el conjunto que realmente se envía, no sobre
+      // todo lo modificado: la sugerencia describe el commit que se va a hacer.
+      if (!commitMessage.trim()) setCommitMessage(suggestCommitMessage(chosen));
+      setLastPreparedCount(chosen.length);
+      // Lo elegido ya viajó: dejarlo marcado haría que una segunda preparación
+      // volviera a incluir archivos que ya no están en la lista.
+      setChosenFiles([]);
+      setSuccess(t('pipeline.openspec.prepare.done', { count: chosen.length }));
     } finally {
       setPrepareBusy(false);
     }
@@ -474,10 +478,9 @@ export function OpenSpecDashboard({
     setCenterTab('work');
     setLaunchTarget(null);
     setFlowMode(null);
-    // El resultado de una preparación pertenece al cambio en el que ocurrió:
-    // arrastrarlo al siguiente diría que se envió algo que no se envió.
-    setLastPreparedCount(null);
-    setExtraFiles([]);
+    // La preparación no se reinicia acá: es del repositorio, no del cambio.
+    // Borrarla al cambiar de selección perdería una elección de archivos que no
+    // tiene nada que ver con qué cambio se está mirando.
   };
 
   /**
@@ -592,13 +595,25 @@ export function OpenSpecDashboard({
           <div><dd>{archivedChanges.length}</dd><dt>{t('pipeline.openspec.summary.completed')}</dt></div>
           <div><dd>{taskPercent}%</dd><dt>{t('pipeline.openspec.summary.tasks')}</dt></div>
         </dl>
-        <div className={styles.repoHealth} data-clean={workingTreeClean}>
+        {/* El estado del árbol es la puerta a la preparación: el commit es del
+            repositorio, y éste es el único lugar del panel que ya habla del
+            repositorio entero. Es un control, no un rótulo, así que el área
+            clickeable es toda la caja y no sólo el texto. */}
+        <button
+          type="button"
+          className={styles.repoHealth}
+          data-clean={workingTreeClean}
+          aria-expanded={prepareOpen}
+          title={t('pipeline.openspec.prepare.open')}
+          onClick={() => setPrepareOpen((open) => !open)}
+        >
           <span className={styles.healthDot} aria-hidden="true" />
           <div>
             <strong>{workingTreeClean ? t('pipeline.openspec.repo.clean') : t('pipeline.openspec.repo.changed')}</strong>
             <span>{currentBranch || t('pipeline.openspec.repo.branchUnknown')}</span>
           </div>
-        </div>
+          <em className={styles.repoHealthCta}>{t('pipeline.openspec.prepare.open')}</em>
+        </button>
       </header>
 
       <div className={styles.body}>
@@ -720,7 +735,126 @@ export function OpenSpecDashboard({
         )}
 
         <main className={styles.center}>
-          {selectedChange ? (
+          {/* La preparación se resuelve antes que el cambio seleccionado: es del
+              repositorio y tiene que alcanzarse sin ninguno, que es exactamente
+              el estado que dejaba un archivado sin confirmar. */}
+          {prepareOpen ? (
+            <section className={styles.prepareArea} aria-label={t('pipeline.openspec.prepare.title')}>
+              {/* Las acciones comparten fila con el título, arriba y a la
+                  derecha: al final de la lista quedaban fuera de vista con
+                  veinte archivos y había que bajar para encontrarlas. */}
+              <div className={styles.prepareHead}>
+                <div className={styles.archiveConfirmHead}>
+                  <strong>{t('pipeline.openspec.prepare.title')}</strong>
+                  <span>{t('pipeline.openspec.prepare.help')}</span>
+                </div>
+                <div className={styles.prepareActions}>
+                  {!nothingLeftToPrepare && (
+                    <>
+                      <span className={styles.prepareCount}>
+                        {t('pipeline.openspec.prepare.selected', {
+                          count: chosen.length,
+                          total: commitScope.files.length,
+                        })}
+                      </span>
+                      <button
+                        type="button"
+                        className={styles.secondaryAction}
+                        disabled={prepareBusy}
+                        onClick={() => toggleMany(commitScope.files.map((entry) => entry.path))}
+                      >
+                        {chosen.length === commitScope.files.length
+                          ? t('pipeline.openspec.prepare.deselectAll')
+                          : t('pipeline.openspec.prepare.selectAll')}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.primaryAction}
+                        disabled={prepareBusy || fixtureActive || chosen.length === 0}
+                        onClick={() => void prepareCommit()}
+                      >
+                        {prepareBusy ? <Loader2 size={14} className={styles.spin} /> : <GitBranch size={14} />}
+                        {t('pipeline.openspec.prepare.action')}
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className={styles.secondaryAction}
+                    onClick={() => setPrepareOpen(false)}
+                  >
+                    {t('pipeline.openspec.prepare.close')}
+                  </button>
+                </div>
+              </div>
+
+              {nothingLeftToPrepare ? (
+                /* El toast se va solo; esto deja el resultado a la vista hasta
+                   que haya algo nuevo que preparar. */
+                <p className={styles.prepareEmpty}>
+                  {lastPreparedCount === null
+                    ? t('pipeline.openspec.prepare.empty')
+                    : t('pipeline.openspec.prepare.preparedSummary', { count: lastPreparedCount })}
+                </p>
+              ) : (
+                <>
+                  {chosen.length > 0 && (
+                    <p>
+                      <strong>{t('pipeline.openspec.prepare.message')}</strong>{' '}
+                      <code>{suggestCommitMessage(chosen)}</code>
+                    </p>
+                  )}
+                  {/* Cada grupo declara de dónde viene lo que contiene. Ninguno
+                      entra preseleccionado: sin un cambio de referencia,
+                      privilegiar uno produciría un commit distinto según dónde
+                      estuviera el foco de la lista lateral. */}
+                  {commitScope.groups.map((group) => {
+                    const paths = group.entries.map((entry) => entry.path);
+                    const allChosen = paths.every((path) => chosenFiles.includes(path));
+                    return (
+                      <div key={group.key} className={styles.fileGroup}>
+                        <p>
+                          <strong>{groupLabel(group.origin)} ({group.entries.length})</strong>
+                          <button
+                            type="button"
+                            className={styles.groupToggle}
+                            disabled={prepareBusy}
+                            onClick={() => toggleMany(paths)}
+                          >
+                            {allChosen
+                              ? t('pipeline.openspec.prepare.deselectAll')
+                              : t('pipeline.openspec.prepare.selectAll')}
+                          </button>
+                        </p>
+                        <ul className={styles.fileList}>
+                          {group.entries.map((entry) => (
+                            <li key={entry.path}>
+                              {/* La etiqueta envuelve la fila entera: con el área
+                                  del tamaño de la casilla había que apuntar. */}
+                              <label className={styles.fileChoice}>
+                                <input
+                                  type="checkbox"
+                                  checked={chosenFiles.includes(entry.path)}
+                                  disabled={prepareBusy}
+                                  onChange={(event) => setChosenFiles((current) => (
+                                    event.target.checked
+                                      ? [...current, entry.path]
+                                      : current.filter((file) => file !== entry.path)
+                                  ))}
+                                />
+                                <FileStatusBadge path={entry.path} files={modifiedFiles} />
+                                <span>{entry.path}</span>
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </section>
+          ) : selectedChange ? (
             <>
               <header className={styles.changeHeader}>
                 <div className={styles.changeTitle}>
@@ -752,9 +886,10 @@ export function OpenSpecDashboard({
               <div className={styles.tabsRow}>
                 <div className={styles.tabs} role="tablist" aria-label={t('pipeline.openspec.tabs.label')}>
                   <button type="button" role="tab" aria-selected={centerTab === 'work'} onClick={() => setCenterTab('work')}>{t('pipeline.openspec.tabs.work')}</button>
-                  {/* Confirmar en Git es de otro dominio que archivar: separarlo
-                      en su pestaña evita que el panel de trabajo mezcle las dos. */}
-                  <button type="button" role="tab" aria-selected={centerTab === 'commit'} onClick={() => setCenterTab('commit')}>{t('pipeline.openspec.tabs.commit')}</button>
+                  {/* Sin pestaña de commit: el commit es del repositorio, no del
+                      cambio, y su preparación vive en el encabezado. Sostener las
+                      dos superficies daría dos caminos a la misma acción con
+                      alcances distintos. */}
                   <button type="button" role="tab" aria-selected={centerTab === 'activity'} onClick={() => setCenterTab('activity')}>{t('pipeline.openspec.tabs.activity')}</button>
                   <button type="button" role="tab" aria-selected={centerTab === 'artifacts'} onClick={() => setCenterTab('artifacts')}>{t('pipeline.openspec.tabs.artifacts')}</button>
                 </div>
@@ -890,115 +1025,7 @@ export function OpenSpecDashboard({
                 <p className={styles.archiveError} role="alert">{taskError}</p>
               )}
 
-              {centerTab === 'commit' ? (
-                /* Confirmar en Git tiene su propia pestaña: mezclarlo con el
-                   trabajo hacía que archivar y commitear parecieran lo mismo. */
-                <div className={styles.workArea}>
-                  <div className={styles.archiveConfirm}>
-                    {/* Las acciones comparten fila con el título, arriba y a la
-                        derecha: al final de la lista quedaban fuera de vista con
-                        veinte archivos y había que bajar para encontrarlas. */}
-                    <div className={styles.prepareHead}>
-                      <div className={styles.archiveConfirmHead}>
-                        <strong>{t('pipeline.openspec.prepare.title')}</strong>
-                        <span>{t('pipeline.openspec.prepare.help')}</span>
-                      </div>
-                      {!nothingLeftToPrepare && (
-                        <div className={styles.prepareActions}>
-                          {commitScope.foreign.length > 0 && (
-                            <button
-                              type="button"
-                              className={styles.secondaryAction}
-                              disabled={prepareBusy}
-                              onClick={() => setExtraFiles((current) => (
-                                current.length === commitScope.foreign.length ? [] : [...commitScope.foreign]
-                              ))}
-                            >
-                              {extraFiles.length === commitScope.foreign.length
-                                ? t('pipeline.openspec.prepare.deselectAll')
-                                : t('pipeline.openspec.prepare.selectAll')}
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            className={styles.primaryAction}
-                            disabled={prepareBusy || fixtureActive || commitScope.own.length + extraFiles.length === 0}
-                            onClick={() => void prepareCommit()}
-                          >
-                            {prepareBusy ? <Loader2 size={14} className={styles.spin} /> : <GitBranch size={14} />}
-                            {t('pipeline.openspec.prepare.action')}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {nothingLeftToPrepare ? (
-                      /* El toast se va solo; esto deja el resultado a la vista
-                         hasta que haya algo nuevo que preparar. */
-                      <p>
-                        {lastPreparedCount === null
-                          ? t('pipeline.openspec.prepare.empty')
-                          : t('pipeline.openspec.prepare.preparedSummary', { count: lastPreparedCount })}
-                      </p>
-                    ) : (
-                      <>
-                        {commitScope.own.length > 0 && (
-                          <>
-                            <p>
-                              <strong>{t('pipeline.openspec.prepare.included', { count: commitScope.own.length })}</strong>
-                            </p>
-                            <ul className={styles.fileList}>
-                              {commitScope.own.map((file) => (
-                                <li key={file}>
-                                  <FileStatusBadge path={file} files={modifiedFiles} />
-                                  <span>{file}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </>
-                        )}
-                        {commitScope.suggestedMessage && (
-                          <p>
-                            <strong>{t('pipeline.openspec.prepare.message')}</strong>{' '}
-                            <code>{commitScope.suggestedMessage}</code>
-                          </p>
-                        )}
-                        {/* Lo que no se le puede atribuir se muestra agrupado por
-                            procedencia: en una bolsa única había que recordar qué
-                            se tocó en cada trabajo para poder elegir. */}
-                        {foreignGroups.map((group) => (
-                          <div key={group.key} className={styles.fileGroup}>
-                            <p data-tone="out">
-                              <strong>{group.label} ({group.entries.length})</strong>
-                            </p>
-                            <ul data-tone="out" className={styles.fileList}>
-                              {group.entries.map((entry) => (
-                                <li key={entry.path}>
-                                  <input
-                                    type="checkbox"
-                                    checked={extraFiles.includes(entry.path)}
-                                    disabled={prepareBusy}
-                                    onChange={(event) => setExtraFiles((current) => (
-                                      event.target.checked
-                                        ? [...current, entry.path]
-                                        : current.filter((file) => file !== entry.path)
-                                    ))}
-                                  />
-                                  <FileStatusBadge path={entry.path} files={modifiedFiles} />
-                                  <span>{entry.path}</span>
-                                  {entry.origin.kind === 'other' && (
-                                    <em className={styles.originPill}>{entry.origin.changeId}</em>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                </div>
-              ) : centerTab === 'work' ? (
+              {centerTab === 'work' ? (
                 <div className={styles.workArea}>
                   <p className={styles.nextStepInline}>{t(nextAction.helpKey, nextAction.helpParams)}</p>
                   {/* El lanzador aparece arriba, junto al botón que lo abrió, y no

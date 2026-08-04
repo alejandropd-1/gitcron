@@ -1,11 +1,18 @@
 /**
- * Qué preparar y qué mensaje sugerir para el commit de un cambio.
+ * Qué preparar y qué mensaje sugerir para el commit del repositorio.
  *
- * Todo se deriva del estado real —el identificador del cambio, los otros
- * cambios activos y lo que Git reporta como modificado—, sin que ningún
- * artefacto declare nada. La versión anterior exigía un `commit.md` escrito de
- * antemano: si nadie lo escribía no funcionaba, y si quedaba desactualizado
- * mentía sin avisar.
+ * Todo se deriva del estado real —lo que Git reporta como modificado y dónde
+ * vive cada archivo—, sin que ningún artefacto declare nada. La versión que
+ * exigía un `commit.md` escrito de antemano no funcionaba si nadie lo escribía,
+ * y mentía sin avisar si quedaba desactualizado.
+ *
+ * La versión anterior a ésta derivaba el alcance a partir de un cambio de
+ * referencia y repartía lo modificado entre propio y ajeno. Eso ataba el
+ * alcance de un commit a qué cambio estuviera seleccionado en una lista
+ * lateral, cuando el commit describe el estado del árbol: con el cambio ya
+ * archivado, o sin ningún cambio activo, sus propios restos no tenían dónde
+ * prepararse. Acá no hay categoría privilegiada: cada archivo declara de dónde
+ * viene y nada entra sin elegirse.
  *
  * Puro y sin dependencias: se prueba entero con tablas de entrada y salida.
  */
@@ -13,13 +20,12 @@
 /**
  * De dónde viene un archivo modificado.
  *
- * `other` lleva el identificador del cambio al que pertenece: esa atribución
+ * `change` lleva el identificador del cambio al que pertenece: esa atribución
  * existe —un artefacto vive bajo la carpeta de su cambio— y descartarla obligaba
  * a recordar qué se tocó en cada trabajo para poder elegir.
  */
 export type CommitFileOrigin =
-  | { kind: 'own' }
-  | { kind: 'other'; changeId: string }
+  | { kind: 'change'; changeId: string }
   | { kind: 'archived' }
   | { kind: 'unattributed' };
 
@@ -28,54 +34,54 @@ export interface CommitFileEntry {
   origin: CommitFileOrigin;
 }
 
-export interface ChangeCommitScope {
-  /** Todos los modificados, cada uno con su procedencia. */
+/**
+ * Un grupo de archivos con la misma procedencia.
+ *
+ * `key` es estable y sirve tanto para el render como para el control que suma
+ * o quita el grupo entero: derivarla del origen evita tener que reconstruirla
+ * en el componente y que las dos versiones se separen.
+ */
+export interface CommitFileGroup {
+  key: string;
+  origin: CommitFileOrigin;
+  entries: CommitFileEntry[];
+}
+
+export interface RepoCommitScope {
+  /** Todos los modificados, cada uno con su procedencia, en el orden recibido. */
   files: CommitFileEntry[];
-  /** Archivos atribuibles al cambio. Se deriva de `files`. */
-  own: string[];
   /**
-   * Modificados que no se le pueden atribuir con certeza. Se muestran para que
-   * una omisión se vea, y se suman sólo por elección explícita.
+   * Los mismos archivos agrupados por procedencia. Se deriva de `files`: dos
+   * fuentes para la misma pregunta terminarían contradiciéndose.
    */
-  foreign: string[];
-  /**
-   * Sugerencia inicial para el campo de commit, o `null` si no corresponde pisar
-   * lo escrito. Es el valor a mostrar antes de que se elija nada: al preparar,
-   * el mensaje se recompone sobre el conjunto que realmente se envía.
-   */
-  suggestedMessage: string | null;
+  groups: CommitFileGroup[];
 }
 
 const CHANGES_ROOT = 'openspec/changes/';
 const SPECS_ROOT = 'openspec/specs/';
 
 /**
- * Clasificación de un archivo modificado.
+ * Procedencia de un archivo modificado, deducida de su ubicación.
  *
- * Tres clases, no dos valores: antes `archive/` y el código compartían el
- * mismo `null`, y el loop los mandaba juntos a `own` cuando no había
- * ambigüedad. Los restos de un archivado pertenecen a su propia confirmación,
- * no al change activo, así que se distinguen del código que sí puede
- * atribuirse por descarte.
+ * Los restos de un archivado se distinguen de los artefactos de un cambio
+ * activo porque pertenecen a la confirmación del archivado, no al trabajo en
+ * curso. Las specs consolidadas viven bajo `openspec/specs/` y acompañan a
+ * `archive/…`, así que cuentan como lo mismo.
  */
-type ArtifactOwner =
-  | { kind: 'change'; id: string }
-  | { kind: 'archived' }
-  | { kind: 'code' };
-
-/** A qué cambia pertenece un archivo modificado, si es que es de alguno. */
-function artifactOwner(file: string): ArtifactOwner {
+export function fileOrigin(file: string): CommitFileOrigin {
   if (file.startsWith(CHANGES_ROOT)) {
     const rest = file.slice(CHANGES_ROOT.length);
     if (rest.startsWith('archive/')) return { kind: 'archived' };
     const [id] = rest.split('/');
-    return id ? { kind: 'change', id } : { kind: 'archived' };
+    return id ? { kind: 'change', changeId: id } : { kind: 'archived' };
   }
-  // Las specs consolidadas también son producto del archivado: viven bajo
-  // `openspec/specs/` y acompañan a `archive/…`. Se tratan como archivadas
-  // para que no caigan en el alcance del change activo por defecto.
   if (file.startsWith(SPECS_ROOT)) return { kind: 'archived' };
-  return { kind: 'code' };
+  return { kind: 'unattributed' };
+}
+
+/** Clave estable de un grupo. Los cambios se distinguen entre sí por su id. */
+function groupKey(origin: CommitFileOrigin): string {
+  return origin.kind === 'change' ? `change:${origin.changeId}` : origin.kind;
 }
 
 /**
@@ -102,73 +108,78 @@ export function deriveScope(files: string[]): string | null {
 }
 
 /**
- * Mensaje sugerido: `<tipo>(<alcance>): <identificador>`.
+ * El único cambio al que pertenece un conjunto, si es que hay uno solo.
  *
- * El tipo es siempre `chore` porque el diff no distingue una corrección de una
- * función nueva, y afirmarlo sería inventar. La descripción es el identificador
- * del cambio, que ya describe el trabajo en kebab-case: el título que expone
- * OpenSpec es igual al identificador, así que no hay nada más informativo que
- * derivar sin entender qué se hizo.
+ * Los archivos sin atribuir no contradicen: no tienen dueño con el cual entrar
+ * en conflicto, y el caso corriente —trabajar en un cambio tocando sus
+ * artefactos y algo de código— tiene que seguir nombrando ese cambio. Los
+ * restos de un archivado tampoco aportan identificador: pertenecen a otra
+ * confirmación, y dejarlos nombrar el mensaje diría que el commit es de un
+ * trabajo que ya se cerró.
  */
-export function suggestCommitMessage(changeId: string, files: string[]): string {
-  const scope = deriveScope(files);
-  return scope ? `chore(${scope}): ${changeId}` : `chore: ${changeId}`;
+export function soleChangeId(files: string[]): string | null {
+  const ids = new Set(
+    files
+      .map(fileOrigin)
+      .filter((origin): origin is { kind: 'change'; changeId: string } => origin.kind === 'change')
+      .map((origin) => origin.changeId),
+  );
+  return ids.size === 1 ? [...ids][0] : null;
 }
 
 /**
- * Alcance completo de la preparación.
+ * Mensaje sugerido para el conjunto que se va a preparar.
  *
- * La atribución del código —lo que no es artefacto de ningún cambio— depende de
- * si hay ambigüedad: con un solo cambio tocando artefactos, todo lo modificado
- * es suyo y no hay nada que adivinar. Con varios, nada dice qué archivo de
- * código es de cuál, así que quedan fuera y se eligen a mano. Es exactamente la
- * pregunta que `commit.md` respondía declarándola, respondida ahora mirando el
- * estado.
+ * El tipo es siempre `chore` porque el diff no distingue una corrección de una
+ * función nueva, y afirmarlo sería inventar.
  *
- * `currentMessage` decide si se sugiere: un mensaje que alguien empezó a
- * escribir no se pisa por apretar preparar, porque perderlo sería un daño
- * silencioso que sólo se nota después de confirmar.
+ * La descripción es el identificador del cambio cuando el conjunto pertenece a
+ * uno solo: ya describe el trabajo en kebab-case y no hay nada más informativo
+ * que derivar sin entender qué se hizo. Cuando abarca varios cambios, o
+ * ninguno, se devuelve el prefijo con el alcance y la descripción vacía, para
+ * que la escriba una persona. Es deliberado que deje de nombrar un cambio: es
+ * la señal visible de que el commit está mezclando trabajos, y llega antes de
+ * confirmar. Concatenar los identificadores se descartó porque produce mensajes
+ * ilegibles en cuanto son tres.
  */
-export function deriveChangeCommitScope(
-  changeId: string,
-  changedFiles: string[],
-  currentMessage: string,
-): ChangeCommitScope {
-  const otherChangesTouched = new Set(
-    changedFiles
-      .map(artifactOwner)
-      .filter((owner): owner is { kind: 'change'; id: string } =>
-        owner.kind === 'change' && owner.id !== changeId,
-      )
-      .map((owner) => owner.id),
+export function suggestCommitMessage(files: string[]): string {
+  const scope = deriveScope(files);
+  const prefix = scope ? `chore(${scope}):` : 'chore:';
+  const changeId = soleChangeId(files);
+  return changeId ? `${prefix} ${changeId}` : `${prefix} `;
+}
+
+/**
+ * Alcance completo de la preparación, a nivel del repositorio.
+ *
+ * No recibe ningún cambio de referencia y no privilegia ningún grupo: sin un
+ * cambio desde el cual mirar no hay criterio para que uno entre por defecto, y
+ * preseleccionar el que estuviera enfocado en una lista lateral produciría un
+ * commit distinto según dónde estuviera el foco. La elección es explícita para
+ * todos.
+ *
+ * Los archivos ya preparados no se filtran acá: quien llama decide qué es
+ * "modificado sin preparar", porque esa condición sale del estado de Git y no
+ * de la ubicación del archivo.
+ */
+export function deriveRepoCommitScope(changedFiles: string[]): RepoCommitScope {
+  const files: CommitFileEntry[] = changedFiles.map((path) => ({ path, origin: fileOrigin(path) }));
+
+  // Los grupos de cambio salen en el orden en que aparecen sus archivos, y los
+  // dos grupos fijos van al final: es determinista a partir de la entrada y
+  // deja lo atribuible arriba, que es lo que se elige más seguido.
+  const byKey = new Map<string, CommitFileGroup>();
+  for (const entry of files) {
+    const key = groupKey(entry.origin);
+    const existing = byKey.get(key);
+    if (existing) existing.entries.push(entry);
+    else byKey.set(key, { key, origin: entry.origin, entries: [entry] });
+  }
+
+  const rank = (group: CommitFileGroup): number => (
+    group.origin.kind === 'change' ? 0 : group.origin.kind === 'archived' ? 1 : 2
   );
-  const codeIsAmbiguous = otherChangesTouched.size > 0;
+  const groups = [...byKey.values()].sort((a, b) => rank(a) - rank(b));
 
-  const files: CommitFileEntry[] = changedFiles.map((path) => {
-    const owner = artifactOwner(path);
-    // Los restos de un archivado —`archive/…` y `openspec/specs/…`— son
-    // siempre ajenos al change activo: pertenecen al commit del archivado.
-    if (owner.kind === 'archived') return { path, origin: { kind: 'archived' } };
-    if (owner.kind === 'change') {
-      return owner.id === changeId
-        ? { path, origin: { kind: 'own' } }
-        : { path, origin: { kind: 'other', changeId: owner.id } };
-    }
-    // Código no atribuible: es del cambio cuando no hay ambigüedad, porque
-    // ningún otro lo reclama; con varios en curso no se adivina y queda para
-    // elegir a mano.
-    return { path, origin: codeIsAmbiguous ? { kind: 'unattributed' } : { kind: 'own' } };
-  });
-
-  // `own` y `foreign` salen de los grupos y no se calculan aparte: dos fuentes
-  // para la misma pregunta terminarían contradiciéndose.
-  const own = files.filter((entry) => entry.origin.kind === 'own').map((entry) => entry.path);
-  const foreign = files.filter((entry) => entry.origin.kind !== 'own').map((entry) => entry.path);
-
-  return {
-    files,
-    own,
-    foreign,
-    suggestedMessage: currentMessage.trim() ? null : suggestCommitMessage(changeId, own),
-  };
+  return { files, groups };
 }

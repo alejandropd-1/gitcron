@@ -98,6 +98,24 @@ const PIPELINE_KEYS = [
   'pipeline.hud.decisions',
   'pipeline.hud.needsYou',
   'pipeline.hud.allClear',
+  // Preparación del commit del repositorio. Van acá para que las tres lenguas
+  // queden exigidas: el riesgo real no es que falte una traducción sino que
+  // quede una que hable "del cambio" sobre una superficie que ya no lo es.
+  'pipeline.openspec.prepare.title',
+  'pipeline.openspec.prepare.help',
+  'pipeline.openspec.prepare.open',
+  'pipeline.openspec.prepare.close',
+  'pipeline.openspec.prepare.selected',
+  'pipeline.openspec.prepare.message',
+  'pipeline.openspec.prepare.action',
+  'pipeline.openspec.prepare.done',
+  'pipeline.openspec.prepare.groupChange',
+  'pipeline.openspec.prepare.groupArchived',
+  'pipeline.openspec.prepare.groupUnattributed',
+  'pipeline.openspec.prepare.selectAll',
+  'pipeline.openspec.prepare.deselectAll',
+  'pipeline.openspec.prepare.preparedSummary',
+  'pipeline.openspec.prepare.empty',
 ] as const;
 
 describe('Pipeline i18n', () => {
@@ -135,6 +153,17 @@ describe('Pipeline i18n', () => {
 
       const progress = translate('pipeline.now.taskProgress', lang, { done: 3, total: 7 });
       expect(progress).not.toMatch(/\{\{/);
+
+      const selected = translate('pipeline.openspec.prepare.selected', lang, { count: 2, total: 5 });
+      expect(selected).toContain('2');
+      expect(selected).toContain('5');
+      expect(selected).not.toMatch(/\{\{/);
+
+      // El rótulo del grupo tiene que poder nombrar el cambio en las tres
+      // lenguas: sin el identificador, dos grupos se leerían igual.
+      const group = translate('pipeline.openspec.prepare.groupChange', lang, { change: 'mi-cambio' });
+      expect(group).toContain('mi-cambio');
+      expect(group).not.toMatch(/\{\{/);
     }
   });
 

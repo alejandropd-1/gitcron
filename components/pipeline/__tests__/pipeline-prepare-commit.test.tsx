@@ -104,14 +104,16 @@ function renderDashboard() {
 }
 
 /**
- * Abre la pestaña Commit, donde vive el panel de preparación.
+ * Abre el panel de preparación desde el estado del árbol y elige todo lo
+ * modificado.
  *
- * Vivía suelto arriba del panel de trabajo, y eso hacía que archivar y
- * commitear parecieran lo mismo. Ahora tiene pestaña propia, así que hay que
- * entrar antes de encontrar sus controles.
+ * El panel dejó de ser una pestaña del cambio y pasó al nivel del repositorio:
+ * se entra por el control del encabezado. Nada entra preseleccionado, así que
+ * elegir es parte de llegar a poder preparar.
  */
-function openCommitTab() {
-  fireEvent.click(screen.getByRole('tab', { name: /openspec\.tabs\.commit/ }));
+function openPrepareAndChooseAll() {
+  fireEvent.click(screen.getByRole('button', { name: /openspec\.prepare\.open/ }));
+  for (const box of screen.getAllByRole('checkbox')) fireEvent.click(box);
 }
 
 const ORIGINAL_API = (globalThis as { window?: { api?: unknown } }).window?.api;
@@ -119,8 +121,8 @@ const ORIGINAL_API = (globalThis as { window?: { api?: unknown } }).window?.api;
 beforeEach(() => {
   stageFiles.mockClear();
   setCommitMessage.mockClear();
-  // Puebla el store como lo haría el watcher: el cambio tiene archivos suyos
-  // modificados. `path` bajo `openspec/changes/demo-change/` entra en `own`.
+  // Puebla el store como lo haría el watcher. `openspec/changes/demo-change/`
+  // cae en el grupo de ese cambio y `components/` en el de lo sin atribuir.
   useGitStore.setState({
     modifiedFiles: [
       { path: 'openspec/changes/demo-change/tasks.md', status: 'modified', staged: false },
@@ -148,14 +150,14 @@ afterEach(() => {
 describe('preparar el commit desde la guía', () => {
   it('deja archivos y mensaje listos y NO confirma', async () => {
     renderDashboard();
-    openCommitTab();
+    openPrepareAndChooseAll();
 
-    // El control de preparar aparece porque el cambio tiene archivos en `own`.
+    // El control de preparar se habilita porque hay archivos elegidos.
     const button = screen.getByRole('button', { name: /openspec\.prepare\.action/ });
     fireEvent.click(button);
 
-    // Se preparan los archivos derivados (los propios del cambio). El mensaje
-    // sugerido se escribe porque el campo estaba vacío.
+    // Se preparan los archivos elegidos. El mensaje sugerido se escribe porque
+    // el campo estaba vacío, y nombra al cambio porque todo lo elegido es suyo.
     await vi.waitFor(() => expect(stageFiles).toHaveBeenCalledTimes(1));
     expect(stageFiles).toHaveBeenCalledWith(
       expect.arrayContaining([
@@ -182,7 +184,7 @@ describe('preparar el commit desde la guía', () => {
     });
 
     renderDashboard();
-    openCommitTab();
+    openPrepareAndChooseAll();
     fireEvent.click(screen.getByRole('button', { name: /openspec\.prepare\.action/ }));
 
     await vi.waitFor(() => expect(stageFiles).toHaveBeenCalled());
@@ -199,7 +201,7 @@ describe('preparar el commit desde la guía', () => {
     useGitStore.setState({ commitMessage: 'fix: algo que escribí' });
 
     renderDashboard();
-    openCommitTab();
+    openPrepareAndChooseAll();
     fireEvent.click(screen.getByRole('button', { name: /openspec\.prepare\.action/ }));
 
     await vi.waitFor(() => expect(stageFiles).toHaveBeenCalled());

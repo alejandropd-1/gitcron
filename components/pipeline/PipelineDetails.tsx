@@ -5,6 +5,7 @@ import { useT } from '@/hooks/use-translation';
 import type { OpenSpecChangeSummary, PipelineSnapshot } from './pipeline-view-state';
 import { SafeMarkdown } from './SafeMarkdown';
 import { LazyDiffViewer } from './LazyDiffViewer';
+import { PipelineArtifactGraph, shouldShowArtifactGraph } from './PipelineArtifactGraph';
 
 export type PipelineDetailsProps = {
   snapshot: PipelineSnapshot;
@@ -89,6 +90,13 @@ export function PipelineDetails({
       </div>
 
       <div className="pipeline-details__body">
+        {/* El grafo del CLI declara el estado real de cada artefacto antes de
+            su contenido. Es el dato que consume-openspec-status cableó hasta
+            acá: si no hay grafo, no se dibuja ni se inventa un sustituto. */}
+        {shouldShowArtifactGraph(selectedChange?.status)
+          ? <PipelineArtifactGraph status={selectedChange.status} />
+          : null}
+
         {activeTab === 'proposal' && markdownPanel('proposal', artifacts?.proposal ?? null)}
         {activeTab === 'design' && markdownPanel('design', artifacts?.design ?? null)}
         {activeTab === 'tasks' && markdownPanel('tasks', artifacts?.tasks ?? null)}

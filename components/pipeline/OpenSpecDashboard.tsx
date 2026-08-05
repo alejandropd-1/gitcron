@@ -139,6 +139,15 @@ function formatTime(value: string | null): string {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
 }
 
+/** Cuándo corrió una sesión, con día y hora. Sin esto, una vieja se lee como actual. */
+function formatSessionMoment(startedAt: string): string {
+  const date = new Date(startedAt);
+  if (Number.isNaN(date.getTime())) return startedAt;
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(date);
+}
+
 function formatSessionOption(session: RuntimeProjection): string {
   const runtime = runtimeDisplayName(session.runtime) ?? session.runtime;
   const context = [session.changeId, session.taskId].filter(Boolean).join(' · ');
@@ -1482,12 +1491,27 @@ export function OpenSpecDashboard({
           <aside className={styles.activityRail} aria-label={t('pipeline.openspec.activity.title')}>
             <div className={styles.resizeHandleRight} role="separator" aria-orientation="vertical" title={t('pipeline.openspec.resize.right')} onMouseDown={onResizeRight} />
             <h3><Activity size={14} /> {t('pipeline.openspec.activity.title')}</h3>
+            {/* Sin cambio abierto la columna cae a lo último del repositorio, que
+                puede ser de otro día y de otro trabajo. Con un cambio abierto no
+                hace falta decirlo: el panel entero ya declara de cuál es. */}
+            {openChangeId === null && (
+              <p className={styles.railScope}>{t('pipeline.openspec.activity.repoScope')}</p>
+            )}
             <section className={styles.liveActivity}>
               <header>
                 <span className={styles.sessionIdentity}>
                   <strong>{selectedSession || visibleActivity.length > 0 ? runningName : t('pipeline.openspec.activity.noSession')}</strong>
                   <span className={styles.liveDot} data-active={selectedSession?.active || undefined} />
                   <em>{t(`pipeline.openspec.activity.status.${sessionStatusKey}`)}</em>
+                  {/* Cuándo corrió, siempre y no sólo en las opciones del
+                      selector: el selector no se renderiza con una sola sesión,
+                      que es justo el caso donde falta. Sin esta marca, una
+                      sesión de días atrás se lee como actividad en curso. */}
+                  {selectedSession && (
+                    <em className={styles.sessionRanAt}>
+                      {t('pipeline.openspec.activity.ranAt', { at: formatSessionMoment(selectedSession.startedAt) })}
+                    </em>
+                  )}
                 </span>
                 {runtimeSessions.length > 1 && (
                   <select

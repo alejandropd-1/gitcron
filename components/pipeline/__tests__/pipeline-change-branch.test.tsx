@@ -88,6 +88,18 @@ describe('la rama del cambio al empezarlo', () => {
     expect(screen.queryByTestId('launcher')).toBeNull();
   });
 
+  it('declara que arma la instrucción y no los artefactos', () => {
+    // Nada de lo que se completa se guarda en un archivo: los campos componen un
+    // texto que un ejecutor recibe, y la instrucción entera se ve recién en el
+    // paso siguiente. Hasta acá no había forma de saber qué se estaba armando.
+    renderFlow();
+
+    expect(screen.getByText('pipeline.newChange.propose.nature')).toBeTruthy();
+    expect(screen.getByText('pipeline.newChange.propose.objectiveHelp')).toBeTruthy();
+    expect(screen.getByText('pipeline.newChange.propose.constraintsHelp')).toBeTruthy();
+    expect(screen.getByText(/newChange\.propose\.slugTarget/)).toBeTruthy();
+  });
+
   it('un formulario inválido no crea ninguna rama', () => {
     renderFlow();
     fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));

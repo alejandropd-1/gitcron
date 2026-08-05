@@ -99,6 +99,12 @@ const PIPELINE_KEYS = [
   'pipeline.hud.needsYou',
   'pipeline.hud.allClear',
   'pipeline.openspec.activity.noneForChange',
+  'pipeline.openspec.activity.repoScope',
+  'pipeline.openspec.activity.ranAt',
+  'pipeline.newChange.propose.nature',
+  'pipeline.newChange.propose.objectiveHelp',
+  'pipeline.newChange.propose.slugTarget',
+  'pipeline.newChange.propose.constraintsHelp',
   // Pantalla de entrada del repositorio.
   'pipeline.openspec.start.title',
   'pipeline.openspec.start.back',

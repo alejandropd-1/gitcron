@@ -140,6 +140,13 @@ export function PipelineNewChangeFlow({
 
       {mode === 'propose' ? (
         <div className={styles.flowFields}>
+          {/* Nada de lo que se completa se guarda en un archivo: los campos
+              componen un texto que un ejecutor recibe, y es él quien escribe la
+              propuesta, el diseño y las tareas. La instrucción entera se ve
+              recién en el paso siguiente, dentro del lanzador, así que hasta acá
+              no había forma de saber qué se estaba armando. */}
+          <p className={styles.flowNature}>{t('pipeline.newChange.propose.nature')}</p>
+
           <label className={styles.flowField} htmlFor={`${fieldId}-objective`}>
             <span>{t('pipeline.newChange.propose.objective')}</span>
             <textarea
@@ -151,10 +158,12 @@ export function PipelineNewChangeFlow({
               aria-describedby={errors.objective ? `${fieldId}-objective-error` : undefined}
               onChange={(event) => setObjective(event.target.value)}
             />
-            {errors.objective && (
+            {errors.objective ? (
               <em id={`${fieldId}-objective-error`} className={styles.flowError} role="alert">
                 {t(errors.objective)}
               </em>
+            ) : (
+              <em className={styles.flowHint}>{t('pipeline.newChange.propose.objectiveHelp')}</em>
             )}
           </label>
 
@@ -177,6 +186,8 @@ export function PipelineNewChangeFlow({
             ) : (
               <em id={`${fieldId}-slug-help`} className={styles.flowHint}>
                 {t('pipeline.newChange.propose.slugHelp')}
+                {' '}
+                {t('pipeline.newChange.propose.slugTarget')}
               </em>
             )}
           </label>
@@ -189,6 +200,7 @@ export function PipelineNewChangeFlow({
               value={constraints}
               onChange={(event) => setConstraints(event.target.value)}
             />
+            <em className={styles.flowHint}>{t('pipeline.newChange.propose.constraintsHelp')}</em>
           </label>
 
           {/* Se declara antes de ocurrir: es una escritura de Git, y en este

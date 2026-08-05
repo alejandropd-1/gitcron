@@ -1207,7 +1207,31 @@
 }
 
 /* Flujo de cambio nuevo */
-.newChangeFlow { width: min(100%, 44rem); margin-top: 1rem; text-align: left; }
+/* Ocupa el ancho del centro, no una fracción: con las ayudas por campo, 44rem
+   apretaba los textos. Se ensancha hasta donde llegan los demás paneles del
+   centro, no más allá. */
+.newChangeFlow { width: 100%; margin-top: 1rem; text-align: left; }
+
+/* Qué es este formulario. Lo que se escribe arma la instrucción del ejecutor:
+   los artefactos los escribe él. Una frase, no un bloque explicativo. */
+.flowNature {
+  margin: 0 0 0.35rem;
+  padding: 0.5rem 0.6rem;
+  border-left: 2px solid var(--os-cyan);
+  background: var(--os-surface);
+  color: #c2d0de;
+  font: 0.68rem/1.5 var(--font-mono), ui-monospace, monospace;
+}
+
+/* Alcance de lo que muestra la columna cuando no hay cambio abierto. */
+.railScope {
+  margin: 0 0 0.4rem;
+  padding: 0 0.9rem;
+  color: var(--os-muted);
+  font: 0.64rem var(--font-mono), ui-monospace, monospace;
+}
+
+.sessionRanAt { color: var(--os-muted); font: 0.6rem var(--font-mono), ui-monospace, monospace; font-style: normal; }
 .intentSwitch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
 
 .intentOption {

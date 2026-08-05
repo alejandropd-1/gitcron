@@ -164,6 +164,31 @@ describe('alcance de la columna de actividad', () => {
     expect(screen.queryByText('actividad de s-suelta')).toBeNull();
   });
 
+  it('declara cuándo corrió la sesión aunque haya una sola', () => {
+    // La fecha vivía sólo en las opciones del selector, y el selector no se
+    // renderiza con una sola sesión: es justo el caso donde falta. Sin esa
+    // marca, una sesión de días atrás se lee como actividad en curso.
+    renderDashboard(null, [session('s-vieja', 'mirado', '2026-08-04T09:00:00Z')]);
+    enterFirstChange();
+
+    expect(screen.queryByLabelText(/openspec\.activity\.sessionPicker/)).toBeNull();
+    expect(screen.getByText(/openspec\.activity\.ranAt/)).toBeTruthy();
+  });
+
+  it('sin cambio abierto declara que lo mostrado es del repositorio', () => {
+    renderDashboard(null, [session('s-otro', 'otro', '2026-08-04T12:00:00Z')]);
+
+    expect(screen.getByText('pipeline.openspec.activity.repoScope')).toBeTruthy();
+  });
+
+  it('con un cambio abierto no repite el alcance', () => {
+    // El panel entero ya declara de qué cambio es: decirlo otra vez sería ruido.
+    renderDashboard(null, [session('s-mirado', 'mirado', '2026-08-04T09:00:00Z')]);
+    enterFirstChange();
+
+    expect(screen.queryByText('pipeline.openspec.activity.repoScope')).toBeNull();
+  });
+
   it('sin ningún cambio abierto se muestran todas las sesiones', () => {
     // En la pantalla de entrada el contexto es el repositorio: no hay contra qué
     // restringir, y la actividad reciente sirve para decidir por dónde seguir.

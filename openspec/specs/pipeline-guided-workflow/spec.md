@@ -517,24 +517,34 @@ mitades por separado empuja a quien prepara hacia ese resultado sin advertirlo.
 - **THEN** no aparece entre los que se ofrecen para preparar de nuevo
 
 ### Requirement: El mensaje se sugiere y se puede editar
-El mensaje SHALL derivarse del conjunto de archivos elegido y SHALL quedar editable antes de
-confirmar. La aplicación SHALL NOT tratarlo como definitivo ni impedir su modificación. Cuando todos
+El mensaje SHALL derivarse del conjunto de archivos elegido y SHALL quedar editable en la misma
+superficie donde se elige qué entra, antes de preparar y antes de confirmar. La aplicación SHALL NOT
+tratarlo como definitivo, SHALL NOT impedir su modificación y SHALL NOT mostrarlo como texto que no se
+puede tocar. Lo que se lea en esa superficie SHALL ser lo mismo que se va a confirmar. Cuando todos
 los archivos elegidos pertenecen a un mismo cambio —activo o archivado—, la descripción SHALL ser el
 identificador de ese cambio; cuando abarcan más de uno o ninguno, SHALL caer al alcance derivado de la
 ubicación de los archivos.
 
 El fundamento es que el tipo de un commit y el motivo del trabajo no son derivables del estado del
 repositorio: requieren entender qué se hizo. Un mensaje derivado es un punto de partida útil, y
-presentarlo como definitivo afirmaría algo que el dato no respalda. Que la descripción deje de
-nombrar un cambio en cuanto la selección abarca más de uno es deliberado: es la señal visible de que
-el commit está mezclando trabajos, y llega antes de confirmar. Que un cambio archivado sí pueda
-nombrar el mensaje corrige el caso en que la selección **es** el archivado: dejarlo sin descripción
-vaciaba justamente el commit que mejor se puede describir, y el riesgo de que un trabajo cerrado
-nombre un commit de trabajo en curso lo sigue cubriendo la regla del identificador único.
+presentarlo como definitivo afirmaría algo que el dato no respalda. Que se pueda corregir donde se
+decide qué entra importa porque es ahí donde se sabe qué se está por confirmar; mostrarlo sin poder
+tocarlo obliga a recordar una corrección hasta otra pantalla. Que sea el mismo texto y no una copia
+evita el modo de fallo que este panel existe para prevenir: que lo que se lee no sea lo que se
+confirma. Que la descripción deje de nombrar un cambio en cuanto la selección abarca más de uno es
+deliberado: es la señal visible de que el commit está mezclando trabajos, y llega antes de confirmar.
+Que un cambio archivado sí pueda nombrar el mensaje corrige el caso en que la selección **es** el
+archivado: dejarlo sin descripción vaciaba justamente el commit que mejor se puede describir, y el
+riesgo de que un trabajo cerrado nombre un commit de trabajo en curso lo sigue cubriendo la regla del
+identificador único.
 
 #### Scenario: Selección de un solo cambio
 - **WHEN** se prepara el commit y todos los archivos elegidos pertenecen a un mismo cambio
 - **THEN** el mensaje sugerido nombra ese cambio y puede modificarse antes de confirmar
+
+#### Scenario: Corrección del mensaje antes de preparar
+- **WHEN** se corrige el mensaje en el panel de preparación
+- **THEN** ese texto es el que queda para confirmar, sin tener que reescribirlo en otra pantalla
 
 #### Scenario: Selección que es el archivado de un cambio
 - **WHEN** los archivos elegidos son las dos mitades del archivado de un mismo cambio
@@ -661,10 +671,21 @@ repositorio SHALL seguir siendo posible después de haber entrado. La pantalla d
 declarar los cambios en curso con su avance de tareas, lo archivado y las especificaciones, y SHALL
 ofrecer abrir un cambio nuevo.
 
+La guía del siguiente paso SHALL presentarse antes que las listas, de modo que su posición no dependa
+de cuántos cambios haya. Cada cambio en curso SHALL poder desplegarse para ver sus tareas pendientes,
+plegado por defecto. Los cambios archivados SHALL poder verse todos y SHALL poder abrirse desde ahí,
+sin que una cuenta sea el único acceso.
+
 El fundamento es que un cambio elegido por orden de lista no es información: el panel entraba al
 primero de `activeChanges` y mostraba sus tareas como si fueran el asunto del momento, sin que nada
 distinguiera esa elección de una deliberada. Mostrar primero el panorama es lo que permite decidir por
 dónde seguir, que es la pregunta real al abrir la herramienta.
+
+Que la guía vaya primero tiene su propio fundamento: es la acción que la pantalla existe para ofrecer,
+y renderizada al final quedaba empujada fuera de vista por la lista de cambios. Que se vean las tareas
+pendientes importa porque saber que van cinco de seis no dice cuál es la sexta, que es con lo que se
+decide. Que los archivados sean alcanzables importa porque una cuenta sin lista deja inaccesible todo
+lo que no entre en el acceso rápido de la barra lateral.
 
 #### Scenario: Apertura con varios cambios en curso
 - **WHEN** se abre el panel en un repositorio con más de un cambio activo y sin elección previa
@@ -677,6 +698,15 @@ dónde seguir, que es la pregunta real al abrir la herramienta.
 #### Scenario: Abrir un cambio nuevo desde la entrada
 - **WHEN** se pide empezar un trabajo nuevo desde la pantalla de entrada
 - **THEN** el flujo de creación queda disponible sin tener que entrar antes a un cambio ajeno
+
+#### Scenario: Ver qué falta en un cambio
+- **WHEN** se despliega un cambio en curso desde la pantalla de entrada
+- **THEN** se ven sus tareas pendientes, y las ya hechas no se listan
+
+#### Scenario: Llegar a un archivado que no está entre los recientes
+- **WHEN** el repositorio tiene más archivados de los que entran en el acceso rápido de la barra
+  lateral
+- **THEN** la pantalla de entrada permite verlos todos y abrir cualquiera de ellos
 
 ### Requirement: La correspondencia entre rama y cambio se declara sin navegar
 Cuando el estado del repositorio identifica un cambio a partir de la rama actual, el panel SHALL
@@ -747,4 +777,131 @@ repositorio entero, y ahí no hay contra qué restringir.
 #### Scenario: Sin ningún cambio abierto
 - **WHEN** el panel está en el estado del repositorio, sin cambio abierto
 - **THEN** la columna muestra todas las sesiones del repositorio, sin filtrar por cambio
+
+### Requirement: Empezar un cambio puede crear su rama
+Al empezar un cambio con la tarea clara, la aplicación SHALL poder crear la rama `change/<slug>` y dejar
+el repositorio parado en ella antes de lanzar la sesión. Esa creación SHALL declararse en el formulario
+antes de ocurrir y SHALL poder desactivarse; desactivada, la aplicación SHALL NOT ejecutar ninguna
+operación de Git.
+
+Si la rama no se puede crear, la aplicación SHALL informar el motivo real y SHALL NOT lanzar la sesión.
+SHALL NOT cambiarse a una rama existente con ese nombre por su cuenta.
+
+El fundamento es que un archivo de código no se puede atribuir a un cambio: ese dato no existe en el
+repositorio, y por eso el panel de preparación sólo puede declarar de qué tipo es cada archivo sin cambio
+que lo reclame. Una rama por cambio resuelve la atribución con el mecanismo propio de Git, sin inventar
+registro alguno.
+
+Que se declare y se pueda desactivar responde a que es una escritura de Git, y en este proyecto las
+escrituras nuevas se autorizan explícitamente. Que un fallo detenga el arranque responde a que la persona
+acaba de leer que se iba a trabajar en `change/<slug>`: arrancar en otra rama sería divergencia entre lo
+declarado y lo ejecutado. Que no se reutilice una rama existente responde a que arrastraría los commits de
+un trabajo anterior, que es una decisión con consecuencias y no algo que corresponda adivinar.
+
+#### Scenario: Cambio nuevo con la rama activada
+- **WHEN** se empieza un cambio con la tarea clara y la creación de la rama está activada
+- **THEN** se crea `change/<slug>`, el repositorio queda parado en ella, y recién entonces se lanza la
+  sesión
+
+#### Scenario: Creación de la rama desactivada
+- **WHEN** se empieza un cambio con la creación de la rama desactivada
+- **THEN** la sesión se lanza sin que se ejecute ninguna operación de Git
+
+#### Scenario: La rama no se puede crear
+- **WHEN** la creación de la rama falla, por existir ya o por cualquier otro motivo
+- **THEN** se informa el motivo real y la sesión no se lanza
+
+### Requirement: La superficie de preparación declara su contexto
+El panel de preparación SHALL declarar la rama a la que va el commit, en la misma superficie donde se
+elige qué entra y se corrige el mensaje. La aplicación SHALL NOT ofrecer desde ahí ninguna operación
+que cambie de rama ni ninguna otra escritura de Git.
+
+Mientras el panel está abierto, la columna lateral SHALL mostrar los archivos que ya están preparados,
+con su estado, y SHALL declarar qué está mostrando. Al cerrarse el panel, la columna SHALL volver a su
+contenido habitual. Esa lista SHALL ser una vista y SHALL NOT ofrecer controles que dupliquen acciones
+del flujo de commit.
+
+El fundamento es que un commit lo definen tres cosas —qué archivos, con qué mensaje, a qué rama— y la
+tercera no estaba en la superficie donde se deciden las otras dos. Hoy pasa desapercibido porque la
+rama siempre es la misma; deja de pasarlo en cuanto haya más de una.
+
+Lo preparado se muestra porque el panel filtra los archivos ya staged para que el conteo baje al
+preparar y no se ofrezcan dos veces. Esa decisión es correcta y tiene un efecto no buscado: deja
+invisible la mitad del estado. Con lo que falta mandar de un lado y lo que ya está listo del otro, el
+estado del commit se lee completo sin cambiar de pantalla. Mostrar en la columna lo que **no** está
+preparado sería repetir lo que el panel ya lista agrupado.
+
+#### Scenario: Rama de destino a la vista
+- **WHEN** el panel de preparación está abierto
+- **THEN** declara la rama a la que va el commit, sin ofrecer cambiarla
+
+#### Scenario: Lo ya preparado mientras se decide
+- **WHEN** hay archivos preparados y el panel de preparación está abierto
+- **THEN** la columna lateral los lista con su estado, declarando que son los ya preparados
+
+#### Scenario: Nada preparado todavía
+- **WHEN** el panel está abierto y no hay ningún archivo preparado
+- **THEN** la columna lo declara, en vez de quedar vacía
+
+#### Scenario: Cierre del panel
+- **WHEN** se cierra el panel de preparación
+- **THEN** la columna lateral vuelve a su contenido habitual
+
+### Requirement: Cada grupo declara de qué está hecho
+Cada grupo del panel de preparación SHALL declarar en prosa breve qué contiene y de dónde viene: los
+artefactos de un cambio en curso nombrando ese cambio, el movimiento de un archivado nombrando qué se
+archivó, y lo que ningún cambio reclama declarándolo como tal. El estado de cada archivo SHALL decirse
+con palabra —nuevo, modificado, borrado— y SHALL NOT quedar sólo como una inicial. En el grupo que
+ningún cambio reclama, cada archivo SHALL declarar además de qué tipo es, derivado de su ubicación.
+
+Los controles que suman o quitan un grupo entero SHALL presentarse como controles, con marco e ícono,
+y SHALL NOT quedar como texto suelto junto al rótulo.
+
+El fundamento es que este panel existe para que una omisión se vea antes de confirmar, y un grupo que
+sólo lleva rótulo no permite auditarlo: sumando todo de una, un archivo que no correspondía queda
+declarado apenas como sin atribución y ahí se agota la información. El estado en palabra sigue el
+mismo criterio por el que el control de tarea dejó de ser un elemento sin señal: un dato que sólo
+aparece al pasar el mouse no está presentado. Declarar el tipo de archivo no es atribuirlo a un
+trabajo —ese dato no existe— sino decir qué clase de archivo es, que es lo que sí se puede afirmar.
+
+#### Scenario: Grupo de un cambio en curso
+- **WHEN** el panel muestra los artefactos de un cambio activo
+- **THEN** el grupo nombra ese cambio y declara que son sus artefactos
+
+#### Scenario: Grupo de un archivado
+- **WHEN** el panel muestra el movimiento de un archivado
+- **THEN** el grupo declara qué cambio se archivó y que contiene el movimiento completo
+
+#### Scenario: Grupo que ningún cambio reclama
+- **WHEN** el panel muestra archivos que no son artefactos de ningún cambio
+- **THEN** el grupo declara que ningún cambio los reclama, y cada archivo declara de qué tipo es
+
+#### Scenario: Estado de cada archivo
+- **WHEN** el panel lista un archivo modificado
+- **THEN** su estado se lee con palabra sin tener que pasar el mouse por encima
+
+#### Scenario: Control de un grupo
+- **WHEN** el panel ofrece sumar o quitar un grupo entero
+- **THEN** ese control se presenta con marco e ícono, distinguible del rótulo del grupo
+
+### Requirement: La guía distingue no haber elegido de no haber ninguno
+La guía del siguiente paso SHALL distinguir el estado en que hay cambios en curso y ninguno elegido del
+estado en que no hay ningún cambio activo, y SHALL NOT afirmar que no hay cambios cuando los hay. En el
+primer caso SHALL declarar que se puede entrar a uno de los que hay o empezar otro. La distinción SHALL
+resolverse en la derivación y SHALL NOT taparse en el render.
+
+El fundamento es que el panel dejó de entrar a un cambio por descarte, así que «ningún cambio
+seleccionado» pasó a ser el estado normal de la pantalla de entrada. La derivación siguió leyéndolo
+como el estado raro de un repositorio vacío, y el resultado es una pantalla que lista cuatro cambios en
+curso y debajo afirma que no hay ninguno. Corregirlo en el render dejaría la afirmación falsa intacta
+para cualquier otro consumidor.
+
+#### Scenario: Cambios en curso y ninguno elegido
+- **WHEN** el repositorio tiene cambios activos y no hay ninguno seleccionado
+- **THEN** la guía declara que se puede entrar a uno de los que hay o empezar otro, y no afirma que no
+  haya cambios activos
+
+#### Scenario: Repositorio sin ningún cambio activo
+- **WHEN** el repositorio no tiene ningún cambio activo
+- **THEN** la guía lo declara como tal y ofrece empezar uno
 

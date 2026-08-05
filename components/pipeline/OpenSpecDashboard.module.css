@@ -100,43 +100,56 @@
 }
 
 /* Control, no rótulo: abre la preparación del commit del repositorio. Nació como
-   `div` informativo, así que necesita el reset de botón; el área clickeable es
-   toda la caja para no obligar a apuntar al texto. */
+   `div` informativo, así que necesita el reset de botón.
+
+   Ocupa ancho y lleva marco propio a propósito: es la única puerta a la
+   preparación, y como caja tenue del tamaño justo del texto no se leía como algo
+   que se pudiera apretar. El área clickeable es toda la caja. */
 .repoHealth {
   display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
-  min-width: 13rem;
-  padding: 0.4rem 0.55rem;
-  margin: -0.4rem -0.55rem;
-  justify-content: flex-end;
-  border: 1px solid transparent;
-  border-radius: 0.5rem;
-  background: none;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 22rem;
+  padding: 0.6rem 0.75rem 0.6rem 0.9rem;
+  margin: -0.35rem 0;
+  justify-content: flex-start;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.55rem;
+  background: var(--os-surface);
   color: var(--os-muted);
   cursor: pointer;
   text-align: left;
   font: inherit;
+  transition: border-color 120ms ease, background-color 120ms ease;
 }
 
 .repoHealth:hover,
-.repoHealth:focus-visible { border-color: var(--os-border-strong); background: var(--os-surface); }
-.repoHealth[aria-expanded='true'] { border-color: var(--os-cyan); background: var(--os-surface); }
+.repoHealth:focus-visible { border-color: var(--os-cyan); }
+.repoHealth[aria-expanded='true'] { border-color: var(--os-cyan); background: rgba(94, 216, 255, 0.08); }
 
+/* El árbol sucio es lo que hay para confirmar: se avisa en el marco, no sólo en
+   el punto, para que se note sin tener que leer. */
+.repoHealth:not([data-clean='true']) { border-color: rgba(240, 183, 91, 0.5); }
+
+/* Pastilla siempre a la vista, no un texto que aparece al pasar por encima: la
+   acción tiene que anunciarse sin que haya que descubrirla. No es un `button`
+   anidado —sería HTML inválido dentro del control— sino su misma superficie. */
 .repoHealthCta {
-  align-self: center;
+  margin-left: auto;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--os-cyan);
+  border-radius: 0.4rem;
   color: var(--os-cyan);
-  font: 650 0.62rem var(--font-mono), ui-monospace, monospace;
+  font: 650 0.66rem var(--font-mono), ui-monospace, monospace;
   font-style: normal;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  opacity: 0;
-  transition: opacity 120ms ease;
+  white-space: nowrap;
 }
 
 .repoHealth:hover .repoHealthCta,
 .repoHealth:focus-visible .repoHealthCta,
-.repoHealth[aria-expanded='true'] .repoHealthCta { opacity: 1; }
+.repoHealth[aria-expanded='true'] .repoHealthCta { background: rgba(94, 216, 255, 0.14); }
 
 .repoHealth > div { display: grid; gap: 0.25rem; }
 .repoHealth strong { color: #c9d8e8; font-size: 0.74rem; font-weight: 600; }
@@ -876,6 +889,101 @@
   color: var(--os-green);
 }
 
+/* Pantalla de entrada del repositorio. Es estado, no bienvenida: sin ilustración,
+   sin texto explicativo y con la misma densidad del resto del panel, según la
+   invariante 11. Alineada arriba y no centrada, porque con cuatro cambios en
+   curso el centrado deja la lista bailando según cuántos haya. */
+.startScreen {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.4rem 1.6rem;
+  overflow-y: auto;
+}
+
+.startScreen > h3 {
+  margin: 0;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--os-border);
+  color: #dce7f3;
+  font: 650 0.84rem var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
+
+.startBlock > h4 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin: 0 0 0.7rem;
+  color: var(--os-muted);
+  font: 650 0.7rem var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.startBlock > h4 > span { color: var(--os-cyan); font-size: 0.82rem; }
+
+/* Una cuenta en cero que no significa ausencia se dice con palabras. Mostrarla
+   como cifra junto a las demás hacía leer como vacío un repositorio que sólo
+   todavía no archivó nada. */
+.startNote { margin: 0 0 0.3rem; color: var(--os-muted); font: 0.7rem/1.5 var(--font-mono), ui-monospace, monospace; }
+
+.startList { display: flex; flex-direction: column; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.startList > li {
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--os-border);
+  border-radius: 0.5rem;
+  background: var(--os-surface);
+}
+.startList > li[data-branch] { border-color: var(--os-cyan); }
+.startList > li > p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0.4rem 0 0.55rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--os-muted);
+  font: 0.68rem/1.45 var(--font-mono), ui-monospace, monospace;
+}
+
+.startItemHead { display: flex; align-items: center; gap: 0.6rem; }
+.startItemHead > strong { min-width: 0; overflow-wrap: anywhere; color: #eef4fa; font: 650 0.78rem var(--font-mono), ui-monospace, monospace; }
+.startItemHead > button { margin-left: auto; flex: 0 0 auto; }
+
+.branchPill {
+  flex: 0 0 auto;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--os-cyan);
+  border-radius: 0.6rem;
+  color: var(--os-cyan);
+  font: 650 0.56rem var(--font-mono), ui-monospace, monospace;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+.startProgress { display: flex; align-items: center; gap: 0.7rem; color: var(--os-muted); font: 0.66rem var(--font-mono), ui-monospace, monospace; }
+.startBar { flex: 1 1 auto; height: 0.28rem; border-radius: 0.2rem; background: var(--os-border-strong); }
+.startBar > span { display: block; height: 100%; border-radius: 0.2rem; background: var(--os-cyan); }
+
+/* Vuelta al estado del repositorio desde adentro de un cambio. */
+.backToStart {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.35rem;
+  margin: 0 0 0.45rem -0.35rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: none;
+  color: var(--os-muted);
+  cursor: pointer;
+  font: 600 0.62rem var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.backToStart:hover { color: var(--os-cyan); background: var(--os-surface); }
+
 .completedSummary > p,
 .noActiveChange > p { margin: 0.8rem 0 0.35rem; color: var(--os-muted); font: 0.7rem var(--font-mono), ui-monospace, monospace; }
 .completedSummary h3,
@@ -1036,7 +1144,7 @@
   .dashboard[data-left-open='false'] .body { grid-template-columns: minmax(0, 1fr); }
   .summaryBar { gap: 1rem; padding-inline: 1.15rem; }
   .summaryFacts > div { min-width: 0; padding-inline: 0.8rem; }
-  .repoHealth { min-width: 10rem; }
+  .repoHealth { min-width: 16rem; }
   .changeHeader { grid-template-columns: minmax(12rem, 0.8fr) minmax(23rem, 1.2fr); padding-inline: 1rem; }
 }
 
@@ -1062,7 +1170,6 @@
      accionable; la rama se sigue leyendo en el resto de las vistas de Git. */
   .repoHealth { min-width: 0; }
   .repoHealth > div { display: none; }
-  .repoHealthCta { opacity: 1; }
   /* Dos opciones lado a lado se vuelven ilegibles acá: pasan a apilarse, y las
      acciones del siguiente paso ocupan el ancho para no quedar cortadas. */
   .intentSwitch { grid-template-columns: minmax(0, 1fr); }

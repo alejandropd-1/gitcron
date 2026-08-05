@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { useGitStore } from '@/lib/git-store';
@@ -137,9 +137,22 @@ afterEach(() => {
   useGitStore.getState().setSuccess(null);
 });
 
+/**
+ * Entra al cambio desde la pantalla de entrada.
+ *
+ * El panel abre en el estado del repositorio y ya no cae al primer cambio de la
+ * lista: entrar es una elección, así que los casos que miran el interior de un
+ * cambio tienen que entrar primero.
+ */
+function enterChange() {
+  const [enter] = screen.getAllByRole('button', { name: /openspec\.start\.enter/ });
+  fireEvent.click(enter);
+}
+
 describe('archivado explícito de un cambio', () => {
   it('ofrece archivar con validación aprobada aunque queden tareas, y declara cuántas', () => {
     renderDashboard({ validation: 'passed' });
+    enterChange();
     const button = screen.getByRole('button', { name: /openspec\.archive\.actionPending/ }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
     expect(button.textContent).toContain('"count":1');
@@ -147,6 +160,7 @@ describe('archivado explícito de un cambio', () => {
 
   it('sigue ofreciendo archivar aunque una sesión persistida apunte a la tarea pendiente', () => {
     renderDashboard({ validation: 'passed', projection: stalledSession() });
+    enterChange();
     // La derivación puede seguir sugiriendo reintentar: eso es honesto. Lo que
     // no puede es dejar al cambio sin ninguna salida hacia el archivo.
     const button = screen.getByRole('button', { name: /openspec\.archive\.actionPending/ }) as HTMLButtonElement;
@@ -155,6 +169,7 @@ describe('archivado explícito de un cambio', () => {
 
   it('deshabilita el archivo y declara el motivo cuando la validación no pasó', () => {
     renderDashboard({ validation: 'failed' });
+    enterChange();
     const button = screen.getByRole('button', { name: /openspec\.archive\.actionPending/ }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     expect(button.title).toBe('pipeline.openspec.archive.blockedFailed');
@@ -162,6 +177,7 @@ describe('archivado explícito de un cambio', () => {
 
   it('bloquea el archivo con datos de vista previa', () => {
     renderDashboard({ validation: 'passed', fixtureActive: true });
+    enterChange();
     const button = screen.getByRole('button', { name: /openspec\.archive\.actionPending/ }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
   });
@@ -175,6 +191,8 @@ describe('archivado explícito de un cambio', () => {
     });
 
     renderDashboard({ validation: 'passed' });
+
+    enterChange();
     screen.getByRole('button', { name: /openspec\.archive\.actionPending/ }).click();
 
     // Lo mostrado es literalmente lo que se ejecuta.
@@ -194,6 +212,8 @@ describe('archivado explícito de un cambio', () => {
     });
 
     renderDashboard({ validation: 'passed', onRefresh });
+
+    enterChange();
     screen.getByRole('button', { name: /openspec\.archive\.actionPending/ }).click();
     const confirm = await screen.findByRole('button', { name: /openspec\.archive\.confirmAction/ });
     confirm.click();
@@ -223,6 +243,8 @@ describe('archivado explícito de un cambio', () => {
     });
 
     renderDashboard({ validation: 'passed' });
+
+    enterChange();
     screen.getByRole('button', { name: /openspec\.archive\.actionPending/ }).click();
 
     const confirm = await screen.findByRole('button', { name: /openspec\.archive\.confirmAction/ });
@@ -241,6 +263,8 @@ describe('archivado explícito de un cambio', () => {
     });
 
     renderDashboard({ validation: 'passed' });
+
+    enterChange();
     screen.getByRole('button', { name: /openspec\.archive\.actionPending/ }).click();
     const confirm = await screen.findByRole('button', { name: /openspec\.archive\.confirmAction/ });
     confirm.click();
@@ -261,6 +285,8 @@ describe('archivado explícito de un cambio', () => {
     });
 
     renderDashboard({ validation: 'passed', onRefresh });
+
+    enterChange();
     screen.getByRole('button', { name: /openspec\.archive\.actionPending/ }).click();
     const confirm = await screen.findByRole('button', { name: /openspec\.archive\.confirmAction/ });
     confirm.click();
@@ -279,6 +305,8 @@ describe('archivado explícito de un cambio', () => {
     });
 
     renderDashboard({ validation: 'passed', fixtureActive: true });
+
+    enterChange();
     // Con fixture el control ya está deshabilitado; se comprueba además que el
     // camino de ejecución no exista aunque se llegara a él.
     const button = screen.getByRole('button', { name: /openspec\.archive\.actionPending/ }) as HTMLButtonElement;

@@ -98,6 +98,21 @@ const PIPELINE_KEYS = [
   'pipeline.hud.decisions',
   'pipeline.hud.needsYou',
   'pipeline.hud.allClear',
+  'pipeline.openspec.activity.noneForChange',
+  // Pantalla de entrada del repositorio.
+  'pipeline.openspec.start.title',
+  'pipeline.openspec.start.back',
+  'pipeline.openspec.start.inProgress',
+  'pipeline.openspec.start.enter',
+  'pipeline.openspec.start.branchMatch',
+  'pipeline.openspec.start.tasks',
+  'pipeline.openspec.start.noTasks',
+  'pipeline.openspec.start.noActive',
+  'pipeline.openspec.start.closed',
+  'pipeline.openspec.start.neverArchived',
+  'pipeline.openspec.start.archivedCount',
+  'pipeline.openspec.start.specificationsCount',
+  'pipeline.openspec.start.specsPending',
   // Preparación del commit del repositorio. Van acá para que las tres lenguas
   // queden exigidas: el riesgo real no es que falte una traducción sino que
   // quede una que hable "del cambio" sobre una superficie que ya no lo es.
@@ -164,6 +179,13 @@ describe('Pipeline i18n', () => {
       const group = translate('pipeline.openspec.prepare.groupChange', lang, { change: 'mi-cambio' });
       expect(group).toContain('mi-cambio');
       expect(group).not.toMatch(/\{\{/);
+
+      // El avance de un cambio en la pantalla de entrada: sin los dos números,
+      // un repositorio casi terminado se lee igual que uno recién empezado.
+      const tasks = translate('pipeline.openspec.start.tasks', lang, { done: 5, total: 6 });
+      expect(tasks).toContain('5');
+      expect(tasks).toContain('6');
+      expect(tasks).not.toMatch(/\{\{/);
     }
   });
 

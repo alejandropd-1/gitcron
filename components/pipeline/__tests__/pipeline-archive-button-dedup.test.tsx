@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useGitStore } from '@/lib/git-store';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
@@ -91,11 +91,24 @@ afterEach(() => {
   useGitStore.getState().setSuccess(null);
 });
 
+/**
+ * Entra al cambio desde la pantalla de entrada.
+ *
+ * El panel abre en el estado del repositorio y ya no cae al primer cambio de la
+ * lista: entrar es una elección, así que los casos que miran el interior de un
+ * cambio tienen que entrar primero.
+ */
+function enterChange() {
+  const [enter] = screen.getAllByRole('button', { name: /openspec\.start\.enter/ });
+  fireEvent.click(enter);
+}
+
 describe('botón de archivar sin duplicación', () => {
   it('con validación aprobada y sin tareas pendientes, aparece un solo "Archivar cambio"', () => {
     // La acción primaria derivada ya es archivar (`ready-to-archive`): el botón
     // siempre visible no se renderiza, para no duplicar el control.
     renderDashboard(snapshot([task('6.5', true), task('6.6', true)], 'passed'));
+    enterChange();
 
     const buttons = screen.getAllByRole('button', { name: /Archivar cambio|^pipeline\.next\.readyToArchive\.action|pipeline\.openspec\.archive\.action\b/ });
     // La acción primaria usa `pipeline.next.readyToArchive.action`; el botón
@@ -113,6 +126,7 @@ describe('botón de archivar sin duplicación', () => {
     // declarando las pendientes. No hay duplicación porque los textos difieren,
     // y el aporte del siempre visible no lo cubre la primaria.
     renderDashboard(snapshot([task('6.5', true), task('6.6', false)], 'passed'));
+    enterChange();
 
     const alwaysVisible = screen.queryByRole('button', { name: /openspec\.archive\.actionPending/ });
     expect(alwaysVisible).not.toBeNull();

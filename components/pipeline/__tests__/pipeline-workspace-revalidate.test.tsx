@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PipelineWorkspace, type PipelineSnapshotLoader } from '../PipelineWorkspace';
 import type { PipelineSnapshot } from '../pipeline-view-state';
@@ -93,6 +93,13 @@ describe('revalidación del workspace', () => {
 
     render(<PipelineWorkspace repoPath="C:/repo" loadSnapshot={loadSnapshot} />);
     await vi.waitFor(() => expect(screen.getAllByText('demo-change').length).toBeGreaterThan(0));
+
+    // El panel abre en el estado del repositorio: entrar al cambio es una
+    // elección, y la acción de validar vive adentro.
+    fireEvent.click(screen.getAllByRole('button', { name: /openspec\.start\.enter/ })[0]);
+    await vi.waitFor(() => expect(
+      screen.getByRole('button', { name: /pipeline\.next\.validationUnknown\.action/ }),
+    ).toBeTruthy());
 
     // `refresh-validation` es el camino real por el que el dashboard pide una
     // relectura: con tareas completas y validación sin comprobar, es la acción

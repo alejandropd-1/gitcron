@@ -11,6 +11,7 @@ import {
   FileCode2,
   FileText,
   ChevronDown,
+  ChevronLeft,
   FolderOpen,
   GitBranch,
   GitCompare,
@@ -251,44 +252,72 @@ export function OpenSpecDashboard({
     ...activeChanges.map((change) => change.changeId),
     ...archivedChanges.map((change) => change.changeId),
   ]);
-  const selectedId = selection && selectableIds.has(selection)
-    ? selection
-    : openSpec?.selectedChangeId ?? activeChanges[0]?.changeId ?? archivedChanges[0]?.changeId ?? null;
+  /**
+   * Sólo la elección explícita. Sin ella no hay cambio seleccionado y el panel
+   * muestra el estado del repositorio.
+   *
+   * Antes había una cadena de descartes que terminaba en `activeChanges[0]`, y
+   * eso hacía que abrir Pipeline entrara al primero de la lista mostrando sus
+   * tareas como si fueran el asunto del momento. Un cambio elegido por orden de
+   * lista no es información, y nada lo distinguía de uno elegido a propósito.
+   *
+   * `openSpec.selectedChangeId` tampoco entra acá: cuando el backend deriva una
+   * correspondencia entre la rama y un cambio, se señala en la pantalla de
+   * entrada. Gastarla en saltar adentro la volvía invisible.
+   */
+  const selectedId = selection && selectableIds.has(selection) ? selection : null;
   const selectedChange = activeChanges.find((change) => change.changeId === selectedId) ?? null;
   const selectedArchive = archivedChanges.find((change) => change.changeId === selectedId) ?? null;
+  /** El que la rama identifica, si el backend pudo derivarlo. Se señala, no se abre. */
+  const branchChangeId = openSpec?.selectedChangeId ?? null;
   /**
-   * Cuando el cambio en pantalla lo resolvió el fallback de la vista, hay que
-   * avisarlo: si no, se lee la evidencia de ningún cambio y el que se muestra
-   * queda con `validation: 'unknown'` y sin artefactos, aunque valide.
-   *
-   * El backend no elige por su cuenta con varios activos y sin match de rama, y
-   * eso está bien —no debe adivinar—. Lo que no puede quedar es que la elección
-   * que igual hace la vista para mostrar algo sea invisible para quien lee.
-   *
-   * Sólo para cambios activos: uno archivado no tiene evidencia que leer.
+   * Cambios de la pantalla de entrada, por avance descendente: adelante lo que
+   * está por cerrarse. Queda para validación visual si conviene este orden o el
+   * de última actividad.
    */
-  const unreportedSelection = selectedChange !== null
-    && openSpec?.selectedChangeId !== selectedChange.changeId
-      ? selectedChange.changeId
-      : null;
-  useEffect(() => {
-    if (unreportedSelection) onSelectChange?.(unreportedSelection);
-  }, [unreportedSelection, onSelectChange]);
+  const startChanges = activeChanges
+    .map((change) => ({ change, progress: taskProgress(change) }))
+    .sort((left, right) => right.progress.percent - left.progress.percent);
   const nextTask = selectedChange?.tasks.find((task) => !task.completed) ?? null;
   const stages = lifecycle(selectedChange, selectedArchive !== null);
   // Archivar responde "¿qué me está permitido hacer?", no "¿qué conviene ahora?".
   // Por eso vive fuera de la derivación del siguiente paso.
   const archive = deriveArchiveAvailability(selectedChange, selectedArchive !== null);
   const runtimeActive = projection?.active === true;
+  /**
+   * Sesiones que corresponden a lo que se está mirando.
+   *
+   * Con un cambio abierto, sólo las suyas. El resto del panel central es de ese
+   * cambio —tareas, artefactos, validación—, así que una columna al lado con
+   * otro criterio se lee como si fuera de él: antes caía a la más reciente del
+   * repositorio, y ver la actividad de otro cambio sin que nada lo declarara era
+   * un modo de fallo silencioso.
+   *
+   * Una sesión sin `changeId` no entra: el nulo significa que no se pudo
+   * atribuir, no que sea de todos.
+   *
+   * Sin cambio abierto pasan todas, porque el contexto es el repositorio entero
+   * y no hay contra qué restringir.
+   */
+  const openChangeId = selectedChange?.changeId ?? selectedArchive?.changeId ?? null;
   const runtimeSessions = [projection, ...runtimeHistory]
     .filter((entry): entry is RuntimeProjection => entry !== null)
     .filter((entry, index, list) => list.findIndex((candidate) => candidate.sessionId === entry.sessionId) === index)
+    .filter((entry) => openChangeId === null || entry.changeId === openChangeId)
     .sort((left, right) => right.startedAt.localeCompare(left.startedAt));
+  // La proyección activa deja de privilegiarse por estar corriendo: si es de
+  // otro cambio, no está en el conjunto y no puede pisar la lectura de éste.
   const effectiveSessionId = selectedSessionId && runtimeSessions.some((entry) => entry.sessionId === selectedSessionId)
     ? selectedSessionId
-    : projection?.sessionId ?? runtimeSessions[0]?.sessionId ?? null;
+    : runtimeSessions.find((entry) => entry.sessionId === projection?.sessionId)?.sessionId
+      ?? runtimeSessions[0]?.sessionId
+      ?? null;
   const selectedSession = runtimeSessions.find((entry) => entry.sessionId === effectiveSessionId) ?? null;
-  const visibleActivity = selectedSession?.activity ?? snapshot.activity;
+  /**
+   * Con un cambio abierto y sin sesiones suyas no se cae a la actividad suelta
+   * del snapshot: sería la de otro trabajo, que es el defecto que se corrige.
+   */
+  const visibleActivity = selectedSession?.activity ?? (openChangeId === null ? snapshot.activity : []);
   const activityGroups = groupActivity(visibleActivity);
   const selectedReasoningAvailable = selectedSession
     ? selectedSession.reasoningVisibility === 'emitted' || selectedSession.reasoningVisibility === 'summary'
@@ -858,6 +887,12 @@ export function OpenSpecDashboard({
             <>
               <header className={styles.changeHeader}>
                 <div className={styles.changeTitle}>
+                  {/* Volver al estado del repositorio: sin esto, entrar a un
+                      cambio era un viaje de ida y la pantalla de entrada sólo se
+                      vería al abrir el panel. */}
+                  <button type="button" className={styles.backToStart} onClick={() => setSelection(null)}>
+                    <ChevronLeft size={12} /> {t('pipeline.openspec.start.back')}
+                  </button>
                   <h3>{t('pipeline.openspec.change.active')}: <strong>{selectedChange.changeId}</strong></h3>
                   {/* El recorte visual es de tres líneas; el texto completo queda
                       accesible acá y sin recortar en el panel izquierdo. */}
@@ -1207,9 +1242,75 @@ export function OpenSpecDashboard({
               )}
             </section>
           ) : (
-            <section className={styles.noActiveChange}>
-              <BookOpen size={34} />
-              <h3>{t('pipeline.openspec.noActive.title')}</h3>
+            /* Pantalla de entrada del repositorio. Absorbe la vieja
+               `noActiveChange`, que sólo aparecía sin cambios ni archivados:
+               tener dos pantallas de repositorio según cuántos cambios haya daba
+               dos lecturas del mismo estado. */
+            <section className={styles.startScreen} aria-label={t('pipeline.openspec.start.title')}>
+              <h3>{t('pipeline.openspec.start.title')}</h3>
+
+              <div className={styles.startBlock}>
+                <h4>{t('pipeline.openspec.start.inProgress')} <span>{activeChanges.length}</span></h4>
+                {activeChanges.length === 0 ? (
+                  <p className={styles.startNote}>{t('pipeline.openspec.start.noActive')}</p>
+                ) : (
+                  <ul className={styles.startList}>
+                    {startChanges.map(({ change, progress }) => (
+                      <li key={change.changeId} data-branch={change.changeId === branchChangeId || undefined}>
+                        <div className={styles.startItemHead}>
+                          <strong>{change.changeId}</strong>
+                          {/* La rama se señala, no navega: gastarla en saltar
+                              adentro la volvía invisible. */}
+                          {change.changeId === branchChangeId && (
+                            <em className={styles.branchPill}>{t('pipeline.openspec.start.branchMatch')}</em>
+                          )}
+                          <button
+                            type="button"
+                            className={styles.secondaryAction}
+                            onClick={() => selectChange(change.changeId)}
+                          >
+                            {t('pipeline.openspec.start.enter')}
+                          </button>
+                        </div>
+                        <p title={change.intent ?? undefined}>{change.intent ?? t('pipeline.openspec.intentUnknown')}</p>
+                        <div className={styles.startProgress}>
+                          <span>
+                            {progress.total === 0
+                              ? t('pipeline.openspec.start.noTasks')
+                              : t('pipeline.openspec.start.tasks', { done: progress.completed, total: progress.total })}
+                          </span>
+                          {progress.total > 0 && (
+                            <span className={styles.startBar} aria-hidden="true">
+                              <span style={{ width: `${progress.percent}%` }} />
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Lo archivado no se cuenta como un cero más: un cero de
+                  archivados es el estado normal antes del primer archivado, y un
+                  cero de cambios activos significa lo contrario. Presentarlos
+                  igual hacía leer como vacío un repositorio casi terminado. */}
+              <div className={styles.startBlock}>
+                <h4>{t('pipeline.openspec.start.closed')}</h4>
+                {archivedChanges.length === 0 ? (
+                  <p className={styles.startNote}>{t('pipeline.openspec.start.neverArchived')}</p>
+                ) : (
+                  <p className={styles.startNote}>
+                    {t('pipeline.openspec.start.archivedCount', { count: archivedChanges.length })}
+                  </p>
+                )}
+                <p className={styles.startNote}>
+                  {specifications.length === 0
+                    ? t('pipeline.openspec.start.specsPending')
+                    : t('pipeline.openspec.start.specificationsCount', { count: specifications.length })}
+                </p>
+              </div>
+
               <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} />
               {flowMode && (
                 <PipelineNewChangeFlow
@@ -1260,7 +1361,17 @@ export function OpenSpecDashboard({
                 </p>
               )}
               {activityGroups.length === 0 ? (
-                <p className={styles.railEmpty}>{selectedSession ? t('pipeline.activity.empty') : t('pipeline.activity.noRuntime')}</p>
+                /* Un cambio sin sesiones lo declara: es un estado normal —recién
+                   creado, o trabajado desde afuera de la aplicación— y mostrar
+                   la sesión de otro para no dejar el espacio vacío es lo que
+                   producía la lectura equivocada. */
+                <p className={styles.railEmpty}>
+                  {selectedSession
+                    ? t('pipeline.activity.empty')
+                    : openChangeId !== null
+                      ? t('pipeline.openspec.activity.noneForChange')
+                      : t('pipeline.activity.noRuntime')}
+                </p>
               ) : (
                 <ol>
                   {activityGroups.slice(-12).map((entry) => {

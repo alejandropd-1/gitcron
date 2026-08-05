@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
@@ -91,9 +91,22 @@ function renderDashboard(overrides: { fixtureActive?: boolean; projection?: Runt
 
 afterEach(cleanup);
 
+/**
+ * Entra al cambio desde la pantalla de entrada.
+ *
+ * El panel abre en el estado del repositorio y ya no cae al primer cambio de la
+ * lista: entrar es una elección, así que los casos que miran el interior de un
+ * cambio tienen que entrar primero.
+ */
+function enterChange() {
+  const [enter] = screen.getAllByRole('button', { name: /openspec\.start\.enter/ });
+  fireEvent.click(enter);
+}
+
 describe('cableado de la guía con el lanzador', () => {
   it('ofrece continuar la próxima tarea con su identificador', () => {
     renderDashboard();
+    enterChange();
     const action = screen.getByRole('button', { name: /pipeline\.next\.task\.action/ });
     expect(action.textContent).toContain('1.2');
     expect((action as HTMLButtonElement).disabled).toBe(false);
@@ -101,6 +114,7 @@ describe('cableado de la guía con el lanzador', () => {
 
   it('deshabilita la acción ejecutable cuando hay datos de vista previa', () => {
     renderDashboard({ fixtureActive: true });
+    enterChange();
     // Con fixture el estado deja de ser "tarea pendiente": se declara vista
     // previa y no queda ninguna acción capaz de abrir un runtime.
     expect(screen.queryByRole('button', { name: /pipeline\.next\.task\.action/ })).toBeNull();
@@ -109,6 +123,7 @@ describe('cableado de la guía con el lanzador', () => {
 
   it('no ofrece archivar mientras la validación no pasó', () => {
     renderDashboard();
+    enterChange();
     expect(screen.queryByRole('button', { name: /readyToArchive\.action/ })).toBeNull();
   });
 
@@ -134,6 +149,8 @@ describe('cableado de la guía con el lanzador', () => {
     });
 
     renderDashboard();
+
+    enterChange();
     screen.getByRole('button', { name: /pipeline\.next\.task\.action/ }).click();
     // El discovery del lanzador es asíncrono; se espera a que resuelva.
     await vi.waitFor(() => expect(discover).toHaveBeenCalledWith('C:/repo'));
@@ -184,6 +201,8 @@ describe('cableado de la guía con el lanzador', () => {
     });
 
     renderDashboard({ fixtureActive: true });
+
+    enterChange();
     // Ni siquiera existe un camino hasta el lanzador, así que nunca se llama a start.
     expect(screen.queryByRole('button', { name: /launcher\.startApply/ })).toBeNull();
     expect(start).not.toHaveBeenCalled();
@@ -203,6 +222,8 @@ describe('cableado de la guía con el lanzador', () => {
     });
 
     renderDashboard();
+
+    enterChange();
     screen.getByRole('button', { name: /pipeline\.next\.task\.action/ }).click();
 
     // El descubrimiento está en curso: hay un mensaje de carga accionable.

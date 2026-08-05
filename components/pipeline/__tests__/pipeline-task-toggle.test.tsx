@@ -112,9 +112,22 @@ afterEach(() => {
   else Object.defineProperty(window, 'api', { configurable: true, value: ORIGINAL_API });
 });
 
+/**
+ * Entra al cambio desde la pantalla de entrada.
+ *
+ * El panel abre en el estado del repositorio y ya no cae al primer cambio de la
+ * lista: entrar es una elección, así que los casos que miran el interior de un
+ * cambio tienen que entrar primero.
+ */
+function enterChange() {
+  const [enter] = screen.getAllByRole('button', { name: /openspec\.start\.enter/ });
+  fireEvent.click(enter);
+}
+
 describe('cambiar el estado de una tarea desde la guía', () => {
   it('marcar una tarea pendiente no pide confirmación', async () => {
     renderDashboard();
+    enterChange();
 
     const pending = screen.getByRole('button', { name: /openspec\.task\.check$/ });
     fireEvent.click(pending);
@@ -129,6 +142,7 @@ describe('cambiar el estado de una tarea desde la guía', () => {
 
   it('desmarcar pide confirmación y no escribe hasta obtenerla', async () => {
     renderDashboard();
+    enterChange();
 
     fireEvent.click(screen.getByRole('button', { name: /openspec\.task\.uncheck$/ }));
     expect(pipelineSetTaskChecked).not.toHaveBeenCalled();
@@ -140,6 +154,7 @@ describe('cambiar el estado de una tarea desde la guía', () => {
 
   it('cancelar la confirmación deja la tarea como estaba', async () => {
     renderDashboard();
+    enterChange();
 
     fireEvent.click(screen.getByRole('button', { name: /openspec\.task\.uncheck$/ }));
     fireEvent.click(await screen.findByRole('button', { name: /openspec\.archive\.cancel/ }));

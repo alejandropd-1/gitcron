@@ -89,20 +89,65 @@ function renderDashboard(selectedChangeId: string | null, onSelectChange: (id: s
 
 afterEach(cleanup);
 
+/**
+ * El ítem del cambio en la columna izquierda.
+ *
+ * El identificador también aparece en la pantalla de entrada, así que buscarlo
+ * por texto devuelve dos nodos. El de la columna es el que cuelga de un botón;
+ * el de la pantalla de entrada no.
+ */
+function navItem(changeId: string): HTMLButtonElement {
+  const button = screen.getAllByText(changeId)
+    .map((node) => node.closest('button'))
+    .find((node): node is HTMLButtonElement => node !== null);
+  if (!button) throw new Error(`Sin ítem de navegación para ${changeId}`);
+  return button;
+}
+
 describe('sincronización entre el cambio mostrado y el leído', () => {
-  it('informa el cambio mostrado cuando la selección automática no resolvió ninguno', async () => {
+  it('sin elección explícita no muestra ningún cambio ni informa ninguno', async () => {
+    // Lo contrario de lo que este archivo verificaba antes: la vista caía al
+    // primer activo para tener algo que mostrar, y avisaba de esa caída. Un
+    // cambio elegido por orden de lista no es información, así que ya no se
+    // elige y no hay nada que avisar.
     const onSelectChange = vi.fn();
     renderDashboard(null, onSelectChange);
-    // La vista cae al primer activo para poder mostrar algo: eso deja de ser un
-    // secreto, así se lee la evidencia del cambio que efectivamente se ve.
+
+    await Promise.resolve();
+    expect(onSelectChange).not.toHaveBeenCalled();
+    expect(screen.queryByText(/openspec\.change\.active/)).toBeNull();
+    expect(screen.getByText('pipeline.openspec.start.title')).toBeTruthy();
+  });
+
+  it('tampoco entra al cambio que el estado del repositorio derivó de la rama', async () => {
+    // Se señala en la pantalla de entrada en vez de abrirse: gastarla en saltar
+    // adentro volvía invisible la correspondencia.
+    const onSelectChange = vi.fn();
+    renderDashboard('primero', onSelectChange);
+
+    await Promise.resolve();
+    expect(onSelectChange).not.toHaveBeenCalled();
+    expect(screen.queryByText(/openspec\.change\.active/)).toBeNull();
+    expect(screen.getByText('pipeline.openspec.start.branchMatch')).toBeTruthy();
+  });
+
+  it('entrar a un cambio informa esa elección', async () => {
+    const onSelectChange = vi.fn();
+    renderDashboard(null, onSelectChange);
+
+    screen.getAllByRole('button', { name: /openspec\.start\.enter/ })[0].click();
     await vi.waitFor(() => expect(onSelectChange).toHaveBeenCalledWith('primero'));
   });
 
-  it('no informa nada cuando la selección automática ya resolvió', async () => {
+  it('se puede volver al estado del repositorio después de entrar', async () => {
     const onSelectChange = vi.fn();
-    renderDashboard('primero', onSelectChange);
-    await Promise.resolve();
-    expect(onSelectChange).not.toHaveBeenCalled();
+    renderDashboard(null, onSelectChange);
+
+    screen.getAllByRole('button', { name: /openspec\.start\.enter/ })[0].click();
+    await vi.waitFor(() => expect(screen.queryByText(/openspec\.change\.active/)).toBeTruthy());
+
+    screen.getByRole('button', { name: /openspec\.start\.back/ }).click();
+    await vi.waitFor(() => expect(screen.getByText('pipeline.openspec.start.title')).toBeTruthy());
   });
 
   /**
@@ -114,13 +159,12 @@ describe('sincronización entre el cambio mostrado y el leído', () => {
   it('seleccionar un cambio no lo despliega', async () => {
     const onSelectChange = vi.fn();
     renderDashboard(null, onSelectChange);
-    await vi.waitFor(() => expect(onSelectChange).toHaveBeenCalledWith('primero'));
 
     for (const toggle of screen.getAllByLabelText(/openspec\.change\.(expand|collapse)/)) {
       expect(toggle.getAttribute('aria-expanded')).toBe('false');
     }
 
-    screen.getByText('segundo').closest('button')!.click();
+    navItem('segundo').click();
     for (const toggle of screen.getAllByLabelText(/openspec\.change\.(expand|collapse)/)) {
       expect(toggle.getAttribute('aria-expanded')).toBe('false');
     }
@@ -129,7 +173,6 @@ describe('sincronización entre el cambio mostrado y el leído', () => {
   it('el control de desplegado sí lo despliega, sin depender de la selección', async () => {
     const onSelectChange = vi.fn();
     renderDashboard(null, onSelectChange);
-    await vi.waitFor(() => expect(onSelectChange).toHaveBeenCalledWith('primero'));
 
     // Se despliega el que NO está seleccionado: desplegar y seleccionar son
     // acciones independientes.
@@ -143,14 +186,12 @@ describe('sincronización entre el cambio mostrado y el leído', () => {
 
   it('no pisa la selección manual del usuario', async () => {
     const onSelectChange = vi.fn();
-    renderDashboard(null, onSelectChange);
-    await vi.waitFor(() => expect(onSelectChange).toHaveBeenCalledWith('primero'));
-    onSelectChange.mockClear();
+    // El estado del repositorio deriva `primero` de la rama: eso ya no entra a
+    // ningún cambio, y elegir el otro tampoco puede quedar pisado.
+    renderDashboard('primero', onSelectChange);
 
-    // El usuario elige explícitamente el otro cambio.
-    screen.getByText('segundo').closest('button')!.click();
+    navItem('segundo').click();
     await vi.waitFor(() => expect(onSelectChange).toHaveBeenCalledWith('segundo'));
-    // Y el fallback no vuelve a imponer el primero.
     expect(onSelectChange).not.toHaveBeenCalledWith('primero');
   });
 });

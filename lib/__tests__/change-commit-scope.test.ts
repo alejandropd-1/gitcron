@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  archivedChangeId,
   deriveRepoCommitScope,
   deriveScope,
   fileOrigin,
@@ -100,6 +101,68 @@ describe('agrupación por procedencia', () => {
   });
 });
 
+describe('las dos mitades de un archivado', () => {
+  it('van en un solo grupo', () => {
+    // La detección de renombres de Git opera sobre el diff de un commit, así que
+    // repartir las mitades en dos commits la deshabilita: medido acá mismo, con
+    // el movimiento entero los artefactos figuran como renombres de cero líneas,
+    // y separados figuran como un borrado y un alta sin vínculo.
+    const scope = deriveRepoCommitScope([
+      'openspec/changes/mi-cambio/design.md',
+      'openspec/changes/mi-cambio/tasks.md',
+      'openspec/changes/archive/2026-08-05-mi-cambio/design.md',
+      'openspec/changes/archive/2026-08-05-mi-cambio/tasks.md',
+      'openspec/specs/una-capacidad/spec.md',
+    ]);
+
+    expect(scope.groups.map((group) => group.key)).toEqual(['archived']);
+    expect(scope.groups[0].entries).toHaveLength(5);
+  });
+
+  it('un cambio no archivado conserva su grupo aunque le falte un archivo', () => {
+    // Caso de control: sin ninguna carpeta de archivado que lo reclame, el
+    // archivo sigue siendo del cambio.
+    const scope = deriveRepoCommitScope([
+      'openspec/changes/mi-cambio/design.md',
+      'openspec/changes/archive/2026-08-05-otro-cambio/design.md',
+    ]);
+
+    expect(scope.groups.map((group) => group.key)).toEqual(['change:mi-cambio', 'archived']);
+  });
+
+  it('archivar un cambio no arrastra a otro que sigue activo', () => {
+    const scope = deriveRepoCommitScope([
+      'openspec/changes/archive/2026-08-05-cerrado/tasks.md',
+      'openspec/changes/cerrado/tasks.md',
+      'openspec/changes/abierto/tasks.md',
+    ]);
+
+    expect(scope.groups.map((group) => group.key)).toEqual(['change:abierto', 'archived']);
+    expect(scope.groups[1].entries.map((entry) => entry.path)).toEqual([
+      'openspec/changes/archive/2026-08-05-cerrado/tasks.md',
+      'openspec/changes/cerrado/tasks.md',
+    ]);
+  });
+
+  it('el identificador sale de quitar el prefijo de fecha, no de partir por guiones', () => {
+    expect(archivedChangeId('openspec/changes/archive/2026-08-05-add-pipeline-start-screen/design.md'))
+      .toBe('add-pipeline-start-screen');
+    // Sin prefijo de fecha no se adivina.
+    expect(archivedChangeId('openspec/changes/archive/suelto/design.md')).toBeNull();
+    expect(archivedChangeId('openspec/changes/mi-cambio/design.md')).toBeNull();
+  });
+
+  it('una carpeta de archivado sin prefijo de fecha no reclama nada', () => {
+    // No aporta identificador, así que el cambio activo conserva su grupo.
+    const scope = deriveRepoCommitScope([
+      'openspec/changes/archive/suelto/design.md',
+      'openspec/changes/suelto/design.md',
+    ]);
+
+    expect(scope.groups.map((group) => group.key)).toEqual(['change:suelto', 'archived']);
+  });
+});
+
 describe('alcance derivado del directorio', () => {
   it('toma el segundo nivel cuando todos lo comparten', () => {
     expect(deriveScope(['components/pipeline/a.tsx', 'components/pipeline/b.tsx'])).toBe('pipeline');
@@ -144,13 +207,26 @@ describe('el cambio al que pertenece un conjunto', () => {
     ])).toBeNull();
   });
 
-  it('los restos de un archivado no aportan identificador', () => {
-    // Pertenecen a otra confirmación: dejarlos nombrar el mensaje diría que el
-    // commit es de un trabajo que ya se cerró.
+  it('un cambio archivado sí aporta identificador', () => {
+    // Cuando la selección es el archivado, negarlo dejaba sin descripción justo
+    // el commit que mejor se puede describir.
     expect(soleChangeId([
       'openspec/changes/archive/2026-08-01-viejo/tasks.md',
-      'components/algo.tsx',
+      'openspec/changes/viejo/tasks.md',
+      'openspec/specs/una-capacidad/spec.md',
+    ])).toBe('viejo');
+  });
+
+  it('un archivado y un cambio activo siguen siendo dos, y no nombran nada', () => {
+    // El riesgo que cubría la regla anterior lo sigue cubriendo ésta.
+    expect(soleChangeId([
+      'openspec/changes/archive/2026-08-01-viejo/tasks.md',
+      'openspec/changes/en-curso/tasks.md',
     ])).toBeNull();
+  });
+
+  it('una carpeta de archivado sin prefijo de fecha no aporta identificador', () => {
+    expect(soleChangeId(['openspec/changes/archive/suelto/tasks.md'])).toBeNull();
   });
 });
 
@@ -183,9 +259,20 @@ describe('mensaje sugerido', () => {
 
   it('deja la descripción vacía cuando no hay ningún cambio en el conjunto', () => {
     expect(suggestCommitMessage([
-      'openspec/changes/archive/2026-08-01-viejo/tasks.md',
+      'openspec/changes/archive/suelto/tasks.md',
       'openspec/specs/una-capacidad/spec.md',
     ])).toBe('chore: ');
+  });
+
+  it('el commit del archivado nombra el cambio archivado', () => {
+    // Es el commit del movimiento entero: las dos mitades más la consolidación
+    // de specs. Sin esto quedaba `chore: ` pelado, que es lo que empujaba a
+    // partirlo en dos para conservar un mensaje útil.
+    expect(suggestCommitMessage([
+      'openspec/changes/archive/2026-08-05-mi-cambio/design.md',
+      'openspec/changes/mi-cambio/design.md',
+      'openspec/specs/una-capacidad/spec.md',
+    ])).toBe('chore: mi-cambio');
   });
 
   it('se compone sobre el conjunto elegido, no sobre todo lo modificado', () => {

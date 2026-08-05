@@ -60,20 +60,49 @@ export interface RepoCommitScope {
 const CHANGES_ROOT = 'openspec/changes/';
 const SPECS_ROOT = 'openspec/specs/';
 
+/** Las carpetas de archivado se llaman `YYYY-MM-DD-<id>`. */
+const ARCHIVE_FOLDER = /^\d{4}-\d{2}-\d{2}-(.+)$/;
+
 /**
- * Procedencia de un archivo modificado, deducida de su ubicación.
+ * Identificador del cambio dentro de una ruta de archivado, si la carpeta lo
+ * declara.
+ *
+ * Se saca quitando el prefijo de fecha, no partiendo por el último guion ni
+ * buscándolo entre los cambios activos: lo primero rompe con cualquier
+ * identificador que contenga guiones —que es la norma— y lo segundo no funciona
+ * justamente para un cambio archivado, que ya no está entre los activos. Una
+ * carpeta sin el prefijo no aporta identificador, que es más seguro que adivinar.
+ */
+export function archivedChangeId(file: string): string | null {
+  if (!file.startsWith(`${CHANGES_ROOT}archive/`)) return null;
+  const [folder] = file.slice(`${CHANGES_ROOT}archive/`.length).split('/');
+  return ARCHIVE_FOLDER.exec(folder ?? '')?.[1] ?? null;
+}
+
+/**
+ * Procedencia de un archivo modificado, deducida de su ubicación y del conjunto
+ * al que pertenece.
  *
  * Los restos de un archivado se distinguen de los artefactos de un cambio
  * activo porque pertenecen a la confirmación del archivado, no al trabajo en
  * curso. Las specs consolidadas viven bajo `openspec/specs/` y acompañan a
  * `archive/…`, así que cuentan como lo mismo.
+ *
+ * `archivedIds` es lo que la ruta sola no puede decir: cuando un cambio se
+ * archivó, lo que queda bajo su ruta anterior es la mitad borrada del mismo
+ * movimiento que creó `archive/…`, y va con la otra mitad. Ofrecerlas por
+ * separado hacía que prepararlas grupo por grupo repartiera el movimiento en
+ * dos commits, y la detección de renombres de Git —que opera sobre el diff de un
+ * commit— quedaba deshabilitada. Sin ninguna carpeta de archivado que lo
+ * reclame, un archivo bajo la ruta de un cambio sigue siendo de ese cambio.
  */
-export function fileOrigin(file: string): CommitFileOrigin {
+export function fileOrigin(file: string, archivedIds: ReadonlySet<string> = new Set()): CommitFileOrigin {
   if (file.startsWith(CHANGES_ROOT)) {
     const rest = file.slice(CHANGES_ROOT.length);
     if (rest.startsWith('archive/')) return { kind: 'archived' };
     const [id] = rest.split('/');
-    return id ? { kind: 'change', changeId: id } : { kind: 'archived' };
+    if (!id) return { kind: 'archived' };
+    return archivedIds.has(id) ? { kind: 'archived' } : { kind: 'change', changeId: id };
   }
   if (file.startsWith(SPECS_ROOT)) return { kind: 'archived' };
   return { kind: 'unattributed' };
@@ -112,18 +141,23 @@ export function deriveScope(files: string[]): string | null {
  *
  * Los archivos sin atribuir no contradicen: no tienen dueño con el cual entrar
  * en conflicto, y el caso corriente —trabajar en un cambio tocando sus
- * artefactos y algo de código— tiene que seguir nombrando ese cambio. Los
- * restos de un archivado tampoco aportan identificador: pertenecen a otra
- * confirmación, y dejarlos nombrar el mensaje diría que el commit es de un
- * trabajo que ya se cerró.
+ * artefactos y algo de código— tiene que seguir nombrando ese cambio.
+ *
+ * Un cambio archivado sí aporta identificador. Antes no lo hacía, para que un
+ * trabajo ya cerrado no nombrara un commit de trabajo en curso; el problema es
+ * que cuando la selección **es** el archivado, negarlo dejaba sin descripción
+ * justo el commit que mejor se puede describir. El riesgo original lo sigue
+ * cubriendo esta misma regla: restos de un archivado más artefactos de un cambio
+ * activo son dos identificadores, y la descripción queda vacía igual.
  */
 export function soleChangeId(files: string[]): string | null {
-  const ids = new Set(
-    files
-      .map(fileOrigin)
-      .filter((origin): origin is { kind: 'change'; changeId: string } => origin.kind === 'change')
-      .map((origin) => origin.changeId),
-  );
+  const ids = new Set<string>();
+  for (const file of files) {
+    const archived = archivedChangeId(file);
+    if (archived) { ids.add(archived); continue; }
+    const origin = fileOrigin(file);
+    if (origin.kind === 'change') ids.add(origin.changeId);
+  }
   return ids.size === 1 ? [...ids][0] : null;
 }
 
@@ -163,7 +197,13 @@ export function suggestCommitMessage(files: string[]): string {
  * de la ubicación del archivo.
  */
 export function deriveRepoCommitScope(changedFiles: string[]): RepoCommitScope {
-  const files: CommitFileEntry[] = changedFiles.map((path) => ({ path, origin: fileOrigin(path) }));
+  // Qué cambios fueron archivados se resuelve contra el conjunto, antes de
+  // clasificar: la ruta sola no distingue la mitad borrada de un movimiento de
+  // un artefacto de un cambio en curso.
+  const archivedIds = new Set(
+    changedFiles.map(archivedChangeId).filter((id): id is string => id !== null),
+  );
+  const files: CommitFileEntry[] = changedFiles.map((path) => ({ path, origin: fileOrigin(path, archivedIds) }));
 
   // Los grupos de cambio salen en el orden en que aparecen sus archivos, y los
   // dos grupos fijos van al final: es determinista a partir de la entrada y

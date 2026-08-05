@@ -24,4 +24,4 @@
 - [x] 4.2 Correr `pnpm test` más de una vez y reportar el resultado real, distinguiendo el flake conocido de los repositorios Git reales de una regresión
 - [x] 4.3 Correr el lint sobre los archivos tocados y dejarlo limpio
 - [x] 4.4 Dejar `openspec validate group-archive-move-together --strict` válido
-- [ ] 4.5 Ale valida en el próximo archivado y marca esta casilla: que las dos mitades salgan en un grupo y que el commit del archivado se llame con el identificador del cambio
+- [x] 4.5 Ale valida en el próximo archivado y marca esta casilla: que las dos mitades salgan en un grupo y que el commit del archivado se llame con el identificador del cambio

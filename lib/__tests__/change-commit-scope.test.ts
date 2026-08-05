@@ -3,6 +3,7 @@ import {
   archivedChangeId,
   deriveRepoCommitScope,
   deriveScope,
+  fileKind,
   fileOrigin,
   soleChangeId,
   suggestCommitMessage,
@@ -160,6 +161,36 @@ describe('las dos mitades de un archivado', () => {
     ]);
 
     expect(scope.groups.map((group) => group.key)).toEqual(['change:suelto', 'archived']);
+  });
+});
+
+describe('clase de archivo', () => {
+  it('la deduce de la ubicación y del nombre', () => {
+    expect(fileKind('openspec/changes/x/tasks.md')).toBe('artifact');
+    expect(fileKind('components/pipeline/__tests__/algo.test.tsx')).toBe('test');
+    expect(fileKind('lib/algo.test.ts')).toBe('test');
+    expect(fileKind('docs/reports/algo.md')).toBe('docs');
+    expect(fileKind('README.md')).toBe('docs');
+    expect(fileKind('package.json')).toBe('config');
+    expect(fileKind('vitest.config.ts')).toBe('config');
+    expect(fileKind('openspec/config.yaml')).toBe('artifact');
+    expect(fileKind('.eslintrc.json')).toBe('config');
+    expect(fileKind('components/pipeline/OpenSpecDashboard.tsx')).toBe('code');
+  });
+
+  it('los artefactos ganan sobre todo lo demás', () => {
+    // Un `.md` bajo `openspec/` es artefacto, no documentación: si no, todos los
+    // artefactos se leerían como documentación suelta.
+    expect(fileKind('openspec/changes/x/proposal.md')).toBe('artifact');
+    expect(fileKind('openspec/specs/una-capacidad/spec.md')).toBe('artifact');
+  });
+
+  it('lo que no encaja cae en código', () => {
+    // El caso más común y el más inocuo si se equivoca. Una categoría
+    // "desconocido" no ayudaría a decidir nada.
+    expect(fileKind('electron/main.ts')).toBe('code');
+    expect(fileKind('app/globals.css')).toBe('code');
+    expect(fileKind('suelto')).toBe('code');
   });
 });
 

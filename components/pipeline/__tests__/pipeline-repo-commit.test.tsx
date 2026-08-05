@@ -140,7 +140,9 @@ describe('preparación a nivel del repositorio', () => {
 
     openPrepare();
 
-    expect(screen.getByText(/openspec\.prepare\.groupArchived/)).toBeTruthy();
+    // El rótulo del grupo lleva la cuenta entre paréntesis; su descripción es
+    // otro nodo con la misma raíz de clave, así que se busca el rótulo exacto.
+    expect(screen.getByText(/^pipeline\.openspec\.prepare\.groupArchived \(/)).toBeTruthy();
     const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
     expect(boxes).toHaveLength(2);
 
@@ -208,25 +210,114 @@ describe('preparación a nivel del repositorio', () => {
     // uno propio y una bolsa ajena.
     expect(screen.getByText(/groupChange.*demo-change/)).toBeTruthy();
     expect(screen.getByText(/groupChange.*otro-cambio/)).toBeTruthy();
-    expect(screen.getByText(/openspec\.prepare\.groupArchived/)).toBeTruthy();
-    expect(screen.getByText(/openspec\.prepare\.groupUnattributed/)).toBeTruthy();
-    // Y cada archivo muestra su estado con la inicial, como el panel de staging.
-    expect(screen.getAllByLabelText('modified').length).toBe(4);
+    expect(screen.getByText(/^pipeline\.openspec\.prepare\.groupArchived \(/)).toBeTruthy();
+    expect(screen.getByText(/^pipeline\.openspec\.prepare\.groupUnattributed \(/)).toBeTruthy();
+    // Cada grupo declara además qué contiene: un rótulo solo no permite auditarlo.
+    expect(screen.getAllByText('pipeline.openspec.prepare.groupChangeHelp')).toHaveLength(2);
+    expect(screen.getByText(/groupArchivedHelp.*"change":"viejo"/)).toBeTruthy();
+    expect(screen.getByText('pipeline.openspec.prepare.groupUnattributedHelp')).toBeTruthy();
+    // Y el estado de cada archivo se lee con palabra, sin pasar el mouse.
+    expect(screen.getAllByText('pipeline.openspec.prepare.state.modified')).toHaveLength(4);
+  });
+
+  it('el tipo de archivo se declara sólo donde no hay otra información', () => {
+    setModified([
+      { path: 'openspec/changes/demo-change/tasks.md', staged: false },
+      { path: 'components/algo.tsx', staged: false },
+      { path: 'lib/__tests__/algo.test.ts', staged: false },
+      { path: 'docs/reports/algo.md', staged: false },
+    ]);
+    renderDashboard();
+    openPrepare();
+
+    // En el grupo sin atribuir, que es donde la procedencia no dice nada.
+    expect(screen.getByText('pipeline.openspec.prepare.kind.code')).toBeTruthy();
+    expect(screen.getByText('pipeline.openspec.prepare.kind.test')).toBeTruthy();
+    expect(screen.getByText('pipeline.openspec.prepare.kind.docs')).toBeTruthy();
+    // En el del cambio no: repetirlo por fila sería ruido sobre lo que el grupo
+    // ya dijo una vez.
+    expect(screen.queryByText('pipeline.openspec.prepare.kind.artifact')).toBeNull();
   });
 
   it('el mensaje sugerido deja de nombrar un cambio cuando la elección mezcla dos', () => {
     renderDashboard();
     openPrepare();
 
+    const field = () => screen.getByRole('textbox') as HTMLInputElement;
     const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
     // Sólo el artefacto del primer cambio: la sugerencia lo nombra.
     fireEvent.click(boxes[0]);
-    expect(screen.getByText('chore: demo-change')).toBeTruthy();
+    expect(field().value).toBe('chore: demo-change');
 
     // Al sumar el artefacto del otro cambio, la descripción se vacía. Es la
     // señal de que el commit está mezclando trabajos, y llega antes de confirmar.
     fireEvent.click(screen.getAllByRole('checkbox')[1]);
-    expect(screen.queryByText('chore: demo-change')).toBeNull();
+    expect(field().value).toBe('chore: ');
+  });
+
+  it('el mensaje se corrige en el panel y es el que queda para confirmar', async () => {
+    // Era un texto de sólo lectura: obligaba a recordar la corrección hasta la
+    // vista de Commit. Una sola fuente, así lo que se lee es lo que se confirma.
+    renderDashboard();
+    openPrepare();
+    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'fix(pipeline): lo escribí yo' } });
+    expect(setCommitMessage).toHaveBeenCalledWith('fix(pipeline): lo escribí yo');
+
+    // Y la sugerencia no lo pisa al cambiar la selección.
+    useGitStore.setState({ commitMessage: 'fix(pipeline): lo escribí yo' });
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    await vi.waitFor(() => expect((screen.getByRole('textbox') as HTMLInputElement).value)
+      .toBe('fix(pipeline): lo escribí yo'));
+  });
+
+  it('declara la rama a la que va el commit', () => {
+    // Un commit lo definen tres cosas: qué archivos, con qué mensaje y a qué
+    // rama. La tercera no estaba en la superficie donde se deciden las otras.
+    renderDashboard();
+    openPrepare();
+
+    expect(screen.getByText(/openspec\.prepare\.toBranch.*"branch":"main"/)).toBeTruthy();
+  });
+
+  it('con el panel abierto la columna muestra lo ya preparado, no la actividad', () => {
+    setModified([
+      { path: 'openspec/changes/demo-change/tasks.md', staged: false },
+      { path: 'components/ya-listo.tsx', staged: true },
+    ]);
+    render(
+      <OpenSpecDashboard
+        snapshot={snapshot(['demo-change'])}
+        repoPath="C:/repo"
+        currentBranch="main"
+        workingTreeClean={false}
+        leftOpen={false}
+        rightOpen
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+
+    // Cerrado: la columna es la de siempre.
+    expect(screen.getByText('pipeline.openspec.activity.title')).toBeTruthy();
+
+    openPrepare();
+    // Abierto: la otra mitad del estado, que el panel filtra a propósito.
+    expect(screen.getByText('pipeline.openspec.prepare.stagedTitle')).toBeTruthy();
+    expect(screen.getByText('components/ya-listo.tsx')).toBeTruthy();
+    expect(screen.queryByText('pipeline.openspec.activity.title')).toBeNull();
+
+    // Y al cerrar vuelve.
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.prepare\.close/ }));
+    expect(screen.getByText('pipeline.openspec.activity.title')).toBeTruthy();
   });
 
   it('sin archivos por preparar muestra el resumen en vez de la lista', async () => {

@@ -108,6 +108,33 @@ export function fileOrigin(file: string, archivedIds: ReadonlySet<string> = new 
   return { kind: 'unattributed' };
 }
 
+/**
+ * Qué clase de archivo es, deducida de su ubicación y su nombre.
+ *
+ * No es atribución: no dice de qué trabajo vino —ese dato no existe en el
+ * repositorio— sino qué clase de archivo es, que es lo que sí se puede afirmar.
+ * Se muestra donde no hay otra información, que es el grupo que ningún cambio
+ * reclama.
+ *
+ * Se deriva de la ruta y no del contenido: leer archivos es del proceso
+ * principal, y una convención de carpetas que el repositorio respeta da lo mismo
+ * sin esa vuelta. Lo que no encaja cae en `code`, que es el caso más común y el
+ * más inocuo si se equivoca; una categoría "desconocido" no ayudaría a decidir
+ * nada.
+ */
+export type CommitFileKind = 'artifact' | 'test' | 'docs' | 'config' | 'code';
+
+const CONFIG_NAMES = /^(package\.json|pnpm-lock\.yaml|tsconfig[^/]*\.json|[^/]*\.config\.[cm]?[jt]s|\.[^/]+rc([^/]*)?)$/;
+
+export function fileKind(file: string): CommitFileKind {
+  if (file.startsWith('openspec/')) return 'artifact';
+  if (file.includes('__tests__/') || /\.(test|spec)\.[cm]?[jt]sx?$/.test(file)) return 'test';
+  if (file.startsWith('docs/') || file.endsWith('.md')) return 'docs';
+  const name = file.slice(file.lastIndexOf('/') + 1);
+  if (CONFIG_NAMES.test(name) || /\.(ya?ml|toml|ini)$/.test(name)) return 'config';
+  return 'code';
+}
+
 /** Clave estable de un grupo. Los cambios se distinguen entre sí por su id. */
 function groupKey(origin: CommitFileOrigin): string {
   return origin.kind === 'change' ? `change:${origin.changeId}` : origin.kind;

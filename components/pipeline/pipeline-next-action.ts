@@ -72,6 +72,7 @@ export type PipelineNextActionKind =
   | 'archiving'
   | 'session-retry'
   | 'change-archived'
+  | 'no-change-selected'
   | 'no-active-change'
   | 'task-pending'
   | 'validation-unknown'
@@ -102,6 +103,17 @@ export type PipelineNextActionInput = {
   selectedArchivedChangeId: string | null;
   decisions: DecisionRequest[];
   projection: RuntimeProjection | null;
+  /**
+   * Si el repositorio tiene cambios en curso, más allá de que haya alguno
+   * elegido. Es el dato mínimo que distingue «no elegiste ninguno» de «no hay
+   * ninguno»: desde que el panel dejó de entrar a un cambio por descarte, un
+   * `selectedChange` nulo es el estado normal de la pantalla de entrada, y sin
+   * esto la guía lo leía como un repositorio vacío.
+   *
+   * Es un booleano y no la lista: la derivación no necesita nada más, y recibir
+   * la lista invitaría a que empiece a decidir sobre ella.
+   */
+  hasActiveChanges?: boolean;
 };
 
 function button(
@@ -379,7 +391,23 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
     };
   }
 
-  // 6 · Sin cambio activo: los dos caminos se distinguen explícitamente.
+  // 6 · Nada elegido, pero sí hay trabajo en curso. Es el estado normal de la
+  // pantalla de entrada desde que el panel dejó de entrar a un cambio por
+  // descarte, y no es lo mismo que un repositorio sin cambios: afirmarlo era
+  // contradecir a la lista que la propia pantalla muestra arriba.
+  if (!selectedChange && input.hasActiveChanges) {
+    return {
+      kind: 'no-change-selected',
+      step: null,
+      titleKey: 'pipeline.next.noSelection.title',
+      helpKey: 'pipeline.next.noSelection.help',
+      primary: button({ kind: 'open-propose-flow' }, 'pipeline.next.noActive.propose'),
+      secondary: button({ kind: 'open-explore-flow' }, 'pipeline.next.noActive.explore'),
+      instruction: null,
+    };
+  }
+
+  // 7 · Sin cambio activo: los dos caminos se distinguen explícitamente.
   if (!selectedChange) {
     return {
       kind: 'no-active-change',

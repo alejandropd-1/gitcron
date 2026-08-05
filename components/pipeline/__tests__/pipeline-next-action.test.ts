@@ -111,6 +111,27 @@ describe('derivePipelineNextAction · matriz de estados', () => {
     expect(result.secondary?.intent.kind).toBe('open-explore-flow');
   });
 
+  it('con cambios en curso y ninguno elegido no afirma que no haya ninguno', () => {
+    // El defecto que introdujo la pantalla de entrada: al retirar la selección
+    // por descarte, `selectedChange` nulo pasó a ser el estado normal, y la guía
+    // lo seguía leyendo como un repositorio vacío. La pantalla listaba cuatro
+    // cambios en curso y debajo afirmaba que no había ninguno.
+    const result = derivePipelineNextAction(input({ hasActiveChanges: true }));
+    expect(result.kind).toBe('no-change-selected');
+    expect(result.helpKey).not.toBe('pipeline.next.noActive.help');
+    // Los dos caminos siguen siendo los mismos: lo que cambia es lo que declara.
+    expect(result.primary?.intent.kind).toBe('open-propose-flow');
+    expect(result.secondary?.intent.kind).toBe('open-explore-flow');
+  });
+
+  it('un archivado seleccionado gana sobre no haber elegido ninguno activo', () => {
+    const result = derivePipelineNextAction(input({
+      hasActiveChanges: true,
+      selectedArchivedChangeId: 'viejo-change',
+    }));
+    expect(result.kind).toBe('change-archived');
+  });
+
   it('un cambio archivado informa que ese trabajo terminó', () => {
     const result = derivePipelineNextAction(input({ selectedArchivedChangeId: 'viejo-change' }));
     expect(result.kind).toBe('change-archived');

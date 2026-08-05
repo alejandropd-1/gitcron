@@ -46,6 +46,14 @@ export function PipelineNewChangeFlow({
   const [description, setDescription] = useState('');
   const [errors, setErrors] = useState<{ objective?: string; slug?: string; description?: string }>({});
   const [instruction, setInstruction] = useState<string | null>(null);
+  /**
+   * Trabajar el cambio en su propia rama. Marcado por defecto: desmarcado
+   * dejaría la función invisible y el trabajo seguiría en `main` por inercia.
+   * No es silencioso —se declara en el formulario— y desmarcarlo no toca Git.
+   */
+  const [withBranch, setWithBranch] = useState(true);
+  /** Motivo real informado por Git. No se normaliza a un mensaje propio. */
+  const [branchError, setBranchError] = useState<string | null>(null);
 
   const objectiveRef = useRef<HTMLTextAreaElement>(null);
   const slugRef = useRef<HTMLInputElement>(null);
@@ -57,12 +65,43 @@ export function PipelineNewChangeFlow({
     setInstruction(null);
   };
 
-  const submitPropose = () => {
+  /**
+   * Valida y, si corresponde, deja el repositorio parado en la rama del cambio
+   * antes de entregar la instrucción al lanzador.
+   *
+   * Éste es el único momento en que la aplicación conoce el slug y todavía no
+   * abrió ningún proceso: el cambio lo crea después un runtime ejecutando
+   * `openspec new change`. La rama no se crea dentro del lanzador porque el
+   * lanzador es el único que abre procesos, y su fallo se confundiría con un
+   * fallo de arranque.
+   *
+   * Un fallo al crearla **no** lanza la sesión: la persona acaba de leer que se
+   * iba a trabajar en `change/<slug>`, y arrancar en otra rama sería divergencia
+   * entre lo declarado y lo ejecutado.
+   */
+  const submitPropose = async () => {
     const result = validateProposeForm({ objective, slug, constraints });
     setErrors(result.errors);
-    setInstruction(result.instruction);
+    setBranchError(null);
     if (result.focus === 'objective') objectiveRef.current?.focus();
     else if (result.focus === 'slug') slugRef.current?.focus();
+    if (!result.instruction) {
+      setInstruction(null);
+      return;
+    }
+
+    if (withBranch) {
+      const created = await window.api?.gitCreateBranch(repoPath, `change/${slug.trim()}`);
+      if (!created?.success) {
+        // El motivo real, sin normalizar: uno genérico obliga a ir a la terminal
+        // a averiguar qué pasó. No se intenta cambiarse a una rama existente
+        // porque arrastraría los commits de otro trabajo.
+        setBranchError(created?.error || 'unknown');
+        setInstruction(null);
+        return;
+      }
+    }
+    setInstruction(result.instruction);
   };
 
   const submitExplore = () => {
@@ -152,7 +191,26 @@ export function PipelineNewChangeFlow({
             />
           </label>
 
-          <button type="button" className={styles.primaryAction} onClick={submitPropose}>
+          {/* Se declara antes de ocurrir: es una escritura de Git, y en este
+              proyecto las escrituras nuevas se autorizan explícitamente. */}
+          <label className={styles.flowCheck}>
+            <input
+              type="checkbox"
+              checked={withBranch}
+              onChange={(event) => setWithBranch(event.target.checked)}
+            />
+            <span>
+              <strong>{t('pipeline.newChange.propose.branch', { branch: `change/${slug.trim() || '<slug>'}` })}</strong>
+              <em>{t('pipeline.newChange.propose.branchHelp')}</em>
+            </span>
+          </label>
+          {branchError && (
+            <p className={styles.flowError} role="alert">
+              {t('pipeline.newChange.propose.branchFailed')} {branchError}
+            </p>
+          )}
+
+          <button type="button" className={styles.primaryAction} onClick={() => void submitPropose()}>
             {t('pipeline.newChange.propose.review')}
           </button>
         </div>

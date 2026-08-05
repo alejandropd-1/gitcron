@@ -165,6 +165,47 @@ describe('pantalla de entrada del repositorio', () => {
     expect(ids).toEqual(['avanzado', 'atrasado']);
   });
 
+  it('la guía no afirma que no haya cambios cuando los hay', () => {
+    // Contradicción que introdujo esta misma pantalla: al no seleccionar ninguno
+    // por descarte, la guía leía el estado como un repositorio vacío y lo decía
+    // debajo de una lista con cuatro cambios en curso.
+    renderDashboard();
+
+    expect(screen.getByText('pipeline.next.noSelection.help')).toBeTruthy();
+    expect(screen.queryByText('pipeline.next.noActive.help')).toBeNull();
+  });
+
+  it('sin ningún cambio activo la guía sí lo declara', () => {
+    renderDashboard(snapshot({ activeChanges: [] }));
+
+    expect(screen.getByText('pipeline.next.noActive.help')).toBeTruthy();
+    expect(screen.queryByText('pipeline.next.noSelection.help')).toBeNull();
+  });
+
+  it('las tareas pendientes se despliegan a pedido y no listan las hechas', () => {
+    renderDashboard(snapshot({ activeChanges: [change('uno', 2, 4)] }));
+
+    // Plegado por defecto: una pantalla de estado no es una lista de tareas.
+    expect(screen.queryAllByText(/^2\.1 tarea$/)).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.pending/ }));
+
+    // Sólo las pendientes: las dos primeras están hechas.
+    expect(screen.getByText('2.1 tarea')).toBeTruthy();
+    expect(screen.getByText('3.1 tarea')).toBeTruthy();
+    expect(screen.queryByText('0.1 tarea')).toBeNull();
+  });
+
+  it('se puede abrir un archivado que no está entre los ocho recientes', () => {
+    // La barra lateral corta en ocho; con más, el resto no era alcanzable.
+    const onSelectChange = renderDashboard(snapshot({ archivedCount: 12 }));
+
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.archivedCount/ }));
+    fireEvent.click(screen.getByRole('button', { name: /viejo-11/ }));
+
+    expect(onSelectChange).toHaveBeenCalledWith('viejo-11');
+  });
+
   it('entrar a un cambio lo muestra, y se puede volver', () => {
     const onSelectChange = renderDashboard();
 

@@ -13,6 +13,8 @@ import {
   ChevronDown,
   ChevronLeft,
   FolderOpen,
+  MinusSquare,
+  PlusSquare,
   GitBranch,
   GitCompare,
   Loader2,
@@ -26,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useGitStore, type GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
-import { deriveRepoCommitScope, suggestCommitMessage, type CommitFileOrigin } from '@/lib/change-commit-scope';
+import { archivedChangeId, deriveRepoCommitScope, fileKind, suggestCommitMessage, type CommitFileOrigin } from '@/lib/change-commit-scope';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
@@ -84,20 +86,22 @@ type OpenSpecDashboardProps = {
 type CenterTab = 'work' | 'activity' | 'artifacts';
 
 /**
- * Estado de un archivo, con la misma representación que el panel de preparación
- * de Git: un recuadro con la inicial del estado.
+ * Estado de un archivo, dicho con palabra.
  *
- * Se reutiliza en vez de inventar otra para que la misma información no se lea
- * de dos maneras según la pantalla. El estado sale del store, no del alcance
- * derivado: la derivación responde de dónde viene el archivo, no en qué estado
- * está.
+ * Era un recuadro con la inicial, con la palabra sólo en el `title`. Un dato que
+ * aparece al pasar el mouse no está presentado: es el mismo criterio por el que
+ * el control de tarea dejó de ser un elemento sin señal. El color se conserva,
+ * que es lo que permite barrer la lista de un vistazo.
+ *
+ * El estado sale del store, no del alcance derivado: la derivación responde de
+ * dónde viene el archivo, no en qué estado está.
  */
 function FileStatusBadge({ path, files }: { path: string; files: GitFile[] }) {
+  const t = useT();
   const status = files.find((file) => file.path === path)?.status ?? 'modified';
+  const label = t(`pipeline.openspec.prepare.state.${status}`);
   return (
-    <span className={styles.fileStatus} data-status={status} title={status} aria-label={status}>
-      {status[0].toUpperCase()}
-    </span>
+    <span className={styles.fileStatus} data-status={status}>{label}</span>
   );
 }
 
@@ -224,6 +228,13 @@ export function OpenSpecDashboard({
    */
   const [prepareOpen, setPrepareOpen] = useState(false);
   /**
+   * Cambios desplegados en la pantalla de entrada, y si la lista de archivados
+   * está abierta. Plegados por defecto: con cuatro cambios de veintiocho tareas,
+   * una pantalla de estado desplegada sería una lista de tareas.
+   */
+  const [expandedStart, setExpandedStart] = useState<Record<string, boolean>>({});
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  /**
    * Cuántos archivos se enviaron en la última preparación.
    *
    * El toast se va solo y deja el panel sin rastro de lo que pasó. Esto
@@ -278,6 +289,8 @@ export function OpenSpecDashboard({
   const startChanges = activeChanges
     .map((change) => ({ change, progress: taskProgress(change) }))
     .sort((left, right) => right.progress.percent - left.progress.percent);
+  /** Lo que falta de un cambio. El avance ya está en la barra; esto es qué queda. */
+  const pendingOf = (change: OpenSpecChangeSummary) => change.tasks.filter((task) => !task.completed);
   const nextTask = selectedChange?.tasks.find((task) => !task.completed) ?? null;
   const stages = lifecycle(selectedChange, selectedArchive !== null);
   // Archivar responde "¿qué me está permitido hacer?", no "¿qué conviene ahora?".
@@ -341,6 +354,7 @@ export function OpenSpecDashboard({
     selectedArchivedChangeId: selectedArchive?.changeId ?? null,
     decisions: snapshot.decisions,
     projection,
+    hasActiveChanges: activeChanges.length > 0,
   });
   // Se sacan a constantes para que el render no repita el chequeo de nulos ni
   // necesite aserciones: si existen, son válidas.
@@ -399,6 +413,8 @@ export function OpenSpecDashboard({
     modifiedFiles.filter((file) => !file.staged).map((file) => file.path),
   );
   const nothingLeftToPrepare = commitScope.files.length === 0;
+  /** La otra mitad: lo que ya viajó al stage y el panel deja de listar. */
+  const stagedFiles = modifiedFiles.filter((file) => file.staged);
   /** Etiqueta de un grupo. El del cambio nombra cuál, que es la atribución real. */
   const groupLabel = (origin: CommitFileOrigin): string => (
     origin.kind === 'change'
@@ -407,6 +423,23 @@ export function OpenSpecDashboard({
         ? t('pipeline.openspec.prepare.groupArchived')
         : t('pipeline.openspec.prepare.groupUnattributed')
   );
+  /**
+   * Qué contiene el grupo, en una línea. Un rótulo solo no permite auditarlo:
+   * sumando todo de una, un archivo que no correspondía queda declarado apenas
+   * como sin atribución y ahí se agota la información.
+   *
+   * El del archivado nombra qué se archivó cuando la carpeta lo declara; sin
+   * prefijo de fecha no hay identificador y se dice lo genérico en vez de
+   * inventar uno.
+   */
+  const groupHelp = (group: { origin: CommitFileOrigin; entries: Array<{ path: string }> }): string => {
+    if (group.origin.kind === 'change') return t('pipeline.openspec.prepare.groupChangeHelp');
+    if (group.origin.kind === 'unattributed') return t('pipeline.openspec.prepare.groupUnattributedHelp');
+    const archived = group.entries.map((entry) => archivedChangeId(entry.path)).find(Boolean);
+    return archived
+      ? t('pipeline.openspec.prepare.groupArchivedHelp', { change: archived })
+      : t('pipeline.openspec.prepare.groupArchivedHelpPlain');
+  };
   /** Elegidos que siguen existiendo entre lo modificado, en el orden del árbol. */
   const chosen = commitScope.files
     .filter((entry) => chosenFiles.includes(entry.path))
@@ -776,6 +809,17 @@ export function OpenSpecDashboard({
                 <div className={styles.archiveConfirmHead}>
                   <strong>{t('pipeline.openspec.prepare.title')}</strong>
                   <span>{t('pipeline.openspec.prepare.help')}</span>
+                  {/* Un commit lo definen tres cosas: qué archivos, con qué
+                      mensaje y a qué rama. La tercera no estaba acá. Hoy pasa
+                      desapercibido porque siempre es `main`; deja de pasarlo en
+                      cuanto haya más de una. Es dato, no control: este panel no
+                      ejecuta ninguna operación de Git. */}
+                  <em className={styles.prepareBranch}>
+                    <GitBranch size={11} />
+                    {t('pipeline.openspec.prepare.toBranch', {
+                      branch: currentBranch || t('pipeline.openspec.repo.branchUnknown'),
+                    })}
+                  </em>
                 </div>
                 <div className={styles.prepareActions}>
                   {!nothingLeftToPrepare && (
@@ -827,11 +871,22 @@ export function OpenSpecDashboard({
                 </p>
               ) : (
                 <>
+                  {/* El mensaje se corrige acá, donde se decide qué entra. Era un
+                      `code` de sólo lectura: obligaba a recordar la corrección
+                      hasta la vista de Commit. El campo escribe directo en el
+                      `commitMessage` del store, así que lo que se lee es lo que se
+                      va a confirmar; con dos fuentes podrían no coincidir, que es
+                      el modo de fallo que este panel existe para evitar. */}
                   {chosen.length > 0 && (
-                    <p>
-                      <strong>{t('pipeline.openspec.prepare.message')}</strong>{' '}
-                      <code>{suggestCommitMessage(chosen)}</code>
-                    </p>
+                    <label className={styles.messageField}>
+                      <strong>{t('pipeline.openspec.prepare.message')}</strong>
+                      <input
+                        type="text"
+                        value={commitMessage || suggestCommitMessage(chosen)}
+                        disabled={prepareBusy}
+                        onChange={(event) => setCommitMessage(event.target.value)}
+                      />
+                    </label>
                   )}
                   {/* Cada grupo declara de dónde viene lo que contiene. Ninguno
                       entra preseleccionado: sin un cambio de referencia,
@@ -850,11 +905,13 @@ export function OpenSpecDashboard({
                             disabled={prepareBusy}
                             onClick={() => toggleMany(paths)}
                           >
+                            {allChosen ? <MinusSquare size={12} /> : <PlusSquare size={12} />}
                             {allChosen
                               ? t('pipeline.openspec.prepare.deselectAll')
                               : t('pipeline.openspec.prepare.selectAll')}
                           </button>
                         </p>
+                        <p className={styles.groupHelp}>{groupHelp(group)}</p>
                         <ul className={styles.fileList}>
                           {group.entries.map((entry) => (
                             <li key={entry.path}>
@@ -873,6 +930,14 @@ export function OpenSpecDashboard({
                                 />
                                 <FileStatusBadge path={entry.path} files={modifiedFiles} />
                                 <span>{entry.path}</span>
+                                {/* El tipo sólo donde no hay otra información. En
+                                    los demás grupos la procedencia ya está dicha
+                                    arriba, y repetirlo por fila sería ruido. */}
+                                {group.origin.kind === 'unattributed' && (
+                                  <em className={styles.fileKind}>
+                                    {t(`pipeline.openspec.prepare.kind.${fileKind(entry.path)}`)}
+                                  </em>
+                                )}
                               </label>
                             </li>
                           ))}
@@ -1249,6 +1314,21 @@ export function OpenSpecDashboard({
             <section className={styles.startScreen} aria-label={t('pipeline.openspec.start.title')}>
               <h3>{t('pipeline.openspec.start.title')}</h3>
 
+              {/* La guía va primero, sin excepción de estado: es la acción que
+                  esta pantalla existe para ofrecer, y al final quedaba empujada
+                  fuera de vista por la lista de cambios. Una posición que cambia
+                  según el contenido obliga a buscarla. */}
+              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} />
+              {flowMode && (
+                <PipelineNewChangeFlow
+                  repoPath={repoPath}
+                  projection={projection}
+                  initialMode={flowMode}
+                  blockedByFixture={fixtureActive}
+                  onStarted={() => setCenterTab('activity')}
+                />
+              )}
+
               <div className={styles.startBlock}>
                 <h4>{t('pipeline.openspec.start.inProgress')} <span>{activeChanges.length}</span></h4>
                 {activeChanges.length === 0 ? (
@@ -1284,7 +1364,34 @@ export function OpenSpecDashboard({
                               <span style={{ width: `${progress.percent}%` }} />
                             </span>
                           )}
+                          {/* Saber que van cinco de seis no dice cuál es la
+                              sexta, que es con lo que se decide. Plegado por
+                              defecto: con cuatro cambios de veintiocho tareas,
+                              esta pantalla sería una lista de tareas. */}
+                          {pendingOf(change).length > 0 && (
+                            <button
+                              type="button"
+                              className={styles.startPendingToggle}
+                              aria-expanded={expandedStart[change.changeId] ?? false}
+                              onClick={() => setExpandedStart((current) => ({
+                                ...current,
+                                [change.changeId]: !(current[change.changeId] ?? false),
+                              }))}
+                            >
+                              <ChevronDown size={12} />
+                              {t('pipeline.openspec.start.pending', { count: pendingOf(change).length })}
+                            </button>
+                          )}
                         </div>
+                        {(expandedStart[change.changeId] ?? false) && (
+                          /* Sólo lo pendiente: el avance ya está en la barra y
+                             en el conteo, y lo que falta es lo que sirve. */
+                          <ul className={styles.startPending}>
+                            {pendingOf(change).map((task) => (
+                              <li key={task.id}><Circle size={9} /> {task.text}</li>
+                            ))}
+                          </ul>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -1300,9 +1407,33 @@ export function OpenSpecDashboard({
                 {archivedChanges.length === 0 ? (
                   <p className={styles.startNote}>{t('pipeline.openspec.start.neverArchived')}</p>
                 ) : (
-                  <p className={styles.startNote}>
-                    {t('pipeline.openspec.start.archivedCount', { count: archivedChanges.length })}
-                  </p>
+                  <>
+                    {/* La barra lateral corta en los ocho más recientes, que es
+                        acceso rápido. El panorama del repositorio vive acá, así
+                        que acá se puede llegar a todos. */}
+                    <button
+                      type="button"
+                      className={styles.startPendingToggle}
+                      aria-expanded={archivedOpen}
+                      onClick={() => setArchivedOpen((open) => !open)}
+                    >
+                      <ChevronDown size={12} />
+                      {t('pipeline.openspec.start.archivedCount', { count: archivedChanges.length })}
+                    </button>
+                    {archivedOpen && (
+                      <ul className={styles.startArchived}>
+                        {archivedChanges.map((change) => (
+                          <li key={`${change.archivedAt}-${change.changeId}`}>
+                            <button type="button" onClick={() => selectChange(change.changeId)}>
+                              <CheckCircle2 size={11} />
+                              <strong>{change.changeId}</strong>
+                              <span>{change.archivedAt ?? t('pipeline.openspec.dateUnknown')}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
                 )}
                 <p className={styles.startNote}>
                   {specifications.length === 0
@@ -1311,16 +1442,6 @@ export function OpenSpecDashboard({
                 </p>
               </div>
 
-              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} />
-              {flowMode && (
-                <PipelineNewChangeFlow
-                  repoPath={repoPath}
-                  projection={projection}
-                  initialMode={flowMode}
-                  blockedByFixture={fixtureActive}
-                  onStarted={() => setCenterTab('activity')}
-                />
-              )}
             </section>
           )}
 
@@ -1331,7 +1452,33 @@ export function OpenSpecDashboard({
           </footer>
         </main>
 
-        {rightOpen && (
+        {rightOpen && prepareOpen && (
+          /* Mientras se prepara, la actividad de un runtime no interviene en la
+             decisión. Lo que sí falta es la otra mitad del estado: el panel
+             filtra los ya preparados para que el conteo baje, y eso los deja
+             invisibles. Acá se ven. Mostrar los NO preparados sería repetir lo
+             que el panel ya lista agrupado. */
+          <aside className={styles.activityRail} aria-label={t('pipeline.openspec.prepare.stagedTitle')}>
+            <div className={styles.resizeHandleRight} role="separator" aria-orientation="vertical" title={t('pipeline.openspec.resize.right')} onMouseDown={onResizeRight} />
+            <h3><GitBranch size={14} /> {t('pipeline.openspec.prepare.stagedTitle')}</h3>
+            {stagedFiles.length === 0 ? (
+              <p className={styles.railEmpty}>{t('pipeline.openspec.prepare.stagedEmpty')}</p>
+            ) : (
+              /* Vista, no superficie de acción: quitar del stage ya vive en el
+                 flujo de commit, y duplicarlo acá es lo que la guía prohíbe. */
+              <ul className={styles.stagedList}>
+                {stagedFiles.map((file) => (
+                  <li key={file.path}>
+                    <FileStatusBadge path={file.path} files={modifiedFiles} />
+                    <span>{file.path}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
+        )}
+
+        {rightOpen && !prepareOpen && (
           <aside className={styles.activityRail} aria-label={t('pipeline.openspec.activity.title')}>
             <div className={styles.resizeHandleRight} role="separator" aria-orientation="vertical" title={t('pipeline.openspec.resize.right')} onMouseDown={onResizeRight} />
             <h3><Activity size={14} /> {t('pipeline.openspec.activity.title')}</h3>

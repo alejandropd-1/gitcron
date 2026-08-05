@@ -647,16 +647,94 @@
 }
 .fileGroup > p > strong { color: #c9d8e8; font: 650 0.72rem var(--font-mono), ui-monospace, monospace; }
 
+/* Control, no rótulo. Como texto suelto al lado del título se leía como parte
+   del título y no como algo apretable. */
 .groupToggle {
-  padding: 0.1rem 0.3rem;
-  border: 0;
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.35rem;
+  background: var(--os-surface);
   color: var(--os-cyan);
   cursor: pointer;
   font: 600 0.62rem var(--font-mono), ui-monospace, monospace;
 }
-.groupToggle:hover { text-decoration: underline; }
-.groupToggle:disabled { color: var(--os-muted); cursor: default; text-decoration: none; }
+.groupToggle:hover { border-color: var(--os-cyan); background: rgba(94, 216, 255, 0.12); }
+.groupToggle:disabled { border-color: var(--os-border); color: var(--os-muted); cursor: default; background: none; }
+
+/* Qué contiene el grupo, en una línea. Un rótulo solo no permite auditarlo. */
+.groupHelp {
+  margin: 0.3rem 0 0.15rem;
+  color: var(--os-muted);
+  font: 0.66rem/1.5 var(--font-mono), ui-monospace, monospace;
+}
+
+/* Qué clase de archivo es. Sólo en el grupo que ningún cambio reclama, que es
+   donde no hay otra información. No es atribución: no dice de qué trabajo vino. */
+.fileKind {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.6rem;
+  color: #9eacc0;
+  font: 600 0.56rem var(--font-mono), ui-monospace, monospace;
+  font-style: normal;
+}
+
+/* El mensaje se corrige acá, donde se decide qué entra. */
+/* La rama del cambio, declarada antes de crearse. Es una escritura de Git, así
+   que se ve y se puede desactivar. */
+.flowCheck { display: flex; align-items: flex-start; gap: 0.55rem; padding: 0.5rem 0.6rem; border: 1px solid var(--os-border); border-radius: 0.4rem; background: var(--os-surface); cursor: pointer; }
+.flowCheck input { margin-top: 0.15rem; flex: 0 0 auto; cursor: pointer; }
+.flowCheck > span { display: grid; gap: 0.2rem; min-width: 0; }
+.flowCheck strong { color: #d9e5f3; font: 650 0.7rem var(--font-mono), ui-monospace, monospace; overflow-wrap: anywhere; }
+.flowCheck em { color: var(--os-muted); font: 0.64rem/1.45 var(--font-mono), ui-monospace, monospace; font-style: normal; }
+
+/* La rama a la que va el commit. Dato, no control: este panel no ejecuta
+   ninguna operación de Git. */
+.prepareBranch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.12rem 0.45rem;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.6rem;
+  color: #c9d8e8;
+  font: 650 0.62rem var(--font-mono), ui-monospace, monospace;
+  font-style: normal;
+}
+
+/* Lo ya preparado, en la columna lateral. El panel filtra los staged para que el
+   conteo baje al preparar, y eso los dejaba invisibles. */
+.stagedList { display: flex; flex-direction: column; gap: 0.25rem; margin: 0; padding: 0 0.9rem; list-style: none; }
+.stagedList > li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.22rem 0;
+  color: #c2d0de;
+  font: 500 0.66rem var(--font-mono), ui-monospace, monospace;
+  user-select: text;
+}
+.stagedList > li span { min-width: 0; overflow-wrap: anywhere; }
+
+.messageField { display: flex; align-items: center; gap: 0.6rem; margin: 0.2rem 0 0.9rem; }
+.messageField > strong { flex: 0 0 auto; color: var(--os-muted); font: 650 0.68rem var(--font-mono), ui-monospace, monospace; }
+.messageField input {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.35rem;
+  background: var(--os-bg-deep, rgba(2, 15, 30, 0.6));
+  color: var(--os-cyan);
+  font: 0.72rem var(--font-mono), ui-monospace, monospace;
+}
+.messageField input:focus { border-color: var(--os-cyan); outline: none; }
+.messageField input:disabled { color: var(--os-muted); }
 
 /* La etiqueta envuelve la fila entera: con el área del tamaño de la casilla
    había que apuntar, que es el mismo defecto que ya se corrigió en la lista de
@@ -677,15 +755,19 @@
 
 /* Estado del archivo, con los mismos colores que el panel de preparación de Git.
    `M` modificado, `A` agregado, `D` borrado, `R` renombrado, `U` sin seguimiento. */
+/* El estado se dice con palabra, no con la inicial: un dato que sólo aparecía en
+   el `title` no estaba presentado. El ancho fijo mantiene alineadas las rutas,
+   que es lo que permite barrer la lista. */
 .fileStatus {
   display: inline-flex;
-  width: 1rem;
-  height: 1rem;
+  width: 5.5rem;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border-radius: 0.15rem;
-  font: 700 0.55rem var(--font-mono), ui-monospace, monospace;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.2rem;
+  font: 650 0.58rem var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.03em;
   background: rgba(126, 151, 178, 0.16);
   color: #9eacc0;
 }
@@ -963,6 +1045,57 @@
 }
 
 .startProgress { display: flex; align-items: center; gap: 0.7rem; color: var(--os-muted); font: 0.66rem var(--font-mono), ui-monospace, monospace; }
+
+/* Desplegables de la pantalla de entrada: qué falta en un cambio, y la lista
+   completa de archivados. Plegados por defecto para que esto siga siendo una
+   pantalla de estado y no una lista de tareas. */
+.startPendingToggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.3rem;
+  background: none;
+  color: var(--os-cyan);
+  cursor: pointer;
+  font: 600 0.6rem var(--font-mono), ui-monospace, monospace;
+}
+.startPendingToggle:hover { border-color: var(--os-cyan); background: rgba(94, 216, 255, 0.1); }
+.startPendingToggle svg { transition: transform 120ms ease; }
+.startPendingToggle[aria-expanded='true'] svg { transform: rotate(180deg); }
+
+.startPending { margin: 0.6rem 0 0; padding: 0.55rem 0 0; border-top: 1px solid var(--os-border); list-style: none; }
+.startPending > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.22rem 0;
+  color: #c2d0de;
+  font: 0.66rem/1.5 var(--font-mono), ui-monospace, monospace;
+}
+.startPending > li svg { flex: 0 0 auto; margin-top: 0.28rem; color: var(--os-muted); }
+
+.startArchived { display: flex; flex-direction: column; gap: 0.15rem; margin: 0.5rem 0 0; padding: 0; list-style: none; }
+.startArchived button {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.3rem 0.45rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: none;
+  color: var(--os-muted);
+  cursor: pointer;
+  text-align: left;
+  font: 0.66rem var(--font-mono), ui-monospace, monospace;
+}
+.startArchived button:hover { background: var(--os-surface); }
+.startArchived strong { min-width: 0; overflow-wrap: anywhere; color: #d3dfeb; font-weight: 600; }
+.startArchived span { margin-left: auto; flex: 0 0 auto; }
+.startArchived svg { align-self: center; flex: 0 0 auto; color: var(--os-green); }
 .startBar { flex: 1 1 auto; height: 0.28rem; border-radius: 0.2rem; background: var(--os-border-strong); }
 .startBar > span { display: block; height: 100%; border-radius: 0.2rem; background: var(--os-cyan); }
 

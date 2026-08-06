@@ -140,7 +140,7 @@
   border: 1px solid var(--os-cyan);
   border-radius: 0.4rem;
   color: var(--os-cyan);
-  font: 650 0.66rem var(--font-mono), ui-monospace, monospace;
+  font: 650 0.74rem var(--font-mono), ui-monospace, monospace;
   font-style: normal;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -390,16 +390,18 @@
   background: #031322;
 }
 
+/* Una sola columna desde que se retiró la barra de fases. El alto mínimo baja
+   con ella: sostenía dos filas de etapas que ya no están, y conservarlo dejaría
+   un hueco que pide llenarse con algo. */
 .changeHeader {
   display: grid;
-  grid-template-columns: minmax(14rem, 0.9fr) minmax(25rem, 1.2fr);
   align-items: center;
   gap: 1.4rem;
   /* `flex: 0 0 auto` no es decorativo: sin él este bloque es un item flexible
      dentro de un contenedor con `overflow: hidden`, se comprime hasta el
      `min-height` y un intent largo se derrama por encima de las pestañas. */
   flex: 0 0 auto;
-  min-height: 7.6rem;
+  min-height: 5.4rem;
   padding: 1.1rem 1.5rem;
   border-bottom: 1px solid var(--os-border);
 }
@@ -420,50 +422,6 @@
 }
 .changeTitle p span { color: #c8d5e3; }
 
-.lifecycle {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(3.4rem, 1fr));
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.lifecycle li {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 0.45rem;
-  color: var(--os-muted);
-}
-
-.lifecycle li:not(:last-child)::after {
-  position: absolute;
-  z-index: 0;
-  top: 0.85rem;
-  left: calc(50% + 0.85rem);
-  width: calc(100% - 1.7rem);
-  height: 1px;
-  background: rgba(142, 163, 186, 0.5);
-  content: '';
-}
-
-.lifecycle li[data-done='true']:not(:last-child)::after { background: var(--os-green); }
-.lifecycle li > span {
-  z-index: 1;
-  display: grid;
-  width: 1.75rem;
-  height: 1.75rem;
-  place-items: center;
-  border: 2px solid rgba(142, 163, 186, 0.5);
-  border-radius: 50%;
-  background: #081828;
-  font: 700 0.65rem var(--font-mono), ui-monospace, monospace;
-}
-
-.lifecycle li[data-done='true'] > span { border-color: #6fac39; color: var(--os-green); background: rgba(68, 111, 41, 0.25); }
-.lifecycle li[data-current='true'] > span { border-color: var(--os-cyan); color: var(--os-cyan); box-shadow: 0 0 0 0.28rem rgba(94, 216, 255, 0.12); }
-.lifecycle em { font-size: 0.62rem; font-style: normal; white-space: nowrap; }
-.lifecycle li[data-current='true'] em { color: var(--os-cyan); }
 
 /* Pestañas a la izquierda y acciones a la derecha, en la misma fila: el CTA
    queda en el punto más alto y estable del panel, fuera del scroll. */
@@ -562,6 +520,16 @@
 .taskEmpty { color: var(--os-muted) !important; }
 
 .actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1rem; }
+/* Tres niveles de control, distinguibles sin leer el texto.
+   1 · `primaryAction`: la acción sobre el repositorio. Único relleno del panel.
+   2 · `secondaryAction`: apoyo. Marco claro sin relleno; el cian queda para el
+       estado activo, no para el reposo.
+   3 · `groupToggle` / `startPendingToggle`: controles de contenido —desplegar,
+       sumar un grupo—. Tratamiento más liviano y en verde, que es el tono que
+       el panel ya usa para lo que está resuelto y no compite con el cian de
+       las acciones. Se definen abajo, cada uno junto a lo suyo.
+   Antes los tres usaban el mismo cian sobre marco tenue y había que leer el
+   texto para saber cuál pesaba más. */
 .primaryAction,
 .secondaryAction {
   display: inline-flex;
@@ -569,18 +537,19 @@
   align-items: center;
   justify-content: center;
   gap: 0.55rem;
-  padding: 0.6rem 1rem;
+  padding: 0.68rem 1.15rem;
   border: 1px solid var(--os-border-strong);
   border-radius: 0.2rem;
-  background: rgba(126, 151, 178, 0.12);
+  background: none;
   color: #d5e0eb;
-  font: 700 0.68rem var(--font-mono), ui-monospace, monospace;
+  font: 700 0.76rem var(--font-mono), ui-monospace, monospace;
   transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
 }
 
 .primaryAction { border-color: var(--os-cyan); background: var(--os-cyan); color: #041522; }
 .primaryAction:hover:not(:disabled) { background: #8be4ff; }
-.secondaryAction:hover:not(:disabled) { border-color: rgba(94, 216, 255, 0.48); color: var(--os-cyan); }
+.secondaryAction { border-color: rgba(141, 169, 198, 0.5); }
+.secondaryAction:hover:not(:disabled) { border-color: var(--os-cyan); color: var(--os-cyan); background: rgba(94, 216, 255, 0.1); }
 .primaryAction:disabled,
 .secondaryAction:disabled { cursor: not-allowed; opacity: 0.38; }
 
@@ -637,38 +606,43 @@
   font: 0.68rem var(--font-mono), ui-monospace, monospace;
 }
 
+/* El título, su descripción y la lista se leen como tres cosas, no como un
+   bloque: la descripción que llegó con `explain-commit-groups` quedaba pegada al
+   rótulo. El aire va acá y encima de la lista, no dentro de las filas, que ya se
+   airearon antes por un motivo propio. */
 .fileGroup > p {
   display: flex;
   align-items: baseline;
-  gap: 0.6rem;
+  gap: 0.7rem;
   margin: 0;
-  padding-bottom: 0.3rem;
+  padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--os-border);
 }
 .fileGroup > p > strong { color: #c9d8e8; font: 650 0.72rem var(--font-mono), ui-monospace, monospace; }
 
-/* Control, no rótulo. Como texto suelto al lado del título se leía como parte
-   del título y no como algo apretable. */
+/* Nivel 3: control de contenido, no de acción sobre el repositorio. Verde, para
+   no competir con el cian de las acciones. Como texto suelto al lado del título
+   se leía como parte del título y no como algo apretable. */
 .groupToggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.5rem;
-  border: 1px solid var(--os-border-strong);
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid rgba(163, 241, 133, 0.34);
   border-radius: 0.35rem;
-  background: var(--os-surface);
-  color: var(--os-cyan);
+  background: none;
+  color: var(--os-green);
   cursor: pointer;
-  font: 600 0.62rem var(--font-mono), ui-monospace, monospace;
+  font: 600 0.72rem var(--font-mono), ui-monospace, monospace;
 }
-.groupToggle:hover { border-color: var(--os-cyan); background: rgba(94, 216, 255, 0.12); }
+.groupToggle:hover { border-color: var(--os-green); background: rgba(163, 241, 133, 0.12); }
 .groupToggle:disabled { border-color: var(--os-border); color: var(--os-muted); cursor: default; background: none; }
 
 /* Qué contiene el grupo, en una línea. Un rótulo solo no permite auditarlo. */
 .groupHelp {
-  margin: 0.3rem 0 0.15rem;
+  margin: 0.55rem 0 0.45rem;
   color: var(--os-muted);
-  font: 0.66rem/1.5 var(--font-mono), ui-monospace, monospace;
+  font: 0.7rem/1.55 var(--font-mono), ui-monospace, monospace;
 }
 
 /* Qué clase de archivo es. Sólo en el grupo que ningún cambio reclama, que es
@@ -703,7 +677,7 @@
   border: 1px solid var(--os-border-strong);
   border-radius: 0.6rem;
   color: #c9d8e8;
-  font: 650 0.62rem var(--font-mono), ui-monospace, monospace;
+  font: 650 0.74rem var(--font-mono), ui-monospace, monospace;
   font-style: normal;
 }
 
@@ -839,22 +813,20 @@
 .archiveConfirmHead > span { color: var(--os-muted); font: 0.72rem var(--font-mono), ui-monospace, monospace; }
 .archiveConfirm .actions { margin-top: 0; }
 
-/* El ciclo late mientras se relee la evidencia: es el elemento que va a
-   cambiar cuando termine, así que la espera se declara ahí y no sólo en un
-   indicador global lejos de la acción. */
-.lifecycle[data-revalidating] > li > span { animation: lifecyclePulse 1.2s ease-in-out infinite; }
-.lifecycle[data-revalidating] > li:nth-child(2) > span { animation-delay: 0.12s; }
-.lifecycle[data-revalidating] > li:nth-child(3) > span { animation-delay: 0.24s; }
-.lifecycle[data-revalidating] > li:nth-child(4) > span { animation-delay: 0.36s; }
-.lifecycle[data-revalidating] > li:nth-child(5) > span { animation-delay: 0.48s; }
 
-@keyframes lifecyclePulse {
+/* Relectura de evidencia en curso. Vivía en la barra de fases; al retirarse, la
+   señal se muda al encabezado del cambio, que es a quien pertenece: informa que
+   la evidencia se está releyendo, no que una etapa esté cambiando. Sin esto el
+   atributo quedaría sólo para el test y la espera sería invisible. */
+.changeHeader[data-revalidating] .changeTitle h3 { animation: revalidatePulse 1.2s ease-in-out infinite; }
+
+@keyframes revalidatePulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.38; }
+  50% { opacity: 0.45; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lifecycle[data-revalidating] > li > span { animation: none; opacity: 0.6; }
+  .changeHeader[data-revalidating] .changeTitle h3 { animation: none; opacity: 0.6; }
 }
 
 .spin { animation: archiveSpin 0.9s linear infinite; }
@@ -1049,20 +1021,21 @@
 /* Desplegables de la pantalla de entrada: qué falta en un cambio, y la lista
    completa de archivados. Plegados por defecto para que esto siga siendo una
    pantalla de estado y no una lista de tareas. */
+/* Mismo nivel 3 que `groupToggle`: despliega contenido, no actúa sobre el repo. */
 .startPendingToggle {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.15rem 0.4rem;
-  border: 1px solid var(--os-border-strong);
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid rgba(163, 241, 133, 0.34);
   border-radius: 0.3rem;
   background: none;
-  color: var(--os-cyan);
+  color: var(--os-green);
   cursor: pointer;
-  font: 600 0.6rem var(--font-mono), ui-monospace, monospace;
+  font: 600 0.72rem var(--font-mono), ui-monospace, monospace;
 }
-.startPendingToggle:hover { border-color: var(--os-cyan); background: rgba(94, 216, 255, 0.1); }
+.startPendingToggle:hover { border-color: var(--os-green); background: rgba(163, 241, 133, 0.12); }
 .startPendingToggle svg { transition: transform 120ms ease; }
 .startPendingToggle[aria-expanded='true'] svg { transform: rotate(180deg); }
 
@@ -1149,7 +1122,6 @@
   text-transform: uppercase;
 }
 
-.nextStepCounter { color: var(--os-muted); font: 0.62rem var(--font-mono), ui-monospace, monospace; }
 .nextStepTitle { margin: 0.5rem 0 0; color: #edf4fb; font: 700 0.95rem var(--font-mono), ui-monospace, monospace; }
 .nextStepHelp { margin: 0.35rem 0 0; color: var(--os-muted); font: 0.68rem var(--font-mono), ui-monospace, monospace; }
 .nextStepActions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.85rem; }

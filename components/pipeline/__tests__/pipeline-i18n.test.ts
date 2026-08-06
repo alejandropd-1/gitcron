@@ -119,12 +119,14 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.start.tasks',
   'pipeline.openspec.start.noTasks',
   'pipeline.openspec.start.pending',
+  'pipeline.openspec.start.pending.one',
   'pipeline.next.noSelection.title',
   'pipeline.next.noSelection.help',
   'pipeline.openspec.start.noActive',
   'pipeline.openspec.start.closed',
   'pipeline.openspec.start.neverArchived',
   'pipeline.openspec.start.archivedCount',
+  'pipeline.openspec.start.archivedCount.one',
   'pipeline.openspec.start.specificationsCount',
   'pipeline.openspec.start.specsPending',
   // Preparación del commit del repositorio. Van acá para que las tres lenguas
@@ -144,6 +146,7 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.prepare.message',
   'pipeline.openspec.prepare.action',
   'pipeline.openspec.prepare.done',
+  'pipeline.openspec.prepare.done.one',
   'pipeline.openspec.prepare.groupChange',
   'pipeline.openspec.prepare.groupChangeHelp',
   'pipeline.openspec.prepare.groupArchived',
@@ -164,6 +167,7 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.prepare.selectAll',
   'pipeline.openspec.prepare.deselectAll',
   'pipeline.openspec.prepare.preparedSummary',
+  'pipeline.openspec.prepare.preparedSummary.one',
   'pipeline.openspec.prepare.empty',
 ] as const;
 

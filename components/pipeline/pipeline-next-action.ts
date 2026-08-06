@@ -15,9 +15,6 @@ import type { OpenSpecChangeSummary } from './pipeline-view-state';
  * `tasks.md`, validación, proyección de la sesión).
  */
 
-/** Orden del ciclo de vida OpenSpec, usado para el contador "paso N de 5". */
-const LIFECYCLE_TOTAL = 5;
-
 /**
  * Contrato de nombre de change verificado contra `openspec new change`:
  * debe empezar con letra, admite sólo minúsculas, dígitos y guiones, y rechaza
@@ -81,8 +78,13 @@ export type PipelineNextActionKind =
 
 export type PipelineNextAction = {
   kind: PipelineNextActionKind;
-  /** Posición en el ciclo de vida, o `null` cuando el estado no pertenece a él. */
-  step: { index: number; total: number } | null;
+  /**
+   * No hay campo de posición. OpenSpec abandonó el modelo de fases —se puede
+   * trabajar cualquier artefacto habilitado en cualquier momento—, así que
+   * declarar «paso N de 5» enseñaba un orden obligatorio que no existe. El
+   * estado por artefacto lo da el grafo del CLI; dejar el campo en `null`
+   * habría conservado la forma del modelo lista para volver a llenarse.
+   */
   titleKey: string;
   titleParams?: Record<string, string | number>;
   /** Una sola frase. El tope es estructural, no estilístico. */
@@ -299,7 +301,6 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
   if (fixtureActive) {
     return {
       kind: 'fixture-preview',
-      step: null,
       titleKey: 'pipeline.next.fixture.title',
       helpKey: 'pipeline.next.fixture.help',
       primary: null,
@@ -313,7 +314,6 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
   if (pendingDecision) {
     return {
       kind: 'decision-pending',
-      step: null,
       titleKey: 'pipeline.next.decision.title',
       helpKey: 'pipeline.next.decision.help',
       primary: button({ kind: 'focus-decision', decisionId: pendingDecision.decisionId }, 'pipeline.next.decision.action'),
@@ -329,7 +329,6 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
     const canPause = projection.controlCapabilities.includes('pause-after-task');
     return {
       kind: archiving ? 'archiving' : 'session-running',
-      step: archiving ? { index: 5, total: LIFECYCLE_TOTAL } : { index: 3, total: LIFECYCLE_TOTAL },
       titleKey: archiving ? 'pipeline.next.archiving.title' : 'pipeline.next.running.title',
       ...(archiving || !projection.taskId ? {} : { titleParams: { task: projection.taskId } }),
       helpKey: archiving ? 'pipeline.next.archiving.help' : 'pipeline.next.running.help',
@@ -359,7 +358,6 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
     if (targetTask && (failed || stalled)) {
       return {
         kind: 'session-retry',
-        step: { index: 3, total: LIFECYCLE_TOTAL },
         titleKey: failed ? 'pipeline.next.retry.title' : 'pipeline.next.retry.stalledTitle',
         titleParams: { task: resolveTaskLabel(targetTask) },
         helpKey: failed ? 'pipeline.next.retry.help' : 'pipeline.next.retry.stalledHelp',
@@ -382,7 +380,6 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
   if (!selectedChange && selectedArchivedChangeId) {
     return {
       kind: 'change-archived',
-      step: null,
       titleKey: 'pipeline.next.archived.title',
       helpKey: 'pipeline.next.archived.help',
       primary: button({ kind: 'open-propose-flow' }, 'pipeline.next.archived.action'),
@@ -398,7 +395,6 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
   if (!selectedChange && input.hasActiveChanges) {
     return {
       kind: 'no-change-selected',
-      step: null,
       titleKey: 'pipeline.next.noSelection.title',
       helpKey: 'pipeline.next.noSelection.help',
       primary: button({ kind: 'open-propose-flow' }, 'pipeline.next.noActive.propose'),
@@ -411,7 +407,6 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
   if (!selectedChange) {
     return {
       kind: 'no-active-change',
-      step: { index: 1, total: LIFECYCLE_TOTAL },
       titleKey: 'pipeline.next.noActive.title',
       helpKey: 'pipeline.next.noActive.help',
       primary: button({ kind: 'open-propose-flow' }, 'pipeline.next.noActive.propose'),
@@ -426,7 +421,6 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
     const counts = taskCounts(selectedChange);
     return {
       kind: 'task-pending',
-      step: { index: 3, total: LIFECYCLE_TOTAL },
       titleKey: 'pipeline.next.task.title',
       titleParams: { task: resolveTaskLabel(nextTask), completed: counts.completed, total: counts.total },
       helpKey: 'pipeline.next.task.help',
@@ -449,7 +443,6 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
   if (selectedChange.validation === 'failed') {
     return {
       kind: 'validation-failed',
-      step: { index: 4, total: LIFECYCLE_TOTAL },
       titleKey: 'pipeline.next.validationFailed.title',
       helpKey: 'pipeline.next.validationFailed.help',
       primary: button({ kind: 'view-evidence' }, 'pipeline.next.validationFailed.action'),
@@ -461,7 +454,6 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
   if (selectedChange.validation === 'unknown') {
     return {
       kind: 'validation-unknown',
-      step: { index: 4, total: LIFECYCLE_TOTAL },
       titleKey: 'pipeline.next.validationUnknown.title',
       helpKey: 'pipeline.next.validationUnknown.help',
       primary: button({ kind: 'refresh-validation' }, 'pipeline.next.validationUnknown.action'),
@@ -473,7 +465,6 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
   // 9 · Validación aprobada y nada pendiente: recién acá aparece archivar.
   return {
     kind: 'ready-to-archive',
-    step: { index: 5, total: LIFECYCLE_TOTAL },
     titleKey: 'pipeline.next.readyToArchive.title',
     helpKey: 'pipeline.next.readyToArchive.help',
     primary: button({ kind: 'start-archive', changeId: selectedChange.changeId }, 'pipeline.next.readyToArchive.action'),

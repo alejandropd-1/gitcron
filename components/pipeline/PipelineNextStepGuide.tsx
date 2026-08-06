@@ -48,12 +48,9 @@ export function PipelineNextStepGuide({ action, onAct, executionBlocked = false 
   return (
     <section className={styles.nextStep} data-kind={action.kind} aria-label={t('pipeline.next.label')}>
       <header className={styles.nextStepHeader}>
+        {/* Sin contador de pasos: OpenSpec no tiene una secuencia obligatoria,
+            y numerar una posición dentro de cinco etapas la inventaba. */}
         <span className={styles.nextStepBadge}>{t('pipeline.next.label')}</span>
-        {action.step && (
-          <span className={styles.nextStepCounter}>
-            {t('pipeline.next.step', { index: action.step.index, total: action.step.total })}
-          </span>
-        )}
       </header>
 
       <h4 className={styles.nextStepTitle}>{t(action.titleKey, action.titleParams)}</h4>

@@ -206,6 +206,54 @@ describe('pantalla de entrada del repositorio', () => {
     expect(onSelectChange).toHaveBeenCalledWith('viejo-11');
   });
 
+  it('los conteos concuerdan en número', () => {
+    // «Ver las 1 que faltan» delataba que nadie había mirado el caso de uno, y
+    // el caso de uno es el más frecuente al final de cualquier trabajo.
+    renderDashboard(snapshot({
+      activeChanges: [change('casi', 3, 4)],
+      archivedCount: 1,
+    }));
+
+    expect(screen.getByText(/openspec\.start\.pending\.one/)).toBeTruthy();
+    expect(screen.queryByText(/openspec\.start\.pending:/)).toBeNull();
+    expect(screen.getByText(/openspec\.start\.archivedCount\.one/)).toBeTruthy();
+  });
+
+  it('con varias unidades usa la variante plural', () => {
+    renderDashboard(snapshot({
+      activeChanges: [change('lejos', 1, 4)],
+      archivedCount: 5,
+    }));
+
+    expect(screen.getByText(/openspec\.start\.pending:.*"count":3/)).toBeTruthy();
+    expect(screen.getByText(/openspec\.start\.archivedCount:.*"count":5/)).toBeTruthy();
+    expect(screen.queryByText(/openspec\.start\.pending\.one/)).toBeNull();
+  });
+
+  it('un cambio abierto no muestra la secuencia de etapas ni el contador de pasos', () => {
+    // OpenSpec abandonó el modelo de fases: se puede trabajar cualquier
+    // artefacto habilitado en cualquier momento. «Paso 3 de 5» enseñaba un orden
+    // obligatorio que no existe, y la barra lo dibujaba con tildes y una etapa
+    // «actual». El estado por artefacto lo da el grafo del CLI.
+    renderDashboard();
+    fireEvent.click(screen.getAllByRole('button', { name: /openspec\.start\.enter/ })[0]);
+
+    expect(screen.queryByText(/openspec\.lifecycle\./)).toBeNull();
+    expect(screen.queryByText(/pipeline\.next\.step/)).toBeNull();
+    expect(document.querySelector('ol[aria-label*="lifecycle"]')).toBeNull();
+  });
+
+  it('la guía conserva su acción sin el contador', () => {
+    // La guía completa vive en la pantalla de entrada; dentro de un cambio
+    // abierto queda su ayuda en línea. Retirar el contador no retira ninguna
+    // de las dos: siguen diciendo qué conviene hacer.
+    renderDashboard();
+
+    expect(screen.getAllByText('pipeline.next.label').length).toBeGreaterThan(0);
+    expect(screen.getByText('pipeline.next.noSelection.help')).toBeTruthy();
+    expect(screen.queryByText(/pipeline\.next\.step/)).toBeNull();
+  });
+
   it('entrar a un cambio lo muestra, y se puede volver', () => {
     const onSelectChange = renderDashboard();
 

@@ -119,19 +119,6 @@ function taskProgress(change: OpenSpecChangeSummary): { completed: number; total
   return { completed, total, percent: total === 0 ? 0 : Math.round((completed / total) * 100) };
 }
 
-function lifecycle(change: OpenSpecChangeSummary | null, archived: boolean) {
-  const progress = change ? taskProgress(change) : { completed: 0, total: 0, percent: 0 };
-  const applyDone = archived || (progress.total > 0 && progress.completed === progress.total);
-  const validationDone = archived || change?.validation === 'passed';
-  return [
-    { key: 'explore', done: Boolean(change) || archived, current: false },
-    { key: 'propose', done: archived || change?.proposalExists === true, current: false },
-    { key: 'apply', done: applyDone, current: Boolean(change) && !applyDone },
-    { key: 'validate', done: validationDone, current: applyDone && !validationDone },
-    { key: 'archive', done: archived, current: validationDone && !archived },
-  ];
-}
-
 function formatTime(value: string | null): string {
   if (!value) return '--:--';
   const date = new Date(value);
@@ -179,6 +166,19 @@ export function OpenSpecDashboard({
   onRespondDecision,
 }: OpenSpecDashboardProps) {
   const t = useT();
+  /**
+   * Texto con cantidad, concordando en número.
+   *
+   * Un texto que no concuerda —«Ver las 1 que faltan»— delata que nadie miró el
+   * caso de uno, y el caso de uno es el más frecuente al final de cualquier
+   * trabajo: la última tarea, el único archivo preparado. Se resuelve acá y no
+   * en cada punto de uso, porque son cinco lugares y el sexto se olvidaría.
+   *
+   * El chino no concuerda en número: su variante `.one` existe igual con el
+   * texto que corresponde, para que la ausencia no se lea como un olvido.
+   */
+  const tCount = (key: string, count: number, params?: Record<string, string | number>): string =>
+    t(count === 1 ? `${key}.one` : key, { count, ...params });
   const setSuccess = useGitStore((state) => state.setSuccess);
   const modifiedFiles = useGitStore((state) => state.modifiedFiles);
   const commitMessage = useGitStore((state) => state.commitMessage);
@@ -301,7 +301,6 @@ export function OpenSpecDashboard({
   /** Lo que falta de un cambio. El avance ya está en la barra; esto es qué queda. */
   const pendingOf = (change: OpenSpecChangeSummary) => change.tasks.filter((task) => !task.completed);
   const nextTask = selectedChange?.tasks.find((task) => !task.completed) ?? null;
-  const stages = lifecycle(selectedChange, selectedArchive !== null);
   // Archivar responde "¿qué me está permitido hacer?", no "¿qué conviene ahora?".
   // Por eso vive fuera de la derivación del siguiente paso.
   const archive = deriveArchiveAvailability(selectedChange, selectedArchive !== null);
@@ -482,7 +481,7 @@ export function OpenSpecDashboard({
       // Lo elegido ya viajó: dejarlo marcado haría que una segunda preparación
       // volviera a incluir archivos que ya no están en la lista.
       setChosenFiles([]);
-      setSuccess(t('pipeline.openspec.prepare.done', { count: chosen.length }));
+      setSuccess(tCount('pipeline.openspec.prepare.done', chosen.length));
     } finally {
       setPrepareBusy(false);
     }
@@ -876,7 +875,7 @@ export function OpenSpecDashboard({
                 <p className={styles.prepareEmpty}>
                   {lastPreparedCount === null
                     ? t('pipeline.openspec.prepare.empty')
-                    : t('pipeline.openspec.prepare.preparedSummary', { count: lastPreparedCount })}
+                    : tCount('pipeline.openspec.prepare.preparedSummary', lastPreparedCount)}
                 </p>
               ) : (
                 <>
@@ -959,7 +958,14 @@ export function OpenSpecDashboard({
             </section>
           ) : selectedChange ? (
             <>
-              <header className={styles.changeHeader}>
+              {/* El indicador de relectura colgaba de la barra de fases por
+                  estar ahí, no porque le perteneciera: informa que la evidencia
+                  se está releyendo, que es del encabezado entero. */}
+              <header
+                className={styles.changeHeader}
+                data-revalidating={revalidating || undefined}
+                aria-busy={revalidating || undefined}
+              >
                 <div className={styles.changeTitle}>
                   {/* Volver al estado del repositorio: sin esto, entrar a un
                       cambio era un viaje de ida y la pantalla de entrada sólo se
@@ -974,19 +980,6 @@ export function OpenSpecDashboard({
                     <span>{t('pipeline.openspec.intent')}:</span> {selectedChange.intent ?? t('pipeline.openspec.intentUnknown')}
                   </p>
                 </div>
-                <ol
-                  className={styles.lifecycle}
-                  aria-label={t('pipeline.openspec.lifecycle.label')}
-                  data-revalidating={revalidating || undefined}
-                  aria-busy={revalidating || undefined}
-                >
-                  {stages.map((stage, index) => (
-                    <li key={stage.key} data-done={stage.done} data-current={stage.current}>
-                      <span>{stage.done ? <Check size={14} /> : index + 1}</span>
-                      <em>{t(`pipeline.openspec.lifecycle.${stage.key}`)}</em>
-                    </li>
-                  ))}
-                </ol>
               </header>
 
               {/* Las acciones comparten fila con las pestañas: es el punto más
@@ -1388,7 +1381,7 @@ export function OpenSpecDashboard({
                               }))}
                             >
                               <ChevronDown size={12} />
-                              {t('pipeline.openspec.start.pending', { count: pendingOf(change).length })}
+                              {tCount('pipeline.openspec.start.pending', pendingOf(change).length)}
                             </button>
                           )}
                         </div>
@@ -1427,7 +1420,7 @@ export function OpenSpecDashboard({
                       onClick={() => setArchivedOpen((open) => !open)}
                     >
                       <ChevronDown size={12} />
-                      {t('pipeline.openspec.start.archivedCount', { count: archivedChanges.length })}
+                      {tCount('pipeline.openspec.start.archivedCount', archivedChanges.length)}
                     </button>
                     {archivedOpen && (
                       <ul className={styles.startArchived}>

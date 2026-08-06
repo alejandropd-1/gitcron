@@ -21,4 +21,4 @@
 - [x] 4.2 Correr `pnpm test` más de una vez y reportar el resultado real: **101 archivos / 736 tests, verde en dos corridas seguidas** con el entorno de desarrollo apagado. Con `electron:dev` encima caían de cinco a siete archivos, siempre por `Test timed out in 5000ms` y nunca por aserción — era carga, confirmado.
 - [x] 4.3 Correr el lint sobre los archivos tocados y dejarlo limpio
 - [x] 4.4 Dejar `openspec validate render-openspec-markdown --strict` válido
-- [ ] 4.5 Ale valida abriendo una spec con escenarios y marca esta casilla: que se lea como documento y no como fuente
+- [x] 4.5 Ale valida abriendo una spec con escenarios y marca esta casilla: que se lea como documento y no como fuente

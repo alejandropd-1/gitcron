@@ -8,9 +8,12 @@ type SafeMarkdownProps = {
 };
 
 type Block =
-  | { type: 'h1'; text: string }
-  | { type: 'h2'; text: string }
-  | { type: 'h3'; text: string }
+  /**
+   * `level` es el del documento, de 1 a 6. Antes había un tipo por nivel y sólo
+   * llegaban a tres: el cuarto —el que la metodología usa para cada escenario—
+   * caía al `else` final y salía impreso con sus cuatro almohadillas.
+   */
+  | { type: 'heading'; level: number; text: string }
   | { type: 'blockquote'; text: string }
   | { type: 'codeblock'; language?: string; text: string }
   | { type: 'list'; items: string[] }
@@ -71,13 +74,12 @@ function parseMarkdown(raw: string): Block[] {
 
     if (!trimmed) continue;
 
-    // Headings
-    if (trimmed.startsWith('# ')) {
-      blocks.push({ type: 'h1', text: trimmed.slice(2).trim() });
-    } else if (trimmed.startsWith('## ')) {
-      blocks.push({ type: 'h2', text: trimmed.slice(3).trim() });
-    } else if (trimmed.startsWith('### ')) {
-      blocks.push({ type: 'h3', text: trimmed.slice(4).trim() });
+    // Encabezados: se cuentan las almohadillas en vez de comparar prefijos uno
+    // por uno. Tres comparaciones escritas a mano fueron lo que dejó afuera el
+    // cuarto nivel, y una cuarta habría dejado afuera el quinto.
+    const headingMatch = /^(#{1,6})\s+(.*)$/.exec(trimmed);
+    if (headingMatch) {
+      blocks.push({ type: 'heading', level: headingMatch[1].length, text: headingMatch[2].trim() });
     } else if (trimmed.startsWith('> ')) {
       blocks.push({ type: 'blockquote', text: trimmed.slice(2).trim() });
     } else {
@@ -139,24 +141,19 @@ export function SafeMarkdown({ content, className }: SafeMarkdownProps) {
     <div className={`pipeline-markdown ${className ?? ''}`}>
       {blocks.map((block, idx) => {
         switch (block.type) {
-          case 'h1':
+          case 'heading': {
+            // El nivel del documento se corre dos posiciones: el panel ya usa
+            // `h2` para su marca y `h3` para sus secciones, así que el artefacto
+            // encaja debajo sin saltos ni un segundo `h1`. Se topea en `h6`, que
+            // es el último que existe.
+            const level = Math.min(block.level + 2, 6);
+            const Tag = `h${level}` as 'h3' | 'h4' | 'h5' | 'h6';
             return (
-              <h3 key={idx} className="pipeline-markdown__h1">
+              <Tag key={idx} className={`pipeline-markdown__h${block.level}`}>
                 {renderInline(block.text)}
-              </h3>
+              </Tag>
             );
-          case 'h2':
-            return (
-              <h4 key={idx} className="pipeline-markdown__h2">
-                {renderInline(block.text)}
-              </h4>
-            );
-          case 'h3':
-            return (
-              <h5 key={idx} className="pipeline-markdown__h3">
-                {renderInline(block.text)}
-              </h5>
-            );
+          }
           case 'blockquote':
             return (
               <blockquote key={idx} className="pipeline-markdown__blockquote">

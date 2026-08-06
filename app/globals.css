@@ -2354,7 +2354,10 @@ body, .font-sans {
    así la separación agrupa en vez de sólo espaciar. */
 .pipeline-markdown__h1,
 .pipeline-markdown__h2,
-.pipeline-markdown__h3 {
+.pipeline-markdown__h3,
+.pipeline-markdown__h4,
+.pipeline-markdown__h5,
+.pipeline-markdown__h6 {
   font-weight: 600;
   color: var(--color-text-primary);
   margin-top: 0.9rem;
@@ -2364,11 +2367,22 @@ body, .font-sans {
 
 .pipeline-markdown__h1:first-child,
 .pipeline-markdown__h2:first-child,
-.pipeline-markdown__h3:first-child { margin-top: 0; }
+.pipeline-markdown__h3:first-child,
+.pipeline-markdown__h4:first-child { margin-top: 0; }
 
 .pipeline-markdown__h1 { font-size: 1.125rem; }
 .pipeline-markdown__h2 { font-size: 1rem; }
 .pipeline-markdown__h3 { font-size: 0.875rem; }
+/* El cuarto nivel es el de cada escenario, el más frecuente de una spec: se
+   distingue del párrafo por color y espaciado más que por tamaño, para que una
+   pantalla con veinte escenarios no se vuelva una escalera de títulos. */
+.pipeline-markdown__h4,
+.pipeline-markdown__h5,
+.pipeline-markdown__h6 {
+  font-size: 0.8125rem;
+  color: var(--color-primary);
+  margin-top: 0.75rem;
+}
 
 .pipeline-markdown__blockquote {
   padding: 0.15rem 0 0.15rem 0.9rem;
@@ -2397,11 +2411,16 @@ body, .font-sans {
   border-radius: var(--radius-sm);
 }
 
+/* El reajuste global de la aplicación borra los marcadores de todas las listas,
+   y eso es correcto para el resto del producto. Acá se restituyen: en un
+   documento, una lista tiene que distinguirse de un párrafo indentado. */
 .pipeline-markdown__list {
   padding-left: 1.35rem;
   margin: 0;
   line-height: 1.7;
+  list-style: disc outside;
 }
+.pipeline-markdown__list > li::marker { color: var(--color-text-secondary); }
 .pipeline-markdown__list > li + li { margin-top: 0.4rem; }
 
 .pipeline-markdown__strong {

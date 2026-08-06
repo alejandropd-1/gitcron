@@ -1,11 +1,13 @@
-## La decisión que falta
+## La decisión, tomada
 
-Hay dos fuentes posibles para atribuir un archivo de código a un cambio, y la elección no está tomada.
-Este documento propone una y deja escrita la otra con su motivo. **Ale confirma antes de implementar.**
+Había dos fuentes posibles para atribuir un archivo de código a un cambio. **Ale eligió la rama el
+2026-08-06**, con la observación por sesión como complemento rotulado, y aceptando la contrapartida que
+está escrita más abajo: no rinde nada hasta que existan ramas reales. El resto de este documento queda
+como estaba, con la alternativa y su motivo, para no volver a razonarlo.
 
-## Decisión propuesta: la rama como fuente, la observación por sesión como complemento
+## Decisión: la rama como fuente, la observación por sesión como complemento
 
-Se propone que la atribución primaria venga de la rama —`change/<slug>`, lo que separa el trabajo en
+La atribución primaria viene de la rama —`change/<slug>`, lo que separa el trabajo en
 Git— y que la observación por sesión se sume después como señal secundaria, rotulada como observación.
 
 El motivo es qué afirma cada fuente. Una rama es una afirmación deliberada: alguien declaró que ese

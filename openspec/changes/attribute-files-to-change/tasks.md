@@ -1,8 +1,9 @@
 ## 1. Decisión y base
 
 - [ ] 1.1 Confirmar que el change sigue activo, `tsc --noEmit` en cero y `pnpm test` en verde
-- [ ] 1.2 **Ale elige el camino** de `design.md`: la rama como fuente primaria con la observación por
-      sesión como complemento, o invertir el orden para tener resultado antes
+- [x] 1.2 **Ale eligió el camino** de `design.md`: la rama como fuente primaria, con la observación por
+      sesión como complemento rotulado. Decidido el 2026-08-06, sabiendo que no rinde nada hasta que
+      `carry-branch-rule-in-config` esté aplicado y aparezcan ramas reales
 - [ ] 1.3 Si se elige la rama como fuente primaria, comprobar que `carry-branch-rule-in-config` ya está
       aplicado y que existe al menos una rama `change/*` sobre la cual medir algo
 

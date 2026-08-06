@@ -33,6 +33,16 @@ context: |
   Cuando se sugiera preparar archivos, enumerarlos uno por uno; nunca un directorio completo.
   No agregar dependencias sin aprobación explícita.
 
+  Rama por cambio: todo cambio se trabaja en `change/<slug>`, con el mismo slug del cambio. Al abrirlo,
+  antes de escribir ningún artefacto, crear la rama y pararse en ella con
+  `git checkout -b change/<slug>`. Si la rama ya existe, informarlo y no reutilizarla: cambiarse a una
+  rama con trabajo de otro cambio arrastra sus commits, y eso lo decide una persona, no el ejecutor.
+  Esto vale igual si el cambio se creó desde la terminal con `openspec new change`, que es el caso
+  habitual; la convención no depende de haber pasado por ninguna pantalla. El prefijo `change/`
+  distingue estas ramas de `imagined/*` y `flight/*`, que ya significan otra cosa acá. Crear la rama es
+  parte de abrir el cambio y no algo que haya que pedir: es local, reversible y no publica nada. Lo que
+  sí se informa es que se creó y con qué nombre.
+
   Fallow y CodeGraph son rutinas que se corren cuando se piden, no automatismos de cierre.
 
   Ante ambigüedad de alcance: preguntar, no asumir. Frenar y reportar cuesta una vuelta;

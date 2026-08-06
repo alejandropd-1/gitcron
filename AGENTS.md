@@ -21,7 +21,8 @@ Todo trabajo de producto pasa por un change:
 
 1. `openspec list --json` para ver qué hay activo.
 2. `openspec new change "<slug>"` para abrir uno. El slug empieza con letra y sólo admite
-   minúsculas, dígitos y guiones, sin guiones consecutivos ni finales.
+   minúsculas, dígitos y guiones, sin guiones consecutivos ni finales. El cambio se trabaja en su
+   propia rama; la regla, con su mando y qué hacer si la rama ya existe, viaja por el canal.
 3. `openspec status --change "<slug>" --json` para ver el estado de cada artefacto: `blocked`,
    `ready` o `done`. Las dependencias son habilitadoras, no barreras: se puede trabajar sobre
    cualquier artefacto que esté `ready`.

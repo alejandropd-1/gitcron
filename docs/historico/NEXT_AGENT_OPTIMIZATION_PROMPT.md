@@ -1,3 +1,9 @@
+> **RETIRADO — no rige.** Archivado el 2026-08-06. Su sección «Modo de trabajo obligatorio» prescribe
+> trabajar por fases, un método que este proyecto abandonó. La metodología vigente es **OpenSpec**:
+> entra por `AGENTS.md` y sus reglas viajan por `openspec/config.yaml`, que el CLI entrega con
+> `openspec instructions <artefacto> --change <id> --json`. Se conserva como registro de una pasada de
+> optimización de junio de 2026, no como instrucción.
+
 # Prompt para continuar la optimizacion de GitCron con otro agente
 
 Estas trabajando dentro de `C:\www\gitCronos`, un cliente Git desktop hecho con Next.js 15, React 19, Electron 42, TypeScript 5.9, Zustand 5, simple-git y Octokit. El usuario quiere seguir una optimizacion gradual de codigo sin romper features existentes.

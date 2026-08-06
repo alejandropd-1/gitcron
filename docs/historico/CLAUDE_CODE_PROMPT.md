@@ -1,3 +1,9 @@
+> **RETIRADO — no rige.** Archivado el 2026-08-06. Instruye trabajar por fases con checkpoints, un
+> método que este proyecto abandonó; el modelo de fases se jubiló del producto en
+> `retire-lifecycle-phases`. La metodología vigente es **OpenSpec**: entra por `AGENTS.md` y sus reglas
+> viajan por `openspec/config.yaml`. Se conserva como registro de la integración del Temporal Agent de
+> junio de 2026, no como instrucción.
+
 # Prompt para Claude Code — Integrar el Temporal Agent en GitCron
 
 > Pegá este archivo (o su contenido) en Claude Code corriendo **dentro del repo

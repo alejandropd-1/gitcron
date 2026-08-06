@@ -1,3 +1,9 @@
+> **ARCHIVADO — su estado es de junio de 2026 y su mecanismo ya no existe.** Movido acá el 2026-08-06.
+> Declara que «los agentes reciben SOLO los briefs de `docs/briefs/`»: ese directorio se archivó junto
+> con este documento y su contenido estaba entero bajo `_done` desde el 18 de junio. La metodología
+> vigente es **OpenSpec**, y el trabajo pendiente se sigue como changes activos —`openspec list`—, no
+> desde acá. El contenido es de Ale y se conserva sin reescribir.
+
 # GitCron — Roadmap de fases (documento de Ale — NO pegar a agentes)
 
 > Los agentes reciben SOLO los briefs de `docs/briefs/`. Este archivo es tu tablero.

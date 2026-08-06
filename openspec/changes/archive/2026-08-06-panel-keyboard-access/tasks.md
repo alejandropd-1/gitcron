@@ -21,4 +21,4 @@
 - [x] 4.2 Correr `pnpm test` más de una vez y reportar el resultado real, distinguiendo el flake conocido de los repositorios Git reales de una regresión
 - [x] 4.3 Correr el lint sobre los archivos tocados y dejarlo limpio
 - [x] 4.4 Dejar `openspec validate panel-keyboard-access --strict` válido
-- [ ] 4.5 Ale valida recorriendo el panel con Tab y marca esta casilla: que se vea siempre dónde está el foco, y que el contorno no moleste al usar el mouse
+- [x] 4.5 Ale valida recorriendo el panel con Tab y marca esta casilla: que se vea siempre dónde está el foco, y que el contorno no moleste al usar el mouse

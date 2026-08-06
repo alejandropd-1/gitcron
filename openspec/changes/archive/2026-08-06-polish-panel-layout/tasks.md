@@ -42,4 +42,4 @@
 - [x] 7.2 Correr `pnpm test` más de una vez y reportar el resultado real, distinguiendo el flake conocido de los repositorios Git reales de una regresión
 - [x] 7.3 Correr el lint sobre los archivos tocados y dejarlo limpio
 - [x] 7.4 Dejar `openspec validate polish-panel-layout --strict` válido
-- [ ] 7.5 Ale valida visualmente y marca esta casilla: que nada salte al tildar, que un documento largo se lea, y que el tono de la rama la distinga sin competir con la acción
+- [x] 7.5 Ale valida visualmente y marca esta casilla: que nada salte al tildar, que un documento largo se lea, y que el tono de la rama la distinga sin competir con la acción

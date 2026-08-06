@@ -28,4 +28,4 @@
 - [x] 5.2 Correr `pnpm test` más de una vez y reportar el resultado real, distinguiendo el flake conocido de los repositorios Git reales de una regresión
 - [x] 5.3 Correr el lint sobre los archivos tocados y dejarlo limpio
 - [x] 5.4 Dejar `openspec validate legible-panel-controls --strict` válido
-- [ ] 5.5 Ale valida visualmente y marca esta casilla: que los tres niveles de control se distingan sin leer, que el escalón de tamaño haya alcanzado, y que el verde de los controles de lista no se confunda con el estado «hecho»
+- [x] 5.5 Ale valida visualmente y marca esta casilla: que los tres niveles de control se distingan sin leer, que el escalón de tamaño haya alcanzado, y que el verde de los controles de lista no se confunda con el estado «hecho»

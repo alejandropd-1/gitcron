@@ -1011,3 +1011,130 @@ siguiente la guía. Retirar la secuencia quita una afirmación falsa sin quitar 
 - **WHEN** la evidencia se está releyendo con un cambio abierto
 - **THEN** el panel lo declara en el encabezado del cambio
 
+### Requirement: Los controles del panel se distinguen por peso
+Los controles del panel SHALL presentarse en niveles visualmente distinguibles según lo que hacen: la
+acción principal sobre el repositorio, las acciones de apoyo, y los controles que despliegan o suman
+dentro de una lista. Un nivel SHALL NOT depender de leer su texto para reconocerse. Los controles SHALL
+presentarse a un tamaño que no obligue a acercarse, sin que el panel deje de ser denso en información.
+
+Los títulos de grupo, su descripción y su lista SHALL separarse entre sí de modo que se lean como tres
+cosas y no como un bloque.
+
+El fundamento es que los controles se agregaron de a uno, cada uno resolviendo su caso, y ninguno se
+decidió mirando a los otros: terminaron todos con el mismo tono sobre marco tenue. Un panel donde hay
+que leer cada botón para saber cuál pesa más no es productivo, y la densidad que este proyecto busca es
+de información, no de tamaño de letra.
+
+#### Scenario: Acción principal frente a las de apoyo
+- **WHEN** el panel ofrece a la vez su acción principal y acciones de apoyo
+- **THEN** se distinguen entre sí sin leer sus textos
+
+#### Scenario: Controles dentro de una lista
+- **WHEN** un grupo o un cambio ofrece desplegar o sumar su contenido
+- **THEN** ese control se presenta con un peso distinto del de las acciones sobre el repositorio
+
+#### Scenario: Título, descripción y lista de un grupo
+- **WHEN** un grupo declara qué contiene y lista sus archivos
+- **THEN** el título, la descripción y la lista quedan separados entre sí
+
+### Requirement: Los conteos concuerdan en número
+Todo texto que muestre una cantidad SHALL concordar en número con esa cantidad. La elección entre
+singular y plural SHALL resolverse en un solo lugar y SHALL NOT repetirse en cada punto de uso. En las
+lenguas que no concuerdan en número, la variante singular SHALL existir igual con el texto que
+corresponda.
+
+El fundamento es que un texto que no concuerda delata que nadie miró el caso de uno, y el caso de uno
+es el más frecuente al final de cualquier trabajo: la última tarea pendiente, el único archivo
+preparado, el primer cambio archivado. Resolverlo en cada punto de uso garantiza que el próximo texto
+con número se olvide.
+
+#### Scenario: Una sola unidad
+- **WHEN** un texto muestra una cantidad de uno
+- **THEN** usa la variante singular
+
+#### Scenario: Varias unidades
+- **WHEN** un texto muestra una cantidad distinta de uno
+- **THEN** usa la variante plural
+
+### Requirement: El panel se puede recorrer con teclado
+Cada control del panel SHALL declarar su estado de foco con un contorno de contraste suficiente, y
+SHALL NOT quedarse con el contorno por defecto del navegador sobre superficies de color propio. Ningún
+control SHALL desactivar su contorno sin declarar un reemplazo. El foco SHALL declararse en
+`:focus-visible`, de modo que aparezca al recorrer con teclado y no al hacer clic.
+
+Una acción que no está disponible SHALL seguir siendo alcanzable con el teclado y SHALL anunciarse como
+deshabilitada, en vez de salir del orden de foco, cuando su ausencia impida descubrir que la acción
+existe.
+
+El fundamento es que este panel se validó siempre mirándolo, y hay defectos que sólo aparecen
+recorriéndolo. El contorno por defecto sobre un botón relleno en tema oscuro casi no se distingue,
+mientras el resto del panel declara todos sus estados: quien recorre con teclado pierde de vista dónde
+está parado. Y la acción principal del panel está deshabilitada justo en el estado en que el panel se
+abre —sin archivos elegidos—, así que sacarla del orden de foco la vuelve indescubrible para quien no
+usa el mouse: no se puede aprender lo que no se puede alcanzar.
+
+Que sea `:focus-visible` y no `:focus` responde a que el contorno informa dónde quedó el teclado; al
+hacer clic la persona ya sabe dónde apretó, y el contorno ahí es ruido.
+
+#### Scenario: Recorrido con teclado por los controles del panel
+- **WHEN** se recorre el panel con el teclado
+- **THEN** cada control declara que tiene el foco con un contorno visible
+
+#### Scenario: Foco tras un clic
+- **WHEN** se apreta un control con el mouse
+- **THEN** no se dibuja el contorno de foco
+
+#### Scenario: Acción principal sin archivos elegidos
+- **WHEN** el panel está abierto y no hay ningún archivo elegido
+- **THEN** la acción de preparar se puede alcanzar con el teclado, se anuncia como deshabilitada, y
+  apretarla no prepara nada
+
+### Requirement: Un control no desplaza a los demás al cambiar
+Un control que alterna su texto o su cuenta SHALL reservar el espacio de su variante más larga, y SHALL
+NOT desplazar a los elementos que tiene al lado al cambiar. Las cuentas SHALL alinearse por columna
+para que un dígito más no corra el texto.
+
+El fundamento es que tildar una casilla mueve hoy el título del panel y su descripción: «Sumar todos»
+pasa a «Quitar todos» y «Elegidos: 0 de 5» pasa a «5 de 5», y las dos cosas arrastran a lo que tienen
+alrededor. Una interfaz que se reacomoda cuando la acción no cambió de lugar obliga a volver a buscar
+lo que se estaba mirando, y hace dudar de si se apretó lo que se quería.
+
+#### Scenario: Elegir archivos en el panel de preparación
+- **WHEN** se tildan archivos y los controles cambian de texto y de cuenta
+- **THEN** el resto del encabezado del panel no se desplaza
+
+#### Scenario: Cuenta que crece de un dígito a dos
+- **WHEN** una cuenta pasa de una cifra a dos
+- **THEN** el texto que la acompaña no se corre
+
+### Requirement: El contenido de los artefactos se lee con ritmo
+El texto de los artefactos SHALL presentarse con interlineado y separación entre bloques suficientes
+para leer un documento largo, y la separación SHALL distinguir un encabezado de un párrafo en vez de
+tratar todos los bloques por igual.
+
+El fundamento es que `proposal.md` y `design.md` son documentos de prosa densa y largos, y el ritmo
+tipográfico del panel se heredó de cuando mostraba fragmentos cortos: con todos los bloques a la misma
+distancia no hay dónde descansar la vista ni cómo reconocer la estructura sin leerla.
+
+#### Scenario: Documento largo en un artefacto
+- **WHEN** se abre una propuesta o un diseño extensos
+- **THEN** sus párrafos y encabezados se distinguen por su separación, no sólo por su tamaño
+
+### Requirement: El estado del repositorio se lee en una línea
+El control del encabezado que abre la preparación SHALL presentarse en una sola línea, sin marco propio
+que lo separe de la barra que lo contiene, y SHALL declarar la rama de destino con el mismo tratamiento
+que recibe dentro del panel de preparación. La acción SHALL conservar su forma de control.
+
+El fundamento es que ese control hace una sola cosa y estaba maquetado como tres —rótulo, dato
+secundario y pastilla, dentro de una caja sobre otra caja—. La rama es el destino del commit, el mismo
+dato que el panel de preparación declara al lado del mensaje: mostrarlo igual en los dos lugares evita
+que se lea como dos cosas distintas.
+
+#### Scenario: Encabezado del panel
+- **WHEN** el panel muestra el estado del repositorio y su acción de preparar
+- **THEN** se leen en una sola línea y la rama se distingue del resto del texto
+
+#### Scenario: La rama en los dos lugares
+- **WHEN** la rama se declara en el encabezado y en el panel de preparación
+- **THEN** recibe el mismo tratamiento visual en ambos
+

@@ -144,6 +144,7 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.prepare.close',
   'pipeline.openspec.prepare.selected',
   'pipeline.openspec.prepare.message',
+  'pipeline.openspec.prepare.messagePlaceholder',
   'pipeline.openspec.prepare.action',
   'pipeline.openspec.prepare.done',
   'pipeline.openspec.prepare.done.one',

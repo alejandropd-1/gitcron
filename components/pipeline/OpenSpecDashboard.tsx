@@ -678,10 +678,12 @@ export function OpenSpecDashboard({
           onClick={() => setPrepareOpen((open) => !open)}
         >
           <span className={styles.healthDot} aria-hidden="true" />
-          <div>
-            <strong>{workingTreeClean ? t('pipeline.openspec.repo.clean') : t('pipeline.openspec.repo.changed')}</strong>
-            <span>{currentBranch || t('pipeline.openspec.repo.branchUnknown')}</span>
-          </div>
+          <strong>{workingTreeClean ? t('pipeline.openspec.repo.clean') : t('pipeline.openspec.repo.changed')}</strong>
+          {/* La rama es el destino del commit, el mismo dato que el panel de
+              preparación declara al lado del mensaje. Recibe el mismo
+              tratamiento en los dos lugares para que no se lea como dos cosas
+              distintas; antes iba debajo, en chico, como si fuera un detalle. */}
+          <em className={styles.repoBranch}>{currentBranch || t('pipeline.openspec.repo.branchUnknown')}</em>
           <em className={styles.repoHealthCta}>{t('pipeline.openspec.prepare.open')}</em>
         </button>
       </header>
@@ -848,10 +850,16 @@ export function OpenSpecDashboard({
                           ? t('pipeline.openspec.prepare.deselectAll')
                           : t('pipeline.openspec.prepare.selectAll')}
                       </button>
+                      {/* `aria-disabled` y no `disabled`: el panel se abre sin
+                          nada elegido, que es el estado más frecuente, y con el
+                          `disabled` nativo la acción principal salía del orden de
+                          foco. Quien recorre con teclado nunca se enteraba de que
+                          existía. `prepareCommit` ya corta solo, así que apretarla
+                          no prepara nada. */}
                       <button
                         type="button"
                         className={styles.primaryAction}
-                        disabled={prepareBusy || fixtureActive || chosen.length === 0}
+                        aria-disabled={prepareBusy || fixtureActive || chosen.length === 0}
                         onClick={() => void prepareCommit()}
                       >
                         {prepareBusy ? <Loader2 size={14} className={styles.spin} /> : <GitBranch size={14} />}
@@ -885,17 +893,20 @@ export function OpenSpecDashboard({
                       `commitMessage` del store, así que lo que se lee es lo que se
                       va a confirmar; con dos fuentes podrían no coincidir, que es
                       el modo de fallo que este panel existe para evitar. */}
-                  {chosen.length > 0 && (
-                    <label className={styles.messageField}>
-                      <strong>{t('pipeline.openspec.prepare.message')}</strong>
-                      <input
-                        type="text"
-                        value={commitMessage || suggestCommitMessage(chosen)}
-                        disabled={prepareBusy}
-                        onChange={(event) => setCommitMessage(event.target.value)}
-                      />
-                    </label>
-                  )}
+                  {/* El campo ocupa su lugar desde el principio, vacío mientras
+                      no haya nada elegido. Aparecer al tildar el primer archivo
+                      empujaba toda la lista hacia abajo justo cuando se estaba
+                      mirando dónde tildar. */}
+                  <label className={styles.messageField}>
+                    <strong>{t('pipeline.openspec.prepare.message')}</strong>
+                    <input
+                      type="text"
+                      value={chosen.length === 0 ? commitMessage : (commitMessage || suggestCommitMessage(chosen))}
+                      disabled={prepareBusy}
+                      placeholder={t('pipeline.openspec.prepare.messagePlaceholder')}
+                      onChange={(event) => setCommitMessage(event.target.value)}
+                    />
+                  </label>
                   {/* Cada grupo declara de dónde viene lo que contiene. Ninguno
                       entra preseleccionado: sin un cambio de referencia,
                       privilegiar uno produciría un commit distinto según dónde

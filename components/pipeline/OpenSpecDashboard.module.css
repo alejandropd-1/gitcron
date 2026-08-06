@@ -42,6 +42,24 @@
   --os-violet: #9b87ff;
   --os-amber: #ffbf47;
   --os-muted: #93a5ba;
+  /* Escala de espaciado, base 0.25rem. Existe porque el panel se venía ajustando
+     valor por valor —0.55, 0.7, 0.9— y cada arreglo puntual desalineaba el
+     resto. Los bloques del panel de preparación se espacian sólo con estos
+     escalones. */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  /* Contorno de foco, en un token para no repetir el valor en cada control:
+     escribirlo regla por regla es el mismo patrón de valores sueltos que ya
+     obligó a rehacer el espaciado. */
+  --focus-ring: 2px solid var(--os-cyan);
+  --focus-offset: 2px;
+  /* Alto mínimo de un control con texto chico. WCAG 2.2 pide 24px de objetivo;
+     los controles del panel quedaban en ~18px por tener sólo padding. */
+  --control-min: 1.75rem;
   display: flex;
   min-height: 0;
   height: 100%;
@@ -99,44 +117,54 @@
   color: #d9e5f3;
 }
 
-/* Control, no rótulo: abre la preparación del commit del repositorio. Nació como
-   `div` informativo, así que necesita el reset de botón.
+/* Control, no rótulo: abre la preparación del commit del repositorio.
 
-   Ocupa ancho y lleva marco propio a propósito: es la única puerta a la
-   preparación, y como caja tenue del tamaño justo del texto no se leía como algo
-   que se pudiera apretar. El área clickeable es toda la caja. */
+   Una sola línea y sin marco propio: va sobre la barra de resumen, que ya tiene
+   fondo y borde inferior, así que un marco adentro de otro marco era la caja que
+   sobraba. Antes era rótulo con la rama debajo en chico más una pastilla al
+   costado: tres tratamientos apilados para un control que hace una cosa. */
 .repoHealth {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-  min-width: 22rem;
-  padding: 0.6rem 0.75rem 0.6rem 0.9rem;
-  margin: -0.35rem 0;
-  justify-content: flex-start;
-  border: 1px solid var(--os-border-strong);
-  border-radius: 0.55rem;
-  background: var(--os-surface);
-  color: var(--os-muted);
+  gap: 0.7rem;
+  padding: 0.5rem 0.4rem;
+  margin: -0.5rem -0.4rem;
+  justify-content: flex-end;
+  border: 0;
+  border-radius: 0.5rem;
+  background: none;
+  color: #c9d8e8;
   cursor: pointer;
   text-align: left;
-  font: inherit;
-  transition: border-color 120ms ease, background-color 120ms ease;
+  font: 650 0.78rem var(--font-mono), ui-monospace, monospace;
+  transition: background-color 120ms ease;
 }
 
 .repoHealth:hover,
-.repoHealth:focus-visible { border-color: var(--os-cyan); }
-.repoHealth[aria-expanded='true'] { border-color: var(--os-cyan); background: rgba(94, 216, 255, 0.08); }
+.repoHealth:focus-visible { background: var(--os-surface); }
+.repoHealth[aria-expanded='true'] { background: rgba(94, 216, 255, 0.08); }
 
-/* El árbol sucio es lo que hay para confirmar: se avisa en el marco, no sólo en
-   el punto, para que se note sin tener que leer. */
-.repoHealth:not([data-clean='true']) { border-color: rgba(240, 183, 91, 0.5); }
+.repoHealth > strong { font-weight: 650; white-space: nowrap; }
 
-/* Pastilla siempre a la vista, no un texto que aparece al pasar por encima: la
-   acción tiene que anunciarse sin que haya que descubrirla. No es un `button`
-   anidado —sería HTML inválido dentro del control— sino su misma superficie. */
+/* Mismo tratamiento que la pastilla de rama del panel de preparación: el mismo
+   dato se ve igual en los dos lugares. Ámbar, para no competir con el cian de
+   la acción que tiene al lado. */
+.repoBranch {
+  flex: 0 0 auto;
+  padding: 0.16rem 0.5rem;
+  border: 1px solid rgba(255, 191, 71, 0.45);
+  border-radius: 0.6rem;
+  color: var(--os-amber);
+  font: 650 0.72rem var(--font-mono), ui-monospace, monospace;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+/* La acción conserva su forma de control: sin marco sería indistinguible de la
+   frase que tiene al lado, que es el defecto opuesto al que se corrige. */
 .repoHealthCta {
-  margin-left: auto;
-  padding: 0.3rem 0.7rem;
+  flex: 0 0 auto;
+  padding: 0.32rem 0.75rem;
   border: 1px solid var(--os-cyan);
   border-radius: 0.4rem;
   color: var(--os-cyan);
@@ -149,11 +177,7 @@
 
 .repoHealth:hover .repoHealthCta,
 .repoHealth:focus-visible .repoHealthCta,
-.repoHealth[aria-expanded='true'] .repoHealthCta { background: rgba(94, 216, 255, 0.14); }
-
-.repoHealth > div { display: grid; gap: 0.25rem; }
-.repoHealth strong { color: #c9d8e8; font-size: 0.74rem; font-weight: 600; }
-.repoHealth span { font: 0.68rem var(--font-mono), ui-monospace, monospace; }
+.repoHealth[aria-expanded='true'] .repoHealthCta { background: rgba(94, 216, 255, 0.16); }
 
 .healthDot,
 .liveDot,
@@ -168,6 +192,7 @@
 }
 
 .repoHealth:not([data-clean='true']) .healthDot { background: var(--os-amber); }
+
 
 .body {
   position: relative;
@@ -551,24 +576,46 @@
 .secondaryAction { border-color: rgba(141, 169, 198, 0.5); }
 .secondaryAction:hover:not(:disabled) { border-color: var(--os-cyan); color: var(--os-cyan); background: rgba(94, 216, 255, 0.1); }
 .primaryAction:disabled,
-.secondaryAction:disabled { cursor: not-allowed; opacity: 0.38; }
+.secondaryAction:disabled,
+.primaryAction[aria-disabled='true'],
+.secondaryAction[aria-disabled='true'] { cursor: not-allowed; opacity: 0.38; }
+
+/* El foco se declara en todos los controles del panel. Antes sólo tenían
+   `:hover`, y el anillo por defecto sobre un botón relleno de cian en tema
+   oscuro casi no se distingue: recorrer con teclado era perder de vista dónde
+   se estaba parado. */
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible,
+.groupToggle:focus-visible,
+.fileChoice:focus-within,
+.startPendingToggle:focus-visible,
+.startArchived button:focus-visible,
+.backToStart:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
 
 /* Título y acciones en la misma fila. Las acciones a la derecha y arriba: al
    final de la lista quedaban fuera de vista con veinte archivos, y había que
    bajar hasta el fondo para encontrar el botón de lo que uno acababa de elegir. */
+/* Dos filas fijas: identidad y rama arriba, conteo y acciones abajo, las dos
+   arrancando en el margen izquierdo. Antes las acciones flotaban a la derecha y
+   caían a una segunda línea recién cuando no entraban, así que su posición
+   dependía del ancho de la ventana. */
 .prepareHead {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
+  justify-content: flex-start;
+  gap: var(--sp-3);
+  margin-block-end: var(--sp-4);
 }
-.prepareHead > div:first-child { flex: 1 1 18rem; min-width: 0; }
-.prepareActions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; }
+.prepareHead > div:first-child { flex: 1 1 100%; min-width: 0; }
+.prepareActions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0; }
 
 /* Lista de archivos a preparar. Aireada a propósito: en filas apretadas la ruta
    y su checkbox se leían como un bloque y había que apuntar con el mouse. */
-.fileList { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.35rem 0 0.75rem; }
+.fileList { display: flex; flex-direction: column; gap: var(--sp-1); margin: var(--sp-3) 0 var(--sp-2); }
 .fileList li {
   display: flex;
   align-items: center;
@@ -580,7 +627,8 @@
   user-select: text;
 }
 .fileList li span { min-width: 0; overflow-wrap: anywhere; }
-.fileGroup + .fileGroup { margin-top: 0.9rem; }
+.fileGroup + .fileGroup { margin-block-start: var(--sp-6); }
+.fileGroup:first-of-type { margin-block-start: var(--sp-2); }
 
 /* Panel de preparación del repositorio. Ocupa el centro y desplaza con su propio
    scroll: con veinte archivos modificados, un flotante anclado al encabezado
@@ -600,23 +648,27 @@
 .prepareArea code { color: var(--os-cyan); user-select: text; }
 .prepareEmpty { padding-top: 0.6rem; }
 
+/* Ancho reservado y cifras de ancho fijo: el conteo pasa de «0 de 5» a «5 de 5»
+   y de una cifra a dos, y sin esto arrastraba el título del panel y su
+   descripción cada vez que se tildaba una casilla. */
 .prepareCount {
   align-self: center;
+  min-width: 9rem;
   color: var(--os-muted);
-  font: 0.68rem var(--font-mono), ui-monospace, monospace;
+  font: 0.72rem var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
 }
 
-/* El título, su descripción y la lista se leen como tres cosas, no como un
-   bloque: la descripción que llegó con `explain-commit-groups` quedaba pegada al
-   rótulo. El aire va acá y encima de la lista, no dentro de las filas, que ya se
-   airearon antes por un motivo propio. */
+/* Encabezado de grupo: título con su control, descripción, y la línea que cierra
+   el encabezado antes de la lista. Las tres separaciones salen de la escala; el
+   título necesita su propio margen inferior porque su fila contiene un botón más
+   alto que el texto, y sin él la descripción quedaba tocándolo. */
 .fileGroup > p {
   display: flex;
-  align-items: baseline;
-  gap: 0.7rem;
-  margin: 0;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--os-border);
+  align-items: center;
+  gap: var(--sp-3);
+  margin: 0 0 var(--sp-3);
 }
 .fileGroup > p > strong { color: #c9d8e8; font: 650 0.72rem var(--font-mono), ui-monospace, monospace; }
 
@@ -626,24 +678,33 @@
 .groupToggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem 0.65rem;
+  justify-content: center;
+  gap: var(--sp-1);
+  min-block-size: var(--control-min);
+  padding: var(--sp-1) var(--sp-3);
   border: 1px solid rgba(163, 241, 133, 0.34);
   border-radius: 0.35rem;
   background: none;
   color: var(--os-green);
   cursor: pointer;
   font: 600 0.72rem var(--font-mono), ui-monospace, monospace;
+  /* «Sumar todos» y «Quitar todos» no miden lo mismo: sin reservar el ancho de
+     la variante más larga, el rótulo del grupo se corría al tildar. */
+  min-width: 9.5rem;
 }
 .groupToggle:hover { border-color: var(--os-green); background: rgba(163, 241, 133, 0.12); }
 .groupToggle:disabled { border-color: var(--os-border); color: var(--os-muted); cursor: default; background: none; }
 
-/* Qué contiene el grupo, en una línea. Un rótulo solo no permite auditarlo. */
+/* Qué contiene el grupo. La descripción cierra el encabezado, así que la línea
+   que lo separa de la lista vive acá y no bajo el título. */
 .groupHelp {
-  margin: 0.55rem 0 0.45rem;
+  margin: 0;
+  padding-block-end: var(--sp-3);
+  border-block-end: 1px solid var(--os-border);
   color: var(--os-muted);
-  font: 0.7rem/1.55 var(--font-mono), ui-monospace, monospace;
+  font: 0.7rem/1.6 var(--font-mono), ui-monospace, monospace;
 }
+
 
 /* Qué clase de archivo es. Sólo en el grupo que ningún cambio reclama, que es
    donde no hay otra información. No es atribución: no dice de qué trabajo vino. */
@@ -695,7 +756,7 @@
 }
 .stagedList > li span { min-width: 0; overflow-wrap: anywhere; }
 
-.messageField { display: flex; align-items: center; gap: 0.6rem; margin: 0.2rem 0 0.9rem; }
+.messageField { display: flex; align-items: center; gap: var(--sp-2); margin: 0 0 var(--sp-5); }
 .messageField > strong { flex: 0 0 auto; color: var(--os-muted); font: 650 0.68rem var(--font-mono), ui-monospace, monospace; }
 .messageField input {
   min-width: 0;
@@ -707,7 +768,11 @@
   color: var(--os-cyan);
   font: 0.72rem var(--font-mono), ui-monospace, monospace;
 }
-.messageField input:focus { border-color: var(--os-cyan); outline: none; }
+/* El contorno no se apaga: antes iba `outline: none` con un cambio de borde de
+   un píxel como único reemplazo, y encima sobre `:focus`, así que también se
+   disparaba al hacer clic. */
+.messageField input:focus-visible { border-color: var(--os-cyan); outline: var(--focus-ring); outline-offset: 1px; }
+.messageField input:focus:not(:focus-visible) { border-color: var(--os-cyan); }
 .messageField input:disabled { color: var(--os-muted); }
 
 /* La etiqueta envuelve la fila entera: con el área del tamaño de la casilla
@@ -982,6 +1047,10 @@
    como cifra junto a las demás hacía leer como vacío un repositorio que sólo
    todavía no archivó nada. */
 .startNote { margin: 0 0 0.3rem; color: var(--os-muted); font: 0.7rem/1.5 var(--font-mono), ui-monospace, monospace; }
+/* La cuenta de especificaciones venía pegada al control de archivados y las dos
+   líneas se leían como una. */
+.startPendingToggle + .startNote,
+.startArchived + .startNote { margin-top: 0.7rem; }
 
 .startList { display: flex; flex-direction: column; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
 .startList > li {
@@ -1026,8 +1095,9 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem 0.6rem;
+  gap: var(--sp-1);
+  min-block-size: var(--control-min);
+  padding: var(--sp-1) var(--sp-3);
   border: 1px solid rgba(163, 241, 133, 0.34);
   border-radius: 0.3rem;
   background: none;
@@ -1295,10 +1365,10 @@
   .summaryBar { grid-template-columns: auto minmax(0, 1fr); min-height: 5rem; }
   /* Se encoge, no se oculta: dejó de ser un rótulo decorativo y es la única
      puerta a la preparación del commit. Ocultarlo acá retiraba la capacidad
-     entera en anchos angostos. Queda el punto de estado y la llamada, que es lo
-     accionable; la rama se sigue leyendo en el resto de las vistas de Git. */
+     entera en anchos angostos. Cae la frase de estado, que es la parte larga; el
+     punto, la rama y la acción se conservan porque son lo que se necesita. */
   .repoHealth { min-width: 0; }
-  .repoHealth > div { display: none; }
+  .repoHealth > strong { display: none; }
   /* Dos opciones lado a lado se vuelven ilegibles acá: pasan a apilarse, y las
      acciones del siguiente paso ocupan el ancho para no quedar cortadas. */
   .intentSwitch { grid-template-columns: minmax(0, 1fr); }

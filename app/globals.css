@@ -2335,36 +2335,52 @@ body, .font-sans {
 .pipeline-artifact-graph li[data-state='blocked'] .pipeline-artifact-graph__state { color: #ffbf47; }
 
 /* Safe Markdown */
+/* `proposal.md` y `design.md` son documentos largos de prosa densa. El ritmo de
+   acá se heredó de cuando el panel mostraba fragmentos cortos: con todos los
+   bloques a la misma distancia no hay dónde descansar la vista ni cómo
+   reconocer la estructura sin leerla. Sube un escalón, no dos: esto se lee
+   dentro de un panel denso, y llevarlo a ritmo de artículo lo haría ocupar el
+   doble. */
 .pipeline-markdown {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
   font-size: 0.8125rem;
-  line-height: 1.6;
+  line-height: 1.75;
   color: var(--color-text-primary);
 }
 
+/* Un encabezado se despega de lo que lo precede más que de lo que introduce:
+   así la separación agrupa en vez de sólo espaciar. */
 .pipeline-markdown__h1,
 .pipeline-markdown__h2,
 .pipeline-markdown__h3 {
   font-weight: 600;
   color: var(--color-text-primary);
-  margin-top: 0.5rem;
+  margin-top: 0.9rem;
+  margin-bottom: -0.35rem;
+  line-height: 1.35;
 }
+
+.pipeline-markdown__h1:first-child,
+.pipeline-markdown__h2:first-child,
+.pipeline-markdown__h3:first-child { margin-top: 0; }
 
 .pipeline-markdown__h1 { font-size: 1.125rem; }
 .pipeline-markdown__h2 { font-size: 1rem; }
 .pipeline-markdown__h3 { font-size: 0.875rem; }
 
 .pipeline-markdown__blockquote {
-  padding-left: 0.75rem;
+  padding: 0.15rem 0 0.15rem 0.9rem;
   border-left: 3px solid var(--color-primary);
   color: var(--color-text-secondary);
   margin: 0;
+  line-height: 1.7;
 }
 
 .pipeline-markdown__codeblock {
-  padding: 0.75rem;
+  padding: 0.85rem 0.9rem;
+  line-height: 1.6;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   background-color: var(--color-bg-overlay);
@@ -2382,9 +2398,11 @@ body, .font-sans {
 }
 
 .pipeline-markdown__list {
-  padding-left: 1.25rem;
+  padding-left: 1.35rem;
   margin: 0;
+  line-height: 1.7;
 }
+.pipeline-markdown__list > li + li { margin-top: 0.4rem; }
 
 .pipeline-markdown__strong {
   font-weight: 600;

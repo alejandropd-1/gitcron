@@ -174,8 +174,22 @@ describe('preparación a nivel del repositorio', () => {
     const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
     expect(boxes).toHaveLength(3);
     expect(boxes.every((box) => !box.checked)).toBe(true);
-    // Sin nada elegido, preparar no se puede disparar.
-    expect((screen.getByRole('button', { name: /openspec\.prepare\.action/ }) as HTMLButtonElement).disabled).toBe(true);
+    // Sin nada elegido, preparar se anuncia deshabilitada pero sigue alcanzable
+    // con el teclado: con el `disabled` nativo salía del orden de foco, y el
+    // panel se abre justo en este estado.
+    const action = screen.getByRole('button', { name: /openspec\.prepare\.action/ });
+    expect(action.getAttribute('aria-disabled')).toBe('true');
+    expect((action as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('preparar sin archivos elegidos no envía nada', () => {
+    // La garantía real detrás del estado deshabilitado: alcanzable no es
+    // accionable.
+    renderDashboard();
+    openPrepare();
+
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.prepare\.action/ }));
+    expect(stageFiles).not.toHaveBeenCalled();
   });
 
   it('el control de sumar todos alcanza al total y el de cada grupo sólo al suyo', () => {
@@ -270,6 +284,17 @@ describe('preparación a nivel del repositorio', () => {
     fireEvent.click(screen.getAllByRole('checkbox')[1]);
     await vi.waitFor(() => expect((screen.getByRole('textbox') as HTMLInputElement).value)
       .toBe('fix(pipeline): lo escribí yo'));
+  });
+
+  it('el encabezado declara la rama junto a la acción', () => {
+    // La rama es el destino del commit: pasó de texto secundario debajo del
+    // estado a leerse en la misma línea, con el mismo tratamiento que recibe
+    // dentro del panel de preparación.
+    renderDashboard();
+
+    const control = screen.getByRole('button', { name: /openspec\.prepare\.open/ });
+    expect(control.textContent).toContain('main');
+    expect(control.textContent).toContain('pipeline.openspec.prepare.open');
   });
 
   it('declara la rama a la que va el commit', () => {

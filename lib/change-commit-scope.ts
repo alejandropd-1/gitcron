@@ -202,12 +202,26 @@ export function soleChangeId(files: string[]): string | null {
  * la señal visible de que el commit está mezclando trabajos, y llega antes de
  * confirmar. Concatenar los identificadores se descartó porque produce mensajes
  * ilegibles en cuanto son tres.
+ *
+ * Cuando el conjunto es un archivado, el identificador va precedido de
+ * `archived`. Sin eso, los dos commits del circuito —el del trabajo y el del
+ * archivado— salen con el mismo texto y quedan indistinguibles en el historial;
+ * la palabra se venía agregando a mano en cada archivado.
+ *
+ * El archivado se reconoce por la ruta y no por los renombres, para no meter
+ * estado de Git en este módulo: es puro sobre una lista de rutas, y eso es lo
+ * que permite probarlo con tablas. El costo asumido es que editar el artefacto
+ * de un cambio archivado hace tiempo, sin archivar nada, también diría
+ * `archived`. No es falso —el commit toca un cambio archivado— y la sugerencia
+ * no pisa lo escrito.
  */
 export function suggestCommitMessage(files: string[]): string {
   const scope = deriveScope(files);
   const prefix = scope ? `chore(${scope}):` : 'chore:';
   const changeId = soleChangeId(files);
-  return changeId ? `${prefix} ${changeId}` : `${prefix} `;
+  if (!changeId) return `${prefix} `;
+  const archived = files.some((file) => archivedChangeId(file) === changeId);
+  return `${prefix} ${archived ? 'archived ' : ''}${changeId}`;
 }
 
 /**

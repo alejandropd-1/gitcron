@@ -295,15 +295,37 @@ describe('mensaje sugerido', () => {
     ])).toBe('chore: ');
   });
 
-  it('el commit del archivado nombra el cambio archivado', () => {
+  it('el commit del archivado nombra el cambio archivado y lo declara archivado', () => {
     // Es el commit del movimiento entero: las dos mitades más la consolidación
     // de specs. Sin esto quedaba `chore: ` pelado, que es lo que empujaba a
     // partirlo en dos para conservar un mensaje útil.
+    //
+    // La palabra `archived` distingue este commit del commit del trabajo, que
+    // nombra el mismo cambio: sin ella los dos salían con el mismo texto y se
+    // venía agregando a mano en cada archivado.
     expect(suggestCommitMessage([
       'openspec/changes/archive/2026-08-05-mi-cambio/design.md',
       'openspec/changes/mi-cambio/design.md',
       'openspec/specs/una-capacidad/spec.md',
+    ])).toBe('chore: archived mi-cambio');
+  });
+
+  it('el commit del trabajo no se declara archivado, aunque nombre el mismo cambio', () => {
+    // El par que prueba que los dos commits del circuito ya no coinciden.
+    expect(suggestCommitMessage([
+      'openspec/changes/mi-cambio/design.md',
+      'openspec/changes/mi-cambio/tasks.md',
     ])).toBe('chore: mi-cambio');
+  });
+
+  it('un archivado mezclado con otro cambio deja la descripción vacía', () => {
+    // La señal de commit mezclado gana sobre la etiqueta: rellenarla con el
+    // archivado escondería justo el caso en que hace falta escribir el mensaje.
+    expect(suggestCommitMessage([
+      'openspec/changes/archive/2026-08-05-mi-cambio/design.md',
+      'openspec/changes/otro-cambio/proposal.md',
+      'components/pipeline/a.tsx',
+    ])).toBe('chore(pipeline): ');
   });
 
   it('se compone sobre el conjunto elegido, no sobre todo lo modificado', () => {

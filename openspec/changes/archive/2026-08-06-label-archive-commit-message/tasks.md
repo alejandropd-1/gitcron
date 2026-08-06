@@ -29,5 +29,5 @@
 - [x] 4.3 `pnpm exec eslint` limpio sobre `lib/change-commit-scope.ts` y su archivo de pruebas
 - [x] 4.4 `openspec validate label-archive-commit-message --strict` válido
 - [x] 4.5 Reporte en `docs/reports/2026-08-06-label-archive-commit-message.md`
-- [ ] 4.6 Ale valida en la aplicación: archivar un cambio y ver que el mensaje sugerido dice
+- [x] 4.6 Ale valida en la aplicación: archivar un cambio y ver que el mensaje sugerido dice
       `chore: archived <slug>` sin tener que escribirlo

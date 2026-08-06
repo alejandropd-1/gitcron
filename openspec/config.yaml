@@ -72,3 +72,7 @@ rules:
     - "No crear tareas que ningún actor pueda marcar. Si una tarea depende de una validación humana, tiene que quedar claro quién la marca."
     - "Marcar una casilla sólo después de haber hecho lo que dice, nunca al planificarla."
     - "No se implementa encima de un change archivado: verificar antes que el change sigue activo."
+    - "Agrupar las tareas en secciones numeradas con el formato `## N. Título`, y numerar cada casilla `N.M` según la sección a la que pertenece. Una tarea que no entra en ninguna sección significa que falta la sección, no que la casilla vaya suelta."
+    - "Redactar cada tarea para quien no participó de la conversación: nombrar el archivo, el comando o el criterio concreto que la hace verificable. Un recordatorio que sólo entiende quien la pensó no le sirve a quien tiene que ejecutarla."
+    - "No agregar identificadores, comentarios ni ninguna otra marca propia a las casillas. Cada casilla se identifica por su posición en el archivo, así que esas anotaciones no las consume nadie y ensucian el artefacto."
+    - "La forma vale igual cuando el change documenta trabajo que ya está hecho. Que el trabajo esté terminado no habilita una estructura distinta: el artefacto se sigue leyendo durante el resto de su vida."

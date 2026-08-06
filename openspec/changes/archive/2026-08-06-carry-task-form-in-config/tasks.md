@@ -34,4 +34,4 @@
 - [x] 4.3 `openspec validate carry-task-form-in-config --strict` válido
 - [x] 4.4 Reporte en `docs/reports/2026-08-06-carry-task-form-in-config.md`, con la salida de 3.1 y el
       resultado de 3.3
-- [ ] 4.5 Ale confirma que la redacción de las reglas es la que quiere que reciban los ejecutores
+- [x] 4.5 Ale confirma que la redacción de las reglas es la que quiere que reciban los ejecutores

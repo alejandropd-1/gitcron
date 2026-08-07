@@ -113,6 +113,9 @@ export function PipelineNewChangeFlow({
 
   return (
     <section className={styles.newChangeFlow} aria-label={t('pipeline.newChange.title')}>
+      {/* La salida no vive acá: va en la fila de la guía, junto a las dos
+          acciones que abren este formulario. Puesta adentro competía con el
+          selector de modo en vez de leerse como su contraria. */}
       <div className={styles.intentSwitch} role="group" aria-label={t('pipeline.newChange.intent.question')}>
         <button
           type="button"

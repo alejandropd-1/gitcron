@@ -1253,7 +1253,31 @@
 
 .nextStepTitle { margin: 0.5rem 0 0; color: #edf4fb; font: 700 0.95rem var(--font-mono), ui-monospace, monospace; }
 .nextStepHelp { margin: 0.35rem 0 0; color: var(--os-muted); font: 0.68rem var(--font-mono), ui-monospace, monospace; }
-.nextStepActions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.85rem; }
+.nextStepActions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem; margin-top: 0.85rem; }
+
+/* La salida del grupo, al final de la fila y separada del resto: cierra lo que
+   las otras dos abren, y no es una tercera forma de empezar. Sin contorno lleno
+   para que no compita con ellas, pero con borde para leerse como control —el
+   mismo criterio del botón de volver—. */
+.nextStepDismiss {
+  margin-left: auto;
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--os-border);
+  border-radius: 0.3rem;
+  background: none;
+  color: var(--os-muted);
+  cursor: pointer;
+  font: 650 0.62rem var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.nextStepDismiss:hover {
+  border-color: var(--os-border-strong);
+  background: var(--os-surface);
+  color: var(--os-cyan);
+}
+.nextStepDismiss:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
 
 /* La decisión pendiente y el fallo no pueden leerse igual que el curso normal. */
 .nextStep[data-kind='decision-pending'] { border-left-color: var(--os-amber); }

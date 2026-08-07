@@ -14,8 +14,9 @@ tiene retorno.
 
 ## What Changes
 
-- El flujo de cambio nuevo ofrece cerrarse sin empezar nada, en sus dos modos.
-- La salida aparece arriba y a la derecha del formulario, no al final.
+- El flujo de cambio nuevo se puede cerrar sin empezar nada, en sus dos modos.
+- La salida vive en la fila de acciones de la guía, junto a las dos que abren el formulario, no dentro
+  de lo que se desplegó.
 
 ## Capabilities
 
@@ -29,16 +30,17 @@ _Ninguna._
 
 ## Impact
 
-**Producción:** `components/pipeline/PipelineNewChangeFlow.tsx` (la salida), su hoja de estilos,
-`components/pipeline/OpenSpecDashboard.tsx` (conectar el cierre en los dos montajes del flujo) y
-`lib/i18n.ts` en los tres idiomas.
+**Producción:** `components/pipeline/PipelineNextStepGuide.tsx` (la salida, como acción opcional del
+grupo), su hoja de estilos, `components/pipeline/OpenSpecDashboard.tsx` (conectarla en los dos montajes
+de la guía) y `lib/i18n.ts` en los tres idiomas.
 
 **Sin tocar:** lo que el flujo hace al empezar, la composición de la instrucción, el selector de modo
-interno y el lanzador de runtime, que tiene su propio ciclo y no comparte este estado.
+interno y el lanzador de runtime, que tiene su propio ciclo y no comparte este estado. La guía sigue sin
+decidir nada: recibe la etiqueta y el efecto ya resueltos.
 
 **Fuera de alcance:** que las dos entradas funcionen como interruptor —volver a pulsarlas para
-cerrar—. La salida vive en el formulario porque es lo que hay que cerrar; atarla además a los botones
-que lo abren duplicaría el control y dejaría dos formas de hacer lo mismo.
+cerrar—. Duplicaría el control y dejaría dos formas de hacer lo mismo, que es lo que la guía de este
+panel evita.
 
 **Dependencias:** ninguna.
 

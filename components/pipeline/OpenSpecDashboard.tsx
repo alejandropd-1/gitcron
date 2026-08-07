@@ -1376,7 +1376,7 @@ export function OpenSpecDashboard({
                   )}
                 </div>
               </div>
-              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} />
+              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: () => setFlowMode(null) } : undefined} />
               {/* Lo archivado es el registro de lo que se hizo, incluida la
                   firma humana. Revisarlo no debería obligar a salir de la
                   aplicación ni a leer el diff del commit de archivado. */}
@@ -1427,7 +1427,7 @@ export function OpenSpecDashboard({
                   esta pantalla existe para ofrecer, y al final quedaba empujada
                   fuera de vista por la lista de cambios. Una posición que cambia
                   según el contenido obliga a buscarla. */}
-              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} />
+              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: () => setFlowMode(null) } : undefined} />
               {flowMode && (
                 <PipelineNewChangeFlow
                   repoPath={repoPath}

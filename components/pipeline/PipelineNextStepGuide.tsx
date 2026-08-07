@@ -11,6 +11,18 @@ export type PipelineNextStepGuideProps = {
   onAct: (intent: PipelineActionIntent) => void;
   /** Deshabilita lo ejecutable sin ocultarlo, para que el estado sea legible. */
   executionBlocked?: boolean;
+  /**
+   * Acción para deshacer lo que estas mismas acciones abrieron, cuando hay algo
+   * abierto.
+   *
+   * Va en esta fila y no en lo que se desplegó porque pertenece al mismo grupo:
+   * son las opciones de un solo bloque —empezar de un modo, del otro, o no
+   * empezar—. Puesta abajo, dentro del formulario, competía visualmente con el
+   * contenido desplegado en vez de leerse como su contraria.
+   *
+   * La guía sigue sin decidir nada: recibe la etiqueta y el efecto ya resueltos.
+   */
+  dismiss?: { labelKey: string; onDismiss: () => void };
 };
 
 /**
@@ -24,7 +36,7 @@ export type PipelineNextStepGuideProps = {
  * primaria y una secundaria sólo si existe. Lo técnico vive bajo divulgación
  * progresiva porque la app es densa y productiva, no un tutorial.
  */
-export function PipelineNextStepGuide({ action, onAct, executionBlocked = false }: PipelineNextStepGuideProps) {
+export function PipelineNextStepGuide({ action, onAct, executionBlocked = false, dismiss }: PipelineNextStepGuideProps) {
   const t = useT();
   const [showInstruction, setShowInstruction] = useState(false);
 
@@ -56,10 +68,17 @@ export function PipelineNextStepGuide({ action, onAct, executionBlocked = false 
       <h4 className={styles.nextStepTitle}>{t(action.titleKey, action.titleParams)}</h4>
       <p className={styles.nextStepHelp}>{t(action.helpKey, action.helpParams)}</p>
 
-      {(action.primary || action.secondary) && (
+      {(action.primary || action.secondary || dismiss) && (
         <div className={styles.nextStepActions}>
           {action.primary && renderButton(action.primary, 'primary')}
           {action.secondary && renderButton(action.secondary, 'secondary')}
+          {/* Al final y separada del resto: es la salida del grupo, no una
+              tercera forma de empezar. */}
+          {dismiss && (
+            <button type="button" className={styles.nextStepDismiss} onClick={dismiss.onDismiss}>
+              {t(dismiss.labelKey)}
+            </button>
+          )}
         </div>
       )}
 

@@ -7,12 +7,15 @@
 
 ## 2. Implementación
 
-- [x] 2.1 Agregar la salida al flujo, con su propia prop, para que el componente no decida por sí mismo
-      qué significa cerrarse
-- [x] 2.2 Conectarla en los dos montajes del flujo, sin tocar el lanzador de runtime, que comparte el
+- [x] 2.1 Agregar la salida como acción opcional de la guía, recibiendo etiqueta y efecto ya resueltos,
+      para que la guía siga sin decidir nada
+- [x] 2.2 Conectarla en los dos montajes de la guía, sin tocar el lanzador de runtime, que comparte el
       nombre de la prop de arranque pero tiene otro ciclo
-- [x] 2.3 Ubicar el control arriba y a la derecha: al final del formulario habría que ir a buscarlo
-- [x] 2.4 Darle la misma familia visual que el control de volver, con contorno y respiro
+- [x] 2.3 Ubicarla junto a las acciones que abren el flujo, al final de esa fila y separada del resto.
+      La primera versión la puso dentro del formulario y Ale marcó que ahí competía con el selector de
+      modo en vez de leerse como su contraria
+- [x] 2.4 Darle la misma familia visual que el control de volver —contorno y respiro—, sin relleno para
+      que no compita con las dos acciones de empezar
 - [x] 2.5 Agregar el texto en los tres idiomas
 
 ## 3. Tests

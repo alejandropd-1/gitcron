@@ -41,6 +41,7 @@ import {
   composeArchiveInstruction,
   deriveArchiveAvailability,
   derivePipelineNextAction,
+  hasDiffEvidence,
   resolveTaskLabel,
   resolveTaskText,
   type PipelineActionIntent,
@@ -363,6 +364,7 @@ export function OpenSpecDashboard({
     decisions: snapshot.decisions,
     projection,
     hasActiveChanges: activeChanges.length > 0,
+    hasDiffs: hasDiffEvidence(snapshot),
   });
   // Se sacan a constantes para que el render no repita el chequeo de nulos ni
   // necesite aserciones: si existen, son válidas.
@@ -1056,7 +1058,7 @@ export function OpenSpecDashboard({
                         : t('pipeline.openspec.archive.action')}
                     </button>
                   )}
-                  <button type="button" className={styles.secondaryAction} disabled={(snapshot.diffs?.length ?? 0) === 0} onClick={() => handleIntent({ kind: 'view-diff' })}>
+                  <button type="button" className={styles.secondaryAction} disabled={!hasDiffEvidence(snapshot)} onClick={() => handleIntent({ kind: 'view-diff' })}>
                     <Code2 size={14} /> {t('pipeline.openspec.actions.diff')}
                   </button>
                 </div>

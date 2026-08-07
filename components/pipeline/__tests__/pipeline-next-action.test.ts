@@ -10,6 +10,7 @@ import {
   composeProposeInstruction,
   deriveArchiveAvailability,
   derivePipelineNextAction,
+  hasDiffEvidence,
   isValidChangeSlug,
   resolveTaskLabel,
   resolveTaskText,
@@ -215,6 +216,37 @@ describe('derivePipelineNextAction · matriz de estados', () => {
     expect(result.kind).toBe('ready-to-archive');
     expect(result.primary?.intent).toEqual({ kind: 'start-archive', changeId: 'demo-change' });
     expect(result.instruction).toBe('openspec archive demo-change --yes');
+  });
+
+  it('listo para archivar sin ningún diff no ofrece verlos', () => {
+    // Los diffs salen de sesiones de runtime lanzadas desde la aplicación. Un
+    // cambio trabajado a mano o desde la terminal no genera ninguno, así que el
+    // caso vacío es el habitual, y ofrecer la acción llevaba a un panel vacío.
+    const result = derivePipelineNextAction(input({
+      selectedChange: change({ tasks: [task('1.1', true)], validation: 'passed' }),
+      hasDiffs: false,
+    }));
+    expect(result.kind).toBe('ready-to-archive');
+    expect(result.primary?.intent).toEqual({ kind: 'start-archive', changeId: 'demo-change' });
+    expect(result.secondary).toBeNull();
+  });
+
+  it('listo para archivar con diffs sí ofrece verlos', () => {
+    const result = derivePipelineNextAction(input({
+      selectedChange: change({ tasks: [task('1.1', true)], validation: 'passed' }),
+      hasDiffs: true,
+    }));
+    expect(result.kind).toBe('ready-to-archive');
+    expect(result.secondary?.intent).toEqual({ kind: 'view-diff' });
+  });
+
+  it('el panel y la guía comparten el criterio de evidencia de diff', () => {
+    // Estaban divergiendo: el botón del panel condicionado y la guía ofreciendo
+    // la acción siempre. El criterio es uno solo para que no vuelvan a separarse.
+    expect(hasDiffEvidence({ diffs: [] })).toBe(false);
+    expect(hasDiffEvidence({ diffs: null })).toBe(false);
+    expect(hasDiffEvidence({})).toBe(false);
+    expect(hasDiffEvidence({ diffs: [{}] })).toBe(true);
   });
 
   it('distingue el archivo en curso de una tarea en curso', () => {

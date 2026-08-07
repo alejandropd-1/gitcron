@@ -116,7 +116,31 @@ export type PipelineNextActionInput = {
    * la lista invitaría a que empiece a decidir sobre ella.
    */
   hasActiveChanges?: boolean;
+  /**
+   * Si hay al menos un diff que mirar. Los diffs se producen a partir de
+   * sesiones de runtime lanzadas desde la aplicación, así que un cambio
+   * trabajado a mano —o por un agente arrancado desde la terminal, que es el
+   * caso habitual acá— no genera ninguno: el conjunto vacío no es marginal, es
+   * el normal.
+   *
+   * Es un booleano y no la lista, por el mismo motivo que `hasActiveChanges`: la
+   * derivación no necesita nada más, y recibir la lista invitaría a que empiece
+   * a decidir sobre ella.
+   */
+  hasDiffs?: boolean;
 };
+
+/**
+ * Si un snapshot trae evidencia de diff.
+ *
+ * Existe para que la guía y el botón del panel compartan el criterio en vez de
+ * repetirlo: estaban divergiendo, con el botón condicionado y la guía
+ * ofreciendo la acción siempre, y por el camino de la guía se llegaba a la
+ * sub-pestaña de diffs vacía.
+ */
+export function hasDiffEvidence(snapshot: { diffs?: readonly unknown[] | null }): boolean {
+  return (snapshot.diffs?.length ?? 0) > 0;
+}
 
 function button(
   intent: PipelineActionIntent,
@@ -463,12 +487,17 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
   }
 
   // 9 · Validación aprobada y nada pendiente: recién acá aparece archivar.
+  //
+  // "Ver diff" sólo se ofrece si hay alguno. Sin sesiones de runtime corridas no
+  // existe ninguno, y ofrecerlo igual llevaba a la sub-pestaña de diffs vacía:
+  // una guía que propone un paso que no lleva a nada deja de servir para saber
+  // cuál es el próximo paso.
   return {
     kind: 'ready-to-archive',
     titleKey: 'pipeline.next.readyToArchive.title',
     helpKey: 'pipeline.next.readyToArchive.help',
     primary: button({ kind: 'start-archive', changeId: selectedChange.changeId }, 'pipeline.next.readyToArchive.action'),
-    secondary: button({ kind: 'view-diff' }, 'pipeline.next.readyToArchive.diff'),
+    secondary: input.hasDiffs ? button({ kind: 'view-diff' }, 'pipeline.next.readyToArchive.diff') : null,
     instruction: composeArchiveInstruction(selectedChange.changeId),
   };
 }

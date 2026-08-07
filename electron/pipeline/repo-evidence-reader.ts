@@ -5,6 +5,7 @@ import { promisify } from 'node:util';
 import { CheckRepoActions, simpleGit } from 'simple-git';
 import { withRepoLock } from '../git/repo-queue';
 import type {
+  BranchDivergence,
   ChangeSelection,
   ChangeTimestamp,
   DecisionRequest,
@@ -18,6 +19,7 @@ import type {
   PipelineDiagnostic,
   PipelineEvidence,
 } from '../../types/pipeline';
+import { readBranchDivergence } from './branch-divergence';
 import { selectPipelineChange } from './change-selection';
 import { parseAudit, parseMarkdownTasks } from './parsers';
 import { statusOpenSpecChangeWithCli, validateOpenSpecChangeWithCli } from './openspec-cli';
@@ -55,6 +57,11 @@ export interface RepoEvidenceReaderDependencies {
    * tienen ningún commit. Es el único caso donde el disco decide.
    */
   changeDirCreatedAt?(repoPath: string, relative: string): Promise<string | null>;
+  /**
+   * Distancia entre la rama actual y la base local. Opcional: sin ella el
+   * snapshot no la lleva, y la vista no afirma nada sobre la base.
+   */
+  branchDivergence?(repoPath: string): Promise<BranchDivergence>;
   now(): string;
 }
 
@@ -250,6 +257,7 @@ export class RepoEvidenceReader {
     statusOpenSpecChange: statusOpenSpecChangeWithCli,
     changeHistory: defaultChangeHistory,
     changeDirCreatedAt: defaultChangeDirCreatedAt,
+    branchDivergence: readBranchDivergence,
     now: () => new Date().toISOString(),
   }) {}
 
@@ -339,6 +347,15 @@ export class RepoEvidenceReader {
       tooling = await readOpenSpecTooling(repoPath);
     } catch {
       diagnostics.push(issue('openspec.tooling-unavailable', 'No se pudo leer qué herramientas usa el repositorio.', 'openspec'));
+    }
+
+    // No medirla no rompe nada: el snapshot va sin el dato y la vista no afirma
+    // nada sobre la base. Decir cero sería afirmar que la rama está al día.
+    let branchDivergence: BranchDivergence = { measured: false };
+    try {
+      branchDivergence = await this.dependencies.branchDivergence?.(repoPath) ?? branchDivergence;
+    } catch {
+      diagnostics.push(issue('git.branch-divergence-unavailable', 'No se pudo medir la distancia con la base.', 'git'));
     }
     const openSpecChanges: OpenSpecChangeEvidence[] = [];
     for (const changeId of safeActiveChanges) {
@@ -517,6 +534,7 @@ export class RepoEvidenceReader {
         openSpecSpecifications,
         openSpecPresent: tooling.present,
         openSpecTools: tooling.tools,
+        branchDivergence,
       },
     };
   }

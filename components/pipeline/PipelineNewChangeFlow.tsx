@@ -3,7 +3,8 @@
 import { useId, useRef, useState } from 'react';
 import { BookOpen, FileText } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
-import type { RuntimeProjection } from '@/types/pipeline';
+import type { BranchDivergence, RuntimeProjection } from '@/types/pipeline';
+import { BranchBaseNotice } from './ChangeBranchNotice';
 import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { validateExploreForm, validateProposeForm } from './pipeline-guided-forms';
 import styles from './OpenSpecDashboard.module.css';
@@ -17,6 +18,17 @@ export type PipelineNewChangeFlowProps = {
   initialMode: PipelineNewChangeMode;
   blockedByFixture?: boolean;
   onStarted?: () => void;
+  /** Rama actual: es la base de la que sale la del cambio si no se elige otra. */
+  currentBranch?: string | null;
+  /** Cuánto se aparta esa base del `main` local. */
+  divergence?: BranchDivergence;
+  /**
+   * Si el árbol de trabajo está limpio.
+   *
+   * `undefined` es no saber, y con eso no se afirma que esté sucio: la rama se
+   * crea igual, como hasta ahora.
+   */
+  workingTreeClean?: boolean;
 };
 
 /**
@@ -36,6 +48,9 @@ export function PipelineNewChangeFlow({
   initialMode,
   blockedByFixture = false,
   onStarted,
+  currentBranch,
+  divergence,
+  workingTreeClean,
 }: PipelineNewChangeFlowProps) {
   const t = useT();
   const fieldId = useId();
@@ -54,6 +69,16 @@ export function PipelineNewChangeFlow({
   const [withBranch, setWithBranch] = useState(true);
   /** Motivo real informado por Git. No se normaliza a un mensaje propio. */
   const [branchError, setBranchError] = useState<string | null>(null);
+  /**
+   * Crear la rama a partir de `main` en vez de donde se está parado.
+   *
+   * Desmarcado por omisión: una rama con commits propios sin fusionar puede ser
+   * exactamente donde se quiere estar, y elegir la base por la persona perdería
+   * ese trabajo de vista.
+   */
+  const [fromMain, setFromMain] = useState(false);
+  /** Se pidió crear la rama con trabajo sin confirmar. Se declara, no se hace. */
+  const [dirtyBlocked, setDirtyBlocked] = useState(false);
 
   const objectiveRef = useRef<HTMLTextAreaElement>(null);
   const slugRef = useRef<HTMLInputElement>(null);
@@ -91,7 +116,23 @@ export function PipelineNewChangeFlow({
     }
 
     if (withBranch) {
-      const created = await window.api?.gitCreateBranch(repoPath, `change/${slug.trim()}`);
+      // Con trabajo sin confirmar la rama no se crea: `git checkout -b` lo
+      // arrastra, y la rama se crea al **abrir** un cambio, que es justo cuando
+      // lo que hay sin confirmar es de otro. Pasó al proponer este mismo cambio.
+      if (workingTreeClean === false) {
+        setBranchError(null);
+        setDirtyBlocked(true);
+        setInstruction(null);
+        return;
+      }
+      setDirtyBlocked(false);
+      // Sin elección explícita se invoca sin punto de partida: la rama sale de
+      // donde se está parado, que es lo que hace Git. La alternativa se ofrece,
+      // no se aplica sola.
+      const branchName = `change/${slug.trim()}`;
+      const created = fromMain
+        ? await window.api?.gitCreateBranch(repoPath, branchName, 'main')
+        : await window.api?.gitCreateBranch(repoPath, branchName);
       if (!created?.success) {
         // El motivo real, sin normalizar: uno genérico obliga a ir a la terminal
         // a averiguar qué pasó. No se intenta cambiarse a una rama existente
@@ -219,6 +260,34 @@ export function PipelineNewChangeFlow({
               <em>{t('pipeline.newChange.propose.branchHelp')}</em>
             </span>
           </label>
+          {/* De dónde sale la rama. `git checkout -b` no lo dice, y una base de
+              meses atrás no se nota hasta mucho después. */}
+          {withBranch && (
+            <>
+              <BranchBaseNotice divergence={divergence} branch={currentBranch} />
+              {divergence?.measured && (divergence.behind > 0 || divergence.ahead > 0) && (
+                <label className={styles.flowCheck}>
+                  <input
+                    type="checkbox"
+                    checked={fromMain}
+                    onChange={(event) => setFromMain(event.target.checked)}
+                  />
+                  <span>
+                    <strong>{t('pipeline.newChange.propose.fromBase', { base: divergence.base })}</strong>
+                    <em>{t('pipeline.newChange.propose.fromBaseHelp')}</em>
+                  </span>
+                </label>
+              )}
+            </>
+          )}
+
+          {/* El árbol sucio se declara donde se crea la rama, no al lado del
+              botón: es el motivo por el que no se creó, no un error de Git. */}
+          {dirtyBlocked && (
+            <p className={styles.flowError} role="alert">
+              {t('pipeline.newChange.propose.branchDirty')}
+            </p>
+          )}
           {branchError && (
             <p className={styles.flowError} role="alert">
               {t('pipeline.newChange.propose.branchFailed')} {branchError}

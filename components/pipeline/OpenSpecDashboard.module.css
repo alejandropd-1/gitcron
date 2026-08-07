@@ -1297,6 +1297,27 @@
   font: 0.68rem/1.5 var(--font-mono), ui-monospace, monospace;
 }
 .readiness > p > strong { color: var(--os-amber, #d8a657); font-weight: 650; }
+/* El aviso de rama comparte la caja del de OpenSpec: es el mismo tipo de cosa
+   —algo del repositorio que conviene saber antes de seguir— y darle una forma
+   propia lo haría leer como una clase distinta de mensaje. */
+.readiness[data-kind='branch'] { border-left-color: var(--os-cyan); color: var(--os-cyan); }
+.readiness[data-kind='branch'] > p > strong { color: var(--os-cyan); }
+
+/* De dónde sale la rama, dentro del formulario. Cyan y no ámbar: es un dato de
+   la base, no algo que esté mal. */
+.branchBase {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--os-cyan);
+  background: var(--os-surface);
+  color: var(--os-muted);
+  font: 0.66rem/1.6 var(--font-mono), ui-monospace, monospace;
+}
+.branchBase > strong { color: #d4e0eb; font-weight: 650; }
+/* La aclaración de que la comparación es local va en un tono más bajo: acota lo
+   afirmado, no es lo que hay que leer primero. */
+.branchBase > em { display: block; margin-top: var(--sp-1); font-style: normal; opacity: 0.75; }
+
 .readinessLink {
   flex: 0 0 auto;
   padding: var(--sp-1) var(--sp-3);

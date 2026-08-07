@@ -256,6 +256,9 @@ export function toPipelineSnapshot(
     activity: [],
     economy,
     openSpec: toOpenSpecWorkspace(state),
+    // Va al nivel del snapshot y no dentro de `openSpec`: es evidencia de Git
+    // sobre el repositorio, y vale igual sin ningún cambio abierto.
+    branchDivergence: state.branchDivergence,
   };
   return mergeRuntimeIntoSnapshot(base, projection);
 }

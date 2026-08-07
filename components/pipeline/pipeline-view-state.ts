@@ -12,7 +12,7 @@ import type {
   EconomyState,
   PipelineDiffItem,
 } from './pipeline-domain';
-import type { ChangeTimestamp, OpenSpecChangeArtifacts, OpenSpecChangeStatus, OpenSpecToolEvidence, OpenSpecValidationStatus, TaskEvidence } from '@/types/pipeline';
+import type { BranchDivergence, ChangeTimestamp, OpenSpecChangeArtifacts, OpenSpecChangeStatus, OpenSpecToolEvidence, OpenSpecValidationStatus, TaskEvidence } from '@/types/pipeline';
 
 export type PipelineSource = 'git' | 'openspec' | 'runtime';
 
@@ -117,6 +117,11 @@ export type PipelineSnapshot = {
   diffs?: PipelineDiffItem[];
   /** Vista OpenSpec. Opcional para snapshots/fixtures históricos. */
   openSpec?: OpenSpecWorkspaceSnapshot;
+  /**
+   * Distancia entre la rama actual y la base local. Ausente en un snapshot de
+   * una versión anterior o de fixture, y ausente no es «está al día».
+   */
+  branchDivergence?: BranchDivergence;
 };
 
 export type PipelineViewState =

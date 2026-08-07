@@ -37,6 +37,7 @@ import { PipelineDetails, type DetailTab } from './PipelineDetails';
 import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { PipelineNextStepGuide } from './PipelineNextStepGuide';
 import { motion, useReducedMotion } from 'motion/react';
+import { ChangeBranchNotice } from './ChangeBranchNotice';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
 import { OpenSpecReadiness, OpenSpecToolList } from './OpenSpecReadiness';
 import { SpecificationViewer } from './SpecificationViewer';
@@ -1146,6 +1147,13 @@ export function OpenSpecDashboard({
                 </div>
               </header>
 
+              {/* Línea propia y arriba de todo lo que se hace con el cambio: es
+                  lo que hay que saber antes de seguir trabajándolo, y en la
+                  franja de evidencia —que ya muestra la rama— quedaba chico.
+                  Sólo para un cambio activo: un archivado es de sólo lectura y
+                  ya no tiene rama que le corresponda. */}
+              <ChangeBranchNotice branch={currentBranch} changeId={selectedChange.changeId} />
+
               {/* Las acciones comparten fila con las pestañas: es el punto más
                   alto y estable del panel, así el CTA no se va con el scroll de
                   la lista de tareas. */}
@@ -1484,6 +1492,9 @@ export function OpenSpecDashboard({
                     initialMode={flowMode}
                     blockedByFixture={fixtureActive}
                     onStarted={() => setCenterTab('activity')}
+                    currentBranch={currentBranch}
+                    divergence={snapshot.branchDivergence}
+                    workingTreeClean={workingTreeClean}
                   />
                 </>
               )}
@@ -1519,6 +1530,9 @@ export function OpenSpecDashboard({
                   initialMode={flowMode}
                   blockedByFixture={fixtureActive}
                   onStarted={() => setCenterTab('activity')}
+                  currentBranch={currentBranch}
+                  divergence={snapshot.branchDivergence}
+                  workingTreeClean={workingTreeClean}
                 />
               )}
 

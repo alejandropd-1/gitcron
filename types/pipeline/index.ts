@@ -244,7 +244,37 @@ export interface PipelineEvidence {
    * Sólo las que se reconocen: una desconocida no se reporta como faltante.
    */
   openSpecTools?: OpenSpecToolEvidence[];
+  /**
+   * Cuánto se aparta la rama actual de la base local. Ausente en un snapshot de
+   * una versión anterior, que no lo trae.
+   */
+  branchDivergence?: BranchDivergence;
 }
+
+/**
+ * Distancia entre la rama actual y la base local, en commits.
+ *
+ * `measured: false` es "no se pudo medir" y no un cero: sin `main`, en un
+ * repositorio recién iniciado o con Git inaccesible, decir cero afirmaría que la
+ * rama está al día, que es justo lo contrario de lo que se sabe. Es el mismo
+ * principio que `validation: 'unknown'`.
+ *
+ * `base` se transporta porque la comparación es contra el `main` **local**:
+ * saber si `main` mismo está atrasado respecto del remoto exige `git fetch`, que
+ * es red y no ocurre en una lectura. Declararlo evita sugerir una frescura que
+ * no se midió.
+ */
+export type BranchDivergence =
+  | { measured: false }
+  | {
+    measured: true;
+    /** Contra qué se comparó. Local, siempre. */
+    base: string;
+    /** Commits de la base que faltan bajo los pies. */
+    behind: number;
+    /** Commits propios que la base no tiene. */
+    ahead: number;
+  };
 
 export interface PipelineState extends PipelineEvidence {
   revision: number;

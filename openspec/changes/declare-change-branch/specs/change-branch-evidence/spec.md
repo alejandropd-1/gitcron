@@ -36,6 +36,11 @@ y por eso la base no se corrige sola.
 La comparación es contra el `main` local porque saber si `main` mismo está atrasado exige `git fetch`, y
 este panel no hace red sin que se la pidan. Declararlo evita sugerir una frescura que no se midió.
 
+Al crear la rama, el panel SHALL releer la evidencia del repositorio. El fundamento salió de la
+validación: la franja de evidencia siguió mostrando la rama anterior después de que el propio formulario
+la cambió. Es el peor modo de fallo posible acá —el panel afirma en qué rama se está y afirmaba la
+equivocada— y basta una relectura, que es lo que ya hace inicializar OpenSpec.
+
 #### Scenario: Rama actual atrasada respecto de main
 - **WHEN** se va a crear la rama de un cambio y la rama actual está detrás de `main`
 - **THEN** el panel declara cuántos commits faltan y ofrece crear a partir de `main`
@@ -47,6 +52,10 @@ este panel no hace red sin que se la pidan. Declararlo evita sugerir una frescur
 #### Scenario: Rama actual al día
 - **WHEN** la rama actual no está atrasada ni tiene commits propios
 - **THEN** el panel no declara nada sobre la base
+
+#### Scenario: Después de crear la rama
+- **WHEN** el panel crea la rama del cambio
+- **THEN** relee la evidencia y declara la rama nueva, no la anterior
 
 ### Requirement: Con cambios sin confirmar no se crea la rama
 El panel SHALL NOT crear la rama de un cambio cuando el árbol de trabajo tiene cambios sin confirmar, y

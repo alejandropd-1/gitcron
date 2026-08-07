@@ -1,6 +1,6 @@
 # El panel declara la rama del cambio y la base de la que sale
 
-**Change:** `declare-change-branch` · **Fecha:** 2026-08-07 · **Tareas:** 26/27 (falta la validación
+**Change:** `declare-change-branch` · **Fecha:** 2026-08-07 · **Tareas:** 28/29 (falta la validación
 visual de Ale) · **Rama:** `change/declare-change-branch`
 
 ## Qué se hizo
@@ -95,6 +95,22 @@ corresponda.
 La casilla «crearla a partir de `main`» arranca desmarcada, y sólo aparece cuando hay algo que decir
 sobre la base. Sin ella la rama sale de donde se está parado, que es lo que hace Git.
 
+## El defecto que encontró la validación de Ale
+
+Validando la declaración de base, Ale miró la franja de evidencia y decía **"Rama actual:
+change/declare-change-branch"** cuando Git ya estaba parado en `change/para-borrar`, la que el propio
+formulario acababa de crear. La barra lateral de ramas sí se había enterado; la franja de Pipeline no.
+
+Es el peor modo de fallo posible para este cambio: el trabajo entero es que el panel declare en qué rama
+se está, y justo después de que la aplicación cambia la rama declaraba la anterior. Ninguna de las siete
+pruebas lo veía, porque todas miraban el formulario y el defecto estaba en lo que pasa después.
+
+El arreglo es releer la evidencia al crear la rama, que es lo que ya hacía inicializar OpenSpec. Un fallo
+al crearla no dispara relectura, y desmarcar la rama tampoco: en esos dos casos no se tocó Git, y releer
+sugeriría que sí.
+
+Entró como requisito con su escenario, tarea 3.7 y tres pruebas.
+
 ## Un error propio, y su rastro
 
 Al escribir las pruebas se sobrescribió `pipeline-change-branch.test.tsx`, que ya existía y cubre la
@@ -108,8 +124,8 @@ se elige, en vez de mandar un tercer argumento `undefined`.
 `pnpm exec tsc --noEmit` en cero. `pnpm exec eslint` limpio sobre los trece archivos tocados.
 `openspec validate declare-change-branch --strict` válido.
 
-`pnpm test` en **115 archivos / 840 tests**, corrida completa en verde. La base antes de esta tanda era
-112 archivos / 815 tests: entran tres archivos y veinticinco casos.
+`pnpm test` en **115 archivos / 843 tests**, corrida completa en verde. La base antes de esta tanda era
+112 archivos / 815 tests: entran tres archivos y veintiocho casos.
 
 ## Lo que falta
 

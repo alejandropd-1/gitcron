@@ -96,6 +96,43 @@ describe('la base de la rama del cambio', () => {
   });
 });
 
+describe('la evidencia después de crear la rama', () => {
+  it('se relee: la rama nueva es donde está parado el repositorio', async () => {
+    // El defecto exacto que Ale encontró: la franja de evidencia siguió
+    // mostrando la rama anterior después de que el formulario la cambió. Es el
+    // peor caso posible acá, porque el trabajo de este panel es declarar la
+    // rama y estaba declarando la equivocada.
+    const onRefresh = vi.fn();
+    renderFlow({ currentBranch: 'main', workingTreeClean: true, onRefresh });
+    fillForm();
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+
+    await vi.waitFor(() => expect(onRefresh).toHaveBeenCalled());
+  });
+
+  it('un fallo al crearla no dispara relectura', async () => {
+    // No cambió nada en Git: releer sugeriría que sí.
+    gitCreateBranch.mockResolvedValue({ success: false, error: 'branch already exists' });
+    const onRefresh = vi.fn();
+    renderFlow({ currentBranch: 'main', workingTreeClean: true, onRefresh });
+    fillForm();
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+
+    await vi.waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it('sin rama tampoco: no se tocó Git', () => {
+    const onRefresh = vi.fn();
+    renderFlow({ currentBranch: 'main', workingTreeClean: true, onRefresh });
+    fillForm();
+    fireEvent.click(screen.getByRole('checkbox', { name: /propose\.branch/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+});
+
 describe('árbol de trabajo sucio', () => {
   it('no crea la rama y declara el motivo', async () => {
     renderFlow({ currentBranch: 'main', workingTreeClean: false });

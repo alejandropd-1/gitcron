@@ -28,6 +28,8 @@
 - [x] 3.4 Ofrecer crear a partir de `main`, sin preselección que lo dispare por descuido
 - [x] 3.5 Declarar el árbol sucio como motivo de no crear la rama, en el mismo lugar donde se crea
 - [x] 3.6 Espaciar lo agregado con la escala `--sp-1..--sp-6` de `.dashboard`
+- [x] 3.7 Releer la evidencia después de crear la rama. Ale lo encontró validando: la franja seguía
+      mostrando la rama anterior después de que el formulario la cambió
 
 ## 4. Tests
 
@@ -37,6 +39,7 @@
 - [x] 4.4 Prueba: cambio abierto en su rama → el panel no declara nada
 - [x] 4.5 Prueba: rama atrasada → se declara el número y se ofrece `main`
 - [x] 4.6 Prueba: árbol sucio → no se llama a crear la rama y se declara el motivo
+- [x] 4.7 Prueba: crear la rama relee la evidencia, y un fallo o una rama no pedida no la releen
 
 ## 5. Cierre
 

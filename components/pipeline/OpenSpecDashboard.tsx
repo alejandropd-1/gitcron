@@ -1495,6 +1495,7 @@ export function OpenSpecDashboard({
                     currentBranch={currentBranch}
                     divergence={snapshot.branchDivergence}
                     workingTreeClean={workingTreeClean}
+                    onRefresh={onRefresh}
                   />
                 </>
               )}
@@ -1533,6 +1534,7 @@ export function OpenSpecDashboard({
                   currentBranch={currentBranch}
                   divergence={snapshot.branchDivergence}
                   workingTreeClean={workingTreeClean}
+                  onRefresh={onRefresh}
                 />
               )}
 

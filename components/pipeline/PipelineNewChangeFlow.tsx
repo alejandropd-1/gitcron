@@ -29,6 +29,16 @@ export type PipelineNewChangeFlowProps = {
    * crea igual, como hasta ahora.
    */
   workingTreeClean?: boolean;
+  /**
+   * Relee la evidencia del repositorio.
+   *
+   * Crear la rama cambia en qué rama está parado el repositorio, y sin esto el
+   * panel seguía mostrando la anterior. Es el peor defecto posible acá: el
+   * trabajo de este formulario es declarar la rama, y justo después de que la
+   * aplicación la cambia declaraba la equivocada. Ale lo detectó mirando la
+   * franja de evidencia con la rama vieja.
+   */
+  onRefresh?: () => void;
 };
 
 /**
@@ -51,6 +61,7 @@ export function PipelineNewChangeFlow({
   currentBranch,
   divergence,
   workingTreeClean,
+  onRefresh,
 }: PipelineNewChangeFlowProps) {
   const t = useT();
   const fieldId = useId();
@@ -141,6 +152,11 @@ export function PipelineNewChangeFlow({
         setInstruction(null);
         return;
       }
+      // La rama recién creada es dónde está parado el repositorio ahora, y el
+      // panel lo declara en la franja de evidencia. Sin releer seguía mostrando
+      // la anterior: el formulario cambiaba el hecho que el panel afirma, y lo
+      // dejaba afirmando el viejo.
+      onRefresh?.();
     }
     setInstruction(result.instruction);
   };

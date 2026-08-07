@@ -56,4 +56,4 @@
 - [x] 5.3 `pnpm exec eslint` limpio sobre los nueve archivos tocados
 - [x] 5.4 `openspec validate read-specification-contents --strict` válido
 - [x] 5.5 Reporte en `docs/reports/2026-08-07-read-specification-contents.md`
-- [ ] 5.6 Ale valida en la aplicación que puede abrir y leer una especificación consolidada
+- [x] 5.6 Ale valida en la aplicación que puede abrir y leer una especificación consolidada

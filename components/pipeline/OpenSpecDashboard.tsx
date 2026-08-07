@@ -706,7 +706,14 @@ export function OpenSpecDashboard({
       } as React.CSSProperties}
     >
       <header className={styles.summaryBar}>
-        <h2 className={styles.brand}>OpenSpec</h2>
+        {/* Dos líneas, no una frase que se parte sola: el salto es parte del
+            rótulo y no puede depender del ancho de la ventana. El nombre dice
+            el método —desarrollo guiado por especificación— en vez de la
+            herramienta que lo implementa. */}
+        <h2 className={styles.brand}>
+          <span>Spec-Driven</span>
+          <span>Development</span>
+        </h2>
         <dl className={styles.summaryFacts}>
           <div><dd>{specifications.length}</dd><dt>{t('pipeline.openspec.summary.specifications')}</dt></div>
           <div><dd>{activeChanges.length}</dd><dt>{t('pipeline.openspec.summary.active')}</dt></div>

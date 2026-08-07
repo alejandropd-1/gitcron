@@ -82,9 +82,42 @@
   flex: 0 0 auto;
 }
 
+/* Dos líneas apiladas, dimensionadas contra la fila de contadores que tiene al
+   lado: el bloque entero ocupa el alto de la barra en vez de flotar en su
+   centro, así el encabezado queda encuadrado.
+   El tamaño baja respecto de la versión de una línea —el rótulo pasó de nueve
+   caracteres a veintitrés— y `line-height` ajustado es lo que las mantiene
+   juntas como una unidad y no como dos renglones sueltos. */
 .brand {
-  font-size: clamp(1.35rem, 1.65vw, 1.85rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-size: clamp(0.95rem, 1.15vw, 1.25rem);
   font-weight: 750;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Las dos líneas tienen once caracteres pero no el mismo ancho: la primera lleva
+   un guion y una `i`, angostos, y la segunda una `m`, ancha. Con el mismo tamaño
+   la de arriba queda corta y el bloque se ve desalineado a la derecha.
+   El factor iguala los anchos y va en `em` para que siga al `clamp` del bloque en
+   vez de quedar clavado a un tamaño. Es un ajuste óptico: se estimó sobre la
+   medición del rótulo renderizado y lo confirma Ale mirándolo. */
+.brand > span:first-child { font-size: 1.09em; }
+
+/* La segunda línea en la monoespaciada del proyecto y con menos peso: la primera
+   nombra el método y la segunda lo califica, así que se distinguen por
+   tratamiento en vez de repetir el mismo bloque dos veces.
+   JetBrains Mono ya está cargada —la usa el resto del panel—, así que no entra
+   ninguna fuente nueva. Al ser monoespaciada y más liviana rinde más angosta que
+   la sans, y el tamaño lo compensa para que las dos líneas terminen juntas. */
+.brand > span:last-child {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 1.16em;
+  font-weight: 450;
   letter-spacing: -0.02em;
 }
 

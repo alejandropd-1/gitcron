@@ -1,9 +1,26 @@
 ## Decisión: Git como fuente, el disco como respaldo
 
-La marca de creación sale del primer commit que añade `proposal.md`, seguido con `--follow` para que
-sobreviva al rename del archivado. La de archivado sale del commit que mueve el cambio a `archive/`.
-Cuando el cambio todavía no está confirmado, y sólo entonces, se usa la fecha de creación del
-directorio en disco.
+Ambas marcas salen de **una sola** pasada de historia:
+
+```
+git log --diff-filter=A --no-renames --name-only --format=… --reverse -- openspec/changes
+```
+
+Recorriendo de más viejo a más nuevo, la primera aparición de un archivo bajo
+`openspec/changes/<slug>/` es la creación del cambio, y la primera bajo
+`openspec/changes/archive/<fecha>-<slug>/` es su archivado. Cuando el cambio todavía no está
+confirmado, y sólo entonces, se usa la fecha de creación del directorio en disco.
+
+`--no-renames` es lo que hace que esto funcione, y se llegó midiendo. Sin esa opción el archivado no
+aparece: Git lo reconoce como `R100` y `--diff-filter=A` no cuenta un renombre como alta, así que la
+marca salía vacía. Desactivando la detección, el movimiento se ve como el alta del destino y el borrado
+del origen, que es exactamente lo que hace falta acá.
+
+**Alternativa descartada: una consulta con `--follow` por cambio.** Era el plan inicial y funciona —se
+comprobó que atraviesa el rename del archivado—, pero son dos invocaciones de Git por cambio sobre
+cuarenta y nueve archivados, y `--follow` es frágil ante renombres encadenados. La pasada única
+resuelve los 602 caminos del repositorio en **97 ms** medidos, así que la comparación no es entre dos
+diseños parecidos: es entre uno y noventa y ocho invocaciones. Se descarta el original.
 
 **Alternativa descartada: el disco como fuente principal.** Es más directa —no hay que recorrer
 historia— y para el archivado es incluso más cercana al momento real: sobre `legible-panel-controls` el

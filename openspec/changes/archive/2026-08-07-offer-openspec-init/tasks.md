@@ -63,4 +63,4 @@
 - [x] 6.3 `pnpm exec eslint` limpio sobre lo tocado
 - [x] 6.4 `openspec validate offer-openspec-init --strict` válido
 - [x] 6.5 Reporte en `docs/reports/`, con las sondas como evidencia
-- [ ] 6.6 Ale valida abriendo un repositorio sin OpenSpec y llegando a inicializarlo
+- [x] 6.6 Ale valida abriendo un repositorio sin OpenSpec y llegando a inicializarlo

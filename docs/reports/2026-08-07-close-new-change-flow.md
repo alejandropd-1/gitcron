@@ -47,12 +47,19 @@ propio ciclo: se verificó y quedó fuera.
 `pnpm exec tsc --noEmit` en cero. Lint limpio sobre los archivos tocados.
 `openspec validate close-new-change-flow --strict` válido. Las dos pruebas nuevas pasan.
 
-**La suite completa queda pendiente, ni verde ni roja.** La corrida cayó con seis archivos, todos por
-`Test timed out in 5000ms` y **ninguno por aserción**, con cuarenta procesos de `node`/`electron`
-activos: es el entorno de desarrollo levantado, que es un caso conocido y documentado del proyecto. Los
-archivos afectados pasan aislados —15 tests verdes en una corrida acotada— y los dos de este cambio
-también.
+`pnpm test` en **107 archivos / 779 tests**, con una corrida completa en verde. Se corrió tres veces y
+conviene declarar las tres, porque las tres dijeron cosas distintas.
 
-Se declara así en vez de redondearlo: declarar verde sin haber corrido la suite entera en condiciones
-invalidaría la tanda, y afirmar rojo con esa evidencia sería igual de falso. Queda por correr con
-`electron:dev` apagado.
+**Primera:** cayó con seis archivos, todos por `Test timed out in 5000ms` y **ninguno por aserción**, con
+cuarenta procesos de `node`/`electron` activos. Es el entorno de desarrollo levantado, un caso conocido
+del proyecto. Los archivos afectados pasaron aislados.
+
+**Segunda:** completa, 107/779.
+
+**Tercera:** falló **un** caso, y esta vez por aserción y no por timeout —que es la señal de mirar el
+código—: el estado de carga del lanzador en `pipeline-guided-wiring.test.tsx`. Es el flake conocido y
+sensible al tiempo de ese archivo. Se comprobó antes de descartarlo: pasa tres de tres aislado, y
+`git diff` confirma que no se tocó en esta tanda. El cambio de este trabajo sobre la guía es una prop
+opcional que ese caso no usa.
+
+Se declara así, con las tres corridas, en vez de reportar sólo la que convenía.

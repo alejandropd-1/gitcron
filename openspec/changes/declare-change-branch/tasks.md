@@ -30,6 +30,8 @@
 - [x] 3.6 Espaciar lo agregado con la escala `--sp-1..--sp-6` de `.dashboard`
 - [x] 3.7 Releer la evidencia después de crear la rama. Ale lo encontró validando: la franja seguía
       mostrando la rama anterior después de que el formulario la cambió
+- [x] 3.8 Los avisos van en ámbar, no en cyan. Ale lo marcó validando: contra el cyan del resto del panel
+      se leían como más texto de lo mismo. Alcanza a `.branchBase` y, por consistencia, a `.flowNature`
 
 ## 4. Tests
 

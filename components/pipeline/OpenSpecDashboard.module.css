@@ -1297,23 +1297,23 @@
   font: 0.68rem/1.5 var(--font-mono), ui-monospace, monospace;
 }
 .readiness > p > strong { color: var(--os-amber, #d8a657); font-weight: 650; }
-/* El aviso de rama comparte la caja del de OpenSpec: es el mismo tipo de cosa
-   —algo del repositorio que conviene saber antes de seguir— y darle una forma
-   propia lo haría leer como una clase distinta de mensaje. */
-.readiness[data-kind='branch'] { border-left-color: var(--os-cyan); color: var(--os-cyan); }
-.readiness[data-kind='branch'] > p > strong { color: var(--os-cyan); }
+/* El aviso de rama comparte la caja del de OpenSpec, sin variante de color: es
+   el mismo tipo de cosa —algo del repositorio que conviene saber antes de
+   seguir— y ámbar es lo que en este panel significa «esto pide tu atención».
+   Se probó en cyan y Ale lo marcó: contra el cyan del resto del panel se leía
+   como más texto de lo mismo, que es justo lo que un aviso no puede parecer. */
 
-/* De dónde sale la rama, dentro del formulario. Cyan y no ámbar: es un dato de
-   la base, no algo que esté mal. */
+/* De dónde sale la rama, dentro del formulario. Ámbar por el mismo motivo: es
+   una advertencia sobre la base, no una nota al pie. */
 .branchBase {
   margin: 0;
   padding: var(--sp-2) var(--sp-3);
-  border-left: 2px solid var(--os-cyan);
-  background: var(--os-surface);
+  border-left: 2px solid var(--os-amber, #d8a657);
+  background: rgba(216, 166, 87, 0.07);
   color: var(--os-muted);
   font: 0.66rem/1.6 var(--font-mono), ui-monospace, monospace;
 }
-.branchBase > strong { color: #d4e0eb; font-weight: 650; }
+.branchBase > strong { color: var(--os-amber, #d8a657); font-weight: 650; }
 /* La aclaración de que la comparación es local va en un tono más bajo: acota lo
    afirmado, no es lo que hay que leer primero. */
 .branchBase > em { display: block; margin-top: var(--sp-1); font-style: normal; opacity: 0.75; }
@@ -1562,9 +1562,9 @@
 .flowNature {
   margin: 0 0 0.35rem;
   padding: 0.5rem 0.6rem;
-  border-left: 2px solid var(--os-cyan);
-  background: var(--os-surface);
-  color: #c2d0de;
+  border-left: 2px solid var(--os-amber, #d8a657);
+  background: rgba(216, 166, 87, 0.07);
+  color: var(--os-amber, #d8a657);
   font: 0.68rem/1.5 var(--font-mono), ui-monospace, monospace;
 }
 

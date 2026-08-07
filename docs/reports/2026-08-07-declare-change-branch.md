@@ -111,6 +111,17 @@ sugeriría que sí.
 
 Entró como requisito con su escenario, tarea 3.7 y tres pruebas.
 
+## El color, corregido en la validación
+
+La primera versión puso el aviso de rama y la declaración de base en cyan, con el argumento de que no
+están informando un error. Ale lo miró en pantalla y marcó las dos cajas: contra el cyan del resto del
+panel se leen como **más texto de lo mismo**, que es exactamente lo que un aviso no puede parecer.
+
+Tenía razón y el argumento anterior confundía dos cosas: que algo no esté mal no significa que no pida
+atención. En este panel el ámbar significa «esto pide tu atención», y eso es lo que estos bloques son.
+Quedaron los dos en ámbar, y por consistencia también `.flowNature` —el bloque que explica que lo escrito
+arma la instrucción—, que venía de antes con el mismo problema.
+
 ## Un error propio, y su rastro
 
 Al escribir las pruebas se sobrescribió `pipeline-change-branch.test.tsx`, que ya existía y cubre la

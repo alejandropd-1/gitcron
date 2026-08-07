@@ -42,6 +42,22 @@ archivado. Ninguna dice cómo se numera ni para quién se redacta. Que los `task
 repositorio usen `1.1`, `1.2`, `1.3` es imitación de los archivos vecinos, no una regla que viaje por
 el canal, y sólo funciona con un ejecutor que mire alrededor antes de escribir.
 
+**Lo que las sondas cambiaron.** Al medirlo sobre repositorios de prueba aparecieron tres cosas que la
+propuesta original no contemplaba, y las tres afectan el diseño.
+
+`openspec init` **exige `--tools`**: falla sin él y ofrece unas treinta herramientas. No hay un
+«inicializar» a secas que la aplicación pueda ejecutar sin decidir antes para qué ejecutor se
+inicializa.
+
+Con `--tools claude` escribe **once archivos**, no uno: cinco slash commands bajo
+`.claude/commands/opsx/`, cinco skills bajo `.claude/skills/` y `openspec/config.yaml`. Es bastante más
+de lo que sugería «inicializar OpenSpec», y hay que enumerarlo antes de escribirlo.
+
+Y lo más importante: **`init` no resuelve el problema que este change atiende**. Después de
+inicializar, `openspec instructions` sigue devolviendo contexto vacío y cero reglas, porque el
+`config.yaml` que deja son veinte líneas comentadas —una plantilla con ejemplos, no una configuración—.
+Sembrar reglas deja de ser un agregado y pasa a ser lo único que cambia algo.
+
 ## What Changes
 
 - El panel detecta que el repositorio abierto no tiene `openspec/` y lo declara como estado propio, en

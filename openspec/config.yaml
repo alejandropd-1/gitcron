@@ -53,6 +53,16 @@ context: |
   Ante ambigüedad de alcance: preguntar, no asumir. Frenar y reportar cuesta una vuelta;
   adivinar cuesta una tanda.
 
+# Sólo lo que OpenSpec no dice ya.
+#
+# El CLI entrega, además de estas reglas, la `instruction` de cada artefacto, y
+# ahí ya están el formato de las tareas —secciones `## N.` y casillas `N.M`—, las
+# cuatro almohadillas de un escenario, el bloque entero que exige MODIFIED, las
+# alternativas de cada decisión y los riesgos con su mitigación. Repetirlas acá
+# gastaba atención en algo que el ejecutor recibe dos párrafos antes, y hacía más
+# difícil ver las que sí son de este proyecto.
+#
+# Se auditó regla por regla contra `openspec instructions` y se retiraron ocho.
 rules:
   proposal:
     - "Escribir en español, en prosa densa y sin relleno. Nada de listas de viñetas donde alcanza una frase."
@@ -62,22 +72,13 @@ rules:
 
   specs:
     - "Cada requisito lleva su palabra normativa dentro de los primeros 100 caracteres del texto. El parser trunca ahí y rechaza el requisito si no la encuentra."
-    - "Un requisito nuevo dentro de una capacidad que ya existe va bajo ADDED Requirements, no MODIFIED. MODIFIED es sólo para cambiar el comportamiento de uno existente, y exige copiar el bloque entero, no un fragmento."
-    - "Los escenarios llevan exactamente cuatro almohadillas. Con tres, o con viñetas, el parser los ignora en silencio."
     - "Todo requisito necesita al menos un escenario, y un change sin ningún delta de spec no valida."
     - "Explicar el fundamento del requisito, no sólo la regla: qué se rompe si no se cumple."
 
   design:
-    - "Cada decisión va con la alternativa que se descartó y el motivo. Una decisión sin alternativa considerada no es una decisión, es una descripción."
-    - "Los riesgos van con su mitigación concreta, no como advertencia genérica."
     - "Si algo no se midió, declararlo. No presentar una expectativa como si fuera un resultado."
 
   tasks:
-    - "Cada tarea es una casilla con texto verificable. Si no se puede saber cuándo está hecha, está mal escrita."
     - "No crear tareas que ningún actor pueda marcar. Si una tarea depende de una validación humana, tiene que quedar claro quién la marca."
-    - "Marcar una casilla sólo después de haber hecho lo que dice, nunca al planificarla."
     - "No se implementa encima de un change archivado: verificar antes que el change sigue activo."
-    - "Agrupar las tareas en secciones numeradas con el formato `## N. Título`, y numerar cada casilla `N.M` según la sección a la que pertenece. Una tarea que no entra en ninguna sección significa que falta la sección, no que la casilla vaya suelta."
     - "Redactar cada tarea para quien no participó de la conversación: nombrar el archivo, el comando o el criterio concreto que la hace verificable. Un recordatorio que sólo entiende quien la pensó no le sirve a quien tiene que ejecutarla."
-    - "No agregar identificadores, comentarios ni ninguna otra marca propia a las casillas. Cada casilla se identifica por su posición en el archivo, así que esas anotaciones no las consume nadie y ensucian el artefacto."
-    - "La forma vale igual cuando el change documenta trabajo que ya está hecho. Que el trabajo esté terminado no habilita una estructura distinta: el artefacto se sigue leyendo durante el resto de su vida."

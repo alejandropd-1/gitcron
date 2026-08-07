@@ -21,5 +21,5 @@
 - [x] 3.2 `pnpm test` en verde, con el conteo de archivos comparado contra la base de 1.1
 - [x] 3.3 `openspec validate align-back-control-style --strict` válido
 - [x] 3.4 Reporte en `docs/reports/2026-08-07-align-back-control-style.md`
-- [ ] 3.5 **Ale valida visualmente**: es la única comprobación posible. Ninguna prueba distingue "parece
+- [x] 3.5 **Ale valida visualmente**: es la única comprobación posible. Ninguna prueba distingue "parece
       un botón" de "parece un texto", así que no se declara cubierto por la suite

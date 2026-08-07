@@ -1,30 +1,51 @@
 ## ADDED Requirements
 
-### Requirement: La evidencia de una especificación incluye su contenido
-La evidencia de cada especificación consolidada SHALL incluir el contenido de su archivo, además del
-identificador, el conteo de requisitos y la referencia de origen. Cuando el archivo no se pueda leer,
-el contenido SHALL ser `null`, distinguible de un archivo vacío. La lectura SHALL respetar un límite
-de tamaño explícito, como ya lo hace la lectura de artefactos de un cambio.
+### Requirement: El contenido de una especificación se puede leer desde la aplicación
+La aplicación SHALL poder obtener el contenido de una especificación consolidada a partir de su
+identificador. La respuesta SHALL distinguir el contenido leído, el archivo vacío y el fallo de lectura.
+La lectura SHALL respetar un límite de tamaño explícito. El contenido SHALL NOT transportarse en el
+snapshot.
 
 El fundamento es que las especificaciones consolidadas son el estado declarado del producto —lo que
 quedó después de archivar cada cambio— y hoy son lo único del método que no se puede leer desde la
-aplicación: la barra lateral las lista como texto muerto porque no tiene contenido que mostrar. El
-proceso principal ya abre esos archivos para contar requisitos y descarta el texto, así que la
-información existe y sólo falta transportarla.
+aplicación: la barra lateral las lista como texto muerto porque no tiene contenido que mostrar.
 
-Distinguir `null` de vacío importa porque una especificación sin contenido legible y una especificación
-que existe pero está vacía piden respuestas distintas: la primera es un fallo de lectura que hay que
-reportar, la segunda es un dato real del repositorio. El límite de tamaño importa porque el snapshot
-lleva todas las especificaciones a la vez y viaja por IPC en cada refresco.
+Que no viajen en el snapshot es una restricción medida, no una preferencia: las de este repositorio
+pesan 145 KB en quince archivos, con una sola de 84,9 KB, y el snapshot se rearma en cada refresco que
+dispara el watcher con cada guardado. Una especificación consolidada cambia cuando se archiva un cambio,
+no cuando se guarda un archivo, así que atar su contenido al refresco paga un costo continuo por algo
+que casi nunca cambia y casi nunca se mira.
+
+Distinguir los tres casos importa porque piden respuestas distintas: un archivo vacío es un dato real
+del repositorio, un fallo es algo que hay que reportar con su motivo, y confundirlos deja al visor en
+blanco sin explicar por qué.
 
 #### Scenario: Especificación legible
-- **WHEN** el lector encuentra una especificación consolidada con contenido
-- **THEN** la evidencia incluye su texto junto al conteo de requisitos
+- **WHEN** se pide el contenido de una especificación que existe
+- **THEN** se devuelve su texto
 
-#### Scenario: Especificación que no se puede leer
+#### Scenario: Especificación vacía
+- **WHEN** se pide el contenido de una especificación cuyo archivo está vacío
+- **THEN** se devuelve vacío como dato, distinguible de un fallo
+
+#### Scenario: Lectura que falla
 - **WHEN** el archivo de una especificación no se puede leer
-- **THEN** el contenido queda en `null` y se emite el diagnóstico correspondiente
+- **THEN** se informa el fallo en vez de devolver contenido vacío
 
-#### Scenario: Especificación abierta desde la barra lateral
-- **WHEN** se elige una especificación en la barra lateral
-- **THEN** su contenido se muestra en el visor de artefactos con el markdown renderizado
+### Requirement: La lectura no acepta rutas del renderer
+El proceso principal SHALL recibir el identificador de la especificación y SHALL componer la ruta por su
+cuenta. El identificador SHALL validarse contra el mismo alfabeto acotado que ya se exige al listar las
+especificaciones, y la ruta resultante SHALL resolverse contenida al repositorio.
+
+El fundamento es la invariante de seguridad del proyecto: el renderer no le entrega paths sin validar al
+proceso principal. Aceptar la referencia de origen que el snapshot ya expone sería más directo, y sería
+exactamente el agujero que esa invariante evita. Componer la ruta del lado del principal deja el control
+donde tiene que estar, y no cuesta nada porque el identificador ya viene acotado.
+
+#### Scenario: Identificador fuera del alfabeto
+- **WHEN** se pide una especificación con un identificador que no respeta el alfabeto acotado
+- **THEN** se rechaza sin tocar el disco
+
+#### Scenario: Intento de salir del repositorio
+- **WHEN** el identificador pretende escapar del directorio de especificaciones
+- **THEN** se rechaza y no se lee ningún archivo fuera del repositorio

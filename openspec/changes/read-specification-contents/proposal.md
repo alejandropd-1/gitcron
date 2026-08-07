@@ -19,12 +19,19 @@ este panel existe para evitar.
 
 ## What Changes
 
-- El lector de evidencia suma el contenido de cada `openspec/specs/<id>/spec.md` al snapshot, con el
-  mismo tratamiento de tamaño y truncado que ya reciben los artefactos de un cambio.
-- `OpenSpecSpecificationEvidence` gana el campo de contenido, con `null` explícito cuando el archivo no
-  se pudo leer, para que la ausencia se distinga de un archivo vacío.
+- Un canal de lectura puntual devuelve el contenido de una especificación por su identificador, con la
+  ruta validada y un límite de tamaño explícito.
 - La barra lateral pasa a renderizar cada especificación como botón y muestra su contenido en el visor
   de artefactos, que ya sabe renderizar markdown de la metodología.
+- El estado sin contenido se distingue del archivo vacío y del fallo de lectura, en vez de mostrar el
+  visor en blanco.
+
+**Se corrigió el plan original tras medir.** La primera versión de esta propuesta decía sumar el
+contenido de todas las especificaciones al snapshot, como ya se hace con los artefactos de un cambio.
+Medido sobre este repositorio, eso son **145 KB en quince archivos, con uno solo de 84,9 KB**
+—`pipeline-guided-workflow`—, y el snapshot se rearma en cada refresco, que el watcher dispara con cada
+guardado. Pagar ese peso continuo para un contenido que casi nunca se mira, y que sólo cambia al
+archivar, no se sostiene. El motivo está en `design.md`.
 
 ## Capabilities
 
@@ -34,24 +41,24 @@ _Ninguna._
 
 ### Modified Capabilities
 
-- `pipeline-repo-evidence`: la evidencia de especificaciones consolidadas incluye el contenido del
-  archivo, no sólo su identificador y su conteo de requisitos.
+- `pipeline-repo-evidence`: el contenido de una especificación consolidada se puede leer desde la
+  aplicación, sin transportarlo en cada snapshot.
 
 ## Impact
 
-**Producción:** `electron/pipeline/repo-evidence-reader.ts` (conservar el contenido leído),
-`types/pipeline/index.ts` (campo nuevo en `OpenSpecSpecificationEvidence`), la barra lateral y el visor
-de artefactos del panel.
+**Producción:** un canal de lectura nuevo en `electron/ipc/`, su exposición en el preload, y la barra
+lateral y el visor de artefactos del panel.
 
-**Sin tocar:** el conteo de requisitos y su parser, el canal IPC del snapshot, el renderizador de
-markdown —que ya cubre los cuatro niveles de encabezado desde `render-openspec-markdown`—.
+**Sin tocar:** el conteo de requisitos y su parser, el snapshot y su caché por repositorio y cambio
+seleccionado, la suscripción del watcher, y el renderizador de markdown —que ya cubre los cuatro
+niveles de encabezado desde `render-openspec-markdown`—.
 
 **Fuera de alcance:** editar una especificación desde la aplicación. Las especificaciones consolidadas
 las escribe `openspec archive`; abrirlas para escritura sería una superficie nueva que nadie pidió.
 
 **Dependencias:** ninguna.
 
-**Riesgo:** bajo en lógica, a vigilar en tamaño. El snapshot crece con el texto de todas las
-especificaciones del repositorio, que hoy son varias decenas de archivos. Mitigación: reutilizar el
-límite de tamaño y el truncado que ya se aplican a los artefactos de un cambio, y medir el peso del
-snapshot antes y después en vez de suponer que no importa.
+**Riesgo:** bajo. El snapshot no cambia, así que el costo del refresco queda igual que hoy: la lectura
+ocurre sólo al abrir una especificación. Lo que sí se agrega es una superficie de lectura nueva hacia el
+repositorio, y por eso el identificador se valida contra el mismo patrón que ya se exige en el lector y
+la ruta se resuelve contenida al repositorio, sin aceptar rutas del renderer.

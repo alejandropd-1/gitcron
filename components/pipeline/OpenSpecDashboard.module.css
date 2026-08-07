@@ -1165,10 +1165,6 @@
 .completedSummary h3,
 .noActiveChange h3 { margin: 0.25rem 0; color: #edf4fb; font: 700 1.35rem var(--font-mono), ui-monospace, monospace; }
 .completedSummary > span { color: var(--os-muted); font-size: 0.68rem; }
-.completedSummary dl { width: min(100%, 42rem); margin: 1.5rem 0 0.5rem; border-top: 1px solid var(--os-border); }
-.completedSummary dl > div { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 1rem; padding: 0.65rem 0; border-bottom: 1px solid var(--os-border); font: 0.68rem var(--font-mono), ui-monospace, monospace; }
-.completedSummary dt { color: var(--os-muted); }
-.completedSummary dd { overflow-wrap: anywhere; color: #d4e0eb; }
 .noActiveChange { align-items: center; text-align: center; color: var(--os-cyan); }
 
 /* Siguiente paso
@@ -1431,7 +1427,28 @@
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--os-border);
 }
-.completedHeader > dl { margin-bottom: 0; }
+/* Marcas de tiempo de un cambio.
+   Se espacian con la escala --sp-*: ajustar valores sueltos queja por queja ya
+   desalineó otras cosas antes. */
+.changeStamp {
+  color: var(--os-muted);
+  font: 0.68rem var(--font-mono), ui-monospace, monospace;
+  white-space: nowrap;
+}
+.changeStamp > span { opacity: 0.75; }
+/* Una marca sin confirmar no puede leerse igual que una confirmada: la de disco
+   se pierde al archivar y al clonar. */
+.changeStamp[data-source='disk'] { color: var(--os-amber, #d8a657); }
+.changeStamp em { font-style: normal; opacity: 0.85; }
+/* Junto al título del cambio activo, no debajo: es donde se busca su identidad. */
+.changeStamp:not(:first-child) { margin-left: var(--sp-3); }
+.completedStamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  margin-top: var(--sp-2);
+}
+.completedStamps .changeStamp:not(:first-child) { margin-left: 0; }
 /* Reserva de espacio para los artefactos del archivado, para que la vista no
    salte de una ficha corta a una pantalla entera cuando llega la relectura. */
 .archivedArtifacts[data-pending] { display: grid; place-items: center; min-height: 18rem; }

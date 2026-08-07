@@ -36,6 +36,7 @@ import { DecisionInbox } from './DecisionInbox';
 import { PipelineDetails, type DetailTab } from './PipelineDetails';
 import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { PipelineNextStepGuide } from './PipelineNextStepGuide';
+import { ChangeTimestampLabel } from './ChangeTimestampLabel';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
 import {
   composeArchiveInstruction,
@@ -986,7 +987,13 @@ export function OpenSpecDashboard({
                   <button type="button" className={styles.backToStart} onClick={() => setSelection(null)}>
                     <ChevronLeft size={12} /> {t('pipeline.openspec.start.back')}
                   </button>
-                  <h3>{t('pipeline.openspec.change.active')}: <strong>{selectedChange.changeId}</strong></h3>
+                  <h3>
+                    {t('pipeline.openspec.change.active')}: <strong>{selectedChange.changeId}</strong>
+                    {/* Junto al título: la antigüedad es lo primero que se
+                        quiere saber al mirar un cambio, y hasta ahora obligaba
+                        a salir a Git. */}
+                    <ChangeTimestampLabel labelKey="pipeline.openspec.stamp.created" stamp={selectedChange.createdAt} />
+                  </h3>
                   {/* El recorte visual es de tres líneas; el texto completo queda
                       accesible acá y sin recortar en el panel izquierdo. */}
                   <p title={selectedChange.intent ?? undefined}>
@@ -1275,12 +1282,24 @@ export function OpenSpecDashboard({
                 <CheckCircle2 size={38} />
                 <p>{t('pipeline.openspec.change.completed')}</p>
                 <h3>{selectedArchive.changeId}</h3>
-                <span>{selectedArchive.archivedAt ?? t('pipeline.openspec.dateUnknown')}</span>
-                <dl>
-                  <div><dt>{t('pipeline.openspec.completed.location')}</dt><dd>{selectedArchive.sourceRef}</dd></div>
-                  <div><dt>{t('pipeline.openspec.completed.specsUpdated')}</dt><dd>{t('pipeline.openspec.completed.preserved')}</dd></div>
-                  <div><dt>{t('pipeline.openspec.completed.activity')}</dt><dd>{t('pipeline.openspec.completed.preserved')}</dd></div>
-                </dl>
+                {/* Creación y archivado, ambas con hora: con la fecha sola no se
+                    podía saber cuánto duró el trabajo.
+
+                    Acá vivían tres filas que se retiraron. Dos eran texto
+                    constante —"Especificaciones principales" y "Actividad y
+                    evidencia" rendían siempre "Conservadas", sin consultar el
+                    cambio— y la tercera mostraba una ruta cuya fecha ya estaba
+                    impresa arriba. Una fila que siempre dice lo mismo enseña a
+                    saltear el bloque entero, incluido lo que sí varía. */}
+                <div className={styles.completedStamps}>
+                  <ChangeTimestampLabel labelKey="pipeline.openspec.stamp.created" stamp={selectedArchive.createdAt} />
+                  <ChangeTimestampLabel labelKey="pipeline.openspec.stamp.archived" stamp={selectedArchive.archivedOn} />
+                  {!selectedArchive.archivedOn && (
+                    <span className={styles.changeStamp}>
+                      <span>{t('pipeline.openspec.stamp.archived')}</span> {selectedArchive.archivedAt ?? t('pipeline.openspec.dateUnknown')}
+                    </span>
+                  )}
+                </div>
               </div>
               <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} />
               {/* Lo archivado es el registro de lo que se hizo, incluida la

@@ -12,7 +12,7 @@ import type {
   EconomyState,
   PipelineDiffItem,
 } from './pipeline-domain';
-import type { OpenSpecChangeArtifacts, OpenSpecChangeStatus, OpenSpecValidationStatus, TaskEvidence } from '@/types/pipeline';
+import type { ChangeTimestamp, OpenSpecChangeArtifacts, OpenSpecChangeStatus, OpenSpecValidationStatus, TaskEvidence } from '@/types/pipeline';
 
 export type PipelineSource = 'git' | 'openspec' | 'runtime';
 
@@ -34,6 +34,8 @@ export type OpenSpecChangeSummary = {
    * trae el cambio seleccionado; `null` para los demás.
    */
   status?: OpenSpecChangeStatus | null;
+  /** Cuándo se creó, con la fuente de la que salió la marca. */
+  createdAt?: ChangeTimestamp | null;
 };
 
 export type OpenSpecWorkspaceSnapshot = {
@@ -45,6 +47,8 @@ export type OpenSpecWorkspaceSnapshot = {
     sourceRef: string;
     /** Sólo el archivado seleccionado transporta contenido. */
     artifacts?: OpenSpecChangeSummary['artifacts'];
+    createdAt?: ChangeTimestamp | null;
+    archivedOn?: ChangeTimestamp | null;
   }>;
   specifications: Array<{
     specificationId: string;

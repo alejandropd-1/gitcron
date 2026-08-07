@@ -48,6 +48,74 @@ describe('RepoEvidenceReader', () => {
     expect(await defaultListOpenSpecChanges(root)).toEqual([]);
   });
 
+  describe('marcas de creación y archivado', () => {
+    async function readWith(history: {
+      created?: Record<string, string>;
+      archived?: Record<string, string>;
+    }, onDisk: string | null = null) {
+      await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-a'), { recursive: true });
+      await fs.mkdir(path.join(root, 'openspec', 'changes', 'archive', '2026-07-23-old-change'), { recursive: true });
+      const reader = new RepoEvidenceReader({
+        listOpenSpecChanges: async () => ['feature-a'],
+        currentBranch: async () => 'main',
+        mergedChanges: async () => [],
+        changeHistory: async () => ({
+          created: new Map(Object.entries(history.created ?? {})),
+          archived: new Map(Object.entries(history.archived ?? {})),
+        }),
+        changeDirCreatedAt: async () => onDisk,
+        now: () => '2026-08-06T20:00:00.000Z',
+      });
+      return reader.read(root, 'repo-1');
+    }
+
+    it('un cambio confirmado toma la marca del commit', async () => {
+      const snapshot = await readWith({ created: { 'feature-a': '2026-08-01T10:00:00-03:00' } }, '2026-01-01T00:00:00.000Z');
+      expect(snapshot.evidence.openSpecChanges?.[0].createdAt)
+        .toEqual({ at: '2026-08-01T10:00:00-03:00', source: 'commit' });
+    });
+
+    it('un cambio sin ningún commit cae al disco, declarado como tal', async () => {
+      // Un cambio recién creado no está confirmado, y es justo cuando la marca
+      // más sirve. Va rotulada para que no se lea como una fecha de Git.
+      const snapshot = await readWith({}, '2026-08-06T14:51:34.000Z');
+      expect(snapshot.evidence.openSpecChanges?.[0].createdAt)
+        .toEqual({ at: '2026-08-06T14:51:34.000Z', source: 'disk' });
+    });
+
+    it('sin Git y sin disco la marca queda nula, no inventada', async () => {
+      const snapshot = await readWith({}, null);
+      expect(snapshot.evidence.openSpecChanges?.[0].createdAt).toBeNull();
+    });
+
+    it('un archivado conserva su creación y suma la hora de archivado', async () => {
+      const snapshot = await readWith({
+        created: { 'old-change': '2026-07-20T09:00:00-03:00' },
+        archived: { 'old-change': '2026-07-23T18:30:00-03:00' },
+      });
+      const archived = snapshot.evidence.openSpecArchivedChanges?.[0];
+      expect(archived?.createdAt).toEqual({ at: '2026-07-20T09:00:00-03:00', source: 'commit' });
+      expect(archived?.archivedOn).toEqual({ at: '2026-07-23T18:30:00-03:00', source: 'commit' });
+      // El día del nombre de la carpeta se conserva: es lo que ordena la lista.
+      expect(archived?.archivedAt).toBe('2026-07-23');
+    });
+
+    it('un fallo leyendo la historia no rompe el snapshot', async () => {
+      await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-a'), { recursive: true });
+      const reader = new RepoEvidenceReader({
+        listOpenSpecChanges: async () => ['feature-a'],
+        currentBranch: async () => 'main',
+        mergedChanges: async () => [],
+        changeHistory: async () => { throw new Error('sin historia'); },
+        changeDirCreatedAt: async () => null,
+        now: () => '2026-08-06T20:00:00.000Z',
+      });
+      const snapshot = await reader.read(root, 'repo-1');
+      expect(snapshot.evidence.openSpecChanges?.[0].changeId).toBe('feature-a');
+      expect(snapshot.evidence.diagnostics.map((item) => item.code)).toContain('git.change-history-unavailable');
+    });
+  });
+
   it('reads tasks, reports and archives for one selected change', async () => {
     await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-a'), { recursive: true });
     await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-a', 'tasks.md'), '- [x] done\n- [ ] open\n');
@@ -86,6 +154,10 @@ describe('RepoEvidenceReader', () => {
       changeId: 'old-change',
       archivedAt: '2026-07-23',
       sourceRef: 'openspec/changes/archive/2026-07-23-old-change',
+      // Sin dependencia de historia no hay marcas, y quedan nulas en vez de
+      // ausentes: no saber cuándo pasó algo es un dato, no un hueco.
+      createdAt: null,
+      archivedOn: null,
     }]);
     expect(snapshot.evidence.openSpecSpecifications).toEqual([{
       specificationId: 'feature-a',

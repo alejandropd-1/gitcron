@@ -1,10 +1,12 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { stat } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { CheckRepoActions, simpleGit } from 'simple-git';
 import { withRepoLock } from '../git/repo-queue';
 import type {
   ChangeSelection,
+  ChangeTimestamp,
   DecisionRequest,
   OpenSpecArchivedChangeEvidence,
   OpenSpecChangeEvidence,
@@ -18,7 +20,7 @@ import type {
 import { selectPipelineChange } from './change-selection';
 import { parseAudit, parseMarkdownTasks } from './parsers';
 import { statusOpenSpecChangeWithCli, validateOpenSpecChangeWithCli } from './openspec-cli';
-import { safeListRepoDirectory, safeReadRepoFile } from './repo-paths';
+import { resolveContainedRepoPath, safeListRepoDirectory, safeReadRepoFile } from './repo-paths';
 
 const execFileAsync = promisify(execFile);
 
@@ -34,6 +36,18 @@ export interface RepoEvidenceReaderDependencies {
    * demás.
    */
   statusOpenSpecChange?(repoPath: string, changeId: string): Promise<OpenSpecChangeStatus>;
+  /**
+   * Marcas de creación y archivado de todos los cambios, resueltas juntas.
+   *
+   * Opcional: sin ella el snapshot simplemente no lleva marcas, que es el
+   * comportamiento anterior. Un repositorio sin historia tampoco falla.
+   */
+  changeHistory?(repoPath: string): Promise<ChangeHistoryStamps>;
+  /**
+   * Fecha de creación del directorio de un cambio, para los que todavía no
+   * tienen ningún commit. Es el único caso donde el disco decide.
+   */
+  changeDirCreatedAt?(repoPath: string, relative: string): Promise<string | null>;
   now(): string;
 }
 
@@ -106,6 +120,82 @@ function archivedChange(entry: string): OpenSpecArchivedChangeEvidence | null {
   };
 }
 
+/** Cuándo se creó y cuándo se archivó cada cambio, por identificador. */
+export interface ChangeHistoryStamps {
+  created: Map<string, string>;
+  archived: Map<string, string>;
+}
+
+const CHANGES_PREFIX = 'openspec/changes/';
+const ARCHIVE_PREFIX = `${CHANGES_PREFIX}archive/`;
+
+/**
+ * Marcas de creación y archivado de todos los cambios, en **una sola** pasada de
+ * historia.
+ *
+ * Recorriendo de más viejo a más nuevo, la primera aparición de un archivo bajo
+ * `openspec/changes/<slug>/` fecha la creación del cambio, y la primera bajo
+ * `openspec/changes/archive/<fecha>-<slug>/` fecha su archivado.
+ *
+ * `--no-renames` es lo que hace que el archivado aparezca. Con la detección
+ * activa, mover un cambio a `archive/` se reconoce como `R100` y
+ * `--diff-filter=A` no cuenta un renombre como alta, así que la marca de
+ * archivado salía vacía. Desactivándola, el movimiento se ve como el alta del
+ * destino, que es justo lo que hace falta.
+ *
+ * Se resuelve todo junto y no con una consulta por cambio: son dos invocaciones
+ * por cambio sobre decenas de archivados, contra una sola para el repositorio
+ * entero.
+ */
+export function parseChangeHistory(raw: string): ChangeHistoryStamps {
+  const created = new Map<string, string>();
+  const archived = new Map<string, string>();
+  let stamp: string | null = null;
+  for (const line of raw.split(/\r?\n/)) {
+    if (!line) continue;
+    if (line.startsWith('\0')) { stamp = line.slice(1); continue; }
+    if (!stamp || !line.startsWith(CHANGES_PREFIX)) continue;
+    if (line.startsWith(ARCHIVE_PREFIX)) {
+      const [folder] = line.slice(ARCHIVE_PREFIX.length).split('/');
+      const id = archivedChangeId(folder ?? '');
+      if (id && !archived.has(id)) archived.set(id, stamp);
+      continue;
+    }
+    const [id] = line.slice(CHANGES_PREFIX.length).split('/');
+    if (id && !created.has(id)) created.set(id, stamp);
+  }
+  return { created, archived };
+}
+
+/**
+ * Fecha de creación del directorio en disco.
+ *
+ * Sólo se usa para un cambio sin ningún commit. La marca no sobrevive al
+ * archivado —el directorio bajo `archive/` se crea nuevo— ni a un clon, así que
+ * no sirve como fuente general; para lo todavía no confirmado es lo único que
+ * hay.
+ */
+async function defaultChangeDirCreatedAt(repoPath: string, relative: string): Promise<string | null> {
+  try {
+    const resolved = await resolveContainedRepoPath(repoPath, relative);
+    const stats = await stat(resolved);
+    return stats.birthtime.toISOString();
+  } catch {
+    return null;
+  }
+}
+
+async function defaultChangeHistory(repoPath: string): Promise<ChangeHistoryStamps> {
+  return withRepoLock(repoPath, async () => {
+    const git = simpleGit(repoPath, { timeout: { block: 10_000 } });
+    const raw = await git.raw([
+      'log', '--diff-filter=A', '--no-renames', '--name-only', '--reverse',
+      '--format=%x00%aI', '--', 'openspec/changes',
+    ]);
+    return parseChangeHistory(raw);
+  });
+}
+
 function firstWhyParagraph(markdown: string): string | null {
   const section = /^## Why\s*$([\s\S]*?)(?=^##\s|(?![\s\S]))/im.exec(markdown)?.[1] ?? '';
   const paragraph = section
@@ -126,8 +216,30 @@ export class RepoEvidenceReader {
     mergedChanges: defaultMergedChanges,
     validateOpenSpecChange: defaultValidateOpenSpecChange,
     statusOpenSpecChange: statusOpenSpecChangeWithCli,
+    changeHistory: defaultChangeHistory,
+    changeDirCreatedAt: defaultChangeDirCreatedAt,
     now: () => new Date().toISOString(),
   }) {}
+
+  /**
+   * Cuándo se creó un cambio activo.
+   *
+   * El commit manda; el disco sólo aparece mientras no haya ninguno, y se
+   * declara en el propio dato. Un cambio recién creado no está confirmado, así
+   * que sin el respaldo la pantalla no mostraría nada justo cuando la marca es
+   * más útil.
+   */
+  private async resolveCreatedAt(
+    repoPath: string,
+    changeId: string,
+    changeRoot: string,
+    history: ChangeHistoryStamps,
+  ): Promise<ChangeTimestamp | null> {
+    const committed = history.created.get(changeId);
+    if (committed) return { at: committed, source: 'commit' };
+    const onDisk = await this.dependencies.changeDirCreatedAt?.(repoPath, changeRoot) ?? null;
+    return onDisk ? { at: onDisk, source: 'disk' } : null;
+  }
 
   /**
    * Lee el `spec.md` de cada capacidad tocada por el cambio.
@@ -178,6 +290,15 @@ export class RepoEvidenceReader {
       : autoSelection;
 
     const safeActiveChanges = activeChanges.filter((changeId) => /^[a-z0-9][a-z0-9-]*$/.test(changeId));
+    // Una sola pasada de historia para todos los cambios, activos y archivados.
+    // Si falla, el snapshot va sin marcas: no tenerlas degrada la pantalla, no
+    // la rompe, y no justifica perder el resto de la evidencia.
+    let history: ChangeHistoryStamps = { created: new Map(), archived: new Map() };
+    try {
+      history = await this.dependencies.changeHistory?.(repoPath) ?? history;
+    } catch {
+      diagnostics.push(issue('git.change-history-unavailable', 'No se pudo leer cuándo se crearon los cambios.', 'git'));
+    }
     const openSpecChanges: OpenSpecChangeEvidence[] = [];
     for (const changeId of safeActiveChanges) {
       const changeRoot = `openspec/changes/${changeId}`;
@@ -233,6 +354,9 @@ export class RepoEvidenceReader {
           }
           : null,
         status,
+        // Git primero. El disco sólo cubre el cambio que todavía no se confirmó,
+        // y va marcado como tal para que no se lea como una fecha confirmada.
+        createdAt: await this.resolveCreatedAt(repoPath, changeId, changeRoot, history),
       });
     }
 
@@ -251,6 +375,19 @@ export class RepoEvidenceReader {
       openSpecArchivedChanges = archiveEntries
         .map(archivedChange)
         .filter((entry): entry is OpenSpecArchivedChangeEvidence => entry !== null)
+        // La creación sigue siendo alcanzable después de archivar porque la
+        // pasada de historia la fechó por su ruta original, que existió antes
+        // del movimiento. El orden sigue saliendo de `archivedAt`, que es el día
+        // del nombre de la carpeta y no cambia.
+        .map((entry) => {
+          const created = history.created.get(entry.changeId);
+          const archivedOn = history.archived.get(entry.changeId);
+          return {
+            ...entry,
+            createdAt: created ? { at: created, source: 'commit' as const } : null,
+            archivedOn: archivedOn ? { at: archivedOn, source: 'commit' as const } : null,
+          };
+        })
         .sort((a, b) => (b.archivedAt ?? '').localeCompare(a.archivedAt ?? ''));
       // El archivado seleccionado transporta sus artefactos: lo archivado es el
       // registro de lo que se hizo, y revisarlo no debería obligar a salir de la

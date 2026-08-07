@@ -19,6 +19,22 @@ export interface TaskEvidence {
 
 export type OpenSpecValidationStatus = 'passed' | 'failed' | 'unknown';
 
+/**
+ * Momento de un hito de un cambio, con la fuente de la que salió.
+ *
+ * `commit` es la fecha del commit que lo produjo; `disk` es la fecha de creación
+ * del directorio, y sólo aparece mientras el cambio no esté confirmado.
+ *
+ * La fuente viaja con el dato en vez de deducirse porque las dos afirman cosas
+ * distintas y quien lee tiene que poder distinguirlas: la de Git es reproducible
+ * en cualquier clon, la del disco se pierde al archivar y al clonar. Además el
+ * paso de una a otra es información: significa que el trabajo se confirmó.
+ */
+export interface ChangeTimestamp {
+  at: string;
+  source: 'commit' | 'disk';
+}
+
 /** Evidencia durable de un change activo, leída sólo desde el scaffold OpenSpec. */
 export interface OpenSpecChangeEvidence {
   changeId: string;
@@ -45,6 +61,11 @@ export interface OpenSpecChangeEvidence {
    * ellos (mismo criterio que `artifacts` y `validation`).
    */
   status?: OpenSpecChangeStatus | null;
+  /**
+   * Cuándo se creó el cambio. Opcional para no romper snapshots viejos; `null`
+   * cuando no se pudo determinar ni por Git ni por disco.
+   */
+  createdAt?: ChangeTimestamp | null;
 }
 
 export interface OpenSpecChangeArtifacts {
@@ -96,8 +117,17 @@ export interface OpenSpecChangeStatus {
 
 export interface OpenSpecArchivedChangeEvidence {
   changeId: string;
+  /**
+   * Fecha del nombre de la carpeta, `YYYY-MM-DD` y sin hora. Ordena la lista de
+   * archivados, así que no se reemplaza por la marca con hora: son dos datos con
+   * usos distintos.
+   */
   archivedAt: string | null;
   sourceRef: string;
+  /** Cuándo se creó el cambio, alcanzable aunque hoy esté archivado. */
+  createdAt?: ChangeTimestamp | null;
+  /** Cuándo se archivó, con hora. Distinto de `archivedAt`, que sólo trae el día. */
+  archivedOn?: ChangeTimestamp | null;
   /**
    * Contenido de los artefactos, sólo para el archivado seleccionado.
    *

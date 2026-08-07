@@ -53,4 +53,4 @@
 - [x] 6.4 `pnpm exec eslint` limpio sobre los nueve archivos tocados
 - [x] 6.5 `openspec validate show-change-timestamps --strict` válido
 - [x] 6.6 Reporte en `docs/reports/2026-08-06-show-change-timestamps.md`
-- [ ] 6.7 Ale valida en la aplicación las dos pantallas: cambio activo y cambio archivado
+- [x] 6.7 Ale valida en la aplicación las dos pantallas: cambio activo y cambio archivado

@@ -24,10 +24,10 @@
 
 ## 2. Evidencia
 
-- [ ] 2.1 Distinguir en el lector "sin `openspec/`" de "con `openspec/`"
-- [ ] 2.2 Detectar qué directorios de herramienta existen y cuáles tienen skills de OpenSpec
-- [ ] 2.3 Transportar ambas cosas en el snapshot, sin que la vista las infiera de contadores
-- [ ] 2.4 Que una herramienta desconocida no se reporte como faltante: no reconocerla deja el panel como
+- [x] 2.1 Distinguir en el lector "sin `openspec/`" de "con `openspec/`" con `openSpecPresent`
+- [x] 2.2 Detectar qué directorios de herramienta existen y cuáles tienen skills, en `openspec-tooling.ts`
+- [x] 2.3 Transportar ambas cosas en el snapshot con `openSpecPresent` y `openSpecTools`
+- [x] 2.4 Que una herramienta desconocida no se reporte como faltante: no reconocerla deja el panel como
       hoy, y eso es preferible a una afirmación falsa
 
 ## 3. Panel
@@ -49,8 +49,8 @@
 ## 5. Tests
 
 - [ ] 5.1 Prueba del lector: repositorio sin `openspec/` → estado distinguible
-- [ ] 5.2 Prueba del lector: herramienta presente sin skills → pendiente de configurar
-- [ ] 5.3 Prueba del lector: todo configurado → no reclama nada
+- [x] 5.2 Prueba: herramienta presente sin skills → pendiente de configurar
+- [x] 5.3 Prueba: todo configurado → no reclama nada
 - [ ] 5.4 Prueba del panel: empezar un cambio sin inicializar declara y no bloquea
 - [ ] 5.5 Prueba del panel: inicializar desde el aviso conserva lo escrito
 - [ ] 5.6 Prueba: nada se escribe sin la acción humana

@@ -13,6 +13,7 @@ import type {
   OpenSpecChangeStatus,
   OpenSpecDeltaSpec,
   OpenSpecSpecificationEvidence,
+  OpenSpecToolEvidence,
   OpenSpecValidationStatus,
   PipelineDiagnostic,
   PipelineEvidence,
@@ -21,6 +22,12 @@ import { selectPipelineChange } from './change-selection';
 import { parseAudit, parseMarkdownTasks } from './parsers';
 import { statusOpenSpecChangeWithCli, validateOpenSpecChangeWithCli } from './openspec-cli';
 import { resolveContainedRepoPath, safeListRepoDirectory, safeReadRepoFile } from './repo-paths';
+import {
+  isOpenSpecSkillEntry,
+  OPENSPEC_TOOL_DIRECTORIES,
+  resolveToolStates,
+  type ToolPresence,
+} from './openspec-tooling';
 
 const execFileAsync = promisify(execFile);
 
@@ -118,6 +125,31 @@ function archivedChange(entry: string): OpenSpecArchivedChangeEvidence | null {
     archivedAt: match[1],
     sourceRef: `openspec/changes/archive/${entry}`,
   };
+}
+
+/**
+ * Estado de OpenSpec en el repositorio: si está, y qué herramientas lo tienen
+ * configurado.
+ *
+ * Lee del disco y no del CLI porque no hay comando que informe esto: `openspec
+ * init` lo sabe, pero lo aplica configurando, y correrlo para averiguar el
+ * estado escribiría archivos.
+ */
+async function readOpenSpecTooling(repoPath: string): Promise<{
+  present: boolean;
+  tools: OpenSpecToolEvidence[];
+}> {
+  const present = (await safeListRepoDirectory(repoPath, 'openspec')).length > 0;
+  const presence = new Map<string, ToolPresence>();
+  for (const tool of OPENSPEC_TOOL_DIRECTORIES) {
+    const entries = await safeListRepoDirectory(repoPath, tool.directory);
+    if (entries.length === 0) continue;
+    // Presente pero sin skills es el estado que interesa mostrar: la herramienta
+    // se usa acá y su ejecutor no sabe que el canal existe.
+    const skills = await safeListRepoDirectory(repoPath, `${tool.directory}/skills`);
+    presence.set(tool.toolId, { present: true, configured: skills.some(isOpenSpecSkillEntry) });
+  }
+  return { present, tools: resolveToolStates(presence) };
 }
 
 /** Cuándo se creó y cuándo se archivó cada cambio, por identificador. */
@@ -299,6 +331,15 @@ export class RepoEvidenceReader {
     } catch {
       diagnostics.push(issue('git.change-history-unavailable', 'No se pudo leer cuándo se crearon los cambios.', 'git'));
     }
+
+    // Un fallo acá degrada la pantalla y no la rompe: sin este dato el panel
+    // queda como estaba, que es preferible a perder el resto de la evidencia.
+    let tooling: { present: boolean; tools: OpenSpecToolEvidence[] } = { present: false, tools: [] };
+    try {
+      tooling = await readOpenSpecTooling(repoPath);
+    } catch {
+      diagnostics.push(issue('openspec.tooling-unavailable', 'No se pudo leer qué herramientas usa el repositorio.', 'openspec'));
+    }
     const openSpecChanges: OpenSpecChangeEvidence[] = [];
     for (const changeId of safeActiveChanges) {
       const changeRoot = `openspec/changes/${changeId}`;
@@ -474,6 +515,8 @@ export class RepoEvidenceReader {
         openSpecChanges,
         openSpecArchivedChanges,
         openSpecSpecifications,
+        openSpecPresent: tooling.present,
+        openSpecTools: tooling.tools,
       },
     };
   }

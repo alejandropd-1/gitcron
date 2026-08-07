@@ -139,6 +139,21 @@ export interface OpenSpecArchivedChangeEvidence {
   artifacts?: OpenSpecChangeArtifacts | null;
 }
 
+/**
+ * Una herramienta presente en el repositorio y si tiene OpenSpec configurado.
+ *
+ * `configured` en `false` es el estado que este dato existe para mostrar: la
+ * herramienta se usa en el repositorio pero no tiene sus skills instaladas, así
+ * que su ejecutor no sabe que el canal de instrucciones existe. Pasó con
+ * Antigravity en `odontoPau` y nadie lo vio hasta que un artefacto salió mal.
+ */
+export interface OpenSpecToolEvidence {
+  toolId: string;
+  label: string;
+  directory: string;
+  configured: boolean;
+}
+
 export interface OpenSpecSpecificationEvidence {
   specificationId: string;
   requirements: number | null;
@@ -216,6 +231,19 @@ export interface PipelineEvidence {
   openSpecChanges?: OpenSpecChangeEvidence[];
   openSpecArchivedChanges?: OpenSpecArchivedChangeEvidence[];
   openSpecSpecifications?: OpenSpecSpecificationEvidence[];
+  /**
+   * Si el repositorio tiene `openspec/`.
+   *
+   * Distinto de «no hay cambios activos»: hoy los dos estados coinciden en los
+   * contadores, y uno se resuelve creando un cambio mientras el otro no se puede
+   * resolver desde el panel sin inicializar primero.
+   */
+  openSpecPresent?: boolean;
+  /**
+   * Herramientas presentes en el repositorio, con su estado de configuración.
+   * Sólo las que se reconocen: una desconocida no se reporta como faltante.
+   */
+  openSpecTools?: OpenSpecToolEvidence[];
 }
 
 export interface PipelineState extends PipelineEvidence {

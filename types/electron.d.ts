@@ -452,6 +452,17 @@ interface ElectronAPI {
     repoPath: string,
     specificationId: string,
   ) => Promise<{ success: true; content: string } | { success: false; error: string }>;
+  /**
+   * Inicializa OpenSpec en el repositorio. `needsTool` distingue «no encontró
+   * ninguna herramienta que configurar» de un fallo: en ese caso hay que elegir.
+   */
+  pipelineInitOpenSpec: (
+    repoPath: string,
+    tools?: string[],
+  ) => Promise<
+    | { success: true; needsTool: false }
+    | { success: false; error: string; needsTool: boolean }
+  >;
   onPipelineSnapshotUpdated: (cb: (repoPath: string, snapshot: PipelineState) => void) => () => void;
   pipelineRuntime: {
     discover: (repoPath: string) => Promise<GitResult<RuntimeDiscoveryEntry[]>>;

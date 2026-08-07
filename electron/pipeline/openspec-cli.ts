@@ -29,6 +29,70 @@ const CLI = process.platform === 'win32'
 export const CHANGE_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 /**
+ * Alfabeto de una herramienta de OpenSpec.
+ *
+ * Existe por la misma razón que `CHANGE_ID_PATTERN`: en Windows el CLI corre con
+ * `shell: true`, así que un argumento libre podría llevar separadores de comando.
+ * Con esto, el único valor variable que se le pasa a `init` queda acotado a
+ * letras, dígitos y guiones.
+ */
+export const TOOL_ID_PATTERN = /^[a-z][a-z0-9-]*$/;
+
+export interface InitOpenSpecResult {
+  ok: boolean;
+  /** Motivo real informado por el CLI. `null` sólo cuando inicializó bien. */
+  error: string | null;
+  /** El CLI no encontró ninguna herramienta y hay que elegir una. */
+  needsTool: boolean;
+}
+
+/**
+ * Inicializa OpenSpec en un repositorio.
+ *
+ * Sin `tools`, el CLI **detecta** las herramientas presentes por sus directorios
+ * y configura todas: está comprobado que con `.codex`, `.agent` y `.claude` en el
+ * mismo repositorio configuró las tres. Por eso el panel no replica la lista de
+ * treinta herramientas: sólo hace falta elegir cuando no hay ninguna que
+ * detectar, y ese caso se distingue acá con `needsTool`.
+ *
+ * Es incremental y no destructivo: en un repositorio ya inicializado agrega la
+ * herramienta que falte, y **no pisa** `openspec/config.yaml` —comprobado por
+ * hash sobre un repositorio real—.
+ */
+export async function initOpenSpecWithCli(
+  repoPath: string,
+  tools?: string[],
+): Promise<InitOpenSpecResult> {
+  const requested = tools?.filter((tool) => TOOL_ID_PATTERN.test(tool)) ?? [];
+  if (tools && requested.length !== tools.length) {
+    return { ok: false, error: 'invalid-tool-id', needsTool: false };
+  }
+  try {
+    await execFileAsync(
+      CLI.command,
+      requested.length > 0 ? ['init', '--tools', requested.join(',')] : ['init'],
+      {
+        cwd: repoPath,
+        timeout: 120_000,
+        windowsHide: true,
+        shell: CLI.shell,
+        maxBuffer: 4 * 1024 * 1024,
+        env: { ...process.env, OPENSPEC_TELEMETRY_DISABLED: '1', DO_NOT_TRACK: '1' },
+      },
+    );
+    return { ok: true, error: null, needsTool: false };
+  } catch (error) {
+    const detail = error as { stderr?: unknown; stdout?: unknown; message?: unknown };
+    const reason = [detail.stderr, detail.stdout, detail.message]
+      .map((part) => (typeof part === 'string' ? part.trim() : ''))
+      .find((part) => part.length > 0) ?? 'unknown';
+    // «No tools detected» no es un fallo del comando: es que hay que elegir. Se
+    // distingue para que el panel pueda pedirlo en vez de mostrar un error.
+    return { ok: false, error: reason, needsTool: /no tools detected/i.test(reason) };
+  }
+}
+
+/**
  * Valida un change con `--strict`.
  *
  * `failed` sólo se afirma cuando el CLI corrió y salió con código numérico. Si

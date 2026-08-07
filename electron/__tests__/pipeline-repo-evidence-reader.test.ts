@@ -116,6 +116,48 @@ describe('RepoEvidenceReader', () => {
     });
   });
 
+  describe('estado de OpenSpec en el repositorio', () => {
+    /**
+     * Sin `openspec/` y con OpenSpec vacío se ven igual en los contadores
+     * —cuatro ceros— y piden respuestas distintas: uno se resuelve creando un
+     * cambio y el otro no se puede resolver desde el panel sin inicializar. El
+     * lector los distingue para que la vista no tenga que deducirlo.
+     */
+    function readerFor(root: string) {
+      return new RepoEvidenceReader({
+        listOpenSpecChanges: async () => [],
+        currentBranch: async () => 'main',
+        mergedChanges: async () => [],
+        now: () => '2026-08-07T20:00:00.000Z',
+      }).read(root, 'repo-1');
+    }
+
+    it('un repositorio sin openspec/ queda distinguible', async () => {
+      const snapshot = await readerFor(root);
+      expect(snapshot.evidence.openSpecPresent).toBe(false);
+      expect(snapshot.evidence.openSpecTools).toEqual([]);
+    });
+
+    it('con openspec/ lo declara presente', async () => {
+      await fs.mkdir(path.join(root, 'openspec', 'changes'), { recursive: true });
+      const snapshot = await readerFor(root);
+      expect(snapshot.evidence.openSpecPresent).toBe(true);
+    });
+
+    it('una herramienta presente sin skills queda sin configurar', async () => {
+      // El caso de `odontoPau`: `.codex` con skills y `.agent` sin ninguna, en un
+      // repositorio por lo demás correctamente inicializado.
+      await fs.mkdir(path.join(root, 'openspec', 'changes'), { recursive: true });
+      await fs.mkdir(path.join(root, '.codex', 'skills', 'openspec-propose'), { recursive: true });
+      await fs.mkdir(path.join(root, '.agent', 'workflows'), { recursive: true });
+      const snapshot = await readerFor(root);
+      expect(snapshot.evidence.openSpecTools).toEqual([
+        { toolId: 'codex', label: 'Codex', directory: '.codex', configured: true },
+        { toolId: 'antigravity', label: 'Antigravity', directory: '.agent', configured: false },
+      ]);
+    });
+  });
+
   it('reads tasks, reports and archives for one selected change', async () => {
     await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-a'), { recursive: true });
     await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-a', 'tasks.md'), '- [x] done\n- [ ] open\n');

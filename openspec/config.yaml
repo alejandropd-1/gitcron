@@ -35,13 +35,19 @@ context: |
 
   Rama por cambio: todo cambio se trabaja en `change/<slug>`, con el mismo slug del cambio. Al abrirlo,
   antes de escribir ningún artefacto, crear la rama y pararse en ella con
-  `git checkout -b change/<slug>`. Si la rama ya existe, informarlo y no reutilizarla: cambiarse a una
-  rama con trabajo de otro cambio arrastra sus commits, y eso lo decide una persona, no el ejecutor.
+  `git checkout -b change/<slug>`. Si ya existe la rama de este mismo cambio, pararse en ella con
+  `git checkout change/<slug>`: es trabajo propio que se retoma, y ése es el caso normal al reabrir un
+  cambio en curso. Si la que existe es la rama de otro cambio, informarlo y parar: cambiarse a ella
+  arrastra sus commits, y eso lo decide una persona, no el ejecutor.
   Esto vale igual si el cambio se creó desde la terminal con `openspec new change`, que es el caso
   habitual; la convención no depende de haber pasado por ninguna pantalla. El prefijo `change/`
   distingue estas ramas de `imagined/*` y `flight/*`, que ya significan otra cosa acá. Crear la rama es
   parte de abrir el cambio y no algo que haya que pedir: es local, reversible y no publica nada. Lo que
   sí se informa es que se creó y con qué nombre.
+  El cambio se trabaja en su rama hasta el archivado inclusive. Fusionar a `main` y borrar la rama son
+  acciones humanas, a mano: el ejecutor no fusiona, no borra la rama y no se vuelve a `main` por su
+  cuenta. La rama no queda sin salida —la salida es el merge de una persona—, igual que ya pasa con los
+  commits.
 
   Método: la base es OpenSpec. Sus instrucciones son el método y este proyecto no las duplica. Ninguna
   regla se escribe sin aprobación explícita —se puede proponer, no escribir—, y una regla propia existe

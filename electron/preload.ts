@@ -269,6 +269,12 @@ contextBridge.exposeInMainWorld('api', {
    */
   pipelineReadSpecification: (repoPath: string, specificationId: string) =>
     ipcRenderer.invoke('pipeline:read-specification', repoPath, specificationId),
+  /**
+   * Inicializa OpenSpec en el repositorio. Escribe, así que sólo se invoca
+   * detrás de una acción humana. Sin `tools`, el CLI detecta las presentes.
+   */
+  pipelineInitOpenSpec: (repoPath: string, tools?: string[]) =>
+    ipcRenderer.invoke('pipeline:init-openspec', repoPath, tools),
   /** El historial cambió: hay commits nuevos hechos por la aplicación. */
   onRepoCommitsChanged: (cb: (repoPath: string) => void) => {
     const handler = (_e: unknown, payload: { repoPath: string }) => cb(payload.repoPath);

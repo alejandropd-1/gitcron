@@ -291,6 +291,17 @@ export function OpenSpecDashboard({
    * y el estado de las herramientas se consulta cuando hace falta.
    */
   const [railTab, setRailTab] = useState<'activity' | 'tools'>('activity');
+  const [initBusy, setInitBusy] = useState(false);
+  /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
+  const [initError, setInitError] = useState<string | null>(null);
+  /**
+   * El CLI no pudo detectar ninguna herramienta y hay que elegir una.
+   *
+   * Se guarda aparte del error porque no es un fallo: es el único caso en que el
+   * comando exige `--tools`, y la respuesta que pide es una elección, no leer un
+   * mensaje.
+   */
+  const [initNeedsTool, setInitNeedsTool] = useState(false);
   /**
    * Preferencia del sistema por menos movimiento.
    *
@@ -592,6 +603,41 @@ export function OpenSpecDashboard({
       })
       .catch((error: unknown) => setArchiveError(error instanceof Error ? error.message : 'unknown'))
       .finally(() => setArchiveBusy(false));
+  };
+
+  /**
+   * Inicializa OpenSpec en el repositorio abierto.
+   *
+   * No pasa por ninguna sesión de runtime: el proceso principal invoca el CLI,
+   * por el mismo motivo que el archivado. Un agente puede no tener el comando y
+   * devolver éxito sin haber hecho nada.
+   *
+   * La evidencia se relee al terminar: lo que el panel muestra después sale del
+   * disco, no de suponer que el comando hizo lo que dijo.
+   */
+  const runOpenSpecInit = (tools?: string[]) => {
+    const api = typeof window !== 'undefined' ? window.api : undefined;
+    if (!api?.pipelineInitOpenSpec || initBusy) return;
+    setInitBusy(true);
+    setInitError(null);
+    void api.pipelineInitOpenSpec(repoPath, tools)
+      .then((result) => {
+        if (result?.success) {
+          setInitNeedsTool(false);
+          onRefresh?.();
+          return;
+        }
+        // «No encontró herramientas» no es un fallo: es el único caso en que hay
+        // que elegir a mano. Mostrarlo como error dejaría a la persona leyendo
+        // un mensaje del CLI sin nada que hacer con él.
+        if (result?.needsTool) {
+          setInitNeedsTool(true);
+          return;
+        }
+        setInitError(result?.error || 'unknown');
+      })
+      .catch((error: unknown) => setInitError(error instanceof Error ? error.message : 'unknown'))
+      .finally(() => setInitBusy(false));
   };
 
   const selectChange = (changeId: string) => {
@@ -1422,13 +1468,24 @@ export function OpenSpecDashboard({
                 )}
               </div>
               {flowMode && (
-                <PipelineNewChangeFlow
-                  repoPath={repoPath}
-                  projection={projection}
-                  initialMode={flowMode}
-                  blockedByFixture={fixtureActive}
-                  onStarted={() => setCenterTab('activity')}
-                />
+                <>
+                  {/* Con un cambio abierto no hay pantalla de entrada que lo
+                      haya declarado, y empezar otro cambio desde acá arranca
+                      igual de a ciegas. El aviso acompaña al formulario, no a
+                      una pantalla: lo que falta se sabe antes de escribir. */}
+                  <OpenSpecReadiness
+                    present={openSpecPresent}
+                    tools={openSpecTools}
+                    onShowDetail={rightOpen ? () => setRailTab('tools') : undefined}
+                  />
+                  <PipelineNewChangeFlow
+                    repoPath={repoPath}
+                    projection={projection}
+                    initialMode={flowMode}
+                    blockedByFixture={fixtureActive}
+                    onStarted={() => setCenterTab('activity')}
+                  />
+                </>
               )}
             </section>
           ) : (
@@ -1446,10 +1503,12 @@ export function OpenSpecDashboard({
               {/* Va antes de la guía: si al repositorio le falta algo para que
                   el método funcione, eso se sabe antes de elegir por dónde
                   seguir, no después de haber empezado. */}
+              {/* La salida sólo se ofrece si hay a dónde llevar: con el rail
+                  cerrado, el botón abriría una solapa que nadie ve. */}
               <OpenSpecReadiness
                 present={openSpecPresent}
                 tools={openSpecTools}
-                onShowDetail={() => setRailTab('tools')}
+                onShowDetail={rightOpen ? () => setRailTab('tools') : undefined}
               />
 
               <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: () => setFlowMode(null) } : undefined} />
@@ -1631,7 +1690,15 @@ export function OpenSpecDashboard({
             </div>
 
             {railTab === 'tools' ? (
-              <OpenSpecToolList present={openSpecPresent} tools={openSpecTools} />
+              <OpenSpecToolList
+                present={openSpecPresent}
+                tools={openSpecTools}
+                busy={initBusy}
+                error={initError}
+                needsTool={initNeedsTool}
+                onInitialize={() => runOpenSpecInit()}
+                onInitializeWith={(toolIds) => runOpenSpecInit(toolIds)}
+              />
             ) : (
             <>
             {/* Sin `h3` con el mismo texto: la solapa activa ya dice qué se está

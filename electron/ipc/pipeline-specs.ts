@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import { PipelineService } from '../pipeline/pipeline-service';
+import { initOpenSpecWithCli } from '../pipeline/openspec-cli';
 import { safeReadRepoFile } from '../pipeline/repo-paths';
 import { errMsg } from './shared';
 
@@ -71,7 +72,43 @@ export async function readSpecificationContent(
   }
 }
 
+/**
+ * Inicializa OpenSpec en el repositorio abierto.
+ *
+ * Escribe, así que va detrás de una acción humana explícita en el panel. Está
+ * medido que el comando no pisa `openspec/config.yaml` y que es incremental —en
+ * un repositorio ya inicializado sólo agrega la herramienta que falta—, pero eso
+ * lo hace seguro, no invisible: lo que se va a escribir se enumera antes.
+ *
+ * Sin herramientas, el CLI las detecta por los directorios del repositorio. La
+ * lista sólo se pasa cuando el comando no encontró ninguna y la persona eligió.
+ */
+export async function initOpenSpec(
+  repoPath: unknown,
+  tools: unknown,
+  resolveBinding: (repoPath: string) => Promise<{ canonicalPath: string }>,
+) {
+  if (!validRepoPath(repoPath)) return { success: false, error: 'invalid_repo_path', needsTool: false };
+  // Sólo un arreglo de cadenas o nada: cualquier otra cosa se rechaza antes de
+  // llegar al CLI, que en Windows corre con shell.
+  if (tools !== undefined && (!Array.isArray(tools) || tools.some((tool) => typeof tool !== 'string'))) {
+    return { success: false, error: 'invalid_tools', needsTool: false };
+  }
+  try {
+    const { canonicalPath } = await resolveBinding(repoPath);
+    const result = await initOpenSpecWithCli(canonicalPath, tools as string[] | undefined);
+    return result.ok
+      ? { success: true, needsTool: false }
+      : { success: false, error: result.error, needsTool: result.needsTool };
+  } catch (error) {
+    return { success: false, error: errMsg(error), needsTool: false };
+  }
+}
+
 export function registerPipelineSpecHandlers(service = new PipelineService()): void {
+  ipcMain.handle('pipeline:init-openspec', async (_event, repoPath: unknown, tools: unknown) =>
+    initOpenSpec(repoPath, tools, (path) => service.resolveBinding(path)));
+
   ipcMain.handle('pipeline:read-specification', async (_event, repoPath: unknown, specificationId: unknown) => {
     if (!validRepoPath(repoPath)) return { success: false, error: 'invalid_repo_path' };
     return readSpecificationContent(repoPath, specificationId, (path) => service.resolveBinding(path));

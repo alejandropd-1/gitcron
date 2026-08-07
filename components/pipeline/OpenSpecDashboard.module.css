@@ -1273,7 +1273,7 @@
 .readiness {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--sp-4);
   width: 100%;
   margin-top: var(--sp-4);
   padding: var(--sp-2) var(--sp-4);
@@ -1284,10 +1284,15 @@
   color: var(--os-amber, #d8a657);
   text-align: left;
 }
+/* El icono no se encoge: es flex y sin esto el texto largo lo aplastaba a un
+   óvalo. */
+.readiness > svg { flex: 0 0 auto; }
 .readiness > p {
   flex: 1 1 auto;
   min-width: 0;
-  margin: 0;
+  /* Aire propio antes del botón: el `gap` no alcanza cuando el párrafo llega a
+     tres líneas y el texto queda pegado al control. */
+  margin: 0 var(--sp-2) 0 0;
   color: var(--os-muted);
   font: 0.68rem/1.5 var(--font-mono), ui-monospace, monospace;
 }
@@ -1349,6 +1354,80 @@
 .readinessList strong { color: #d4e0eb; font-weight: 650; }
 .readinessList code { color: var(--os-muted); font-size: 0.62rem; }
 .readinessList em { font-style: normal; }
+/* Escribe en el repositorio, así que se ve como acción y no como enlace. */
+.railInitAction {
+  width: 100%;
+  margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.3rem;
+  background: rgba(216, 166, 87, 0.12);
+  color: var(--os-amber, #d8a657);
+  cursor: pointer;
+  font: 650 0.66rem var(--font-mono), ui-monospace, monospace;
+}
+.railInitAction:hover:not(:disabled) { background: rgba(216, 166, 87, 0.2); }
+.railInitAction:disabled { cursor: default; opacity: 0.6; }
+.railInitAction:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+/* Elegir herramienta cuando el CLI no detectó ninguna. Se ve como pregunta y no
+   como error: es el único caso en que `openspec init` exige `--tools`, y lo que
+   pide es una elección. */
+.railChoose {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  border: 0;
+}
+.railChoose > legend {
+  padding: 0;
+  color: var(--os-muted);
+  font: 650 0.62rem var(--font-mono), ui-monospace, monospace;
+}
+.railChoose > p {
+  margin: 0;
+  color: var(--os-amber, #d8a657);
+  font: 0.64rem/1.5 var(--font-mono), ui-monospace, monospace;
+}
+/* Dieciocho herramientas no caben en el rail sin comerse la vista entera: la
+   lista scrollea sola y el botón queda siempre alcanzable. */
+.railChooseList {
+  display: grid;
+  gap: 0;
+  max-height: 14rem;
+  margin: 0;
+  padding: var(--sp-1) 0;
+  overflow-y: auto;
+  border: 1px solid var(--os-border);
+  border-radius: 0.3rem;
+  background: var(--os-surface);
+  list-style: none;
+}
+.railChooseList label {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  color: var(--os-muted);
+  cursor: pointer;
+  font: 0.66rem var(--font-mono), ui-monospace, monospace;
+}
+.railChooseList label:hover { background: rgba(216, 166, 87, 0.08); }
+.railChooseList strong { color: #d4e0eb; font-weight: 650; }
+.railChooseList code { color: var(--os-muted); font-size: 0.62rem; }
+.railChooseList input:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.railChoose:disabled .railChooseList { opacity: 0.6; }
+/* El botón ya trae su margen superior de `.railInitAction`, que acá lo duplica
+   con el `gap` de la grilla. */
+.railChoose .railInitAction { margin-top: 0; }
+
+.railError {
+  margin: var(--sp-2) 0 0;
+  color: var(--color-error);
+  font: 0.64rem/1.5 var(--font-mono), ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
 
 /* Siguiente paso
    Bloque compacto: el tope de contenido es estructural (etiqueta, título, una

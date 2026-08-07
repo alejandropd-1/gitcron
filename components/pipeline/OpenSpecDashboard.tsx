@@ -38,6 +38,7 @@ import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { PipelineNextStepGuide } from './PipelineNextStepGuide';
 import { motion, useReducedMotion } from 'motion/react';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
+import { OpenSpecReadiness, OpenSpecToolList } from './OpenSpecReadiness';
 import { SpecificationViewer } from './SpecificationViewer';
 import { TaskConfirmToast } from './TaskConfirmToast';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
@@ -286,6 +287,11 @@ export function OpenSpecDashboard({
    */
   const [openSpecificationId, setOpenSpecificationId] = useState<string | null>(null);
   /**
+   * Solapa del rail. Arranca en actividad: es lo que cambia mientras se trabaja,
+   * y el estado de las herramientas se consulta cuando hace falta.
+   */
+  const [railTab, setRailTab] = useState<'activity' | 'tools'>('activity');
+  /**
    * Preferencia del sistema por menos movimiento.
    *
    * El panel ya la respeta en CSS para la banda de relectura; acá hace falta en
@@ -303,6 +309,9 @@ export function OpenSpecDashboard({
   const activeChanges = openSpec?.activeChanges ?? [];
   const archivedChanges = openSpec?.archivedChanges ?? [];
   const specifications = openSpec?.specifications ?? [];
+  const openSpecPresent = openSpec?.openSpecPresent;
+  const openSpecTools = openSpec?.openSpecTools;
+  const pendingToolCount = (openSpecTools ?? []).filter((tool) => !tool.configured).length;
   const selectableIds = new Set([
     ...activeChanges.map((change) => change.changeId),
     ...archivedChanges.map((change) => change.changeId),
@@ -1434,6 +1443,15 @@ export function OpenSpecDashboard({
                   esta pantalla existe para ofrecer, y al final quedaba empujada
                   fuera de vista por la lista de cambios. Una posición que cambia
                   según el contenido obliga a buscarla. */}
+              {/* Va antes de la guía: si al repositorio le falta algo para que
+                  el método funcione, eso se sabe antes de elegir por dónde
+                  seguir, no después de haber empezado. */}
+              <OpenSpecReadiness
+                present={openSpecPresent}
+                tools={openSpecTools}
+                onShowDetail={() => setRailTab('tools')}
+              />
+
               <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: () => setFlowMode(null) } : undefined} />
               {flowMode && (
                 <PipelineNewChangeFlow
@@ -1597,7 +1615,28 @@ export function OpenSpecDashboard({
         {rightOpen && !prepareOpen && (
           <aside className={styles.activityRail} aria-label={t('pipeline.openspec.activity.title')}>
             <div className={styles.resizeHandleRight} role="separator" aria-orientation="vertical" title={t('pipeline.openspec.resize.right')} onMouseDown={onResizeRight} />
-            <h3><Activity size={14} /> {t('pipeline.openspec.activity.title')}</h3>
+            {/* Dos solapas y no dos bloques apilados: el rail es angosto y alto,
+                y lo que se consulta —el estado de las herramientas— no compite
+                por espacio con lo que se mira mientras corre una sesión. */}
+            <div className={styles.railTabs} role="tablist" aria-label={t('pipeline.openspec.rail.label')}>
+              <button type="button" role="tab" aria-selected={railTab === 'activity'} onClick={() => setRailTab('activity')}>
+                <Activity size={13} aria-hidden="true" /> {t('pipeline.openspec.activity.title')}
+              </button>
+              <button type="button" role="tab" aria-selected={railTab === 'tools'} onClick={() => setRailTab('tools')}>
+                <Wrench size={13} aria-hidden="true" /> {t('pipeline.openspec.rail.tools')}
+                {/* La cuenta va en la solapa: sin ella, saber que falta algo
+                    exigiría abrirla, que es lo que un aviso no puede pedir. */}
+                {pendingToolCount > 0 && <em className={styles.railTabBadge}>{pendingToolCount}</em>}
+              </button>
+            </div>
+
+            {railTab === 'tools' ? (
+              <OpenSpecToolList present={openSpecPresent} tools={openSpecTools} />
+            ) : (
+            <>
+            {/* Sin `h3` con el mismo texto: la solapa activa ya dice qué se está
+                viendo, y repetirlo debajo es el rótulo duplicado que la guía de
+                este panel prohíbe. */}
             {/* Sin cambio abierto la columna cae a lo último del repositorio, que
                 puede ser de otro día y de otro trabajo. Con un cambio abierto no
                 hace falta decirlo: el panel entero ya declara de cuál es. */}
@@ -1689,6 +1728,8 @@ export function OpenSpecDashboard({
               <h4>{t('pipeline.openspec.attention.title')}</h4>
               <DecisionInbox decisions={snapshot.decisions} onRespondDecision={onRespondDecision} />
             </section>
+            </>
+            )}
             <footer className={styles.railMeta}>
               <span>{totalRequirements} {t('pipeline.openspec.summary.requirements')}</span>
               <span>{openSpec?.reports.length ?? 0} {t('pipeline.openspec.summary.reports')}</span>

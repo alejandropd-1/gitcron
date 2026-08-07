@@ -218,6 +218,10 @@ function toOpenSpecWorkspace(state: PipelineState): OpenSpecWorkspaceSnapshot {
     diagnostics: state.diagnostics.map((diagnostic) => ({ ...diagnostic })),
     observedAt: state.observedAt,
     latestGate: null,
+    // Opcionales en el estado: un snapshot escrito por una versión anterior no
+    // los trae, y no tenerlos no se puede leer como «no hay OpenSpec».
+    openSpecPresent: state.openSpecPresent,
+    openSpecTools: state.openSpecTools?.map((tool) => ({ ...tool })),
   };
 }
 

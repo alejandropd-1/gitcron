@@ -12,7 +12,7 @@ import type {
   EconomyState,
   PipelineDiffItem,
 } from './pipeline-domain';
-import type { ChangeTimestamp, OpenSpecChangeArtifacts, OpenSpecChangeStatus, OpenSpecValidationStatus, TaskEvidence } from '@/types/pipeline';
+import type { ChangeTimestamp, OpenSpecChangeArtifacts, OpenSpecChangeStatus, OpenSpecToolEvidence, OpenSpecValidationStatus, TaskEvidence } from '@/types/pipeline';
 
 export type PipelineSource = 'git' | 'openspec' | 'runtime';
 
@@ -96,6 +96,13 @@ export type OpenSpecWorkspaceSnapshot = {
   diagnostics: Array<{ code: string; message: string; severity: string; sourceRef: string }>;
   observedAt: string | null;
   latestGate: { result: 'VERDE' | 'ROJO' | 'PENDIENTE'; mode: string; ts: string } | null;
+  /** Si el repositorio tiene `openspec/`. Distinto de «sin cambios activos». */
+  openSpecPresent?: boolean;
+  /**
+   * Herramientas presentes en el repositorio y si tienen OpenSpec configurado.
+   * Una sin configurar significa que su ejecutor no sabe que el canal existe.
+   */
+  openSpecTools?: OpenSpecToolEvidence[];
 };
 
 export type PipelineSnapshot = {

@@ -1263,6 +1263,93 @@
 .completedSummary > span { color: var(--os-muted); font-size: 0.68rem; }
 .noActiveChange { align-items: center; text-align: center; color: var(--os-cyan); }
 
+/* Lo que le falta al repositorio para que el método funcione.
+   Ámbar y no rojo: es algo que conviene resolver, no un fallo. Va arriba de la
+   guía porque se tiene que saber antes de elegir por dónde seguir, y no aparece
+   cuando está todo en orden —un bloque que siempre está enseña a saltearlo—. */
+/* El aviso: una línea. El detalle vive en el rail, así que acá sólo hace falta
+   lo que interrumpe. Ocupa el ancho del contenedor como el resto de los bloques
+   de esta pantalla —el tope de 44rem lo usan otras dos vistas, no ésta—. */
+.readiness {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  margin-top: var(--sp-4);
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--os-border-strong);
+  border-left: 2px solid var(--os-amber, #d8a657);
+  border-radius: 0.3rem;
+  background: rgba(10, 31, 49, 0.78);
+  color: var(--os-amber, #d8a657);
+  text-align: left;
+}
+.readiness > p {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--os-muted);
+  font: 0.68rem/1.5 var(--font-mono), ui-monospace, monospace;
+}
+.readiness > p > strong { color: var(--os-amber, #d8a657); font-weight: 650; }
+.readinessLink {
+  flex: 0 0 auto;
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--os-border);
+  border-radius: 0.3rem;
+  background: none;
+  color: var(--os-muted);
+  cursor: pointer;
+  font: 650 0.62rem var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.readinessLink:hover { border-color: var(--os-border-strong); background: var(--os-surface); color: var(--os-cyan); }
+.readinessLink:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+
+/* Solapas del rail. La cuenta de pendientes va en la propia solapa: si hubiera
+   que abrirla para saber que falta algo, dejaría de ser un aviso. */
+.railTabs { display: flex; gap: var(--sp-1); margin-bottom: var(--sp-3); border-bottom: 1px solid var(--os-border); }
+.railTabs button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--os-muted);
+  cursor: pointer;
+  font: 650 0.66rem var(--font-mono), ui-monospace, monospace;
+}
+.railTabs button[aria-selected='true'] { border-bottom-color: var(--os-cyan); color: var(--os-cyan); }
+.railTabs button:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.railTabBadge {
+  padding: 0 0.3rem;
+  border-radius: 0.6rem;
+  background: var(--os-amber, #d8a657);
+  color: #0a1f31;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 700;
+}
+.readinessList { display: grid; gap: var(--sp-1); margin: var(--sp-3) 0 0; padding: 0; list-style: none; }
+.readinessList > li {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+  color: var(--os-muted);
+  font: 0.66rem var(--font-mono), ui-monospace, monospace;
+}
+.readinessList > li[data-configured='true'] { color: var(--os-green); opacity: 0.7; }
+.readinessList > li[data-configured='false'] { color: var(--os-amber, #d8a657); }
+.readinessList strong { color: #d4e0eb; font-weight: 650; }
+.readinessList code { color: var(--os-muted); font-size: 0.62rem; }
+.readinessList em { font-style: normal; }
+
 /* Siguiente paso
    Bloque compacto: el tope de contenido es estructural (etiqueta, título, una
    frase, una acción primaria y una secundaria condicional), así que el estilo

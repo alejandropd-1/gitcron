@@ -45,4 +45,4 @@
 - [x] 5.3 `pnpm exec eslint` limpio sobre lo tocado
 - [x] 5.4 `openspec validate declare-change-branch --strict` válido
 - [x] 5.5 Reporte en `docs/reports/`, con las mediciones como evidencia
-- [ ] 5.6 Ale valida abriendo un cambio desde otra rama y viendo el aviso
+- [x] 5.6 Ale valida abriendo un cambio desde otra rama y viendo el aviso

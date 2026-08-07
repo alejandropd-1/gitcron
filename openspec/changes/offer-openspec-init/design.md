@@ -1,121 +1,96 @@
-## Decisión: ejecutar la inicialización, con la herramienta elegida en el panel
+## Decisión: mostrar es el objetivo, ejecutar es la salida
 
-El panel ejecuta `openspec init` sobre el repositorio abierto, tras una confirmación humana que enumere
-qué se va a escribir. **Qué herramienta se configura lo elige la persona**, no la aplicación.
+Lo que este cambio agrega es, ante todo, **estado visible**: si el repositorio tiene OpenSpec, qué
+herramientas usa y cuáles tienen sus archivos instalados. La acción de inicializar es la salida que se
+ofrece a partir de eso, no el punto.
 
-Esa segunda mitad no estaba en la propuesta original y la impuso una sonda: `openspec init` **exige
-`--tools`** y falla sin él. No existe un «inicializar» a secas. Sus valores son unas treinta
-herramientas, más `all` y `none`.
+**Alternativa descartada: sólo ofrecer el botón de inicializar.** Era el plan original y es menos
+trabajo. Se descarta porque no cubre el caso que más duele, que no es «falta OpenSpec» sino «OpenSpec
+está y una de las herramientas quedó afuera». En `odontoPau` ese estado convivió con un repositorio
+perfectamente inicializado, y sólo se descubrió cuando un artefacto salió mal. Un botón no lo habría
+mostrado; una lista de herramientas con su estado, sí.
 
-**Alternativa descartada: fijar `--tools claude`.** Es más simple y cubriría el caso más frecuente de
-Ale. Se descarta porque decide por él en repositorios donde usa Codex o Antigravity, y porque instala
-cinco slash commands `/opsx:*` —justo lo que este proyecto dejó de usar deliberadamente, al punto de
-tener una prueba que falla si una instrucción vuelve a empezar con `/`—. Elegir por el usuario qué
-ejecutor va a usar en su repositorio es exactamente el tipo de suposición que no corresponde.
+Es además lo que el panel existe para hacer: mostrar qué está pasando con el método para que la persona
+lo sepa antes, no para que la aplicación decida por ella.
 
-**Alternativa descartada: entregar el mando para correrlo a mano.** No agrega ninguna superficie de
-escritura, y ahora tiene un argumento nuevo a favor: elegir herramienta no es algo que la aplicación
-pueda adivinar. Se descarta igual porque el problema no es que falte saber el mando: es que el panel
-muestra cuatro ceros y no ayuda a salir de ahí. Quien abrió un repositorio y se encontró con una
-pantalla vacía no está en posición de saber que le falta un paso que nadie le nombró.
+## Decisión: la detección de herramientas la hace el CLI, no el panel
 
-**Contrapartida asumida:** es una escritura nueva en un repositorio del usuario, y con `--tools claude`
-son **once archivos**, no uno: cinco slash commands, cinco skills y el `config.yaml`. Se asume
-enumerándolos antes de escribirlos, y ofreciendo la opción mínima descrita abajo.
+Al inicializar se ejecuta `openspec init` sin `--tools`, y el comando detecta las herramientas presentes.
 
-## Decisión: elegir herramienta es lo importante, y `none` no es el camino seguro
+**Alternativa descartada: que el panel liste las treinta herramientas y la persona elija.** Fue la
+decisión anterior de este documento y quedó obsoleta al medir: `init` detecta solo por los directorios
+del repositorio, y con `.codex`, `.agent` y `.claude` presentes configuró las tres sin intervención. Que
+el panel replique esa lista sería mantener una copia de algo que el CLI ya sabe, y que envejece cuando
+OpenSpec agregue o quite una herramienta.
 
-Se ofrece `none` como opción, pero **no es la predeterminada** y se declara lo que implica: deja al
-ejecutor sin las instrucciones que le enseñan a usar el método.
+Sólo se pregunta cuando el comando falla con «No tools detected», que es el caso en que exige `--tools`.
 
-Esta decisión estaba escrita al revés y se corrigió con evidencia. La versión anterior ponía `none` por
-defecto razonando que era «la opción que menos toca el repositorio ajeno». Es cierto que escribe un solo
-archivo, y es exactamente por eso que es la peor.
+## Decisión: el estado de cada herramienta se lee del disco
 
-Lo que instala `init --tools <herramienta>` no es decoración: son las skills que le enseñan al ejecutor
-que el canal existe. La de `openspec-propose` dice textualmente «Follow the `instruction` field from
-`openspec instructions` for each artifact type» y «**IMPORTANT**: `context` and `rules` are constraints
-for YOU». Sin ese archivo, un ejecutor no sabe que tiene que pedir instrucciones ni que hay reglas que
-cumplir: el canal está lleno y nadie lo abre.
+Para saber qué herramientas usa el repositorio y cuáles están configuradas se comparan dos cosas en
+disco: qué directorios de herramienta existen —`.claude`, `.codex`, `.agent`, `.opencode` y los demás—
+y cuáles de ellos contienen skills de OpenSpec.
 
-Hay medición de las dos mitades. En `C:\www\odontoPau` existe `.codex/skills/openspec-*` con cinco
-archivos y **no existe `.agent/`**, que es donde OpenSpec instala los de Antigravity —está soportado,
-con skills en `.agent/skills/` y workflows en `.agent/workflows/`—. Codex tenía las instrucciones;
-Antigravity no tenía ninguna. Eso explica por qué uno escribió los artefactos bien y el otro improvisó,
-y no era una diferencia de criterio del ejecutor sino de qué había instalado en el repositorio.
+**Alternativa descartada: preguntárselo al CLI.** Sería más directo si existiera un comando que lo
+informe; no lo hay. `init` lo detecta pero como efecto de configurarlo, y correrlo para averiguar el
+estado escribiría archivos, que es exactamente lo que no puede hacer una lectura.
 
-**Alternativa descartada: no ofrecer `none` en absoluto.** Sería coherente con lo anterior. Se descarta
-porque un repositorio puede legítimamente no usar ninguna de las herramientas de la lista, y negar la
-inicialización mínima sería peor que ofrecerla con su advertencia.
+**Contrapartida asumida:** la lista de directorios conocidos vive en el proyecto y puede envejecer si
+OpenSpec agrega herramientas. Es aceptable porque el costo de no reconocer una es no mostrarla —el panel
+queda como hoy— y no una afirmación falsa. Una herramienta que no se reconoce no se reporta como
+faltante.
 
-## Consecuencia sobre el cambio hermano
+## Decisión: tres estados, no dos
 
-`carry-task-form-in-config` escribió reglas de forma en el canal de este repositorio, y en su reporte se
-declaró como hipótesis que el ejecutor desviado «probablemente no pidió instrucciones». Ya no es
-hipótesis: no podía pedirlas, porque no tenía instalado el archivo que se lo enseña. La regla escrita
-allá sigue siendo correcta y sigue sin alcanzar sola.
+El lector distingue: sin `openspec/`, con `openspec/` y alguna herramienta sin configurar, y todo en
+orden.
 
-## Decisión: la lista de herramientas se lee del CLI
+**Alternativa descartada: inferirlo en la vista a partir de los contadores.** Se descarta porque cero
+cambios activos y ausencia de OpenSpec ya coinciden en los contadores —un repositorio recién
+inicializado muestra los mismos cuatro ceros—, y la vista deduciendo produce el fallo que Ale ya
+detectó una vez: la guía diciendo «no hay ningún cambio activo» debajo de una lista con cuatro.
 
-Las opciones salen de `openspec init --help`, que las enumera, y no de una lista escrita en el código.
+## Decisión: se declara antes de empezar, pero no se bloquea
 
-**Alternativa descartada: escribirlas en el código.** Es más simple y no depende de parsear una salida
-de ayuda. Se descarta porque son treinta y las define el CLI, no este proyecto: una copia queda vieja en
-silencio en cuanto OpenSpec agregue o quite una, y el panel ofrecería algo que el comando rechaza. Si la
-salida de ayuda cambia de forma y el parseo falla, la degradación es mostrar sólo `none`, que sigue
-siendo una inicialización válida.
+Cuando falta inicializar, o cuando hay una herramienta presente sin configurar, el panel lo declara
+**antes** de dejar empezar un cambio y ofrece resolverlo ahí mismo. No impide seguir.
 
-## Decisión: distinguir la ausencia del vacío en la evidencia, no en la vista
+**Alternativa descartada: bloquear hasta inicializar.** Garantizaría el pie derecho en el caso común y
+es tentador. Se descarta por dos límites medidos. En un repositorio sin ningún directorio de
+herramienta, `openspec init` **falla** con «No tools detected» y exige elegir a mano: bloquear ahí
+trabaría el trabajo sin poder resolverlo solo. Y `init` sólo configura lo que ya está presente, así que
+tampoco garantiza que la herramienta que se va a usar quede cubierta —es exactamente lo que pasó en
+`odontoPau`, donde se inicializó bien cuando sólo había `.codex/` y Antigravity quedó afuera—. Un
+bloqueo que no garantiza lo que promete es fricción sin la contrapartida.
 
-El lector de evidencia pasa a diferenciar tres estados del repositorio: sin `openspec/`, con
-`openspec/` y sin cambios activos, y con cambios activos. La vista consume esa distinción en vez de
-inferirla.
+**Alternativa descartada: inicializar solo, sin preguntar.** Es lo más cómodo y se descarta por la
+invariante: escribir en un repositorio del usuario se declara antes de ocurrir. Además elegiría por él
+en el caso en que hay que elegir herramienta.
 
-**Alternativa descartada: inferirlo en el renderer a partir de los contadores en cero.** Es menos
-código y no toca el proceso principal. Se descarta porque cero cambios activos y ausencia de OpenSpec
-son estados distintos que piden respuestas distintas, y ya coinciden en los contadores: un repositorio
-correctamente inicializado y recién empezado muestra los mismos cuatro ceros. Inferir el estado desde
-un valor que ambos comparten produce el fallo que Ale ya detectó una vez —la guía diciendo "no hay
-ningún cambio activo" debajo de una lista con cuatro—, que es exactamente lo que pasa cuando la vista
-deduce en vez de recibir.
+Lo que sí se consigue es que nadie empiece **sin haberlo visto**. La decisión queda de la persona, que
+es el criterio de este panel: mostrar lo que pasa para que se sepa, no decidir en su lugar.
 
-## Decisión: sembrar reglas deja de ser un agregado
+## Decisión: inicializar no pierde lo que se escribió
 
-Que la inicialización siembre reglas en el `config.yaml` era, en la primera versión de este cambio, una
-mejora sobre el estado que dejaba `init`. Las sondas lo convirtieron en lo único que cambia algo.
+Si se inicializa desde el aviso, el formulario vuelve con el objetivo y el slug que ya se habían
+escrito.
 
-Medido: después de `openspec init`, `openspec instructions` sigue devolviendo **contexto vacío y cero
-reglas**, exactamente igual que antes de inicializar. El `config.yaml` que deja son veinte líneas
-**todas comentadas** salvo `schema:` —una plantilla con ejemplos, no una configuración—.
-
-**Alternativa descartada: inicializar y no tocar el `config.yaml`.** Es lo que hace el comando y
-respetarlo sería lo menos intrusivo. Se descarta porque dejaría el change sin efecto sobre el problema
-que lo motivó: el panel pasaría de mostrar cuatro ceros a mostrar un repositorio inicializado donde el
-ejecutor sigue recibiendo el encargo y ninguna regla. La sonda que abrió este pendiente y la que lo
-cierra dicen lo mismo.
-
-## Decisión: nombrar la consecuencia, no sólo la falta
-
-El estado explica que sin `init` crear un cambio igual funciona, pero el ejecutor recibe el encargo sin
-contexto ni reglas.
-
-**Alternativa descartada: decir sólo "este repositorio no usa OpenSpec".** Es más corto y suficiente
-para identificar el estado. Se descarta porque no comunica lo que hace peligroso al caso: el sondeo
-mostró que `openspec new change` funciona sin `init` y deja un `config.yaml` vacío del que
-`openspec instructions` devuelve contexto vacío y ninguna regla. El fallo es silencioso, y un aviso que
-no nombra la consecuencia deja a la persona creyendo que inicializar es opcional.
+**Alternativa descartada: volver al formulario vacío.** Es más simple de implementar. Se descarta
+porque castiga a quien hizo lo correcto: la persona escribió su idea, el panel le avisó de algo que no
+sabía, y perder el texto por atender ese aviso convierte la advertencia en un costo. El aviso tiene que
+ser barato de atender o se aprende a ignorarlo.
 
 ## Riesgos
 
-**La inicialización falla a mitad y deja el repositorio a medio escribir.** Mitigación: informar el
-error real sin normalizarlo —el mismo criterio que se aplicó al fallo de creación de rama— y volver a
-leer la evidencia para que el panel muestre el estado que hay, no el que se esperaba.
+**Inicializar escribe en un repositorio del usuario.** Mitigación: se enumera antes qué se va a escribir
+y la acción es humana. Está medido que `init` no pisa el `config.yaml` —comprobado por hash sobre
+`odontoPau`, donde el archivo quedó idéntico— y que es incremental.
 
-**El binario de OpenSpec no está disponible.** Mitigación: es el mismo problema de disponibilidad que
-ya tiene el resto del panel; se reporta como tal y no se ofrece una acción que no se puede ejecutar.
+**La inicialización falla a mitad.** Mitigación: informar el error real sin normalizarlo y releer la
+evidencia, para que el panel muestre el estado que hay y no el que se esperaba.
 
 ## Sin medir
 
-No se midió cuánto tarda `openspec init` en un repositorio grande. Si la acción necesita estado de
-progreso, se sabrá al implementarla; darlo por descontado ahora sería presentar una expectativa como
-resultado.
+No se midió cuánto cuesta la detección de directorios en el refresco. Es una lectura de disco sobre unas
+pocas decenas de rutas, del mismo orden que las que el lector ya hace, pero es una estimación y no una
+medición.

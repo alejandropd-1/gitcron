@@ -43,6 +43,10 @@ context: |
   parte de abrir el cambio y no algo que haya que pedir: es local, reversible y no publica nada. Lo que
   sí se informa es que se creó y con qué nombre.
 
+  Método: la base es OpenSpec. Sus instrucciones son el método y este proyecto no las duplica. Ninguna
+  regla se escribe sin aprobación explícita —se puede proponer, no escribir—, y una regla propia existe
+  sólo si cubre algo que OpenSpec no cubre. El principio completo, con su límite, está en `AGENTS.md`.
+
   Runtime: la aplicación corre sobre Electron y empaqueta su propio Chromium, así que una función del
   navegador ya disponible de forma amplia se usa sin código de respaldo. La declaración completa, con la
   versión y con lo que no habilita, está en `AGENTS.md`; vive ahí porque las herramientas que responden

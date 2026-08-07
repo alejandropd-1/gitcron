@@ -43,6 +43,30 @@ Git. Confirmar el trabajo en Git es una acción aparte y requiere autorización 
    escribieron, no lo que hay ahora.
 3. Si existe `.codegraph/`, usar CodeGraph antes de grep o lectura amplia.
 
+## De dónde sale el método
+
+La base es **OpenSpec**. Sus instrucciones —las que el CLI entrega con `openspec instructions`— son el
+método, y este proyecto no las duplica ni las reescribe.
+
+**Ninguna regla se escribe sin aprobación explícita.** Ni acá, ni en `openspec/config.yaml`, ni en un
+repositorio ajeno. Se puede proponer una —con qué cubre y por qué OpenSpec no la cubre— pero escribirla
+es una decisión humana. Una regla es método: obliga a todo el que venga después, y agregarla por cuenta
+propia es exactamente cómo se acumularon las ocho que hubo que retirar.
+
+Una regla propia existe **sólo si cubre algo que OpenSpec no cubre**, y tiene que poder justificarlo.
+Antes de proponer una, se contrasta con la salida de `openspec instructions` del artefacto que
+corresponda. Si ya está dicha ahí, no se propone: una regla repetida gasta atención en algo que el
+ejecutor recibió dos párrafos antes, y entierra las que sí aportan.
+
+Esto se midió, no se supuso. De dieciséis reglas que tenía este repositorio, ocho decían lo mismo que el
+CLI ya entregaba, y se retiraron. Una de ellas se había agregado para arreglar un problema que resultó
+ser otro: un ejecutor sin sus archivos instalados, que nunca llegó a pedir las instrucciones.
+
+**El límite del principio.** OpenSpec es una implementación concreta del desarrollo guiado por
+especificación, no un estándar ratificado. Ceder ante ella es la regla por defecto —evita reinventar lo
+que ya está resuelto— pero no es un acto de fe: si en algún punto el criterio propio es mejor, se
+sostiene y se escribe por qué. Lo que no se hace es escribir una regla sin haber mirado si ya existía.
+
 ## Sobre qué corre esto
 
 GitCron es una aplicación de escritorio sobre **Electron 42**: empaqueta su propio Chromium. El motor no

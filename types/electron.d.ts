@@ -442,6 +442,16 @@ interface ElectronAPI {
     expectedText: string,
     completed: boolean,
   ) => Promise<GitResult>;
+  /**
+   * Contenido de una especificación consolidada, leído bajo demanda.
+   *
+   * No viaja en el snapshot por peso: las de un repositorio grande suman
+   * cientos de kilobytes y el snapshot se rearma en cada refresco.
+   */
+  pipelineReadSpecification: (
+    repoPath: string,
+    specificationId: string,
+  ) => Promise<{ success: true; content: string } | { success: false; error: string }>;
   onPipelineSnapshotUpdated: (cb: (repoPath: string, snapshot: PipelineState) => void) => () => void;
   pipelineRuntime: {
     discover: (repoPath: string) => Promise<GitResult<RuntimeDiscoveryEntry[]>>;

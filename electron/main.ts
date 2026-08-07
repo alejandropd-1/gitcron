@@ -26,6 +26,7 @@ import { PipelineControlBus } from './pipeline/control/control-bus';
 import { registerPipelineControlHandlers } from './ipc/pipeline-control';
 import { registerPipelineArchiveHandlers } from './ipc/pipeline-archive';
 import { registerPipelineTaskHandlers } from './ipc/pipeline-tasks';
+import { registerPipelineSpecHandlers } from './ipc/pipeline-specs';
 import { registerPipelineRuntimeHandlers } from './ipc/pipeline-runtime';
 import { RuntimeSessionHub } from './pipeline/runtime/runtime-session-hub';
 import { PipelineRepository } from './pipeline/pipeline-repository';
@@ -300,6 +301,7 @@ const pipelineRuntimeHub = new RuntimeSessionHub(
 registerPipelineRuntimeHandlers(pipelineRuntimeHub); // pipeline:runtime:*
 registerPipelineArchiveHandlers(getMainWindow);  // pipeline:archive-change (escribe: fuera del módulo read-only)
 registerPipelineTaskHandlers();    // pipeline:set-task-checked (escribe: sólo el estado de una tarea)
+registerPipelineSpecHandlers();    // pipeline:read-specification (sólo lee; fuera del snapshot por peso)
 registerWatcherHandlers(getMainWindow, notifyPipelineRepoChanged);          // repo:watch/unwatch
 registerAppWindowHandlers(getMainWindow, isDev); // app:* + window:*
 

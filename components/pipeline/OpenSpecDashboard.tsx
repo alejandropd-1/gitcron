@@ -37,6 +37,7 @@ import { PipelineDetails, type DetailTab } from './PipelineDetails';
 import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { PipelineNextStepGuide } from './PipelineNextStepGuide';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
+import { SpecificationViewer } from './SpecificationViewer';
 import { TaskConfirmToast } from './TaskConfirmToast';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
 import {
@@ -274,6 +275,14 @@ export function OpenSpecDashboard({
     label: string;
     completed: boolean;
   } | null>(null);
+  /**
+   * Especificación abierta en el centro, si hay alguna.
+   *
+   * Es una vista aparte y no una pestaña del cambio: una spec consolidada no
+   * pertenece a ningún cambio activo, es el resultado acumulado de todos los
+   * archivados.
+   */
+  const [openSpecificationId, setOpenSpecificationId] = useState<string | null>(null);
   const [taskError, setTaskError] = useState<string | null>(null);
   /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
   const [archiveError, setArchiveError] = useState<string | null>(null);
@@ -381,6 +390,11 @@ export function OpenSpecDashboard({
     hasActiveChanges: activeChanges.length > 0,
     hasDiffs: hasDiffEvidence(snapshot),
   });
+  // Se resuelve contra la lista para que un identificador que ya no exista
+  // —porque el repositorio cambió— no deje la vista abierta sobre la nada.
+  const openSpecification = openSpecificationId
+    ? specifications.find((entry) => entry.specificationId === openSpecificationId) ?? null
+    : null;
   // Se sacan a constantes para que el render no repita el chequeo de nulos ni
   // necesite aserciones: si existen, son válidas.
   const primaryAction = nextAction.primary;
@@ -418,6 +432,8 @@ export function OpenSpecDashboard({
     onSelectChange?.(changeId);
     setCenterTab('artifacts');
     setEvidenceTab(tab);
+    // Igual que al elegir un cambio: lo que ocupa el centro es uno solo.
+    setOpenSpecificationId(null);
   };
 
   /**
@@ -565,6 +581,11 @@ export function OpenSpecDashboard({
     setCenterTab('work');
     setLaunchTarget(null);
     setFlowMode(null);
+    // Elegir un cambio cierra la especificación abierta: las dos ocupan el
+    // centro, así que dejarla puesta hacía que la barra lateral pareciera no
+    // responder —se marcaba el cambio elegido y el centro seguía mostrando la
+    // especificación, sin más salida que "ver el repositorio"—.
+    setOpenSpecificationId(null);
     // La preparación no se reinicia acá: es del repositorio, no del cambio.
     // Borrarla al cambiar de selección perdería una elección de archivos que no
     // tiene nada que ver con qué cambio se está mirando.
@@ -810,12 +831,21 @@ export function OpenSpecDashboard({
             <section className={styles.navSection} data-tone="specifications">
               <h3>{t('pipeline.openspec.specifications.title')} <span>{specifications.length}</span></h3>
               <div className={styles.specList}>
+                {/* Botón y no `div`: ahora hay contenido que mostrar. Antes se
+                    listaban como texto muerto porque el snapshot no traía nada
+                    que abrir. */}
                 {specifications.map((specification) => (
-                  <div key={specification.specificationId} title={specification.sourceRef}>
+                  <button
+                    type="button"
+                    key={specification.specificationId}
+                    title={specification.sourceRef}
+                    data-selected={openSpecificationId === specification.specificationId}
+                    onClick={() => setOpenSpecificationId(specification.specificationId)}
+                  >
                     <BookOpen size={11} />
                     <strong>{specification.specificationId}</strong>
                     <span>{specification.requirements === null ? '—' : t('pipeline.openspec.requirements', { count: specification.requirements })}</span>
-                  </div>
+                  </button>
                 ))}
                 {specifications.length === 0 && <p className={styles.navEmpty}>{t('pipeline.openspec.specifications.empty')}</p>}
               </div>
@@ -827,7 +857,18 @@ export function OpenSpecDashboard({
           {/* La preparación se resuelve antes que el cambio seleccionado: es del
               repositorio y tiene que alcanzarse sin ninguno, que es exactamente
               el estado que dejaba un archivado sin confirmar. */}
-          {prepareOpen ? (
+          {/* Una especificación abierta gana sobre el resto de la vista central,
+              salvo la preparación: ésta es del repositorio y no puede quedar
+              tapada por lo que se esté leyendo. */}
+          {!prepareOpen && openSpecification ? (
+            <SpecificationViewer
+              repoPath={repoPath}
+              specificationId={openSpecification.specificationId}
+              requirements={openSpecification.requirements}
+              sourceRef={openSpecification.sourceRef}
+              onBack={() => setOpenSpecificationId(null)}
+            />
+          ) : prepareOpen ? (
             <section className={styles.prepareArea} aria-label={t('pipeline.openspec.prepare.title')}>
               {/* Las acciones comparten fila con el título, arriba y a la
                   derecha: al final de la lista quedaban fuera de vista con

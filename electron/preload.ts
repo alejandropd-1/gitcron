@@ -260,6 +260,15 @@ contextBridge.exposeInMainWorld('api', {
   /** Cambia el estado de una tarea. `expectedText` verifica que sea la misma. */
   pipelineSetTaskChecked: (repoPath: string, changeId: string, line: number, expectedText: string, completed: boolean) =>
     ipcRenderer.invoke('pipeline:set-task-checked', repoPath, changeId, line, expectedText, completed),
+  /**
+   * Contenido de una especificación consolidada, por su identificador.
+   *
+   * Va aparte del snapshot a propósito: las specs de un repositorio grande pesan
+   * cientos de kilobytes y el snapshot se rearma en cada refresco. Se manda el
+   * identificador, no una ruta: el proceso principal la compone y la valida.
+   */
+  pipelineReadSpecification: (repoPath: string, specificationId: string) =>
+    ipcRenderer.invoke('pipeline:read-specification', repoPath, specificationId),
   /** El historial cambió: hay commits nuevos hechos por la aplicación. */
   onRepoCommitsChanged: (cb: (repoPath: string) => void) => {
     const handler = (_e: unknown, payload: { repoPath: string }) => cb(payload.repoPath);

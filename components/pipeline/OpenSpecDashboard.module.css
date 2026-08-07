@@ -377,7 +377,7 @@
 .specList { display: grid; }
 
 .compactList button,
-.specList > div {
+.specList > button {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -396,9 +396,58 @@
 .specList strong { overflow: hidden; color: #d2deea; font: 650 0.66rem var(--font-mono), ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }
 .compactList span,
 .specList span { color: var(--os-muted); font: 0.58rem var(--font-mono), ui-monospace, monospace; white-space: nowrap; }
-.specList > div { min-height: 1.6rem; color: var(--os-violet); }
+.specList > button { min-height: 1.6rem; color: var(--os-violet); cursor: pointer; }
+/* Se pueden abrir, así que se comportan como los demás controles de la barra.
+   Antes eran `div` porque no había contenido que mostrar. */
+.specList > button:hover,
+.specList > button[data-selected='true'] { background: rgba(167, 139, 250, 0.09); }
 .navEmpty,
 .railEmpty { margin: 0.65rem 0.35rem; color: var(--os-muted); font-size: 0.68rem; line-height: 1.45; }
+
+/* Especificación abierta en el centro.
+   Espaciada con la escala del panel: ajustar valores sueltos queja por queja ya
+   desalineó otras cosas antes. */
+/* `flex: 0 0 auto` y no `1 1 auto`: la vista toma su altura natural y empuja la
+   franja de evidencia hacia abajo, en vez de encogerse y dejar que el texto la
+   atraviese por detrás. El scroll lo hace `.center`, que es el único que
+   scrollea en este panel. Con `1 1 auto` el contenido largo de una
+   especificación —la más grande son 84,9 KB— se metía debajo de la franja y la
+   dejaba cortada a media pantalla. */
+.specificationView {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  padding: var(--sp-5) clamp(1rem, 2vw, 2rem);
+}
+.specificationHead {
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--os-border);
+}
+.specificationHead h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 0;
+  color: #edf4fb;
+  font: 700 1.2rem var(--font-mono), ui-monospace, monospace;
+}
+.specificationHead h3 > span {
+  color: var(--os-violet);
+  font: 0.66rem var(--font-mono), ui-monospace, monospace;
+}
+.specificationHead > p {
+  margin: var(--sp-1) 0 0;
+  overflow: hidden;
+  color: var(--os-muted);
+  font: 0.64rem var(--font-mono), ui-monospace, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Reserva de alto mientras llega el contenido, para que la vista no salte de
+   una ficha corta a una pantalla entera. Mismo criterio que los artefactos de
+   un archivado. */
+.specificationBody { margin-top: var(--sp-4); }
+.specificationBody[data-pending] { display: grid; place-items: center; min-height: 18rem; }
 
 .center {
   display: flex;
@@ -1143,22 +1192,36 @@
 .startBar > span { display: block; height: 100%; border-radius: 0.2rem; background: var(--os-cyan); }
 
 /* Vuelta al estado del repositorio desde adentro de un cambio. */
+/* Se lee como botón, no como texto con una flecha.
+   Antes declaraba `border: 0` y `background: none`, que es el mismo problema que
+   ya trajo `legible-panel-controls`. Se toma el criterio del "Volver al
+   Repositorio" de Configuración —contorno y respiro— con los tokens de este
+   panel: copiar sus clases de Tailwind metería la tipografía del resto de la
+   aplicación en medio del módulo y se vería pegado, no integrado.
+   El tamaño chico y la versalita se conservan a propósito: volver es una acción
+   secundaria respecto de lo que se está mirando, y lo que faltaba era el
+   contorno, no el tamaño. */
 .backToStart {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.15rem 0.35rem;
-  margin: 0 0 0.45rem -0.35rem;
-  border: 0;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-3);
+  margin: 0 0 var(--sp-3) 0;
+  border: 1px solid var(--os-border);
   border-radius: 0.3rem;
   background: none;
   color: var(--os-muted);
   cursor: pointer;
-  font: 600 0.62rem var(--font-mono), ui-monospace, monospace;
+  font: 650 0.62rem var(--font-mono), ui-monospace, monospace;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.backToStart:hover { color: var(--os-cyan); background: var(--os-surface); }
+.backToStart:hover {
+  border-color: var(--os-border-strong);
+  background: var(--os-surface);
+  color: var(--os-cyan);
+}
 
 .completedSummary > p,
 .noActiveChange > p { margin: 0.8rem 0 0.35rem; color: var(--os-muted); font: 0.7rem var(--font-mono), ui-monospace, monospace; }

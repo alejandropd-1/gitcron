@@ -1,48 +1,50 @@
 ## ADDED Requirements
 
-### Requirement: La atribución de un archivo declara su fuente y su confianza
-La evidencia de un archivo modificado SHALL declarar, cuando lo atribuya a un cambio, de qué fuente
-salió esa atribución y con qué confianza. Un archivo sin atribución SHALL quedar explícitamente sin
-atribuir, y SHALL NOT presentarse como perteneciente a ningún cambio por descarte.
+### Requirement: La atribución de un archivo declara su fuente
+La evidencia de un archivo modificado SHALL declarar, cuando lo atribuya a un cambio, de qué fuente salió
+esa atribución. Un archivo sin atribución SHALL quedar explícitamente sin atribuir, y SHALL NOT
+presentarse como perteneciente a ningún cambio por descarte.
 
-El fundamento es que las fuentes posibles no afirman lo mismo. Una rama es una declaración deliberada
-de que ese trabajo pertenece a ese cambio; una observación del árbol de trabajo durante una sesión es
-una correlación temporal, y correlación no es pertenencia. Quien confirma en Git decide con esa
-información, y necesita poder distinguir una declaración de una coincidencia. Colapsar ambas en un
-único identificador de cambio produciría una atribución que parece verificada sin serlo, que es peor
-que no tener ninguna: llevaría a confirmar archivos equivocados con confianza.
+El fundamento es que las fuentes posibles no afirman lo mismo. Que un artefacto viva bajo la carpeta de
+su cambio es un hecho de ubicación y no se puede equivocar. Que un archivo de código se haya editado
+sobre la rama de un cambio es una declaración deliberada —alguien puso el trabajo ahí, y Git la sostiene
+con independencia de quién editó, con qué herramienta y desde dónde—, pero afirma sobre el archivo por
+dónde se lo editó, no por lo que el archivo es. Quien confirma en Git decide con esa información, y
+necesita poder distinguir un hecho de una declaración. Colapsar las dos en un único identificador de
+cambio produciría una atribución que parece verificada sin serlo, que es peor que no tener ninguna:
+llevaría a confirmar archivos equivocados con confianza.
 
-Dejar explícito lo no atribuido importa porque la mayoría del trabajo de este repositorio no pasa por
-ninguna de las dos fuentes, y presentarlo como perteneciente al cambio seleccionado por ser el único
+Dejar explícito lo no atribuido importa porque el trabajo hecho fuera de la rama de un cambio no lo
+reclama ninguna fuente, y presentarlo como perteneciente al cambio seleccionado por ser el único
 candidato sería inventar el dato.
 
 #### Scenario: Archivo atribuido por la rama del cambio
 - **WHEN** un archivo de código se modifica sobre la rama de un cambio
 - **THEN** la evidencia lo atribuye a ese cambio declarando la rama como fuente
 
-#### Scenario: Archivo visto por una sesión de runtime
-- **WHEN** una sesión de un cambio observa que un archivo cambió mientras estaba abierta
-- **THEN** la evidencia lo registra como observado por esa sesión, no como perteneciente al cambio
+#### Scenario: Artefacto de otro cambio sobre la misma rama
+- **WHEN** se modifica un artefacto que vive bajo la carpeta de un cambio distinto del de la rama
+- **THEN** la evidencia lo atribuye por su ubicación, y la rama no la pisa
 
 #### Scenario: Archivo sin ninguna fuente que lo reclame
-- **WHEN** un archivo de código no lo reclama ninguna fuente de atribución
+- **WHEN** un archivo de código se modifica fuera de la rama de un cambio
 - **THEN** queda explícitamente sin atribuir y no se le asigna el cambio seleccionado
 
-### Requirement: Los puntos ciegos de la observación por sesión quedan visibles
-Cuando la atribución provenga de la observación de una sesión, la interfaz SHALL declarar sus límites:
-sólo alcanza a las sesiones lanzadas desde la aplicación, y dos sesiones solapadas observan los cambios
-de la otra.
+### Requirement: El punto ciego de la atribución por rama queda visible donde se atribuye
+La interfaz SHALL declarar, donde muestra una atribución por rama, que la rama afirma dónde se editó el
+archivo y no para qué, y que el trabajo hecho sobre esa rama para otra cosa también aparece atribuido.
+Esa declaración SHALL estar en la pantalla donde se atribuye, y SHALL NOT quedar sólo en un reporte.
 
-El fundamento es que esos límites no son defectos a corregir sino el alcance real de lo que esa fuente
-puede saber. `captureWorkingTree` corre `git status` sobre todo el árbol, así que no puede separar lo
-que hizo una sesión de lo que hizo otra ni de lo que se editó a mano. Una observación presentada sin
-sus límites se lee como una verificación, y el lugar donde se muestra es la pantalla desde la que se
-confirma trabajo en Git.
+El fundamento es que ese límite no es un defecto a corregir sino el alcance real de lo que la fuente
+puede saber, y crece con el tiempo que se pasa en una rama: un typo, una dependencia o un arreglo no
+relacionado, hechos durante días de trabajo sobre `change/<slug>`, quedan atribuidos igual. Una
+declaración presentada sin su límite se lee como una verificación, y el lugar donde se muestra es la
+pantalla desde la que se confirma trabajo en Git.
 
-#### Scenario: Dos sesiones abiertas a la vez
-- **WHEN** dos sesiones de cambios distintos están abiertas al mismo tiempo
-- **THEN** la interfaz advierte que la observación no puede separar el trabajo de cada una
+#### Scenario: Grupo atribuido por rama
+- **WHEN** el panel muestra archivos atribuidos por la rama de un cambio
+- **THEN** declara junto al grupo que puede contener trabajo hecho para otra cosa, y pide revisarlo
 
-#### Scenario: Trabajo hecho fuera de la aplicación
-- **WHEN** se edita un archivo sin ninguna sesión abierta desde la aplicación
-- **THEN** la interfaz declara que esa fuente no lo alcanza, en vez de dejarlo sin explicación
+#### Scenario: Nada preseleccionado por efecto de la atribución
+- **WHEN** hay archivos atribuidos por rama
+- **THEN** ninguno entra elegido por esa atribución

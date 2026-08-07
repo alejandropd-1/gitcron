@@ -28,7 +28,8 @@ import {
 } from 'lucide-react';
 import { useGitStore, type GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
-import { archivedChangeId, deriveRepoCommitScope, fileKind, suggestCommitMessage, type CommitFileOrigin } from '@/lib/change-commit-scope';
+import { archivedChangeId, deriveRepoCommitScope, fileKind, suggestCommitMessage, type ChangeAttribution, type CommitFileOrigin } from '@/lib/change-commit-scope';
+import { changeIdFromBranch } from '@/lib/change-branch';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
@@ -501,8 +502,22 @@ export function OpenSpecDashboard({
   //
   // Los ya preparados salen del cálculo: si siguieran, la lista mostraría como
   // pendiente lo que se acaba de enviar, y el conteo no bajaría nunca.
+  /**
+   * Lo que la rama declara sobre el trabajo del árbol.
+   *
+   * Es la fuente primaria de atribución que Ale eligió: una rama es una
+   * afirmación deliberada, mientras que observar qué rutas cambiaron mientras
+   * una sesión estaba abierta es una correlación temporal. Parado en cualquier
+   * otra rama no hay nada que atribuir, y el archivo queda sin atribuir en vez
+   * de heredar el cambio que esté seleccionado en la pantalla.
+   */
+  const branchAttribution: ChangeAttribution | null = (() => {
+    const changeId = changeIdFromBranch(currentBranch);
+    return changeId ? { changeId, source: 'branch' } : null;
+  })();
   const commitScope = deriveRepoCommitScope(
     modifiedFiles.filter((file) => !file.staged).map((file) => file.path),
+    branchAttribution,
   );
   const nothingLeftToPrepare = commitScope.files.length === 0;
   /** La otra mitad: lo que ya viajó al stage y el panel deja de listar. */
@@ -510,7 +525,11 @@ export function OpenSpecDashboard({
   /** Etiqueta de un grupo. El del cambio nombra cuál, que es la atribución real. */
   const groupLabel = (origin: CommitFileOrigin): string => (
     origin.kind === 'change'
-      ? t('pipeline.openspec.prepare.groupChange', { change: origin.changeId })
+      ? origin.source === 'branch'
+        // La fuente va en el rótulo, no sólo en la ayuda: es la diferencia entre
+        // "vive en la carpeta de este cambio" y "lo editaste parado en su rama".
+        ? t('pipeline.openspec.prepare.groupBranch', { change: origin.changeId })
+        : t('pipeline.openspec.prepare.groupChange', { change: origin.changeId })
       : origin.kind === 'archived'
         ? t('pipeline.openspec.prepare.groupArchived')
         : t('pipeline.openspec.prepare.groupUnattributed')
@@ -525,7 +544,14 @@ export function OpenSpecDashboard({
    * inventar uno.
    */
   const groupHelp = (group: { origin: CommitFileOrigin; entries: Array<{ path: string }> }): string => {
-    if (group.origin.kind === 'change') return t('pipeline.openspec.prepare.groupChangeHelp');
+    if (group.origin.kind === 'change') {
+      // El punto ciego se declara donde se atribuye, no en un reporte que nadie
+      // abre al confirmar: la rama afirma sobre el archivo por dónde se lo
+      // editó, no por lo que el archivo es.
+      return group.origin.source === 'branch'
+        ? t('pipeline.openspec.prepare.groupBranchHelp', { branch: currentBranch || 'change/…' })
+        : t('pipeline.openspec.prepare.groupChangeHelp');
+    }
     if (group.origin.kind === 'unattributed') return t('pipeline.openspec.prepare.groupUnattributedHelp');
     const archived = group.entries.map((entry) => archivedChangeId(entry.path)).find(Boolean);
     return archived
@@ -560,7 +586,7 @@ export function OpenSpecDashboard({
       if (!staged) return;
       // El mensaje se compone sobre el conjunto que realmente se envía, no sobre
       // todo lo modificado: la sugerencia describe el commit que se va a hacer.
-      if (!commitMessage.trim()) setCommitMessage(suggestCommitMessage(chosen));
+      if (!commitMessage.trim()) setCommitMessage(suggestCommitMessage(chosen, branchAttribution));
       setLastPreparedCount(chosen.length);
       // Lo elegido ya viajó: dejarlo marcado haría que una segunda preparación
       // volviera a incluir archivos que ya no están en la lista.
@@ -1069,7 +1095,7 @@ export function OpenSpecDashboard({
                     <strong>{t('pipeline.openspec.prepare.message')}</strong>
                     <input
                       type="text"
-                      value={chosen.length === 0 ? commitMessage : (commitMessage || suggestCommitMessage(chosen))}
+                      value={chosen.length === 0 ? commitMessage : (commitMessage || suggestCommitMessage(chosen, branchAttribution))}
                       disabled={prepareBusy}
                       placeholder={t('pipeline.openspec.prepare.messagePlaceholder')}
                       onChange={(event) => setCommitMessage(event.target.value)}

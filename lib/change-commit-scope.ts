@@ -18,16 +18,51 @@
  */
 
 /**
+ * Cómo se supo a qué cambio pertenece un archivo.
+ *
+ * Viaja con el dato en vez de deducirse en la vista, porque las dos fuentes no
+ * afirman lo mismo y quien confirma en Git necesita distinguirlas:
+ *
+ * - `path` es un hecho de ubicación: el artefacto **vive** bajo la carpeta de su
+ *   cambio. No se puede equivocar.
+ * - `branch` es una declaración: alguien puso el trabajo en `change/<slug>`. Es
+ *   deliberada y Git la sostiene, pero afirma sobre el archivo por dónde se lo
+ *   editó, no por lo que el archivo es.
+ *
+ * Colapsarlas en un único `changeId` sería más simple de consumir y es
+ * justamente lo que se descartó: una atribución que parece cierta y no lo es es
+ * peor que ninguna.
+ */
+export type ChangeAttributionSource = 'path' | 'branch';
+
+/**
  * De dónde viene un archivo modificado.
  *
  * `change` lleva el identificador del cambio al que pertenece: esa atribución
  * existe —un artefacto vive bajo la carpeta de su cambio— y descartarla obligaba
  * a recordar qué se tocó en cada trabajo para poder elegir.
+ *
+ * `unattributed` es explícito y no un hueco: un archivo sin fuente **no** hereda
+ * el cambio que esté seleccionado en la pantalla. Es el mismo principio que rige
+ * el resto de la evidencia de este proyecto —no saber no es lo mismo que saber
+ * que no—.
  */
 export type CommitFileOrigin =
-  | { kind: 'change'; changeId: string }
+  | { kind: 'change'; changeId: string; source: ChangeAttributionSource }
   | { kind: 'archived' }
   | { kind: 'unattributed' };
+
+/**
+ * Atribución externa a la ruta, para los archivos que la ruta no puede explicar.
+ *
+ * Entra como parámetro y no se consulta desde adentro: la pureza de este módulo
+ * es lo que permite probarlo con tablas, y ya sobrevivió a varios refactors por
+ * ese motivo. Un acceso a estado acá la rompe de una vez.
+ */
+export interface ChangeAttribution {
+  changeId: string;
+  source: Exclude<ChangeAttributionSource, 'path'>;
+}
 
 export interface CommitFileEntry {
   path: string;
@@ -102,7 +137,7 @@ export function fileOrigin(file: string, archivedIds: ReadonlySet<string> = new 
     if (rest.startsWith('archive/')) return { kind: 'archived' };
     const [id] = rest.split('/');
     if (!id) return { kind: 'archived' };
-    return archivedIds.has(id) ? { kind: 'archived' } : { kind: 'change', changeId: id };
+    return archivedIds.has(id) ? { kind: 'archived' } : { kind: 'change', changeId: id, source: 'path' };
   }
   if (file.startsWith(SPECS_ROOT)) return { kind: 'archived' };
   return { kind: 'unattributed' };
@@ -135,9 +170,14 @@ export function fileKind(file: string): CommitFileKind {
   return 'code';
 }
 
-/** Clave estable de un grupo. Los cambios se distinguen entre sí por su id. */
+/**
+ * Clave estable de un grupo. Los cambios se distinguen entre sí por su id, y las
+ * dos fuentes no se mezclan: un grupo no podría declarar una sola procedencia si
+ * adentro conviven un hecho de ubicación y una declaración de rama.
+ */
 function groupKey(origin: CommitFileOrigin): string {
-  return origin.kind === 'change' ? `change:${origin.changeId}` : origin.kind;
+  if (origin.kind !== 'change') return origin.kind;
+  return origin.source === 'path' ? `change:${origin.changeId}` : `branch:${origin.changeId}`;
 }
 
 /**
@@ -177,13 +217,18 @@ export function deriveScope(files: string[]): string | null {
  * cubriendo esta misma regla: restos de un archivado más artefactos de un cambio
  * activo son dos identificadores, y la descripción queda vacía igual.
  */
-export function soleChangeId(files: string[]): string | null {
+export function soleChangeId(files: string[], attribution: ChangeAttribution | null = null): string | null {
   const ids = new Set<string>();
   for (const file of files) {
     const archived = archivedChangeId(file);
     if (archived) { ids.add(archived); continue; }
     const origin = fileOrigin(file);
-    if (origin.kind === 'change') ids.add(origin.changeId);
+    if (origin.kind === 'change') { ids.add(origin.changeId); continue; }
+    // Lo que la ruta no explica lo explica la atribución, si la hay. Con ella,
+    // un conjunto de puro código deja de ser "sin dueño" y puede nombrar su
+    // cambio; y trabajar en la rama de uno tocando artefactos de otro sigue
+    // dando dos identificadores, que es la señal de que el commit mezcla.
+    if (attribution && origin.kind === 'unattributed') ids.add(attribution.changeId);
   }
   return ids.size === 1 ? [...ids][0] : null;
 }
@@ -215,10 +260,10 @@ export function soleChangeId(files: string[]): string | null {
  * `archived`. No es falso —el commit toca un cambio archivado— y la sugerencia
  * no pisa lo escrito.
  */
-export function suggestCommitMessage(files: string[]): string {
+export function suggestCommitMessage(files: string[], attribution: ChangeAttribution | null = null): string {
   const scope = deriveScope(files);
   const prefix = scope ? `chore(${scope}):` : 'chore:';
-  const changeId = soleChangeId(files);
+  const changeId = soleChangeId(files, attribution);
   if (!changeId) return `${prefix} `;
   const archived = files.some((file) => archivedChangeId(file) === changeId);
   return `${prefix} ${archived ? 'archived ' : ''}${changeId}`;
@@ -237,14 +282,26 @@ export function suggestCommitMessage(files: string[]): string {
  * "modificado sin preparar", porque esa condición sale del estado de Git y no
  * de la ubicación del archivo.
  */
-export function deriveRepoCommitScope(changedFiles: string[]): RepoCommitScope {
+export function deriveRepoCommitScope(
+  changedFiles: string[],
+  attribution: ChangeAttribution | null = null,
+): RepoCommitScope {
   // Qué cambios fueron archivados se resuelve contra el conjunto, antes de
   // clasificar: la ruta sola no distingue la mitad borrada de un movimiento de
   // un artefacto de un cambio en curso.
   const archivedIds = new Set(
     changedFiles.map(archivedChangeId).filter((id): id is string => id !== null),
   );
-  const files: CommitFileEntry[] = changedFiles.map((path) => ({ path, origin: fileOrigin(path, archivedIds) }));
+  // La atribución externa sólo alcanza a lo que la ruta no explica. No pisa un
+  // artefacto: que un archivo viva bajo la carpeta de su cambio es un hecho, y
+  // la rama es una declaración; el hecho manda.
+  const files: CommitFileEntry[] = changedFiles.map((path) => {
+    const origin = fileOrigin(path, archivedIds);
+    if (attribution && origin.kind === 'unattributed') {
+      return { path, origin: { kind: 'change', changeId: attribution.changeId, source: attribution.source } };
+    }
+    return { path, origin };
+  });
 
   // Los grupos de cambio salen en el orden en que aparecen sus archivos, y los
   // dos grupos fijos van al final: es determinista a partir de la entrada y

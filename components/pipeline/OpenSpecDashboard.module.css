@@ -1274,9 +1274,16 @@
   display: flex;
   align-items: center;
   gap: var(--sp-4);
-  width: 100%;
-  margin-top: var(--sp-4);
-  padding: var(--sp-2) var(--sp-4);
+  /* Se mete hacia adentro como el resto del contenido: en la vista de un cambio
+     el aviso cuelga directo de la columna, que no tiene inset propio, y la caja
+     terminaba tocando los dos bordes mientras el encabezado de arriba respetaba
+     su 1.5rem. `--sp-5` es exactamente ese inset, así que los bordes izquierdos
+     de los dos quedan alineados. Ale lo marcó validando.
+
+     En la pantalla de entrada no hace falta: `.startScreen` ya tiene su propio
+     padding y el aviso comparte el ancho con los demás bloques. */
+  margin: var(--sp-4) var(--sp-5) 0;
+  padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--os-border-strong);
   border-left: 2px solid var(--os-amber, #d8a657);
   border-radius: 0.3rem;
@@ -1317,6 +1324,8 @@
 /* La aclaración de que la comparación es local va en un tono más bajo: acota lo
    afirmado, no es lo que hay que leer primero. */
 .branchBase > em { display: block; margin-top: var(--sp-1); font-style: normal; opacity: 0.75; }
+
+.startScreen .readiness { margin-inline: 0; }
 
 .readinessLink {
   flex: 0 0 auto;

@@ -11,7 +11,7 @@ import {
 
 describe('procedencia de cada archivo', () => {
   it('deduce el origen de la ubicación, sin cambio de referencia', () => {
-    expect(fileOrigin('openspec/changes/mi-cambio/tasks.md')).toEqual({ kind: 'change', changeId: 'mi-cambio' });
+    expect(fileOrigin('openspec/changes/mi-cambio/tasks.md')).toEqual({ kind: 'change', changeId: 'mi-cambio', source: 'path' });
     expect(fileOrigin('openspec/changes/archive/2026-08-01-viejo/tasks.md')).toEqual({ kind: 'archived' });
     expect(fileOrigin('openspec/specs/una-capacidad/spec.md')).toEqual({ kind: 'archived' });
     expect(fileOrigin('components/algo.tsx')).toEqual({ kind: 'unattributed' });
@@ -29,8 +29,8 @@ describe('procedencia de cada archivo', () => {
     ]);
 
     expect(scope.files).toEqual([
-      { path: 'openspec/changes/mi-cambio/tasks.md', origin: { kind: 'change', changeId: 'mi-cambio' } },
-      { path: 'openspec/changes/otro-cambio/proposal.md', origin: { kind: 'change', changeId: 'otro-cambio' } },
+      { path: 'openspec/changes/mi-cambio/tasks.md', origin: { kind: 'change', changeId: 'mi-cambio', source: 'path' } },
+      { path: 'openspec/changes/otro-cambio/proposal.md', origin: { kind: 'change', changeId: 'otro-cambio', source: 'path' } },
       { path: 'openspec/changes/archive/2026-08-01-viejo/tasks.md', origin: { kind: 'archived' } },
       { path: 'openspec/specs/una-capacidad/spec.md', origin: { kind: 'archived' } },
       { path: 'components/algo.tsx', origin: { kind: 'unattributed' } },

@@ -18,6 +18,28 @@ export function changeBranchName(changeId: string): string {
   return `${CHANGE_BRANCH_PREFIX}${changeId}`;
 }
 
+/**
+ * El cambio que la rama declara, si declara alguno.
+ *
+ * Es la operación inversa y la fuente de atribución primaria: una rama
+ * `change/<slug>` es alguien diciendo que ese trabajo pertenece a ese cambio, y
+ * Git lo sostiene con independencia de quién editó los archivos, con qué
+ * herramienta y desde dónde.
+ *
+ * Cualquier otra rama devuelve `null` y no una suposición: parado en `main` no
+ * hay nada que la rama afirme, y heredar el cambio seleccionado en la pantalla
+ * sería inventar la atribución que este trabajo existe para no inventar.
+ */
+export function changeIdFromBranch(branch: string | null | undefined): string | null {
+  const name = (branch ?? '').trim();
+  if (!name.startsWith(CHANGE_BRANCH_PREFIX)) return null;
+  const changeId = name.slice(CHANGE_BRANCH_PREFIX.length);
+  // Sin identificador —`change/` pelado— no hay nada que atribuir. Un `/` adentro
+  // tampoco: `change/algo/otro` no es la rama de ningún cambio, porque el slug
+  // de OpenSpec no admite barras.
+  return changeId.length > 0 && !changeId.includes('/') ? changeId : null;
+}
+
 export type ChangeBranchState = {
   /** La que corresponde según la regla. */
   expected: string;

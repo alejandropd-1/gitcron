@@ -36,6 +36,39 @@ empiecen a aparecer ramas de verdad. Es una espera real y hay que decirlo, no di
 prefiere ver algo funcionando ya, la observación por sesión da resultado antes y es un argumento
 legítimo a favor de invertir el orden.
 
+## Decisión: el complemento por sesión se retira del alcance
+
+**Tomada el 2026-08-07, con la rama ya funcionando.** La observación por sesión sale de este cambio. El
+motivo no es costo: es que el hueco que la justificaba se cerró mientras se implementaba la otra mitad.
+
+Cuando se escribió este documento, `git branch --list "change/*"` devolvía **cero** sobre 35 ramas
+locales, y el complemento era lo único que iba a atribuir algo. Hoy la convención se cumple —el circuito
+completo se cerró dos veces— y medido sobre este mismo trabajo la rama atribuye **7 de 8 archivos
+modificados**, con el octavo atribuido por su ruta. No queda hueco que tapar salvo el trabajo hecho fuera
+de una rama de cambio.
+
+Y para ese hueco el complemento sirve poco: sólo alcanza a los agentes lanzados desde la aplicación, así
+que el trabajo a mano y el de un agente desde la terminal —que en este repositorio es una fracción
+grande— sigue sin atribuir. Se paga superficie de error por una cobertura parcial de un caso ya
+minoritario.
+
+Además, no ataca el modo de fallo real de lo que sí se construyó. Ese modo de fallo es **atribuir de
+más** dentro de una rama —un typo, una dependencia, un arreglo no relacionado, hechos durante días sobre
+`change/<slug>`—, y una sesión no lo separa: el typo se arregló durante esa misma sesión.
+
+**Lo que sí ataca el problema** es capturar la intención en el momento de la acción en vez de
+reconstruirla después de los restos. La sesión ya lleva `changeId` **y `taskId`**, y el mensaje sugerido
+los descarta: hoy se compone sólo de rutas. Eso no es inferencia, es un dato que la aplicación tiene y
+tira. Va en un cambio aparte, porque es otra pregunta —qué dice el mensaje— y no la de este documento
+—de quién es el archivo—.
+
+**Queda anotado y sin decidir:** un `tool.completed` de `Edit` o `Write` no es una correlación temporal
+sino una escritura declarada por quien la hizo, y sería la fuente más fuerte de las tres —elimina el
+punto ciego de las dos sesiones solapadas, porque cada llamada pertenece a una sola—. No se propone acá
+porque los normalizadores redactan las rutas antes de que lleguen a la proyección
+(`electron/pipeline/runtime/runtime-projection.ts:56`), y revertir esa redacción es una decisión de
+privacidad que le corresponde a Ale.
+
 ## Decisión propuesta: la confianza viaja con el dato
 
 Cada atribución lleva de dónde salió y con qué confianza, en el mismo tipo que la transporta, en vez de

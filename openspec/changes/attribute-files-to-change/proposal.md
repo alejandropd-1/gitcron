@@ -28,14 +28,17 @@ la convención no se aplicó nunca porque los cambios se crean desde la terminal
 
 ## What Changes
 
-Este cambio no está decidido: hay dos caminos y `design.md` propone uno con su alternativa. **Nada se
-implementa antes de que Ale confirme el camino.** Lo que en cualquier caso entra:
+Ale eligió la rama como fuente, y el complemento por sesión **se retiró del alcance** una vez que la
+convención de rama empezó a cumplirse: el motivo está en `design.md`. Lo que entra:
 
-- El panel de preparación puede decir algo sobre el origen de un archivo de código, en vez de declarar
-  únicamente su tipo.
-- Lo que se afirme queda calificado por su confianza: una observación se muestra como observación y no
-  como pertenencia.
-- Los puntos ciegos de la fuente elegida quedan visibles en la interfaz, no sólo en un reporte.
+- El panel de preparación dice a qué cambio pertenece un archivo de código cuando la rama lo declara, en
+  vez de declarar únicamente su tipo.
+- Cada atribución lleva su fuente: `path` es un hecho de ubicación, `branch` es una declaración. Las dos
+  no se mezclan en un mismo grupo, y el hecho no lo pisa la declaración.
+- El punto ciego de la rama queda visible donde se atribuye: afirma dónde se editó el archivo, no para
+  qué.
+- El mensaje sugerido puede nombrar el cambio cuando el conjunto es de puro código sobre su rama, que es
+  el caso en que hoy sale vacío pudiendo no salirlo.
 
 ## Capabilities
 
@@ -58,6 +61,10 @@ En ambos casos, `types/pipeline/index.ts` y el panel de preparación.
 **Sin tocar:** `lib/change-commit-scope.ts` mantiene su forma. Es pura, sin estado de Git ni forma de
 `GitFile`, y eso es lo que permite probarla con tablas; cualquier dato nuevo entra como parámetro, no
 como acceso desde adentro.
+
+**Fuera de alcance:** la observación por sesión, retirada con su motivo en `design.md`. También queda
+fuera qué dice el mensaje del commit más allá de nombrar el cambio: la sesión lleva `taskId` y hoy se
+descarta, pero es otra pregunta y va en su propio cambio.
 
 **Fuera de alcance:** preseleccionar archivos en el panel de preparación a partir de la atribución.
 Nada entra preseleccionado, y esa decisión está tomada: preseleccionar reintroduce que el commit

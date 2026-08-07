@@ -3,6 +3,7 @@
 import { useId, useRef, useState } from 'react';
 import { BookOpen, FileText } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
+import { useNewChangeDraft, useNewChangeDraftStore } from '@/lib/new-change-draft-store';
 import type { BranchDivergence, RuntimeProjection } from '@/types/pipeline';
 import { BranchBaseNotice } from './ChangeBranchNotice';
 import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
@@ -14,8 +15,6 @@ export type PipelineNewChangeMode = 'propose' | 'explore';
 export type PipelineNewChangeFlowProps = {
   repoPath: string;
   projection: RuntimeProjection | null;
-  /** Rama elegida en la guía. La persona todavía puede cambiarla acá. */
-  initialMode: PipelineNewChangeMode;
   blockedByFixture?: boolean;
   onStarted?: () => void;
   /** Rama actual: es la base de la que sale la del cambio si no se elige otra. */
@@ -55,7 +54,6 @@ export type PipelineNewChangeFlowProps = {
 export function PipelineNewChangeFlow({
   repoPath,
   projection,
-  initialMode,
   blockedByFixture = false,
   onStarted,
   currentBranch,
@@ -65,11 +63,23 @@ export function PipelineNewChangeFlow({
 }: PipelineNewChangeFlowProps) {
   const t = useT();
   const fieldId = useId();
-  const [mode, setMode] = useState<PipelineNewChangeMode>(initialMode);
-  const [objective, setObjective] = useState('');
-  const [slug, setSlug] = useState('');
-  const [constraints, setConstraints] = useState('');
-  const [description, setDescription] = useState('');
+  /**
+   * Lo que se está escribiendo vive en el store y no acá.
+   *
+   * Las solapas de la aplicación se desmontan al cambiar: ir al grafo y volver
+   * se llevaba el formulario entero. Lo transitorio —errores, la instrucción ya
+   * compuesta— sí se queda en el componente: se recalcula de los campos, y
+   * guardarlo sería un segundo lugar donde vive el mismo dato.
+   */
+  const draft = useNewChangeDraft(repoPath);
+  const patchDraft = useNewChangeDraftStore((state) => state.patchDraft);
+  const clearDraft = useNewChangeDraftStore((state) => state.clearDraft);
+  const { mode, objective, slug, constraints, description } = draft;
+  const setMode = (next: PipelineNewChangeMode) => patchDraft(repoPath, { mode: next });
+  const setObjective = (next: string) => patchDraft(repoPath, { objective: next });
+  const setSlug = (next: string) => patchDraft(repoPath, { slug: next });
+  const setConstraints = (next: string) => patchDraft(repoPath, { constraints: next });
+  const setDescription = (next: string) => patchDraft(repoPath, { description: next });
   const [errors, setErrors] = useState<{ objective?: string; slug?: string; description?: string }>({});
   const [instruction, setInstruction] = useState<string | null>(null);
   /**
@@ -77,7 +87,8 @@ export function PipelineNewChangeFlow({
    * dejaría la función invisible y el trabajo seguiría en `main` por inercia.
    * No es silencioso —se declara en el formulario— y desmarcarlo no toca Git.
    */
-  const [withBranch, setWithBranch] = useState(true);
+  const withBranch = draft.withBranch;
+  const setWithBranch = (next: boolean) => patchDraft(repoPath, { withBranch: next });
   /** Motivo real informado por Git. No se normaliza a un mensaje propio. */
   const [branchError, setBranchError] = useState<string | null>(null);
   /**
@@ -87,7 +98,8 @@ export function PipelineNewChangeFlow({
    * exactamente donde se quiere estar, y elegir la base por la persona perdería
    * ese trabajo de vista.
    */
-  const [fromMain, setFromMain] = useState(false);
+  const fromMain = draft.fromMain;
+  const setFromMain = (next: boolean) => patchDraft(repoPath, { fromMain: next });
   /** Se pidió crear la rama con trabajo sin confirmar. Se declara, no se hace. */
   const [dirtyBlocked, setDirtyBlocked] = useState(false);
 
@@ -353,7 +365,12 @@ export function PipelineNewChangeFlow({
             taskId={null}
             blockedByFixture={blockedByFixture}
             startLabelKey={mode === 'propose' ? 'pipeline.newChange.propose.start' : 'pipeline.newChange.explore.start'}
-            onStarted={onStarted}
+            // Arrancar la sesión es uno de los dos momentos en que el borrador
+            // deja de serlo: lo que se escribió ya está en manos del ejecutor.
+            onStarted={() => {
+              clearDraft(repoPath);
+              onStarted?.();
+            }}
           />
         </div>
       )}

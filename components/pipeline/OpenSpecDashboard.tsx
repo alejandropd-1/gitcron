@@ -43,6 +43,7 @@ import { OpenSpecReadiness, OpenSpecToolList } from './OpenSpecReadiness';
 import { SpecificationViewer } from './SpecificationViewer';
 import { TaskConfirmToast } from './TaskConfirmToast';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
+import { useNewChangeDraft, useNewChangeDraftStore } from '@/lib/new-change-draft-store';
 import {
   composeArchiveInstruction,
   deriveArchiveAvailability,
@@ -315,7 +316,26 @@ export function OpenSpecDashboard({
   /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [flowMode, setFlowMode] = useState<PipelineNewChangeMode | null>(null);
+  /**
+   * Que el flujo esté abierto es parte del borrador y no estado local.
+   *
+   * Vivía en un `useState` acá, y cambiar de solapa desmonta el panel entero: al
+   * volver, la pantalla no estaba. Es lo primero que se pierde y lo que más
+   * desconcierta, porque no queda ni rastro de que había algo empezado.
+   */
+  const draft = useNewChangeDraft(repoPath);
+  const patchDraft = useNewChangeDraftStore((state) => state.patchDraft);
+  const clearDraft = useNewChangeDraftStore((state) => state.clearDraft);
+  const flowMode: PipelineNewChangeMode | null = draft.open ? draft.mode : null;
+  /**
+   * Cerrar sin descartar: elegir un cambio o lanzar una tarea sacan el
+   * formulario de la vista, pero no son la persona diciendo que ya no lo quiere.
+   * Sólo «cerrar sin empezar» y arrancar la sesión descartan lo escrito.
+   */
+  const closeFlow = () => patchDraft(repoPath, { open: false });
+  const openFlow = (mode: PipelineNewChangeMode) => patchDraft(repoPath, { open: true, mode });
+  /** «Cerrar sin empezar» sí descarta: es la persona diciendo que no lo quiere. */
+  const dismissFlow = () => clearDraft(repoPath);
   const attentionRef = useRef<HTMLElement>(null);
 
   const activeChanges = openSpec?.activeChanges ?? [];
@@ -646,7 +666,7 @@ export function OpenSpecDashboard({
     onSelectChange?.(changeId);
     setCenterTab('work');
     setLaunchTarget(null);
-    setFlowMode(null);
+    closeFlow();
     // Elegir un cambio cierra la especificación abierta: las dos ocupan el
     // centro, así que dejarla puesta hacía que la barra lateral pareciera no
     // responder —se marcaba el cambio elegido y el centro seguía mostrando la
@@ -667,7 +687,7 @@ export function OpenSpecDashboard({
     switch (intent.kind) {
       case 'open-propose-flow':
       case 'open-explore-flow':
-        setFlowMode(intent.kind === 'open-propose-flow' ? 'propose' : 'explore');
+        openFlow(intent.kind === 'open-propose-flow' ? 'propose' : 'explore');
         setLaunchTarget(null);
         setCenterTab('work');
         break;
@@ -680,7 +700,7 @@ export function OpenSpecDashboard({
       // del estado hacía que archivar con tareas pendientes arrancara atado a
       // una de ellas.
       case 'start-apply':
-        setFlowMode(null);
+        closeFlow();
         setLaunchTarget(nextAction.instruction ? { instruction: nextAction.instruction, taskId: intent.taskId } : null);
         setCenterTab('work');
         break;
@@ -689,7 +709,7 @@ export function OpenSpecDashboard({
       // comando ni shell para correrlo, y devolver éxito sin hacer nada. Acá se
       // pide confirmación mostrando el comando exacto que se va a ejecutar.
       case 'start-archive': {
-        setFlowMode(null);
+        closeFlow();
         setLaunchTarget(null);
         setArchiveError(null);
         setArchiveRequest({ changeId: intent.changeId, command: composeArchiveInstruction(intent.changeId) });
@@ -745,7 +765,7 @@ export function OpenSpecDashboard({
       // como estaba en vez de adivinar.
       if (added.length === 1) {
         setSelection(added[0]);
-        setFlowMode(null);
+        closeFlow();
         setLaunchTarget(null);
       }
     }
@@ -1446,7 +1466,7 @@ export function OpenSpecDashboard({
                   )}
                 </div>
               </div>
-              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: () => setFlowMode(null) } : undefined} />
+              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: dismissFlow } : undefined} />
               {/* Lo archivado es el registro de lo que se hizo, incluida la
                   firma humana. Revisarlo no debería obligar a salir de la
                   aplicación ni a leer el diff del commit de archivado. */}
@@ -1489,7 +1509,6 @@ export function OpenSpecDashboard({
                   <PipelineNewChangeFlow
                     repoPath={repoPath}
                     projection={projection}
-                    initialMode={flowMode}
                     blockedByFixture={fixtureActive}
                     onStarted={() => setCenterTab('activity')}
                     currentBranch={currentBranch}
@@ -1523,12 +1542,11 @@ export function OpenSpecDashboard({
                 onShowDetail={rightOpen ? () => setRailTab('tools') : undefined}
               />
 
-              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: () => setFlowMode(null) } : undefined} />
+              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: dismissFlow } : undefined} />
               {flowMode && (
                 <PipelineNewChangeFlow
                   repoPath={repoPath}
                   projection={projection}
-                  initialMode={flowMode}
                   blockedByFixture={fixtureActive}
                   onStarted={() => setCenterTab('activity')}
                   currentBranch={currentBranch}

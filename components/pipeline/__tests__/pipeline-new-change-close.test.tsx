@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useNewChangeDraftStore } from '@/lib/new-change-draft-store';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
 
@@ -18,6 +19,8 @@ vi.mock('@/hooks/use-translation', () => ({
     params ? `${key}:${JSON.stringify(params)}` : key,
 }));
 
+// El flujo abierto es parte del borrador, que vive en un store global.
+beforeEach(() => useNewChangeDraftStore.setState({ drafts: {} }));
 afterEach(cleanup);
 
 function snapshot(): PipelineSnapshot {
@@ -85,6 +88,19 @@ describe('cerrar el flujo de cambio nuevo', () => {
     // Vuelve la pantalla de inicio, sin el formulario.
     expect(screen.queryByRole('button', { name: /newChange\.close/ })).toBeNull();
     expect(screen.getByRole('button', { name: /next\.noActive\.propose/ })).toBeTruthy();
+  });
+
+  it('cerrar sin empezar descarta lo escrito', () => {
+    // El borrador sobrevive a cambiar de solapa, pero no a que la persona diga
+    // que no lo quiere: son los dos momentos en que deja de ser un borrador.
+    renderDashboard();
+    fireEvent.click(screen.getByRole('button', { name: /next\.noActive\.propose/ }));
+    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'algo a medio escribir' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.close/ }));
+    fireEvent.click(screen.getByRole('button', { name: /next\.noActive\.propose/ }));
+
+    expect((screen.getAllByRole('textbox')[0] as HTMLTextAreaElement).value).toBe('');
   });
 
   it('el flujo de explorar también se puede cerrar', () => {

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useNewChangeDraftStore } from '@/lib/new-change-draft-store';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
 
@@ -104,6 +105,9 @@ function renderDashboard(present = false) {
 let initOpenSpec: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+  // El borrador del flujo vive en un store global desde que sobrevive al
+  // desmontaje: sin resetearlo, lo escrito en una prueba aparece en la siguiente.
+  useNewChangeDraftStore.setState({ drafts: {} });
   initOpenSpec = vi.fn().mockResolvedValue({ success: true, needsTool: false });
   (window as unknown as { api: unknown }).api = { pipelineInitOpenSpec: initOpenSpec };
 });

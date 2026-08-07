@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useNewChangeDraftStore } from '@/lib/new-change-draft-store';
 import { PipelineNewChangeFlow } from '../PipelineNewChangeFlow';
 
 /**
@@ -25,6 +26,9 @@ const gitCreateBranch = vi.fn();
 const ORIGINAL_API = (globalThis as { window?: { api?: unknown } }).window?.api;
 
 beforeEach(() => {
+  // El borrador vive en un store global: sin esto, lo escrito en una prueba
+  // aparece en la siguiente. Es la contrapartida de que sobreviva al desmontaje.
+  useNewChangeDraftStore.setState({ drafts: {} });
   gitCreateBranch.mockReset().mockResolvedValue({ success: true });
   Object.defineProperty(window, 'api', { configurable: true, value: { gitCreateBranch } });
 });
@@ -40,7 +44,6 @@ function renderFlow() {
     <PipelineNewChangeFlow
       repoPath="C:/repo"
       projection={null}
-      initialMode="propose"
       onStarted={() => undefined}
     />,
   );

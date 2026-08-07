@@ -43,6 +43,11 @@ context: |
   parte de abrir el cambio y no algo que haya que pedir: es local, reversible y no publica nada. Lo que
   sí se informa es que se creó y con qué nombre.
 
+  Runtime: la aplicación corre sobre Electron y empaqueta su propio Chromium, así que una función del
+  navegador ya disponible de forma amplia se usa sin código de respaldo. La declaración completa, con la
+  versión y con lo que no habilita, está en `AGENTS.md`; vive ahí porque las herramientas que responden
+  consultas sobre prácticas web buscan la política de soporte en ese archivo.
+
   Fallow y CodeGraph son rutinas que se corren cuando se piden, no automatismos de cierre.
 
   Ante ambigüedad de alcance: preguntar, no asumir. Frenar y reportar cuesta una vuelta;

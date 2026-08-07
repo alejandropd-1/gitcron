@@ -43,6 +43,22 @@ Git. Confirmar el trabajo en Git es una acción aparte y requiere autorización 
    escribieron, no lo que hay ahora.
 3. Si existe `.codegraph/`, usar CodeGraph antes de grep o lectura amplia.
 
+## Sobre qué corre esto
+
+GitCron es una aplicación de escritorio sobre **Electron 42**: empaqueta su propio Chromium. El motor no
+lo elige quien abre la aplicación, lo fija este proyecto al fijar la versión de Electron.
+
+Por eso, una función del navegador que ya esté disponible de forma amplia se puede usar **sin escribir
+código de respaldo**. No hay que sostener navegadores viejos ni ajenos, y un respaldo escrito por las
+dudas es código que nunca se va a ejecutar y que hay que mantener igual.
+
+Esto no habilita todo. Quedan afuera las funciones experimentales o detrás de banderas, y no es una
+invitación a reescribir código que ya funciona sólo porque ahora se podría de otra forma. Declara qué se
+puede asumir del motor, nada más.
+
+La versión está nombrada a propósito: si Electron sube, o si algún día esto tuviera que correr fuera de
+Electron, esta declaración hay que revisarla.
+
 ## Seguridad y Git
 
 - No leer, imprimir ni persistir secrets, `.env`, tokens, cookies ni reasoning privado no emitido.

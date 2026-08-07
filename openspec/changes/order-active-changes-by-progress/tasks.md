@@ -30,5 +30,5 @@
 - [x] 4.3 `pnpm exec eslint` limpio sobre lo tocado
 - [x] 4.4 `openspec validate order-active-changes-by-progress --strict` válido
 - [x] 4.5 Reporte en `docs/reports/2026-08-07-order-active-changes-by-progress.md`
-- [ ] 4.6 Ale valida en la aplicación, y en particular si molesta que la lista se reordene al tildar una
+- [x] 4.6 Ale valida en la aplicación, y en particular si molesta que la lista se reordene al tildar una
       casilla

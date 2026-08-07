@@ -21,7 +21,7 @@
 ## 3. Comprobación
 
 - [x] 3.1 Confirmar por el canal que quedan las esperadas: `tasks` 3, `proposal` 4, `specs` 3, `design` 1
-- [ ] 3.2 Confirmar que las tres reglas de tareas que quedan son las que Ale quiere conservar
+- [x] 3.2 Ale confirmó las once reglas que quedan, incluida la de quién marca una validación humana
 
 ## 4. Cierre
 

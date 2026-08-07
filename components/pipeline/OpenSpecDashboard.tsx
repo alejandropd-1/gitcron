@@ -37,6 +37,7 @@ import { PipelineDetails, type DetailTab } from './PipelineDetails';
 import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { PipelineNextStepGuide } from './PipelineNextStepGuide';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
+import { TaskConfirmToast } from './TaskConfirmToast';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
 import {
   composeArchiveInstruction,
@@ -253,13 +254,26 @@ export function OpenSpecDashboard({
    */
   const [lastPreparedCount, setLastPreparedCount] = useState<number | null>(null);
   /**
-   * Desmarcado pendiente de confirmación.
+   * Cambio de casilla pendiente de confirmación, en cualquiera de las dos
+   * direcciones.
    *
-   * Marcar agrega una afirmación que su autor hace en ese momento; desmarcar
-   * borra la constancia de algo que alguien afirmó antes, y además queda escrito
-   * en el registro. Por eso sólo esta dirección pregunta.
+   * Antes sólo preguntaba el desmarcado, con el argumento de que marcar agrega
+   * una afirmación que su autor hace en ese momento mientras que desmarcar borra
+   * la constancia de algo que alguien afirmó antes. Eso distinguía bien el
+   * contenido de cada acción y dejaba fuera lo que comparten: las dos escriben
+   * en el repositorio con un clic que se puede errar, y marcar la última casilla
+   * pendiente hace aparecer archivar como acción principal. Un clic accidental
+   * podía dejar el cambio ofreciendo cerrarse.
+   *
+   * Los textos siguen siendo distintos: lo que cada dirección hace no es lo
+   * mismo, y el aviso tiene que decir cuál de las dos se está por hacer.
    */
-  const [uncheckRequest, setUncheckRequest] = useState<{ line: number; text: string; label: string } | null>(null);
+  const [taskToggleRequest, setTaskToggleRequest] = useState<{
+    line: number;
+    text: string;
+    label: string;
+    completed: boolean;
+  } | null>(null);
   const [taskError, setTaskError] = useState<string | null>(null);
   /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
   const [archiveError, setArchiveError] = useState<string | null>(null);
@@ -1113,35 +1127,33 @@ export function OpenSpecDashboard({
                 </div>
               )}
 
-              {/* Desmarcar borra la constancia de algo que alguien afirmó haber
-                  hecho, y queda escrito en el registro: un clic accidental
-                  escribiría algo que nadie quiso. Marcar no pregunta. */}
-              {uncheckRequest && (
-                <div className={styles.archiveConfirm}>
-                  <div className={styles.archiveConfirmHead}>
-                    <strong>{t('pipeline.openspec.task.uncheckTitle', { task: uncheckRequest.label })}</strong>
-                    <span>{t('pipeline.openspec.task.uncheckHelp')}</span>
-                  </div>
-                  <div className={styles.actions}>
-                    <button
-                      type="button"
-                      className={styles.primaryAction}
-                      onClick={() => {
-                        void setTaskChecked(uncheckRequest.line, uncheckRequest.text, false);
-                        setUncheckRequest(null);
-                      }}
-                    >
-                      {t('pipeline.openspec.task.uncheckConfirm')}
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.secondaryAction}
-                      onClick={() => setUncheckRequest(null)}
-                    >
-                      {t('pipeline.openspec.archive.cancel')}
-                    </button>
-                  </div>
-                </div>
+              {/* Las dos direcciones escriben en el repositorio con un clic que
+                  se puede errar, así que las dos preguntan. El texto cambia
+                  porque lo que hacen no es lo mismo: marcar afirma que algo se
+                  hizo, desmarcar borra esa constancia y lo deja anotado.
+
+                  El aviso de marcado NO dice "irreversible": sería falso en el
+                  momento en que se muestra, porque esta misma pantalla ofrece
+                  desmarcar. Dice hasta cuándo se puede deshacer, que es lo
+                  cierto y lo que hace falta saber. */}
+              {taskToggleRequest && (
+                <TaskConfirmToast
+                  title={t(taskToggleRequest.completed
+                    ? 'pipeline.openspec.task.checkTitle'
+                    : 'pipeline.openspec.task.uncheckTitle', { task: taskToggleRequest.label })}
+                  description={t(taskToggleRequest.completed
+                    ? 'pipeline.openspec.task.checkHelp'
+                    : 'pipeline.openspec.task.uncheckHelp')}
+                  confirmLabel={t(taskToggleRequest.completed
+                    ? 'pipeline.openspec.task.checkConfirm'
+                    : 'pipeline.openspec.task.uncheckConfirm')}
+                  cancelLabel={t('pipeline.openspec.archive.cancel')}
+                  onConfirm={() => {
+                    void setTaskChecked(taskToggleRequest.line, taskToggleRequest.text, taskToggleRequest.completed);
+                    setTaskToggleRequest(null);
+                  }}
+                  onCancel={() => setTaskToggleRequest(null)}
+                />
               )}
               {taskError && (
                 <p className={styles.archiveError} role="alert">{taskError}</p>
@@ -1188,17 +1200,12 @@ export function OpenSpecDashboard({
                             title={t(task.completed
                               ? 'pipeline.openspec.task.uncheck'
                               : 'pipeline.openspec.task.check')}
-                            onClick={() => {
-                              if (!task.completed) {
-                                void setTaskChecked(task.line, task.text, true);
-                                return;
-                              }
-                              setUncheckRequest({
-                                line: task.line,
-                                text: task.text,
-                                label: resolveTaskLabel(task),
-                              });
-                            }}
+                            onClick={() => setTaskToggleRequest({
+                              line: task.line,
+                              text: task.text,
+                              label: resolveTaskLabel(task),
+                              completed: !task.completed,
+                            })}
                           >
                             {task.completed ? <Check size={14} /> : <Circle size={14} />}
                           </button>

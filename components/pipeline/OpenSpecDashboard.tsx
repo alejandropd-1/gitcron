@@ -36,6 +36,7 @@ import { DecisionInbox } from './DecisionInbox';
 import { PipelineDetails, type DetailTab } from './PipelineDetails';
 import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { PipelineNextStepGuide } from './PipelineNextStepGuide';
+import { motion, useReducedMotion } from 'motion/react';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
 import { SpecificationViewer } from './SpecificationViewer';
 import { TaskConfirmToast } from './TaskConfirmToast';
@@ -50,6 +51,7 @@ import {
   type PipelineActionIntent,
 } from './pipeline-next-action';
 import { groupActivity, runtimeDisplayName, type ActivityChannel } from './pipeline-domain';
+import { sortActiveChangesByProgress } from './pipeline-view-state';
 import type { OpenSpecChangeSummary, PipelineSnapshot } from './pipeline-view-state';
 import styles from './OpenSpecDashboard.module.css';
 
@@ -283,6 +285,14 @@ export function OpenSpecDashboard({
    * archivados.
    */
   const [openSpecificationId, setOpenSpecificationId] = useState<string | null>(null);
+  /**
+   * Preferencia del sistema por menos movimiento.
+   *
+   * El panel ya la respeta en CSS para la banda de relectura; acá hace falta en
+   * JavaScript porque el movimiento lo produce la animación de layout, que no
+   * pasa por una hoja de estilos.
+   */
+  const reducedMotion = useReducedMotion();
   const [taskError, setTaskError] = useState<string | null>(null);
   /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
   const [archiveError, setArchiveError] = useState<string | null>(null);
@@ -738,7 +748,7 @@ export function OpenSpecDashboard({
               <div className={styles.activeList}>
               {activeChanges.length === 0 ? (
                 <p className={styles.navEmpty}>{t('pipeline.openspec.active.empty')}</p>
-              ) : activeChanges.map((change) => {
+              ) : sortActiveChangesByProgress(activeChanges).map((change) => {
                 const itemProgress = taskProgress(change);
                 const isSelected = change.changeId === selectedId;
                 // Plegado por defecto: desplegar es una acción que se pide, no
@@ -770,7 +780,24 @@ export function OpenSpecDashboard({
                 );
 
                 return (
-                  <div key={change.changeId} className={styles.activeChange} data-selected={isSelected}>
+                  /* La lista se reordena sola al tildar una casilla, así que un
+                     ítem puede saltar de posición mientras se lo mira.
+                     `layout` es lo que suaviza ese salto: el fade por sí solo no
+                     lo haría, porque React reusa el nodo por su `key` y lo
+                     reubica sin remontarlo. El fundido queda para cuando un
+                     cambio entra o sale de la lista, que es el mismo patrón de
+                     hidratación que ya usa el visor de diferencias.
+                     Corto a propósito: acompaña el movimiento, no lo protagoniza. */
+                  <motion.div
+                    key={change.changeId}
+                    layout={reducedMotion ? false : 'position'}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={reducedMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeOut' }}
+                    className={styles.activeChange}
+                    data-selected={isSelected}
+                  >
                     <div className={styles.changeHeadingRow}>
                       <button
                         type="button"
@@ -808,7 +835,7 @@ export function OpenSpecDashboard({
                         </div>
                       </>
                     )}
-                  </div>
+                  </motion.div>
                 );
               })}
               </div>

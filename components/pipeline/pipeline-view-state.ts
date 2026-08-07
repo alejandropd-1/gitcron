@@ -38,6 +38,43 @@ export type OpenSpecChangeSummary = {
   createdAt?: ChangeTimestamp | null;
 };
 
+/**
+ * Orden de la lista de cambios activos: primero los más avanzados.
+ *
+ * Antes no se ordenaban por ningún criterio —llegaban en el orden en que el
+ * sistema de archivos lista el directorio, alfabético por accidente—, así que un
+ * cambio al 96% podía quedar debajo de tres parqueados en 0%.
+ *
+ * El desempate por fecha de creación no es decorativo: varios cambios comparten
+ * el 0% —los recién creados y los parqueados hace semanas— y sin él un cambio
+ * que se acaba de abrir caería al fondo junto a los que nadie va a tocar. Con el
+ * desempate, lo nuevo queda arriba de lo viejo dentro del mismo avance.
+ *
+ * Es pura y no muta la lista recibida: se prueba con tablas y el orden no puede
+ * depender de en qué momento la vista la llame.
+ */
+export function sortActiveChangesByProgress<T extends {
+  tasks: TaskEvidence[];
+  createdAt?: ChangeTimestamp | null;
+  changeId: string;
+}>(changes: readonly T[]): T[] {
+  const percent = (change: T) => {
+    const total = change.tasks.length;
+    if (total === 0) return 0;
+    return change.tasks.filter((task) => task.completed).length / total;
+  };
+  return [...changes].sort((left, right) => {
+    const byProgress = percent(right) - percent(left);
+    if (byProgress !== 0) return byProgress;
+    // Sin marca de creación no se inventa una posición: se cae al identificador,
+    // que al menos es estable entre relecturas.
+    const leftAt = left.createdAt?.at ?? '';
+    const rightAt = right.createdAt?.at ?? '';
+    if (leftAt !== rightAt) return rightAt.localeCompare(leftAt);
+    return left.changeId.localeCompare(right.changeId);
+  });
+}
+
 export type OpenSpecWorkspaceSnapshot = {
   selectedChangeId: string | null;
   activeChanges: OpenSpecChangeSummary[];

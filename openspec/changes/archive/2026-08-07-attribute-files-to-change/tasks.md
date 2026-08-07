@@ -44,4 +44,4 @@
 - [x] 6.4 `openspec validate attribute-files-to-change --strict` válido
 - [x] 6.5 Reporte en `docs/reports/`, con cuántos archivos quedaron efectivamente atribuidos en un caso
       real y el motivo del alcance retirado
-- [ ] 6.6 Ale valida en la aplicación que ninguna atribución se lee como más segura de lo que es
+- [x] 6.6 Ale valida en la aplicación que ninguna atribución se lee como más segura de lo que es

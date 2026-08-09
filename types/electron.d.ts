@@ -387,6 +387,8 @@ interface ElectronAPI {
     cancel(): Promise<GitResult<{ cancelled: boolean }>>;
     /** Descarga el modelo a mano, sin esperar a que venza su TTL. */
     unload(model: string, baseUrl?: string): Promise<GitResult<{ unloaded: boolean }>>;
+    /** Identificador de máquina → nombre legible. Resuelto una vez y guardado. */
+    deviceNames(): Promise<GitResult<Record<string, string>>>;
     draft(args: {
       repoPath: string;
       paths: string[];

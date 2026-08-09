@@ -103,6 +103,9 @@ describe('el catálogo', () => {
       reasoningDefault: 'on',
       reasoningCanBeOff: true,
       loadedInstanceId: 'google/gemma-4-12b',
+      // En qué máquina vive llega por otra vía —el WebSocket del servidor— y no
+      // en el catálogo HTTP: acá todavía está vacío.
+      devices: [],
     });
   });
 

@@ -108,6 +108,13 @@
       primero como bajar de internet, que es lo contrario de lo que hace. Ale lo marcó
 - [x] 4.31 Los campos numéricos a la altura de los botones, con caja propia y sin las flechitas del
       spinner. Eran una línea baja al lado de controles de 2,65rem y la fila quedaba desprolija
+- [x] 4.32 En qué máquina vive cada modelo, por el WebSocket del propio servidor. Medido: 42 ms contra los
+      1,7–37,8 s del CLI que se retiró por costoso, con el mismo resultado —13 remotos y 3 locales—. Sin
+      credenciales: comprobado que el handshake pasa con la contraseña vacía
+- [x] 4.33 El nombre de la máquina —«Ale-CasaNew»— y no el identificador crudo. El WebSocket no lo trae:
+      se barrieron cinco canales y treinta nombres de RPC. Lo da `lms link status --json`, que **solo**
+      cuesta 300–700 ms medidos —el caro era `lms ls`, que ya no hace falta porque el mapeo lo da el
+      WebSocket—, y se guarda en disco porque el nombre de una computadora no cambia
 - [ ] 4.25 Barra de progreso **real** durante la carga: los diseños encontraron que el servidor expone la
       fracción por WebSocket (0 → 0,376 → 1). Sin consumir todavía; hoy la barra es indeterminada, y
       fingir una fracción que no se midió sería inventar
@@ -133,6 +140,9 @@
 - [x] 5.14 Prueba: toda petición del proveedor lleva señal, y la carga acepta la cancelación de quien llama
 - [x] 5.15 Prueba: las frases no aparecen durante la carga y la barra no aparece durante la redacción
 - [x] 5.16 Prueba: se ofrece descargar el modelo cargado, y no se ofrece con uno en disco
+- [x] 5.17 Pruebas del índice de dispositivos: el identificador nulo es esta máquina, un modelo en las dos
+      lleva las dos, y sin el dato no se dice «esta máquina» por omisión
+- [x] 5.18 Prueba: con los nombres resueltos el desplegable dice «Ale-CasaNew», no el identificador
 
 ## 6. Cierre
 

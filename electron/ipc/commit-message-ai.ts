@@ -9,9 +9,16 @@
 // Lo que viaja es el diff del repositorio, más sensible que el contexto que
 // manda Cartografía. Por eso el proveedor es local y el endpoint se declara.
 
-import { ipcMain } from 'electron';
+import { join } from 'node:path';
+import { app, ipcMain } from 'electron';
 import { simpleGit } from 'simple-git';
 import type { CommitDraftResult, LoadOutcome, LocalModel } from '../../types/commit-message-ai';
+import {
+  readCachedDeviceNames,
+  resolveDeviceNames,
+  writeCachedDeviceNames,
+  type DeviceNames,
+} from '../ai/commit-message/device-names';
 import {
   DEFAULT_LOCAL_BASE_URL,
   draftCommitSubject,
@@ -191,6 +198,33 @@ export function registerCommitMessageAiHandlers(): void {
     } finally {
       inFlightLoad.delete(endpoint);
       loadControllers.delete(endpoint);
+    }
+  });
+
+  /**
+   * Los nombres de las máquinas: «Ale-CasaNew» en vez de «4f814c48…».
+   *
+   * Va en su propio canal y **no** dentro del catálogo, porque son dos costos
+   * distintos: el catálogo con sus identificadores sale en 42 ms por WebSocket,
+   * y esto invoca un proceso. Mezclarlos haría que abrir el panel pague el
+   * proceso, que es exactamente el error de la versión anterior.
+   *
+   * Se resuelve una sola vez y se guarda en disco: el nombre de una computadora
+   * no cambia. Las corridas siguientes lo leen de ahí y no invocan nada.
+   */
+  ipcMain.handle('commit-ai:device-names', async (): Promise<Result<DeviceNames>> => {
+    try {
+      const cachePath = join(app.getPath('userData'), 'lm-link-device-names.json');
+      const enDisco = await readCachedDeviceNames(cachePath);
+      if (enDisco && Object.keys(enDisco).length > 0) return ok(enDisco);
+      // Nunca mientras hay una carga: es el momento de más presión de memoria, y
+      // era justo cuando la versión retirada lo invocaba.
+      if (inFlightLoad.size > 0) return ok({});
+      const resueltos = await resolveDeviceNames();
+      if (Object.keys(resueltos).length > 0) await writeCachedDeviceNames(cachePath, resueltos);
+      return ok(resueltos);
+    } catch (error) {
+      return fail(error);
     }
   });
 

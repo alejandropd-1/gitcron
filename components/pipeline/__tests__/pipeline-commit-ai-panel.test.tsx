@@ -30,6 +30,7 @@ const draft = vi.fn();
 const load = vi.fn();
 const cancel = vi.fn();
 const unload = vi.fn();
+const deviceNames = vi.fn();
 
 function snapshot(): PipelineSnapshot {
   return {
@@ -90,21 +91,22 @@ beforeEach(() => {
   catalog.mockReset().mockResolvedValue({
     success: true,
     data: [
-      { id: 'google/gemma-4-12b', displayName: 'Gemma 4 12B', kind: 'llm', loaded: true, loadedContextLength: 69120, maxContextLength: 262144, sizeBytes: 7556574286, params: '12B', quantization: 'Q4_K_M', reasoningDefault: 'on', reasoningCanBeOff: true, loadedInstanceId: 'google/gemma-4-12b' },
-      { id: 'ornith-1.0-9b', displayName: 'Ornith 9B', kind: 'llm', loaded: false, loadedContextLength: null, maxContextLength: 262144, sizeBytes: 5630000000, params: '9B', quantization: 'Q4_K_M', reasoningDefault: 'on', reasoningCanBeOff: false, loadedInstanceId: null },
-      { id: 'text-embedding-nomic', displayName: 'Nomic', kind: 'embeddings', loaded: false, loadedContextLength: null, maxContextLength: 2048, sizeBytes: null, params: null, quantization: null, reasoningDefault: null, reasoningCanBeOff: false, loadedInstanceId: null },
+      { id: 'google/gemma-4-12b', displayName: 'Gemma 4 12B', kind: 'llm', loaded: true, loadedContextLength: 69120, maxContextLength: 262144, sizeBytes: 7556574286, params: '12B', quantization: 'Q4_K_M', reasoningDefault: 'on', reasoningCanBeOff: true, loadedInstanceId: 'google/gemma-4-12b', devices: ['4f814c48de176d603d6e0efb16617c71'] },
+      { id: 'ornith-1.0-9b', displayName: 'Ornith 9B', kind: 'llm', loaded: false, loadedContextLength: null, maxContextLength: 262144, sizeBytes: 5630000000, params: '9B', quantization: 'Q4_K_M', reasoningDefault: 'on', reasoningCanBeOff: false, loadedInstanceId: null, devices: [''] },
+      { id: 'text-embedding-nomic', displayName: 'Nomic', kind: 'embeddings', loaded: false, loadedContextLength: null, maxContextLength: 2048, sizeBytes: null, params: null, quantization: null, reasoningDefault: null, reasoningCanBeOff: false, loadedInstanceId: null, devices: [] },
     ],
   });
   draft.mockReset();
   load.mockReset().mockResolvedValue({ success: true, data: { output: '' } });
   cancel.mockReset().mockResolvedValue({ success: true, data: { cancelled: true } });
   unload.mockReset().mockResolvedValue({ success: true, data: { unloaded: true } });
+  deviceNames.mockReset().mockResolvedValue({ success: true, data: {} });
   useGitStore.setState({
     modifiedFiles: [{ path: 'components/algo.tsx', status: 'modified', staged: false }],
     commitMessage: '',
     setCommitMessage,
   } as Partial<ReturnType<typeof useGitStore.getState>>);
-  Object.defineProperty(window, 'api', { configurable: true, value: { commitAi: { catalog, draft, load, cancel, unload } } });
+  Object.defineProperty(window, 'api', { configurable: true, value: { commitAi: { catalog, draft, load, cancel, unload, deviceNames } } });
 });
 
 afterEach(() => {
@@ -134,6 +136,47 @@ describe('el selector de modelos', () => {
 
     expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('');
     expect((botonRedactar() as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('dice en qué máquina vive cada modelo', async () => {
+    // Con LM Link la inferencia puede correr en otra computadora sin que nada lo
+    // diga: medido, 13 de los 16 modelos de Ale viven en la PC con la placa, y
+    // los 25–47 segundos de redacción ya corrían del otro lado.
+    abrirPreparacion();
+
+    expect(await screen.findByRole('option', { name: /gemma-4-12b.*aiDeviceOther/ })).toBeTruthy();
+    expect(screen.getByRole('option', { name: /ornith.*aiDeviceHere/ })).toBeTruthy();
+  });
+
+  it('usa el nombre de la máquina cuando se resuelve', async () => {
+    // «Ale-CasaNew» en vez de «4f814c…». El nombre llega por su propio canal
+    // porque cuesta un proceso —300 a 700 ms medidos— y el catálogo sale en 42
+    // ms: mezclarlos haría que abrir el panel pague el proceso.
+    deviceNames.mockResolvedValue({
+      success: true,
+      data: { '': 'Ale-Book', '4f814c48de176d603d6e0efb16617c71': 'Ale-CasaNew' },
+    });
+    abrirPreparacion();
+
+    expect(await screen.findByRole('option', { name: /gemma-4-12b.*Ale-CasaNew/ })).toBeTruthy();
+    expect(screen.getByRole('option', { name: /ornith.*Ale-Book/ })).toBeTruthy();
+  });
+
+  it('sin el dato no dice «esta máquina» por omisión', async () => {
+    // No saber no es lo mismo que saber que no. Si el servidor no contesta el
+    // canal, el modelo se muestra sin dispositivo en vez de inventarle uno.
+    catalog.mockResolvedValue({
+      success: true,
+      data: [{
+        id: 'solo', displayName: 'Solo', kind: 'llm', loaded: false, loadedContextLength: null,
+        maxContextLength: 4096, sizeBytes: null, params: null, quantization: null,
+        reasoningDefault: null, reasoningCanBeOff: false, loadedInstanceId: null, devices: [],
+      }],
+    });
+    abrirPreparacion();
+
+    const opcion = await screen.findByRole('option', { name: /solo/ });
+    expect(opcion.textContent).not.toMatch(/aiDevice/);
   });
 
   it('deja afuera los de embeddings, que no redactan nada', async () => {

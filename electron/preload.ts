@@ -206,6 +206,7 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('commit-ai:load', model, baseUrl, contextLength, ttlSeconds),
     cancel: () => ipcRenderer.invoke('commit-ai:cancel'),
     unload: (model: string, baseUrl?: string) => ipcRenderer.invoke('commit-ai:unload', model, baseUrl),
+    deviceNames: () => ipcRenderer.invoke('commit-ai:device-names'),
     draft: (args: {
       repoPath: string;
       paths: string[];

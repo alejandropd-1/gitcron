@@ -15,6 +15,7 @@
 // local sea la primera: el código no sale a ningún tercero.
 
 import type { CommitDraftResult, LoadOutcome, LocalModel } from '../../../types/commit-message-ai';
+import { fetchDeviceIndex, mergeDeviceInfo } from './device-index';
 
 /** Piso de contexto. Por debajo, el diff de una tanda no entra. */
 export const MIN_CONTEXT_LENGTH = 32_768;
@@ -172,6 +173,8 @@ export function parseModelCatalog(payload: unknown): LocalModel[] {
       quantization: text(entry?.quantization?.name),
       reasoningDefault: text(entry?.capabilities?.reasoning?.default),
       reasoningCanBeOff: Array.isArray(allowed) && allowed.includes('off'),
+      // El catálogo HTTP no dice en qué máquina vive: eso llega aparte.
+      devices: previous?.devices ?? [],
       // El catálogo HTTP no dice en qué máquina vive; se completa aparte cuando
       // se puede saber. Vacío es «no se sabe», no «es local».
       loadedInstanceId: instance ? text(instance.id) : null,
@@ -316,7 +319,11 @@ export interface DraftRequest {
 export async function fetchModelCatalog(baseUrl: string = DEFAULT_LOCAL_BASE_URL): Promise<LocalModel[]> {
   const res = await fetch(modelsEndpoint(baseUrl), { method: 'GET', signal: withTimeout(CATALOG_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`El servidor local respondió ${res.status}.`);
-  return parseModelCatalog(await res.json());
+  const models = parseModelCatalog(await res.json());
+  // En qué máquina vive cada uno llega por otra vía: no está en el HTTP.
+  // Medido: 42 ms por WebSocket, contra 1,7–37,8 s del CLI que se retiró. Si
+  // falla, cada modelo queda sin dispositivo y la vista no afirma nada.
+  return mergeDeviceInfo(models, await fetchDeviceIndex(baseUrl));
 }
 
 /**

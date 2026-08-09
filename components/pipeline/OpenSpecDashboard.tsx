@@ -553,6 +553,15 @@ export function OpenSpecDashboard({
    * tienen que estar antes del botón. El TTL es lo que hace que el modelo se
    * cierre solo; media hora es un punto de partida, no una imposición.
    */
+  /**
+   * Identificador de máquina → nombre legible.
+   *
+   * Llega por un canal propio y no con el catálogo: el catálogo con sus
+   * identificadores sale en 42 ms por WebSocket, y esto invoca un proceso —300 a
+   * 700 ms, medido—. Mezclarlos haría que abrir el panel pague el proceso, que
+   * es exactamente el error de la versión que hubo que retirar.
+   */
+  const [aiDeviceNames, setAiDeviceNames] = useState<Record<string, string>>({});
   const [aiContext, setAiContext] = useState(65_536);
   const [aiTtlMinutes, setAiTtlMinutes] = useState(30);
   const aiAbort = useRef<AbortController | null>(null);
@@ -645,6 +654,12 @@ export function OpenSpecDashboard({
       // tildado en este panel.
       setAiModels((result?.data ?? []).filter((model) => model.kind !== 'embeddings'));
     }).catch(() => { if (alive) setAiModels([]); });
+    // Los nombres de las máquinas, aparte y después: cuestan un proceso y el
+    // catálogo no puede esperarlos. Si no llegan, el desplegable muestra el
+    // identificador recortado, que se lee peor pero es cierto.
+    window.api?.commitAi?.deviceNames?.().then((result) => {
+      if (alive && result?.data) setAiDeviceNames(result.data);
+    }).catch(() => undefined);
     return () => { alive = false; };
   }, [prepareOpen, repoPath]);
 
@@ -656,6 +671,40 @@ export function OpenSpecDashboard({
    * que cargarlo— y se ofrecen juntos.
    */
   const aiChosenModel = aiModels.find((model) => model.id === aiModel) ?? null;
+  /**
+   * En qué máquina vive un modelo, en una frase.
+   *
+   * La cadena vacía en la lista significa esta máquina; un identificador, otra.
+   * Del identificador se muestran seis caracteres: el completo son treinta y dos
+   * y no le dice nada a nadie, pero seis alcanzan para distinguir dos máquinas y
+   * para reconocerlas en LM Studio.
+   *
+   * Lista vacía devuelve `null` y no «esta máquina»: no saber no es lo mismo que
+   * saber que no.
+   */
+  const aiDeviceLabel = (devices: string[] | undefined): string | null => {
+    // Ausente y vacío son lo mismo acá: no se sabe. Un catálogo leído por una
+    // versión anterior no trae el campo, y eso no puede romper el desplegable.
+    if (!devices || devices.length === 0) return null;
+    /**
+     * El nombre si se conoce; si no, seis caracteres del identificador.
+     *
+     * El nombre lo da el CLI y llega por su propio canal, más lento y aparte:
+     * mezclarlo con el catálogo haría que abrir el panel pague un proceso. Hasta
+     * que llegue se muestra el identificador, que se lee peor pero es cierto.
+     */
+    const nombre = (id: string) => aiDeviceNames[id]
+      ?? t('pipeline.openspec.prepare.aiDeviceOther', { id: id.slice(0, 6) });
+    const aqui = devices.includes('');
+    const otras = devices.filter((id) => id !== '');
+    if (aqui && otras.length > 0) {
+      return aiDeviceNames[''] && aiDeviceNames[otras[0]]
+        ? `${aiDeviceNames['']} + ${aiDeviceNames[otras[0]]}`
+        : t('pipeline.openspec.prepare.aiDeviceBoth');
+    }
+    if (aqui) return aiDeviceNames[''] ?? t('pipeline.openspec.prepare.aiDeviceHere');
+    return nombre(otras[0]);
+  };
   const aiNeedsLoad = Boolean(aiChosenModel)
     && !(aiChosenModel!.loaded && (aiChosenModel!.loadedContextLength ?? 0) >= 32_768);
 
@@ -1352,6 +1401,10 @@ export function OpenSpecDashboard({
                           {model.loaded
                             ? `${model.id} · ${model.loadedContextLength ?? '?'}`
                             : `${model.id} · ${t('pipeline.openspec.prepare.aiNotLoaded')}`}
+                          {/* En qué máquina vive. Con LM Link la inferencia
+                              puede correr en otra computadora sin que nada lo
+                              diga, y eso cambia cuál conviene elegir. */}
+                          {aiDeviceLabel(model.devices) && ` · ${aiDeviceLabel(model.devices)}`}
                         </option>
                       ))}
                     </select>
@@ -1444,6 +1497,12 @@ export function OpenSpecDashboard({
                             : t('pipeline.openspec.prepare.aiFactOnDisk', { context: 65536 })}
                         </strong>
                       </li>
+                      {aiDeviceLabel(aiChosenModel.devices) && (
+                        <li>
+                          <span>{t('pipeline.openspec.prepare.aiFactDevice')}</span>
+                          <strong>{aiDeviceLabel(aiChosenModel.devices)}</strong>
+                        </li>
+                      )}
                       {aiChosenModel.sizeBytes !== null && (
                         <li>
                           <span>{t('pipeline.openspec.prepare.aiFactSize')}</span>

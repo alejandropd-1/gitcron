@@ -53,6 +53,18 @@ export interface LocalModel {
   reasoningDefault: string | null;
   reasoningCanBeOff: boolean;
   /**
+   * Identificadores de las máquinas donde vive. Vacío es «no se sabe».
+   *
+   * Con LM Link la inferencia puede correr en otra computadora sin que nada lo
+   * diga: `localhost:1234` resuelve contra el equipo enlazado. La cadena vacía
+   * dentro de la lista significa **esta máquina**; un identificador, otra. Un
+   * modelo puede estar en las dos y entonces lleva las dos — eso explica que el
+   * catálogo HTTP lo devuelva repetido.
+   *
+   * Vacío **no** significa local: no saber no es lo mismo que saber que no.
+   */
+  devices: string[];
+  /**
    * Identificador de la instancia cargada, o `null` si no lo está.
    *
    * `POST /api/v1/models/unload` lo pide, y es lo único con lo que se puede

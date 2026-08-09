@@ -1,6 +1,6 @@
 ## 1. Base y sondas
 
-- [ ] 1.1 Confirmar que el change sigue activo, `tsc --noEmit` en cero y `pnpm test` en verde
+- [x] 1.1 Confirmar que el change sigue activo, `tsc --noEmit` en cero y `pnpm test` en verde
 - [x] 1.2 Ruta A descartada por medición: cada commit cubre entre 7 y 15 tareas —3/30, 2/25, 4/22—, así
       que nombrar una sola tarea es precisión falsa
 - [x] 1.3 Ruta B descartada por medición: los tres commits reales tocan todas las secciones de
@@ -13,54 +13,111 @@
       por el razonamiento. Con 3.000 sale el contenido. `enable_thinking: false` fue ignorado
 - [x] 1.7 Medido: `loaded_context_length` (65536, 69120) no es `max_context_length` (262144). Y con LM
       Link el catálogo mezcla dispositivos: casi todo vive en `Ale-CasaNew`
-- [x] 1.8 Comprobado que `lms load -c --ttl --estimate-only` existe, que `lms` es `.exe` —`execFile` sin
-      shell— y que no hace falta ninguna dependencia nueva
-- [ ] 1.9 Medir la calidad con más de un modelo y más de un commit: cuántas veces acierta el tipo. Es el
-      valor entero de la función y hoy hay una sola prueba
+- [x] 1.8 **Corregido con los logs del servidor que pasó Ale.** Existe `POST /api/v1/models/load`, acepta
+      `{model, context_length}` y cargó gemma-4-12b con 65.536 en 11 s. El camino por CLI se retira: no
+      llega a la máquina remota, devuelve códigos ANSI y depende de que `lms` esté instalado
+- [x] 1.9 Medida la calidad con dos modelos y tres commits. gemma-4-12b acierta el tipo en los dos que
+      contesta y falla en el archivado —donde la sugerencia determinista ya es correcta—; qwen3.5-9b no
+      contesta con techo 3.000 y con 8.000 tarda 98 s y erra el tipo. La tabla está en `design.md`
 
 ## 2. Proveedor local
 
-- [ ] 2.1 Proveedor con endpoint configurable, hermano del de Cartografía, que hoy tiene `localhost:1234`
+- [x] 2.1 Proveedor con endpoint configurable, hermano del de Cartografía, que hoy tiene `localhost:1234`
       escrito en el código
-- [ ] 2.2 Leer el catálogo con estado, contexto cargado y dispositivo por modelo
-- [ ] 2.3 Distinguir `loaded_context_length` de `max_context_length` en el tipo, no sólo en la vista
-- [ ] 2.4 Tratar `finish_reason=length` sin contenido como «no contestó», con su propio resultado
-- [ ] 2.5 Que el servidor caído degrade con un motivo legible y no con una excepción cruda
-- [ ] 2.6 Cargar un modelo con `lms load -c <contexto> --ttl`, validando la clave contra el catálogo antes
-      de que llegue al proceso
-- [ ] 2.7 Declarar el costo con `--estimate-only` antes de cargar
+- [x] 2.2 Leer el catálogo con estado, contexto cargado y dispositivo por modelo
+- [x] 2.3 Distinguir `loaded_context_length` de `max_context_length` en el tipo, no sólo en la vista
+- [x] 2.4 Tratar `finish_reason=length` sin contenido como «no contestó», con su propio resultado
+- [x] 2.5 Que el servidor caído degrade con un motivo legible y no con una excepción cruda
+- [x] 2.6 Cargar un modelo por HTTP con el contexto pedido, validando la clave contra el catálogo antes
+- [x] 2.7 Declarar el costo desde el propio catálogo: `size_bytes` es el mismo número que estimaba el CLI
 
 ## 3. Composición del pedido
 
-- [ ] 3.1 Armar la entrada con el diff de lo elegido, el cambio, su intención y las tareas cerradas
-- [ ] 3.2 Acotar el diff al presupuesto del contexto cargado, declarando cuando se recorta
-- [ ] 3.3 Presupuesto de tokens que contemple el razonamiento, con el número medido como piso
-- [ ] 3.4 Que la respuesta se valide contra la forma esperada —una línea, prefijo convencional— y que una
+- [x] 3.1 Armar la entrada con el diff de lo elegido, el cambio, su intención y las tareas cerradas
+- [x] 3.2 Acotar el diff al presupuesto del contexto cargado, declarando cuando se recorta
+- [x] 3.3 Presupuesto de tokens que contemple el razonamiento, con el número medido como piso
+- [x] 3.4 Que la respuesta se valide contra la forma esperada —una línea, prefijo convencional— y que una
       respuesta que no la cumpla no se imponga en el campo
 
 ## 4. Panel
 
-- [ ] 4.1 Selector de modelo con estado, contexto y dispositivo a la vista
-- [ ] 4.2 Acción explícita para redactar, con estado visible y cancelación
-- [ ] 4.3 Rotular el mensaje como redactado por el modelo, nombrándolo
-- [ ] 4.4 Comprobar que no pisa lo que una persona escribió
-- [ ] 4.5 Declarar el contexto insuficiente antes de intentar la redacción
-- [ ] 4.6 Espaciar lo agregado con la escala `--sp-1..--sp-6` de `.dashboard`
+- [x] 4.1 Selector de modelo con estado y contexto a la vista, sin nada preseleccionado y uniendo el mismo
+      modelo repetido por dispositivo, que con LM Link llega dos veces con la misma clave
+- [x] 4.2 Acción explícita para redactar, con estado visible y cancelación
+- [x] 4.3 Rotular el mensaje como redactado por el modelo, nombrándolo
+- [x] 4.4 Comprobar que no pisa lo que una persona escribió
+- [x] 4.5 Declarar el contexto insuficiente antes de intentar la redacción
+- [x] 4.6 Espaciar lo agregado con la escala `--sp-1..--sp-6` de `.dashboard`
+- [x] 4.7 La espera se llena con frases que rotan, como ya hace el Agente Temporal. Extraer **el
+      mecanismo** a un hook compartido: hoy vive dentro de `TemporalAgentSettings.tsx` y copiarlo dejaría
+      dos ciclos iguales que se separan con el primer arreglo
+- [x] 4.8 Vocabulario propio para este caso, en los tres idiomas. Las del Agente Temporal hablan de
+      predecir futuros y ramas especulativas; acá se está leyendo un diff
+- [x] 4.9 Fundido de entrada y salida, y que `prefers-reduced-motion` lo apague sin perder el texto
+- [x] 4.10 Que la rotación se corte al llegar la respuesta, y que las frases no queden nunca en el campo:
+      son un estado de espera, no un valor
+- [x] 4.11 Ofrecer cargar el modelo desde el panel cuando no lo está. Ale lo encontró validando: el aviso
+      de contexto insuficiente era un callejón sin salida, con `commit-ai:load` construido y sin conectar
+- [x] 4.12 Las características del modelo elegido como lista, una por línea —estado, tamaño, parámetros,
+      contexto y si razona—. Ale lo pidió viendo un párrafo con seis datos adentro y caracteres ANSI
+- [x] 4.13 **Retirado del alcance.** Declarar en qué máquina vive cada modelo exige el CLI —el dato no
+      está en HTTP ni siquiera en las instancias cargadas— y el CLI se degrada: medido, 1,7 s / 9,2 s /
+      37,8 s en tres corridas seguidas, tirando abajo el propio HTTP por timeout y trabando la notebook
+      de Ale. La función no vale ese precio. El pedido y el motivo del retiro quedan en `design.md`
+- [x] 4.14 Las frases de espera van debajo del campo, no encima: con el campo vacío se leían encimadas
+      con el texto de ayuda
+- [x] 4.15 El motivo del servidor se muestra sin el JSON alrededor
+- [x] 4.17 Que el servidor desaloje el modelo solo tras media hora sin uso, con `ttl_seconds` en la carga.
+      Ale preguntó si no se podían sacar al terminar la consulta: esto es mejor, porque dos mensajes
+      seguidos reusan el modelo y no pagan los 11 s de recarga. Comprobado contra el servidor, que
+      devuelve `ttl_seconds: 1800` en la respuesta
+- [x] 4.16 Descargar la instancia anterior al cargar otra. Cargar dos veces las apilaba y Ale terminó con
+      dos modelos de 7 GB tomados a la vez. Se libera **sólo lo que cargó la aplicación**: desalojar una
+      instancia que él levantó a mano para otra cosa sería peor que el problema
+
+- [x] 4.18 La frase de espera vive en su propio componente. Medido descartando a LM Studio: durante una
+      carga de 8,8 s el lado de la notebook consume ~5 s de CPU repartidos y la memoria libre no se mueve
+      —6,66 a 6,9 GB—, porque el modelo se carga en la otra máquina. El costo era nuestro: el temporizador
+      vivía en `OpenSpecDashboard` y cada 2,8 s re-renderizaba el panel entero durante 40 segundos
+- [x] 4.19 Cancelar corta la petición de verdad, abortándola en el proceso principal. La versión anterior
+      sólo descartaba la respuesta y el modelo seguía trabajando: un control que dice cancelar y no
+      cancela es peor que no tenerlo
+- [x] 4.20 No apilar instancias: comprobado que cargar un modelo ya cargado devuelve `instance_id: '…:2'`
+      en vez de reemplazar. Si ya está con contexto suficiente no se recarga, y si está con uno menor se
+      descarta esa instancia antes de pedir otra
+
+- [x] 4.21 Contexto y minutos de inactividad configurables **antes** de cargar: los dos se fijan en la
+      carga y no se pueden cambiar después. El TTL es lo que hace que el modelo se cierre solo, y media
+      hora es un punto de partida, no una imposición
+
+- [x] 4.22 Seis defectos encontrados por un análisis multiagente, corregidos: cancelar corta también la
+      carga —que era incancelable—; una carga a la vez por servidor; todas las peticiones con techo de
+      tiempo, porque `LOCAL_TIMEOUT_MS` estaba declarado y sin usar en ningún lado; no se desaloja lo que
+      la persona cargó a mano; un asunto sin la forma convencional se muestra en vez de tirarse como «no
+      contestó»; y cerrar el panel corta lo que esté en vuelo
 
 ## 5. Tests
 
-- [ ] 5.1 Prueba del proveedor con respuestas de tabla: contenido, vacío por `length`, servidor caído
-- [ ] 5.2 Prueba: la clave del modelo que no está en el catálogo no llega al proceso
-- [ ] 5.3 Prueba del panel: el mensaje redactado se muestra rotulado con el modelo
-- [ ] 5.4 Prueba del panel: lo escrito por una persona no se pisa
-- [ ] 5.5 Prueba: sin modelo disponible, la sugerencia es exactamente la de hoy
-- [ ] 5.6 Comprobar que sigue pasando `pipeline-prepare-commit.test.tsx` sin tocarlo
+- [x] 5.1 Prueba del proveedor con respuestas de tabla: contenido, vacío por `length`, servidor caído
+- [x] 5.2 Prueba: la clave del modelo que no está en el catálogo no llega al proceso
+- [x] 5.3 Prueba del panel: el mensaje redactado se muestra rotulado con el modelo
+- [x] 5.4 Prueba del panel: lo escrito por una persona no se pisa
+- [x] 5.5 Prueba: sin modelo disponible, la sugerencia es exactamente la de hoy
+- [x] 5.6 Comprobar que sigue pasando `pipeline-prepare-commit.test.tsx` sin tocarlo
+- [x] 5.7 Prueba del hook de frases: rota sin repetir la anterior y se detiene cuando termina la espera
+- [x] 5.8 Prueba: una frase de espera nunca queda como mensaje del commit
+- [x] 5.9 Prueba: con un modelo en disco se ofrece cargarlo, y no se carga sin declarar antes el costo
+- [x] 5.10 Prueba: la instancia cargada se transporta para poder descargarla, y en disco no hay ninguna
+- [x] 5.11 Prueba: el motivo del servidor se lee sin llaves ni comillas, y una forma rara no se inventa
+- [x] 5.12 Prueba: la carga pide el desalojo por inactividad, con el nombre de parámetro comprobado
+- [x] 5.13 Prueba: cancelar llama al canal que corta la petición, no sólo descarta la respuesta
+- [x] 5.14 Prueba: toda petición del proveedor lleva señal, y la carga acepta la cancelación de quien llama
 
 ## 6. Cierre
 
-- [ ] 6.1 `pnpm exec tsc --noEmit` en cero
-- [ ] 6.2 `pnpm test` en verde, con el conteo de archivos comparado contra la base
-- [ ] 6.3 `pnpm exec eslint` limpio sobre lo tocado
-- [ ] 6.4 `openspec validate draft-commit-message-with-local-ai --strict` válido
-- [ ] 6.5 Reporte en `docs/reports/`, con las mediciones y la calidad de 1.9
+- [x] 6.1 `pnpm exec tsc --noEmit` en cero
+- [x] 6.2 `pnpm test` en verde, con el conteo de archivos comparado contra la base
+- [x] 6.3 `pnpm exec eslint` limpio sobre lo tocado
+- [x] 6.4 `openspec validate draft-commit-message-with-local-ai --strict` válido
+- [x] 6.5 Reporte en `docs/reports/`, con las mediciones y la calidad de 1.9
 - [ ] 6.6 Ale valida que ningún mensaje redactado se lea como verificado por la aplicación

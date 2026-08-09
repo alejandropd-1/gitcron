@@ -6,7 +6,8 @@
 // Palette: "The Compiled Soul" — navy #020f1e, neon green #a3f185,
 // cyan #5ed8ff, warning orange #fd9d1a.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRotatingThoughts } from '@/hooks/use-rotating-thoughts';
 import type {
   TemporalAgentConfig,
   AnalysisFrequency,
@@ -60,8 +61,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
   const [cancelled, setCancelled] = useState(false);
 
   // States for interactive thinking messages and progress bar
-  const [progress, setProgress] = useState(0);
-  const [currentThought, setCurrentThought] = useState('');
+  const [animatedProgress, setAnimatedProgress] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -305,41 +305,40 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
     '正在生成候选未来分支...'
   ];
 
+  // El ciclo de frases vive en un hook compartido: cuando hizo falta lo mismo
+  // para redactar el asunto de un commit se extrajo en vez de copiarse. Acá
+  // queda sólo el vocabulario, que es lo propio de esta espera.
+  //
+  // `useMemo` no es decorativo: las listas se recrean en cada render, y sin
+  // memoizarlas el hook vería una referencia nueva cada vez y reiniciaría la
+  // rotación constantemente.
+  const thoughts = useMemo(
+    () => (language === 'zh' ? THOUGHTS_ZH : language === 'en' ? THOUGHTS_EN : THOUGHTS_ES),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- las listas son constantes por idioma
+    [language],
+  );
+  const currentThought = useRotatingThoughts(thoughts, predicting);
+
+  // El avance se deriva: mientras predice manda la animación, y al terminar
+  // vale 100 sin que nadie lo escriba. Escribirlo desde el efecto era un
+  // `setState` sincrónico ahí adentro, que es lo que el linter marca.
+  const progress = predicting ? animatedProgress : (result ? 100 : 0);
+
   useEffect(() => {
-    if (!predicting) {
-      if (result) {
-        setProgress(100);
-      }
-      return;
-    }
+    if (!predicting) return;
 
-    setProgress(0);
-    const thoughts = language === 'zh' ? THOUGHTS_ZH : language === 'en' ? THOUGHTS_EN : THOUGHTS_ES;
-    const getRandomThought = (prev?: string) => {
-      const filtered = prev ? thoughts.filter(t => t !== prev) : thoughts;
-      return filtered[Math.floor(Math.random() * filtered.length)];
-    };
-    
-    setCurrentThought(getRandomThought());
-
-    // Cycle thoughts every 2.8 seconds
-    const thoughtInterval = setInterval(() => {
-      setCurrentThought(prev => getRandomThought(prev));
-    }, 2800);
-
-    // Smooth decaying progress bar towards 95%
+    // El valor arranca en cero acá y no en el estado: así cada predicción nueva
+    // empieza de cero sin tener que reiniciar nada desde el efecto.
+    let value = 0;
     const progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 95) return prev + (99 - prev) * 0.02; // crawl near the end
-        return prev + (95 - prev) * 0.08; // asymptotic rise
-      });
+      value = value >= 95
+        ? value + (99 - value) * 0.02 // crawl near the end
+        : value + (95 - value) * 0.08; // asymptotic rise
+      setAnimatedProgress(value);
     }, 300);
 
-    return () => {
-      clearInterval(thoughtInterval);
-      clearInterval(progressInterval);
-    };
-  }, [predicting, language, result]);
+    return () => clearInterval(progressInterval);
+  }, [predicting]);
 
   if (!config) return <div style={{ color: '#9BA1B0' }}>Loading…</div>;
 

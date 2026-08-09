@@ -24,16 +24,23 @@ serlo es peor que ninguna.
 - **THEN** el campo queda con el prefijo y sin descripción, para que la escriba una persona
 
 ### Requirement: La sugerencia no decide el commit
-El mensaje sugerido SHALL ser editable y SHALL NOT pisar lo que una persona haya escrito. Sugerir SHALL
-NOT confirmar.
+El mensaje sugerido SHALL ser editable, y una sugerencia que aparece por su cuenta SHALL NOT pisar lo que
+una persona haya escrito. Sugerir SHALL NOT confirmar.
+
+Pedir explícitamente que se redacte es distinto y SÍ reemplaza: apretar el botón es la persona diciendo
+que quiere otro texto. Lo que no puede pasar es que algo que ella no pidió le borre lo que escribió.
 
 El fundamento es que el mensaje es la parte del commit por la que sólo una persona puede responder, y una
 sugerencia que se impone convierte en automático lo que este panel mantiene deliberadamente manual.
 Preparar no confirma, y hay una prueba que falla si alguien mete el commit en la preparación.
 
 #### Scenario: Mensaje ya escrito
-- **WHEN** hay un mensaje escrito y llega una sugerencia nueva
+- **WHEN** hay un mensaje escrito y llega una sugerencia nueva sin que nadie la pida
 - **THEN** lo escrito se conserva
+
+#### Scenario: Redacción pedida con un mensaje ya escrito
+- **WHEN** hay un mensaje escrito y la persona pide expresamente que se redacte
+- **THEN** el texto redactado reemplaza al anterior
 
 #### Scenario: Redacción pedida
 - **WHEN** se pide redactar el mensaje con un modelo

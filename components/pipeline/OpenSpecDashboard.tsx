@@ -24,6 +24,7 @@ import {
   User,
   Wrench,
   MessageSquareText,
+  PowerOff,
   BrainCircuit,
 } from 'lucide-react';
 import { useGitStore, type GitFile } from '@/lib/git-store';
@@ -31,6 +32,7 @@ import { useGitActions } from '@/hooks/use-git-actions';
 import { archivedChangeId, deriveRepoCommitScope, fileKind, soleChangeId, suggestCommitMessage, type ChangeAttribution, type CommitFileOrigin } from '@/lib/change-commit-scope';
 import { changeIdFromBranch } from '@/lib/change-branch';
 import { DraftingThought } from './DraftingThought';
+import { AiElapsed } from './AiElapsed';
 import type { LocalModel } from '@/types/commit-message-ai';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
@@ -525,7 +527,24 @@ export function OpenSpecDashboard({
   const uiLanguage = useGitStore((state) => state.language);
   const [aiModels, setAiModels] = useState<LocalModel[]>([]);
   const [aiModel, setAiModel] = useState('');
-  const [aiBusy, setAiBusy] = useState(false);
+  /**
+   * En qué está la IA: quieta, cargando un modelo, o redactando.
+   *
+   * Era un solo booleano para las dos operaciones, y por eso las frases de
+   * espera arrancaban durante la carga —Ale lo marcó: tienen que aparecer al
+   * apretar «Redactar con IA», no antes—. Un booleano tampoco permite mostrar
+   * una barra durante la carga y un contador durante la redacción, que son cosas
+   * distintas y se ven en momentos distintos.
+   */
+  const [aiPhase, setAiPhase] = useState<'idle' | 'loading' | 'drafting'>('idle');
+  /** Cuándo arrancó lo que está corriendo, para contar los segundos. */
+  const [aiStartedAt, setAiStartedAt] = useState<number | null>(null);
+  /** Ocupada en cualquiera de las dos: es lo que deshabilita los controles. */
+  const aiBusy = aiPhase !== 'idle';
+  const setAiBusy = (busy: boolean) => {
+    setAiPhase(busy ? 'drafting' : 'idle');
+    setAiStartedAt(busy ? Date.now() : null);
+  };
   const [aiNotice, setAiNotice] = useState<string | null>(null);
   /**
    * Contexto y minutos de inactividad, elegidos antes de cargar.
@@ -642,7 +661,10 @@ export function OpenSpecDashboard({
 
   const confirmAiLoad = async () => {
     if (aiBusy || !aiModel) return;
-    setAiBusy(true);
+    // Fase «cargando», no «redactando»: es lo que hace que las frases de espera
+    // no arranquen acá, y lo que permite mostrar una barra en su lugar.
+    setAiPhase('loading');
+    setAiStartedAt(Date.now());
     setAiNotice(null);
     try {
       const result = await window.api?.commitAi?.load(aiModel, undefined, aiContext, aiTtlMinutes * 60);
@@ -669,6 +691,31 @@ export function OpenSpecDashboard({
     if (aiBusy) cancelAiDraft();
     setAiNotice(null);
     setPrepareOpen(false);
+  };
+
+  /**
+   * Descargar el modelo a mano, sin esperar a que venza su TTL.
+   *
+   * Ale lo pidió: GitCron cargaba 7 GB en la placa y no daba ninguna salida.
+   * Esperar los minutos del TTL no es una respuesta cuando querés la VRAM ahora.
+   */
+  const unloadAiModel = async () => {
+    if (aiBusy || !aiModel) return;
+    setAiPhase('loading');
+    setAiStartedAt(Date.now());
+    setAiNotice(null);
+    try {
+      const result = await window.api?.commitAi?.unload(aiModel);
+      if (!result?.success) {
+        setAiNotice(t('pipeline.openspec.prepare.aiFailed', { detail: result?.error ?? '—' }));
+        return;
+      }
+      const catalog = await window.api?.commitAi?.catalog();
+      setAiModels((catalog?.data ?? []).filter((model) => model.kind !== 'embeddings'));
+    } finally {
+      setAiPhase('idle');
+      setAiStartedAt(null);
+    }
   };
 
   const cancelAiDraft = () => {
@@ -1267,7 +1314,19 @@ export function OpenSpecDashboard({
                   {/* En su propio componente: el temporizador vivía acá y cada
                       2,8 s re-renderizaba el panel entero durante los 40 s de
                       una redacción. */}
-                  <DraftingThought active={aiBusy} language={uiLanguage} />
+                  {/* Los dos estados en un contenedor propio, y no sueltos.
+                      Sueltos peleaban con los márgenes negativos de sus vecinos
+                      —el campo de arriba y la fila del modelo de abajo, que se
+                      pega con -0,75rem— y la barra terminaba encimada con el
+                      borde del desplegable. Ale lo marcó. */}
+                  {aiPhase !== 'idle' && (
+                    <div className={styles.aiStatus}>
+                      <DraftingThought active={aiPhase === 'drafting'} language={uiLanguage} />
+                      {/* La marca de arranque como clave: cada corrida remonta el
+                          contador, así no arrastra los segundos de la anterior. */}
+                      <AiElapsed key={aiStartedAt ?? 'idle'} phase={aiPhase} startedAt={aiStartedAt} />
+                    </div>
+                  )}
                   {/* Redactar con un modelo local. Nunca se dispara solo: medido,
                       tarda entre 25 y 98 segundos y ocupa GPU. Un refresco del
                       panel no puede costar eso. */}
@@ -1328,6 +1387,20 @@ export function OpenSpecDashboard({
                         </label>
                       </>
                     )}
+                    {/* La salida: si está cargado, se puede descargar acá mismo.
+                        Antes GitCron tomaba la placa y no ofrecía cómo soltarla
+                        salvo esperar el TTL o ir a LM Studio. */}
+                    {!aiNeedsLoad && aiChosenModel?.loaded && (
+                      <button
+                        type="button"
+                        className={styles.secondaryAction}
+                        disabled={aiBusy}
+                        onClick={unloadAiModel}
+                      >
+                        <PowerOff size={13} aria-hidden="true" />
+                        {t('pipeline.openspec.prepare.aiUnload')}
+                      </button>
+                    )}
                     {aiNeedsLoad ? (
                       <button
                         type="button"
@@ -1335,7 +1408,7 @@ export function OpenSpecDashboard({
                         disabled={aiBusy || !aiModel || aiContext < 32768 || aiTtlMinutes < 1}
                         onClick={confirmAiLoad}
                       >
-                        {aiBusy ? t('pipeline.openspec.prepare.aiLoading') : t('pipeline.openspec.prepare.aiLoad')}
+                        {aiPhase === 'loading' ? t('pipeline.openspec.prepare.aiLoading') : t('pipeline.openspec.prepare.aiLoad')}
                       </button>
                     ) : (
                       <button
@@ -1344,7 +1417,7 @@ export function OpenSpecDashboard({
                         disabled={aiBusy || chosen.length === 0 || !aiModel}
                         onClick={draftWithAi}
                       >
-                        {aiBusy ? t('pipeline.openspec.prepare.aiBusy') : t('pipeline.openspec.prepare.aiDraft')}
+                        {aiPhase === 'drafting' ? t('pipeline.openspec.prepare.aiBusy') : t('pipeline.openspec.prepare.aiDraft')}
                       </button>
                     )}
                     {aiBusy && (

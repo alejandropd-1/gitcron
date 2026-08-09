@@ -195,6 +195,35 @@ export function registerCommitMessageAiHandlers(): void {
   });
 
   /**
+   * Descargar el modelo a mano.
+   *
+   * Ale lo pidió y tenía razón: GitCron cargaba 7 GB en la placa y no daba
+   * ninguna salida. El TTL lo libera solo, pero esperar media hora para
+   * recuperar la VRAM no es una respuesta cuando la querés ahora.
+   *
+   * Descarga la instancia que esté cargada de ese modelo, sea de GitCron o no:
+   * acá lo pide la persona explícitamente, que es distinto de que la aplicación
+   * desaloje por su cuenta lo que ella había levantado.
+   */
+  ipcMain.handle('commit-ai:unload', async (
+    _e,
+    model: string,
+    baseUrl?: string,
+  ): Promise<Result<{ unloaded: boolean }>> => {
+    try {
+      const endpoint = baseUrl || DEFAULT_LOCAL_BASE_URL;
+      const catalog = await fetchModelCatalog(endpoint);
+      const chosen = catalog.find((entry) => entry.id === model);
+      if (!chosen?.loadedInstanceId) return ok({ unloaded: false });
+      await unloadLocalModel(endpoint, chosen.loadedInstanceId);
+      if (loadedByUs.get(endpoint) === chosen.loadedInstanceId) loadedByUs.delete(endpoint);
+      return ok({ unloaded: true });
+    } catch (error) {
+      return fail(error);
+    }
+  });
+
+  /**
    * Corta lo que haya en vuelo: la redacción o la carga.
    *
    * Las dos, porque el botón que la persona aprieta es el mismo y no tiene por

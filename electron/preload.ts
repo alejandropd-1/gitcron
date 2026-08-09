@@ -205,6 +205,7 @@ contextBridge.exposeInMainWorld('api', {
     load: (model: string, baseUrl?: string, contextLength?: number, ttlSeconds?: number) =>
       ipcRenderer.invoke('commit-ai:load', model, baseUrl, contextLength, ttlSeconds),
     cancel: () => ipcRenderer.invoke('commit-ai:cancel'),
+    unload: (model: string, baseUrl?: string) => ipcRenderer.invoke('commit-ai:unload', model, baseUrl),
     draft: (args: {
       repoPath: string;
       paths: string[];

@@ -385,6 +385,8 @@ interface ElectronAPI {
     load(model: string, baseUrl?: string, contextLength?: number, ttlSeconds?: number): Promise<GitResult<LoadOutcome>>;
     /** Corta la redacción en vuelo de verdad, no sólo descarta su respuesta. */
     cancel(): Promise<GitResult<{ cancelled: boolean }>>;
+    /** Descarga el modelo a mano, sin esperar a que venza su TTL. */
+    unload(model: string, baseUrl?: string): Promise<GitResult<{ unloaded: boolean }>>;
     draft(args: {
       repoPath: string;
       paths: string[];

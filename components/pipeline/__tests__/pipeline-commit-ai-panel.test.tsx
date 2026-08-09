@@ -29,6 +29,7 @@ const catalog = vi.fn();
 const draft = vi.fn();
 const load = vi.fn();
 const cancel = vi.fn();
+const unload = vi.fn();
 
 function snapshot(): PipelineSnapshot {
   return {
@@ -97,12 +98,13 @@ beforeEach(() => {
   draft.mockReset();
   load.mockReset().mockResolvedValue({ success: true, data: { output: '' } });
   cancel.mockReset().mockResolvedValue({ success: true, data: { cancelled: true } });
+  unload.mockReset().mockResolvedValue({ success: true, data: { unloaded: true } });
   useGitStore.setState({
     modifiedFiles: [{ path: 'components/algo.tsx', status: 'modified', staged: false }],
     commitMessage: '',
     setCommitMessage,
   } as Partial<ReturnType<typeof useGitStore.getState>>);
-  Object.defineProperty(window, 'api', { configurable: true, value: { commitAi: { catalog, draft, load, cancel } } });
+  Object.defineProperty(window, 'api', { configurable: true, value: { commitAi: { catalog, draft, load, cancel, unload } } });
 });
 
 afterEach(() => {
@@ -240,6 +242,49 @@ describe('cargar el modelo desde el panel', () => {
     // Sin releer, el desplegable seguiría diciendo «en disco» sobre un modelo
     // que ya está cargado.
     await vi.waitFor(() => expect(catalog).toHaveBeenCalled());
+  });
+});
+
+describe('las fases, que Ale pidió separadas', () => {
+  it('las frases de espera NO aparecen mientras carga el modelo', async () => {
+    // Eran un solo booleano para las dos operaciones, así que arrancaban en la
+    // carga. Ale lo marcó: tienen que aparecer al apretar «Redactar con IA».
+    load.mockReturnValue(new Promise(() => undefined));
+    abrirPreparacion();
+    await elegirModelo('ornith-1.0-9b');
+    fireEvent.click(screen.getByRole('button', { name: /prepare\.aiLoad/ }));
+
+    expect(await screen.findByRole('progressbar')).toBeTruthy();
+    expect(screen.queryByText(/thoughts\./)).toBeNull();
+  });
+
+  it('la barra NO aparece mientras redacta, y el contador sí', async () => {
+    draft.mockReturnValue(new Promise(() => undefined));
+    abrirPreparacion();
+    await elegirModelo();
+    elegirTodo();
+    fireEvent.click(botonRedactar());
+
+    await vi.waitFor(() => expect(screen.getByText(/aiElapsedDrafting/)).toBeTruthy());
+    expect(screen.queryByRole('progressbar')).toBeNull();
+  });
+});
+
+describe('la salida manual', () => {
+  it('ofrece descargar el modelo cuando está cargado', async () => {
+    // GitCron tomaba 7 GB de la placa y no daba ninguna salida: había que
+    // esperar el TTL o ir a LM Studio. Ale lo pidió.
+    abrirPreparacion();
+    await elegirModelo();
+
+    fireEvent.click(screen.getByRole('button', { name: /prepare\.aiUnload/ }));
+    await vi.waitFor(() => expect(unload).toHaveBeenCalledWith('google/gemma-4-12b'));
+  });
+
+  it('no la ofrece si el modelo está en disco: no hay nada que descargar', async () => {
+    abrirPreparacion();
+    await elegirModelo('ornith-1.0-9b');
+    expect(screen.queryByRole('button', { name: /prepare\.aiUnload/ })).toBeNull();
   });
 });
 

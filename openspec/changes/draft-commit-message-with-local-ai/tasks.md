@@ -96,6 +96,25 @@
       la persona cargó a mano; un asunto sin la forma convencional se muestra en vez de tirarse como «no
       contestó»; y cerrar el panel corta lo que esté en vuelo
 
+- [x] 4.23 Partir `aiBusy` en fases —quieta, cargando, redactando—. Ale marcó que las frases de espera
+      arrancaban durante la carga: era un solo booleano para dos operaciones distintas
+- [x] 4.24 Contador de segundos y barra indeterminada durante la carga, en un componente propio con su
+      temporizador. «Me gustaría estar un poco más enterado de lo que está pasando», dijo Ale
+- [x] 4.28 Los dos estados de la IA agrupados en un contenedor propio. Sueltos peleaban con los márgenes
+      negativos de sus vecinos y la barra quedaba encimada con el borde del desplegable. Ale lo marcó
+- [x] 4.29 Descargar el modelo a mano desde el panel. GitCron tomaba 7 GB de la placa y no daba ninguna
+      salida salvo esperar el TTL o ir a LM Studio. Ale lo pidió
+- [x] 4.30 «Sacar el modelo» en vez de «Descargar», con icono de apagado. En castellano «descargar» se lee
+      primero como bajar de internet, que es lo contrario de lo que hace. Ale lo marcó
+- [x] 4.31 Los campos numéricos a la altura de los botones, con caja propia y sin las flechitas del
+      spinner. Eran una línea baja al lado de controles de 2,65rem y la fila quedaba desprolija
+- [ ] 4.25 Barra de progreso **real** durante la carga: los diseños encontraron que el servidor expone la
+      fracción por WebSocket (0 → 0,376 → 1). Sin consumir todavía; hoy la barra es indeterminada, y
+      fingir una fracción que no se midió sería inventar
+- [ ] 4.26 El log del servidor en el rail derecho, que hoy no muestra nada durante la redacción. Hay un
+      canal `diagnostics.streamLogs` en el mismo servidor, sin verificar
+- [ ] 4.27 Volver a mostrar de qué máquina es cada modelo, sin el costo que obligó a retirarlo
+
 ## 5. Tests
 
 - [x] 5.1 Prueba del proveedor con respuestas de tabla: contenido, vacío por `length`, servidor caído
@@ -112,6 +131,8 @@
 - [x] 5.12 Prueba: la carga pide el desalojo por inactividad, con el nombre de parámetro comprobado
 - [x] 5.13 Prueba: cancelar llama al canal que corta la petición, no sólo descarta la respuesta
 - [x] 5.14 Prueba: toda petición del proveedor lleva señal, y la carga acepta la cancelación de quien llama
+- [x] 5.15 Prueba: las frases no aparecen durante la carga y la barra no aparece durante la redacción
+- [x] 5.16 Prueba: se ofrece descargar el modelo cargado, y no se ofrece con uno en disco
 
 ## 6. Cierre
 

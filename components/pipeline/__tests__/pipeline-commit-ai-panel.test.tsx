@@ -320,14 +320,14 @@ describe('la salida manual', () => {
     abrirPreparacion();
     await elegirModelo();
 
-    fireEvent.click(screen.getByRole('button', { name: /prepare\.aiUnload/ }));
+    fireEvent.click(screen.getByRole('button', { name: /prepare\.aiEject/ }));
     await vi.waitFor(() => expect(unload).toHaveBeenCalledWith('google/gemma-4-12b'));
   });
 
   it('no la ofrece si el modelo está en disco: no hay nada que descargar', async () => {
     abrirPreparacion();
     await elegirModelo('ornith-1.0-9b');
-    expect(screen.queryByRole('button', { name: /prepare\.aiUnload/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /prepare\.aiEject/ })).toBeNull();
   });
 });
 

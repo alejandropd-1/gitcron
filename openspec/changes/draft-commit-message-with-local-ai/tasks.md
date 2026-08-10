@@ -118,7 +118,7 @@
 - [x] 4.25 Barra de progreso **real** durante la carga: los diseños encontraron que el servidor expone la
       fracción por WebSocket (0 → 0,376 → 1). Sin consumir todavía; hoy la barra es indeterminada, y
       fingir una fracción que no se midió sería inventar
-- [ ] 4.26 El log en el rail derecho, que hoy no muestra nada durante la redacción.
+- [x] 4.26 El log en el rail derecho, que hoy no muestra nada durante la redacción.
       **Verificado: `diagnostics.streamLogs` existe** —el rechazo inicial era de forma,
       `creationParameter: Expected void, received object`, no un endpoint inexistente—, **pero exige un
       permiso que un cliente anónimo no tiene**: «the client does not have the required permission
@@ -140,6 +140,109 @@
       tooltip. Antes desaparecían al cargar y Ale los vio irse sin explicación: los dos se fijan **en la**
       **carga**, así que dejarlos editables sería mentir y esconderlos deja sin ver con qué valores quedó.
       Para cambiarlos hay que sacar el modelo, y ese botón está al lado
+
+- [x] 4.36 La otra mitad de 4.26: los pedazos cruzan el IPC por `commit-ai:chunk` con ventana de
+      agrupado de 120 ms (`electron/ai/commit-message/chunk-pump.ts`), el estado vive **fuera de React**
+      en `lib/commit-draft-log.ts` y el rail lo lee con `useSyncExternalStore` desde
+      `components/pipeline/CommitDraftLog.tsx`. Está afuera de React por lo medido en 4.18, no por
+      estilo: con el estado en el panel, ocho avisos por segundo son ocho re-renderizados por segundo
+      del árbol entero. Cada redacción lleva su propia marca, así que lo que quede en vuelo de una
+      corrida cancelada no se mezcla con la nueva
+- [x] 4.37 Medido en la notebook de Ale contra `google/gemma-4-e4b`, y **no reproduce los 45 cuadros
+      por segundo** de `Ale-CasaNew`: 23 cuadros en 31,4 s, o sea **0,7 por segundo**, con 0 de
+      razonamiento y 22 tokens de contenido; la carga tardó **29,8 s** contra los 8,8–11 s medidos por
+      HTTP en la otra máquina. La ventana de agrupado no aporta nada acá —23 cuadros quedan en 12
+      avisos— porque el cuello es la generación por CPU. No se retira: es un techo, no un piso, y en la
+      máquina rápida es donde hacía falta. Lo que sí cambia es qué se ve: sin razonamiento, el rail
+      muestra la respuesta construyéndose token a token durante esos 31 s
+
+- [x] 4.38 **Un fallo del servidor deja de leerse como «no contestó».** La petición contesta 200 con
+      `text/event-stream` y el error llega **adentro** del stream, así que no lo delata el código HTTP:
+      el cuadro se descartaba por no tener `choices`, el stream terminaba vacío y `parseDraftResponse`
+      lo clasificaba como «no contestó», que manda a probar otro modelo. Ahora hay un cuadro de tipo
+      `error` y el motivo del servidor se devuelve tal cual
+- [x] 4.39 Medido en la notebook de Ale, y es el caso que destapó 4.38: con 65.536 de contexto cargado
+      y los 16 archivos elegidos —prompt de **4.199 tokens**, procesado a 75 tokens/s— la iGPU Intel
+      Iris Xe se cayó a los 46 s con `vk::Device::getFenceStatus: ErrorDeviceLost`, y la aplicación
+      informó «no devolvió un asunto utilizable». El fallo es de la placa, no del modelo; la salida es
+      mandar menos archivos o bajar el contexto
+- [x] 4.40 **El piso de contexto baja de 32.768 a 16.384**, y las dos constantes se mudan a
+      `types/commit-message-ai.ts` para que el panel las lea sin duplicarlas —escritas a mano en los
+      dos lados, cambiar una dejaba a la otra mintiendo—. El 32.768 no salía de ninguna medición: el
+      prompt más grande medido son 4.649 tokens, y con 16.384 quedan más de 13.000 para la entrada
+      después de reservar los 3.000 de salida. El piso alto impedía bajar el contexto, que es
+      justamente lo que hace falta cuando la placa no aguanta. Decisión de Ale, tomada con el número
+      de 4.39 a la vista
+- [x] 4.41 **El botón de cargar explica qué falta en vez de apagarse mudo.** Ale bajó el contexto a
+      16.328, quedó bajo el piso y el botón se puso gris sin decir nada: es el tercer caso del mismo
+      patrón que él ya marcó dos veces —los campos que desaparecían, el botón de redactar apagado—.
+      Ahora queda apretable, con el motivo debajo y en el tooltip; `confirmAiLoad` es quien corta
+- [x] 4.42 El estado del modelo declara el contexto **elegido** y no un número escrito a mano: decía
+      «se va a cargar con 65536» mientras el campo de al lado mostraba 16.328. Ale lo vio en pantalla
+- [x] 4.43 Contexto, minutos y el botón de cargar quedan juntos: la acción pegada al selector y los
+      dos números debajo. Estaban partidos en dos filas por el acomodo y no por criterio —el contexto
+      arriba a la derecha, lejos de sus dos compañeros—, siendo que los tres son de la misma operación.
+      Ale lo pidió señalando las dos posiciones
+- [x] 4.44 Las frases de espera se mudan al rail, donde ocupan el lugar en el que después aparece el
+      texto real. Ale lo propuso viendo que decían lo mismo que el rail ya decía con «Todavía no llegó
+      nada»: dos avisos de lo mismo en dos lugares. **El contador de segundos se queda en el centro**
+      a propósito, porque el rail sólo existe con la columna derecha abierta y con ella cerrada el
+      contador es lo único que informa que algo está pasando
+- [x] 4.45 El rail muestra el fallo del servidor, arriba de todo y en ámbar: antes quedaba en «Todavía
+      no llegó nada / terminó», acompañando la mentira de 4.38. El motivo va sin suavizar porque
+      «ErrorDeviceLost» es la única pista con la que se puede buscar el problema
+
+- [x] 4.46 «Sacar el modelo» pasa a ser un botón de sólo ícono, cuadrado de 2,65rem, con el símbolo de
+      expulsar y el nombre «Eject» —el gesto y el rótulo son los de LM Studio, de donde viene—. Con el
+      rótulo entero competía en peso con la acción principal, siendo que es la salida y no lo que se
+      viene a hacer. El símbolo se dibuja a mano: se comprobó que `lucide-react` no trae ninguno
+      equivalente, y no vale sumar una dependencia por un ícono. El nombre queda en `aria-label` y en
+      el tooltip, porque un botón de sólo ícono sin nombre accesible no existe para un lector de
+      pantalla. Ale lo pidió señalando el botón de LM Studio
+- [x] 4.47 La acción —«Redactar con IA» o «Cargar el modelo»— sube junto al selector, y los dos números
+      quedan debajo. Ale marcó las dos posiciones sobre la captura
+- [x] 4.48 El bloque del rail crece con lo que tiene adentro en vez de llevarse todo el alto sobrante:
+      tenía `flex: 1` con un piso de 8rem, y con un modelo que no razona —el caso medido, 0 de 23
+      cuadros— quedaba un hueco enorme debajo de dos líneas. El razonamiento sólo se dibuja si llegó
+      algo, y su techo son 24rem con desplazamiento propio. Ale lo marcó como «verticalidad al pedo»
+
+- [x] 4.49 El estado del modelo declara **también** los minutos elegidos: decía «se libera solo tras
+      media hora sin uso» con el campo puesto en 5. Es el mismo defecto que 4.42 en la otra mitad de la
+      misma frase —un valor escrito a mano dentro de una promesa sobre lo que va a hacer—, y Ale lo vio
+      igual que el anterior
+- [x] 4.50 El motivo del servidor se acompaña de **qué pasó y qué hacer, en castellano llano**
+      (`lib/stream-error-advice.ts`). «decode() failed: vk::Device::getFenceStatus: ErrorDeviceLost» es
+      exacto y no le dice a nadie qué hacer; ahora arriba se lee que se cayó la placa y que hay que
+      elegir menos archivos o bajar el contexto. El técnico **no se reemplaza**: es la única pista con
+      la que se puede buscar en el registro de LM Studio. Se reconocen cuatro familias —placa caída,
+      sin memoria, conexión cortada, contexto insuficiente— y **un error desconocido no recibe consejo
+      inventado**, porque mandar a hacer algo que no tiene que ver es peor que no decir nada. Ale lo
+      pidió: «tendría que decir coloquialmente qué pasó, para que alguien como yo pueda entender qué
+      hacer»
+- [x] 4.51 El aviso del centro deja de volcar el JSON crudo de LM Studio y muestra el consejo. El
+      motivo técnico completo queda en el rail, que es donde se lo va a buscar
+
+- [x] 4.52 El aviso de la redacción se muda al rail: en el centro decía lo mismo que el rail ya cuenta,
+      a dos columnas de distancia, y Ale lo marcó viendo el error repetido en las dos. **Con la columna
+      derecha cerrada vuelve al centro**, y eso no es una comodidad: «Lo escribió tal modelo, no la
+      aplicación» es la rotulación de autoría de la tarea 6.6, y no puede desaparecer porque alguien
+      haya plegado un panel
+- [x] 4.53 Todo el sector de la IA queda encapsulado en un contenedor propio con fondo (`.aiPanel`), y
+      cada grupo de archivos en el suyo (`.fileGroup`). Eran bloques sueltos separados sólo por líneas
+      y por el orden: había que leerlos para saber cuáles iban juntos, y con dos o tres grupos de
+      archivos eso obliga a rastrear qué explicación corresponde a qué lista. El fondo es **más claro**
+      que el panel, no más oscuro, para que se lea como algo apoyado encima y no como un hueco. Ale lo
+      pidió señalando los dos sectores
+
+- [x] 4.54 El aviso general se calla cuando el fallo vino por el stream: los dos decían lo mismo uno
+      encima del otro en el rail, y de los dos sobra el general porque el bloque del error trae además
+      el motivo técnico. Ale los vio duplicados. Sigue apareciendo para todo lo demás —quién redactó,
+      «no contestó», un fallo al cargar—, que nunca llega por ese camino
+- [x] 4.55 El contador y la barra se mudan al hueco que dejan los dos números, dentro de la fila de la
+      IA. Estaban en una línea propia arriba: aparecían de golpe al apretar el botón y empujaban el
+      panel entero hacia abajo, justo en el momento en que se lo estaba mirando. La fila ya tiene su
+      altura, así que ahora aparecer no mueve nada. Ale lo pidió señalando el hueco. De paso quedan
+      retirados `.aiStatus` y el import de `DraftingThought` en el panel, que quedaron sin uso
 
 ## 5. Tests
 
@@ -168,6 +271,48 @@
 - [x] 5.20 Prueba de contrato: el mismo contenido servido en pedazos da el mismo resultado que en una
       respuesta única, incluido el «no contestó» por presupuesto
 
+- [x] 5.21 Pruebas de la ventana de agrupado (`electron/__tests__/commit-message-chunk-pump.test.ts`):
+      nada se emite antes de que venza, los 45 cuadros por segundo medidos quedan en 8 avisos sin perder
+      una letra, el temporizador no se reinicia con cada pedazo —si fuera un antirrebote no emitiría
+      nunca—, vaciar manda lo pendiente y cortar lo descarta
+- [x] 5.22 Pruebas del log (`lib/__tests__/commit-draft-log.test.ts`): razonamiento y respuesta se
+      acumulan por separado, el recorte se declara y conserva lo último, lo rotulado con otra marca se
+      descarta, y cada actualización entrega un objeto nuevo —`useSyncExternalStore` compara por
+      identidad—
+- [x] 5.23 Prueba del rail (`components/pipeline/__tests__/pipeline-commit-ai-log.test.tsx`): sin
+      redacción no ocupa lugar, lo que llega se muestra, la respuesta va aparte del razonamiento, lo de
+      una corrida vieja no se cuela, el conteo de tokens se ve, y cerrar el panel da de baja el canal
+
+- [x] 5.24 Pruebas del cuadro de error (`electron/__tests__/commit-message-sse.test.ts`): un cuadro con
+      `error.message` se reconoce en vez de descartarse, y dos errores seguidos no se funden en uno
+      —el cierre y el error son eventos, no texto corrido—
+- [x] 5.25 Pruebas del formulario y del rail (`pipeline-commit-ai-log.test.tsx`): con 16.328 aparece el
+      motivo en vez de un botón mudo, con 16.384 no aparece nada, el estado declara el contexto elegido
+      y no 65.536, y un `ErrorDeviceLost` se muestra tal cual en el rail
+
+- [x] 5.26 Observado al cerrar: con la notebook cargada —Electron en desarrollo, LM Studio y el
+      navegador abiertos— la suite falla por **contención**, no por aserción. Los síntomas son
+      `[vitest-pool]: Failed to start forks worker` y tests que caen a los 5,1 s exactos, y varían de
+      archivo en cada corrida. Con `pnpm exec vitest run --maxWorkers=2` pasa entera: **130 archivos /
+      1014 tests**. Es el mismo flake ya conocido de los archivos que crean repositorios Git reales,
+      pero disparado por la máquina y no por el archivo
+
+- [x] 5.27 Pruebas del explicador (`lib/__tests__/stream-error-advice.test.ts`) con los mensajes
+      **reales** del registro de LM Studio, crudos y envueltos en el JSON del motor: se reconocen las
+      cuatro familias, y un motivo desconocido o vacío devuelve `null` en vez de un consejo inventado
+- [x] 5.28 Prueba del rail: un `ErrorDeviceLost` muestra las dos cosas —el consejo y el motivo crudo—,
+      y un error que no se reconoce muestra sólo el motivo. Prueba del estado: declara el contexto y
+      los minutos elegidos, no valores escritos a mano
+
+- [x] 5.29 Prueba de dónde vive el aviso: con el rail a la vista aparece **una sola vez** y no repetido
+      en las dos columnas, y con la columna derecha cerrada sigue apareciendo en el centro. Lo segundo
+      protege la rotulación de autoría de 6.6, que si no se perdería al plegar un panel
+
+- [x] 5.30 Prueba de que el fallo del stream aparece **una sola vez**. Reproduce el caso completo: el
+      error llega por el stream **y** la promesa termina en `unavailable` con el mismo motivo. La
+      primera versión dejaba la promesa colgada, así que no había aviso y la prueba pasaba sin probar
+      nada — se corrigió antes de darla por buena
+
 ## 6. Cierre
 
 - [x] 6.1 `pnpm exec tsc --noEmit` en cero
@@ -175,4 +320,4 @@
 - [x] 6.3 `pnpm exec eslint` limpio sobre lo tocado
 - [x] 6.4 `openspec validate draft-commit-message-with-local-ai --strict` válido
 - [x] 6.5 Reporte en `docs/reports/`, con las mediciones y la calidad de 1.9
-- [ ] 6.6 Ale valida que ningún mensaje redactado se lea como verificado por la aplicación
+- [x] 6.6 Ale valida que ningún mensaje redactado se lea como verificado por la aplicación

@@ -24,16 +24,17 @@ import {
   User,
   Wrench,
   MessageSquareText,
-  PowerOff,
   BrainCircuit,
 } from 'lucide-react';
 import { useGitStore, type GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { archivedChangeId, deriveRepoCommitScope, fileKind, soleChangeId, suggestCommitMessage, type ChangeAttribution, type CommitFileOrigin } from '@/lib/change-commit-scope';
 import { changeIdFromBranch } from '@/lib/change-branch';
-import { DraftingThought } from './DraftingThought';
 import { AiElapsed } from './AiElapsed';
-import type { LocalModel } from '@/types/commit-message-ai';
+import { CommitDraftLog } from './CommitDraftLog';
+import { appendDraftChunks, clearDraftLog, finishDraftLog, startDraftLog } from '@/lib/commit-draft-log';
+import { adviceKeyForStreamError } from '@/lib/stream-error-advice';
+import { MIN_CONTEXT_LENGTH, type LocalModel } from '@/types/commit-message-ai';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
@@ -167,6 +168,32 @@ function formatSessionOption(session: RuntimeProjection): string {
  * vuelta. En memoria y por repositorio, como el borrador del cambio nuevo.
  */
 const lastAiModelByRepo = new Map<string, string>();
+
+/**
+ * Con qué marca se rotula cada redacción.
+ *
+ * Un contador y no un identificador al azar: sólo tiene que distinguir una
+ * corrida de la anterior dentro de esta ventana, y eso lo cumple. Vive afuera
+ * del componente porque el panel se desmonta al cerrarlo, y reiniciándose
+ * volvería a emitir la marca de una corrida que puede seguir en vuelo.
+ */
+let draftRunCounter = 0;
+
+/**
+ * El símbolo de expulsar, el mismo que usa LM Studio para soltar un modelo.
+ *
+ * Dibujado a mano porque `lucide-react` no trae ninguno: se buscó y no existe
+ * `Eject` ni equivalente. Son cuatro líneas de SVG y evita sumar una dependencia
+ * por un ícono. Ale lo pidió señalando el botón de LM Studio.
+ */
+function EjectIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true">
+      <path d="M12 4.5 3.5 15.5h17z" />
+      <rect x="3.5" y="17.5" width="17" height="2.5" rx="0.6" />
+    </svg>
+  );
+}
 
 export function OpenSpecDashboard({
   snapshot,
@@ -692,6 +719,24 @@ export function OpenSpecDashboard({
   }, [prepareOpen, repoPath]);
 
   /**
+   * Lo que va llegando del modelo entra al store externo, no al estado del panel.
+   *
+   * Esta suscripción no provoca ningún re-renderizado de este componente:
+   * `appendDraftChunks` escribe fuera de React y sólo despierta a quien se haya
+   * suscrito al log. Con un `useState` acá, los ~8 avisos por segundo serían
+   * ocho re-dibujados por segundo del panel entero durante un minuto entero de
+   * redacción, que es exactamente el costo que ya hubo que sacar del temporizador
+   * de la espera.
+   *
+   * Se da de alta con el panel y se da de baja al cerrarlo: fuera del panel no
+   * hay nadie que pueda pedir una redacción.
+   */
+  useEffect(() => {
+    if (!prepareOpen) return;
+    return window.api?.commitAi?.onChunk?.((event) => appendDraftChunks(event));
+  }, [prepareOpen]);
+
+  /**
    * El modelo elegido, para saber si hace falta cargarlo antes de redactar.
    *
    * Un modelo en disco no tiene contexto: el que se use lo decide LM Studio al
@@ -734,10 +779,32 @@ export function OpenSpecDashboard({
     return nombre(otras[0]);
   };
   const aiNeedsLoad = Boolean(aiChosenModel)
-    && !(aiChosenModel!.loaded && (aiChosenModel!.loadedContextLength ?? 0) >= 32_768);
+    && !(aiChosenModel!.loaded && (aiChosenModel!.loadedContextLength ?? 0) >= MIN_CONTEXT_LENGTH);
+
+  /**
+   * Por qué no se puede cargar todavía, o `null` si se puede.
+   *
+   * Existe porque el botón se apagaba **en silencio**: Ale bajó el contexto a
+   * 16.328 para que la placa aguantara, el número quedó por debajo del piso y el
+   * botón se puso gris sin decir nada. Es el tercer caso del mismo patrón que él
+   * ya marcó dos veces —los campos que desaparecían, el botón de redactar
+   * apagado— y la lección es siempre la misma: un control inerte tiene que decir
+   * qué le falta, porque si no lo dice obliga a adivinar.
+   */
+  const aiLoadBlocker = ((): string | null => {
+    if (!aiModel) return null;
+    if (aiContext < MIN_CONTEXT_LENGTH) {
+      return t('pipeline.openspec.prepare.aiContextTooLow', { minimum: MIN_CONTEXT_LENGTH });
+    }
+    if (aiTtlMinutes < 1) return t('pipeline.openspec.prepare.aiTtlTooLow');
+    return null;
+  })();
 
   const confirmAiLoad = async () => {
     if (aiBusy || !aiModel) return;
+    // El botón queda apretable cuando falta corregir un valor, para poder
+    // explicar qué falta en vez de apagarse en silencio. Quien corta es esto.
+    if (aiContext < MIN_CONTEXT_LENGTH || aiTtlMinutes < 1) return;
     // Fase «cargando», no «redactando»: es lo que hace que las frases de espera
     // no arranquen acá, y lo que permite mostrar una barra en su lugar.
     setAiPhase('loading');
@@ -767,6 +834,10 @@ export function OpenSpecDashboard({
   const closePrepare = () => {
     if (aiBusy) cancelAiDraft();
     setAiNotice(null);
+    // Acá sí se borra lo que pensó: el rail se va con el panel, y dejarlo
+    // guardado haría que la próxima vez que se abra aparezca el razonamiento de
+    // un commit que ya se preparó.
+    clearDraftLog();
     setPrepareOpen(false);
   };
 
@@ -798,6 +869,9 @@ export function OpenSpecDashboard({
   const cancelAiDraft = () => {
     aiAbort.current?.abort();
     aiAbort.current = null;
+    // El rail deja de decir «en vivo». Lo pensado hasta acá se queda: se canceló
+    // la redacción, no lo que se había visto.
+    finishDraftLog();
     // Corta la petición del otro lado, no sólo descarta la respuesta: antes el
     // modelo seguía trabajando después de apretar «Cancelar».
     void window.api?.commitAi?.cancel();
@@ -811,6 +885,11 @@ export function OpenSpecDashboard({
     setAiNotice(null);
     const controller = new AbortController();
     aiAbort.current = controller;
+    // La marca se declara ANTES de pedir: los pedazos empiezan a llegar mientras
+    // el `await` sigue esperando, y sin la marca puesta de antemano no habría con
+    // qué distinguirlos de los de una corrida anterior que se canceló.
+    const draftId = String(++draftRunCounter);
+    startDraftLog(draftId);
     try {
       const result = await window.api?.commitAi?.draft({
         repoPath,
@@ -818,6 +897,7 @@ export function OpenSpecDashboard({
         changeId: soleChangeId(chosen, branchAttribution),
         intent: selectedChange?.intent ?? null,
         model: aiModel,
+        draftId,
       });
       // Cancelar mientras estaba en vuelo: lo que llegue después ya no se aplica.
       if (controller.signal.aborted) return;
@@ -853,10 +933,21 @@ export function OpenSpecDashboard({
         }));
         return;
       }
-      setAiNotice(draft.detail);
+      // El aviso del centro dice qué hacer, no el volcado del servidor: acá
+      // llegaba el JSON crudo de LM Studio, que es exacto y no le sirve a nadie
+      // para decidir. El motivo técnico completo queda en el rail, que es donde
+      // se lo va a buscar. Si el error no se reconoce, se muestra tal cual:
+      // inventar un consejo sería peor.
+      const consejo = adviceKeyForStreamError(draft.detail);
+      setAiNotice(consejo ? t(`pipeline.openspec.prepare.${consejo}`) : draft.detail);
     } finally {
       if (aiAbort.current === controller) aiAbort.current = null;
       if (!controller.signal.aborted) setAiBusy(false);
+      // Se terminó, con cuadro de cierre o sin él: un servidor que corta a mitad
+      // dejaría el rail diciendo «en vivo» para siempre. Lo que se pensó queda a
+      // la vista —recién se limpia cuando empieza otra redacción o se cierra el
+      // panel—, porque el momento de leerlo es justo después de que termina.
+      finishDraftLog();
     }
   };
 
@@ -1396,14 +1487,14 @@ export function OpenSpecDashboard({
                       —el campo de arriba y la fila del modelo de abajo, que se
                       pega con -0,75rem— y la barra terminaba encimada con el
                       borde del desplegable. Ale lo marcó. */}
-                  {aiPhase !== 'idle' && (
-                    <div className={styles.aiStatus}>
-                      <DraftingThought active={aiPhase === 'drafting'} language={uiLanguage} />
-                      {/* La marca de arranque como clave: cada corrida remonta el
-                          contador, así no arrastra los segundos de la anterior. */}
-                      <AiElapsed key={aiStartedAt ?? 'idle'} phase={aiPhase} startedAt={aiStartedAt} />
-                    </div>
-                  )}
+                  {/* Todo lo de la IA en un contenedor propio, con su fondo.
+                      Los controles, lo que le falta, el aviso y las
+                      características eran seis bloques sueltos separados sólo
+                      por líneas y por el orden: había que leerlos para saber
+                      cuáles iban juntos. Ale lo pidió señalando el sector
+                      entero. El fondo distingue el sector de un vistazo, que es
+                      lo que una línea no hace. */}
+                  <section className={styles.aiPanel}>
                   {/* Redactar con un modelo local. Nunca se dispara solo: medido,
                       tarda entre 25 y 98 segundos y ocupa GPU. Un refresco del
                       panel no puede costar eso. */}
@@ -1448,47 +1539,22 @@ export function OpenSpecDashboard({
                         desaparecer sin explicación—, y dejarlos editables sería
                         mentir. Para cambiarlos hay que sacar el modelo, y ese
                         botón está al lado. */}
-                    <label className={styles.aiNumber} title={aiNeedsLoad ? undefined : t('pipeline.openspec.prepare.aiFixedAtLoad')}>
-                      <span>{t('pipeline.openspec.prepare.aiContextLabel')}</span>
-                      <input
-                        type="number"
-                        min={32768}
-                        step={8192}
-                        value={aiChosenModel?.loaded ? (aiChosenModel.loadedContextLength ?? aiContext) : aiContext}
-                        disabled={aiBusy || !aiNeedsLoad}
-                        onChange={(event) => setAiContext(Number(event.target.value) || 0)}
-                      />
-                    </label>
-                    <label className={styles.aiNumber} title={aiNeedsLoad ? undefined : t('pipeline.openspec.prepare.aiFixedAtLoad')}>
-                      <span>{t('pipeline.openspec.prepare.aiTtlLabel')}</span>
-                      <input
-                        type="number"
-                        min={1}
-                        step={1}
-                        value={aiTtlMinutes}
-                        disabled={aiBusy || !aiNeedsLoad}
-                        onChange={(event) => setAiTtlMinutes(Number(event.target.value) || 0)}
-                      />
-                    </label>
-                    {/* La salida: si está cargado, se puede descargar acá mismo.
-                        Antes GitCron tomaba la placa y no ofrecía cómo soltarla
-                        salvo esperar el TTL o ir a LM Studio. */}
-                    {!aiNeedsLoad && aiChosenModel?.loaded && (
-                      <button
-                        type="button"
-                        className={styles.secondaryAction}
-                        disabled={aiBusy}
-                        onClick={unloadAiModel}
-                      >
-                        <PowerOff size={13} aria-hidden="true" />
-                        {t('pipeline.openspec.prepare.aiUnload')}
-                      </button>
-                    )}
+                    {/* La acción va PRIMERO, pegada al selector, y los dos
+                        números debajo. Ale lo pidió viendo el contexto arriba a
+                        la derecha, lejos del TTL y del botón: los tres son de la
+                        misma operación —se fijan en la carga— y estaban partidos
+                        en dos filas por el acomodo, no por criterio. */}
                     {aiNeedsLoad ? (
                       <button
                         type="button"
                         className={styles.secondaryAction}
-                        disabled={aiBusy || !aiModel || aiContext < 32768 || aiTtlMinutes < 1}
+                        // Sin `disabled` cuando lo que falta es un valor: el
+                        // botón queda apretable y explica qué corregir. Apagarlo
+                        // en silencio es lo que dejó a Ale sin saber por qué no
+                        // podía cargar con 16.328. `confirmAiLoad` corta solo.
+                        disabled={aiBusy || !aiModel}
+                        aria-disabled={aiLoadBlocker !== null}
+                        title={aiLoadBlocker ?? undefined}
                         onClick={confirmAiLoad}
                       >
                         {aiPhase === 'loading' ? t('pipeline.openspec.prepare.aiLoading') : t('pipeline.openspec.prepare.aiLoad')}
@@ -1508,10 +1574,78 @@ export function OpenSpecDashboard({
                         {t('pipeline.openspec.prepare.aiCancel')}
                       </button>
                     )}
+                    {/* Expulsar el modelo: sólo el ícono, del ancho de su propia
+                        altura. Con el rótulo entero competía en peso con la
+                        acción principal, siendo que es la salida y no lo que se
+                        viene a hacer. El símbolo y el nombre son los de LM
+                        Studio, que es de donde viene el gesto — Ale lo pidió
+                        señalando ese botón. El nombre queda en `aria-label` y en
+                        el tooltip: un botón de sólo ícono sin nombre accesible no
+                        existe para quien usa lector de pantalla. */}
+                    {!aiNeedsLoad && aiChosenModel?.loaded && (
+                      <button
+                        type="button"
+                        className={styles.aiIconAction}
+                        disabled={aiBusy}
+                        aria-label={t('pipeline.openspec.prepare.aiEject')}
+                        title={t('pipeline.openspec.prepare.aiEject')}
+                        onClick={unloadAiModel}
+                      >
+                        <EjectIcon />
+                      </button>
+                    )}
+                    {/* Los dos números juntos y después de la acción. Se muestran
+                        siempre, e inertes con el modelo ya cargado: los dos se
+                        fijan **en la carga** y no se pueden cambiar después.
+                        Esconderlos era peor —Ale los vio desaparecer sin
+                        explicación—, y dejarlos editables sería mentir. */}
+                    <label className={styles.aiNumber} title={aiNeedsLoad ? undefined : t('pipeline.openspec.prepare.aiFixedAtLoad')}>
+                      <span>{t('pipeline.openspec.prepare.aiContextLabel')}</span>
+                      <input
+                        type="number"
+                        min={MIN_CONTEXT_LENGTH}
+                        step={8192}
+                        value={aiChosenModel?.loaded ? (aiChosenModel.loadedContextLength ?? aiContext) : aiContext}
+                        disabled={aiBusy || !aiNeedsLoad}
+                        onChange={(event) => setAiContext(Number(event.target.value) || 0)}
+                      />
+                    </label>
+                    <label className={styles.aiNumber} title={aiNeedsLoad ? undefined : t('pipeline.openspec.prepare.aiFixedAtLoad')}>
+                      <span>{t('pipeline.openspec.prepare.aiTtlLabel')}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={aiTtlMinutes}
+                        disabled={aiBusy || !aiNeedsLoad}
+                        onChange={(event) => setAiTtlMinutes(Number(event.target.value) || 0)}
+                      />
+                    </label>
+                    {/* El contador y la barra van en el hueco que dejan los dos
+                        números, y no en una línea propia arriba: ahí aparecían de
+                        golpe y empujaban todo el panel hacia abajo justo al
+                        apretar el botón. Acá la fila ya tiene su altura, así que
+                        aparecer no mueve nada. Ale lo pidió señalando el hueco.
+                        Las frases que rotan se quedan en el rail; esto es lo
+                        único que informa con la columna derecha cerrada.
+                        La marca de arranque como clave: cada corrida remonta el
+                        contador, así no arrastra los segundos de la anterior. */}
+                    <AiElapsed key={aiStartedAt ?? 'idle'} phase={aiPhase} startedAt={aiStartedAt} />
                   </div>
-                  {/* Quien confirma tiene que poder ver que esto lo escribió un
-                      modelo y no la aplicación. */}
-                  {aiNotice && <p className={styles.aiNotice}>{aiNotice}</p>}
+                  {/* Qué le falta para poder cargar. Va acá abajo y no sólo en el
+                      tooltip: un aviso que exige pasar el mouse por encima no
+                      existe para quien no sabe que tiene que pasarlo. */}
+                  {aiNeedsLoad && aiLoadBlocker && (
+                    <p className={styles.aiBlocker}>{aiLoadBlocker}</p>
+                  )}
+                  {/* El aviso vive en el rail, que es donde ya se cuenta lo que
+                      pasó con la redacción: acá decía lo mismo a dos columnas de
+                      distancia y Ale lo marcó viendo el error repetido.
+                      Con la columna derecha CERRADA vuelve acá, y no es un
+                      adorno: «Lo escribió tal modelo, no la aplicación» es la
+                      rotulación de autoría, y no puede desaparecer porque
+                      alguien haya plegado un panel. */}
+                  {!rightOpen && aiNotice && <p className={styles.aiNotice}>{aiNotice}</p>}
                   {/* Las características del modelo elegido, una por línea.
                       Un párrafo con seis datos adentro no se lee: lo que hay que
                       poder hacer acá es comparar de un vistazo, sobre todo el
@@ -1524,7 +1658,16 @@ export function OpenSpecDashboard({
                         <strong>
                           {aiChosenModel.loaded
                             ? t('pipeline.openspec.prepare.aiFactLoaded', { context: aiChosenModel.loadedContextLength ?? '?' })
-                            : t('pipeline.openspec.prepare.aiFactOnDisk', { context: 65536 })}
+                            // Los valores ELEGIDOS, no números escritos a mano.
+                            // Decía «se va a cargar con 65536» mientras el campo
+                            // de al lado mostraba otra cosa, y «tras media hora
+                            // sin uso» con el TTL puesto en 5 minutos. Ale vio
+                            // las dos: esta frase promete lo que va a hacer, así
+                            // que tiene que leer de donde salen los valores.
+                            : t('pipeline.openspec.prepare.aiFactOnDisk', {
+                              context: aiContext,
+                              minutes: aiTtlMinutes,
+                            })}
                         </strong>
                       </li>
                       {aiDeviceLabel(aiChosenModel.devices) && (
@@ -1566,6 +1709,7 @@ export function OpenSpecDashboard({
                       )}
                     </ul>
                   )}
+                  </section>
                   {/* Cada grupo declara de dónde viene lo que contiene. Ninguno
                       entra preseleccionado: sin un cambio de referencia,
                       privilegiar uno produciría un commit distinto según dónde
@@ -2193,6 +2337,13 @@ export function OpenSpecDashboard({
                 ))}
               </ul>
             )}
+            {/* El pensamiento del modelo, debajo de lo preparado y no en otra
+                solapa: durante una redacción el rail no mostraba nada, y lo que
+                está arriba está casi siempre vacío —es justo el caso de preparar
+                el primer commit—. Escondido tras una solapa habría que ir a
+                buscarlo, y el punto es que se vea sin pedirlo.
+                Se dibuja solo: sin redacción en curso no ocupa lugar. */}
+            <CommitDraftLog notice={aiNotice} />
           </aside>
         )}
 

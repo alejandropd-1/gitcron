@@ -8,7 +8,7 @@ import type {
 } from './temporal-agent';
 import type { PredictionHistoryEntry } from '../electron/db/types';
 import type { PipelineState, RuntimeDiscoveryEntry, RuntimeProjection } from './pipeline';
-import type { CommitDraftResult, LoadOutcome, LocalModel } from './commit-message-ai';
+import type { CommitDraftResult, DraftChunkEvent, LoadOutcome, LocalModel } from './commit-message-ai';
 import type { ApplyHunkOptions, FileDiff } from '../lib/hunk-patch';
 import type {
   CartoGraphStatus,
@@ -399,7 +399,16 @@ interface ElectronAPI {
       model: string;
       baseUrl?: string;
       maxTokens?: number;
+      /** Con qué marca rotular lo que se transmita de esta redacción. */
+      draftId?: string;
     }): Promise<GitResult<CommitDraftResult>>;
+    /**
+     * Lo que el modelo va produciendo, ya agrupado por el proceso principal.
+     *
+     * Devuelve cómo darse de baja. Sin suscribirse la redacción funciona igual y
+     * en silencio, que es como funcionaba antes.
+     */
+    onChunk(cb: (event: DraftChunkEvent) => void): () => void;
   };
   /**
    * Cartografía Fase 3: motor CodeGraph embebido (local, solo lectura). Devuelve

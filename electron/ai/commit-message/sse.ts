@@ -13,21 +13,12 @@
 //
 // Puro y aparte para poder probarlo con cuadros grabados, sin servidor.
 
-/** Un pedazo de lo que el modelo va produciendo. */
-export type DraftChunk =
-  /** El modelo razonando. Es la mayor parte de lo que llega. */
-  | { kind: 'reasoning'; text: string }
-  /** La respuesta propiamente dicha. */
-  | { kind: 'content'; text: string }
-  /** El cierre, con el motivo y —si vino— el conteo de tokens. */
-  | { kind: 'done'; finishReason: string | null; usage: DraftUsage | null };
+// La forma de un pedazo vive en `types/`, no acá: cruza el IPC hasta el panel, y
+// el renderer no puede importar nada de `electron/`. Se re-exporta para que
+// quien ya la pedía a este módulo la siga encontrando en el mismo lugar.
+export type { DraftChunk, DraftUsage } from '../../../types/commit-message-ai';
 
-export interface DraftUsage {
-  promptTokens: number | null;
-  completionTokens: number | null;
-  /** Cuántos se fueron en pensar. Es el número que explica las esperas largas. */
-  reasoningTokens: number | null;
-}
+import type { DraftChunk } from '../../../types/commit-message-ai';
 
 function int(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -50,7 +41,19 @@ export function parseChatChunk(payload: unknown): DraftChunk | null {
   const frame = payload as {
     choices?: Array<{ delta?: { content?: unknown; reasoning_content?: unknown; reasoning?: unknown }; finish_reason?: unknown }>;
     usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; completion_tokens_details?: { reasoning_tokens?: unknown } };
+    error?: { message?: unknown };
   };
+
+  // Un error DENTRO del stream. La petición ya contestó 200 y `text/event-stream`,
+  // así que el fallo no llega por el código HTTP: llega acá adentro.
+  //
+  // Sin esto el cuadro se descartaba por no tener `choices`, el stream terminaba
+  // sin contenido y se leía como «el modelo no contestó». Medido en la notebook
+  // de Ale: la iGPU se cayó con `vk::Device::getFenceStatus: ErrorDeviceLost` y
+  // la aplicación dijo «no devolvió un asunto utilizable», que manda a probar
+  // otro modelo cuando el problema era la placa.
+  const errorMessage = typeof frame?.error?.message === 'string' ? frame.error.message.trim() : '';
+  if (errorMessage) return { kind: 'error', detail: errorMessage };
 
   const usage = frame?.usage
     ? {
@@ -120,7 +123,12 @@ export function mergeConsecutive(chunks: DraftChunk[]): DraftChunk[] {
   const merged: DraftChunk[] = [];
   for (const chunk of chunks) {
     const last = merged[merged.length - 1];
-    if (last && last.kind === chunk.kind && chunk.kind !== 'done' && last.kind !== 'done') {
+    // Sólo se junta lo que ES texto corrido. El cierre y el error son eventos:
+    // concatenar dos errores en uno perdería el primero, y son justo lo que hay
+    // que poder leer entero.
+    const juntable = (chunk.kind === 'reasoning' || chunk.kind === 'content')
+      && last?.kind === chunk.kind;
+    if (juntable && (last.kind === 'reasoning' || last.kind === 'content')) {
       merged[merged.length - 1] = { kind: chunk.kind, text: last.text + chunk.text };
       continue;
     }

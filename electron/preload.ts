@@ -217,7 +217,24 @@ contextBridge.exposeInMainWorld('api', {
       model: string;
       baseUrl?: string;
       maxTokens?: number;
+      draftId?: string;
     }) => ipcRenderer.invoke('commit-ai:draft', args),
+    /**
+     * Lo que el modelo va produciendo, mientras lo produce.
+     *
+     * Un canal aparte y no el resultado del `invoke`: lo que llega durante la
+     * espera no es el resultado, y esperarlo entero es justamente lo que hacía
+     * que 40 segundos fueran una pantalla quieta.
+     *
+     * Ya viene agrupado por el proceso principal —medido, 45 cuadros por
+     * segundo se convierten en ~8 mensajes—, así que acá no hace falta filtrar
+     * nada más. Devuelve cómo darse de baja.
+     */
+    onChunk: (cb: (event: { draftId: string | null; chunks: unknown[] }) => void) => {
+      const handler = (_e: unknown, payload: { draftId: string | null; chunks: unknown[] }) => cb(payload);
+      ipcRenderer.on('commit-ai:chunk', handler);
+      return () => ipcRenderer.removeListener('commit-ai:chunk', handler);
+    },
   },
   cartoGraph: {
     ensure: (repoPath: string) => ipcRenderer.invoke('carto:graph-ensure', repoPath),

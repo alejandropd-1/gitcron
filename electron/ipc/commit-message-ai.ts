@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { app, ipcMain } from 'electron';
 import { simpleGit } from 'simple-git';
 import type { CommitDraftResult, LoadOutcome, LocalModel } from '../../types/commit-message-ai';
+import { createChunkPump } from '../ai/commit-message/chunk-pump';
 import {
   readCachedDeviceNames,
   resolveDeviceNames,
@@ -105,6 +106,16 @@ interface DraftArgs {
   model: string;
   baseUrl?: string;
   maxTokens?: number;
+  /**
+   * Con qué marca se rotula lo que se va transmitiendo.
+   *
+   * La pone quien llama, y no este proceso, porque el renderer la necesita
+   * **antes** de que llegue el primer pedazo: el resultado recién vuelve al
+   * final, y sin la marca desde el arranque no habría con qué distinguir lo que
+   * llega de una redacción que se canceló de lo que llega de la nueva. Sin esto
+   * los avisos salen igual, con la marca en `null`.
+   */
+  draftId?: string;
 }
 
 export function registerCommitMessageAiHandlers(): void {
@@ -275,7 +286,7 @@ export function registerCommitMessageAiHandlers(): void {
 
   ipcMain.handle('commit-ai:draft', async (_e, args: DraftArgs): Promise<Result<CommitDraftResult>> => {
     try {
-      const { repoPath, paths, changeId, intent, model, baseUrl, maxTokens } = args ?? ({} as DraftArgs);
+      const { repoPath, paths, changeId, intent, model, baseUrl, maxTokens, draftId } = args ?? ({} as DraftArgs);
       if (!repoPath || !Array.isArray(paths) || paths.length === 0) {
         return fail(new Error('No hay archivos elegidos para describir.'));
       }
@@ -323,14 +334,37 @@ export function registerCommitMessageAiHandlers(): void {
       inFlightDraft?.abort();
       const controller = new AbortController();
       inFlightDraft = controller;
-      const result = await draftCommitSubject({
-        baseUrl: endpoint,
-        model,
-        system: SYSTEM_PROMPT,
-        user,
-        maxTokens: maxTokens ?? DEFAULT_MAX_TOKENS,
-        signal: controller.signal,
+
+      // Lo que el modelo va produciendo, cruzado con ventana de agrupado.
+      //
+      // Medido: 45 cuadros por segundo. Uno por mensaje serían 45 mensajes de
+      // IPC y 45 re-renderizados por segundo, que es el error que ya trabó la
+      // máquina. Con la ventana quedan ~8, con el mismo texto adentro.
+      //
+      // `isDestroyed()` en cada envío: la redacción sobrevive a que se cierre la
+      // ventana —el `await` sigue— y mandarle a un `WebContents` muerto tira.
+      const pump = createChunkPump((chunks) => {
+        if (_e.sender.isDestroyed()) return;
+        _e.sender.send('commit-ai:chunk', { draftId: draftId ?? null, chunks });
       });
+
+      let result: CommitDraftResult;
+      try {
+        result = await draftCommitSubject({
+          baseUrl: endpoint,
+          model,
+          system: SYSTEM_PROMPT,
+          user,
+          maxTokens: maxTokens ?? DEFAULT_MAX_TOKENS,
+          signal: controller.signal,
+          onChunk: (chunks) => pump.push(chunks),
+        });
+      } finally {
+        // Lo último de la ventana no se pierde: el cierre —con su motivo y su
+        // conteo de tokens— casi siempre cae dentro de una ventana que todavía
+        // no venció, y es justo el dato que explica una espera larga.
+        pump.flush();
+      }
       if (inFlightDraft === controller) inFlightDraft = null;
 
       // Un asunto que no respeta la forma convencional no se impone en el campo,

@@ -23,6 +23,33 @@ const cuadroUsage = {
   },
 };
 
+describe('un error adentro del stream', () => {
+  it('se reconoce en vez de descartarse', () => {
+    // La petición ya contestó 200 con `text/event-stream`: el fallo NO llega por
+    // el código HTTP, llega acá adentro. Medido en la notebook de Ale, la iGPU se
+    // cayó así. Sin reconocerlo, el cuadro se descartaba por no tener `choices`,
+    // el stream terminaba vacío y se reportaba «el modelo no contestó», que manda
+    // a probar otro modelo cuando el problema era la placa.
+    const cuadroError = {
+      error: { message: 'decode() failed: vk::Device::getFenceStatus: ErrorDeviceLost', type: 'server_error' },
+    };
+
+    expect(parseChatChunk(cuadroError)).toEqual({
+      kind: 'error',
+      detail: 'decode() failed: vk::Device::getFenceStatus: ErrorDeviceLost',
+    });
+  });
+
+  it('dos errores no se funden en uno', () => {
+    const uno = { kind: 'error', detail: 'primero' } as const;
+    const dos = { kind: 'error', detail: 'segundo' } as const;
+
+    // El cierre y el error son eventos, no texto corrido: juntarlos perdería el
+    // primero, y son justo lo que hay que poder leer entero.
+    expect(mergeConsecutive([uno, dos])).toEqual([uno, dos]);
+  });
+});
+
 describe('un cuadro suelto', () => {
   it('distingue el razonamiento del contenido', () => {
     expect(parseChatChunk(cuadroRazonamiento)).toEqual({ kind: 'reasoning', text: 'a ver, el diff toca...' });

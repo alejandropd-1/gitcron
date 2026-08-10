@@ -709,7 +709,18 @@
   user-select: text;
 }
 .fileList li span { min-width: 0; overflow-wrap: anywhere; }
-.fileGroup + .fileGroup { margin-block-start: var(--sp-6); }
+/* Cada grupo de archivos, encapsulado igual que el sector de la IA. El título,
+   la explicación de la procedencia y la lista de casillas quedaban uno debajo
+   del otro dependiendo del orden para saber qué explicación correspondía a qué
+   lista. Con dos o tres grupos —lo normal acá— eso obliga a leer para separar.
+   Ale lo pidió junto con el sector de la IA. */
+.fileGroup {
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--os-border);
+  border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.022);
+}
+.fileGroup + .fileGroup { margin-block-start: var(--sp-3); }
 .fileGroup:first-of-type { margin-block-start: var(--sp-2); }
 
 /* Panel de preparación del repositorio. Ocupa el centro y desplaza con su propio
@@ -898,18 +909,34 @@
   color: var(--os-muted);
   font: 0.68rem var(--font-mono), ui-monospace, monospace;
 }
-/* Los dos estados de la IA juntos, con el aire en un solo lugar.
-   Sueltos, cada uno peleaba con los márgenes negativos de sus vecinos —el campo
-   de arriba y `.aiRow`, que se pega con -0,75rem— y la barra terminaba encimada
-   con el borde del desplegable. Ale lo marcó. */
-.aiStatus { display: flex; flex-direction: column; gap: var(--sp-1); margin: calc(-1 * var(--sp-4)) 0 var(--sp-5); }
-.aiElapsed { display: flex; align-items: center; gap: var(--sp-2); margin: 0; flex-wrap: wrap; }
-.aiElapsed > em { color: var(--os-muted); font: 0.64rem/1.5 var(--font-mono), ui-monospace, monospace; font-style: normal; }
+/* El contador vive dentro de la fila de la IA, en el hueco que dejan los dos
+   números. Antes estaba en una línea propia arriba: aparecía de golpe al
+   apretar el botón y empujaba el panel entero hacia abajo, justo en el momento
+   en que se estaba mirando. Acá la fila ya tiene su altura, así que aparecer no
+   mueve nada. Ale lo pidió señalando el hueco.
+   `flex: 1` con `min-width: 0` para que se lleve lo que sobra sin forzar un
+   salto de línea cuando el texto es largo. */
+.aiElapsed {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  padding-inline-start: var(--sp-2);
+  min-height: 2.65rem;
+}
+.aiElapsed > em {
+  min-width: 0;
+  color: var(--os-muted);
+  font: 0.64rem/1.4 var(--font-mono), ui-monospace, monospace;
+  font-style: normal;
+}
 /* Barra indeterminada por 	ransform, no por width: mover el ancho obliga a
    recalcular layout en cada cuadro, y esto corre durante diez segundos sobre una
    iGPU que comparte memoria con el sistema. Con 	ransform queda en el
    compositor. */
-.aiLoadTrack { position: relative; overflow: hidden; width: 8rem; height: 3px; border-radius: 999px; background: var(--os-border); }
+.aiLoadTrack { position: relative; overflow: hidden; flex: 0 0 auto; width: 5rem; height: 3px; border-radius: 999px; background: var(--os-border); }
 .aiLoadTrack > span { position: absolute; inset: 0; width: 40%; border-radius: 999px; background: var(--os-cyan); animation: aiLoadSlide 1.4s ease-in-out infinite; }
 @keyframes aiLoadSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
 @media (prefers-reduced-motion: reduce) {
@@ -920,6 +947,26 @@
    Ale los marcó: eran una línea baja al lado de controles de 2,65rem y la fila
    quedaba desprolija. Un campo donde se decide cuánta VRAM se toma y por cuánto
    tiempo merece el mismo peso visual que el botón que lo ejecuta. */
+/* Expulsar el modelo: cuadrado, del ancho de su propia altura. Con el rótulo
+   entero competía en peso con la acción principal, siendo que es la salida y no
+   lo que se viene a hacer. Su nombre vive en `aria-label` y en el tooltip. */
+.aiIconAction {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.2rem;
+  background: var(--os-bg-deep, rgba(2, 15, 30, 0.6));
+  color: var(--os-muted);
+  cursor: pointer;
+}
+.aiIconAction:hover:not(:disabled) { border-color: var(--os-cyan); color: var(--os-cyan); }
+.aiIconAction:disabled { cursor: default; opacity: 0.5; }
+.aiIconAction:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+
 .aiNumber {
   display: inline-flex;
   align-items: center;
@@ -960,6 +1007,26 @@
 
 /* Las características del modelo, una por línea. Un párrafo con seis datos
    adentro no se lee; acá hay que poder comparar de un vistazo. */
+/* El sector de la IA, encapsulado. Los controles, lo que falta, el aviso y las
+   características eran seis bloques sueltos separados sólo por líneas y por el
+   orden, y había que leerlos para saber cuáles iban juntos. El fondo los agrupa
+   de un vistazo, que es lo que una línea no hace. Ale lo pidió señalando el
+   sector entero.
+   Un punto más claro que el panel, no más oscuro: se lee como algo que está
+   apoyado encima y no como un hueco. */
+.aiPanel {
+  margin: 0 0 var(--sp-5);
+  padding: var(--sp-4) var(--sp-4) var(--sp-2);
+  border: 1px solid var(--os-border);
+  border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.022);
+}
+/* El primer y el último bloque de adentro no repiten el aire del contenedor:
+   con sus propios márgenes, el recuadro quedaba con el doble de aire arriba y
+   abajo que a los costados. */
+.aiPanel > .aiRow { margin-block-start: 0; }
+.aiPanel > :last-child { margin-block-end: 0; }
+
 .aiFacts {
   margin: 0 0 var(--sp-4);
   padding: var(--sp-2) var(--sp-3);
@@ -1178,6 +1245,129 @@
 .resizeHandleRight:hover { border-left: 1px solid rgba(94, 216, 255, 0.55); }
 
 .activityRail > h3 { margin: 0; color: #b9c7d7; }
+
+/* Lo que el modelo va pensando, en el rail y durante la redacción.
+   Se lleva el espacio que sobra —`flex: 1`— porque durante una redacción es lo
+   único que cambia: la lista de preparados de arriba está normalmente vacía,
+   que es justo el caso en que se está preparando el primer commit. */
+/* Crece con lo que tiene adentro y nada más. Antes se llevaba todo el alto
+   sobrante con `flex: 1` y un piso de 8rem: con un modelo que no razona —el
+   caso medido en la notebook, 0 de 23 cuadros— quedaba un hueco enorme debajo
+   de dos líneas de texto. Ale lo marcó como «verticalidad al pedo» y tenía
+   razón: el bloque no tiene por qué reservar lugar para algo que puede no
+   llegar nunca. El techo lo pone `.draftLogStream`, que es lo único que crece
+   sin límite. */
+.draftLog {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--os-border-strong);
+  background: rgba(3, 18, 31, 0.46);
+}
+.draftLog > h4 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  color: #b9c7d7;
+  font: 650 0.66rem var(--font-mono), ui-monospace, monospace;
+}
+/* El estado a la derecha del título, sin cursiva: es una etiqueta, no énfasis. */
+.draftLog > h4 > em {
+  margin-left: auto;
+  color: var(--os-cyan);
+  font-style: normal;
+  font-size: 0.6rem;
+}
+
+/* El razonamiento. Monoespaciada y con su propio desplazamiento: es un flujo
+   largo, y sin techo empujaría todo lo demás fuera de la vista.
+   `pre-wrap` y no `pre`: el modelo escribe prosa, y el rail es angosto. */
+/* Techo y no piso: crece con el razonamiento hasta acá y después se desplaza
+   solo. Tenía `min-height: 6rem`, que reservaba el hueco aunque no hubiera nada
+   que poner. Sólo se dibuja si hay razonamiento, así que un modelo que no
+   razona no deja el espacio vacío. */
+.draftLogStream {
+  overflow-y: auto;
+  max-height: 24rem;
+  margin: 0;
+  color: var(--os-muted);
+  font: 0.62rem/1.55 var(--font-mono), ui-monospace, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  scrollbar-width: thin;
+}
+
+/* La respuesta, separada del razonamiento y en el color del texto normal: es lo
+   que se estaba esperando, no parte del proceso. */
+.draftLogAnswer {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--os-border);
+  font-size: 0.64rem;
+  line-height: 1.5;
+}
+.draftLogAnswer > strong { color: var(--os-cyan); font: 650 0.6rem var(--font-mono), ui-monospace, monospace; }
+.draftLogAnswer > span { overflow-wrap: anywhere; color: #dbe5ef; }
+
+/* Lo que se declara sobre el propio texto: que está recortado, y el conteo. */
+.draftLogNote { margin: 0; color: var(--os-muted); font: 0.58rem/1.45 var(--font-mono), ui-monospace, monospace; }
+
+/* El aviso de la redacción, ya en el rail. Ámbar: que lo haya escrito un modelo
+   y no la aplicación es exactamente el tipo de cosa que pide atención antes de
+   confirmar, y ése es el punto de la rotulación de autoría. */
+.draftLogNotice {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--os-amber, #d8a657);
+  background: rgba(216, 166, 87, 0.07);
+  color: var(--os-amber, #d8a657);
+  font: 0.63rem/1.55 var(--font-mono), ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+
+/* El fallo del servidor. Ámbar y no rojo: no se rompió la aplicación, se cayó la
+   máquina del otro lado, y casi siempre se resuelve mandando menos o bajando el
+   contexto. Va arriba de todo porque si esto pasó, lo de abajo es historia. */
+.draftLogError {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-2);
+  border: 1px solid rgba(216, 166, 87, 0.35);
+  background: rgba(216, 166, 87, 0.1);
+  color: var(--os-amber, #d8a657);
+  font: 0.6rem/1.5 var(--font-mono), ui-monospace, monospace;
+}
+.draftLogError > svg { flex-shrink: 0; margin-top: 0.15rem; }
+/* Dos niveles: qué hacer, y el motivo crudo. El coloquial va en el cuerpo de
+   texto normal —es lo que hay que leer— y el técnico en monoespaciada y más
+   apagado, porque sirve para buscar el problema, no para decidir. */
+.draftLogError > div { display: grid; gap: var(--sp-2); min-width: 0; }
+.draftLogError strong {
+  color: var(--os-amber, #d8a657);
+  font: 650 0.66rem/1.5 var(--font-sans, inherit);
+  overflow-wrap: anywhere;
+}
+.draftLogError code {
+  opacity: 0.75;
+  color: var(--os-muted);
+  font: 0.56rem/1.45 var(--font-mono), ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+
+/* Qué le falta al formulario para poder cargar. Mismo tono que el aviso de
+   arriba: es algo que se corrige, no un fallo. */
+.aiBlocker {
+  margin: calc(-1 * var(--sp-2)) 0 var(--sp-3);
+  color: var(--os-amber, #d8a657);
+  font: 0.62rem/1.5 var(--font-mono), ui-monospace, monospace;
+}
 .liveActivity { padding: 0.8rem; border: 1px solid var(--os-border-strong); background: rgba(3, 18, 31, 0.46); }
 .liveActivity > header { display: grid; gap: 0.6rem; padding: 0 0 0.75rem; border-bottom: 1px solid var(--os-border-strong); font: 0.67rem var(--font-mono), ui-monospace, monospace; }
 .sessionIdentity { display: flex; min-width: 0; align-items: center; gap: 0.55rem; }

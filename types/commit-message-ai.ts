@@ -8,6 +8,29 @@
  */
 
 /**
+ * Piso de contexto. Por debajo, el diff de una tanda no entra.
+ *
+ * Estaba en 32.768 por precaución, y ese número no salía de ninguna medición:
+ * el prompt más grande que se midió acá son **4.649 tokens**, y con 16.384 —una
+ * vez descontados los 3.000 de salida— quedan más de 13.000 para la entrada. El
+ * piso alto impedía bajar el contexto, que es lo que hace falta cuando la placa
+ * no aguanta: en la notebook de Ale la iGPU se cayó con `ErrorDeviceLost`
+ * procesando un prompt de 4.199 tokens con 65.536 de contexto cargado.
+ *
+ * Un diff grande se recorta más con un contexto chico, y eso ya se declara en
+ * pantalla en lugar de pasar en silencio.
+ *
+ * Vive acá y no junto al proveedor porque el panel lo necesita para saber desde
+ * qué valor puede ofrecer la carga, y el renderer no importa nada de `electron/`.
+ * Con el número escrito a mano en los dos lados, cambiarlo en uno dejaba al otro
+ * mintiendo.
+ */
+export const MIN_CONTEXT_LENGTH = 16_384;
+
+/** Lo que se pide al cargar si nadie elige otra cosa. Entra holgado en 12 GB de VRAM. */
+export const PREFERRED_CONTEXT_LENGTH = 65_536;
+
+/**
  * Un modelo tal como lo reporta el servidor local.
  *
  * Sale de la API **nativa** `/api/v1/models`, no de la compatible con OpenAI:
@@ -105,3 +128,47 @@ export type CommitDraftResult =
   | { status: 'no-answer'; reason: 'budget' | 'empty'; model: string }
   | { status: 'malformed'; subject: string; model: string }
   | { status: 'unavailable'; detail: string };
+
+/**
+ * Un pedazo de lo que el modelo va produciendo, mientras lo produce.
+ *
+ * Vive acá y no junto al lector de SSE porque **cruza el IPC**: lo produce el
+ * proceso principal y lo consume el panel. Un tipo compartido tiene que estar
+ * donde los dos lados lo puedan importar sin que el renderer alcance nada de
+ * `electron/`.
+ */
+export type DraftChunk =
+  /** El modelo razonando. Medido: 278 de 308 cuadros. Es la mayor parte. */
+  | { kind: 'reasoning'; text: string }
+  /** La respuesta propiamente dicha. */
+  | { kind: 'content'; text: string }
+  /** El cierre, con el motivo y —si vino— el conteo de tokens. */
+  | { kind: 'done'; finishReason: string | null; usage: DraftUsage | null }
+  /**
+   * El servidor falló a mitad del stream.
+   *
+   * Existe porque el fallo no siempre llega por el código HTTP: la petición ya
+   * contestó 200 con `text/event-stream` y el error viene adentro. Sin este
+   * tipo, el stream terminaba sin contenido y se reportaba como «el modelo no
+   * contestó» —que manda a probar otro modelo cuando el problema es otro—.
+   */
+  | { kind: 'error'; detail: string };
+
+export interface DraftUsage {
+  promptTokens: number | null;
+  completionTokens: number | null;
+  /** Cuántos se fueron en pensar. Es el número que explica las esperas largas. */
+  reasoningTokens: number | null;
+}
+
+/** Lo que viaja en `commit-ai:chunk`. */
+export interface DraftChunkEvent {
+  /**
+   * Cuál redacción lo produjo. `null` si quien pidió no declaró ninguna.
+   *
+   * Sin esto, cancelar y volver a redactar mezcla el pensamiento de la corrida
+   * muerta con el de la nueva en el mismo panel.
+   */
+  draftId: string | null;
+  chunks: DraftChunk[];
+}

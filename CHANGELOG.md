@@ -4,7 +4,68 @@ Changes are listed from newest to oldest.
 
 ---
 
-## [Unreleased] - 2026-07-30 - Pipeline es un workspace OpenSpec
+## [v1.12.0] - 2026-08-10 - Preparar el commit desde Pipeline, con redacción por IA local
+
+El commit deja de ser algo que se arma en otra pestaña. Pipeline pasa a tener un panel donde se elige qué entra, se ve de qué cambio viene cada archivo y se escribe el mensaje; y un modelo local puede redactar el asunto, que es el único dato que ninguna fuente del repositorio contiene.
+
+Cincuenta y un cambios OpenSpec archivados desde la v1.11.0.
+
+### 🤖 Pipeline
+
+#### Added
+- **Panel de preparación a nivel del repositorio.** Se elige archivo por archivo qué entra, agrupado por procedencia, y el mensaje se corrige ahí mismo escribiendo en el mismo estado que después se confirma. Preparar no confirma: la confirmación sigue siendo una acción humana desde Commit.
+- **Atribución de archivos a su cambio.** Cada archivo declara de dónde viene y con qué fuente: que un archivo viva bajo la carpeta de su cambio es un hecho, que lo diga la rama es una declaración, y el hecho manda. Nada entra preseleccionado.
+- **Redacción del asunto del commit con un modelo local.** El tipo convencional —`feat`, `fix`, `chore`— no está en el diff, ni en las rutas, ni en la rama, ni en las tareas: es lo único que un modelo aporta y que ninguna heurística puede deducir. Corre contra LM Studio, con el endpoint declarado, y **el código no sale a ningún tercero**.
+- **Elección informada del modelo**, con su estado, contexto real cargado, tamaño, cuantización, si razona y en qué máquina vive. Nada viene preseleccionado: está medido que la función sirve o no según cuál sea el modelo.
+- **Carga y expulsión del modelo desde el panel**, declarando el costo antes de tomarlo y con desalojo automático por inactividad configurable. Antes GitCron podía tomar 7 GB de la placa sin ofrecer cómo soltarlos.
+- **Lo que el modelo va pensando, a la vista mientras lo piensa.** El asunto llega por SSE y se muestra en el rail derecho según se produce, con el conteo de tokens que explica una espera larga. Medido: de 308 cuadros de una redacción, 278 son razonamiento.
+- **Pantalla de inicio de Pipeline**, rama por cambio al crearlo, marcas de creación y archivado, y lectura de los artefactos y las especificaciones dentro de la aplicación.
+
+#### Fixed
+- **Fallos de push explicados.** Un push rechazado dice qué pasó y ofrece reapuntar el vínculo de la rama, en vez de volcar la salida cruda de Git.
+- **Un fallo del servidor de IA ya no se lee como «el modelo no contestó».** El error llega dentro del stream, después de un 200, así que el código HTTP no lo delata: se reconoce, se muestra el motivo del servidor tal cual, y **se acompaña de qué pasó y qué hacer en castellano llano**. Un error que no se reconoce no recibe consejo inventado.
+- **Controles que se apagaban sin decir por qué.** El botón de cargar explica qué valor corregir en vez de quedarse gris, y el estado del modelo declara el contexto y los minutos elegidos en lugar de números escritos a mano que contradecían a los campos de al lado.
+- **El piso de contexto baja de 32.768 a 16.384.** El valor anterior no salía de ninguna medición y bloqueaba justamente la salida que hace falta cuando la placa no aguanta: el prompt más grande medido son 4.649 tokens.
+- Confirmación de tareas a alto completo, identidad fija del archivado, y declaración explícita del fracaso de un run que el runtime rechazó.
+
+#### Changed
+- **Cancelar corta de verdad.** La versión anterior descartaba la respuesta y el modelo seguía trabajando del otro lado.
+- Cargar un modelo ya cargado **no se apila**: comprobado que el servidor devuelve una segunda instancia en vez de reemplazar, y eso dejaba dos copias ocupando la placa.
+- El estado de la redacción vive **fuera de React**, con ventana de agrupado de 120 ms entre el stream y el IPC. Sin eso, ~45 cuadros por segundo serían 45 re-renderizados por segundo del panel entero durante hasta un minuto.
+
+#### Mediciones
+Nada de lo anterior se afirma sin haberlo corrido:
+
+| Qué | Resultado |
+|---|---|
+| Redacción con un 12B | 25–57 s · un 9B llegó a 98 s |
+| Prompt de 12k caracteres | 4.649 tokens (3,18 char/token) |
+| Cargar un 12B por HTTP | 8,8–11 s (29,8 s en una notebook sin GPU dedicada) |
+| Catálogo de modelos por WebSocket | 42 ms, contra 1,7–37,8 s del CLI que se retiró |
+| Cuadros del stream | 45/s con GPU dedicada · 0,7/s por CPU |
+
+Con techo de 200 y de 1.200 tokens la respuesta llega **vacía** con `finish_reason=length`, porque el razonamiento se come el presupuesto; con 3.000 sale. `enable_thinking: false` es ignorado.
+
+### 🟢 Vista Clásica & Core
+
+#### Fixed
+- **Grafo:** la capa de nodos se aísla del encuadre y el encuadre se aplica una vez por cuadro en vez de una por evento.
+- **Repositorio observado una sola vez**, y no una vez por consumidor.
+
+### 📐 Método
+
+#### Changed
+- La metodología viaja por `openspec/config.yaml`, que es el canal por el que el CLI la entrega a cualquier ejecutor. Una regla que sólo existe en un archivo suelto no la ve quien no lo abre — ya pasó acá con un runtime que trabajó con reglas locales sin saberlo.
+- **Se auditaron las dieciséis reglas propias del repositorio contra la salida de `openspec instructions` y se retiraron ocho**, que decían lo mismo que el CLI ya entregaba.
+- El andamiaje de fases queda retirado; OpenSpec es el único método.
+
+**Validación:** `tsc --noEmit` en 0 · 131 archivos y 1024 pruebas en verde · `eslint` limpio sobre lo tocado · `openspec validate --strict` válido.
+
+---
+
+## [v1.11.0] - 2026-07-30 - Pipeline es un workspace OpenSpec
+
+> Esta versión existió sólo en desarrollo: `package.json` la declaró pero nunca se etiquetó ni se publicó. Queda documentada aparte porque su contenido es un cuerpo de trabajo propio, y lo que sí se publica es la v1.12.0 de más arriba.
 
 Cambio de perspectiva de la pestaña Pipeline. Dejó de ser una torre de control de agentes múltiples —con Hermes como orquestador, delegaciones entre IA, economía y un veto determinístico de gates— y pasó a ser un tablero del ciclo de vida de OpenSpec sobre el repositorio abierto.
 

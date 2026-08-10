@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.11.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.12.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -176,7 +176,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Panorama integrado y cacheado**: El resumen del repo se genera desde estructura determinística, se narra con IA cuando está habilitada y se cachea en SQLite por repo, estructura e idioma.
 - **Providers opt-in**: Soporta LM Studio local y OpenRouter, reutilizando la key cifrada del Temporal Agent sin exponer secretos al renderer.
 
-### 🔵 Pipeline — Workspace OpenSpec (v1.11.0)
+### 🔵 Pipeline — Workspace OpenSpec (v1.12.0)
 
 Pipeline muestra en qué punto del ciclo de OpenSpec está el repositorio abierto y qué corresponde hacer a continuación, sin exigir conocer los comandos `/opsx:*`.
 
@@ -187,6 +187,27 @@ Pipeline muestra en qué punto del ciclo de OpenSpec está el repositorio abiert
 - **Leer los artefactos sin salir de la app**: `proposal.md`, `design.md`, `tasks.md` y los spec delta por capacidad se abren desde la navegación y se leen en la columna central. El markdown viaja dentro de la evidencia ya contenida al repositorio; el renderer no lee archivos.
 - **Evidencia sin inventar**: un dato ausente, incompatible o sin fixture se representa como `unknown` o `pending_fixture`, nunca como cero o verde. Un proceso que termina no marca una tarea como hecha: el progreso se relee de `tasks.md`.
 - **Sesiones persistidas**: cada corrida guarda runtime, cambio, tarea, tiempos y resultado en SQLite, y el historial sobrevive a reinicios.
+
+### 🟡 Preparar el commit desde Pipeline (v1.12.0)
+
+El commit se arma donde se ve el trabajo, sin cambiar de pestaña. Preparar no confirma: confirmar sigue siendo una acción humana desde Commit.
+
+- **Elegir qué entra, archivo por archivo**, agrupado por procedencia. Nada entra preseleccionado.
+- **Atribución con su fuente declarada**: que un archivo viva bajo la carpeta de su cambio es un hecho; que lo diga la rama es una declaración. El hecho manda.
+- **El mensaje se corrige en el mismo lugar donde se decide qué entra**, escribiendo sobre el mismo estado que después se confirma.
+
+### 🟣 Redacción del asunto con IA local (v1.12.0)
+
+El tipo convencional de un commit —`feat`, `fix`, `chore`— es el único dato que ninguna fuente del repositorio contiene: no está en el diff, ni en las rutas, ni en la rama, ni en las tareas. Un modelo local lo acierta, y por eso esta función existe.
+
+- **Local y opt-in**: corre contra LM Studio con el endpoint declarado. Lo que viaja es el diff del repositorio, así que **el código no sale a ningún tercero**. Nunca se dispara solo: cada acción responde a un botón.
+- **Elección informada del modelo**, con estado, contexto real cargado, tamaño, cuantización, si razona y en qué máquina vive. Nada viene preseleccionado: está medido que la función sirve o no según cuál sea.
+- **Carga y expulsión desde el panel**, declarando el costo en VRAM antes de tomarlo y con desalojo automático por inactividad configurable.
+- **Se ve pensar al modelo**: el asunto llega por SSE y se muestra según se produce, con el conteo de tokens que explica una espera larga.
+- **El mensaje queda rotulado como escrito por el modelo y no por la aplicación**, y no pisa nunca lo que una persona escribió.
+- **Un fallo del servidor se explica en castellano llano** —qué pasó y qué hacer— sin ocultar el motivo técnico, que es lo único que sirve para buscar el problema.
+
+Medido: una redacción tarda entre 25 y 98 segundos según el modelo, y un prompt de 12k caracteres son 4.649 tokens. Un modelo con razonamiento y poco presupuesto de tokens devuelve contenido vacío, así que el techo es un parámetro por modelo y no una constante.
 
 ---
 
@@ -472,9 +493,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.11.0.exe`                                            |
-| macOS    | `GitCron-1.11.0.dmg` _(build on macOS with `pnpm package:mac`)_       |
-| Linux    | `GitCron-1.11.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.12.0.exe`                                            |
+| macOS    | `GitCron-1.12.0.dmg` _(build on macOS with `pnpm package:mac`)_       |
+| Linux    | `GitCron-1.12.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 

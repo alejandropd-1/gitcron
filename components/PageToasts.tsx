@@ -317,10 +317,10 @@ export function PageToasts({
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
             role="alert"
             aria-live="assertive"
-            className="pointer-events-auto flex items-start gap-2 max-w-[min(calc(100vw-2rem),640px)]"
+            className="pointer-events-auto flex items-start gap-2 w-[min(calc(100vw-2rem),640px)]"
           >
             <GitFailureNotice
-              className="flex-1 shadow-2xl"
+              className="min-w-0 flex-1 shadow-2xl"
               error={error}
               busy={isLoading}
               onRemedy={async (remedy) => {
@@ -336,7 +336,11 @@ export function PageToasts({
                 await pullChanges();
               }}
             />
-            <button type="button" onClick={() => setError(null)} className="hover:opacity-70 shrink-0 text-text-secondary">
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="glass-alert-warning shrink-0 rounded-lg p-2 text-[#ffd98a] shadow-2xl hover:opacity-70"
+            >
               <X size={16} />
             </button>
           </motion.div>

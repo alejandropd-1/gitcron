@@ -40,16 +40,19 @@ export function GitFailureNotice({
   const failure = describePushFailure(error);
 
   return (
-    <div className={cn('rounded border border-amber-500/40 bg-amber-500/5 p-3 text-sm', className)}>
-      <p className="flex items-start gap-2 text-text-primary">
-        <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-400" aria-hidden="true" />
-        <span>{t(failure.key, failure.params)}</span>
+    // `glass-alert-warning` y no un fondo propio: es el estilo de aviso que el
+    // proyecto ya tiene, con fondo opaco al 98%. La primera versión usaba un
+    // ámbar al 5% y el texto se leía encima del grafo — Ale lo marcó.
+    <div className={cn('glass-alert-warning rounded-lg p-3 text-sm', className)}>
+      <p className="flex items-start gap-2 text-[#ffd98a]">
+        <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+        <span className="font-medium">{t(failure.key, failure.params)}</span>
       </p>
 
       {failure.remedy && onRemedy && (
         <button
           type="button"
-          className="mt-2 rounded border border-amber-500/50 px-3 py-1.5 text-xs text-amber-200 hover:bg-amber-500/10 disabled:opacity-40"
+          className="mt-2.5 rounded bg-[#f4b942]/15 px-3 py-1.5 text-xs font-bold text-[#ffd98a] transition-colors hover:bg-[#f4b942]/25 disabled:opacity-50"
           disabled={busy}
           onClick={() => onRemedy(failure.remedy!)}
         >
@@ -63,7 +66,7 @@ export function GitFailureNotice({
           tiene que leer. */}
       <button
         type="button"
-        className="mt-2 flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary"
+        className="mt-2 flex items-center gap-1 text-xs text-[#ffd98a]/70 transition-colors hover:text-[#ffd98a]"
         onClick={() => setShowRaw((open) => !open)}
         aria-expanded={showRaw}
       >
@@ -72,7 +75,7 @@ export function GitFailureNotice({
       </button>
       {showRaw && (
         // `user-select` explícito: el caso de uso es copiarlo para pedir ayuda.
-        <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-black/30 p-2 text-[11px] text-text-secondary select-text">
+        <pre className="mt-1 max-h-48 select-text overflow-auto whitespace-pre-wrap break-words rounded bg-black/40 p-2 text-[11px] text-[#ffd98a]/80">
           {failure.raw}
         </pre>
       )}

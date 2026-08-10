@@ -35,6 +35,9 @@
 - [x] 4.3 El botón de la salida sólo cuando hay una que resuelva
 - [x] 4.4 Textos en los tres idiomas
 - [x] 4.5 Espaciar lo agregado con la escala del panel
+- [x] 4.6 Reusar `glass-alert-warning`, el estilo de aviso que el proyecto ya tiene, en vez de un fondo
+      propio. La primera versión usaba un ámbar al 5% de opacidad y el texto se leía encima del grafo:
+      Ale lo marcó. La cruz de cerrar comparte el mismo fondo, si no quedaba flotando sobre el grafo
 
 ## 5. Tests
 

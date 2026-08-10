@@ -1,6 +1,6 @@
 ## 1. Base
 
-- [ ] 1.1 Confirmar que el change sigue activo, `tsc --noEmit` en cero y `pnpm test` en verde
+- [x] 1.1 Confirmar que el change sigue activo, `tsc --noEmit` en cero y `pnpm test` en verde
 - [x] 1.2 Caso real capturado íntegro: el texto de ocho líneas que recibió Ale al apretar PUSH con el
       vínculo apuntando a `change/name-task-in-commit-message`. Está en el proposal
 - [x] 1.3 Causa confirmada con Git: rama `change/draft-commit-message-with-local-ai`, upstream
@@ -14,41 +14,41 @@
 
 ## 2. El reconocedor
 
-- [ ] 2.1 Módulo puro en `lib/` que toma el texto de Git y devuelve el fallo identificado o nada
-- [ ] 2.2 Cubrir los cinco capturados: vínculo con otro nombre, sin upstream, sin ningún remoto,
+- [x] 2.1 Módulo puro en `lib/` que toma el texto de Git y devuelve el fallo identificado o nada
+- [x] 2.2 Cubrir los cinco capturados: vínculo con otro nombre, sin upstream, sin ningún remoto,
       rechazado por estar atrasado, y remoto inalcanzable. «Sin permisos» queda afuera hasta tener su texto
-- [ ] 2.3 Que «no lo reconozco» sea un resultado explícito y no un hueco: es la respuesta más común y la
+- [x] 2.3 Que «no lo reconozco» sea un resultado explícito y no un hueco: es la respuesta más común y la
       que degrada al comportamiento de hoy
-- [ ] 2.4 Extraer del texto lo que la explicación necesita nombrar —la rama del remoto, por ejemplo— sin
+- [x] 2.4 Extraer del texto lo que la explicación necesita nombrar —la rama del remoto, por ejemplo— sin
       inventarlo cuando no está
 
 ## 3. La salida
 
-- [ ] 3.1 Canal para reapuntar el vínculo, con el nombre de la rama validado antes de llegar al proceso
-- [ ] 3.2 Que el reapuntado informe qué quedó apuntando a qué, en vez de un éxito mudo
-- [ ] 3.3 Ninguna acción se ejecuta sin que la persona la pida
+- [x] 3.1 Canal para reapuntar el vínculo, con el nombre de la rama validado antes de llegar al proceso
+- [x] 3.2 Que el reapuntado informe qué quedó apuntando a qué, en vez de un éxito mudo
+- [x] 3.3 Ninguna acción se ejecuta sin que la persona la pida
 
 ## 4. La vista
 
-- [ ] 4.1 Mostrar la explicación donde hoy aparece el cartel rojo
-- [ ] 4.2 El texto original de Git accesible y plegado, nunca perdido
-- [ ] 4.3 El botón de la salida sólo cuando hay una que resuelva
-- [ ] 4.4 Textos en los tres idiomas
-- [ ] 4.5 Espaciar lo agregado con la escala del panel
+- [x] 4.1 Mostrar la explicación donde hoy aparece el cartel rojo
+- [x] 4.2 El texto original de Git accesible y plegado, nunca perdido
+- [x] 4.3 El botón de la salida sólo cuando hay una que resuelva
+- [x] 4.4 Textos en los tres idiomas
+- [x] 4.5 Espaciar lo agregado con la escala del panel
 
 ## 5. Tests
 
-- [ ] 5.1 Tabla del reconocedor sobre los textos reales, incluido el de ocho líneas de Ale
-- [ ] 5.2 Prueba: un texto desconocido no se reconoce y no se le inventa explicación
-- [ ] 5.3 Prueba: el original queda accesible en los dos casos
-- [ ] 5.4 Prueba: la acción no se dispara sola
-- [ ] 5.5 Prueba del canal: una rama con un nombre inválido no llega al proceso
+- [x] 5.1 Tabla del reconocedor sobre los textos reales, incluido el de ocho líneas de Ale
+- [x] 5.2 Prueba: un texto desconocido no se reconoce y no se le inventa explicación
+- [x] 5.3 Prueba: el original queda accesible en los dos casos
+- [x] 5.4 Prueba: la acción no se dispara sola
+- [x] 5.5 Prueba del canal: una rama con un nombre inválido no llega al proceso
 
 ## 6. Cierre
 
-- [ ] 6.1 `pnpm exec tsc --noEmit` en cero
-- [ ] 6.2 `pnpm test` en verde, con el conteo comparado contra la base
-- [ ] 6.3 `pnpm exec eslint` limpio sobre lo tocado
-- [ ] 6.4 `openspec validate recover-from-push-failures --strict` válido
-- [ ] 6.5 Reporte en `docs/reports/`
+- [x] 6.1 `pnpm exec tsc --noEmit` en cero
+- [x] 6.2 `pnpm test` en verde, con el conteo comparado contra la base
+- [x] 6.3 `pnpm exec eslint` limpio sobre lo tocado
+- [x] 6.4 `openspec validate recover-from-push-failures --strict` válido
+- [x] 6.5 Reporte en `docs/reports/`
 - [ ] 6.6 Ale valida provocando el fallo de nuevo y viendo si la explicación alcanza para saber qué hacer

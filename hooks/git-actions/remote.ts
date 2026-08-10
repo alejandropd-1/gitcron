@@ -75,6 +75,33 @@ export const useRemoteActions = () => {
     } finally { setLoading(false); }
   };
 
+  /**
+   * Publica la rama con su nombre actual y reapunta el vínculo con el remoto.
+   *
+   * Es la salida del fallo que aparece al renombrar una rama que ya tenía
+   * upstream: Git se niega a empujar porque no sabe a cuál de los dos nombres
+   * ir. Hasta ahora la aplicación no ofrecía cómo resolverlo y obligaba a salir
+   * a la terminal, para algo que puede hacer.
+   *
+   * Informa a qué apuntaba antes, en vez de un éxito mudo: quien lo aprieta
+   * necesita poder confirmar que cambió lo que creía que iba a cambiar.
+   */
+  const repointUpstream = async (branch: string) => {
+    if (!window.api || !repoPath) return;
+    setLoading(true); setError(null);
+    try {
+      const r = await window.api.gitRepointUpstream(repoPath, branch, githubToken ?? undefined);
+      if (r.success) {
+        setSuccess(`Listo: "${branch}" ahora apunta a ${r.data?.upstream ?? `origin/${branch}`}`);
+        await refreshLog(); await refreshBranches();
+      } else {
+        setError(r.data?.authRequired
+          ? 'No se pudo reapuntar: autenticación requerida. Conectá con GitHub en Settings.'
+          : `No se pudo reapuntar: ${r.error}`);
+      }
+    } finally { setLoading(false); }
+  };
+
   // Borra una branch en el remoto (git push origin --delete). Reutiliza el token
   // de GitHub del store (mismo camino de credenciales que el push). No hace
   // setError acá: devuelve el resultado para que el diálogo decida el mensaje
@@ -232,6 +259,7 @@ export const useRemoteActions = () => {
     pushTag,
     pullSpecificBranch,
     pushSpecificBranch,
+    repointUpstream,
     deleteRemoteBranch,
     pushChanges,
     pullChanges,

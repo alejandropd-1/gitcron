@@ -44,6 +44,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:rename-branch', repoPath, oldName, newName),
   gitDeleteBranch: (repoPath: string, branch: string, force?: boolean) =>
     ipcRenderer.invoke('git:delete-branch', repoPath, branch, force ?? false),
+  gitRepointUpstream: (repoPath: string, branch: string, token?: string) =>
+    ipcRenderer.invoke('git:repoint-upstream', repoPath, branch, token),
   gitDeleteRemoteBranch: (repoPath: string, remote: string, branch: string, token?: string) =>
     ipcRenderer.invoke('git:delete-remote-branch', repoPath, remote, branch, token),
   gitIsBranchMerged: (repoPath: string, branch: string, base?: string) =>

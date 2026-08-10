@@ -10,6 +10,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AlertCircle, Check, X, FileText } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
+import { recognizePushFailure } from '@/lib/git-push-failure';
+import { GitFailureNotice } from './GitFailureNotice';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useT } from '@/hooks/use-translation';
 import { parseGitStageIssue } from '@/lib/git-stage-issue';
@@ -35,8 +37,8 @@ export function PageToasts({
   canTrustSafeDirectory, onTrustSafeDirectory,
 }: PageToastsProps) {
   const t = useT();
-  const { success, setSuccess, error, setError, isLoading } = useGitStore();
-  const { removeIndexLock, stageFiles } = useGitActions();
+  const { success, setSuccess, error, setError, isLoading, currentBranch } = useGitStore();
+  const { removeIndexLock, stageFiles, repointUpstream, pullChanges } = useGitActions();
 
   const [hovered, setHovered] = useState(false);
 
@@ -72,6 +74,13 @@ export function PageToasts({
   let pullMode = '';
   let displayMessage = success || '';
   const stageIssue = error ? parseGitStageIssue(error) : null;
+  /**
+   * Un fallo de push que la aplicación sabe explicar.
+   *
+   * Sólo los reconocidos toman este camino: lo que no se reconoce cae al toast
+   * genérico con el texto de Git, que ahí es exactamente lo correcto.
+   */
+  const pushFailure = error && !stageIssue && recognizePushFailure(error).kind !== 'unknown';
 
   if (success) {
     try {
@@ -293,9 +302,50 @@ export function PageToasts({
         )}
       </AnimatePresence>
 
+      {/* ──────────── FALLO DE PUSH RECONOCIDO ────────────
+          Mismo patrón que el toast de archivos ignorados: cuando el error se
+          reconoce, tiene su propio toast con la explicación y su salida, en vez
+          de caer al genérico con la salida cruda de Git.
+
+          Ale apretó PUSH y recibió ocho líneas en inglés nombrando
+          `push.default` y `branch.autoSetupMerge`; su primera reacción fue
+          preguntar si era un problema de conexión. El texto de Git no se pierde:
+          va plegado adentro del aviso. */}
+      <AnimatePresence>
+        {error && !stageIssue && pushFailure && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+            role="alert"
+            aria-live="assertive"
+            className="pointer-events-auto flex items-start gap-2 max-w-[min(calc(100vw-2rem),640px)]"
+          >
+            <GitFailureNotice
+              className="flex-1 shadow-2xl"
+              error={error}
+              busy={isLoading}
+              onRemedy={async (remedy) => {
+                // Sólo corre porque la persona apretó. Y el aviso se retira acá:
+                // dejarlo puesto después de resolverlo diría que sigue fallando.
+                if (remedy.kind === 'repoint-upstream') {
+                  if (!currentBranch) return;
+                  setError(null);
+                  await repointUpstream(currentBranch);
+                  return;
+                }
+                setError(null);
+                await pullChanges();
+              }}
+            />
+            <button type="button" onClick={() => setError(null)} className="hover:opacity-70 shrink-0 text-text-secondary">
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ──────────── GENERIC ERROR TOAST ──────────── */}
       <AnimatePresence>
-        {error && !stageIssue && (
+        {error && !stageIssue && !pushFailure && (
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
             role="alert"

@@ -270,6 +270,8 @@ interface ElectronAPI {
   gitFastForward: (repoPath: string, branch: string, toRef: string) => Promise<GitResult>;
   gitRenameBranch: (repoPath: string, oldName: string, newName: string) => Promise<GitResult>;
   gitDeleteBranch: (repoPath: string, branch: string, force?: boolean) => Promise<GitResult<{ notMerged?: boolean }>>;
+  /** Publica la rama con su nombre actual y reapunta el vínculo con el remoto. */
+  gitRepointUpstream: (repoPath: string, branch: string, token?: string) => Promise<GitResult<{ branch: string; previousUpstream: string | null; upstream: string; authRequired?: boolean }>>;
   gitDeleteRemoteBranch: (repoPath: string, remote: string, branch: string, token?: string) => Promise<GitResult<{ authRequired?: boolean }>>;
   gitIsBranchMerged: (repoPath: string, branch: string, base?: string) => Promise<GitResult<{ merged: boolean; base: string }>>;
   gitPullBranch: (repoPath: string, branch: string, token?: string) => Promise<GitResult>;

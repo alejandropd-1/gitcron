@@ -376,6 +376,51 @@ export function registerGitSyncHandlers(): void {
     }
   });
 
+  /**
+   * Publica la rama con su nombre actual y **reapunta el vínculo** con el remoto.
+   *
+   * Es la salida del fallo más incómodo que hay hoy: al renombrar una rama que ya
+   * tenía upstream, el vínculo sigue apuntando al nombre anterior y `git push` se
+   * niega a adivinar a cuál de los dos empujar. Git hace bien; el problema es que
+   * GitCron dejaba a la persona sin salida dentro de la aplicación y la obligaba a
+   * la terminal, para algo que puede hacer.
+   *
+   * `git push -u origin <rama>` hace las dos cosas: sube y reapunta.
+   *
+   * La rama vieja del remoto **no se toca**. Borrarla es otra decisión, con otras
+   * consecuencias —puede haber alguien más siguiéndola— y se pide aparte.
+   */
+  ipcMain.handle('git:repoint-upstream', async (
+    _event,
+    targetPath: string,
+    branch: string,
+    token?: string,
+  ) => {
+    // Alfabeto cerrado antes de que el nombre llegue al proceso. Lo que más
+    // importa es el guion inicial: una rama llamada `--algo` se leería como una
+    // opción de `git push`, no como una rama.
+    if (!/^[A-Za-z0-9][A-Za-z0-9._\-/]*$/.test(branch) || branch.includes('..')) {
+      return { success: false, error: `Nombre de rama no admitido: «${branch}».` };
+    }
+    try {
+      let previous: string | null = null;
+      await withGitHubToken(targetPath, token, async (g) => {
+        // A qué apuntaba antes, para poder decir qué cambió en vez de un éxito
+        // mudo. Si no había vínculo, queda en nulo y eso también se informa.
+        try {
+          previous = (await g.raw(['rev-parse', '--abbrev-ref', `${branch}@{upstream}`])).trim() || null;
+        } catch {
+          previous = null;
+        }
+        await g.push(['--set-upstream', 'origin', branch]);
+      });
+      return { success: true, data: { branch, previousUpstream: previous, upstream: `origin/${branch}` } };
+    } catch (error: any) {
+      const isAuth = /authentication|credentials|permission denied|403|401/i.test(error.message);
+      return { success: false, error: errMsg(error), data: { authRequired: isAuth } };
+    }
+  });
+
   // ── Delete a branch on the remote (git push <remote> --delete <branch>) ──
   // Misma autenticación/errores que el push existente (withGitHubToken). Operación
   // de red → vive acá, junto al resto de push/pull, no en git-ops.ts.

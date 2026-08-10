@@ -201,6 +201,89 @@ describe('la carga', () => {
   });
 });
 
+/** Sirve una respuesta como stream de SSE, con la forma real del servidor. */
+function respondWithStream(frames: unknown[]) {
+  const cuerpo = frames.map((f) => `data: ${JSON.stringify(f)}\n`).join('') + 'data: [DONE]\n';
+  const bytes = new TextEncoder().encode(cuerpo);
+  globalThis.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    headers: { get: (name: string) => (name === 'content-type' ? 'text/event-stream' : null) },
+    body: {
+      getReader: () => {
+        let entregado = false;
+        return {
+          read: async () => (entregado
+            ? { done: true, value: undefined }
+            : ((entregado = true), { done: false, value: bytes })),
+        };
+      },
+    },
+  }) as unknown as typeof fetch;
+}
+
+describe('transmitir no cambia el resultado', () => {
+  const CUADROS = [
+    { choices: [{ delta: { reasoning_content: 'a ver, el diff toca el panel' } }] },
+    { choices: [{ delta: { content: 'feat(pipeline): ' } }] },
+    { choices: [{ delta: { content: 'mostrar el log del modelo' } }] },
+    { choices: [{ delta: {}, finish_reason: 'stop' }] },
+  ];
+
+  it('el mismo contenido servido en pedazos da el mismo asunto', async () => {
+    // Es el contrato que sostiene todo: `parseDraftResponse` no se tocó, así que
+    // la taxonomía de «no contestó» sigue valiendo igual con stream que sin él.
+    respondWithStream(CUADROS);
+    const result = await draftCommitSubject({
+      baseUrl: 'http://localhost:1234', model: 'm', system: 's', user: 'u', maxTokens: 3000,
+    });
+
+    expect(result).toEqual({
+      status: 'drafted',
+      subject: 'feat(pipeline): mostrar el log del modelo',
+      model: 'm',
+    });
+  });
+
+  it('avisa lo que va llegando, ya agrupado por tipo', async () => {
+    // Agrupado y no de a uno: medido, son unos 45 cuadros por segundo, y un
+    // aviso por cuadro es el error que ya trabó la máquina.
+    respondWithStream(CUADROS);
+    const recibido: unknown[] = [];
+    await draftCommitSubject({
+      baseUrl: 'http://localhost:1234', model: 'm', system: 's', user: 'u', maxTokens: 3000,
+      onChunk: (chunks) => recibido.push(...chunks),
+    });
+
+    expect(recibido).toEqual([
+      { kind: 'reasoning', text: 'a ver, el diff toca el panel' },
+      { kind: 'content', text: 'feat(pipeline): mostrar el log del modelo' },
+      { kind: 'done', finishReason: 'stop', usage: null },
+    ]);
+  });
+
+  it('el razonamiento que se come el presupuesto sigue siendo «no contestó»', async () => {
+    respondWithStream([
+      { choices: [{ delta: { reasoning_content: 'pensando y pensando' } }] },
+      { choices: [{ delta: {}, finish_reason: 'length' }] },
+    ]);
+    const result = await draftCommitSubject({
+      baseUrl: 'http://localhost:1234', model: 'qwen', system: 's', user: 'u', maxTokens: 3000,
+    });
+
+    expect(result).toEqual({ status: 'no-answer', reason: 'budget', model: 'qwen' });
+  });
+
+  it('un servidor que no transmite se lee como respuesta única', async () => {
+    // Una versión vieja, o un proxy en el medio: no puede romper la redacción.
+    respondWith({ choices: [{ message: { content: 'chore: algo' }, finish_reason: 'stop' }] });
+    const result = await draftCommitSubject({
+      baseUrl: 'http://localhost:1234', model: 'm', system: 's', user: 'u', maxTokens: 3000,
+    });
+    expect(result).toMatchObject({ status: 'drafted', subject: 'chore: algo' });
+  });
+});
+
 describe('los techos de tiempo', () => {
   it('toda petición lleva señal: sin techo, un servidor colgado espera para siempre', async () => {
     // `LOCAL_TIMEOUT_MS` estaba declarado con su justificación medida y no se

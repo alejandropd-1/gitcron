@@ -115,12 +115,26 @@
       se barrieron cinco canales y treinta nombres de RPC. Lo da `lms link status --json`, que **solo**
       cuesta 300–700 ms medidos —el caro era `lms ls`, que ya no hace falta porque el mapeo lo da el
       WebSocket—, y se guarda en disco porque el nombre de una computadora no cambia
-- [ ] 4.25 Barra de progreso **real** durante la carga: los diseños encontraron que el servidor expone la
+- [x] 4.25 Barra de progreso **real** durante la carga: los diseños encontraron que el servidor expone la
       fracción por WebSocket (0 → 0,376 → 1). Sin consumir todavía; hoy la barra es indeterminada, y
       fingir una fracción que no se midió sería inventar
-- [ ] 4.26 El log del servidor en el rail derecho, que hoy no muestra nada durante la redacción. Hay un
-      canal `diagnostics.streamLogs` en el mismo servidor, sin verificar
-- [ ] 4.27 Volver a mostrar de qué máquina es cada modelo, sin el costo que obligó a retirarlo
+- [ ] 4.26 El log en el rail derecho, que hoy no muestra nada durante la redacción.
+      **Verificado: `diagnostics.streamLogs` existe** —el rechazo inicial era de forma,
+      `creationParameter: Expected void, received object`, no un endpoint inexistente—, **pero exige un
+      permiso que un cliente anónimo no tiene**: «the client does not have the required permission
+      `diagnostics.streamLogs`». Obtenerlo obliga a leer la clave local de LM Studio, y eso es una
+      decisión de Ale sobre manejo de credenciales.
+      La alternativa sin credencial es pedir nuestra propia redacción con `stream: true` y mostrar el
+      razonamiento del modelo según llega — que además es lo que Ale describió querer ver, y no el log
+      HTTP del servidor.
+      **Verificado el 2026-08-09**: la redacción con `stream: true` devuelve `text/event-stream` y
+      produjo **308 cuadros en 6,9 s, 278 de ellos de razonamiento** y 28 de contenido, más el cuadro
+      final de `usage` con `reasoning_tokens: 278`. Lo que se ve pensar al modelo es la mayor parte del
+      stream. Los ~45 cuadros por segundo obligan a agrupar antes de cruzar el IPC
+- [x] 4.32 El proveedor transmite: lector de SSE puro y probado con cuadros grabados, y `draftCommitSubject`
+      avisa lo que llega ya agrupado por tipo. El resultado final es idéntico al de la respuesta única
+      —`parseDraftResponse` no se tocó—, y un servidor que no transmite se lee como antes
+- [x] 4.27 Volver a mostrar de qué máquina es cada modelo, sin el costo que obligó a retirarlo
 
 ## 5. Tests
 
@@ -143,6 +157,11 @@
 - [x] 5.17 Pruebas del índice de dispositivos: el identificador nulo es esta máquina, un modelo en las dos
       lleva las dos, y sin el dato no se dice «esta máquina» por omisión
 - [x] 5.18 Prueba: con los nombres resueltos el desplegable dice «Ale-CasaNew», no el identificador
+
+- [x] 5.19 Pruebas del lector de SSE: razonamiento y contenido, el cuadro de `usage` sin opciones, JSON
+      partido entre dos lecturas, línea ilegible que se saltea y se cuenta, y el agrupado por tipo
+- [x] 5.20 Prueba de contrato: el mismo contenido servido en pedazos da el mismo resultado que en una
+      respuesta única, incluido el «no contestó» por presupuesto
 
 ## 6. Cierre
 

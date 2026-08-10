@@ -54,4 +54,4 @@
 - [x] 6.3 `pnpm exec eslint` limpio sobre lo tocado
 - [x] 6.4 `openspec validate recover-from-push-failures --strict` válido
 - [x] 6.5 Reporte en `docs/reports/`
-- [ ] 6.6 Ale valida provocando el fallo de nuevo y viendo si la explicación alcanza para saber qué hacer
+- [x] 6.6 Ale valida provocando el fallo de nuevo y viendo si la explicación alcanza para saber qué hacer

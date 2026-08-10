@@ -159,6 +159,15 @@ function formatSessionOption(session: RuntimeProjection): string {
   return [runtime, context, started].filter(Boolean).join(' · ');
 }
 
+/**
+ * El último modelo que la persona eligió, por repositorio.
+ *
+ * Fuera del componente a propósito: el panel se desmonta al cerrarlo y al
+ * cambiar de solapa, y con el estado adentro la elección se perdía en cada
+ * vuelta. En memoria y por repositorio, como el borrador del cambio nuevo.
+ */
+const lastAiModelByRepo = new Map<string, string>();
+
 export function OpenSpecDashboard({
   snapshot,
   repoPath,
@@ -526,7 +535,7 @@ export function OpenSpecDashboard({
   // espera cambien junto con el resto del panel.
   const uiLanguage = useGitStore((state) => state.language);
   const [aiModels, setAiModels] = useState<LocalModel[]>([]);
-  const [aiModel, setAiModel] = useState('');
+  const [aiModel, setAiModel] = useState(() => (repoPath ? lastAiModelByRepo.get(repoPath) ?? '' : ''));
   /**
    * En qué está la IA: quieta, cargando un modelo, o redactando.
    *
@@ -562,6 +571,20 @@ export function OpenSpecDashboard({
    * es exactamente el error de la versión que hubo que retirar.
    */
   const [aiDeviceNames, setAiDeviceNames] = useState<Record<string, string>>({});
+  /**
+   * El modelo elegido sobrevive a que el panel se cierre y se vuelva a abrir.
+   *
+   * No contradice que nada venga preseleccionado: esa regla existe para que la
+   * aplicación no elija por la persona, y acá se conserva **lo que ella
+   * eligió**. Perderlo la obligaba a elegir de nuevo cada vez, y Ale se encontró
+   * con el botón de redactar apagado sin entender por qué.
+   *
+   * Por repositorio y en memoria, como el borrador del cambio nuevo.
+   */
+  const rememberAiModel = (id: string) => {
+    if (repoPath) lastAiModelByRepo.set(repoPath, id);
+    setAiModel(id);
+  };
   const [aiContext, setAiContext] = useState(65_536);
   const [aiTtlMinutes, setAiTtlMinutes] = useState(30);
   const aiAbort = useRef<AbortController | null>(null);
@@ -652,7 +675,12 @@ export function OpenSpecDashboard({
       // según cuál sea—. Dejar uno puesto convertiría esa decisión en un
       // descuido, que es el mismo motivo por el que no entra ningún archivo
       // tildado en este panel.
-      setAiModels((result?.data ?? []).filter((model) => model.kind !== 'embeddings'));
+      const disponibles = (result?.data ?? []).filter((model) => model.kind !== 'embeddings');
+      setAiModels(disponibles);
+      // Lo que se eligió antes sigue elegido, salvo que ya no esté en el
+      // catálogo: sostener una elección que el servidor ya no ofrece dejaría el
+      // botón encendido sobre un modelo que no existe.
+      setAiModel((actual) => (disponibles.some((model) => model.id === actual) ? actual : ''));
     }).catch(() => { if (alive) setAiModels([]); });
     // Los nombres de las máquinas, aparte y después: cuestan un proceso y el
     // catálogo no puede esperarlos. Si no llegan, el desplegable muestra el
@@ -1384,7 +1412,7 @@ export function OpenSpecDashboard({
                       value={aiModel}
                       disabled={aiBusy || aiModels.length === 0}
                       aria-label={t('pipeline.openspec.prepare.aiModel')}
-                      onChange={(event) => setAiModel(event.target.value)}
+                      onChange={(event) => rememberAiModel(event.target.value)}
                     >
                       {/* La opción vacía se queda siempre: es la que hace que el
                           desplegable arranque sin nada elegido. */}
@@ -1414,32 +1442,34 @@ export function OpenSpecDashboard({
                     {/* Contexto y TTL se eligen ANTES de cargar, porque los dos
                         se fijan en la carga y no se pueden cambiar después. El
                         TTL es lo que hace que el modelo se cierre solo. */}
-                    {aiNeedsLoad && (
-                      <>
-                        <label className={styles.aiNumber}>
-                          <span>{t('pipeline.openspec.prepare.aiContextLabel')}</span>
-                          <input
-                            type="number"
-                            min={32768}
-                            step={8192}
-                            value={aiContext}
-                            disabled={aiBusy}
-                            onChange={(event) => setAiContext(Number(event.target.value) || 0)}
-                          />
-                        </label>
-                        <label className={styles.aiNumber}>
-                          <span>{t('pipeline.openspec.prepare.aiTtlLabel')}</span>
-                          <input
-                            type="number"
-                            min={1}
-                            step={1}
-                            value={aiTtlMinutes}
-                            disabled={aiBusy}
-                            onChange={(event) => setAiTtlMinutes(Number(event.target.value) || 0)}
-                          />
-                        </label>
-                      </>
-                    )}
+                    {/* Se muestran siempre, y quedan inertes con el modelo ya
+                        cargado: los dos se fijan **en la carga** y no se pueden
+                        cambiar después. Esconderlos era peor —Ale los vio
+                        desaparecer sin explicación—, y dejarlos editables sería
+                        mentir. Para cambiarlos hay que sacar el modelo, y ese
+                        botón está al lado. */}
+                    <label className={styles.aiNumber} title={aiNeedsLoad ? undefined : t('pipeline.openspec.prepare.aiFixedAtLoad')}>
+                      <span>{t('pipeline.openspec.prepare.aiContextLabel')}</span>
+                      <input
+                        type="number"
+                        min={32768}
+                        step={8192}
+                        value={aiChosenModel?.loaded ? (aiChosenModel.loadedContextLength ?? aiContext) : aiContext}
+                        disabled={aiBusy || !aiNeedsLoad}
+                        onChange={(event) => setAiContext(Number(event.target.value) || 0)}
+                      />
+                    </label>
+                    <label className={styles.aiNumber} title={aiNeedsLoad ? undefined : t('pipeline.openspec.prepare.aiFixedAtLoad')}>
+                      <span>{t('pipeline.openspec.prepare.aiTtlLabel')}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={aiTtlMinutes}
+                        disabled={aiBusy || !aiNeedsLoad}
+                        onChange={(event) => setAiTtlMinutes(Number(event.target.value) || 0)}
+                      />
+                    </label>
                     {/* La salida: si está cargado, se puede descargar acá mismo.
                         Antes GitCron tomaba la placa y no ofrecía cómo soltarla
                         salvo esperar el TTL o ir a LM Studio. */}

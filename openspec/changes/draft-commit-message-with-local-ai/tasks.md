@@ -131,10 +131,15 @@
       produjo **308 cuadros en 6,9 s, 278 de ellos de razonamiento** y 28 de contenido, más el cuadro
       final de `usage` con `reasoning_tokens: 278`. Lo que se ve pensar al modelo es la mayor parte del
       stream. Los ~45 cuadros por segundo obligan a agrupar antes de cruzar el IPC
-- [x] 4.32 El proveedor transmite: lector de SSE puro y probado con cuadros grabados, y `draftCommitSubject`
+- [x] 4.34 El proveedor transmite: lector de SSE puro y probado con cuadros grabados, y `draftCommitSubject`
       avisa lo que llega ya agrupado por tipo. El resultado final es idéntico al de la respuesta única
       —`parseDraftResponse` no se tocó—, y un servidor que no transmite se lee como antes
 - [x] 4.27 Volver a mostrar de qué máquina es cada modelo, sin el costo que obligó a retirarlo
+
+- [x] 4.35 Contexto y TTL se muestran siempre, inertes con el modelo ya cargado, con el motivo en el
+      tooltip. Antes desaparecían al cargar y Ale los vio irse sin explicación: los dos se fijan **en la**
+      **carga**, así que dejarlos editables sería mentir y esconderlos deja sin ver con qué valores quedó.
+      Para cambiarlos hay que sacar el modelo, y ese botón está al lado
 
 ## 5. Tests
 

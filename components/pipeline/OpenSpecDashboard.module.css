@@ -857,6 +857,137 @@
 .messageField input:focus:not(:focus-visible) { border-color: var(--os-cyan); }
 .messageField input:disabled { color: var(--os-muted); }
 
+/* La frase de espera, debajo del campo.
+   Se probó encima, con fondo semitransparente, y se leía encimada con el texto
+   de ayuda del campo vacío. Debajo no tapa nada, no necesita fondo, y sigue sin
+   poder ser el mensaje: el valor del input nunca la toca. */
+.messageThought {
+  /* El aire lo pone `.aiStatus`, que es quien agrupa los dos estados. */
+  margin: 0;
+  padding-left: var(--sp-1);
+  color: var(--os-muted);
+  font: italic 0.68rem var(--font-mono), ui-monospace, monospace;
+  animation: ghostFade 2.8s ease-in-out;
+}
+
+/* Entra y sale con la misma cadencia con la que rotan las frases, para que el
+   texto no cambie de golpe a mitad de una lectura. */
+@keyframes ghostFade {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0.15; }
+}
+
+/* Sin movimiento el texto sigue estando: la frase es la información, el fundido
+   sólo la acompaña. */
+@media (prefers-reduced-motion: reduce) {
+  .messageGhost { animation: none; opacity: 1; }
+}
+
+.aiRow { display: flex; align-items: center; gap: var(--sp-2); margin: calc(-1 * var(--sp-3)) 0 var(--sp-3); }
+.aiRow select {
+  min-width: 0;
+  flex: 1 1 auto;
+  /* A la altura de los botones de la fila, como los campos numericos. */
+  min-height: 2.65rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.2rem;
+  background: var(--os-bg-deep, rgba(2, 15, 30, 0.6));
+  color: var(--os-muted);
+  font: 0.68rem var(--font-mono), ui-monospace, monospace;
+}
+/* Los dos estados de la IA juntos, con el aire en un solo lugar.
+   Sueltos, cada uno peleaba con los márgenes negativos de sus vecinos —el campo
+   de arriba y `.aiRow`, que se pega con -0,75rem— y la barra terminaba encimada
+   con el borde del desplegable. Ale lo marcó. */
+.aiStatus { display: flex; flex-direction: column; gap: var(--sp-1); margin: calc(-1 * var(--sp-4)) 0 var(--sp-5); }
+.aiElapsed { display: flex; align-items: center; gap: var(--sp-2); margin: 0; flex-wrap: wrap; }
+.aiElapsed > em { color: var(--os-muted); font: 0.64rem/1.5 var(--font-mono), ui-monospace, monospace; font-style: normal; }
+/* Barra indeterminada por 	ransform, no por width: mover el ancho obliga a
+   recalcular layout en cada cuadro, y esto corre durante diez segundos sobre una
+   iGPU que comparte memoria con el sistema. Con 	ransform queda en el
+   compositor. */
+.aiLoadTrack { position: relative; overflow: hidden; width: 8rem; height: 3px; border-radius: 999px; background: var(--os-border); }
+.aiLoadTrack > span { position: absolute; inset: 0; width: 40%; border-radius: 999px; background: var(--os-cyan); animation: aiLoadSlide 1.4s ease-in-out infinite; }
+@keyframes aiLoadSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+@media (prefers-reduced-motion: reduce) {
+  .aiLoadTrack > span { animation: none; width: 100%; opacity: 0.5; }
+}
+
+/* Los campos numéricos, a la altura de los botones.
+   Ale los marcó: eran una línea baja al lado de controles de 2,65rem y la fila
+   quedaba desprolija. Un campo donde se decide cuánta VRAM se toma y por cuánto
+   tiempo merece el mismo peso visual que el botón que lo ejecuta. */
+.aiNumber {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+  min-height: 2.65rem;
+  padding: 0 0.7rem 0 0.75rem;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.2rem;
+  background: var(--os-bg-deep, rgba(2, 15, 30, 0.6));
+}
+.aiNumber > span {
+  color: var(--os-muted);
+  font: 0.62rem var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.02em;
+}
+.aiNumber > input {
+  width: 4.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--os-cyan);
+  font: 650 0.78rem var(--font-mono), ui-monospace, monospace;
+  text-align: right;
+}
+.aiNumber > input:focus { outline: none; }
+/* El borde lo dibuja la caja entera, no el input: el anillo de foco alrededor
+   de un campo sin borde propio se leía como si fueran dos controles. */
+.aiNumber:focus-within { border-color: var(--os-cyan); outline: var(--focus-ring); outline-offset: 1px; }
+/* Las flechitas del spinner se ven mal en tema oscuro y se comían el ancho.
+   Se sube y se baja con las flechas del teclado, que es lo que hace igual. */
+.aiNumber > input::-webkit-outer-spin-button,
+.aiNumber > input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.aiNumber > input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
+.aiRow { flex-wrap: wrap; }
+
+.aiRow select:focus-visible { border-color: var(--os-cyan); outline: var(--focus-ring); outline-offset: 1px; }
+
+/* Las características del modelo, una por línea. Un párrafo con seis datos
+   adentro no se lee; acá hay que poder comparar de un vistazo. */
+.aiFacts {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--os-border-strong);
+  background: var(--os-surface);
+  list-style: none;
+}
+.aiFacts > li {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: space-between;
+  padding: 0.15rem 0;
+  color: var(--os-muted);
+  font: 0.66rem/1.5 var(--font-mono), ui-monospace, monospace;
+}
+.aiFacts > li > strong { color: #c2d0de; font-weight: 650; text-align: right; }
+
+/* Ámbar: que lo haya escrito un modelo y no la aplicación es exactamente el tipo
+   de cosa que pide atención antes de confirmar. */
+.aiNotice {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--os-amber, #d8a657);
+  background: rgba(216, 166, 87, 0.07);
+  color: var(--os-amber, #d8a657);
+  font: 0.66rem/1.6 var(--font-mono), ui-monospace, monospace;
+}
+
 /* La etiqueta envuelve la fila entera: con el área del tamaño de la casilla
    había que apuntar, que es el mismo defecto que ya se corrigió en la lista de
    tareas. El padding negativo compensa para no mover la fila. */

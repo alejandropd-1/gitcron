@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   BookOpen,
@@ -24,12 +24,16 @@ import {
   User,
   Wrench,
   MessageSquareText,
+  PowerOff,
   BrainCircuit,
 } from 'lucide-react';
 import { useGitStore, type GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
-import { archivedChangeId, deriveRepoCommitScope, fileKind, suggestCommitMessage, type ChangeAttribution, type CommitFileOrigin } from '@/lib/change-commit-scope';
+import { archivedChangeId, deriveRepoCommitScope, fileKind, soleChangeId, suggestCommitMessage, type ChangeAttribution, type CommitFileOrigin } from '@/lib/change-commit-scope';
 import { changeIdFromBranch } from '@/lib/change-branch';
+import { DraftingThought } from './DraftingThought';
+import { AiElapsed } from './AiElapsed';
+import type { LocalModel } from '@/types/commit-message-ai';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
@@ -511,6 +515,57 @@ export function OpenSpecDashboard({
    * otra rama no hay nada que atribuir, y el archivo queda sin atribuir en vez
    * de heredar el cambio que esté seleccionado en la pantalla.
    */
+  /**
+   * Redactar el asunto con un modelo local.
+   *
+   * El catálogo se pide una vez al abrir la preparación: es un GET barato y sin
+   * generar nada. Redactar, en cambio, es explícito —medido: 25 a 98 segundos y
+   * 7 GB de VRAM—, así que nada de esto ocurre en un refresco.
+   */
+  // El idioma sale del mismo store que el traductor, para que las frases de la
+  // espera cambien junto con el resto del panel.
+  const uiLanguage = useGitStore((state) => state.language);
+  const [aiModels, setAiModels] = useState<LocalModel[]>([]);
+  const [aiModel, setAiModel] = useState('');
+  /**
+   * En qué está la IA: quieta, cargando un modelo, o redactando.
+   *
+   * Era un solo booleano para las dos operaciones, y por eso las frases de
+   * espera arrancaban durante la carga —Ale lo marcó: tienen que aparecer al
+   * apretar «Redactar con IA», no antes—. Un booleano tampoco permite mostrar
+   * una barra durante la carga y un contador durante la redacción, que son cosas
+   * distintas y se ven en momentos distintos.
+   */
+  const [aiPhase, setAiPhase] = useState<'idle' | 'loading' | 'drafting'>('idle');
+  /** Cuándo arrancó lo que está corriendo, para contar los segundos. */
+  const [aiStartedAt, setAiStartedAt] = useState<number | null>(null);
+  /** Ocupada en cualquiera de las dos: es lo que deshabilita los controles. */
+  const aiBusy = aiPhase !== 'idle';
+  const setAiBusy = (busy: boolean) => {
+    setAiPhase(busy ? 'drafting' : 'idle');
+    setAiStartedAt(busy ? Date.now() : null);
+  };
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
+  /**
+   * Contexto y minutos de inactividad, elegidos antes de cargar.
+   *
+   * Los dos se fijan **en la carga** y no se pueden cambiar después, así que
+   * tienen que estar antes del botón. El TTL es lo que hace que el modelo se
+   * cierre solo; media hora es un punto de partida, no una imposición.
+   */
+  /**
+   * Identificador de máquina → nombre legible.
+   *
+   * Llega por un canal propio y no con el catálogo: el catálogo con sus
+   * identificadores sale en 42 ms por WebSocket, y esto invoca un proceso —300 a
+   * 700 ms, medido—. Mezclarlos haría que abrir el panel pague el proceso, que
+   * es exactamente el error de la versión que hubo que retirar.
+   */
+  const [aiDeviceNames, setAiDeviceNames] = useState<Record<string, string>>({});
+  const [aiContext, setAiContext] = useState(65_536);
+  const [aiTtlMinutes, setAiTtlMinutes] = useState(30);
+  const aiAbort = useRef<AbortController | null>(null);
+
   const branchAttribution: ChangeAttribution | null = (() => {
     const changeId = changeIdFromBranch(currentBranch);
     return changeId ? { changeId, source: 'branch' } : null;
@@ -578,6 +633,205 @@ export function OpenSpecDashboard({
    * **No confirma.** Confirmar es del flujo de commit, con el mensaje a la vista
    * y su botón propio: preparar es reversible y confirmar queda en la historia.
    */
+  /**
+   * El catálogo, una vez al abrir la preparación.
+   *
+   * Un GET barato que no genera nada. Si el servidor local no está, el
+   * desplegable queda vacío y lo dice: la preparación sigue funcionando sin IA,
+   * igual que Cartografía.
+   */
+  useEffect(() => {
+    if (!prepareOpen || !repoPath) return;
+    let alive = true;
+    window.api?.commitAi?.catalog().then((result) => {
+      if (!alive) return;
+      // Los de embeddings no redactan nada; se filtran acá y no en el proveedor,
+      // que los conserva con su tipo para poder explicar por qué no sirven.
+      // Nada preseleccionado: elegir el modelo es de la persona, y eso es el
+      // fundamento entero del selector —está medido que la función sirve o no
+      // según cuál sea—. Dejar uno puesto convertiría esa decisión en un
+      // descuido, que es el mismo motivo por el que no entra ningún archivo
+      // tildado en este panel.
+      setAiModels((result?.data ?? []).filter((model) => model.kind !== 'embeddings'));
+    }).catch(() => { if (alive) setAiModels([]); });
+    // Los nombres de las máquinas, aparte y después: cuestan un proceso y el
+    // catálogo no puede esperarlos. Si no llegan, el desplegable muestra el
+    // identificador recortado, que se lee peor pero es cierto.
+    window.api?.commitAi?.deviceNames?.().then((result) => {
+      if (alive && result?.data) setAiDeviceNames(result.data);
+    }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [prepareOpen, repoPath]);
+
+  /**
+   * El modelo elegido, para saber si hace falta cargarlo antes de redactar.
+   *
+   * Un modelo en disco no tiene contexto: el que se use lo decide LM Studio al
+   * levantarlo. Por eso «no alcanza» y «no está cargado» se resuelven igual —hay
+   * que cargarlo— y se ofrecen juntos.
+   */
+  const aiChosenModel = aiModels.find((model) => model.id === aiModel) ?? null;
+  /**
+   * En qué máquina vive un modelo, en una frase.
+   *
+   * La cadena vacía en la lista significa esta máquina; un identificador, otra.
+   * Del identificador se muestran seis caracteres: el completo son treinta y dos
+   * y no le dice nada a nadie, pero seis alcanzan para distinguir dos máquinas y
+   * para reconocerlas en LM Studio.
+   *
+   * Lista vacía devuelve `null` y no «esta máquina»: no saber no es lo mismo que
+   * saber que no.
+   */
+  const aiDeviceLabel = (devices: string[] | undefined): string | null => {
+    // Ausente y vacío son lo mismo acá: no se sabe. Un catálogo leído por una
+    // versión anterior no trae el campo, y eso no puede romper el desplegable.
+    if (!devices || devices.length === 0) return null;
+    /**
+     * El nombre si se conoce; si no, seis caracteres del identificador.
+     *
+     * El nombre lo da el CLI y llega por su propio canal, más lento y aparte:
+     * mezclarlo con el catálogo haría que abrir el panel pague un proceso. Hasta
+     * que llegue se muestra el identificador, que se lee peor pero es cierto.
+     */
+    const nombre = (id: string) => aiDeviceNames[id]
+      ?? t('pipeline.openspec.prepare.aiDeviceOther', { id: id.slice(0, 6) });
+    const aqui = devices.includes('');
+    const otras = devices.filter((id) => id !== '');
+    if (aqui && otras.length > 0) {
+      return aiDeviceNames[''] && aiDeviceNames[otras[0]]
+        ? `${aiDeviceNames['']} + ${aiDeviceNames[otras[0]]}`
+        : t('pipeline.openspec.prepare.aiDeviceBoth');
+    }
+    if (aqui) return aiDeviceNames[''] ?? t('pipeline.openspec.prepare.aiDeviceHere');
+    return nombre(otras[0]);
+  };
+  const aiNeedsLoad = Boolean(aiChosenModel)
+    && !(aiChosenModel!.loaded && (aiChosenModel!.loadedContextLength ?? 0) >= 32_768);
+
+  const confirmAiLoad = async () => {
+    if (aiBusy || !aiModel) return;
+    // Fase «cargando», no «redactando»: es lo que hace que las frases de espera
+    // no arranquen acá, y lo que permite mostrar una barra en su lugar.
+    setAiPhase('loading');
+    setAiStartedAt(Date.now());
+    setAiNotice(null);
+    try {
+      const result = await window.api?.commitAi?.load(aiModel, undefined, aiContext, aiTtlMinutes * 60);
+      if (!result?.success) {
+        setAiNotice(t('pipeline.openspec.prepare.aiFailed', { detail: result?.error ?? '—' }));
+        return;
+      }
+      // Relee el catálogo: el modelo que se acaba de cargar tiene ahora un
+      // contexto real, y el desplegable lo seguía mostrando «en disco».
+      const catalog = await window.api?.commitAi?.catalog();
+      setAiModels((catalog?.data ?? []).filter((model) => model.kind !== 'embeddings'));
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  /**
+   * Cerrar el panel también corta lo que esté en vuelo.
+   *
+   * Antes cerraba la vista y dejaba al modelo trabajando: la persona ya declaró
+   * que no lo quiere, y quedaba un aviso viejo esperando a que reabriera.
+   */
+  const closePrepare = () => {
+    if (aiBusy) cancelAiDraft();
+    setAiNotice(null);
+    setPrepareOpen(false);
+  };
+
+  /**
+   * Descargar el modelo a mano, sin esperar a que venza su TTL.
+   *
+   * Ale lo pidió: GitCron cargaba 7 GB en la placa y no daba ninguna salida.
+   * Esperar los minutos del TTL no es una respuesta cuando querés la VRAM ahora.
+   */
+  const unloadAiModel = async () => {
+    if (aiBusy || !aiModel) return;
+    setAiPhase('loading');
+    setAiStartedAt(Date.now());
+    setAiNotice(null);
+    try {
+      const result = await window.api?.commitAi?.unload(aiModel);
+      if (!result?.success) {
+        setAiNotice(t('pipeline.openspec.prepare.aiFailed', { detail: result?.error ?? '—' }));
+        return;
+      }
+      const catalog = await window.api?.commitAi?.catalog();
+      setAiModels((catalog?.data ?? []).filter((model) => model.kind !== 'embeddings'));
+    } finally {
+      setAiPhase('idle');
+      setAiStartedAt(null);
+    }
+  };
+
+  const cancelAiDraft = () => {
+    aiAbort.current?.abort();
+    aiAbort.current = null;
+    // Corta la petición del otro lado, no sólo descarta la respuesta: antes el
+    // modelo seguía trabajando después de apretar «Cancelar».
+    void window.api?.commitAi?.cancel();
+    setAiBusy(false);
+    setAiNotice(null);
+  };
+
+  const draftWithAi = async () => {
+    if (aiBusy || !repoPath || !aiModel || chosen.length === 0) return;
+    setAiBusy(true);
+    setAiNotice(null);
+    const controller = new AbortController();
+    aiAbort.current = controller;
+    try {
+      const result = await window.api?.commitAi?.draft({
+        repoPath,
+        paths: chosen,
+        changeId: soleChangeId(chosen, branchAttribution),
+        intent: selectedChange?.intent ?? null,
+        model: aiModel,
+      });
+      // Cancelar mientras estaba en vuelo: lo que llegue después ya no se aplica.
+      if (controller.signal.aborted) return;
+      const draft = result?.data;
+      if (!result?.success || !draft) {
+        setAiNotice(t('pipeline.openspec.prepare.aiFailed', { detail: result?.error ?? '—' }));
+        return;
+      }
+      if (draft.status === 'drafted') {
+        setCommitMessage(draft.subject);
+        // Se nombra el modelo: quien confirma tiene que poder ver que esto lo
+        // escribió un modelo y no la aplicación.
+        setAiNotice(t('pipeline.openspec.prepare.aiWrote', { model: draft.model }));
+        return;
+      }
+      if (draft.status === 'no-answer') {
+        // «No contestó» y no «contestó vacío»: con el razonamiento comiéndose el
+        // presupuesto, decir que devolvió un mensaje vacío haría pensar que la
+        // función está rota cuando lo que falta es techo de tokens.
+        setAiNotice(draft.reason === 'budget'
+          ? t('pipeline.openspec.prepare.aiNoAnswerBudget', { model: draft.model })
+          : t('pipeline.openspec.prepare.aiNoAnswer', { model: draft.model }));
+        return;
+      }
+      if (draft.status === 'malformed') {
+        // Contestó, pero sin la forma pedida. No se impone en el campo —eso
+        // obligaría a corregirlo a mano— y se muestra igual: puede ser una buena
+        // descripción a la que sólo le falta el prefijo, y tirarla diciendo que
+        // no contestó sería mentir sobre lo que pasó.
+        setAiNotice(t('pipeline.openspec.prepare.aiMalformed', {
+          model: draft.model,
+          subject: draft.subject,
+        }));
+        return;
+      }
+      setAiNotice(draft.detail);
+    } finally {
+      if (aiAbort.current === controller) aiAbort.current = null;
+      if (!controller.signal.aborted) setAiBusy(false);
+    }
+  };
+
   const prepareCommit = async () => {
     if (prepareBusy || fixtureActive || chosen.length === 0) return;
     setPrepareBusy(true);
@@ -1064,7 +1318,7 @@ export function OpenSpecDashboard({
                   <button
                     type="button"
                     className={styles.secondaryAction}
-                    onClick={() => setPrepareOpen(false)}
+                    onClick={closePrepare}
                   >
                     {t('pipeline.openspec.prepare.close')}
                   </button>
@@ -1096,11 +1350,192 @@ export function OpenSpecDashboard({
                     <input
                       type="text"
                       value={chosen.length === 0 ? commitMessage : (commitMessage || suggestCommitMessage(chosen, branchAttribution))}
-                      disabled={prepareBusy}
+                      disabled={prepareBusy || aiBusy}
                       placeholder={t('pipeline.openspec.prepare.messagePlaceholder')}
                       onChange={(event) => setCommitMessage(event.target.value)}
                     />
                   </label>
+                  {/* La frase de espera va DEBAJO del campo.
+                      Primero se probó encima, y con el campo vacío se leía
+                      encimada con el texto de ayuda —Ale lo marcó—. Debajo no
+                      tapa nada y sigue sin poder ser el mensaje: el valor del
+                      input nunca la toca. Es un estado, no un valor. */}
+                  {/* En su propio componente: el temporizador vivía acá y cada
+                      2,8 s re-renderizaba el panel entero durante los 40 s de
+                      una redacción. */}
+                  {/* Los dos estados en un contenedor propio, y no sueltos.
+                      Sueltos peleaban con los márgenes negativos de sus vecinos
+                      —el campo de arriba y la fila del modelo de abajo, que se
+                      pega con -0,75rem— y la barra terminaba encimada con el
+                      borde del desplegable. Ale lo marcó. */}
+                  {aiPhase !== 'idle' && (
+                    <div className={styles.aiStatus}>
+                      <DraftingThought active={aiPhase === 'drafting'} language={uiLanguage} />
+                      {/* La marca de arranque como clave: cada corrida remonta el
+                          contador, así no arrastra los segundos de la anterior. */}
+                      <AiElapsed key={aiStartedAt ?? 'idle'} phase={aiPhase} startedAt={aiStartedAt} />
+                    </div>
+                  )}
+                  {/* Redactar con un modelo local. Nunca se dispara solo: medido,
+                      tarda entre 25 y 98 segundos y ocupa GPU. Un refresco del
+                      panel no puede costar eso. */}
+                  <div className={styles.aiRow}>
+                    <select
+                      value={aiModel}
+                      disabled={aiBusy || aiModels.length === 0}
+                      aria-label={t('pipeline.openspec.prepare.aiModel')}
+                      onChange={(event) => setAiModel(event.target.value)}
+                    >
+                      {/* La opción vacía se queda siempre: es la que hace que el
+                          desplegable arranque sin nada elegido. */}
+                      <option value="">
+                        {aiModels.length === 0
+                          ? t('pipeline.openspec.prepare.aiNoModels')
+                          : t('pipeline.openspec.prepare.aiChoose')}
+                      </option>
+                      {aiModels.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {/* Estado y contexto real a la vista: elegir uno en
+                              disco significa esperar la carga, y el contexto con
+                              el que quedó cargado no es su máximo teórico. */}
+                          {model.loaded
+                            ? `${model.id} · ${model.loadedContextLength ?? '?'}`
+                            : `${model.id} · ${t('pipeline.openspec.prepare.aiNotLoaded')}`}
+                          {/* En qué máquina vive. Con LM Link la inferencia
+                              puede correr en otra computadora sin que nada lo
+                              diga, y eso cambia cuál conviene elegir. */}
+                          {aiDeviceLabel(model.devices) && ` · ${aiDeviceLabel(model.devices)}`}
+                        </option>
+                      ))}
+                    </select>
+                    {/* Un modelo en disco no puede redactar: primero se carga.
+                        Ofrecerlo acá evita el callejón sin salida de declarar
+                        que falta contexto y no dar la salida. */}
+                    {/* Contexto y TTL se eligen ANTES de cargar, porque los dos
+                        se fijan en la carga y no se pueden cambiar después. El
+                        TTL es lo que hace que el modelo se cierre solo. */}
+                    {aiNeedsLoad && (
+                      <>
+                        <label className={styles.aiNumber}>
+                          <span>{t('pipeline.openspec.prepare.aiContextLabel')}</span>
+                          <input
+                            type="number"
+                            min={32768}
+                            step={8192}
+                            value={aiContext}
+                            disabled={aiBusy}
+                            onChange={(event) => setAiContext(Number(event.target.value) || 0)}
+                          />
+                        </label>
+                        <label className={styles.aiNumber}>
+                          <span>{t('pipeline.openspec.prepare.aiTtlLabel')}</span>
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={aiTtlMinutes}
+                            disabled={aiBusy}
+                            onChange={(event) => setAiTtlMinutes(Number(event.target.value) || 0)}
+                          />
+                        </label>
+                      </>
+                    )}
+                    {/* La salida: si está cargado, se puede descargar acá mismo.
+                        Antes GitCron tomaba la placa y no ofrecía cómo soltarla
+                        salvo esperar el TTL o ir a LM Studio. */}
+                    {!aiNeedsLoad && aiChosenModel?.loaded && (
+                      <button
+                        type="button"
+                        className={styles.secondaryAction}
+                        disabled={aiBusy}
+                        onClick={unloadAiModel}
+                      >
+                        <PowerOff size={13} aria-hidden="true" />
+                        {t('pipeline.openspec.prepare.aiUnload')}
+                      </button>
+                    )}
+                    {aiNeedsLoad ? (
+                      <button
+                        type="button"
+                        className={styles.secondaryAction}
+                        disabled={aiBusy || !aiModel || aiContext < 32768 || aiTtlMinutes < 1}
+                        onClick={confirmAiLoad}
+                      >
+                        {aiPhase === 'loading' ? t('pipeline.openspec.prepare.aiLoading') : t('pipeline.openspec.prepare.aiLoad')}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.secondaryAction}
+                        disabled={aiBusy || chosen.length === 0 || !aiModel}
+                        onClick={draftWithAi}
+                      >
+                        {aiPhase === 'drafting' ? t('pipeline.openspec.prepare.aiBusy') : t('pipeline.openspec.prepare.aiDraft')}
+                      </button>
+                    )}
+                    {aiBusy && (
+                      <button type="button" className={styles.secondaryAction} onClick={cancelAiDraft}>
+                        {t('pipeline.openspec.prepare.aiCancel')}
+                      </button>
+                    )}
+                  </div>
+                  {/* Quien confirma tiene que poder ver que esto lo escribió un
+                      modelo y no la aplicación. */}
+                  {aiNotice && <p className={styles.aiNotice}>{aiNotice}</p>}
+                  {/* Las características del modelo elegido, una por línea.
+                      Un párrafo con seis datos adentro no se lee: lo que hay que
+                      poder hacer acá es comparar de un vistazo, sobre todo el
+                      contexto y si razona —que es lo que decide si va a
+                      contestar—. */}
+                  {aiChosenModel && (
+                    <ul className={styles.aiFacts}>
+                      <li>
+                        <span>{t('pipeline.openspec.prepare.aiFactState')}</span>
+                        <strong>
+                          {aiChosenModel.loaded
+                            ? t('pipeline.openspec.prepare.aiFactLoaded', { context: aiChosenModel.loadedContextLength ?? '?' })
+                            : t('pipeline.openspec.prepare.aiFactOnDisk', { context: 65536 })}
+                        </strong>
+                      </li>
+                      {aiDeviceLabel(aiChosenModel.devices) && (
+                        <li>
+                          <span>{t('pipeline.openspec.prepare.aiFactDevice')}</span>
+                          <strong>{aiDeviceLabel(aiChosenModel.devices)}</strong>
+                        </li>
+                      )}
+                      {aiChosenModel.sizeBytes !== null && (
+                        <li>
+                          <span>{t('pipeline.openspec.prepare.aiFactSize')}</span>
+                          <strong>{(aiChosenModel.sizeBytes / 1024 ** 3).toFixed(2)} GiB</strong>
+                        </li>
+                      )}
+                      {aiChosenModel.params && (
+                        <li>
+                          <span>{t('pipeline.openspec.prepare.aiFactParams')}</span>
+                          <strong>{aiChosenModel.params}{aiChosenModel.quantization ? ` · ${aiChosenModel.quantization}` : ''}</strong>
+                        </li>
+                      )}
+                      {aiChosenModel.maxContextLength !== null && (
+                        <li>
+                          <span>{t('pipeline.openspec.prepare.aiFactMaxContext')}</span>
+                          <strong>{aiChosenModel.maxContextLength}</strong>
+                        </li>
+                      )}
+                      {/* Que razone es la explicación del modo de fallo más caro
+                          que se midió: gasta el presupuesto pensando y devuelve
+                          vacío. Decirlo acá evita que parezca roto. */}
+                      {aiChosenModel.reasoningDefault && (
+                        <li>
+                          <span>{t('pipeline.openspec.prepare.aiFactReasoning')}</span>
+                          <strong>
+                            {aiChosenModel.reasoningDefault === 'on'
+                              ? t('pipeline.openspec.prepare.aiFactReasons')
+                              : t('pipeline.openspec.prepare.aiFactNoReasons')}
+                          </strong>
+                        </li>
+                      )}
+                    </ul>
+                  )}
                   {/* Cada grupo declara de dónde viene lo que contiene. Ninguno
                       entra preseleccionado: sin un cambio de referencia,
                       privilegiar uno produciría un commit distinto según dónde

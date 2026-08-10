@@ -8,6 +8,7 @@ import type {
 } from './temporal-agent';
 import type { PredictionHistoryEntry } from '../electron/db/types';
 import type { PipelineState, RuntimeDiscoveryEntry, RuntimeProjection } from './pipeline';
+import type { CommitDraftResult, LoadOutcome, LocalModel } from './commit-message-ai';
 import type { ApplyHunkOptions, FileDiff } from '../lib/hunk-patch';
 import type {
   CartoGraphStatus,
@@ -371,6 +372,33 @@ interface ElectronAPI {
   onUpdateDownloaded: (cb: (info: { version: string; currentVersion: string; releaseDate?: string }) => void) => () => void;
   onUpdateError: (cb: (msg: string) => void) => () => void;
   onDownloadProgress: (cb: (info: { percent: number; transferred: number; total: number }) => void) => () => void;
+  /**
+   * Redactar el asunto del commit con un modelo local.
+   *
+   * Ninguno de estos canales se dispara solo: todos responden a un botón. Un
+   * refresco del panel no puede costar 47 segundos de GPU ni ocupar 7 GB de VRAM.
+   */
+  commitAi: {
+    /** Modelos disponibles, con su estado y su contexto real. Barato. */
+    catalog(baseUrl?: string): Promise<GitResult<LocalModel[]>>;
+    /** La acción con costo. Va siempre después de haberlo declarado. */
+    load(model: string, baseUrl?: string, contextLength?: number, ttlSeconds?: number): Promise<GitResult<LoadOutcome>>;
+    /** Corta la redacción en vuelo de verdad, no sólo descarta su respuesta. */
+    cancel(): Promise<GitResult<{ cancelled: boolean }>>;
+    /** Descarga el modelo a mano, sin esperar a que venza su TTL. */
+    unload(model: string, baseUrl?: string): Promise<GitResult<{ unloaded: boolean }>>;
+    /** Identificador de máquina → nombre legible. Resuelto una vez y guardado. */
+    deviceNames(): Promise<GitResult<Record<string, string>>>;
+    draft(args: {
+      repoPath: string;
+      paths: string[];
+      changeId: string | null;
+      intent: string | null;
+      model: string;
+      baseUrl?: string;
+      maxTokens?: number;
+    }): Promise<GitResult<CommitDraftResult>>;
+  };
   /**
    * Cartografía Fase 3: motor CodeGraph embebido (local, solo lectura). Devuelve
    * SIEMPRE el contrato normalizado (lib/carto-types), nunca la forma cruda del motor.

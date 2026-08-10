@@ -19,6 +19,7 @@ import { registerShellHandlers } from './ipc/shell';
 import { registerCartoHandlers } from './ipc/carto';
 import { registerCartoGraphHandlers } from './ipc/carto-graph';
 import { registerCartoAiHandlers } from './ipc/carto-ai';
+import { registerCommitMessageAiHandlers } from './ipc/commit-message-ai';
 import { closeAllGraphs } from './carto/graph-engine';
 import { registerWatcherHandlers, closeAllRepoWatchers } from './ipc/watchers';
 import { registerPipelineHandlers } from './ipc/pipeline';
@@ -272,6 +273,7 @@ registerShellHandlers();           // shell:* + terminal:open + fs:delete-file
 registerCartoHandlers();           // carto:* handlers generales (sin canales activos en Fase 10)
 registerCartoGraphHandlers(getMainWindow); // carto:graph-* (CodeGraph embebido, local, solo lectura)
 registerCartoAiHandlers();         // carto:ai-* (proveedor de IA local/online; opt-in; secretos sólo en main)
+registerCommitMessageAiHandlers(); // commit-ai:* (redactar el asunto del commit con un modelo local; nunca solo)
 const notifyPipelineRepoChanged = registerPipelineHandlers(getMainWindow); // pipeline:* read-only
 const pipelineControlBus = new PipelineControlBus();
 registerPipelineControlHandlers(pipelineControlBus); // pipeline:control:*

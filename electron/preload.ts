@@ -198,6 +198,25 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('update:download-progress', handler);
     return () => ipcRenderer.removeListener('update:download-progress', handler);
   },
+  // Redactar el asunto del commit con un modelo local. Nunca se dispara solo:
+  // cada uno de estos canales responde a un botón.
+  commitAi: {
+    catalog: (baseUrl?: string) => ipcRenderer.invoke('commit-ai:catalog', baseUrl),
+    load: (model: string, baseUrl?: string, contextLength?: number, ttlSeconds?: number) =>
+      ipcRenderer.invoke('commit-ai:load', model, baseUrl, contextLength, ttlSeconds),
+    cancel: () => ipcRenderer.invoke('commit-ai:cancel'),
+    unload: (model: string, baseUrl?: string) => ipcRenderer.invoke('commit-ai:unload', model, baseUrl),
+    deviceNames: () => ipcRenderer.invoke('commit-ai:device-names'),
+    draft: (args: {
+      repoPath: string;
+      paths: string[];
+      changeId: string | null;
+      intent: string | null;
+      model: string;
+      baseUrl?: string;
+      maxTokens?: number;
+    }) => ipcRenderer.invoke('commit-ai:draft', args),
+  },
   cartoGraph: {
     ensure: (repoPath: string) => ipcRenderer.invoke('carto:graph-ensure', repoPath),
     status: (repoPath: string) => ipcRenderer.invoke('carto:graph-status', repoPath),

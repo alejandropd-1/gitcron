@@ -4,6 +4,52 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.13.0] - 2026-08-11 - Dejar de trabajar cuando no hay nada que hacer
+
+Tres cambios OpenSpec sobre lo mismo: la aplicación hacía trabajo constante sin que nada hubiera cambiado. Se redibujaba entera cada 2 segundos, preguntaba por el estado del repositorio aunque estuviera quieto, y no se enteraba de la mitad de lo que pasaba en Git salvo preguntando.
+
+Nada de lo que sigue se afirma sin haberlo corrido: cada número tiene el comando que lo produjo.
+
+### 🟢 Vista Clásica & Core
+
+#### Fixed
+- **La aplicación entera dejó de redibujarse cada 2 segundos.** Cuatro defectos que se sumaban: un latido que releía el estado sin mirar si algo había cambiado, un store que devolvía un array nuevo en cada llamada aunque el contenido fuera idéntico, el componente raíz suscrito a todo el store sin selectores, y un comentario que justificaba no memoizar invocando un compilador de React que **no está instalado**. Medido: de 10 notificaciones cada 10 latidos ociosos a **0**.
+- **El comparador que hace posible lo anterior distingue los cinco campos de un archivo**, no tres. Un archivo que entra en conflicto durante un merge conserva ruta, estado y preparado: sólo cambia su marca de conflicto. Con un comparador de tres campos, la lista se habría congelado justo durante un merge. Un tipo mapeado obliga al compilador a fallar si alguien agrega un campo y no lo compara.
+- **Los cambios de Git llegan por evento.** El observador ignoraba `.git/` entero, así que preparar archivos, cambiar de rama, un merge o un commit desde la terminal **no producían ningún evento**: la aplicación se enteraba sólo cuando el temporizador preguntaba. Ahora observa una lista blanca —`index`, `HEAD`, `MERGE_HEAD`, los directorios de rebase y `refs/heads/`— y `git status` deja de ser la única fuente.
+- **Y se relee lo que corresponde a cada evento.** Un cambio del árbol se resuelve con `git status`; uno de `.git/` exige releer también ramas y log. Sin esa distinción, una rama creada desde la terminal tardaba en aparecer y una borrada no se iba hasta refrescar a mano.
+- **El botón de maximizar dice en qué estado está la ventana.** Mostraba un ícono fijo, y como GitCron arranca maximizada, el caso más frecuente era el que mostraba mal. Ahora alterna, y escucha los eventos de la ventana: también cambia por doble clic en la barra o con `Win`+flechas.
+
+#### Changed
+- **El temporizador de respaldo se volvió adaptativo:** frecuente tras actividad reciente, espaciado cuando el repositorio está quieto. En reposo pasa de 30 lecturas por minuto a 6. No se eliminó, y hay evidencia de por qué: durante un `checkout` masivo el observador del árbol sufre ~1.000 errores `EPERM` de Windows y puede no emitir nada. Lo que no se detecta no se nota hasta que alguien confirma un commit con la lista de archivos vieja.
+- **Una guardia barata antes de cada relectura**: un `stat` de `.git/index` decide si vale la pena ejecutar `git status`. Sólo puede evitar una lectura, nunca descartar un evento: ante cualquier ambigüedad, se lee.
+
+### 🤖 Pipeline
+
+#### Added
+- **La espera de carga de un modelo se muestra en un cuadro con barrido**, con el contador siempre legible debajo. La barra es **indeterminada a propósito**: se capturó el log de una carga real y el servidor no emite ninguna fracción de progreso, sólo hitos. Un relleno que avanzara sin ese dato afirmaría un porcentaje que nadie sabe.
+- **Aviso al terminar de cargar y al expulsar**, confirmado contra el catálogo en vez de darse por hecho porque la llamada no falló.
+- **Indicador del estado del modelo** con punto de color, para distinguir de un vistazo si está cargado o en disco.
+
+#### Fixed
+- **Expulsar comprueba primero si el modelo sigue cargado.** Sacarlo desde LM Studio dejaba a GitCron afirmando «cargado», y el botón animaba una expulsión que no expulsaba nada.
+- **El campo del mensaje de commit ya no se autocompleta solo.** La sugerencia estaba en el valor del campo, así que borrarlo la reponía y era imposible escribir uno propio desde cero. Ahora vive en el `placeholder`, que es lo que realmente es.
+- Tres avisos que se leían mal o mentían: un mensaje que se renderizaba una palabra por renglón, una etiqueta que decía `MODIFIED` sobre un archivo en conflicto, y una clave de traducción muerta con un valor escrito a mano.
+
+#### Mediciones
+
+| Qué | Resultado |
+|---|---|
+| Notificaciones del store en 10 latidos ociosos | 10 → **0** |
+| `git status --porcelain` | mediana **42 ms** en reposo · **74 ms** bajo carga |
+| Guardia (`stat` de `.git/index`) | mediana **16 µs** — 2.600 a 4.600× más barata |
+| `checkout` de 1109 archivos, eventos en `.git/` | **2** crudos → **1** tras agrupar |
+| Rebase de 5 commits, eventos en `.git/` | **3** crudos → **1** tras agrupar |
+| Lecturas por minuto en reposo | 30 → **6** |
+
+**Validación:** `tsc --noEmit` en 0 · 134 archivos y 1048 pruebas en verde · `eslint` limpio sobre lo tocado · `openspec validate --strict` válido en los tres cambios.
+
+---
+
 ## [v1.12.0] - 2026-08-10 - Preparar el commit desde Pipeline, con redacción por IA local
 
 El commit deja de ser algo que se arma en otra pestaña. Pipeline pasa a tener un panel donde se elige qué entra, se ve de qué cambio viene cada archivo y se escribe el mensaje; y un modelo local puede redactar el asunto, que es el único dato que ninguna fuente del repositorio contiene.

@@ -108,6 +108,31 @@ async function applyPatchFile(repoRoot: string, hunkPatch: string, options: Appl
   }
 }
 
+/**
+ * Resuelve el directorio git de un repositorio SIN spawnear un proceso de git
+ * (`revparse` es caro y acá buscamos lo contrario). Para el caso común
+ * (`<repo>/.git` es un directorio) se devuelve directo; para un `.git` archivo
+ * (worktree) se lee su línea `gitdir:`. Devuelve `null` si no hay `.git`.
+ */
+function resolveGitDir(targetPath: string): string | null {
+  const dotGit = path.join(targetPath, '.git');
+  let st: fs.Stats;
+  try {
+    st = fs.statSync(dotGit);
+  } catch {
+    return null;
+  }
+  if (st.isDirectory()) return dotGit;
+  try {
+    const match = fs.readFileSync(dotGit, 'utf8').trim().match(/^gitdir:\s*(.+)$/);
+    if (!match) return null;
+    const dir = match[1].trim();
+    return path.isAbsolute(dir) ? dir : path.join(targetPath, dir);
+  } catch {
+    return null;
+  }
+}
+
 export function registerGitOpsHandlers(): void {
   ipcMain.handle('git:command', async (_event, targetPath: string, args: string[]) => withRepoLock(targetPath, async () => {
     try {
@@ -234,6 +259,24 @@ export function registerGitOpsHandlers(): void {
       return { success: true, data: Array.from(seen.values()), mergeInProgress, rebaseInProgress };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // Firma barata del `.git/index` (mtime, tamaño, inodo) para la guardia del
+  // latido de respaldo: si no cambió desde la última lectura, se saltea el
+  // `git status` completo. Cuesta ~16 µs (medido), frente a 42–74 ms del status.
+  // No cubre ediciones del árbol sin preparar (no tocan el index): ésas las
+  // informa chokidar, y la cadencia adaptativa acota la staleness residual.
+  ipcMain.handle('git:index-signature', (_event, targetPath: string) => {
+    try {
+      const gitDir = resolveGitDir(targetPath);
+      if (!gitDir) return { success: true, data: null };
+      const st = fs.statSync(path.join(gitDir, 'index'));
+      return { success: true, data: { mtimeMs: st.mtimeMs, size: st.size, ino: st.ino } };
+    } catch {
+      // Sin .git o sin index (repo recién creado, aún sin commits): la guardia
+      // no puede comparar, así que devuelve null y el latido lee.
+      return { success: true, data: null };
     }
   });
 

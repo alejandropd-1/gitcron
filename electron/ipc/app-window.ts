@@ -168,6 +168,20 @@ export function registerAppWindowHandlers(
     return { success: true, data: { maximized: mainWindow.isMaximized() } };
   });
 
+  /**
+   * Si la ventana está maximizada ahora mismo.
+   *
+   * El botón necesita saberlo al montarse: hasta acá sólo se enteraba del
+   * resultado de su propio clic, así que arrancaba mostrando un ícono elegido a
+   * ciegas. Y GitCron arranca maximizada (`main.ts:230`), o sea que el caso
+   * frecuente era justamente el que mostraba mal.
+   */
+  ipcMain.handle('window:is-maximized', async () => {
+    const mainWindow = getMainWindow();
+    if (!mainWindow) return { success: false, error: 'Window unavailable' };
+    return { success: true, data: { maximized: mainWindow.isMaximized() } };
+  });
+
   ipcMain.handle('window:close', async () => {
     const mainWindow = getMainWindow();
     if (!mainWindow) return { success: false, error: 'Window unavailable' };

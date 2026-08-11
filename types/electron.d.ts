@@ -257,6 +257,9 @@ interface ElectronAPI {
   githubListUserRepos: (token: string) => Promise<GitResult<GitHubRepoInfo[]>>;
   gitLog: (repoPath: string, opts?: { allBranches?: boolean }) => Promise<GitResult<CommitData[]>>;
   gitStatus: (repoPath: string) => Promise<GitResult<StatusFile[]>>;
+  gitIndexSignature: (
+    repoPath: string,
+  ) => Promise<GitResult<{ mtimeMs: number; size: number; ino: number } | null>>;
   gitBranches: (repoPath: string) => Promise<GitResult<BranchData>>;
   gitCheckout: (repoPath: string, branch: string) => Promise<GitResult>;
   gitCreateBranch: (repoPath: string, name: string, fromHash?: string) => Promise<GitResult>;
@@ -368,6 +371,8 @@ interface ElectronAPI {
   getChangelog: () => Promise<GitResult<string>>;
   windowMinimize: () => Promise<GitResult>;
   windowToggleMaximize: () => Promise<GitResult<{ maximized: boolean }>>;
+  windowIsMaximized: () => Promise<GitResult<{ maximized: boolean }>>;
+  onWindowState: (cb: (state: { maximized: boolean }) => void) => () => void;
   windowClose: () => Promise<GitResult>;
   onUpdateNotAvailable: (cb: () => void) => () => void;
   onUpdateAvailable: (cb: (info: { version: string; currentVersion: string; releaseDate?: string }) => void) => () => void;
@@ -464,7 +469,7 @@ interface ElectronAPI {
   };
   repoWatch: (targetPath: string) => Promise<GitResult>;
   repoUnwatch: (targetPath: string) => Promise<GitResult>;
-  onRepoFsChange: (cb: (repoPath: string) => void) => () => void;
+  onRepoFsChange: (cb: (repoPath: string, gitState?: boolean) => void) => () => void;
   onRepoCommitsChanged: (cb: (repoPath: string) => void) => () => void;
   pipelineGetSnapshot: (repoPath: string, selectedChangeId?: string | null) => Promise<GitResult<PipelineState>>;
   pipelineSubscribe: (repoPath: string, selectedChangeId?: string | null) => Promise<GitResult<PipelineState>>;

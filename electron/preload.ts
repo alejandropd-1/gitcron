@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('api', {
   gitBlame: (repoPath: string, filePath: string, rev?: string) =>
     ipcRenderer.invoke('git:blame', repoPath, filePath, rev),
   gitStatus: (repoPath: string) => ipcRenderer.invoke('git:status', repoPath),
+  gitIndexSignature: (repoPath: string) => ipcRenderer.invoke('git:index-signature', repoPath),
   gitBranches: (repoPath: string) => ipcRenderer.invoke('git:branches', repoPath),
   gitCheckout: (repoPath: string, branch: string) =>
     ipcRenderer.invoke('git:checkout', repoPath, branch),
@@ -174,6 +175,15 @@ contextBridge.exposeInMainWorld('api', {
   getChangelog: () => ipcRenderer.invoke('app:get-changelog'),
   windowMinimize: () => ipcRenderer.invoke('window:minimize'),
   windowToggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
+  windowIsMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+  // La ventana también cambia de estado por fuera del botón —doble clic en la
+  // barra, `Win`+flechas, arrastrar contra un borde—, así que el ícono se
+  // entera por evento y no sólo por el resultado de su propio clic.
+  onWindowState: (cb: (state: { maximized: boolean }) => void) => {
+    const handler = (_e: unknown, state: { maximized: boolean }) => cb(state);
+    ipcRenderer.on('window:state', handler);
+    return () => ipcRenderer.removeListener('window:state', handler);
+  },
   windowClose: () => ipcRenderer.invoke('window:close'),
   onUpdateNotAvailable: (cb: () => void) => {
     const handler = () => cb();
@@ -283,8 +293,12 @@ contextBridge.exposeInMainWorld('api', {
   },
   repoWatch: (targetPath: string) => ipcRenderer.invoke('repo:watch', targetPath),
   repoUnwatch: (targetPath: string) => ipcRenderer.invoke('repo:unwatch', targetPath),
-  onRepoFsChange: (cb: (repoPath: string) => void) => {
-    const handler = (_e: unknown, payload: { repoPath: string }) => cb(payload.repoPath);
+  // `gitState` dice si lo agrupado tocó `.git/`. Segundo argumento y no un
+  // cambio de forma: quien no lo mire sigue funcionando igual que antes.
+  onRepoFsChange: (cb: (repoPath: string, gitState?: boolean) => void) => {
+    const handler = (_e: unknown, payload: { repoPath: string; gitState?: boolean }) => (
+      cb(payload.repoPath, payload.gitState)
+    );
     ipcRenderer.on('repo:fs-change', handler);
     return () => ipcRenderer.removeListener('repo:fs-change', handler);
   },

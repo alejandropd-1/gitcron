@@ -147,3 +147,84 @@ describe('useRepoWatch · observación única', () => {
     expect(api.gitStatus).not.toHaveBeenCalled();
   });
 });
+
+// Guardia del latido (tarea 3.x): `refreshStatusIfChanged` sólo puede SALTEAR una
+// relectura; nunca descarta un evento. Ante ambigüedad (primera vez, sin firma, o
+// force) se lee. El path disparado por un evento de fs no pasa por acá.
+describe('useRepoLoader · guardia del latido (refreshStatusIfChanged)', () => {
+  let guard: (p?: string, opts?: { force?: boolean }) => Promise<void> = async () => undefined;
+  let GuardConsumer: () => null;
+  // Firma mutable: el test la cambia entre llamadas para simular index que
+  // cambia o no.
+  let sig: { mtimeMs: number; size: number; ino: number } | null;
+
+  beforeEach(() => {
+    sig = { mtimeMs: 1000, size: 50, ino: 7 };
+    api.gitIndexSignature = vi.fn(async () => ({ success: true, data: sig }));
+    GuardConsumer = function GuardConsumer() {
+      const { refreshStatusIfChanged } = useRepoLoader();
+      guard = refreshStatusIfChanged;
+      return null;
+    };
+  });
+
+  it('lee la primera vez, saltea si el index no cambió, lee si cambió y force siempre lee', async () => {
+    render(createElement(GuardConsumer));
+    (api.gitStatus as ReturnType<typeof vi.fn>).mockClear();
+
+    // 1) primera vez: no hay firma previa -> lee
+    await act(async () => { await guard('C:/repo'); });
+    expect(api.gitStatus).toHaveBeenCalledTimes(1);
+
+    // 2) sin cambios -> saltea
+    await act(async () => { await guard('C:/repo'); });
+    expect(api.gitStatus).toHaveBeenCalledTimes(1);
+
+    // 3) cambió el index -> lee
+    sig = { mtimeMs: 2000, size: 51, ino: 7 };
+    await act(async () => { await guard('C:/repo'); });
+    expect(api.gitStatus).toHaveBeenCalledTimes(2);
+
+    // 4) force aunque no cambie -> lee (nunca descarta)
+    await act(async () => { await guard('C:/repo', { force: true }); });
+    expect(api.gitStatus).toHaveBeenCalledTimes(3);
+
+    // 5) sin firma -> ante la duda, lee
+    sig = null;
+    await act(async () => { await guard('C:/repo'); });
+    expect(api.gitStatus).toHaveBeenCalledTimes(4);
+  });
+});
+
+// Cadencia adaptativa (tarea 4.x): un único intervalo; quieto lee cada ~10 s,
+// activo (tras un evento) con frecuencia ~2 s. Sin firma -> la guardia siempre
+// lee, así esto aísla la cadencia del comportamiento de la guardia.
+describe('useRepoWatch · cadencia adaptativa del latido', () => {
+  beforeEach(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    api.gitIndexSignature = vi.fn(async () => ({ success: true, data: null }));
+  });
+
+  it('quieto lee cada ~10 s; un evento lo devuelve al escalón activo (más frecuente)', async () => {
+    render(createElement('div', null, createElement(Watcher), createElement(Consumer)));
+
+    // ventana A: 8 s sin eventos => quieto => a lo sumo 1 lectura
+    (api.gitStatus as ReturnType<typeof vi.fn>).mockClear();
+    await act(async () => { await vi.advanceTimersByTimeAsync(8000); });
+    const quietReads = (api.gitStatus as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    // un evento devuelve al escalón activo
+    for (const listener of fsListeners) listener('C:/repo');
+    await act(async () => { await vi.advanceTimersByTimeAsync(200); }); // flush del debounce del fs-change
+    (api.gitStatus as ReturnType<typeof vi.fn>).mockClear();
+
+    // ventana B: 8 s tras el evento => activo => varias lecturas
+    await act(async () => { await vi.advanceTimersByTimeAsync(8000); });
+    const activeReads = (api.gitStatus as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    expect(quietReads).toBeLessThanOrEqual(1);
+    expect(activeReads).toBeGreaterThanOrEqual(2);
+    expect(activeReads).toBeGreaterThan(quietReads);
+  });
+});

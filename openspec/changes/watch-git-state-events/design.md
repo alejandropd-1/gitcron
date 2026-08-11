@@ -63,6 +63,35 @@ un segundo. Dos escrituras dentro del mismo segundo pueden dar el mismo valor, y
 ayudan pero no cierran del todo. **Por eso la guardia decide si se puede saltear una lectura, y nunca si
 se puede ignorar un evento**: ante la duda, se lee.
 
+### Decisión: `stat` de `.git/index`
+
+Se eligió el **camino 1** — `fs.stat` de `.git/index`, comparando `mtimeMs`, `size` e `ino` contra la firma
+de la última lectura exitosa. La medición sobre `.git/index` de este repositorio (1000 corridas):
+mediana **16 µs**, p99 **23 µs**. Un `git status --porcelain` de referencia vale 42 ms en reposo y 74 ms
+bajo carga (tarea 1.1): la guardia es entre **2.600× y 4.600×** más barata, y aun con el round-trip IPC
+(~1 ms) sigue siendo **~50×** más barata. El camino 2 (marca propia del observador) no toca disco, pero
+sólo sabe lo que la app misma vio: si chokidar pierde el evento, la marca no se pone y el latido se
+quedaría sin disparar la relectura justo cuando más falta hace.
+
+La firma del `index` cubre preparado, `checkout`, `commit`, `reset` y el inicio/fin de un merge o rebase:
+todas esas operaciones reescriben el `index`. No cubre editar un archivo del árbol sin prepararlo — pero
+eso no toca el `index` y ya lo informa chokidar por su lado; las dos señales se complementan.
+
+**Interacción con el hallazgo EPERM.** Durante una operación masiva (checkout entre ramas distantes),
+chokidar sufre una tormenta de `EPERM` sobre el árbol de trabajo y en una corrida emitió cero eventos
+agrupados (tarea 1.2): ahí el observador del árbol se rompe y la app depende del latido. Justo en ese
+momento el `index` **sí** está siendo reescrito, así que la guardia basada en `stat` **fuerza** la
+relectura independientemente de chokidar. Es decir, la guardia refuerza —no debilita— el respaldo en el
+caso en que chokidar falla. El caso residual no cubierto (una edición aislada del árbol que ni toca el
+`index` ni es vista por chokidar) lo acota la cadencia adaptativa (sección siguiente): el escalón quieto
+hace una lectura completa periódica, de modo que la staleness quede limitada y nunca sea indefinida.
+
+La firma se pide por un IPC nuevo (`git:index-signature`) que resuelve el directorio git sin spawnear un
+proceso (`revparse` es caro): si `<repo>/.git` es un directorio se usa directo; si es un archivo
+(worktree) se lee su línea `gitdir:`. La guardia sólo la invoca el latido, nunca el camino disparado por
+un evento de filesystem: un evento ya es prueba de cambio, y así los mocks de las pruebas existentes no
+necesitan un binding nuevo.
+
 ## La cadencia adaptativa
 
 Un esquema simple y suficiente: dos escalones, no una curva.

@@ -221,6 +221,20 @@ function createWindow() {
 
   mainWindow.loadURL(url);
 
+  // Avisar al renderer cada vez que la ventana cambia de estado.
+  //
+  // El botón de maximizar mostraba un ícono fijo porque sólo conocía el
+  // resultado de su propio clic. La ventana también se maximiza y se restaura
+  // por fuera del botón —doble clic en la barra de título, `Win`+flechas,
+  // arrastrarla contra un borde—, y sin estos eventos el ícono quedaba
+  // afirmando un estado que ya no era cierto.
+  const emitWindowState = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send('window:state', { maximized: mainWindow.isMaximized() });
+  };
+  mainWindow.on('maximize', emitWindowState);
+  mainWindow.on('unmaximize', emitWindowState);
+
   // Close splash and show main window maximized once ready. Keep the splash
   // visible for a short minimum so startup never flashes through partial UI.
   mainWindow.once('ready-to-show', () => {

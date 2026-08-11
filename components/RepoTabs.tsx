@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef } from 'react';
-import { Loader2, Maximize2, Minus, Plus, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Loader2, Minus, Plus, X } from 'lucide-react';
 import { Reorder } from 'motion/react';
 import { useT } from '@/hooks/use-translation';
 import type { RepoState } from '@/lib/git-store';
@@ -16,9 +16,57 @@ type RepoTabsProps = {
   onReorder: (newOrder: RepoState[]) => void;
 };
 
+/**
+ * Los dos íconos de la barra de título, dibujados a mano.
+ *
+ * `lucide` no trae estas formas: sus `Maximize2` y `Minimize2` son flechas
+ * diagonales, que significan otra cosa. Las de una barra de título son un
+ * cuadrado —maximizar— y dos cuadrados superpuestos —restaurar—, y son las que
+ * cualquiera reconoce sin leer. Ale las marcó con la referencia a la vista.
+ */
+function MaximizeIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 16 16" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <rect x="2.8" y="2.8" width="10.4" height="10.4" rx="1.4" />
+    </svg>
+  );
+}
+
+function RestoreIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 16 16" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      {/* El de atrás, asomando arriba a la derecha; el de adelante, completo. */}
+      <path d="M5.2 4.4V3.4a1.4 1.4 0 0 1 1.4-1.4h5.4a1.4 1.4 0 0 1 1.4 1.4v5.4a1.4 1.4 0 0 1-1.4 1.4h-1" />
+      <rect x="2" y="5.2" width="8.8" height="8.8" rx="1.4" />
+    </svg>
+  );
+}
+
 export function RepoTabs({ repos, activeIdx, onSelect, onClose, onOpen, onReorder }: RepoTabsProps) {
   const t = useT();
   const isDraggingRef = useRef(false);
+  /**
+   * Si la ventana está maximizada, para que el ícono lo diga.
+   *
+   * Se pregunta al montar —GitCron arranca maximizada, así que el estado
+   * inicial importa— y después se escucha el evento: la ventana también cambia
+   * por fuera del botón, con doble clic en la barra, `Win`+flechas o
+   * arrastrándola contra un borde. Los hooks van antes del `return null` de
+   * abajo, porque no pueden quedar detrás de una salida condicional.
+   */
+  const [maximized, setMaximized] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void window.api?.windowIsMaximized?.().then((result) => {
+      if (alive && result?.data) setMaximized(result.data.maximized);
+    }).catch(() => undefined);
+    const unsubscribe = window.api?.onWindowState?.((state) => setMaximized(state.maximized));
+    return () => {
+      alive = false;
+      unsubscribe?.();
+    };
+  }, []);
+
   if (repos.length === 0) return null;
 
   return (
@@ -113,25 +161,30 @@ export function RepoTabs({ repos, activeIdx, onSelect, onClose, onOpen, onReorde
           aria-label="Minimizar"
           title="Minimizar"
           onClick={() => window.api?.windowMinimize()}
-          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.035] hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
+          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
         >
           <Minus size={14} />
         </button>
         <button
           type="button"
-          aria-label="Maximizar o restaurar"
-          title="Maximizar o restaurar"
-          onClick={() => window.api?.windowToggleMaximize()}
-          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.035] hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
+          aria-label={maximized ? 'Restaurar' : 'Maximizar'}
+          title={maximized ? 'Restaurar' : 'Maximizar'}
+          onClick={() => void window.api?.windowToggleMaximize()}
+          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
         >
-          <Maximize2 size={13} />
+          {/* El ícono dice en qué estado está la ventana, como en cualquier
+              barra de título: dos cuadros superpuestos cuando está maximizada
+              —apretar restaura— y uno solo cuando no. Antes era `Maximize2`
+              fijo, así que afirmaba siempre lo mismo aunque la ventana
+              estuviera maximizada, que es como GitCron arranca. */}
+          {maximized ? <RestoreIcon /> : <MaximizeIcon />}
         </button>
         <button
           type="button"
           aria-label="Cerrar"
           title="Cerrar"
           onClick={() => window.api?.windowClose()}
-          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.035] hover:bg-error/20 hover:text-[#ffdad6] transition-colors"
+          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary hover:bg-error/20 hover:text-[#ffdad6] transition-colors"
         >
           <X size={15} />
         </button>

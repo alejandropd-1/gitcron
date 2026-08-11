@@ -1,7 +1,14 @@
 // electron/ipc/watchers.ts
-// File-system watchers: watch a repo directory for working-tree changes so the
-// renderer can refresh the UNSTAGED panel without requiring a manual git action.
+// File-system watchers: observa un repositorio para que el renderer refresque
+// sin un git manual. Además del árbol de trabajo, observa por lista blanca los
+// caminos de `.git/` que declaran un cambio de estado (index, HEAD, MERGE_HEAD,
+// rebase-*, refs/heads/): así preparar archivos, cambiar de rama o iniciar un
+// merge/rebase desde fuera de la app producen un evento en lugar de esperar al
+// latido de respaldo. El resto de `.git/` (objects/, logs/, *.lock) sigue
+// ignorado: Git escribe ahí con muchísima frecuencia y casi nada cambia lo que
+// la aplicación muestra.
 
+import path from 'node:path';
 import { BrowserWindow, ipcMain } from 'electron';
 import chokidar, { FSWatcher } from 'chokidar';
 import { errMsg } from './shared';
@@ -9,14 +16,57 @@ import { errMsg } from './shared';
 const repoWatchers = new Map<string, FSWatcher>();
 const watcherOperations = new Map<string, Promise<void>>();
 
-const IGNORED_PATTERNS = [
-  /(^|[/\\])\.git([/\\]|$)/,
+// Directorios del árbol de trabajo que no declaran nada que la app muestre.
+const IGNORED_TREE_PATTERNS = [
   /(^|[/\\])node_modules([/\\]|$)/,
   /(^|[/\\])\.next([/\\]|$)/,
   /(^|[/\\])dist([/\\]|$)/,
   /(^|[/\\])release([/\\]|$)/,
   /(^|[/\\])out([/\\]|$)/,
 ];
+
+// Archivos concretos bajo `.git/` que declaran un cambio de estado.
+const GIT_STATE_FILES = ['index', 'HEAD', 'MERGE_HEAD'];
+
+/**
+ * ¿Un camino relativo a `.git/` (sin el prefijo) declara un cambio de estado del
+ * repositorio? Lista cerrada: cubre preparado, rama vigente, merge en curso,
+ * rebase en curso y movimiento de ramas locales. Exportado para pruebas.
+ */
+export function isGitStateRel(rel: string): boolean {
+  if (GIT_STATE_FILES.includes(rel)) return true;
+  if (rel === 'rebase-merge' || rel.startsWith('rebase-merge/')) return true;
+  if (rel === 'rebase-apply' || rel.startsWith('rebase-apply/')) return true;
+  // refs se atraviesa para llegar a refs/heads; refs/remotes y refs/tags se podan.
+  if (rel === 'refs' || rel === 'refs/heads' || rel.startsWith('refs/heads/')) return true;
+  return false;
+}
+
+/**
+ * Filtro `ignored` de chokidar para un repositorio: observa el árbol de trabajo
+ * (salvo los directorios ignorados) y, dentro de `.git/`, sólo los caminos de
+ * estado. Exportado para que pruebas y el observador usen exactamente la misma
+ * regla.
+ */
+/** Si un camino observado cae dentro del `.git/` de ese repositorio. */
+export function isGitPath(repoPath: string, testPath: string): boolean {
+  const gitDirN = `${repoPath.replace(/\\/g, '/')}/.git`;
+  const norm = testPath.replace(/\\/g, '/');
+  return norm === gitDirN || norm.startsWith(`${gitDirN}/`);
+}
+
+export function createRepoIgnoreFilter(gitDir: string): (testPath: string) => boolean {
+  const gitDirN = gitDir.replace(/\\/g, '/');
+  return (testPath: string): boolean => {
+    if (IGNORED_TREE_PATTERNS.some((re) => re.test(testPath))) return true;
+    const norm = testPath.replace(/\\/g, '/');
+    // Fuera de `.git/`: árbol de trabajo, se observa.
+    if (norm !== gitDirN && !norm.startsWith(gitDirN + '/')) return false;
+    if (norm === gitDirN) return false; // el dir `.git` en sí: atravesarlo
+    const rel = norm.slice(gitDirN.length + 1);
+    return !isGitStateRel(rel);
+  };
+}
 
 function enqueueWatcherOperation<T>(targetPath: string, operation: () => Promise<T> | T): Promise<T> {
   const previous = watcherOperations.get(targetPath) ?? Promise.resolve();
@@ -39,15 +89,29 @@ export function registerWatcherHandlers(
       try {
         let debounceTimer: ReturnType<typeof setTimeout> | null = null;
         const watcher = chokidar.watch(targetPath, {
-          ignored: IGNORED_PATTERNS,
+          ignored: createRepoIgnoreFilter(path.join(targetPath, '.git')),
           ignoreInitial: true,
           persistent: true,
           awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
         });
-        const emit = () => {
+        // Si algo de lo agrupado tocó `.git/`. El renderer lo necesita porque
+        // no relee lo mismo en los dos casos: un cambio del árbol se resuelve
+        // con `git status`, pero cambiar de rama, borrar una o confirmar desde
+        // afuera exige releer también las ramas y el log.
+        //
+        // Ale lo encontró validando: creó una rama desde la terminal y tardó en
+        // aparecer; al borrarla tuvo que refrescar a mano. El evento llegaba —la
+        // whitelist funciona— pero del otro lado sólo se releía el árbol.
+        let touchedGitDir = false;
+        const emit = (changedPath?: string) => {
+          if (typeof changedPath === 'string' && isGitPath(targetPath, changedPath)) {
+            touchedGitDir = true;
+          }
           if (debounceTimer) clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
-            getMainWindow()?.webContents.send('repo:fs-change', { repoPath: targetPath });
+            const gitState = touchedGitDir;
+            touchedGitDir = false;
+            getMainWindow()?.webContents.send('repo:fs-change', { repoPath: targetPath, gitState });
             onRepoChanged?.(targetPath);
           }, 250);
         };

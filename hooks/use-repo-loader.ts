@@ -86,6 +86,11 @@ export const useRepoLoader = () => {
   const setError = useGitStore((state) => state.setError);
   const setSuccess = useGitStore((state) => state.setSuccess);
 
+  // Firma del `.git/index` de la última lectura exitosa, por repo. La usa la
+  // guardia del latido de respaldo para saltear un `git status` cuando el
+  // índice no cambió. Es sólo una optimización: nunca descarta un evento.
+  const lastIndexSigRef = useRef<Record<string, string>>({});
+
   const persistOpenRepos = async () => {
     if (!window.api) return;
     const state = useGitStore.getState();
@@ -472,6 +477,30 @@ export const useRepoLoader = () => {
     } catch (err: any) { console.error('refreshStatus error:', err); }
   };
 
+  /**
+   * Relectura con guardia para el latido de respaldo: comprueba la firma del
+   * `.git/index` y **sólo saltea** la lectura completa cuando no cambió desde la
+   * última vez. Nunca descarta un evento: ante cualquier ambigüedad (sin
+   * firma, primera vez, o `force`) se lee. El camino disparado por un evento de
+   * filesystem no pasa por acá: un evento ya es prueba de cambio.
+   */
+  const refreshStatusIfChanged = async (path?: string, opts?: { force?: boolean }) => {
+    const ctx = getRefreshTarget(path);
+    if (!ctx || !window.api) return;
+    const force = opts?.force === true;
+    try {
+      const sigResult = await window.api.gitIndexSignature(ctx.target);
+      const sig = sigResult.success ? sigResult.data : null;
+      const key = sig ? `${sig.mtimeMs}|${sig.size}|${sig.ino}` : '';
+      if (!force && sig && lastIndexSigRef.current[ctx.target] === key) return;
+      await refreshStatus(ctx.target);
+      lastIndexSigRef.current[ctx.target] = key;
+    } catch {
+      // Si la firma no se pudo obtener, no perdemos la lectura: se lee igual.
+      await refreshStatus(ctx.target).catch(() => {});
+    }
+  };
+
   const refreshBranches = async (path?: string) => {
     const ctx = getRefreshTarget(path);
     if (!ctx || !window.api) return;
@@ -635,6 +664,7 @@ export const useRepoLoader = () => {
     listUserGitHubRepos,
     refreshLog,
     refreshStatus,
+    refreshStatusIfChanged,
     refreshBranches,
     refreshStashes,
     refreshTags,
@@ -662,12 +692,38 @@ let mountedWatchers = 0;
  * Vivía dentro de `useRepoLoader`, que se llama desde ocho lugares por sus
  * funciones de refresco. Cada llamada montaba su propia suscripción y su propio
  * intervalo: la consola declaraba `11 repo:fs-change listeners added`, y un solo
- * cambio de archivo disparaba once `git status` sin deduplicar. Ninguno de esos
+ * cambio de archivo disparaba eleven `git status` sin deduplicar. Ninguno de esos
  * consumidores pidió observar; lo heredaban por pedir las funciones.
  */
+
+// Cadencia del latido de respaldo. Un único `setInterval` (la prueba
+// `use-repo-watch` afirma que hay exactamente uno); la cadencia efectiva es
+// adaptativa por skip-logic, no por re-agendar el timer.
+//
+//   TICK_MS               — granularidad fija del timer (2 s).
+//   ACTIVE_WINDOW_MS      — tras cualquier evento, 8 s en escalón activo.
+//   ACTIVE_FULL_EVERY     — en activo, lectura completa cada 3.ᵒ tick (6 s); los
+//                           demás ticks usan la guardia (stat ~16 µs). Acota la
+//                           staleness de un evento perdido a 6 s.
+//   QUIET_READ_EVERY      — en quieto, una lectura completa cada 5.ᵒ tick (10 s).
+//
+// Fundamento de los números (medido en 1.1/1.2/2.2): un `git status` cuesta
+// 42 ms en reposo y 74 ms bajo carga; la guardia, ~16 µs. En reposo quieto el
+// latido pasa de 30 lecturas/min a 6 (~5× menos CPU). El escalón quieto no se
+// alarga más allá de 10 s a propósito: justo después de un checkout es donde
+// chokidar sufre la tormenta EPERM y el latido más falta hace (tarea 1.2), y un
+// evento cualquiera devuelve al escalón activo.
+const HEARTBEAT_TICK_MS = 2000;
+const HEARTBEAT_ACTIVE_WINDOW_MS = 8000;
+const HEARTBEAT_ACTIVE_FULL_EVERY = 3;
+const HEARTBEAT_QUIET_READ_EVERY = 5;
+
 export const useRepoWatch = () => {
   const repoPath = useGitStore((state) => state.repoPath);
-  const { refreshStatus, refreshLog, refreshBranches } = useRepoLoader();
+  const { refreshStatus, refreshStatusIfChanged, refreshLog, refreshBranches } = useRepoLoader();
+  // Última actividad observada (cualquier evento de fs o commit). Mantiene al
+  // latido en el escalón activo; su ausencia lo pasa al quieto.
+  const lastActivityRef = useRef(0);
 
   useEffect(() => {
     mountedWatchers += 1;
@@ -683,6 +739,11 @@ export const useRepoWatch = () => {
 
   // Watch working-tree for changes so UNSTAGED updates without a manual git action.
   const fsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Si algo de lo agrupado en esta ventana tocó `.git/`. Vive en un ref y no en
+  // el cierre del último evento: dentro de los 150 ms puede llegar un cambio del
+  // árbol después de uno de `.git/`, y el segundo no puede borrar lo que declaró
+  // el primero.
+  const gitStateDirtyRef = useRef(false);
   useEffect(() => {
     if (!repoPath || !window.api) return;
     const target = repoPath;
@@ -690,10 +751,28 @@ export const useRepoWatch = () => {
       if (!result.success) console.error('repoWatch error:', result.error);
     });
 
-    const unsubFsChange = window.api.onRepoFsChange((changedPath) => {
+    const unsubFsChange = window.api.onRepoFsChange((changedPath, gitState) => {
       if (changedPath !== target) return;
+      lastActivityRef.current = Date.now();
+      if (gitState) gitStateDirtyRef.current = true;
       if (fsDebounceRef.current) clearTimeout(fsDebounceRef.current);
-      fsDebounceRef.current = setTimeout(() => refreshStatus(target), 150);
+      fsDebounceRef.current = setTimeout(() => {
+        // Un cambio del árbol se resuelve releyendo el estado. Uno de `.git/`
+        // no: cambiar de rama, borrar una o confirmar desde afuera mueve la
+        // rama vigente y el log, y `refreshStatus` no los mira.
+        //
+        // Ale lo encontró validando: creó una rama desde la terminal y tardó en
+        // aparecer; al borrarla tuvo que refrescar a mano. El evento llegaba
+        // —la lista blanca de `.git/` funciona— pero de este lado sólo se
+        // releía el árbol, así que la mitad de la cadena quedaba sin conectar.
+        const gitStateChanged = gitStateDirtyRef.current;
+        gitStateDirtyRef.current = false;
+        void refreshStatus(target);
+        if (gitStateChanged) {
+          void refreshBranches(target);
+          void refreshLog(target);
+        }
+      }, 150);
     });
 
     // Commits hechos por la propia aplicación —el archivado de un change—.
@@ -702,6 +781,7 @@ export const useRepoWatch = () => {
     // los desconocía.
     const unsubCommits = window.api.onRepoCommitsChanged?.((changedPath) => {
       if (changedPath !== target) return;
+      lastActivityRef.current = Date.now();
       void refreshLog(target);
       void refreshStatus(target);
       void refreshBranches(target);
@@ -714,13 +794,28 @@ export const useRepoWatch = () => {
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibilityChange);
 
-    // Chokidar is the fast path. This focused-window heartbeat is a safety net
-    // for filesystem events that Windows, editors or atomic-save flows may drop.
+    // Chokidar es el camino rápido. Este latido de ventana enfocada es la red
+    // de seguridad para eventos que Windows, los editores o los guardados
+    // atómicos pierden —y la única fuente durante una operación masiva, donde
+    // chokidar sufre una tormenta de EPERM (tarea 1.2)—. Por eso no se elimina:
+    // la cadencia es adaptativa, no nula. Un único intervalo; la frecuencia
+    // efectiva la decide el cuerpo según haya actividad reciente o no.
+    let tick = 0;
     const statusHeartbeat = window.setInterval(() => {
-      if (document.visibilityState === 'visible' && document.hasFocus()) {
-        void refreshStatus(target);
+      if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+      tick += 1;
+      const active = Date.now() - lastActivityRef.current < HEARTBEAT_ACTIVE_WINDOW_MS;
+      if (active) {
+        // Escalón activo: la guardia ahorra cuando el index no cambió, con una
+        // lectura completa periódica (cada 3.ᵉʳ tick ≈ 6 s) que acota la
+        // staleness de un evento que chokidar haya perdido.
+        void refreshStatusIfChanged(target, { force: tick % HEARTBEAT_ACTIVE_FULL_EVERY === 0 });
+      } else if (tick % HEARTBEAT_QUIET_READ_EVERY === 0) {
+        // Escalón quieto: una lectura completa cada 5.ᵒ tick (≈ 10 s). Forzada
+        // (sin guardia) para no dejar pasar un cambio que chokidar no vio.
+        void refreshStatusIfChanged(target, { force: true });
       }
-    }, 2000);
+    }, HEARTBEAT_TICK_MS);
 
     return () => {
       unsubFsChange();

@@ -529,20 +529,6 @@ export function OpenSpecDashboard({
   };
 
   /**
-   * Alcance del repositorio: todo lo modificado, agrupado por procedencia.
-   *
-   * No depende del cambio seleccionado. El commit describe el estado del árbol,
-   * y atarlo a la selección dejaba estados reales sin ninguna superficie desde
-   * la cual prepararse —los restos de un archivado sobre un repositorio sin
-   * cambios activos—.
-   */
-  // Sin `useMemo`: la derivación es recorrer un array y agruparlo, y el
-  // compilador de React memoiza por su cuenta. Memoizarlo a mano acá le impedía
-  // optimizar el componente entero, que sale más caro que recalcular esto.
-  //
-  // Los ya preparados salen del cálculo: si siguieran, la lista mostraría como
-  // pendiente lo que se acaba de enviar, y el conteo no bajaría nunca.
-  /**
    * Lo que la rama declara sobre el trabajo del árbol.
    *
    * Es la fuente primaria de atribución que Ale eligió: una rama es una
@@ -616,13 +602,44 @@ export function OpenSpecDashboard({
   const [aiTtlMinutes, setAiTtlMinutes] = useState(30);
   const aiAbort = useRef<AbortController | null>(null);
 
-  const branchAttribution: ChangeAttribution | null = (() => {
+  // Lo que la rama declara sobre el trabajo del árbol.
+  //
+  // Memoizada sobre `currentBranch` (string, estable) porque antes era una IIFE
+  // que devolvía un objeto literal nuevo en cada render: como dependencia de
+  // `commitScope`, lo invalidaba siempre y anulaba su memoización. Es la
+  // atribución primaria que Ale eligió —una rama es una afirmación deliberada,
+  // no una correlación temporal con qué se editó mientras la sesión estaba
+  // abierta—. Parado en una rama sin change, no hay nada que atribuir: es
+  // `null`, y ese `null` sí es estable.
+  const branchAttribution = useMemo<ChangeAttribution | null>(() => {
     const changeId = changeIdFromBranch(currentBranch);
     return changeId ? { changeId, source: 'branch' } : null;
-  })();
-  const commitScope = deriveRepoCommitScope(
-    modifiedFiles.filter((file) => !file.staged).map((file) => file.path),
-    branchAttribution,
+  }, [currentBranch]);
+
+  /**
+   * Alcance del repositorio: todo lo modificado, agrupado por procedencia.
+   *
+   * No depende del cambio seleccionado. El commit describe el estado del árbol,
+   * y atarlo a la selección dejaba estados reales sin ninguna superficie desde
+   * la cual prepararse —los restos de un archivado sobre un repositorio sin
+   * cambios activos—.
+   *
+   * Memoizado: `deriveRepoCommitScope` recorre el array, construye un `Set`, un
+   * `Map` y los ordena —varias asignaciones—, y `modifiedFiles` cambia de
+   * referencia en cada `set` del store. Con deps `[modifiedFiles,
+   * branchAttribution]` (las dos entradas reales, y `branchAttribution` ya
+   * estable), sólo recalcula cuando los archivos modificados o la rama cambian
+   * de verdad, no en cada re-render por selección u hover.
+   *
+   * Los ya preparados salen del cálculo: si siguieran, la lista mostraría como
+   * pendiente lo que se acaba de enviar, y el conteo no bajaría nunca.
+   */
+  const commitScope = useMemo(
+    () => deriveRepoCommitScope(
+      modifiedFiles.filter((file) => !file.staged).map((file) => file.path),
+      branchAttribution,
+    ),
+    [modifiedFiles, branchAttribution],
   );
   const nothingLeftToPrepare = commitScope.files.length === 0;
   /** La otra mitad: lo que ya viajó al stage y el panel deja de listar. */

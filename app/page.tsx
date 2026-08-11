@@ -99,18 +99,43 @@ type HunkApplyIntent = 'stage' | 'unstage' | 'discard';
 
 
 export default function GitCronPage() {
-  const {
-    openRepos, activeRepoIdx, setActiveRepoIdx,
-    repoPath,
-    currentBranch, branches, remoteBranches,
-    commits, modifiedFiles, commitMessage, setCommitMessage,
-    selectedCommit, setSelectedCommit, isLoading, error, setError, success, setSuccess,
-    selectedFile, setSelectedFile, currentDiff, setCurrentDiff,
-    stashes, tags, submodules, remotes,
-    githubToken, githubUser,
-    branchTracking, worktrees, pullRequests,
-    setOpenRepos,
-  } = useGitStore();
+  // Lecturas por selector: la raíz es el ancestro de toda la aplicación, y una
+  // suscripción entera al store (`useGitStore()` sin selector) la re-renderiza
+  // con cada `set` — incluido el latido de `use-repo-loader`, que dispara
+  // `updateRepoByPath` cada 2 s. Cada campo que la raíz lee va por su selector,
+  // siguiendo la convención que ya usaban `language` y `fontSize` más abajo.
+  const openRepos = useGitStore((s) => s.openRepos);
+  const activeRepoIdx = useGitStore((s) => s.activeRepoIdx);
+  const setActiveRepoIdx = useGitStore((s) => s.setActiveRepoIdx);
+  const repoPath = useGitStore((s) => s.repoPath);
+  const currentBranch = useGitStore((s) => s.currentBranch);
+  const branches = useGitStore((s) => s.branches);
+  const remoteBranches = useGitStore((s) => s.remoteBranches);
+  const commits = useGitStore((s) => s.commits);
+  const modifiedFiles = useGitStore((s) => s.modifiedFiles);
+  const commitMessage = useGitStore((s) => s.commitMessage);
+  const setCommitMessage = useGitStore((s) => s.setCommitMessage);
+  const selectedCommit = useGitStore((s) => s.selectedCommit);
+  const setSelectedCommit = useGitStore((s) => s.setSelectedCommit);
+  const isLoading = useGitStore((s) => s.isLoading);
+  const error = useGitStore((s) => s.error);
+  const setError = useGitStore((s) => s.setError);
+  const success = useGitStore((s) => s.success);
+  const setSuccess = useGitStore((s) => s.setSuccess);
+  const selectedFile = useGitStore((s) => s.selectedFile);
+  const setSelectedFile = useGitStore((s) => s.setSelectedFile);
+  const currentDiff = useGitStore((s) => s.currentDiff);
+  const setCurrentDiff = useGitStore((s) => s.setCurrentDiff);
+  const stashes = useGitStore((s) => s.stashes);
+  const tags = useGitStore((s) => s.tags);
+  const submodules = useGitStore((s) => s.submodules);
+  const remotes = useGitStore((s) => s.remotes);
+  const githubToken = useGitStore((s) => s.githubToken);
+  const githubUser = useGitStore((s) => s.githubUser);
+  const branchTracking = useGitStore((s) => s.branchTracking);
+  const worktrees = useGitStore((s) => s.worktrees);
+  const pullRequests = useGitStore((s) => s.pullRequests);
+  const setOpenRepos = useGitStore((s) => s.setOpenRepos);
   const setLoading = (loading: boolean) => setRepoLoading(repoPath, loading);
 
   const {

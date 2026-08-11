@@ -259,14 +259,42 @@ describe('preparación a nivel del repositorio', () => {
 
     const field = () => screen.getByRole('textbox') as HTMLInputElement;
     const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
-    // Sólo el artefacto del primer cambio: la sugerencia lo nombra.
+    // La sugerencia se lee del `placeholder` y ya no del `value`.
+    //
+    // Antes el valor era `commitMessage || sugerencia`, así que la propuesta se
+    // veía como texto escrito sin serlo —el estado estaba vacío— y borrar el
+    // campo a mano la reponía sola: era imposible dejarlo en blanco para
+    // escribir otro. Ale lo encontró queriendo poner el suyo. Lo que se afirma
+    // sigue siendo lo mismo: qué sugiere el panel según lo elegido.
     fireEvent.click(boxes[0]);
-    expect(field().value).toBe('chore: demo-change');
+    expect(field().placeholder).toBe('chore: demo-change');
+    expect(field().value).toBe('');
 
     // Al sumar el artefacto del otro cambio, la descripción se vacía. Es la
     // señal de que el commit está mezclando trabajos, y llega antes de confirmar.
     fireEvent.click(screen.getAllByRole('checkbox')[1]);
-    expect(field().value).toBe('chore: ');
+    expect(field().placeholder).toBe('chore: ');
+  });
+
+  it('lo que se borra a mano queda borrado y no se repone solo', async () => {
+    renderDashboard();
+    openPrepare();
+    const field = () => screen.getByRole('textbox') as HTMLInputElement;
+    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+
+    // `setCommitMessage` está mockeado en esta suite, así que el estado se
+    // simula igual que en la prueba de al lado: lo que se afirma es cómo se
+    // pinta el campo para un estado dado, que es donde vivía el defecto.
+    useGitStore.setState({ commitMessage: 'feat: lo mío' });
+    await vi.waitFor(() => expect(field().value).toBe('feat: lo mío'));
+
+    // Vaciarlo lo deja vacío. Con la sugerencia en el `value`, este mismo estado
+    // pintaba «chore: demo-change» y no había forma de escribir uno propio desde
+    // cero: borrar todo la reponía sola.
+    useGitStore.setState({ commitMessage: '' });
+    await vi.waitFor(() => expect(field().value).toBe(''));
+    // La sugerencia se sigue ofreciendo, pero como propuesta y no como texto.
+    expect(field().placeholder).toBe('chore: demo-change');
   });
 
   it('el mensaje se corrige en el panel y es el que queda para confirmar', async () => {

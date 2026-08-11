@@ -562,6 +562,14 @@ export function OpenSpecDashboard({
   /** Cuándo arrancó lo que está corriendo, para contar los segundos. */
   const [aiStartedAt, setAiStartedAt] = useState<number | null>(null);
   /** Ocupada en cualquiera de las dos: es lo que deshabilita los controles. */
+  /**
+   * Cuál de las dos operaciones corre dentro de la fase «loading».
+   *
+   * Cargar y expulsar comparten fase porque ocupan al servidor igual y bloquean
+   * los mismos controles, pero no dicen lo mismo: expulsar mostraba «Cargando el
+   * modelo…», lo contrario de lo que pasaba. Ale lo vio expulsando.
+   */
+  const [aiOpKind, setAiOpKind] = useState<'load' | 'eject'>('load');
   const aiBusy = aiPhase !== 'idle';
   const setAiBusy = (busy: boolean) => {
     setAiPhase(busy ? 'drafting' : 'idle');
@@ -732,6 +740,20 @@ export function OpenSpecDashboard({
     window.api?.commitAi?.deviceNames?.().then((result) => {
       if (alive && result?.data) setAiDeviceNames(result.data);
     }).catch(() => undefined);
+    // NO se relee el catálogo al volver el foco, y hay una medición detrás.
+    //
+    // Se probó y hubo que retirarlo: cada `catalog()` no es un GET barato, sino
+    // un GET **más un WebSocket** —`fetchModelCatalog` llama a `fetchDeviceIndex`
+    // para resolver en qué máquina vive cada modelo—. Colgado del evento `focus`,
+    // eso corre cada vez que la ventana se activa, y alternar entre LM Studio y
+    // GitCron para comparar estados dispara decenas. Ale reportó la máquina
+    // notoriamente más lenta con eso puesto, y sin eso no.
+    //
+    // Queda entonces un límite conocido: si alguien saca o carga un modelo desde
+    // LM Studio, GitCron muestra el estado viejo hasta la próxima acción que
+    // relea el catálogo —cargar o expulsar, que sí lo verifican—. Es preferible a
+    // pagar un WebSocket por foco. Resolverlo bien pide un catálogo liviano, sin
+    // el índice de dispositivos, y eso es trabajo aparte.
     return () => { alive = false; };
   }, [prepareOpen, repoPath]);
 
@@ -824,6 +846,7 @@ export function OpenSpecDashboard({
     if (aiContext < MIN_CONTEXT_LENGTH || aiTtlMinutes < 1) return;
     // Fase «cargando», no «redactando»: es lo que hace que las frases de espera
     // no arranquen acá, y lo que permite mostrar una barra en su lugar.
+    setAiOpKind('load');
     setAiPhase('loading');
     setAiStartedAt(Date.now());
     setAiNotice(null);
@@ -836,7 +859,19 @@ export function OpenSpecDashboard({
       // Relee el catálogo: el modelo que se acaba de cargar tiene ahora un
       // contexto real, y el desplegable lo seguía mostrando «en disco».
       const catalog = await window.api?.commitAi?.catalog();
-      setAiModels((catalog?.data ?? []).filter((model) => model.kind !== 'embeddings'));
+      const disponibles = (catalog?.data ?? []).filter((model) => model.kind !== 'embeddings');
+      setAiModels(disponibles);
+      // Se avisa que terminó, y se lo confirma contra el catálogo en vez de
+      // darlo por hecho porque la llamada no falló. Ale cargó un modelo y no
+      // vio ninguna señal de que hubiera terminado: la barra desaparecía y
+      // nada ocupaba su lugar.
+      const cargado = disponibles.find((model) => model.id === aiModel);
+      setAiNotice(cargado?.loaded
+        ? t('pipeline.openspec.prepare.aiLoadedOk', {
+          model: aiModel,
+          context: cargado.loadedContextLength ?? aiContext,
+        })
+        : t('pipeline.openspec.prepare.aiLoadedUnconfirmed', { model: aiModel }));
     } finally {
       setAiBusy(false);
     }
@@ -866,17 +901,46 @@ export function OpenSpecDashboard({
    */
   const unloadAiModel = async () => {
     if (aiBusy || !aiModel) return;
+    setAiOpKind('eject');
     setAiPhase('loading');
     setAiStartedAt(Date.now());
     setAiNotice(null);
     try {
+      // Primero se mira si TODAVÍA está cargado, y recién después se expulsa.
+      //
+      // El catálogo se lee al abrir el panel y no se vuelve a mirar solo, así
+      // que quien saque el modelo desde LM Studio deja a GitCron afirmando que
+      // sigue cargado. Ale lo hizo: sacó el modelo a mano, la aplicación siguió
+      // diciendo «cargado», apretó expulsar y vio la animación de una expulsión
+      // que no expulsaba nada. Sin esta comprobación el panel actúa sobre una
+      // instancia que ya no existe y le informa un éxito inventado.
+      const previo = await window.api?.commitAi?.catalog();
+      const antes = (previo?.data ?? []).filter((model) => model.kind !== 'embeddings');
+      setAiModels(antes);
+      const vigente = antes.find((model) => model.id === aiModel);
+      if (!vigente?.loaded) {
+        setAiNotice(t('pipeline.openspec.prepare.aiAlreadyEjected', { model: aiModel }));
+        return;
+      }
+
       const result = await window.api?.commitAi?.unload(aiModel);
       if (!result?.success) {
         setAiNotice(t('pipeline.openspec.prepare.aiFailed', { detail: result?.error ?? '—' }));
         return;
       }
-      const catalog = await window.api?.commitAi?.catalog();
-      setAiModels((catalog?.data ?? []).filter((model) => model.kind !== 'embeddings'));
+      // El estado se actualiza en memoria y NO releyendo el catálogo.
+      //
+      // Un `catalog()` cuesta un GET más un WebSocket, y la comprobación previa
+      // ya pagó uno en esta misma acción: pedirlo de nuevo duplicaba el costo de
+      // expulsar. Acá no hace falta preguntar nada —el servidor acaba de
+      // confirmar que la expulsión salió bien—, así que se marca ese modelo como
+      // descargado y listo. Los demás no se tocan.
+      setAiModels((actuales) => actuales.map((model) => (
+        model.id === aiModel
+          ? { ...model, loaded: false, loadedContextLength: null, loadedInstanceId: null }
+          : model
+      )));
+      setAiNotice(t('pipeline.openspec.prepare.aiEjectedOk', { model: aiModel }));
     } finally {
       setAiPhase('idle');
       setAiStartedAt(null);
@@ -1481,13 +1545,29 @@ export function OpenSpecDashboard({
                       no haya nada elegido. Aparecer al tildar el primer archivo
                       empujaba toda la lista hacia abajo justo cuando se estaba
                       mirando dónde tildar. */}
+                  {/* El campo muestra SIEMPRE lo que hay en el estado, sin
+                      fallback. La sugerencia va en el `placeholder`, que es lo
+                      que de verdad es: una propuesta, no algo escrito.
+
+                      Antes el valor era `commitMessage || sugerencia`, y eso
+                      hacía imposible dejarlo vacío: borrar todo devolvía `''`,
+                      el `||` reponía la sugerencia y el texto reaparecía solo.
+                      Ale lo encontró queriendo escribir el suyo. Además la
+                      sugerencia se veía como texto tipeado sin serlo: el estado
+                      estaba vacío y la pantalla mostraba otra cosa.
+
+                      Preparar con el campo vacío sigue usando la sugerencia —eso
+                      pasa en `prepareCommit`, no acá—, así que no se pierde la
+                      comodidad de no tener que escribir nada. */}
                   <label className={styles.messageField}>
                     <strong>{t('pipeline.openspec.prepare.message')}</strong>
                     <input
                       type="text"
-                      value={chosen.length === 0 ? commitMessage : (commitMessage || suggestCommitMessage(chosen, branchAttribution))}
+                      value={commitMessage}
                       disabled={prepareBusy || aiBusy}
-                      placeholder={t('pipeline.openspec.prepare.messagePlaceholder')}
+                      placeholder={chosen.length > 0
+                        ? suggestCommitMessage(chosen, branchAttribution)
+                        : t('pipeline.openspec.prepare.messagePlaceholder')}
                       onChange={(event) => setCommitMessage(event.target.value)}
                     />
                   </label>
@@ -1647,7 +1727,26 @@ export function OpenSpecDashboard({
                         único que informa con la columna derecha cerrada.
                         La marca de arranque como clave: cada corrida remonta el
                         contador, así no arrastra los segundos de la anterior. */}
-                    <AiElapsed key={aiStartedAt ?? 'idle'} phase={aiPhase} startedAt={aiStartedAt} />
+                    {/* En qué está el modelo, en el mismo lugar donde después
+                        aparece el contador. Ese hueco quedaba vacío en reposo, y
+                        el estado sólo se leía en la lista de abajo, con la misma
+                        paleta que todo lo demás: Ale marcó que se perdía de
+                        vista si el modelo elegido ya estaba cargado o no.
+                        Va por color y por punto, no sólo por texto —verde para
+                        cargado, apagado para en disco—, que es lo que permite
+                        distinguirlo sin leer. Desaparece mientras carga: ahí el
+                        contador dice algo más preciso que «cargado» o no. */}
+                    {aiChosenModel && aiPhase === 'idle' && (
+                      <span
+                        className={styles.aiModelState}
+                        data-loaded={aiChosenModel.loaded}
+                      >
+                        {aiChosenModel.loaded
+                          ? t('pipeline.openspec.prepare.aiStateLoaded')
+                          : t('pipeline.openspec.prepare.aiStateOnDisk')}
+                      </span>
+                    )}
+                    <AiElapsed key={aiStartedAt ?? 'idle'} phase={aiPhase} startedAt={aiStartedAt} kind={aiOpKind} />
                   </div>
                   {/* Qué le falta para poder cargar. Va acá abajo y no sólo en el
                       tooltip: un aviso que exige pasar el mouse por encima no

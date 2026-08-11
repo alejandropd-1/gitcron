@@ -935,15 +935,97 @@
   font: 0.64rem/1.4 var(--font-mono), ui-monospace, monospace;
   font-style: normal;
 }
-/* Barra indeterminada por 	ransform, no por width: mover el ancho obliga a
-   recalcular layout en cada cuadro, y esto corre durante diez segundos sobre una
-   iGPU que comparte memoria con el sistema. Con 	ransform queda en el
-   compositor. */
-.aiLoadTrack { position: relative; overflow: hidden; flex: 0 0 auto; width: 5rem; height: 3px; border-radius: 999px; background: var(--os-border); }
-.aiLoadTrack > span { position: absolute; inset: 0; width: 40%; border-radius: 999px; background: var(--os-cyan); animation: aiLoadSlide 1.4s ease-in-out infinite; }
-@keyframes aiLoadSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+/* Cuadro que cumple el rol de barra durante la carga. Arriba, en su propia
+   línea, contiene al contador y lleva un barrido que lo recorre; el texto cambia
+   de color donde pasa. Es barrido y no llenado —el servidor no expone la fracción
+   de carga—, así que el bucle es infinito y no afirma progreso. Con
+   `prefers-reduced-motion` el barrido se apaga y el contador queda en color base. */
+/* En qué está el modelo elegido, en reposo. Ocupa el hueco que en la carga usa
+   el contador. El estado vivía sólo en la lista de datos de abajo, con la misma
+   paleta que el resto: Ale marcó que se perdía si el modelo ya estaba cargado.
+   El punto de color es lo que lo hace distinguible sin leer —verde para cargado,
+   apagado para en disco—; el texto confirma, no es la única señal. */
+.aiModelState {
+  display: inline-flex;
+  flex: 1 1 0;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  padding-inline-start: var(--sp-2);
+  min-height: 2.65rem;
+  overflow: hidden;
+  font: 0.64rem/1.4 var(--font-mono), ui-monospace, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aiModelState::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentcolor;
+}
+.aiModelState[data-loaded='true'] { color: var(--os-green, #a3f185); }
+.aiModelState[data-loaded='false'] { color: var(--os-muted); }
+
+/* La espera de la carga: barra arriba, contador debajo.
+
+   La primera version pintaba el texto con un gradiente movil y Ale no lo pudo
+   leer cuando la banda le pasaba por encima. Un contador ilegible no informa
+   nada, asi que la franja volvio a su propia barra y el texto conserva un color
+   fijo. Dos renglones, no uno: al angostar la ventana el texto ya no compite
+   por lugar con la barra. */
+.aiLoadBox {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  padding-block: 0.2rem;
+}
+/* Barra indeterminada. Es lo que Ale esperaba ver: una franja definida que
+   recorre un riel, no un degradado difuso. Indeterminada porque el servidor no
+   emite la fraccion de carga —comprobado contra el log de una carga real—. */
+.aiLoadTrack {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--os-border);
+}
+/* Por `transform` y no por `left` o `width`: queda en el compositor y no
+   recalcula layout en cada cuadro. Importa sobre una iGPU que comparte memoria
+   con el sistema, que es donde esto corre. */
+.aiLoadTrack > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 35%;
+  border-radius: 999px;
+  background: var(--os-cyan);
+  transform: translateX(-100%);
+  animation: aiSweepBox 1.5s ease-in-out infinite;
+}
+/* Color fijo y legible en todo momento. Trunca con elipsis antes de romperse. */
+.aiLoadBoxText {
+  min-width: 0;
+  overflow: hidden;
+  color: #c2d0de;
+  font: 0.64rem/1.4 var(--font-mono), ui-monospace, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@keyframes aiSweepBox {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(285%); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .aiLoadTrack > span { animation: none; width: 100%; opacity: 0.5; }
+  /* La franja se detiene pero queda visible: sin animacion se pierde el
+     movimiento, no la senal de que algo esta en curso. */
+  .aiLoadTrack > span { animation: none; width: 100%; opacity: 0.45; transform: none; }
 }
 
 /* Los campos numéricos, a la altura de los botones.

@@ -624,7 +624,10 @@
 .taskDetail dt { color: var(--os-muted); }
 .taskDetail dd { margin: 0; color: #dce6f0; overflow-wrap: anywhere; }
 .taskDetailIcon { display: grid; place-items: center; height: 1.05rem; color: var(--os-muted); }
-.taskEmpty { color: var(--os-muted) !important; }
+/* El aviso de «sin tareas» es un `<li>` más de `.taskList`, así que heredaba la
+   grilla de cuatro columnas de arriba: el texto caía entero en la primera, que
+   mide 1.25rem, y se leía una palabra por renglón. Ale lo vio en pantalla. */
+.taskList > li.taskEmpty { display: block; min-height: 0; color: var(--os-muted); }
 
 .actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1rem; }
 /* Tres niveles de control, distinguibles sin leer el texto.

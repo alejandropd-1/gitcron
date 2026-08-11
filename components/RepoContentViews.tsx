@@ -559,9 +559,14 @@ export function FileDiffView({
         >
           {wordWrap ? <WrapText size={14} /> : <AlignLeft size={14} />}
         </button>
+        {/* El conflicto gana sobre el estado. Un archivo en conflicto sigue
+            teniendo `status: 'modified'`, así que este badge decía «MODIFIED»
+            justo encima del resolvedor de conflictos —Ale lo vio probando un
+            merge—: la etiqueta contradecía a la pantalla que la rodeaba. */}
         <span
           className={cn(
             'text-[10px] px-1.5 py-0.5 rounded font-bold',
+            file.conflicted ? 'bg-error/20 text-error' :
             file.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
             file.status === 'added' ? 'bg-secondary/20 text-secondary' :
             file.status === 'renamed' ? 'bg-primary/20 text-primary' :
@@ -569,7 +574,7 @@ export function FileDiffView({
             'bg-error/20 text-error',
           )}
         >
-          {file.status.toUpperCase()}
+          {file.conflicted ? 'CONFLICTED' : file.status.toUpperCase()}
         </span>
       </div>
       {file.conflicted && (

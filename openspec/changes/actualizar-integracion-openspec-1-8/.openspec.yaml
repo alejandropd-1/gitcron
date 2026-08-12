@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-08-12
+goal: Detectar la versión y procedencia de OpenSpec que usa GitCron, compararla
+  con la última estable, mostrar el estado en Pipeline y permitir actualizar de
+  un solo clic el motor CLI y la integración del repositorio, con vista previa,
+  confirmación y recuperación, manteniendo compatibilidad con OpenSpec 1.8.

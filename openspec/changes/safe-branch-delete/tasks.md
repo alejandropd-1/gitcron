@@ -68,6 +68,6 @@
 - [x] 8.5 Reporte en `docs/reports/` con qué se cambió archivo por archivo, qué se probó con ramas/worktrees
       reales, la salida real de los cuatro comandos, qué NO se hizo, lo encontrado de paso y la lista exacta
       de archivos sin confirmar
-- [ ] 8.6 **Ale valida**, con la app abierta: rama con upstream a `origin/main` no ofrece borrar la remota;
+- [x] 8.6 **Ale valida**, con la app abierta: rama con upstream a `origin/main` no ofrece borrar la remota;
       rama `gone` ofrece sólo local; nombre remoto distinto se muestra; rama en un worktree ofrece soltarlo y
       borrarla con la confirmación que nombra el directorio y la pérdida. Validación humana

@@ -353,6 +353,8 @@ interface ElectronAPI {
   // Worktrees
   gitWorktreeAdd: (repoPath: string, path: string, branch: string) => Promise<GitResult>;
   gitWorktreeRemove: (repoPath: string, path: string, force?: boolean) => Promise<GitResult>;
+  /** Borra el directorio del worktree y poda el registro. Destructivo. */
+  gitWorktreePurge: (repoPath: string, worktreePath: string) => Promise<GitResult>;
 
   // Submodules
   gitSubmoduleUpdate: (repoPath: string, path?: string, init?: boolean) => Promise<GitResult>;

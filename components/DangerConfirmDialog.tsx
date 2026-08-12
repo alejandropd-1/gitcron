@@ -46,11 +46,18 @@ export function DangerConfirmDialog({
           >
             <div className="flex items-start gap-3 mb-4">
               <Trash2 size={20} className="text-error shrink-0 mt-0.5" />
-              <div className="flex-1">
+              {/* `min-w-0` es lo que permite que este bloque se encoja dentro
+                  del flex: sin eso su ancho mínimo es el de su contenido más
+                  largo, y una ruta sin espacios —la de un worktree, por ejemplo—
+                  empuja el texto fuera del recuadro. Ale lo vio con una ruta de
+                  `~/.local/share/opencode/worktree/…`.
+                  `overflow-wrap: anywhere` corta esa ruta donde haga falta: no
+                  tiene espacios ni guiones donde el navegador pueda partirla. */}
+              <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-text-primary mb-1">{title}</h3>
-                <p className="text-sm text-text-secondary leading-relaxed select-text">{message}</p>
+                <p className="text-sm text-text-secondary leading-relaxed select-text [overflow-wrap:anywhere]">{message}</p>
                 {warning && (
-                  <p className="text-xs text-git-mod mt-2 leading-relaxed">{warning}</p>
+                  <p className="text-xs text-git-mod mt-2 leading-relaxed [overflow-wrap:anywhere]">{warning}</p>
                 )}
               </div>
             </div>

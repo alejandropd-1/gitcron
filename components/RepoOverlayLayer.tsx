@@ -222,9 +222,9 @@ export type RepoOverlayLayerProps = {
   setShowAddWorktree: (show: boolean) => void;
   onAddWorktree: (path: string, branch: string) => Promise<void>;
   onPickWorktreeFolder: () => Promise<string | null>;
-  worktreeToDelete: WorktreeEntry | null;
+  worktreeToDelete: (WorktreeEntry | { path: string }) & { hasChanges?: boolean; dirNotEmpty?: boolean; leftover?: number } | null;
   setWorktreeToDelete: (wt: WorktreeEntry | null) => void;
-  onDeleteWorktree: (path: string, force?: boolean) => Promise<void>;
+  onDeleteWorktree: (path: string, force?: boolean, purge?: boolean) => Promise<void>;
   branches: string[];
   // submodules
   showAddSubmodule: boolean;
@@ -758,20 +758,64 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
         isLoading={props.isLoading}
         branches={props.branches}
       />
+      {/* Tres estados, no uno. El primero es la confirmación normal; los otros
+          dos los pone el resultado de intentar el borrado y cada uno pide algo
+          distinto, así que no pueden compartir texto:
+          · `hasChanges` — el worktree tiene cambios sin confirmar. Antes esto
+            era un `confirm()` nativo de Windows, que rompía la estética y
+            bloqueaba el hilo del renderer. Ale lo marcó.
+          · `dirNotEmpty` — Git borró lo que gestiona y quedaron los archivos
+            ignorados: `node_modules` casi siempre. La salida es borrar el
+            directorio entero, que es una acción de otro tamaño y por eso se
+            confirma aparte, diciendo cuántos archivos hay adentro. */}
       <DangerConfirmDialog
         open={!!props.worktreeToDelete}
-        title={t('worktree.deleteConfirmTitle')}
-        message={t('worktree.deleteConfirmDesc', { path: props.worktreeToDelete?.path || '' })}
-        warning={t('worktree.deleteWarning')}
-        confirmLabel={t('sidebar.worktreeRemove')}
+        title={
+          props.worktreeToDelete?.dirNotEmpty
+            ? t('worktree.notEmptyTitle')
+            : props.worktreeToDelete?.hasChanges
+              ? t('worktree.hasChangesTitle')
+              : t('worktree.deleteConfirmTitle')
+        }
+        message={
+          props.worktreeToDelete?.dirNotEmpty
+            ? t('worktree.notEmptyDesc', {
+              path: props.worktreeToDelete.path,
+              count: props.worktreeToDelete.leftover ?? 0,
+            })
+            : props.worktreeToDelete?.hasChanges
+              ? t('worktree.hasChangesDesc', { path: props.worktreeToDelete.path })
+              : t('worktree.deleteConfirmDesc', { path: props.worktreeToDelete?.path || '' })
+        }
+        warning={
+          props.worktreeToDelete?.dirNotEmpty
+            ? t('worktree.notEmptyWarning')
+            : props.worktreeToDelete?.hasChanges
+              ? t('worktree.hasChangesWarning')
+              : t('worktree.deleteWarning')
+        }
+        confirmLabel={
+          props.worktreeToDelete?.dirNotEmpty
+            ? t('worktree.notEmptyAction')
+            : props.worktreeToDelete?.hasChanges
+              ? t('worktree.hasChangesAction')
+              : t('sidebar.worktreeRemove')
+        }
         cancelLabel={t('modal.cancel')}
         disabled={props.isLoading}
         onCancel={() => props.setWorktreeToDelete(null)}
         onConfirm={async () => {
-          if (props.worktreeToDelete) {
-            await props.onDeleteWorktree(props.worktreeToDelete.path);
-            props.setWorktreeToDelete(null);
-          }
+          const target = props.worktreeToDelete;
+          if (!target) return;
+          // El diálogo NO se cierra acá: `onDeleteWorktree` puede volver con
+          // otro motivo —de `hasChanges` a `dirNotEmpty`— y en ese caso la
+          // confirmación siguiente tiene que aparecer sobre la misma pantalla.
+          // Cerrar y reabrir haría parpadear el modal entre pasos.
+          await props.onDeleteWorktree(
+            target.path,
+            target.hasChanges === true,
+            target.dirNotEmpty === true,
+          );
         }}
       />
 

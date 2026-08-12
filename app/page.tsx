@@ -515,7 +515,19 @@ export default function GitCronPage() {
   const [remoteToSetUrl, setRemoteToSetUrl] = useState<RemoteEntry | null>(null);
   const [remoteToDelete, setRemoteToDelete] = useState<RemoteEntry | null>(null);
   const [showAddWorktree, setShowAddWorktree] = useState(false);
-  const [worktreeToDelete, setWorktreeToDelete] = useState<WorktreeEntry | null>(null);
+  /**
+   * El worktree que se está por eliminar, y por qué la operación se frenó.
+   *
+   * `hasChanges` y `dirNotEmpty` no vienen del listado: los pone el resultado de
+   * intentar el borrado, y son lo que decide qué confirmación mostrar. Antes el
+   * caso `HAS_CHANGES` se resolvía con un `confirm()` nativo, que rompía la
+   * estética y bloqueaba el hilo del renderer.
+   */
+  const [worktreeToDelete, setWorktreeToDelete] = useState<
+    (WorktreeEntry & { hasChanges?: boolean; dirNotEmpty?: boolean; leftover?: number })
+    | { path: string; hasChanges?: boolean; dirNotEmpty?: boolean; leftover?: number }
+    | null
+  >(null);
   const [showAddSubmodule, setShowAddSubmodule] = useState(false);
 
   // F5 handlers
@@ -655,22 +667,32 @@ export default function GitCronPage() {
     }
   };
 
-  const handleDeleteWorktree = async (path: string, force: boolean = false) => {
+  const handleDeleteWorktree = async (path: string, force: boolean = false, purge: boolean = false) => {
     if (!repoPath || !window.api) return;
     setLoading(true);
     try {
-      const result = await window.api.gitWorktreeRemove(repoPath, path, force);
+      // `purge` salta el intento por Git —ya se sabe que falla, porque quedan
+      // archivos que Git no gestiona— y borra el directorio con la poda.
+      const result = purge
+        ? await window.api.gitWorktreePurge(repoPath, path)
+        : await window.api.gitWorktreeRemove(repoPath, path, force);
       if (result.success) {
         setSuccess('Worktree eliminado con éxito');
         setWorktreeToDelete(null);
         await refreshWorktrees(repoPath);
       } else if (result.error === 'HAS_CHANGES') {
-        // Confirm force delete
-        if (confirm('Este worktree tiene cambios sin commitear. Si lo eliminás ahora, podrías perder cambios. ¿Querés forzar la eliminación?')) {
-          await handleDeleteWorktree(path, true);
-        } else {
-          setWorktreeToDelete(null);
-        }
+        // Antes acá había un `confirm()` nativo: rompía la estética de la
+        // aplicación con un cuadro de Windows —Ale lo marcó— y además bloquea el
+        // hilo del renderer. Se reusa el mismo diálogo que el resto de las
+        // acciones destructivas, guardando en el estado que ya se sabe del
+        // riesgo para que la segunda pasada fuerce.
+        setWorktreeToDelete({ path, hasChanges: true });
+      } else if (result.error === 'DIR_NOT_EMPTY') {
+        // Git borró lo que gestiona y quedaron los archivos ignorados
+        // —`node_modules` casi siempre—. Tiene salida propia: borrar el
+        // directorio entero y podar. Se pide aparte porque es de otro tamaño.
+        const leftover = (result.data as { leftover?: number } | undefined)?.leftover ?? 0;
+        setWorktreeToDelete({ path, dirNotEmpty: true, leftover });
       } else {
         setError(result.error || 'Error al eliminar el worktree');
       }

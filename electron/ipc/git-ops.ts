@@ -365,6 +365,66 @@ export function registerGitOpsHandlers(): void {
     }
   });
 
+  /**
+   * Cuántas entradas quedaron en el directorio, para poder decirlo antes de
+   * borrarlo. Se cuenta con un techo: la cifra es para que la persona dimensione
+   * lo que va a perder, y recorrer 40.000 archivos para distinguir «muchos» de
+   * «muchísimos» no aporta nada y bloquea el proceso principal.
+   */
+  const COUNT_LIMIT = 5_000;
+  function countPathEntries(target: string): number {
+    let total = 0;
+    const pending = [target];
+    while (pending.length > 0 && total < COUNT_LIMIT) {
+      const dir = pending.pop()!;
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        continue; // Sin permiso o ya borrado: no puede tumbar el conteo.
+      }
+      for (const entry of entries) {
+        total += 1;
+        if (total >= COUNT_LIMIT) break;
+        if (entry.isDirectory()) pending.push(path.join(dir, entry.name));
+      }
+    }
+    return total;
+  }
+
+  /**
+   * Borra el directorio de un worktree y poda el registro.
+   *
+   * Es la salida del caso `DIR_NOT_EMPTY`: `git worktree remove --force` no
+   * borra lo que Git no gestiona, así que un worktree con dependencias
+   * instaladas nunca se puede quitar por la vía de Git.
+   *
+   * Es **destructivo y sin vuelta**: borra el directorio completo. Por eso vive
+   * en su propio canal y no como una bandera del anterior — quien lo llama tuvo
+   * que pedirlo explícitamente, con su propia confirmación.
+   */
+  ipcMain.handle('git:worktree-purge', async (_event, repoPath: string, worktreePath: string) => {
+    try {
+      // Que el camino esté dentro del repositorio: este canal borra un árbol
+      // entero, y no puede aceptar una ruta arbitraria de quien lo llame.
+      const registered = await simpleGit(repoPath).raw(['worktree', 'list', '--porcelain']);
+      const normalized = worktreePath.replace(/\\/g, '/').replace(/\/+$/, '');
+      const known = registered
+        .split('\n')
+        .filter((line) => line.startsWith('worktree '))
+        .map((line) => line.slice('worktree '.length).trim().replace(/\\/g, '/').replace(/\/+$/, ''));
+      if (!known.includes(normalized)) {
+        return { success: false, error: 'NOT_A_WORKTREE' };
+      }
+
+      fs.rmSync(worktreePath, { recursive: true, force: true });
+      await simpleGit(repoPath).raw(['worktree', 'prune']);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: errMsg(error) };
+    }
+  });
+
   ipcMain.handle('git:worktree-remove', async (_event, repoPath: string, worktreePath: string, force?: boolean) => {
     try {
       if (fs.existsSync(worktreePath)) {
@@ -384,7 +444,26 @@ export function registerGitOpsHandlers(): void {
         args.push('--force');
       }
       args.push(worktreePath);
-      await simpleGit(repoPath).raw(args);
+      try {
+        await simpleGit(repoPath).raw(args);
+      } catch (removeError) {
+        // «Directory not empty» después de un `--force` significa una cosa
+        // concreta: quedaron archivos que Git no gestiona. En un proyecto
+        // JavaScript eso es `node_modules`, y no es el caso raro sino el normal
+        // —cualquier worktree donde alguien haya corrido `pnpm install`—. Ale lo
+        // encontró con uno de 40.707 archivos.
+        //
+        // Se distingue del resto de los fallos porque tiene una salida propia:
+        // borrar el directorio entero y podar el registro. Devolverlo como un
+        // error crudo más dejaba a la persona con el mensaje de Git y sin nada
+        // que hacer.
+        const detail = removeError instanceof Error ? removeError.message : String(removeError);
+        if (/not empty/i.test(detail)) {
+          const leftover = countPathEntries(worktreePath);
+          return { success: false, error: 'DIR_NOT_EMPTY', data: { worktreePath, leftover } };
+        }
+        throw removeError;
+      }
       return { success: true };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };

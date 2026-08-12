@@ -220,16 +220,32 @@ export const useBranchActions = () => {
   const deleteBranchAndWorktree = async (
     branch: string,
     worktreePath: string,
-    opts: { force?: boolean } = {},
-  ): Promise<{ success: boolean; hasChanges?: boolean; notMerged?: boolean; error?: string }> => {
+    opts: { force?: boolean; purge?: boolean } = {},
+  ): Promise<{ success: boolean; hasChanges?: boolean; dirNotEmpty?: boolean; leftover?: number; notMerged?: boolean; error?: string }> => {
     if (!window.api || !repoPath) return { success: false };
     setLoading(true); setError(null);
     try {
-      const remove = await window.api.gitWorktreeRemove(repoPath, worktreePath, opts.force === true);
+      // `purge` es la segunda vuelta: se pide sólo después de que la persona
+      // aceptó borrar el directorio entero, y salta el intento por Git —que ya
+      // se sabe que falla— para ir directo a borrar y podar.
+      const remove = opts.purge === true
+        ? await window.api.gitWorktreePurge(repoPath, worktreePath)
+        : await window.api.gitWorktreeRemove(repoPath, worktreePath, opts.force === true);
       if (!remove.success) {
         const hasChanges = remove.error === 'HAS_CHANGES';
-        if (!hasChanges) setError(remove.error ?? 'Error al soltar el worktree');
-        return { success: false, hasChanges, error: remove.error };
+        // `DIR_NOT_EMPTY`: Git borró lo que gestiona y quedaron los archivos
+        // ignorados —`node_modules` casi siempre, y en un proyecto JavaScript
+        // eso es el caso normal, no el raro—. Tiene una salida propia, así que
+        // se reporta aparte en lugar de mostrarse como un fallo más.
+        const dirNotEmpty = remove.error === 'DIR_NOT_EMPTY';
+        if (!hasChanges && !dirNotEmpty) setError(remove.error ?? 'Error al soltar el worktree');
+        return {
+          success: false,
+          hasChanges,
+          dirNotEmpty,
+          leftover: (remove as { data?: { leftover?: number } }).data?.leftover,
+          error: remove.error,
+        };
       }
       const del = await deleteBranch(branch, false);
       await refreshWorktrees();

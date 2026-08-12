@@ -159,6 +159,8 @@ contextBridge.exposeInMainWorld('api', {
   gitRemoteRename: (repoPath: string, oldName: string, newName: string) => ipcRenderer.invoke('git:remote-rename', repoPath, oldName, newName),
   gitWorktreeAdd: (repoPath: string, path: string, branch: string) => ipcRenderer.invoke('git:worktree-add', repoPath, path, branch),
   gitWorktreeRemove: (repoPath: string, path: string, force?: boolean) => ipcRenderer.invoke('git:worktree-remove', repoPath, path, force),
+  gitWorktreePurge: (repoPath: string, worktreePath: string) =>
+    ipcRenderer.invoke('git:worktree-purge', repoPath, worktreePath),
   gitSubmoduleUpdate: (repoPath: string, path?: string, init?: boolean) => ipcRenderer.invoke('git:submodule-update', repoPath, path, init),
   gitSubmoduleAdd: (repoPath: string, url: string, path: string) => ipcRenderer.invoke('git:submodule-add', repoPath, url, path),
   gitSubmoduleSync: (repoPath: string) => ipcRenderer.invoke('git:submodule-sync', repoPath),

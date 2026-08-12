@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-08-12
+goal: Incorporar un segundo método de cierre que retira cambios OpenSpec
+  obsoletos sin consolidar sus delta specs, registrando motivo, reemplazo y
+  estado de implementación, y distinguiéndolos para siempre de los cambios
+  completados.

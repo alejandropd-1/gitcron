@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.13.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.14.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -87,6 +87,9 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 #### Branches
 
 - **Agrupamiento Recursivo de Ramas (Árbol de Profundidad Infinita)**: La barra lateral local y remota ahora soporta anidamiento recursivo de subcarpetas utilizando prefijos con múltiples barras diagonales (ej. `feature/cronometric/tcars-hud-shell`). Las ramas se ordenan jerárquicamente con carpetas primero y prioridades especiales para ramas principales (`main`/`master`), utilizando sangrías dinámicas y acumuladores de cantidad exactos.
+- **Branch folders remember whether they are open**, per repository and across sessions. They start closed: with dozens of remote branches, expanding everything on launch made the list unusable. Jumping to a branch still opens the folder that contains it, so a freshly selected branch is never hidden.
+- **Branch deletion refuses what would be destructive.** GitCron never deletes the remote's default branch — the guard lives in the IPC channel, not only in the interface, because a local branch can have `origin/main` as its upstream without its name showing it. When the upstream is `gone` it offers local-only deletion; when the remote name differs from the local one, the confirmation shows exactly which remote branch would go.
+- **A branch held open by a worktree can be deleted from the app.** Instead of Git's raw `cannot delete branch used by worktree`, GitCron explains it and offers to release the worktree first, naming the directory and warning what is lost. If Git cannot remove it because ignored files remain — `node_modules`, typically — it says so, counts what is left, and offers to delete the folder outright as a separate confirmation.
 - Ahead / behind counts in the sidebar.
 - Ahead / behind chips now explain themselves on hover, and Pull / Push open a decision toast when the current branch is behind or diverged.
 - Push performs a preflight Fetch for the active repository so ahead/behind indicators and the fast-forward/rebase/merge decision use the current remote state; a late `fetch first` rejection triggers the same recovery flow.
@@ -178,7 +181,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Panorama integrado y cacheado**: El resumen del repo se genera desde estructura determinística, se narra con IA cuando está habilitada y se cachea en SQLite por repo, estructura e idioma.
 - **Providers opt-in**: Soporta LM Studio local y OpenRouter, reutilizando la key cifrada del Temporal Agent sin exponer secretos al renderer.
 
-### 🔵 Pipeline — Workspace OpenSpec (v1.13.0)
+### 🔵 Pipeline — Workspace OpenSpec (v1.14.0)
 
 Pipeline muestra en qué punto del ciclo de OpenSpec está el repositorio abierto y qué corresponde hacer a continuación, sin exigir conocer los comandos `/opsx:*`.
 
@@ -190,7 +193,7 @@ Pipeline muestra en qué punto del ciclo de OpenSpec está el repositorio abiert
 - **Evidencia sin inventar**: un dato ausente, incompatible o sin fixture se representa como `unknown` o `pending_fixture`, nunca como cero o verde. Un proceso que termina no marca una tarea como hecha: el progreso se relee de `tasks.md`.
 - **Sesiones persistidas**: cada corrida guarda runtime, cambio, tarea, tiempos y resultado en SQLite, y el historial sobrevive a reinicios.
 
-### 🟡 Preparar el commit desde Pipeline (v1.13.0)
+### 🟡 Preparar el commit desde Pipeline (v1.14.0)
 
 El commit se arma donde se ve el trabajo, sin cambiar de pestaña. Preparar no confirma: confirmar sigue siendo una acción humana desde Commit.
 
@@ -198,7 +201,7 @@ El commit se arma donde se ve el trabajo, sin cambiar de pestaña. Preparar no c
 - **Atribución con su fuente declarada**: que un archivo viva bajo la carpeta de su cambio es un hecho; que lo diga la rama es una declaración. El hecho manda.
 - **El mensaje se corrige en el mismo lugar donde se decide qué entra**, escribiendo sobre el mismo estado que después se confirma.
 
-### 🟣 Redacción del asunto con IA local (v1.13.0)
+### 🟣 Redacción del asunto con IA local (v1.14.0)
 
 El tipo convencional de un commit —`feat`, `fix`, `chore`— es el único dato que ninguna fuente del repositorio contiene: no está en el diff, ni en las rutas, ni en la rama, ni en las tareas. Un modelo local lo acierta, y por eso esta función existe.
 
@@ -495,9 +498,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.13.0.exe`                                            |
-| macOS    | `GitCron-1.13.0.dmg` _(build on macOS with `pnpm package:mac`)_       |
-| Linux    | `GitCron-1.13.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.14.0.exe`                                            |
+| macOS    | `GitCron-1.14.0.dmg` _(build on macOS with `pnpm package:mac`)_       |
+| Linux    | `GitCron-1.14.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 

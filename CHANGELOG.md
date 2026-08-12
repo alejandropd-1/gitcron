@@ -4,7 +4,36 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.14.0] - 2026-08-11 - Que borrar no pueda ser un accidente
+
+Borrar una rama en GitCron podía terminar pidiéndole a GitHub que borrara `main`, y frente a un worktree o a un directorio con dependencias sólo volcaba el error crudo de Git. Esta versión cierra esos caminos y, donde la operación no puede completarse, explica por qué y ofrece la salida.
+
+### 🟢 Vista Clásica & Core
+
+#### Fixed
+- **Nunca se borra la rama por defecto del remoto.** El borrado remoto resolvía el upstream configurado, y una rama local puede tener `origin/main` como upstream sin que su nombre lo delate: había dos así en este mismo repositorio. Pedirle a GitHub que borrara `main` fallaba sólo por la protección del servidor — que no es una garantía. La guardia vive en el canal IPC y no únicamente en la interfaz, porque el canal es alcanzable por su cuenta.
+- **Un upstream `gone` ofrece sólo el borrado local**, en vez de intentar una operación remota que va a fallar.
+- **Cuando el nombre remoto difiere del local, la confirmación lo muestra.** Leer que se va a borrar `main` tiene que ser posible antes de aceptar, no deducirlo del nombre de la rama local.
+- **Una rama abierta por un worktree se puede borrar desde la aplicación.** Antes aparecía `cannot delete branch used by worktree` y ahí terminaba todo. Ahora se explica y se ofrece soltar el worktree, nombrando el directorio y advirtiendo qué se pierde.
+- **Y cuando Git no puede quitar el worktree porque quedan archivos que no gestiona** —`node_modules` casi siempre, o sea el caso normal en un proyecto JavaScript— se dice eso, se cuenta cuánto quedó y se ofrece borrar la carpeta completa. Es una confirmación aparte: borrar decenas de miles de archivos no puede leerse igual que las anteriores.
+- **Las carpetas de ramas recuerdan si están abiertas**, por repositorio y entre sesiones. Arrancan cerradas: con decenas de ramas remotas, desplegar todo en cada apertura volvía la lista inmanejable. Saltar a una rama sigue abriendo la carpeta que la contiene.
+- **Se retiró un `confirm()` nativo de Windows** al eliminar un worktree con cambios sin confirmar. Además de romper la estética, bloquea el hilo del renderer.
+- **El texto ya no se desborda de los diálogos.** Un contenedor flexible sin `min-width: 0` no puede encogerse por debajo de su contenido más largo, y una ruta sin espacios empujaba el texto fuera del recuadro.
+- **El botón de maximizar dice en qué estado está la ventana**, y escucha los eventos de la ventana: también cambia por doble clic en la barra o con `Win`+flechas.
+
+#### Quality
+- Prueba de la guardia **contra Git real** —repositorio bare como remoto, clon y `remote set-head`— que además comprueba que `main` sigue existiendo tras el rechazo: sin esa aserción, un borrado que ocurre y después informa el error pasaría igual.
+- Pruebas de la secuencia soltar → borrar: si el worktree tiene cambios sin confirmar, la rama **no** se borra y el motivo se reporta para pedir la segunda confirmación.
+- Pruebas del estado de las carpetas: arrancan cerradas, no se pisan entre repositorios, sobreviven a volver a montar y un valor corrupto en disco no rompe el panel.
+
+**Validación:** `tsc --noEmit` en 0 · 136 archivos y 1067 pruebas en verde · `eslint` limpio sobre lo tocado · `openspec validate --strict` válido.
+
+---
+
 ## [v1.13.0] - 2026-08-11 - Dejar de trabajar cuando no hay nada que hacer
+
+> Esta versión no llegó a etiquetarse: `package.json` la declaró y su contenido se publicó, pero no quedó ningún tag `v1.13.0`. Lo que sigue documenta ese cuerpo de trabajo igual.
+
 
 Tres cambios OpenSpec sobre lo mismo: la aplicación hacía trabajo constante sin que nada hubiera cambiado. Se redibujaba entera cada 2 segundos, preguntaba por el estado del repositorio aunque estuviera quieto, y no se enteraba de la mitad de lo que pasaba en Git salvo preguntando.
 

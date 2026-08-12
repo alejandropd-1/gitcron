@@ -23,6 +23,7 @@ import {
 import { colorForBranch } from '@/components/CommitGraph';
 import { useT } from '@/hooks/use-translation';
 import { useGitStore } from '@/lib/git-store';
+import { useBranchFolderState, type BranchFolderState } from '@/hooks/use-branch-folder-state';
 import { cn } from '@/lib/utils';
 import type { BranchTrackingInfo, StashEntry } from '@/types/electron';
 
@@ -149,6 +150,11 @@ export function BranchTree({
   onDelete?: (branch: string) => void;
 }) {
   const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
+  // El estado se pide UNA vez acá y se reparte por props. Si cada carpeta
+  // llamara al hook por su cuenta, cada una leería y escribiría `localStorage`
+  // por separado y no vería los cambios de las demás.
+  const repoPath = useGitStore((state) => state.repoPath);
+  const folderState = useBranchFolderState(repoPath);
 
   return (
     <div>
@@ -178,6 +184,7 @@ export function BranchTree({
           onSelect={onSelect}
           onContextMenu={onContextMenu}
           onDelete={onDelete}
+          folderState={folderState}
         />
       ))}
     </div>
@@ -193,6 +200,7 @@ function BranchFolderView({
   onSelect,
   onContextMenu,
   onDelete,
+  folderState,
 }: {
   folder: BranchFolder;
   currentBranch: string;
@@ -202,19 +210,30 @@ function BranchFolderView({
   onSelect?: (branch: string) => void;
   onContextMenu: (event: React.MouseEvent, branch: string) => void;
   onDelete?: (branch: string) => void;
+  folderState: BranchFolderState;
 }) {
-  const [isOpen, setIsOpen] = useState(true);
+  // Abierta o cerrada según lo que la persona eligió para este repositorio,
+  // recordado entre sesiones. Antes era `useState(true)`: cada carpeta arrancaba
+  // abierta y su estado moría con el componente, así que con 45 ramas bajo
+  // `origin` había que cerrarlas a mano en cada apertura de la aplicación.
+  const isOpen = folderState.isOpen(folder.prefix);
 
   useEffect(() => {
-    if (selectedBranch?.startsWith(`${folder.prefix}/`)) {
-      setIsOpen(true);
+    // Saltar a una rama abre la carpeta que la contiene: si no, la rama recién
+    // elegida queda invisible dentro de una carpeta cerrada. Depende sólo de la
+    // selección, así que no vuelve a abrirla si después se la cierra a mano.
+    if (selectedBranch?.startsWith(`${folder.prefix}/`) && !folderState.isOpen(folder.prefix)) {
+      folderState.toggle(folder.prefix);
     }
+    // `folderState` fuera de las dependencias a propósito: incluirlo volvería a
+    // correr esto en cada cambio de estado y reabriría lo que se acaba de cerrar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [folder.prefix, selectedBranch]);
 
   return (
     <div>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => folderState.toggle(folder.prefix)}
         className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -402,6 +421,10 @@ export function RemoteBranchTree({
 }) {
   const { root, folders } = useMemo(() => buildBranchTree(branches), [branches]);
   const currentBranch = useGitStore((state) => state.currentBranch);
+  // Se pide UNA vez y se reparte por props: con el hook dentro de cada carpeta,
+  // cada una leería y escribiría `localStorage` por su cuenta sin ver a las otras.
+  const repoPath = useGitStore((state) => state.repoPath);
+  const folderState = useBranchFolderState(repoPath);
 
   return (
     <div>
@@ -431,6 +454,7 @@ export function RemoteBranchTree({
           folder={folder}
           onCheckout={onCheckout}
           onContextMenu={onContextMenu}
+          folderState={folderState}
         />
       ))}
     </div>
@@ -441,17 +465,22 @@ function RemoteFolderView({
   folder,
   onCheckout,
   onContextMenu,
+  folderState,
 }: {
   folder: BranchFolder;
   onCheckout: (branch: string) => void;
   onContextMenu: (event: React.MouseEvent, branch: string) => void;
+  folderState: BranchFolderState;
 }) {
-  const [isOpen, setIsOpen] = useState(true);
+  // Recordado por repositorio, igual que las locales. Acá están las carpetas más
+  // pobladas —45 ramas bajo `origin` en el repositorio de Ale—, que eran las que
+  // más molestaba volver a cerrar en cada apertura.
+  const isOpen = folderState.isOpen(folder.prefix);
   const currentBranch = useGitStore((state) => state.currentBranch);
   return (
     <div>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => folderState.toggle(folder.prefix)}
         className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}

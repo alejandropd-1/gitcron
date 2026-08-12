@@ -8,6 +8,7 @@ import { CheckRepoActions, simpleGit } from 'simple-git';
 import { errMsg, sanitizeForLog, withGitHubToken } from './shared';
 import type { RemoteEntry } from '../../types/electron';
 import { isValidExistingGitHubRemoteUrl } from '../../lib/github-remote-url';
+import { parseRemoteDefaultBranch } from '../../lib/branch-upstream';
 
 const GITHUB_REMOTE_URL_ERROR = 'URL de remoto invalida. Usa https://github.com/owner/repo.git o git@github.com:owner/repo.git';
 
@@ -426,6 +427,26 @@ export function registerGitSyncHandlers(): void {
   // de red → vive acá, junto al resto de push/pull, no en git-ops.ts.
   ipcMain.handle('git:delete-remote-branch', async (_event, targetPath: string, remote: string, branch: string, token?: string) => {
     try {
+      // Guardia dura: nunca borrar la rama por defecto del remoto por la puerta
+      // trasera de un upstream mal configurado (claude/x -> origin/main). Aunque
+      // la interfaz no lo ofrezca, el IPC es alcanzable por su cuenta.
+      let defaultBranch: string | null = null;
+      try {
+        const raw = await simpleGit(targetPath).raw([
+          'symbolic-ref', '--short', `refs/remotes/${remote}/HEAD`,
+        ]);
+        defaultBranch = parseRemoteDefaultBranch(raw, remote);
+      } catch {
+        defaultBranch = null; // HEAD del remoto no resuelto -> no se bloquea por defecto
+      }
+      if (defaultBranch && branch === defaultBranch) {
+        return {
+          success: false,
+          error: 'DEFAULT_BRANCH',
+          data: { remote, branch, defaultBranch },
+        };
+      }
+
       await withGitHubToken(targetPath, token, async (g) => {
         await g.push([remote, '--delete', branch]);
       });

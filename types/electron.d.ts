@@ -261,6 +261,7 @@ interface ElectronAPI {
     repoPath: string,
   ) => Promise<GitResult<{ mtimeMs: number; size: number; ino: number } | null>>;
   gitBranches: (repoPath: string) => Promise<GitResult<BranchData>>;
+  gitDefaultBranch: (repoPath: string, remote: string) => Promise<GitResult<string | null>>;
   gitCheckout: (repoPath: string, branch: string) => Promise<GitResult>;
   gitCreateBranch: (repoPath: string, name: string, fromHash?: string) => Promise<GitResult>;
   gitRestoreMaterializedBranch: (

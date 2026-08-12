@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld('api', {
   gitStatus: (repoPath: string) => ipcRenderer.invoke('git:status', repoPath),
   gitIndexSignature: (repoPath: string) => ipcRenderer.invoke('git:index-signature', repoPath),
   gitBranches: (repoPath: string) => ipcRenderer.invoke('git:branches', repoPath),
+  gitDefaultBranch: (repoPath: string, remote: string) =>
+    ipcRenderer.invoke('git:default-branch', repoPath, remote),
   gitCheckout: (repoPath: string, branch: string) =>
     ipcRenderer.invoke('git:checkout', repoPath, branch),
   gitCreateBranch: (repoPath: string, name: string, fromHash?: string) =>

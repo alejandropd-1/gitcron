@@ -32,6 +32,7 @@ function armarRepositorioActivo() {
         submodules: [],
         remotes: [],
         branchTracking: {},
+        defaultRemoteBranch: null,
         worktrees: [],
         pullRequests: [],
         commitMessage: '',

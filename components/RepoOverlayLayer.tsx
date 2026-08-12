@@ -27,7 +27,7 @@ import { ResetCommitModal } from '@/components/ResetCommitModal';
 import { StashCreateModal, StashPreviewModal, type StashPreviewState } from '@/components/StashModals';
 import { useT } from '@/hooks/use-translation';
 import type { Commit, GitFile } from '@/lib/git-store';
-import { remoteBranchTarget } from '@/lib/branch-upstream';
+import { remoteBranchTarget, isRemoteBranchDefault, remoteBranchDiffers } from '@/lib/branch-upstream';
 import type { RemoteEntry, WorktreeEntry, SubmoduleEntry } from '@/types/electron';
 // Removed InteractiveRebasePanel import as it is now in RepoMainView
 
@@ -36,13 +36,22 @@ type BranchMenuState = { x: number; y: number; branch: string } | null;
 type CommitMenuState = { x: number; y: number; hash?: string } | null;
 type FileMenuState = { x: number; y: number; file: GitFile } | null;
 type RenameModalState = { oldName: string; newName: string } | null;
-type DeleteScope = 'local' | 'remote' | 'both';
-type DeleteBranchState = {
+// Exportados: `app/page.tsx` guarda este estado y tenía su propia copia del
+// tipo, sin `'worktree'` ni los dos campos nuevos. Dos definiciones de lo mismo
+// se separan al primer cambio, y acá se separaron: `tsc` quedó en rojo. Una sola
+// fuente y el compilador vuelve a servir de red.
+export type DeleteScope = 'local' | 'remote' | 'both' | 'worktree';
+export type DeleteBranchState = {
   branch: string;
   scope: DeleteScope;
   notMerged?: boolean;
   remote?: string;
   remoteBranch?: string;
+  // scope 'worktree': la rama está abierta por este worktree; soltarlo (y borrar
+  // la rama) es el camino. `confirmedLoss` marca que la persona aceptó perder los
+  // cambios sin confirmar de esa copia de trabajo (segunda confirmación).
+  worktreePath?: string;
+  confirmedLoss?: boolean;
 } | null;
 type CheckoutConflictState = { branch: string; error: string } | null;
 type MergeNeedsCheckoutState = { sourceBranch: string; targetBranch: string } | null;
@@ -65,6 +74,10 @@ export type RepoOverlayLayerProps = {
   repoPath: string | null;
   commits: Commit[];
   branchTracking: BranchTracking;
+  // Worktrees y rama por defecto del remoto: para no ofrecer borrar una rama
+  // abierta por un worktree, ni apuntar el borrado remoto a la rama por defecto.
+  worktrees: WorktreeEntry[];
+  defaultRemoteBranch: string | null;
   showNewBranch: boolean;
   setShowNewBranch: (show: boolean) => void;
   newBranchName: string;
@@ -112,6 +125,11 @@ export type RepoOverlayLayerProps = {
   deleteConfirm: DeleteBranchState;
   setDeleteConfirm: (state: DeleteBranchState) => void;
   deleteBranch: (branch: string, force?: boolean) => Promise<GitResult>;
+  deleteBranchAndWorktree: (
+    branch: string,
+    worktreePath: string,
+    opts: { force?: boolean },
+  ) => Promise<{ success: boolean; hasChanges?: boolean; notMerged?: boolean; error?: string }>;
   deleteRemoteBranch: (branch: string, remote?: string) => Promise<{ success: boolean; error?: string; authRequired?: boolean }>;
   checkBranchMerged: (branch: string) => Promise<boolean>;
   deleteTagConfirm: string | null;
@@ -231,23 +249,40 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
       ? t('deleteBranch.remoteTitle')
       : dcScope === 'both'
         ? t('deleteBranch.bothTitle')
-        : t('deleteBranch.title');
+        : dcScope === 'worktree'
+          ? t('deleteBranch.worktreeTitle')
+          : t('deleteBranch.title');
   const dcMessage = !dc
     ? ''
     : dcImagined
       ? `¿Estás seguro de que deseas descartar este futuro? Esto eliminará de forma permanente la branch real "${dc.branch}" y su tag de flight level asociado.`
-      : dcScope === 'remote'
-        ? t('deleteBranch.remoteConfirm', { branch: dcRemoteBranch })
-        : dcScope === 'both'
-          ? t('deleteBranch.bothConfirm', { branch: dcBranchLabel })
-          : t('deleteBranch.confirm', { branch: dc.branch });
-  // La advertencia de "no mergeada" aplica al borrado LOCAL (remota pura no la usa).
-  const dcWarning = dcScope !== 'remote' && dc?.notMerged ? t('deleteBranch.notMergedWarning') : undefined;
+      : dcScope === 'worktree'
+        ? t('deleteBranch.worktreeConfirm', { branch: dc.branch, path: dc.worktreePath ?? '' })
+        : dcScope === 'remote'
+          ? t('deleteBranch.remoteConfirm', { branch: dcRemoteBranch })
+          : dcScope === 'both'
+            ? t('deleteBranch.bothConfirm', { branch: dcBranchLabel })
+            : t('deleteBranch.confirm', { branch: dc.branch });
+  // Advertencias compuestas: no-mergeada (local), nombre remoto distinto del
+  // local (remote/both) y, para worktree, la pérdida de cambios sin confirmar.
+  const dcMismatch = dc && (dcScope === 'remote' || dcScope === 'both') && remoteBranchDiffers(dcRemoteBranch, dc.branch)
+    ? t('deleteBranch.remoteMismatch', { remote: dc.remote ?? 'origin', remoteBranch: dcRemoteBranch })
+    : null;
+  const dcWorktreeLoss = dcScope === 'worktree'
+    ? (dc?.confirmedLoss ? t('deleteBranch.worktreeLossWarning') : t('deleteBranch.worktreeWarning'))
+    : null;
+  const dcWarning = [
+    dcScope !== 'remote' && dc?.notMerged ? t('deleteBranch.notMergedWarning') : null,
+    dcMismatch,
+    dcWorktreeLoss,
+  ].filter(Boolean).join(' ') || undefined;
   const dcConfirmLabel = dcScope === 'remote'
     ? t('deleteBranch.deleteRemote')
     : dcScope === 'both'
       ? t('deleteBranch.deleteBoth')
-      : dc?.notMerged ? t('deleteBranch.force') : t('deleteBranch.delete');
+      : dcScope === 'worktree'
+        ? (dc?.confirmedLoss ? t('deleteBranch.deleteWorktreeForce') : t('deleteBranch.deleteWorktree'))
+        : dc?.notMerged ? t('deleteBranch.force') : t('deleteBranch.delete');
 
   const reportRemoteFailure = (error?: string, authRequired?: boolean) => {
     props.setError(authRequired
@@ -260,13 +295,41 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
     if (!state) return;
     const force = state.notMerged === true;
 
+    if (state.scope === 'worktree') {
+      if (!state.worktreePath) { props.setDeleteConfirm(null); return; }
+      const r = await props.deleteBranchAndWorktree(state.branch, state.worktreePath, {
+        force: state.confirmedLoss === true,
+      });
+      if (!r.success) {
+        if (r.hasChanges && state.confirmedLoss !== true) {
+          // El worktree tenía cambios sin confirmar: re-pedir confirmación
+          // explícita de la pérdida antes de forzar. No cierra el diálogo.
+          props.setDeleteConfirm({ ...state, confirmedLoss: true });
+          return;
+        }
+        props.setError(r.error ?? t('deleteBranch.worktreeError'));
+      } else {
+        props.setSuccess(t('deleteBranch.successWorktree', { branch: state.branch }));
+      }
+      props.setDeleteConfirm(null);
+      return;
+    }
+
     if (state.scope === 'remote') {
       const r = await props.deleteRemoteBranch(
         state.remoteBranch ?? state.branch,
         state.remote ?? 'origin',
       );
-      if (!r.success) reportRemoteFailure(r.error, r.authRequired);
-      else {
+      if (!r.success) {
+        if (r.error === 'DEFAULT_BRANCH') {
+          props.setError(t('deleteBranch.defaultBlocked', {
+            remote: state.remote ?? 'origin',
+            branch: state.remoteBranch ?? state.branch,
+          }));
+        } else {
+          reportRemoteFailure(r.error, r.authRequired);
+        }
+      } else {
         props.setSuccess(t('deleteBranch.successRemote', {
           branch: state.remoteBranch ?? state.branch,
           remote: state.remote ?? 'origin',
@@ -294,9 +357,12 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
         state.remote ?? 'origin',
       );
       if (!remote.success) {
+        const blocked = remote.error === 'DEFAULT_BRANCH'
+          ? t('deleteBranch.defaultBlocked', { remote: state.remote ?? 'origin', branch: state.remoteBranch ?? state.branch })
+          : null;
         props.setError(remote.authRequired
           ? t('deleteBranch.remoteAuthRequired')
-          : t('deleteBranch.partialLocalOk', { error: remote.error ?? '' }));
+          : blocked ?? t('deleteBranch.partialLocalOk', { error: remote.error ?? '' }));
       } else {
         props.setSuccess(t('deleteBranch.successBoth', {
           local: state.branch,
@@ -370,20 +436,56 @@ export function RepoOverlayLayer(props: RepoOverlayLayerProps) {
         onRename={(branch) => { props.setRenameModal({ oldName: branch, newName: branch }); props.setBranchMenu(null); }}
         onDeleteLocal={async (branch) => {
           props.setBranchMenu(null);
+          // ¿La rama está abierta por un worktree que no es el principal? Si sí,
+          // el borrado directo falla con el error crudo de Git: ofrecemos soltarlo.
+          const wt = props.worktrees.find(
+            (w) => w.branch === branch && !w.detached && !!w.path && w.path !== props.repoPath,
+          );
+          if (wt) {
+            props.setDeleteConfirm({ branch, scope: 'worktree', worktreePath: wt.path });
+            return;
+          }
           // Chequeo proactivo de merge: decide upfront si mostrar el warning de
           // commits a perder (y usar -D) o el diálogo normal (-d).
           const merged = await props.checkBranchMerged(branch);
           props.setDeleteConfirm({ branch, scope: 'local', notMerged: !merged });
         }}
         onDeleteRemote={(branch) => {
-          const target = remoteBranchTarget(props.branchTracking[branch]?.upstream, branch);
+          const tracking = props.branchTracking[branch];
+          const hasRemote = !!tracking?.upstream && !tracking?.gone;
+          if (!hasRemote) {
+            // Upstream gone o sin configurar: no hay nada que borrar en el remoto.
+            props.setSuccess(t('deleteBranch.goneInfo', { branch }));
+            void props.checkBranchMerged(branch).then((merged) =>
+              props.setDeleteConfirm({ branch, scope: 'local', notMerged: !merged }),
+            );
+            props.setBranchMenu(null);
+            return;
+          }
+          const target = remoteBranchTarget(tracking?.upstream, branch);
+          if (isRemoteBranchDefault(target.branch, props.defaultRemoteBranch)) {
+            props.setError(t('deleteBranch.defaultBlocked', { remote: target.remote, branch: target.branch }));
+            props.setBranchMenu(null);
+            return;
+          }
           props.setDeleteConfirm({ branch, scope: 'remote', remote: target.remote, remoteBranch: target.branch });
           props.setBranchMenu(null);
         }}
         onDeleteBoth={async (branch) => {
           props.setBranchMenu(null);
+          const tracking = props.branchTracking[branch];
+          const hasRemote = !!tracking?.upstream && !tracking?.gone;
           const merged = await props.checkBranchMerged(branch);
-          const target = remoteBranchTarget(props.branchTracking[branch]?.upstream, branch);
+          if (!hasRemote) {
+            props.setSuccess(t('deleteBranch.goneInfo', { branch }));
+            props.setDeleteConfirm({ branch, scope: 'local', notMerged: !merged });
+            return;
+          }
+          const target = remoteBranchTarget(tracking?.upstream, branch);
+          if (isRemoteBranchDefault(target.branch, props.defaultRemoteBranch)) {
+            props.setError(t('deleteBranch.defaultBlocked', { remote: target.remote, branch: target.branch }));
+            return;
+          }
           props.setDeleteConfirm({
             branch,
             scope: 'both',

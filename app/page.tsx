@@ -14,7 +14,7 @@ import { setRepoLoading } from '@/hooks/git-actions/repo-loading';
 import { useAutoFetch } from '@/hooks/use-auto-fetch';
 import { commitHasBranchRef, normalizeBranchName, type CommitSelectOptions } from '@/components/CommitGraph';
 import { RepoMainView } from '@/components/RepoMainView';
-import { RepoOverlayLayer } from '@/components/RepoOverlayLayer';
+import { RepoOverlayLayer, type DeleteBranchState } from '@/components/RepoOverlayLayer';
 import { RepoTabs } from '@/components/RepoTabs';
 import { DangerConfirmDialog } from '@/components/DangerConfirmDialog';
 import {
@@ -134,6 +134,7 @@ export default function GitCronPage() {
   const githubUser = useGitStore((s) => s.githubUser);
   const branchTracking = useGitStore((s) => s.branchTracking);
   const worktrees = useGitStore((s) => s.worktrees);
+  const defaultRemoteBranch = useGitStore((s) => s.defaultRemoteBranch);
   const pullRequests = useGitStore((s) => s.pullRequests);
   const setOpenRepos = useGitStore((s) => s.setOpenRepos);
   const setLoading = (loading: boolean) => setRepoLoading(repoPath, loading);
@@ -151,7 +152,7 @@ export default function GitCronPage() {
     addToGitignore, resetAll, stashFile, showInFolder, openInDefault,
     deleteFile, cleanUntracked, copyFilePath,
     mergeIntoCurrent, rebaseOnto, fastForwardBranch, amendLastCommit, cherryPickCommit, squashCommits,
-    renameBranch, deleteBranch, deleteRemoteBranch, deleteTag, createTag, pushTag, pullSpecificBranch, pushSpecificBranch,
+    renameBranch, deleteBranch, deleteBranchAndWorktree, deleteRemoteBranch, deleteTag, createTag, pushTag, pullSpecificBranch, pushSpecificBranch,
     pullWithDecision,
   } = useGitActions();
 
@@ -489,13 +490,9 @@ export default function GitCronPage() {
   const [branchMenu, setBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
   const [remoteBranchMenu, setRemoteBranchMenu] = useState<{ x: number; y: number; branch: string } | null>(null);
   const [renameModal, setRenameModal] = useState<{ oldName: string; newName: string } | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    branch: string;
-    scope: 'local' | 'remote' | 'both';
-    notMerged?: boolean;
-    remote?: string;
-    remoteBranch?: string;
-  } | null>(null);
+  // El tipo viene de `RepoOverlayLayer`, que es quien lo consume. Acá había una
+  // copia que quedó vieja —sin `'worktree'` ni los campos nuevos— y rompió `tsc`.
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteBranchState>(null);
   const [deleteTagConfirm, setDeleteTagConfirm] = useState<string | null>(null);
   const [discardConfirmFile, setDiscardConfirmFile] = useState<GitFile | null>(null);
   const [mergeNeedsCheckout, setMergeNeedsCheckout] = useState<{ sourceBranch: string; targetBranch: string } | null>(null);
@@ -1785,6 +1782,8 @@ export default function GitCronPage() {
         repoPath={repoPath}
         commits={commits}
         branchTracking={branchTracking}
+        worktrees={worktrees}
+        defaultRemoteBranch={defaultRemoteBranch}
         showNewBranch={showNewBranch}
         setShowNewBranch={setShowNewBranch}
         newBranchName={newBranchName}
@@ -1833,6 +1832,7 @@ export default function GitCronPage() {
         deleteConfirm={deleteConfirm}
         setDeleteConfirm={setDeleteConfirm}
         deleteBranch={deleteBranch}
+        deleteBranchAndWorktree={deleteBranchAndWorktree}
         deleteRemoteBranch={deleteRemoteBranch}
         checkBranchMerged={async (branch) => {
           if (!window.api || !repoPath) return true;

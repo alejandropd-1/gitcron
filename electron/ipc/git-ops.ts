@@ -13,6 +13,7 @@ import type {
   BranchTrackingInfo, WorktreeEntry, FileHistoryEntry,
 } from '../../types/electron';
 import { parseGitBlamePorcelain } from '../../lib/blame-parse';
+import { parseRemoteDefaultBranch } from '../../lib/branch-upstream';
 import { parseBranchTracking } from './branch-tracking';
 import { isBranchMerged } from './branch-merge';
 import { parseUnifiedDiff, type ApplyHunkOptions } from '../../lib/hunk-patch';
@@ -310,6 +311,21 @@ export function registerGitOpsHandlers(): void {
       return { success: true, data: branchData };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };
+    }
+  });
+
+  // Rama por defecto del remoto, sin red: `git symbolic-ref --short
+  // refs/remotes/<remote>/HEAD` (p. ej. `origin/main`). Se devuelve el nombre
+  // corto (`main`) para comparar contra el objetivo del borrado remoto, o null
+  // si el HEAD del remoto no está resuelto localmente (clone/fetch sin set-head).
+  ipcMain.handle('git:default-branch', async (_event, targetPath: string, remote: string) => {
+    try {
+      const raw = await simpleGit(targetPath).raw([
+        'symbolic-ref', '--short', `refs/remotes/${remote}/HEAD`,
+      ]);
+      return { success: true, data: parseRemoteDefaultBranch(raw, remote) };
+    } catch {
+      return { success: true, data: null };
     }
   });
 

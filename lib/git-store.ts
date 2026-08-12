@@ -41,6 +41,7 @@ export interface RepoState {
   submodules: SubmoduleEntry[];
   remotes: RemoteEntry[];
   branchTracking: Record<string, BranchTrackingInfo>;
+  defaultRemoteBranch: string | null;
   worktrees: WorktreeEntry[];
   pullRequests: PullRequestEntry[];
   commitMessage: string;
@@ -87,6 +88,7 @@ interface GitStore {
   submodules: SubmoduleEntry[];
   remotes: RemoteEntry[];
   branchTracking: Record<string, BranchTrackingInfo>;
+  defaultRemoteBranch: string | null;
   worktrees: WorktreeEntry[];
   pullRequests: PullRequestEntry[];
   commitMessage: string;
@@ -132,6 +134,7 @@ interface GitStore {
   setSubmodules: (submodules: SubmoduleEntry[]) => void;
   setRemotes: (remotes: RemoteEntry[]) => void;
   setBranchTracking: (tracking: Record<string, BranchTrackingInfo>) => void;
+  setDefaultRemoteBranch: (defaultRemoteBranch: string | null) => void;
   setWorktrees: (worktrees: WorktreeEntry[]) => void;
   setPullRequests: (prs: PullRequestEntry[]) => void;
   setLoading: (loading: boolean) => void;
@@ -173,6 +176,7 @@ function createEmptyRepoFields(): EmptyRepoFields {
     submodules: [],
     remotes: [],
     branchTracking: {},
+    defaultRemoteBranch: null,
     worktrees: [],
     pullRequests: [],
     commitMessage: '',
@@ -226,6 +230,7 @@ function legacyFromRepo(repo: RepoState | null) {
     submodules: repo.submodules,
     remotes: repo.remotes,
     branchTracking: repo.branchTracking,
+    defaultRemoteBranch: repo.defaultRemoteBranch,
     worktrees: repo.worktrees,
     pullRequests: repo.pullRequests,
     commitMessage: repo.commitMessage,
@@ -413,6 +418,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   submodules: [],
   remotes: [],
   branchTracking: {},
+  defaultRemoteBranch: null,
   worktrees: [],
   pullRequests: [],
   commitMessage: '',
@@ -482,6 +488,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
   setSubmodules: (submodules) => get().updateActiveRepo({ submodules }),
   setRemotes: (remotes) => get().updateActiveRepo({ remotes }),
   setBranchTracking: (branchTracking) => get().updateActiveRepo({ branchTracking }),
+  setDefaultRemoteBranch: (defaultRemoteBranch) => get().updateActiveRepo({ defaultRemoteBranch }),
   setWorktrees: (worktrees) => get().updateActiveRepo({ worktrees }),
   setPullRequests: (pullRequests) => get().updateActiveRepo({ pullRequests }),
   setMergeInProgress: (mergeInProgress) => get().updateActiveRepo({ mergeInProgress }),

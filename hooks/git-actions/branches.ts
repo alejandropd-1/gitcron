@@ -15,7 +15,7 @@ export const useBranchActions = () => {
     setSuccess,
   } = useGitStore();
 
-  const { refreshLog, refreshStatus, refreshBranches, refreshTags } = useRepoLoader();
+  const { refreshLog, refreshStatus, refreshBranches, refreshTags, refreshWorktrees } = useRepoLoader();
   const setLoading = (isLoading: boolean) => setRepoLoading(repoPath, isLoading);
 
   const runCommand = async (args: string[]) => {
@@ -210,6 +210,34 @@ export const useBranchActions = () => {
     } finally { setLoading(false); }
   };
 
+  /**
+   * Suelta el worktree que tiene abierta la rama y, si sale bien, borra la rama
+   * local: un paso desde la persona, secuencial por dentro. Si soltar el worktree
+   * falla —`HAS_CHANGES` si la copia de trabajo tenía cambios sin confirmar— no se
+   * borra la rama y se reporta para que la UI re-confirme la pérdida. `force` lo
+   * pasa la UI sólo cuando la persona aceptó sabiendo que esos cambios se pierden.
+   */
+  const deleteBranchAndWorktree = async (
+    branch: string,
+    worktreePath: string,
+    opts: { force?: boolean } = {},
+  ): Promise<{ success: boolean; hasChanges?: boolean; notMerged?: boolean; error?: string }> => {
+    if (!window.api || !repoPath) return { success: false };
+    setLoading(true); setError(null);
+    try {
+      const remove = await window.api.gitWorktreeRemove(repoPath, worktreePath, opts.force === true);
+      if (!remove.success) {
+        const hasChanges = remove.error === 'HAS_CHANGES';
+        if (!hasChanges) setError(remove.error ?? 'Error al soltar el worktree');
+        return { success: false, hasChanges, error: remove.error };
+      }
+      const del = await deleteBranch(branch, false);
+      await refreshWorktrees();
+      if (!del.success) return { success: false, notMerged: del.notMerged };
+      return { success: true };
+    } finally { setLoading(false); }
+  };
+
   const deleteTag = async (tagName: string): Promise<{ success: boolean }> => {
     if (!window.api || !repoPath) return { success: false };
     setLoading(true); setError(null);
@@ -267,6 +295,7 @@ export const useBranchActions = () => {
     fastForwardBranch,
     renameBranch,
     deleteBranch,
+    deleteBranchAndWorktree,
     deleteTag,
     createTag,
   };

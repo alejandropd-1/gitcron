@@ -1224,6 +1224,17 @@ const es: Dict = {
   'deleteBranch.successLocal': 'Rama local «{{branch}}» eliminada',
   'deleteBranch.successRemote': 'Rama remota «{{branch}}» eliminada de {{remote}}',
   'deleteBranch.successBoth': 'Ramas eliminadas: local «{{local}}» y remota «{{remoteBranch}}» de {{remote}}',
+  'deleteBranch.goneInfo': 'La rama «{{branch}}» no existe en el remoto (upstream gone): no hay nada que borrar ahí. Se ofrece sólo el borrado local.',
+  'deleteBranch.defaultBlocked': 'No se puede borrar «{{branch}}» de {{remote}}: es la rama por defecto del remoto. Borrarla destruiría el punto de partida del repositorio.',
+  'deleteBranch.remoteMismatch': '⚠ El nombre remoto difiere del local: se borraría «{{remote}}/{{remoteBranch}}».',
+  'deleteBranch.worktreeTitle': 'Rama abierta por un worktree',
+  'deleteBranch.worktreeConfirm': 'La rama «{{branch}}» está abierta por el worktree en «{{path}}». Para borrarla hay que soltar ese worktree, lo que elimina esa copia de trabajo.',
+  'deleteBranch.worktreeWarning': '⚠ Soltar el worktree borra su copia de trabajo completa: si tuviera cambios sin confirmar, se pierden.',
+  'deleteBranch.worktreeLossWarning': '⚠ Ese worktree tiene cambios sin confirmar. Si confirmás, se pierden definitivamente.',
+  'deleteBranch.deleteWorktree': 'Soltar worktree y borrar la rama',
+  'deleteBranch.deleteWorktreeForce': 'Confirmo: soltar y borrar (pierde los cambios)',
+  'deleteBranch.worktreeError': 'No se pudo soltar el worktree',
+  'deleteBranch.successWorktree': 'Worktree soltado y rama «{{branch}}» eliminada',
 
   // ── Help Modal ──
   'help.title': 'Ayuda — Cómo funciona GitCron',

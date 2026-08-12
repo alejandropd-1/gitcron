@@ -73,6 +73,7 @@ export const useRepoLoader = () => {
   const setSubmodules = useGitStore((state) => state.setSubmodules);
   const setRemotes = useGitStore((state) => state.setRemotes);
   const setBranchTracking = useGitStore((state) => state.setBranchTracking);
+  const setDefaultRemoteBranch = useGitStore((state) => state.setDefaultRemoteBranch);
   const setWorktrees = useGitStore((state) => state.setWorktrees);
   const setPullRequests = useGitStore((state) => state.setPullRequests);
   const setMergeInProgress = useGitStore((state) => state.setMergeInProgress);
@@ -523,6 +524,12 @@ export const useRepoLoader = () => {
           if (data.tracking) setBranchTracking(data.tracking);
           },
         );
+        // Rama por defecto del remoto (origin), para que la UI no ofrezca borrarla
+        // como objetivo de un upstream mal configurado. Local y sin red; si no está
+        // resuelta, va null y la confirmación con nombre remoto queda de respaldo.
+        void window.api.gitDefaultBranch(ctx.target, 'origin')
+          .then((r) => setDefaultRemoteBranch(r.success ? (r.data ?? null) : null))
+          .catch(() => {});
       }
     } catch (err: any) { console.error('refreshBranches error:', err); }
   };

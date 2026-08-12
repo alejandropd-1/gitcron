@@ -106,4 +106,62 @@ describe('git remote IPC handlers', () => {
     const r8 = await listRemotes(null, tempDir) as { success: boolean; data: any[] };
     expect(r8.data).toEqual([]);
   });
+
+  /**
+   * La guardia que impide borrar la rama por defecto del remoto.
+   *
+   * Existe porque el borrado remoto resuelve el upstream configurado, y una rama
+   * local puede tener `origin/main` como upstream sin que su nombre lo delate:
+   * Ale tenía dos así, `claude/exciting-wilbur-4fa8e1` y `claude/jolly-khayyam-2be14c`,
+   * ambas apuntando a `origin/main`. Borrarlas le pedía a GitHub que borrara
+   * `main`, y lo único que lo evitaba era la protección del servidor.
+   *
+   * Se prueba contra Git de verdad —repositorio bare como remoto, clon, y
+   * `remote set-head` para que `refs/remotes/origin/HEAD` exista— porque lo que
+   * hay que verificar es que la resolución del default funcione con la salida
+   * real de `symbolic-ref`, no con la que suponemos.
+   */
+  it('nunca borra la rama por defecto del remoto, aunque se la pidan', async () => {
+    const bare = path.join(tempDir, 'origin.git');
+    const work = path.join(tempDir, 'work');
+    fs.mkdirSync(bare, { recursive: true });
+    fs.mkdirSync(work, { recursive: true });
+    await simpleGit(bare).init(['--bare', '--initial-branch=main']);
+
+    const g = simpleGit(work);
+    await g.init(['--initial-branch=main']);
+    await g.addConfig('user.email', 'test@gitcron.local');
+    await g.addConfig('user.name', 'GitCron Test');
+    fs.writeFileSync(path.join(work, 'a.txt'), 'contenido');
+    await g.add('.');
+    await g.commit('primer commit');
+    await g.addRemote('origin', bare);
+    await g.push(['-u', 'origin', 'main']);
+    await g.checkoutLocalBranch('descartable');
+    await g.push(['-u', 'origin', 'descartable']);
+    // Deja `refs/remotes/origin/HEAD` resuelto, que es de donde sale el default.
+    await g.raw(['remote', 'set-head', 'origin', 'main']);
+
+    const deleteRemote = handler('git:delete-remote-branch');
+
+    // La rama por defecto: se rechaza SIN ejecutar el borrado.
+    const bloqueada = await deleteRemote(null, work, 'origin', 'main') as {
+      success: boolean; error?: string; data?: { defaultBranch?: string };
+    };
+    expect(bloqueada.success).toBe(false);
+    expect(bloqueada.error).toBe('DEFAULT_BRANCH');
+    expect(bloqueada.data?.defaultBranch).toBe('main');
+
+    // Y `main` sigue existiendo en el remoto: la guardia corta antes del push,
+    // no después. Sin esta comprobación el test pasaría igual con un borrado
+    // que ocurre y después informa el error.
+    const tras = await simpleGit(bare).raw(['branch', '--list', 'main']);
+    expect(tras.trim()).toContain('main');
+
+    // Una rama común no cae en la guardia.
+    const permitida = await deleteRemote(null, work, 'origin', 'descartable') as {
+      success: boolean; error?: string;
+    };
+    expect(permitida.error).not.toBe('DEFAULT_BRANCH');
+  });
 });

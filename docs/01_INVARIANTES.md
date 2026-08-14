@@ -57,3 +57,22 @@
     complejidad: confirmar primero con CodeGraph que no sostiene features vivas.
 17. **Fallow y CodeGraph son rutinas que pide Ale**, no automatismos del cierre.
 18. Ante cualquier ambigüedad de alcance: **preguntar, no asumir.**
+19. **Una suite que no termina no está en verde, y ningún recorrido del disco puede
+    ser infinito.** Dos caras del mismo caso real (2026-08-14, change
+    `actualizar-integracion-openspec-1-8`): `computeDirContentHash` recorría carpetas
+    con una cola **sin tope de profundidad ni registro de lo ya visitado**, y cuatro
+    tests le pasaban un `readdir` falso que devolvía las mismas entradas para toda ruta
+    que contuviera `.agents`. El resultado fue un bucle **sincrónico** infinito: los
+    ~1215 tests pasaban, se imprimía verde, y el proceso no salía nunca.
+    - **No se sube un `testTimeout` para destrabar una suite.** Un timeout de test no
+      puede interrumpir un bucle sincrónico: subirlo de 5 a 15 s no arregló nada y
+      además tapó el síntoma. Si la suite no devuelve exit code, se aísla el archivo
+      (bisección por grupo y por tanda), no se afloja el reloj.
+    - **`pnpm test` cuenta sólo con exit code observado.** "Vi verde en pantalla" no es
+      evidencia: el verde se imprime antes del cierre del proceso.
+    - **Todo recorrido de directorios en el proceso principal lleva tope** de
+      profundidad y de entradas, y corta ante lo ya visitado. Congelar el main de
+      Electron congela la aplicación entera y no se puede cancelar.
+    - **Un doble de disco no puede describir un árbol infinito.** Si el `readdir`
+      falso responde por coincidencia de subcadena (`p.includes('.agents')`), todo
+      descendiente vuelve a coincidir. Los dobles se anclan a rutas exactas.

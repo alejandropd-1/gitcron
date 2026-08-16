@@ -76,3 +76,20 @@
     - **Un doble de disco no puede describir un árbol infinito.** Si el `readdir`
       falso responde por coincidencia de subcadena (`p.includes('.agents')`), todo
       descendiente vuelve a coincidir. Los dobles se anclan a rutas exactas.
+20. **Cuando un parámetro cambia de rol, hay que re-auditar todos sus callers.** Caso real
+    (2026-08-16, change `actualizar-integracion-openspec-1-8`): `repoPath` servía sólo para
+    **etiquetar** la procedencia del CLI —la resolución siempre recorría el `PATH`—, así que
+    una ruta sin validar era inofensiva. Al agregar la resolución local al proyecto, ese
+    mismo `repoPath` pasó a **decidir qué binario se ejecuta**
+    (`<repoPath>/node_modules/.bin/openspec`). El parámetro no cambió de nombre ni de tipo:
+    cambió de poder, y ningún compilador avisa de eso.
+    - **Un control de seguridad duplicado se desincroniza.** Había **cinco** copias de
+      `validRepoPath` y sólo una exigía autorización; las otras cuatro habían quedado viejas
+      cuando esa se endureció. Guarda compartida, una sola definición.
+    - **Ampliar el poder de un parámetro es cambiar su superficie de ataque.** Antes de
+      hacerlo, listar sus callers y comprobar qué valida cada uno. La revisión no es del
+      código nuevo: es de todo lo que ya le pasaba ese valor.
+    - **Ejecutar algo que vino con un repositorio es una superficie de confianza nueva.**
+      Va con contención verificada tras canonicalizar (un symlink no puede sacar la
+      ejecución fuera del repo) y con la autorización exigida en el borde **y** en la
+      resolución, para que un caller futuro no reabra el agujero.

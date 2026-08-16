@@ -7,8 +7,16 @@
  *
  * Describen el proceso real, que es lo que se midió: se arma el contexto con el
  * cambio y las tareas, se recorta el diff al presupuesto, y el modelo razona
- * bastante antes de escribir una línea —gemma-4-12b gastó 1.585 tokens pensando
- * para devolver sesenta caracteres—.
+ * antes de escribir.
+ *
+ * La espera **se acortó** y estas frases siguen valiendo, pero por otro motivo
+ * que el original. Los 1.585 tokens que gemma-4-12b gastaba pensando para
+ * devolver sesenta caracteres no eran el costo de razonar: eran el costo de
+ * contar letras para cumplir un «Máximo 72 caracteres» que el pedido ya no
+ * incluye. Al retirarlo, en qwen3.8-27b el razonamiento cayó de 2.023 a 640
+ * tokens y la espera se redujo en consecuencia. Las cifras son **por modelo** —
+ * la app usa el que esté cargado en LM Studio, no uno fijo—, así que la espera
+ * real varía: sigue habiendo una, y sigue habiendo algo que contar mientras.
  *
  * El mecanismo que las rota es `hooks/use-rotating-thoughts`, compartido.
  */

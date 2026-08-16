@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
-### Requirement: Generación de mensaje con asunto y cuerpo
-El sistema SHALL solicitar al modelo de lenguaje local un mensaje de commit compuesto por un asunto convencional, una línea en blanco y un cuerpo explicativo en prosa en español cuando exista contexto suficiente.
+### Requirement: Generación de mensaje con asunto y cuerpo sin conteo de caracteres
+El sistema SHALL solicitar al modelo de lenguaje local un mensaje de commit compuesto por un asunto convencional conciso, una línea en blanco y un cuerpo explicativo en prosa en español cuando exista contexto suficiente, sin exigirle al modelo un conteo de caracteres.
 
 #### Scenario: Generación exitosa con contexto de cambio y diff
 - **WHEN** se construye el prompt de commit con diff e intención de cambio disponible
-- **THEN** el system prompt instruye al modelo a responder con un asunto convencional de hasta 72 caracteres, una línea en blanco y un cuerpo conciso que explique qué cambia y por qué sin inventar hechos no presentes en el contexto
+- **THEN** el system prompt instruye al modelo a responder con un asunto convencional conciso y directo al grano, una línea en blanco y un cuerpo breve que explique qué cambia y por qué sin inventar hechos no presentes en el contexto
 
 #### Scenario: Ausencia de información para redactar cuerpo
 - **WHEN** el contexto del cambio o el diff no contienen información suficiente para justificar un cuerpo explicativo

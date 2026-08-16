@@ -8,7 +8,13 @@
 // de Git.
 
 /**
- * El pedido, en una línea y con formato convencional.
+ * El pedido, con formato convencional, asunto conciso y cuerpo explicativo opcional.
+ *
+ * Se le pide primera línea con asunto convencional, una línea en blanco y un
+ * cuerpo breve en prosa que explique qué cambia y por qué. Se removió la
+ * restricción de "Máximo 72 caracteres" porque los LLMs trabajan en tokens y
+ * gastaban miles de tokens de razonamiento deletreando y sumando letras; la
+ * brevedad se guía de forma cualitativa ("asunto conciso", "directo al grano").
  *
  * Se le dice explícitamente que el tipo salga del diff y no de la
  * documentación: en un change de OpenSpec casi todos los archivos tocados son
@@ -16,11 +22,20 @@
  * trabajo fue una función nueva.
  */
 export const SYSTEM_PROMPT = [
-  'Sos un asistente que redacta el asunto de un commit de Git. Respondés UNA sola línea, nada más.',
-  'Formato: <tipo>(<alcance>): <descripción en castellano, imperativo, sin punto final>',
-  'Tipos posibles: feat, fix, chore, refactor, style, test, docs.',
-  'Elegí el tipo mirando qué hace el diff, no lo que dice la documentación.',
-  'Máximo 72 caracteres.',
+  'Sos un asistente que redacta el mensaje de un commit de Git (asunto y cuerpo opcional).',
+  'Estructura de la respuesta:',
+  '1. Primera línea: asunto convencional y conciso en formato <tipo>(<alcance>): <descripción en castellano, imperativo, sin punto final>. Directo al grano.',
+  '2. Una línea en blanco.',
+  '3. Cuerpo breve en prosa en castellano que explique qué cambia y por qué.',
+  '',
+  'Reglas:',
+  '- Tipos posibles: feat, fix, chore, refactor, style, test, docs.',
+  '- Elegí el tipo mirando qué hace el diff, no lo que dice la documentación.',
+  '- El asunto debe ser conciso y directo al punto.',
+  '- Para el cuerpo, apoyate en la intención del cambio y en las tareas cerradas del contexto; no las repitas textualmente.',
+  '- Mencioná cambios de comportamiento o de seguridad si el diff los muestra.',
+  '- Mantené líneas y párrafos de largo razonable.',
+  '- Sin inventar: si no hay información suficiente para justificar un cuerpo, devolvé sólo el asunto en una única línea.',
 ].join('\n');
 
 /**
@@ -36,19 +51,40 @@ export const CHARS_PER_TOKEN = 3;
 /**
  * Qué proporción del contexto puede ocupar la entrada.
  *
- * La otra mitad queda para el razonamiento y la respuesta, que en los modelos
- * medidos es lo que más consume: gemma-4-12b gastó 1.585 tokens pensando para
- * devolver una línea de 60 caracteres.
+ * La otra mitad queda para el razonamiento y la respuesta, que es lo que más
+ * consume.
+ *
+ * Cuidado al leer las cifras que documentan este módulo: **son por modelo**, y
+ * la app no fija ninguno —usa el que esté cargado en LM Studio (`local-provider`
+ * sólo comprueba que lo esté y que su contexto alcance)—. Sirven como evidencia
+ * de un efecto, no como calibración universal. El propio `maxTokens` de
+ * `local-provider` ya lo declara: 3.000 alcanzan para un modelo y no para otro.
+ *
+ * Y una cifra histórica que conviene no malinterpretar: los 1.585 tokens que
+ * gemma-4-12b gastaba pensando para devolver 60 caracteres **no eran el costo
+ * de razonar**, eran el costo de contar letras para cumplir un «Máximo 72
+ * caracteres» que este pedido ya no incluye. Al retirarlo, en qwen3.8-27b el
+ * razonamiento cayó de 2.023 a 640 tokens. Ver `SYSTEM_PROMPT` y
+ * `DEFAULT_MAX_TOKENS`.
  */
 export const INPUT_CONTEXT_SHARE = 0.5;
 
 /**
  * Techo de tokens de salida por omisión.
  *
- * Medido: con 200 y con 1.200 la respuesta llega vacía porque el razonamiento se
- * come el presupuesto; con 3.000 sale el contenido. Es un piso derivado de una
- * medición, no un número elegido, y quien llama puede subirlo —qwen3.5-9b
- * necesitó 8.000—.
+ * Mediciones documentadas:
+ * - Histórica (con exigencia de "Máximo 72 caracteres"): con 200 y con 1.200 la
+ *   respuesta llegaba vacía porque el modelo gastaba el presupuesto deletreando
+ *   letras para contar caracteres (gemma-4-12b gastó 1.585 tokens pensando para
+ *   devolver 60 caracteres). Con 3.000 salía el contenido.
+ * - Medición actual (sin cuenta de caracteres, con cuerpo en prosa):
+ *   Al retirar la exigencia numérica de caracteres, los tokens de razonamiento
+ *   cayeron drásticamente (en qwen3.8-27b bajó de 2.023 a 640 en unilínea, y a
+ *   693 con cuerpo). El cuerpo agrega ~80 tokens de texto de salida neto, totalizando
+ *   ~796 tokens de completion.
+ *
+ * El valor 3.000 se mantiene como techo seguro y holgado para modelos con razonamiento
+ * extenso (qwen3.5-9b requirió hasta 8.000).
  */
 export const DEFAULT_MAX_TOKENS = 3_000;
 
@@ -132,14 +168,15 @@ const CONVENTIONAL_TYPES = ['feat', 'fix', 'chore', 'refactor', 'style', 'test',
 const SUBJECT_SHAPE = new RegExp(`^(${CONVENTIONAL_TYPES.join('|')})(\\([^)\\n]+\\))?: \\S.*$`);
 
 /**
- * Si lo que devolvió tiene la forma pedida.
+ * Si la primera línea de lo que devolvió tiene la forma pedida.
  *
  * Existe porque un asunto que no la tiene no puede imponerse en el campo: la
  * sugerencia se ofrece, y ofrecer algo mal formado obliga a corregirlo a mano,
- * que es peor que no sugerir. No se valida el largo —72 caracteres es una guía
- * del pedido, no una condición— porque un asunto correcto de 80 sigue siendo
- * mejor que ninguno.
+ * que es peor que no sugerir. Evalúa exclusivamente la primera línea para
+ * admitir mensajes con cuerpo sin catalogarlos como malformados. No se valida el
+ * largo porque un asunto correcto sigue siendo mejor que ninguno.
  */
 export function isConventionalSubject(subject: string): boolean {
-  return SUBJECT_SHAPE.test(subject.trim());
+  const firstLine = subject.trimStart().split(/\r?\n/, 1)[0] ?? '';
+  return SUBJECT_SHAPE.test(firstLine.trimEnd());
 }

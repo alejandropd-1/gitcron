@@ -4,6 +4,7 @@ import {
   CHARS_PER_TOKEN,
   inputBudgetChars,
   isConventionalSubject,
+  SYSTEM_PROMPT,
   truncateDiff,
 } from '../ai/commit-message/prompt';
 
@@ -15,6 +16,20 @@ import {
  */
 
 const diffDe = (lineas: number) => Array.from({ length: lineas }, (_, i) => `+linea ${i}`).join('\n');
+
+describe('la instrucción del sistema (SYSTEM_PROMPT)', () => {
+  it('pide asunto convencional, línea en blanco y cuerpo explicativo opcional', () => {
+    expect(SYSTEM_PROMPT).toContain('asunto convencional');
+    expect(SYSTEM_PROMPT).toContain('Una línea en blanco');
+    expect(SYSTEM_PROMPT).toContain('Cuerpo breve en prosa en castellano');
+    expect(SYSTEM_PROMPT).toContain('qué cambia y por qué');
+  });
+
+  it('no exige un conteo ni límite numérico de caracteres al modelo', () => {
+    expect(SYSTEM_PROMPT).not.toContain('Máximo 72 caracteres');
+    expect(SYSTEM_PROMPT).not.toMatch(/\d+\s*caracteres/i);
+  });
+});
 
 describe('el presupuesto de entrada', () => {
   it('se queda corto a propósito', () => {
@@ -91,29 +106,42 @@ describe('el mensaje que se arma', () => {
 });
 
 describe('la forma del asunto devuelto', () => {
-  it('acepta lo que tiene la forma pedida', () => {
+  it('acepta lo que tiene la forma pedida en una sola línea (comportamiento actual intacto)', () => {
     expect(isConventionalSubject('feat(pipeline): atribuir archivos por la rama')).toBe(true);
     expect(isConventionalSubject('chore: archivar el cambio')).toBe(true);
     expect(isConventionalSubject('style(pipeline): cambiar color de avisos a ámbar')).toBe(true);
   });
 
-  it('rechaza lo que no se puede imponer en el campo', () => {
+  it('acepta un mensaje multilínea con asunto convencional válido seguido de cuerpo explicativo', () => {
+    const multiline = [
+      'feat(pipeline): agregar guarda de contención en resolución de ejecutable',
+      '',
+      'Unifica validRepoPath en shared.ts y comprueba que la ruta canónica',
+      'no escape del directorio del repositorio.',
+    ].join('\n');
+    expect(isConventionalSubject(multiline)).toBe(true);
+
+    const multilineWithCrLf = 'fix(ipc): validar autorización\r\n\r\nCuerpo con saltos Windows.';
+    expect(isConventionalSubject(multilineWithCrLf)).toBe(true);
+  });
+
+  it('rechaza lo que no se puede imponer en el campo (con o sin cuerpo)', () => {
     // Ofrecer algo mal formado obliga a corregirlo a mano, que es peor que no
     // sugerir nada.
     expect(isConventionalSubject('Corregí el color de los avisos')).toBe(false);
+    expect(isConventionalSubject('Corregí el color de los avisos\n\nCuerpo explicativo.')).toBe(false);
     expect(isConventionalSubject('feat pipeline: sin los dos puntos')).toBe(false);
     expect(isConventionalSubject('feat(pipeline):')).toBe(false);
     expect(isConventionalSubject('')).toBe(false);
   });
 
-  it('rechaza un tipo que el pedido no nombró', () => {
+  it('rechaza un tipo que el pedido no nombró (con o sin cuerpo)', () => {
     // Aceptarlo sería premiar que el modelo ignore la instrucción.
     expect(isConventionalSubject('wip(pipeline): a medio hacer')).toBe(false);
+    expect(isConventionalSubject('wip(pipeline): a medio hacer\n\nCuerpo del wip.')).toBe(false);
   });
 
-  it('no rechaza por largo', () => {
-    // 72 caracteres es una guía del pedido, no una condición: un asunto
-    // correcto de 80 sigue siendo mejor que ninguno.
+  it('no rechaza por largo en el asunto', () => {
     const largo = `feat(pipeline): ${'a'.repeat(80)}`;
     expect(isConventionalSubject(largo)).toBe(true);
   });

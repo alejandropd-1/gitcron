@@ -3,11 +3,11 @@
 Las tareas distinguen la **capa**: **(B)** motor de integración de GitCron, **(A)** OpenSpec oficial,
 **(C)** política operativa de GitCron, **(D)** metodología de Alejandro (fuera de alcance).
 
-**Secuencia y gate.** Las fases 1–2 cubren diagnóstico y contratos: describen **comportamiento** de las
-funcionalidades (no mutan el repositorio del usuario, leen); su **implementación** sí modifica **código
-en la rama** del change. La **fase 3 (POC) es un gate obligatorio** que aprueba Alejandro (fase 4)
-**antes** de cualquier mutación integral. Si la POC falla, se detiene la actualización integral, se
-revisan los artefactos y las fases 1–2 pueden quedar entregadas. La implementación de las tareas del Lote 1 se encuentra actualmente en progreso.
+**Secuencia y estado.** Las fases 1 y 2 (diagnóstico y contratos de lectura) se completaron y entregaron.
+La fase 3 (POC) se ejecutó y cerró con resultado parcial, descubriendo la ausencia de un bundle
+autocontenido en upstream. La fase 4 formalizó la decisión humana de no construir un runtime
+administrado ni un gestor de paquetes interno, reorientando las fases 5–7 a resolución de CLI por
+estrategia (local al repo > global del sistema), diagnóstico profundo y guía no destructiva.
 
 ## 1. (B) Diagnóstico del motor (comportamiento: lectura)
 
@@ -32,61 +32,64 @@ revisan los artefactos y las fases 1–2 pueden quedar entregadas. La implementa
 - [x] 2.12 Invalidación del plan: transportar y recomprobar ruta canónica, branch, HEAD, working tree, ruta/procedencia/versión del CLI, versión objetivo, integridad del paquete, **configuración global** e **integración instalada**, **clase de cada output**, schema/config, paths con tipo y hash, symlinks y ausencias relevantes; cualquier cambio invalida.
 - [x] 2.13 i18n ES/EN/ZH del sub-namespace `pipeline.openspec.engine.*`.
 
-## 3. (B) POC del runtime administrado — GATE obligatorio antes de cualquier mutación integral
+## 3. Registro: POC del runtime administrado (cerrada con resultado PARCIAL)
 
-- [ ] 3.1 Ejecutar la POC con evidencia real: Node ≥ 20.19 — evidencia observada `package.json` Electron `^42.0.1`, instalación `42.0.1`, `ELECTRON_RUN_AS_NODE=1` binario de desarrollo Node **24.15.0** — y obtener la evidencia de la **aplicación empaquetada** por plataforma.
-- [ ] 3.2 Integridad y staging: nombre y versión exactos del paquete; verificar `dist.integrity`; timeout y límite de descarga; staging **fuera** del runtime activo; extracción sin path traversal ni escape por symlink; política explícita sobre lifecycle scripts; `openspec --version` y health check desde el staging; activación sólo tras todas las verificaciones; limpieza segura del staging fallido.
-- [ ] 3.3 Mecanismo de ejecución concreto en dev y empaquetado evaluando `ELECTRON_RUN_AS_NODE` o alternativa documentada, sin `node`/`npm` global en `PATH`; `userData` sin permisos elevados; paths con espacios; offline tras descargar el runtime.
-- [ ] 3.4 Multiplataforma: evidencia real de Windows, macOS y Linux (local o CI matrix con artefactos empaquetados). **Si no existe infraestructura para una plataforma, declarar POC parcial y bloquear la actualización integral.**
-- [ ] 3.5 Resolver **Q1** (npm `--prefix` en `userData` vs fetch de tarball + verificación de integridad) con la POC. Documentar el resultado real.
+*Esta fase se ejecutó el 2026-08-16 y concluyó como gate con resultado PARCIAL. Deja constancia de los hallazgos sin constituir trabajo pendiente:*
 
-## 4. Aprobación humana del resultado de la POC (la marca Alejandro)
+- **3.1 Evidencia de Node en Electron (demostrado y cumplido):** Se verificó que Electron `42.0.1` empaqueta Node **24.15.0**, superando el requisito de Node ≥ 20.19 de OpenSpec 1.8. Evidencia confirmada tanto en el binario de desarrollo con `ELECTRON_RUN_AS_NODE=1` como en la aplicación empaquetada real (`release/win-unpacked/GitCron.exe` en Windows x64 con `PATH=""`).
+- **3.2 Integridad y extracción USTAR vs falta de bundle en upstream (hallazgo estructural):** Se construyó e integró un extractor TAR POSIX endurecido de 0 dependencias externas (`electron/pipeline/openspec-tar-extractor.ts`) y un orquestador de staging con verificación de integridad SRI SHA-512/SHA-256 (`electron/pipeline/openspec-managed-runtime-poc.ts`). Al ejecutar el health check (`openspec --version`) desde staging sobre el tarball extraído, falló con `ERR_MODULE_NOT_FOUND`. La inspección del registry de npm confirmó que `@fission-ai/openspec@1.8.0` tiene `bundleDependencies: null`, 9 dependencias directas y ~76 transitivas no empaquetadas en el tarball. La extracción directa sin un gestor de paquetes (`npm`) no produce un ejecutable funcional.
+- **3.3 Mecanismo de ejecución y entorno (demostrado y blindado):** Se evaluó `ELECTRON_RUN_AS_NODE=1` en proceso hijo, confirmando ejecución sin permisos elevados en `userData`, soporte de rutas con espacios, aislamiento de entorno y ejecución offline tras descarga. Se implementó una suite de 27 pruebas de seguridad (`electron/__tests__/pipeline-openspec-managed-runtime-poc.test.ts`).
+- **3.4 Multiplataforma (no cubierto):** No se dispone de infraestructura local ni matriz de CI para pruebas empaquetadas en macOS y Linux. Al no existir cobertura multiplataforma verificable y ante el impedimento del tarball, la POC se declaró formalmente parcial.
+- **3.5 Resolución de Q1 (cumplido y registrado):** Se resolvió la comparación entre `npm --prefix` y fetch de tarball puro. La descarga directa es inviable sin bundle autocontenido, y `npm --prefix` exige un gestor de paquetes externo que GitCron no debe empaquetar ni suponer.
+- **Preservación arquitectónica:** El extractor endurecido y el módulo de staging se conservan sin cablear en `electron/pipeline/` con sus tests pasando, como capacidad dormida y verificada si upstream publica bundles autocontenidos en el futuro.
 
-- [ ] 4.1 Alejandro aprueba el resultado real de la POC. Si **no** aprueba, se detiene la actualización integral (fases 5–6), se revisan los artefactos y las fases 1–2 pueden quedar entregadas; sin fallback global silencioso.
+## 4. Registro: Decisión de rescoping tras la POC (decisión tomada)
 
-## 5. (B) Runtime administrado durable: versiones, manifiesto, atomicidad, concurrencia, recuperación
+*Decisión humana formalizada por Alejandro el 2026-08-16:*
 
-- [ ] 5.1 Implementar versiones inmutables en `userData/openspec-runtimes/<version>/` con manifiesto/puntero persistido que registra la versión activa y la anterior recuperable; escritura temporal + reemplazo atómico del puntero; health check antes de activar.
-- [ ] 5.2 Lock/mutex de proceso que impide activar a la vez desde un segundo clic, dos ventanas o dos repositorios; recuperación al iniciar si quedó staging o manifiesto incompleto; nunca limpiar la versión activa ni la anterior recuperable; rollback durable que sobrevive a reinicio/crash; validar que la ruta resuelta permanece bajo `userData/openspec-runtimes`. Tests de crash antes/durante/después del cambio de puntero.
-- [ ] 5.3 Una vez activo, `status`/`preview`/`init`/`update`/`validate`/`archive` usan ese mismo runtime; el renderer no elige paths ni ejecutables; global/local son sólo evidencia diagnóstica. Sin administrado, el comportamiento de global/local queda explícito por operación y la integral permanece prohibida.
+- **4.1 Decisión y rescoping:** **NO se aprueba la construcción de un runtime administrado autodescargable ni la implementación de un gestor de paquetes interno en GitCron.**
+- **Fundamento:** Evitar fragilidad operativa y dependencias innecesarias en la aplicación. El alcance de las fases posteriores se reorienta de *ejecutar mutaciones automáticas* a **detectar, diagnosticar y guiar**:
+  1. **Resolución por estrategia:** Dar prioridad al CLI local del proyecto (`node_modules/.bin/openspec`) sobre el CLI global en `PATH`, declarando `managed` como no disponible.
+  2. **Diagnóstico y evidencia:** Tarjeta siempre visible con tres ejes independientes y divergencia global ↔ repositorio.
+  3. **Inventario clasificado:** Clasificación de outputs `repo-local`/`external-global`, bloqueando mutaciones fuera del repositorio.
+  4. **Guía no destructiva:** Revisión que declara la matriz oficial (`init` / `update` / `none`) y expone los comandos terminales exactos con sus argumentos recomendados para que el usuario ejecute la actualización en su propio entorno.
 
-## 6. (A+B) Botón único, matriz init/update/upgrade, contrato init, preview exacta y entorno controlado (sólo tras runtime)
+## 5. (B) Resolución del CLI por estrategia: local al proyecto y global del sistema
 
-- [ ] 6.1 Botón «Actualizar OpenSpec» cuyo primer clic abre la revisión sin mutar nada: versión actual/destino, procedencia, alcance, rama, archivos creados/modificados/retirados, conflictos con personalizados, validaciones, **operación oficial real** y recuperación.
-- [ ] 6.2 Tras confirmación, ejecutar la operación que decide la matriz: repo sin `openspec/` → `openspec init` (tools allowlisted y confirmadas, perfil `core`/`custom` explícito, flags anti-prompt; nunca `update`); repo inicializado → `openspec update` (1.8 no ofrece `--tools`, no se inventa); motor ausente/desactualizado → activar primero el runtime administrado objetivo y ejecutar después `init`/`update` con ese runtime exacto; integración desactualizada → sólo la regeneración necesaria; todo al día → no mutar. La UI declara `init`/`update`/`upgrade+init`/`upgrade+update`/ninguna, sin simular slash commands.
-- [ ] 6.3 Contrato `init` no interactivo: el plan decide y muestra path canónico, `--tools <allowlist confirmada>`, `--profile core|custom`, `--no-animation`, `--copilot-cloud`/`--no-copilot-cloud`; `--force` sólo si el preview mostró exactamente la limpieza legacy y Alejandro la confirmó. Proceso sin TTY, con `OPENSPEC_NO_UPDATE_CHECK=1` y telemetría desactivada.
-- [ ] 6.4 Preview **exacta** ahora posible: se ejecuta con el runtime destino exacto (mismo paquete/integridad/runtime/config/tools/args que la ejecución real); copia exhaustiva de todos los inputs/outputs; clasificación creados/modificados/retirados/conflictivos; declaración `exacta`/`parcial`/`no disponible`.
-- [ ] 6.5 Entorno controlado para preview/`init`/`update`/validaciones: `OPENSPEC_NO_UPDATE_CHECK=1`, telemetría off (`OPENSPEC_TELEMETRY=0` o `DO_NOT_TRACK=1`), sin TTY interactiva ni `npm install -g` lateral; la consulta de versión es responsabilidad separada del motor GitCron.
-- [ ] 6.6 Regeneración (cuando proceda `update`): comprobar versión/perfil/herramientas/skills/rutas/validación/diff; detectar skills OpenSpec en `.codex` y nuevos en `.agents`, distinguirlos de los personalizados en `.agents`, no borrarlos/sobrescribirlos, declarar migración/conserva/retiro, detectar colisiones, `generatedBy` no es prueba única. Bloquear cualquier output `external-global`.
-- [ ] 6.7 Etapas comprensibles (comprobando/preparando runtime/verificando descarga/calculando cambios/actualizando integración/validando/completado/requiere atención/revirtiendo); ante error, declarar etapa, qué se actualizó, qué no, si hubo rollback y qué acción segura tomar; sin comandos crudos. El botón no modifica tipos TS ni código de GitCron.
+- [ ] 5.1 En `electron/pipeline/openspec-engine.ts`, implementar la resolución del CLI local al proyecto (`node_modules/.bin/openspec` o `.cmd` en Windows) inspeccionando `repoPath`, verificando archivo regular y ejecutable, y canonicalizando con `realpathSync`.
+- [ ] 5.2 Definir e implementar el orden de precedencia explícito: el ejecutable local al proyecto (`local`) tiene precedencia sobre el CLI global del sistema (`global`) cuando ambos existen; si ambos existen con versiones distintas, se selecciona el local y se reporta la procedencia `local`.
+- [ ] 5.3 Mantener en el contrato la procedencia `managed` tipada y reconocida pero declarada formalmente como no disponible (sin runtime administrado activo), asegurando que el renderer no elija paths ni ejecutables y reciba siempre un `displayPath` de sólo lectura.
 
-## 7. (C) Seguridad Git y recuperación
+## 6. (A+B) Tarjeta de estado, revisión sin mutación, declaración de matriz y guía de actualización
 
-- [ ] 7.1 Bloquear sobre `main` y con working tree sucio; exigir rama segura; detectar cambios locales ajenos; no `add`/commit/push/PR/merge/archive ni borrar ramas; al final ofrecer «Preparar commit». (Protege outputs `repo-local`; **no** protege outputs globales.)
-- [ ] 7.2 Estado `update-incomplete` (motor ok + repo falla, o viceversa): conservar evidencia, ofrecer reintento o rollback; éxito completo sólo con motor+integración consistentes y validación pasada.
+- [ ] 6.1 Botón o acción de revisión en la UI (`OpenSpecDashboard.tsx`) cuyo primer clic abre la revisión sin mutar nada: versión actual y última disponible, procedencia efectiva (`local`/`global`), alcance, archivos creados/modificados/retirados según diagnóstico, conflictos con personalizados y comando oficial sugerido.
+- [ ] 6.2 Declaración de la matriz de actualización y comando guiado: determinar la operación oficial (`init` / `update` / ninguna) y mostrar al usuario el comando exacto a ejecutar en su terminal (p. ej. `openspec init --tools ...` o `openspec update`), con su alcance y archivos involucrados, sin ejecutar mutaciones automáticas ni simular slash commands.
+- [ ] 6.3 Guía no interactiva para `init`: el plan decide y muestra los argumentos recomendados para ejecución por el usuario (`--tools <allowlist>`, `--profile core|custom`, `--no-animation`, `--copilot-cloud`/`--no-copilot-cloud`), advirtiendo que `--force` sólo debe usarse tras confirmar la limpieza de archivos legacy.
+- [ ] 6.4 Diagnóstico de regeneración y convivencia `.codex` ↔ `.agents`: declarar qué skills legacy de `.codex` se migrarían, qué skills nuevos de `.agents` se incorporarían, qué personalizados preexistentes en `.agents` no deben tocarse y qué colisiones de nombres existen — en modo de sólo lectura/diagnóstico.
 
-## 8. (B) Pruebas
+## 7. (B) Pruebas
 
-- [ ] 8.1 CLI ausente con tarjeta visible; procedencia global/local/administrado/desconocido; `displayPath` informativo que **no** puede usarse como input ejecutable.
-- [ ] 8.2 CLI global detectado pero no actualizable atómicamente (sólo informativo); runtime administrado durable con activación, rollback y concurrencia; **POC fallida que detiene sólo la actualización integral**.
-- [ ] 8.3 Protocolo durable: crash antes/durante/después del cambio de puntero; lock ante segundo clic/dos ventanas/dos repos; recuperación al iniciar con staging/manifiesto incompleto; rollback durable tras reinicio; confinamiento en `userData/openspec-runtimes`.
-- [ ] 8.4 Versiones ausente/vieja/actual/nueva/incompatible; consulta online con timeout y caché offline; «no afirma desactualizado sin evidencia».
-- [ ] 8.5 Lector minimizado: `rawProfile`/`delivery`/`configuredWorkflows` leídos; `anonymousId`/telemetría no transportados; degradación `unknown`; fixtures 1.5/1.8 con datos extra.
-- [ ] 8.6 Dos fuentes separadas y divergencia global↔repo; clasificación derivada `core`/`expanded`/`custom`/`unknown` sobre fuente declarada; perfil observado `custom` con cinco workflows.
-- [ ] 8.7 Schema `spec-driven`, un custom schema con artefactos diferentes, un artefacto `skipped`, un artefacto/estado futuro desconocido; grafo dinámico con `requires` y `applyRequires`.
-- [ ] 8.8 Slugs: numérico válido; consecutivos/finales inválidos; límite; mayúsculas/underscore/`..` rechazados; seguridad shell/traversal.
-- [ ] 8.9 Outputs: clasificación `repo-local`/`external-global`; `minimax-code` (external) bloqueado y sólo diagnóstico; `.github` repo-local; renderer no autoriza paths arbitrarios.
-- [ ] 8.10 Preview en tres clases: diagnóstico antes de POC; `parcial`/`no disponible` sin runtime destino; `exacta` con el runtime destino exacto (mismo paquete/integridad/runtime/config/tools/args que la ejecución); copia exhaustiva; invalidación ante cambio de branch/HEAD/contenido/symlink/profile/tool/CLI/fuentes/clase-de-output entre preview y ejecución.
-- [ ] 8.11 Matriz init/update/upgrade: repo sin `openspec/` → `init` (nunca `update`); inicializado → `update` sin `--tools`; `upgrade+init`/`upgrade+update`; todo al día → no mutar. Contrato `init`: argumentos decididos/mostrados; `--force` sólo con confirmación de limpieza legacy; sin TTY, versión/telemetría off. El botón no ejecuta slash commands ni modifica código de GitCron.
-- [ ] 8.12 Entorno controlado: `OPENSPEC_NO_UPDATE_CHECK=1` y telemetría off presentes; sin TTY; sin `npm install -g` lateral; versión objetivo respetada.
-- [ ] 8.13 Migración `.codex` → `.agents`: skills OpenSpec viejos/nuevos detectados; `.agents` con personalizados preexistentes conservados; colisiones; `generatedBy` no es prueba única.
-- [ ] 8.14 IPC con argumentos inválidos y rutas fuera del repositorio rechazadas; parsing con fixtures de OpenSpec 1.5 y 1.8.
-- [ ] 8.15 i18n ES/EN/ZH del sub-namespace nuevo; UI del flujo completo (tarjeta, revisión, etapas, error, rollback).
-- [ ] 8.16 Regresión: el archivado normal sigue usando `openspec archive <id> --yes` y Pipeline abre sin regresiones; sin servicios de IA pagos.
+- [ ] 7.1 CLI ausente con tarjeta visible; procedencia global/local/desconocido (`managed` declarada no disponible); `displayPath` informativo que **no** puede usarse como input ejecutable. *(Cubierta en fase 2).*
+- [ ] 7.2 CLI global detectado pero no actualizable atómicamente desde GitCron (sólo informativo); POC parcial que detiene la actualización integral; reporte honesto del estado del motor.
+- [ ] 7.3 Versiones ausente/vieja/actual/nueva/incompatible; consulta online con timeout y caché offline; «no afirma desactualizado sin evidencia». *(Cubierta en fase 2).*
+- [ ] 7.4 Lector minimizado: `rawProfile`/`delivery`/`configuredWorkflows` leídos; `anonymousId`/telemetría no transportados; degradación `unknown`; fixtures 1.5/1.8 con datos extra. *(Cubierta en fase 2).*
+- [ ] 7.5 Dos fuentes separadas y divergencia global↔repo; clasificación derivada `core`/`expanded`/`custom`/`unknown` sobre fuente declarada; perfil observado `custom` con cinco workflows. *(Cubierta en fase 2).*
+- [ ] 7.6 Schema `spec-driven`, un custom schema con artefactos diferentes, un artefacto `skipped`, un artefacto/estado futuro desconocido; grafo dinámico con `requires` y `applyRequires`. *(Cubierta en fase 2).*
+- [ ] 7.7 Slugs: numérico válido; consecutivos/finales inválidos; límite; mayúsculas/underscore/`..` rechazados; seguridad shell/traversal. *(Cubierta en fase 2).*
+- [ ] 7.8 Outputs: clasificación `repo-local`/`external-global`; `minimax-code` (external) bloqueado y sólo diagnóstico; `.github` repo-local; renderer no autoriza paths arbitrarios. *(Cubierta en fase 2).*
+- [ ] 7.9 Vista previa diagnóstica y parcial (clasificación de inputs/outputs, inventario de cambios) con invalidación ante cambio de rama/HEAD/CLI/fuentes; sin clase `exacta`.
+- [ ] 7.10 Matriz de actualización diagnóstica: repo sin `openspec/` → declara `init`; inicializado → declara `update`; todo al día → declara no mutar; muestra comando exacto sin ejecutarlo.
+- [ ] 7.11 Diagnóstico de migración `.codex` → `.agents`: skills OpenSpec viejos/nuevos detectados; `.agents` con personalizados preexistentes conservados; colisiones; `generatedBy` no es prueba única. *(Cubierta en fase 2).*
+- [ ] 7.12 IPC con argumentos inválidos y rutas fuera del repositorio rechazadas; parsing con fixtures de OpenSpec 1.5 y 1.8. *(Cubierta en fase 2).*
+- [ ] 7.13 i18n ES/EN/ZH del sub-namespace nuevo; UI del flujo de diagnóstico, tarjeta, revisión y guía de actualización (sin etapas de ejecución ni rollback).
+- [ ] 7.14 Regresión: el archivado normal sigue usando `openspec archive <id> --yes` y Pipeline abre sin regresiones; sin servicios de IA pagos. *(Cubierta en fase 2).*
+- [ ] 7.15 Cobertura de la resolución local al proyecto (`node_modules/.bin/openspec`), verificación de ejecutabilidad y precedencia local > global.
 
-## 9. Cierre
+## 8. Cierre
 
-- [x] 9.1 `pnpm exec tsc --noEmit` del **proyecto** en cero.
-- [x] 9.2 `pnpm test` en verde (correr más de una vez por el flake conocido).
-- [x] 9.3 `openspec validate actualizar-integracion-openspec-1-8 --strict` válido con la versión activa (1.5) y con 1.8 (`npx --yes @fission-ai/openspec@1.8.0 validate … --strict --no-interactive`).
-- [x] 9.4 Revisión visual manual de la tarjeta y el flujo completo por Alejandro. La marca Alejandro.
+> *Nota de estado (2026-08-16):* Las comprobaciones 8.1 a 8.4 se ejecutaron y verificaron exitosamente para el estado de las Fases 1 y 2 (`tsc --noEmit` en 0, 1277 tests en verde en Vitest, `openspec validate --strict` en 0 con 1.5 y 1.8). Se desmarcan aquí porque el change cuenta con fases de implementación pendientes (Fases 5, 6 y 7) y el portón de cierre completo debe validarse y certificarse una vez implementadas las tareas restantes.
+
+- [ ] 8.1 `pnpm exec tsc --noEmit` del **proyecto** en cero.
+- [ ] 8.2 `pnpm test` en verde (correr más de una vez por el flake conocido).
+- [ ] 8.3 `openspec validate actualizar-integracion-openspec-1-8 --strict` válido con la versión activa (1.5) y con 1.8 (`npx --yes @fission-ai/openspec@1.8.0 validate … --strict --no-interactive`).
+- [ ] 8.4 Revisión visual manual de la tarjeta y el flujo completo por Alejandro. La marca Alejandro.

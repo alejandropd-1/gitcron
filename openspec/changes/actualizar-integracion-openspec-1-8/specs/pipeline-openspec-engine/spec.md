@@ -2,31 +2,36 @@
 
 ### Requirement: GitCron detecta versión, procedencia y ruta efectiva del motor de OpenSpec
 GitCron SHALL detectar la versión del CLI de OpenSpec que ejecuta (vía `openspec --version`) y su
-procedencia —`global`, `local`, `managed` o `unknown`— y SHALL exponer al renderer un `displayPath`
-canónico, informativo y de **sólo lectura** con la ruta efectiva. El renderer SHALL NOT poder enviar ese
-`displayPath` de vuelta como ejecutable ni elegir una ruta arbitraria: toda ejecución SHALL usar el
-runtime resuelto y autorizado por el proceso principal, con argumentos literales o validados.
+procedencia —`local`, `global`, `managed` (declarada no disponible) o `unknown`— y SHALL exponer al
+renderer un `displayPath` canónico, informativo y de **sólo lectura** con la ruta efectiva. El renderer
+SHALL NOT poder enviar ese `displayPath` de vuelta como ejecutable ni elegir una ruta arbitraria: toda
+ejecución SHALL usar el runtime resuelto y autorizado por el proceso principal, con argumentos literales
+o validados.
 
 El fundamento es que hoy GitCron ejecuta `openspec` sin saber qué versión ni de dónde sale
 (`electron/pipeline/openspec-cli.ts:24-26` resuelve por nombre pelado). Mostrar la ruta es útil para
 diagnosticar, pero devolverla como input reintroduciría el riesgo de shell/traversal que el
 confinamiento de paths del repo ya blinda: el dato es para mostrar, no para ejecutar.
 
+#### Scenario: CLI local al proyecto detectado
+- **WHEN** el CLI resuelto proviene de `node_modules/.bin/openspec` dentro del repositorio
+- **THEN** la procedencia se declara `local` con precedencia sobre cualquier instalación global
+
 #### Scenario: CLI global detectado
-- **WHEN** el CLI resuelto proviene del `PATH` global
+- **WHEN** no hay CLI local en el repositorio y se resuelve desde el `PATH` del sistema
 - **THEN** la procedencia se declara `global` y el `displayPath` muestra la ruta efectiva, en sólo lectura
 
-#### Scenario: displayPath informativo no ejecutable
-- **WHEN** el renderer recibe el `displayPath`
-- **THEN** no existe camino de IPC que lo acepte como ejecutable ni como ruta de operación
-
-#### Scenario: CLI administrado por GitCron
-- **WHEN** GitCron ejecuta un runtime que él mismo administra
-- **THEN** la procedencia se declara `managed` con su versión y ruta interna
+#### Scenario: Procedencia managed declarada no disponible
+- **WHEN** se consulta el estado de procedencia administrada
+- **THEN** el contrato tipa `managed` pero se declara como no disponible en esta versión
 
 #### Scenario: CLI ausente
 - **WHEN** no se encuentra ningún `openspec` ejecutable
 - **THEN** la versión se declara desconocida y la procedencia `unknown`, sin trazar como error de Pipeline
+
+#### Scenario: displayPath informativo no ejecutable
+- **WHEN** el renderer recibe el `displayPath`
+- **THEN** no existe camino de IPC que lo acepte como ejecutable ni como ruta de operación
 
 ### Requirement: GitCron declara un rango de versiones soportadas de OpenSpec
 GitCron SHALL declarar un rango de versiones soportadas y SHALL clasificar la versión detectada como
@@ -129,8 +134,8 @@ que la integración ya no refleja la configuración.
 
 ### Requirement: La tarjeta de estado representa motor, repositorio e integración como evidencias independientes
 GitCron SHALL computar y mostrar tres ejes independientes: el **motor** (ausente/global/local/
-administrado/desconocido y versión soportada/demasiado vieja/más nueva que el rango), el **repositorio**
-(no inicializado/inicializado/desconocido) y la **integración** (al día/desactualizada/requiere
+administrado declarado no disponible/desconocido y versión soportada/demasiado vieja/más nueva que el rango),
+el **repositorio** (no inicializado/inicializado/desconocido) y la **integración** (al día/desactualizada/requiere
 regeneración/herramientas incompletas/personalizada o con conflictos/actualización parcial). La tarjeta
 SHALL estar siempre visible, también cuando no hay CLI, cuando el repositorio no tiene `openspec/`,
 cuando hay CLI pero falta la integración, sin conexión o todo al día. Podrá existir un estado resumido,
@@ -140,8 +145,6 @@ El fundamento es que cada eje pide una acción distinta y sus causas no se solap
 se resuelve igual que un repo sin inicializar, y una integración con skills personalizados en conflicto
 no se lee igual que una desactualizada. Colapsarlos en «ok/no-ok» obliga a adivinar, y hacer desaparecer
 la tarjeta cuando todo está bien esconde justamente el dato que confirma que no hay nada que hacer.
-`openspec doctor` puede aportar al diagnóstico pero SHALL NOT ser la única prueba de que skills e
-instrucciones están actualizados.
 
 #### Scenario: Sin motor y sin openspec/
 - **WHEN** no hay CLI y el repo no tiene `openspec/`
@@ -297,299 +300,156 @@ backup/rollback propio para lo global.
 - **WHEN** el renderer intenta suministrar un path externo
 - **THEN** no se acepta como destino de operación
 
-### Requirement: La vista previa distingue diagnóstico, preview parcial y preview exacta
-GitCron SHALL producir tres niveles de vista previa. El **diagnóstico** del CLI actual y el inventario
-de inputs/outputs administrables (con su clase `repo-local`/`external-global`) SHALL poder obtenerse
-antes de la POC. La vista previa del resultado de la versión destino SHALL declararse `exacta` sólo
-cuando se ejecuta con el **runtime destino exacto** —lo que requiere la POC aprobada y el runtime
-preparado en staging—, y `parcial` o `no disponible` mientras la versión destino no pueda ejecutarse.
-La vista previa y la ejecución real SHALL usar el mismo paquete, integridad, runtime, configuración,
-tools y argumentos. SHALL NOT afirmarse que la vista previa destino «funciona con global/local» cuando
-esos runtimes no coinciden con la versión destino.
+### Requirement: La vista previa ofrece diagnóstico del CLI e inventario clasificado de inputs y outputs
+GitCron SHALL producir una vista previa de diagnóstico del CLI actual e inventario clasificado de
+inputs/outputs administrables (`repo-local`/`external-global`). La vista previa destino SHALL declararse
+como `parcial` o `no disponible` informando con honestidad el grado de certeza. La vista previa SHALL
+analizar la estructura sin ejecutar mutaciones automáticas en el repositorio.
 
-El fundamento es que un preview «exacto» ejecutando una versión distinta de la destino miente sobre lo
-que va a ocurrir: los archivos que `openspec update` genera cambian entre versiones, así que predecir
-con 1.5 lo que hará 1.8 produce un alcance falso. Declarar el nivel de preview —y exigir el runtime
-destino para el exacto— es lo que evita confirmar contra una predicción que no es la real.
+El fundamento es que sin runtime destino autodescargado (tras la decisión de Fase 4), la vista previa no
+puede simular una ejecución `exacta` con un binario no presente en disco. Declarar `parcial` o `no disponible`
+comunica honestamente qué se puede diagnosticar y qué depende de la ejecución real por el usuario.
 
-#### Scenario: Diagnóstico antes de la POC
-- **WHEN** todavía no hay runtime destino preparado
-- **THEN** se puede ofrecer el diagnóstico del CLI actual y el inventario de inputs/outputs clasificados
+#### Scenario: Diagnóstico del CLI e inventario
+- **WHEN** se solicita la vista previa
+- **THEN** se ofrece el diagnóstico del CLI actual y el inventario de inputs/outputs clasificados
 
-#### Scenario: Preview parcial o no disponible
-- **WHEN** la versión destino no puede ejecutarse todavía
+#### Scenario: Preview parcial declarada
+- **WHEN** la versión destino no está instalada en el entorno
 - **THEN** la vista previa se declara `parcial` o `no disponible`, no `exacta`
 
-#### Scenario: Preview exacta con el runtime destino
-- **WHEN** la POC aprobó y el runtime destino está en staging
-- **THEN** la vista previa se declara `exacta` y usa el mismo paquete/integridad/runtime/config/tools/args que la ejecución real
+### Requirement: La inspección diagnóstica es exhaustiva y declara su grado de certeza
+La inspección diagnóstica SHALL cubrir todos los inputs y outputs administrables —`openspec/`, `.agent`,
+`.agents`, `.claude`, `.codex`, `.opencode`, las demás tools configuradas, los archivos raíz administrados
+por OpenSpec, `.github` cuando la configuración lo habilite, las preferencias de profile/delivery/workflows
+y los archivos personalizados que puedan entrar en conflicto— sin mutar la configuración global. SHALL
+preservar la distinción de tipo, permisos, symlinks (sin seguirlos fuera del ámbito), ausencia de archivos,
+nombres y casing.
 
-### Requirement: La copia de la vista previa es exhaustiva y declara su grado de certeza
-Cuando la vista previa se ejecuta, SHALL hacerlo fuera del repositorio real, sobre una copia de todos
-los inputs y outputs administrables —`openspec/`, `.agent`, `.agents`, `.claude`, `.codex`, `.opencode`,
-las demás tools configuradas, los archivos raíz administrados por OpenSpec, `.github` cuando la
-configuración lo habilite, las preferencias de profile/delivery/workflows y los archivos personalizados
-que puedan entrar en conflicto— sin mutar la configuración global relevante. La copia SHALL preservar
-tipo, contenido, permisos, symlinks (sin seguirlos fuera del ámbito), ausencia de archivos, nombres y
-casing. La vista previa SHALL clasificar los archivos en creados, modificados, retirados y conflictivos,
-y SHALL declarar si es `exacta`, `parcial` o `no disponible`, diciendo qué no pudo reproducir y por qué;
-SHALL NOT usar «mejor esfuerzo» como excusa genérica.
-
-El fundamento es que copiar sólo `openspec/` y algunos directorios deja fuera la mitad del alcance real
-de `openspec update`. Declarar el grado de certeza permite decidir si confirmar con el dato honesto.
+El fundamento es que revisar sólo `openspec/` deja fuera los targets de skills y los archivos de configuración
+reales. Declarar el grado de certeza permite decidir si ejecutar la actualización con el dato honesto.
 
 #### Scenario: Cobertura de todos los paths administrables
-- **WHEN** se pide la vista previa
-- **THEN** se copian y comparan todos los inputs/outputs administrables, no sólo `openspec/`
+- **WHEN** se realiza la inspección
+- **THEN** se comparan todos los inputs/outputs administrables, no sólo `openspec/`
 
-#### Scenario: Symlinks y permisos preservados
-- **WHEN** la copia incluye symlinks o permisos relevantes
-- **THEN** se preservan sin seguir los symlinks fuera del ámbito
-
-#### Scenario: Grado de certeza declarado
-- **WHEN** la vista previa no pudo reproducir algo
-- **THEN** se declara `parcial` o `no disponible`, con qué faltó y por qué, no «mejor esfuerzo»
+#### Scenario: Symlinks y permisos no seguidos fuera de ámbito
+- **WHEN** la inspección encuentra symlinks
+- **THEN** se analizan sin seguirlos fuera del ámbito del repositorio
 
 #### Scenario: Configuración global intacta
-- **WHEN** se ejecuta la vista previa
+- **WHEN** se ejecuta la inspección
 - **THEN** la configuración global relevante se consulta pero no se muta
 
-### Requirement: El plan invalida ante cualquier cambio relevante entre vista previa y ejecución
-El plan SHALL transportar y, al ejecutar, recomprobar al menos: la ruta canónica del repo, la rama, el
-HEAD, el estado del working tree, la ruta/procedencia/versión efectiva del CLI, la versión objetivo, la
-integridad del paquete objetivo, la **configuración global** (`rawProfile`/`delivery`/`configuredWorkflows`
-con su fecha/origen) y la **integración instalada** (tools/`installedWorkflows`/`generatedBy`/markers), la
-**clase `repo-local`/`external-global`** de cada output, el schema/config relevante, la lista completa de
-paths inspeccionados con su tipo y hash de contenido, los symlinks y los archivos ausentes relevantes.
-Si cualquiera cambió desde la vista previa, el plan SHALL invalidarse y SHALL exigir otra revisión.
+### Requirement: El plan invalida ante cualquier cambio relevante en el estado
+El plan SHALL transportar y recomprobar: la ruta canónica del repo, la rama, el HEAD, el estado del
+working tree, la ruta/procedencia/versión efectiva del CLI, la versión objetivo, la **configuración global**
+(`rawProfile`/`delivery`/`configuredWorkflows` con su fecha/origen) y la **integración instalada**
+(tools/`installedWorkflows`/`generatedBy`/markers), la **clase `repo-local`/`external-global`** de cada output,
+el schema/config relevante, los symlinks y los archivos ausentes relevantes. Si cualquiera cambió, el plan
+SHALL invalidarse y exigir una nueva revisión diagnóstica.
 
-El fundamento es que un hash limitado a `generatedBy` y algunos archivos deja pasar cambios que alteran
-el resultado real y permite ejecutar contra un estado que la persona ya no vio.
+El fundamento es que si el usuario o un proceso externo modifica el árbol o la configuración mientras la
+tarjeta está abierta, el diagnóstico mostrado dejaría de coincidir con la realidad.
 
 #### Scenario: Cambio de rama o HEAD
-- **WHEN** la rama o el HEAD variaron desde la vista previa
+- **WHEN** la rama o el HEAD variaron desde la revisión
 - **THEN** el plan se invalida
 
-#### Scenario: Cambio de CLI o de paquete objetivo
-- **WHEN** la versión/procedencia del CLI o la integridad del paquete objetivo variaron
+#### Scenario: Cambio de CLI o de configuración
+- **WHEN** la versión/procedencia del CLI o la configuración global variaron
 - **THEN** el plan se invalida
 
-#### Scenario: Cambio de fuentes o de clase de output
-- **WHEN** la configuración global, la integración instalada o la clase de un output variaron
-- **THEN** el plan se invalida
+### Requirement: La resolución del CLI sigue una estrategia de precedencia local sobre global
+GitCron SHALL resolver el ejecutable de OpenSpec siguiendo un orden de precedencia determinístico:
+1. **Local al proyecto (`local`):** si existe `node_modules/.bin/openspec` (o `.cmd` en Windows) en el
+   repositorio, se utiliza con prioridad máxima.
+2. **Global del sistema (`global`):** si no hay binario local, se busca `openspec` en el `PATH` del sistema.
+3. **Administrado (`managed`):** el contrato conserva tipada la procedencia pero se declara no disponible.
+El renderer SHALL NOT elegir ejecutables ni paths libres: toda ejecución o lectura corre a través del
+runtime resuelto por el proceso principal.
 
-### Requirement: El runtime administrado es durable, concurrentemente seguro y recuperable
-La actualización integral del motor SHALL gestionar el runtime con un protocolo durable cuyas
-propiedades son observables: **directorios de versiones inmutables**; un **manifiesto/puntero persistido
-bajo `userData`** que registra la versión activa y la anterior recuperable; **escritura temporal y
-reemplazo atómico** del puntero; un **health check** antes de activar; un **lock/mutex de proceso** que
-impide que un segundo clic, dos ventanas o dos repositorios activen a la vez; **recuperación al iniciar**
-si quedó staging o un manifiesto incompleto; SHALL NOT limpiar jamás la versión activa ni la anterior
-recuperable; el **rollback** SHALL ser durable y sobrevivir a reinicio/crash; y SHALL validar que la ruta
-resuelta continúa confinada a `userData/openspec-runtimes`. La API concreta puede fijarla la POC; estas
-propiedades SHALL exigirse desde la planificación.
+El fundamento es que en proyectos Node/TypeScript la versión fijada en el lockfile del repositorio es la
+fuente de verdad reproducible, evitando divergencias con CLIs globales desactualizados o incompatibles.
 
-El fundamento es que un «puntero interno» en memoria se pierde ante un crash o un reinicio justo cuando
-el staging quedó a medias, dejando un runtime roto como activo o dos operaciones pisándose. Hacer el
-protocolo durable —versiones inmutables, manifiesto persistido, reemplazo atómico, lock y
-recuperación— es lo que vuelve real la promesa de atomicidad y rollback.
+#### Scenario: Precedencia local sobre global
+- **WHEN** coexisten un `openspec` en `node_modules/.bin` del repo y uno global en el sistema
+- **THEN** GitCron selecciona el binario local y declara procedencia `local`
 
-#### Scenario: Activación atómica durable
-- **WHEN** se activa una nueva versión
-- **THEN** se escribe en staging y el puntero persistido se reemplaza atómicamente, con la versión anterior recuperable
+#### Scenario: Fallback a global
+- **WHEN** no existe `openspec` en `node_modules/.bin` pero sí en el `PATH`
+- **THEN** GitCron selecciona el binario global y declara procedencia `global`
 
-#### Scenario: Concurrencia impedida
-- **WHEN** un segundo clic, una segunda ventana o un segundo repo intentan activar a la vez
-- **THEN** el lock de proceso lo impide
+### Requirement: Las consultas diagnósticas neutralizan el auto-upgrade lateral de OpenSpec
+Durante las lecturas de versión y diagnóstico del motor, el proceso SHALL ejecutarse en un entorno no
+interactivo con `OPENSPEC_NO_UPDATE_CHECK=1` y telemetría desactivada (`OPENSPEC_TELEMETRY=0` o
+`DO_NOT_TRACK=1`), sin TTY interactiva. La consulta de versión disponible en el registry SHALL seguir
+siendo responsabilidad separada del motor GitCron.
 
-#### Scenario: Recuperación al iniciar tras crash
-- **WHEN** al arrancar quedó staging o un manifiesto incompleto
-- **THEN** se recupera sin dejar un runtime roto como activo
+El fundamento es que OpenSpec no debe disparar chequeos de red ocultos ni telemetría no consentida
+mientras GitCron lee el estado diagnóstico del CLI.
 
-#### Scenario: Rollback durable
-- **WHEN** se revierte y la app se reinicia o crashea
-- **THEN** el puntero sigue apuntando a la versión restaurada y se reverifica qué versión responde
+#### Scenario: Chequeo interno desactivado
+- **WHEN** GitCron ejecuta `openspec --version` o inspecciones diagnósticas
+- **THEN** el proceso lleva `OPENSPEC_NO_UPDATE_CHECK=1` y telemetría desactivada
 
-#### Scenario: Confinamiento del puntero
-- **WHEN** se resuelve la ruta activa
-- **THEN** permanece bajo `userData/openspec-runtimes`
+### Requirement: La tarjeta ofrece revisión diagnóstica y declara la operación oficial que corresponde
+La interfaz SHALL ofrecer un punto de entrada de revisión en la tarjeta de OpenSpec cuyo primer clic SHALL
+abrir un modal o panel de diagnóstico sin mutar nada en el repositorio. La revisión SHALL determinar y
+declarar la operación oficial según la matriz:
+- Repo sin `openspec/` → declara `openspec init` (con tools allowlisted y flags anti-prompt sugeridos).
+- Repo inicializado → declara `openspec update`.
+- Todo al día → declara no requerir mutaciones.
+La revisión SHALL mostrar al usuario el **comando terminal exacto** que puede copiar y ejecutar en su
+entorno, detallando los archivos que creará, modificará o retirará. SHALL NOT ejecutar mutaciones automáticas
+ni simular slash commands de chat como comandos de terminal.
 
-### Requirement: La operación administrada neutraliza el auto-upgrade lateral de OpenSpec
-Dentro de la operación administrada, el preview, `init`/`update` y las validaciones SHALL ejecutarse en
-un entorno no interactivo y controlado que impida que OpenSpec consulte el registry o actualice el CLI
-por su cuenta. SHALL desactivarse el chequeo interno de versión con `OPENSPEC_NO_UPDATE_CHECK=1` y la
-telemetría con `OPENSPEC_TELEMETRY=0` o `DO_NOT_TRACK=1`; el proceso SHALL NOT recibir TTY interactiva
-ni poder ejecutar un `npm install -g` inesperado. La consulta de versión disponible SHALL seguir siendo
-responsabilidad separada del motor GitCron.
+El fundamento es que al no contar con un gestor de paquetes interno para un runtime administrado, guiar al
+usuario con el comando oficial exacto y los argumentos validados le permite ejecutar la actualización
+de forma transparente y bajo su propio control.
 
-El fundamento es que OpenSpec 1.8 puede, desde el propio `openspec update`, consultar el registry y
-ofrecer actualizar el CLI; si eso ocurre dentro de la operación administrada, evade la versión objetivo
-confirmada, la integridad verificada, el preview, la activación atómica y el rollback. La versión que se
-ejecuta la decide GitCron, no el CLI por su cuenta.
+#### Scenario: Primer clic abre revisión diagnóstica
+- **WHEN** se activa la revisión en la tarjeta
+- **THEN** se abre el detalle diagnóstico y no se modifica ningún archivo en disco
 
-#### Scenario: Chequeo de versión desactivado
-- **WHEN** se ejecuta preview, init o update dentro de la operación administrada
-- **THEN** el entorno lleva `OPENSPEC_NO_UPDATE_CHECK=1` y la telemetría desactivada
+#### Scenario: Repositorio sin inicializar declara init
+- **WHEN** el repositorio no tiene `openspec/`
+- **THEN** la revisión declara `init` y muestra el comando `openspec init --tools ...`
 
-#### Scenario: Sin TTY interactiva ni npm global lateral
-- **WHEN** se ejecuta la operación administrada
-- **THEN** el proceso no recibe TTY interactiva y no puede disparar un `npm install -g` fuera de control
-
-#### Scenario: Versión objetivo respetada
-- **WHEN** la operación administrada ejecuta OpenSpec
-- **THEN** lo hace con el runtime objetivo exacto, sin que el CLI lo cambie por su cuenta
-
-### Requirement: Un solo botón orquesta la operación oficial que corresponde, con revisión y confirmación
-La interfaz SHALL ofrecer un único botón principal, «Actualizar OpenSpec», cuyo primer clic SHALL abrir
-una revisión sin modificar nada y SHALL ejecutar sólo tras confirmación explícita. La operación
-confirmada SHALL decidirse según la matriz: repo sin `openspec/` → `openspec init` con tools
-allowlisted y confirmadas, perfil `core`/`custom` explícito y flags para evitar prompts implícitos
-(nunca `update` como sustituto); repo inicializado → `openspec update` (1.8 no ofrece `--tools` para
-`update`, así que SHALL NOT inventarse ese flag); motor ausente o desactualizado → preparar, verificar y
-activar primero el runtime administrado objetivo y ejecutar después `init` o `update` con ese runtime
-exacto; motor actualizado con integración desactualizada → sólo la regeneración necesaria con el runtime
-autorizado; todo al día → no mutar y mostrar ese resultado. La revisión SHALL declarar la operación
-oficial real (`init`, `update`, `upgrade+init`, `upgrade+update` o ninguna), los archivos que se
-crearán/modificarán/moverán/retirarán, los conflictos con personalizados, las validaciones previstas y
-el mecanismo de recuperación. La persona SHALL NOT ejecutar dos actualizaciones separadas, y SHALL NOT
-simularse slash commands de chat como comandos terminales.
-
-El fundamento es que ejecutar la operación oficial equivocada (por ejemplo, `update` sobre un repo sin
-inicializar, o un `--tools` que 1.8 no acepta) produce un error opaco o un resultado parcial. Declarar la
-operación real antes de confirmar es lo que deja decidir con el dato honesto.
-
-#### Scenario: Primer clic abre revisión
-- **WHEN** se activa el botón por primera vez
-- **THEN** se abre la revisión y no se modifica nada
-
-#### Scenario: Repositorio sin inicializar
-- **WHEN** el repo no tiene `openspec/`
-- **THEN** la operación declarada es `init` (o `upgrade+init` si además falta el motor), nunca `update`
-
-#### Scenario: Repositorio inicializado
-- **WHEN** el repo ya tiene `openspec/`
-- **THEN** la operación declarada es `update` (o `upgrade+update`), sin inventar `--tools`
+#### Scenario: Repositorio inicializado declara update
+- **WHEN** el repositorio ya tiene `openspec/`
+- **THEN** la revisión declara `update` y muestra el comando `openspec update`
 
 #### Scenario: Todo al día
 - **WHEN** motor e integración están consistentes
-- **THEN** no se muta y se muestra ese resultado
+- **THEN** la revisión declara que no se requieren cambios
 
-#### Scenario: Operación oficial declarada, no slash de chat
-- **WHEN** se revisa el alcance
-- **THEN** se declara `init`/`update`/`upgrade+init`/`upgrade+update`/ninguna, sin simular slash commands
+### Requirement: La guía para init muestra los argumentos recomendados
+Cuando la operación sugerida sea `init`, la revisión SHALL decidir y mostrar los argumentos recomendados:
+path canónico del repo; `--tools <allowlist confirmada>`; `--profile core|custom`; `--no-animation`; y la
+opción `--copilot-cloud` o `--no-copilot-cloud`. SHALL advertir explícitamente que `--force` sólo debe usarse
+si el usuario desea limpiar archivos legacy preexistentes.
 
-### Requirement: El contrato init es no interactivo y decide sus argumentos
-Cuando la operación sea `init`, el plan SHALL decidir y mostrar los argumentos exactos: path canónico
-del repo; `--tools <allowlist confirmada>`; `--profile core|custom`; `--no-animation`; y la decisión
-explícita `--copilot-cloud` o `--no-copilot-cloud`. `--force` SHALL usarse sólo si el preview mostró
-exactamente la limpieza legacy y una persona lo confirmó; SHALL NOT aplicarse de forma automática. El
-proceso SHALL correr sin TTY, con el chequeo de versión y la telemetría desactivados.
+El fundamento es que `openspec init` por defecto es interactivo y requiere flags explícitos para no
+detenerse ante prompts. Mostrar la línea de comandos completa facilita la ejecución no interactiva.
 
-El fundamento es que `openspec init` es interactivo por defecto y, sin cerrar cada prompt con un flag,
-se cuelga esperando una respuesta que en un proceso administrado nunca llega —o peor, toma una decisión
-por defecto que la persona no vio. Que `--force` quede detrás de una confirmación humana responde a que
-limpia archivos legacy, y borrarlos sin mostrar exactamente cuáles es la clase de acción que este
-proyecto exige confirmar.
+#### Scenario: Argumentos recomendados mostrados
+- **WHEN** se sugiere `init`
+- **THEN** la guía muestra `--tools`, `--profile`, `--no-animation` y opciones aplicables
 
-#### Scenario: Argumentos decididos y mostrados
-- **WHEN** la operación es `init`
-- **THEN** el plan muestra path, `--tools`, `--profile`, `--no-animation` y `--copilot-cloud`/`--no-copilot-cloud`
+#### Scenario: Advertencia sobre --force
+- **WHEN** se analiza la limpieza de archivos legacy
+- **THEN** se advierte que `--force` limpia archivos legacy y debe evaluarse con confirmación humana
 
-#### Scenario: --force sólo con confirmación
-- **WHEN** se considera `--force`
-- **THEN** se aplica sólo si el preview mostró exactamente la limpieza legacy y una persona la confirmó
+### Requirement: El diagnóstico de integración preserva personalizaciones y analiza convivencia .codex/.agents
+La inspección diagnóstica de la integración SHALL detectar los skills OpenSpec viejos en `.codex`, los
+nuevos en `.agents`, distinguirlos de los skills personalizados ya presentes en `.agents` (que existen en
+este repositorio), declarar qué archivos OpenSpec se migran/conservan/retiran y detectar colisiones de
+nombres, sin sugerir el borrado de personalizaciones.
 
-#### Scenario: init no interactivo
-- **WHEN** se ejecuta `init`
-- **THEN** corre sin TTY y con `OPENSPEC_NO_UPDATE_CHECK=1` y telemetría desactivada
+El fundamento es que 1.8 migra los skills de Codex a `.agents/skills` y este repositorio ya tiene skills
+propios bajo `.agents`: un diagnóstico claro previene que el usuario borre por error personalizaciones vivas.
 
-### Requirement: La regeneración de la integración preserva personalizaciones y resuelve .codex/.agents
-Cuando la operación incluya `update`, SHALL ejecutar con el runtime objetivo el `openspec update`
-oficial para las tools configuradas, SHALL comprobar versión, perfil, herramientas, skills, rutas,
-validación y diff, y SHALL NOT eliminar archivos personalizados por omisión. SHALL detectar los skills
-OpenSpec viejos en `.codex`, los nuevos en `.agents`, distinguirlos de los skills personalizados ya
-presentes en `.agents` (que hoy existen en este repositorio), no borrarlos ni sobrescribirlos, declarar
-qué archivos OpenSpec se migran/conservan/retiran, detectar colisiones de nombres y usar `generatedBy`
-sin que sea la única prueba de integridad.
-
-El fundamento es que 1.8 migra los skills de Codex a `.agents/skills` preservando personalizaciones, y
-este repositorio ya tiene skills propios bajo `.agents`: una regeneración que no los distinga los
-borraría.
-
-#### Scenario: Skills OpenSpec viejos y nuevos detectados
-- **WHEN** se inspecciona la integración
-- **THEN** se detectan los skills OpenSpec en `.codex` y los nuevos en `.agents`, distintos de los personalizados
-
-#### Scenario: Personalizados conservados
-- **WHEN** `.agents` ya tiene skills no OpenSpec
-- **THEN** la regeneración no los borra ni sobrescribe
-
-#### Scenario: Migración declarada
-- **WHEN** la versión destino migra skills
-- **THEN** se declara qué se migra, conserva y retira, y se detectan colisiones de nombres
-
-### Requirement: Una actualización parcial no se declara como éxito completo
-Si la actualización del motor funciona pero la del repositorio falla (o viceversa), el estado SHALL
-declararse `update-incomplete`, SHALL conservar evidencia de qué se actualizó y qué no, y SHALL ofrecer
-reintento o rollback. El éxito completo SHALL declararse sólo cuando motor e integración quedan
-consistentes y la validación pasa.
-
-El fundamento es que declarar éxito cuando la mitad falló deja un repositorio inconsistente que se lee
-como actualizado. Es la misma regla que para el archivado: el fin del proceso no es prueba de resultado.
-
-#### Scenario: Motor ok, repo falla
-- **WHEN** el motor se actualizó y la regeneración falló
-- **THEN** el estado es `update-incomplete`, se conserva evidencia y se ofrece reintento o rollback
-
-#### Scenario: Éxito completo
-- **WHEN** motor e integración quedan consistentes y la validación pasa
-- **THEN** el estado es `up-to-date` y se declara explícitamente
-
-### Requirement: La actualización es segura respecto de Git y de la política operativa de GitCron
-La actualización del repositorio SHALL ejecutarse sobre una rama segura y nunca sobre `main`, SHALL
-exigir un working tree compatible, SHALL detectar cambios locales ajenos y SHALL bloquearse o pedir
-resolución cuando haya riesgo. SHALL NOT ejecutar `git add`, commit, push, PR, archive, merge ni borrar
-ramas. Al finalizar SHALL mostrar el diff y ofrecer el circuito normal de «Preparar commit». Estas
-reglas protegen los outputs `repo-local`; SHALL NOT presentarse como protección de outputs
-`external-global`, porque Git no los toca.
-
-El fundamento es que la actualización deja archivos en el árbol, y confirmarlos en Git queda en la
-persona. Estas reglas son política de GitCron (capa C), no comportamiento nativo de OpenSpec; y su
-alcance se limita al repo.
-
-#### Scenario: Intento desde main
-- **WHEN** se intenta actualizar estando en `main`
-- **THEN** se bloquea o se pide una rama segura, sin ejecutar sobre `main`
-
-#### Scenario: Working tree sucio
-- **WHEN** el working tree tiene cambios locales ajenos
-- **THEN** se bloquea o se pide resolución antes de ejecutar
-
-#### Scenario: Sin operaciones de Git
-- **WHEN** se completa la actualización
-- **THEN** no se hizo `add`/commit/push/PR/merge/archive ni se borraron ramas, y se ofrece «Preparar commit»
-
-### Requirement: El progreso y los errores de la actualización son comprensibles y recuperables
-Durante la actualización la interfaz SHALL mostrar etapas comprensibles (comprobando versión,
-preparando runtime, verificando descarga, calculando cambios, actualizando integración, validando,
-completado, requiere atención, revirtiendo). Ante un error SHALL indicar qué etapa falló, qué sí se
-actualizó, qué no se modificó, si se restauró la versión anterior y qué acción segura puede tomar la
-persona, y SHALL NOT mostrar comandos crudos como única explicación. El botón SHALL NOT modificar tipos
-TypeScript ni código de GitCron: la compatibilidad con 1.8 vive en el código de GitCron, no en la
-operación del botón.
-
-El fundamento es que una actualización con muchas etapas que falla sin decir dónde deja sin forma de
-recuperar más que leyendo un log. Que el botón no toque código de GitCron responde a que esa
-compatibilidad se distribuye con la aplicación, no se ejecuta por un usuario en su repo.
-
-#### Scenario: Etapas visibles
-- **WHEN** la actualización está en curso
-- **THEN** se muestra la etapa actual con su nombre comprensible
-
-#### Scenario: Error con contexto recuperable
-- **WHEN** una etapa falla
-- **THEN** se indica etapa, qué se actualizó, qué no, si hubo rollback y qué acción segura tomar, sin comandos crudos como única explicación
-
-#### Scenario: El botón no cambia código de GitCron
-- **WHEN** se ejecuta la actualización
-- **THEN** no se modifican tipos TypeScript ni código de la aplicación; sólo el motor y los archivos administrados del repo
+#### Scenario: Detección y preservación diagnóstica
+- **WHEN** se inspecciona `.agents` con skills personalizados preexistentes
+- **THEN** se identifican como personalizados y se declara que deben conservarse

@@ -56,9 +56,9 @@ estrategia (local al repo > global del sistema), diagnóstico profundo y guía n
 
 ## 5. (B) Resolución del CLI por estrategia: local al proyecto y global del sistema
 
-- [ ] 5.1 En `electron/pipeline/openspec-engine.ts`, implementar la resolución del CLI local al proyecto (`node_modules/.bin/openspec` o `.cmd` en Windows) inspeccionando `repoPath`, verificando archivo regular y ejecutable, y canonicalizando con `realpathSync`.
-- [ ] 5.2 Definir e implementar el orden de precedencia explícito: el ejecutable local al proyecto (`local`) tiene precedencia sobre el CLI global del sistema (`global`) cuando ambos existen; si ambos existen con versiones distintas, se selecciona el local y se reporta la procedencia `local`.
-- [ ] 5.3 Mantener en el contrato la procedencia `managed` tipada y reconocida pero declarada formalmente como no disponible (sin runtime administrado activo), asegurando que el renderer no elija paths ni ejecutables y reciba siempre un `displayPath` de sólo lectura.
+- [x] 5.1 En `electron/pipeline/openspec-engine.ts`, implementar la resolución del CLI local al proyecto (`node_modules/.bin/openspec` o `.cmd` en Windows) inspeccionando `repoPath`, verificando archivo regular y ejecutable, y canonicalizando con `realpathSync`.
+- [x] 5.2 Definir e implementar el orden de precedencia explícito: el ejecutable local al proyecto (`local`) tiene precedencia sobre el CLI global del sistema (`global`) cuando ambos existen; si ambos existen con versiones distintas, se selecciona el local y se reporta la procedencia `local`.
+- [x] 5.3 Mantener en el contrato la procedencia `managed` tipada y reconocida pero declarada formalmente como no disponible (sin runtime administrado activo), asegurando que el renderer no elija paths ni ejecutables y reciba siempre un `displayPath` de sólo lectura.
 
 ## 6. (A+B) Tarjeta de estado, revisión sin mutación, declaración de matriz y guía de actualización
 

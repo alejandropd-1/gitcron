@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import type { PipelineAgentRole, PipelineRuntime } from '../../types/pipeline';
 import { PipelineService } from '../pipeline/pipeline-service';
 import type { RuntimeSessionHub } from '../pipeline/runtime/runtime-session-hub';
-import { errMsg } from './shared';
+import { errMsg, validRepoPath } from './shared';
 
 /**
  * Canales `pipeline:runtime:*` — sesiones de runtime vivas.
@@ -20,10 +20,6 @@ const MAX_INSTRUCTION_BYTES = 16_384;
 const RUNTIMES: PipelineRuntime[] = ['hermes', 'claude', 'codex', 'agy', 'opencode', 'unknown'];
 const ROLES: PipelineAgentRole[] = ['scout', 'planner', 'builder', 'auditor', 'fixer', 'orchestrator', 'unknown'];
 
-function validRepoPath(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 32_768;
-}
-
 function asRecord(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -35,7 +31,7 @@ export function registerPipelineRuntimeHandlers(
   service = new PipelineService(),
 ): void {
   ipcMain.handle('pipeline:runtime:discover', async (_event, repoPath: unknown) => {
-    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
     try {
       const { canonicalPath } = await service.resolveBinding(repoPath);
       return { success: true, data: await hub.discover(canonicalPath) };
@@ -45,7 +41,7 @@ export function registerPipelineRuntimeHandlers(
   });
 
   ipcMain.handle('pipeline:runtime:get', async (_event, repoPath: unknown) => {
-    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
     try {
       const { canonicalPath } = await service.resolveBinding(repoPath);
       return { success: true, data: hub.get(canonicalPath) };
@@ -55,7 +51,7 @@ export function registerPipelineRuntimeHandlers(
   });
 
   ipcMain.handle('pipeline:runtime:history', async (_event, repoPath: unknown, requestedLimit: unknown) => {
-    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
     const limit = typeof requestedLimit === 'number' && Number.isFinite(requestedLimit)
       ? Math.max(1, Math.min(Math.trunc(requestedLimit), 100))
       : 20;
@@ -70,7 +66,7 @@ export function registerPipelineRuntimeHandlers(
   ipcMain.handle('pipeline:runtime:start', async (_event, payload: unknown) => {
     const input = asRecord(payload);
     const repoPath = input.repoPath;
-    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
 
     const runtime = input.runtime;
     if (typeof runtime !== 'string' || !RUNTIMES.includes(runtime as PipelineRuntime)) {
@@ -121,7 +117,7 @@ export function registerPipelineRuntimeHandlers(
   });
 
   ipcMain.handle('pipeline:runtime:stop', async (_event, repoPath: unknown) => {
-    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
     try {
       const { canonicalPath } = await service.resolveBinding(repoPath);
       return { success: true, data: await hub.stop(canonicalPath) };

@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { authorizedRepoStore } from '../ipc/authorized-repos';
 
 type Handler = (_event: unknown, ...args: unknown[]) => unknown;
 const ipc = vi.hoisted(() => ({
@@ -25,6 +26,11 @@ describe('IPC de estado de tareas', () => {
     ipc.handlers.clear();
     ipc.handle.mockClear();
     binding.resolveBinding.mockClear();
+    vi.spyOn(authorizedRepoStore, 'isAuthorized').mockImplementation((p) => p === 'C:/repo' || p === 'C:/repo-real');
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   async function register(files: Record<string, string | null>) {

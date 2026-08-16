@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import { PipelineService } from '../pipeline/pipeline-service';
 import { initOpenSpecWithCli } from '../pipeline/openspec-cli';
 import { safeReadRepoFile } from '../pipeline/repo-paths';
-import { errMsg } from './shared';
+import { errMsg, validRepoPath } from './shared';
 
 /**
  * Lectura del contenido de una especificación consolidada.
@@ -32,10 +32,6 @@ const MAX_SPECIFICATION_BYTES = 512 * 1024;
 export type ReadSpecificationResult =
   | { success: true; content: string }
   | { success: false; error: string };
-
-function validRepoPath(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 32_768;
-}
 
 function validSpecificationId(value: unknown): value is string {
   return typeof value === 'string' && SPECIFICATION_ID_PATTERN.test(value);

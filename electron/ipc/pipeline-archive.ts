@@ -2,7 +2,7 @@ import type { BrowserWindow } from 'electron';
 import { ipcMain } from 'electron';
 import { archiveOpenSpecChangeWithCli } from '../pipeline/openspec-cli';
 import { PipelineService } from '../pipeline/pipeline-service';
-import { errMsg } from './shared';
+import { errMsg, validRepoPath } from './shared';
 import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
 
 /**
@@ -21,10 +21,6 @@ import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
 /** Lo que va a ocurrir, para mostrarlo antes de ejecutar nada. */
 interface ArchivePlan {
   archiveCommand: string;
-}
-
-function validRepoPath(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 32_768;
 }
 
 function validChangeId(value: unknown): value is string {
@@ -47,7 +43,7 @@ export function registerPipelineArchiveHandlers(
   service = new PipelineService(),
 ): void {
   ipcMain.handle('pipeline:archive-plan', async (_event, repoPath: unknown, changeId: unknown) => {
-    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
     if (!validChangeId(changeId)) return { success: false, error: 'Identificador de cambio inválido' };
     try {
       await service.resolveBinding(repoPath);
@@ -58,7 +54,7 @@ export function registerPipelineArchiveHandlers(
   });
 
   ipcMain.handle('pipeline:archive-change', async (_event, repoPath: unknown, changeId: unknown) => {
-    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
     // El slug se valida acá además de en el wrapper: el renderer no puede
     // inyectar nada al proceso por este camino.
     if (!validChangeId(changeId)) return { success: false, error: 'Identificador de cambio inválido' };

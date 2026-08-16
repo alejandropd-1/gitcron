@@ -110,3 +110,332 @@ describe('Pipeline IPC — candado de autorización sobre pipeline:*', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 });
+
+describe('Pipeline Archive IPC — candado de autorización sobre pipeline:archive-*', () => {
+  let tempRoot: string;
+  let repoDir: string;
+  let archiveSpy: ReturnType<typeof vi.fn>;
+  let resolveBindingSpy: ReturnType<typeof vi.fn>;
+
+  const get = (channel: string): Handler => {
+    const h = ipc.handlers.get(channel);
+    if (!h) throw new Error(`No handler registered for channel: ${channel}`);
+    return h;
+  };
+
+  beforeEach(async () => {
+    ipc.handlers.clear();
+    ipc.handle.mockClear();
+    authorizedRepoStore.clear();
+
+    tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-archive-authz-'));
+    repoDir = path.join(tempRoot, 'repo-archive');
+    fs.mkdirSync(repoDir, { recursive: true });
+    await simpleGit(repoDir).init(['--initial-branch=main']);
+
+    archiveSpy = vi.fn(async () => ({ ok: true, error: null }));
+    resolveBindingSpy = vi.fn(async (p: string) => ({ repoId: 'r1', canonicalPath: fs.realpathSync(p) }));
+
+    const { registerPipelineArchiveHandlers } = await import('../ipc/pipeline-archive');
+    registerPipelineArchiveHandlers(() => null, archiveSpy as never, { resolveBinding: resolveBindingSpy } as never);
+  });
+
+  afterEach(() => {
+    authorizedRepoStore.clear();
+    removeTempDir(tempRoot);
+  });
+
+  it('rechaza una ruta bien formada pero no autorizada en pipeline:archive-plan y pipeline:archive-change sin tocar CLI ni servicio', async () => {
+    // 1. archive-plan sin autorización
+    const planRes = await get('pipeline:archive-plan')(null, repoDir, 'mi-cambio');
+    expect(planRes).toEqual({
+      success: false,
+      error: 'Ruta de repositorio inválida o no autorizada',
+    });
+    expect(resolveBindingSpy).not.toHaveBeenCalled();
+    expect(archiveSpy).not.toHaveBeenCalled();
+
+    // 2. archive-change sin autorización
+    const changeRes = await get('pipeline:archive-change')(null, repoDir, 'mi-cambio');
+    expect(changeRes).toEqual({
+      success: false,
+      error: 'Ruta de repositorio inválida o no autorizada',
+    });
+    expect(resolveBindingSpy).not.toHaveBeenCalled();
+    expect(archiveSpy).not.toHaveBeenCalled();
+  });
+
+  it('la ruta autorizada pasa en ambos canales y ejecuta el CLI sobre la ruta canónica', async () => {
+    const canonical = authorizedRepoStore.authorizeRepo(repoDir);
+    expect(canonical).not.toBeNull();
+
+    const planRes = await get('pipeline:archive-plan')(null, repoDir, 'mi-cambio');
+    expect(planRes).toEqual({
+      success: true,
+      data: { archiveCommand: 'openspec archive mi-cambio --yes' },
+    });
+    expect(resolveBindingSpy).toHaveBeenCalledWith(repoDir);
+    expect(archiveSpy).not.toHaveBeenCalled();
+
+    resolveBindingSpy.mockClear();
+    const changeRes = await get('pipeline:archive-change')(null, repoDir, 'mi-cambio');
+    expect(changeRes).toEqual({ success: true });
+    expect(resolveBindingSpy).toHaveBeenCalledWith(repoDir);
+    expect(archiveSpy).toHaveBeenCalledWith(canonical, 'mi-cambio');
+  });
+});
+
+describe('Pipeline Specs IPC — candado de autorización sobre pipeline:init-openspec y pipeline:read-specification', () => {
+  let tempRoot: string;
+  let repoDir: string;
+  let resolveBindingSpy: ReturnType<typeof vi.fn>;
+
+  const get = (channel: string): Handler => {
+    const h = ipc.handlers.get(channel);
+    if (!h) throw new Error(`No handler registered for channel: ${channel}`);
+    return h;
+  };
+
+  beforeEach(async () => {
+    ipc.handlers.clear();
+    ipc.handle.mockClear();
+    authorizedRepoStore.clear();
+
+    tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-specs-authz-'));
+    repoDir = path.join(tempRoot, 'repo-specs');
+    fs.mkdirSync(repoDir, { recursive: true });
+    await simpleGit(repoDir).init(['--initial-branch=main']);
+
+    const specDir = path.join(repoDir, 'openspec', 'specs', 'mi-spec');
+    fs.mkdirSync(specDir, { recursive: true });
+    fs.writeFileSync(path.join(specDir, 'spec.md'), '## Requisito\n\nEspecificación de prueba.', 'utf8');
+
+    resolveBindingSpy = vi.fn(async (p: string) => ({ canonicalPath: fs.realpathSync(p) }));
+
+    const { registerPipelineSpecHandlers } = await import('../ipc/pipeline-specs');
+    registerPipelineSpecHandlers({ resolveBinding: resolveBindingSpy } as never);
+  });
+
+  afterEach(() => {
+    authorizedRepoStore.clear();
+    removeTempDir(tempRoot);
+  });
+
+  it('rechaza una ruta no autorizada en pipeline:init-openspec y pipeline:read-specification sin invocar binding ni lectura', async () => {
+    const initRes = await get('pipeline:init-openspec')(null, repoDir, ['claude']);
+    expect(initRes).toEqual({
+      success: false,
+      error: 'invalid_repo_path',
+      needsTool: false,
+    });
+    expect(resolveBindingSpy).not.toHaveBeenCalled();
+
+    const readRes = await get('pipeline:read-specification')(null, repoDir, 'mi-spec');
+    expect(readRes).toEqual({
+      success: false,
+      error: 'invalid_repo_path',
+    });
+    expect(resolveBindingSpy).not.toHaveBeenCalled();
+  });
+
+  it('la ruta autorizada pasa y lee la especificación correctamente', async () => {
+    authorizedRepoStore.authorizeRepo(repoDir);
+
+    const readRes = await get('pipeline:read-specification')(null, repoDir, 'mi-spec');
+    expect(readRes).toEqual({
+      success: true,
+      content: '## Requisito\n\nEspecificación de prueba.',
+    });
+    expect(resolveBindingSpy).toHaveBeenCalledWith(repoDir);
+  });
+});
+
+describe('Pipeline Tasks IPC — candado de autorización sobre pipeline:set-task-checked', () => {
+  let tempRoot: string;
+  let repoDir: string;
+  let readSpy: ReturnType<typeof vi.fn>;
+  let writeSpy: ReturnType<typeof vi.fn>;
+  let resolveBindingSpy: ReturnType<typeof vi.fn>;
+
+  const get = (channel: string): Handler => {
+    const h = ipc.handlers.get(channel);
+    if (!h) throw new Error(`No handler registered for channel: ${channel}`);
+    return h;
+  };
+
+  beforeEach(async () => {
+    ipc.handlers.clear();
+    ipc.handle.mockClear();
+    authorizedRepoStore.clear();
+
+    tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-tasks-authz-'));
+    repoDir = path.join(tempRoot, 'repo-tasks');
+    fs.mkdirSync(repoDir, { recursive: true });
+    await simpleGit(repoDir).init(['--initial-branch=main']);
+
+    const tasksContent = ['## 1. Tanda', '', '- [ ] 1.1 tarea de prueba', ''].join('\n');
+    readSpy = vi.fn(async () => tasksContent);
+    writeSpy = vi.fn(async () => {});
+    resolveBindingSpy = vi.fn(async (p: string) => ({ repoId: 'r1', canonicalPath: fs.realpathSync(p) }));
+
+    const { registerPipelineTaskHandlers } = await import('../ipc/pipeline-tasks');
+    registerPipelineTaskHandlers(
+      { resolveBinding: resolveBindingSpy } as never,
+      readSpy as never,
+      writeSpy as never,
+      () => '2026-08-16T12:00:00.000Z',
+    );
+  });
+
+  afterEach(() => {
+    authorizedRepoStore.clear();
+    removeTempDir(tempRoot);
+  });
+
+  it('rechaza una ruta no autorizada en pipeline:set-task-checked sin tocar binding, lectura ni escritura', async () => {
+    const res = await get('pipeline:set-task-checked')(null, repoDir, 'mi-cambio', 3, '1.1 tarea de prueba', true);
+    expect(res).toEqual({
+      success: false,
+      error: 'Ruta de repositorio inválida o no autorizada',
+    });
+    expect(resolveBindingSpy).not.toHaveBeenCalled();
+    expect(readSpy).not.toHaveBeenCalled();
+    expect(writeSpy).not.toHaveBeenCalled();
+  });
+
+  it('la ruta autorizada pasa y escribe el cambio de estado de la tarea', async () => {
+    authorizedRepoStore.authorizeRepo(repoDir);
+
+    const res = await get('pipeline:set-task-checked')(null, repoDir, 'mi-cambio', 3, '1.1 tarea de prueba', true);
+    expect(res).toEqual({ success: true });
+    expect(resolveBindingSpy).toHaveBeenCalledWith(repoDir);
+    expect(readSpy).toHaveBeenCalled();
+    expect(writeSpy).toHaveBeenCalled();
+  });
+});
+
+describe('Pipeline Runtime IPC — candado de autorización sobre pipeline:runtime:*', () => {
+  let tempRoot: string;
+  let repoDir: string;
+  let resolveBindingSpy: ReturnType<typeof vi.fn>;
+  let hubDiscoverSpy: ReturnType<typeof vi.fn>;
+  let hubGetSpy: ReturnType<typeof vi.fn>;
+  let hubHistorySpy: ReturnType<typeof vi.fn>;
+  let hubStartSpy: ReturnType<typeof vi.fn>;
+  let hubStopSpy: ReturnType<typeof vi.fn>;
+
+  const get = (channel: string): Handler => {
+    const h = ipc.handlers.get(channel);
+    if (!h) throw new Error(`No handler registered for channel: ${channel}`);
+    return h;
+  };
+
+  beforeEach(async () => {
+    ipc.handlers.clear();
+    ipc.handle.mockClear();
+    authorizedRepoStore.clear();
+
+    tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-runtime-authz-'));
+    repoDir = path.join(tempRoot, 'repo-runtime');
+    fs.mkdirSync(repoDir, { recursive: true });
+    await simpleGit(repoDir).init(['--initial-branch=main']);
+
+    resolveBindingSpy = vi.fn(async (p: string) => ({ repoId: 'r1', canonicalPath: fs.realpathSync(p) }));
+    hubDiscoverSpy = vi.fn(async () => []);
+    hubGetSpy = vi.fn(() => null);
+    hubHistorySpy = vi.fn(() => []);
+    hubStartSpy = vi.fn(async () => ({ ok: true, sessionId: 's-123' }));
+    hubStopSpy = vi.fn(async () => ({ stopped: true }));
+
+    const mockHub = {
+      discover: hubDiscoverSpy,
+      get: hubGetSpy,
+      history: hubHistorySpy,
+      start: hubStartSpy,
+      stop: hubStopSpy,
+    };
+
+    const { registerPipelineRuntimeHandlers } = await import('../ipc/pipeline-runtime');
+    registerPipelineRuntimeHandlers(mockHub as never, { resolveBinding: resolveBindingSpy } as never);
+  });
+
+  afterEach(() => {
+    authorizedRepoStore.clear();
+    removeTempDir(tempRoot);
+  });
+
+  it('rechaza una ruta no autorizada en los cinco canales de pipeline:runtime:* sin invocar el hub', async () => {
+    // 1. discover
+    const discoverRes = await get('pipeline:runtime:discover')(null, repoDir);
+    expect(discoverRes).toEqual({ success: false, error: 'Ruta de repositorio inválida o no autorizada' });
+    expect(hubDiscoverSpy).not.toHaveBeenCalled();
+
+    // 2. get
+    const getRes = await get('pipeline:runtime:get')(null, repoDir);
+    expect(getRes).toEqual({ success: false, error: 'Ruta de repositorio inválida o no autorizada' });
+    expect(hubGetSpy).not.toHaveBeenCalled();
+
+    // 3. history
+    const historyRes = await get('pipeline:runtime:history')(null, repoDir, 10);
+    expect(historyRes).toEqual({ success: false, error: 'Ruta de repositorio inválida o no autorizada' });
+    expect(hubHistorySpy).not.toHaveBeenCalled();
+
+    // 4. start
+    const startRes = await get('pipeline:runtime:start')(null, {
+      repoPath: repoDir,
+      runtime: 'claude',
+      role: 'builder',
+      instruction: 'hacer algo seguro',
+    });
+    expect(startRes).toEqual({ success: false, error: 'Ruta de repositorio inválida o no autorizada' });
+    expect(hubStartSpy).not.toHaveBeenCalled();
+
+    // 5. stop
+    const stopRes = await get('pipeline:runtime:stop')(null, repoDir);
+    expect(stopRes).toEqual({ success: false, error: 'Ruta de repositorio inválida o no autorizada' });
+    expect(hubStopSpy).not.toHaveBeenCalled();
+
+    expect(resolveBindingSpy).not.toHaveBeenCalled();
+  });
+
+  it('la ruta autorizada pasa en los cinco canales y ejecuta sobre el hub', async () => {
+    const canonical = authorizedRepoStore.authorizeRepo(repoDir);
+    expect(canonical).not.toBeNull();
+
+    // 1. discover
+    const discoverRes = await get('pipeline:runtime:discover')(null, repoDir);
+    expect(discoverRes).toEqual({ success: true, data: [] });
+    expect(hubDiscoverSpy).toHaveBeenCalledWith(canonical);
+
+    // 2. get
+    const getRes = await get('pipeline:runtime:get')(null, repoDir);
+    expect(getRes).toEqual({ success: true, data: null });
+    expect(hubGetSpy).toHaveBeenCalledWith(canonical);
+
+    // 3. history
+    const historyRes = await get('pipeline:runtime:history')(null, repoDir, 10);
+    expect(historyRes).toEqual({ success: true, data: [] });
+    expect(hubHistorySpy).toHaveBeenCalledWith('r1', 10);
+
+    // 4. start
+    const startRes = await get('pipeline:runtime:start')(null, {
+      repoPath: repoDir,
+      runtime: 'claude',
+      role: 'builder',
+      instruction: 'hacer algo seguro',
+    });
+    expect(startRes).toEqual({ success: true, data: { sessionId: 's-123' } });
+    expect(hubStartSpy).toHaveBeenCalledWith(expect.objectContaining({
+      canonicalRepoPath: canonical,
+      repoId: 'r1',
+      runtime: 'claude',
+      role: 'builder',
+      instruction: 'hacer algo seguro',
+    }));
+
+    // 5. stop
+    const stopRes = await get('pipeline:runtime:stop')(null, repoDir);
+    expect(stopRes).toEqual({ success: true, data: { stopped: true } });
+    expect(hubStopSpy).toHaveBeenCalledWith(canonical);
+  });
+});

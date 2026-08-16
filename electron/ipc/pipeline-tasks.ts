@@ -8,7 +8,7 @@ import {
   composeTaskLogEntry,
   toggleTaskCheckbox,
 } from '../pipeline/task-checkbox';
-import { errMsg } from './shared';
+import { errMsg, validRepoPath } from './shared';
 
 /**
  * Cambio de estado de una tarea desde la aplicación.
@@ -20,10 +20,6 @@ import { errMsg } from './shared';
  * **Sólo cambia el estado.** No edita el texto de una tarea ni toca ninguna otra
  * línea del archivo.
  */
-
-function validRepoPath(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 32_768;
-}
 
 function validChangeId(value: unknown): value is string {
   return isValidOpenSpecChangeSlug(value);
@@ -70,7 +66,7 @@ export function registerPipelineTaskHandlers(
       expectedText: unknown,
       completed: unknown,
     ) => {
-      if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+      if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
       if (!validChangeId(changeId)) return { success: false, error: 'Identificador de cambio inválido' };
       if (typeof line !== 'number' || !Number.isInteger(line) || line < 1) {
         return { success: false, error: 'Línea inválida' };

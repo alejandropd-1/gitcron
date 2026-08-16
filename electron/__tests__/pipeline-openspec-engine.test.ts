@@ -252,6 +252,311 @@ describe('resolveOpenSpecExecutable', () => {
   });
 });
 
+describe('resolveOpenSpecExecutable — Estrategia y Precedencia Local vs Global (Fase 5)', () => {
+  const repoPath = '/home/user/project';
+  const localCandidate = '/home/user/project/node_modules/.bin/openspec';
+  const globalCandidate = '/usr/local/bin/openspec';
+
+  it('repo con node_modules/.bin/openspec válido y CLI global presente => gana local con procedencia local', () => {
+    const existing = new Set([localCandidate, globalCandidate]);
+    const result = resolveOpenSpecExecutable({
+      repoPath,
+      pathEnv: '/usr/local/bin',
+      platform: 'linux',
+      exists: (p) => existing.has(p),
+      isRegularFile: () => true,
+      isExecutable: () => true,
+      realpath: (p) => p,
+      probePathState: () => 'exists',
+      isRepoAuthorized: (p) => p === repoPath,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.executablePath).toBe(localCandidate);
+    expect(result!.provenance).toBe('local');
+    expect(result!.displayPath).toBe(localCandidate);
+  });
+
+  it('defensa en profundidad: repoPath no autorizado ignora el candidato local y cae a PATH global', () => {
+    const existing = new Set([localCandidate, globalCandidate]);
+    const result = resolveOpenSpecExecutable({
+      repoPath,
+      pathEnv: '/usr/local/bin',
+      platform: 'linux',
+      exists: (p) => existing.has(p),
+      isRegularFile: () => true,
+      isExecutable: () => true,
+      realpath: (p) => p,
+      probePathState: () => 'exists',
+      isRepoAuthorized: () => false, // No autorizado en main store
+    });
+
+    expect(result).not.toBeNull();
+    // Aunque el candidato local exista en disco, la falta de autorización lo descarta por seguridad
+    expect(result!.executablePath).toBe(globalCandidate);
+    expect(result!.provenance).toBe('global');
+  });
+
+  it('sólo CLI global presente (sin binario local en repo) => selecciona global con procedencia global', () => {
+    const existing = new Set([globalCandidate]);
+    const result = resolveOpenSpecExecutable({
+      repoPath,
+      pathEnv: '/usr/local/bin',
+      platform: 'linux',
+      exists: (p) => existing.has(p),
+      isRegularFile: () => true,
+      isExecutable: () => true,
+      realpath: (p) => p,
+      probePathState: () => 'exists',
+      isRepoAuthorized: (p) => p === repoPath,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.executablePath).toBe(globalCandidate);
+    expect(result!.provenance).toBe('global');
+  });
+
+  it('sin repoPath (null o undefined) => cae directo a PATH sin intentar candidato local', () => {
+    const existing = new Set([localCandidate, globalCandidate]);
+    const result = resolveOpenSpecExecutable({
+      repoPath: null,
+      pathEnv: '/usr/local/bin',
+      platform: 'linux',
+      exists: (p) => existing.has(p),
+      isRegularFile: () => true,
+      isExecutable: () => true,
+      realpath: (p) => p,
+      probePathState: () => 'exists',
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.executablePath).toBe(globalCandidate);
+    expect(result!.provenance).toBe('global');
+  });
+
+  it('ambos presentes con versiones distintas => discoverOpenSpecCli ejecuta y reporta la versión del local', async () => {
+    const existing = new Set([localCandidate, globalCandidate]);
+    const versionMap = new Map<string, string>([
+      [localCandidate, '1.8.0'],
+      [globalCandidate, '1.5.0'],
+    ]);
+
+    const result = await discoverOpenSpecCli({
+      repoPath,
+      pathEnv: '/usr/local/bin',
+      resolve: () =>
+        resolveOpenSpecExecutable({
+          repoPath,
+          pathEnv: '/usr/local/bin',
+          platform: 'linux',
+          exists: (p) => existing.has(p),
+          isRegularFile: () => true,
+          isExecutable: () => true,
+          realpath: (p) => p,
+          probePathState: () => 'exists',
+          isRepoAuthorized: (p) => p === repoPath,
+        }),
+      runVersion: async (rt) => {
+        const ver = versionMap.get(rt.executablePath) ?? '0.0.0';
+        return { stdout: `OpenSpec ${ver}\n`, stderr: '' };
+      },
+    });
+
+    expect(result.installed).toBe(true);
+    expect(result.provenance).toBe('local');
+    expect(result.runtimeVersion).toBe('1.8.0');
+    expect(result.displayPath).toBe(localCandidate);
+  });
+});
+
+describe('resolveOpenSpecExecutable — Guardas de Seguridad y Casos Negativos (Fase 5)', () => {
+  const repoPath = '/home/user/project';
+  const localCandidate = '/home/user/project/node_modules/.bin/openspec';
+  const globalCandidate = '/usr/local/bin/openspec';
+
+  it('symlink escape: node_modules/.bin/openspec que canonicaliza fuera de repoPath => rechazado, cae a global', () => {
+    const escapedTarget = '/outside/malicious/bin/openspec';
+    const realpathMap = new Map<string, string>([
+      [repoPath, repoPath],
+      [localCandidate, escapedTarget],
+      [escapedTarget, escapedTarget],
+      [globalCandidate, globalCandidate],
+    ]);
+
+    const existing = new Set([localCandidate, globalCandidate]);
+    const result = resolveOpenSpecExecutable({
+      repoPath,
+      pathEnv: '/usr/local/bin',
+      platform: 'linux',
+      exists: (p) => existing.has(p),
+      isRegularFile: () => true,
+      isExecutable: () => true,
+      realpath: (p) => realpathMap.get(p) ?? null,
+      probePathState: () => 'exists',
+      isRepoAuthorized: (p) => p === repoPath,
+    });
+
+    expect(result).not.toBeNull();
+    // El candidato local fue rechazado por escape de contención; se seleccionó el global seguro
+    expect(result!.executablePath).toBe(globalCandidate);
+    expect(result!.provenance).toBe('global');
+  });
+
+  it('symlink escape sin global disponible => retorna null', () => {
+    const escapedTarget = '/outside/malicious/bin/openspec';
+    const realpathMap = new Map<string, string>([
+      [repoPath, repoPath],
+      [localCandidate, escapedTarget],
+      [escapedTarget, escapedTarget],
+    ]);
+
+    const result = resolveOpenSpecExecutable({
+      repoPath,
+      pathEnv: '',
+      platform: 'linux',
+      exists: (p) => p === localCandidate,
+      isRegularFile: () => true,
+      isExecutable: () => true,
+      realpath: (p) => realpathMap.get(p) ?? null,
+      probePathState: () => 'exists',
+      isRepoAuthorized: (p) => p === repoPath,
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it('candidato local que existe pero NO es archivo regular (directorio) => rechazado, cae a global', () => {
+    const result = resolveOpenSpecExecutable({
+      repoPath,
+      pathEnv: '/usr/local/bin',
+      platform: 'linux',
+      exists: (p) => p === localCandidate || p === globalCandidate,
+      isRegularFile: (p) => p === globalCandidate, // local is directory
+      isExecutable: () => true,
+      realpath: (p) => p,
+      probePathState: () => 'exists',
+      isRepoAuthorized: (p) => p === repoPath,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.executablePath).toBe(globalCandidate);
+    expect(result!.provenance).toBe('global');
+  });
+
+  it('candidato local en POSIX sin bit ejecutable => rechazado, cae a global', () => {
+    const result = resolveOpenSpecExecutable({
+      repoPath,
+      pathEnv: '/usr/local/bin',
+      platform: 'linux',
+      exists: (p) => p === localCandidate || p === globalCandidate,
+      isRegularFile: () => true,
+      isExecutable: (p) => p === globalCandidate, // local is not executable
+      realpath: (p) => p,
+      probePathState: () => 'exists',
+      isRepoAuthorized: (p) => p === repoPath,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.executablePath).toBe(globalCandidate);
+    expect(result!.provenance).toBe('global');
+  });
+
+  it('candidato local cuya canonicalización falla (realpath devuelve null) => rechazado sin fallback, cae a global', () => {
+    const result = resolveOpenSpecExecutable({
+      repoPath,
+      pathEnv: '/usr/local/bin',
+      platform: 'linux',
+      exists: (p) => p === localCandidate || p === globalCandidate,
+      isRegularFile: () => true,
+      isExecutable: () => true,
+      realpath: (p) => (p === localCandidate ? null : p),
+      probePathState: () => 'exists',
+      isRepoAuthorized: (p) => p === repoPath,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.executablePath).toBe(globalCandidate);
+    expect(result!.provenance).toBe('global');
+  });
+
+  it('repoPath ausente/inexistente en disco => no intenta local, cae a global con procedencia global', () => {
+    const result = resolveOpenSpecExecutable({
+      repoPath: '/nonexistent/repo',
+      pathEnv: '/usr/local/bin',
+      platform: 'linux',
+      exists: (p) => p === globalCandidate,
+      isRegularFile: () => true,
+      isExecutable: () => true,
+      realpath: (p) => (p === '/nonexistent/repo' ? null : p),
+      probePathState: (p) => (p === '/nonexistent/repo' ? 'absent' : 'exists'),
+      isRepoAuthorized: (p) => p === '/nonexistent/repo',
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.executablePath).toBe(globalCandidate);
+    expect(result!.provenance).toBe('global');
+  });
+
+  it('repoPath con error de canonicalización (realpath null) => no intenta local, selecciona ejecutable de PATH con procedencia unknown', () => {
+    const result = resolveOpenSpecExecutable({
+      repoPath: '/invalid/repo',
+      pathEnv: '/usr/local/bin',
+      platform: 'linux',
+      exists: (p) => p === localCandidate || p === globalCandidate,
+      isRegularFile: () => true,
+      isExecutable: () => true,
+      realpath: (p) => (p === '/invalid/repo' ? null : p),
+      probePathState: () => 'exists',
+      isRepoAuthorized: (p) => p === '/invalid/repo',
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.executablePath).toBe(globalCandidate);
+    expect(result!.provenance).toBe('unknown');
+  });
+
+  it('excluye archivos .ps1 en Windows para candidato local en node_modules/.bin', () => {
+    const winRepo = 'C:\\project';
+    const localPs1 = 'C:\\project\\node_modules\\.bin\\openspec.ps1';
+    const globalCmd = 'C:\\nvm\\nodejs\\openspec.cmd';
+
+    const existing = new Set([localPs1, globalCmd]);
+    const result = resolveOpenSpecExecutable({
+      repoPath: winRepo,
+      pathEnv: 'C:\\nvm\\nodejs',
+      platform: 'win32',
+      exists: (p) => existing.has(p),
+      isRegularFile: () => true,
+      realpath: (p) => p,
+      probePathState: () => 'exists',
+      isRepoAuthorized: (p) => p === winRepo,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.executablePath).toBe(globalCmd);
+    expect(result!.provenance).toBe('global');
+  });
+
+  it('garantiza que la procedencia managed permanece tipada pero no disponible sin runtime administrado activo', () => {
+    // Cuando no existe un runtime en userData/openspec-runtimes, la resolución normal nunca devuelve 'managed'
+    const result = resolveOpenSpecExecutable({
+      repoPath: '/home/user/project',
+      userDataDir: '/home/user/.gitcron',
+      pathEnv: '/usr/bin',
+      platform: 'linux',
+      exists: (p) => p === '/usr/bin/openspec',
+      isRegularFile: () => true,
+      isExecutable: () => true,
+      realpath: (p) => p,
+      probePathState: (p) => (p === '/home/user/.gitcron/openspec-runtimes' ? 'absent' : 'exists'),
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.provenance).not.toBe('managed');
+    expect(result!.provenance).toBe('global');
+  });
+});
+
 describe('classifyOpenSpecProvenance (tres estados: exists / absent / error)', () => {
   it('raíz administrada ausente con ENOENT => puede terminar en global', () => {
     const target = '/usr/bin/openspec';

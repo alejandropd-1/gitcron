@@ -8,6 +8,7 @@ import {
   parseSemver,
   SUPPORTED_OPENSPEC_VERSIONS,
 } from '../../lib/openspec-version';
+import { authorizedRepoStore } from '../ipc/authorized-repos';
 
 const execFileAsync = promisify(execFile);
 const readFileAsync = promisify(fsReadFile);
@@ -117,14 +118,29 @@ export function defaultProbePathState(
 }
 
 /**
- * Recorre el PATH buscando `openspec` sin spawneo.
+ * PRECEDENCIA DE RESOLUCIÓN DEL EJECUTABLE OPENSPEC:
+ *
+ * 1. Local al proyecto (`<repoPath>/node_modules/.bin/openspec`):
+ *    El CLI local al repositorio tiene precedencia absoluta sobre el CLI global del sistema
+ *    porque su versión está estrictamente fijada por el lockfile del proyecto
+ *    (`package.json` / `pnpm-lock.yaml` / `package-lock.json`), garantizando reproducibilidad
+ *    y evitando discrepancias entre entornos o versiones globales incompatibles.
+ *
+ * 2. Global del sistema (`PATH`):
+ *    Si el repositorio no contiene una instalación local en `node_modules/.bin`,
+ *    se recorre el `PATH` del sistema para ubicar una instalación global.
+ *
+ * 3. Procedencia `managed`:
+ *    Se mantiene tipada y reconocida en el contrato para compatibilidad futura, pero
+ *    se declara formalmente no disponible (sin runtime administrado activo).
  *
  * En Windows:
  * - Excluye `.ps1` (sólo admite `.cmd`, `.exe`, `.bat` y ejecutables binarios).
  * - Comprueba que el candidato sea un archivo regular (`statSync.isFile()`).
  * - Canonicaliza mediante `realpathSync`. Si falla, rechaza el candidato (sin fallback a path.resolve).
+ * - Para candidatos locales, verifica estricta contención dentro del `repoPath` canónico.
  * En POSIX:
- * - Verifica ademas que el archivo tenga permisos de ejecución (bit 0o111).
+ * - Verifica además que el archivo tenga permisos de ejecución (bit 0o111).
  */
 export function resolveOpenSpecExecutable(options?: {
   pathEnv?: string;
@@ -136,8 +152,11 @@ export function resolveOpenSpecExecutable(options?: {
   isExecutable?: (p: string) => boolean;
   realpath?: (p: string) => string | null;
   probePathState?: (p: string) => PathStateResult;
+  isRepoAuthorized?: (p: string) => boolean;
 }): AuthorizedOpenSpecRuntime | null {
   const platform = options?.platform ?? process.platform;
+  const isWin = platform === 'win32';
+  const pathMod = isWin ? path.win32 : path.posix;
   const exists = options?.exists ?? existsSync;
   const isRegularFile = options?.isRegularFile ?? ((p: string) => {
     try {
@@ -148,7 +167,7 @@ export function resolveOpenSpecExecutable(options?: {
   });
 
   const isExecutable = options?.isExecutable ?? ((p: string) => {
-    if (platform === 'win32') return true;
+    if (isWin) return true;
     try {
       const st = statSync(p);
       return Boolean(st.mode & 0o111);
@@ -165,9 +184,71 @@ export function resolveOpenSpecExecutable(options?: {
     }
   });
 
-  const pathMod = platform === 'win32' ? path.win32 : path.posix;
+  const isRepoAuthorized = options?.isRepoAuthorized ?? ((p: string) => authorizedRepoStore.isAuthorized(p));
+
   // En Windows se excluye explícitamente .ps1 ya que execFile sin wrapper seguro no lo ejecuta directamente.
-  const extensions = platform === 'win32' ? ['.cmd', '.exe', '.bat', ''] : [''];
+  const extensions = isWin ? ['.cmd', '.exe', '.bat', ''] : [''];
+
+  // =========================================================================
+  // ESTRATEGIA 1: Búsqueda del ejecutable local al proyecto (precedencia alta)
+  // =========================================================================
+  if (options?.repoPath && typeof options.repoPath === 'string' && options.repoPath.trim()) {
+    const rawRepo = options.repoPath.trim();
+    // DEFENSA EN PROFUNDIDAD: El candidato local sólo se evalúa si el repositorio está autorizado.
+    if (isRepoAuthorized(rawRepo)) {
+      const canonicalRepo = realpath(rawRepo);
+
+      if (canonicalRepo) {
+        const localBinDir = pathMod.join(rawRepo, 'node_modules', '.bin');
+
+        for (const ext of extensions) {
+          const candidate = pathMod.join(localBinDir, `openspec${ext}`);
+          if (!exists(candidate) || !isRegularFile(candidate) || !isExecutable(candidate)) continue;
+
+          const canonicalCandidate = realpath(candidate);
+          if (!canonicalCandidate) continue;
+
+          // GUARDA DE SEGURIDAD: Contención estricta bajo repoPath canonicalizado.
+          // Un symlink en node_modules/.bin que apunte fuera del repositorio se rechaza inmediatamente.
+          const sep = isWin ? '\\' : '/';
+          let normCandidate = pathMod.normalize(canonicalCandidate);
+          let normRepo = pathMod.normalize(canonicalRepo);
+          if (isWin) {
+            normCandidate = normCandidate.toLowerCase();
+            normRepo = normRepo.toLowerCase();
+          }
+          normRepo = normRepo.replace(/[/\\]+$/, '');
+          const isContained = normCandidate === normRepo || normCandidate.startsWith(normRepo + sep);
+          if (!isContained) {
+            continue;
+          }
+
+          const command = isWin ? pathMod.basename(canonicalCandidate) : 'openspec';
+          const shell = isWin && (canonicalCandidate.toLowerCase().endsWith('.cmd') || canonicalCandidate.toLowerCase().endsWith('.bat'));
+
+          const provenance = classifyOpenSpecProvenance(canonicalCandidate, {
+            userDataDir: options?.userDataDir ?? null,
+            repoPath: options?.repoPath ?? null,
+            platform,
+            realpath: options?.realpath,
+            probePathState: options?.probePathState,
+          });
+
+          return {
+            executablePath: canonicalCandidate,
+            command,
+            shell,
+            displayPath: canonicalCandidate,
+            provenance,
+          };
+        }
+      }
+    }
+  }
+
+  // =========================================================================
+  // ESTRATEGIA 2: Recorrido del PATH del sistema (fallback global)
+  // =========================================================================
   const dirs = splitPathEnv(options?.pathEnv ?? process.env.PATH ?? process.env.Path, platform);
 
   for (const dir of dirs) {
@@ -179,8 +260,8 @@ export function resolveOpenSpecExecutable(options?: {
       const canonical = realpath(candidate);
       if (!canonical) continue;
 
-      const command = platform === 'win32' ? pathMod.basename(canonical) : 'openspec';
-      const shell = platform === 'win32' && (canonical.toLowerCase().endsWith('.cmd') || canonical.toLowerCase().endsWith('.bat'));
+      const command = isWin ? pathMod.basename(canonical) : 'openspec';
+      const shell = isWin && (canonical.toLowerCase().endsWith('.cmd') || canonical.toLowerCase().endsWith('.bat'));
 
       const provenance = classifyOpenSpecProvenance(canonical, {
         userDataDir: options?.userDataDir ?? null,

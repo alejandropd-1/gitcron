@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initOpenSpec } from '../ipc/pipeline-specs';
 import { TOOL_ID_PATTERN } from '../pipeline/openspec-cli';
+import { authorizedRepoStore } from '../ipc/authorized-repos';
 
 /**
  * Inicialización de OpenSpec desde el panel.
@@ -11,6 +12,14 @@ import { TOOL_ID_PATTERN } from '../pipeline/openspec-cli';
  */
 describe('inicializar OpenSpec', () => {
   const binding = async (repoPath: string) => ({ canonicalPath: repoPath });
+
+  beforeEach(() => {
+    vi.spyOn(authorizedRepoStore, 'isAuthorized').mockImplementation((p) => p === 'C:/repo');
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('rechaza una ruta inválida sin resolver el repositorio', async () => {
     const spy = vi.fn(binding);

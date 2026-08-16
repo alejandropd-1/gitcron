@@ -155,6 +155,45 @@ describe('Single Runtime Resolution (Audit Point 5)', () => {
     expect(snapshot.cli.displayPath).toBe('C:\\global\\openspec.cmd');
     expect((snapshot.cli as any).executablePath).toBeUndefined();
   });
+
+  it('buildEngineStatusSnapshot pasa repoPath a resolveOpenSpecExecutable y adopta procedencia local cuando existe en repo', async () => {
+    const localRuntime: AuthorizedOpenSpecRuntime = {
+      executablePath: path.join(process.cwd(), 'node_modules', '.bin', process.platform === 'win32' ? 'openspec.cmd' : 'openspec'),
+      command: process.platform === 'win32' ? 'openspec.cmd' : 'openspec',
+      shell: process.platform === 'win32',
+      displayPath: path.join(process.cwd(), 'node_modules', '.bin', process.platform === 'win32' ? 'openspec.cmd' : 'openspec'),
+      provenance: 'local',
+    };
+
+    authorizedRepoStore.clear();
+    authorizedRepoStore.authorizeRepo(process.cwd());
+
+    const snapshot = await buildEngineStatusSnapshot(process.cwd(), {
+      getUserDataDir: () => 'C:\\userData',
+      resolveRuntime: (opts) => {
+        expect(opts?.repoPath).toBe(process.cwd());
+        return localRuntime;
+      },
+      discoverCli: async (opts) => {
+        expect(opts?.runtime?.provenance).toBe('local');
+        return {
+          installed: true,
+          runtimeVersion: '1.8.0',
+          provenance: 'local',
+          displayPath: opts?.runtime?.displayPath ?? null,
+          supportedRange: { min: '1.5.0', max: '1.8.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        };
+      },
+      readGlobalConfig: async () => null,
+    });
+
+    expect(snapshot.cli.provenance).toBe('local');
+    expect(snapshot.cli.displayPath).toBe(localRuntime.displayPath);
+    expect((snapshot.cli as any).executablePath).toBeUndefined();
+  });
 });
 
 describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidación de planes)', () => {

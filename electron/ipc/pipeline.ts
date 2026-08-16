@@ -2,8 +2,7 @@ import type { BrowserWindow } from 'electron';
 import { ipcMain } from 'electron';
 import type { PipelineState } from '../../types/pipeline';
 import { PipelineService } from '../pipeline/pipeline-service';
-import { errMsg } from './shared';
-import { authorizedRepoStore } from './authorized-repos';
+import { errMsg, validRepoPath } from './shared';
 
 type RefreshResult =
   | { success: true; data: PipelineState }
@@ -21,13 +20,6 @@ interface RepoSubscription {
    * re-suscribe cuando cambia, así que alcanza con recordarlo acá.
    */
   selectedChangeId: string | null;
-}
-
-function validRepoPath(value: unknown): value is string {
-  if (typeof value !== 'string' || value.length === 0 || value.length > 32_768) {
-    return false;
-  }
-  return authorizedRepoStore.isAuthorized(value);
 }
 
 export function registerPipelineHandlers(

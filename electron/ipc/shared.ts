@@ -5,6 +5,18 @@
 
 import * as path from 'path';
 import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
+import { authorizedRepoStore } from './authorized-repos';
+
+/**
+ * Valida la forma y exige autorización activa de la ruta del repositorio en el almacén de main.
+ * Rechaza cadenas no-string, vacías, longitudes excesivas (>32 KB), y rutas no autorizadas por el usuario.
+ */
+export function validRepoPath(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 32_768) {
+    return false;
+  }
+  return authorizedRepoStore.isAuthorized(value);
+}
 
 /**
  * Disable credential helper and askpass for token-authed operations.

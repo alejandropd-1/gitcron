@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { stat } from 'node:fs/promises';
+import * as path from 'node:path';
+import { stat, readFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { CheckRepoActions, simpleGit } from 'simple-git';
 import { withRepoLock } from '../git/repo-queue';
@@ -23,6 +24,8 @@ import { readBranchDivergence } from './branch-divergence';
 import { selectPipelineChange } from './change-selection';
 import { parseAudit, parseMarkdownTasks } from './parsers';
 import { statusOpenSpecChangeWithCli, validateOpenSpecChangeWithCli } from './openspec-cli';
+import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
+import { readOpenSpecChangeMetadata } from './openspec-engine';
 import { resolveContainedRepoPath, safeListRepoDirectory, safeReadRepoFile } from './repo-paths';
 import {
   isOpenSpecSkillEntry,
@@ -329,7 +332,7 @@ export class RepoEvidenceReader {
       ? { changeId: selectedChangeId as string, confidence: 'confirmed' as const, selectionRequired: false, reason: 'manual' as const }
       : autoSelection;
 
-    const safeActiveChanges = activeChanges.filter((changeId) => /^[a-z0-9][a-z0-9-]*$/.test(changeId));
+    const safeActiveChanges = activeChanges.filter((changeId) => isValidOpenSpecChangeSlug(changeId));
     // Una sola pasada de historia para todos los cambios, activos y archivados.
     // Si falla, el snapshot va sin marcas: no tenerlas degrada la pantalla, no
     // la rompe, y no justifica perder el resto de la evidencia.
@@ -372,11 +375,12 @@ export class RepoEvidenceReader {
       // no sea el seleccionado, así que tres cuartos de ese costo no alimentaban
       // nada. Es el mismo criterio que ya regía para `artifacts`.
       const isSelected = changeId === selection.changeId;
-      const [taskFile, proposalFile, designFile, deltaSpecs, validation, status] = await Promise.all([
+      const [taskFile, proposalFile, designFile, deltaSpecs, fileMeta, validation, status] = await Promise.all([
         safeReadRepoFile(repoPath, taskRef),
         safeReadRepoFile(repoPath, proposalRef),
         safeReadRepoFile(repoPath, designRef),
         safeListRepoDirectory(repoPath, `${changeRoot}/specs`),
+        readOpenSpecChangeMetadata(repoPath, changeId),
         // `unknown` no es un default optimista: es lo que el propio wrapper del
         // CLI devuelve cuando no pudo ejecutarse. No saber si un cambio es
         // válido no es lo mismo que saber que no lo es.
@@ -393,6 +397,9 @@ export class RepoEvidenceReader {
       if (taskFile.status !== 'missing') diagnostics.push(...taskFile.diagnostics);
       if (proposalFile.status !== 'missing') diagnostics.push(...proposalFile.diagnostics);
       if (designFile.status !== 'missing') diagnostics.push(...designFile.diagnostics);
+      const effectiveSchemaName = status?.schemaName ?? fileMeta.schemaName;
+      const effectiveSkipSpecs = status?.skipSpecs ?? fileMeta.skipSpecs;
+
       openSpecChanges.push({
         changeId,
         intent: proposalFile.content ? firstWhyParagraph(proposalFile.content) : null,
@@ -401,6 +408,8 @@ export class RepoEvidenceReader {
         designExists: designFile.content !== null,
         specsCount: deltaSpecs.length,
         validation,
+        schemaName: effectiveSchemaName,
+        skipSpecs: effectiveSkipSpecs,
         // El markdown ya está leído: hasta ahora se descartaba después de
         // extraer el intent. Se conserva sólo para el cambio seleccionado.
         artifacts: isSelected
@@ -411,7 +420,7 @@ export class RepoEvidenceReader {
             specs: await this.readDeltaSpecs(repoPath, changeRoot, deltaSpecs, diagnostics),
           }
           : null,
-        status,
+        status: status ? { ...status, schemaName: effectiveSchemaName, skipSpecs: effectiveSkipSpecs } : null,
         // Git primero. El disco sólo cubre el cambio que todavía no se confirmó,
         // y va marcado como tal para que no se lea como una fecha confirmada.
         createdAt: await this.resolveCreatedAt(repoPath, changeId, changeRoot, history),
@@ -536,6 +545,73 @@ export class RepoEvidenceReader {
         openSpecTools: tooling.tools,
         branchDivergence,
       },
+    };
+  }
+}
+
+export interface RealGitInfo {
+  branch: string | null;
+  headCommit: string | null; // Full 40-char commit SHA
+  isClean: boolean;
+  workingTreeFingerprint: string;
+}
+
+/**
+ * Obtiene la evidencia real del árbol de trabajo Git.
+ * Satisface el Punto 3 de auditoría:
+ * - Raíz canónica, branch real y HEAD completo de 40 caracteres (sin truncar a 12).
+ * - Soporta .git dir, .git file (worktree), refs empaquetadas, detached HEAD, staged, untracked, eliminados y conflictos.
+ * - Genera una huella SHA-256 determinista del working tree.
+ * - Ante error de I/O o permisos devuelve status 'unknown:error' y NUNCA 'clean'.
+ */
+export async function getRealGitInfo(repoPath: string): Promise<RealGitInfo> {
+  try {
+    return await withRepoLock(repoPath, async () => {
+      const git = simpleGit(repoPath);
+      const [status, headCommit] = await Promise.all([
+        git.status(),
+        git.revparse(['HEAD']).catch(() => null),
+      ]);
+
+      const branch = status.current || null;
+      const clean = status.isClean();
+      const fullHead = typeof headCommit === 'string' && headCommit.trim() ? headCommit.trim() : null;
+
+      const fileEntries = (
+        await Promise.all(
+          status.files.map(async (f) => {
+            let meta = '';
+            try {
+              const fullPath = path.join(repoPath, f.path);
+              const content = await readFile(fullPath);
+              const contentHash = createHash('sha256').update(content).digest('hex').slice(0, 16);
+              meta = `:${content.length}:${contentHash}`;
+            } catch {
+              meta = ':absent';
+            }
+            return `${f.path}:${f.index}:${f.working_dir}${meta}`;
+          }),
+        )
+      )
+        .sort()
+        .join('\n');
+
+      const rawFingerprint = `branch=${branch};head=${fullHead};clean=${clean};files=${fileEntries}`;
+      const hash = createHash('sha256').update(rawFingerprint).digest('hex').slice(0, 16);
+
+      return {
+        branch,
+        headCommit: fullHead,
+        isClean: clean,
+        workingTreeFingerprint: `${clean ? 'clean' : 'dirty'}:${status.files.length}:${hash}`,
+      };
+    });
+  } catch {
+    return {
+      branch: null,
+      headCommit: null,
+      isClean: false,
+      workingTreeFingerprint: 'unknown:error',
     };
   }
 }

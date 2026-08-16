@@ -10,6 +10,7 @@ import {
   errMsg, getGitHubAuthOptions, getNoPromptEnv,
   normalizeSafeDirectoryPath, repoAccessErrMsg,
 } from './shared';
+import { authorizedRepoStore } from './authorized-repos';
 
 const OPEN_REPO_TIMEOUT_MS = 15_000;
 
@@ -54,10 +55,14 @@ export function registerGitRepoHandlers(): void {
       if (!isRepo) {
         return notARepoResult(dirPath);
       }
-      const status = await simpleGit(dirPath).status();
+      const authorizedPath = authorizedRepoStore.authorizeRepo(dirPath);
+      if (!authorizedPath) {
+        return notARepoResult(dirPath);
+      }
+      const status = await simpleGit(authorizedPath).status();
       const info: RepoInfo = {
-        path: dirPath,
-        name: path.basename(dirPath),
+        path: authorizedPath,
+        name: path.basename(authorizedPath),
         currentBranch: status.current ?? 'HEAD',
         isGitRepo: true,
       };
@@ -88,16 +93,46 @@ export function registerGitRepoHandlers(): void {
         return notARepoResult(selectedPath);
       }
 
-      const status = await simpleGit(selectedPath).status();
+      const authorizedPath = authorizedRepoStore.authorizeRepo(selectedPath);
+      if (!authorizedPath) {
+        return notARepoResult(selectedPath);
+      }
+
+      const status = await simpleGit(authorizedPath).status();
       const repoInfo: RepoInfo = {
-        path: selectedPath,
-        name: path.basename(selectedPath),
+        path: authorizedPath,
+        name: path.basename(authorizedPath),
         currentBranch: status.current ?? 'HEAD',
         isGitRepo: true,
       };
       return { success: true, data: repoInfo };
     } catch (error: any) {
       return { success: false, error: selectedPath ? openRepoErrMsg(error, selectedPath) : errMsg(error) };
+    }
+  });
+
+  ipcMain.handle('git:close-repo', async (_event, targetPath: string) => {
+    authorizedRepoStore.deauthorizeRepo(targetPath);
+    return { success: true };
+  });
+
+  // ── Sonda de repositorio: comprobar SIN autorizar ────────────────────────
+  // La comprobación ("¿esta carpeta ya es un repo?") no concede autoridad.
+  // La autorización sólo la da una apertura real (git:open-path / git:open-repo /
+  // git:init / git:clone) y la revoca git:close-repo. Usar git:open-path como
+  // sonda dejaba repos autorizados que nadie abrió como pestaña ni cerrará jamás.
+  ipcMain.handle('git:check-repo-path', async (_event, dirPath: string) => {
+    try {
+      if (!fs.existsSync(dirPath)) {
+        return { success: false, reason: 'missing' as const, error: `La carpeta ya no existe: ${dirPath}` };
+      }
+      const isRepo = await openRepoGit(dirPath).checkIsRepo(CheckRepoActions.IS_REPO_ROOT);
+      if (!isRepo) {
+        return notARepoResult(dirPath);
+      }
+      return { success: true, data: { isGitRepo: true } };
+    } catch (error: any) {
+      return { success: false, error: openRepoErrMsg(error, dirPath) };
     }
   });
 
@@ -211,9 +246,15 @@ export function registerGitRepoHandlers(): void {
       }
 
       const status = await simpleGit(repoDir).status();
+      // Un repo recién creado que no se puede autorizar es un fallo explícito,
+      // no un éxito con ruta no autorizada (todo IPC posterior la rechazaría).
+      const authorizedPath = authorizedRepoStore.authorizeRepo(repoDir);
+      if (!authorizedPath) {
+        return { success: false, error: `No se pudo autorizar el repositorio recién creado en "${repoDir}". Volvé a abrirlo desde el selector de repositorios.` };
+      }
       const info: RepoInfo = {
-        path: repoDir,
-        name: path.basename(repoDir),
+        path: authorizedPath,
+        name: path.basename(authorizedPath),
         currentBranch: status.current ?? 'main',
         isGitRepo: true,
       };
@@ -240,9 +281,14 @@ export function registerGitRepoHandlers(): void {
       await g.clone(url, destPath);
 
       const status = await simpleGit(destPath).status();
+      // Mismo contrato que git:init: sin autorización no hay éxito.
+      const authorizedPath = authorizedRepoStore.authorizeRepo(destPath);
+      if (!authorizedPath) {
+        return { success: false, error: `No se pudo autorizar el repositorio clonado en "${destPath}". Volvé a abrirlo desde el selector de repositorios.` };
+      }
       const info: RepoInfo = {
-        path: destPath,
-        name: path.basename(destPath),
+        path: authorizedPath,
+        name: path.basename(authorizedPath),
         currentBranch: status.current ?? 'HEAD',
         isGitRepo: true,
       };

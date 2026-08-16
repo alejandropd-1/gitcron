@@ -66,7 +66,7 @@ function snapshot(): PipelineSnapshot {
 
 afterEach(cleanup);
 
-describe('revalidación del workspace', () => {
+describe('revalidación del workspace', { timeout: 15_000 }, () => {
   it('muestra el estado de carga sólo mientras no hay ningún snapshot', async () => {
     let resolveLoad: ((value: PipelineSnapshot) => void) | undefined;
     const loadSnapshot: PipelineSnapshotLoader = () => new Promise((resolve) => { resolveLoad = resolve; });

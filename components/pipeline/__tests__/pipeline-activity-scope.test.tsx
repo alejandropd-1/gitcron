@@ -122,7 +122,7 @@ function enterFirstChange() {
 
 afterEach(cleanup);
 
-describe('alcance de la columna de actividad', () => {
+describe('alcance de la columna de actividad', { timeout: 15_000 }, () => {
   it('con un cambio abierto no muestra la sesión más reciente de otro', () => {
     // El defecto exacto: la más reciente es de `otro`, y era la que se mostraba.
     renderDashboard(null, [

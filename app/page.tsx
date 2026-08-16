@@ -444,7 +444,10 @@ export default function GitCronPage() {
     help: () => handleViewChange(activeView === 'help' ? 'repository' : 'help'),
     closeRepo: () => {
       const idx = useGitStore.getState().activeRepoIdx;
-      if (idx >= 0) useGitStore.getState().closeRepo(idx);
+      // Pasa por el closeRepo del loader: además de cerrar la pestaña en el
+      // store, revoca la autorización en el proceso principal. Cerrar sólo en
+      // el store dejaba el repo autorizado sin ninguna pestaña viva.
+      if (idx >= 0) void closeRepo(idx);
     },
     nextRepo: () => {
       const s = useGitStore.getState();
@@ -803,7 +806,7 @@ export default function GitCronPage() {
   // ── Panel layout (resizable widths + open/closed state, persisted) ──
   const {
     sidebarW, detailsW, sidebarOpen, detailsOpen, isDragging, graphColumns,
-    beginColDrag, beginGraphColDrag, toggleSidebar, toggleDetails,
+    beginColDrag, beginGraphColDrag, toggleSidebar, toggleDetails, ensureDetailsOpen,
   } = usePanelLayout();
   const repositoryDetailsVisible = detailsOpen && activeView === 'repository' && !!repoPath && !isRepoStartView && !cartographyActive;
   const leftGraphSafe = sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
@@ -1724,6 +1727,7 @@ export default function GitCronPage() {
                 rightWidth: detailsW,
                 onResizeLeft: (event) => beginColDrag('sidebar', event),
                 onResizeRight: (event) => beginColDrag('details', event),
+                onEnsureRightOpen: ensureDetailsOpen,
               },
               onSelectCommit: handleSelectCommit,
               onCommitContextMenu: (event, commit) => openContextMenu({ x: event.clientX, y: event.clientY, hash: commit.hash }),

@@ -98,6 +98,22 @@ describe('grafo de artefactos de OpenSpec', () => {
     expect(screen.getByText(/pipeline\.openspec\.graph\.missingDeps/).textContent).toMatch(/design/);
   });
 
+  it('renderiza artefactos con estado skipped y unknown sin romper', () => {
+    renderDetails(change({
+      available: true,
+      artifacts: [
+        { id: 'specs', state: 'skipped', missingDeps: [] },
+        { id: 'custom', state: 'unknown', missingDeps: [], rawState: 'future-state' },
+      ],
+      applyRequires: ['tasks'],
+      isComplete: false,
+    }));
+    expect(screen.getByText('specs')).toBeTruthy();
+    expect(screen.getByText('pipeline.openspec.graph.state.skipped')).toBeTruthy();
+    expect(screen.getByText('custom')).toBeTruthy();
+    expect(screen.getByText('pipeline.openspec.graph.state.unknown')).toBeTruthy();
+  });
+
   it('sin grafo (status null) no renderiza la superficie ni inventa estado', () => {
     renderDetails(change(null));
     expect(screen.queryByText('pipeline.openspec.graph.state.done')).toBeNull();

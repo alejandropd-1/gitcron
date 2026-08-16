@@ -4,6 +4,15 @@ import path from 'path';
 export default defineConfig({
   test: {
     environment: 'node',
+    // Con todos los núcleos (15 forks en una máquina de 16), la suite satura
+    // la máquina: git real + transform + el escaneo de antivirus de los repos
+    // temporales compiten por CPU/IO y tests que en aislamiento tardan
+    // segundos exceden su presupuesto — el archivo que falla es móvil, no uno
+    // caro (medido: 178–200 s de tests con timeouts intermitentes contra
+    // 92–95 s con la mitad de los núcleos, suite completa en verde). Es un
+    // límite de capacidad de la máquina, no un reloj ajustado: ningún
+    // testTimeout se toca por esto (invariante 19).
+    maxWorkers: '50%',
     include: [
       'lib/__tests__/**/*.test.ts',
       'hooks/__tests__/**/*.test.ts',

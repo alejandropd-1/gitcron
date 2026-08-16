@@ -247,6 +247,10 @@ export const useRepoLoader = () => {
   };
 
   const closeRepo = async (idx: number) => {
+    const repoToClose = useGitStore.getState().openRepos[idx];
+    if (repoToClose && window.api) {
+      await window.api.closeRepo(repoToClose.path).catch(() => {});
+    }
     closeRepoInStore(idx);
     await persistOpenRepos();
   };

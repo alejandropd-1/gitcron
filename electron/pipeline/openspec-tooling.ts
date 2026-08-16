@@ -1,68 +1,115 @@
 /**
- * Qué herramientas usa un repositorio y cuáles tienen OpenSpec configurado.
+ * Herramientas y targets reconocidos por GitCron para OpenSpec 1.8.
  *
- * Existe porque un repositorio puede estar correctamente inicializado y aun así
- * dejar a un ejecutor trabajando a ciegas. En `C:\www\odontoPau` convivían
- * `.codex/skills/openspec-*` y ningún `.agent/`, que es donde van los de
- * Antigravity: Codex recibía el método y Antigravity no. Nadie lo vio hasta que
- * un artefacto salió mal, y diagnosticarlo exigió comparar directorios a mano.
- *
- * Las skills son lo que enseña el canal. La de `openspec-propose` dice «Follow
- * the `instruction` field from `openspec instructions`» y que `context` y
- * `rules` son restricciones para el ejecutor. Sin ese archivo, un agente no sabe
- * que tiene que pedir instrucciones: el canal está lleno y nadie lo abre.
+ * Fuente única de verdad para la tabla de herramientas, directorios, clases de outputs,
+ * conjuntos oficiales de workflows y bloqueo de seguridad.
  */
+
+export const OPENSPEC_CORE_WORKFLOW_SET = new Set([
+  'propose',
+  'explore',
+  'apply',
+  'update',
+  'sync',
+  'archive',
+]);
+
+export const OPENSPEC_EXPANDED_WORKFLOW_SET = new Set([
+  'propose',
+  'explore',
+  'apply',
+  'update',
+  'sync',
+  'archive',
+  'new',
+  'continue',
+  'ff',
+  'verify',
+  'bulk-archive',
+  'onboard',
+]);
 
 /**
- * Directorios por herramienta, según la documentación de OpenSpec.
- *
- * La lista vive acá y no se lee del CLI porque no hay comando que la informe:
- * `openspec init` la conoce, pero la aplica configurando, y correrlo para
- * averiguar el estado escribiría archivos.
- *
- * Que envejezca es aceptable y su modo de fallar es benigno: una herramienta que
- * no está en la lista simplemente no se muestra, y el panel queda como estaba. No
- * se la reporta como faltante, que sería afirmar algo falso.
+ * Mapeo canónico exacto de nombres de artefactos/skills oficiales a sus nombres de workflow.
+ * Ningún skill fuera de este mapeo es considerado oficial (ej. `openspec-mi-flujo` no lo es).
  */
-export const OPENSPEC_TOOL_DIRECTORIES: ReadonlyArray<{ toolId: string; directory: string; label: string }> = [
-  { toolId: 'claude', directory: '.claude', label: 'Claude Code' },
-  { toolId: 'codex', directory: '.codex', label: 'Codex' },
-  { toolId: 'antigravity', directory: '.agent', label: 'Antigravity' },
-  { toolId: 'opencode', directory: '.opencode', label: 'OpenCode' },
-  { toolId: 'cursor', directory: '.cursor', label: 'Cursor' },
-  { toolId: 'gemini', directory: '.gemini', label: 'Gemini CLI' },
-  { toolId: 'github-copilot', directory: '.github', label: 'GitHub Copilot' },
-  { toolId: 'amazon-q', directory: '.amazonq', label: 'Amazon Q' },
-  { toolId: 'auggie', directory: '.augment', label: 'Auggie' },
-  { toolId: 'cline', directory: '.cline', label: 'Cline' },
-  { toolId: 'crush', directory: '.crush', label: 'Crush' },
-  { toolId: 'junie', directory: '.junie', label: 'Junie' },
-  { toolId: 'kilocode', directory: '.kilocode', label: 'Kilo Code' },
-  { toolId: 'kiro', directory: '.kiro', label: 'Kiro' },
-  { toolId: 'qwen', directory: '.qwen', label: 'Qwen Code' },
-  { toolId: 'roocode', directory: '.roo', label: 'Roo Code' },
-  { toolId: 'trae', directory: '.trae', label: 'Trae' },
-  { toolId: 'windsurf', directory: '.windsurf', label: 'Windsurf' },
+export const OFFICIAL_WORKFLOW_MAP: Readonly<Record<string, string>> = {
+  'openspec-propose': 'propose',
+  'openspec-explore': 'explore',
+  'openspec-apply-change': 'apply',
+  'openspec-apply': 'apply',
+  'openspec-update-plan': 'update',
+  'openspec-update': 'update',
+  'openspec-sync-specs': 'sync',
+  'openspec-sync': 'sync',
+  'openspec-archive-change': 'archive',
+  'openspec-archive': 'archive',
+  'openspec-new-change': 'new',
+  'openspec-new': 'new',
+  'openspec-continue-change': 'continue',
+  'openspec-continue': 'continue',
+  'openspec-ff-change': 'ff',
+  'openspec-ff': 'ff',
+  'openspec-verify-change': 'verify',
+  'openspec-verify': 'verify',
+  'openspec-bulk-archive': 'bulk-archive',
+  'openspec-onboard': 'onboard',
+};
+
+export const OFFICIAL_OPENSPEC_SKILL_SLUGS = new Set(Object.keys(OFFICIAL_WORKFLOW_MAP));
+
+export type OpenSpecToolCategory = 'interactive-agent' | 'ci' | 'global-agent';
+
+export interface OpenSpecToolDef {
+  toolId: string;
+  directory: string;
+  label: string;
+  kind: 'repo-local' | 'external-global';
+  category: OpenSpecToolCategory;
+  isInteractiveAgent: boolean;
+  displayPath: string;
+  blocked: boolean;
+  descriptionKey: string;
+}
+
+export const OPENSPEC_TOOL_DIRECTORIES: ReadonlyArray<OpenSpecToolDef> = [
+  { toolId: 'agents', directory: '.agents', label: 'Agents Multi-Agent', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.agents/skills/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.agentsDesc' },
+  { toolId: 'codex', directory: '.codex', label: 'Codex', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.codex/skills/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.codexDesc' },
+  { toolId: 'claude', directory: '.claude', label: 'Claude Code', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.claude/skills/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.claudeDesc' },
+  { toolId: 'antigravity', directory: '.agent', label: 'Antigravity', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.agent/skills/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.antigravityDesc' },
+  { toolId: 'opencode', directory: '.opencode', label: 'OpenCode', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.opencode/skills/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.opencodeDesc' },
+  { toolId: 'github', directory: '.github', label: 'GitHub Workflows', kind: 'repo-local', category: 'ci', isInteractiveAgent: false, displayPath: '.github/workflows/openspec-*.yml', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.githubDesc' },
+  { toolId: 'minimax-code', directory: '.minimax', label: 'MiniMax Code', kind: 'external-global', category: 'global-agent', isInteractiveAgent: false, displayPath: '~/.minimax/skills/openspec-*', blocked: true, descriptionKey: 'pipeline.openspec.engine.output.minimaxDesc' },
+  { toolId: 'cursor', directory: '.cursor', label: 'Cursor', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.cursor/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.cursorDesc' },
+  { toolId: 'gemini', directory: '.gemini', label: 'Gemini CLI', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.gemini/skills/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.geminiDesc' },
+  { toolId: 'github-copilot', directory: '.github-copilot', label: 'GitHub Copilot', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.github-copilot/prompts/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.copilotDesc' },
+  { toolId: 'amazon-q', directory: '.amazonq', label: 'Amazon Q', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.amazonq/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.amazonqDesc' },
+  { toolId: 'auggie', directory: '.augment', label: 'Auggie', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.augment/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.auggieDesc' },
+  { toolId: 'cline', directory: '.cline', label: 'Cline', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.cline/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.clineDesc' },
+  { toolId: 'crush', directory: '.crush', label: 'Crush', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.crush/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.crushDesc' },
+  { toolId: 'junie', directory: '.junie', label: 'Junie', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.junie/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.junieDesc' },
+  { toolId: 'kilocode', directory: '.kilocode', label: 'Kilo Code', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.kilocode/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.kilocodeDesc' },
+  { toolId: 'kiro', directory: '.kiro', label: 'Kiro', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.kiro/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.kiroDesc' },
+  { toolId: 'qwen', directory: '.qwen', label: 'Qwen Code', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.qwen/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.qwenDesc' },
+  { toolId: 'roocode', directory: '.roo', label: 'Roo Code', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.roo/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.roocodeDesc' },
+  { toolId: 'trae', directory: '.trae', label: 'Trae', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.trae/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.traeDesc' },
+  { toolId: 'windsurf', directory: '.windsurf', label: 'Windsurf', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.windsurf/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.windsurfDesc' },
 ];
 
-/** Una skill de OpenSpec vive en `<dir>/skills/openspec-<algo>/SKILL.md`. */
+export function getToolDef(toolId: string): OpenSpecToolDef | undefined {
+  return OPENSPEC_TOOL_DIRECTORIES.find((t) => t.toolId === toolId);
+}
+
+/** Comprueba si una entrada corresponde a una skill oficial o declarada de OpenSpec. */
 export function isOpenSpecSkillEntry(entry: string): boolean {
-  return entry.startsWith('openspec-');
+  return OFFICIAL_OPENSPEC_SKILL_SLUGS.has(entry);
 }
 
 export type ToolPresence = {
-  /** El directorio de la herramienta existe en el repositorio. */
   present: boolean;
-  /** Tiene al menos una skill de OpenSpec instalada. */
   configured: boolean;
 };
 
-/**
- * Resuelve el estado de cada herramienta a partir de lo que hay en disco.
- *
- * Recibe la lectura ya hecha para poder probarse con tablas: qué directorios
- * existen y qué contiene la carpeta `skills` de cada uno.
- */
 export function resolveToolStates(
   presence: ReadonlyMap<string, ToolPresence>,
 ): Array<{ toolId: string; label: string; directory: string; configured: boolean }> {

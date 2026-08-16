@@ -50,6 +50,20 @@ describe('IPC de archivado de un change', () => {
     expect(archive).not.toHaveBeenCalled();
   });
 
+  it('valida el límite exacto del slug (acepta 200 chars, rechaza 201)', async () => {
+    const archive = vi.fn(ok);
+    const { run } = await register(archive);
+
+    const slug200 = '1' + 'a'.repeat(199);
+    const slug201 = '1' + 'a'.repeat(200);
+
+    const res200 = await run(null, 'C:/repo', slug200) as { success: boolean };
+    expect(res200.success).toBe(true);
+
+    const res201 = await run(null, 'C:/repo', slug201) as { success: boolean };
+    expect(res201.success).toBe(false);
+  });
+
   it('rejects an invalid repo path', async () => {
     const archive = vi.fn(ok);
     const { run } = await register(archive);

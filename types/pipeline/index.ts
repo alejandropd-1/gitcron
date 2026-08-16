@@ -61,6 +61,15 @@ export interface OpenSpecChangeEvidence {
    * ellos (mismo criterio que `artifacts` y `validation`).
    */
   status?: OpenSpecChangeStatus | null;
+  /** Schema del change, leído de su .openspec.yaml si existe. */
+  schemaName?: string | null;
+  /**
+   * Estado de skip_specs:
+   * - true: metadata válida y skip_specs: true;
+   * - false: metadata válida y ausente o false;
+   * - null: metadata ausente, inválida o no leíble.
+   */
+  skipSpecs?: boolean | null;
   /**
    * Cuándo se creó el cambio. Opcional para no romper snapshots viejos; `null`
    * cuando no se pudo determinar ni por Git ni por disco.
@@ -90,13 +99,21 @@ export interface OpenSpecDeltaSpec {
  * el archivo existe en disco. Es el grafo real que el CLI devuelve, no una
  * derivación propia.
  */
-export type OpenSpecArtifactState = 'blocked' | 'ready' | 'done';
+export type OpenSpecArtifactState = 'blocked' | 'ready' | 'done' | 'skipped' | 'unknown';
 
 export interface OpenSpecArtifactStatus {
   id: string;
   state: OpenSpecArtifactState;
+  /** Estado crudo devuelto por el CLI cuando no coincide con ninguno conocido. */
+  rawState?: string;
   /** Artefactos de los que depende y que todavía no están `done`. */
   missingDeps: string[];
+  /**
+   * Dependencias declaradas del artefacto (1.7+). A diferencia de `missingDeps`,
+   * lista todas las que el grafo declara, estén o no `done`, para poder dibujar
+   * el grafo real y no sólo lo que falta. Opcional: ausente en versiones <1.7.
+   */
+  requires?: string[];
 }
 
 /**
@@ -112,6 +129,22 @@ export interface OpenSpecChangeStatus {
   artifacts: OpenSpecArtifactStatus[];
   /** Artefactos que `apply` exige que estén `done`. */
   applyRequires: string[];
+  /**
+   * Planificación completa. OpenSpec 1.8 introdujo `isPlanningComplete` como el
+   * estado real de planificación y dejó `isComplete` como alias de compatibilidad;
+   * este campo transporte el valor crudo de 1.8 cuando viene, y `null` si no.
+   * `isComplete` sigue siendo el campo a consumir: se calcula a partir de
+   * cualquiera de los dos para mantener la compatibilidad con 1.5.
+   */
+  isPlanningComplete?: boolean | null;
+  /**
+   * Schema del change (hoy `spec-driven`). No asumir que siempre es ése: el
+   * panel debe poder dibujar artefactos de cualquier schema. Opcional porque el
+   * CLI antiguo no lo trae.
+   */
+  schemaName?: string | null;
+  /** Evidencia de skip_specs combinada para el change. */
+  skipSpecs?: boolean | null;
   isComplete: boolean;
 }
 
@@ -299,6 +332,243 @@ export interface PipelineSemanticEvent {
 export interface ReductionResult {
   state: PipelineState;
   events: PipelineSemanticEvent[];
+}
+
+// --- OpenSpec engine: detección del motor, configuración global e integración ---
+// Los tipos canónicos de versión y perfil viven en `lib/` (son utilidades puras
+// compartidas por main y renderer); acá se re-exportan para que el snapshot los
+// concentre en un solo lugar.
+import type { OpenSpecVersionClass, OpenSpecVersionRange } from '../../lib/openspec-version';
+
+export type { OpenSpecVersionClass, OpenSpecVersionRange } from '../../lib/openspec-version';
+export type { OpenSpecProfileClass } from '../../lib/openspec-profile';
+
+/** Procedencia del ejecutable de OpenSpec que GitCron resuelve. */
+export type OpenSpecCliProvenance = 'global' | 'local' | 'managed' | 'unknown';
+
+/**
+ * Detección del motor de OpenSpec resuelto por GitCron.
+ *
+ * `displayPath` es un diagnóstico de sólo lectura: la ruta efectiva del
+ * ejecutable, para mostrar. Nunca debe poder volver desde el renderer como
+ * ejecutable ni como ruta de operación; toda ejecución usa el runtime que el
+ * proceso principal autorice.
+ */
+export interface OpenSpecCliDiscovery {
+  installed: boolean;
+  /** Versión leída de `openspec --version`. `null` si no se pudo leer. */
+  runtimeVersion: string | null;
+  provenance: OpenSpecCliProvenance;
+  /** Ruta efectiva canónica, informativa y de sólo lectura. `null` si no se halló. */
+  displayPath: string | null;
+  /** Rango soportado por esta versión de GitCron. */
+  supportedRange: OpenSpecVersionRange;
+  /** Clasificación de `runtimeVersion` frente a `supportedRange`. */
+  versionClass: OpenSpecVersionClass;
+  evidenceStatus: 'confirmed' | 'inferred' | 'unknown';
+  diagnostics: string[];
+}
+
+/**
+ * Configuración global efectiva de OpenSpec, leída de forma minimizada. Sólo
+ * transporta lo que la tarjeta necesita; `anonymousId`, telemetría y otros
+ * campos ajenos no se transportan, loguean ni persisten.
+ *
+ * Representa explícitamente el estado de lectura de cada clave por separado.
+ */
+export interface OpenSpecGlobalConfig {
+  rawProfile: string | null;
+  profileState: 'read' | 'failed' | 'unread';
+  delivery: string | null;
+  deliveryState: 'read' | 'failed' | 'unread';
+  configuredWorkflows: string[] | null;
+  workflowsState: 'read' | 'failed' | 'unread';
+  /** `cli` cuando al menos una clave produjo evidencia válida; `unknown` si todas fallaron. */
+  origin: 'cli' | 'unknown';
+  /** ISO-8601 del momento de lectura. */
+  readAt: string;
+}
+
+/**
+ * Estado instalado en el repositorio (segunda fuente, independiente de la
+ * configuración global). Declara explícitamente los campos tipados del contrato.
+ */
+export interface OpenSpecInstalledIntegration {
+  tools: string[];
+  targets: string[];
+  installedWorkflowsByTarget: Record<string, string[]> | null;
+  generatedByVersion: string | null;
+  markers: Record<string, boolean> | null;
+  missing: string[] | null;
+  legacy: string[] | null;
+  customized: string[] | null;
+  conflicts: string[] | null;
+  evidenceStatus: 'confirmed' | 'inferred' | 'unknown';
+  origin: 'installed-integration' | 'unknown';
+}
+
+/**
+ * Estado del motor de OpenSpec para el snapshot. Agrega la detección del CLI, la
+ * última versión disponible (con su origen), la configuración global y la
+ * integración instalada, como fuentes independientes.
+ */
+export interface OpenSpecRegistryCheck {
+  status: 'online' | 'cached' | 'offline' | 'unknown';
+  latestVersion: string | null;
+  checkedAt: string;
+  fromCache: boolean;
+  cacheAgeSeconds: number | null;
+  freshness: 'fresh' | 'stale' | 'unknown';
+  error: string | null;
+}
+
+export type OpenSpecOutputKind = 'repo-local' | 'external-global';
+
+export interface OpenSpecOutputItem {
+  id: string;
+  targetName: string;
+  kind: OpenSpecOutputKind;
+  displayPath: string;
+  descriptionKey: string;
+  blocked: boolean;
+  presenceState?: 'present' | 'absent' | 'unreadable' | 'conflicting' | 'error';
+  entryType?: 'file' | 'directory' | 'symlink' | 'absent';
+  isSymlink?: boolean;
+  symlinkTarget?: string | null;
+  casing?: string;
+  contentHash?: string | null;
+  /** `true` cuando el recorrido de contenido alcanzó un tope y `contentHash` es parcial (queda `null`). */
+  hashTruncated?: boolean;
+}
+
+export interface OpenSpecInstalledSkill {
+  name: string;
+  path: string;
+  origin: 'legacy-codex' | 'legacy-agent' | 'new-agents' | 'custom-agents';
+  isOfficial: boolean;
+}
+
+export interface OpenSpecTargetDivergenceDetail {
+  kind: 'target-workflows-mismatch';
+  toolId: string;
+  label: string;
+  targetCount: number;
+  targetWorkflows: string[];
+  globalCount: number;
+  globalWorkflows: string[];
+}
+
+export type OpenSpecDivergenceReason =
+  | {
+      kind: 'profile-mismatch';
+      globalProfileClass: 'core' | 'expanded' | 'custom' | 'unknown';
+      repoProfileClass: 'core' | 'expanded' | 'custom' | 'unknown';
+    }
+  | {
+      kind: 'target-workflows-mismatch';
+      toolId: string;
+      label: string;
+      targetCount: number;
+      targetWorkflows: string[];
+      globalCount: number;
+      globalWorkflows: string[];
+    }
+  | {
+      kind: 'multiple-target-divergences';
+      targets: OpenSpecTargetDivergenceDetail[];
+    };
+
+export interface OpenSpecTargetConvergence {
+  toolId: string;
+  label: string;
+  status: 'convergent' | 'divergent' | 'unknown';
+  targetProfileClass: 'core' | 'expanded' | 'custom' | 'unknown';
+  installedWorkflows: string[];
+  reason?: OpenSpecTargetDivergenceDetail | null;
+}
+
+export interface OpenSpecInstalledEvidence {
+  skills: OpenSpecInstalledSkill[];
+  generatedBy: string | null;
+  markersFound: string[];
+  outputInventory: OpenSpecOutputItem[];
+  evidenceStatus: 'confirmed' | 'unconfirmed' | 'unknown';
+  tools: string[];
+  targets: string[];
+  configuredTools?: string[];
+  presentToolDirectories?: string[];
+  configuredAgentsCount?: number;
+  totalPresentAgentsCount?: number;
+  configuredCount?: number;
+  totalPresentCount?: number;
+  installedWorkflowsByTarget: Record<string, string[]>;
+  missing: string[] | null;
+  legacy: string[];
+  customized: string[];
+  conflicts: string[] | null;
+}
+
+export interface OpenSpecDivergenceInfo {
+  isDivergent: boolean;
+  reason: OpenSpecDivergenceReason | null;
+  overallStatus: 'convergent' | 'divergent' | 'unknown';
+  globalProfileClass: 'core' | 'expanded' | 'custom' | 'unknown';
+  repoProfileClass: 'core' | 'expanded' | 'custom' | 'unknown';
+  targetConvergences?: Record<string, OpenSpecTargetConvergence>;
+}
+
+export interface OpenSpecEngineStatus {
+  cli: OpenSpecCliDiscovery;
+  latestAvailable: OpenSpecRegistryCheck | null;
+  globalConfig: OpenSpecGlobalConfig | null;
+  installedIntegration: OpenSpecInstalledEvidence | null;
+  repoState: 'initialized' | 'not-initialized' | 'unknown';
+  integrationState: 'up-to-date' | 'outdated' | 'custom' | 'conflicted' | 'unknown';
+  divergence?: OpenSpecDivergenceInfo | null;
+}
+
+export interface OpenSpecPreviewResult {
+  previewClass: 'not-available' | 'partial';
+  summary: string;
+  capturedAt: string;
+  /**
+   * Inventario clasificado que fundamenta esta vista previa (2.11). Va completo
+   * y no sólo su huella: quien consuma el preview aislado ve la clasificación
+   * que la huella `outputInventoryFingerprint` va a recomprobar — lo que se
+   * muestra es exactamente lo que invalida.
+   */
+  outputInventory: OpenSpecOutputItem[];
+  invalidationParams: {
+    repoPath: string;
+    branch: string | null;
+    headCommit: string | null;
+    workingTreeFingerprint: string;
+    cliPath: string | null;
+    cliProvenance: OpenSpecCliProvenance;
+    cliVersion: string | null;
+    targetVersion: string;
+    packageIntegrity: string | null;
+    globalConfigFingerprint: string;
+    installedEvidenceFingerprint: string;
+    outputInventoryFingerprint: string;
+    /** Huella del schema del change (`openspec/config.yaml`) y su configuración (2.12). */
+    schemaConfigFingerprint: string;
+  };
+}
+
+export interface OpenSpecUpdatePlan {
+  repoPath: string;
+  requiredAction: 'init' | 'update' | 'upgrade-init' | 'upgrade-update' | 'none' | 'blocked';
+  preview: OpenSpecPreviewResult;
+  canExecute: false;
+  reason: string;
+}
+
+export interface OpenSpecExecuteResult {
+  success: false;
+  status: 'blocked';
+  reason: 'poc-required';
+  message: string;
 }
 
 export * from './runtime';

@@ -40,6 +40,7 @@ export type PipelineWorkspaceProps = {
   rightWidth?: number;
   onResizeLeft?: (event: React.MouseEvent) => void;
   onResizeRight?: (event: React.MouseEvent) => void;
+  onEnsureRightOpen?: () => void;
   loadSnapshot?: PipelineSnapshotLoader;
 };
 
@@ -61,6 +62,7 @@ export function PipelineWorkspace({
   rightWidth = 320,
   onResizeLeft = () => undefined,
   onResizeRight = () => undefined,
+  onEnsureRightOpen,
   loadSnapshot = loadRealSnapshot,
 }: PipelineWorkspaceProps) {
   const t = useT();
@@ -251,6 +253,7 @@ export function PipelineWorkspace({
           rightWidth={rightWidth}
           onResizeLeft={onResizeLeft}
           onResizeRight={onResizeRight}
+          onEnsureRightOpen={onEnsureRightOpen}
           projection={fixtureActive ? null : projection}
           runtimeHistory={fixtureActive ? [] : runtimeHistory}
           fixtureActive={fixtureActive}

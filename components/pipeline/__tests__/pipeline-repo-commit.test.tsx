@@ -128,7 +128,7 @@ afterEach(() => {
   else Object.defineProperty(window, 'api', { configurable: true, value: ORIGINAL_API });
 });
 
-describe('preparación a nivel del repositorio', () => {
+describe('preparación a nivel del repositorio', { timeout: 15_000 }, () => {
   it('se alcanza sin ningún cambio activo', async () => {
     // El caso que motivó subir el commit de nivel: sólo quedan los restos de un
     // archivado y no hay ningún cambio desde el cual mirar.

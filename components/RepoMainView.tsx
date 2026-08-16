@@ -103,6 +103,7 @@ type TabViewsProps = {
     rightWidth: number;
     onResizeLeft: (event: MouseEvent) => void;
     onResizeRight: (event: MouseEvent) => void;
+    onEnsureRightOpen?: () => void;
   };
   onSelectCommit: (commit: Commit, options?: CommitSelectOptions) => void;
   onCommitContextMenu: (event: MouseEvent, commit: Commit) => void;
@@ -202,6 +203,7 @@ export function RepoMainView({
         rightWidth={tabViews.pipelineLayout.rightWidth}
         onResizeLeft={tabViews.pipelineLayout.onResizeLeft}
         onResizeRight={tabViews.pipelineLayout.onResizeRight}
+        onEnsureRightOpen={tabViews.pipelineLayout.onEnsureRightOpen}
       />
     );
   }
@@ -284,6 +286,7 @@ export function RepoMainView({
         rightWidth={tabViews.pipelineLayout.rightWidth}
         onResizeLeft={tabViews.pipelineLayout.onResizeLeft}
         onResizeRight={tabViews.pipelineLayout.onResizeRight}
+        onEnsureRightOpen={tabViews.pipelineLayout.onEnsureRightOpen}
       />
     );
   }

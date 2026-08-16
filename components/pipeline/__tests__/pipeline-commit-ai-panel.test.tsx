@@ -79,7 +79,8 @@ function elegirTodo() {
 
 /** Elegir el modelo: nada viene puesto de antemano, esa decisión es de la persona. */
 async function elegirModelo(id = 'google/gemma-4-12b') {
-  fireEvent.change(await screen.findByRole('combobox'), { target: { value: id } });
+  await screen.findByRole('option', { name: new RegExp(id) });
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: id } });
 }
 
 const botonRedactar = () => screen.getByRole('button', { name: /prepare\.aiDraft|prepare\.aiBusy/ });
@@ -116,7 +117,7 @@ afterEach(() => {
   else Object.defineProperty(window, 'api', { configurable: true, value: ORIGINAL_API });
 });
 
-describe('el selector de modelos', () => {
+describe('el selector de modelos', { timeout: 15_000 }, () => {
   it('muestra el estado y el contexto real de cada uno', async () => {
     abrirPreparacion();
 

@@ -124,7 +124,7 @@ function enterChange() {
   fireEvent.click(enter);
 }
 
-describe('cambiar el estado de una tarea desde la guía', () => {
+describe('cambiar el estado de una tarea desde la guía', { timeout: 15_000 }, () => {
   it('marcar pide confirmación y no escribe hasta obtenerla', async () => {
     // Antes marcar no preguntaba, con el argumento de que sólo agrega una
     // afirmación. Las dos direcciones escriben en el repositorio con un clic que

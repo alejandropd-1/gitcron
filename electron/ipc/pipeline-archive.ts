@@ -1,8 +1,9 @@
 import type { BrowserWindow } from 'electron';
 import { ipcMain } from 'electron';
-import { archiveOpenSpecChangeWithCli, CHANGE_ID_PATTERN } from '../pipeline/openspec-cli';
+import { archiveOpenSpecChangeWithCli } from '../pipeline/openspec-cli';
 import { PipelineService } from '../pipeline/pipeline-service';
 import { errMsg } from './shared';
+import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
 
 /**
  * Archivado de un change: mover el cambio a su histórico y consolidar specs.
@@ -27,7 +28,7 @@ function validRepoPath(value: unknown): value is string {
 }
 
 function validChangeId(value: unknown): value is string {
-  return typeof value === 'string' && CHANGE_ID_PATTERN.test(value);
+  return isValidOpenSpecChangeSlug(value);
 }
 
 function buildPlan(changeId: string): ArchivePlan {

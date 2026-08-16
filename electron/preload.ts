@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('api', {
   githubDevicePoll: (deviceCode: string) => ipcRenderer.invoke('github:device-poll', deviceCode),
   openRepo: (defaultPath?: string) => ipcRenderer.invoke('git:open-repo', defaultPath),
   openPath: (dirPath: string) => ipcRenderer.invoke('git:open-path', dirPath),
+  checkRepoPath: (dirPath: string) => ipcRenderer.invoke('git:check-repo-path', dirPath),
+  closeRepo: (repoPath: string) => ipcRenderer.invoke('git:close-repo', repoPath),
   pickFolder: (title?: string, defaultPath?: string) => ipcRenderer.invoke('fs:pick-folder', title, defaultPath),
   gitApplyPatchFile: (repoPath: string) => ipcRenderer.invoke('git:apply-patch-file', repoPath),
   gitInit: (parentPath: string, name: string, withInitialCommit?: boolean) =>
@@ -392,5 +394,17 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('temporal-agent:remove-decision', repoPath, repoName, suggestionTitle),
     getHistory: (repoPath?: string | null) =>
       ipcRenderer.invoke('temporal-agent:get-history', repoPath),
+  },
+  pipelineOpenSpec: {
+    getEngineStatus: (repoPath?: string) =>
+      ipcRenderer.invoke('pipeline:openspec:engine-status', { repoPath }),
+    checkLatestVersion: () =>
+      ipcRenderer.invoke('pipeline:openspec:check-latest'),
+    getUpdatePlan: (repoPath: string) =>
+      ipcRenderer.invoke('pipeline:openspec:update-plan', { repoPath }),
+    executeUpdate: (repoPath: string) =>
+      ipcRenderer.invoke('pipeline:openspec:update-execute', { repoPath }),
+    getPreview: (repoPath: string) =>
+      ipcRenderer.invoke('pipeline:openspec:preview', { repoPath }),
   },
 });

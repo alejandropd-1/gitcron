@@ -89,9 +89,11 @@ export function useRepoChooser({
       // Detect that retry state and continue from the remote step instead of
       // running git:init again (which intentionally rejects existing repos).
       // `rev-parse --is-inside-work-tree` also succeeds when repoDir is merely
-      // nested under another repository. Reuse the exact-root open contract so
+      // nested under another repository. Reuse the exact-root check contract so
       // we never attach a remote or run a push against a parent worktree.
-      const existingGit = await window.api.openPath(repoDir);
+      // Es una sonda: checkRepoPath comprueba sin autorizar; openPath aquí
+      // dejaba el repo autorizado para siempre sin abrirlo como pestaña.
+      const existingGit = await window.api.checkRepoPath(repoDir);
       const localRepoReady = existingGit.success;
       if (!localRepoReady && existingGit.reason !== 'not-a-repo') {
         setError(t('repoCreate.inspectError', {

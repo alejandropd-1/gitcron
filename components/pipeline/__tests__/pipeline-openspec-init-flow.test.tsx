@@ -20,7 +20,10 @@ vi.mock('@/hooks/use-translation', () => ({
     params ? `${key}:${JSON.stringify(params)}` : key,
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  delete (window as any).api;
+});
 
 function snapshot(openSpecPresent: boolean): PipelineSnapshot {
   return {

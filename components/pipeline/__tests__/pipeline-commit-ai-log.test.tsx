@@ -85,7 +85,8 @@ function abrirPreparacion() {
  */
 async function pedirRedaccion(): Promise<string> {
   for (const box of screen.getAllByRole('checkbox')) fireEvent.click(box);
-  fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'google/gemma-4-e4b' } });
+  await screen.findByRole('option', { name: /gemma-4-e4b/ });
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'google/gemma-4-e4b' } });
   fireEvent.click(screen.getByRole('button', { name: /prepare\.aiDraft|prepare\.aiBusy/ }));
   await waitFor(() => expect(draft).toHaveBeenCalled());
   const { draftId } = draft.mock.calls.at(-1)![0] as { draftId: string };

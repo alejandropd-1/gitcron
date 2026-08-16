@@ -105,6 +105,8 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.graph.state.done',
   'pipeline.openspec.graph.state.ready',
   'pipeline.openspec.graph.state.blocked',
+  'pipeline.openspec.graph.state.skipped',
+  'pipeline.openspec.graph.state.unknown',
   'pipeline.openspec.graph.missingDeps',
   'pipeline.newChange.propose.nature',
   'pipeline.newChange.propose.objectiveHelp',
@@ -170,6 +172,74 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.prepare.preparedSummary',
   'pipeline.openspec.prepare.preparedSummary.one',
   'pipeline.openspec.prepare.empty',
+  // Sub-namespace pipeline.openspec.engine.* (2.13) y avisos agrupados (2.9)
+  'pipeline.openspec.notices.title',
+  'pipeline.openspec.engine.cardTitle',
+  'pipeline.openspec.engine.provenance.global',
+  'pipeline.openspec.engine.provenance.local',
+  'pipeline.openspec.engine.provenance.managed',
+  'pipeline.openspec.engine.provenance.unknown',
+  'pipeline.openspec.engine.axis.engine',
+  'pipeline.openspec.engine.axis.repo',
+  'pipeline.openspec.engine.axis.integration',
+  'pipeline.openspec.engine.status.absent',
+  'pipeline.openspec.engine.repoState.initialized',
+  'pipeline.openspec.engine.repoState.not-initialized',
+  'pipeline.openspec.engine.repoState.notInitialized',
+  'pipeline.openspec.engine.repoState.unknown',
+  'pipeline.openspec.engine.integrationState.up-to-date',
+  'pipeline.openspec.engine.integrationState.upToDate',
+  'pipeline.openspec.engine.integrationState.outdated',
+  'pipeline.openspec.engine.integrationState.custom',
+  'pipeline.openspec.engine.integrationState.conflicted',
+  'pipeline.openspec.engine.integrationState.unknown',
+  'pipeline.openspec.engine.latestAvailable',
+  'pipeline.openspec.engine.cacheStatus.online',
+  'pipeline.openspec.engine.cacheStatus.cached',
+  'pipeline.openspec.engine.cacheStatus.cachedStale',
+  'pipeline.openspec.engine.cacheStatus.offline',
+  'pipeline.openspec.engine.generatedByLabel',
+  'pipeline.openspec.engine.outputsTitle',
+  'pipeline.openspec.engine.output.repoLocal',
+  'pipeline.openspec.engine.output.externalGlobal',
+  'pipeline.openspec.engine.output.blockedBadge',
+  'pipeline.openspec.engine.output.githubDesc',
+  'pipeline.openspec.engine.output.minimaxDesc',
+  'pipeline.openspec.engine.preview.partial',
+  'pipeline.openspec.engine.preview.notAvailable',
+  'pipeline.openspec.engine.preview.blockedReason',
+  'pipeline.openspec.engine.execute.pocRequired',
+  'pipeline.openspec.engine.generalStatus.ready',
+  'pipeline.openspec.engine.generalStatus.needsAttention',
+  'pipeline.openspec.engine.generalStatus.unknown',
+  'pipeline.openspec.engine.showAdvanced',
+  'pipeline.openspec.engine.hideAdvanced',
+  'pipeline.openspec.engine.agentsConfigured',
+  'pipeline.openspec.engine.agentsConfiguredRatio',
+  'pipeline.openspec.engine.presence.present',
+  'pipeline.openspec.engine.presence.absent',
+  'pipeline.openspec.engine.presence.unreadable',
+  'pipeline.openspec.engine.presence.conflicting',
+  'pipeline.openspec.engine.advanced.routeAndProvenance',
+  'pipeline.openspec.engine.advanced.profileAndWorkflows',
+  'pipeline.openspec.engine.advanced.repoEvidence',
+  'pipeline.openspec.engine.advanced.globalLabel',
+  'pipeline.openspec.engine.advanced.repoLabel',
+  'pipeline.openspec.engine.advanced.showAbsentOutputs',
+  'pipeline.openspec.engine.advanced.hideAbsentOutputs',
+  'pipeline.openspec.engine.advanced.convergentNotice',
+  'pipeline.openspec.engine.advanced.divergentNotice',
+  'pipeline.openspec.engine.advanced.undeterminedNotice',
+  'pipeline.openspec.engine.openToolsTab',
+  'pipeline.openspec.engine.attentionNotice',
+  'pipeline.openspec.engine.attentionReason.outdated',
+  'pipeline.openspec.engine.attentionReason.notInitialized',
+  'pipeline.openspec.engine.attentionReason.divergent',
+  'pipeline.openspec.engine.divergence.none',
+  'pipeline.openspec.engine.divergence.profileMismatch',
+  'pipeline.openspec.engine.divergence.targetWorkflows',
+  'pipeline.openspec.engine.outputsHelp',
+  'pipeline.openspec.engine.absentOutputsHelp',
 ] as const;
 
 describe('Pipeline i18n', () => {
@@ -225,6 +295,26 @@ describe('Pipeline i18n', () => {
       expect(tasks).toContain('5');
       expect(tasks).toContain('6');
       expect(tasks).not.toMatch(/\{\{/);
+
+      // Divergencia de perfiles y workflows estructurada en las 3 lenguas
+      const profileDiv = translate('pipeline.openspec.engine.divergence.profileMismatch', lang, {
+        global: 'core',
+        repo: 'custom',
+      });
+      expect(profileDiv).toContain('core');
+      expect(profileDiv).toContain('custom');
+      expect(profileDiv).not.toMatch(/\{\{/);
+
+      const targetDiv = translate('pipeline.openspec.engine.divergence.targetWorkflows', lang, {
+        target: 'Agents Multi-Agent',
+        targetCount: 0,
+        targetWorkflows: translate('pipeline.openspec.engine.divergence.none', lang),
+        globalCount: 5,
+        globalWorkflows: 'apply, archive, explore, propose, sync',
+      });
+      expect(targetDiv).toContain('Agents Multi-Agent');
+      expect(targetDiv).toContain('apply, archive, explore, propose, sync');
+      expect(targetDiv).not.toMatch(/\{\{/);
     }
   });
 

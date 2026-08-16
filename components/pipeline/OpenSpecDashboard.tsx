@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
+  AlertTriangle,
   BookOpen,
   Check,
   CheckCircle2,
@@ -46,6 +47,8 @@ import { motion, useReducedMotion } from 'motion/react';
 import { ChangeBranchNotice } from './ChangeBranchNotice';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
 import { OpenSpecReadiness, OpenSpecToolList } from './OpenSpecReadiness';
+import { OpenSpecEngineCard } from './OpenSpecEngineCard';
+import type { OpenSpecEngineStatus, OpenSpecRegistryCheck } from '@/types/pipeline';
 import { SpecificationViewer } from './SpecificationViewer';
 import { TaskConfirmToast } from './TaskConfirmToast';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
@@ -75,6 +78,7 @@ type OpenSpecDashboardProps = {
   rightWidth: number;
   onResizeLeft: (event: React.MouseEvent) => void;
   onResizeRight: (event: React.MouseEvent) => void;
+  onEnsureRightOpen?: () => void;
   projection: RuntimeProjection | null;
   runtimeHistory: RuntimeProjection[];
   /** Hay datos de vista previa en pantalla: nada ejecutable puede habilitarse. */
@@ -206,6 +210,7 @@ export function OpenSpecDashboard({
   rightWidth,
   onResizeLeft,
   onResizeRight,
+  onEnsureRightOpen,
   projection,
   runtimeHistory,
   fixtureActive = false,
@@ -334,6 +339,12 @@ export function OpenSpecDashboard({
    * y el estado de las herramientas se consulta cuando hace falta.
    */
   const [railTab, setRailTab] = useState<'activity' | 'tools'>('activity');
+  const openToolsTab = () => {
+    if (onEnsureRightOpen) {
+      onEnsureRightOpen();
+    }
+    setRailTab('tools');
+  };
   const [initBusy, setInitBusy] = useState(false);
   /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
   const [initError, setInitError] = useState<string | null>(null);
@@ -609,6 +620,97 @@ export function OpenSpecDashboard({
   const [aiContext, setAiContext] = useState(65_536);
   const [aiTtlMinutes, setAiTtlMinutes] = useState(30);
   const aiAbort = useRef<AbortController | null>(null);
+
+  const [engineSnapshot, setEngineSnapshot] = useState<OpenSpecEngineStatus | null>(null);
+  const [latestRegistryCheck, setLatestRegistryCheck] = useState<OpenSpecRegistryCheck | null>(null);
+  const [engineLoading, setEngineLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    setEngineSnapshot(null);
+    setLatestRegistryCheck(null);
+    setEngineLoading(true);
+
+    if (typeof window !== 'undefined' && window.api?.pipelineOpenSpec) {
+      const getStatus = window.api.pipelineOpenSpec.getEngineStatus
+        ? window.api.pipelineOpenSpec.getEngineStatus(repoPath)
+        : Promise.resolve(null);
+      const getCheck = window.api.pipelineOpenSpec.checkLatestVersion
+        ? window.api.pipelineOpenSpec.checkLatestVersion()
+        : Promise.resolve(null);
+
+      getStatus
+        .then((snapshot) => {
+          if (isMounted) {
+            setEngineSnapshot(snapshot);
+            setEngineLoading(false);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            setEngineSnapshot(null);
+            setEngineLoading(false);
+          }
+        });
+
+      getCheck
+        .then((check) => {
+          if (isMounted && check) {
+            setLatestRegistryCheck(check);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setEngineLoading(false);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [repoPath]);
+
+  const effectiveEngineStatus = useMemo<OpenSpecEngineStatus | null>(() => {
+    if (!engineSnapshot) return null;
+    if (!latestRegistryCheck) return engineSnapshot;
+    return {
+      ...engineSnapshot,
+      latestAvailable: latestRegistryCheck,
+    };
+  }, [engineSnapshot, latestRegistryCheck]);
+
+  /**
+   * Razones reales observadas del aviso central (2.9): declara cuál condición
+   * ocurre —o ambas si son ambas—, en vez de enumerar las dos posibles unidas
+   * por un «o» que la tarjeta de al lado desmiente.
+   */
+  const attentionReasonSeparator = uiLanguage === 'en' ? ' and ' : uiLanguage === 'zh' ? '，' : ' y ';
+  const attentionReasons = effectiveEngineStatus
+    ? [
+        ...(effectiveEngineStatus.integrationState === 'outdated'
+          ? [t('pipeline.openspec.engine.attentionReason.outdated')]
+          : []),
+        ...(effectiveEngineStatus.repoState === 'not-initialized'
+          ? [t('pipeline.openspec.engine.attentionReason.notInitialized')]
+          : []),
+        ...(effectiveEngineStatus.divergence?.isDivergent
+          ? [t('pipeline.openspec.engine.attentionReason.divergent')]
+          : []),
+      ]
+    : [];
+
+  const hasEngineAttention = Boolean(
+    effectiveEngineStatus &&
+      (effectiveEngineStatus.integrationState === 'outdated' ||
+        effectiveEngineStatus.repoState === 'not-initialized' ||
+        effectiveEngineStatus.divergence?.isDivergent),
+  );
+
+  const pendingOpenSpecTools = (openSpecTools ?? []).filter((tool) => !tool.configured);
+  const hasReadinessNotice = Boolean(
+    openSpecPresent !== undefined && (!openSpecPresent || pendingOpenSpecTools.length > 0),
+  );
+
+  const hasAnyNotice = hasEngineAttention || hasReadinessNotice;
 
   // Lo que la rama declara sobre el trabajo del árbol.
   //
@@ -1272,8 +1374,6 @@ export function OpenSpecDashboard({
         </h2>
         <dl className={styles.summaryFacts}>
           <div><dd>{specifications.length}</dd><dt>{t('pipeline.openspec.summary.specifications')}</dt></div>
-          <div><dd>{activeChanges.length}</dd><dt>{t('pipeline.openspec.summary.active')}</dt></div>
-          <div><dd>{archivedChanges.length}</dd><dt>{t('pipeline.openspec.summary.completed')}</dt></div>
           <div><dd>{taskPercent}%</dd><dt>{t('pipeline.openspec.summary.tasks')}</dt></div>
         </dl>
         {/* El estado del árbol es la puerta a la preparación: el commit es del
@@ -1297,6 +1397,12 @@ export function OpenSpecDashboard({
           <em className={styles.repoBranch}>{currentBranch || t('pipeline.openspec.repo.branchUnknown')}</em>
           <em className={styles.repoHealthCta}>{t('pipeline.openspec.prepare.open')}</em>
         </button>
+        <OpenSpecEngineCard
+          status={effectiveEngineStatus}
+          isLoading={engineLoading}
+          compact={true}
+          onOpenToolsTab={openToolsTab}
+        />
       </header>
 
       <div className={styles.body}>
@@ -1444,6 +1550,40 @@ export function OpenSpecDashboard({
         )}
 
         <main className={styles.center}>
+          {hasAnyNotice && (
+            <section className={styles.noticesGroup} aria-label={t('pipeline.openspec.notices.title')}>
+              <h4 className={styles.noticesGroupTitle}>
+                <AlertTriangle size={13} aria-hidden="true" />
+                <span>{t('pipeline.openspec.notices.title')}</span>
+              </h4>
+              <div className={styles.noticesList}>
+                {hasEngineAttention && (
+                  <div className={styles.centerAttentionBanner}>
+                    <AlertTriangle size={15} aria-hidden="true" />
+                    <span>
+                      {t('pipeline.openspec.engine.attentionNotice', {
+                        reasons: attentionReasons.join(attentionReasonSeparator),
+                      })}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.centerAttentionBtn}
+                      onClick={openToolsTab}
+                    >
+                      {t('pipeline.openspec.engine.openToolsTab')}
+                    </button>
+                  </div>
+                )}
+                {hasReadinessNotice && (
+                  <OpenSpecReadiness
+                    present={openSpecPresent}
+                    tools={openSpecTools}
+                    onShowDetail={rightOpen ? () => setRailTab('tools') : undefined}
+                  />
+                )}
+              </div>
+            </section>
+          )}
           {/* La preparación se resuelve antes que el cambio seleccionado: es del
               repositorio y tiene que alcanzarse sin ninguno, que es exactamente
               el estado que dejaba un archivado sin confirmar. */}
@@ -2248,15 +2388,6 @@ export function OpenSpecDashboard({
               </div>
               {flowMode && (
                 <>
-                  {/* Con un cambio abierto no hay pantalla de entrada que lo
-                      haya declarado, y empezar otro cambio desde acá arranca
-                      igual de a ciegas. El aviso acompaña al formulario, no a
-                      una pantalla: lo que falta se sabe antes de escribir. */}
-                  <OpenSpecReadiness
-                    present={openSpecPresent}
-                    tools={openSpecTools}
-                    onShowDetail={rightOpen ? () => setRailTab('tools') : undefined}
-                  />
                   <PipelineNewChangeFlow
                     repoPath={repoPath}
                     projection={projection}
@@ -2282,17 +2413,6 @@ export function OpenSpecDashboard({
                   esta pantalla existe para ofrecer, y al final quedaba empujada
                   fuera de vista por la lista de cambios. Una posición que cambia
                   según el contenido obliga a buscarla. */}
-              {/* Va antes de la guía: si al repositorio le falta algo para que
-                  el método funcione, eso se sabe antes de elegir por dónde
-                  seguir, no después de haber empezado. */}
-              {/* La salida sólo se ofrece si hay a dónde llevar: con el rail
-                  cerrado, el botón abriría una solapa que nadie ve. */}
-              <OpenSpecReadiness
-                present={openSpecPresent}
-                tools={openSpecTools}
-                onShowDetail={rightOpen ? () => setRailTab('tools') : undefined}
-              />
-
               <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: dismissFlow } : undefined} />
               {flowMode && (
                 <PipelineNewChangeFlow
@@ -2482,15 +2602,22 @@ export function OpenSpecDashboard({
             </div>
 
             {railTab === 'tools' ? (
-              <OpenSpecToolList
-                present={openSpecPresent}
-                tools={openSpecTools}
-                busy={initBusy}
-                error={initError}
-                needsTool={initNeedsTool}
-                onInitialize={() => runOpenSpecInit()}
-                onInitializeWith={(toolIds) => runOpenSpecInit(toolIds)}
-              />
+              <div className={styles.toolsRailContent}>
+                <OpenSpecEngineCard
+                  status={effectiveEngineStatus}
+                  isLoading={engineLoading}
+                  onOpenToolsTab={() => setRailTab('tools')}
+                />
+                <OpenSpecToolList
+                  present={openSpecPresent}
+                  tools={openSpecTools}
+                  busy={initBusy}
+                  error={initError}
+                  needsTool={initNeedsTool}
+                  onInitialize={() => runOpenSpecInit()}
+                  onInitializeWith={(toolIds) => runOpenSpecInit(toolIds)}
+                />
+              </div>
             ) : (
             <>
             {/* Sin `h3` con el mismo texto: la solapa activa ya dice qué se está

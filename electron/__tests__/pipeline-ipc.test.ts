@@ -15,6 +15,12 @@ const snapshot: PipelineState = {
   selection: { changeId: null, confidence: 'unknown', selectionRequired: false, reason: 'no-active-change' },
 };
 
+vi.mock('../ipc/authorized-repos', () => ({
+  authorizedRepoStore: {
+    isAuthorized: vi.fn((path: string) => path === 'C:/repo' || path === 'C:\\repo'),
+  }
+}));
+
 describe('Pipeline read-only IPC', () => {
   beforeEach(() => {
     ipc.handlers.clear();

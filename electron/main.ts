@@ -22,12 +22,14 @@ import { registerCartoAiHandlers } from './ipc/carto-ai';
 import { registerCommitMessageAiHandlers } from './ipc/commit-message-ai';
 import { closeAllGraphs } from './carto/graph-engine';
 import { registerWatcherHandlers, closeAllRepoWatchers } from './ipc/watchers';
+import { authorizedRepoStore } from './ipc/authorized-repos';
 import { registerPipelineHandlers } from './ipc/pipeline';
 import { PipelineControlBus } from './pipeline/control/control-bus';
 import { registerPipelineControlHandlers } from './ipc/pipeline-control';
 import { registerPipelineArchiveHandlers } from './ipc/pipeline-archive';
 import { registerPipelineTaskHandlers } from './ipc/pipeline-tasks';
 import { registerPipelineSpecHandlers } from './ipc/pipeline-specs';
+import { registerOpenSpecIpcHandlers } from './ipc/pipeline-openspec';
 import { registerPipelineRuntimeHandlers } from './ipc/pipeline-runtime';
 import { RuntimeSessionHub } from './pipeline/runtime/runtime-session-hub';
 import { PipelineRepository } from './pipeline/pipeline-repository';
@@ -318,6 +320,7 @@ registerPipelineRuntimeHandlers(pipelineRuntimeHub); // pipeline:runtime:*
 registerPipelineArchiveHandlers(getMainWindow);  // pipeline:archive-change (escribe: fuera del módulo read-only)
 registerPipelineTaskHandlers();    // pipeline:set-task-checked (escribe: sólo el estado de una tarea)
 registerPipelineSpecHandlers();    // pipeline:read-specification (sólo lee; fuera del snapshot por peso)
+registerOpenSpecIpcHandlers({ getUserDataDir: () => app.getPath('userData') }); // pipeline:openspec:* (sólo diagnóstico y lectura)
 registerWatcherHandlers(getMainWindow, notifyPipelineRepoChanged);          // repo:watch/unwatch
 registerAppWindowHandlers(getMainWindow, isDev); // app:* + window:*
 
@@ -386,6 +389,7 @@ app.on('before-quit', async () => {
   stopUpdateCheckTimer();
   await closeAllRepoWatchers();
   closeAllGraphs();
+  authorizedRepoStore.clear();
   // Cerrar el hub antes de salir: un proceso de runtime que sobreviva a la app
   // sigue escribiendo en el working tree sin nadie mirando.
   await pipelineRuntimeHub.disposeAll();

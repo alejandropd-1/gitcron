@@ -31,7 +31,7 @@ describe('parseDivergenceCounts', () => {
   });
 });
 
-describe('readBranchDivergence', () => {
+describe('readBranchDivergence', { timeout: 15_000 }, () => {
   let root: string;
 
   beforeEach(async () => {

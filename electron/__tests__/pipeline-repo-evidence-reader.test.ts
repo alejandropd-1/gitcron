@@ -1,8 +1,12 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { defaultListOpenSpecChanges, RepoEvidenceReader } from '../pipeline/repo-evidence-reader';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  defaultListOpenSpecChanges,
+  getRealGitInfo,
+  RepoEvidenceReader,
+} from '../pipeline/repo-evidence-reader';
 
 describe('RepoEvidenceReader', () => {
   let root: string;
@@ -271,5 +275,72 @@ describe('RepoEvidenceReader', () => {
     // Un selectedChangeId que no está entre los activos se ignora (fallback).
     const ignored = await reader.read(root, 'repo-1', 'does-not-exist');
     expect(ignored.selection.changeId).toBeNull();
+  });
+
+  it('todos los changes transportan schemaName y skipSpecs desde .openspec.yaml sin ejecutar status para los no seleccionados', async () => {
+    await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-a'), { recursive: true });
+    await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-a', '.openspec.yaml'), 'schema: spec-driven\nskip_specs: true\n');
+
+    await fs.mkdir(path.join(root, 'openspec', 'changes', 'feature-b'), { recursive: true });
+    await fs.writeFile(path.join(root, 'openspec', 'changes', 'feature-b', '.openspec.yaml'), 'schema: custom-schema\nskip_specs: false\n');
+
+    const statusOpenSpecChange = vi.fn();
+
+    const reader = new RepoEvidenceReader({
+      listOpenSpecChanges: async () => ['feature-a', 'feature-b'],
+      currentBranch: async () => 'main',
+      mergedChanges: async () => [],
+      statusOpenSpecChange,
+      now: () => '2026-07-23T20:00:00.000Z',
+    });
+
+    const snapshot = await reader.read(root, 'repo-1', 'feature-a');
+    const changes = snapshot.evidence.openSpecChanges ?? [];
+
+    const a = changes.find((c) => c.changeId === 'feature-a');
+    const b = changes.find((c) => c.changeId === 'feature-b');
+
+    expect(a?.schemaName).toBe('spec-driven');
+    expect(a?.skipSpecs).toBe(true);
+
+    expect(b?.schemaName).toBe('custom-schema');
+    expect(b?.skipSpecs).toBe(false);
+
+    // statusOpenSpecChange se invocó únicamente para el seleccionado (feature-a)
+    expect(statusOpenSpecChange).toHaveBeenCalledTimes(1);
+    expect(statusOpenSpecChange).toHaveBeenCalledWith(root, 'feature-a');
+  });
+});
+
+describe('getRealGitInfo (Content-Sensitive Fingerprint & Repo Lock)', () => {
+  it('genera huellas diferentes para dos archivos con mismo tamaño y mtime pero distinto contenido', async () => {
+    const tempRepo = await fs.mkdtemp(path.join(os.tmpdir(), 'gitcron-fingerprint-test-'));
+    try {
+      const { simpleGit } = await import('simple-git');
+      const git = simpleGit(tempRepo);
+      await git.init();
+
+      // Crear archivo A (tamaño 5 bytes)
+      const testFile = path.join(tempRepo, 'file.txt');
+      await fs.writeFile(testFile, 'AAAAA');
+      const fixedTime = new Date('2026-08-13T12:00:00Z');
+      const { utimesSync } = await import('node:fs');
+      utimesSync(testFile, fixedTime, fixedTime);
+
+      const info1 = await getRealGitInfo(tempRepo);
+      expect(info1.workingTreeFingerprint).not.toBe('unknown:error');
+
+      // Modificar archivo con contenido distinto pero MISMO TAMAÑO (5 bytes) y restaurar mtime
+      await fs.writeFile(testFile, 'BBBBB');
+      utimesSync(testFile, fixedTime, fixedTime);
+
+      const info2 = await getRealGitInfo(tempRepo);
+      expect(info2.workingTreeFingerprint).not.toBe('unknown:error');
+
+      // El fingerprint sensible al contenido DEBE ser distinto a pesar de igual tamaño y timestamp
+      expect(info1.workingTreeFingerprint).not.toBe(info2.workingTreeFingerprint);
+    } finally {
+      await fs.rm(tempRepo, { recursive: true, force: true });
+    }
   });
 });

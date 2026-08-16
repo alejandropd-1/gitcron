@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { ipcMain } from 'electron';
-import { CHANGE_ID_PATTERN } from '../pipeline/openspec-cli';
+import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
 import { PipelineService } from '../pipeline/pipeline-service';
 import {
   appendTaskLogEntry,
@@ -26,7 +26,7 @@ function validRepoPath(value: unknown): value is string {
 }
 
 function validChangeId(value: unknown): value is string {
-  return typeof value === 'string' && CHANGE_ID_PATTERN.test(value);
+  return isValidOpenSpecChangeSlug(value);
 }
 
 /** Lectura y escritura contenidas al repositorio. Inyectables para pruebas. */

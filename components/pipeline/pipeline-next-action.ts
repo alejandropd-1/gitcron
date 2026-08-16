@@ -16,16 +16,14 @@ import type { OpenSpecChangeSummary } from './pipeline-view-state';
  */
 
 /**
- * Contrato de nombre de change verificado contra `openspec new change`:
- * debe empezar con letra, admite sólo minúsculas, dígitos y guiones, y rechaza
- * guiones consecutivos o finales. Se fija una sola vez para que la validación y
- * el mensaje de error no puedan divergir.
+ * Contrato del slug de un change, unificado con el proceso principal en
+ * `lib/openspec-slug` (gramática OpenSpec 1.8: inicial de letra o número, sin
+ * guiones consecutivos ni finales; acepta slugs numéricos). Se re-exporta con el
+ * nombre histórico para no romper los imports de `pipeline-guided-forms`, y así
+ * validación y mensaje de error no pueden divergir entre main y renderer.
  */
-export const CHANGE_SLUG_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
-
-export function isValidChangeSlug(value: string): boolean {
-  return CHANGE_SLUG_PATTERN.test(value);
-}
+export { OPENSPEC_CHANGE_SLUG_PATTERN as CHANGE_SLUG_PATTERN } from '@/lib/openspec-slug';
+export { isValidOpenSpecChangeSlug as isValidChangeSlug } from '@/lib/openspec-slug';
 
 /**
  * Qué hace una acción al confirmarse.

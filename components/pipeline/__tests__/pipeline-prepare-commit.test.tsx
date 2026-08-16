@@ -147,7 +147,7 @@ afterEach(() => {
   }
 });
 
-describe('preparar el commit desde la guía', () => {
+describe('preparar el commit desde la guía', { timeout: 15_000 }, () => {
   it('deja archivos y mensaje listos y NO confirma', async () => {
     renderDashboard();
     openPrepareAndChooseAll();

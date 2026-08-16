@@ -26,6 +26,8 @@ const STATE_LABEL_KEY: Record<OpenSpecArtifactState, string> = {
   done: 'pipeline.openspec.graph.state.done',
   ready: 'pipeline.openspec.graph.state.ready',
   blocked: 'pipeline.openspec.graph.state.blocked',
+  skipped: 'pipeline.openspec.graph.state.skipped',
+  unknown: 'pipeline.openspec.graph.state.unknown',
 };
 
 export function PipelineArtifactGraph({ status }: { status: OpenSpecChangeStatus }) {
@@ -35,7 +37,9 @@ export function PipelineArtifactGraph({ status }: { status: OpenSpecChangeStatus
       {status.artifacts.map((artifact) => (
         <li key={artifact.id} data-state={artifact.state}>
           <span className="pipeline-artifact-graph__id">{artifact.id}</span>
-          <span className="pipeline-artifact-graph__state">{t(STATE_LABEL_KEY[artifact.state])}</span>
+          <span className="pipeline-artifact-graph__state">
+            {t(STATE_LABEL_KEY[artifact.state] ?? 'pipeline.openspec.graph.state.unknown')}
+          </span>
           {artifact.state === 'blocked' && artifact.missingDeps.length > 0 && (
             <span className="pipeline-artifact-graph__deps">
               {t('pipeline.openspec.graph.missingDeps', { deps: artifact.missingDeps.join(', ') })}

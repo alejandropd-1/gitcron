@@ -12,6 +12,7 @@ import path from 'node:path';
 import { BrowserWindow, ipcMain } from 'electron';
 import chokidar, { FSWatcher } from 'chokidar';
 import { errMsg } from './shared';
+import { authorizedRepoStore } from './authorized-repos';
 
 const repoWatchers = new Map<string, FSWatcher>();
 const watcherOperations = new Map<string, Promise<void>>();
@@ -85,6 +86,12 @@ export function registerWatcherHandlers(
 ): void {
   ipcMain.handle('repo:watch', (_event, targetPath: string) => (
     enqueueWatcherOperation(targetPath, () => {
+      if (!targetPath || typeof targetPath !== 'string') {
+        return { success: false, error: 'Ruta de repositorio inválida' };
+      }
+      if (!authorizedRepoStore.isAuthorized(targetPath)) {
+        return { success: false, error: `Repositorio no autorizado o no abierto: ${targetPath}` };
+      }
       if (repoWatchers.has(targetPath)) return { success: true };
       try {
         let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -135,6 +142,11 @@ export function registerWatcherHandlers(
       return { success: true };
     })
   ));
+}
+
+/** Devuelve la lista de rutas de repositorios abiertos/observados activamente. */
+export function getOpenRepoPaths(): string[] {
+  return Array.from(repoWatchers.keys());
 }
 
 /** Close every active watcher. Called from app 'before-quit'. */

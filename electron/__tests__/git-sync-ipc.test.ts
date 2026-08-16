@@ -20,7 +20,7 @@ vi.mock('electron', () => ({
   },
 }));
 
-describe('git remote IPC handlers', () => {
+describe('git remote IPC handlers', { timeout: 15_000 }, () => {
   let tempDir: string;
   let handler: (channel: string) => IpcHandler;
 

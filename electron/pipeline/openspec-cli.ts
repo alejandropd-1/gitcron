@@ -1,40 +1,27 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import type { OpenSpecArtifactState, OpenSpecArtifactStatus, OpenSpecChangeStatus, OpenSpecValidationStatus } from '../../types/pipeline';
+import type {
+  OpenSpecArtifactState,
+  OpenSpecArtifactStatus,
+  OpenSpecChangeStatus,
+  OpenSpecValidationStatus,
+} from '../../types/pipeline';
+import {
+  isValidOpenSpecChangeSlug as isValidChangeId,
+  OPENSPEC_CHANGE_SLUG_PATTERN as CHANGE_ID_PATTERN,
+} from '../../lib/openspec-slug';
+import {
+  readOpenSpecChangeMetadata,
+  resolveOpenSpecExecutable,
+  runAuthorizedOpenSpec,
+  type AuthorizedOpenSpecRuntime,
+} from './openspec-engine';
 
-const execFileAsync = promisify(execFile);
-
-/**
- * Invocación del CLI de OpenSpec, resuelta por plataforma y en un solo lugar.
- *
- * En Windows el CLI se instala como `openspec.CMD`. `execFile` no lo resuelve
- * por nombre pelado (ENOENT) y nombrarlo con extensión tampoco alcanza: Node
- * rechaza `.cmd`/`.bat` con EINVAL desde la mitigación de CVE-2024-27980. No
- * existe forma de ejecutar un `.cmd` sin shell.
- *
- * Habilitarlo es seguro **acá y sólo acá**: los argumentos son literales fijos y
- * el único valor variable, `changeId`, está validado contra `CHANGE_ID_PATTERN`
- * antes de llegar al proceso, así que no puede contener separadores de comando,
- * comillas ni espacios. Si alguna vez hiciera falta pasar un argumento libre,
- * esta decisión deja de ser válida y hay que volver a resolverlo.
- *
- * Esto existía duplicado en tres lugares y en los tres estaba roto en Windows.
- * Vive acá para que el arreglo no vuelva a quedar a medias.
- */
-const CLI = process.platform === 'win32'
-  ? { command: 'openspec.cmd', shell: true }
-  : { command: 'openspec', shell: false };
-
-/** Mismo contrato que acepta `openspec new change`. */
-export const CHANGE_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+export { CHANGE_ID_PATTERN, isValidChangeId };
 
 /**
  * Alfabeto de una herramienta de OpenSpec.
  *
- * Existe por la misma razón que `CHANGE_ID_PATTERN`: en Windows el CLI corre con
- * `shell: true`, así que un argumento libre podría llevar separadores de comando.
- * Con esto, el único valor variable que se le pasa a `init` queda acotado a
- * letras, dígitos y guiones.
+ * En Windows el CLI corre con shell: true si es .cmd/.bat. El único valor variable
+ * pasado a `init` queda acotado a letras, dígitos y guiones.
  */
 export const TOOL_ID_PATTERN = /^[a-z][a-z0-9-]*$/;
 
@@ -46,59 +33,53 @@ export interface InitOpenSpecResult {
   needsTool: boolean;
 }
 
+export interface CliExecutionOptions {
+  runtime?: AuthorizedOpenSpecRuntime | null;
+  resolve?: () => AuthorizedOpenSpecRuntime | null;
+}
+
+function resolveRuntime(options?: CliExecutionOptions, repoPath?: string): AuthorizedOpenSpecRuntime | null {
+  if (options?.runtime !== undefined) return options.runtime;
+  if (options?.resolve) return options.resolve();
+  return resolveOpenSpecExecutable({ repoPath });
+}
+
 /**
  * Inicializa OpenSpec en un repositorio.
- *
- * Sin `tools`, el CLI **detecta** las herramientas presentes por sus directorios
- * y configura todas: está comprobado que con `.codex`, `.agent` y `.claude` en el
- * mismo repositorio configuró las tres. Por eso el panel no replica la lista de
- * treinta herramientas: sólo hace falta elegir cuando no hay ninguna que
- * detectar, y ese caso se distingue acá con `needsTool`.
- *
- * Es incremental y no destructivo: en un repositorio ya inicializado agrega la
- * herramienta que falte, y **no pisa** `openspec/config.yaml` —comprobado por
- * hash sobre un repositorio real—.
  */
 export async function initOpenSpecWithCli(
   repoPath: string,
   tools?: string[],
+  options?: CliExecutionOptions,
 ): Promise<InitOpenSpecResult> {
   const requested = tools?.filter((tool) => TOOL_ID_PATTERN.test(tool)) ?? [];
   if (tools && requested.length !== tools.length) {
     return { ok: false, error: 'invalid-tool-id', needsTool: false };
   }
+
+  const runtime = resolveRuntime(options, repoPath);
+  if (!runtime) {
+    return { ok: false, error: 'openspec-cli-not-found', needsTool: false };
+  }
+
+  const args = requested.length > 0 ? ['init', '--tools', requested.join(',')] : ['init'];
+
   try {
-    await execFileAsync(
-      CLI.command,
-      requested.length > 0 ? ['init', '--tools', requested.join(',')] : ['init'],
-      {
-        cwd: repoPath,
-        timeout: 120_000,
-        windowsHide: true,
-        shell: CLI.shell,
-        maxBuffer: 4 * 1024 * 1024,
-        env: { ...process.env, OPENSPEC_TELEMETRY_DISABLED: '1', DO_NOT_TRACK: '1' },
-      },
-    );
+    await runAuthorizedOpenSpec(runtime, args, {
+      cwd: repoPath,
+      timeout: 120_000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
     return { ok: true, error: null, needsTool: false };
   } catch (error) {
     const detail = error as { stderr?: unknown; stdout?: unknown; message?: unknown };
     const reason = [detail.stderr, detail.stdout, detail.message]
       .map((part) => (typeof part === 'string' ? part.trim() : ''))
       .find((part) => part.length > 0) ?? 'unknown';
-    // «No tools detected» no es un fallo del comando: es que hay que elegir. Se
-    // distingue para que el panel pueda pedirlo en vez de mostrar un error.
     return { ok: false, error: reason, needsTool: /no tools detected/i.test(reason) };
   }
 }
 
-/**
- * Valida un change con `--strict`.
- *
- * `failed` sólo se afirma cuando el CLI corrió y salió con código numérico. Si
- * no se lo pudo ejecutar, la respuesta es `unknown`: no saber si un cambio es
- * válido no es lo mismo que saber que no lo es.
- */
 export interface ArchiveOpenSpecChangeResult {
   ok: boolean;
   /** Motivo real informado por el CLI. `null` sólo cuando archivó bien. */
@@ -106,41 +87,26 @@ export interface ArchiveOpenSpecChangeResult {
 }
 
 /**
- * Archiva un change invocando el CLI, desde el proceso principal.
- *
- * No pasa por una sesión de runtime a propósito. Delegarlo en un agente agrega
- * un intermediario que puede no tener el comando —Claude Code lee sus slash
- * commands de `.claude/commands/`, donde `opsx` no existe— o no tener shell para
- * correr `openspec archive`, y devolver éxito sin haber hecho nada. Eso es
- * exactamente lo que pasaba: la sesión cerraba en 7 ms con
- * `"Unknown command: /opsx:archive"` e `is_error: false`.
- *
- * Archivar es determinístico y acotado; no necesita un modelo que lo decida.
- *
- * Vale acá la misma nota de seguridad que en `validateOpenSpecChangeWithCli`:
- * los argumentos son literales fijos y `changeId` está validado contra
- * `CHANGE_ID_PATTERN` antes de llegar al proceso, así que no puede contener
- * separadores de comando, comillas ni espacios.
+ * Archiva un change invocando el CLI desde el proceso principal.
  */
 export async function archiveOpenSpecChangeWithCli(
   repoPath: string,
   changeId: string,
+  options?: CliExecutionOptions,
 ): Promise<ArchiveOpenSpecChangeResult> {
-  if (!CHANGE_ID_PATTERN.test(changeId)) return { ok: false, error: 'invalid-change-id' };
+  if (!isValidChangeId(changeId)) return { ok: false, error: 'invalid-change-id' };
+
+  const runtime = resolveRuntime(options, repoPath);
+  if (!runtime) return { ok: false, error: 'openspec-cli-not-found' };
+
   try {
-    await execFileAsync(CLI.command, ['archive', changeId, '--yes'], {
+    await runAuthorizedOpenSpec(runtime, ['archive', changeId, '--yes'], {
       cwd: repoPath,
       timeout: 120_000,
-      windowsHide: true,
-      shell: CLI.shell,
       maxBuffer: 4 * 1024 * 1024,
-      env: { ...process.env, OPENSPEC_TELEMETRY_DISABLED: '1', DO_NOT_TRACK: '1' },
     });
     return { ok: true, error: null };
   } catch (error) {
-    // El motivo real del CLI vale más que un mensaje propio: los fallos típicos
-    // —un `MODIFIED` cuyo header no existe en la spec consolidada— sólo se
-    // entienden leyendo lo que el CLI tiene para decir.
     const detail = error as { stderr?: unknown; stdout?: unknown; message?: unknown };
     const reason = [detail.stderr, detail.stdout, detail.message]
       .map((value) => (typeof value === 'string' ? value.trim() : ''))
@@ -149,19 +115,24 @@ export async function archiveOpenSpecChangeWithCli(
   }
 }
 
+/**
+ * Valida un change con `--strict`.
+ */
 export async function validateOpenSpecChangeWithCli(
   repoPath: string,
   changeId: string,
+  options?: CliExecutionOptions,
 ): Promise<OpenSpecValidationStatus> {
-  if (!CHANGE_ID_PATTERN.test(changeId)) return 'unknown';
+  if (!isValidChangeId(changeId)) return 'unknown';
+
+  const runtime = resolveRuntime(options, repoPath);
+  if (!runtime) return 'unknown';
+
   try {
-    await execFileAsync(CLI.command, ['validate', changeId, '--strict', '--no-interactive'], {
+    await runAuthorizedOpenSpec(runtime, ['validate', changeId, '--strict', '--no-interactive'], {
       cwd: repoPath,
       timeout: 15_000,
-      windowsHide: true,
-      shell: CLI.shell,
       maxBuffer: 2 * 1024 * 1024,
-      env: { ...process.env, OPENSPEC_TELEMETRY_DISABLED: '1', DO_NOT_TRACK: '1' },
     });
     return 'passed';
   } catch (error) {
@@ -169,86 +140,135 @@ export async function validateOpenSpecChangeWithCli(
   }
 }
 
-/**
- * Forma cruda del JSON que devuelve `openspec status --json`. Se mapea a los
- * tipos propios antes de salir del wrapper, para no filtrar la forma del CLI
- * al resto del código.
- */
 interface OpenSpecStatusCliArtifact {
   id?: unknown;
   status?: unknown;
   missingDeps?: unknown;
+  requires?: unknown;
 }
+
 interface OpenSpecStatusCliOutput {
   artifacts?: unknown;
   applyRequires?: unknown;
   isComplete?: unknown;
+  isPlanningComplete?: unknown;
+  schemaName?: unknown;
+  skip_specs?: unknown;
+  skipSpecs?: unknown;
 }
 
-const ARTIFACT_STATES: ReadonlySet<string> = new Set(['blocked', 'ready', 'done']);
+const KNOWN_ARTIFACT_STATES: ReadonlySet<string> = new Set(['blocked', 'ready', 'done', 'skipped']);
 
 /**
- * Mapea el `status` del CLI al `state` del tipo propio, tolerando lo que no
- * encaja. Un artefacto sin `id` o con un `status` desconocido se descarta en
- * vez de romper todo el grafo: una versión futura del CLI podría sumar estados,
- * y un crash acá dejaría al panel sin snapshot.
+ * Mapea el `status` del CLI al `state` del tipo propio.
+ * Tolera elementos que no son objetos válidos (primitivos, null, arrays) descartándolos.
+ * Preserva artefactos con estados futuros/desconocidos asignando `state: 'unknown'`
+ * y `rawState`. Sólo descarta artefactos sin `id` válido.
  */
-function mapCliArtifact(raw: OpenSpecStatusCliArtifact): OpenSpecArtifactStatus | null {
-  if (typeof raw.id !== 'string' || raw.id.length === 0) return null;
-  const state = typeof raw.status === 'string' && ARTIFACT_STATES.has(raw.status)
-    ? (raw.status as OpenSpecArtifactState)
-    : null;
-  if (state === null) return null;
-  const missingDeps = Array.isArray(raw.missingDeps)
-    ? raw.missingDeps.filter((dep): dep is string => typeof dep === 'string')
+function mapCliArtifact(raw: unknown): OpenSpecArtifactStatus | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+
+  const item = raw as OpenSpecStatusCliArtifact;
+  if (typeof item.id !== 'string' || item.id.length === 0) return null;
+
+  let state: OpenSpecArtifactState = 'unknown';
+  let rawState: string | undefined = undefined;
+
+  if (typeof item.status === 'string') {
+    if (KNOWN_ARTIFACT_STATES.has(item.status)) {
+      state = item.status as OpenSpecArtifactState;
+    } else {
+      state = 'unknown';
+      rawState = item.status.slice(0, 100);
+    }
+  }
+
+  const missingDeps = Array.isArray(item.missingDeps)
+    ? item.missingDeps.filter((dep): dep is string => typeof dep === 'string')
     : [];
-  return { id: raw.id, state, missingDeps };
+
+  const requires = Array.isArray(item.requires)
+    ? item.requires.filter((dep): dep is string => typeof dep === 'string')
+    : [];
+
+  return { id: item.id, state, rawState, missingDeps, requires };
 }
 
 /**
  * Lee el grafo de artefactos de un change con `openspec status --json`.
- *
- * `available: false` significa que no se pudo leer el grafo —el CLI no está,
- * timed out, o la salida no era JSON válido—. No es lo mismo que un grafo
- * vacío, y por eso se distingue: el consumidor declara "no hay grafo" en vez
- * de leerlo como "todo listo". Es el mismo principio que `validate → unknown`.
- *
- * Vale la misma nota de seguridad que los demás wrappers: los argumentos son
- * literales y `changeId` pasó `CHANGE_ID_PATTERN`.
  */
 export async function statusOpenSpecChangeWithCli(
   repoPath: string,
   changeId: string,
+  options?: CliExecutionOptions,
 ): Promise<OpenSpecChangeStatus> {
-  const unavailable: OpenSpecChangeStatus = { available: false, artifacts: [], applyRequires: [], isComplete: false };
-  if (!CHANGE_ID_PATTERN.test(changeId)) return unavailable;
+  const unavailable: OpenSpecChangeStatus = {
+    available: false,
+    artifacts: [],
+    applyRequires: [],
+    isComplete: false,
+  };
+
+  if (!isValidChangeId(changeId)) return unavailable;
+
+  const runtime = resolveRuntime(options, repoPath);
+  if (!runtime) return unavailable;
+
   try {
-    const { stdout } = await execFileAsync(CLI.command, ['status', changeId, '--json'], {
+    const { stdout } = await runAuthorizedOpenSpec(runtime, ['status', changeId, '--json'], {
       cwd: repoPath,
       timeout: 15_000,
-      windowsHide: true,
-      shell: CLI.shell,
       maxBuffer: 2 * 1024 * 1024,
-      env: { ...process.env, OPENSPEC_TELEMETRY_DISABLED: '1', DO_NOT_TRACK: '1' },
     });
+
     const parsed = JSON.parse(stdout) as OpenSpecStatusCliOutput;
     const artifacts = Array.isArray(parsed.artifacts)
       ? parsed.artifacts
-        .map((raw) => mapCliArtifact(raw as OpenSpecStatusCliArtifact))
+        .map((raw) => mapCliArtifact(raw))
         .filter((artifact): artifact is OpenSpecArtifactStatus => artifact !== null)
       : [];
+
     const applyRequires = Array.isArray(parsed.applyRequires)
       ? parsed.applyRequires.filter((req): req is string => typeof req === 'string')
       : [];
+
+    // Precedencia explícita de `isPlanningComplete` (1.8) sobre alias legacy:
+    const isPlanningComplete =
+      typeof parsed.isPlanningComplete === 'boolean' ? parsed.isPlanningComplete : null;
+    const isComplete = isPlanningComplete ?? (parsed.isComplete === true);
+
+    // Metadata del change desde .openspec.yaml (evidencia independiente de status)
+    const fileMeta = await readOpenSpecChangeMetadata(repoPath, changeId);
+
+    // Combinar schemaName del status JSON o de .openspec.yaml
+    const schemaName =
+      (typeof parsed.schemaName === 'string' && parsed.schemaName.length > 0
+        ? parsed.schemaName
+        : fileMeta.schemaName) ?? null;
+
+    // Precedencia de skipSpecs (contrato tri-estado: boolean | null):
+    // 1. Campo top-level booleano del status JSON (skip_specs o skipSpecs) tiene máxima precedencia.
+    // 2. Si no viene en status JSON, se utiliza fileMeta.skipSpecs desde .openspec.yaml (boolean o null).
+    // 3. Si ambos están ausentes o son inválidos, resulta en null.
+    let skipSpecs: boolean | null = null;
+    if (typeof parsed.skip_specs === 'boolean') {
+      skipSpecs = parsed.skip_specs;
+    } else if (typeof parsed.skipSpecs === 'boolean') {
+      skipSpecs = parsed.skipSpecs;
+    } else {
+      skipSpecs = fileMeta.skipSpecs;
+    }
+
     return {
       available: true,
       artifacts,
       applyRequires,
-      isComplete: parsed.isComplete === true,
+      isPlanningComplete,
+      schemaName,
+      skipSpecs,
+      isComplete,
     };
   } catch {
-    // No distinguir fallo de validación de indisponibilidad del binario: acá no
-    // hay nada que validar, sólo leer. Cualquier fallo es "no hay grafo".
     return unavailable;
   }
 }

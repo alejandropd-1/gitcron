@@ -128,6 +128,11 @@ export const usePanelLayout = () => {
     });
   }, []);
 
+  const ensureDetailsOpen = useCallback(() => {
+    setDetailsOpen(true);
+    localStorage.setItem('gitcron:detailsOpen', 'true');
+  }, []);
+
   // Read persisted split widths and panel open states on the client to avoid SSR hydration mismatches.
   // (Intentional one-shot setState on mount — hydrating from localStorage.)
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -175,5 +180,6 @@ export const usePanelLayout = () => {
     beginGraphColDrag,
     toggleSidebar,
     toggleDetails,
+    ensureDetailsOpen,
   };
 };

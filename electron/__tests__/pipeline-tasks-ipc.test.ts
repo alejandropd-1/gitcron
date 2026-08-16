@@ -84,6 +84,21 @@ describe('IPC de estado de tareas', () => {
     expect(binding.resolveBinding).not.toHaveBeenCalled();
   });
 
+  it('valida el límite exacto del slug (acepta 200 chars y rechaza 201 antes de tocar disco)', async () => {
+    const slug200 = '1' + 'a'.repeat(199);
+    const slug201 = '1' + 'a'.repeat(200);
+
+    const ref200 = `openspec/changes/${slug200}/tasks.md`;
+    const { run, written } = await register({ [ref200]: TASKS });
+
+    const res200 = await run(null, 'C:/repo', slug200, 3, '1.1 hacer algo', true) as { success: boolean };
+    expect(res200.success).toBe(true);
+    expect(written).not.toHaveLength(0);
+
+    const res201 = await run(null, 'C:/repo', slug201, 3, '1.1 hacer algo', true) as { success: boolean };
+    expect(res201.success).toBe(false);
+  });
+
   it('rejects a line that is not a positive integer', async () => {
     const { run, written } = await register({ [TASKS_REF]: TASKS });
 

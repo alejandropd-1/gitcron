@@ -43,8 +43,24 @@ describe('repository watcher lifecycle', () => {
     mocks.watchers.length = 0;
   });
 
+  it('rechaza observar un repositorio no autorizado', async () => {
+    const { registerWatcherHandlers } = await import('../ipc/watchers');
+    const { authorizedRepoStore } = await import('../ipc/authorized-repos');
+    authorizedRepoStore.clear();
+    registerWatcherHandlers(() => null);
+    const watch = mocks.handlers.get('repo:watch');
+    if (!watch) throw new Error('watcher handler was not registered');
+
+    const result = (await watch(null, 'C:/unauthorized/repo')) as any;
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('no autorizado');
+    expect(mocks.watch).not.toHaveBeenCalled();
+  });
+
   it('serializes unwatch and a quick re-watch of the same repository', async () => {
     const { registerWatcherHandlers } = await import('../ipc/watchers');
+    const { authorizedRepoStore } = await import('../ipc/authorized-repos');
+    vi.spyOn(authorizedRepoStore, 'isAuthorized').mockReturnValue(true);
     registerWatcherHandlers(() => null);
     const watch = mocks.handlers.get('repo:watch');
     const unwatch = mocks.handlers.get('repo:unwatch');

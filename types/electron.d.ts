@@ -245,10 +245,13 @@ interface ElectronAPI {
   githubTest: (token: string, owner: string, repo: string) => Promise<GitResult>;
   githubAuth: (token: string) => Promise<GitResult<GitHubUser>>;
   githubDeviceStart: () => Promise<GitResult<DeviceCodeInfo>>;
-  githubDevicePoll: (deviceCode: string) => Promise<GitResult<{ accessToken?: string; pending?: boolean }>>;
-  openRepo: (defaultPath?: string) => Promise<GitResult<RepoInfo>>;
-  openPath: (dirPath: string) => Promise<GitResult<RepoInfo>>;
-  pickFolder: (title?: string, defaultPath?: string) => Promise<GitResult<string>>;
+  githubDevicePoll: (deviceCode: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  openRepo: (defaultPath?: string) => Promise<{ success: boolean; data?: RepoInfo; reason?: string; path?: string; error?: string }>;
+  openPath: (dirPath: string) => Promise<{ success: boolean; data?: RepoInfo; reason?: string; path?: string; error?: string }>;
+  /** Sonda: comprueba si una carpeta es raíz Git SIN conceder autorización. */
+  checkRepoPath: (dirPath: string) => Promise<{ success: boolean; data?: { isGitRepo: boolean }; reason?: string; path?: string; error?: string }>;
+  closeRepo: (repoPath: string) => Promise<{ success: boolean; error?: string }>;
+  pickFolder: (title?: string, defaultPath?: string) => Promise<{ success: boolean; data?: string; error?: string }>;
   gitApplyPatchFile: (repoPath: string) => Promise<GitResult<{ fileName: string }> & { canceled?: boolean }>;
   gitInit: (parentPath: string, name: string, withInitialCommit?: boolean) => Promise<GitResult<RepoInfo>>;
   gitClone: (url: string, parentPath: string, folderName: string, token?: string) => Promise<GitResult<RepoInfo>>;
@@ -565,6 +568,13 @@ interface ElectronAPI {
       suggestionTitle: string,
     ): Promise<TemporalAgentNotes>;
     getHistory(repoPath?: string | null): Promise<PredictionHistoryEntry[]>;
+  };
+  pipelineOpenSpec: {
+    getEngineStatus(repoPath?: string): Promise<import('./pipeline').OpenSpecEngineStatus>;
+    checkLatestVersion(): Promise<import('./pipeline').OpenSpecRegistryCheck>;
+    getUpdatePlan(repoPath: string): Promise<import('./pipeline').OpenSpecUpdatePlan>;
+    executeUpdate(repoPath: string): Promise<import('./pipeline').OpenSpecExecuteResult>;
+    getPreview(repoPath: string): Promise<import('./pipeline').OpenSpecPreviewResult>;
   };
 }
 

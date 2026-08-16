@@ -520,14 +520,14 @@ describe('deriveArchiveAvailability', () => {
 });
 
 describe('isValidChangeSlug', () => {
-  it('acepta los nombres que acepta el CLI', () => {
-    for (const value of ['ok9-name', 'guide-openspec-next-actions', 'a', 'a1']) {
+  it('acepta los nombres que acepta el CLI (gramática 1.8: admite prefijo numérico)', () => {
+    for (const value of ['ok9-name', 'guide-openspec-next-actions', 'a', 'a1', '9start', '100-add-feature']) {
       expect(isValidChangeSlug(value)).toBe(true);
     }
   });
 
   it('rechaza los mismos nombres que rechaza el CLI', () => {
-    for (const value of ['Bad_Name', 'has spaces', 'UPPER', 'trailing-', 'a--b', '9start', 'acento-ñ', '']) {
+    for (const value of ['Bad_Name', 'has spaces', 'UPPER', 'trailing-', 'a--b', 'acento-ñ', '']) {
       expect(isValidChangeSlug(value)).toBe(false);
     }
   });

@@ -3,6 +3,7 @@ import { ipcMain } from 'electron';
 import type { PipelineState } from '../../types/pipeline';
 import { PipelineService } from '../pipeline/pipeline-service';
 import { errMsg } from './shared';
+import { authorizedRepoStore } from './authorized-repos';
 
 type RefreshResult =
   | { success: true; data: PipelineState }
@@ -23,7 +24,10 @@ interface RepoSubscription {
 }
 
 function validRepoPath(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 32_768;
+  if (typeof value !== 'string' || value.length === 0 || value.length > 32_768) {
+    return false;
+  }
+  return authorizedRepoStore.isAuthorized(value);
 }
 
 export function registerPipelineHandlers(
@@ -55,7 +59,7 @@ export function registerPipelineHandlers(
   };
 
   const refresh = async (repoPath: unknown, selectedChangeId?: unknown): Promise<RefreshResult> => {
-    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
     // selectedChangeId es opcional: si llega como string se respeta como
     // selección manual; cualquier otro tipo se ignora (fallback a automática).
     const manual = typeof selectedChangeId === 'string' ? selectedChangeId : null;
@@ -80,7 +84,7 @@ export function registerPipelineHandlers(
 
   ipcMain.handle('pipeline:get-snapshot', (_event, repoPath: unknown, selectedChangeId?: unknown) => refresh(repoPath, selectedChangeId));
   ipcMain.handle('pipeline:subscribe', async (event, repoPath: unknown, selectedChangeId?: unknown) => {
-    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
     const result = await refresh(repoPath, selectedChangeId);
     if (result.success) {
       const subscription = subscriptions.get(repoPath) ?? { senders: new Set<number>(), selectedChangeId: null };
@@ -92,7 +96,7 @@ export function registerPipelineHandlers(
     return result;
   });
   ipcMain.handle('pipeline:unsubscribe', (event, repoPath: unknown) => {
-    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida' };
+    if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
     removeSubscription(repoPath, event.sender.id);
     return { success: true };
   });

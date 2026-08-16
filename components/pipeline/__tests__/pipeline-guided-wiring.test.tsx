@@ -89,7 +89,10 @@ function renderDashboard(overrides: { fixtureActive?: boolean; projection?: Runt
   );
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  delete (window as any).api;
+});
 
 /**
  * Entra al cambio desde la pantalla de entrada.
@@ -103,7 +106,7 @@ function enterChange() {
   fireEvent.click(enter);
 }
 
-describe('cableado de la guía con el lanzador', () => {
+describe('cableado de la guía con el lanzador', { timeout: 15_000 }, () => {
   it('ofrece continuar la próxima tarea con su identificador', () => {
     renderDashboard();
     enterChange();

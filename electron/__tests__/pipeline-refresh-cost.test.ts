@@ -19,6 +19,8 @@ const STATUS_GRAPH: OpenSpecChangeStatus = {
   available: true,
   artifacts: [{ id: 'proposal', state: 'ready', missingDeps: [] }],
   applyRequires: ['tasks'],
+  schemaName: null,
+  skipSpecs: null,
   isComplete: false,
 };
 

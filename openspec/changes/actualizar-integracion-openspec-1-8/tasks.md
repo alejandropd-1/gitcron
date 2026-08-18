@@ -69,21 +69,21 @@ estrategia (local al repo > global del sistema), diagnóstico profundo y guía n
 
 ## 7. (B) Pruebas
 
-- [ ] 7.1 CLI ausente con tarjeta visible; procedencia global/local/desconocido (`managed` declarada no disponible); `displayPath` informativo que **no** puede usarse como input ejecutable. *(Cubierta en fase 2).*
-- [ ] 7.2 CLI global detectado pero no actualizable atómicamente desde GitCron (sólo informativo); POC parcial que detiene la actualización integral; reporte honesto del estado del motor.
-- [ ] 7.3 Versiones ausente/vieja/actual/nueva/incompatible; consulta online con timeout y caché offline; «no afirma desactualizado sin evidencia». *(Cubierta en fase 2).*
-- [ ] 7.4 Lector minimizado: `rawProfile`/`delivery`/`configuredWorkflows` leídos; `anonymousId`/telemetría no transportados; degradación `unknown`; fixtures 1.5/1.8 con datos extra. *(Cubierta en fase 2).*
-- [ ] 7.5 Dos fuentes separadas y divergencia global↔repo; clasificación derivada `core`/`expanded`/`custom`/`unknown` sobre fuente declarada; perfil observado `custom` con cinco workflows. *(Cubierta en fase 2).*
-- [ ] 7.6 Schema `spec-driven`, un custom schema con artefactos diferentes, un artefacto `skipped`, un artefacto/estado futuro desconocido; grafo dinámico con `requires` y `applyRequires`. *(Cubierta en fase 2).*
-- [ ] 7.7 Slugs: numérico válido; consecutivos/finales inválidos; límite; mayúsculas/underscore/`..` rechazados; seguridad shell/traversal. *(Cubierta en fase 2).*
-- [ ] 7.8 Outputs: clasificación `repo-local`/`external-global`; `minimax-code` (external) bloqueado y sólo diagnóstico; `.github` repo-local; renderer no autoriza paths arbitrarios. *(Cubierta en fase 2).*
-- [ ] 7.9 Vista previa diagnóstica y parcial (clasificación de inputs/outputs, inventario de cambios) con invalidación ante cambio de rama/HEAD/CLI/fuentes; sin clase `exacta`.
-- [ ] 7.10 Matriz de actualización diagnóstica: repo sin `openspec/` → declara `init`; inicializado → declara `update`; todo al día → declara no mutar; muestra comando exacto sin ejecutarlo.
-- [ ] 7.11 Diagnóstico de migración `.codex` → `.agents`: skills OpenSpec viejos/nuevos detectados; `.agents` con personalizados preexistentes conservados; colisiones; `generatedBy` no es prueba única. *(Cubierta en fase 2).*
-- [ ] 7.12 IPC con argumentos inválidos y rutas fuera del repositorio rechazadas; parsing con fixtures de OpenSpec 1.5 y 1.8. *(Cubierta en fase 2).*
-- [ ] 7.13 i18n ES/EN/ZH del sub-namespace nuevo; UI del flujo de diagnóstico, tarjeta, revisión y guía de actualización (sin etapas de ejecución ni rollback).
-- [ ] 7.14 Regresión: el archivado normal sigue usando `openspec archive <id> --yes` y Pipeline abre sin regresiones; sin servicios de IA pagos. *(Cubierta en fase 2).*
-- [ ] 7.15 Cobertura de la resolución local al proyecto (`node_modules/.bin/openspec`), verificación de ejecutabilidad y precedencia local > global.
+- [x] 7.1 CLI ausente con tarjeta visible; procedencia global/local/desconocido (`managed` declarada no disponible); `displayPath` informativo que **no** puede usarse como input ejecutable. *(Cubierta en fase 2).*
+- [x] 7.2 CLI global detectado pero no actualizable atómicamente desde GitCron (sólo informativo); POC parcial que detiene la actualización integral; reporte honesto del estado del motor.
+- [x] 7.3 Versiones ausente/vieja/actual/nueva/incompatible; consulta online con timeout y caché offline; «no afirma desactualizado sin evidencia». *(Cubierta en fase 2).*
+- [x] 7.4 Lector minimizado: `rawProfile`/`delivery`/`configuredWorkflows` leídos; `anonymousId`/telemetría no transportados; degradación `unknown`; fixtures 1.5/1.8 con datos extra. *(Cubierta en fase 2).*
+- [x] 7.5 Dos fuentes separadas y divergencia global↔repo; clasificación derivada `core`/`expanded`/`custom`/`unknown` sobre fuente declarada; perfil observado `custom` con cinco workflows. *(Cubierta en fase 2).*
+- [x] 7.6 Schema `spec-driven`, un custom schema con artefactos diferentes, un artefacto `skipped`, un artefacto/estado futuro desconocido; grafo dinámico con `requires` y `applyRequires`. *(Cubierta en fase 2).*
+- [x] 7.7 Slugs: numérico válido; consecutivos/finales inválidos; límite; mayúsculas/underscore/`..` rechazados; seguridad shell/traversal. *(Cubierta en fase 2).*
+- [x] 7.8 Outputs: clasificación `repo-local`/`external-global`; `minimax-code` (external) bloqueado y sólo diagnóstico; `.github` repo-local; renderer no autoriza paths arbitrarios. *(Cubierta en fase 2).*
+- [x] 7.9 Vista previa diagnóstica y parcial (clasificación de inputs/outputs, inventario de cambios) con invalidación ante cambio de rama/HEAD/CLI/fuentes; sin clase `exacta`.
+- [x] 7.10 Matriz de actualización diagnóstica: repo sin `openspec/` → declara `init`; inicializado → declara `update`; todo al día → declara no mutar; muestra comando exacto sin ejecutarlo.
+- [x] 7.11 Diagnóstico de migración `.codex` → `.agents`: skills OpenSpec viejos/nuevos detectados; `.agents` con personalizados preexistentes conservados; colisiones; `generatedBy` no es prueba única. *(Cubierta en fase 2).*
+- [x] 7.12 IPC con argumentos inválidos y rutas fuera del repositorio rechazadas; parsing con fixtures de OpenSpec 1.5 y 1.8. *(Cubierta en fase 2).*
+- [x] 7.13 i18n ES/EN/ZH del sub-namespace nuevo; UI del flujo de diagnóstico, tarjeta, revisión y guía de actualización (sin etapas de ejecución ni rollback).
+- [x] 7.14 Regresión: el archivado normal sigue usando `openspec archive <id> --yes` y Pipeline abre sin regresiones; sin servicios de IA pagos. *(Cubierta en fase 2).*
+- [x] 7.15 Cobertura de la resolución local al proyecto (`node_modules/.bin/openspec`), verificación de ejecutabilidad y precedencia local > global.
 
 ## 8. Cierre
 

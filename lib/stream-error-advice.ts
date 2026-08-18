@@ -27,6 +27,8 @@ const PATRONES: ReadonlyArray<{ test: RegExp; key: string }> = [
   { test: /connection closed|LM Link|ECONNRESET|socket hang up|network/i, key: 'aiAdviceConnection' },
   // El prompt no entra en el contexto con el que se cargó el modelo.
   { test: /context length|exceeds context|too many tokens|context window/i, key: 'aiAdviceContext' },
+  // El modelo elegido no soporta chat completions (ej. modelo de embeddings o error 400).
+  { test: /respondió 400|status 400|code 400|HTTP 400|\b400\b|embedding|cannot generate|not a chat model|unsupported model/i, key: 'aiAdviceNotChatModel' },
 ];
 
 /**

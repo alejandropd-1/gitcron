@@ -42,7 +42,7 @@ export interface LocalModel {
   id: string;
   /** Cómo lo llama LM Studio. Más legible que la clave. */
   displayName: string;
-  /** `llm` o `embeddings`. Los de embeddings no redactan nada. */
+  /** `llm` o `embedding`. Los de embeddings no redactan nada. */
   kind: string;
   /** Si hay una instancia en memoria. */
   loaded: boolean;
@@ -96,6 +96,24 @@ export interface LocalModel {
    * veces.
    */
   loadedInstanceId: string | null;
+}
+
+/**
+ * Determina si un modelo local es apto para redactar mensajes de commit.
+ *
+ * Criterio de inclusión positivo (allowlist): acepta únicamente modelos de tipo `'llm'`.
+ * Los modelos de embeddings (`'embedding'`) y cualquier tipo no reconocido o futuro quedan
+ * excluidos por omisión.
+ */
+export function isDraftableModel(model: LocalModel): boolean {
+  return model.kind === 'llm';
+}
+
+/**
+ * Filtra la lista de modelos locales conservando únicamente los aptos para redacción.
+ */
+export function filterDraftableModels(models: LocalModel[]): LocalModel[] {
+  return models.filter(isDraftableModel);
 }
 
 /** Lo que devuelve cargar un modelo. */

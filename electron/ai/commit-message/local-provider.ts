@@ -272,21 +272,44 @@ export function parseDraftResponse(payload: unknown, model: string): CommitDraft
 }
 
 /**
- * El asunto, de una sola línea.
+ * Normaliza el mensaje de commit devuelto por el modelo.
  *
- * Un modelo puede envolver la respuesta en un bloque de código o agregar una
- * explicación después. Se toma la primera línea con contenido y se le quitan las
- * comillas o el cercado: imponer en el campo tres párrafos de prosa sería peor
- * que no sugerir nada.
+ * Limpia cercados de bloques de código (```) que algunos modelos añaden,
+ * quita comillas envolventes del asunto y preserva el cuerpo completo
+ * asegurando la línea en blanco de separación que Git exige entre asunto y cuerpo.
+ * Si el modelo devuelve sólo una línea, la devuelve limpia sin líneas en blanco extra.
+ * Devuelve `null` si no hay contenido utilizable.
  */
 export function normalizeSubject(raw: string): string | null {
-  const line = raw
+  const lines = raw
     .split(/\r?\n/)
-    .map((part) => part.trim())
-    .find((part) => part.length > 0 && !part.startsWith('```'));
-  if (!line) return null;
-  const cleaned = line.replace(/^["'`]+|["'`]+$/g, '').trim();
-  return cleaned.length > 0 ? cleaned : null;
+    .filter((line) => !line.trim().startsWith('```'));
+
+  const firstContentIdx = lines.findIndex((line) => line.trim().length > 0);
+  if (firstContentIdx === -1) return null;
+
+  const rawSubject = lines[firstContentIdx].trim();
+  const cleanedSubject = rawSubject.replace(/^["'`]+|["'`]+$/g, '').trim();
+  if (cleanedSubject.length === 0) return null;
+
+  const rawBodyLines = lines.slice(firstContentIdx + 1);
+
+  let bodyStart = 0;
+  while (bodyStart < rawBodyLines.length && rawBodyLines[bodyStart].trim().length === 0) {
+    bodyStart++;
+  }
+
+  let bodyEnd = rawBodyLines.length - 1;
+  while (bodyEnd >= bodyStart && rawBodyLines[bodyEnd].trim().length === 0) {
+    bodyEnd--;
+  }
+
+  if (bodyStart <= bodyEnd) {
+    const cleanedBody = rawBodyLines.slice(bodyStart, bodyEnd + 1).join('\n');
+    return `${cleanedSubject}\n\n${cleanedBody}`;
+  }
+
+  return cleanedSubject;
 }
 
 /** Traduce un fallo de red al motivo accionable, sin tapar el resto. */

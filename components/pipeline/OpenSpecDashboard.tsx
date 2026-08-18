@@ -35,7 +35,7 @@ import { AiElapsed } from './AiElapsed';
 import { CommitDraftLog } from './CommitDraftLog';
 import { appendDraftChunks, clearDraftLog, finishDraftLog, startDraftLog } from '@/lib/commit-draft-log';
 import { adviceKeyForStreamError } from '@/lib/stream-error-advice';
-import { MIN_CONTEXT_LENGTH, type LocalModel } from '@/types/commit-message-ai';
+import { MIN_CONTEXT_LENGTH, filterDraftableModels, type LocalModel } from '@/types/commit-message-ai';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
@@ -45,6 +45,7 @@ import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { PipelineNextStepGuide } from './PipelineNextStepGuide';
 import { motion, useReducedMotion } from 'motion/react';
 import { ChangeBranchNotice } from './ChangeBranchNotice';
+import { deriveChangeBranchState } from '@/lib/change-branch';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
 import { OpenSpecReadiness, OpenSpecToolList } from './OpenSpecReadiness';
 import { OpenSpecEngineCard } from './OpenSpecEngineCard';
@@ -710,7 +711,12 @@ export function OpenSpecDashboard({
     openSpecPresent !== undefined && (!openSpecPresent || pendingOpenSpecTools.length > 0),
   );
 
-  const hasAnyNotice = hasEngineAttention || hasReadinessNotice;
+  const branchMismatchState = selectedChange
+    ? deriveChangeBranchState(currentBranch, selectedChange.changeId)
+    : null;
+  const hasBranchMismatchNotice = Boolean(branchMismatchState && !branchMismatchState.matches);
+
+  const hasAnyNotice = hasEngineAttention || hasReadinessNotice || hasBranchMismatchNotice;
 
   // Lo que la rama declara sobre el trabajo del árbol.
   //
@@ -829,7 +835,7 @@ export function OpenSpecDashboard({
       // según cuál sea—. Dejar uno puesto convertiría esa decisión en un
       // descuido, que es el mismo motivo por el que no entra ningún archivo
       // tildado en este panel.
-      const disponibles = (result?.data ?? []).filter((model) => model.kind !== 'embeddings');
+      const disponibles = filterDraftableModels(result?.data ?? []);
       setAiModels(disponibles);
       // Lo que se eligió antes sigue elegido, salvo que ya no esté en el
       // catálogo: sostener una elección que el servidor ya no ofrece dejaría el
@@ -961,7 +967,7 @@ export function OpenSpecDashboard({
       // Relee el catálogo: el modelo que se acaba de cargar tiene ahora un
       // contexto real, y el desplegable lo seguía mostrando «en disco».
       const catalog = await window.api?.commitAi?.catalog();
-      const disponibles = (catalog?.data ?? []).filter((model) => model.kind !== 'embeddings');
+      const disponibles = filterDraftableModels(catalog?.data ?? []);
       setAiModels(disponibles);
       // Se avisa que terminó, y se lo confirma contra el catálogo en vez de
       // darlo por hecho porque la llamada no falló. Ale cargó un modelo y no
@@ -1017,7 +1023,7 @@ export function OpenSpecDashboard({
       // que no expulsaba nada. Sin esta comprobación el panel actúa sobre una
       // instancia que ya no existe y le informa un éxito inventado.
       const previo = await window.api?.commitAi?.catalog();
-      const antes = (previo?.data ?? []).filter((model) => model.kind !== 'embeddings');
+      const antes = filterDraftableModels(previo?.data ?? []);
       setAiModels(antes);
       const vigente = antes.find((model) => model.id === aiModel);
       if (!vigente?.loaded) {
@@ -1581,6 +1587,9 @@ export function OpenSpecDashboard({
                     onShowDetail={rightOpen ? () => setRailTab('tools') : undefined}
                   />
                 )}
+                {selectedChange && (
+                  <ChangeBranchNotice branch={currentBranch} changeId={selectedChange.changeId} />
+                )}
               </div>
             </section>
           )}
@@ -2057,13 +2066,6 @@ export function OpenSpecDashboard({
                   </p>
                 </div>
               </header>
-
-              {/* Línea propia y arriba de todo lo que se hace con el cambio: es
-                  lo que hay que saber antes de seguir trabajándolo, y en la
-                  franja de evidencia —que ya muestra la rama— quedaba chico.
-                  Sólo para un cambio activo: un archivado es de sólo lectura y
-                  ya no tiene rama que le corresponda. */}
-              <ChangeBranchNotice branch={currentBranch} changeId={selectedChange.changeId} />
 
               {/* Las acciones comparten fila con las pestañas: es el punto más
                   alto y estable del panel, así el CTA no se va con el scroll de

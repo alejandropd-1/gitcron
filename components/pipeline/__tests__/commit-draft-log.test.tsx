@@ -57,20 +57,64 @@ describe('CommitDraftLog — control de copiado de razonamiento', () => {
     });
   });
 
-  it('sin razonamiento, el control no se renderiza', () => {
-    // Caso 1: sólo contenido de respuesta sin razonamiento
+  it('sin razonamiento pero con contenido, no se renderiza el botón de razonamiento pero sí el de resultado', async () => {
+    const respuestaTexto = 'feat(pipeline): agregar nueva función\n\nCuerpo de la respuesta.';
     startDraftLog('draft-2');
     appendDraftChunks({
       draftId: 'draft-2',
-      chunks: [{ kind: 'content', text: 'feat(pipeline): agregar nueva función' }],
+      chunks: [{ kind: 'content', text: respuestaTexto }],
     });
 
     render(<CommitDraftLog />);
 
-    expect(screen.queryByRole('button', { name: /copiar/i })).toBeNull();
+    // El botón de copiar razonamiento NO está
+    expect(screen.queryByTitle(/copiar razonamiento/i)).toBeNull();
+
+    // El botón de copiar resultado SÍ está
+    const botonCopiarResultado = screen.getByTitle(/copiar resultado/i);
+    expect(botonCopiarResultado).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(botonCopiarResultado);
+    });
+
+    expect(writeTextMock).toHaveBeenCalledTimes(1);
+    expect(writeTextMock).toHaveBeenCalledWith(respuestaTexto);
+
+    await waitFor(() => {
+      expect(screen.getByText(/copiado/i)).toBeTruthy();
+    });
   });
 
-  it('sin redacción pero con aviso, el control no se renderiza', () => {
+  it('con ambos presentes, ambos controles aparecen y copian su texto respectivo', async () => {
+    const pensamiento = 'Pensando en el diff...';
+    const respuesta = 'fix(ipc): corregir timeout\n\nDetalles del fix.';
+
+    startDraftLog('draft-3');
+    appendDraftChunks({
+      draftId: 'draft-3',
+      chunks: [
+        { kind: 'reasoning', text: pensamiento },
+        { kind: 'content', text: respuesta },
+      ],
+    });
+
+    render(<CommitDraftLog />);
+
+    const botonRazonamiento = screen.getByTitle(/copiar razonamiento/i);
+    const botonResultado = screen.getByTitle(/copiar resultado/i);
+
+    expect(botonRazonamiento).toBeTruthy();
+    expect(botonResultado).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(botonResultado);
+    });
+
+    expect(writeTextMock).toHaveBeenCalledWith(respuesta);
+  });
+
+  it('sin redacción pero con aviso, los controles no se renderizan', () => {
     render(<CommitDraftLog notice="Modelo cargado correctamente" />);
     expect(screen.queryByRole('button', { name: /copiar/i })).toBeNull();
   });
@@ -80,6 +124,8 @@ describe('CommitDraftLog — control de copiado de razonamiento', () => {
     const keys = [
       'pipeline.openspec.prepare.aiLogCopy',
       'pipeline.openspec.prepare.aiLogCopied',
+      'pipeline.openspec.prepare.aiLogResultCopy',
+      'pipeline.openspec.prepare.aiLogResultCopied',
     ] as const;
 
     for (const lang of languages) {

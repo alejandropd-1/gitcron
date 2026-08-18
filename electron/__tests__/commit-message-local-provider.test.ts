@@ -10,6 +10,7 @@ import {
   parseModelCatalog,
   serverErrorMessage,
 } from '../ai/commit-message/local-provider';
+import { filterDraftableModels, isDraftableModel, type LocalModel } from '../../types/commit-message-ai';
 
 /**
  * El proveedor local que redacta el asunto de un commit.
@@ -75,7 +76,7 @@ const CATALOGO_REAL = {
       capabilities: { reasoning: { allowed_options: ['on'], default: 'on' } },
     },
     {
-      type: 'embeddings',
+      type: 'embedding',
       key: 'text-embedding-nomic',
       display_name: 'Nomic Embed',
       loaded_instances: [],
@@ -127,7 +128,7 @@ describe('el catálogo', () => {
 
   it('conserva los de embeddings con su tipo, en vez de esconderlos', () => {
     // Para que la vista pueda explicar por qué no sirven.
-    expect(parseModelCatalog(CATALOGO_REAL)[2].kind).toBe('embeddings');
+    expect(parseModelCatalog(CATALOGO_REAL)[2].kind).toBe('embedding');
   });
 
   it('une el mismo modelo repetido por dispositivo, y gana el cargado', () => {
@@ -370,18 +371,38 @@ describe('la respuesta del modelo', () => {
   });
 });
 
-describe('la normalización del asunto', () => {
-  it('se queda con la primera línea con contenido', () => {
-    expect(normalizeSubject('feat(x): algo\n\nY además una explicación larga')).toBe('feat(x): algo');
+describe('la normalización del mensaje de commit', () => {
+  it('conserva asunto y cuerpo con línea en blanco de separación', () => {
+    expect(normalizeSubject('feat(x): algo\n\nCuerpo explicativo con detalles.')).toBe('feat(x): algo\n\nCuerpo explicativo con detalles.');
+    expect(normalizeSubject('feat(x): algo\nCuerpo sin linea en blanco previa')).toBe('feat(x): algo\n\nCuerpo sin linea en blanco previa');
+    expect(normalizeSubject('feat(x): algo\n\n\nCuerpo con múltiples saltos\n\nSegundo párrafo\n\n')).toBe(
+      'feat(x): algo\n\nCuerpo con múltiples saltos\n\nSegundo párrafo',
+    );
   });
 
-  it('descarta el cercado de código y las comillas', () => {
-    expect(normalizeSubject('```\nfix(y): corregir el borde\n```')).toBe('fix(y): corregir el borde');
-    expect(normalizeSubject('"chore(z): mover cosas"')).toBe('chore(z): mover cosas');
+  it('mantiene idéntica una respuesta de una sola línea', () => {
+    expect(normalizeSubject('fix(ipc): corregir timeout')).toBe('fix(ipc): corregir timeout');
+    expect(normalizeSubject('  chore(deps): actualizar vitest  ')).toBe('chore(deps): actualizar vitest');
   });
 
-  it('sin contenido devuelve nulo', () => {
+  it('descarta cercado de código y conserva el cuerpo interior', () => {
+    expect(normalizeSubject('```\nfix(y): corregir el borde\n\nExplicación del fix\n```')).toBe(
+      'fix(y): corregir el borde\n\nExplicación del fix',
+    );
+    expect(normalizeSubject('```markdown\nchore(z): mover cosas\n```')).toBe('chore(z): mover cosas');
+  });
+
+  it('sin contenido o sólo con cercados devuelve nulo', () => {
     expect(normalizeSubject('   \n\n  ')).toBeNull();
+    expect(normalizeSubject('```\n```')).toBeNull();
+    expect(normalizeSubject('""')).toBeNull();
+    expect(normalizeSubject('')).toBeNull();
+  });
+
+  it('limpia las comillas del asunto sin romper el cuerpo', () => {
+    expect(normalizeSubject('"chore(z): mover cosas"\n\nCuerpo del commit')).toBe('chore(z): mover cosas\n\nCuerpo del commit');
+    expect(normalizeSubject('\'feat(a): nuevo\'')).toBe('feat(a): nuevo');
+    expect(normalizeSubject('`fix(b): detalle`\n\nTexto adicional')).toBe('fix(b): detalle\n\nTexto adicional');
   });
 });
 
@@ -410,5 +431,25 @@ describe('la llamada completa', () => {
     const body = JSON.parse((globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
     expect(body.max_tokens).toBe(8000);
     expect(body.model).toBe('m');
+  });
+});
+
+describe('la elegibilidad de modelos (allowlist)', () => {
+  const modelLlm = { id: 'gemma', displayName: 'Gemma', kind: 'llm' } as LocalModel;
+  const modelEmbedding = { id: 'nomic', displayName: 'Nomic', kind: 'embedding' } as LocalModel;
+  const modelVlm = { id: 'vision', displayName: 'Vision', kind: 'vlm' } as LocalModel;
+  const modelUnknown = { id: 'audio', displayName: 'Audio', kind: 'audio' } as LocalModel;
+
+  it('acepta únicamente modelos con kind === "llm"', () => {
+    expect(isDraftableModel(modelLlm)).toBe(true);
+    expect(isDraftableModel(modelEmbedding)).toBe(false);
+    expect(isDraftableModel(modelVlm)).toBe(false);
+    expect(isDraftableModel(modelUnknown)).toBe(false);
+  });
+
+  it('filterDraftableModels excluye embeddings y tipos desconocidos', () => {
+    const list = [modelLlm, modelEmbedding, modelVlm, modelUnknown];
+    const filtered = filterDraftableModels(list);
+    expect(filtered).toEqual([modelLlm]);
   });
 });

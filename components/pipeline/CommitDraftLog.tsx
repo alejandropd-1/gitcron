@@ -42,12 +42,15 @@ export function CommitDraftLog({ notice }: CommitDraftLogProps) {
   const uiLanguage = useGitStore((state) => state.language);
   const log = useSyncExternalStore(subscribeDraftLog, getDraftLogSnapshot, getDraftLogSnapshot);
   const streamRef = useRef<HTMLPreElement | null>(null);
-  const [copied, setCopied] = useState(false);
-  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [copiedReasoning, setCopiedReasoning] = useState(false);
+  const [copiedContent, setCopiedContent] = useState(false);
+  const copyReasoningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyContentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      if (copyReasoningTimeoutRef.current) clearTimeout(copyReasoningTimeoutRef.current);
+      if (copyContentTimeoutRef.current) clearTimeout(copyContentTimeoutRef.current);
     };
   }, []);
 
@@ -55,14 +58,29 @@ export function CommitDraftLog({ notice }: CommitDraftLogProps) {
     if (!log.reasoning) return;
     try {
       await navigator.clipboard.writeText(log.reasoning);
-      setCopied(true);
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-      copyTimeoutRef.current = setTimeout(() => {
-        setCopied(false);
-        copyTimeoutRef.current = null;
+      setCopiedReasoning(true);
+      if (copyReasoningTimeoutRef.current) clearTimeout(copyReasoningTimeoutRef.current);
+      copyReasoningTimeoutRef.current = setTimeout(() => {
+        setCopiedReasoning(false);
+        copyReasoningTimeoutRef.current = null;
       }, 2000);
     } catch (err) {
       console.error('Failed to copy reasoning: ', err);
+    }
+  };
+
+  const handleCopyContent = async () => {
+    if (!log.content) return;
+    try {
+      await navigator.clipboard.writeText(log.content);
+      setCopiedContent(true);
+      if (copyContentTimeoutRef.current) clearTimeout(copyContentTimeoutRef.current);
+      copyContentTimeoutRef.current = setTimeout(() => {
+        setCopiedContent(false);
+        copyContentTimeoutRef.current = null;
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy content: ', err);
     }
   };
 
@@ -169,13 +187,13 @@ export function CommitDraftLog({ notice }: CommitDraftLogProps) {
                 <button
                   type="button"
                   className={styles.draftLogCopyBtn}
-                  data-copied={copied ? 'true' : undefined}
+                  data-copied={copiedReasoning ? 'true' : undefined}
                   onClick={handleCopyReasoning}
-                  aria-label={copied ? t('pipeline.openspec.prepare.aiLogCopied') : t('pipeline.openspec.prepare.aiLogCopy')}
+                  aria-label={copiedReasoning ? t('pipeline.openspec.prepare.aiLogCopied') : t('pipeline.openspec.prepare.aiLogCopy')}
                   title={t('pipeline.openspec.prepare.aiLogCopy')}
                 >
-                  {copied ? <Check size={11} aria-hidden="true" /> : <Copy size={11} aria-hidden="true" />}
-                  <span>{copied ? t('pipeline.openspec.prepare.aiLogCopied') : t('pipeline.openspec.prepare.aiLogCopy')}</span>
+                  {copiedReasoning ? <Check size={11} aria-hidden="true" /> : <Copy size={11} aria-hidden="true" />}
+                  <span>{copiedReasoning ? t('pipeline.openspec.prepare.aiLogCopied') : t('pipeline.openspec.prepare.aiLogCopy')}</span>
                 </button>
               </div>
               <pre ref={streamRef} className={styles.draftLogStream}>{log.reasoning}</pre>
@@ -186,10 +204,23 @@ export function CommitDraftLog({ notice }: CommitDraftLogProps) {
               queda en el campo del commit lo sigue decidiendo el resultado, no
               esto: acá se muestra lo que llegó, sin imponerlo en ningún lado. */}
           {log.content.length > 0 && (
-            <p className={styles.draftLogAnswer}>
-              <strong>{t('pipeline.openspec.prepare.aiLogAnswer')}</strong>
+            <div className={styles.draftLogAnswer}>
+              <div className={styles.draftLogAnswerHeader}>
+                <strong>{t('pipeline.openspec.prepare.aiLogAnswer')}</strong>
+                <button
+                  type="button"
+                  className={styles.draftLogCopyBtn}
+                  data-copied={copiedContent ? 'true' : undefined}
+                  onClick={handleCopyContent}
+                  aria-label={copiedContent ? t('pipeline.openspec.prepare.aiLogResultCopied') : t('pipeline.openspec.prepare.aiLogResultCopy')}
+                  title={t('pipeline.openspec.prepare.aiLogResultCopy')}
+                >
+                  {copiedContent ? <Check size={11} aria-hidden="true" /> : <Copy size={11} aria-hidden="true" />}
+                  <span>{copiedContent ? t('pipeline.openspec.prepare.aiLogResultCopied') : t('pipeline.openspec.prepare.aiLogResultCopy')}</span>
+                </button>
+              </div>
               <span>{log.content}</span>
-            </p>
+            </div>
           )}
         </>
       )}

@@ -34,6 +34,11 @@ describe('lo que se reconoce', () => {
   it('el prompt que no entra', () => {
     expect(adviceKeyForStreamError('the request exceeds context length')).toBe('aiAdviceContext');
   });
+
+  it('el modelo que no es de chat o responde 400', () => {
+    expect(adviceKeyForStreamError('El servidor local respondió 400.')).toBe('aiAdviceNotChatModel');
+    expect(adviceKeyForStreamError('HTTP 400: Model is an embedding model and does not support chat')).toBe('aiAdviceNotChatModel');
+  });
 });
 
 describe('lo que no se reconoce', () => {

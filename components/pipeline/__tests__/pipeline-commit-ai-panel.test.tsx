@@ -94,7 +94,8 @@ beforeEach(() => {
     data: [
       { id: 'google/gemma-4-12b', displayName: 'Gemma 4 12B', kind: 'llm', loaded: true, loadedContextLength: 69120, maxContextLength: 262144, sizeBytes: 7556574286, params: '12B', quantization: 'Q4_K_M', reasoningDefault: 'on', reasoningCanBeOff: true, loadedInstanceId: 'google/gemma-4-12b', devices: ['4f814c48de176d603d6e0efb16617c71'] },
       { id: 'ornith-1.0-9b', displayName: 'Ornith 9B', kind: 'llm', loaded: false, loadedContextLength: null, maxContextLength: 262144, sizeBytes: 5630000000, params: '9B', quantization: 'Q4_K_M', reasoningDefault: 'on', reasoningCanBeOff: false, loadedInstanceId: null, devices: [''] },
-      { id: 'text-embedding-nomic', displayName: 'Nomic', kind: 'embeddings', loaded: false, loadedContextLength: null, maxContextLength: 2048, sizeBytes: null, params: null, quantization: null, reasoningDefault: null, reasoningCanBeOff: false, loadedInstanceId: null, devices: [] },
+      { id: 'text-embedding-nomic', displayName: 'Nomic', kind: 'embedding', loaded: false, loadedContextLength: null, maxContextLength: 2048, sizeBytes: null, params: null, quantization: null, reasoningDefault: null, reasoningCanBeOff: false, loadedInstanceId: null, devices: [] },
+      { id: 'custom-vision-model', displayName: 'Vision', kind: 'vlm', loaded: false, loadedContextLength: null, maxContextLength: 4096, sizeBytes: null, params: null, quantization: null, reasoningDefault: null, reasoningCanBeOff: false, loadedInstanceId: null, devices: [] },
     ],
   });
   draft.mockReset();
@@ -180,10 +181,11 @@ describe('el selector de modelos', { timeout: 15_000 }, () => {
     expect(opcion.textContent).not.toMatch(/aiDevice/);
   });
 
-  it('deja afuera los de embeddings, que no redactan nada', async () => {
+  it('deja afuera los de embeddings y tipos no-llm, que no redactan nada', async () => {
     abrirPreparacion();
     await screen.findByRole('option', { name: /gemma-4-12b/ });
-    expect(screen.queryByRole('option', { name: /nomic/ })).toBeNull();
+    expect(screen.queryByRole('option', { name: /nomic/i })).toBeNull();
+    expect(screen.queryByRole('option', { name: /vision/i })).toBeNull();
   });
 
   it('sin servidor local lo dice y no ofrece redactar', async () => {

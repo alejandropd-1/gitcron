@@ -1374,6 +1374,45 @@
   font-size: 0.6rem;
 }
 
+.draftLogReasoningBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.draftLogReasoningHeader {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.draftLogCopyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--os-border);
+  border-radius: 0.25rem;
+  background: rgba(3, 18, 31, 0.6);
+  color: var(--os-muted);
+  cursor: pointer;
+  font: 600 0.58rem var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.02em;
+  transition: color 0.12s, border-color 0.12s, background-color 0.12s;
+}
+
+.draftLogCopyBtn:hover,
+.draftLogCopyBtn:focus-visible {
+  border-color: var(--os-border-strong);
+  background: var(--os-surface);
+  color: var(--os-cyan);
+}
+
+.draftLogCopyBtn[data-copied='true'] {
+  border-color: rgba(163, 241, 133, 0.35);
+  color: var(--os-green);
+}
+
 /* El razonamiento. Monoespaciada y con su propio desplazamiento: es un flujo
    largo, y sin techo empujaría todo lo demás fuera de la vista.
    `pre-wrap` y no `pre`: el modelo escribe prosa, y el rail es angosto. */

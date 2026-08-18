@@ -14,8 +14,8 @@
 // el mismo error que ya costó caro con el temporizador de la espera (tarea
 // 4.18). Suscribiéndose acá, lo único que se vuelve a dibujar es esto.
 
-import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { AlertTriangle, Brain } from 'lucide-react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { AlertTriangle, Brain, Check, Copy } from 'lucide-react';
 import { getDraftLogSnapshot, subscribeDraftLog, REASONING_LIMIT } from '@/lib/commit-draft-log';
 import { adviceKeyForStreamError } from '@/lib/stream-error-advice';
 import { useGitStore } from '@/lib/git-store';
@@ -42,6 +42,29 @@ export function CommitDraftLog({ notice }: CommitDraftLogProps) {
   const uiLanguage = useGitStore((state) => state.language);
   const log = useSyncExternalStore(subscribeDraftLog, getDraftLogSnapshot, getDraftLogSnapshot);
   const streamRef = useRef<HTMLPreElement | null>(null);
+  const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
+
+  const handleCopyReasoning = async () => {
+    if (!log.reasoning) return;
+    try {
+      await navigator.clipboard.writeText(log.reasoning);
+      setCopied(true);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        copyTimeoutRef.current = null;
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy reasoning: ', err);
+    }
+  };
 
   // Que se vea siempre lo último, que es lo que se está mirando.
   //
@@ -141,7 +164,22 @@ export function CommitDraftLog({ notice }: CommitDraftLogProps) {
           {/* Sólo si hay algo. Un modelo que no razona —medido en la notebook: 0
               de 23 cuadros— dejaba un recuadro vacío ocupando media columna. */}
           {log.reasoning.length > 0 && (
-            <pre ref={streamRef} className={styles.draftLogStream}>{log.reasoning}</pre>
+            <div className={styles.draftLogReasoningBox}>
+              <div className={styles.draftLogReasoningHeader}>
+                <button
+                  type="button"
+                  className={styles.draftLogCopyBtn}
+                  data-copied={copied ? 'true' : undefined}
+                  onClick={handleCopyReasoning}
+                  aria-label={copied ? t('pipeline.openspec.prepare.aiLogCopied') : t('pipeline.openspec.prepare.aiLogCopy')}
+                  title={t('pipeline.openspec.prepare.aiLogCopy')}
+                >
+                  {copied ? <Check size={11} aria-hidden="true" /> : <Copy size={11} aria-hidden="true" />}
+                  <span>{copied ? t('pipeline.openspec.prepare.aiLogCopied') : t('pipeline.openspec.prepare.aiLogCopy')}</span>
+                </button>
+              </div>
+              <pre ref={streamRef} className={styles.draftLogStream}>{log.reasoning}</pre>
+            </div>
           )}
           {/* La respuesta, aparte del razonamiento: son dos cosas distintas y
               mezclarlas haría imposible ver cuál de las dos terminó. Lo que

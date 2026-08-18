@@ -36,8 +36,12 @@ describe('lo que se reconoce', () => {
   });
 
   it('el modelo que no es de chat o responde 400', () => {
+    expect(adviceKeyForStreamError('Selected model is an embedding model')).toBe('aiAdviceNotChatModel');
+    expect(adviceKeyForStreamError('the server responded with HTTP 400')).toBe('aiAdviceNotChatModel');
+    expect(adviceKeyForStreamError('not a chat model')).toBe('aiAdviceNotChatModel');
+    expect(adviceKeyForStreamError('This model does not support chat completions')).toBe('aiAdviceNotChatModel');
+    expect(adviceKeyForStreamError('{"code": 400, "message": "invalid request"}')).toBe('aiAdviceNotChatModel');
     expect(adviceKeyForStreamError('El servidor local respondió 400.')).toBe('aiAdviceNotChatModel');
-    expect(adviceKeyForStreamError('HTTP 400: Model is an embedding model and does not support chat')).toBe('aiAdviceNotChatModel');
   });
 });
 
@@ -46,6 +50,18 @@ describe('lo que no se reconoce', () => {
     // Mandar a hacer algo que no tiene nada que ver es peor que mostrar sólo el
     // motivo técnico: la persona pierde el tiempo en la pista equivocada.
     expect(adviceKeyForStreamError('algo raro que nunca vimos')).toBeNull();
+  });
+
+  it('cadenas que contienen 400 o embedding en otro contexto no disparan consejo', () => {
+    expect(adviceKeyForStreamError('timeout after 400ms')).toBeNull();
+    expect(adviceKeyForStreamError('buffer size exceeded: 400 bytes allocated')).toBeNull();
+    expect(adviceKeyForStreamError('process took 400 seconds to respond')).toBeNull();
+    expect(adviceKeyForStreamError('failed to compute embedding vector in database')).toBeNull();
+    expect(adviceKeyForStreamError('embedding dimension mismatch in local index')).toBeNull();
+    expect(adviceKeyForStreamError('the model failed to load: embedding cache corrupt')).toBeNull();
+    expect(adviceKeyForStreamError('model file format not supported by this build')).toBeNull();
+    expect(adviceKeyForStreamError('model weights could not generate checksum')).toBeNull();
+    expect(adviceKeyForStreamError('could not load model: embedding index missing')).toBeNull();
   });
 
   it('un motivo vacío no dice nada', () => {

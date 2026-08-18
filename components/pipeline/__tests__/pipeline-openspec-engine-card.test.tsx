@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { OpenSpecEngineCard } from '../OpenSpecEngineCard';
 import type { OpenSpecEngineStatus } from '../../../types/pipeline';
@@ -102,5 +102,57 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
     // Ahora la información avanzada es visible
     expect(screen.getByText(/Ruta y Procedencia/i)).toBeDefined();
     expect(screen.getByText(/El perfil global \(core\) difiere/i)).toBeDefined();
+  });
+
+  it('alterna el texto del botón entre Revisar actualización y Cerrar revisión según isReviewOpen', () => {
+    const dummyStatus: OpenSpecEngineStatus = {
+      cli: {
+        installed: true,
+        runtimeVersion: '1.8.0',
+        provenance: 'global',
+        displayPath: 'C:\\global\\openspec.cmd',
+        supportedRange: { min: '1.5.0', max: '1.8.0' },
+        versionClass: 'supported',
+        evidenceStatus: 'confirmed',
+        diagnostics: [],
+      },
+      latestAvailable: null,
+      globalConfig: null,
+      installedIntegration: null,
+      repoState: 'initialized',
+      integrationState: 'outdated',
+    };
+
+    const handleReview = vi.fn();
+
+    // 1. Con isReviewOpen=false
+    const { rerender } = render(
+      <OpenSpecEngineCard
+        status={dummyStatus}
+        compact={false}
+        onOpenReview={handleReview}
+        isReviewOpen={false}
+      />,
+    );
+
+    const openBtn = screen.getByRole('button', { name: /Revisar actualización/i });
+    expect(openBtn).toBeDefined();
+    fireEvent.click(openBtn);
+    expect(handleReview).toHaveBeenCalledTimes(1);
+
+    // 2. Con isReviewOpen=true
+    rerender(
+      <OpenSpecEngineCard
+        status={dummyStatus}
+        compact={false}
+        onOpenReview={handleReview}
+        isReviewOpen={true}
+      />,
+    );
+
+    const closeBtn = screen.getByRole('button', { name: /Cerrar revisión/i });
+    expect(closeBtn).toBeDefined();
+    fireEvent.click(closeBtn);
+    expect(handleReview).toHaveBeenCalledTimes(2);
   });
 });

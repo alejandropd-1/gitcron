@@ -591,4 +591,71 @@ describe('computeDirContentHash — recorrido acotado (invariante 19)', () => {
     expect(agentsOutput?.contentHash).not.toBeNull();
     expect(evidence.evidenceStatus).toBe('confirmed');
   });
+
+  it('clasifica skills en la taxonomía exacta de origin sin caer en custom-agents por omisión', () => {
+    const repo = 'C:\\repo';
+    const disk = exactDiskDouble({
+      dirs: {
+        [repo]: ['.codex', '.agent', '.agents', '.claude', '.opencode'],
+        [`${repo}\\.codex`]: ['skills'],
+        [`${repo}\\.codex\\skills`]: [
+          'openspec-propose',
+          'openspec-explore',
+          'openspec-apply-change',
+          'openspec-sync-specs',
+          'openspec-archive-change',
+        ],
+        [`${repo}\\.agent`]: ['skills'],
+        [`${repo}\\.agent\\skills`]: [
+          'openspec-propose',
+          'openspec-explore',
+          'openspec-apply-change',
+          'openspec-sync-specs',
+          'openspec-archive-change',
+        ],
+        [`${repo}\\.agents`]: ['skills'],
+        [`${repo}\\.agents\\skills`]: ['accessibility', 'seo', 'dex'],
+        [`${repo}\\.claude`]: ['skills'],
+        [`${repo}\\.claude\\skills`]: [
+          'openspec-propose',
+          'openspec-explore',
+          'openspec-apply-change',
+          'openspec-sync-specs',
+          'openspec-archive-change',
+        ],
+        [`${repo}\\.opencode`]: ['skills'],
+        [`${repo}\\.opencode\\skills`]: [
+          'openspec-propose',
+          'openspec-explore',
+          'openspec-apply-change',
+          'openspec-sync-specs',
+          'openspec-archive-change',
+        ],
+      },
+    });
+
+    const evidence = inspectInstalledEvidence(repo, {
+      realpath: (p) => p,
+      ...disk,
+      readFile: () => '',
+    });
+
+    // 10 legacy skills (5 codex, 5 agent)
+    const legacyCodex = evidence.skills.filter((s) => s.origin === 'legacy-codex');
+    const legacyAgent = evidence.skills.filter((s) => s.origin === 'legacy-agent');
+    expect(legacyCodex).toHaveLength(5);
+    expect(legacyAgent).toHaveLength(5);
+    expect(evidence.legacy).toEqual(expect.arrayContaining(['codex', 'antigravity']));
+
+    // 10 official skills en otras herramientas (5 claude, 5 opencode)
+    const officialOther = evidence.skills.filter((s) => s.origin === 'official-other');
+    expect(officialOther).toHaveLength(10);
+    expect(officialOther.every((s) => s.isOfficial)).toBe(true);
+
+    // .agents sólo tiene personalizados, ninguno es openspec-*
+    const customAgents = evidence.skills.filter((s) => s.origin === 'custom-agents');
+    expect(customAgents.map((s) => s.name).sort()).toEqual(['accessibility', 'dex', 'seo']);
+    expect(customAgents.every((s) => !s.isOfficial)).toBe(true);
+    expect(customAgents.some((s) => s.name.startsWith('openspec-'))).toBe(false);
+  });
 });

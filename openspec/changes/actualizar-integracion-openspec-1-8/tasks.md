@@ -62,10 +62,10 @@ estrategia (local al repo > global del sistema), diagnóstico profundo y guía n
 
 ## 6. (A+B) Tarjeta de estado, revisión sin mutación, declaración de matriz y guía de actualización
 
-- [ ] 6.1 Botón o acción de revisión en la UI (`OpenSpecDashboard.tsx`) cuyo primer clic abre la revisión sin mutar nada: versión actual y última disponible, procedencia efectiva (`local`/`global`), alcance, archivos creados/modificados/retirados según diagnóstico, conflictos con personalizados y comando oficial sugerido.
-- [ ] 6.2 Declaración de la matriz de actualización y comando guiado: determinar la operación oficial (`init` / `update` / ninguna) y mostrar al usuario el comando exacto a ejecutar en su terminal (p. ej. `openspec init --tools ...` o `openspec update`), con su alcance y archivos involucrados, sin ejecutar mutaciones automáticas ni simular slash commands.
-- [ ] 6.3 Guía no interactiva para `init`: el plan decide y muestra los argumentos recomendados para ejecución por el usuario (`--tools <allowlist>`, `--profile core|custom`, `--no-animation`, `--copilot-cloud`/`--no-copilot-cloud`), advirtiendo que `--force` sólo debe usarse tras confirmar la limpieza de archivos legacy.
-- [ ] 6.4 Diagnóstico de regeneración y convivencia `.codex` ↔ `.agents`: declarar qué skills legacy de `.codex` se migrarían, qué skills nuevos de `.agents` se incorporarían, qué personalizados preexistentes en `.agents` no deben tocarse y qué colisiones de nombres existen — en modo de sólo lectura/diagnóstico.
+- [x] 6.1 Botón o acción de revisión en la UI (`OpenSpecDashboard.tsx`) cuyo primer clic abre la revisión sin mutar nada: versión actual y última disponible, procedencia efectiva (`local`/`global`), alcance, archivos creados/modificados/retirados según diagnóstico, conflictos con personalizados y comando oficial sugerido.
+- [x] 6.2 Declaración de la matriz de actualización y comando guiado: determinar la operación oficial (`init` / `update` / ninguna) y mostrar al usuario el comando exacto a ejecutar en su terminal (p. ej. `openspec init --tools ...` o `openspec update`), con su alcance y archivos involucrados, sin ejecutar mutaciones automáticas ni simular slash commands.
+- [x] 6.3 Guía no interactiva para `init`: el plan decide y muestra los argumentos recomendados para ejecución por el usuario (`--tools <allowlist>`, `--profile core|custom`, `--no-animation`, `--copilot-cloud`/`--no-copilot-cloud`), advirtiendo que `--force` sólo debe usarse tras confirmar la limpieza de archivos legacy.
+- [x] 6.4 Diagnóstico de regeneración y convivencia `.codex` ↔ `.agents`: declarar qué skills legacy de `.codex` se migrarían, qué skills nuevos de `.agents` se incorporarían, qué personalizados preexistentes en `.agents` no deben tocarse y qué colisiones de nombres existen — en modo de sólo lectura/diagnóstico.
 
 ## 7. (B) Pruebas
 

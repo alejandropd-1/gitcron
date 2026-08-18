@@ -55,28 +55,32 @@ export function OpenSpecReadiness({ present, tools, onShowDetail }: OpenSpecRead
 
   return (
     <section className={styles.readiness} data-kind={present ? 'tools' : 'missing'}>
-      <AlertCircle size={15} aria-hidden="true" />
-      <p>
-        <strong>
+      <div className={styles.readinessMain}>
+        <AlertCircle size={15} aria-hidden="true" />
+        <p>
+          <strong>
+            {present
+              ? t('pipeline.openspec.readiness.toolsTitle', { count: pending.length })
+              : t('pipeline.openspec.readiness.missingTitle')}
+          </strong>
+          {' '}
           {present
-            ? t('pipeline.openspec.readiness.toolsTitle', { count: pending.length })
-            : t('pipeline.openspec.readiness.missingTitle')}
-        </strong>
-        {' '}
-        {present
-          ? t('pipeline.openspec.readiness.toolsHelp')
-          : t('pipeline.openspec.readiness.missingHelp')}
-      </p>
+            ? t('pipeline.openspec.readiness.toolsHelp')
+            : t('pipeline.openspec.readiness.missingHelp')}
+        </p>
+      </div>
       {/* También sin OpenSpec: declarar sin ofrecer salida deja a la persona
           sabiendo que algo falta y sin nada que hacer al respecto, que es el
           peor de los dos estados. El rótulo cambia porque lo que espera del
           otro lado es distinto: cuál falta, o cómo resolverlo. */}
       {onShowDetail && (
-        <button type="button" className={styles.readinessLink} onClick={onShowDetail}>
-          {present
-            ? t('pipeline.openspec.readiness.seeDetail')
-            : t('pipeline.openspec.readiness.resolve')}
-        </button>
+        <div className={styles.readinessActions}>
+          <button type="button" className={styles.readinessLink} onClick={onShowDetail}>
+            {present
+              ? t('pipeline.openspec.readiness.seeDetail')
+              : t('pipeline.openspec.readiness.resolve')}
+          </button>
+        </div>
       )}
     </section>
   );

@@ -343,11 +343,20 @@ export function inspectInstalledEvidence(
             detectedCustomSkillsCount++;
           }
 
-          let origin: OpenSpecInstalledSkill['origin'] = 'custom-agents';
-          if (toolDef.toolId === 'codex') origin = 'legacy-codex';
-          else if (toolDef.toolId === 'antigravity') origin = 'legacy-agent';
-          else if (toolDef.toolId === 'agents' && isOfficial) origin = 'new-agents';
-          else if (toolDef.toolId === 'agents') origin = 'custom-agents';
+          let origin: OpenSpecInstalledSkill['origin'];
+          if (toolDef.toolId === 'codex') {
+            origin = isOfficial ? 'legacy-codex' : 'custom-other';
+          } else if (toolDef.toolId === 'antigravity') {
+            origin = isOfficial ? 'legacy-agent' : 'custom-other';
+          } else if (toolDef.toolId === 'agents') {
+            origin = isOfficial ? 'new-agents' : 'custom-agents';
+          } else if (isOfficial) {
+            origin = 'official-other';
+          } else if (getToolDef(toolDef.toolId)) {
+            origin = 'custom-other';
+          } else {
+            origin = 'unknown';
+          }
 
           skills.push({
             name: entry,

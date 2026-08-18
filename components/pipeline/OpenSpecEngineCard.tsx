@@ -9,6 +9,8 @@ export interface OpenSpecEngineCardProps {
   isLoading?: boolean;
   compact?: boolean;
   onOpenToolsTab?: () => void;
+  onOpenReview?: () => void;
+  isReviewOpen?: boolean;
 }
 
 export function formatDivergenceReason(
@@ -67,6 +69,8 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   isLoading = false,
   compact = false,
   onOpenToolsTab,
+  onOpenReview,
+  isReviewOpen = false,
 }) => {
   const t = useT();
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -234,6 +238,20 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
         <div className={styles.summaryFactRow}>
           <span>{agentsText}</span>
         </div>
+
+        {onOpenReview && (
+          <div style={{ marginTop: '0.4rem' }}>
+            <button
+              type="button"
+              className={styles.centerAttentionBtn}
+              onClick={onOpenReview}
+            >
+              {isReviewOpen
+                ? t('pipeline.openspec.engine.closeReviewAction')
+                : t('pipeline.openspec.engine.reviewAction')}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Botón de Diagnóstico Avanzado */}

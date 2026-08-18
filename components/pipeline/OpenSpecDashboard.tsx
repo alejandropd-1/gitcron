@@ -49,7 +49,8 @@ import { deriveChangeBranchState } from '@/lib/change-branch';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
 import { OpenSpecReadiness, OpenSpecToolList } from './OpenSpecReadiness';
 import { OpenSpecEngineCard } from './OpenSpecEngineCard';
-import type { OpenSpecEngineStatus, OpenSpecRegistryCheck } from '@/types/pipeline';
+import { OpenSpecUpdateReview } from './OpenSpecUpdateReview';
+import type { OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpecUpdatePlan } from '@/types/pipeline';
 import { SpecificationViewer } from './SpecificationViewer';
 import { TaskConfirmToast } from './TaskConfirmToast';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
@@ -340,11 +341,34 @@ export function OpenSpecDashboard({
    * y el estado de las herramientas se consulta cuando hace falta.
    */
   const [railTab, setRailTab] = useState<'activity' | 'tools'>('activity');
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [updatePlan, setUpdatePlan] = useState<OpenSpecUpdatePlan | null>(null);
+
   const openToolsTab = () => {
     if (onEnsureRightOpen) {
       onEnsureRightOpen();
     }
     setRailTab('tools');
+  };
+
+  const openReview = () => {
+    const api = typeof window !== 'undefined' ? window.api : undefined;
+    if (api?.pipelineOpenSpec?.getUpdatePlan) {
+      void api.pipelineOpenSpec.getUpdatePlan(repoPath).then((plan) => {
+        setUpdatePlan(plan);
+      }).catch(() => {
+        // Silently keep fallback plan
+      });
+    }
+    setReviewOpen(true);
+  };
+
+  const toggleReview = () => {
+    if (reviewOpen) {
+      setReviewOpen(false);
+    } else {
+      openReview();
+    }
   };
   const [initBusy, setInitBusy] = useState(false);
   /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
@@ -1408,6 +1432,8 @@ export function OpenSpecDashboard({
           isLoading={engineLoading}
           compact={true}
           onOpenToolsTab={openToolsTab}
+          onOpenReview={toggleReview}
+          isReviewOpen={reviewOpen}
         />
       </header>
 
@@ -1565,19 +1591,32 @@ export function OpenSpecDashboard({
               <div className={styles.noticesList}>
                 {hasEngineAttention && (
                   <div className={styles.centerAttentionBanner}>
-                    <AlertTriangle size={15} aria-hidden="true" />
-                    <span>
-                      {t('pipeline.openspec.engine.attentionNotice', {
-                        reasons: attentionReasons.join(attentionReasonSeparator),
-                      })}
-                    </span>
-                    <button
-                      type="button"
-                      className={styles.centerAttentionBtn}
-                      onClick={openToolsTab}
-                    >
-                      {t('pipeline.openspec.engine.openToolsTab')}
-                    </button>
+                    <div className={styles.centerAttentionMain}>
+                      <AlertTriangle size={15} aria-hidden="true" />
+                      <span>
+                        {t('pipeline.openspec.engine.attentionNotice', {
+                          reasons: attentionReasons.join(attentionReasonSeparator),
+                        })}
+                      </span>
+                    </div>
+                    <div className={styles.centerAttentionActions}>
+                      <button
+                        type="button"
+                        className={styles.centerAttentionBtn}
+                        onClick={toggleReview}
+                      >
+                        {reviewOpen
+                          ? t('pipeline.openspec.engine.closeReviewAction')
+                          : t('pipeline.openspec.engine.reviewAction')}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.centerAttentionBtn}
+                        onClick={openToolsTab}
+                      >
+                        {t('pipeline.openspec.engine.openToolsTab')}
+                      </button>
+                    </div>
                   </div>
                 )}
                 {hasReadinessNotice && (
@@ -1606,6 +1645,13 @@ export function OpenSpecDashboard({
               requirements={openSpecification.requirements}
               sourceRef={openSpecification.sourceRef}
               onBack={() => setOpenSpecificationId(null)}
+            />
+          ) : !prepareOpen && reviewOpen ? (
+            <OpenSpecUpdateReview
+              repoPath={repoPath}
+              status={effectiveEngineStatus}
+              updatePlan={updatePlan}
+              onBack={() => setReviewOpen(false)}
             />
           ) : prepareOpen ? (
             <section className={styles.prepareArea} aria-label={t('pipeline.openspec.prepare.title')}>
@@ -2609,6 +2655,8 @@ export function OpenSpecDashboard({
                   status={effectiveEngineStatus}
                   isLoading={engineLoading}
                   onOpenToolsTab={() => setRailTab('tools')}
+                  onOpenReview={toggleReview}
+                  isReviewOpen={reviewOpen}
                 />
                 <OpenSpecToolList
                   present={openSpecPresent}

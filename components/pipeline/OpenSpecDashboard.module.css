@@ -1767,8 +1767,8 @@
    de esta pantalla —el tope de 44rem lo usan otras dos vistas, no ésta—. */
 .readiness {
   display: flex;
-  align-items: center;
-  gap: var(--sp-4);
+  flex-direction: column;
+  gap: var(--sp-2);
   margin: 0;
   padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--os-border-strong);
@@ -1778,19 +1778,33 @@
   color: var(--os-amber, #d8a657);
   text-align: left;
 }
+.readinessMain {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  width: 100%;
+}
 /* El icono no se encoge: es flex y sin esto el texto largo lo aplastaba a un
    óvalo. */
-.readiness > svg { flex: 0 0 auto; }
+.readinessMain > svg,
+.readiness > svg { flex: 0 0 auto; margin-top: 2px; }
+.readinessMain > p,
 .readiness > p {
   flex: 1 1 auto;
   min-width: 0;
-  /* Aire propio antes del botón: el `gap` no alcanza cuando el párrafo llega a
-     tres líneas y el texto queda pegado al control. */
-  margin: 0 var(--sp-2) 0 0;
+  margin: 0;
   color: var(--os-muted);
   font: 0.68rem/1.5 var(--font-mono), ui-monospace, monospace;
 }
+.readinessMain > p > strong,
 .readiness > p > strong { color: var(--os-amber, #d8a657); font-weight: 650; }
+.readinessActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  width: 100%;
+}
 /* El aviso de rama comparte la caja del de OpenSpec, sin variante de color: es
    el mismo tipo de cosa —algo del repositorio que conviene saber antes de
    seguir— y ámbar es lo que en este panel significa «esto pide tu atención».
@@ -2503,8 +2517,8 @@
      motor y el de herramientas hablan de lo mismo —la salud de la integración
      de OpenSpec— y conviven agrupados en `.noticesGroup` con estilos unificados. */
   display: flex;
-  align-items: center;
-  gap: var(--sp-4);
+  flex-direction: column;
+  gap: var(--sp-2);
   margin: 0;
   padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--os-border-strong);
@@ -2515,12 +2529,28 @@
   text-align: left;
   font: 0.68rem/1.5 var(--font-mono), ui-monospace, monospace;
 }
-.centerAttentionBanner > svg { flex: 0 0 auto; }
+.centerAttentionMain {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  width: 100%;
+}
+.centerAttentionMain > svg,
+.centerAttentionBanner > svg { flex: 0 0 auto; margin-top: 2px; }
+.centerAttentionMain > span,
 .centerAttentionBanner > span {
   flex: 1 1 auto;
   min-width: 0;
-  margin: 0 var(--sp-2) 0 0;
+  margin: 0;
   color: var(--os-muted);
+}
+.centerAttentionActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  width: 100%;
+  white-space: nowrap;
 }
 /* Mismo tratamiento que `.readinessLink`: la acción del aviso del motor y la
    del aviso de herramientas llevan al mismo lugar y se ven igual. */
@@ -2567,4 +2597,300 @@
 }
 .toggleAbsentBtn:hover {
   color: var(--os-fg, #e2e8f0);
+}
+
+/* ==========================================================================
+   REVISIÓN DE ACTUALIZACIÓN OPENSPEC (FASE 6)
+   Vista central declarativa de sólo lectura, matriz y diagnóstico de convivencia.
+   ========================================================================== */
+
+.reviewView {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  padding: var(--sp-4) var(--sp-5);
+  color: var(--os-fg, #d4e0eb);
+  font: 0.72rem/1.5 var(--font-mono), ui-monospace, monospace;
+}
+
+.reviewHead {
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--os-border);
+}
+
+.reviewHeadTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+}
+
+.reviewTitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.reviewHead h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  color: #edf4fb;
+  font: 700 1.15rem var(--font-mono), ui-monospace, monospace;
+}
+
+.reviewHead > p {
+  margin: var(--sp-1) 0 0;
+  color: var(--os-muted);
+  font: 0.66rem var(--font-mono), ui-monospace, monospace;
+  line-height: 1.4;
+}
+
+.reviewBody {
+  margin-top: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.reviewSafetyBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--os-cyan, #38bdf8);
+  border-left: 3px solid var(--os-cyan, #38bdf8);
+  border-radius: 0.3rem;
+  background: rgba(14, 45, 68, 0.5);
+}
+
+.reviewSafetyBanner svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--os-cyan, #38bdf8);
+}
+
+.reviewSafetyText strong {
+  display: block;
+  color: var(--os-cyan, #38bdf8);
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.reviewSafetyText p {
+  margin: 0;
+  color: var(--os-muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.reviewSection {
+  border: 1px solid var(--os-border);
+  border-radius: 0.35rem;
+  background: rgba(10, 26, 42, 0.6);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.reviewSectionTitle {
+  margin: 0 0 var(--sp-2) 0;
+  color: #a5b4fc;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.reviewFactsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-3);
+}
+
+.reviewFactItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reviewFactLabel {
+  color: var(--os-muted);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.reviewFactValue {
+  color: #f0f6fc;
+  font-weight: 650;
+  font-size: 0.7rem;
+}
+
+.reviewCommandBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.reviewCommandPre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--os-border-strong);
+  border-radius: 0.3rem;
+  background: #040c14;
+}
+
+.reviewCommandPre code {
+  color: #38bdf8;
+  font-size: 0.74rem;
+  font-weight: 700;
+  user-select: all;
+}
+
+.reviewCopyBtn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 3px 8px;
+  border: 1px solid var(--os-border);
+  border-radius: 0.25rem;
+  background: rgba(30, 53, 77, 0.4);
+  color: var(--os-muted);
+  cursor: pointer;
+  font: 600 0.62rem var(--font-mono), ui-monospace, monospace;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.reviewCopyBtn:hover {
+  border-color: var(--os-cyan);
+  color: var(--os-cyan);
+  background: rgba(30, 53, 77, 0.8);
+}
+
+.reviewGuideList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviewGuideItem {
+  color: var(--os-muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.reviewGuideItem code {
+  color: #93c5fd;
+  font-weight: 650;
+}
+
+.reviewWarningAlert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid rgba(216, 166, 87, 0.4);
+  border-left: 3px solid var(--os-amber, #d8a657);
+  border-radius: 0.25rem;
+  background: rgba(40, 28, 12, 0.35);
+  color: var(--os-amber, #d8a657);
+  font-size: 0.65rem;
+}
+
+.reviewCoexistenceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+}
+
+.reviewCoexistenceCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2);
+  border: 1px solid var(--os-border);
+  border-radius: 0.25rem;
+  background: rgba(4, 12, 20, 0.4);
+}
+
+.reviewCoexistenceColTitle {
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #d4e0eb;
+  margin-bottom: 2px;
+}
+
+.reviewSkillsList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reviewSkillTag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 0.2rem;
+  font-size: 0.62rem;
+  background: rgba(30, 53, 77, 0.5);
+  color: #cbd5e1;
+}
+
+.reviewSkillTag[data-kind='custom'] {
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(14, 45, 68, 0.5);
+  color: #7dd3fc;
+}
+
+.reviewSkillTag[data-kind='legacy'] {
+  border: 1px solid rgba(216, 166, 87, 0.3);
+  color: #fcd34d;
+}
+
+.reviewSkillTag[data-kind='official'] {
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  color: #86efac;
+}
+
+.reviewEmptyNotice {
+  color: var(--os-muted);
+  font-size: 0.62rem;
+  font-style: italic;
+}
+
+.reviewFooterRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--os-border);
+}
+
+.reviewPrimaryActionBtn {
+  padding: var(--sp-1) var(--sp-4);
+  border: 1px solid var(--os-cyan, #38bdf8);
+  border-radius: 0.3rem;
+  background: rgba(14, 45, 68, 0.8);
+  color: #38bdf8;
+  font: 650 0.66rem var(--font-mono), ui-monospace, monospace;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.reviewPrimaryActionBtn:hover {
+  background: var(--os-cyan, #38bdf8);
+  color: #040c14;
 }

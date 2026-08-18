@@ -444,7 +444,14 @@ export interface OpenSpecOutputItem {
 export interface OpenSpecInstalledSkill {
   name: string;
   path: string;
-  origin: 'legacy-codex' | 'legacy-agent' | 'new-agents' | 'custom-agents';
+  origin:
+    | 'legacy-codex'
+    | 'legacy-agent'
+    | 'new-agents'
+    | 'custom-agents'
+    | 'official-other'
+    | 'custom-other'
+    | 'unknown';
   isOfficial: boolean;
 }
 

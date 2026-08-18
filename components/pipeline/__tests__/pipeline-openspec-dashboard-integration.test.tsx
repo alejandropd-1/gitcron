@@ -345,4 +345,77 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
 
     delete (window as any).api;
   });
+
+  it('muestra la revisión en la columna central al presionar Revisar y restaura la vista al volver/cerrar', async () => {
+    const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
+    const getUpdatePlanMock = vi.fn().mockResolvedValue({
+      requiredAction: 'update',
+      canExecute: false,
+      reason: null,
+      suggestedCommand: 'openspec update',
+    });
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: getEngineStatusMock,
+          checkLatestVersion: vi.fn().mockResolvedValue(null),
+          getUpdatePlan: getUpdatePlanMock,
+        },
+      },
+    });
+
+    const { container } = render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        leftOpen={true}
+        rightOpen={false}
+        leftWidth={340}
+        rightWidth={340}
+        onResizeLeft={vi.fn()}
+        onResizeRight={vi.fn()}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    // Esperar a que cargue el estado y se muestre el aviso
+    const reviewBtn = await screen.findByRole('button', { name: /Revisar actualización/i });
+    expect(reviewBtn).toBeTruthy();
+
+    // 1. Al presionar "Revisar actualización", la columna central muestra la sección de revisión
+    fireEvent.click(reviewBtn);
+
+    const reviewHeading = await screen.findByRole('heading', { name: /Revisión de Actualización de OpenSpec/i });
+    expect(reviewHeading).toBeTruthy();
+
+    // La revisión está dentro de la columna central (main)
+    const mainSection = container.querySelector('main');
+    expect(mainSection).not.toBeNull();
+    expect(mainSection!.textContent).toContain('Revisión de Actualización de OpenSpec');
+
+    // 2. El botón del aviso ahora alterna a "Cerrar revisión"
+    const toggleCloseBtn = screen.getByRole('button', { name: /Cerrar revisión/i });
+    expect(toggleCloseBtn).toBeTruthy();
+
+    // Al presionarlo, se cierra la revisión y se restaura la vista anterior
+    fireEvent.click(toggleCloseBtn);
+    expect(screen.queryByRole('heading', { name: /Revisión de Actualización de OpenSpec/i })).toBeNull();
+
+    // 3. Al volver a entrar, el botón del pie "Cerrar" también la cierra y restaura la vista
+    const reOpenBtn = screen.getByRole('button', { name: /Revisar actualización/i });
+    fireEvent.click(reOpenBtn);
+    expect(await screen.findByRole('heading', { name: /Revisión de Actualización de OpenSpec/i })).toBeTruthy();
+
+    const footerCloseBtn = screen.getByRole('button', { name: /^Cerrar$/i });
+    fireEvent.click(footerCloseBtn);
+    expect(screen.queryByRole('heading', { name: /Revisión de Actualización de OpenSpec/i })).toBeNull();
+
+    delete (window as any).api;
+  });
 });

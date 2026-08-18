@@ -89,7 +89,7 @@ estrategia (local al repo > global del sistema), diagnóstico profundo y guía n
 
 > *Nota de estado (2026-08-16):* Las comprobaciones 8.1 a 8.4 se ejecutaron y verificaron exitosamente para el estado de las Fases 1 y 2 (`tsc --noEmit` en 0, 1277 tests en verde en Vitest, `openspec validate --strict` en 0 con 1.5 y 1.8). Se desmarcan aquí porque el change cuenta con fases de implementación pendientes (Fases 5, 6 y 7) y el portón de cierre completo debe validarse y certificarse una vez implementadas las tareas restantes.
 
-- [ ] 8.1 `pnpm exec tsc --noEmit` del **proyecto** en cero.
-- [ ] 8.2 `pnpm test` en verde (correr más de una vez por el flake conocido).
-- [ ] 8.3 `openspec validate actualizar-integracion-openspec-1-8 --strict` válido con la versión activa (1.5) y con 1.8 (`npx --yes @fission-ai/openspec@1.8.0 validate … --strict --no-interactive`).
-- [ ] 8.4 Revisión visual manual de la tarjeta y el flujo completo por Alejandro. La marca Alejandro.
+- [x] 8.1 `pnpm exec tsc --noEmit` del **proyecto** en cero.
+- [x] 8.2 `pnpm test` en verde (correr más de una vez por el flake conocido).
+- [x] 8.3 `openspec validate actualizar-integracion-openspec-1-8 --strict` válido con la versión activa (1.5) y con 1.8 (`npx --yes @fission-ai/openspec@1.8.0 validate … --strict --no-interactive`).
+- [x] 8.4 Revisión visual manual de la tarjeta y el flujo completo por Alejandro. La marca Alejandro.

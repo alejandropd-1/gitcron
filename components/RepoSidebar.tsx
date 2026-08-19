@@ -24,7 +24,6 @@ import { useGitActions } from '@/hooks/use-git-actions';
 import { useT } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 import { userInitials } from '@/lib/page-helpers';
-import { FLOATING_PANEL_INSET } from '@/hooks/use-panel-layout';
 import type { RepoStartMode } from '@/components/RepoModals';
 import type { PullRequestEntry, RemoteEntry, WorktreeEntry, SubmoduleEntry } from '@/types/electron';
 import {
@@ -267,27 +266,14 @@ export function RepoSidebar({
   return (
     <aside
       className={cn(
-        "flex flex-col overflow-hidden z-30",
-        !isDragging && "transition-all duration-300",
-        graphMode === 'chronometric'
-          ? "absolute bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl"
-          : "relative bg-bg-base/70 border-r border-border-subtle/30 shrink-0"
+        "flex flex-col overflow-hidden z-30 relative bg-bg-surface shrink-0",
+        !isDragging && "transition-all duration-300"
       )}
-      style={
-        graphMode === 'chronometric'
-          ? {
-              top: 96 + FLOATING_PANEL_INSET,
-              left: FLOATING_PANEL_INSET,
-              bottom: FLOATING_PANEL_INSET,
-              width: sidebarW,
-              transform: sidebarOpen ? 'translateX(0)' : `translateX(calc(-100% - ${FLOATING_PANEL_INSET * 2}px))`,
-            }
-          : {
-              width: sidebarOpen ? sidebarW : 0,
-              opacity: sidebarOpen ? 1 : 0,
-              visibility: sidebarOpen ? 'visible' : 'hidden',
-            }
-      }
+      style={{
+        width: sidebarOpen ? sidebarW : 0,
+        opacity: sidebarOpen ? 1 : 0,
+        visibility: sidebarOpen ? 'visible' : 'hidden',
+      }}
     >
       {/* Right-edge resize handle */}
       <div
@@ -309,7 +295,7 @@ export function RepoSidebar({
                 transition={{ duration: 0.15 }}
                 className="flex flex-col h-full select-none"
               >
-                <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
+                <div className="px-4 py-2 flex items-center justify-between">
                   <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
                     <FolderOpen size={14} /> Repositorios
                   </span>
@@ -614,7 +600,7 @@ export function RepoSidebar({
               transition={{ duration: 0.15 }}
               className="flex flex-col h-full select-none"
             >
-              <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
+              <div className="px-4 py-2 flex items-center justify-between">
                 <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
                   <Settings size={14} /> {t('settings.title')}
                 </span>
@@ -669,7 +655,7 @@ export function RepoSidebar({
               transition={{ duration: 0.15 }}
               className="flex flex-col h-full select-none"
             >
-              <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
+              <div className="px-4 py-2 flex items-center justify-between">
                 <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
                   <HelpCircle size={14} /> {t('toolbar.help')}
                 </span>
@@ -717,7 +703,7 @@ export function RepoSidebar({
               transition={{ duration: 0.15 }}
               className="flex flex-col h-full select-none"
             >
-              <div className="px-4 py-2 border-b border-text-primary/10 flex items-center justify-between">
+              <div className="px-4 py-2 flex items-center justify-between">
                 <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
                   <Github size={14} /> {t('toolbar.profile')}
                 </span>
@@ -742,17 +728,17 @@ export function RepoSidebar({
           )}
         </AnimatePresence>
       </div>
-      <div className="shrink-0 border-t border-text-primary/10 bg-bg-base/70/35 px-3 py-3">
+      <div className="shrink-0 bg-bg-base/70/35 px-3 py-3">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => onViewChange(activeView === 'settings' ? 'repository' : 'settings')}
             title={t('toolbar.settings')}
             className={cn(
-              'h-9 w-9 rounded-lg border flex items-center justify-center transition-colors',
+              'h-9 w-9 rounded-lg flex items-center justify-center transition-colors',
               activeView === 'settings'
-                ? 'border-secondary/35 bg-secondary/10 text-secondary'
-                : 'border-text-primary/15 bg-text-primary/[0.035] text-text-secondary hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary'
+                ? 'bg-secondary/10 text-secondary'
+                : 'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-secondary'
             )}
           >
             <Settings size={17} />
@@ -762,10 +748,10 @@ export function RepoSidebar({
             onClick={() => onViewChange(activeView === 'help' ? 'repository' : 'help')}
             title={t('toolbar.help')}
             className={cn(
-              'h-9 w-9 rounded-lg border flex items-center justify-center transition-colors',
+              'h-9 w-9 rounded-lg flex items-center justify-center transition-colors',
               activeView === 'help'
-                ? 'border-secondary/35 bg-secondary/10 text-secondary'
-                : 'border-text-primary/15 bg-text-primary/[0.035] text-text-secondary hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary'
+                ? 'bg-secondary/10 text-secondary'
+                : 'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-secondary'
             )}
           >
             <HelpCircle size={17} />
@@ -776,10 +762,10 @@ export function RepoSidebar({
               onClick={onToggleCartography}
               title={cartographyActive ? t('cartography.backToGraph') : t('cartography.open')}
               className={cn(
-                'h-9 w-9 rounded-lg border flex items-center justify-center transition-colors',
+                'h-9 w-9 rounded-lg flex items-center justify-center transition-colors',
                 cartographyActive
-                  ? 'border-secondary/35 bg-secondary/10 text-secondary'
-                  : 'border-text-primary/15 bg-text-primary/[0.035] text-text-secondary hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary'
+                  ? 'bg-secondary/10 text-secondary'
+                  : 'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-secondary'
               )}
             >
               <Map size={17} />
@@ -792,10 +778,10 @@ export function RepoSidebar({
                 onClick={() => onViewChange(activeView === 'profile' ? 'repository' : 'profile')}
                 title={t('toolbar.connectedAs', { user: githubUser.login })}
                 className={cn(
-                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors',
+                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
                   activeView === 'profile'
-                    ? 'border-secondary bg-secondary/20'
-                    : 'border-secondary/35 bg-secondary/10 hover:border-secondary/60 hover:bg-secondary/15'
+                    ? 'bg-secondary/20'
+                    : 'bg-secondary/10 hover:bg-secondary/15'
                 )}
               >
                 {githubUser.avatarUrl ? (
@@ -816,10 +802,10 @@ export function RepoSidebar({
                 onClick={() => onViewChange(activeView === 'profile' ? 'repository' : 'profile')}
                 title={t('toolbar.connectGitHub')}
                 className={cn(
-                  'h-10 w-10 shrink-0 rounded-full border flex items-center justify-center transition-colors',
+                  'h-10 w-10 shrink-0 rounded-full flex items-center justify-center transition-colors',
                   activeView === 'profile'
-                    ? 'border-secondary bg-secondary/15 text-secondary'
-                    : 'border-text-primary/15 bg-text-primary/[0.035] text-text-secondary hover:text-secondary hover:bg-text-primary/10 hover:border-secondary/35'
+                    ? 'bg-secondary/15 text-secondary'
+                    : 'bg-text-primary/[0.035] text-text-secondary hover:text-secondary hover:bg-text-primary/10'
                 )}
               >
                 <UserCircle2 size={24} strokeWidth={1.5} />

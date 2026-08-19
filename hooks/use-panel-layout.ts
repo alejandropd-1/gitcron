@@ -1,7 +1,7 @@
 'use client';
 
 // Panel layout: anchos arrastrables de sidebar/details, columnas del graph,
-// estado abierto/cerrado de los paneles flotantes y su persistencia en
+// estado abierto/cerrado de los paneles laterales del armazón y su persistencia en
 // localStorage. Extraído de app/page.tsx para aislar el layout del resto
 // del estado de la página.
 
@@ -21,16 +21,13 @@ export const GRAPH_COLUMN_LIMITS = {
   hash: { min: 56, max: 120 },
 };
 
-export const FLOATING_PANEL_INSET = 12;
-export const GRAPH_SAFE_GAP = 12;
-
 export type GraphColumnKey = keyof typeof GRAPH_COLUMN_DEFAULTS;
 
 export const usePanelLayout = () => {
   // ── Resizable column widths ──
   const [sidebarW, setSidebarW] = useState(240);
   const [detailsW, setDetailsW] = useState(320);
-  // ── Floating panel open/closed state ──
+  // ── Panel open/closed state ──
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [isDragging, setIsDragging] = useState(false);

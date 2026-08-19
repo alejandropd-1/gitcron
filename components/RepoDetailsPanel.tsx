@@ -15,7 +15,6 @@ import { useGitActions } from '@/hooks/use-git-actions';
 import { useT } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 import { formatDate, formatInitials } from '@/lib/display-format';
-import { FLOATING_PANEL_INSET } from '@/hooks/use-panel-layout';
 import { StagingPanel } from '@/components/StagingPanel';
 
 type RepoDetailsPanelProps = {
@@ -75,29 +74,14 @@ export function RepoDetailsPanel({
   return (
     <aside
       className={cn(
-        "flex flex-col overflow-hidden z-30",
-        !isDragging && "transition-all duration-300",
-        graphMode === 'chronometric'
-          ? "absolute bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl"
-          : "relative bg-bg-base/70 border-l border-border-subtle/30 shrink-0"
+        "flex flex-col overflow-hidden z-30 relative bg-bg-surface shrink-0",
+        !isDragging && "transition-all duration-300"
       )}
-      style={
-        graphMode === 'chronometric'
-          ? {
-              top: 96 + FLOATING_PANEL_INSET,
-              right: FLOATING_PANEL_INSET,
-              bottom: FLOATING_PANEL_INSET,
-              width: detailsW,
-              transform: visible ? 'translateX(0)' : `translateX(calc(100% + ${FLOATING_PANEL_INSET * 2}px))`,
-              opacity: visible ? 1 : 0,
-              visibility: visible ? 'visible' : 'hidden',
-            }
-          : {
-              width: visible ? detailsW : 0,
-              opacity: visible ? 1 : 0,
-              visibility: visible ? 'visible' : 'hidden',
-            }
-      }
+      style={{
+        width: visible ? detailsW : 0,
+        opacity: visible ? 1 : 0,
+        visibility: visible ? 'visible' : 'hidden',
+      }}
     >
       {/* Left-edge resize handle */}
       <div
@@ -110,13 +94,13 @@ export function RepoDetailsPanel({
       {selectedCommit ? (
         <div className="flex flex-col h-full">
           {/* Header bar: matches Unstaged header exactly in size, padding and font */}
-          <div className="px-4 py-2 border-b border-border-subtle/15 bg-bg-surface/75 flex items-center justify-between shrink-0">
+          <div className="px-4 py-2 bg-bg-surface/75 flex items-center justify-between shrink-0">
             <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
               {t('commit.detailsTitle')}
             </span>
             <button
               onClick={() => setSelectedCommit(null)}
-              className="text-[10px] text-text-secondary hover:text-[#052900] px-2 py-0.5 rounded border border-border-subtle/15 hover:bg-secondary hover:border-secondary/40 transition-colors"
+              className="text-[10px] text-text-secondary hover:text-[#052900] px-2 py-0.5 rounded hover:bg-secondary transition-colors"
               title={t('commit.goToStagingTooltip')}
             >
               {t('commit.viewChangesBtn')}
@@ -124,7 +108,7 @@ export function RepoDetailsPanel({
           </div>
           {/* WIP banner: visible when commit is selected but there are unsaved changes */}
           {modifiedFiles.length > 0 && (
-            <div className="shrink-0 border-b border-git-mod/20 bg-git-mod/[0.07]">
+            <div className="shrink-0 bg-git-mod/[0.07]">
               <div className="px-3 py-2 flex items-center gap-2">
                 <Archive size={13} className="text-git-mod shrink-0" />
                 <span className="text-[11px] font-bold text-text-primary flex-1">
@@ -132,20 +116,20 @@ export function RepoDetailsPanel({
                 </span>
                 <button
                   onClick={() => setSelectedCommit(null)}
-                  className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded border border-git-mod/40 transition-colors"
+                  className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded transition-colors"
                 >
                   {t('commit.viewChangesBtn')}
                 </button>
                 <button
                   onClick={onOpenStashModal}
                   disabled={isLoading}
-                  className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded border border-git-mod/40 transition-colors disabled:opacity-50"
+                  className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded transition-colors disabled:opacity-50"
                   title={t('commit.stashTooltip')}
                 >
                   Stash
                 </button>
               </div>
-              <div className="max-h-36 overflow-y-auto border-t border-git-mod/15 p-1">
+              <div className="max-h-36 overflow-y-auto p-1">
                 {modifiedFiles.map((file) => (
                   <button
                     key={`${file.staged ? 'staged' : 'unstaged'}:${file.path}`}
@@ -174,7 +158,7 @@ export function RepoDetailsPanel({
               </div>
             </div>
           )}
-          <div className="p-4 border-b border-border-subtle/15 bg-bg-surface/75 shrink-0">
+          <div className="p-4 bg-bg-surface/75 shrink-0">
             <div className="flex justify-between items-start mb-2">
               <div className="text-[12px] font-mono text-secondary select-text">commit: {selectedCommit.shortHash}</div>
               <button className="flex items-center gap-1.5 px-2 py-1 rounded bg-border-subtle text-xs hover:bg-bg-surface/70 transition-colors">
@@ -195,7 +179,7 @@ export function RepoDetailsPanel({
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            <div className="px-4 py-2 border-b border-border-subtle/15 flex justify-between items-center bg-bg-surface/75">
+            <div className="px-4 py-2 flex justify-between items-center bg-bg-surface/75">
               <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
                 {commitFilesLoading
                   ? t('commit.loadingFiles')
@@ -232,7 +216,7 @@ export function RepoDetailsPanel({
             </div>
           </div>
 
-          <div className="p-4 border-t border-border-subtle/15 bg-bg-surface/75">
+          <div className="p-4 bg-bg-surface/75">
             <textarea
               className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-24 focus:outline-none focus:border-secondary/30 resize-none"
               placeholder={t('staging.commitMsgPlaceholder')}

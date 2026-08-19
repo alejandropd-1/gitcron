@@ -15,11 +15,21 @@
   --color-bg-overlay: #12273c; /* Dialogs, dropdowns, ContextMenu cards | Chronometric Hover HUD backdrop */
 
   /* Shared Border Contrast (Affects: panels, dividers) */
-  --color-border-subtle: #3c495a; /* Panel separators, tab boundaries | Chronometric Canvas grid lines */
+  --color-border-subtle: #566579; /* Panel separators, tab boundaries | Chronometric Canvas grid lines */
 
   /* Shared Typography Colors (Affects: all UI texts, labels, buttons) */
   --color-text-primary: #d9e7fc; /* Primary readable headings, active states, active tag label titles */
   --color-text-secondary: #9eacc0; /* Muted descriptions, secondary labels | Chronometric Canvas axis metadata labels */
+
+  /* Shared Typography Scale (Affects: text-size across all views) */
+  /* Piso de legibilidad: 12px (0.75rem). Ningún texto de UI se declara por debajo de este umbral. */
+  --font-size-xs: 0.75rem; /* 12px - Piso de legibilidad: metadatos, badges, timestamps, tags accesorios */
+  --font-size-sm: 0.8125rem; /* 13px - Texto secundario, tablas densas, botones compactos, labels de campo */
+  --font-size-base: 0.875rem; /* 14px - Cuerpo principal de texto, inputs, items de lista */
+  --font-size-md: 1rem; /* 16px - Títulos de sección, cards, subtítulos de panel */
+  --font-size-lg: 1.125rem; /* 18px - Encabezados de panel, títulos destacados */
+  --font-size-xl: 1.25rem; /* 20px - Títulos de vista, números destacados */
+  --font-size-2xl: 1.5rem; /* 24px - Títulos principales de página / modal */
 
   /* Shared Brand Accents & Semantic States (Affects: buttons, selections, status badges) */
   --color-primary: #5ed8ff; /* Active Cyan brand identity, highlights, pull request indicator icons */
@@ -32,6 +42,16 @@
 
   /* Shared Auxiliary Accent */
   --color-accent-purple: #8a5cf5; /* Deep purple helper tag colors */
+
+  /* Shared Spacing Scale (Affects: padding, margin, gap across all views) */
+  --space-0: 0;
+  --space-1: 0.25rem; /* 4px - Separación mínima entre elementos compactos */
+  --space-2: 0.5rem; /* 8px - Espaciado estándar entre elementos contiguos */
+  --space-3: 0.75rem; /* 12px - Relleno de botones, separación de grupos chicos */
+  --space-4: 1rem; /* 16px - Relleno de paneles, separación de secciones */
+  --space-5: 1.5rem; /* 24px - Margen de encabezados, espaciado entre cards */
+  --space-6: 2rem; /* 32px - Separación de bloques mayores */
+  --space-8: 3rem; /* 48px - Espaciado de página o layout amplio */
 
   /* Shared Spacing, Padding & Margins (Affects: general responsive flex margins, based on DESIGN.MD) */
   --spacing-panel-gap: 1px;
@@ -174,28 +194,28 @@
 /* ─── TYPOGRAPHY (Especificaciones DESIGN.MD) ─── */
 @utility text-ui-header {
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 600;
   line-height: 24px;
 }
 
 @utility text-ui-body {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 400;
   line-height: 20px;
 }
 
 @utility text-ui-mono {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   font-weight: 400;
   line-height: 18px;
 }
 
 @utility text-ui-label-bold {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   line-height: 16px;
   letter-spacing: 0.05em;
@@ -203,9 +223,20 @@
 
 @utility text-ui-small {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 400;
   line-height: 14px;
+}
+
+/* ──────────── Focus Visibility (WCAG 2.2 AA) ──────────── */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* ──────────── Light theme (experimental) ──────────── */
@@ -266,7 +297,7 @@ html.light [data-keep-color] * {
 
 ::-webkit-scrollbar-thumb {
   background: #172d45;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   /* Inset border creates the "padded" look that floats on the navy track */
   border: 2px solid transparent;
 }
@@ -340,11 +371,11 @@ body, .font-sans {
   min-height: 82px;
   border: 1px solid color-mix(in srgb, var(--carto-role-color) 62%, transparent);
   border-left-width: 5px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--carto-role-color) 14%, transparent), transparent 58%),
     rgba(4, 16, 29, 0.94);
-  padding: 9px 10px;
+  padding: var(--space-2) var(--space-2);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28), inset 0 0 0 1px rgba(207, 227, 251, 0.04);
 }
 
@@ -358,12 +389,12 @@ body, .font-sans {
   min-height: 164px;
   border: 1px solid color-mix(in srgb, var(--carto-role-color) 48%, var(--color-carto-grid));
   border-left-width: 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background:
     linear-gradient(110deg, color-mix(in srgb, var(--carto-role-color) 16%, transparent), transparent 58%),
     linear-gradient(180deg, rgba(207, 227, 251, 0.045), transparent 34%),
     rgba(4, 16, 29, 0.95);
-  padding: 12px;
+  padding: var(--space-3);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.32), inset 0 0 0 1px rgba(207, 227, 251, 0.045);
 }
 
@@ -378,7 +409,7 @@ body, .font-sans {
   height: 24px;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: 4px;
+  border-radius: var(--radius-default);
   background: color-mix(in srgb, var(--carto-role-color) 18%, transparent);
   color: var(--carto-role-color);
 }
@@ -386,17 +417,17 @@ body, .font-sans {
 .carto-semantic-node__count {
   min-width: 1.5rem;
   border: 1px solid color-mix(in srgb, var(--carto-role-color) 42%, transparent);
-  border-radius: 999px;
-  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-1);
   color: var(--carto-role-color);
-  font: 700 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700; font-size: var(--font-size-xs); line-height: 1.35; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   text-align: center;
 }
 
 .carto-semantic-controls {
   overflow: hidden;
   border: 1px solid rgba(253, 179, 58, 0.24);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: rgba(4, 16, 29, 0.9);
 }
 
@@ -414,13 +445,13 @@ body, .font-sans {
 .carto-semantic-minimap {
   overflow: hidden;
   border: 1px solid rgba(22, 50, 74, 0.9);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: rgba(4, 16, 29, 0.9);
 }
 
 .carto-role-column {
   border: 1px solid color-mix(in srgb, var(--carto-role-color) 30%, var(--color-carto-grid));
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--carto-role-color) 11%, transparent), transparent 8rem),
     rgba(4, 16, 29, 0.78);
@@ -430,9 +461,9 @@ body, .font-sans {
 .carto-role-column__header {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: var(--space-2);
   min-height: 3.25rem;
-  padding: 0.7rem 0.75rem;
+  padding: var(--space-3) var(--space-3);
   border-bottom: 1px solid color-mix(in srgb, var(--carto-role-color) 22%, var(--color-carto-grid));
 }
 
@@ -440,7 +471,7 @@ body, .font-sans {
   width: 0.72rem;
   height: 0.72rem;
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--carto-role-color);
   box-shadow: 0 0 12px color-mix(in srgb, var(--carto-role-color) 42%, transparent);
 }
@@ -454,7 +485,7 @@ body, .font-sans {
 .pipeline-workspace {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
   padding: var(--spacing-container-padding);
   /* `flex: 1` + `min-height: 0` como el resto de las solapas, para llenar el
      contenedor sin romper el scroll interno. El workspace YA NO scrollea: el
@@ -492,11 +523,11 @@ body, .font-sans {
   display: flex;
   flex-shrink: 0;
   align-items: baseline;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .pipeline-workspace__title {
-  font-size: 1.125rem;
+  font-size: var(--font-size-lg);
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -509,7 +540,7 @@ body, .font-sans {
 .pipeline-workspace__empty {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
   min-height: 0;
   overflow-y: auto;
 }
@@ -522,7 +553,7 @@ body, .font-sans {
   display: grid;
   flex: 1;
   min-height: 0;
-  gap: 0.75rem;
+  gap: var(--space-3);
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr);
   /*
      FLUIDO, NO RÍGIDO.
@@ -670,11 +701,11 @@ body, .font-sans {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-shrink: 0;
   height: var(--header-height);
   margin-left: calc(var(--elbow-size) - var(--spine-width));
-  padding: 0 0.75rem;
+  padding: 0 var(--space-3);
   border-radius: 0 var(--radius-sm) 0 0;
   background-color: color-mix(in srgb, var(--card-spine) 22%, var(--color-bg-overlay));
 }
@@ -685,7 +716,7 @@ body, .font-sans {
 }
 
 .pipeline-card__title {
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -695,13 +726,13 @@ body, .font-sans {
 .pipeline-card__aside {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: var(--space-2);
   margin-left: auto;
 }
 
 .pipeline-card__body {
   min-height: 0;
-  padding: 0.75rem;
+  padding: var(--space-3);
 }
 
 /*
@@ -773,8 +804,8 @@ body, .font-sans {
   place-items: center;
   min-width: 1.25rem;
   height: 1.25rem;
-  padding: 0 0.375rem;
-  font-size: 0.6875rem;
+  padding: 0 var(--space-2);
+  font-size: var(--font-size-xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   border-radius: var(--radius-full);
@@ -855,8 +886,8 @@ body, .font-sans {
 .pipeline-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-bottom: 0.625rem;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
 }
 
 /* Cápsula, igual que los controles, pero rellena en gris: mismo lenguaje, otro
@@ -864,15 +895,15 @@ body, .font-sans {
 .pipeline-filter {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-2);
   min-height: 1.9rem;
-  padding: 0.25rem 0.65rem;
+  padding: var(--space-1) var(--space-3);
   font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.64rem;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   border: 1px solid var(--color-border-subtle);
-  border-radius: 0.2rem;
+  border-radius: var(--radius-default);
   background-color: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -910,27 +941,27 @@ body, .font-sans {
 .pipeline-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0;
 }
 
 .pipeline-stat {
-  padding: 0.5rem 0.625rem;
+  padding: var(--space-2) var(--space-2);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   background-color: color-mix(in srgb, var(--color-bg-overlay) 35%, transparent);
 }
 
 .pipeline-stat__label {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-secondary);
 }
 
 .pipeline-stat__value {
-  margin: 0.25rem 0 0;
-  font-size: 1rem;
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-md);
   line-height: 1.2;
 }
 
@@ -943,26 +974,26 @@ body, .font-sans {
 /* Medidor de una sola serie: ilustra, pero el número escrito al lado es el que
    manda. Si el relleno no se distingue, el dato sigue siendo legible. */
 .pipeline-meter {
-  margin: 0.75rem 0;
+  margin: var(--space-3) 0;
 }
 
 .pipeline-meter__head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 0.5rem;
-  margin-bottom: 0.3rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 .pipeline-meter__label {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-secondary);
 }
 
 .pipeline-meter__value {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
 }
@@ -985,20 +1016,20 @@ body, .font-sans {
 .pipeline-economy__hero {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
-  padding-bottom: 0.75rem;
+  gap: var(--space-1);
+  padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .pipeline-economy__hero-label {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-secondary);
 }
 
 .pipeline-economy__hero-value {
-  font-size: 1.5rem;
+  font-size: var(--font-size-2xl);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
@@ -1006,17 +1037,17 @@ body, .font-sans {
 }
 
 .pipeline-economy__hero-basis {
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
 .pipeline-section__title {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-text-secondary);
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
 }
 
 /* ─── Estados vacíos y degradados ─── */
@@ -1024,22 +1055,22 @@ body, .font-sans {
 .pipeline-empty {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   align-items: flex-start;
-  padding: 2rem;
+  padding: var(--space-6);
   border: 1px dashed var(--color-border-subtle);
   border-radius: var(--radius-lg);
   background-color: var(--color-bg-surface);
 }
 
 .pipeline-empty__title {
-  font-size: 0.9375rem;
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--color-text-primary);
 }
 
 .pipeline-empty__body {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   max-width: 60ch;
   line-height: 1.5;
@@ -1055,32 +1086,32 @@ body, .font-sans {
 }
 
 .pipeline-empty__sources-label {
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-secondary);
-  margin-top: 0.375rem;
+  margin-top: var(--space-2);
 }
 
 .pipeline-empty__sources {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: var(--space-2);
   list-style: none;
 }
 
 .pipeline-empty__sources li {
-  padding: 0.125rem 0.5rem;
-  font-size: 0.75rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-full);
   color: var(--color-text-secondary);
 }
 
 .pipeline-empty__retry {
-  margin-top: 0.5rem;
-  padding: 0.375rem 0.875rem;
-  font-size: 0.8125rem;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
   border: 1px solid var(--color-primary);
   border-radius: var(--radius-default);
   color: var(--color-primary);
@@ -1107,9 +1138,9 @@ body, .font-sans {
 .pipeline-provenance {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.6875rem;
-  padding: 0.0625rem 0.375rem;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border-subtle);
   color: var(--color-text-secondary);
@@ -1131,7 +1162,7 @@ body, .font-sans {
 /* ─── Ahora ─── */
 
 .pipeline-now {
-  padding: 1rem;
+  padding: var(--space-4);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   background-color: var(--color-bg-surface);
@@ -1142,19 +1173,19 @@ body, .font-sans {
 }
 
 .pipeline-now__headline {
-  font-size: 1rem;
+  font-size: var(--font-size-md);
   color: var(--color-text-primary);
-  margin-bottom: 0.875rem;
+  margin-bottom: var(--space-3);
 }
 
 .pipeline-now__facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .pipeline-now__fact dt {
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-secondary);
@@ -1164,8 +1195,8 @@ body, .font-sans {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.375rem;
-  font-size: 0.875rem;
+  gap: var(--space-2);
+  font-size: var(--font-size-base);
   color: var(--color-text-primary);
 }
 
@@ -1173,13 +1204,13 @@ body, .font-sans {
 
 .pipeline-now__cost-basis,
 .pipeline-now__progress {
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
 .pipeline-now__human {
-  margin-top: 0.875rem;
-  font-size: 0.8125rem;
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
@@ -1210,15 +1241,15 @@ body, .font-sans {
 .pipeline-path__counter {
   display: flex;
   align-items: baseline;
-  gap: 0.5rem;
-  margin: 0.75rem 0 0;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
 }
 
 .pipeline-path__counter-step {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  padding: 0.125rem 0.5rem;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border-subtle);
   color: var(--color-text-secondary);
@@ -1231,7 +1262,7 @@ body, .font-sans {
 }
 
 .pipeline-path__counter-name {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-text-primary);
 }
@@ -1257,7 +1288,7 @@ body, .font-sans {
   grid-auto-columns: minmax(5.5rem, 1fr);
   list-style: none;
   margin: 0;
-  padding: 0.5rem 0 0;
+  padding: var(--space-2) 0 0;
   overflow-x: auto;
   scrollbar-width: thin;
 }
@@ -1307,10 +1338,10 @@ body, .font-sans {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   width: 100%;
   min-height: 24px;
-  padding: 0 0.25rem 0.5rem;
+  padding: 0 var(--space-1) var(--space-2);
   background: none;
   border: none;
   cursor: pointer;
@@ -1323,7 +1354,7 @@ body, .font-sans {
 .pipeline-path__marker {
   display: grid;
   place-items: center;
-  padding: 0 0.35rem;
+  padding: 0 var(--space-2);
   background-color: var(--color-bg-surface);
 }
 
@@ -1342,7 +1373,7 @@ body, .font-sans {
   place-items: center;
   width: 2.25rem;
   height: 2.25rem;
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   border-radius: var(--radius-full);
@@ -1390,7 +1421,7 @@ body, .font-sans {
 }
 
 .pipeline-path__label {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   line-height: 1.25;
   color: var(--color-text-primary);
@@ -1408,7 +1439,7 @@ body, .font-sans {
 
 .pipeline-path__state,
 .pipeline-path__human {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   line-height: 1.2;
   color: var(--color-text-secondary);
 }
@@ -1418,10 +1449,10 @@ body, .font-sans {
 .pipeline-path__detail {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
-  padding: 0.625rem 0.75rem;
-  font-size: 0.8125rem;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   border-left: 3px solid var(--color-accent-purple);
   border-radius: var(--radius-sm);
@@ -1432,9 +1463,9 @@ body, .font-sans {
 .pipeline-path__detail strong { color: var(--color-text-primary); }
 
 .pipeline-path__note {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-error);
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1462,9 +1493,9 @@ body, .font-sans {
 
   .pipeline-path__node {
     flex-direction: row;
-    gap: 0.5rem;
+    gap: var(--space-2);
     text-align: left;
-    padding-bottom: 0.75rem;
+    padding-bottom: var(--space-3);
   }
 }
 
@@ -1472,20 +1503,20 @@ body, .font-sans {
 
 .pipeline-inbox__note,
 .pipeline-inbox__empty {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
 }
 
 .pipeline-inbox__list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
   list-style: none;
 }
 
 .pipeline-decision {
-  padding: 0.875rem 1rem;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border-subtle);
   border-left-width: 3px;
   border-radius: var(--radius-md);
@@ -1503,15 +1534,15 @@ body, .font-sans {
 }
 
 .pipeline-decision__title {
-  font-size: 0.9375rem;
+  font-size: var(--font-size-md);
   font-weight: 600;
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--space-1);
 }
 
 .pipeline-decision__why {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-  margin-bottom: 0.625rem;
+  margin-bottom: var(--space-2);
   line-height: 1.5;
 }
 
@@ -1519,22 +1550,22 @@ body, .font-sans {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.375rem;
-  font-size: 0.75rem;
-  margin-bottom: 0.75rem;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  margin-bottom: var(--space-3);
 }
 
 .pipeline-decision__risk-label {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-secondary);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
 }
 
 .pipeline-decision__options {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   list-style: none;
 }
 
@@ -1542,12 +1573,12 @@ body, .font-sans {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .pipeline-decision__option-button {
-  padding: 0.25rem 0.75rem;
-  font-size: 0.8125rem;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-default);
   background-color: transparent;
@@ -1570,7 +1601,7 @@ body, .font-sans {
 
 .pipeline-decision__consequence,
 .pipeline-decision__unavailable {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
@@ -1579,22 +1610,22 @@ body, .font-sans {
 .pipeline-decision__evidence {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: var(--space-2);
   list-style: none;
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
 }
 
 .pipeline-decision__evidence code {
-  font-size: 0.6875rem;
-  padding: 0.0625rem 0.375rem;
+  font-size: var(--font-size-xs);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   background-color: var(--color-bg-overlay);
   color: var(--color-text-secondary);
 }
 
 .pipeline-decision__technical {
-  margin-top: 0.75rem;
-  font-size: 0.75rem;
+  margin-top: var(--space-3);
+  font-size: var(--font-size-xs);
 }
 
 .pipeline-decision__technical summary {
@@ -1603,8 +1634,8 @@ body, .font-sans {
 }
 
 .pipeline-decision__technical pre {
-  margin-top: 0.5rem;
-  padding: 0.625rem;
+  margin-top: var(--space-2);
+  padding: var(--space-2);
   overflow-x: auto;
   border-radius: var(--radius-sm);
   background-color: var(--color-bg-base);
@@ -1627,7 +1658,7 @@ body, .font-sans {
 .pipeline-agent__children {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   list-style: none;
 }
 
@@ -1635,15 +1666,15 @@ body, .font-sans {
    padre/hijo; las listas anidadas nativas ya la anuncian al lector de pantalla. */
 .pipeline-agent__children {
   position: relative;
-  margin-top: 0.5rem;
-  margin-left: 1.125rem;
-  padding-left: 1.25rem;
+  margin-top: var(--space-2);
+  margin-left: var(--space-4);
+  padding-left: var(--space-4);
   border-left: 2px solid var(--color-border-subtle);
 }
 
 .pipeline-agent {
   position: relative;
-  padding: 0.625rem 0.75rem;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   background-color: var(--color-bg-surface);
@@ -1671,8 +1702,8 @@ body, .font-sans {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 
 /* El nodo del agente: inicial del runtime dentro de un marcador. */
@@ -1682,7 +1713,7 @@ body, .font-sans {
   flex-shrink: 0;
   width: 1.75rem;
   height: 1.75rem;
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   border-radius: var(--radius-full);
   border: 2px solid var(--color-border-subtle);
@@ -1720,7 +1751,7 @@ body, .font-sans {
 }
 
 .pipeline-agent__runtime {
-  font-size: 0.875rem;
+  font-size: var(--font-size-base);
   font-weight: 600;
   color: var(--color-text-primary);
 }
@@ -1730,22 +1761,22 @@ body, .font-sans {
 }
 
 .pipeline-agent__role {
-  font-size: 0.6875rem;
-  padding: 0.0625rem 0.375rem;
+  font-size: var(--font-size-xs);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-accent-purple);
   color: var(--color-accent-purple);
 }
 
 .pipeline-agent__state {
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
 .pipeline-agent__interrupt-btn {
   margin-left: auto;
-  padding: 0.125rem 0.5rem;
-  font-size: 0.6875rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
   border: 1px solid var(--color-error);
   border-radius: var(--radius-default);
   background-color: transparent;
@@ -1761,26 +1792,26 @@ body, .font-sans {
 .pipeline-agent__meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 0.5rem;
-  padding-left: 2.25rem;
+  gap: var(--space-2);
+  padding-left: var(--space-6);
 }
 
 .pipeline-agent__meta dt {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-secondary);
 }
 
 .pipeline-agent__meta dd {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-primary);
 }
 
 .pipeline-agent__tokens { font-variant-numeric: tabular-nums; }
 
 .pipeline-agents__empty {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
@@ -1797,10 +1828,10 @@ body, .font-sans {
    resto del tablero: un solo control terciario en vez de uno por sección. */
 
 .pipeline-activity__no-reasoning {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   font-style: italic;
   color: var(--color-text-secondary);
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
 }
 
 /* El riel corre por detrás de los nodos y une toda la secuencia. */
@@ -1808,9 +1839,9 @@ body, .font-sans {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   list-style: none;
-  padding-left: 1.125rem;
+  padding-left: var(--space-4);
 }
 
 /* Riel único y continuo, igual que la vía del change: una sola línea de punta
@@ -1850,11 +1881,11 @@ body, .font-sans {
   display: grid;
   grid-template-columns: 4.75rem auto minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 0.5rem;
-  padding: 0.3125rem 0.5rem;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   background-color: var(--color-bg-surface);
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
 }
 
 /* Angosto: el agente se va de la fila antes que el texto, que es el dato. */
@@ -1917,7 +1948,7 @@ body, .font-sans {
    listón no aportaba información, sólo ruido. */
 
 .pipeline-activity__channel {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-secondary);
@@ -1925,7 +1956,7 @@ body, .font-sans {
 }
 
 .pipeline-activity__agent {
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
@@ -1938,20 +1969,20 @@ body, .font-sans {
 /* Contador de deltas colapsados. Vacío no dibuja nada: la celda existe para
    sostener la columna, no para mostrar una cápsula en blanco. */
 .pipeline-activity__count {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
 .pipeline-activity__count:not(:empty) {
-  padding: 0 0.3125rem;
+  padding: 0 var(--space-1);
   border-radius: var(--radius-full);
   background-color: var(--color-bg-overlay);
 }
 
 .pipeline-activity__empty {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
@@ -1960,40 +1991,40 @@ body, .font-sans {
 /* Única superficie de Pipeline que abre procesos: se separa del resto con un
    borde de acento para que no se confunda con los paneles de sólo lectura. */
 .pipeline-launcher {
-  padding: 1rem;
+  padding: var(--space-4);
   border: 1px solid var(--color-border-subtle);
   border-left-width: 3px;
   border-left-color: var(--color-primary);
   border-radius: var(--radius-lg);
   background-color: var(--color-bg-surface);
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 
 .pipeline-launcher__form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .pipeline-launcher__field {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .pipeline-launcher__label {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
 .pipeline-launcher__select,
 .pipeline-launcher__instruction {
-  padding: 0.5rem 0.625rem;
+  padding: var(--space-2) var(--space-2);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   background-color: var(--color-bg-overlay);
   color: var(--color-text-primary);
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   font-family: inherit;
 }
 
@@ -2004,16 +2035,16 @@ body, .font-sans {
 
 .pipeline-launcher__actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .pipeline-launcher__button {
-  padding: 0.4375rem 0.875rem;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   background-color: var(--color-bg-overlay);
   color: var(--color-text-primary);
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   cursor: pointer;
 }
 
@@ -2032,16 +2063,16 @@ body, .font-sans {
 
 .pipeline-launcher__empty,
 .pipeline-launcher__blocked {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 /* Un runtime bloqueado se marca con borde punteado: mismo vocabulario que
    "riesgo desconocido" en la vía del change. */
 .pipeline-launcher__blocked {
   border-left: 2px dashed var(--color-border-subtle);
-  padding-left: 0.5rem;
+  padding-left: var(--space-2);
 }
 
 /* Bloqueado por fixture: borde punteado y color de aviso. El estado nunca se
@@ -2052,9 +2083,9 @@ body, .font-sans {
 }
 
 .pipeline-launcher__blocked-fixture {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-git-mod);
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
 }
 
 /* Sin runtime lanzable, la salida es accionable: el texto explica y el botón
@@ -2063,7 +2094,7 @@ body, .font-sans {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .pipeline-launcher__empty > p {
@@ -2072,8 +2103,8 @@ body, .font-sans {
 
 /* La disponibilidad se dice antes del CTA, no después de que falle. */
 .pipeline-launcher__availability {
-  margin: 0.5rem 0 0;
-  font-size: 0.72rem;
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
@@ -2084,10 +2115,10 @@ body, .font-sans {
 /* El alcance declarado se marca como aviso, no como error: el runtime funciona,
    pero no hace todo lo que el botón podría sugerir. */
 .pipeline-launcher__scope {
-  margin: 0.4rem 0 0;
-  padding-left: 0.5rem;
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-2);
   border-left: 2px solid var(--color-git-mod);
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
@@ -2101,15 +2132,15 @@ body, .font-sans {
 .pipeline-launcher__confirm {
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
-  margin-top: 0.6rem;
-  font-size: 0.72rem;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   cursor: pointer;
 }
 
 .pipeline-launcher__confirm input {
-  margin-top: 0.1rem;
+  margin-top: var(--space-1);
   accent-color: var(--color-primary);
 }
 
@@ -2117,7 +2148,7 @@ body, .font-sans {
   padding: 0;
   border: 0;
   background: none;
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   cursor: pointer;
 }
@@ -2128,11 +2159,11 @@ body, .font-sans {
 
 /* La instrucción ya compuesta se lee, no se edita, salvo que se pida. */
 .pipeline-launcher__instruction-preview {
-  margin: 0.4rem 0 0;
-  padding: 0.5rem 0.65rem;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
   overflow-x: auto;
   border: 1px solid var(--color-border-subtle);
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -2140,15 +2171,15 @@ body, .font-sans {
 
 .pipeline-launcher__error,
 .pipeline-workspace__notice {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-error);
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 /* ─── Economía y contexto ─── */
 
 .pipeline-economy {
-  padding: 1rem;
+  padding: var(--space-4);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   background-color: var(--color-bg-surface);
@@ -2159,16 +2190,16 @@ body, .font-sans {
    grillas propias se fueron con ellas. */
 
 .pipeline-economy__basis {
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
 /* Cobertura parcial: la advertencia es texto, no un gráfico degradado. Un
    ranking en dinero compararía agentes medidos contra agentes sin medir. */
 .pipeline-economy__coverage {
-  margin-top: 0.5rem;
-  padding: 0.5rem 0.625rem;
-  font-size: 0.75rem;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-2);
+  font-size: var(--font-size-xs);
   line-height: 1.5;
   border-left: 2px dotted var(--color-git-mod);
   color: var(--color-text-secondary);
@@ -2182,23 +2213,23 @@ body, .font-sans {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.375rem 0.625rem;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2);
   border: 1px dashed var(--color-accent-purple);
   border-radius: var(--radius-default);
   background-color: color-mix(in srgb, var(--color-accent-purple) 8%, transparent);
 }
 
 .pipeline-devbar__label {
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-accent-purple);
 }
 
 .pipeline-devbar__select {
-  padding: 0.1875rem 0.5rem;
-  font-size: 0.75rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   background-color: var(--color-bg-overlay);
@@ -2210,8 +2241,8 @@ body, .font-sans {
 .pipeline-details {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
+  gap: var(--space-4);
+  padding: var(--space-4);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   background-color: var(--color-bg-surface);
@@ -2222,13 +2253,13 @@ body, .font-sans {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding-bottom: 0.75rem;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .pipeline-details__title {
-  font-size: 0.875rem;
+  font-size: var(--font-size-base);
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
@@ -2237,12 +2268,12 @@ body, .font-sans {
 .pipeline-details__tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: var(--space-2);
 }
 
 .pipeline-details__tab {
-  padding: 0.25rem 0.625rem;
-  font-size: 0.75rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   background-color: var(--color-bg-overlay);
@@ -2264,9 +2295,9 @@ body, .font-sans {
 }
 
 .pipeline-details__empty {
-  padding: 1.5rem 0;
+  padding: var(--space-5) 0;
   text-align: center;
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
@@ -2278,8 +2309,8 @@ body, .font-sans {
 .pipeline-artifact-graph {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
-  margin: 0 0 0.75rem;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
   padding: 0;
   list-style: none;
 }
@@ -2287,9 +2318,9 @@ body, .font-sans {
 .pipeline-artifact-graph li {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.6875rem;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   background-color: var(--color-bg-overlay);
@@ -2304,14 +2335,14 @@ body, .font-sans {
 }
 
 .pipeline-artifact-graph__state {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   opacity: 0.85;
 }
 
 .pipeline-artifact-graph__deps {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   opacity: 0.8;
 }
@@ -2344,8 +2375,8 @@ body, .font-sans {
 .pipeline-markdown {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  font-size: 0.8125rem;
+  gap: var(--space-4);
+  font-size: var(--font-size-sm);
   line-height: 1.75;
   color: var(--color-text-primary);
 }
@@ -2360,8 +2391,8 @@ body, .font-sans {
 .pipeline-markdown__h6 {
   font-weight: 600;
   color: var(--color-text-primary);
-  margin-top: 0.9rem;
-  margin-bottom: -0.35rem;
+  margin-top: var(--space-4);
+  margin-bottom: calc(-1 * var(--space-2));
   line-height: 1.35;
 }
 
@@ -2370,22 +2401,22 @@ body, .font-sans {
 .pipeline-markdown__h3:first-child,
 .pipeline-markdown__h4:first-child { margin-top: 0; }
 
-.pipeline-markdown__h1 { font-size: 1.125rem; }
-.pipeline-markdown__h2 { font-size: 1rem; }
-.pipeline-markdown__h3 { font-size: 0.875rem; }
+.pipeline-markdown__h1 { font-size: var(--font-size-lg); }
+.pipeline-markdown__h2 { font-size: var(--font-size-md); }
+.pipeline-markdown__h3 { font-size: var(--font-size-base); }
 /* El cuarto nivel es el de cada escenario, el más frecuente de una spec: se
    distingue del párrafo por color y espaciado más que por tamaño, para que una
    pantalla con veinte escenarios no se vuelva una escalera de títulos. */
 .pipeline-markdown__h4,
 .pipeline-markdown__h5,
 .pipeline-markdown__h6 {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-primary);
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
 }
 
 .pipeline-markdown__blockquote {
-  padding: 0.15rem 0 0.15rem 0.9rem;
+  padding: var(--space-1) 0 var(--space-1) var(--space-4);
   border-left: 3px solid var(--color-primary);
   color: var(--color-text-secondary);
   margin: 0;
@@ -2393,10 +2424,10 @@ body, .font-sans {
 }
 
 .pipeline-markdown__codeblock {
-  padding: 0.85rem 0.9rem;
+  padding: var(--space-3) var(--space-4);
   line-height: 1.6;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   background-color: var(--color-bg-overlay);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
@@ -2404,9 +2435,9 @@ body, .font-sans {
 }
 
 .pipeline-markdown__inline-code {
-  padding: 0.125rem 0.3125rem;
+  padding: var(--space-1) var(--space-1);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   background-color: var(--color-bg-overlay);
   border-radius: var(--radius-sm);
 }
@@ -2415,13 +2446,13 @@ body, .font-sans {
    y eso es correcto para el resto del producto. Acá se restituyen: en un
    documento, una lista tiene que distinguirse de un párrafo indentado. */
 .pipeline-markdown__list {
-  padding-left: 1.35rem;
+  padding-left: var(--space-5);
   margin: 0;
   line-height: 1.7;
   list-style: disc outside;
 }
 .pipeline-markdown__list > li::marker { color: var(--color-text-secondary); }
-.pipeline-markdown__list > li + li { margin-top: 0.4rem; }
+.pipeline-markdown__list > li + li { margin-top: var(--space-2); }
 
 .pipeline-markdown__strong {
   font-weight: 600;
@@ -2432,7 +2463,7 @@ body, .font-sans {
 .pipeline-diffs {
   display: grid;
   grid-template-columns: minmax(12rem, 16rem) 1fr;
-  gap: 1rem;
+  gap: var(--space-4);
   min-height: 20rem;
 }
 
@@ -2445,13 +2476,13 @@ body, .font-sans {
 .pipeline-diffs__sidebar {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   border-right: 1px solid var(--color-border-subtle);
-  padding-right: 0.75rem;
+  padding-right: var(--space-3);
 }
 
 .pipeline-diffs__sidebar-title {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2465,14 +2496,14 @@ body, .font-sans {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .pipeline-diffs__file-btn {
   width: 100%;
   text-align: left;
-  padding: 0.375rem 0.5rem;
-  font-size: 0.75rem;
+  padding: var(--space-2) var(--space-2);
+  font-size: var(--font-size-xs);
   font-family: var(--font-mono);
   background: transparent;
   border: 1px solid transparent;
@@ -2497,7 +2528,7 @@ body, .font-sans {
 .pipeline-diffs__content {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -2505,9 +2536,9 @@ body, .font-sans {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  padding: 0.5rem 0.75rem;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  padding: var(--space-2) var(--space-3);
   background-color: var(--color-bg-overlay);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
@@ -2522,7 +2553,7 @@ body, .font-sans {
 }
 
 .pipeline-diffs__runtime {
-  margin-left: 0.25rem;
+  margin-left: var(--space-1);
   color: var(--color-text-secondary);
 }
 
@@ -2540,9 +2571,9 @@ body, .font-sans {
 
 .pipeline-diffs__loading,
 .pipeline-diffs__empty {
-  padding: 2rem;
+  padding: var(--space-6);
   text-align: center;
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
@@ -2553,14 +2584,14 @@ body, .font-sans {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .pipeline-auditor__card {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.875rem;
+  gap: var(--space-2);
+  padding: var(--space-3);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   background-color: var(--color-bg-overlay);
@@ -2583,21 +2614,21 @@ body, .font-sans {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .pipeline-auditor__tags {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .pipeline-auditor__risk-badge {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 0.125rem 0.375rem;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
 }
 
@@ -2617,39 +2648,39 @@ body, .font-sans {
 }
 
 .pipeline-auditor__category {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--color-text-primary);
 }
 
 .pipeline-auditor__description {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-primary);
   margin: 0;
 }
 
 .pipeline-auditor__location {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
 .pipeline-auditor__location-code {
   font-family: var(--font-mono);
   color: var(--color-text-primary);
-  margin-left: 0.375rem;
+  margin-left: var(--space-2);
 }
 
 .pipeline-auditor__recommendation {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-  padding-top: 0.375rem;
+  padding-top: var(--space-2);
   border-top: 1px solid var(--color-border-subtle);
 }
 
 .pipeline-auditor__empty {
-  padding: 1.5rem;
+  padding: var(--space-5);
   text-align: center;
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
@@ -2660,14 +2691,14 @@ body, .font-sans {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .pipeline-gates__item {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.625rem 0.75rem;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   background-color: var(--color-bg-overlay);
@@ -2676,26 +2707,26 @@ body, .font-sans {
 .pipeline-gates__item-header {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
+  gap: var(--space-2);
 }
 
 .pipeline-gates__gate-id {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   color: var(--color-text-secondary);
 }
 
 .pipeline-gates__gate-name {
   flex: 1;
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-primary);
 }
 
 .pipeline-gates__status-badge {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   font-weight: 700;
-  padding: 0.125rem 0.375rem;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   text-transform: uppercase;
 }
@@ -2716,21 +2747,21 @@ body, .font-sans {
 }
 
 .pipeline-gates__details {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   margin: 0;
 }
 
 .pipeline-gates__time {
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
 .pipeline-gates__empty {
-  padding: 1.5rem;
+  padding: var(--space-5);
   text-align: center;
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
@@ -2739,16 +2770,16 @@ body, .font-sans {
 .pipeline-control-bar {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
   border-top: 1px solid var(--color-border-subtle);
 }
 
 .pipeline-control-bar__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: var(--space-2);
 }
 
 /*
@@ -2761,8 +2792,8 @@ body, .font-sans {
 .pipeline-control-bar__btn {
   --btn-fill: var(--color-border-subtle);
   min-height: 24px;
-  padding: 0.28rem 0.75rem;
-  font-size: 0.6875rem;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -2802,14 +2833,14 @@ body, .font-sans {
 
 .pipeline-control-bar__form {
   display: flex;
-  gap: 0.375rem;
-  margin-top: 0.375rem;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .pipeline-control-bar__input {
   flex: 1;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   background-color: var(--color-bg-overlay);
@@ -2817,8 +2848,8 @@ body, .font-sans {
 }
 
 .pipeline-control-bar__submit {
-  padding: 0.25rem 0.625rem;
-  font-size: 0.75rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
   border: 1px solid var(--color-primary);
   border-radius: var(--radius-sm);
   background-color: var(--color-primary);
@@ -2827,10 +2858,10 @@ body, .font-sans {
 }
 
 .pipeline-control-bar__ack {
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   font-style: italic;
-  padding-top: 0.25rem;
+  padding-top: var(--space-1);
 }
 
 .pipeline-control-bar__btn--danger {
@@ -2871,33 +2902,33 @@ body, .font-sans {
 .pipeline-modal {
   width: 90%;
   max-width: 28rem;
-  padding: 1.25rem;
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background-color: var(--color-bg-surface);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
+  gap: var(--space-3);
 }
 
 .pipeline-modal__title {
-  font-size: 1rem;
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
 }
 
 .pipeline-modal__body {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   color: var(--color-text-primary);
   margin: 0;
 }
 
 .pipeline-modal__warning {
-  padding: 0.625rem;
-  font-size: 0.75rem;
+  padding: var(--space-2);
+  font-size: var(--font-size-xs);
   line-height: 1.4;
   border-left: 3px solid var(--color-warning);
   border-radius: var(--radius-sm);
@@ -2908,13 +2939,13 @@ body, .font-sans {
 .pipeline-modal__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .pipeline-modal__btn {
-  padding: 0.375rem 0.875rem;
-  font-size: 0.75rem;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 500;
@@ -2938,9 +2969,9 @@ body, .font-sans {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  margin-top: 0.625rem;
-  padding: 0.625rem 0.875rem;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
   border-radius: var(--radius-md);
   background-color: color-mix(in srgb, var(--color-warning) 10%, transparent);
@@ -2949,37 +2980,37 @@ body, .font-sans {
 .pipeline-partial-banner__content {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
+  gap: var(--space-2);
 }
 
 .pipeline-partial-banner__badge {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.05em;
-  padding: 0.125rem 0.375rem;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   background-color: var(--color-warning);
   color: var(--color-bg-base);
 }
 
 .pipeline-partial-banner__text {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-primary);
 }
 
 .pipeline-partial-banner__close {
   background: transparent;
   border: none;
-  font-size: 1.125rem;
+  font-size: var(--font-size-lg);
   color: var(--color-text-secondary);
   cursor: pointer;
-  padding: 0 0.25rem;
+  padding: 0 var(--space-1);
 }
 
 .pipeline-agent__interrupt-btn {
   margin-left: auto;
-  font-size: 0.6875rem;
-  padding: 0.125rem 0.375rem;
+  font-size: var(--font-size-xs);
+  padding: var(--space-1) var(--space-2);
   border: 1px solid color-mix(in srgb, var(--color-error) 40%, transparent);
   border-radius: var(--radius-sm);
   background-color: transparent;
@@ -3002,11 +3033,11 @@ body, .font-sans {
 .pipeline-hud {
   display: flex;
   align-items: stretch;
-  gap: 2px;
+  gap: var(--space-1);
   overflow-x: auto;
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-xl);
   background-color: var(--color-bg-overlay);
-  padding: 2px;
+  padding: var(--space-1);
 }
 
 /* Codo LCARS: bloque ámbar macizo que ancla la barra a la izquierda. */
@@ -3021,9 +3052,9 @@ body, .font-sans {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.0625rem;
+  gap: var(--space-1);
   min-width: 8.5rem;
-  padding: 0.5rem 0.875rem;
+  padding: var(--space-2) var(--space-3);
   background-color: var(--color-bg-surface);
   border-radius: var(--radius-sm);
 }
@@ -3033,7 +3064,7 @@ body, .font-sans {
 }
 
 .pipeline-hud__label {
-  font-size: 0.5625rem;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -3042,7 +3073,7 @@ body, .font-sans {
 
 /* Lectura numérica: tabular y grande, como un instrumento. */
 .pipeline-hud__readout {
-  font-size: 1.125rem;
+  font-size: var(--font-size-lg);
   font-weight: 600;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
@@ -3050,7 +3081,7 @@ body, .font-sans {
 }
 
 .pipeline-hud__caption {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-secondary);
@@ -3099,13 +3130,13 @@ body, .font-sans {
    ========================================================================== */
 
 .pipeline-workspace {
-  gap: 0.5rem;
-  padding: 0.75rem;
+  gap: var(--space-2);
+  padding: var(--space-3);
   background-color: var(--color-bg-base);
 }
 
 .pipeline-workspace__scaffold {
-  padding: 0.25rem 0.5rem;
+  padding: var(--space-1) var(--space-2);
   border-left: 2px solid var(--color-accent-purple);
   background-color: color-mix(in srgb, var(--color-accent-purple) 7%, var(--color-bg-base));
 }
@@ -3113,13 +3144,13 @@ body, .font-sans {
 .pipeline-workspace__bar {
   min-height: 2.25rem;
   align-items: center;
-  padding: 0 0.5rem;
+  padding: 0 var(--space-2);
   border-bottom: 2px solid var(--color-border-subtle);
 }
 
 .pipeline-workspace__title {
   font-family: var(--font-mono);
-  font-size: clamp(1.45rem, 2vw, 2rem);
+  font-size: var(--font-size-xl);
   line-height: 1;
   font-weight: 700;
   text-transform: uppercase;
@@ -3127,8 +3158,8 @@ body, .font-sans {
 }
 
 .pipeline-grid {
-  column-gap: 0.45rem;
-  row-gap: 0.55rem;
+  column-gap: var(--space-2);
+  row-gap: var(--space-2);
   grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.92fr) minmax(0, 0.9fr);
   grid-template-areas:
     "hud       hud       hud"
@@ -3136,7 +3167,7 @@ body, .font-sans {
     "main      main      main"
     "runtime   details   details";
   grid-template-rows: repeat(4, max-content);
-  padding: 0.25rem 0.15rem 0.5rem;
+  padding: var(--space-1) var(--space-1) var(--space-2);
 }
 
 /* Carcasa principal: un solo contenedor abraza los cinco instrumentos. El
@@ -3151,9 +3182,9 @@ body, .font-sans {
     "now    now     decisions"
     "agents economy activity";
   grid-template-rows: repeat(2, max-content);
-  gap: 0.45rem;
+  gap: var(--space-2);
   min-height: 0;
-  padding: 0.6rem 0.45rem 0.8rem 0;
+  padding: var(--space-2) var(--space-2) var(--space-3) 0;
   border-top: 0;
   border-bottom: 0.9rem solid var(--color-border-subtle);
   border-left: 3.4rem solid var(--color-carto-accent);
@@ -3186,11 +3217,11 @@ body, .font-sans {
 }
 
 .pipeline-grid__instrument-shell > .pipeline-card[data-area="agents"] {
-  margin-left: -1.25rem;
+  margin-left: calc(-1 * var(--space-4));
 }
 
 .pipeline-grid__instrument-shell > .pipeline-card[data-area="activity"] {
-  margin-right: 0.35rem;
+  margin-right: var(--space-2);
 }
 
 /* El canvas ancho trabaja como una columna dominante de dos tercios y una
@@ -3237,8 +3268,8 @@ body, .font-sans {
 }
 
 .pipeline-card__header {
-  margin-right: 0.65rem;
-  padding: 0 0.7rem;
+  margin-right: var(--space-3);
+  padding: 0 var(--space-3);
   border-radius: 0;
   background-color: var(--card-spine);
 }
@@ -3261,13 +3292,13 @@ body, .font-sans {
 
 .pipeline-card__title {
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.14em;
 }
 
 .pipeline-card__body {
-  padding: 0.8rem 0.85rem 0.9rem;
+  padding: var(--space-3) var(--space-3) var(--space-4);
 }
 
 /* `Now` contains bounded facts plus the complete control surface. It must
@@ -3290,9 +3321,9 @@ body, .font-sans {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.4rem;
+  gap: var(--space-2);
   height: var(--header-height);
-  padding: 0 0.5rem;
+  padding: 0 var(--space-2);
   background-color: var(--card-spine);
   color: var(--color-bg-base);
   border-radius: 0;
@@ -3315,7 +3346,7 @@ body, .font-sans {
 
 .pipeline-card__code {
   font-family: var(--font-mono);
-  font-size: 0.56rem;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   font-variant-numeric: tabular-nums;
@@ -3340,7 +3371,7 @@ body, .font-sans {
   display: grid;
   grid-template-columns: 3.5rem minmax(7.5rem, 0.72fr) minmax(9rem, 1fr) minmax(10rem, 1.1fr) minmax(7.5rem, 0.75fr);
   min-height: 6rem;
-  gap: 2px;
+  gap: var(--space-1);
   padding: 0;
   border-radius: var(--radius-xl) var(--radius-lg) var(--radius-lg) var(--radius-xl);
   background-color: var(--color-bg-base);
@@ -3354,7 +3385,7 @@ body, .font-sans {
 
 .pipeline-hud__segment {
   min-width: 0;
-  padding: 0.65rem 0.9rem;
+  padding: var(--space-3) var(--space-4);
   border-radius: 0;
   background-color: var(--color-bg-overlay);
 }
@@ -3370,13 +3401,13 @@ body, .font-sans {
 
 .pipeline-hud__readout {
   font-family: var(--font-mono);
-  font-size: clamp(1.45rem, 1.9vw, 2rem);
+  font-size: var(--font-size-xl);
   font-weight: 700;
   letter-spacing: -0.045em;
 }
 
 .pipeline-hud__segment[data-segment="phase"] .pipeline-hud__readout {
-  font-size: clamp(1.8rem, 2.25vw, 2.35rem);
+  font-size: var(--font-size-xl);
 }
 
 /* Information windows: flat, squared and aligned. The strong contrast comes
@@ -3397,22 +3428,22 @@ body, .font-sans {
 
 .pipeline-now__headline {
   max-width: 34ch;
-  margin-bottom: 0.42rem;
+  margin-bottom: var(--space-2);
   font-family: var(--font-mono);
-  font-size: clamp(1.05rem, 1.3vw, 1.4rem);
+  font-size: var(--font-size-xl);
   line-height: 1.2;
   font-weight: 650;
 }
 
 .pipeline-now__facts {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px;
+  gap: var(--space-1);
   background-color: var(--color-bg-base);
 }
 
 .pipeline-now__fact {
   min-height: 2.2rem;
-  padding: 0.24rem 0.5rem;
+  padding: var(--space-1) var(--space-2);
   background-color: var(--color-bg-overlay);
   transition: background-color 150ms ease;
 }
@@ -3425,19 +3456,19 @@ body, .font-sans {
 .pipeline-stat__label,
 .pipeline-agent__meta dt {
   font-family: var(--font-mono);
-  font-size: 0.58rem;
+  font-size: var(--font-size-xs);
   letter-spacing: 0.1em;
 }
 
 .pipeline-now__fact dd {
-  margin-top: 0.06rem;
-  font-size: 0.78rem;
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
 }
 
 .pipeline-now__human {
-  margin-top: 0.28rem;
-  padding-left: 0.55rem;
-  font-size: 0.68rem;
+  margin-top: var(--space-1);
+  padding-left: var(--space-2);
+  font-size: var(--font-size-xs);
   border-left: 3px solid var(--color-border-subtle);
 }
 
@@ -3446,14 +3477,14 @@ body, .font-sans {
 }
 
 .pipeline-control-bar {
-  margin-top: 0.25rem;
-  padding-top: 0.2rem;
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
 }
 
 .pipeline-control-bar__actions {
   flex-direction: column;
   flex-wrap: nowrap;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 /* Los comandos forman una columna funcional dentro de la ventana de Ahora.
@@ -3466,7 +3497,7 @@ body, .font-sans {
     "controls headline"
     "controls facts"
     "controls human";
-  column-gap: 0.7rem;
+  column-gap: var(--space-3);
   align-items: start;
 }
 
@@ -3499,8 +3530,8 @@ body, .font-sans {
 
   .pipeline-card[data-area="now"] .pipeline-control-bar__btn {
     min-height: 24px;
-    padding: 0.24rem 0.5rem;
-    font-size: 0.58rem;
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
     letter-spacing: 0.035em;
     white-space: nowrap;
   }
@@ -3513,7 +3544,7 @@ body, .font-sans {
   min-height: 26px;
   border-radius: var(--radius-sm) var(--radius-full) var(--radius-full) var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: var(--font-size-xs);
   letter-spacing: 0.075em;
   transition: color 140ms ease, background-color 140ms ease, transform 140ms ease;
 }
@@ -3526,7 +3557,7 @@ body, .font-sans {
 
 /* Change path is a full-width command band, not another inset surface. */
 .pipeline-path {
-  padding: 0.15rem 0.25rem 0.1rem;
+  padding: var(--space-1) var(--space-1) var(--space-1);
   border-radius: 0;
   background-color: transparent;
   background-image: none;
@@ -3534,7 +3565,7 @@ body, .font-sans {
 
 .pipeline-path__track {
   --path-rail-y: 1.72rem;
-  padding-top: 0.55rem;
+  padding-top: var(--space-2);
 }
 
 .pipeline-path__track::before,
@@ -3546,7 +3577,7 @@ body, .font-sans {
   width: 2.4rem;
   height: 2.4rem;
   font-family: var(--font-mono);
-  font-size: 0.86rem;
+  font-size: var(--font-size-base);
 }
 
 .pipeline-path__station[data-estado="current"] .pipeline-path__number {
@@ -3559,20 +3590,20 @@ body, .font-sans {
 }
 
 .pipeline-path__label {
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs);
   font-weight: 650;
 }
 
 .pipeline-path__state,
 .pipeline-path__human {
   font-family: var(--font-mono);
-  font-size: 0.56rem;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.055em;
 }
 
 .pipeline-path__counter {
-  margin-top: 0.45rem;
+  margin-top: var(--space-2);
 }
 
 .pipeline-path__counter-step {
@@ -3583,11 +3614,11 @@ body, .font-sans {
 /* Decision windows are prioritised by the coloured side rail; a surrounding
    outline would turn them back into nested cards. */
 .pipeline-inbox__list {
-  gap: 0.45rem;
+  gap: var(--space-2);
 }
 
 .pipeline-decision {
-  padding: 0.75rem 0.8rem;
+  padding: var(--space-3) var(--space-3);
   border: 0;
   border-left: 5px solid var(--color-border-subtle);
   border-radius: 0;
@@ -3596,17 +3627,17 @@ body, .font-sans {
 
 .pipeline-decision__title {
   font-family: var(--font-mono);
-  font-size: 0.95rem;
+  font-size: var(--font-size-md);
   line-height: 1.25;
 }
 
 .pipeline-decision__why {
-  font-size: 0.76rem;
+  font-size: var(--font-size-xs);
   line-height: 1.4;
 }
 
 .pipeline-decision__options {
-  gap: 0.35rem;
+  gap: var(--space-2);
 }
 
 .pipeline-decision__option-button {
@@ -3617,7 +3648,7 @@ body, .font-sans {
 
 /* Agent blocks become an actual hierarchy of connected data wells. */
 .pipeline-agent {
-  padding: 0.6rem 0.7rem;
+  padding: var(--space-2) var(--space-3);
   border: 0;
   border-left: 4px solid var(--color-border-subtle);
   border-radius: 0;
@@ -3626,7 +3657,7 @@ body, .font-sans {
 
 .pipeline-agent__runtime {
   font-family: var(--font-mono);
-  font-size: 0.9rem;
+  font-size: var(--font-size-base);
 }
 
 .pipeline-agent__role,
@@ -3636,38 +3667,38 @@ body, .font-sans {
 }
 
 .pipeline-agent__meta {
-  gap: 2px;
+  gap: var(--space-1);
   background-color: var(--color-bg-base);
 }
 
 .pipeline-agent__meta > div {
   min-height: 2.7rem;
-  padding: 0.4rem 0.5rem;
+  padding: var(--space-2) var(--space-2);
   background-color: color-mix(in srgb, var(--color-bg-surface) 72%, var(--color-bg-overlay));
 }
 
 /* Economy is intentionally denser than Agents: numbers get small squared
    windows and one large readout, matching their different information load. */
 .pipeline-economy__hero {
-  padding: 0 0 0.6rem;
+  padding: 0 0 var(--space-2);
   border-bottom-width: 2px;
 }
 
 .pipeline-economy__hero-value {
   font-family: var(--font-mono);
-  font-size: clamp(2rem, 2.6vw, 2.75rem);
+  font-size: var(--font-size-xl);
   font-weight: 700;
 }
 
 .pipeline-stats {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 2px;
+  gap: var(--space-1);
   background-color: var(--color-bg-base);
 }
 
 .pipeline-stat {
   min-height: 3.4rem;
-  padding: 0.45rem 0.55rem;
+  padding: var(--space-2) var(--space-2);
   border: 0;
   border-radius: 0;
   background-color: var(--color-bg-overlay);
@@ -3675,7 +3706,7 @@ body, .font-sans {
 
 .pipeline-stat__number {
   font-family: var(--font-mono);
-  font-size: 1.05rem;
+  font-size: var(--font-size-md);
 }
 
 .pipeline-meter__track,
@@ -3686,17 +3717,17 @@ body, .font-sans {
 /* Activity is the tallest narrative region. Rows lose their box treatment and
    read as a continuous instrument log aligned to one temporal rail. */
 .pipeline-filters {
-  gap: 2px;
-  padding-bottom: 0.45rem;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
   border-bottom: 2px solid var(--color-border-subtle);
 }
 
 .pipeline-activity__entry {
-  padding: 0.36rem 0.45rem;
+  padding: var(--space-2) var(--space-2);
   border-radius: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border-subtle) 40%, transparent);
   background-color: transparent;
-  font-size: 0.77rem;
+  font-size: var(--font-size-xs);
 }
 
 .pipeline-activity__entry:hover {
@@ -3714,12 +3745,12 @@ body, .font-sans {
 }
 
 .pipeline-details__header {
-  padding-bottom: 0.45rem;
+  padding-bottom: var(--space-2);
   border-bottom-width: 2px;
 }
 
 .pipeline-details__tabs {
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .pipeline-details__tab {
@@ -3808,15 +3839,15 @@ body, .font-sans {
    controles completos. Esta consulta también mide el panel real. */
 @container (max-width: 799px) {
   .pipeline-workspace {
-    padding: 0.5rem;
+    padding: var(--space-2);
   }
 
   .pipeline-workspace__title {
-    font-size: 1.05rem;
+    font-size: var(--font-size-md);
   }
 
   .pipeline-grid {
-    gap: 0.6rem;
+    gap: var(--space-2);
     grid-template-areas:
       "hud"
       "path"
@@ -3849,7 +3880,7 @@ body, .font-sans {
       "facts"
       "human"
       "controls";
-    row-gap: 0.5rem;
+    row-gap: var(--space-2);
   }
 
   .pipeline-hud {
@@ -3868,8 +3899,8 @@ body, .font-sans {
   }
 
   .pipeline-card__body {
-    padding-right: 0.65rem;
-    padding-left: 0.65rem;
+    padding-right: var(--space-3);
+    padding-left: var(--space-3);
   }
 
   .pipeline-now__facts,

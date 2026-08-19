@@ -1928,43 +1928,7 @@ export function ChronometricGraph({
     resetKey: repoPath ?? null,
   });
 
-  const [overlaySize, setOverlaySize] = useState({ width: 800, height: 520 });
 
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const updateOverlaySize = () => {
-      const nextSize = {
-        width: container.clientWidth || 800,
-        height: container.clientHeight || 520,
-      };
-
-      setOverlaySize((current) =>
-        current.width === nextSize.width && current.height === nextSize.height
-          ? current
-          : nextSize
-      );
-    };
-
-    updateOverlaySize();
-
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(updateOverlaySize)
-      : null;
-
-    resizeObserver?.observe(container);
-    window.addEventListener('resize', updateOverlaySize);
-
-    return () => {
-      resizeObserver?.disconnect();
-      window.removeEventListener('resize', updateOverlaySize);
-    };
-  }, [containerRef]);
-
-  const overlayCenterX = overlaySize.width / 2;
-  const overlayCenterY = overlaySize.height / 2;
-  const rightCoordinateLabelX = Math.max(0, overlaySize.width - 295);
 
   useEffect(() => {
     if (selectedBranchFocusRequest === lastHandledBranchFocusRequestRef.current) return;
@@ -2135,8 +2099,6 @@ export function ChronometricGraph({
           onClick={handleGraphSurfaceClick}
           style={{
             overflow: 'visible',
-            maskImage: 'linear-gradient(to right, black 0%, black calc(100% - 370px), transparent calc(100% - 220px))',
-            WebkitMaskImage: 'linear-gradient(to right, black 0%, black calc(100% - 370px), transparent calc(100% - 220px))',
           }}
         >
           <defs>
@@ -3288,37 +3250,7 @@ export function ChronometricGraph({
         }
       `}</style>
 
-      {/* 1. Static SVG HUD Shell Overlay Layer (Frames viewport at z-10, pointer-events-none) */}
-      <svg
-        className="absolute inset-0 w-full h-full pointer-events-none select-none z-10 opacity-40"
-        id="tcars-hud-overlay"
-      >
-        <defs>
-          <filter id="hud-glow" x="-10%" y="-10%" width="120%" height="120%">
-            <feGaussianBlur stdDeviation="1" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
 
-        {/* Crosshair Ticks in center of screen */}
-        <g stroke="#3c495a" strokeWidth="0.75" opacity="0.2">
-          <line x1={overlayCenterX} y1={overlayCenterY - 16} x2={overlayCenterX} y2={overlayCenterY - 8} />
-          <line x1={overlayCenterX} y1={overlayCenterY + 8} x2={overlayCenterX} y2={overlayCenterY + 16} />
-          <line x1={overlayCenterX - 16} y1={overlayCenterY} x2={overlayCenterX - 8} y2={overlayCenterY} />
-          <line x1={overlayCenterX + 8} y1={overlayCenterY} x2={overlayCenterX + 16} y2={overlayCenterY} />
-        </g>
-
-        {/* Technical Coordinate Indicators */}
-        <text x="295" y="109" fill="#697789" fontSize="6" className="font-mono" opacity="0.5">
-          NAV_AXIS // AZIMUTH: 40.4° // DECLINATION: 0.85
-        </text>
-        <text x={rightCoordinateLabelX} y="109" textAnchor="end" fill="#697789" fontSize="6" className="font-mono" opacity="0.5">
-          SYS_CORRELATION // CHRONO_V2.0 // TIMELINE: RUNNING
-        </text>
-      </svg>
 
 
 

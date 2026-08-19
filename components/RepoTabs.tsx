@@ -70,7 +70,7 @@ export function RepoTabs({ repos, activeIdx, onSelect, onClose, onOpen, onReorde
   if (repos.length === 0) return null;
 
   return (
-    <div className="app-titlebar h-10 rounded-t-2xl bg-transparent border-b border-text-primary/10 flex items-stretch shrink-0 overflow-hidden gap-1">
+    <div className="app-titlebar h-10 rounded-t-2xl bg-transparent flex items-stretch shrink-0 overflow-hidden gap-1">
       <div className="min-w-0 flex-1 flex items-end gap-1 pl-2 pt-1.5 pb-1 overflow-x-auto overflow-y-hidden">
         <div className="app-titlebar-control h-7 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2 select-none">
           <img
@@ -102,10 +102,10 @@ export function RepoTabs({ repos, activeIdx, onSelect, onClose, onOpen, onReorde
                   }, 50);
                 }}
                 className={cn(
-                  'app-titlebar-control group h-7 min-w-0 max-w-52 rounded-md flex items-center border transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] cursor-grab active:cursor-grabbing',
+                  'app-titlebar-control group h-7 min-w-0 max-w-52 rounded-md flex items-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] cursor-grab active:cursor-grabbing',
                   isActive
-                    ? 'bg-text-primary/10 border-secondary/25 text-text-primary shadow-[0_0_18px_rgba(163,241,133,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]'
-                    : 'bg-text-primary/[0.035] border-text-primary/10 text-text-secondary hover:text-text-primary hover:bg-text-primary/[0.07] hover:border-text-primary/20',
+                    ? 'bg-text-primary/10 text-text-primary shadow-[0_0_18px_rgba(163,241,133,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]'
+                    : 'bg-text-primary/[0.035] text-text-secondary hover:text-text-primary hover:bg-text-primary/[0.07]',
                 )}
               >
                 <button
@@ -150,7 +150,7 @@ export function RepoTabs({ repos, activeIdx, onSelect, onClose, onOpen, onReorde
           type="button"
           onClick={onOpen}
           title={t('repoTabs.openAnother')}
-          className="app-titlebar-control h-7 w-7 mb-0 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.025] hover:text-secondary hover:bg-text-primary/[0.07] border border-text-primary/15 hover:border-text-primary/25 transition-colors shrink-0"
+          className="app-titlebar-control h-7 w-7 mb-0 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.025] hover:text-secondary hover:bg-text-primary/[0.07] transition-colors shrink-0"
         >
           <Plus size={14} />
         </button>

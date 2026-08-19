@@ -135,7 +135,6 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           <ShieldCheck size={20} color="var(--os-cyan, #38bdf8)" aria-hidden="true" />
           <h3>{t('pipeline.openspec.engine.review.title')}</h3>
         </div>
-        <p>{t('pipeline.openspec.engine.review.safetyHelp')}</p>
       </header>
 
       <div className={styles.reviewBody}>

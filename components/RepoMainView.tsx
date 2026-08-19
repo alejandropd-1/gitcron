@@ -21,7 +21,7 @@ import { HelpPanel, type HelpPanelProps } from '@/components/HelpPanel';
 import { ProfilePanel, type ProfilePanelProps } from '@/components/ProfilePanel';
 import { CartographyView } from '@/components/cartography/CartographyView';
 import InteractiveRebasePanel from '@/components/InteractiveRebasePanel';
-import { FLOATING_PANEL_INSET, GRAPH_SAFE_GAP, type GraphColumnKey } from '@/hooks/use-panel-layout';
+import type { GraphColumnKey } from '@/hooks/use-panel-layout';
 import { useT } from '@/hooks/use-translation';
 import type { Commit, GitFile } from '@/lib/git-store';
 import { PipelineWorkspace } from '@/components/pipeline/PipelineWorkspace';
@@ -400,7 +400,7 @@ function CommitWorkspaceView({ modifiedFiles, hasGithubUser }: TabViewsProps) {
 
 function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphView: GraphViewProps }) {
   return (
-    <div className={cn('flex-1 relative min-h-0', graphView.graphMode !== 'chronometric' && 'bg-bg-base')}>
+    <div data-testid="graph-tab-container" className="flex-1 relative min-h-0 bg-bg-base">
       <AnimatePresence>
         {graphView.activeGraphMode === 'classic' && (
           <ClassicGraphView tabViews={tabViews} graphView={graphView} />
@@ -417,19 +417,13 @@ function ClassicGraphView({ tabViews, graphView }: { tabViews: TabViewsProps; gr
   return (
     <motion.div
       key="classic-graph"
-      className={cn('absolute inset-0 flex flex-col', !graphView.isDragging && 'transition-[padding] duration-300')}
+      className="absolute inset-0 flex flex-col overflow-hidden bg-bg-base"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      style={{
-        paddingTop: 96 + FLOATING_PANEL_INSET,
-        paddingBottom: FLOATING_PANEL_INSET,
-        paddingLeft: graphView.sidebarOpen ? graphView.sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
-        paddingRight: graphView.repositoryDetailsVisible ? graphView.detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
-      }}
     >
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 h-9 flex items-center text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
           <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphView.graphColumns.refs }}>Branch / Tag</div>
           <GraphColumnHandle onMouseDown={(event) => graphView.beginGraphColDrag('refs', event)} />

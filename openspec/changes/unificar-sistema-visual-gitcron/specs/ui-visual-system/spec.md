@@ -51,6 +51,98 @@ sobre lo que se está trabajando.
 - **WHEN** se oculta un panel lateral
 - **THEN** el contenido ocupa el espacio liberado conservando la separación de fondos y la esquina redondeada contra el armazón restante
 
+### Requirement: El armazón SHALL ser una superficie continua y sus paneles SHALL NOT presentarse como cajas
+
+Las barras y los paneles laterales SHALL leerse como una única superficie continua, sin borde propio,
+sin radio propio y sin separación respecto del borde de la ventana. La geometría SHALL aparecer
+únicamente en el encuentro entre armazón y contenido. Hoy conviven dos gramáticas opuestas: en la
+vista de grafo los dos paneles son tarjetas con borde que flotan sobre el lienzo, mientras que en
+otras vistas las columnas se pegan a los bordes; el resultado es que el mismo elemento se presenta de
+dos maneras según dónde se lo mire, y la persona no puede aprender la composición una vez. La
+referencia declarada en el invariante 11 —aplicaciones de trabajo del estilo de Codex o Unsloth—
+resuelve esto con una sola superficie de armazón y una sola arista contra el contenido.
+
+Esta regla alcanza al armazón, no al contenido: dentro del área de trabajo las tarjetas que agrupan
+información SHALL poder conservar borde y radio, porque ahí sí distinguen unidades de información
+entre sí.
+
+#### Scenario: Panel lateral en cualquier vista
+- **WHEN** se muestra un panel lateral, incluida la vista de grafo
+- **THEN** se presenta sin borde ni radio propios, continuo con el resto del armazón, y sin separación respecto del borde de la ventana
+
+#### Scenario: Vista de grafo, en cualquiera de sus modos
+- **WHEN** se muestra la vista de grafo, tanto en su modo clásico como en el cronométrico
+- **THEN** los paneles integran el armazón y el lienzo del grafo se comporta como contenido apoyado, con la misma arista que el resto de las vistas
+
+#### Scenario: Composición condicionada por un modo de vista
+- **WHEN** la composición de un panel o de una barra depende de un modo de vista
+- **THEN** todas las ramas de esa condición cumplen esta regla, y la verificación ejercita el modo que la aplicación resuelve por omisión
+
+#### Scenario: Agrupación dentro del contenido
+- **WHEN** el área de contenido agrupa información en tarjetas
+- **THEN** esas tarjetas conservan borde y radio, tomados de la escala de radios existente
+
+### Requirement: La separación entre superficies SHALL darse por fondo, y el armazón SHALL NOT usar líneas divisorias
+
+Las barras, las solapas, los paneles laterales y los controles del armazón SHALL distinguirse entre
+sí por su fondo y por el espacio que los separa, y SHALL NOT llevar líneas divisorias ni contornos.
+Hoy hay veintitrés declaraciones de borde repartidas en cinco opacidades distintas —del diez al
+cuarenta por ciento— sin criterio que las gobierne: cada una se eligió para el elemento que se estaba
+escribiendo, y juntas producen una retícula de líneas tenues que fragmenta la pantalla sin separar
+nada que el fondo no separe mejor.
+
+Quedan exceptuados el indicador de foco, que necesita un contorno para cumplir su función, y las
+tarjetas dentro del área de contenido, que agrupan unidades de información entre sí.
+
+Cuando dos superficies contiguas se distinguen sólo por su fondo, la diferencia entre ambos SHALL ser
+perceptible: sin línea que las separe, un contraste insuficiente entre fondos deja de comunicar el
+límite en lugar de sugerirlo con discreción.
+
+#### Scenario: Encuentro entre dos zonas del armazón
+- **WHEN** dos zonas del armazón se tocan —barra con panel, panel con contenido, solapa con barra—
+- **THEN** se distinguen por fondo y espacio, sin línea divisoria entre ellas
+
+#### Scenario: Control interactivo en el armazón
+- **WHEN** se presenta un botón o una solapa en el armazón
+- **THEN** su condición de control se comunica por fondo, por estado y por su área, no por un contorno
+
+#### Scenario: Indicador de foco
+- **WHEN** un control recibe el foco por teclado
+- **THEN** exhibe su contorno, que es la única línea que el armazón conserva
+
+### Requirement: La vista cronométrica SHALL prescindir del decorado que no representa datos del repositorio
+
+La vista cronométrica SHALL mostrar únicamente elementos que representen información real —la
+diagonal temporal, los nodos de commit, sus rótulos, las órbitas de rama, las reglas métricas, la
+retícula del nodo activo y las ramas especulativas— y SHALL NOT incorporar decorado ajeno a los
+datos: paneles ilustrativos de fondo ni rótulos técnicos inventados. El decorado se concibió para una
+composición donde los paneles flotaban por encima y lo tapaban en parte; con los paneles convertidos
+en columnas queda expuesto entero, ocupa superficie que el grafo necesita y presenta como
+instrumentación lo que no mide nada.
+
+La distinción es entre representar y ambientar, no entre útil y adornado: la retícula del nodo activo
+y las órbitas de rama son dibujo, y se quedan, porque señalan algo que existe en el repositorio.
+
+#### Scenario: Vista cronométrica
+- **WHEN** se muestra la vista cronométrica
+- **THEN** se ven la diagonal, los nodos, sus rótulos, las órbitas de rama y las ramas especulativas, sin paneles ilustrativos de fondo ni rótulos técnicos que no correspondan a una medición
+
+#### Scenario: Rótulo que no mide nada
+- **WHEN** un rótulo de la vista presenta un valor con apariencia de medición
+- **THEN** ese valor proviene del repositorio o del estado real, y no es un texto fijo de ambientación
+
+### Requirement: Los radios SHALL tomarse de la escala existente y no declararse literales
+
+Toda esquina redondeada SHALL usar una de las variables de radio ya definidas en `app/globals.css`
+—de `--radius-sm` a `--radius-full`— y no MUST escribirse como valor literal. La escala existe desde
+antes de este change y aun así hay paneles declarando `border-radius: 8px` y `6px` a mano: es el
+mismo defecto que los tamaños de fuente, en la geometría, y produce el mismo efecto de que dos
+elementos equivalentes no se vean iguales.
+
+#### Scenario: Radio literal en una hoja de estilos
+- **WHEN** una hoja de estilos declara un `border-radius` que no proviene de la escala
+- **THEN** la verificación automática falla identificando archivo y declaración
+
 ### Requirement: Los controles de mostrar y ocultar paneles SHALL ser visibles y consistentes
 
 Los controles que muestran u ocultan los paneles laterales SHALL estar visibles en el armazón, SHALL

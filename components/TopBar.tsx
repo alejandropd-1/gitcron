@@ -75,12 +75,7 @@ export function TopBar({
 
   return (
     <header
-      className={cn(
-        "grid items-center shrink-0 relative z-50 h-12",
-        graphMode === 'chronometric'
-          ? "rounded-b-2xl border-t border-text-primary/[0.06] bg-transparent grid-cols-[minmax(210px,0.8fr)_auto_minmax(360px,1.2fr)] px-3"
-          : "glass-header grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] px-4"
-      )}
+      className="grid items-center shrink-0 relative z-50 h-12 bg-bg-surface grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] px-4"
     >
       <div className="flex items-center gap-4 h-full min-w-0">
         <button
@@ -90,13 +85,14 @@ export function TopBar({
           aria-pressed={sidebarOpen}
           title={sidebarOpen ? t('toolbar.hideSidebar') : t('toolbar.showSidebar')}
           className={cn(
-            'h-9 w-9 shrink-0 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary',
+            'min-h-[44px] min-w-[44px] h-11 w-11 shrink-0 rounded-lg bg-text-primary/[0.035] text-text-secondary',
             'flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
-            'hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary',
-            sidebarOpen && 'text-secondary border-secondary/25 bg-secondary/10',
+            'hover:bg-text-primary/10 hover:text-secondary',
+            'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
+            sidebarOpen && 'text-secondary bg-secondary/10',
           )}
         >
-          {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+          {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
         </button>
         <nav className="flex h-full gap-1 shrink-0">
           {[
@@ -142,15 +138,15 @@ export function TopBar({
       <div className="flex items-center justify-end gap-1 min-w-0">
         {/* Switch clásico/cronométrico — solo en la tab Graph con cronométrico habilitado */}
         {showGraphModeSwitch && (
-          <div className="bg-bg-overlay/90 border border-border-subtle/20 rounded-md flex items-center p-0.5 mr-1 shrink-0">
+          <div className="bg-bg-overlay/90 rounded-md flex items-center p-0.5 mr-1 shrink-0">
             <button
               type="button"
               onClick={() => onChangeGraphMode('classic')}
               className={cn(
                 "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
                 activeGraphMode === 'classic'
-                  ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
-                  : "text-text-secondary hover:text-text-primary border border-transparent"
+                  ? "bg-secondary/15 text-secondary shadow-[0_0_8px_rgba(163,241,133,0.15)]"
+                  : "text-text-secondary hover:text-text-primary"
               )}
               title={t('toolbar.viewClassicTooltip')}
             >
@@ -162,8 +158,8 @@ export function TopBar({
               className={cn(
                 "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
                 activeGraphMode === 'chronometric'
-                  ? "bg-secondary/15 text-secondary border border-secondary/20 shadow-[0_0_8px_rgba(163,241,133,0.15)]"
-                  : "text-text-secondary hover:text-text-primary border border-transparent"
+                  ? "bg-secondary/15 text-secondary shadow-[0_0_8px_rgba(163,241,133,0.15)]"
+                  : "text-text-secondary hover:text-text-primary"
               )}
               title={t('toolbar.viewChronometricTooltip')}
             >
@@ -203,13 +199,14 @@ export function TopBar({
           aria-pressed={detailsOpen}
           title={detailsOpen ? t('toolbar.hideDetails') : t('toolbar.showDetails')}
           className={cn(
-            'h-9 w-9 shrink-0 rounded-lg border border-text-primary/15 bg-text-primary/[0.035] text-text-secondary',
+            'min-h-[44px] min-w-[44px] h-11 w-11 shrink-0 rounded-lg bg-text-primary/[0.035] text-text-secondary',
             'flex items-center justify-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
-            'hover:border-secondary/35 hover:bg-text-primary/10 hover:text-secondary',
-            detailsOpen && 'text-secondary border-secondary/25 bg-secondary/10',
+            'hover:bg-text-primary/10 hover:text-secondary',
+            'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
+            detailsOpen && 'text-secondary bg-secondary/10',
           )}
         >
-          {detailsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+          {detailsOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
         </button>
       </div>
     </header>

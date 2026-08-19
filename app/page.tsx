@@ -30,8 +30,7 @@ import {
   ForcePushConfirmModal,
 } from '@/components/RepoActionModals';
 import type { SpeculativeBranch } from '@/types/temporal-agent';
-import { usePanelLayout, FLOATING_PANEL_INSET, GRAPH_SAFE_GAP } from '@/hooks/use-panel-layout';
-import { LcarsDecorPanel } from '@/components/PageWidgets';
+import { usePanelLayout } from '@/hooks/use-panel-layout';
 import { RepoSidebar } from '@/components/RepoSidebar';
 import { RepoDetailsPanel } from '@/components/RepoDetailsPanel';
 import { PageToasts, type PullDecisionToast } from '@/components/PageToasts';
@@ -809,8 +808,8 @@ export default function GitCronPage() {
     beginColDrag, beginGraphColDrag, toggleSidebar, toggleDetails, ensureDetailsOpen,
   } = usePanelLayout();
   const repositoryDetailsVisible = detailsOpen && activeView === 'repository' && !!repoPath && !isRepoStartView && !cartographyActive;
-  const leftGraphSafe = sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
-  const rightGraphSafe = repositoryDetailsVisible ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : 0;
+  const leftGraphSafe = 0;
+  const rightGraphSafe = 0;
 
   const [filterText, setFilterText] = useState('');
   const [showSearchPopover, setShowSearchPopover] = useState(false);
@@ -1457,19 +1456,9 @@ export default function GitCronPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-bg-base text-text-primary font-sans overflow-hidden select-none">
-      <div
-        className={cn(
-          "shrink-0",
-          graphMode === 'chronometric' ? "px-3 pt-2 absolute top-0 left-0 right-0 z-[80]" : "relative z-50"
-        )}
-      >
-        <div
-          className={cn(
-            "flex flex-col",
-            graphMode === 'chronometric' && "rounded-2xl border border-text-primary/15 bg-bg-overlay/60 backdrop-blur-md"
-          )}
-        >
+    <div className="flex flex-col h-screen bg-bg-surface text-text-primary font-sans overflow-hidden select-none">
+      <div className="shrink-0 bg-bg-surface relative z-50">
+        <div className="flex flex-col bg-bg-surface">
           <RepoTabs
             repos={openRepos}
             activeIdx={activeRepoIdx}
@@ -1513,13 +1502,8 @@ export default function GitCronPage() {
       </div>
 
       {/* ──────────── MAIN 3-COLUMN LAYOUT ──────────── */}
-      <div
-        className={cn(
-          "flex-1 overflow-hidden relative",
-          graphMode === 'classic' && "flex"
-        )}
-      >
-        {/* LEFT PANEL: Sidebar — floats in chronometric view, inline in classic view */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* LEFT PANEL: Sidebar */}
         <RepoSidebar
           graphMode={graphMode}
           sidebarW={sidebarW}
@@ -1563,36 +1547,9 @@ export default function GitCronPage() {
           onSyncSubmodules={handleSyncSubmodules}
         />
 
-        {/* CENTER CANVAS: Full-bleed graph in Graph tab, beautifully centered glass panel in other tabs / diffs */}
+        {/* CENTER CANVAS: Full-bleed in content area between panels */}
         <main
-          className={cn(
-            "overflow-hidden flex flex-col min-w-0",
-            graphMode === 'chronometric'
-              ? cn(
-                  "absolute",
-                  (!isTabChanging && !isViewChanging && activeView === 'repository' && !isRepoStartView) && "transition-[left,right,top,bottom] duration-300",
-                  isRepoStartView
-                    ? "z-40 bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl"
-                    : !isMainFullBleed && "bg-bg-overlay/60 backdrop-blur-md border border-text-primary/15 rounded-xl"
-                )
-              : "relative flex-1 min-h-0 bg-bg-base"
-          )}
-          style={
-            graphMode === 'chronometric'
-              ? isMainFullBleed
-                ? { top: 0, left: 0, right: 0, bottom: 0 }
-                : {
-                    top: 96 + FLOATING_PANEL_INSET,
-                    bottom: FLOATING_PANEL_INSET,
-                    left: activeTab === 'Pipeline'
-                      ? FLOATING_PANEL_INSET
-                      : sidebarOpen ? sidebarW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
-                    right: activeTab === 'Pipeline'
-                      ? FLOATING_PANEL_INSET
-                      : repositoryDetailsVisible ? detailsW + FLOATING_PANEL_INSET + GRAPH_SAFE_GAP : FLOATING_PANEL_INSET,
-                  }
-              : undefined
-          }
+          className="relative flex-1 min-h-0 bg-bg-base rounded-tl-xl rounded-tr-xl overflow-hidden flex flex-col min-w-0"
         >
           <RepoMainView
             activeView={activeView}
@@ -1784,11 +1741,6 @@ export default function GitCronPage() {
             setShowResetConfirm(true);
           }}
           onRequestCleanUntracked={handleOpenCleanModal}
-        />
-
-        {/* LCAR-29 right-side decorative panel — cronométrico only when Graph tab is active and no diff is open */}
-        <LcarsDecorPanel
-          show={activeView === 'repository' && !isRepoStartView && !cartographyActive && activeGraphMode === 'chronometric' && activeTab === 'Graph' && !selectedFile && !selectedPullRequest && !fileHistoryFile && !blameFile && !interactiveRebaseFrom}
         />
       </div>
 

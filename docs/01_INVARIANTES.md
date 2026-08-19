@@ -37,9 +37,19 @@
 
 ## Estética
 
-11. La estética GitCron se mantiene: denso, oscuro, productivo, glass sobrio; paleta
-    "The Compiled Soul". Nada de landing pages ni textos explicativos dentro de la app.
-    Lo especulativo (IA) jamás puede confundirse visualmente con lo real.
+11. **La estética GitCron es oscura, sobria y con aire.** Paleta "The Compiled Soul" y
+    glass sobrio. La estructura es la de una aplicación de trabajo: la barra lateral y la
+    superior comparten el fondo del armazón, el cuerpo se apoya sobre un fondo propio y se
+    separa de ellas con esquina redondeada, y los paneles laterales se muestran u ocultan
+    desde controles visibles. Mucha información no se resuelve apretándola: se resuelve con
+    espaciado, jerarquía y una escala de tamaños que se respeta. Lo especulativo (IA)
+    jamás puede confundirse visualmente con lo real.
+    - **Revisado el 2026-08-19 por decisión de Ale.** Se retiran dos cláusulas que
+      empujaban a comprimir la interfaz: «denso» —leído como justificación para achicar
+      texto y quitar espacio— y «nada de landing pages ni textos explicativos dentro de la
+      app». Lo que se conserva es la sobriedad: sin decoración, sin héroes, sin prosa que
+      no aporte. La referencia declarada son las aplicaciones de trabajo del estilo de
+      Codex o Unsloth, que muestran tanta información como GitCron y se leen sin esfuerzo.
 12. Geometría de `ChronometricGraph.tsx` / `CommitGraph.tsx`: no tocar sin validación
     visual explícita de Ale.
 

@@ -22,7 +22,7 @@ interface UseCanvasViewportOptions {
   resetKey?: string | number | null;
 }
 
-export function useCanvasViewport({
+export function useCanvasViewport<T extends SVGElement | HTMLElement = SVGGElement>({
   worldWidth,
   worldHeight,
   initialScale = 1.0,
@@ -36,12 +36,25 @@ export function useCanvasViewport({
   resetKey = null,
 }: UseCanvasViewportOptions) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<T | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [viewport, setViewport] = useState<ViewportState>({
     offsetX: 0,
     offsetY: 0,
     scale: initialScale,
   });
+
+  // Escribe la transformación directamente sobre el elemento DOM en el mismo cuadro de la notificación
+  const applyDirectTransform = useCallback((next: ViewportState) => {
+    const el = contentRef.current;
+    if (!el) return;
+    const transformStr = `translate(${next.offsetX}, ${next.offsetY}) scale(${next.scale})`;
+    if (el instanceof SVGElement) {
+      el.setAttribute('transform', transformStr);
+    } else {
+      (el as HTMLElement).style.transform = transformStr;
+    }
+  }, []);
 
   // Track viewport state in a ref to avoid stale closure issues in DOM listeners.
   // Los caminos de alta frecuencia lo adelantan al valor recién calculado, así que
@@ -51,6 +64,23 @@ export function useCanvasViewport({
   useEffect(() => {
     viewportRef.current = viewport;
   }, [viewport]);
+
+  const previousDimensionsRef = useRef<{ width: number; height: number } | null>(null);
+  const currentCenterWorldRef = useRef<{ x: number; y: number } | null>(null);
+
+  const updateCenterWorldPoint = useCallback((vp: ViewportState) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const viewportWidth = container.clientWidth || 800;
+    const viewportHeight = container.clientHeight || 520;
+    const focusHeight = viewportHeight - topSafeOffset;
+    const centerX = viewportWidth / 2;
+    const centerY = topSafeOffset + focusHeight / 2;
+    currentCenterWorldRef.current = {
+      x: (centerX - vp.offsetX) / vp.scale,
+      y: (centerY - vp.offsetY) / vp.scale,
+    };
+  }, [topSafeOffset]);
 
   /**
    * Último encuadre calculado que todavía no se aplicó al estado.
@@ -78,6 +108,7 @@ export function useCanvasViewport({
     // el último valor *aplicado* y el segundo anularía al primero.
     viewportRef.current = next;
     pendingViewportRef.current = next;
+    updateCenterWorldPoint(next);
     if (frameRef.current !== null) return;
     frameRef.current = requestAnimationFrame(() => {
       frameRef.current = null;
@@ -85,7 +116,7 @@ export function useCanvasViewport({
       pendingViewportRef.current = null;
       if (pending) setViewport(pending);
     });
-  }, []);
+  }, [updateCenterWorldPoint]);
 
   /**
    * Aplica un encuadre puntual de inmediato y descarta el cuadro pendiente.
@@ -141,6 +172,9 @@ export function useCanvasViewport({
     const focusHeight = viewportHeight - topSafeOffset;
     const initialOffsetY = topSafeOffset + focusHeight / 2 - focusY * initialScale;
 
+    previousDimensionsRef.current = { width: viewportWidth, height: viewportHeight };
+    currentCenterWorldRef.current = { x: focusX, y: focusY };
+
     applyViewportNow(() =>
       constrainViewport(
         {
@@ -161,8 +195,9 @@ export function useCanvasViewport({
   const previousResetKey = useRef(resetKey);
   const previousWorldSize = useRef({ width: worldWidth, height: worldHeight });
 
-  // By default, keep the historical behavior: dimension changes recenter the canvas.
-  // Chronometric mode can opt out so a newly-added commit does not jump the viewport.
+  // Reacciona a cambios del tamaño del mundo (e.g. llegada de commits nuevos).
+  // Por omisión, recentra el lienzo. El modo cronométrico opta por no hacerlo
+  // (preserveViewportOnWorldResize = true) para que un commit nuevo no salte el encuadre.
   useLayoutEffect(() => {
     const previousSize = previousWorldSize.current;
     previousWorldSize.current = { width: worldWidth, height: worldHeight };
@@ -170,50 +205,31 @@ export function useCanvasViewport({
     if (previousResetKey.current !== resetKey) {
       previousResetKey.current = resetKey;
       hasInitialized.current = false;
+      previousDimensionsRef.current = null;
+      currentCenterWorldRef.current = null;
       return;
     }
 
-    if (!preserveViewportOnWorldResize) {
-      hasInitialized.current = false;
+    if (previousSize.width === worldWidth && previousSize.height === worldHeight) {
       return;
     }
 
-    if (!hasInitialized.current) return;
     const container = containerRef.current;
     if (!container) return;
 
     const viewportWidth = container.clientWidth || 800;
     const viewportHeight = container.clientHeight || 520;
-    applyViewportNow((current) =>
-      constrainViewport(
-        current,
-        worldWidth,
-        worldHeight,
-        viewportWidth,
-        viewportHeight,
-        padding
-      )
-    );
-  }, [worldWidth, worldHeight, preserveViewportOnWorldResize, resetKey, padding, applyViewportNow]);
 
-  // Dynamically center the viewport once container is measured and laid out
-  useEffect(() => {
-    if (hasInitialized.current) return;
-
-    const container = containerRef.current;
-    if (!container) return;
-
-    const viewportWidth = container.clientWidth || 0;
-    const viewportHeight = container.clientHeight || 0;
-
-    if (viewportWidth > 0 && viewportHeight > 0) {
+    if (!preserveViewportOnWorldResize) {
+      hasInitialized.current = false;
       const focusX = initialWorldFocusX ?? worldWidth / 2;
       const focusY = initialWorldFocusY ?? worldHeight / 2;
       const initialOffsetX = viewportWidth / 2 - focusX * initialScale;
-      
-      // Shift Y focus down to center in the visible area below the topSafeOffset
       const focusHeight = viewportHeight - topSafeOffset;
       const initialOffsetY = topSafeOffset + focusHeight / 2 - focusY * initialScale;
+
+      currentCenterWorldRef.current = { x: focusX, y: focusY };
+      previousDimensionsRef.current = { width: viewportWidth, height: viewportHeight };
 
       applyViewportNow(() =>
         constrainViewport(
@@ -229,9 +245,139 @@ export function useCanvasViewport({
           padding
         )
       );
-      hasInitialized.current = true;
+      return;
     }
-  }, [worldWidth, worldHeight, initialScale, padding, initialWorldFocusX, initialWorldFocusY, topSafeOffset, resetKey, applyViewportNow]);
+
+    applyViewportNow((current) =>
+      constrainViewport(
+        current,
+        worldWidth,
+        worldHeight,
+        viewportWidth,
+        viewportHeight,
+        padding
+      )
+    );
+  }, [
+    worldWidth,
+    worldHeight,
+    preserveViewportOnWorldResize,
+    resetKey,
+    initialScale,
+    initialWorldFocusX,
+    initialWorldFocusY,
+    topSafeOffset,
+    padding,
+    applyViewportNow,
+  ]);
+
+  // Observa el tamaño del contenedor del lienzo con ResizeObserver y recalcula el encuadre cuando cambie.
+  // Preserva el punto de coordenadas de mundo que ocupaba el centro del área visible antes del cambio.
+  // No usa escuchas de tamaño de ventana: el ancho cambia también al plegar un panel o arrastrar un separador.
+  useLayoutEffect(() => {
+    if (previousResetKey.current !== resetKey) {
+      previousResetKey.current = resetKey;
+      hasInitialized.current = false;
+      previousDimensionsRef.current = null;
+      currentCenterWorldRef.current = null;
+    }
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleResize = () => {
+      const viewportWidth = container.clientWidth || 0;
+      const viewportHeight = container.clientHeight || 0;
+      if (viewportWidth === 0 || viewportHeight === 0) return;
+
+      const prevDimensions = previousDimensionsRef.current;
+
+      if (!hasInitialized.current || !prevDimensions) {
+        const focusX = initialWorldFocusX ?? worldWidth / 2;
+        const focusY = initialWorldFocusY ?? worldHeight / 2;
+        const initialOffsetX = viewportWidth / 2 - focusX * initialScale;
+        const focusHeight = viewportHeight - topSafeOffset;
+        const initialOffsetY = topSafeOffset + focusHeight / 2 - focusY * initialScale;
+
+        currentCenterWorldRef.current = { x: focusX, y: focusY };
+
+        const initial = constrainViewport(
+          {
+            offsetX: initialOffsetX,
+            offsetY: initialOffsetY,
+            scale: initialScale,
+          },
+          worldWidth,
+          worldHeight,
+          viewportWidth,
+          viewportHeight,
+          padding
+        );
+
+        applyDirectTransform(initial);
+        applyViewportNow(() => initial);
+        hasInitialized.current = true;
+        previousDimensionsRef.current = { width: viewportWidth, height: viewportHeight };
+      } else {
+        if (prevDimensions.width === viewportWidth && prevDimensions.height === viewportHeight) return;
+
+        const worldCenter = currentCenterWorldRef.current ?? {
+          x: initialWorldFocusX ?? worldWidth / 2,
+          y: initialWorldFocusY ?? worldHeight / 2,
+        };
+
+        const newCenterX = viewportWidth / 2;
+        const newFocusHeight = viewportHeight - topSafeOffset;
+        const newCenterY = topSafeOffset + newFocusHeight / 2;
+
+        const newOffsetX = newCenterX - worldCenter.x * viewportRef.current.scale;
+        const newOffsetY = newCenterY - worldCenter.y * viewportRef.current.scale;
+
+        const next = constrainViewport(
+          {
+            offsetX: newOffsetX,
+            offsetY: newOffsetY,
+            scale: viewportRef.current.scale,
+          },
+          worldWidth,
+          worldHeight,
+          viewportWidth,
+          viewportHeight,
+          padding
+        );
+
+        // 1. Escribir la transformación directamente sobre el elemento en el mismo cuadro de la notificación
+        applyDirectTransform(next);
+
+        // 2. Sincronizar el estado a continuación
+        applyViewportNow(() => next);
+
+        previousDimensionsRef.current = { width: viewportWidth, height: viewportHeight };
+      }
+    };
+
+    handleResize();
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(handleResize)
+      : null;
+
+    resizeObserver?.observe(container);
+
+    return () => {
+      resizeObserver?.disconnect();
+    };
+  }, [
+    worldWidth,
+    worldHeight,
+    initialScale,
+    padding,
+    initialWorldFocusX,
+    initialWorldFocusY,
+    topSafeOffset,
+    resetKey,
+    applyViewportNow,
+  ]);
 
 
   // Handles discrete zoom actions (zoom buttons)
@@ -247,6 +393,8 @@ export function useCanvasViewport({
         y: viewportHeight / 2,
       };
 
+      previousDimensionsRef.current = { width: viewportWidth, height: viewportHeight };
+
       applyViewportNow((current) => {
         const next = zoomAtPoint(
           centerPoint,
@@ -255,7 +403,7 @@ export function useCanvasViewport({
           minScale,
           maxScale
         );
-        return constrainViewport(
+        const constrained = constrainViewport(
           next,
           worldWidth,
           worldHeight,
@@ -263,9 +411,11 @@ export function useCanvasViewport({
           viewportHeight,
           padding
         );
+        updateCenterWorldPoint(constrained);
+        return constrained;
       });
     },
-    [worldWidth, worldHeight, minScale, maxScale, padding, applyViewportNow]
+    [worldWidth, worldHeight, minScale, maxScale, padding, applyViewportNow, updateCenterWorldPoint]
   );
 
   const zoomIn = useCallback(() => zoomDiscrete(1.2), [zoomDiscrete]);
@@ -278,6 +428,9 @@ export function useCanvasViewport({
     const viewportWidth = container.clientWidth || 800;
     const viewportHeight = container.clientHeight || 520;
     const focusHeight = viewportHeight - topSafeOffset;
+
+    previousDimensionsRef.current = { width: viewportWidth, height: viewportHeight };
+    currentCenterWorldRef.current = { x: point.x, y: point.y };
 
     applyViewportNow((current) => constrainViewport(
       {
@@ -399,6 +552,7 @@ export function useCanvasViewport({
   return {
     viewport,
     containerRef,
+    contentRef,
     isDragging,
     handleMouseDown,
     resetViewport,

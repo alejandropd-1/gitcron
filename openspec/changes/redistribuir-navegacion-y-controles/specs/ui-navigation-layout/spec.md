@@ -124,9 +124,34 @@ una caída de rendimiento.
 La observación SHALL hacerse sobre el contenedor y no mediante escuchas de tamaño de ventana, porque
 el ancho del lienzo cambia también cuando la ventana no cambia.
 
+El recálculo SHALL preservar el punto del grafo que ocupaba el centro del área visible: restringir
+los desplazamientos a los nuevos límites no alcanza, porque deja el contenido anclado a las
+coordenadas del ancho anterior y el dibujo se corre al plegar un panel. Preservar el centro es
+además lo que evita perder la posición cuando alguien desplazó el encuadre para mirar una parte
+distinta del historial.
+
+El encuadre inicial SHALL centrarse cuando el contenedor tenga su tamaño estable, y no con el ancho
+del primer instante: los paneles laterales se montan después, de modo que centrar antes deja el
+contenido descentrado sin que nada vuelva a corregirlo.
+
+La compensación SHALL aplicarse en el mismo cuadro en que el contenedor cambia, y SHALL NOT esperar
+un ciclo de estado. El fundamento es que el contenedor se mueve por animación del navegador mientras
+la compensación pasa por el estado de la interfaz: ese ciclo de diferencia hace que el contenido
+viaje con el contenedor y vuelva un cuadro después. Se percibe como un rebote, y no se corrige con
+aritmética porque el cálculo ya es correcto: llega tarde. Es visible sólo cuando el contenedor además
+se desplaza —al plegar el panel izquierdo—, no cuando únicamente cambia de ancho.
+
+#### Scenario: Plegado del panel que desplaza el contenedor
+- **WHEN** se pliega o despliega el panel lateral izquierdo, que desplaza el contenedor además de cambiar su ancho
+- **THEN** el contenido se mantiene en su lugar durante toda la animación, sin desviarse y volver
+
 #### Scenario: Se muestra u oculta un panel lateral
 - **WHEN** se muestra u oculta un panel lateral y el ancho del lienzo cambia
-- **THEN** el encuadre se recalcula y el contenido queda completo dentro del área visible
+- **THEN** el punto que ocupaba el centro del área visible sigue ocupándolo, y el contenido no se desplaza
+
+#### Scenario: Apertura de un repositorio
+- **WHEN** se abre un repositorio y el lienzo se dibuja por primera vez
+- **THEN** el encuadre queda centrado sobre el nodo activo una vez que el área de contenido alcanzó su tamaño estable
 
 #### Scenario: Arrastre del separador
 - **WHEN** se arrastra el separador de un panel lateral

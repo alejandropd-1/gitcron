@@ -429,4 +429,112 @@ describe('Panel layout armazón & separación de fondos (modo por omisión: chro
     expect(graphContainer).not.toBeNull();
     expect(graphContainer.className).toContain('bg-bg-base');
   });
+
+  it('RepoMainView en modo clásico no declara border-b en el header de columnas', () => {
+    const tabViews: any = {
+      activeTab: 'Graph',
+      repoPath: '/test/repo',
+      commits: [],
+      selectedCommit: null,
+      filterText: '',
+      modifiedFiles: [],
+      hasGithubUser: false,
+      isLoading: false,
+      pipelineLayout: {
+        leftOpen: true,
+        rightOpen: true,
+        leftWidth: 240,
+        rightWidth: 320,
+        onResizeLeft: vi.fn(),
+        onResizeRight: vi.fn(),
+      },
+      onSelectCommit: vi.fn(),
+      onCommitContextMenu: vi.fn(),
+    };
+
+    const graphView: any = {
+      graphMode: 'classic',
+      activeGraphMode: 'classic',
+      isDragging: false,
+      isStartupGraphReady: true,
+      sidebarOpen: true,
+      sidebarW: 240,
+      repositoryDetailsVisible: true,
+      detailsW: 320,
+      graphColumns: { refs: 260, graph: 88, date: 80, hash: 64 },
+      beginGraphColDrag: vi.fn(),
+      enableCronometric: false,
+      speculativeBranches: [],
+      selectedBranchName: null,
+      selectedBranchFocusRequest: 0,
+      showSpeculative: false,
+      leftGraphSafe: 0,
+      rightGraphSafe: 0,
+      branches: [],
+      isAnyContextMenuOpen: false,
+      onChangeGraphMode: vi.fn(),
+      onToggleSpeculative: vi.fn(),
+      onClearGraphSelection: vi.fn(),
+    };
+
+    const { container } = render(
+      <RepoMainView
+        activeView="repository"
+        isRepoStartView={false}
+        cartographyActive={false}
+        cartographyRepoPath={null}
+        onExitCartography={vi.fn()}
+        settingsPanel={{} as any}
+        helpPanel={{} as any}
+        profilePanel={{} as any}
+        repoStart={{} as any}
+        diffViews={{ selectedFile: null } as any}
+        tabViews={tabViews}
+        graphView={graphView}
+        interactiveRebase={{} as any}
+      />
+    );
+
+    const columnHeaders = container.querySelector('.sticky.top-0');
+    expect(columnHeaders).not.toBeNull();
+    expect(columnHeaders?.className).not.toContain('border-b');
+  });
+
+  it('RepoStartView en RepoMainView no declara bordes de maqueta en su cabecera', () => {
+    const { container } = render(
+      <RepoMainView
+        activeView="repository"
+        isRepoStartView={true}
+        cartographyActive={false}
+        cartographyRepoPath={null}
+        onExitCartography={vi.fn()}
+        settingsPanel={{} as any}
+        helpPanel={{} as any}
+        profilePanel={{} as any}
+        repoStart={{
+          mode: 'open',
+          repoPath: '/test/repo',
+          githubConnected: false,
+          isLoading: false,
+          onClose: vi.fn(),
+          onOpenExisting: vi.fn(),
+          onPickCreateFolder: vi.fn(),
+          onPickCloneFolder: vi.fn(),
+          onCreate: vi.fn(),
+          onClone: vi.fn(),
+          onListRepos: vi.fn(),
+          onConnectGitHub: vi.fn(),
+        }}
+        diffViews={{ selectedFile: null } as any}
+        tabViews={{ activeTab: 'Graph', repoPath: '/test/repo', commits: [] } as any}
+        graphView={{} as any}
+        interactiveRebase={{} as any}
+      />
+    );
+
+    const backButton = screen.getByRole('button', { name: 'common.backToRepo' });
+    expect(backButton.className).not.toContain('border');
+    const headerContainer = backButton.closest('.shrink-0');
+    expect(headerContainer?.className).not.toContain('border-b');
+  });
 });

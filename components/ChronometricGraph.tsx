@@ -1906,6 +1906,7 @@ export function ChronometricGraph({
   const {
     viewport,
     containerRef,
+    contentRef,
     isDragging,
     handleMouseDown,
     resetViewport,
@@ -2260,6 +2261,7 @@ export function ChronometricGraph({
             }
           `}</style>
           <g
+            ref={contentRef}
             transform={`translate(${viewport.offsetX}, ${viewport.offsetY}) scale(${viewport.scale})`}
           >
             {/* Layer 1: Instrumentation Layer */}
@@ -3281,24 +3283,21 @@ export function ChronometricGraph({
           </div>
 
           {/* Inner content box — keeps overflow-hidden to perfectly mask content and transitions */}
-          <div className="w-full rounded-xl border border-text-primary/15 bg-bg-overlay/60 backdrop-blur-md overflow-hidden relative">
+          <div className="w-full rounded-xl bg-bg-overlay/60 overflow-hidden relative">
 
           {/* Toolbar — horizontal controls */}
           <div
-            className={cn(
-              'hud-toolbar px-3 py-1.5 flex items-center justify-between gap-3 bg-transparent border-b transition-colors duration-300',
-              hudExpanded ? 'border-[#5ed8ff]/15' : 'border-transparent',
-            )}
+            className="hud-toolbar px-3 py-1.5 flex items-center justify-between gap-3 bg-transparent transition-colors duration-300"
           >
             <div className="flex items-center gap-2">
               {/* FUTUROS toggle — quick access from within chronometric view */}
               <button
                 onClick={onToggleSpeculative}
                 className={cn(
-                  'h-7 shrink-0 rounded-md border flex items-center gap-1.5 px-2.5 transition-colors cursor-pointer text-[9px] font-bold tracking-wider uppercase font-mono',
+                  'h-7 shrink-0 rounded-md flex items-center gap-1.5 px-2.5 transition-colors cursor-pointer text-[9px] font-bold tracking-wider uppercase font-mono',
                   showSpeculative
-                    ? 'border-[#a3f185]/40 bg-[#d9e7fc]/10 text-[#a3f185]'
-                    : 'border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
+                    ? 'bg-[#d9e7fc]/10 text-[#a3f185]'
+                    : 'bg-[#d9e7fc]/[0.035] text-[#9eacc0] hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
                 )}
                 title={t('centauro.futurosTooltip')}
               >
@@ -3309,10 +3308,10 @@ export function ChronometricGraph({
               <button
                 onClick={toggleCentauroMode}
                 className={cn(
-                  'h-7 shrink-0 rounded-md border flex items-center gap-1.5 px-2.5 transition-colors cursor-pointer text-[9px] font-bold tracking-wider uppercase font-mono',
+                  'h-7 shrink-0 rounded-md flex items-center gap-1.5 px-2.5 transition-colors cursor-pointer text-[9px] font-bold tracking-wider uppercase font-mono',
                   centauroReaderActive
-                    ? 'border-[#a3f185]/40 bg-[#d9e7fc]/10 text-[#a3f185]'
-                    : 'border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
+                    ? 'bg-[#d9e7fc]/10 text-[#a3f185]'
+                    : 'bg-[#d9e7fc]/[0.035] text-[#9eacc0] hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
                 )}
                 title={t('toolbar.centauroTooltip')}
                 aria-pressed={centauroReaderActive}
@@ -3329,17 +3328,17 @@ export function ChronometricGraph({
                 title={hudExpanded ? t('centauro.collapsePanel') : t('centauro.expandPanel')}
                 aria-label={hudExpanded ? t('centauro.collapsePanel') : t('centauro.expandPanel')}
                 aria-expanded={hudExpanded}
-                className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#5ed8ff]/45 hover:bg-[#5ed8ff]/10 hover:text-[#5ed8ff] cursor-pointer"
+                className="h-7 w-7 shrink-0 rounded-md bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:bg-[#5ed8ff]/10 hover:text-[#5ed8ff] cursor-pointer"
               >
                 {hudExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
               </button>
-              <button onClick={zoomIn} title={t('zoom.in')} className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+              <button onClick={zoomIn} title={t('zoom.in')} className="h-7 w-7 shrink-0 rounded-md bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
                 <ZoomIn size={14} />
               </button>
-              <button onClick={zoomOut} title={t('zoom.out')} className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+              <button onClick={zoomOut} title={t('zoom.out')} className="h-7 w-7 shrink-0 rounded-md bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
                 <ZoomOut size={14} />
               </button>
-              <button onClick={resetViewport} title={t('zoom.reset')} className="h-7 w-7 shrink-0 rounded-md border border-[#d9e7fc]/15 bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:border-[#a3f185]/35 hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
+              <button onClick={resetViewport} title={t('zoom.reset')} className="h-7 w-7 shrink-0 rounded-md bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
                 <RotateCcw size={14} />
               </button>
             </div>

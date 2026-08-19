@@ -311,7 +311,7 @@ function RepoStartView({
 
   return (
     <div className="relative z-10 flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-base/40">
-      <div className="border-b border-border-subtle/15 shrink-0">
+      <div className="shrink-0">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
           <div className="flex min-w-0 items-center gap-2">
             <FolderOpen size={18} className="text-secondary shrink-0" />
@@ -324,7 +324,7 @@ function RepoStartView({
           {repoPath && (
             <button
               onClick={onClose}
-              className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 border border-border-subtle/15 hover:border-secondary/20 rounded text-xs font-semibold tracking-wide transition-colors"
+              className="shrink-0 text-text-secondary hover:text-text-primary px-3 py-1 rounded text-xs font-semibold tracking-wide transition-colors"
             >
               {t('common.backToRepo')}
             </button>
@@ -424,7 +424,7 @@ function ClassicGraphView({ tabViews, graphView }: { tabViews: TabViewsProps; gr
       transition={{ duration: 0.3, ease: 'easeInOut' }}
     >
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 h-9 flex items-center text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
+        <div className="sticky top-0 bg-bg-surface/75 z-10 h-9 flex items-center text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
           <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphView.graphColumns.refs }}>Branch / Tag</div>
           <GraphColumnHandle onMouseDown={(event) => graphView.beginGraphColDrag('refs', event)} />
           <div className="shrink-0 text-left px-2" style={{ width: graphView.graphColumns.graph }}>Graph</div>

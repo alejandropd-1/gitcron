@@ -42,6 +42,7 @@ import {
   isSafeDirectoryError, safeDirectoryPathFromError,
 } from '@/lib/page-helpers';
 import { integrationDecisionFromTracking, isFetchFirstPushError } from '@/lib/push-preflight';
+import { useSpeculativeBranchesPreference } from '@/hooks/use-speculative-branches-preference';
 
 // Phase 5 test data — 3 mock speculative branches to validate the overlay
 // without hitting the AI. The real flow swaps these for PredictionResult.branches.
@@ -198,7 +199,7 @@ export default function GitCronPage() {
 
   // Temporal Agent — speculative branch overlay. Source is the real, persisted
   // per-repo prediction (Capa 1); flip USE_MOCK_SPECULATIVE to debug with the mock.
-  const [showSpeculative, setShowSpeculative] = useState(false);
+  const { showSpeculative, setShowSpeculative, toggleSpeculative } = useSpeculativeBranchesPreference(repoPath);
   // Raw unfiltered branches from disk or fresh prediction. Filtered via threshold below.
   const [rawSpeculativeBranches, setRawSpeculativeBranches] = useState<SpeculativeBranch[]>(
     USE_MOCK_SPECULATIVE ? MOCK_SPECULATIVE : [],
@@ -216,7 +217,7 @@ export default function GitCronPage() {
   }, [rawSpeculativeBranches, confidenceThreshold]);
 
   // Load the last persisted prediction when the repo changes (no auto-predict).
-  // FUTUROS stays OFF: loading ≠ showing. Mock mode bypasses disk.
+  // FUTUROS stays OFF by default: loading ≠ showing. Mock mode bypasses disk.
   useEffect(() => {
     if (USE_MOCK_SPECULATIVE) {
       setRawSpeculativeBranches(MOCK_SPECULATIVE);
@@ -246,8 +247,6 @@ export default function GitCronPage() {
         });
         setRawSpeculativeBranches(r.data.branches);
         setSpeculativeAt(r.data.generatedAt);
-        // Auto-enable FUTUROS when a saved prediction exists for this repo.
-        setShowSpeculative(true);
       } else {
         setRawSpeculativeBranches([]);
         setSpeculativeAt(null);
@@ -1588,7 +1587,6 @@ export default function GitCronPage() {
                 });
                 setRawSpeculativeBranches(r.branches);
                 setSpeculativeAt(r.generatedAt);
-                setShowSpeculative(true);
               },
               onTemporalConfigSaved: (cfg) => {
                 setConfidenceThreshold(cfg.skillProfile.confidenceThreshold);
@@ -1710,7 +1708,7 @@ export default function GitCronPage() {
               branches,
               isAnyContextMenuOpen: !!contextMenu || !!branchMenu || !!remoteBranchMenu || !!fileContextMenu,
               onChangeGraphMode: handleChangeGraphMode,
-              onToggleSpeculative: () => setShowSpeculative((v) => !v),
+              onToggleSpeculative: toggleSpeculative,
               onClearGraphSelection: handleClearGraphSelection,
             }}
             interactiveRebase={{

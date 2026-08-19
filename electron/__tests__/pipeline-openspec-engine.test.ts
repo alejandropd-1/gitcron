@@ -780,14 +780,22 @@ describe('discoverOpenSpecCli', () => {
     expect(result.evidenceStatus).toBe('confirmed');
   });
 
-  it('declara too-new para 1.9.0', async () => {
-    const result = await discoverOpenSpecCli({
+  it('declara supported para 1.9.0 y too-new para 1.9.1', async () => {
+    const result190 = await discoverOpenSpecCli({
       resolve: () => runtime,
       realpath: (p) => p,
       probePathState: () => 'exists',
       runVersion: async () => ({ stdout: '1.9.0', stderr: '' }),
     });
-    expect(result.versionClass).toBe('too-new');
+    expect(result190.versionClass).toBe('supported');
+
+    const result191 = await discoverOpenSpecCli({
+      resolve: () => runtime,
+      realpath: (p) => p,
+      probePathState: () => 'exists',
+      runVersion: async () => ({ stdout: '1.9.1', stderr: '' }),
+    });
+    expect(result191.versionClass).toBe('too-new');
   });
 
   it('declara el motor ausente cuando no resuelve ejecutable', async () => {

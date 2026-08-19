@@ -320,7 +320,7 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
 
       expect(snapshot.cli.runtimeVersion).toBe('1.5.0');
       expect(snapshot.repoState).toBe('initialized');
-      expect(snapshot.integrationState).toBe('outdated');
+      expect(snapshot.integrationState).toBe('up-to-date');
       expect(snapshot.divergence?.isDivergent).toBe(true);
       expect(snapshot.divergence?.overallStatus).toBe('divergent');
       expect(typeof snapshot.divergence?.reason).toBe('object');

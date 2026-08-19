@@ -7,6 +7,7 @@ import type {
   OpenSpecPreviewResult,
   OpenSpecUpdatePlan,
 } from '../../types/pipeline';
+import { deriveUpdateMatrixAction } from '../../lib/openspec-update-guide';
 
 /** Tope de lectura de `openspec/config.yaml`: archivo de configuración, no evidencia arbitraria. */
 const MAX_SCHEMA_CONFIG_BYTES = 64 * 1024;
@@ -138,31 +139,7 @@ export function generateDiagnosticPreview(
  */
 export function generateUpdatePlan(options: GeneratePreviewOptions): OpenSpecUpdatePlan {
   const preview = generateDiagnosticPreview(options);
-  const cli = options.engineStatus.cli;
-  const repoState = options.engineStatus.repoState;
-  const integrationState = options.engineStatus.integrationState;
-
-  let requiredAction: OpenSpecUpdatePlan['requiredAction'] = 'blocked';
-
-  if (!cli.installed) {
-    requiredAction = repoState === 'not-initialized' ? 'init' : 'blocked';
-  } else if (cli.versionClass === 'too-new') {
-    requiredAction = 'blocked';
-  } else if (repoState === 'unknown' || integrationState === 'unknown') {
-    requiredAction = 'blocked';
-  } else if (integrationState === 'conflicted' || integrationState === 'custom') {
-    requiredAction = 'blocked';
-  } else if (cli.versionClass === 'too-old') {
-    requiredAction = repoState === 'not-initialized' ? 'upgrade-init' : 'upgrade-update';
-  } else if (repoState === 'not-initialized') {
-    requiredAction = 'init';
-  } else if (integrationState === 'up-to-date') {
-    requiredAction = 'none';
-  } else if (integrationState === 'outdated') {
-    requiredAction = 'update';
-  } else {
-    requiredAction = 'blocked';
-  }
+  const requiredAction = deriveUpdateMatrixAction(options.engineStatus);
 
   return {
     repoPath: options.repoPath,

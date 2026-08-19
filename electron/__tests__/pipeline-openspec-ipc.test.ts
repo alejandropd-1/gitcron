@@ -292,6 +292,108 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
     const execResult = await updateExecuteHandler({}, { repoPath: process.cwd(), plan });
     expect(execResult.success).toBe(false);
     expect(execResult.status).toBe('blocked');
-    expect(execResult.message).toContain('invalidado');
+    expect(execResult.reason).toBe('poc-required');
+  });
+
+  describe('pipeline:openspec:run-update (Salvaguardas de Git y Ejecución Controlada)', () => {
+    it('bloquea incondicionalmente la ejecución si el repositorio está en main o master', async () => {
+      const { map, ipcMain } = createMockIpc();
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(process.cwd());
+
+      const runUpdateMock = vi.fn();
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: ipcMain as any,
+        getUserDataDir: () => 'C:\\userData',
+        getGitInfo: async () => ({ branch: 'main', headCommit: 'abc1234', isClean: true, workingTreeFingerprint: 'clean:0:abc' }),
+        runUpdate: runUpdateMock,
+      });
+
+      const runUpdateHandler = map.get('pipeline:openspec:run-update')!;
+
+      const result = await runUpdateHandler({}, { repoPath: process.cwd() });
+      expect(result.success).toBe(false);
+      expect(result.status).toBe('blocked');
+      expect(result.errors).toContain('branch-protected-main');
+      expect(runUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it('bloquea incondicionalmente la ejecución si la rama es null o HEAD desacoplado (detached HEAD)', async () => {
+      const { map, ipcMain } = createMockIpc();
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(process.cwd());
+
+      const runUpdateMock = vi.fn();
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: ipcMain as any,
+        getUserDataDir: () => 'C:\\userData',
+        getGitInfo: async () => ({ branch: null, headCommit: 'abc1234', isClean: true, workingTreeFingerprint: 'clean:0:abc' }),
+        runUpdate: runUpdateMock,
+      });
+
+      const runUpdateHandler = map.get('pipeline:openspec:run-update')!;
+
+      const result = await runUpdateHandler({}, { repoPath: process.cwd() });
+      expect(result.success).toBe(false);
+      expect(result.status).toBe('blocked');
+      expect(result.errors).toContain('branch-detached');
+      expect(runUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it('bloquea la ejecución si el working tree contiene cambios no confirmados (dirty)', async () => {
+      const { map, ipcMain } = createMockIpc();
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(process.cwd());
+
+      const runUpdateMock = vi.fn();
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: ipcMain as any,
+        getUserDataDir: () => 'C:\\userData',
+        getGitInfo: async () => ({ branch: 'change/mi-tarea', headCommit: 'abc1234', isClean: false, workingTreeFingerprint: 'dirty:1:abc' }),
+        runUpdate: runUpdateMock,
+      });
+
+      const runUpdateHandler = map.get('pipeline:openspec:run-update')!;
+
+      const result = await runUpdateHandler({}, { repoPath: process.cwd() });
+      expect(result.success).toBe(false);
+      expect(result.status).toBe('blocked');
+      expect(result.errors).toContain('working-tree-dirty');
+      expect(runUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it('ejecuta openspec update en rama de trabajo limpia y propaga opciones force', async () => {
+      const { map, ipcMain } = createMockIpc();
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(process.cwd());
+
+      const runUpdateMock = vi.fn().mockResolvedValue({
+        success: true,
+        status: 'completed',
+        filesUpdated: ['.agents/skills/openspec-propose/SKILL.md'],
+        errors: [],
+      });
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: ipcMain as any,
+        getUserDataDir: () => 'C:\\userData',
+        getGitInfo: async () => ({ branch: 'change/actualizar-openspec', headCommit: 'abc1234', isClean: true, workingTreeFingerprint: 'clean:0:abc' }),
+        runUpdate: runUpdateMock,
+      });
+
+      const runUpdateHandler = map.get('pipeline:openspec:run-update')!;
+
+      const result = await runUpdateHandler({}, { repoPath: process.cwd(), force: true });
+      expect(result.success).toBe(true);
+      expect(result.status).toBe('completed');
+      expect(result.filesUpdated).toEqual(['.agents/skills/openspec-propose/SKILL.md']);
+      expect(runUpdateMock).toHaveBeenCalledWith(
+        fs.realpathSync(process.cwd()),
+        expect.objectContaining({ force: true }),
+      );
+    });
   });
 });

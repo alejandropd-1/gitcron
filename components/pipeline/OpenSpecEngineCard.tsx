@@ -1,8 +1,54 @@
 import React, { useState } from 'react';
 import { useT } from '@/hooks/use-translation';
 import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, HelpCircle } from 'lucide-react';
-import type { OpenSpecDivergenceReason, OpenSpecEngineStatus } from '../../types/pipeline';
+import type {
+  OpenSpecDivergenceReason,
+  OpenSpecEngineStatus,
+  OpenSpecVersionClass,
+} from '../../types/pipeline';
 import styles from './OpenSpecDashboard.module.css';
+
+const VERSION_CLASS_KEY_MAP: Record<OpenSpecVersionClass, string> = {
+  supported: 'pipeline.openspec.engine.versionClass.supported',
+  'too-old': 'pipeline.openspec.engine.versionClass.tooOld',
+  'too-new': 'pipeline.openspec.engine.versionClass.tooNew',
+  unknown: 'pipeline.openspec.engine.versionClass.unknown',
+};
+
+const REPO_STATE_KEY_MAP: Record<string, string> = {
+  initialized: 'pipeline.openspec.engine.repoState.initialized',
+  'not-initialized': 'pipeline.openspec.engine.repoState.notInitialized',
+  unknown: 'pipeline.openspec.engine.repoState.unknown',
+};
+
+const INTEGRATION_STATE_KEY_MAP: Record<string, string> = {
+  'up-to-date': 'pipeline.openspec.engine.integrationState.upToDate',
+  outdated: 'pipeline.openspec.engine.integrationState.outdated',
+  conflicted: 'pipeline.openspec.engine.integrationState.conflicted',
+  custom: 'pipeline.openspec.engine.integrationState.custom',
+  unknown: 'pipeline.openspec.engine.integrationState.unknown',
+};
+
+const PROVENANCE_KEY_MAP: Record<string, string> = {
+  global: 'pipeline.openspec.engine.provenance.global',
+  managed: 'pipeline.openspec.engine.provenance.managed',
+  custom: 'pipeline.openspec.engine.provenance.custom',
+  'repo-local': 'pipeline.openspec.engine.provenance.repoLocal',
+  missing: 'pipeline.openspec.engine.provenance.missing',
+};
+
+const GENERAL_STATUS_KEY_MAP: Record<'ready' | 'needs-attention' | 'unknown', string> = {
+  ready: 'pipeline.openspec.engine.generalStatus.ready',
+  'needs-attention': 'pipeline.openspec.engine.generalStatus.needsAttention',
+  unknown: 'pipeline.openspec.engine.generalStatus.unknown',
+};
+
+const PRESENCE_KEY_MAP: Record<string, string> = {
+  present: 'pipeline.openspec.engine.presence.present',
+  absent: 'pipeline.openspec.engine.presence.absent',
+  divergent: 'pipeline.openspec.engine.presence.divergent',
+  blocked: 'pipeline.openspec.engine.presence.blocked',
+};
 
 export interface OpenSpecEngineCardProps {
   status: OpenSpecEngineStatus | null;
@@ -101,7 +147,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
       );
     }
     const versionStr = `v${status.cli.runtimeVersion ?? '?'}`;
-    const stateStr = t(`pipeline.openspec.engine.integrationState.${status.integrationState}`);
+    const stateStr = t(INTEGRATION_STATE_KEY_MAP[status.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown');
     return (
       <div
         className={styles.compactEngineBadge}
@@ -137,29 +183,35 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
           <h3>{t('pipeline.openspec.engine.cardTitle')}</h3>
           <span className={styles.generalStatusBadge} data-status="unknown">
             <HelpCircle size={12} aria-hidden="true" />
-            {t('pipeline.openspec.engine.generalStatus.unknown')}
+            {t(GENERAL_STATUS_KEY_MAP.unknown)}
           </span>
         </header>
-        <p className={styles.engineError}>{t('pipeline.openspec.engine.repoState.unknown')}</p>
+        <p className={styles.engineError}>{t(REPO_STATE_KEY_MAP.unknown)}</p>
       </section>
     );
   }
 
   const cli = status.cli;
-  const provenanceKey = `pipeline.openspec.engine.provenance.${cli.provenance}`;
+  const provenanceKey = PROVENANCE_KEY_MAP[cli.provenance] ?? 'pipeline.openspec.engine.provenance.missing';
   const provenanceLabel = t(provenanceKey);
 
   const latest = status.latestAvailable;
   let latestStatusText = '';
-  if (latest?.latestVersion) {
+  if (status.freshnessState === 'cli-upgrade-available' && latest?.latestVersion) {
+    latestStatusText = t('pipeline.openspec.engine.freshness.cliUpgradeAvailable', {
+      version: latest.latestVersion,
+    });
+  } else if (status.freshnessState === 'cli-up-to-date') {
+    latestStatusText = t('pipeline.openspec.engine.freshness.cliUpToDate');
+  } else if (status.freshnessState === 'offline' || latest?.status === 'offline') {
+    latestStatusText = t('pipeline.openspec.engine.freshness.offline');
+  } else if (latest?.latestVersion) {
     const freshnessKey = latest.freshness === 'stale'
       ? 'pipeline.openspec.engine.cacheStatus.cachedStale'
       : latest.fromCache
       ? 'pipeline.openspec.engine.cacheStatus.cached'
       : 'pipeline.openspec.engine.cacheStatus.online';
     latestStatusText = `${t('pipeline.openspec.engine.latestAvailable', { version: latest.latestVersion })} (${t(freshnessKey, { age: latest.cacheAgeSeconds ?? 0 })})`;
-  } else if (latest?.status === 'offline') {
-    latestStatusText = t('pipeline.openspec.engine.cacheStatus.offline');
   }
 
   // Determinar estado general: ready | needs-attention | unknown
@@ -168,6 +220,8 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     generalStatus = 'unknown';
   } else if (
     !cli.installed ||
+    cli.versionClass === 'too-old' ||
+    cli.versionClass === 'too-new' ||
     status.integrationState === 'outdated' ||
     status.integrationState === 'conflicted' ||
     status.repoState === 'not-initialized' ||
@@ -176,13 +230,15 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     generalStatus = 'needs-attention';
   }
 
-  const generalStatusKey = `pipeline.openspec.engine.generalStatus.${
-    generalStatus === 'needs-attention'
-      ? 'needsAttention'
-      : generalStatus === 'ready'
-      ? 'ready'
-      : 'unknown'
-  }`;
+  const generalStatusKey = GENERAL_STATUS_KEY_MAP[generalStatus];
+
+  const versionClassKey = cli.versionClass ? (VERSION_CLASS_KEY_MAP[cli.versionClass] ?? 'pipeline.openspec.engine.versionClass.unknown') : 'pipeline.openspec.engine.versionClass.unknown';
+  const versionClassText = t(versionClassKey, {
+    min: cli.supportedRange?.min ?? '1.5.0',
+    max: cli.supportedRange?.max ?? '1.9.0',
+  });
+  const versionStr = cli.runtimeVersion ? `v${cli.runtimeVersion}` : '';
+  const engineText = versionStr ? `${versionStr} · ${versionClassText}` : versionClassText;
 
   const installed = status.installedIntegration;
   const configuredCount = installed?.configuredAgentsCount ?? installed?.configuredCount ?? (installed?.tools?.length ?? 0);
@@ -216,7 +272,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
         <div className={styles.summaryFactRow}>
           <span>{t('pipeline.openspec.engine.axis.engine')}:</span>
           <strong>
-            {cli.installed ? `v${cli.runtimeVersion ?? '?'}` : t('pipeline.openspec.engine.status.absent')}
+            {cli.installed ? engineText : t('pipeline.openspec.engine.status.absent')}
           </strong>
           {latestStatusText && <small className={styles.axisMeta}>· {latestStatusText}</small>}
         </div>
@@ -224,14 +280,14 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
         <div className={styles.summaryFactRow}>
           <span>{t('pipeline.openspec.engine.axis.repo')}:</span>
           <strong data-state={status.repoState}>
-            {t(`pipeline.openspec.engine.repoState.${status.repoState}`)}
+            {t(REPO_STATE_KEY_MAP[status.repoState] ?? 'pipeline.openspec.engine.repoState.unknown')}
           </strong>
         </div>
 
         <div className={styles.summaryFactRow}>
           <span>{t('pipeline.openspec.engine.axis.integration')}:</span>
           <strong data-state={status.integrationState}>
-            {t(`pipeline.openspec.engine.integrationState.${status.integrationState}`)}
+            {t(INTEGRATION_STATE_KEY_MAP[status.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown')}
           </strong>
         </div>
 
@@ -300,7 +356,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
             <div className={styles.engineAxisItem} tabIndex={0}>
               <span className={styles.axisLabel}>{t('pipeline.openspec.engine.advanced.repoEvidence')}</span>
               <strong className={styles.axisValue} data-state={status.repoState}>
-                {t(`pipeline.openspec.engine.repoState.${status.repoState}`)}
+                {t(REPO_STATE_KEY_MAP[status.repoState] ?? 'pipeline.openspec.engine.repoState.unknown')}
               </strong>
               {installed?.generatedBy && (
                 <small className={styles.axisMeta}>
@@ -353,7 +409,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                 <ul className={styles.outputList}>
                   {presentOutputs.map((out) => {
                     const presenceKey = out.presenceState
-                      ? `pipeline.openspec.engine.presence.${out.presenceState}`
+                      ? PRESENCE_KEY_MAP[out.presenceState] ?? 'pipeline.openspec.engine.presence.present'
                       : 'pipeline.openspec.engine.presence.present';
                     return (
                       <li key={out.id} className={styles.outputListItem} data-kind={out.kind}>

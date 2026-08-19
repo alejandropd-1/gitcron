@@ -93,3 +93,43 @@
       Va con contención verificada tras canonicalizar (un symlink no puede sacar la
       ejecución fuera del repo) y con la autorización exigida en el borde **y** en la
       resolución, para que un caller futuro no reabra el agujero.
+21. **Una prueba sólo vale si el camino que ejercita es el que corre en
+    producción.** Caso real (2026-08-18, change
+    `actualizar-openspec-desde-la-herramienta`): tres defectos distintos,
+    los tres con cobertura verde, los tres invisibles para la revisión de
+    código.
+    - **El caller es parte de la prueba.** `deriveUpdateMatrixAction`
+      (`lib/openspec-update-guide.ts`) recibía los tres ejes y derivaba la
+      acción correctamente, con su test llamándola de verdad y fallando
+      ante el sabotaje. Pero la decisión que veía el usuario se tomaba en
+      `electron/pipeline/openspec-preview.ts`, con un `if/else` paralelo
+      que nadie tocó. Antes de dar por cubierta una función, buscar sus
+      callers **fuera** de `__tests__`: si no los tiene, lo que se probó
+      es una segunda implementación, no el sistema.
+    - **Un contrato con un proceso externo se verifica ejecutándolo.**
+      `statusOpenSpecChangeWithCli` invocaba
+      `['status', changeId, '--json']` y su test afirmaba ese argv exacto.
+      La firma real del CLI es `openspec status --change <id> --json`,
+      idéntica en 1.5.0 y en 1.9.0; la forma posicional devuelve
+      `too many arguments` y exit 1. La función estaba cableada en
+      producción (`electron/pipeline/repo-evidence-reader.ts`) y **nunca
+      devolvió un dato real**. Un test que fija el argv fija la creencia
+      del que lo escribió, no el contrato del programa del otro lado: el
+      contrato se comprueba corriendo el binario una vez y pegando su
+      salida.
+    - **Probar el caso que funciona no es cobertura.** La tarjeta del
+      motor armaba la clave i18n por interpolación
+      (`versionClass.${cli.versionClass}`), generando `too-old` cuando la
+      clave definida era `tooOld`. Como `translate()` devuelve la clave
+      ante ausencia, la pantalla mostraba `pipeline.openspec.engine.…`
+      crudo. El test cubría únicamente `supported` —el único de los cuatro
+      valores que funcionaba—. Cuando un valor viene de una unión de
+      tipos, el test recorre **todos** sus miembros, no el representativo.
+    - **Las claves i18n no se arman por interpolación.** Un `t()` con
+      template no falla en compilación ni en runtime: degrada a texto
+      crudo en pantalla. Mapa explícito de valor a clave, siempre.
+    - **El sabotaje mide lo que toca, no lo que uno cree que toca.**
+      Desactivar la protección y ver el test en rojo demuestra que el test
+      depende de ese código; no demuestra que ese código gobierne la
+      aplicación. Cuando la corrección es una delegación, el sabotaje
+      tiene que hacer fallar un test **del otro lado** de la delegación.

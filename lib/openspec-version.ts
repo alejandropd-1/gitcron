@@ -16,7 +16,7 @@ export interface OpenSpecVersionRange {
 /** Rango soportado por esta versión de GitCron, inclusivo en ambos extremos. */
 export const SUPPORTED_OPENSPEC_VERSIONS: Readonly<OpenSpecVersionRange> = {
   min: '1.5.0',
-  max: '1.8.0',
+  max: '1.9.0',
 };
 
 export type OpenSpecVersionClass = 'supported' | 'too-old' | 'too-new' | 'unknown';

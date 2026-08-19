@@ -2,8 +2,11 @@ import type {
   OpenSpecArtifactState,
   OpenSpecArtifactStatus,
   OpenSpecChangeStatus,
+  OpenSpecRunUpdateResult,
   OpenSpecValidationStatus,
 } from '../../types/pipeline';
+import { simpleGit } from 'simple-git';
+import { withRepoLock } from '../git/repo-queue';
 import {
   isValidOpenSpecChangeSlug as isValidChangeId,
   OPENSPEC_CHANGE_SLUG_PATTERN as CHANGE_ID_PATTERN,
@@ -215,7 +218,7 @@ export async function statusOpenSpecChangeWithCli(
   if (!runtime) return unavailable;
 
   try {
-    const { stdout } = await runAuthorizedOpenSpec(runtime, ['status', changeId, '--json'], {
+    const { stdout } = await runAuthorizedOpenSpec(runtime, ['status', '--change', changeId, '--json'], {
       cwd: repoPath,
       timeout: 15_000,
       maxBuffer: 2 * 1024 * 1024,
@@ -251,10 +254,10 @@ export async function statusOpenSpecChangeWithCli(
     // 2. Si no viene en status JSON, se utiliza fileMeta.skipSpecs desde .openspec.yaml (boolean o null).
     // 3. Si ambos están ausentes o son inválidos, resulta en null.
     let skipSpecs: boolean | null = null;
-    if (typeof parsed.skip_specs === 'boolean') {
-      skipSpecs = parsed.skip_specs;
-    } else if (typeof parsed.skipSpecs === 'boolean') {
-      skipSpecs = parsed.skipSpecs;
+    if (typeof (parsed as any).skip_specs === 'boolean') {
+      skipSpecs = (parsed as any).skip_specs;
+    } else if (typeof (parsed as any).skipSpecs === 'boolean') {
+      skipSpecs = (parsed as any).skipSpecs;
     } else {
       skipSpecs = fileMeta.skipSpecs;
     }
@@ -270,5 +273,116 @@ export async function statusOpenSpecChangeWithCli(
     };
   } catch {
     return unavailable;
+  }
+}
+
+/**
+ * Determina si una ruta de archivo corresponde a las generadas o gestionadas por OpenSpec (Hallazgo 6).
+ */
+export function isOpenSpecManagedPath(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, '/');
+  const targetPrefixes = [
+    'openspec/',
+    '.agents/',
+    '.claude/',
+    '.codex/',
+    '.opencode/',
+    '.cursor/',
+    '.github/',
+    '.gitlab/',
+    '.gemini/',
+    '.factory/',
+    '.windsurf/',
+    '.cline/',
+    '.devin/',
+    '.continue/',
+    '.amazonq/',
+    '.copilot/',
+    '.roocline/',
+  ];
+  if (targetPrefixes.some((prefix) => normalized.startsWith(prefix) || normalized.includes(`/${prefix}`))) {
+    return true;
+  }
+  const rootFiles = ['.openspec.yaml', 'openspec.yaml', '.cursorrules', 'AGENTS.md'];
+  const base = normalized.split('/').pop() ?? '';
+  return rootFiles.includes(base);
+}
+
+export interface RunOpenSpecUpdateOptions {
+  runtime?: AuthorizedOpenSpecRuntime | null;
+  force?: boolean;
+}
+
+/**
+ * Ejecuta openspec update en el repositorio autorizado con variables de entorno controladas.
+ */
+export async function runOpenSpecUpdate(
+  repoPath: string,
+  options?: RunOpenSpecUpdateOptions,
+): Promise<OpenSpecRunUpdateResult> {
+  const runtime = resolveRuntime(options, repoPath);
+  if (!runtime) {
+    return {
+      success: false,
+      status: 'error',
+      filesUpdated: [],
+      errors: ['openspec-cli-not-found'],
+    };
+  }
+
+  const args = options?.force ? ['update', '--force'] : ['update'];
+
+  try {
+    const { stderr } = await runAuthorizedOpenSpec(runtime, args, {
+      cwd: repoPath,
+      timeout: 120_000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+
+    let filesUpdated: string[] = [];
+    try {
+      await withRepoLock(repoPath, async () => {
+        const git = simpleGit(repoPath);
+        const status = await git.status();
+        filesUpdated = status.files
+          .map((f) => f.path)
+          .filter(isOpenSpecManagedPath);
+      });
+    } catch {
+      // ignore
+    }
+
+    return {
+      success: true,
+      status: 'completed',
+      filesUpdated,
+      errors: stderr ? [stderr.trim()].filter(Boolean) : [],
+    };
+  } catch (error) {
+    const detail = error as { stderr?: unknown; stdout?: unknown; message?: unknown };
+    const reason = [detail.stderr, detail.stdout, detail.message]
+      .map((part) => (typeof part === 'string' ? part.trim() : ''))
+      .find((part) => part.length > 0) ?? 'update-failed';
+
+    let filesUpdated: string[] = [];
+    try {
+      await withRepoLock(repoPath, async () => {
+        const git = simpleGit(repoPath);
+        const status = await git.status();
+        filesUpdated = status.files
+          .map((f) => f.path)
+          .filter(isOpenSpecManagedPath);
+      });
+    } catch {
+      // ignore
+    }
+
+    const isIncomplete = filesUpdated.length > 0;
+    return {
+      success: false,
+      status: isIncomplete ? 'update-incomplete' : 'error',
+      filesUpdated,
+      errors: [reason.slice(0, 4000)],
+    };
   }
 }

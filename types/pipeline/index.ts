@@ -524,6 +524,8 @@ export interface OpenSpecDivergenceInfo {
   targetConvergences?: Record<string, OpenSpecTargetConvergence>;
 }
 
+export type OpenSpecFreshnessState = 'cli-up-to-date' | 'cli-upgrade-available' | 'offline' | 'unknown';
+
 export interface OpenSpecEngineStatus {
   cli: OpenSpecCliDiscovery;
   latestAvailable: OpenSpecRegistryCheck | null;
@@ -531,6 +533,7 @@ export interface OpenSpecEngineStatus {
   installedIntegration: OpenSpecInstalledEvidence | null;
   repoState: 'initialized' | 'not-initialized' | 'unknown';
   integrationState: 'up-to-date' | 'outdated' | 'custom' | 'conflicted' | 'unknown';
+  freshnessState?: OpenSpecFreshnessState;
   divergence?: OpenSpecDivergenceInfo | null;
 }
 
@@ -576,6 +579,16 @@ export interface OpenSpecExecuteResult {
   status: 'blocked';
   reason: 'poc-required';
   message: string;
+}
+
+export type OpenSpecUpdateExecutionStatus = 'completed' | 'update-incomplete' | 'blocked' | 'error';
+
+export interface OpenSpecRunUpdateResult {
+  success: boolean;
+  status: OpenSpecUpdateExecutionStatus;
+  filesUpdated: string[];
+  errors: string[];
+  message?: string;
 }
 
 export * from './runtime';

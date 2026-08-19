@@ -34,15 +34,16 @@ describe('compareSemver', () => {
   });
 });
 
-describe('classifyOpenSpecVersion (rango 1.5.0–1.8.0)', () => {
+describe('classifyOpenSpecVersion (rango 1.5.0–1.9.0)', () => {
   it('declara el rango soportado del proyecto', () => {
-    expect(SUPPORTED_OPENSPEC_VERSIONS).toEqual({ min: '1.5.0', max: '1.8.0' });
+    expect(SUPPORTED_OPENSPEC_VERSIONS).toEqual({ min: '1.5.0', max: '1.9.0' });
   });
 
   it('clasifica supported dentro del rango', () => {
     expect(classifyOpenSpecVersion('1.5.0')).toBe('supported');
     expect(classifyOpenSpecVersion('1.7.0')).toBe('supported');
     expect(classifyOpenSpecVersion('1.8.0')).toBe('supported');
+    expect(classifyOpenSpecVersion('1.9.0')).toBe('supported');
   });
 
   it('clasifica too-old por debajo del mínimo', () => {
@@ -51,7 +52,7 @@ describe('classifyOpenSpecVersion (rango 1.5.0–1.8.0)', () => {
   });
 
   it('clasifica too-new por encima del máximo', () => {
-    expect(classifyOpenSpecVersion('1.9.0')).toBe('too-new');
+    expect(classifyOpenSpecVersion('1.9.1')).toBe('too-new');
     expect(classifyOpenSpecVersion('2.0.0')).toBe('too-new');
   });
 

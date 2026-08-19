@@ -404,6 +404,8 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('pipeline:openspec:update-plan', { repoPath }),
     executeUpdate: (repoPath: string) =>
       ipcRenderer.invoke('pipeline:openspec:update-execute', { repoPath }),
+    runUpdate: (repoPath: string, plan?: unknown, force?: boolean) =>
+      ipcRenderer.invoke('pipeline:openspec:run-update', { repoPath, plan, force }),
     getPreview: (repoPath: string) =>
       ipcRenderer.invoke('pipeline:openspec:preview', { repoPath }),
   },

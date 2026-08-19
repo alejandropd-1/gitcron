@@ -14,6 +14,8 @@ const {
   archiveOpenSpecChangeWithCli,
   validateOpenSpecChangeWithCli,
   statusOpenSpecChangeWithCli,
+  runOpenSpecUpdate,
+  isOpenSpecManagedPath,
 } = await import('../pipeline/openspec-cli');
 
 const runtimeWithSpaces: AuthorizedOpenSpecRuntime = {
@@ -112,7 +114,7 @@ describe('OpenSpec Runner y Wrappers: evidencia de runtime exacto con espacios y
   it('statusOpenSpecChangeWithCli usa runtime.executablePath y argumentos exactos', async () => {
     execFileMock.mockImplementation((cmd, args, _opts, callback: (e: unknown, r: { stdout: string; stderr: string }) => void) => {
       expect(cmd).toBe(expectedExecCmd);
-      expect(args).toEqual(['status', 'mi-cambio', '--json']);
+      expect(args).toEqual(['status', '--change', 'mi-cambio', '--json']);
       callback(null, { stdout: JSON.stringify({ artifacts: [] }), stderr: '' });
     });
 
@@ -143,6 +145,44 @@ describe('OpenSpec Runner y Wrappers: evidencia de runtime exacto con espacios y
     expect(cfgRes.origin).toBe('unknown');
     expect(cfgRes.profileState).toBe('unread');
 
+    const updateRes = await runOpenSpecUpdate('C:/repo', options);
+    expect(updateRes.success).toBe(false);
+    expect(updateRes.status).toBe('error');
+    expect(updateRes.errors).toContain('openspec-cli-not-found');
+
     expect(execFileMock).not.toHaveBeenCalled();
+  });
+
+  it('runOpenSpecUpdate usa runtime.executablePath y argumentos exactos [update] y [--force]', async () => {
+    execFileMock.mockImplementation((cmd, args, _opts, callback: (e: unknown, r: { stdout: string; stderr: string }) => void) => {
+      expect(cmd).toBe(expectedExecCmd);
+      if (args.includes('--force')) {
+        expect(args).toEqual(['update', '--force']);
+      } else {
+        expect(args).toEqual(['update']);
+      }
+      callback(null, { stdout: 'Updated integration.\n', stderr: '' });
+    });
+
+    const normalRes = await runOpenSpecUpdate('C:/repo', { runtime: runtimeWithSpaces });
+    expect(normalRes.success).toBe(true);
+    expect(normalRes.status).toBe('completed');
+
+    const forceRes = await runOpenSpecUpdate('C:/repo', { runtime: runtimeWithSpaces, force: true });
+    expect(forceRes.success).toBe(true);
+    expect(forceRes.status).toBe('completed');
+
+    expect(execFileMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('isOpenSpecManagedPath discrimina rutas gestionadas por OpenSpec frente a archivos ajenos (Hallazgo 6)', () => {
+    expect(isOpenSpecManagedPath('openspec/config.yaml')).toBe(true);
+    expect(isOpenSpecManagedPath('.agents/skills/openspec-propose/SKILL.md')).toBe(true);
+    expect(isOpenSpecManagedPath('.claude/skills/apply.md')).toBe(true);
+    expect(isOpenSpecManagedPath('AGENTS.md')).toBe(true);
+    expect(isOpenSpecManagedPath('.cursorrules')).toBe(true);
+    expect(isOpenSpecManagedPath('src/foo.ts')).toBe(false);
+    expect(isOpenSpecManagedPath('components/pipeline/OpenSpecDashboard.tsx')).toBe(false);
+    expect(isOpenSpecManagedPath('package.json')).toBe(false);
   });
 });

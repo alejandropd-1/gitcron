@@ -4,18 +4,22 @@ import React, { useState } from 'react';
 import {
   AlertTriangle,
   Check,
+  CheckCircle2,
   Copy,
   Info,
+  Loader2,
   ShieldCheck,
 } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import type {
   OpenSpecEngineStatus,
+  OpenSpecRunUpdateResult,
   OpenSpecUpdatePlan,
 } from '@/types/pipeline';
 import {
   classifyCoexistenceSkills,
   deriveOfficialCommand,
+  deriveUpdateMatrixAction,
 } from '@/lib/openspec-update-guide';
 import styles from './OpenSpecDashboard.module.css';
 
@@ -23,34 +27,36 @@ export interface OpenSpecUpdateReviewProps {
   repoPath: string;
   status: OpenSpecEngineStatus | null;
   updatePlan?: OpenSpecUpdatePlan | null;
+  currentBranch?: string | null;
+  isClean?: boolean;
   onBack: () => void;
+  onPrepareCommit?: () => void;
+  onUpdateCompleted?: (result: OpenSpecRunUpdateResult) => void;
 }
 
 export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   repoPath,
   status,
   updatePlan,
+  currentBranch,
+  isClean = true,
   onBack,
+  onPrepareCommit,
+  onUpdateCompleted,
 }) => {
   const t = useT();
-  const [copied, setCopied] = useState(false);
+  const [copiedCommand, setCopiedCommand] = useState(false);
+  const [copiedHostCmd, setCopiedHostCmd] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [executionResult, setExecutionResult] = useState<OpenSpecRunUpdateResult | null>(null);
+  const [forceConfirmed, setForceConfirmed] = useState(false);
 
   const cli = status?.cli;
   const latest = status?.latestAvailable;
   const installed = status?.installedIntegration;
 
-  // Derivar operación oficial y comando literal (6.2)
-  const action = updatePlan?.requiredAction ?? (
-    !cli?.installed
-      ? (status?.repoState === 'not-initialized' ? 'init' : 'blocked')
-      : status?.repoState === 'not-initialized'
-      ? 'init'
-      : status?.integrationState === 'outdated'
-      ? 'update'
-      : status?.integrationState === 'up-to-date'
-      ? 'none'
-      : 'blocked'
-  );
+  // Derivar operación oficial y comando literal
+  const action = updatePlan?.requiredAction ?? deriveUpdateMatrixAction(status);
 
   const officialCommand = deriveOfficialCommand(action, status);
 
@@ -61,17 +67,60 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     : action;
   const actionLabel = t(`pipeline.openspec.engine.matrix.${actionKey}`);
 
-  // Diagnóstico de convivencia de skills .codex ↔ .agents (6.4)
+  // Diagnóstico de convivencia de skills .codex ↔ .agents
   const coexistence = classifyCoexistenceSkills(installed);
+  const hasLegacyResidue = coexistence.legacySkills.length > 0;
+
+  // Salvaguardas de Git
+  const isMainOrMaster = currentBranch === 'main' || currentBranch === 'master';
+  const isDirty = isClean === false;
+  const canExecute = !isMainOrMaster && !isDirty && !isExecuting && action !== 'blocked' && !executionResult?.success;
 
   const handleCopyCommand = async () => {
     if (!officialCommand) return;
     try {
       await navigator.clipboard.writeText(officialCommand);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedCommand(true);
+      setTimeout(() => setCopiedCommand(false), 2000);
     } catch {
       // Ignorar fallo de clipboard
+    }
+  };
+
+  const handleCopyHostCommand = async () => {
+    try {
+      await navigator.clipboard.writeText('npm i -g @fission-ai/openspec@latest');
+      setCopiedHostCmd(true);
+      setTimeout(() => setCopiedHostCmd(false), 2000);
+    } catch {
+      // Ignorar fallo de clipboard
+    }
+  };
+
+  const handleExecuteUpdate = async () => {
+    if (!canExecute) return;
+    setIsExecuting(true);
+    try {
+      const result = await window.api?.pipelineOpenSpec?.runUpdate?.(
+        repoPath,
+        updatePlan ?? undefined,
+        forceConfirmed,
+      );
+      if (result) {
+        setExecutionResult(result);
+        if (result.success) {
+          onUpdateCompleted?.(result);
+        }
+      }
+    } catch (err) {
+      setExecutionResult({
+        success: false,
+        status: 'error',
+        filesUpdated: [],
+        errors: [(err as Error).message],
+      });
+    } finally {
+      setIsExecuting(false);
     }
   };
 
@@ -90,7 +139,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
       </header>
 
       <div className={styles.reviewBody}>
-        {/* AVISO DE SÓLO LECTURA Y SEGURIDAD (6.1) */}
+        {/* AVISO DE SÓLO LECTURA Y SEGURIDAD */}
         <div className={styles.reviewSafetyBanner}>
           <Info size={16} aria-hidden="true" />
           <div className={styles.reviewSafetyText}>
@@ -99,7 +148,64 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           </div>
         </div>
 
-        {/* DATOS DEL MOTOR Y PROCEDENCIA (6.1) */}
+        {/* REPORTE DE RESULTADO DE EJECUCIÓN (Si ya se ejecutó) */}
+        {executionResult && (
+          <div
+            className={styles.reviewSafetyBanner}
+            style={{
+              borderColor: executionResult.success ? 'rgba(74, 222, 128, 0.4)' : 'rgba(248, 113, 113, 0.4)',
+              background: executionResult.success ? 'rgba(74, 222, 128, 0.08)' : 'rgba(248, 113, 113, 0.08)',
+            }}
+          >
+            {executionResult.success ? (
+              <CheckCircle2 size={18} color="#4ade80" aria-hidden="true" />
+            ) : (
+              <AlertTriangle size={18} color="#f87171" aria-hidden="true" />
+            )}
+            <div className={styles.reviewSafetyText}>
+              <strong>
+                {executionResult.success
+                  ? t('pipeline.openspec.engine.review.completedTitle')
+                  : executionResult.status === 'update-incomplete'
+                  ? t('pipeline.openspec.engine.review.incompleteTitle')
+                  : t('pipeline.openspec.engine.review.errorTitle')}
+              </strong>
+              <p>
+                {executionResult.success
+                  ? t('pipeline.openspec.engine.review.filesUpdatedSummary', {
+                      count: executionResult.filesUpdated.length,
+                    })
+                  : executionResult.status === 'update-incomplete'
+                  ? t('pipeline.openspec.engine.review.incompleteHelp')
+                  : (() => {
+                      const errorKeyMap: Record<string, string> = {
+                        'branch-protected-main': 'pipeline.openspec.engine.review.blockedBranchMain',
+                        'branch-detached': 'pipeline.openspec.engine.review.errorBranchDetached',
+                        'working-tree-dirty': 'pipeline.openspec.engine.review.blockedDirty',
+                        'openspec-cli-not-found': 'pipeline.openspec.engine.review.errorCliNotFound',
+                      };
+                      const firstError = executionResult.errors[0];
+                      if (firstError && errorKeyMap[firstError]) {
+                        return t(errorKeyMap[firstError], { branch: currentBranch ?? '' });
+                      }
+                      if (firstError) {
+                        return `${t('pipeline.openspec.engine.review.errorGeneric')}: ${firstError}`;
+                      }
+                      return t('pipeline.openspec.engine.review.errorGeneric');
+                    })()}
+              </p>
+              {executionResult.filesUpdated.length > 0 && (
+                <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.2rem', fontSize: '0.64rem', color: '#93c5fd' }}>
+                  {executionResult.filesUpdated.map((f) => (
+                    <li key={f}><code>{f}</code></li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* DATOS DEL MOTOR Y PROCEDENCIA */}
         <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.cardTitle')}>
           <div className={styles.reviewFactsGrid}>
             <div className={styles.reviewFactItem}>
@@ -147,7 +253,29 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           )}
         </section>
 
-        {/* MATRIZ DECLARADA Y COMANDO OFICIAL SUGERIDO (6.2) */}
+        {/* GUÍA DE ACTUALIZACIÓN DEL MOTOR HOST (DECISIÓN 2: Sólo Guía / Copiado) */}
+        {latest?.latestVersion && cli?.runtimeVersion && latest.latestVersion !== cli.runtimeVersion && (
+          <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.hostUpgrade.title')}>
+            <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.hostUpgrade.title')}</h3>
+            <p style={{ margin: '0 0 0.4rem', color: 'var(--os-muted)', fontSize: '0.66rem' }}>
+              {t('pipeline.openspec.engine.hostUpgrade.help')}
+            </p>
+            <div className={styles.reviewCommandPre}>
+              <code>npm i -g @fission-ai/openspec@latest</code>
+              <button
+                type="button"
+                className={styles.reviewCopyBtn}
+                onClick={handleCopyHostCommand}
+                aria-label={copiedHostCmd ? t('pipeline.openspec.engine.hostUpgrade.copied') : t('pipeline.openspec.engine.hostUpgrade.copy')}
+              >
+                {copiedHostCmd ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
+                <span>{copiedHostCmd ? t('pipeline.openspec.engine.hostUpgrade.copied') : t('pipeline.openspec.engine.hostUpgrade.copy')}</span>
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* MATRIZ DECLARADA Y COMANDO OFICIAL SUGERIDO */}
         <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.matrix.title')}>
           <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.matrix.title')}</h3>
           <div className={styles.reviewFactItem}>
@@ -176,17 +304,17 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                   type="button"
                   className={styles.reviewCopyBtn}
                   onClick={handleCopyCommand}
-                  aria-label={copied ? t('pipeline.openspec.engine.matrix.commandCopied') : t('pipeline.openspec.engine.matrix.copyCommand')}
+                  aria-label={copiedCommand ? t('pipeline.openspec.engine.matrix.commandCopied') : t('pipeline.openspec.engine.matrix.copyCommand')}
                 >
-                  {copied ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
-                  <span>{copied ? t('pipeline.openspec.engine.matrix.commandCopied') : t('pipeline.openspec.engine.matrix.copyCommand')}</span>
+                  {copiedCommand ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
+                  <span>{copiedCommand ? t('pipeline.openspec.engine.matrix.commandCopied') : t('pipeline.openspec.engine.matrix.copyCommand')}</span>
                 </button>
               </div>
             </div>
           )}
         </section>
 
-        {/* GUÍA NO INTERACTIVA PARA INIT (6.3) */}
+        {/* GUÍA NO INTERACTIVA PARA INIT */}
         {(action === 'init' || action === 'upgrade-init' || !status?.repoState || status.repoState === 'not-initialized') && (
           <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.guide.title')}>
             <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.guide.title')}</h3>
@@ -212,7 +340,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           </section>
         )}
 
-        {/* DIAGNÓSTICO DE CONVIVENCIA .codex ↔ .agents (6.4) */}
+        {/* DIAGNÓSTICO DE CONVIVENCIA .codex ↔ .agents */}
         <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.coexistence.title')}>
           <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.coexistence.title')}</h3>
 
@@ -314,7 +442,39 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           </div>
         </section>
 
-        {/* INVENTARIO DIAGNÓSTICO DE OUTPUTS (6.1) */}
+        {/* OFRECIMIENTO CONDICIONAL DE --force (DECISIÓN 3: Sólo si hay residuo legacy concreto) */}
+        {hasLegacyResidue && (
+          <section
+            className={styles.reviewSection}
+            aria-label={t('pipeline.openspec.engine.review.forceOptionTitle')}
+            style={{ borderColor: 'rgba(253, 157, 26, 0.4)', background: 'rgba(253, 157, 26, 0.05)' }}
+          >
+            <h3 className={styles.reviewSectionTitle} style={{ color: 'var(--os-orange, #fd9d1a)' }}>
+              {t('pipeline.openspec.engine.review.forceOptionTitle')}
+            </h3>
+            <p style={{ margin: '0 0 0.4rem', color: 'var(--os-muted)', fontSize: '0.66rem' }}>
+              {t('pipeline.openspec.engine.review.forceWarning')}
+            </p>
+            <div style={{ margin: '0.2rem 0', fontSize: '0.66rem', color: 'var(--os-text)' }}>
+              <span>{t('pipeline.openspec.engine.review.forceFilesToClean')}</span>
+            </div>
+            <ul style={{ margin: '0 0 0.5rem', paddingLeft: '1.2rem', fontSize: '0.64rem', color: '#fdba74' }}>
+              {coexistence.legacySkills.map((s) => (
+                <li key={s.path}><code>{s.path}</code></li>
+              ))}
+            </ul>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.68rem', color: 'var(--os-text)' }}>
+              <input
+                type="checkbox"
+                checked={forceConfirmed}
+                onChange={(e) => setForceConfirmed(e.target.checked)}
+              />
+              <span>{t('pipeline.openspec.engine.review.forceConfirmLabel')}</span>
+            </label>
+          </section>
+        )}
+
+        {/* INVENTARIO DIAGNÓSTICO DE OUTPUTS */}
         {presentOutputs.length > 0 && (
           <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.outputsTitle')}>
             <h3 className={styles.reviewSectionTitle}>
@@ -350,15 +510,75 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           </section>
         )}
 
-        {/* FOOTER ACCIÓN DE SALIDA */}
-        <div className={styles.reviewFooterRow}>
-          <button
-            type="button"
-            className={styles.reviewPrimaryActionBtn}
-            onClick={onBack}
-          >
-            {t('pipeline.openspec.engine.review.close')}
-          </button>
+        {/* SALVAGUARDAS DE GIT Y ACCIONES EN EL PIE */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.6rem' }}>
+          {isMainOrMaster && (
+            <div className={styles.reviewWarningAlert}>
+              <AlertTriangle size={14} color="#fca5a5" aria-hidden="true" style={{ flex: '0 0 auto', marginTop: 1 }} />
+              <span style={{ color: '#fca5a5' }}>
+                {t('pipeline.openspec.engine.review.blockedBranchMain', { branch: currentBranch ?? 'main' })}
+              </span>
+            </div>
+          )}
+
+          {isDirty && (
+            <div className={styles.reviewWarningAlert}>
+              <AlertTriangle size={14} color="#fca5a5" aria-hidden="true" style={{ flex: '0 0 auto', marginTop: 1 }} />
+              <span style={{ color: '#fca5a5' }}>
+                {t('pipeline.openspec.engine.review.blockedDirty')}
+              </span>
+            </div>
+          )}
+
+          <div className={styles.reviewFooterRow}>
+            {/* Si ya concluyó con éxito, ofrecemos preparar commit */}
+            {executionResult?.success && onPrepareCommit && (
+              <button
+                type="button"
+                className={styles.centerAttentionBtn}
+                onClick={onPrepareCommit}
+                style={{ marginRight: 'auto' }}
+              >
+                {t('pipeline.openspec.engine.review.prepareCommit')}
+              </button>
+            )}
+
+            {/* Botón principal de ejecución de actualización (Paso 2) */}
+            {!executionResult?.success && (
+              <button
+                type="button"
+                className={styles.centerAttentionBtn}
+                onClick={handleExecuteUpdate}
+                disabled={!canExecute}
+                title={
+                  isMainOrMaster
+                    ? t('pipeline.openspec.engine.review.blockedBranchMain', { branch: currentBranch ?? 'main' })
+                    : isDirty
+                    ? t('pipeline.openspec.engine.review.blockedDirty')
+                    : undefined
+                }
+              >
+                {isExecuting ? (
+                  <>
+                    <Loader2 size={13} className={styles.spin} aria-hidden="true" />
+                    <span>{t('pipeline.openspec.engine.review.updating')}</span>
+                  </>
+                ) : forceConfirmed ? (
+                  t('pipeline.openspec.engine.review.forceButton')
+                ) : (
+                  t('pipeline.openspec.engine.review.executeUpdate')
+                )}
+              </button>
+            )}
+
+            <button
+              type="button"
+              className={styles.reviewPrimaryActionBtn}
+              onClick={onBack}
+            >
+              {t('pipeline.openspec.engine.review.close')}
+            </button>
+          </div>
         </div>
       </div>
     </section>

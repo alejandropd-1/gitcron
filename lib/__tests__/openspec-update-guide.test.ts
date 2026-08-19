@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyCoexistenceSkills,
   deriveOfficialCommand,
+  deriveUpdateMatrixAction,
 } from '../openspec-update-guide';
 import type { OpenSpecEngineStatus, OpenSpecInstalledEvidence } from '@/types/pipeline';
 
@@ -56,6 +57,99 @@ describe('openspec-update-guide (Fase 6: Matriz declarada y Convivencia)', () =>
     it('devuelve null cuando la acción es none o blocked', () => {
       expect(deriveOfficialCommand('none', null)).toBeNull();
       expect(deriveOfficialCommand('blocked', null)).toBeNull();
+    });
+
+    it('resuelve correctamente la acción para CLI 1.5.0 compatible con integración al día (none)', () => {
+      // Estado desacoplado: motor 1.5.0 compatible con skills generados en 1.5.0
+      const status150: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: '1.5.0',
+          provenance: 'global',
+          displayPath: 'C:\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.9.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: {
+          status: 'online',
+          latestVersion: '1.9.0',
+          checkedAt: 'now',
+          fromCache: false,
+          cacheAgeSeconds: 0,
+          freshness: 'fresh',
+          error: null,
+        },
+        globalConfig: null,
+        installedIntegration: {
+          skills: [],
+          generatedBy: '1.5.0',
+          markersFound: [],
+          outputInventory: [],
+          evidenceStatus: 'confirmed',
+          tools: ['agents'],
+          targets: ['agents'],
+          installedWorkflowsByTarget: {},
+          missing: null,
+          legacy: [],
+          customized: [],
+          conflicts: null,
+        },
+        repoState: 'initialized',
+        integrationState: 'up-to-date',
+        freshnessState: 'cli-upgrade-available',
+      };
+
+      const action = deriveUpdateMatrixAction(status150);
+      expect(action).toBe('none');
+      expect(deriveOfficialCommand(action, status150)).toBeNull();
+    });
+
+    it('resuelve update para CLI 1.9.0 cuando los skills en repo son 1.5.0 (outdated)', () => {
+      const status190: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: '1.9.0',
+          provenance: 'global',
+          displayPath: 'C:\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.9.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: {
+          status: 'online',
+          latestVersion: '1.9.0',
+          checkedAt: 'now',
+          fromCache: false,
+          cacheAgeSeconds: 0,
+          freshness: 'fresh',
+          error: null,
+        },
+        globalConfig: null,
+        installedIntegration: {
+          skills: [],
+          generatedBy: '1.5.0',
+          markersFound: [],
+          outputInventory: [],
+          evidenceStatus: 'confirmed',
+          tools: ['agents'],
+          targets: ['agents'],
+          installedWorkflowsByTarget: {},
+          missing: null,
+          legacy: [],
+          customized: [],
+          conflicts: null,
+        },
+        repoState: 'initialized',
+        integrationState: 'outdated',
+        freshnessState: 'cli-up-to-date',
+      };
+
+      const action = deriveUpdateMatrixAction(status190);
+      expect(action).toBe('update');
+      expect(deriveOfficialCommand(action, status190)).toBe('openspec update');
     });
   });
 

@@ -155,4 +155,104 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
     fireEvent.click(closeBtn);
     expect(handleReview).toHaveBeenCalledTimes(2);
   });
+
+  it('renderiza versionClass: supported, freshnessState: cli-upgrade-available e integrationState: up-to-date sin alarma, con novedad npm y versión concreta (Hallazgos 3 y C)', () => {
+    const status150With190Npm: OpenSpecEngineStatus = {
+      cli: {
+        installed: true,
+        runtimeVersion: '1.5.0',
+        provenance: 'global',
+        displayPath: 'C:\\global\\openspec.cmd',
+        supportedRange: { min: '1.5.0', max: '1.9.0' },
+        versionClass: 'supported',
+        evidenceStatus: 'confirmed',
+        diagnostics: [],
+      },
+      latestAvailable: {
+        status: 'online',
+        latestVersion: '1.9.0',
+        checkedAt: 'now',
+        fromCache: false,
+        cacheAgeSeconds: 0,
+        freshness: 'fresh',
+        error: null,
+      },
+      globalConfig: null,
+      installedIntegration: {
+        skills: [],
+        generatedBy: '1.5.0',
+        markersFound: [],
+        outputInventory: [],
+        evidenceStatus: 'confirmed',
+        tools: ['agents'],
+        targets: ['agents'],
+        installedWorkflowsByTarget: {},
+        missing: null,
+        legacy: [],
+        customized: [],
+        conflicts: null,
+      },
+      repoState: 'initialized',
+      integrationState: 'up-to-date',
+      freshnessState: 'cli-upgrade-available',
+    };
+
+    render(<OpenSpecEngineCard status={status150With190Npm} compact={false} />);
+
+    // 1. Debe estar en estado Listo (ready), NO en Requiere atención (needs-attention)
+    expect(screen.getByText(/Listo/i)).toBeDefined();
+    expect(screen.queryByText(/Requiere atención/i)).toBeNull();
+
+    // 2. Debe mostrar la versión concreta «v1.5.0», «Motor compatible» y «Versión 1.9.0 disponible en npm» (Hallazgo C)
+    expect(screen.getByText(/v1\.5\.0/i)).toBeDefined();
+    expect(screen.getByText(/1\.5\.0/i)).toBeDefined();
+    expect(screen.getByText(/Motor compatible/i)).toBeDefined();
+    expect(screen.getByText(/Versión 1.9.0 disponible en npm/i)).toBeDefined();
+  });
+
+  it.each([
+    {
+      versionClass: 'supported' as const,
+      expectedText: 'Motor compatible',
+    },
+    {
+      versionClass: 'too-old' as const,
+      expectedText: 'Motor obsoleto (requiere ≥ 1.5.0)',
+    },
+    {
+      versionClass: 'too-new' as const,
+      expectedText: 'Motor no probado (superior a 1.9.0)',
+    },
+    {
+      versionClass: 'unknown' as const,
+      expectedText: 'Versión no clasificada',
+    },
+  ])('renderiza versionClass: $versionClass traduciendo sin literales "pipeline." (Hallazgo B)', ({ versionClass, expectedText }) => {
+    const testStatus: OpenSpecEngineStatus = {
+      cli: {
+        installed: true,
+        runtimeVersion: '1.5.0',
+        provenance: 'global',
+        displayPath: 'C:\\global\\openspec.cmd',
+        supportedRange: { min: '1.5.0', max: '1.9.0' },
+        versionClass,
+        evidenceStatus: 'confirmed',
+        diagnostics: [],
+      },
+      latestAvailable: null,
+      globalConfig: null,
+      installedIntegration: null,
+      repoState: 'initialized',
+      integrationState: 'up-to-date',
+    };
+
+    const { container } = render(<OpenSpecEngineCard status={testStatus} compact={false} />);
+
+    // 1. El texto visible en la tarjeta NO debe contener claves crudas "pipeline."
+    const fullText = container.textContent ?? '';
+    expect(fullText).not.toContain('pipeline.');
+
+    // 2. El texto esperado debe estar presente en el render
+    expect(screen.getByText(new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'))).toBeDefined();
+  });
 });

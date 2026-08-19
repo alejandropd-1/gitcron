@@ -574,6 +574,7 @@ interface ElectronAPI {
     checkLatestVersion(): Promise<import('./pipeline').OpenSpecRegistryCheck>;
     getUpdatePlan(repoPath: string): Promise<import('./pipeline').OpenSpecUpdatePlan>;
     executeUpdate(repoPath: string): Promise<import('./pipeline').OpenSpecExecuteResult>;
+    runUpdate(repoPath: string, plan?: import('./pipeline').OpenSpecUpdatePlan, force?: boolean): Promise<import('./pipeline').OpenSpecRunUpdateResult>;
     getPreview(repoPath: string): Promise<import('./pipeline').OpenSpecPreviewResult>;
   };
 }

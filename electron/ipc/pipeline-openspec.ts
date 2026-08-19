@@ -5,8 +5,10 @@ import type {
   OpenSpecDivergenceReason,
   OpenSpecEngineStatus,
   OpenSpecExecuteResult,
+  OpenSpecFreshnessState,
   OpenSpecPreviewResult,
   OpenSpecRegistryCheck,
+  OpenSpecRunUpdateResult,
   OpenSpecTargetConvergence,
   OpenSpecTargetDivergenceDetail,
   OpenSpecUpdatePlan,
@@ -16,6 +18,10 @@ import {
   resolveOpenSpecExecutable,
   type AuthorizedOpenSpecRuntime,
 } from '../pipeline/openspec-engine';
+import {
+  runOpenSpecUpdate,
+  type RunOpenSpecUpdateOptions,
+} from '../pipeline/openspec-cli';
 import { readOpenSpecGlobalConfig } from '../pipeline/openspec-global-config';
 import { inspectInstalledEvidence } from '../pipeline/openspec-evidence';
 import { checkLatestOpenSpecVersion, getLocalCacheRegistryStatus } from '../pipeline/openspec-registry';
@@ -26,6 +32,7 @@ import {
   validatePlanIntegrity,
 } from '../pipeline/openspec-preview';
 import { classifyOpenSpecProfile } from '../../lib/openspec-profile';
+import { compareSemver, parseSemver } from '../../lib/openspec-version';
 import { getRealGitInfo, type RealGitInfo } from '../pipeline/repo-evidence-reader';
 import { getToolDef } from '../pipeline/openspec-tooling';
 import { authorizedRepoStore } from './authorized-repos';
@@ -40,6 +47,7 @@ export interface OpenSpecIpcDeps {
   ipcMain?: { handle: (channel: string, listener: any) => void };
   validateRepoPath?: (p: unknown) => string | null;
   getGitInfo?: (repoPath: string) => Promise<RealGitInfo>;
+  runUpdate?: (repoPath: string, options?: RunOpenSpecUpdateOptions) => Promise<OpenSpecRunUpdateResult>;
 }
 
 /**
@@ -186,7 +194,11 @@ export async function buildEngineStatusSnapshot(
       integrationState = 'unknown';
     } else if (installedIntegration.conflicts && installedIntegration.conflicts.length > 0) {
       integrationState = 'conflicted';
-    } else if (installedIntegration.generatedBy && installedIntegration.generatedBy !== '1.8.0') {
+    } else if (
+      installedIntegration.generatedBy &&
+      cli.runtimeVersion &&
+      installedIntegration.generatedBy !== cli.runtimeVersion
+    ) {
       integrationState = 'outdated';
     } else if (installedIntegration.missing && installedIntegration.missing.length > 0) {
       integrationState = 'outdated';
@@ -197,6 +209,22 @@ export async function buildEngineStatusSnapshot(
       integrationState = hasModifiedOfficialSkills ? 'custom' : 'up-to-date';
     } else {
       integrationState = 'outdated';
+    }
+  }
+
+  // 6.5. Determinar novedad del CLI frente al registro npm (freshnessState)
+  let freshnessState: OpenSpecFreshnessState = 'unknown';
+  if (!cachedRegistry || cachedRegistry.status === 'offline' || !cachedRegistry.latestVersion) {
+    freshnessState = 'offline';
+  } else if (cli.runtimeVersion) {
+    const parsedRuntime = parseSemver(cli.runtimeVersion);
+    const parsedLatest = parseSemver(cachedRegistry.latestVersion);
+    if (parsedRuntime && parsedLatest) {
+      freshnessState = compareSemver(parsedRuntime, parsedLatest) >= 0
+        ? 'cli-up-to-date'
+        : 'cli-upgrade-available';
+    } else {
+      freshnessState = 'unknown';
     }
   }
 
@@ -329,6 +357,7 @@ export async function buildEngineStatusSnapshot(
     installedIntegration,
     repoState,
     integrationState,
+    freshnessState,
     divergence: {
       isDivergent,
       reason: divergenceReason,
@@ -430,7 +459,7 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
             success: false,
             status: 'blocked',
             reason: 'poc-required',
-            message: `El plan diagnóstico quedó invalidado antes de ejecutar (${integrityError}). Se requiere recalcular el plan y completar la POC.`,
+            message: integrityError,
           };
         }
       }
@@ -439,7 +468,7 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
         success: false,
         status: 'blocked',
         reason: 'poc-required',
-        message: 'La actualización integral de OpenSpec requiere la POC y la activación del runtime administrado (Fase 3/4). Ninguna mutación fue ejecutada.',
+        message: 'poc-required',
       };
     },
   );
@@ -463,6 +492,76 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
         engineStatus: status,
         gitInfo,
         schemaConfig: readRepoSchemaConfig(validRepoPath),
+      });
+    },
+  );
+
+  // 6. Run Update (Ejecución de openspec update con salvaguardas de Git)
+  ipc.handle(
+    'pipeline:openspec:run-update',
+    async (_event, payload?: unknown): Promise<OpenSpecRunUpdateResult> => {
+      validateStrictPayloadKeys(payload, ['repoPath', 'plan', 'force']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+
+      const gitInfo = await getGitInfo(validRepoPath);
+
+      // Salvaguarda 1: Bloqueo incondicional en main / master o detached HEAD (Decisión 1 y Hallazgo 7)
+      const branch = gitInfo.branch ? gitInfo.branch.trim() : '';
+      if (!branch || branch === 'main' || branch === 'master' || branch === 'HEAD') {
+        const isMain = branch === 'main' || branch === 'master';
+        return {
+          success: false,
+          status: 'blocked',
+          filesUpdated: [],
+          errors: [isMain ? 'branch-protected-main' : 'branch-detached'],
+        };
+      }
+
+      // Salvaguarda 2: Bloqueo con working tree sucio
+      if (!gitInfo.isClean) {
+        return {
+          success: false,
+          status: 'blocked',
+          filesUpdated: [],
+          errors: ['working-tree-dirty'],
+        };
+      }
+
+      // Salvaguarda 3: Validación de integridad del plan diagnóstico si se proporciona
+      const plan = (payload as any)?.plan as OpenSpecUpdatePlan | undefined;
+      if (plan && plan.preview && plan.preview.invalidationParams) {
+        const liveStatus = await buildEngineStatusSnapshot(validRepoPath, deps);
+        const livePreview = generateDiagnosticPreview({
+          repoPath: validRepoPath,
+          engineStatus: liveStatus,
+          gitInfo,
+          schemaConfig: readRepoSchemaConfig(validRepoPath),
+        });
+        const integrityError = validatePlanIntegrity(plan, livePreview.invalidationParams);
+        if (integrityError) {
+          return {
+            success: false,
+            status: 'blocked',
+            filesUpdated: [],
+            errors: [integrityError],
+          };
+        }
+      }
+
+      const getUserDataDir = deps.getUserDataDir ?? (() => null);
+      const userDataDir = getUserDataDir();
+      const resolveRuntime = deps.resolveRuntime ?? resolveOpenSpecExecutable;
+      const authorizedRuntime = resolveRuntime({ userDataDir, repoPath: validRepoPath });
+
+      const runUpdate = deps.runUpdate ?? runOpenSpecUpdate;
+      const force = Boolean((payload as any)?.force);
+      return runUpdate(validRepoPath, {
+        force,
+        runtime: authorizedRuntime,
       });
     },
   );

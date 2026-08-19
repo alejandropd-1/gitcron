@@ -1651,7 +1651,16 @@ export function OpenSpecDashboard({
               repoPath={repoPath}
               status={effectiveEngineStatus}
               updatePlan={updatePlan}
+              currentBranch={currentBranch}
+              isClean={workingTreeClean}
               onBack={() => setReviewOpen(false)}
+              onPrepareCommit={() => {
+                setReviewOpen(false);
+                setPrepareOpen(true);
+              }}
+              onUpdateCompleted={() => {
+                onRefresh?.();
+              }}
             />
           ) : prepareOpen ? (
             <section className={styles.prepareArea} aria-label={t('pipeline.openspec.prepare.title')}>

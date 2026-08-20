@@ -42,7 +42,7 @@ reales y persistencia de decisiones en SQLite para calibración estadística.
   cian `#5ed8ff`, naranja `#fd9d1a`).
 
 ### `components/` (extraídos de page.tsx — NO recrear, reutilizar)
-`TopBar.tsx`, `RepoTabs.tsx`, `RepoSidebar.tsx`, `RepoSidebarParts.tsx`,
+`RepoTabs.tsx`, `RepoSidebar.tsx`, `RepoSidebarParts.tsx`,
 `RepoDetailsPanel.tsx`, `RepoMainView.tsx` (view-switcher central + graph tab clásico/cronométrico),
 `RepoOverlayLayer.tsx` (modales/menús de página), `RepoContentViews.tsx` (HistoryView + CommitTabView +
 PR diff + file diff + file history + blame),

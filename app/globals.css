@@ -10,8 +10,8 @@
      ========================================================================== */
 
   /* Shared Base Backgrounds (Affects: app/page.tsx, HelpModal, RepoModals, ContextMenus) */
-  --color-bg-base: #020f1e; /* Primary page backdrop | Cronometric Canvas timeline background */
-  --color-bg-surface: #06182a; /* Toolbars, Sidebars, list panels */
+  --color-bg-base: #06182a; /* Primary canvas / content area backdrop (clearer than frame) */
+  --color-bg-surface: #020f1e; /* Window frame, toolbars, sidebars, list panels (darker armazón) */
   --color-bg-overlay: #12273c; /* Dialogs, dropdowns, ContextMenu cards | Chronometric Hover HUD backdrop */
 
   /* Shared Border Contrast (Affects: panels, dividers) */

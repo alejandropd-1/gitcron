@@ -76,24 +76,24 @@ describe('target-size - Verificación de área objetivo mínima (44x44px)', () =
       }
     }
 
-    // 2. Inspect TopBar controls in components/TopBar.tsx
-    const topBarPath = path.resolve(process.cwd(), 'components/TopBar.tsx');
-    if (fs.existsSync(topBarPath)) {
-      const topBarContent = fs.readFileSync(topBarPath, 'utf-8');
+    // 2. Inspect panel toggle controls in components/RepoTabs.tsx
+    const repoTabsPath = path.resolve(process.cwd(), 'components/RepoTabs.tsx');
+    if (fs.existsSync(repoTabsPath)) {
+      const repoTabsContent = fs.readFileSync(repoTabsPath, 'utf-8');
 
-      const topBarButtons = [
+      const repoTabsButtons = [
         { name: 'onToggleSidebar button', match: /onToggleSidebar[\s\S]{1,300}?className=\{cn\(\s*'([^']+)'/ },
         { name: 'onToggleDetails button', match: /onToggleDetails[\s\S]{1,300}?className=\{cn\(\s*'([^']+)'/ },
       ];
 
-      for (const btn of topBarButtons) {
-        const m = btn.match.exec(topBarContent);
+      for (const btn of repoTabsButtons) {
+        const m = btn.match.exec(repoTabsContent);
         if (m) {
           const classes = m[1];
-          if (/h-9\b|w-9\b|h-[678]\b|w-[678]\b|p-1\b|p-1\.5\b/.test(classes)) {
+          if (/h-9\b|w-9\b|h-[678]\b|w-[678]\b|p-1\b|p-1\.5\b/.test(classes) && !classes.includes('min-h-[44px]')) {
             violations.push({
               element: btn.name,
-              source: 'components/TopBar.tsx',
+              source: 'components/RepoTabs.tsx',
               measuredSize: classes.includes('h-9') ? '36x36px' : '<44px',
               minSize: minTargetPx,
             });

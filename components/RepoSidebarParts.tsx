@@ -35,29 +35,38 @@ export function SidebarSection({
   count,
   extra,
   icon,
+  isOpen: controlledIsOpen,
+  onToggle: controlledOnToggle,
 }: {
   title: string;
   children: ReactNode;
   count?: number;
   extra?: ReactNode;
   icon?: ReactNode;
+  isOpen?: boolean;
+  onToggle?: () => void;
 }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalOpen;
+  const handleToggle = controlledOnToggle || (() => setInternalOpen(!internalOpen));
+
   return (
-    <div className="mt-2">
-      <div className="w-full flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-text-secondary">
+    <div className="mt-2.5">
+      <div className="w-full flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-secondary">
         <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1.5 flex-1 text-left hover:text-text-primary transition-colors"
+          type="button"
+          onClick={handleToggle}
+          aria-expanded={isOpen}
+          className="flex items-center gap-2 flex-1 text-left hover:text-text-primary transition-colors min-h-[36px]"
         >
-          <ChevronRight size={12} className={cn('transition-transform shrink-0', isOpen && 'rotate-90')} />
+          <ChevronRight size={13} className={cn('transition-transform shrink-0', isOpen && 'rotate-90')} />
           {icon && <span className="shrink-0">{icon}</span>}
-          <span className="flex-1 text-left tracking-wider">{title}</span>
+          <span className="flex-1 text-left tracking-wider truncate">{title}</span>
         </button>
-        {count !== undefined && <span className="bg-border-subtle text-[9px] px-1.5 rounded-full">{count}</span>}
+        {count !== undefined && <span className="bg-border-subtle text-[10px] px-2 py-0.5 rounded-full font-mono">{count}</span>}
         {extra}
       </div>
-      {isOpen && <div>{children}</div>}
+      {isOpen && <div className="space-y-0.5">{children}</div>}
     </div>
   );
 }

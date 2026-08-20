@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Minus, Plus, X } from 'lucide-react';
+import { Loader2, Minus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, X } from 'lucide-react';
 import { Reorder } from 'motion/react';
 import { useT } from '@/hooks/use-translation';
 import type { RepoState } from '@/lib/git-store';
@@ -14,6 +14,11 @@ type RepoTabsProps = {
   onClose: (idx: number) => void | Promise<void>;
   onOpen: () => void | Promise<void>;
   onReorder: (newOrder: RepoState[]) => void;
+  // Controls de disposición
+  sidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
+  detailsOpen?: boolean;
+  onToggleDetails?: () => void;
 };
 
 /**
@@ -42,7 +47,18 @@ function RestoreIcon({ size = 13 }: { size?: number }) {
   );
 }
 
-export function RepoTabs({ repos, activeIdx, onSelect, onClose, onOpen, onReorder }: RepoTabsProps) {
+export function RepoTabs({
+  repos,
+  activeIdx,
+  onSelect,
+  onClose,
+  onOpen,
+  onReorder,
+  sidebarOpen,
+  onToggleSidebar,
+  detailsOpen,
+  onToggleDetails,
+}: RepoTabsProps) {
   const t = useT();
   const isDraggingRef = useRef(false);
   /**
@@ -71,7 +87,29 @@ export function RepoTabs({ repos, activeIdx, onSelect, onClose, onOpen, onReorde
 
   return (
     <div className="app-titlebar h-10 rounded-t-2xl bg-transparent flex items-stretch shrink-0 overflow-hidden gap-1">
-      <div className="min-w-0 flex-1 flex items-end gap-1 pl-2 pt-1.5 pb-1 overflow-x-auto overflow-y-hidden">
+      {/* Control de plegado de panel izquierdo en el EXTREMO IZQUIERDO */}
+      {onToggleSidebar && (
+        <div className="app-titlebar-control h-10 flex items-center pl-2 shrink-0">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            aria-label={sidebarOpen ? t('toolbar.hideSidebar') : t('toolbar.showSidebar')}
+            aria-pressed={sidebarOpen}
+            title={sidebarOpen ? t('toolbar.hideSidebar') : t('toolbar.showSidebar')}
+            className={cn(
+              'app-titlebar-control min-h-[44px] min-w-[44px] h-8 w-8 shrink-0 rounded-lg text-text-secondary',
+              'flex items-center justify-center transition-colors',
+              'hover:bg-text-primary/10 hover:text-secondary',
+              'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
+              sidebarOpen && 'text-secondary bg-secondary/10',
+            )}
+          >
+            {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+          </button>
+        </div>
+      )}
+
+      <div className="min-w-0 flex-1 flex items-end gap-1 pl-1 pt-1.5 pb-1 overflow-x-auto overflow-y-hidden">
         <div className="app-titlebar-control h-7 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2 select-none">
           <img
             src="/gitcron-icon.png"
@@ -155,6 +193,29 @@ export function RepoTabs({ repos, activeIdx, onSelect, onClose, onOpen, onReorde
           <Plus size={14} />
         </button>
       </div>
+
+      {/* Control de plegado de panel derecho */}
+      {onToggleDetails && (
+        <div className="app-titlebar-control h-10 self-stretch flex items-center shrink-0 px-1">
+          <button
+            type="button"
+            onClick={onToggleDetails}
+            aria-label={detailsOpen ? t('toolbar.hideDetails') : t('toolbar.showDetails')}
+            aria-pressed={detailsOpen}
+            title={detailsOpen ? t('toolbar.hideDetails') : t('toolbar.showDetails')}
+            className={cn(
+              'app-titlebar-control min-h-[44px] min-w-[44px] h-8 w-8 shrink-0 rounded-lg text-text-secondary',
+              'flex items-center justify-center transition-colors',
+              'hover:bg-text-primary/10 hover:text-secondary',
+              'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
+              detailsOpen && 'text-secondary bg-secondary/10',
+            )}
+          >
+            {detailsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+          </button>
+        </div>
+      )}
+
       <div className="app-titlebar-control h-10 self-stretch flex items-stretch shrink-0 pr-3 gap-1">
         <button
           type="button"

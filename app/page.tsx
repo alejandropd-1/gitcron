@@ -34,7 +34,6 @@ import { usePanelLayout } from '@/hooks/use-panel-layout';
 import { RepoSidebar } from '@/components/RepoSidebar';
 import { RepoDetailsPanel } from '@/components/RepoDetailsPanel';
 import { PageToasts, type PullDecisionToast } from '@/components/PageToasts';
-import { TopBar } from '@/components/TopBar';
 import { StashCreateModal, StashPreviewModal, type StashPreviewState } from '@/components/StashModals';
 import { ResetCommitModal } from '@/components/ResetCommitModal';
 import { useRepoChooser } from '@/hooks/use-repo-chooser';
@@ -1460,32 +1459,18 @@ export default function GitCronPage() {
   return (
     <div className="flex flex-col h-screen bg-bg-surface text-text-primary font-sans overflow-hidden select-none">
       <div className="shrink-0 bg-bg-surface relative z-50">
-        <div className="flex flex-col bg-bg-surface">
-          <RepoTabs
-            repos={openRepos}
-            activeIdx={activeRepoIdx}
-            onSelect={handleSelectRepoTab}
-            onClose={handleCloseRepoTab}
-            onOpen={handleOpenRepoChooser}
-            onReorder={handleReorderRepoTabs}
-          />
-          {/* ──────────── TOP NAV ──────────── */}
-          <TopBar
-            sidebarOpen={sidebarOpen}
-            onToggleSidebar={toggleSidebar}
-            detailsOpen={detailsOpen}
-            onToggleDetails={toggleDetails}
-            onPullIntent={handlePullIntent}
-            onPushIntent={handlePushIntent}
-            onNewBranchRequest={() => { setNewBranchFrom(undefined); setShowNewBranch(true); }}
-            onOpenStashModal={handleOpenStashModal}
-            onFetchNow={runFetchCycle}
-            filterText={filterText}
-            onFilterTextChange={setFilterText}
-            searchOpen={showSearchPopover}
-            onSearchOpenChange={setShowSearchPopover}
-          />
-        </div>
+        <RepoTabs
+          repos={openRepos}
+          activeIdx={activeRepoIdx}
+          onSelect={handleSelectRepoTab}
+          onClose={handleCloseRepoTab}
+          onOpen={handleOpenRepoChooser}
+          onReorder={handleReorderRepoTabs}
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={toggleSidebar}
+          detailsOpen={detailsOpen}
+          onToggleDetails={toggleDetails}
+        />
       </div>
 
       {/* ──────────── MAIN 3-COLUMN LAYOUT ──────────── */}
@@ -1499,6 +1484,15 @@ export default function GitCronPage() {
           onResizeStart={(e) => beginColDrag('sidebar', e)}
           activeTab={activeTab}
           onTabChange={handleTabChange}
+          filterText={filterText}
+          onFilterTextChange={setFilterText}
+          searchOpen={showSearchPopover}
+          onSearchOpenChange={setShowSearchPopover}
+          onPullIntent={handlePullIntent}
+          onPushIntent={handlePushIntent}
+          onNewBranchRequest={() => { setNewBranchFrom(undefined); setShowNewBranch(true); }}
+          onOpenStashModal={handleOpenStashModal}
+          onFetchNow={runFetchCycle}
           activeView={activeView}
           onViewChange={handleViewChange}
           isRepoStartView={isRepoStartView}

@@ -11,13 +11,15 @@
 // toca estado propio de la página (context menus, confirmaciones, secciones
 // activas, layout) llega por props.
 
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Activity, AlertCircle, ArrowLeft, Cloud, Download, ExternalLink, FileText, Folder,
-  FolderOpen, GitMerge, Github, Globe, HelpCircle, Layers, Lock, Map, Monitor,
-  Plus, RotateCcw, Settings, Sparkles, TreePine, Type, UserCircle2, Zap,
-  Trash2, Edit2, Link2, RefreshCw,
+  Activity, AlertCircle, AlertTriangle, Archive, ArrowLeft, Check, CheckCircle2,
+  ChevronDown, Cloud, Download, Edit2, ExternalLink, FileInput, FileText,
+  Folder, FolderOpen, GitBranch, GitMerge, Github, Globe, HelpCircle, Layers,
+  Link2, Lock, Map, Monitor, Plus, Redo, RefreshCw, RotateCcw, Settings,
+  SlidersHorizontal, Sparkles, Terminal, Trash2, TreePine, Type, Undo, Upload,
+  UserCircle2, Zap,
 } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
@@ -25,6 +27,9 @@ import { useT } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 import { userInitials } from '@/lib/page-helpers';
 import { UpdateControls } from '@/components/UpdateControls';
+import { FetchIndicator } from '@/components/PageWidgets';
+import { GraphSearchControl } from '@/components/GraphSearchControl';
+import { useSidebarSectionState } from '@/hooks/use-sidebar-section-state';
 import type { UpdateStatus, UpdateInfo } from '@/hooks/use-app-update';
 import type { RepoStartMode } from '@/components/RepoModals';
 import type { PullRequestEntry, RemoteEntry, WorktreeEntry, SubmoduleEntry } from '@/types/electron';
@@ -38,6 +43,212 @@ import {
 } from '@/components/RepoSidebarParts';
 
 type AppView = 'repository' | 'settings' | 'help' | 'profile';
+
+export interface DropdownMenuItem {
+  id: string;
+  label: string;
+  icon?: React.ReactNode;
+  shortcut?: string;
+  disabled?: boolean;
+  active?: boolean;
+  onClick: () => void;
+}
+
+interface SidebarDropdownProps {
+  id: string;
+  label: string;
+  icon?: React.ReactNode;
+  items: DropdownMenuItem[];
+  disabled?: boolean;
+  className?: string;
+  menuClassName?: string;
+  fullWidth?: boolean;
+}
+
+export function SidebarDropdown({
+  id,
+  label,
+  icon,
+  items,
+  disabled = false,
+  className,
+  menuClassName,
+  fullWidth = false,
+}: SidebarDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const closeMenu = useCallback((restoreFocus = true) => {
+    setIsOpen(false);
+    setFocusedIndex(-1);
+    if (restoreFocus) {
+      triggerRef.current?.focus();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent | PointerEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node)
+      ) {
+        closeMenu(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
+  }, [isOpen, closeMenu]);
+
+  useEffect(() => {
+    if (isOpen && focusedIndex >= 0 && focusedIndex < items.length) {
+      itemRefs.current[focusedIndex]?.focus();
+    }
+  }, [isOpen, focusedIndex, items.length]);
+
+  const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled) return;
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setIsOpen(true);
+      setFocusedIndex(0);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setIsOpen(true);
+      setFocusedIndex(items.length - 1);
+    }
+  };
+
+  const handleMenuKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeMenu(true);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex((prev) => {
+        let next = (prev + 1) % items.length;
+        while (items[next]?.disabled && next !== prev) {
+          next = (next + 1) % items.length;
+        }
+        return next;
+      });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex((prev) => {
+        let next = (prev - 1 + items.length) % items.length;
+        while (items[next]?.disabled && next !== prev) {
+          next = (next - 1 + items.length) % items.length;
+        }
+        return next;
+      });
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setFocusedIndex(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setFocusedIndex(items.length - 1);
+    } else if (e.key === 'Tab') {
+      closeMenu(false);
+    }
+  };
+
+  const handleItemClick = (item: DropdownMenuItem) => {
+    if (item.disabled) return;
+    item.onClick();
+    closeMenu(true);
+  };
+
+  return (
+    <div className={cn('relative inline-block text-left', fullWidth && 'w-full')} onKeyDown={handleMenuKeyDown}>
+      <button
+        ref={triggerRef}
+        type="button"
+        id={`${id}-trigger`}
+        disabled={disabled}
+        onClick={() => {
+          if (isOpen) {
+            closeMenu(false);
+          } else {
+            setIsOpen(true);
+            setFocusedIndex(0);
+          }
+        }}
+        onKeyDown={handleTriggerKeyDown}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-controls={`${id}-menu`}
+        className={cn(
+          'min-h-[44px] px-3 py-2 rounded-lg text-xs font-semibold tracking-wide transition-colors flex items-center justify-between gap-1.5',
+          'text-text-secondary hover:bg-text-primary/10 hover:text-text-primary',
+          'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
+          isOpen && 'bg-text-primary/10 text-secondary',
+          disabled && 'opacity-40 cursor-not-allowed pointer-events-none',
+          fullWidth && 'w-full',
+          className
+        )}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          {icon && <span className="shrink-0 text-text-secondary/70">{icon}</span>}
+          <span className="truncate">{label}</span>
+        </div>
+        <ChevronDown size={12} className={cn('transition-transform duration-150 shrink-0', isOpen && 'rotate-180 text-secondary')} />
+      </button>
+
+      {isOpen && (
+        <div
+          ref={menuRef}
+          id={`${id}-menu`}
+          role="menu"
+          aria-labelledby={`${id}-trigger`}
+          className={cn(
+            'absolute left-0 top-full mt-1 min-w-56 rounded-xl bg-bg-surface shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100',
+            fullWidth && 'w-full',
+            menuClassName
+          )}
+        >
+          {items.map((item, index) => (
+            <button
+              key={item.id}
+              ref={(el) => { itemRefs.current[index] = el; }}
+              role="menuitem"
+              type="button"
+              disabled={item.disabled}
+              aria-current={item.active ? 'page' : undefined}
+              tabIndex={focusedIndex === index ? 0 : -1}
+              onClick={() => handleItemClick(item)}
+              className={cn(
+                'w-full px-3 py-2 flex items-center justify-between text-xs transition-colors text-left min-h-[44px]',
+                item.disabled
+                  ? 'opacity-40 cursor-not-allowed'
+                  : item.active
+                  ? 'bg-secondary/15 text-secondary font-semibold'
+                  : focusedIndex === index
+                  ? 'bg-text-primary/10 text-text-primary'
+                  : 'text-text-secondary hover:bg-text-primary/10 hover:text-text-primary',
+                'focus-visible:outline-none'
+              )}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                {item.icon && <span className="shrink-0 opacity-80">{item.icon}</span>}
+                <span className="truncate font-medium">{item.label}</span>
+              </div>
+              {item.shortcut && (
+                <kbd className="ml-2 px-1.5 py-0.5 text-[10px] font-mono rounded bg-text-primary/[0.06] text-text-secondary/70 shrink-0">
+                  {item.shortcut}
+                </kbd>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SidebarRemoteItem({
   remote,
@@ -227,6 +438,22 @@ type RepoSidebarProps = {
   // navegación entre vistas
   activeTab?: string;
   onTabChange?: (tab: string) => void;
+
+  // búsqueda en grafo
+  filterText?: string;
+  onFilterTextChange?: (value: string) => void;
+  searchOpen?: boolean;
+  onSearchOpenChange?: (open: boolean) => void;
+
+  // acciones git del repositorio
+  onPullIntent?: () => void;
+  onPushIntent?: () => void;
+  onNewBranchRequest?: () => void;
+  onOpenStashModal?: () => void;
+  onFetchNow?: () => void | Promise<void>;
+  onUndo?: () => void;
+  onRedo?: () => void;
+
   // updates
   updateStatus?: UpdateStatus;
   updateInfo?: UpdateInfo | null;
@@ -267,6 +494,8 @@ export function RepoSidebar({
   onAddWorktreeRequest, onDeleteWorktreeRequest,
   onAddSubmoduleRequest, onUpdateSubmodule, onSyncSubmodules,
   activeTab = 'Graph', onTabChange = () => {},
+  filterText, onFilterTextChange, searchOpen, onSearchOpenChange,
+  onPullIntent, onPushIntent, onNewBranchRequest, onOpenStashModal, onFetchNow, onUndo, onRedo,
   updateStatus = 'idle', updateInfo = null, downloadProgress = 0,
   showUpdateMenu = false, setShowUpdateMenu = () => {}, updateMenuRef = { current: null },
   onCheckForUpdate = () => {}, onDownloadUpdate = () => {}, onInstallUpdate = () => {},
@@ -275,13 +504,78 @@ export function RepoSidebar({
   const {
     repoPath, branches, currentBranch, remoteBranches, branchTracking,
     stashes, tags, submodules, remotes, worktrees, pullRequests,
-    githubUser, selectedCommit,
+    githubUser, selectedCommit, modifiedFiles, isLoading,
   } = useGitStore();
   const enableCartography = useGitStore((s) => s.enableCartography);
   const inCartography = useGitStore((s) => s.getActiveRepo()?.inCartography ?? false);
   const cartographyActive = activeView === 'repository' && inCartography;
-  const { stashApply, stashPop, stashDrop, stashClear, pushTag } = useGitActions();
+  const sectionState = useSidebarSectionState(repoPath);
+  const { stashApply, stashPop, stashDrop, stashClear, pushTag, applyPatchFile, openTerminal } = useGitActions();
   const [showStashClearConfirm, setShowStashClearConfirm] = useState(false);
+
+  const viewOptions = [
+    { key: 'Commit', label: t('tab.commit'), icon: <FileText size={14} />, shortcut: 'Ctrl + Shift + C' },
+    { key: 'Graph', label: t('tab.graph'), icon: <GitMerge size={14} />, shortcut: 'Ctrl + G' },
+    { key: 'History', label: t('tab.history'), icon: <RotateCcw size={14} />, shortcut: 'Ctrl + H' },
+    { key: 'Pipeline', label: t('tab.pipeline'), icon: <Zap size={14} />, shortcut: 'Ctrl + Shift + O' },
+  ];
+  const currentView = viewOptions.find((v) => v.key === activeTab) || viewOptions[1];
+
+  const viewMenuItems: DropdownMenuItem[] = viewOptions.map((v) => ({
+    id: `view-${v.key.toLowerCase()}`,
+    label: v.label,
+    icon: v.icon,
+    shortcut: v.shortcut,
+    active: activeTab === v.key,
+    onClick: () => onTabChange(v.key),
+  }));
+
+  const actionsMenuItems: DropdownMenuItem[] = [
+    {
+      id: 'undo',
+      label: t('toolbar.undo'),
+      icon: <Undo size={14} />,
+      disabled: !repoPath || isLoading,
+      onClick: onUndo || (() => {}),
+    },
+    {
+      id: 'redo',
+      label: t('toolbar.redo'),
+      icon: <Redo size={14} />,
+      disabled: !repoPath || isLoading,
+      onClick: onRedo || (() => {}),
+    },
+    {
+      id: 'new-branch',
+      label: t('toolbar.newBranch'),
+      icon: <GitBranch size={14} />,
+      shortcut: 'Ctrl + B',
+      disabled: !repoPath,
+      onClick: onNewBranchRequest || (() => {}),
+    },
+    {
+      id: 'stash',
+      label: t('toolbar.stash'),
+      icon: <Archive size={14} />,
+      disabled: !repoPath || isLoading,
+      onClick: onOpenStashModal || (() => {}),
+    },
+    {
+      id: 'patch',
+      label: t('toolbar.applyPatchTooltip'),
+      icon: <FileInput size={14} />,
+      disabled: !repoPath || isLoading,
+      onClick: applyPatchFile,
+    },
+    {
+      id: 'terminal',
+      label: t('toolbar.terminal'),
+      icon: <Terminal size={14} />,
+      shortcut: 'Ctrl + `',
+      disabled: !repoPath,
+      onClick: openTerminal,
+    },
+  ];
 
   return (
     <aside
@@ -303,12 +597,519 @@ export function RepoSidebar({
       >
         <div className="absolute inset-y-3 right-0.5 w-px bg-transparent group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin py-2">
-        <AnimatePresence mode="wait">
-          {activeView === 'repository' ? (
-            isRepoStartView ? (
+
+      <div className="flex flex-col flex-1 min-h-0">
+        {/* Repo header / start repo selector */}
+        {isRepoStartView ? (
+          <div className="px-3 pt-3 pb-2 flex items-center justify-between gap-2 shrink-0">
+            <span className="text-xs font-bold text-text-primary uppercase tracking-wider">{t('sidebar.startRepo')}</span>
+            <button
+              type="button"
+              onClick={onCloseRepoChooser}
+              title={t('common.close')}
+              className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-text-primary/10 transition-colors"
+            >
+              <ArrowLeft size={14} />
+            </button>
+          </div>
+        ) : null}
+
+        {/* View content */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <AnimatePresence mode="wait" initial={false}>
+            {activeView === 'repository' ? (
+              isRepoStartView ? (
+                <motion.div
+                  key="repo-start"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="flex-1 overflow-y-auto px-2 py-2"
+                >
+                  <div className="space-y-1">
+                    {[
+                      { id: 'open' as const, label: t('start.openExisting'), icon: <FolderOpen size={14} /> },
+                      { id: 'create' as const, label: t('start.initNew'), icon: <Sparkles size={14} /> },
+                      { id: 'clone' as const, label: t('start.cloneRemote'), icon: <Download size={14} /> },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => onRepoStartModeChange(item.id)}
+                        className={cn(
+                          'w-full px-3 py-2 rounded-lg text-xs font-semibold tracking-wide transition-colors flex items-center gap-2.5 text-left relative min-h-[44px]',
+                          repoStartMode === item.id
+                            ? 'bg-secondary/10 text-secondary'
+                            : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+                        )}
+                      >
+                        {repoStartMode === item.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />}
+                        <span className={cn('shrink-0', repoStartMode === item.id ? 'text-secondary' : 'text-text-secondary/70')}>{item.icon}</span>
+                        <span className="truncate">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="repository"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="flex flex-col flex-1 min-h-0"
+                >
+                  {/* ── CABECERA FIJA DEL LATERAL (No se desplaza al recorrer ramas) ── */}
+                  <div className="shrink-0 bg-bg-surface flex flex-col">
+                    {/* 1. Selector de vistas + Lupa de búsqueda */}
+                    <div className="px-3 pt-2 pb-1 flex items-center justify-between gap-1 shrink-0">
+                      <nav
+                        aria-label={t('sidebar.navigation')}
+                        className="flex-1 min-w-0"
+                      >
+                        <SidebarDropdown
+                          id="sidebar-view-selector"
+                          label={currentView.label}
+                          icon={currentView.icon}
+                          items={viewMenuItems}
+                          fullWidth
+                        />
+                      </nav>
+                      {onFilterTextChange && (
+                        <div className="shrink-0 flex items-center">
+                          <GraphSearchControl
+                            filterText={filterText || ''}
+                            onFilterTextChange={onFilterTextChange}
+                            disabled={!repoPath}
+                            open={searchOpen || false}
+                            onOpenChange={onSearchOpenChange || (() => {})}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2. Nombre de la rama en su propia línea completa */}
+                    <div className="px-3 pt-1.5 pb-0.5 flex items-center gap-2 min-w-0 shrink-0">
+                      <GitBranch size={13} className="shrink-0 text-text-secondary/70" />
+                      <span
+                        className="font-mono font-semibold text-xs text-text-primary truncate"
+                        title={currentBranch || '-'}
+                      >
+                        {currentBranch || '-'}
+                      </span>
+                    </div>
+
+                    {/* 3. Indicadores de estado del repositorio (debajo de la rama) */}
+                    <div className="px-3 py-1 flex items-center gap-1.5 shrink-0 flex-wrap">
+                      {/* Working tree state */}
+                      <div
+                        role="status"
+                        title={modifiedFiles.length === 0 ? t('pipeline.openspec.repo.clean') : t('pipeline.openspec.repo.changed')}
+                        className={cn(
+                          'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0',
+                          modifiedFiles.length === 0
+                            ? 'bg-secondary/10 text-secondary'
+                            : 'bg-[#fd9d1a]/15 text-[#fd9d1a]'
+                        )}
+                      >
+                        {modifiedFiles.length === 0 ? (
+                          <Check size={11} strokeWidth={2.5} className="shrink-0" />
+                        ) : (
+                          <AlertCircle size={11} className="shrink-0" />
+                        )}
+                        <span>
+                          {modifiedFiles.length === 0
+                            ? t('sidebar.workingTreeClean')
+                            : `${modifiedFiles.length} ${t('sidebar.workingTreeModified')}`}
+                        </span>
+                      </div>
+                      {/* Tracking / validation status */}
+                      {(() => {
+                        const tracking = currentBranch ? branchTracking[currentBranch] : undefined;
+                        if (tracking?.gone) {
+                          return (
+                            <div
+                              role="status"
+                              title={t('sidebar.branchStatus.gone', { upstream: tracking.upstream ?? '' })}
+                              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-error/15 text-error"
+                            >
+                              <AlertCircle size={11} className="shrink-0" />
+                              <span>{t('sidebar.upstreamGone')}</span>
+                            </div>
+                          );
+                        }
+                        if (tracking && (tracking.ahead > 0 || tracking.behind > 0)) {
+                          return (
+                            <div
+                              role="status"
+                              title={t('sidebar.branchStatus.diverged', {
+                                upstream: tracking.upstream ?? '',
+                                ahead: tracking.ahead,
+                                behind: tracking.behind,
+                              })}
+                              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-secondary/10 text-secondary font-mono"
+                            >
+                              <GitMerge size={11} className="shrink-0" />
+                              <span>+{tracking.ahead} -{tracking.behind}</span>
+                            </div>
+                          );
+                        }
+                        if (tracking) {
+                          return (
+                            <div
+                              role="status"
+                              title={t('sidebar.branchStatus.synced', { upstream: tracking.upstream ?? '' })}
+                              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-secondary/10 text-secondary"
+                            >
+                              <Check size={11} strokeWidth={2.5} className="shrink-0" />
+                              <span>{t('sidebar.branchStatus.syncedShort')}</span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div
+                            role="status"
+                            title={t('sidebar.branchStatus.local')}
+                            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-text-primary/[0.035] text-text-secondary/80"
+                          >
+                            <Monitor size={11} className="shrink-0" />
+                            <span>{t('sidebar.branchStatus.localShort')}</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* 4. Fila de acciones (Acciones desplegable, Traer, Publicar, Recargar) */}
+                    <div className="px-3 pt-1 pb-2 flex items-center gap-1.5 shrink-0">
+                      <SidebarDropdown
+                        id="sidebar-actions"
+                        label={t('toolbar.actionsMenu')}
+                        icon={<SlidersHorizontal size={14} />}
+                        items={actionsMenuItems}
+                        disabled={!repoPath}
+                      />
+                      <div className="w-px h-4 bg-border-subtle/30 mx-0.5 shrink-0" />
+                      <button
+                        type="button"
+                        onClick={onPullIntent}
+                        title={t('toolbar.pull')}
+                        aria-label={t('toolbar.pull')}
+                        disabled={!repoPath || isLoading}
+                        className={cn(
+                          'min-h-[44px] min-w-[44px] px-2.5 py-2 rounded-lg text-xs font-semibold tracking-wide transition-colors flex items-center justify-center gap-1.5 shrink-0',
+                          'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-text-primary',
+                          'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
+                          (!repoPath || isLoading) && 'opacity-40 cursor-not-allowed pointer-events-none'
+                        )}
+                      >
+                        <Download size={14} className="shrink-0" />
+                        <span>{t('toolbar.pull')}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onPushIntent}
+                        title={t('toolbar.push')}
+                        aria-label={t('toolbar.push')}
+                        disabled={!repoPath || isLoading}
+                        className={cn(
+                          'min-h-[44px] min-w-[44px] px-2.5 py-2 rounded-lg text-xs font-semibold tracking-wide transition-colors flex items-center justify-center gap-1.5 shrink-0',
+                          'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-text-primary',
+                          'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
+                          (!repoPath || isLoading) && 'opacity-40 cursor-not-allowed pointer-events-none'
+                        )}
+                      >
+                        <Upload size={14} className="shrink-0" />
+                        <span>{t('toolbar.push')}</span>
+                      </button>
+                      <div className="w-px h-4 bg-border-subtle/30 mx-0.5 shrink-0" />
+                      <FetchIndicator onClick={onFetchNow || (() => {})} />
+                    </div>
+                  </div>
+
+                  {/* ── CUERPO DE SECCIONES CON SCROLL (Solo esto se desplaza) ── */}
+                  <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin py-2 px-1 space-y-1">
+                    {/* LOCAL — folder tree + ahead/behind chips */}
+                    <SidebarSection
+                      title={t('sidebar.local')}
+                      count={branches.length || undefined}
+                      icon={<Monitor size={12} className="text-primary" />}
+                      isOpen={sectionState.isOpen('local')}
+                      onToggle={() => sectionState.toggle('local')}
+                    >
+                      {branches.length === 0 && !repoPath && (
+                        <p className="px-4 py-2 text-xs text-text-secondary italic">{t('sidebar.noBranches')}</p>
+                      )}
+                      <BranchTree
+                        branches={branches}
+                        currentBranch={currentBranch}
+                        selectedBranch={selectedBranchName}
+                        tracking={branchTracking}
+                        onCheckout={(b) => onCheckoutAttempt(b)}
+                        onSelect={onSelectBranchInGraph}
+                        onContextMenu={(e, b) => {
+                          e.preventDefault();
+                          onBranchContextMenu({ x: e.clientX, y: e.clientY, branch: b });
+                        }}
+                        onDelete={(b) => onDeleteBranchRequest(b)}
+                      />
+                    </SidebarSection>
+
+                    {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
+                    <SidebarSection
+                      title={t('sidebar.remote')}
+                      count={remoteBranches.length || undefined}
+                      icon={<Cloud size={12} className="text-primary" />}
+                      isOpen={sectionState.isOpen('remote')}
+                      onToggle={() => sectionState.toggle('remote')}
+                    >
+                      <RemoteBranchTree
+                        branches={remoteBranches}
+                        onCheckout={(b) => onCheckoutAttempt(b)}
+                        onContextMenu={(e, b) => {
+                          e.preventDefault();
+                          onRemoteBranchContextMenu({ x: e.clientX, y: e.clientY, branch: b });
+                        }}
+                      />
+                    </SidebarSection>
+
+                    {/* PULL REQUESTS — only when logged in to GitHub */}
+                    {githubUser && (
+                      <SidebarSection
+                        title={t('sidebar.pullRequests')}
+                        count={pullRequests.length || undefined}
+                        isOpen={sectionState.isOpen('pullRequests')}
+                        onToggle={() => sectionState.toggle('pullRequests')}
+                      >
+                        {pullRequests.length === 0 && (
+                          <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noPRs')}</p>
+                        )}
+                        {pullRequests.map((pr) => (
+                          <div
+                            key={pr.number}
+                            className={cn(
+                              'group flex items-stretch text-sm transition-colors',
+                              selectedPullRequest?.number === pr.number
+                                ? 'bg-secondary/10 text-text-primary'
+                                : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+                            )}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => onSelectPullRequest(pr)}
+                              title={t('prDiff.view', { number: String(pr.number) })}
+                              className="flex-1 min-w-0 text-left px-4 py-1.5 flex items-start gap-2"
+                            >
+                              <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-text-secondary' : 'text-secondary')} />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] font-mono text-text-secondary/70">#{pr.number}</span>
+                                  {pr.draft && <span className="text-[9px] text-text-secondary/70 uppercase">{t('sidebar.draft')}</span>}
+                                </div>
+                                <p className="text-xs truncate">{pr.title}</p>
+                                <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-text-secondary/70">
+                                  <span className="truncate">{pr.branch}</span>
+                                  <span className="text-secondary">+{pr.additions}</span>
+                                  <span className="text-error">-{pr.deletions}</span>
+                                </div>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => window.api?.shellOpenExternal(pr.url)}
+                              title={t('sidebar.openInGitHub', { number: String(pr.number) })}
+                              className="w-8 shrink-0 flex items-center justify-center text-text-secondary/70 hover:text-secondary opacity-0 group-hover:opacity-100 transition"
+                            >
+                              <ExternalLink size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </SidebarSection>
+                    )}
+
+                    {/* STASH */}
+                    <SidebarSection
+                      title={t('sidebar.stash')}
+                      count={stashes.length || undefined}
+                      isOpen={sectionState.isOpen('stashes')}
+                      onToggle={() => sectionState.toggle('stashes')}
+                      extra={stashes.length > 1 ? (
+                        showStashClearConfirm ? (
+                          <div className="flex items-center gap-1 ml-1">
+                            <button
+                              onClick={async () => { await stashClear(); setShowStashClearConfirm(false); }}
+                              className="text-[9px] px-1.5 py-0.5 rounded bg-error text-white font-bold"
+                            >
+                              Sí, limpiar
+                            </button>
+                            <button
+                              onClick={() => setShowStashClearConfirm(false)}
+                              className="text-[9px] px-1.5 py-0.5 rounded bg-border-subtle text-text-secondary"
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setShowStashClearConfirm(true)}
+                            className="text-[9px] text-text-secondary hover:text-error transition-colors ml-1 font-medium"
+                            title="Eliminar todos los stashes"
+                          >
+                            limpiar todo
+                          </button>
+                        )
+                      ) : undefined}
+                    >
+                      {stashes.length === 0 && repoPath && (
+                        <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noStashes')}</p>
+                      )}
+                      {stashes.map((s) => (
+                        <StashItem
+                          key={s.index}
+                          stash={s}
+                          onApply={() => stashApply(s.index)}
+                          onPop={() => stashPop(s.index)}
+                          onPreview={() => onPreviewStash(s)}
+                          onDrop={() => stashDrop(s.index)}
+                        />
+                      ))}
+                    </SidebarSection>
+
+                    {/* TAGS */}
+                    <SidebarSection
+                      title={t('sidebar.tags')}
+                      count={tags.length || undefined}
+                      isOpen={sectionState.isOpen('tags')}
+                      onToggle={() => sectionState.toggle('tags')}
+                      extra={repoPath ? (
+                        <button
+                          type="button"
+                          onClick={onCreateTagRequest}
+                          className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
+                          title={selectedCommit ? t('commitMenu.createTag') : `${t('commitMenu.createTag')} (HEAD)`}
+                          aria-label={selectedCommit ? t('commitMenu.createTag') : `${t('commitMenu.createTag')} (HEAD)`}
+                        >
+                          <Plus size={12} />
+                        </button>
+                      ) : undefined}
+                    >
+                      {tags.length === 0 && repoPath && (
+                        <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
+                      )}
+                      {tags.map((tg) => (
+                        <TagItem key={tg} name={tg} onDelete={() => onDeleteTagRequest(tg)} onPush={() => pushTag(tg)} />
+                      ))}
+                    </SidebarSection>
+
+                    {/* REMOTES */}
+                    {repoPath && (
+                      <SidebarSection
+                        title={t('sidebar.remotes')}
+                        count={remotes.length || undefined}
+                        isOpen={sectionState.isOpen('remotes')}
+                        onToggle={() => sectionState.toggle('remotes')}
+                        extra={(
+                          <button
+                            type="button"
+                            onClick={onAddRemoteRequest}
+                            className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
+                            title={t('sidebar.remoteAdd')}
+                          >
+                            <Plus size={12} />
+                          </button>
+                        )}
+                      >
+                        {remotes.length === 0 && (
+                          <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noRemotes')}</p>
+                        )}
+                        {remotes.map((rm) => (
+                          <SidebarRemoteItem
+                            key={rm.name}
+                            remote={rm}
+                            onRename={() => onRenameRemoteRequest?.(rm)}
+                            onSetUrl={() => onSetRemoteUrlRequest?.(rm)}
+                            onDelete={() => onDeleteRemoteRequest?.(rm)}
+                          />
+                        ))}
+                      </SidebarSection>
+                    )}
+
+                    {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
+                    {repoPath && (
+                      <SidebarSection
+                        title={t('sidebar.worktrees')}
+                        count={worktrees.length > 1 ? worktrees.length - 1 : undefined}
+                        isOpen={sectionState.isOpen('worktrees')}
+                        onToggle={() => sectionState.toggle('worktrees')}
+                        extra={(
+                          <button
+                            type="button"
+                            onClick={onAddWorktreeRequest}
+                            className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
+                            title={t('sidebar.worktreeAdd')}
+                          >
+                            <Plus size={12} />
+                          </button>
+                        )}
+                      >
+                        {worktrees.length <= 1 ? (
+                          <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noWorktrees')}</p>
+                        ) : (
+                          worktrees.map((wt) => {
+                            const isMain = wt.path.replace(/\\/g, '/').toLowerCase() === repoPath.replace(/\\/g, '/').toLowerCase();
+                            if (isMain) return null;
+                            return (
+                              <SidebarWorktreeItem
+                                key={wt.path}
+                                wt={wt}
+                                isMain={isMain}
+                                onOpen={() => window.api?.shellOpenPath(wt.path)}
+                                onDelete={() => onDeleteWorktreeRequest?.(wt)}
+                              />
+                            );
+                          })
+                        )}
+                      </SidebarSection>
+                    )}
+
+                    {/* SUBMODULES */}
+                    {repoPath && (
+                      <SidebarSection
+                        title={t('sidebar.submodules')}
+                        count={submodules.length || undefined}
+                        isOpen={sectionState.isOpen('submodules')}
+                        onToggle={() => sectionState.toggle('submodules')}
+                        extra={(
+                          <button
+                            type="button"
+                            onClick={onAddSubmoduleRequest}
+                            className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
+                            title={t('sidebar.submoduleAdd')}
+                          >
+                            <Plus size={12} />
+                          </button>
+                        )}
+                      >
+                        {submodules.length === 0 ? (
+                          <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noSubmodules')}</p>
+                        ) : (
+                          submodules.map((sm) => (
+                            <SidebarSubmoduleItem
+                              key={sm.path}
+                              sm={sm}
+                              onUpdate={() => onUpdateSubmodule?.(sm.path)}
+                              onSync={() => onSyncSubmodules?.()}
+                            />
+                          ))
+                        )}
+                      </SidebarSection>
+                    )}
+                  </div>
+                </motion.div>
+              )
+            ) : activeView === 'settings' ? (
               <motion.div
-                key="repo-start"
+                key="settings"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -317,343 +1118,6 @@ export function RepoSidebar({
               >
                 <div className="px-4 py-2 flex items-center justify-between">
                   <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
-                    <FolderOpen size={14} /> Repositorios
-                  </span>
-                  {repoPath && (
-                    <button
-                      onClick={onCloseRepoChooser}
-                      className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
-                      title={t('common.backToRepo')}
-                    >
-                      <ArrowLeft size={12} />
-                    </button>
-                  )}
-                </div>
-                <div className="py-2 space-y-0.5">
-                  {[
-                    { id: 'open' as const, label: 'Abrir existente', icon: <FolderOpen size={14} /> },
-                    { id: 'create' as const, label: 'Crear nuevo', icon: <Sparkles size={14} /> },
-                    { id: 'clone' as const, label: 'Clonar de GitHub', icon: <Download size={14} /> },
-                  ].map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => onRepoStartModeChange(item.id)}
-                      className={cn(
-                        'w-full px-4 py-2 flex items-center gap-3 text-xs font-semibold tracking-wide transition-colors text-left relative',
-                        repoStartMode === item.id
-                          ? 'bg-secondary/10 text-secondary'
-                          : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
-                      )}
-                    >
-                      {repoStartMode === item.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-secondary" />}
-                      <span className={cn('shrink-0', repoStartMode === item.id ? 'text-secondary' : 'text-text-secondary/70')}>{item.icon}</span>
-                      <span className="truncate">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="repository"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="flex flex-col min-h-0"
-              >
-                {/* ── Navegación entre vistas ── */}
-                <nav
-                  aria-label={t('sidebar.navigation')}
-                  className="px-3 pt-2 pb-2 grid grid-cols-2 gap-1.5 shrink-0"
-                >
-                  {[
-                    { key: 'Commit', label: t('tab.commit'), icon: <FileText size={14} /> },
-                    { key: 'Graph', label: t('tab.graph'), icon: <GitMerge size={14} /> },
-                    { key: 'History', label: t('tab.history'), icon: <RotateCcw size={14} /> },
-                    { key: 'Pipeline', label: t('tab.pipeline'), icon: <Zap size={14} /> },
-                  ].map((tab) => (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => onTabChange(tab.key)}
-                      aria-current={activeTab === tab.key ? 'page' : undefined}
-                      className={cn(
-                        'flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all min-h-[44px]',
-                        activeTab === tab.key
-                          ? 'bg-secondary/15 text-secondary shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-                          : 'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-text-primary',
-                        'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2'
-                      )}
-                    >
-                      <span className={cn('shrink-0', activeTab === tab.key ? 'text-secondary' : 'text-text-secondary/70')}>
-                        {tab.icon}
-                      </span>
-                      <span className="truncate">{tab.label}</span>
-                    </button>
-                  ))}
-                </nav>
-
-                {/* LOCAL — folder tree + ahead/behind chips */}
-                <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-primary" />}>
-                  {branches.length === 0 && !repoPath && (
-                    <p className="px-4 py-2 text-xs text-text-secondary italic">{t('sidebar.noBranches')}</p>
-                  )}
-                  <BranchTree
-                    branches={branches}
-                    currentBranch={currentBranch}
-                    selectedBranch={selectedBranchName}
-                    tracking={branchTracking}
-                    onCheckout={(b) => onCheckoutAttempt(b)}
-                    onSelect={onSelectBranchInGraph}
-                    onContextMenu={(e, b) => {
-                      e.preventDefault();
-                      onBranchContextMenu({ x: e.clientX, y: e.clientY, branch: b });
-                    }}
-                    onDelete={(b) => onDeleteBranchRequest(b)}
-                  />
-                </SidebarSection>
-
-                {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
-                <SidebarSection title={t('sidebar.remote')} count={remoteBranches.length || undefined} icon={<Cloud size={12} className="text-primary" />}>
-                  <RemoteBranchTree
-                    branches={remoteBranches}
-                    onCheckout={(b) => onCheckoutAttempt(b)}
-                    onContextMenu={(e, b) => {
-                      e.preventDefault();
-                      onRemoteBranchContextMenu({ x: e.clientX, y: e.clientY, branch: b });
-                    }}
-                  />
-                </SidebarSection>
-
-                {/* PULL REQUESTS — only when logged in to GitHub */}
-                {githubUser && (
-                  <SidebarSection title={t('sidebar.pullRequests')} count={pullRequests.length || undefined}>
-                    {pullRequests.length === 0 && (
-                      <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noPRs')}</p>
-                    )}
-                    {pullRequests.map((pr) => (
-                      <div
-                        key={pr.number}
-                        className={cn(
-                          'group flex items-stretch text-sm transition-colors',
-                          selectedPullRequest?.number === pr.number
-                            ? 'bg-secondary/10 text-text-primary'
-                            : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => onSelectPullRequest(pr)}
-                          title={t('prDiff.view', { number: String(pr.number) })}
-                          className="flex-1 min-w-0 text-left px-4 py-1.5 flex items-start gap-2"
-                        >
-                          <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-text-secondary' : 'text-secondary')} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] font-mono text-text-secondary/70">#{pr.number}</span>
-                              {pr.draft && <span className="text-[9px] text-text-secondary/70 uppercase">{t('sidebar.draft')}</span>}
-                            </div>
-                            <p className="text-xs truncate">{pr.title}</p>
-                            <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-text-secondary/70">
-                              <span className="truncate">{pr.branch}</span>
-                              <span className="text-secondary">+{pr.additions}</span>
-                              <span className="text-error">-{pr.deletions}</span>
-                            </div>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => window.api?.shellOpenExternal(pr.url)}
-                          title={t('sidebar.openInGitHub', { number: String(pr.number) })}
-                          className="w-8 shrink-0 flex items-center justify-center text-text-secondary/70 hover:text-secondary opacity-0 group-hover:opacity-100 transition"
-                        >
-                          <ExternalLink size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </SidebarSection>
-                )}
-
-                {/* STASH */}
-                <SidebarSection
-                  title={t('sidebar.stash')}
-                  count={stashes.length || undefined}
-                  extra={stashes.length > 1 ? (
-                    showStashClearConfirm ? (
-                      <div className="flex items-center gap-1 ml-1">
-                        <button
-                          onClick={async () => { await stashClear(); setShowStashClearConfirm(false); }}
-                          className="text-[9px] px-1.5 py-0.5 rounded bg-error text-white font-bold"
-                        >
-                          Sí, limpiar
-                        </button>
-                        <button
-                          onClick={() => setShowStashClearConfirm(false)}
-                          className="text-[9px] px-1.5 py-0.5 rounded bg-border-subtle text-text-secondary"
-                        >
-                          No
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setShowStashClearConfirm(true)}
-                        className="text-[9px] text-text-secondary hover:text-error transition-colors ml-1 font-medium"
-                        title="Eliminar todos los stashes"
-                      >
-                        limpiar todo
-                      </button>
-                    )
-                  ) : undefined}
-                >
-                  {stashes.length === 0 && repoPath && (
-                    <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noStashes')}</p>
-                  )}
-                  {stashes.map((s) => (
-                    <StashItem
-                      key={s.index}
-                      stash={s}
-                      onApply={() => stashApply(s.index)}
-                      onPop={() => stashPop(s.index)}
-                      onPreview={() => onPreviewStash(s)}
-                      onDrop={() => stashDrop(s.index)}
-                    />
-                  ))}
-                </SidebarSection>
-
-                {/* TAGS */}
-                <SidebarSection
-                  title={t('sidebar.tags')}
-                  count={tags.length || undefined}
-                  extra={repoPath ? (
-                    <button
-                      type="button"
-                      onClick={onCreateTagRequest}
-                      className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
-                      title={selectedCommit ? t('commitMenu.createTag') : `${t('commitMenu.createTag')} (HEAD)`}
-                      aria-label={selectedCommit ? t('commitMenu.createTag') : `${t('commitMenu.createTag')} (HEAD)`}
-                    >
-                      <Plus size={12} />
-                    </button>
-                  ) : undefined}
-                >
-                  {tags.length === 0 && repoPath && (
-                    <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
-                  )}
-                  {tags.map((tg) => (
-                    <TagItem key={tg} name={tg} onDelete={() => onDeleteTagRequest(tg)} onPush={() => pushTag(tg)} />
-                  ))}
-                </SidebarSection>
-
-                {/* REMOTES */}
-                {repoPath && (
-                  <SidebarSection
-                    title={t('sidebar.remotes')}
-                    count={remotes.length || undefined}
-                    extra={(
-                      <button
-                        type="button"
-                        onClick={onAddRemoteRequest}
-                        className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
-                        title={t('sidebar.remoteAdd')}
-                      >
-                        <Plus size={12} />
-                      </button>
-                    )}
-                  >
-                    {remotes.length === 0 && (
-                      <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noRemotes')}</p>
-                    )}
-                    {remotes.map((rm) => (
-                      <SidebarRemoteItem
-                        key={rm.name}
-                        remote={rm}
-                        onRename={() => onRenameRemoteRequest?.(rm)}
-                        onSetUrl={() => onSetRemoteUrlRequest?.(rm)}
-                        onDelete={() => onDeleteRemoteRequest?.(rm)}
-                      />
-                    ))}
-                  </SidebarSection>
-                )}
-
-                {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
-                {repoPath && (
-                  <SidebarSection
-                    title={t('sidebar.worktrees')}
-                    count={worktrees.length > 1 ? worktrees.length - 1 : undefined}
-                    extra={(
-                      <button
-                        type="button"
-                        onClick={onAddWorktreeRequest}
-                        className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
-                        title={t('sidebar.worktreeAdd')}
-                      >
-                        <Plus size={12} />
-                      </button>
-                    )}
-                  >
-                    {worktrees.length <= 1 ? (
-                      <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noWorktrees')}</p>
-                    ) : (
-                      worktrees.map((wt) => {
-                        const isMain = wt.path.replace(/\\/g, '/').toLowerCase() === repoPath.replace(/\\/g, '/').toLowerCase();
-                        if (isMain) return null;
-                        return (
-                          <SidebarWorktreeItem
-                            key={wt.path}
-                            wt={wt}
-                            isMain={isMain}
-                            onOpen={() => window.api?.shellOpenPath(wt.path)}
-                            onDelete={() => onDeleteWorktreeRequest?.(wt)}
-                          />
-                        );
-                      })
-                    )}
-                  </SidebarSection>
-                )}
-
-                {/* SUBMODULES */}
-                {repoPath && (
-                  <SidebarSection
-                    title={t('sidebar.submodules')}
-                    count={submodules.length || undefined}
-                    extra={(
-                      <button
-                        type="button"
-                        onClick={onAddSubmoduleRequest}
-                        className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
-                        title={t('sidebar.submoduleAdd')}
-                      >
-                        <Plus size={12} />
-                      </button>
-                    )}
-                  >
-                    {submodules.length === 0 ? (
-                      <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noSubmodules')}</p>
-                    ) : (
-                      submodules.map((sm) => (
-                        <SidebarSubmoduleItem
-                          key={sm.path}
-                          sm={sm}
-                          onUpdate={() => onUpdateSubmodule?.(sm.path)}
-                          onSync={() => onSyncSubmodules?.()}
-                        />
-                      ))
-                    )}
-                  </SidebarSection>
-                )}
-              </motion.div>
-            )
-          ) : activeView === 'settings' ? (
-            <motion.div
-              key="settings"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="flex flex-col h-full select-none"
-            >
-              <div className="px-4 py-2 flex items-center justify-between">
-                <span className="font-bold text-secondary flex items-center gap-1.5 text-xs uppercase tracking-wider">
                   <Settings size={14} /> {t('settings.title')}
                 </span>
                 <button
@@ -779,6 +1243,7 @@ export function RepoSidebar({
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
       </div>
       <div className="shrink-0 bg-bg-base/70/35 px-3 py-3">
         <div className="flex items-center gap-2">

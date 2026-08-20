@@ -645,20 +645,6 @@ export function ChronometricGraph({
   const centauroReaderActive = useGitStore((state) => state.centauroReaderActive);
   const setCentauroReaderActive = useGitStore((state) => state.setCentauroReaderActive);
   const [hudExpanded, setHudExpanded] = useState(false);
-  const [canvasControlsOpen, setCanvasControlsOpen] = useState(false);
-  const canvasControlsRef = useRef<HTMLDivElement | null>(null);
-
-  // Close canvas controls menu on click outside
-  useEffect(() => {
-    if (!canvasControlsOpen) return;
-    const handleClickOutside = (e: MouseEvent | PointerEvent) => {
-      if (canvasControlsRef.current && !canvasControlsRef.current.contains(e.target as Node)) {
-        setCanvasControlsOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', handleClickOutside);
-    return () => document.removeEventListener('pointerdown', handleClickOutside);
-  }, [canvasControlsOpen]);
 
   // Which tab is active inside the expanded Centauro panel.
   const [centauroTab, setCentauroTab] = useState<'report' | 'history' | 'stats'>('report');
@@ -3270,99 +3256,50 @@ export function ChronometricGraph({
 
 
 
-      {/* Unified Canvas Controls in Bottom-Right Corner */}
-      <div ref={canvasControlsRef} className="absolute bottom-4 right-4 z-40">
-        <div className="relative">
-          {canvasControlsOpen && (
-            <div className="absolute bottom-full right-0 mb-2 w-56 rounded-xl bg-bg-surface shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-1">
-              <button
-                type="button"
-                onClick={zoomIn}
-                className="w-full px-3 py-2 flex items-center justify-between text-xs font-semibold rounded-lg text-text-secondary hover:text-text-primary hover:bg-text-primary/10 transition-colors min-h-[44px]"
-              >
-                <span className="flex items-center gap-2">
-                  <ZoomIn size={15} />
-                  {t('canvas.zoomIn')}
-                </span>
-                <kbd className="text-[10px] font-mono text-text-secondary/70">Scroll ↑</kbd>
-              </button>
-              <button
-                type="button"
-                onClick={zoomOut}
-                className="w-full px-3 py-2 flex items-center justify-between text-xs font-semibold rounded-lg text-text-secondary hover:text-text-primary hover:bg-text-primary/10 transition-colors min-h-[44px]"
-              >
-                <span className="flex items-center gap-2">
-                  <ZoomOut size={15} />
-                  {t('canvas.zoomOut')}
-                </span>
-                <kbd className="text-[10px] font-mono text-text-secondary/70">Scroll ↓</kbd>
-              </button>
-              <button
-                type="button"
-                onClick={resetViewport}
-                className="w-full px-3 py-2 flex items-center justify-between text-xs font-semibold rounded-lg text-text-secondary hover:text-text-primary hover:bg-text-primary/10 transition-colors min-h-[44px]"
-              >
-                <span className="flex items-center gap-2">
-                  <RotateCcw size={15} />
-                  {t('canvas.resetZoom')}
-                </span>
-              </button>
-              <div className="w-full h-px bg-border-subtle my-1" />
-              <button
-                type="button"
-                onClick={onToggleSpeculative}
-                className={cn(
-                  "w-full px-3 py-2 flex items-center justify-between text-xs font-semibold rounded-lg transition-colors min-h-[44px]",
-                  showSpeculative
-                    ? "bg-secondary/15 text-secondary"
-                    : "text-text-secondary hover:text-text-primary hover:bg-text-primary/10"
-                )}
-              >
-                <span className="flex items-center gap-2">
-                  <Layers size={15} />
-                  {t('canvas.speculativeBranches')}
-                </span>
-                <span className="text-[10px] font-bold font-mono uppercase">
-                  {showSpeculative ? t('centauro.futurosOn') : t('centauro.futurosOff')}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  toggleHudExpanded();
-                  setCanvasControlsOpen(false);
-                }}
-                className={cn(
-                  "w-full px-3 py-2 flex items-center justify-between text-xs font-semibold rounded-lg transition-colors min-h-[44px]",
-                  hudExpanded
-                    ? "bg-secondary/15 text-secondary"
-                    : "text-text-secondary hover:text-text-primary hover:bg-text-primary/10"
-                )}
-              >
-                <span className="flex items-center gap-2">
-                  <Compass size={15} />
-                  {t('canvas.openCentauro')}
-                </span>
-                <span className="text-[10px] font-bold font-mono">
-                  {hudExpanded ? '▲' : '▼'}
-                </span>
-              </button>
-            </div>
+      {/* Standalone Canvas Controls & Centauro Future Branches Reader in Bottom-Right Corner */}
+      <div className="absolute bottom-4 right-4 z-40 flex flex-col items-center gap-2">
+        <button
+          type="button"
+          onClick={zoomIn}
+          aria-label={t('canvas.zoomIn')}
+          title={t('canvas.zoomIn')}
+          className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-xl bg-bg-surface text-text-secondary shadow-lg flex items-center justify-center transition-colors hover:bg-text-primary/10 hover:text-secondary focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
+        >
+          <ZoomIn size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={zoomOut}
+          aria-label={t('canvas.zoomOut')}
+          title={t('canvas.zoomOut')}
+          className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-xl bg-bg-surface text-text-secondary shadow-lg flex items-center justify-center transition-colors hover:bg-text-primary/10 hover:text-secondary focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
+        >
+          <ZoomOut size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={resetViewport}
+          aria-label={t('canvas.resetZoom')}
+          title={t('canvas.resetZoom')}
+          className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-xl bg-bg-surface text-text-secondary shadow-lg flex items-center justify-center transition-colors hover:bg-text-primary/10 hover:text-secondary focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
+        >
+          <RotateCcw size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={toggleHudExpanded}
+          aria-label={t('canvas.openCentauro')}
+          title={t('canvas.openCentauro')}
+          aria-expanded={hudExpanded}
+          aria-pressed={hudExpanded}
+          className={cn(
+            "h-11 w-11 min-h-[44px] min-w-[44px] rounded-xl bg-bg-surface text-text-secondary shadow-lg flex items-center justify-center transition-colors",
+            "hover:bg-text-primary/10 hover:text-secondary focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2",
+            hudExpanded && "text-secondary bg-secondary/15"
           )}
-          <button
-            type="button"
-            onClick={() => setCanvasControlsOpen((v) => !v)}
-            aria-label={t('canvas.controls')}
-            title={t('canvas.controls')}
-            className={cn(
-              "h-11 w-11 min-h-[44px] min-w-[44px] rounded-xl bg-bg-surface text-text-secondary shadow-lg flex items-center justify-center transition-colors",
-              "hover:bg-text-primary/10 hover:text-secondary focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2",
-              canvasControlsOpen && "text-secondary bg-secondary/15"
-            )}
-          >
-            <SlidersHorizontal size={18} />
-          </button>
-        </div>
+        >
+          <Compass size={18} />
+        </button>
       </div>
 
       {/* Bottom dock — Centauro reader panel (when expanded) */}
@@ -3382,19 +3319,21 @@ export function ChronometricGraph({
             {/* Resize handle */}
             <div
               onMouseDown={onCentauroResizeStart}
-              className="absolute -top-1.5 left-0 right-0 h-3 cursor-ns-resize z-40 group"
-              title={t('resize.centauro')}
+              className="absolute -top-1.5 left-0 right-0 h-3 cursor-row-resize z-30 group flex items-center justify-center"
+              title="Arrastrar para redimensionar"
             >
-              <div className="absolute inset-x-0 top-1 h-px bg-border-subtle/15 group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
+              <div className="w-12 h-1 rounded-full bg-border-subtle group-hover:bg-secondary transition-colors" />
             </div>
 
-            {/* Inner content box */}
-            <div className="w-full rounded-t-xl bg-bg-surface shadow-2xl overflow-hidden relative">
+            <div
+              style={{
+                boxShadow:
+                  '0 -20px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08), 0 0 32px rgba(163, 241, 133, 0.1)',
+              }}
+              className="rounded-t-2xl bg-bg-surface border-t border-x border-border-subtle/30 overflow-hidden"
+            >
               <div
-                className={cn(
-                  "overflow-hidden bg-bg-surface rounded-t-xl",
-                  !isCentauroDragging && "transition-all duration-400 ease-out"
-                )}
+                className="overflow-hidden"
                 style={{
                   height: `${centauroHeight}px`,
                 }}
@@ -3437,15 +3376,37 @@ export function ChronometricGraph({
                         {t('centauro.tabStats')}
                       </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={toggleHudExpanded}
-                      title={t('centauro.collapsePanel')}
-                      aria-label={t('centauro.collapsePanel')}
-                      className="h-8 w-8 min-h-[32px] min-w-[32px] rounded-lg text-text-secondary hover:text-text-primary hover:bg-text-primary/10 flex items-center justify-center transition-colors"
-                    >
-                      <ChevronDown size={16} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {onToggleSpeculative && (
+                        <button
+                          type="button"
+                          onClick={onToggleSpeculative}
+                          title={t('canvas.speculativeBranches')}
+                          aria-label={t('canvas.speculativeBranches')}
+                          className={cn(
+                            "px-2.5 py-1 flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase rounded-lg transition-colors min-h-[32px]",
+                            showSpeculative
+                              ? "bg-secondary/15 text-secondary"
+                              : "text-text-secondary hover:text-text-primary hover:bg-text-primary/10"
+                          )}
+                        >
+                          <Layers size={13} />
+                          <span>{t('canvas.speculativeBranches')}</span>
+                          <span className="text-[9px] font-mono">
+                            {showSpeculative ? t('centauro.futurosOn') : t('centauro.futurosOff')}
+                          </span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={toggleHudExpanded}
+                        title={t('centauro.collapsePanel')}
+                        aria-label={t('centauro.collapsePanel')}
+                        className="h-8 w-8 min-h-[32px] min-w-[32px] rounded-lg text-text-secondary hover:text-text-primary hover:bg-text-primary/10 flex items-center justify-center transition-colors"
+                      >
+                        <ChevronDown size={16} />
+                      </button>
+                    </div>
                   </div>
 
                 {/* Tab content */}

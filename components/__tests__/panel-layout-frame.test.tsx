@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { TopBar } from '../TopBar';
+import { RepoTabs } from '../RepoTabs';
 import { RepoSidebar } from '../RepoSidebar';
 import { RepoDetailsPanel } from '../RepoDetailsPanel';
 import { RepoMainView } from '../RepoMainView';
@@ -74,29 +74,21 @@ vi.mock('@/lib/git-store', () => ({
 afterEach(cleanup);
 
 describe('Panel layout armazón & separación de fondos (modo por omisión: chronometric)', () => {
-  it('TopBar renderiza como barra continua con fondo bg-bg-surface y controles accesibles de 44px', () => {
+  it('RepoTabs renderiza controles accesibles de 44px para plegar paneles', () => {
     render(
-      <TopBar
+      <RepoTabs
+        repos={[{ path: '/test/repo', name: 'repo', isLoading: false } as any]}
+        activeIdx={0}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        onOpen={vi.fn()}
+        onReorder={vi.fn()}
         sidebarOpen={true}
         onToggleSidebar={vi.fn()}
         detailsOpen={true}
         onToggleDetails={vi.fn()}
-        onPullIntent={vi.fn()}
-        onPushIntent={vi.fn()}
-        onNewBranchRequest={vi.fn()}
-        onOpenStashModal={vi.fn()}
-        onFetchNow={vi.fn()}
-        filterText=""
-        onFilterTextChange={vi.fn()}
-        searchOpen={false}
-        onSearchOpenChange={vi.fn()}
       />
     );
-
-    const header = screen.getByRole('banner');
-    expect(header.className).toContain('bg-bg-surface');
-    expect(header.className).not.toContain('backdrop-blur');
-    expect(header.className).not.toContain('rounded-b-2xl');
 
     const sidebarToggle = screen.getByRole('button', { name: 'toolbar.hideSidebar' });
     expect(sidebarToggle.className).toContain('min-h-[44px]');
@@ -190,20 +182,17 @@ describe('Panel layout armazón & separación de fondos (modo por omisión: chro
   it('ocultar el panel lateral conserva la composición de armazón y esquina redondeada en modo cronométrico', () => {
     const { container } = render(
       <div className="flex flex-col h-screen bg-bg-surface">
-        <TopBar
+        <RepoTabs
+          repos={[{ path: '/test/repo', name: 'repo', isLoading: false } as any]}
+          activeIdx={0}
+          onSelect={vi.fn()}
+          onClose={vi.fn()}
+          onOpen={vi.fn()}
+          onReorder={vi.fn()}
           sidebarOpen={false}
           onToggleSidebar={vi.fn()}
           detailsOpen={false}
           onToggleDetails={vi.fn()}
-          onPullIntent={vi.fn()}
-          onPushIntent={vi.fn()}
-          onNewBranchRequest={vi.fn()}
-          onOpenStashModal={vi.fn()}
-          onFetchNow={vi.fn()}
-          filterText=""
-          onFilterTextChange={vi.fn()}
-          searchOpen={false}
-          onSearchOpenChange={vi.fn()}
         />
         <div className="flex-1 flex overflow-hidden relative">
           <main className="relative flex-1 min-h-0 bg-bg-base rounded-tl-xl rounded-tr-xl">
@@ -226,20 +215,17 @@ describe('Panel layout armazón & separación de fondos (modo por omisión: chro
   it('los componentes del armazón no declaran líneas de borde de maqueta', () => {
     const { container } = render(
       <div className="flex flex-col h-screen bg-bg-surface">
-        <TopBar
+        <RepoTabs
+          repos={[{ path: '/test/repo', name: 'repo', isLoading: false } as any]}
+          activeIdx={0}
+          onSelect={vi.fn()}
+          onClose={vi.fn()}
+          onOpen={vi.fn()}
+          onReorder={vi.fn()}
           sidebarOpen={true}
           onToggleSidebar={vi.fn()}
           detailsOpen={true}
           onToggleDetails={vi.fn()}
-          onPullIntent={vi.fn()}
-          onPushIntent={vi.fn()}
-          onNewBranchRequest={vi.fn()}
-          onOpenStashModal={vi.fn()}
-          onFetchNow={vi.fn()}
-          filterText=""
-          onFilterTextChange={vi.fn()}
-          searchOpen={false}
-          onSearchOpenChange={vi.fn()}
         />
         <div className="flex-1 flex overflow-hidden relative">
           <RepoSidebar
@@ -303,8 +289,8 @@ describe('Panel layout armazón & separación de fondos (modo por omisión: chro
       </div>
     );
 
-    const header = container.querySelector('header');
-    expect(header?.className).not.toContain('border-b');
+    const titlebar = container.querySelector('.app-titlebar');
+    expect(titlebar?.className).not.toContain('border-b');
 
     const asides = container.querySelectorAll('aside');
     expect(asides.length).toBe(2);

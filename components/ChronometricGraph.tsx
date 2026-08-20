@@ -46,7 +46,7 @@ import type { Lang } from '@/lib/i18n';
 import { CopyButton } from './CopyButton';
 import { PredictionDetail } from './temporal/PredictionDetail';
 import { AgentDashboard } from './temporal/AgentDashboard';
-import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Compass, Crosshair, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, GitCommit, ZoomIn, ZoomOut, RotateCcw, Activity, Layers, Compass, Crosshair, ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react';
 
 const OUTCOME_COLOR: Record<string, string> = {
   accepted: '#a3f185',
@@ -645,6 +645,20 @@ export function ChronometricGraph({
   const centauroReaderActive = useGitStore((state) => state.centauroReaderActive);
   const setCentauroReaderActive = useGitStore((state) => state.setCentauroReaderActive);
   const [hudExpanded, setHudExpanded] = useState(false);
+  const [canvasControlsOpen, setCanvasControlsOpen] = useState(false);
+  const canvasControlsRef = useRef<HTMLDivElement | null>(null);
+
+  // Close canvas controls menu on click outside
+  useEffect(() => {
+    if (!canvasControlsOpen) return;
+    const handleClickOutside = (e: MouseEvent | PointerEvent) => {
+      if (canvasControlsRef.current && !canvasControlsRef.current.contains(e.target as Node)) {
+        setCanvasControlsOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
+  }, [canvasControlsOpen]);
 
   // Which tab is active inside the expanded Centauro panel.
   const [centauroTab, setCentauroTab] = useState<'report' | 'history' | 'stats'>('report');
@@ -3256,147 +3270,187 @@ export function ChronometricGraph({
 
 
 
-      {/* Bottom dock — Centauro panel + horizontal toolbar above it.
-          Toolbar and panel form one visual block; both rise/fall together.
-          Toolbar is a reusable bar — zoom is the first resident, more controls go here later. */}
-      <div
-        className="absolute z-20 pointer-events-none flex justify-center"
-        style={{
-          left: hudLeftInset,
-          right: hudRightInset,
-          bottom: `${CENTAURO_BOTTOM_INSET_PX}px`,
-          transition: 'left 0.3s ease, right 0.3s ease',
-        }}
-      >
-        <div
-          className="pointer-events-auto select-none relative"
-          style={{ width: 'min(840px, calc(100% - 8px))' }}
-        >
-          {/* Resize handle — mounted on the top outer edge, protruding upward.
-              Same absolute-edge pattern as sidebar/details column handles. */}
-          <div
-            onMouseDown={onCentauroResizeStart}
-            className="absolute -top-1.5 left-0 right-0 h-3 cursor-ns-resize z-40 group"
-            title={t('resize.centauro')}
-          >
-            <div className="absolute inset-x-0 top-1 h-px bg-border-subtle/15 group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
-          </div>
-
-          {/* Inner content box — keeps overflow-hidden to perfectly mask content and transitions */}
-          <div className="w-full rounded-xl bg-bg-overlay/60 overflow-hidden relative">
-
-          {/* Toolbar — horizontal controls */}
-          <div
-            className="hud-toolbar px-3 py-1.5 flex items-center justify-between gap-3 bg-transparent transition-colors duration-300"
-          >
-            <div className="flex items-center gap-2">
-              {/* FUTUROS toggle — quick access from within chronometric view */}
-              <button
-                onClick={onToggleSpeculative}
-                className={cn(
-                  'h-7 shrink-0 rounded-md flex items-center gap-1.5 px-2.5 transition-colors cursor-pointer text-[9px] font-bold tracking-wider uppercase font-mono',
-                  showSpeculative
-                    ? 'bg-[#d9e7fc]/10 text-[#a3f185]'
-                    : 'bg-[#d9e7fc]/[0.035] text-[#9eacc0] hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
-                )}
-                title={t('centauro.futurosTooltip')}
-              >
-                {showSpeculative ? t('centauro.futurosOn') : t('centauro.futurosOff')}
-              </button>
-
-              {/* CENTAURO toggle */}
-              <button
-                onClick={toggleCentauroMode}
-                className={cn(
-                  'h-7 shrink-0 rounded-md flex items-center gap-1.5 px-2.5 transition-colors cursor-pointer text-[9px] font-bold tracking-wider uppercase font-mono',
-                  centauroReaderActive
-                    ? 'bg-[#d9e7fc]/10 text-[#a3f185]'
-                    : 'bg-[#d9e7fc]/[0.035] text-[#9eacc0] hover:bg-[#d9e7fc]/10 hover:text-[#a3f185]',
-                )}
-                title={t('toolbar.centauroTooltip')}
-                aria-pressed={centauroReaderActive}
-              >
-                <Compass size={12} className={cn('transition-colors', centauroReaderActive ? 'text-[#a3f185]' : 'text-[#9eacc0]/70')} />
-                <span>{t('toolbar.centauro')}</span>
-              </button>
-            </div>
-            {/* Zoom group — right side of the toolbar */}
-            <div className="flex items-center gap-1">
+      {/* Unified Canvas Controls in Bottom-Right Corner */}
+      <div ref={canvasControlsRef} className="absolute bottom-4 right-4 z-40">
+        <div className="relative">
+          {canvasControlsOpen && (
+            <div className="absolute bottom-full right-0 mb-2 w-56 rounded-xl bg-bg-surface shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-1">
               <button
                 type="button"
-                onClick={toggleHudExpanded}
-                title={hudExpanded ? t('centauro.collapsePanel') : t('centauro.expandPanel')}
-                aria-label={hudExpanded ? t('centauro.collapsePanel') : t('centauro.expandPanel')}
-                aria-expanded={hudExpanded}
-                className="h-7 w-7 shrink-0 rounded-md bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:bg-[#5ed8ff]/10 hover:text-[#5ed8ff] cursor-pointer"
+                onClick={zoomIn}
+                className="w-full px-3 py-2 flex items-center justify-between text-xs font-semibold rounded-lg text-text-secondary hover:text-text-primary hover:bg-text-primary/10 transition-colors min-h-[44px]"
               >
-                {hudExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                <span className="flex items-center gap-2">
+                  <ZoomIn size={15} />
+                  {t('canvas.zoomIn')}
+                </span>
+                <kbd className="text-[10px] font-mono text-text-secondary/70">Scroll ↑</kbd>
               </button>
-              <button onClick={zoomIn} title={t('zoom.in')} className="h-7 w-7 shrink-0 rounded-md bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
-                <ZoomIn size={14} />
+              <button
+                type="button"
+                onClick={zoomOut}
+                className="w-full px-3 py-2 flex items-center justify-between text-xs font-semibold rounded-lg text-text-secondary hover:text-text-primary hover:bg-text-primary/10 transition-colors min-h-[44px]"
+              >
+                <span className="flex items-center gap-2">
+                  <ZoomOut size={15} />
+                  {t('canvas.zoomOut')}
+                </span>
+                <kbd className="text-[10px] font-mono text-text-secondary/70">Scroll ↓</kbd>
               </button>
-              <button onClick={zoomOut} title={t('zoom.out')} className="h-7 w-7 shrink-0 rounded-md bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
-                <ZoomOut size={14} />
+              <button
+                type="button"
+                onClick={resetViewport}
+                className="w-full px-3 py-2 flex items-center justify-between text-xs font-semibold rounded-lg text-text-secondary hover:text-text-primary hover:bg-text-primary/10 transition-colors min-h-[44px]"
+              >
+                <span className="flex items-center gap-2">
+                  <RotateCcw size={15} />
+                  {t('canvas.resetZoom')}
+                </span>
               </button>
-              <button onClick={resetViewport} title={t('zoom.reset')} className="h-7 w-7 shrink-0 rounded-md bg-[#d9e7fc]/[0.035] text-[#9eacc0] flex items-center justify-center transition-colors hover:bg-[#d9e7fc]/10 hover:text-[#a3f185] cursor-pointer">
-                <RotateCcw size={14} />
+              <div className="w-full h-px bg-border-subtle my-1" />
+              <button
+                type="button"
+                onClick={onToggleSpeculative}
+                className={cn(
+                  "w-full px-3 py-2 flex items-center justify-between text-xs font-semibold rounded-lg transition-colors min-h-[44px]",
+                  showSpeculative
+                    ? "bg-secondary/15 text-secondary"
+                    : "text-text-secondary hover:text-text-primary hover:bg-text-primary/10"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <Layers size={15} />
+                  {t('canvas.speculativeBranches')}
+                </span>
+                <span className="text-[10px] font-bold font-mono uppercase">
+                  {showSpeculative ? t('centauro.futurosOn') : t('centauro.futurosOff')}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  toggleHudExpanded();
+                  setCanvasControlsOpen(false);
+                }}
+                className={cn(
+                  "w-full px-3 py-2 flex items-center justify-between text-xs font-semibold rounded-lg transition-colors min-h-[44px]",
+                  hudExpanded
+                    ? "bg-secondary/15 text-secondary"
+                    : "text-text-secondary hover:text-text-primary hover:bg-text-primary/10"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <Compass size={15} />
+                  {t('canvas.openCentauro')}
+                </span>
+                <span className="text-[10px] font-bold font-mono">
+                  {hudExpanded ? '▲' : '▼'}
+                </span>
               </button>
             </div>
-          </div>
-
-          {/* Centauro Panel — glassy content block */}
-          <div
+          )}
+          <button
+            type="button"
+            onClick={() => setCanvasControlsOpen((v) => !v)}
+            aria-label={t('canvas.controls')}
+            title={t('canvas.controls')}
             className={cn(
-              "overflow-hidden bg-[#071a2c]/85 rounded-b-xl",
-              !isCentauroDragging && "transition-all duration-400 ease-out"
+              "h-11 w-11 min-h-[44px] min-w-[44px] rounded-xl bg-bg-surface text-text-secondary shadow-lg flex items-center justify-center transition-colors",
+              "hover:bg-text-primary/10 hover:text-secondary focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2",
+              canvasControlsOpen && "text-secondary bg-secondary/15"
             )}
-            style={{
-              height: hudExpanded ? `${centauroHeight}px` : '0px',
-            }}
           >
-            {/* Expanded content — tabbed layout: report + history, no stacking */}
-            {hudExpanded && (
-              <div className="flex flex-col rounded-b-xl h-full" style={{ maxHeight: `${centauroHeight}px` }}>
-                {/* Tab bar */}
-                <div ref={centauroTabBarRef} className="flex items-center border-b border-[#5ed8ff]/15 px-4">
-                  <button
-                    onClick={() => setCentauroTab('report')}
-                    className={cn(
-                      'px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-colors border-b-2 -mb-[1px]',
-                      centauroTab === 'report'
-                        ? 'text-[#5ed8ff] border-[#5ed8ff]'
-                        : 'text-[#697789] border-transparent hover:text-[#9eacc0]',
-                    )}
-                  >
-                    {t('centauro.tabReport')}
-                  </button>
-                  <button
-                    onClick={openHistoryTab}
-                    className={cn(
-                      'px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-colors border-b-2 -mb-[1px]',
-                      centauroTab === 'history'
-                        ? 'text-[#5ed8ff] border-[#5ed8ff]'
-                        : 'text-[#697789] border-transparent hover:text-[#9eacc0]',
-                    )}
-                  >
-                    {t('centauro.tabHistory')}
-                  </button>
-                  <button
-                    onClick={() => setCentauroTab('stats')}
-                    className={cn(
-                      'px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-colors border-b-2 -mb-[1px]',
-                      centauroTab === 'stats'
-                        ? 'text-[#5ed8ff] border-[#5ed8ff]'
-                        : 'text-[#697789] border-transparent hover:text-[#9eacc0]',
-                    )}
-                  >
-                    {t('centauro.tabStats')}
-                  </button>
-                </div>
+            <SlidersHorizontal size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Bottom dock — Centauro reader panel (when expanded) */}
+      {hudExpanded && (
+        <div
+          className="absolute z-20 pointer-events-none flex justify-center bottom-0"
+          style={{
+            left: hudLeftInset,
+            right: hudRightInset,
+            transition: 'left 0.3s ease, right 0.3s ease',
+          }}
+        >
+          <div
+            className="pointer-events-auto select-none relative w-full"
+            style={{ width: 'min(840px, calc(100% - 8px))' }}
+          >
+            {/* Resize handle */}
+            <div
+              onMouseDown={onCentauroResizeStart}
+              className="absolute -top-1.5 left-0 right-0 h-3 cursor-ns-resize z-40 group"
+              title={t('resize.centauro')}
+            >
+              <div className="absolute inset-x-0 top-1 h-px bg-border-subtle/15 group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
+            </div>
+
+            {/* Inner content box */}
+            <div className="w-full rounded-t-xl bg-bg-surface shadow-2xl overflow-hidden relative">
+              <div
+                className={cn(
+                  "overflow-hidden bg-bg-surface rounded-t-xl",
+                  !isCentauroDragging && "transition-all duration-400 ease-out"
+                )}
+                style={{
+                  height: `${centauroHeight}px`,
+                }}
+              >
+                <div className="flex flex-col rounded-t-xl h-full" style={{ maxHeight: `${centauroHeight}px` }}>
+                  {/* Tab bar */}
+                  <div ref={centauroTabBarRef} className="flex items-center justify-between px-4 h-10 border-b border-border-subtle/20 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCentauroTab('report')}
+                        className={cn(
+                          'px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-colors border-b-2 -mb-[1px]',
+                          centauroTab === 'report'
+                            ? 'text-secondary border-secondary'
+                            : 'text-text-secondary border-transparent hover:text-text-primary',
+                        )}
+                      >
+                        {t('centauro.tabReport')}
+                      </button>
+                      <button
+                        onClick={openHistoryTab}
+                        className={cn(
+                          'px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-colors border-b-2 -mb-[1px]',
+                          centauroTab === 'history'
+                            ? 'text-secondary border-secondary'
+                            : 'text-text-secondary border-transparent hover:text-text-primary',
+                        )}
+                      >
+                        {t('centauro.tabHistory')}
+                      </button>
+                      <button
+                        onClick={() => setCentauroTab('stats')}
+                        className={cn(
+                          'px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase cursor-pointer transition-colors border-b-2 -mb-[1px]',
+                          centauroTab === 'stats'
+                            ? 'text-secondary border-secondary'
+                            : 'text-text-secondary border-transparent hover:text-text-primary',
+                        )}
+                      >
+                        {t('centauro.tabStats')}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleHudExpanded}
+                      title={t('centauro.collapsePanel')}
+                      aria-label={t('centauro.collapsePanel')}
+                      className="h-8 w-8 min-h-[32px] min-w-[32px] rounded-lg text-text-secondary hover:text-text-primary hover:bg-text-primary/10 flex items-center justify-center transition-colors"
+                    >
+                      <ChevronDown size={16} />
+                    </button>
+                  </div>
 
                 {/* Tab content */}
                 <div ref={centauroBodyRef} className={cn(
-                  "flex-1 rounded-b-xl",
+                  "flex-1",
                   isMaterializationMode && useTallMaterializationLayout ? "overflow-hidden flex flex-col" : "overflow-y-auto"
                 )}>
                   {centauroTab === 'report' ? (
@@ -3809,11 +3863,11 @@ export function ChronometricGraph({
                   )}
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      )}
     </div>
   );
 }

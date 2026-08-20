@@ -463,6 +463,9 @@ export default function GitCronPage() {
     graphTab: () => handleTabChange('Graph'),
     historyTab: () => handleTabChange('History'),
     commitTab: () => handleTabChange('Commit'),
+    pipelineTab: () => handleTabChange('Pipeline'),
+    terminal: openTerminal,
+    branchFilter: () => setShowSearchPopover(true),
   });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hash?: string } | null>(null);
   const [fileContextMenu, setFileContextMenu] = useState<{ x: number; y: number; file: GitFile } | null>(null);
@@ -1468,30 +1471,15 @@ export default function GitCronPage() {
           />
           {/* ──────────── TOP NAV ──────────── */}
           <TopBar
-            graphMode={graphMode}
             sidebarOpen={sidebarOpen}
             onToggleSidebar={toggleSidebar}
             detailsOpen={detailsOpen}
             onToggleDetails={toggleDetails}
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
             onPullIntent={handlePullIntent}
             onPushIntent={handlePushIntent}
             onNewBranchRequest={() => { setNewBranchFrom(undefined); setShowNewBranch(true); }}
             onOpenStashModal={handleOpenStashModal}
             onFetchNow={runFetchCycle}
-            showGraphModeSwitch={activeView === 'repository' && !isRepoStartView && !cartographyActive && activeTab === 'Graph' && !!repoPath && enableCronometric}
-            activeGraphMode={activeGraphMode}
-            onChangeGraphMode={handleChangeGraphMode}
-            updateStatus={updateStatus}
-            updateInfo={updateInfo}
-            downloadProgress={downloadProgress}
-            showUpdateMenu={showUpdateMenu}
-            setShowUpdateMenu={setShowUpdateMenu}
-            updateMenuRef={updateMenuRef}
-            onCheckForUpdate={handleCheckForUpdate}
-            onDownloadUpdate={handleDownloadUpdate}
-            onInstallUpdate={handleInstallUpdate}
             filterText={filterText}
             onFilterTextChange={setFilterText}
             searchOpen={showSearchPopover}
@@ -1506,9 +1494,11 @@ export default function GitCronPage() {
         <RepoSidebar
           graphMode={graphMode}
           sidebarW={sidebarW}
-          sidebarOpen={activeTab === 'Pipeline' ? false : sidebarOpen}
+          sidebarOpen={sidebarOpen}
           isDragging={isDragging}
           onResizeStart={(e) => beginColDrag('sidebar', e)}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
           activeView={activeView}
           onViewChange={handleViewChange}
           isRepoStartView={isRepoStartView}
@@ -1544,6 +1534,15 @@ export default function GitCronPage() {
           onAddSubmoduleRequest={() => setShowAddSubmodule(true)}
           onUpdateSubmodule={handleUpdateSubmodule}
           onSyncSubmodules={handleSyncSubmodules}
+          updateStatus={updateStatus}
+          updateInfo={updateInfo}
+          downloadProgress={downloadProgress}
+          showUpdateMenu={showUpdateMenu}
+          setShowUpdateMenu={setShowUpdateMenu}
+          updateMenuRef={updateMenuRef}
+          onCheckForUpdate={handleCheckForUpdate}
+          onDownloadUpdate={handleDownloadUpdate}
+          onInstallUpdate={handleInstallUpdate}
         />
 
         {/* CENTER CANVAS: Full-bleed in content area between panels */}

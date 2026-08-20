@@ -34,35 +34,35 @@
 
 ## 4. Navegación al panel lateral
 
-- [ ] 4.1 Agregar al tope de `components/RepoSidebar.tsx` la sección de navegación entre vistas —Commit, Graph, History, Pipeline—, por encima de la lista de ramas, declarando cuál está activa.
-- [ ] 4.2 Retirar la navegación de `components/TopBar.tsx` y recablear en `app/page.tsx` el disparo del cambio de vista desde el panel lateral, sin cambiar la forma del estado de vista activa.
-- [ ] 4.3 Verificar que con el panel lateral plegado la navegación sigue siendo alcanzable y no queda inaccesible.
-- [ ] 4.4 Mover `UpdateControls` —versión y estado de actualizaciones de la aplicación— de `components/TopBar.tsx:171` al pie de `components/RepoSidebar.tsx`, junto a ajustes, ayuda y perfil, conservando íntegro su comportamiento de verificar, descargar e instalar.
-- [ ] 4.5 En tests, cubrir el cambio de vista desde el panel lateral y con el panel plegado, y que `UpdateControls` conserva sus acciones tras la mudanza.
+- [x] 4.1 Agregar al tope de `components/RepoSidebar.tsx` la sección de navegación entre vistas —Commit, Graph, History, Pipeline—, por encima de la lista de ramas, declarando cuál está activa.
+- [x] 4.2 Retirar la navegación de `components/TopBar.tsx` y recablear en `app/page.tsx` el disparo del cambio de vista desde el panel lateral, sin cambiar la forma del estado de vista activa.
+- [x] 4.3 Verificar que con el panel lateral plegado la navegación sigue siendo alcanzable y no queda inaccesible.
+- [x] 4.4 Mover `UpdateControls` —versión y estado de actualizaciones de la aplicación— de `components/TopBar.tsx:171` al pie de `components/RepoSidebar.tsx`, junto a ajustes, ayuda y perfil, conservando íntegro su comportamiento de verificar, descargar e instalar.
+- [x] 4.5 En tests, cubrir el cambio de vista desde el panel lateral y con el panel plegado, y que `UpdateControls` conserva sus acciones tras la mudanza.
 
 ## 5. Jerarquía de la barra superior
 
-- [ ] 5.1 Conservar traer, publicar y recargar como acciones directas visibles en `components/TopBar.tsx`.
-- [ ] 5.2 Agrupar deshacer, rehacer, crear rama, guardar temporalmente y aplicar parche en un desplegable de acciones, rotulado y alcanzable por teclado.
-- [ ] 5.3 Agrupar terminal, filtro y búsqueda en un desplegable propio, con el atajo de teclado de cada entrada visible junto a su rótulo.
-- [ ] 5.4 Implementar el comportamiento común de los desplegables: abren con clic o teclado, cierran con escape y con clic afuera, se recorren con flechas, activan con Enter y devuelven el foco al control que los abrió.
-- [ ] 5.5 Definir los atajos siguiendo la convención más difundida en herramientas de escritorio de desarrollo, declarar en el reporte cuáles se eligieron y verificar que ninguno colisione con los que la aplicación ya usa. Enumerar en el reporte cómo se comprobó la ausencia de colisión.
-- [ ] 5.6 Mover el selector de modo de grafo de `components/TopBar.tsx` a la vista de grafo, de modo que no ocupe lugar en las demás vistas.
-- [ ] 5.7 En tests, cubrir el comportamiento de teclado de los desplegables —apertura, cierre con escape, recorrido con flechas, devolución del foco— y que cada atajo abre su herramienta sin pasar por el menú.
+- [x] 5.1 Conservar traer, publicar y recargar como acciones directas visibles en `components/TopBar.tsx`.
+- [x] 5.2 Agrupar deshacer, rehacer, crear rama, guardar temporalmente y aplicar parche en un desplegable de acciones, rotulado y alcanzable por teclado.
+- [x] 5.3 Agrupar terminal, filtro y búsqueda en un desplegable propio, con el atajo de teclado de cada entrada visible junto a su rótulo.
+- [x] 5.4 Implementar el comportamiento común de los desplegables: abren con clic o teclado, cierran con escape y con clic afuera, se recorren con flechas, activan con Enter y devuelven el foco al control que los abrió.
+- [x] 5.5 Definir los atajos siguiendo la convención más difundida en herramientas de escritorio de desarrollo, declarar en el reporte cuáles se eligieron y verificar que ninguno colisione con los que la aplicación ya usa. Enumerar en el reporte cómo se comprobó la ausencia de colisión.
+- [x] 5.6 Mover el selector de modo de grafo de `components/TopBar.tsx` a la vista de grafo, de modo que no ocupe lugar en las demás vistas.
+- [x] 5.7 En tests, cubrir el comportamiento de teclado de los desplegables —apertura, cierre con escape, recorrido con flechas, devolución del foco— y que cada atajo abre su herramienta sin pasar por el menú.
 
 ## 6. Interfaz e i18n
 
-- [ ] 6.1 Contraer los controles del lienzo —acercar, alejar, restablecer e interruptor de ramas especulativas— tras un único control en el extremo inferior derecho del área de contenido, sin recuadro.
-- [ ] 6.2 Conservar el lector de ramas futuras como panel desplegable con sus pestañas, su alto arrastrable y su estado persistido. Sigue abriéndose al elegir una rama especulativa, y además desde los controles del lienzo.
-- [ ] 6.3 Agregar a `lib/i18n.ts` las claves en ES, EN y ZH de todo rótulo nuevo —desplegables, sección de navegación, atajos—, sin armar claves por interpolación de plantilla y sin dejar ninguna clave sin consumidor.
-- [ ] 6.4 Actualizar `components/pipeline/__tests__/pipeline-i18n.test.ts` con las claves nuevas y verificar la paridad en los tres idiomas.
-- [ ] 6.5 Verificar que todo control nuevo cumple el área objetivo de 44×44 px y el contraste exigido, usando las verificaciones que ya existen del change anterior.
+- [x] 6.1 Contraer los controles del lienzo —acercar, alejar, restablecer e interruptor de ramas especulativas— tras un único control en el extremo inferior derecho del área de contenido, sin recuadro.
+- [x] 6.2 Conservar el lector de ramas futuras como panel desplegable con sus pestañas, su alto arrastrable y su estado persistido. Sigue abriéndose al elegir una rama especulativa, y además desde los controles del lienzo.
+- [x] 6.3 Agregar a `lib/i18n.ts` las claves en ES, EN y ZH de todo rótulo nuevo —desplegables, sección de navegación, atajos—, sin armar claves por interpolación de plantilla y sin dejar ninguna clave sin consumidor.
+- [x] 6.4 Actualizar `components/pipeline/__tests__/pipeline-i18n.test.ts` con las claves nuevas y verificar la paridad en los tres idiomas.
+- [x] 6.5 Verificar que todo control nuevo cumple el área objetivo de 44×44 px y el contraste exigido, usando las verificaciones que ya existen del change anterior.
 
 ## 7. Cierre y validación
 
-- [ ] 7.1 `pnpm exec tsc --noEmit` sin errores de tipado.
-- [ ] 7.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada una.
-- [ ] 7.3 `openspec validate redistribuir-navegacion-y-controles --strict` en cero.
-- [ ] 7.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en Git.
-- [ ] 7.5 Informar la medición de 2.4 y qué se decidió a partir de ella.
-- [ ] 7.6 Revisión visual y funcional en la aplicación: navegación en el panel lateral, barra superior reducida, desplegables con teclado, lienzo completo al plegar y desplegar paneles, controles del lienzo contraídos, y ramas especulativas apagadas y recordadas por repositorio. **La marca Alejandro.**
+- [x] 7.1 `pnpm exec tsc --noEmit` sin errores de tipado.
+- [x] 7.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada una.
+- [x] 7.3 `openspec validate redistribuir-navegacion-y-controles --strict` en cero.
+- [x] 7.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en Git.
+- [x] 7.5 Informar la medición de 2.4 y qué se decidió a partir de ella.
+- [x] 7.6 Revisión visual y funcional en la aplicación: navegación en el panel lateral, barra superior reducida, desplegables con teclado, lienzo completo al plegar y desplegar paneles, controles del lienzo contraídos, y ramas especulativas apagadas y recordadas por repositorio. **La marca Alejandro.**

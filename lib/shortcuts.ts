@@ -22,7 +22,10 @@ export type ShortcutId =
   | 'prevRepo'
   | 'graphTab'
   | 'historyTab'
-  | 'commitTab';
+  | 'commitTab'
+  | 'pipelineTab'
+  | 'terminal'
+  | 'branchFilter';
 
 export interface ShortcutDef {
   id: ShortcutId;
@@ -33,20 +36,23 @@ export interface ShortcutDef {
 }
 
 export const DEFAULT_SHORTCUTS: ShortcutDef[] = [
-  { id: 'commit',      defaultKeys: 'Ctrl+Enter',       descriptionKey: 'shortcuts.commit' },
-  { id: 'push',        defaultKeys: 'Ctrl+P',           descriptionKey: 'shortcuts.push' },
-  { id: 'pull',        defaultKeys: 'Ctrl+Shift+P',     descriptionKey: 'shortcuts.pull' },
-  { id: 'newBranch',   defaultKeys: 'Ctrl+B',           descriptionKey: 'shortcuts.newBranch' },
-  { id: 'search',      defaultKeys: 'Ctrl+Alt+F',       descriptionKey: 'shortcuts.search' },
-  { id: 'fetchNow',    defaultKeys: 'Ctrl+R',           descriptionKey: 'shortcuts.fetchNow' },
-  { id: 'settings',    defaultKeys: 'Ctrl+,',           descriptionKey: 'shortcuts.settings' },
-  { id: 'help',        defaultKeys: 'F1',               descriptionKey: 'shortcuts.help' },
-  { id: 'closeRepo',   defaultKeys: 'Ctrl+W',           descriptionKey: 'shortcuts.closeRepo' },
-  { id: 'nextRepo',    defaultKeys: 'Ctrl+Tab',         descriptionKey: 'shortcuts.nextRepo' },
-  { id: 'prevRepo',    defaultKeys: 'Ctrl+Shift+Tab',   descriptionKey: 'shortcuts.prevRepo' },
-  { id: 'graphTab',    defaultKeys: 'Ctrl+G',           descriptionKey: 'shortcuts.graphTab' },
-  { id: 'historyTab',  defaultKeys: 'Ctrl+H',           descriptionKey: 'shortcuts.historyTab' },
-  { id: 'commitTab',   defaultKeys: 'Ctrl+Shift+C',     descriptionKey: 'shortcuts.commitTab' },
+  { id: 'commit',       defaultKeys: 'Ctrl+Enter',       descriptionKey: 'shortcuts.commit' },
+  { id: 'push',         defaultKeys: 'Ctrl+P',           descriptionKey: 'shortcuts.push' },
+  { id: 'pull',         defaultKeys: 'Ctrl+Shift+P',     descriptionKey: 'shortcuts.pull' },
+  { id: 'newBranch',    defaultKeys: 'Ctrl+B',           descriptionKey: 'shortcuts.newBranch' },
+  { id: 'search',       defaultKeys: 'Ctrl+Alt+F',       descriptionKey: 'shortcuts.search' },
+  { id: 'fetchNow',     defaultKeys: 'Ctrl+R',           descriptionKey: 'shortcuts.fetchNow' },
+  { id: 'settings',     defaultKeys: 'Ctrl+,',           descriptionKey: 'shortcuts.settings' },
+  { id: 'help',         defaultKeys: 'F1',               descriptionKey: 'shortcuts.help' },
+  { id: 'closeRepo',    defaultKeys: 'Ctrl+W',           descriptionKey: 'shortcuts.closeRepo' },
+  { id: 'nextRepo',     defaultKeys: 'Ctrl+Tab',         descriptionKey: 'shortcuts.nextRepo' },
+  { id: 'prevRepo',     defaultKeys: 'Ctrl+Shift+Tab',   descriptionKey: 'shortcuts.prevRepo' },
+  { id: 'graphTab',     defaultKeys: 'Ctrl+G',           descriptionKey: 'shortcuts.graphTab' },
+  { id: 'historyTab',   defaultKeys: 'Ctrl+H',           descriptionKey: 'shortcuts.historyTab' },
+  { id: 'commitTab',    defaultKeys: 'Ctrl+Shift+C',     descriptionKey: 'shortcuts.commitTab' },
+  { id: 'pipelineTab',  defaultKeys: 'Ctrl+Shift+O',     descriptionKey: 'shortcuts.pipelineTab' },
+  { id: 'terminal',     defaultKeys: 'Ctrl+`',           descriptionKey: 'shortcuts.terminal' },
+  { id: 'branchFilter', defaultKeys: 'Ctrl+Shift+B',     descriptionKey: 'shortcuts.branchFilter' },
 ];
 
 export function defaultShortcutsMap(): Record<ShortcutId, string> {

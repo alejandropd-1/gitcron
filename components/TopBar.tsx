@@ -1,57 +1,226 @@
 'use client';
 
-// Topbar de la app: toggles de paneles, tabs de navegación (Commit/Graph/
-// History), acciones git (pull/push/branch/stash/fetch), switch de modo de
-// graph, controles de update, terminal, filtro de branches y búsqueda.
-// Compone los widgets ya extraídos (UpdateControls, GraphSearchControl,
-// BranchFilterDropdown, FetchIndicator). Extraído de app/page.tsx.
+// Topbar de la app jerarquizada:
+// - Acciones frecuentes visibles: Traer (Pull), Publicar (Push), Recargar (Fetch).
+// - Desplegable de acciones: Deshacer, Rehacer, Crear rama, Guardar temporalmente, Aplicar parche.
+// - Desplegable de herramientas: Terminal, Filtro de ramas, Búsqueda, con sus atajos visibles.
+// - Toggles de paneles a los extremos.
 
-import { motion } from 'motion/react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Archive, Download, FileInput, GitBranch, PanelLeftClose, PanelLeftOpen,
-  PanelRightClose, PanelRightOpen, Redo, Terminal, Undo, Upload,
+  Archive, ChevronDown, Download, FileInput, Filter, GitBranch, PanelLeftClose, PanelLeftOpen,
+  PanelRightClose, PanelRightOpen, Redo, Search, SlidersHorizontal, Terminal, Undo, Upload, Wrench,
 } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useT } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 import { FetchIndicator, ToolbarButton } from '@/components/PageWidgets';
-import { UpdateControls } from '@/components/UpdateControls';
 import { GraphSearchControl } from '@/components/GraphSearchControl';
-import { BranchFilterDropdown } from '@/components/BranchFilterDropdown';
-import type { UpdateStatus, UpdateInfo } from '@/hooks/use-app-update';
+
+export interface DropdownMenuItem {
+  id: string;
+  label: string;
+  icon?: React.ReactNode;
+  shortcut?: string;
+  disabled?: boolean;
+  onClick: () => void;
+}
+
+interface TopBarDropdownProps {
+  id: string;
+  label: string;
+  icon?: React.ReactNode;
+  items: DropdownMenuItem[];
+  disabled?: boolean;
+}
+
+export function TopBarDropdown({
+  id,
+  label,
+  icon,
+  items,
+  disabled = false,
+}: TopBarDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const closeMenu = useCallback((restoreFocus = true) => {
+    setIsOpen(false);
+    setFocusedIndex(-1);
+    if (restoreFocus) {
+      triggerRef.current?.focus();
+    }
+  }, []);
+
+  // Handle click outside
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent | PointerEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node)
+      ) {
+        closeMenu(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
+  }, [isOpen, closeMenu]);
+
+  // Focus the item when focusedIndex changes
+  useEffect(() => {
+    if (isOpen && focusedIndex >= 0 && focusedIndex < items.length) {
+      itemRefs.current[focusedIndex]?.focus();
+    }
+  }, [isOpen, focusedIndex, items.length]);
+
+  const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled) return;
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setIsOpen(true);
+      setFocusedIndex(0);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setIsOpen(true);
+      setFocusedIndex(items.length - 1);
+    }
+  };
+
+  const handleMenuKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeMenu(true);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex((prev) => {
+        let next = (prev + 1) % items.length;
+        while (items[next]?.disabled && next !== prev) {
+          next = (next + 1) % items.length;
+        }
+        return next;
+      });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex((prev) => {
+        let next = (prev - 1 + items.length) % items.length;
+        while (items[next]?.disabled && next !== prev) {
+          next = (next - 1 + items.length) % items.length;
+        }
+        return next;
+      });
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setFocusedIndex(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setFocusedIndex(items.length - 1);
+    } else if (e.key === 'Tab') {
+      closeMenu(false);
+    }
+  };
+
+  const handleItemClick = (item: DropdownMenuItem) => {
+    if (item.disabled) return;
+    item.onClick();
+    closeMenu(true);
+  };
+
+  return (
+    <div className="relative inline-block text-left" onKeyDown={handleMenuKeyDown}>
+      <button
+        ref={triggerRef}
+        type="button"
+        id={`${id}-trigger`}
+        disabled={disabled}
+        onClick={() => {
+          if (isOpen) {
+            closeMenu(false);
+          } else {
+            setIsOpen(true);
+            setFocusedIndex(0);
+          }
+        }}
+        onKeyDown={handleTriggerKeyDown}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-controls={`${id}-menu`}
+        className={cn(
+          'min-h-[44px] px-3 py-2 rounded-lg text-xs font-semibold tracking-wide transition-colors flex items-center gap-1.5',
+          'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-text-primary',
+          'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
+          isOpen && 'bg-text-primary/10 text-secondary',
+          disabled && 'opacity-40 cursor-not-allowed pointer-events-none'
+        )}
+      >
+        {icon && <span className="shrink-0 text-text-secondary/70">{icon}</span>}
+        <span>{label}</span>
+        <ChevronDown size={12} className={cn('transition-transform duration-150', isOpen && 'rotate-180 text-secondary')} />
+      </button>
+
+      {isOpen && (
+        <div
+          ref={menuRef}
+          id={`${id}-menu`}
+          role="menu"
+          aria-labelledby={`${id}-trigger`}
+          className="absolute left-0 top-full mt-1 w-56 rounded-xl bg-bg-surface shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100"
+        >
+          {items.map((item, index) => (
+            <button
+              key={item.id}
+              ref={(el) => { itemRefs.current[index] = el; }}
+              role="menuitem"
+              type="button"
+              disabled={item.disabled}
+              tabIndex={focusedIndex === index ? 0 : -1}
+              onClick={() => handleItemClick(item)}
+              className={cn(
+                'w-full px-3 py-2 flex items-center justify-between text-xs transition-colors text-left min-h-[44px]',
+                item.disabled
+                  ? 'opacity-40 cursor-not-allowed'
+                  : focusedIndex === index
+                  ? 'bg-secondary/15 text-secondary'
+                  : 'text-text-secondary hover:bg-text-primary/10 hover:text-text-primary',
+                'focus-visible:outline-none'
+              )}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                {item.icon && <span className="shrink-0 opacity-80">{item.icon}</span>}
+                <span className="truncate font-medium">{item.label}</span>
+              </div>
+              {item.shortcut && (
+                <kbd className="ml-2 px-1.5 py-0.5 text-[10px] font-mono rounded bg-text-primary/[0.06] text-text-secondary/70 shrink-0">
+                  {item.shortcut}
+                </kbd>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 type TopBarProps = {
-  graphMode: 'classic' | 'chronometric';
-  // panel toggles (estado de usePanelLayout, vive en la página)
+  // panel toggles
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
   detailsOpen: boolean;
   onToggleDetails: () => void;
-  // navegación
-  activeTab: string;
-  onTabChange: (tab: string) => void;
-  // acciones git que abren toasts/modales de la página
+  // acciones git
   onPullIntent: () => void;
   onPushIntent: () => void;
   onNewBranchRequest: () => void;
   onOpenStashModal: () => void;
   onFetchNow: () => void | Promise<void>;
-  // switch clásico/cronométrico (condición computada por la página)
-  showGraphModeSwitch: boolean;
-  activeGraphMode: 'classic' | 'chronometric';
-  onChangeGraphMode: (mode: 'classic' | 'chronometric') => void;
-  // updates (instancia única de useAppUpdate en la página)
-  updateStatus: UpdateStatus;
-  updateInfo: UpdateInfo | null;
-  downloadProgress: number;
-  showUpdateMenu: boolean;
-  setShowUpdateMenu: React.Dispatch<React.SetStateAction<boolean>>;
-  updateMenuRef: React.RefObject<HTMLDivElement | null>;
-  onCheckForUpdate: () => void | Promise<void>;
-  onDownloadUpdate: () => void | Promise<void>;
-  onInstallUpdate: () => void | Promise<void>;
-  // búsqueda (filterText lo consumen los graphs; open lo abre el shortcut)
+  // búsqueda
   filterText: string;
   onFilterTextChange: (value: string) => void;
   searchOpen: boolean;
@@ -59,13 +228,8 @@ type TopBarProps = {
 };
 
 export function TopBar({
-  graphMode,
   sidebarOpen, onToggleSidebar, detailsOpen, onToggleDetails,
-  activeTab, onTabChange,
   onPullIntent, onPushIntent, onNewBranchRequest, onOpenStashModal, onFetchNow,
-  showGraphModeSwitch, activeGraphMode, onChangeGraphMode,
-  updateStatus, updateInfo, downloadProgress, showUpdateMenu, setShowUpdateMenu,
-  updateMenuRef, onCheckForUpdate, onDownloadUpdate, onInstallUpdate,
   filterText, onFilterTextChange, searchOpen, onSearchOpenChange,
 }: TopBarProps) {
   const t = useT();
@@ -73,11 +237,80 @@ export function TopBar({
   const isLoading = useGitStore((s) => s.isLoading);
   const { applyPatchFile, openTerminal } = useGitActions();
 
+  const actionsMenuItems: DropdownMenuItem[] = [
+    {
+      id: 'undo',
+      label: t('toolbar.undo'),
+      icon: <Undo size={14} />,
+      disabled: !repoPath || isLoading,
+      onClick: () => {},
+    },
+    {
+      id: 'redo',
+      label: t('toolbar.redo'),
+      icon: <Redo size={14} />,
+      disabled: !repoPath || isLoading,
+      onClick: () => {},
+    },
+    {
+      id: 'new-branch',
+      label: t('toolbar.newBranch'),
+      icon: <GitBranch size={14} />,
+      shortcut: 'Ctrl + B',
+      disabled: !repoPath,
+      onClick: onNewBranchRequest,
+    },
+    {
+      id: 'stash',
+      label: t('toolbar.stash'),
+      icon: <Archive size={14} />,
+      disabled: !repoPath || isLoading,
+      onClick: onOpenStashModal,
+    },
+    {
+      id: 'patch',
+      label: t('toolbar.applyPatchTooltip'),
+      icon: <FileInput size={14} />,
+      disabled: !repoPath || isLoading,
+      onClick: applyPatchFile,
+    },
+  ];
+
+  const toolsMenuItems: DropdownMenuItem[] = [
+    {
+      id: 'terminal',
+      label: t('toolbar.terminal'),
+      icon: <Terminal size={14} />,
+      shortcut: 'Ctrl + `',
+      disabled: !repoPath,
+      onClick: openTerminal,
+    },
+    {
+      id: 'branch-filter',
+      label: t('toolbar.branchFilter'),
+      icon: <Filter size={14} />,
+      shortcut: 'Ctrl + Shift + B',
+      disabled: !repoPath,
+      onClick: () => {
+        onSearchOpenChange(true);
+      },
+    },
+    {
+      id: 'search',
+      label: t('shortcuts.search'),
+      icon: <Search size={14} />,
+      shortcut: 'Ctrl + Alt + F',
+      disabled: !repoPath,
+      onClick: () => onSearchOpenChange(true),
+    },
+  ];
+
   return (
     <header
-      className="grid items-center shrink-0 relative z-50 h-12 bg-bg-surface grid-cols-[minmax(260px,1fr)_auto_minmax(260px,1fr)] px-4"
+      className="grid items-center shrink-0 relative z-50 h-12 bg-bg-surface grid-cols-[auto_1fr_auto] px-4 gap-4"
     >
-      <div className="flex items-center gap-4 h-full min-w-0">
+      {/* Left: Sidebar Toggle */}
+      <div className="flex items-center gap-2 h-full">
         <button
           type="button"
           onClick={onToggleSidebar}
@@ -94,96 +327,45 @@ export function TopBar({
         >
           {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
         </button>
-        <nav className="flex h-full gap-1 shrink-0">
-          {[
-            { key: 'Commit', label: t('tab.commit') },
-            { key: 'Graph', label: t('tab.graph') },
-            { key: 'History', label: t('tab.history') },
-            { key: 'Pipeline', label: t('tab.pipeline') },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => onTabChange(tab.key)}
-              className={cn(
-                'px-3 h-full flex items-center text-sm transition-colors relative',
-                activeTab === tab.key ? 'text-secondary' : 'text-text-secondary hover:text-text-primary',
-              )}
-            >
-              {tab.label}
-              {activeTab === tab.key && (
-                <motion.div layoutId="activeTab" className="absolute bottom-1.5 left-2 right-2 h-0.5 rounded-full bg-secondary" />
-              )}
-            </button>
-          ))}
-        </nav>
       </div>
 
-      <div className="flex items-center justify-center gap-1 px-2">
-        <ToolbarButton icon={<Undo />} onClick={() => {}} title={t('toolbar.undo')} />
-        <ToolbarButton icon={<Redo />} onClick={() => {}} title={t('toolbar.redo')} />
-        <div className="w-px h-4 bg-border-subtle mx-1" />
-        <ToolbarButton icon={<Download />} onClick={onPullIntent} title={t('toolbar.pull')} label={t('toolbar.pull')} disabled={!repoPath || isLoading} />
-        <ToolbarButton icon={<Upload />} onClick={onPushIntent} title={t('toolbar.push')} label={t('toolbar.push')} disabled={!repoPath || isLoading} />
+      {/* Center: Acciones dropdown, Traer (Pull), Publicar (Push), Recargar (Fetch) */}
+      <div className="flex items-center justify-center gap-2 px-2">
+        <TopBarDropdown
+          id="topbar-actions"
+          label={t('toolbar.actionsMenu')}
+          icon={<SlidersHorizontal size={14} />}
+          items={actionsMenuItems}
+          disabled={!repoPath}
+        />
         <div className="w-px h-4 bg-border-subtle mx-1" />
         <ToolbarButton
-          icon={<GitBranch />}
-          onClick={onNewBranchRequest}
-          title={t('toolbar.newBranch')} label={t('toolbar.branch')} disabled={!repoPath}
+          icon={<Download size={15} />}
+          onClick={onPullIntent}
+          title={t('toolbar.pull')}
+          label={t('toolbar.pull')}
+          disabled={!repoPath || isLoading}
         />
-        <ToolbarButton icon={<Archive />} onClick={onOpenStashModal} title={t('toolbar.stash')} label={t('toolbar.stash')} disabled={!repoPath || isLoading} />
-        <ToolbarButton icon={<FileInput />} onClick={applyPatchFile} title={t('toolbar.applyPatchTooltip')} label={t('toolbar.patch')} disabled={!repoPath || isLoading} />
+        <ToolbarButton
+          icon={<Upload size={15} />}
+          onClick={onPushIntent}
+          title={t('toolbar.push')}
+          label={t('toolbar.push')}
+          disabled={!repoPath || isLoading}
+        />
+        <div className="w-px h-4 bg-border-subtle mx-1" />
         <FetchIndicator onClick={onFetchNow} />
       </div>
 
-      <div className="flex items-center justify-end gap-1 min-w-0">
-        {/* Switch clásico/cronométrico — solo en la tab Graph con cronométrico habilitado */}
-        {showGraphModeSwitch && (
-          <div className="bg-bg-overlay/90 rounded-md flex items-center p-0.5 mr-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => onChangeGraphMode('classic')}
-              className={cn(
-                "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
-                activeGraphMode === 'classic'
-                  ? "bg-secondary/15 text-secondary shadow-[0_0_8px_rgba(163,241,133,0.15)]"
-                  : "text-text-secondary hover:text-text-primary"
-              )}
-              title={t('toolbar.viewClassicTooltip')}
-            >
-              {t('toolbar.viewClassicBtn')}
-            </button>
-            <button
-              type="button"
-              onClick={() => onChangeGraphMode('chronometric')}
-              className={cn(
-                "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150",
-                activeGraphMode === 'chronometric'
-                  ? "bg-secondary/15 text-secondary shadow-[0_0_8px_rgba(163,241,133,0.15)]"
-                  : "text-text-secondary hover:text-text-primary"
-              )}
-              title={t('toolbar.viewChronometricTooltip')}
-            >
-              {t('toolbar.viewChronometricBtn')}
-            </button>
-          </div>
-        )}
-        {/* Version tag + GitHub icon / update status */}
-        <UpdateControls
-          updateStatus={updateStatus}
-          updateInfo={updateInfo}
-          downloadProgress={downloadProgress}
-          showUpdateMenu={showUpdateMenu}
-          setShowUpdateMenu={setShowUpdateMenu}
-          updateMenuRef={updateMenuRef}
-          onCheckForUpdate={onCheckForUpdate}
-          onDownloadUpdate={onDownloadUpdate}
-          onInstallUpdate={onInstallUpdate}
+      {/* Right: Herramientas dropdown, Details Toggle */}
+      <div className="flex items-center justify-end gap-2">
+        <TopBarDropdown
+          id="topbar-tools"
+          label={t('toolbar.toolsMenu')}
+          icon={<Wrench size={14} />}
+          items={toolsMenuItems}
+          disabled={!repoPath}
         />
-        <div className="w-px h-4 bg-border-subtle mx-1" />
-        <ToolbarButton icon={<Terminal />} onClick={openTerminal} title={t('toolbar.terminal')} disabled={!repoPath} />
-
-        {/* Branch filter dropdown — only visible when Graph tab is active */}
-        {activeTab === 'Graph' && repoPath && <BranchFilterDropdown />}
         <GraphSearchControl
           filterText={filterText}
           onFilterTextChange={onFilterTextChange}

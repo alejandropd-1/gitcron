@@ -24,6 +24,8 @@ import { useGitActions } from '@/hooks/use-git-actions';
 import { useT } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 import { userInitials } from '@/lib/page-helpers';
+import { UpdateControls } from '@/components/UpdateControls';
+import type { UpdateStatus, UpdateInfo } from '@/hooks/use-app-update';
 import type { RepoStartMode } from '@/components/RepoModals';
 import type { PullRequestEntry, RemoteEntry, WorktreeEntry, SubmoduleEntry } from '@/types/electron';
 import {
@@ -222,6 +224,20 @@ type RepoSidebarProps = {
   // botón sólo se muestra con el flag on y un repo activo (ambos leídos del store).
   onToggleCartography: () => void;
 
+  // navegación entre vistas
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
+  // updates
+  updateStatus?: UpdateStatus;
+  updateInfo?: UpdateInfo | null;
+  downloadProgress?: number;
+  showUpdateMenu?: boolean;
+  setShowUpdateMenu?: React.Dispatch<React.SetStateAction<boolean>>;
+  updateMenuRef?: React.RefObject<HTMLDivElement | null>;
+  onCheckForUpdate?: () => void | Promise<void>;
+  onDownloadUpdate?: () => void | Promise<void>;
+  onInstallUpdate?: () => void | Promise<void>;
+
   // remotes
   onAddRemoteRequest?: () => void;
   onRenameRemoteRequest?: (remote: RemoteEntry) => void;
@@ -250,6 +266,10 @@ export function RepoSidebar({
   onAddRemoteRequest, onRenameRemoteRequest, onSetRemoteUrlRequest, onDeleteRemoteRequest,
   onAddWorktreeRequest, onDeleteWorktreeRequest,
   onAddSubmoduleRequest, onUpdateSubmodule, onSyncSubmodules,
+  activeTab = 'Graph', onTabChange = () => {},
+  updateStatus = 'idle', updateInfo = null, downloadProgress = 0,
+  showUpdateMenu = false, setShowUpdateMenu = () => {}, updateMenuRef = { current: null },
+  onCheckForUpdate = () => {}, onDownloadUpdate = () => {}, onInstallUpdate = () => {},
 }: RepoSidebarProps) {
   const t = useT();
   const {
@@ -341,6 +361,38 @@ export function RepoSidebar({
                 transition={{ duration: 0.15 }}
                 className="flex flex-col min-h-0"
               >
+                {/* ── Navegación entre vistas ── */}
+                <nav
+                  aria-label={t('sidebar.navigation')}
+                  className="px-3 pt-2 pb-2 grid grid-cols-2 gap-1.5 shrink-0"
+                >
+                  {[
+                    { key: 'Commit', label: t('tab.commit'), icon: <FileText size={14} /> },
+                    { key: 'Graph', label: t('tab.graph'), icon: <GitMerge size={14} /> },
+                    { key: 'History', label: t('tab.history'), icon: <RotateCcw size={14} /> },
+                    { key: 'Pipeline', label: t('tab.pipeline'), icon: <Zap size={14} /> },
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => onTabChange(tab.key)}
+                      aria-current={activeTab === tab.key ? 'page' : undefined}
+                      className={cn(
+                        'flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all min-h-[44px]',
+                        activeTab === tab.key
+                          ? 'bg-secondary/15 text-secondary shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+                          : 'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-text-primary',
+                        'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2'
+                      )}
+                    >
+                      <span className={cn('shrink-0', activeTab === tab.key ? 'text-secondary' : 'text-text-secondary/70')}>
+                        {tab.icon}
+                      </span>
+                      <span className="truncate">{tab.label}</span>
+                    </button>
+                  ))}
+                </nav>
+
                 {/* LOCAL — folder tree + ahead/behind chips */}
                 <SidebarSection title={t('sidebar.local')} count={branches.length || undefined} icon={<Monitor size={12} className="text-primary" />}>
                   {branches.length === 0 && !repoPath && (
@@ -735,7 +787,7 @@ export function RepoSidebar({
             onClick={() => onViewChange(activeView === 'settings' ? 'repository' : 'settings')}
             title={t('toolbar.settings')}
             className={cn(
-              'h-9 w-9 rounded-lg flex items-center justify-center transition-colors',
+              'h-11 w-11 min-h-[44px] min-w-[44px] rounded-lg flex items-center justify-center transition-colors',
               activeView === 'settings'
                 ? 'bg-secondary/10 text-secondary'
                 : 'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-secondary'
@@ -748,7 +800,7 @@ export function RepoSidebar({
             onClick={() => onViewChange(activeView === 'help' ? 'repository' : 'help')}
             title={t('toolbar.help')}
             className={cn(
-              'h-9 w-9 rounded-lg flex items-center justify-center transition-colors',
+              'h-11 w-11 min-h-[44px] min-w-[44px] rounded-lg flex items-center justify-center transition-colors',
               activeView === 'help'
                 ? 'bg-secondary/10 text-secondary'
                 : 'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-secondary'
@@ -762,7 +814,7 @@ export function RepoSidebar({
               onClick={onToggleCartography}
               title={cartographyActive ? t('cartography.backToGraph') : t('cartography.open')}
               className={cn(
-                'h-9 w-9 rounded-lg flex items-center justify-center transition-colors',
+                'h-11 w-11 min-h-[44px] min-w-[44px] rounded-lg flex items-center justify-center transition-colors',
                 cartographyActive
                   ? 'bg-secondary/10 text-secondary'
                   : 'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-secondary'
@@ -771,6 +823,17 @@ export function RepoSidebar({
               <Map size={17} />
             </button>
           )}
+          <UpdateControls
+            updateStatus={updateStatus}
+            updateInfo={updateInfo}
+            downloadProgress={downloadProgress}
+            showUpdateMenu={showUpdateMenu}
+            setShowUpdateMenu={setShowUpdateMenu}
+            updateMenuRef={updateMenuRef}
+            onCheckForUpdate={onCheckForUpdate}
+            onDownloadUpdate={onDownloadUpdate}
+            onInstallUpdate={onInstallUpdate}
+          />
           <div className="ml-auto">
             {githubUser ? (
               <button

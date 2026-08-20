@@ -85,10 +85,10 @@ export function UpdateControls({
         <AnimatePresence>
           {showUpdateMenu && (
             <motion.div
-              initial={{ opacity: 0, y: -4 }}
+              initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border-subtle/25 bg-bg-overlay/95 backdrop-blur-xl p-3 z-[220]"
+              exit={{ opacity: 0, y: 4 }}
+              className="absolute left-0 bottom-full mb-2 w-64 rounded-xl bg-bg-surface shadow-2xl p-3 z-[220]"
             >
               <div className="flex items-start gap-2.5">
                 <div className={cn(

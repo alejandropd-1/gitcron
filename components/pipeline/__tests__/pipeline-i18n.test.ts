@@ -310,6 +310,19 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.engine.review.forceWarning',
   'pipeline.openspec.engine.review.forceFilesToClean',
   'pipeline.openspec.engine.review.forceButton',
+  'toolbar.actionsMenu',
+  'toolbar.toolsMenu',
+  'toolbar.branchFilter',
+  'sidebar.navigation',
+  'canvas.controls',
+  'canvas.zoomIn',
+  'canvas.zoomOut',
+  'canvas.resetZoom',
+  'canvas.speculativeBranches',
+  'canvas.openCentauro',
+  'shortcuts.pipelineTab',
+  'shortcuts.terminal',
+  'shortcuts.branchFilter',
 ] as const;
 
 describe('Pipeline i18n', () => {

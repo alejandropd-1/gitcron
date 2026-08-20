@@ -27,6 +27,13 @@ y se nota.
 - **Edición de artefactos.** `proposal.md`, `design.md`, los specs y `tasks.md` se editan a mano o se
   le encargan a la IA. Lo que la IA propone nunca se escribe directo: se presenta como diff donde
   cada bloque se acepta o se rechaza por separado y el resultado se puede corregir antes de guardar.
+- **Revisión del alcance en curso.** Cuando el trabajo obliga a corregir lo planificado, la revisión
+  alcanza a todos los artefactos afectados y no sólo a la lista de tareas. Se delega al workflow que
+  el motor provee para eso, y se declara cuándo la revisión cambia el propósito en lugar de
+  precisarlo, caso en que corresponde un cambio nuevo.
+- **Diagnóstico del motor a la vista.** La salud de las relaciones del repositorio y el contexto de
+  trabajo resuelto —que el motor ya entrega en formato legible por máquina— se presentan en la
+  aplicación en lugar de obligar a una terminal.
 - **Sincronización de specs.** `openspec sync` con vista previa de qué se fusionaría en los specs
   principales antes de ejecutar.
 - **Archivado con motivo.** El archivado ya existe; se le agrega un campo opcional de razón, pensado
@@ -95,10 +102,25 @@ valores vigentes: la reorganización de acciones y diagnóstico no depende de la
 
 **Contrato con OpenSpec.** Nada del modelo de OpenSpec se replica en GitCron. La lista de workflows,
 el conjunto de artefactos, sus dependencias y sus plantillas se derivan en tiempo de ejecución de
-`openspec instructions`, `openspec status`, `openspec config` y `openspec schemas`. El fundamento es
-verificable: OpenSpec cambió de un flujo por fases fijas a workflows adaptables por organización
-entre la versión 1 y la 1.9, y este repositorio ya pagó el costo de duplicar su método —de dieciséis
-reglas propias, ocho repetían lo que el CLI entregaba y se retiraron—.
+`openspec instructions`, `openspec status`, `openspec config`, `openspec schemas`, `openspec
+templates`, `openspec doctor` y `openspec context`. El fundamento es verificable: OpenSpec cambió de
+un flujo por fases fijas a workflows adaptables por organización entre la versión 1 y la 1.9, y este
+repositorio ya pagó el costo de duplicar su método —de dieciséis reglas propias, ocho repetían lo que
+el CLI entregaba y se retiraron—.
+
+La superficie que el motor expone hoy —relevada sobre la versión 1.9.0 el 2026-08-19— es más amplia
+que la que este change cubre: doce workflows, de los cuales seis integran el conjunto básico
+(`propose`, `explore`, `apply`, `update`, `sync`, `archive`) y seis son opcionales (`new`,
+`continue`, `ff`, `bulk-archive`, `verify`, `onboard`); y comandos de consulta, esquemas propios por
+proyecto, repositorios de especificación independientes registrados en la máquina, y vistas de
+trabajo locales. Este change cubre el conjunto básico y el diagnóstico. Lo demás queda declarado como
+fuera de alcance, no como inexistente, para que el próximo que lea sepa que existe.
+
+**Dependencia de versión.** `update` no existe en el motor 1.5.0: aparece en el conjunto básico de
+versiones posteriores. Las operaciones que este change ofrece se habilitan según lo que el motor
+instalado exponga, y las que ese motor no tenga se declaran junto con la versión que las habilitaría.
+Es el mismo principio de derivar del CLI en lugar de declarar en el código, aplicado al caso en que
+el CLI ofrece menos de lo esperado.
 
 **Riesgo declarado.** Instalar el motor de forma global escribe fuera del repositorio y afecta a
 todos los proyectos de la máquina, sin reversión por Git. Por eso la elección entre local y global es

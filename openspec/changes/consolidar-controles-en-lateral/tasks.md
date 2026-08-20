@@ -32,7 +32,7 @@
 - [ ] 5.2 Presentar acercar, alejar y restablecer como controles sueltos sobre el lienzo, sin agrupamiento y sin recuadro.
 - [ ] 5.3 Mover el interruptor de ramas especulativas dentro del lector de ramas futuras, que es aquello cuyo contenido gobierna. Conservar la preferencia por repositorio que ya existe.
 - [ ] 5.4 Verificar que el lector conserva sus pestañas, su alto arrastrable y su estado persistido, y que sigue abriéndose también al elegir una rama especulativa.
-- [ ] 5.5 **Toca `components/ChronometricGraph.tsx`, protegido por el invariante 12. Requiere validación visual explícita de Ale antes de implementarse: la del 2026-08-19 alcanzaba al encuadre y al decorado, no a esto.** Frenar y pedirla si no está declarada al empezar.
+- [ ] 5.5 **Toca `components/ChronometricGraph.tsx`, protegido por el invariante 12. Cuenta con validación visual explícita de Ale del 2026-08-20**, acotada a lo que declara este grupo: que el control del extremo inferior derecho abra el lector de ramas futuras, que acercar, alejar y restablecer queden como controles sueltos, y que el interruptor de ramas especulativas pase dentro del lector. No alcanza a la geometría de la línea de tiempo, a la de los nodos ni a ninguna otra parte del archivo: ante cualquier otra necesidad, frenar y reportar.
 
 ## 6. Interfaz e i18n
 

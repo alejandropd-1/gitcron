@@ -581,21 +581,21 @@ function ClassicGraphView({ tabViews, graphView }: { tabViews: TabViewsProps; gr
           <GraphColumnHandle onMouseDown={(event) => graphView.beginGraphColDrag('graph', event)} />
           <div className="flex-1 flex items-center gap-2 pl-5 min-w-0">
             <span className="shrink-0">{t('graph.colMessage')}</span>
-            {graphView.enableCronometric && graphView.speculativeBranches.length > 0 && (
+            {graphView.enableCronometric && graphView.showSpeculative && graphView.speculativeBranches.length > 0 && (
               <button
                 onClick={() => {
                   graphView.onChangeGraphMode('chronometric');
                   if (!graphView.showSpeculative) graphView.onToggleSpeculative();
                 }}
                 className="text-[9px] normal-case px-2 py-0.5 rounded bg-[#5ed8ff]/10 text-[#5ed8ff] border border-[#5ed8ff]/30 hover:bg-[#5ed8ff]/20 transition-colors font-mono"
-                title={`${graphView.speculativeBranches.length} ramas especulativas disponibles`}
+                title={t('graph.speculativeBadgeTooltip', { count: graphView.speculativeBranches.length })}
               >
-                {graphView.speculativeBranches.length} futuros →
+                {t('graph.speculativeBadge', { count: graphView.speculativeBranches.length })}
               </button>
             )}
             {tabViews.filterText.trim() && (
               <span className="text-[10px] normal-case px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
-                filtro activo
+                {t('graph.filterActive')}
               </span>
             )}
           </div>

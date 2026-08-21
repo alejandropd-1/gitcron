@@ -37,7 +37,7 @@
   el grafo, ni a ninguna otra parte del archivo. Ante cualquier otra necesidad, frenar y reportar.
 - [x] 2.9 Verificar que el indicador de rama seleccionada, que se posiciona en absoluto contra el
   contenedor de fila, sigue pegado al borde izquierdo y no se corre con el relleno nuevo.
-- [ ] 2.10 Comprobar en la aplicación que cada rótulo del encabezado cae sobre su columna de datos y
+- [x] 2.10 Comprobar en la aplicación que cada rótulo del encabezado cae sobre su columna de datos y
   que la altura del encabezado calza con la de las filas. **La comprueba Alejandro.**
 
 ## 3. Rótulos
@@ -61,7 +61,7 @@
   frenar y reportar en lugar de tocarlo: está protegido por el invariante 12 y la autorización
   vigente no alcanza a este alcance.
 - [x] 4.3 Declarar en el reporte cuánto alto pierde el lienzo cronométrico, en píxeles.
-- [ ] 4.4 Comprobar que el lienzo cronométrico sigue siendo legible y utilizable con ese alto menor:
+- [x] 4.4 Comprobar que el lienzo cronométrico sigue siendo legible y utilizable con ese alto menor:
   la proyección depende del alto disponible. **La comprueba Alejandro.**
 
 ## 5. El selector de modo se muda
@@ -82,31 +82,31 @@
 
 ## 6. El anuncio de ramas especulativas
 
-- [ ] 6.1 Hacer que el anuncio consulte la preferencia de ramas especulativas por repositorio que ya
+- [x] 6.1 Hacer que el anuncio consulte la preferencia de ramas especulativas por repositorio que ya
   existe, además de las condiciones que ya evalúa. Hoy sólo la enciende al recibir el clic, y nunca
   la lee para decidir si mostrarse.
-- [ ] 6.2 Llevar a `lib/i18n.ts`, en ES, EN y ZH, el rótulo del anuncio y su tooltip, hoy escritos en
+- [x] 6.2 Llevar a `lib/i18n.ts`, en ES, EN y ZH, el rótulo del anuncio y su tooltip, hoy escritos en
   castellano dentro del componente. Con la aplicación en inglés o en chino, hoy se leen en castellano.
-- [ ] 6.3 Llevar del mismo modo el indicador de filtro activo que vive junto al anuncio, escrito en
+- [x] 6.3 Llevar del mismo modo el indicador de filtro activo que vive junto al anuncio, escrito en
   castellano dentro del mismo componente.
-- [ ] 6.4 **No tocar los colores literales** del anuncio ni de ninguna superficie migrada: los
+- [x] 6.4 **No tocar los colores literales** del anuncio ni de ninguna superficie migrada: los
   resuelve `unificar-paleta-carbon-soul` con la verificación de color que ese change declara.
   Declarar en el reporte cuántos quedaron a la vista, sin corregirlos.
-- [ ] 6.5 En tests, cubrir que el anuncio no aparece cuando la preferencia está en ocultar, y que
+- [x] 6.5 En tests, cubrir que el anuncio no aparece cuando la preferencia está en ocultar, y que
   sigue apareciendo y llevando al modo cronométrico cuando está en mostrar. Afirmar sobre el llamado.
 
 ## 7. Cierre y validación
 
-- [ ] 7.1 `pnpm exec tsc --noEmit` sin errores de tipado.
-- [ ] 7.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada
+- [x] 7.1 `pnpm exec tsc --noEmit` sin errores de tipado.
+- [x] 7.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada
   una.
-- [ ] 7.3 `openspec validate unificar-encabezado-de-contenido --strict` en cero.
-- [ ] 7.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en
+- [x] 7.3 `openspec validate unificar-encabezado-de-contenido --strict` en cero.
+- [x] 7.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en
   Git.
-- [ ] 7.5 Informar cuántas superficies quedaron usando la pieza única y cuántas quedaron fuera, con
+- [x] 7.5 Informar cuántas superficies quedaron usando la pieza única y cuántas quedaron fuera, con
   el motivo de cada exclusión. Si quedó más de una implementación de encabezado, el problema se
   duplicó en lugar de resolverse.
-- [ ] 7.6 Revisión visual y funcional en la aplicación: el encabezado se ve igual en todas las vistas,
+- [x] 7.6 Revisión visual y funcional en la aplicación: el encabezado se ve igual en todas las vistas,
   el selector de modo está en el grafo y opera, ninguna vista deja hueco al cambiar de una a otra, el
   lienzo cronométrico sigue legible con menos alto, y los rótulos aparecen traducidos al cambiar de
   idioma. **La marca Alejandro.**

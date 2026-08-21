@@ -919,6 +919,9 @@ const es: Dict = {
   'graph.colMessage': 'Mensaje de commit',
   'graph.colDate': 'Fecha',
   'graph.colCommit': 'Commit',
+  'graph.speculativeBadge': '{{count}} futuros →',
+  'graph.speculativeBadgeTooltip': '{{count}} ramas especulativas disponibles',
+  'graph.filterActive': 'filtro activo',
 
   // ── Común (compartido entre componentes) ──
   'common.close': 'Cerrar',
@@ -2902,6 +2905,9 @@ const en: Dict = {
   'graph.colMessage': 'Commit message',
   'graph.colDate': 'Date',
   'graph.colCommit': 'Commit',
+  'graph.speculativeBadge': '{{count}} futures →',
+  'graph.speculativeBadgeTooltip': '{{count}} speculative branches available',
+  'graph.filterActive': 'filter active',
 
   // ── Common (shared across components) ──
   'common.close': 'Close',
@@ -4513,6 +4519,9 @@ const zh: Dict = {
   'graph.colMessage': '提交信息',
   'graph.colDate': '日期',
   'graph.colCommit': '提交',
+  'graph.speculativeBadge': '{{count}} 个推测未来 →',
+  'graph.speculativeBadgeTooltip': '{{count}} 个推测分支可用',
+  'graph.filterActive': '过滤已生效',
   'common.close': '关闭',
   'common.cancel': '取消',
   'common.copy': '复制',

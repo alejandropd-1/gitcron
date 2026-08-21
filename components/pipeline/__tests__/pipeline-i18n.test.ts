@@ -328,6 +328,9 @@ const PIPELINE_KEYS = [
   'graph.colMessage',
   'graph.colDate',
   'graph.colCommit',
+  'graph.speculativeBadge',
+  'graph.speculativeBadgeTooltip',
+  'graph.filterActive',
   'history.header',
   'history.filteredHeader',
 ] as const;

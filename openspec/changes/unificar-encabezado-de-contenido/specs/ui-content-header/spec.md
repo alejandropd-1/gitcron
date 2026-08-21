@@ -3,9 +3,13 @@
 ### Requirement: El área de contenido SHALL encabezarse con una pieza única
 
 Toda vista que encabece su contenido SHALL hacerlo con la misma pieza, y esa pieza SHALL declarar una
-sola firma visual: una altura, un relleno, un tratamiento de borde y un tratamiento tipográfico. Cada
-vista SHALL poblarla con sus propios rótulos y sus propios controles, y SHALL NOT redefinir su
-composición.
+sola firma visual: un relleno, un tratamiento de borde y un tratamiento tipográfico. Cada vista SHALL
+poblarla con sus propios rótulos y sus propios controles, y SHALL NOT redefinir su composición.
+
+La altura SHALL tomar uno de dos valores según lo que la franja encabece, y ninguno más: la franja de
+identidad, que aloja los controles de la vista, SHALL medir 44 px, que es el área objetivo mínima que
+esos controles necesitan; la franja de columnas, que sólo lleva rótulos, SHALL medir 36 px, que es el
+módulo con el que calzan las filas que describe.
 
 El fundamento es que hoy existen tres implementaciones del mismo encabezado, escritas por separado y
 divergentes en el detalle: el grafo clásico usa altura fija sin borde inferior, mientras el historial
@@ -21,7 +25,11 @@ lecturas distintas en la misma línea. La vista de autoría ya resuelve el caso 
 
 #### Scenario: Vista que encabeza su contenido
 - **WHEN** una vista muestra un encabezado sobre su contenido
-- **THEN** ese encabezado tiene la misma altura, el mismo relleno, el mismo borde y el mismo tratamiento tipográfico que el de cualquier otra vista
+- **THEN** ese encabezado tiene el mismo relleno, el mismo borde y el mismo tratamiento tipográfico que el de cualquier otra vista, y su altura es la de su rol
+
+#### Scenario: Altura según el rol de la franja
+- **WHEN** una franja aloja controles de la vista, o cuando sólo nombra las columnas de una tabla
+- **THEN** mide 44 px en el primer caso y 36 px en el segundo, sin ningún otro valor posible
 
 #### Scenario: Vista nueva
 - **WHEN** se agrega una vista que necesita encabezar su contenido

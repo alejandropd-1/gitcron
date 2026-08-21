@@ -17,6 +17,9 @@ const NEW_CONTENT_HEADER_KEYS = [
   'graph.colMessage',
   'graph.colDate',
   'graph.colCommit',
+  'graph.speculativeBadge',
+  'graph.speculativeBadgeTooltip',
+  'graph.filterActive',
   'history.header',
   'history.filteredHeader',
 ] as const;
@@ -566,6 +569,66 @@ describe('ContentHeader y unificación de encabezados de contenido', () => {
 
       const selector = screen.queryByTestId('graph-mode-selector');
       expect(selector).toBeNull();
+    });
+  });
+
+  describe('9. Anuncio de ramas especulativas y filtro activo (6.1, 6.2, 6.3, 6.5)', () => {
+    it('el anuncio NO aparece cuando showSpeculative es false, aunque haya ramas y enableCronometric esté activo', () => {
+      renderMainViewWithGraph(undefined, {
+        activeGraphMode: 'classic',
+        enableCronometric: true,
+        showSpeculative: false,
+        speculativeBranches: [{ name: 'spec/1' } as any, { name: 'spec/2' } as any],
+      });
+
+      expect(screen.queryByTitle(/ramas especulativas disponibles/i)).toBeNull();
+      expect(screen.queryByText(/futuros →/i)).toBeNull();
+    });
+
+    it('el anuncio SÍ aparece cuando showSpeculative es true y hay ramas, y al hacer clic invoca onChangeGraphMode con chronometric', () => {
+      const onChangeGraphMode = vi.fn();
+      const onToggleSpeculative = vi.fn();
+      renderMainViewWithGraph(undefined, {
+        activeGraphMode: 'classic',
+        enableCronometric: true,
+        showSpeculative: true,
+        speculativeBranches: [{ name: 'spec/1' } as any, { name: 'spec/2' } as any],
+        onChangeGraphMode,
+        onToggleSpeculative,
+      });
+
+      const badge = screen.getByTitle('2 ramas especulativas disponibles');
+      expect(badge).toBeDefined();
+      expect(badge.textContent).toBe('2 futuros →');
+
+      fireEvent.click(badge);
+      expect(onChangeGraphMode).toHaveBeenCalledWith('chronometric');
+    });
+
+    it('las tres cadenas (speculativeBadge, speculativeBadgeTooltip, filterActive) resuelven en los tres idiomas leyendo de lib/i18n.ts', () => {
+      for (const lang of LANGUAGES) {
+        const badge = translate('graph.speculativeBadge', lang, { count: 3 });
+        expect(badge).toContain('3');
+        expect(badge).not.toMatch(/\{\{/);
+
+        const tooltip = translate('graph.speculativeBadgeTooltip', lang, { count: 3 });
+        expect(tooltip).toContain('3');
+        expect(tooltip).not.toMatch(/\{\{/);
+
+        const filter = translate('graph.filterActive', lang);
+        expect(filter.trim().length).toBeGreaterThan(0);
+        expect(filter).not.toBe('graph.filterActive');
+      }
+    });
+
+    it('el indicador de filtro activo se muestra traducido cuando hay texto de filtro', () => {
+      renderMainViewWithGraph(undefined, {
+        activeGraphMode: 'classic',
+      }, {
+        filterText: 'feat',
+      });
+
+      expect(screen.getByText('filtro activo')).toBeDefined();
     });
   });
 });

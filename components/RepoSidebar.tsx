@@ -27,7 +27,7 @@ import { useT } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 import { userInitials } from '@/lib/page-helpers';
 import { UpdateControls } from '@/components/UpdateControls';
-import { FetchIndicator } from '@/components/PageWidgets';
+import { FetchIndicator, ToolbarButton } from '@/components/PageWidgets';
 import { GraphSearchControl } from '@/components/GraphSearchControl';
 import { useSidebarSectionState } from '@/hooks/use-sidebar-section-state';
 import type { UpdateStatus, UpdateInfo } from '@/hooks/use-app-update';
@@ -183,20 +183,20 @@ export function SidebarDropdown({
         aria-expanded={isOpen}
         aria-controls={`${id}-menu`}
         className={cn(
-          'min-h-[44px] px-3 py-2 rounded-lg text-xs font-semibold tracking-wide transition-colors flex items-center justify-between gap-1.5',
-          'text-text-secondary hover:bg-text-primary/10 hover:text-text-primary',
+          'min-h-[38px] pl-1 pr-2 py-1 rounded-lg text-[17px] font-bold tracking-tight transition-colors inline-flex items-center gap-1.5',
+          'text-text-primary hover:bg-text-primary/10',
           'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
           isOpen && 'bg-text-primary/10 text-secondary',
           disabled && 'opacity-40 cursor-not-allowed pointer-events-none',
-          fullWidth && 'w-full',
+          fullWidth && 'w-full justify-between',
           className
         )}
       >
         <div className="flex items-center gap-2 min-w-0">
-          {icon && <span className="shrink-0 text-text-secondary/70">{icon}</span>}
-          <span className="truncate">{label}</span>
+          {icon && <span className="shrink-0 text-text-secondary/80 flex items-center justify-center w-4 h-4">{icon}</span>}
+          <span className="truncate text-[17px] font-bold">{label}</span>
         </div>
-        <ChevronDown size={12} className={cn('transition-transform duration-150 shrink-0', isOpen && 'rotate-180 text-secondary')} />
+        <ChevronDown size={14} className={cn('transition-transform duration-150 shrink-0 opacity-70', isOpen && 'rotate-180 text-secondary opacity-100')} />
       </button>
 
       {isOpen && (
@@ -398,9 +398,46 @@ function SidebarSubmoduleItem({
   );
 }
 
+function MoustacheIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      {/* Bigote clásico tipo moustache */}
+      <path d="M12 10.5C10.2 7.8 6.5 7.8 3.5 9.8C1.8 11 1 12.8 1 14.2C1 19 7.8 20.2 12 15.5C16.2 20.2 23 19 23 14.2C23 12.8 22.2 11 20.5 9.8C17.5 7.8 13.8 7.8 12 10.5Z" />
+    </svg>
+  );
+}
+
+function VulcanSaluteIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      {/* Vulcan salute 🖖: Live long and prosper */}
+      <path d="M18 10V5.5a1.5 1.5 0 0 0-3 0V9" />
+      <path d="M15 9V4a1.5 1.5 0 0 0-3 0v6" />
+      <path d="M12 10V4a1.5 1.5 0 0 0-3 0v5" />
+      <path d="M9 9V5.5a1.5 1.5 0 0 0-3 0v8c0 4.5 3 7.5 6.5 7.5s6-2.5 7.5-6.5l.5-4" />
+      <path d="M6 13.5l-2.2 2.2a1.5 1.5 0 0 0 2.1 2.1l1.6-1.6" />
+    </svg>
+  );
+}
+
 type RepoSidebarProps = {
   // layout (estado de usePanelLayout, que vive en la página)
   graphMode: 'classic' | 'chronometric';
+  activeGraphMode?: 'classic' | 'chronometric';
+  onChangeGraphMode?: (mode: 'classic' | 'chronometric') => void;
+  enableCronometric?: boolean;
   sidebarW: number;
   sidebarOpen: boolean;
   isDragging: boolean;
@@ -480,7 +517,8 @@ type RepoSidebarProps = {
 };
 
 export function RepoSidebar({
-  graphMode, sidebarW, sidebarOpen, isDragging, onResizeStart,
+  graphMode, activeGraphMode = graphMode, onChangeGraphMode, enableCronometric,
+  sidebarW, sidebarOpen, isDragging, onResizeStart,
   activeView, onViewChange, isRepoStartView,
   repoStartMode, onRepoStartModeChange, onCloseRepoChooser,
   selectedBranchName, onCheckoutAttempt, onSelectBranchInGraph,
@@ -519,36 +557,46 @@ export function RepoSidebar({
     { key: 'History', label: t('tab.history'), icon: <RotateCcw size={14} />, shortcut: 'Ctrl + H' },
     { key: 'Pipeline', label: t('tab.pipeline'), icon: <Zap size={14} />, shortcut: 'Ctrl + Shift + O' },
   ];
-  const currentView = viewOptions.find((v) => v.key === activeTab) || viewOptions[1];
+  const currentView = viewOptions.find((v) => v.key === activeTab) ?? viewOptions[0];
 
   const viewMenuItems: DropdownMenuItem[] = viewOptions.map((v) => ({
-    id: `view-${v.key.toLowerCase()}`,
+    id: v.key,
     label: v.label,
     icon: v.icon,
     shortcut: v.shortcut,
-    active: activeTab === v.key,
-    onClick: () => onTabChange(v.key),
+    active: v.key === activeTab,
+    onClick: () => {
+      if (activeView !== 'repository') {
+        onViewChange('repository');
+      }
+      onTabChange(v.key);
+    },
   }));
 
-  const actionsMenuItems: DropdownMenuItem[] = [
+  // Filtrado de ramas por texto
+  const filterLower = (filterText || '').toLowerCase().trim();
+  const filteredLocalBranches = branches.filter((b) => !filterLower || b.toLowerCase().includes(filterLower));
+  const filteredRemoteBranches = remoteBranches.filter((b) => !filterLower || b.toLowerCase().includes(filterLower));
+
+  const quickActions = [
     {
-      id: 'undo',
-      label: t('toolbar.undo'),
-      icon: <Undo size={14} />,
+      id: 'pull',
+      label: t('toolbar.pull'),
+      icon: <Download size={14} className="shrink-0 opacity-80" />,
       disabled: !repoPath || isLoading,
-      onClick: onUndo || (() => {}),
+      onClick: onPullIntent || (() => {}),
     },
     {
-      id: 'redo',
-      label: t('toolbar.redo'),
-      icon: <Redo size={14} />,
+      id: 'push',
+      label: t('toolbar.push'),
+      icon: <Upload size={14} className="shrink-0 opacity-80" />,
       disabled: !repoPath || isLoading,
-      onClick: onRedo || (() => {}),
+      onClick: onPushIntent || (() => {}),
     },
     {
       id: 'new-branch',
       label: t('toolbar.newBranch'),
-      icon: <GitBranch size={14} />,
+      icon: <GitBranch size={14} className="shrink-0 opacity-80" />,
       shortcut: 'Ctrl + B',
       disabled: !repoPath,
       onClick: onNewBranchRequest || (() => {}),
@@ -556,24 +604,16 @@ export function RepoSidebar({
     {
       id: 'stash',
       label: t('toolbar.stash'),
-      icon: <Archive size={14} />,
+      icon: <Archive size={14} className="shrink-0 opacity-80" />,
       disabled: !repoPath || isLoading,
       onClick: onOpenStashModal || (() => {}),
     },
     {
-      id: 'patch',
+      id: 'apply-patch',
       label: t('toolbar.applyPatchTooltip'),
-      icon: <FileInput size={14} />,
+      icon: <FileInput size={14} className="shrink-0 opacity-80" />,
       disabled: !repoPath || isLoading,
-      onClick: applyPatchFile,
-    },
-    {
-      id: 'terminal',
-      label: t('toolbar.terminal'),
-      icon: <Terminal size={14} />,
-      shortcut: 'Ctrl + `',
-      disabled: !repoPath,
-      onClick: openTerminal,
+      onClick: () => { void applyPatchFile(); },
     },
   ];
 
@@ -585,6 +625,8 @@ export function RepoSidebar({
       )}
       style={{
         width: sidebarOpen ? sidebarW : 0,
+        minWidth: sidebarOpen ? 200 : 0,
+        maxWidth: 480,
         opacity: sidebarOpen ? 1 : 0,
         visibility: sidebarOpen ? 'visible' : 'hidden',
       }}
@@ -662,22 +704,66 @@ export function RepoSidebar({
                 >
                   {/* ── CABECERA FIJA DEL LATERAL (No se desplaza al recorrer ramas) ── */}
                   <div className="shrink-0 bg-bg-surface flex flex-col">
-                    {/* 1. Selector de vistas + Lupa de búsqueda */}
-                    <div className="px-3 pt-2 pb-1 flex items-center justify-between gap-1 shrink-0">
-                      <nav
-                        aria-label={t('sidebar.navigation')}
-                        className="flex-1 min-w-0"
-                      >
-                        <SidebarDropdown
-                          id="sidebar-view-selector"
-                          label={currentView.label}
-                          icon={currentView.icon}
-                          items={viewMenuItems}
-                          fullWidth
+                    {/* 1. Selector de vistas + Switch Clásico/Cronométrico (centrado) + Terminal + Sincronización + Búsqueda */}
+                    <div className="px-2 pt-2 pb-1 flex items-center justify-between gap-1 shrink-0">
+                      <div className="flex items-center min-w-0">
+                        <nav
+                          aria-label={t('sidebar.navigation')}
+                          className="min-w-0"
+                        >
+                          <SidebarDropdown
+                            id="sidebar-view-selector"
+                            label={currentView.label}
+                            icon={currentView.icon}
+                            items={viewMenuItems}
+                          />
+                        </nav>
+                      </div>
+
+                      {/* Switch Clásico/Cronométrico centrado en el espacio intermedio */}
+                      {activeTab === 'Graph' && enableCronometric && onChangeGraphMode && (
+                        <div className="flex-1 flex justify-center px-1">
+                          <div className="bg-bg-base/80 border border-border-subtle/30 rounded-lg flex items-center p-0.5 shadow-sm">
+                            <button
+                              type="button"
+                              onClick={() => onChangeGraphMode('classic')}
+                              className={cn(
+                                "h-7 w-7 p-1 rounded-md transition-all duration-150 flex items-center justify-center",
+                                activeGraphMode === 'classic'
+                                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
+                                  : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
+                              )}
+                              title={t('toolbar.viewClassicTooltip')}
+                              aria-label={t('toolbar.viewClassicBtn')}
+                            >
+                              <MoustacheIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onChangeGraphMode('chronometric')}
+                              className={cn(
+                                "h-7 w-7 p-1 rounded-md transition-all duration-150 flex items-center justify-center",
+                                activeGraphMode === 'chronometric'
+                                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
+                                  : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
+                              )}
+                              title={t('toolbar.viewChronometricTooltip')}
+                              aria-label={t('toolbar.viewChronometricBtn')}
+                            >
+                              <VulcanSaluteIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <div className="shrink-0 flex items-center gap-1">
+                        <ToolbarButton
+                          icon={<Terminal size={14} />}
+                          onClick={() => { void openTerminal(); }}
+                          title={t('toolbar.terminal')}
+                          disabled={!repoPath}
                         />
-                      </nav>
-                      {onFilterTextChange && (
-                        <div className="shrink-0 flex items-center">
+                        <FetchIndicator onClick={onFetchNow || (() => {})} />
+                        {onFilterTextChange && (
                           <GraphSearchControl
                             filterText={filterText || ''}
                             onFilterTextChange={onFilterTextChange}
@@ -685,12 +771,12 @@ export function RepoSidebar({
                             open={searchOpen || false}
                             onOpenChange={onSearchOpenChange || (() => {})}
                           />
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
 
-                    {/* 2. Nombre de la rama en su propia línea completa */}
-                    <div className="px-3 pt-1.5 pb-0.5 flex items-center gap-2 min-w-0 shrink-0">
+                    {/* 2. Nombre de la rama en su propia línea completa (con aire en interlineado) */}
+                    <div className="px-3 pt-2 pb-0.5 flex items-center gap-2 min-w-0 shrink-0">
                       <GitBranch size={13} className="shrink-0 text-text-secondary/70" />
                       <span
                         className="font-mono font-semibold text-xs text-text-primary truncate"
@@ -701,7 +787,7 @@ export function RepoSidebar({
                     </div>
 
                     {/* 3. Indicadores de estado del repositorio (debajo de la rama) */}
-                    <div className="px-3 py-1 flex items-center gap-1.5 shrink-0 flex-wrap">
+                    <div className="px-3 pt-0.5 pb-1.5 flex items-center gap-1.5 shrink-0 flex-wrap">
                       {/* Working tree state */}
                       <div
                         role="status"
@@ -780,55 +866,42 @@ export function RepoSidebar({
                       })()}
                     </div>
 
-                    {/* 4. Fila de acciones (Acciones desplegable, Traer, Publicar, Recargar) */}
-                    <div className="px-3 pt-1 pb-2 flex items-center gap-1.5 shrink-0">
-                      <SidebarDropdown
-                        id="sidebar-actions"
-                        label={t('toolbar.actionsMenu')}
-                        icon={<SlidersHorizontal size={14} />}
-                        items={actionsMenuItems}
-                        disabled={!repoPath}
-                      />
-                      <div className="w-px h-4 bg-border-subtle/30 mx-0.5 shrink-0" />
-                      <button
-                        type="button"
-                        onClick={onPullIntent}
-                        title={t('toolbar.pull')}
-                        aria-label={t('toolbar.pull')}
-                        disabled={!repoPath || isLoading}
-                        className={cn(
-                          'min-h-[44px] min-w-[44px] px-2.5 py-2 rounded-lg text-xs font-semibold tracking-wide transition-colors flex items-center justify-center gap-1.5 shrink-0',
-                          'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-text-primary',
-                          'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
-                          (!repoPath || isLoading) && 'opacity-40 cursor-not-allowed pointer-events-none'
-                        )}
-                      >
-                        <Download size={14} className="shrink-0" />
-                        <span>{t('toolbar.pull')}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={onPushIntent}
-                        title={t('toolbar.push')}
-                        aria-label={t('toolbar.push')}
-                        disabled={!repoPath || isLoading}
-                        className={cn(
-                          'min-h-[44px] min-w-[44px] px-2.5 py-2 rounded-lg text-xs font-semibold tracking-wide transition-colors flex items-center justify-center gap-1.5 shrink-0',
-                          'bg-text-primary/[0.035] text-text-secondary hover:bg-text-primary/10 hover:text-text-primary',
-                          'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
-                          (!repoPath || isLoading) && 'opacity-40 cursor-not-allowed pointer-events-none'
-                        )}
-                      >
-                        <Upload size={14} className="shrink-0" />
-                        <span>{t('toolbar.push')}</span>
-                      </button>
-                      <div className="w-px h-4 bg-border-subtle/30 mx-0.5 shrink-0" />
-                      <FetchIndicator onClick={onFetchNow || (() => {})} />
+                    {/* 4. Acciones fila por fila (al estilo Codex) */}
+                    <div className="px-2 pt-0.5 pb-3 space-y-0.5 shrink-0 border-b border-border-subtle/20 mb-2">
+                      {quickActions.map((action) => (
+                        <button
+                          key={action.id}
+                          type="button"
+                          onClick={action.onClick}
+                          disabled={action.disabled}
+                          title={action.label}
+                          aria-label={action.label}
+                          className={cn(
+                            'w-full pl-1.5 pr-2 py-1 rounded-md text-xs font-medium tracking-wide transition-colors flex items-center justify-between text-left min-h-[30px]',
+                            'text-text-secondary hover:bg-text-primary/10 hover:text-text-primary',
+                            'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
+                            action.disabled && 'opacity-40 cursor-not-allowed pointer-events-none'
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {action.icon}
+                            <span className="truncate font-medium">{action.label}</span>
+                          </div>
+                          {action.shortcut && (
+                            <kbd className="ml-2 px-1.5 py-0.5 text-[10px] font-mono rounded bg-text-primary/[0.06] text-text-secondary/70 shrink-0">
+                              {action.shortcut}
+                            </kbd>
+                          )}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
                   {/* ── CUERPO DE SECCIONES CON SCROLL (Solo esto se desplaza) ── */}
-                  <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin py-2 px-1 space-y-1">
+                  <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin pt-1 pb-2 px-1 space-y-0.5">
+                    <div className="px-3 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wider text-text-secondary/70 select-none">
+                      {t('sidebar.branchesAndRefs')}
+                    </div>
                     {/* LOCAL — folder tree + ahead/behind chips */}
                     <SidebarSection
                       title={t('sidebar.local')}
@@ -1245,7 +1318,7 @@ export function RepoSidebar({
         </AnimatePresence>
       </div>
       </div>
-      <div className="shrink-0 bg-bg-base/70/35 px-3 py-3">
+      <div className="shrink-0 bg-bg-surface border-t border-border-subtle/30 px-3 py-2.5">
         <div className="flex items-center gap-2">
           <button
             type="button"

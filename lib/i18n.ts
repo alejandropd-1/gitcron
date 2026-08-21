@@ -749,6 +749,7 @@ const es: Dict = {
   'repoTabs.openAnother': 'Abrir otro repositorio',
 
   // ── Sidebar sections ──
+  'sidebar.branchesAndRefs': 'Ramas y referencias',
   'sidebar.local': 'LOCAL',
   'sidebar.remote': 'REMOTO',
   'sidebar.stash': 'STASH',
@@ -2555,6 +2556,7 @@ const en: Dict = {
   'repoTabs.openAnother': 'Open another repository',
 
   // ── Sidebar ──
+  'sidebar.branchesAndRefs': 'Branches & References',
   'sidebar.local': 'LOCAL',
   'sidebar.remote': 'REMOTE',
   'sidebar.stash': 'STASH',
@@ -4345,6 +4347,7 @@ const zh: Dict = {
   'repoTabs.switchTo': '切换到 {{repo}}',
   'repoTabs.close': '关闭 {{repo}}',
   'repoTabs.openAnother': '打开其他仓库',
+  'sidebar.branchesAndRefs': '分支与引用',
   'sidebar.local': 'LOCAL',
   'sidebar.remote': 'REMOTE',
   'sidebar.stash': 'STASH',

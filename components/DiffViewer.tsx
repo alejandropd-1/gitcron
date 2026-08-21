@@ -125,10 +125,10 @@ export function DiffViewer({
   const removes = hunks.reduce((s, h) => s + h.lines.filter((l) => l.type === 'remove').length, 0);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#020f1e]">
+    <div className="flex flex-col h-full overflow-hidden bg-bg-base">
       {filePath && (
-        <div className="px-4 py-2 border-b border-[#3c495a]/15 bg-[#0d2134] flex items-center justify-between shrink-0">
-          <span className="text-xs font-mono text-[#d9e7fc] truncate">{filePath}</span>
+        <div className="px-4 py-2 border-b border-border-subtle/20 bg-bg-surface flex items-center justify-between shrink-0">
+          <span className="text-xs font-mono text-text-primary truncate">{filePath}</span>
           <div className="flex gap-3 text-[11px] font-mono shrink-0 ml-3">
             <span className="text-[#a3f185]">+{adds}</span>
             <span className="text-[#ff716c]">-{removes}</span>
@@ -139,7 +139,7 @@ export function DiffViewer({
         <div className="min-w-full inline-block">
           {hunks.map((hunk, hi) => (
             <div key={hi} className="border-b border-[#3c495a]/20">
-              <div className="px-4 py-1 bg-[#12273c] text-[#9eacc0] text-[11px] sticky top-0 z-10 select-none flex items-center gap-2">
+              <div className="px-4 py-1 bg-bg-overlay text-text-secondary text-[11px] sticky top-0 z-10 select-none flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate">{hunk.header}</span>
                 {hunkActions && (selectedLinesByHunk[hi]?.length ?? 0) > 0 && (
                   <span className="shrink-0 text-[10px] text-secondary">

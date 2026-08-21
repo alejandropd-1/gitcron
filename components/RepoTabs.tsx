@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Minus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, X } from 'lucide-react';
+import { Loader2, Minus, Plus, X } from 'lucide-react';
 import { Reorder } from 'motion/react';
 import { useT } from '@/hooks/use-translation';
 import type { RepoState } from '@/lib/git-store';
@@ -14,7 +14,7 @@ type RepoTabsProps = {
   onClose: (idx: number) => void | Promise<void>;
   onOpen: () => void | Promise<void>;
   onReorder: (newOrder: RepoState[]) => void;
-  // Controls de disposición
+  // Controles de disposición
   sidebarOpen?: boolean;
   onToggleSidebar?: () => void;
   detailsOpen?: boolean;
@@ -23,11 +23,6 @@ type RepoTabsProps = {
 
 /**
  * Los dos íconos de la barra de título, dibujados a mano.
- *
- * `lucide` no trae estas formas: sus `Maximize2` y `Minimize2` son flechas
- * diagonales, que significan otra cosa. Las de una barra de título son un
- * cuadrado —maximizar— y dos cuadrados superpuestos —restaurar—, y son las que
- * cualquiera reconoce sin leer. Ale las marcó con la referencia a la vista.
  */
 function MaximizeIcon({ size = 13 }: { size?: number }) {
   return (
@@ -40,9 +35,31 @@ function MaximizeIcon({ size = 13 }: { size?: number }) {
 function RestoreIcon({ size = 13 }: { size?: number }) {
   return (
     <svg viewBox="0 0 16 16" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-      {/* El de atrás, asomando arriba a la derecha; el de adelante, completo. */}
       <path d="M5.2 4.4V3.4a1.4 1.4 0 0 1 1.4-1.4h5.4a1.4 1.4 0 0 1 1.4 1.4v5.4a1.4 1.4 0 0 1-1.4 1.4h-1" />
       <rect x="2" y="5.2" width="8.8" height="8.8" rx="1.4" />
+    </svg>
+  );
+}
+
+function SidebarToggleIcon({ isOpen, side = 'left' }: { isOpen?: boolean; side?: 'left' | 'right' }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+    >
+      <rect width="18" height="18" x="3" y="3" rx="3" />
+      {isOpen ? (
+        side === 'left' ? <path d="M9 3v18" /> : <path d="M15 3v18" />
+      ) : (
+        side === 'left' ? <path d="M7 8v8" strokeWidth="2.2" /> : <path d="M17 8v8" strokeWidth="2.2" />
+      )}
     </svg>
   );
 }
@@ -60,23 +77,17 @@ export function RepoTabs({
   onToggleDetails,
 }: RepoTabsProps) {
   const t = useT();
-  const isDraggingRef = useRef(false);
-  /**
-   * Si la ventana está maximizada, para que el ícono lo diga.
-   *
-   * Se pregunta al montar —GitCron arranca maximizada, así que el estado
-   * inicial importa— y después se escucha el evento: la ventana también cambia
-   * por fuera del botón, con doble clic en la barra, `Win`+flechas o
-   * arrastrándola contra un borde. Los hooks van antes del `return null` de
-   * abajo, porque no pueden quedar detrás de una salida condicional.
-   */
   const [maximized, setMaximized] = useState(false);
+  const isDraggingRef = useRef(false);
+
   useEffect(() => {
     let alive = true;
     void window.api?.windowIsMaximized?.().then((result) => {
       if (alive && result?.data) setMaximized(result.data.maximized);
     }).catch(() => undefined);
-    const unsubscribe = window.api?.onWindowState?.((state) => setMaximized(state.maximized));
+    const unsubscribe = window.api?.onWindowState?.((state) => {
+      if (alive) setMaximized(state.maximized);
+    });
     return () => {
       alive = false;
       unsubscribe?.();
@@ -86,10 +97,21 @@ export function RepoTabs({
   if (repos.length === 0) return null;
 
   return (
-    <div className="app-titlebar h-10 rounded-t-2xl bg-transparent flex items-stretch shrink-0 overflow-hidden gap-1">
-      {/* Control de plegado de panel izquierdo en el EXTREMO IZQUIERDO */}
+    <div className="app-titlebar h-12 rounded-t-2xl bg-transparent flex items-stretch shrink-0 overflow-hidden gap-1">
+      {/* Logo / Brand - Visual anchor in Window Frame */}
+      <div className="app-titlebar-control h-12 flex items-center gap-2 pl-3 pr-1 shrink-0 select-none">
+        <img
+          src="/gitcron-icon.png"
+          alt="GitCron"
+          data-keep-color
+          className="w-4 h-4 rounded-sm"
+        />
+        <span className="text-sm font-bold text-primary tracking-tight">GitCron</span>
+      </div>
+
+      {/* Control de plegado de panel izquierdo (entre el logo y las solapas) */}
       {onToggleSidebar && (
-        <div className="app-titlebar-control h-10 flex items-center pl-2 shrink-0">
+        <div className="app-titlebar-control h-12 flex items-center px-1 shrink-0">
           <button
             type="button"
             onClick={onToggleSidebar}
@@ -97,28 +119,18 @@ export function RepoTabs({
             aria-pressed={sidebarOpen}
             title={sidebarOpen ? t('toolbar.hideSidebar') : t('toolbar.showSidebar')}
             className={cn(
-              'app-titlebar-control min-h-[44px] min-w-[44px] h-8 w-8 shrink-0 rounded-lg text-text-secondary',
+              'app-titlebar-control min-h-[44px] min-w-[44px] h-7 w-7 p-1.5 shrink-0 rounded-lg text-text-secondary',
               'flex items-center justify-center transition-colors',
-              'hover:bg-text-primary/10 hover:text-secondary',
+              'hover:bg-border-subtle hover:text-text-primary',
               'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
-              sidebarOpen && 'text-secondary bg-secondary/10',
             )}
           >
-            {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+            <SidebarToggleIcon isOpen={sidebarOpen} side="left" />
           </button>
         </div>
       )}
 
-      <div className="min-w-0 flex-1 flex items-end gap-1 pl-1 pt-1.5 pb-1 overflow-x-auto overflow-y-hidden">
-        <div className="app-titlebar-control h-7 mb-0 mr-2 flex items-center gap-2 shrink-0 px-2 select-none">
-          <img
-            src="/gitcron-icon.png"
-            alt="GitCron"
-            data-keep-color
-            className="w-4 h-4 rounded-sm"
-          />
-          <span className="text-sm font-bold text-primary tracking-tight">GitCron</span>
-        </div>
+      <div className="min-w-0 flex-1 flex items-end gap-1 px-3 pt-1.5 pb-1.5 overflow-x-auto overflow-y-hidden">
         <Reorder.Group
           axis="x"
           values={repos}
@@ -140,9 +152,9 @@ export function RepoTabs({
                   }, 50);
                 }}
                 className={cn(
-                  'app-titlebar-control group h-7 min-w-0 max-w-52 rounded-md flex items-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] cursor-grab active:cursor-grabbing',
+                  'app-titlebar-control group h-8 min-w-0 max-w-52 rounded-md flex items-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] cursor-grab active:cursor-grabbing',
                   isActive
-                    ? 'bg-text-primary/10 text-text-primary shadow-[0_0_18px_rgba(163,241,133,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]'
+                    ? 'bg-text-primary/10 text-text-primary shadow-[0_0_6px_rgba(163,241,133,0.22),inset_0_1px_0_rgba(255,255,255,0.1)]'
                     : 'bg-text-primary/[0.035] text-text-secondary hover:text-text-primary hover:bg-text-primary/[0.07]',
                 )}
               >
@@ -160,35 +172,37 @@ export function RepoTabs({
                     <span
                       className={cn(
                         'w-1.5 h-1.5 rounded-full shrink-0',
-                        isActive ? 'bg-secondary shadow-[0_0_10px_rgba(var(--color-secondary-rgb),0.5)]' : 'bg-border-subtle',
+                        (repo.modifiedFiles && repo.modifiedFiles.length > 0)
+                          ? 'bg-git-mod shadow-[0_0_6px_rgba(253,157,26,0.6)]'
+                          : 'bg-secondary shadow-[0_0_6px_rgba(163,241,133,0.5)]',
                       )}
                     />
                   )}
-                  <span className="truncate text-xs font-semibold">{repo.name}</span>
-                  <span className="text-[10px] text-text-secondary/70 font-mono truncate max-w-20 hidden md:block">
-                    {repo.currentBranch || '-'}
-                  </span>
+                  <span className="truncate text-xs font-medium">{repo.name}</span>
                 </button>
                 <button
                   type="button"
-                  title={t('repoTabs.close', { repo: repo.name })}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onClose(idx);
+                    if (!isDraggingRef.current) onClose(idx);
                   }}
-                  className="mr-1 p-0.5 rounded text-text-secondary/70 hover:text-error hover:bg-error/10 opacity-70 group-hover:opacity-100 transition"
+                  aria-label={t('repoTabs.closeTab', { repo: repo.name })}
+                  title={t('repoTabs.closeTab', { repo: repo.name })}
+                  className="h-full px-1.5 text-text-secondary/50 hover:text-text-primary transition-colors flex items-center"
                 >
-                  <X size={13} />
+                  <X size={11} />
                 </button>
               </Reorder.Item>
             );
           })}
         </Reorder.Group>
+
         <button
           type="button"
           onClick={onOpen}
+          aria-label={t('repoTabs.openAnother')}
           title={t('repoTabs.openAnother')}
-          className="app-titlebar-control h-7 w-7 mb-0 rounded-md flex items-center justify-center text-text-secondary bg-text-primary/[0.025] hover:text-secondary hover:bg-text-primary/[0.07] transition-colors shrink-0"
+          className="app-titlebar-control h-7 w-7 min-h-[32px] min-w-[32px] p-1.5 rounded-lg flex items-center justify-center text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors shrink-0"
         >
           <Plus size={14} />
         </button>
@@ -196,7 +210,7 @@ export function RepoTabs({
 
       {/* Control de plegado de panel derecho */}
       {onToggleDetails && (
-        <div className="app-titlebar-control h-10 self-stretch flex items-center shrink-0 px-1">
+        <div className="app-titlebar-control h-12 self-stretch flex items-center shrink-0 px-1">
           <button
             type="button"
             onClick={onToggleDetails}
@@ -204,25 +218,24 @@ export function RepoTabs({
             aria-pressed={detailsOpen}
             title={detailsOpen ? t('toolbar.hideDetails') : t('toolbar.showDetails')}
             className={cn(
-              'app-titlebar-control min-h-[44px] min-w-[44px] h-8 w-8 shrink-0 rounded-lg text-text-secondary',
+              'app-titlebar-control min-h-[44px] min-w-[44px] h-7 w-7 p-1.5 shrink-0 rounded-lg text-text-secondary',
               'flex items-center justify-center transition-colors',
-              'hover:bg-text-primary/10 hover:text-secondary',
+              'hover:bg-border-subtle hover:text-text-primary',
               'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
-              detailsOpen && 'text-secondary bg-secondary/10',
             )}
           >
-            {detailsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+            <SidebarToggleIcon isOpen={detailsOpen} side="right" />
           </button>
         </div>
       )}
 
-      <div className="app-titlebar-control h-10 self-stretch flex items-stretch shrink-0 pr-3 gap-1">
+      <div className="app-titlebar-control h-12 self-stretch flex items-stretch shrink-0 pr-3 gap-1">
         <button
           type="button"
           aria-label="Minimizar"
           title="Minimizar"
           onClick={() => window.api?.windowMinimize()}
-          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
+          className="h-8 w-10 my-2 rounded-md flex items-center justify-center text-text-secondary hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
         >
           <Minus size={14} />
         </button>
@@ -231,13 +244,8 @@ export function RepoTabs({
           aria-label={maximized ? 'Restaurar' : 'Maximizar'}
           title={maximized ? 'Restaurar' : 'Maximizar'}
           onClick={() => void window.api?.windowToggleMaximize()}
-          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
+          className="h-8 w-10 my-2 rounded-md flex items-center justify-center text-text-secondary hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
         >
-          {/* El ícono dice en qué estado está la ventana, como en cualquier
-              barra de título: dos cuadros superpuestos cuando está maximizada
-              —apretar restaura— y uno solo cuando no. Antes era `Maximize2`
-              fijo, así que afirmaba siempre lo mismo aunque la ventana
-              estuviera maximizada, que es como GitCron arranca. */}
           {maximized ? <RestoreIcon /> : <MaximizeIcon />}
         </button>
         <button
@@ -245,7 +253,7 @@ export function RepoTabs({
           aria-label="Cerrar"
           title="Cerrar"
           onClick={() => window.api?.windowClose()}
-          className="h-7 w-10 my-1.5 rounded-md flex items-center justify-center text-text-secondary hover:bg-error/20 hover:text-[#ffdad6] transition-colors"
+          className="h-8 w-10 my-2 rounded-md flex items-center justify-center text-text-secondary hover:bg-error/20 hover:text-[#ffdad6] transition-colors"
         >
           <X size={15} />
         </button>

@@ -399,39 +399,8 @@ function CommitWorkspaceView({ modifiedFiles, hasGithubUser }: TabViewsProps) {
 }
 
 function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphView: GraphViewProps }) {
-  const t = useT();
   return (
     <div data-testid="graph-tab-container" className="flex-1 relative min-h-0 bg-bg-base">
-      {graphView.enableCronometric && (
-        <div className="absolute top-2 right-4 z-30 bg-bg-surface/90 backdrop-blur-md rounded-lg flex items-center p-0.5 shadow-md">
-          <button
-            type="button"
-            onClick={() => graphView.onChangeGraphMode('classic')}
-            className={cn(
-              "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150 min-h-[32px] flex items-center",
-              graphView.activeGraphMode === 'classic'
-                ? "bg-secondary/15 text-secondary shadow-[0_0_8px_rgba(163,241,133,0.15)]"
-                : "text-text-secondary hover:text-text-primary"
-            )}
-            title={t('toolbar.viewClassicTooltip')}
-          >
-            {t('toolbar.viewClassicBtn')}
-          </button>
-          <button
-            type="button"
-            onClick={() => graphView.onChangeGraphMode('chronometric')}
-            className={cn(
-              "text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all duration-150 min-h-[32px] flex items-center",
-              graphView.activeGraphMode === 'chronometric'
-                ? "bg-secondary/15 text-secondary shadow-[0_0_8px_rgba(163,241,133,0.15)]"
-                : "text-text-secondary hover:text-text-primary"
-            )}
-            title={t('toolbar.viewChronometricTooltip')}
-          >
-            {t('toolbar.viewChronometricBtn')}
-          </button>
-        </div>
-      )}
       <AnimatePresence>
         {graphView.activeGraphMode === 'classic' && (
           <ClassicGraphView tabViews={tabViews} graphView={graphView} />

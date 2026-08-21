@@ -56,12 +56,12 @@ export function ToolbarButton({
     <button
       onClick={onClick} title={title} disabled={disabled}
       className={cn(
-        'flex shrink-0 flex-col items-center justify-center self-center rounded-md bg-text-primary/[0.025] transition-colors group shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
-        label ? 'h-10 min-w-[54px] px-2.5 py-1 gap-0.5' : 'h-8 w-10 p-1.5',
-        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#d9e7fc]/[0.075]',
+        'flex shrink-0 flex-col items-center justify-center self-center rounded-lg transition-colors group',
+        label ? 'h-10 min-w-[54px] px-2.5 py-1 gap-0.5' : 'p-1.5',
+        disabled ? 'opacity-40 cursor-not-allowed pointer-events-none' : 'hover:bg-border-subtle hover:text-text-primary text-text-secondary',
       )}
     >
-      <div className="w-5 h-5 shrink-0 text-text-secondary group-hover:text-secondary flex items-center justify-center">{icon}</div>
+      <div className="w-5 h-5 shrink-0 flex items-center justify-center">{icon}</div>
       {label && <span className="text-[9px] leading-none font-bold uppercase tracking-tighter text-text-secondary">{label}</span>}
     </button>
   );

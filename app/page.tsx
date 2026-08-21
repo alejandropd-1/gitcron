@@ -1478,6 +1478,9 @@ export default function GitCronPage() {
         {/* LEFT PANEL: Sidebar */}
         <RepoSidebar
           graphMode={graphMode}
+          activeGraphMode={activeGraphMode}
+          onChangeGraphMode={handleChangeGraphMode}
+          enableCronometric={enableCronometric}
           sidebarW={sidebarW}
           sidebarOpen={sidebarOpen}
           isDragging={isDragging}
@@ -1541,7 +1544,7 @@ export default function GitCronPage() {
 
         {/* CENTER CANVAS: Full-bleed in content area between panels */}
         <main
-          className="relative flex-1 min-h-0 bg-bg-base rounded-tl-xl rounded-tr-xl overflow-hidden flex flex-col min-w-0"
+          className="relative flex-1 min-h-0 bg-bg-base rounded-tl-xl rounded-tr-xl overflow-hidden flex flex-col min-w-0 border-l border-border-subtle/20"
         >
           <RepoMainView
             activeView={activeView}

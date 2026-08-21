@@ -288,13 +288,10 @@ describe('Grupo 2 & 3: Selector de vistas y acciones en RepoSidebar', () => {
     fireEvent.click(pushBtn);
     expect(onPushIntent).toHaveBeenCalledTimes(1);
 
-    // Desplegable de acciones
-    const actionsTrigger = screen.getByRole('button', { name: /toolbar\.actionsMenu/i });
-    expect(actionsTrigger).toBeDefined();
-    fireEvent.click(actionsTrigger);
-
-    const newBranchItem = screen.getByRole('menuitem', { name: /toolbar\.newBranch/i });
-    fireEvent.click(newBranchItem);
+    // Acciones como filas directas
+    const newBranchBtn = screen.getByRole('button', { name: /toolbar\.newBranch/i });
+    expect(newBranchBtn).toBeDefined();
+    fireEvent.click(newBranchBtn);
     expect(onNewBranchRequest).toHaveBeenCalledTimes(1);
   });
 });

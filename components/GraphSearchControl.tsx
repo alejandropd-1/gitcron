@@ -25,7 +25,12 @@ export function GraphSearchControl({
   filterText, onFilterTextChange, disabled, open: showSearchPopover, onOpenChange: setShowSearchPopover,
 }: GraphSearchControlProps) {
   const t = useT();
-  const [searchPopoverPos, setSearchPopoverPos] = useState<{ top: number; right: number } | null>(null);
+  const [searchPopoverPos, setSearchPopoverPos] = useState<{
+    top: number;
+    left?: number;
+    right?: number;
+    width: number;
+  } | null>(null);
   const filterInputRef = useRef<HTMLInputElement>(null);
   const searchPopoverRef = useRef<HTMLDivElement>(null);
   const searchButtonRef = useRef<HTMLDivElement>(null);
@@ -57,11 +62,22 @@ export function GraphSearchControl({
   useEffect(() => {
     if (!showSearchPopover) return;
     const buttonRect = searchButtonRef.current?.getBoundingClientRect();
+    const asideEl = searchButtonRef.current?.closest('aside');
     if (buttonRect) {
-      setSearchPopoverPos({
-        top: buttonRect.bottom + 8,
-        right: Math.max(12, window.innerWidth - buttonRect.right),
-      });
+      if (asideEl) {
+        const asideRect = asideEl.getBoundingClientRect();
+        setSearchPopoverPos({
+          top: buttonRect.bottom + 6,
+          left: asideRect.left + 8,
+          width: Math.max(200, asideRect.width - 16),
+        });
+      } else {
+        setSearchPopoverPos({
+          top: buttonRect.bottom + 8,
+          right: Math.max(12, window.innerWidth - buttonRect.right),
+          width: 360,
+        });
+      }
     }
     filterInputRef.current?.focus();
     filterInputRef.current?.select();
@@ -85,11 +101,22 @@ export function GraphSearchControl({
     if (!showSearchPopover) return;
     const updatePosition = () => {
       const buttonRect = searchButtonRef.current?.getBoundingClientRect();
+      const asideEl = searchButtonRef.current?.closest('aside');
       if (!buttonRect) return;
-      setSearchPopoverPos({
-        top: buttonRect.bottom + 8,
-        right: Math.max(12, window.innerWidth - buttonRect.right),
-      });
+      if (asideEl) {
+        const asideRect = asideEl.getBoundingClientRect();
+        setSearchPopoverPos({
+          top: buttonRect.bottom + 6,
+          left: asideRect.left + 8,
+          width: Math.max(200, asideRect.width - 16),
+        });
+      } else {
+        setSearchPopoverPos({
+          top: buttonRect.bottom + 8,
+          right: Math.max(12, window.innerWidth - buttonRect.right),
+          width: 360,
+        });
+      }
     };
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
@@ -115,8 +142,13 @@ export function GraphSearchControl({
       {showSearchPopover && searchPopoverPos && (
         <div
           ref={searchPopoverRef}
-          className="fixed w-[360px] rounded-lg border border-border-subtle/25 bg-bg-overlay/95 backdrop-blur-xl p-2 z-[200]"
-          style={{ top: searchPopoverPos.top, right: searchPopoverPos.right }}
+          className="fixed rounded-lg border border-border-subtle/25 bg-bg-overlay/95 backdrop-blur-xl p-2 z-[200] shadow-2xl"
+          style={{
+            top: searchPopoverPos.top,
+            left: searchPopoverPos.left,
+            right: searchPopoverPos.right,
+            width: `${searchPopoverPos.width}px`,
+          }}
         >
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />

@@ -38,8 +38,10 @@ reales y persistencia de decisiones en SQLite para calibración estadística.
   orquestador principal de estado/handlers, top nav, layout 3 columnas y callbacks, pero el
   view-switcher central, graph tab y overlay de modales/menús ya viven en componentes dedicados.
 - `layout.tsx` — CSP por meta tag. `connect-src`: api.github.com, github.com, openrouter.ai.
-- `globals.css` — tokens visuales ("The Compiled Soul": navy `#020f1e`, verde `#a3f185`,
-  cian `#5ed8ff`, naranja `#fd9d1a`).
+- `globals.css` — tokens visuales ("The Compiled Carbon Soul": armazón `#272c36`, contenido
+  `#2e3440`, diálogos `#3b4252`). Es la única fuente de color de la aplicación: ninguna vista
+  define la suya, y agregar un token es decisión de Ale. Los acentos heredados de la paleta
+  anterior están en revisión.
 
 ### `components/` (extraídos de page.tsx — NO recrear, reutilizar)
 `RepoTabs.tsx`, `RepoSidebar.tsx`, `RepoSidebarParts.tsx`,

@@ -51,13 +51,13 @@ export function SidebarSection({
   const handleToggle = controlledOnToggle || (() => setInternalOpen(!internalOpen));
 
   return (
-    <div className="mt-2.5">
-      <div className="w-full flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-secondary">
+    <div className="mt-0.5">
+      <div className="w-full flex items-center gap-1.5 px-3 py-0.5 text-xs font-bold text-text-secondary">
         <button
           type="button"
           onClick={handleToggle}
           aria-expanded={isOpen}
-          className="flex items-center gap-2 flex-1 text-left hover:text-text-primary transition-colors min-h-[36px]"
+          className="flex items-center gap-2 flex-1 text-left hover:text-text-primary transition-colors min-h-[30px]"
         >
           <ChevronRight size={13} className={cn('transition-transform shrink-0', isOpen && 'rotate-90')} />
           {icon && <span className="shrink-0">{icon}</span>}
@@ -86,7 +86,7 @@ export function SidebarItem({
     <div
       onClick={onClick}
       className={cn(
-        'px-4 py-1.5 flex items-center gap-3 text-sm transition-colors group relative',
+        'px-4 py-1 flex items-center gap-3 text-sm transition-colors group relative',
         active ? 'text-secondary bg-secondary/10' : 'text-text-secondary hover:bg-border-subtle hover:text-text-primary',
         onClick && 'cursor-pointer',
       )}

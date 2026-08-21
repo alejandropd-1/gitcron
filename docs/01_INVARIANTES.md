@@ -37,13 +37,23 @@
 
 ## Estética
 
-11. **La estética GitCron es oscura, sobria y con aire.** Paleta "The Compiled Soul" y
+11. **La estética GitCron es oscura, sobria y con aire.** Paleta "The Compiled Carbon Soul" y
     glass sobrio. La estructura es la de una aplicación de trabajo: la barra lateral y la
     superior comparten el fondo del armazón, el cuerpo se apoya sobre un fondo propio y se
     separa de ellas con esquina redondeada, y los paneles laterales se muestran u ocultan
     desde controles visibles. Mucha información no se resuelve apretándola: se resuelve con
     espaciado, jerarquía y una escala de tamaños que se respeta. Lo especulativo (IA)
     jamás puede confundirse visualmente con lo real.
+    - **Una sola paleta, declarada, y ninguna propia.** Todo color de la aplicación sale de
+      los tokens de `app/globals.css`. Ninguna vista, panel ni componente define colores
+      propios, ni "para este caso", ni por conveniencia de un momento. Agregar un color a la
+      paleta es una decisión de Ale, igual que escribir una regla. El caso que lo motiva es
+      real y está a la vista: la vista Pipeline construyó su propia paleta en su hoja de
+      estilos, de modo que al cambiar la general quedó desafinada respecto del resto de la
+      aplicación; y el verde de éxito, elegido para la paleta anterior, sobrevive en la nueva
+      desentonando por saturación aunque cumpla el contraste exigido. Una paleta que se
+      respeta en cuatro pantallas y se reinventa en la quinta no es una paleta.
+      *(Agregado el 2026-08-20 por decisión de Ale.)*
     - **Revisado el 2026-08-19 por decisión de Ale.** Se retiran dos cláusulas que
       empujaban a comprimir la interfaz: «denso» —leído como justificación para achicar
       texto y quitar espacio— y «nada de landing pages ni textos explicativos dentro de la

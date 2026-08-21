@@ -17,9 +17,9 @@ import {
   Activity, AlertCircle, AlertTriangle, Archive, ArrowLeft, Check, CheckCircle2,
   ChevronDown, Cloud, Download, Edit2, ExternalLink, FileInput, FileText,
   Folder, FolderOpen, GitBranch, GitMerge, Github, Globe, HelpCircle, Layers,
-  Link2, Lock, Map, Monitor, Plus, Redo, RefreshCw, RotateCcw, Settings,
+  Link2, Lock, Map, Monitor, Plus, Redo, RefreshCw, RotateCcw, Rows3, Settings,
   SlidersHorizontal, Sparkles, Terminal, Trash2, TreePine, Type, Undo, Upload,
-  UserCircle2, Zap,
+  UserCircle2, Waypoints, Zap,
 } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
@@ -398,39 +398,7 @@ function SidebarSubmoduleItem({
   );
 }
 
-function MoustacheIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-    >
-      {/* Bigote clásico tipo moustache */}
-      <path d="M12 10.5C10.2 7.8 6.5 7.8 3.5 9.8C1.8 11 1 12.8 1 14.2C1 19 7.8 20.2 12 15.5C16.2 20.2 23 19 23 14.2C23 12.8 22.2 11 20.5 9.8C17.5 7.8 13.8 7.8 12 10.5Z" />
-    </svg>
-  );
-}
 
-function VulcanSaluteIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      {/* Vulcan salute 🖖: Live long and prosper */}
-      <path d="M18 10V5.5a1.5 1.5 0 0 0-3 0V9" />
-      <path d="M15 9V4a1.5 1.5 0 0 0-3 0v6" />
-      <path d="M12 10V4a1.5 1.5 0 0 0-3 0v5" />
-      <path d="M9 9V5.5a1.5 1.5 0 0 0-3 0v8c0 4.5 3 7.5 6.5 7.5s6-2.5 7.5-6.5l.5-4" />
-      <path d="M6 13.5l-2.2 2.2a1.5 1.5 0 0 0 2.1 2.1l1.6-1.6" />
-    </svg>
-  );
-}
 
 type RepoSidebarProps = {
   // layout (estado de usePanelLayout, que vive en la página)
@@ -704,7 +672,7 @@ export function RepoSidebar({
                 >
                   {/* ── CABECERA FIJA DEL LATERAL (No se desplaza al recorrer ramas) ── */}
                   <div className="shrink-0 bg-bg-surface flex flex-col">
-                    {/* 1. Selector de vistas + Switch Clásico/Cronométrico (centrado) + Terminal + Sincronización + Búsqueda */}
+                    {/* 1. Selector de vistas + Terminal + Sincronización + Búsqueda */}
                     <div className="px-2 pt-2 pb-1 flex items-center justify-between gap-1 shrink-0">
                       <div className="flex items-center min-w-0">
                         <nav
@@ -720,41 +688,6 @@ export function RepoSidebar({
                         </nav>
                       </div>
 
-                      {/* Switch Clásico/Cronométrico centrado en el espacio intermedio */}
-                      {activeTab === 'Graph' && enableCronometric && onChangeGraphMode && (
-                        <div className="flex-1 flex justify-center px-1">
-                          <div className="bg-bg-base/80 border border-border-subtle/30 rounded-lg flex items-center p-0.5 shadow-sm">
-                            <button
-                              type="button"
-                              onClick={() => onChangeGraphMode('classic')}
-                              className={cn(
-                                "h-7 w-7 p-1 rounded-md transition-all duration-150 flex items-center justify-center",
-                                activeGraphMode === 'classic'
-                                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
-                                  : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
-                              )}
-                              title={t('toolbar.viewClassicTooltip')}
-                              aria-label={t('toolbar.viewClassicBtn')}
-                            >
-                              <MoustacheIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onChangeGraphMode('chronometric')}
-                              className={cn(
-                                "h-7 w-7 p-1 rounded-md transition-all duration-150 flex items-center justify-center",
-                                activeGraphMode === 'chronometric'
-                                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
-                                  : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
-                              )}
-                              title={t('toolbar.viewChronometricTooltip')}
-                              aria-label={t('toolbar.viewChronometricBtn')}
-                            >
-                              <VulcanSaluteIcon className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
                       <div className="shrink-0 flex items-center gap-1">
                         <ToolbarButton
                           icon={<Terminal size={14} />}
@@ -775,7 +708,49 @@ export function RepoSidebar({
                       </div>
                     </div>
 
-                    {/* 2. Nombre de la rama en su propia línea completa (con aire en interlineado) */}
+                    {/* 2. Selector de modo de grafo (Clásico / Cronométrico) */}
+                    {enableCronometric && (
+                      <div data-testid="graph-mode-row" className="h-10 px-2 py-1 flex items-center shrink-0">
+                        {activeTab === 'Graph' && onChangeGraphMode && (
+                          <div className="w-full bg-bg-base/80 border border-border-subtle/30 rounded-lg flex items-center p-0.5 shadow-sm">
+                            <button
+                              type="button"
+                              onClick={() => onChangeGraphMode('classic')}
+                              aria-pressed={activeGraphMode === 'classic'}
+                              className={cn(
+                                "flex-1 h-8 px-2 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
+                                activeGraphMode === 'classic'
+                                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
+                                  : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
+                              )}
+                              title={t('toolbar.viewClassicTooltip')}
+                              aria-label={t('toolbar.viewClassicBtn')}
+                            >
+                              <Rows3 size={14} className="shrink-0" />
+                              <span className="text-[11px] leading-none font-semibold">{t('toolbar.viewClassicBtn')}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onChangeGraphMode('chronometric')}
+                              aria-pressed={activeGraphMode === 'chronometric'}
+                              className={cn(
+                                "flex-1 h-8 px-2 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
+                                activeGraphMode === 'chronometric'
+                                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
+                                  : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
+                              )}
+                              title={t('toolbar.viewChronometricTooltip')}
+                              aria-label={t('toolbar.viewChronometricBtn')}
+                            >
+                              <Waypoints size={14} className="shrink-0" />
+                              <span className="text-[11px] leading-none font-semibold">{t('toolbar.viewChronometricBtn')}</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 3. Nombre de la rama en su propia línea completa (con aire en interlineado) */}
                     <div className="px-3 pt-2 pb-0.5 flex items-center gap-2 min-w-0 shrink-0">
                       <GitBranch size={13} className="shrink-0 text-text-secondary/70" />
                       <span
@@ -786,7 +761,7 @@ export function RepoSidebar({
                       </span>
                     </div>
 
-                    {/* 3. Indicadores de estado del repositorio (debajo de la rama) */}
+                    {/* 4. Indicadores de estado del repositorio (debajo de la rama) */}
                     <div className="px-3 pt-0.5 pb-1.5 flex items-center gap-1.5 shrink-0 flex-wrap">
                       {/* Working tree state */}
                       <div

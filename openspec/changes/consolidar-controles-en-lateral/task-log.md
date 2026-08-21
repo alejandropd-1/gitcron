@@ -1,0 +1,5 @@
+# Registro de tildes
+
+- 2026-08-21 14:08 — marcada — "8.13 Acompañar cada modo con su rótulo accesible, de modo que la vista activa se pueda nombrar sin depender de reconocer un dibujo. Un ícono solo, por bueno que sea, no dice cuál de los dos modos está activo."
+- 2026-08-21 14:09 — marcada — "7.6 Revisión visual y funcional en la aplicación: sin franja entre la ventana y el contenido, controles de plegado alcanzables con los paneles plegados, acciones operando desde el lateral, navegación por desplegable y por atajo, estado visible en todas las vistas, y el lector de ramas futuras a un clic. **La marca Alejandro.**"
+- 2026-08-21 14:47 — marcada — "8.11 Comprobar que el lienzo del grafo cronométrico conserva legibilidad sobre el fondo aclarado. Sus colores fueron elegidos contra el fondo oscuro y la verificación automática mide pares de la paleta, no los del dibujo. Si algún elemento del grafo pierde contraste, declararlo en el reporte en lugar de corregirlo: tocar sus colores excede la autorización vigente del invariante 12. **La comprueba Alejandro.**"

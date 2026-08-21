@@ -5,8 +5,16 @@ import { RepoTabs } from '../RepoTabs';
 import { RepoSidebar, SidebarDropdown, type DropdownMenuItem } from '../RepoSidebar';
 
 vi.mock('@/hooks/use-translation', () => ({
-  useT: () => (key: string) => key,
-  tNow: (key: string) => key,
+  useT: () => (key: string) => {
+    if (key === 'toolbar.viewClassicBtn') return 'Clásico';
+    if (key === 'toolbar.viewChronometricBtn') return 'Cronométrico';
+    return key;
+  },
+  tNow: (key: string) => {
+    if (key === 'toolbar.viewClassicBtn') return 'Clásico';
+    if (key === 'toolbar.viewChronometricBtn') return 'Cronométrico';
+    return key;
+  },
 }));
 
 vi.mock('@/hooks/use-git-actions', () => ({
@@ -475,5 +483,70 @@ describe('Grupo 8: Correcciones visuales y de disposición', () => {
     // Al hacer clic, se abre
     fireEvent.click(localSectionBtn);
     expect(localSectionBtn.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  describe('Selector de modo de grafo en fila dedicada con reserva de altura', () => {
+    function renderWithModeProps(enableCronometric: boolean, activeTab: 'Graph' | 'Pipeline' | 'Commit' | 'History') {
+      return render(
+        <RepoSidebar
+          graphMode="classic"
+          activeGraphMode="classic"
+          onChangeGraphMode={vi.fn()}
+          enableCronometric={enableCronometric}
+          sidebarW={280}
+          sidebarOpen={true}
+          isDragging={false}
+          onResizeStart={vi.fn()}
+          activeView="repository"
+          onViewChange={vi.fn()}
+          isRepoStartView={false}
+          repoStartMode="open"
+          onRepoStartModeChange={vi.fn()}
+          onCloseRepoChooser={vi.fn()}
+          selectedBranchName="main"
+          onCheckoutAttempt={vi.fn()}
+          onSelectBranchInGraph={vi.fn()}
+          onBranchContextMenu={vi.fn()}
+          onRemoteBranchContextMenu={vi.fn()}
+          onDeleteBranchRequest={vi.fn()}
+          selectedPullRequest={null}
+          onSelectPullRequest={vi.fn()}
+          onPreviewStash={vi.fn()}
+          onCreateTagRequest={vi.fn()}
+          onDeleteTagRequest={vi.fn()}
+          selectedSettingsSection="general"
+          onSettingsSectionChange={vi.fn()}
+          selectedHelpSection="general"
+          onHelpSectionChange={vi.fn()}
+          onToggleCartography={vi.fn()}
+          activeTab={activeTab}
+          onTabChange={vi.fn()}
+        />
+      );
+    }
+
+    it('1. enableCronometric=true, activeTab="Graph" -> "Clásico" y "Cronométrico" ambos presentes', () => {
+      renderWithModeProps(true, 'Graph');
+
+      expect(screen.getByText('Clásico')).toBeDefined();
+      expect(screen.getByText('Cronométrico')).toBeDefined();
+      expect(screen.getByTestId('graph-mode-row')).toBeDefined();
+    });
+
+    it('2. enableCronometric=true, activeTab="Pipeline" -> ninguno de los dos rótulos presente, PERO el contenedor de la fila sigue en el documento', () => {
+      renderWithModeProps(true, 'Pipeline');
+
+      expect(screen.queryByText('Clásico')).toBeNull();
+      expect(screen.queryByText('Cronométrico')).toBeNull();
+      expect(screen.getByTestId('graph-mode-row')).toBeDefined();
+    });
+
+    it('3. enableCronometric=false, activeTab="Graph" -> ni los rótulos ni el contenedor de la fila están en el documento', () => {
+      renderWithModeProps(false, 'Graph');
+
+      expect(screen.queryByText('Clásico')).toBeNull();
+      expect(screen.queryByText('Cronométrico')).toBeNull();
+      expect(screen.queryByTestId('graph-mode-row')).toBeNull();
+    });
   });
 });

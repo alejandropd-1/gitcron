@@ -419,4 +419,29 @@ describe('Pipeline i18n', () => {
       }
     }
   });
+
+  describe('SDD renaming (Spec Driven Development)', () => {
+    it.each(LANGUAGES)('names the view and tab as SDD in %s without translating the acronym', (lang) => {
+      expect(translate('tab.pipeline', lang)).toBe('SDD');
+      expect(translate('pipeline.title', lang)).toBe('SDD');
+    });
+
+    it('names SDD correctly in HUD and shortcut descriptions across all three languages', () => {
+      expect(translate('pipeline.hud.title', 'es')).toBe('Estado de SDD');
+      expect(translate('pipeline.hud.title', 'en')).toBe('SDD status');
+      expect(translate('pipeline.hud.title', 'zh')).toBe('SDD 状态');
+
+      expect(translate('shortcuts.pipelineTab', 'es')).toBe('Tab SDD');
+      expect(translate('shortcuts.pipelineTab', 'en')).toBe('SDD tab');
+      expect(translate('shortcuts.pipelineTab', 'zh')).toBe('SDD 标签');
+    });
+
+    it.each(LANGUAGES)('ensures no visible string in %s contains "Pipeline" or "流水线"', (lang) => {
+      for (const key of PIPELINE_KEYS) {
+        const text = translate(key, lang);
+        expect(text).not.toContain('Pipeline');
+        expect(text).not.toContain('流水线');
+      }
+    });
+  });
 });

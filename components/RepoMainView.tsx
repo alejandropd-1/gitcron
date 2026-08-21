@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { FolderOpen, Loader2 } from 'lucide-react';
+import { AlertCircle, Check, FolderOpen, GitBranch, GitMerge, Loader2, Monitor, Rows3, Waypoints } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { MouseEvent } from 'react';
 import { CommitGraph, type CommitSelectOptions } from '@/components/CommitGraph';
@@ -14,6 +14,7 @@ import {
   HistoryView,
   PullRequestDiffView,
 } from '@/components/RepoContentViews';
+import { ContentHeader } from '@/components/ContentHeader';
 import type { HunkActionMode } from '@/components/DiffViewer';
 import { RepoStartPanel, type RepoStartMode } from '@/components/RepoModals';
 import { SettingsPanel, type SettingsPanelProps } from '@/components/SettingsPanel';
@@ -23,7 +24,7 @@ import { CartographyView } from '@/components/cartography/CartographyView';
 import InteractiveRebasePanel from '@/components/InteractiveRebasePanel';
 import type { GraphColumnKey } from '@/hooks/use-panel-layout';
 import { useT } from '@/hooks/use-translation';
-import type { Commit, GitFile } from '@/lib/git-store';
+import { useGitStore, type Commit, type GitFile } from '@/lib/git-store';
 import { PipelineWorkspace } from '@/components/pipeline/PipelineWorkspace';
 import { cn } from '@/lib/utils';
 import type { SpeculativeBranch } from '@/types/temporal-agent';
@@ -399,21 +400,166 @@ function CommitWorkspaceView({ modifiedFiles, hasGithubUser }: TabViewsProps) {
 }
 
 function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphView: GraphViewProps }) {
+  const t = useT();
+  const branchTracking = useGitStore((s) => s.branchTracking);
+  const currentBranch = tabViews.currentBranch;
+  const modifiedFiles = tabViews.modifiedFiles;
+
   return (
-    <div data-testid="graph-tab-container" className="flex-1 relative min-h-0 bg-bg-base">
-      <AnimatePresence>
-        {graphView.activeGraphMode === 'classic' && (
-          <ClassicGraphView tabViews={tabViews} graphView={graphView} />
+    <div data-testid="graph-tab-container" className="flex-1 flex flex-col relative min-h-0 bg-bg-base overflow-hidden">
+      <ContentHeader className="h-11 border-b border-border-subtle/15 flex items-center justify-between gap-3 normal-case font-normal shrink-0">
+        {/* Left: Branch name and repo status indicators */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {/* Branch name */}
+          <div className="flex items-center gap-1.5 min-w-0 shrink">
+            <GitBranch size={13} className="shrink-0 text-text-secondary/70" />
+            <span
+              className="font-mono font-semibold text-xs text-text-primary truncate"
+              title={currentBranch || '-'}
+            >
+              {currentBranch || '-'}
+            </span>
+          </div>
+
+          {/* Indicators */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Working tree state */}
+            <div
+              role="status"
+              title={modifiedFiles.length === 0 ? t('pipeline.openspec.repo.clean') : t('pipeline.openspec.repo.changed')}
+              className={cn(
+                'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0',
+                modifiedFiles.length === 0
+                  ? 'bg-secondary/10 text-secondary'
+                  : 'bg-[#fd9d1a]/15 text-[#fd9d1a]'
+              )}
+            >
+              {modifiedFiles.length === 0 ? (
+                <Check size={11} strokeWidth={2.5} className="shrink-0" />
+              ) : (
+                <AlertCircle size={11} className="shrink-0" />
+              )}
+              <span>
+                {modifiedFiles.length === 0
+                  ? t('sidebar.workingTreeClean')
+                  : `${modifiedFiles.length} ${t('sidebar.workingTreeModified')}`}
+              </span>
+            </div>
+
+            {/* Tracking / validation status */}
+            {(() => {
+              const tracking = currentBranch ? branchTracking[currentBranch] : undefined;
+              if (tracking?.gone) {
+                return (
+                  <div
+                    role="status"
+                    title={t('sidebar.branchStatus.gone', { upstream: tracking.upstream ?? '' })}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-error/15 text-error"
+                  >
+                    <AlertCircle size={11} className="shrink-0" />
+                    <span>{t('sidebar.upstreamGone')}</span>
+                  </div>
+                );
+              }
+              if (tracking && (tracking.ahead > 0 || tracking.behind > 0)) {
+                return (
+                  <div
+                    role="status"
+                    title={t('sidebar.branchStatus.diverged', {
+                      upstream: tracking.upstream ?? '',
+                      ahead: tracking.ahead,
+                      behind: tracking.behind,
+                    })}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-secondary/10 text-secondary font-mono"
+                  >
+                    <GitMerge size={11} className="shrink-0" />
+                    <span>+{tracking.ahead} -{tracking.behind}</span>
+                  </div>
+                );
+              }
+              if (tracking) {
+                return (
+                  <div
+                    role="status"
+                    title={t('sidebar.branchStatus.synced', { upstream: tracking.upstream ?? '' })}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-secondary/10 text-secondary"
+                  >
+                    <Check size={11} strokeWidth={2.5} className="shrink-0" />
+                    <span>{t('sidebar.branchStatus.syncedShort')}</span>
+                  </div>
+                );
+              }
+              return (
+                <div
+                  role="status"
+                  title={t('sidebar.branchStatus.local')}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-text-primary/[0.035] text-text-secondary/80"
+                >
+                  <Monitor size={11} className="shrink-0" />
+                  <span>{t('sidebar.branchStatus.localShort')}</span>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* Right: Graph mode selector */}
+        {graphView.enableCronometric && (
+          <div data-testid="graph-mode-selector" className="shrink-0 ml-auto flex items-center">
+            <div className="bg-bg-base/80 border border-border-subtle/30 rounded-lg flex items-center p-0.5 shadow-sm">
+              <button
+                type="button"
+                onClick={() => graphView.onChangeGraphMode('classic')}
+                aria-pressed={graphView.activeGraphMode === 'classic'}
+                className={cn(
+                  "h-7 px-2 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
+                  graphView.activeGraphMode === 'classic'
+                    ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
+                    : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
+                )}
+                title={t('toolbar.viewClassicTooltip')}
+                aria-label={t('toolbar.viewClassicBtn')}
+              >
+                <Rows3 size={13} className="shrink-0" />
+                <span className="text-[11px] leading-none font-semibold">{t('toolbar.viewClassicBtn')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => graphView.onChangeGraphMode('chronometric')}
+                aria-pressed={graphView.activeGraphMode === 'chronometric'}
+                className={cn(
+                  "h-7 px-2 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
+                  graphView.activeGraphMode === 'chronometric'
+                    ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
+                    : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
+                )}
+                title={t('toolbar.viewChronometricTooltip')}
+                aria-label={t('toolbar.viewChronometricBtn')}
+              >
+                <Waypoints size={13} className="shrink-0" />
+                <span className="text-[11px] leading-none font-semibold">{t('toolbar.viewChronometricBtn')}</span>
+              </button>
+            </div>
+          </div>
         )}
-        {graphView.activeGraphMode === 'chronometric' && (
-          <ChronometricGraphView tabViews={tabViews} graphView={graphView} />
-        )}
-      </AnimatePresence>
+      </ContentHeader>
+
+      <div className="flex-1 relative min-h-0 overflow-hidden">
+        <AnimatePresence>
+          {graphView.activeGraphMode === 'classic' && (
+            <ClassicGraphView tabViews={tabViews} graphView={graphView} />
+          )}
+          {graphView.activeGraphMode === 'chronometric' && (
+            <ChronometricGraphView tabViews={tabViews} graphView={graphView} />
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
 
 function ClassicGraphView({ tabViews, graphView }: { tabViews: TabViewsProps; graphView: GraphViewProps }) {
+  const t = useT();
   return (
     <motion.div
       key="classic-graph"
@@ -424,13 +570,17 @@ function ClassicGraphView({ tabViews, graphView }: { tabViews: TabViewsProps; gr
       transition={{ duration: 0.3, ease: 'easeInOut' }}
     >
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <div className="sticky top-0 bg-bg-surface/75 z-10 h-9 flex items-center text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
-          <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphView.graphColumns.refs }}>Branch / Tag</div>
+        <ContentHeader className="flex items-center">
+          <div className="shrink-0 text-right pl-3 pr-3" style={{ width: graphView.graphColumns.refs }}>
+            {t('graph.colBranchTag')}
+          </div>
           <GraphColumnHandle onMouseDown={(event) => graphView.beginGraphColDrag('refs', event)} />
-          <div className="shrink-0 text-left px-2" style={{ width: graphView.graphColumns.graph }}>Graph</div>
+          <div className="shrink-0 text-left px-2" style={{ width: graphView.graphColumns.graph }}>
+            {t('graph.colGraph')}
+          </div>
           <GraphColumnHandle onMouseDown={(event) => graphView.beginGraphColDrag('graph', event)} />
-          <div className="flex-1 flex items-center gap-2 pl-5">
-            Commit message
+          <div className="flex-1 flex items-center gap-2 pl-5 min-w-0">
+            <span className="shrink-0">{t('graph.colMessage')}</span>
             {graphView.enableCronometric && graphView.speculativeBranches.length > 0 && (
               <button
                 onClick={() => {
@@ -450,12 +600,16 @@ function ClassicGraphView({ tabViews, graphView }: { tabViews: TabViewsProps; gr
             )}
           </div>
           <GraphColumnHandle onMouseDown={(event) => graphView.beginGraphColDrag('date', event, -1)} />
-          <div className="flex items-center pr-3 text-right shrink-0">
-            <span className="pr-3" style={{ width: graphView.graphColumns.date }}>Date</span>
+          <div className="flex items-center pr-3 text-right shrink-0 self-stretch">
+            <span className="pr-3" style={{ width: graphView.graphColumns.date }}>
+              {t('graph.colDate')}
+            </span>
             <GraphColumnHandle onMouseDown={(event) => graphView.beginGraphColDrag('date', event)} />
-            <span style={{ width: graphView.graphColumns.hash }}>Commit</span>
+            <span style={{ width: graphView.graphColumns.hash }}>
+              {t('graph.colCommit')}
+            </span>
           </div>
-        </div>
+        </ContentHeader>
 
         <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin relative">
           <AnimatePresence mode="wait">

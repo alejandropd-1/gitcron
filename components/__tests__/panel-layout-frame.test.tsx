@@ -436,9 +436,89 @@ describe('Panel layout armazón & separación de fondos (modo por omisión: chro
       />
     );
 
-    const columnHeaders = container.querySelector('.sticky.top-0');
+    const allSticky = container.querySelectorAll('.sticky.top-0');
+    const columnHeaders = allSticky[allSticky.length - 1];
     expect(columnHeaders).not.toBeNull();
     expect(columnHeaders?.className).not.toContain('border-b');
+  });
+
+  it('HistoryView no declara border-b en su encabezado', () => {
+    const tabViews: any = {
+      activeTab: 'History',
+      repoPath: '/test/repo',
+      commits: [],
+      selectedCommit: null,
+      filterText: '',
+      modifiedFiles: [],
+      hasGithubUser: false,
+      isLoading: false,
+      pipelineLayout: {
+        leftOpen: true,
+        rightOpen: true,
+        leftWidth: 240,
+        rightWidth: 320,
+        onResizeLeft: vi.fn(),
+        onResizeRight: vi.fn(),
+      },
+      onSelectCommit: vi.fn(),
+      onCommitContextMenu: vi.fn(),
+    };
+
+    const { container } = render(
+      <RepoMainView
+        activeView="repository"
+        isRepoStartView={false}
+        cartographyActive={false}
+        cartographyRepoPath={null}
+        onExitCartography={vi.fn()}
+        settingsPanel={{} as any}
+        helpPanel={{} as any}
+        profilePanel={{} as any}
+        repoStart={{} as any}
+        diffViews={{ selectedFile: null } as any}
+        tabViews={tabViews}
+        graphView={{} as any}
+        interactiveRebase={{} as any}
+      />
+    );
+
+    const historyHeader = container.querySelector('.sticky.top-0');
+    expect(historyHeader).not.toBeNull();
+    expect(historyHeader?.className).not.toContain('border-b');
+  });
+
+  it('BlameView no declara border-b en su encabezado', () => {
+    const diffViews: any = {
+      selectedFile: null,
+      blameFile: { path: 'file.ts', staged: false, status: 'modified' },
+      blameLines: [],
+      blameLoading: false,
+      selectedBlameLineNo: null,
+      onCloseDiff: vi.fn(),
+      onSelectBlameLine: vi.fn(),
+    };
+
+    const { container } = render(
+      <RepoMainView
+        activeView="repository"
+        isRepoStartView={false}
+        cartographyActive={false}
+        cartographyRepoPath={null}
+        onExitCartography={vi.fn()}
+        settingsPanel={{} as any}
+        helpPanel={{} as any}
+        profilePanel={{} as any}
+        repoStart={{} as any}
+        diffViews={diffViews}
+        tabViews={{ activeTab: 'Graph' } as any}
+        graphView={{} as any}
+        interactiveRebase={{} as any}
+      />
+    );
+
+    const blameHeader = container.querySelector('[data-testid="content-header"]');
+    expect(blameHeader).not.toBeNull();
+    expect(blameHeader?.className).not.toContain('border-b');
   });
 
   it('RepoStartView en RepoMainView no declara bordes de maqueta en su cabecera', () => {

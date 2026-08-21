@@ -5,16 +5,8 @@ import { RepoTabs } from '../RepoTabs';
 import { RepoSidebar, SidebarDropdown, type DropdownMenuItem } from '../RepoSidebar';
 
 vi.mock('@/hooks/use-translation', () => ({
-  useT: () => (key: string) => {
-    if (key === 'toolbar.viewClassicBtn') return 'Clásico';
-    if (key === 'toolbar.viewChronometricBtn') return 'Cronométrico';
-    return key;
-  },
-  tNow: (key: string) => {
-    if (key === 'toolbar.viewClassicBtn') return 'Clásico';
-    if (key === 'toolbar.viewChronometricBtn') return 'Cronométrico';
-    return key;
-  },
+  useT: () => (key: string) => key,
+  tNow: (key: string) => key,
 }));
 
 vi.mock('@/hooks/use-git-actions', () => ({
@@ -305,7 +297,7 @@ describe('Grupo 2 & 3: Selector de vistas y acciones en RepoSidebar', () => {
 });
 
 describe('Grupo 4: Indicadores de estado del repositorio en vistas distintas de Pipeline', () => {
-  it('los indicadores de estado del working tree y tracking se muestran en vista Graph', () => {
+  it('los indicadores de estado del working tree y tracking ya no residen en el panel lateral', () => {
     render(
       <RepoSidebar
         graphMode="chronometric"
@@ -340,14 +332,10 @@ describe('Grupo 4: Indicadores de estado del repositorio en vistas distintas de 
       />
     );
 
-    // Rama actual
-    expect(screen.getByTitle('main')).toBeDefined();
-
-    // Estado del working tree (limpio)
-    const statusBadges = screen.getAllByRole('status');
-    expect(statusBadges.length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText('sidebar.workingTreeClean')).toBeDefined();
-    expect(screen.getByText('sidebar.branchStatus.syncedShort')).toBeDefined();
+    // Rama actual e indicadores ya no están en RepoSidebar
+    expect(screen.queryByTitle('main')).toBeNull();
+    expect(screen.queryByText('sidebar.workingTreeClean')).toBeNull();
+    expect(screen.queryByText('sidebar.branchStatus.syncedShort')).toBeNull();
   });
 });
 
@@ -485,7 +473,7 @@ describe('Grupo 8: Correcciones visuales y de disposición', () => {
     expect(localSectionBtn.getAttribute('aria-expanded')).toBe('true');
   });
 
-  describe('Selector de modo de grafo en fila dedicada con reserva de altura', () => {
+  describe('Selector de modo de grafo retirado del lateral (5.1, 5.2)', () => {
     function renderWithModeProps(enableCronometric: boolean, activeTab: 'Graph' | 'Pipeline' | 'Commit' | 'History') {
       return render(
         <RepoSidebar
@@ -525,28 +513,30 @@ describe('Grupo 8: Correcciones visuales y de disposición', () => {
       );
     }
 
-    it('1. enableCronometric=true, activeTab="Graph" -> "Clásico" y "Cronométrico" ambos presentes', () => {
+    it('1. El selector de modo NO está en el lateral y graph-mode-row ya no existe', () => {
       renderWithModeProps(true, 'Graph');
 
-      expect(screen.getByText('Clásico')).toBeDefined();
-      expect(screen.getByText('Cronométrico')).toBeDefined();
-      expect(screen.getByTestId('graph-mode-row')).toBeDefined();
+      expect(screen.queryByTestId('graph-mode-row')).toBeNull();
+      expect(screen.queryByLabelText('toolbar.viewClassicBtn')).toBeNull();
+      expect(screen.queryByLabelText('toolbar.viewChronometricBtn')).toBeNull();
+      expect(screen.queryByTitle('toolbar.viewClassicTooltip')).toBeNull();
+      expect(screen.queryByTitle('toolbar.viewChronometricTooltip')).toBeNull();
     });
 
-    it('2. enableCronometric=true, activeTab="Pipeline" -> ninguno de los dos rótulos presente, PERO el contenedor de la fila sigue en el documento', () => {
+    it('2. En Pipeline tampoco existe graph-mode-row en el lateral', () => {
       renderWithModeProps(true, 'Pipeline');
 
-      expect(screen.queryByText('Clásico')).toBeNull();
-      expect(screen.queryByText('Cronométrico')).toBeNull();
-      expect(screen.getByTestId('graph-mode-row')).toBeDefined();
+      expect(screen.queryByTestId('graph-mode-row')).toBeNull();
+      expect(screen.queryByLabelText('toolbar.viewClassicBtn')).toBeNull();
+      expect(screen.queryByLabelText('toolbar.viewChronometricBtn')).toBeNull();
     });
 
-    it('3. enableCronometric=false, activeTab="Graph" -> ni los rótulos ni el contenedor de la fila están en el documento', () => {
+    it('3. Con enableCronometric=false tampoco existe graph-mode-row en el lateral', () => {
       renderWithModeProps(false, 'Graph');
 
-      expect(screen.queryByText('Clásico')).toBeNull();
-      expect(screen.queryByText('Cronométrico')).toBeNull();
       expect(screen.queryByTestId('graph-mode-row')).toBeNull();
+      expect(screen.queryByLabelText('toolbar.viewClassicBtn')).toBeNull();
+      expect(screen.queryByLabelText('toolbar.viewChronometricBtn')).toBeNull();
     });
   });
 });

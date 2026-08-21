@@ -323,6 +323,13 @@ const PIPELINE_KEYS = [
   'shortcuts.pipelineTab',
   'shortcuts.terminal',
   'shortcuts.branchFilter',
+  'graph.colBranchTag',
+  'graph.colGraph',
+  'graph.colMessage',
+  'graph.colDate',
+  'graph.colCommit',
+  'history.header',
+  'history.filteredHeader',
 ] as const;
 
 describe('Pipeline i18n', () => {

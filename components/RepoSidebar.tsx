@@ -17,9 +17,9 @@ import {
   Activity, AlertCircle, AlertTriangle, Archive, ArrowLeft, Check, CheckCircle2,
   ChevronDown, Cloud, Download, Edit2, ExternalLink, FileInput, FileText,
   Folder, FolderOpen, GitBranch, GitMerge, Github, Globe, HelpCircle, Layers,
-  Link2, Lock, Map, Monitor, Plus, Redo, RefreshCw, RotateCcw, Rows3, Settings,
+  Link2, Lock, Map, Monitor, Plus, Redo, RefreshCw, RotateCcw, Settings,
   SlidersHorizontal, Sparkles, Terminal, Trash2, TreePine, Type, Undo, Upload,
-  UserCircle2, Waypoints, Zap,
+  UserCircle2, Zap,
 } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
@@ -708,141 +708,8 @@ export function RepoSidebar({
                       </div>
                     </div>
 
-                    {/* 2. Selector de modo de grafo (Clásico / Cronométrico) */}
-                    {enableCronometric && (
-                      <div data-testid="graph-mode-row" className="h-10 px-2 py-1 flex items-center shrink-0">
-                        {activeTab === 'Graph' && onChangeGraphMode && (
-                          <div className="w-full bg-bg-base/80 border border-border-subtle/30 rounded-lg flex items-center p-0.5 shadow-sm">
-                            <button
-                              type="button"
-                              onClick={() => onChangeGraphMode('classic')}
-                              aria-pressed={activeGraphMode === 'classic'}
-                              className={cn(
-                                "flex-1 h-8 px-2 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
-                                activeGraphMode === 'classic'
-                                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
-                                  : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
-                              )}
-                              title={t('toolbar.viewClassicTooltip')}
-                              aria-label={t('toolbar.viewClassicBtn')}
-                            >
-                              <Rows3 size={14} className="shrink-0" />
-                              <span className="text-[11px] leading-none font-semibold">{t('toolbar.viewClassicBtn')}</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onChangeGraphMode('chronometric')}
-                              aria-pressed={activeGraphMode === 'chronometric'}
-                              className={cn(
-                                "flex-1 h-8 px-2 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
-                                activeGraphMode === 'chronometric'
-                                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
-                                  : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
-                              )}
-                              title={t('toolbar.viewChronometricTooltip')}
-                              aria-label={t('toolbar.viewChronometricBtn')}
-                            >
-                              <Waypoints size={14} className="shrink-0" />
-                              <span className="text-[11px] leading-none font-semibold">{t('toolbar.viewChronometricBtn')}</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* 3. Nombre de la rama en su propia línea completa (con aire en interlineado) */}
-                    <div className="px-3 pt-2 pb-0.5 flex items-center gap-2 min-w-0 shrink-0">
-                      <GitBranch size={13} className="shrink-0 text-text-secondary/70" />
-                      <span
-                        className="font-mono font-semibold text-xs text-text-primary truncate"
-                        title={currentBranch || '-'}
-                      >
-                        {currentBranch || '-'}
-                      </span>
-                    </div>
-
-                    {/* 4. Indicadores de estado del repositorio (debajo de la rama) */}
-                    <div className="px-3 pt-0.5 pb-1.5 flex items-center gap-1.5 shrink-0 flex-wrap">
-                      {/* Working tree state */}
-                      <div
-                        role="status"
-                        title={modifiedFiles.length === 0 ? t('pipeline.openspec.repo.clean') : t('pipeline.openspec.repo.changed')}
-                        className={cn(
-                          'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0',
-                          modifiedFiles.length === 0
-                            ? 'bg-secondary/10 text-secondary'
-                            : 'bg-[#fd9d1a]/15 text-[#fd9d1a]'
-                        )}
-                      >
-                        {modifiedFiles.length === 0 ? (
-                          <Check size={11} strokeWidth={2.5} className="shrink-0" />
-                        ) : (
-                          <AlertCircle size={11} className="shrink-0" />
-                        )}
-                        <span>
-                          {modifiedFiles.length === 0
-                            ? t('sidebar.workingTreeClean')
-                            : `${modifiedFiles.length} ${t('sidebar.workingTreeModified')}`}
-                        </span>
-                      </div>
-                      {/* Tracking / validation status */}
-                      {(() => {
-                        const tracking = currentBranch ? branchTracking[currentBranch] : undefined;
-                        if (tracking?.gone) {
-                          return (
-                            <div
-                              role="status"
-                              title={t('sidebar.branchStatus.gone', { upstream: tracking.upstream ?? '' })}
-                              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-error/15 text-error"
-                            >
-                              <AlertCircle size={11} className="shrink-0" />
-                              <span>{t('sidebar.upstreamGone')}</span>
-                            </div>
-                          );
-                        }
-                        if (tracking && (tracking.ahead > 0 || tracking.behind > 0)) {
-                          return (
-                            <div
-                              role="status"
-                              title={t('sidebar.branchStatus.diverged', {
-                                upstream: tracking.upstream ?? '',
-                                ahead: tracking.ahead,
-                                behind: tracking.behind,
-                              })}
-                              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-secondary/10 text-secondary font-mono"
-                            >
-                              <GitMerge size={11} className="shrink-0" />
-                              <span>+{tracking.ahead} -{tracking.behind}</span>
-                            </div>
-                          );
-                        }
-                        if (tracking) {
-                          return (
-                            <div
-                              role="status"
-                              title={t('sidebar.branchStatus.synced', { upstream: tracking.upstream ?? '' })}
-                              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-secondary/10 text-secondary"
-                            >
-                              <Check size={11} strokeWidth={2.5} className="shrink-0" />
-                              <span>{t('sidebar.branchStatus.syncedShort')}</span>
-                            </div>
-                          );
-                        }
-                        return (
-                          <div
-                            role="status"
-                            title={t('sidebar.branchStatus.local')}
-                            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-text-primary/[0.035] text-text-secondary/80"
-                          >
-                            <Monitor size={11} className="shrink-0" />
-                            <span>{t('sidebar.branchStatus.localShort')}</span>
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                    {/* 4. Acciones fila por fila (al estilo Codex) */}
-                    <div className="px-2 pt-0.5 pb-3 space-y-0.5 shrink-0 border-b border-border-subtle/20 mb-2">
+                    {/* 2. Acciones fila por fila (al estilo Codex) */}
+                    <div className="px-2 pt-1 pb-3 space-y-0.5 shrink-0 border-b border-border-subtle/20 mb-2">
                       {quickActions.map((action) => (
                         <button
                           key={action.id}

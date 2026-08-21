@@ -73,10 +73,10 @@ export function GraphColumnHandle({ onMouseDown }: { onMouseDown: (e: React.Mous
   return (
     <div
       onMouseDown={onMouseDown}
-      className="group w-0 self-stretch -my-2 shrink-0 cursor-col-resize relative overflow-visible"
+      className="group w-0 self-stretch shrink-0 cursor-col-resize relative"
       title="Arrastrar para redimensionar columna"
     >
-      <div className="absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-border-subtle/20 group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
+      <div className="absolute inset-y-1.5 left-1/2 w-px -translate-x-1/2 bg-border-subtle/20 group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
       <div className="absolute inset-y-0 -left-1.5 -right-1.5 bg-transparent group-hover:bg-secondary/35 group-active:bg-secondary/60 transition-colors" />
     </div>
   );

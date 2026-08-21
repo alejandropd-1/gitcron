@@ -13,6 +13,7 @@ import type { Commit, GitFile } from '@/lib/git-store';
 import type { BlameLine, FileHistoryEntry, PullRequestDiffData, PullRequestEntry } from '@/types/electron';
 import { cn } from '@/lib/utils';
 import { formatDate, formatInitials } from '@/lib/display-format';
+import { ContentHeader } from '@/components/ContentHeader';
 
 type HistoryViewProps = {
   commits: Commit[];
@@ -37,6 +38,7 @@ export const HistoryView = memo(function HistoryView({
   onContextMenu,
   isLoading,
 }: HistoryViewProps) {
+  const t = useT();
   const filter = filterText?.trim().toLowerCase() ?? '';
   const filtered = useMemo(() => {
     if (!filter) return commits;
@@ -50,11 +52,11 @@ export const HistoryView = memo(function HistoryView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 py-2 px-4 text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
+      <ContentHeader className="h-11">
         {filter
-          ? `${filtered.length} de ${commits.length} commits`
-          : `Historial · ${commits.length} commits`}
-      </div>
+          ? t('history.filteredHeader', { filtered: filtered.length, total: commits.length })
+          : t('history.header', { count: commits.length })}
+      </ContentHeader>
       <div className="flex-1 overflow-y-auto">
         {commits.length === 0 && isLoading && (
           <p className="px-4 py-8 text-center text-text-secondary text-sm">Cargando commits...</p>
@@ -228,13 +230,13 @@ export function BlameView({
           {t('blame.title')}
         </span>
       </div>
-      <div className="sticky top-0 bg-bg-surface/75 border-b border-border-subtle/15 z-10 grid grid-cols-[9rem_8rem_7rem_4rem_minmax(0,1fr)] gap-2 py-2 px-4 text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0">
+      <ContentHeader className="grid grid-cols-[9rem_8rem_7rem_4rem_minmax(0,1fr)] gap-2">
         <span>{t('blame.commit')}</span>
         <span>{t('blame.author')}</span>
         <span>{t('blame.age')}</span>
         <span className="text-right">{t('blame.line')}</span>
         <span>{t('blame.content')}</span>
-      </div>
+      </ContentHeader>
       <div className="flex-1 overflow-y-auto font-mono text-xs">
         {lines.length === 0 && isLoading && (
           <p className="px-4 py-8 text-center text-text-secondary text-sm font-sans">{t('blame.loading')}</p>

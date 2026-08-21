@@ -473,7 +473,7 @@ function GraphRowView({
       onClick={() => onSelect(row.commit, { branchName })}
       onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, row.commit); }}
       className={cn(
-        'flex items-center cursor-pointer group relative',
+        'flex items-center cursor-pointer group relative px-4',
         selected ? 'bg-secondary/10' : branchHighlighted ? 'bg-secondary/5' : 'hover:bg-bg-surface/50',
       )}
       style={{ height: ROW_H }}
@@ -654,7 +654,7 @@ function WIPRow({
 }) {
   return (
     <div
-      className="flex items-center relative bg-git-add/5 border-l-2 border-git-add/40"
+      className="flex items-center relative bg-git-add/5 border-l-2 border-git-add/40 px-4"
       style={{ height: ROW_H }}
     >
       <div className="shrink-0 flex items-center justify-end pr-3" style={{ width: columnWidths.refs }}>

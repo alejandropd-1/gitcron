@@ -914,6 +914,11 @@ const es: Dict = {
   'graph.unstagedCount': '{{n}} sin stagear',
   'graph.stagedCount': '{{n}} listos para commitear',
   'graph.coAuthored': 'Co-Authored…',
+  'graph.colBranchTag': 'Rama / Tag',
+  'graph.colGraph': 'Grafo',
+  'graph.colMessage': 'Mensaje de commit',
+  'graph.colDate': 'Fecha',
+  'graph.colCommit': 'Commit',
 
   // ── Común (compartido entre componentes) ──
   'common.close': 'Cerrar',
@@ -1032,6 +1037,7 @@ const es: Dict = {
 
   // ── History View ──
   'history.header': 'Historial · {{count}} commits',
+  'history.filteredHeader': '{{filtered}} de {{total}} commits',
   'history.loading': 'Cargando commits...',
 
   // ── File Status Labels ──
@@ -2729,6 +2735,7 @@ const en: Dict = {
 
   // ── History View ──
   'history.header': 'History · {{count}} commits',
+  'history.filteredHeader': '{{filtered}} of {{total}} commits',
   'history.loading': 'Loading commits...',
 
   // ── File Status Labels ──
@@ -2890,6 +2897,11 @@ const en: Dict = {
   'graph.unstagedCount': '{{n}} unstaged',
   'graph.stagedCount': '{{n}} ready to commit',
   'graph.coAuthored': 'Co-Authored…',
+  'graph.colBranchTag': 'Branch / Tag',
+  'graph.colGraph': 'Graph',
+  'graph.colMessage': 'Commit message',
+  'graph.colDate': 'Date',
+  'graph.colCommit': 'Commit',
 
   // ── Common (shared across components) ──
   'common.close': 'Close',
@@ -4496,6 +4508,11 @@ const zh: Dict = {
   'graph.unstagedCount': '{{n}} 个未 Stage',
   'graph.stagedCount': '{{n}} 个就绪待 Commit',
   'graph.coAuthored': '联合提交者 (Co-Authored)…',
+  'graph.colBranchTag': '分支 / 标签',
+  'graph.colGraph': '图表',
+  'graph.colMessage': '提交信息',
+  'graph.colDate': '日期',
+  'graph.colCommit': '提交',
   'common.close': '关闭',
   'common.cancel': '取消',
   'common.copy': '复制',
@@ -4600,6 +4617,7 @@ const zh: Dict = {
   'commitTab.unstaged': 'Unstaged',
   'commitTab.staged': '已就绪',
   'history.header': '提交历史 · {{count}} 个 Commit',
+  'history.filteredHeader': '{{filtered}} / {{total}} 次提交',
   'history.loading': '正在加载 Commit...',
   'fileStatus.modified': '已修改',
   'fileStatus.added': '新增 (staged)',

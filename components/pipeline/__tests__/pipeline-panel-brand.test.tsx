@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
 
 /**
- * Rótulo del panel.
+ * Franja de identidad unificada en SDD y retiro del título de marca.
  *
- * Nombra el método —desarrollo guiado por especificación— y no la herramienta
- * que lo implementa. Va en dos líneas explícitas: el salto es parte del rótulo,
- * así que no puede quedar librado al ancho de la ventana.
+ * El título «Spec-Driven Development» en dos líneas fue retirado de la vista:
+ * la barra lateral ya nombra a SDD y el encabezado común ahora lleva la rama,
+ * el estado del árbol y el control de preparar commit.
  */
 
 vi.mock('@/hooks/use-translation', () => ({
@@ -41,7 +41,9 @@ function snapshot(): PipelineSnapshot {
       selectedChangeId: null,
       activeChanges: [],
       archivedChanges: [],
-      specifications: [],
+      specifications: [
+        { specificationId: 'spec-1', sourceRef: 'openspec/specs/spec-1/spec.md', requirements: 2 },
+      ],
       reports: [],
       diagnostics: [],
       observedAt: '2026-08-07T10:05:00.000Z',
@@ -50,8 +52,8 @@ function snapshot(): PipelineSnapshot {
   } as PipelineSnapshot;
 }
 
-describe('rótulo del panel', () => {
-  it('nombra el método en dos líneas, no la herramienta', () => {
+describe('SDD adopta la franja de identidad unificada (ContentHeader)', () => {
+  it('el título de marca «Spec-Driven / Development» ya NO está en el encabezado (3.4)', () => {
     render(
       <OpenSpecDashboard
         snapshot={snapshot()}
@@ -72,10 +74,172 @@ describe('rótulo del panel', () => {
       />,
     );
 
-    const brand = screen.getByRole('heading', { level: 2 });
-    // Dos elementos, no una cadena con un salto: el corte es estructural.
-    expect(brand.children).toHaveLength(2);
-    expect(brand.children[0]?.textContent).toBe('Spec-Driven');
-    expect(brand.children[1]?.textContent).toBe('Development');
+    expect(screen.queryByText(/Spec-Driven/i)).toBeNull();
+    expect(screen.queryByText(/Development/i)).toBeNull();
+  });
+
+  it('monta la pieza común ContentHeader con data-testid="content-header" (3.1)', () => {
+    render(
+      <OpenSpecDashboard
+        snapshot={snapshot()}
+        repoPath="C:/repo"
+        currentBranch="feature/sdd-identity"
+        workingTreeClean
+        leftOpen={false}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+
+    const header = screen.getByTestId('content-header');
+    expect(header).toBeDefined();
+    expect(header.classList.contains('h-11')).toBe(true);
+  });
+
+  it('muestra la rama actual y los indicadores de estado con los mismos rótulos que el grafo (3.2)', () => {
+    render(
+      <OpenSpecDashboard
+        snapshot={snapshot()}
+        repoPath="C:/repo"
+        currentBranch="feature/sdd-identity"
+        workingTreeClean={true}
+        leftOpen={false}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+
+    const header = screen.getByTestId('content-header');
+    expect(header.textContent).toContain('feature/sdd-identity');
+    expect(header.textContent).toContain('sidebar.workingTreeClean');
+  });
+
+  it('ubica Preparar commit a la derecha y opera el control de preparación respetando data-clean (3.3)', () => {
+    render(
+      <OpenSpecDashboard
+        snapshot={snapshot()}
+        repoPath="C:/repo"
+        currentBranch="main"
+        workingTreeClean={false}
+        leftOpen={false}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+
+    const prepareBtn = screen.getByRole('button', { name: /pipeline\.openspec\.prepare\.open/i });
+    expect(prepareBtn).toBeDefined();
+    expect(prepareBtn.getAttribute('data-clean')).toBe('false');
+    expect(prepareBtn.getAttribute('aria-expanded')).toBe('false');
+
+    // Al hacer clic, abre la sección de preparación
+    fireEvent.click(prepareBtn);
+    expect(prepareBtn.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('los contadores y la insignia del motor siguen presentes en el cuerpo de la vista (3.5)', () => {
+    render(
+      <OpenSpecDashboard
+        snapshot={snapshot()}
+        repoPath="C:/repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        leftOpen={true}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText('pipeline.openspec.summary.specifications')).toBeDefined();
+    expect(screen.getByText('pipeline.openspec.summary.tasks')).toBeDefined();
+    expect(screen.getAllByText('1').length).toBeGreaterThan(0);
+  });
+
+  it('ninguna vista declara un encabezado propio fuera de la pieza común (3.6)', () => {
+    const { container } = render(
+      <OpenSpecDashboard
+        snapshot={snapshot()}
+        repoPath="C:/repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        leftOpen={false}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+
+    // El encabezado de la vista es la pieza común ContentHeader
+    const header = screen.getByTestId('content-header');
+    expect(header).toBeDefined();
+    // No hay summaryBar
+    expect(container.querySelector('header[class*="summaryBar"]')).toBeNull();
+  });
+
+  it('la rama aparece una sola vez en la franja de identidad de SDD', () => {
+    render(
+      <OpenSpecDashboard
+        snapshot={snapshot()}
+        repoPath="C:/repo"
+        currentBranch="feature/sdd-identity"
+        workingTreeClean={true}
+        leftOpen={false}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+
+    const header = screen.getByTestId('content-header');
+    const branchElements = Array.from(header.querySelectorAll('*')).filter(
+      (el) => el.children.length === 0 && el.textContent === 'feature/sdd-identity',
+    );
+    expect(branchElements).toHaveLength(1);
   });
 });

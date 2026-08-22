@@ -282,7 +282,7 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     vi.unstubAllGlobals();
   });
 
-  it('la barra superior sólo renderiza especificaciones y progreso de tareas, sin duplicar cambios activos ni completados (Ajuste 2)', async () => {
+  it('los contadores de especificaciones y tareas viven en el cuerpo y no en la franja de identidad, sin duplicar cambios activos ni completados (Ajuste 2)', async () => {
     const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
     const checkLatestVersionMock = vi.fn().mockResolvedValue(null);
 
@@ -332,16 +332,22 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
       />,
     );
 
-    const summaryBar = container.querySelector('header');
-    expect(summaryBar).not.toBeNull();
+    const identityHeader = screen.getByTestId('content-header');
+    expect(identityHeader).toBeDefined();
 
-    // 1. Especificaciones y porcentaje de tareas sí están en la barra superior
-    expect(summaryBar!.textContent).toContain('especificaciones');
-    expect(summaryBar!.textContent).toContain('tareas');
+    // 1. La franja de identidad NO contiene contadores de especificaciones ni tareas
+    expect(identityHeader.textContent).not.toContain('especificaciones');
+    expect(identityHeader.textContent).not.toContain('tareas');
 
-    // 2. Contadores duplicados (cambios activos y completados) NO están en la barra superior
-    expect(summaryBar!.textContent).not.toContain('cambios activos');
-    expect(summaryBar!.textContent).not.toContain('completados');
+    // 2. La franja de identidad NO duplica cambios activos ni completados
+    expect(identityHeader.textContent).not.toContain('cambios activos');
+    expect(identityHeader.textContent).not.toContain('completados');
+
+    // 3. Los contadores de especificaciones y progreso de tareas están en el cuerpo (startScreen / center)
+    const body = container.querySelector('main');
+    expect(body).not.toBeNull();
+    expect(body!.textContent).toContain('especificaciones');
+    expect(body!.textContent).toContain('tareas');
 
     delete (window as any).api;
   });

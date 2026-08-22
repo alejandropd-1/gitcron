@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
+  AlertCircle,
   AlertTriangle,
   BookOpen,
   Check,
@@ -17,8 +18,11 @@ import {
   MinusSquare,
   PlusSquare,
   GitBranch,
+  GitCommit,
   GitCompare,
+  GitMerge,
   Loader2,
+  Monitor,
   Pause,
   Play,
   ShieldCheck,
@@ -27,6 +31,8 @@ import {
   MessageSquareText,
   BrainCircuit,
 } from 'lucide-react';
+import { ContentHeader } from '@/components/ContentHeader';
+import { cn } from '@/lib/utils';
 import { useGitStore, type GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { archivedChangeId, deriveRepoCommitScope, fileKind, soleChangeId, suggestCommitMessage, type ChangeAttribution, type CommitFileOrigin } from '@/lib/change-commit-scope';
@@ -238,6 +244,7 @@ export function OpenSpecDashboard({
     t(count === 1 ? `${key}.one` : key, { count, ...params });
   const setSuccess = useGitStore((state) => state.setSuccess);
   const modifiedFiles = useGitStore((state) => state.modifiedFiles);
+  const branchTracking = useGitStore((state) => state.branchTracking);
   const commitMessage = useGitStore((state) => state.commitMessage);
   const setCommitMessage = useGitStore((state) => state.setCommitMessage);
   const { stageFiles } = useGitActions();
@@ -1393,49 +1400,124 @@ export function OpenSpecDashboard({
         '--openspec-right-width': `${Math.max(300, Math.min(rightWidth, 460))}px`,
       } as React.CSSProperties}
     >
-      <header className={styles.summaryBar}>
-        {/* Dos líneas, no una frase que se parte sola: el salto es parte del
-            rótulo y no puede depender del ancho de la ventana. El nombre dice
-            el método —desarrollo guiado por especificación— en vez de la
-            herramienta que lo implementa. */}
-        <h2 className={styles.brand}>
-          <span>Spec-Driven</span>
-          <span>Development</span>
-        </h2>
-        <dl className={styles.summaryFacts}>
-          <div><dd>{specifications.length}</dd><dt>{t('pipeline.openspec.summary.specifications')}</dt></div>
-          <div><dd>{taskPercent}%</dd><dt>{t('pipeline.openspec.summary.tasks')}</dt></div>
-        </dl>
-        {/* El estado del árbol es la puerta a la preparación: el commit es del
-            repositorio, y éste es el único lugar del panel que ya habla del
-            repositorio entero. Es un control, no un rótulo, así que el área
-            clickeable es toda la caja y no sólo el texto. */}
-        <button
-          type="button"
-          className={styles.repoHealth}
-          data-clean={workingTreeClean}
-          aria-expanded={prepareOpen}
-          title={t('pipeline.openspec.prepare.open')}
-          onClick={() => setPrepareOpen((open) => !open)}
-        >
-          <span className={styles.healthDot} aria-hidden="true" />
-          <strong>{workingTreeClean ? t('pipeline.openspec.repo.clean') : t('pipeline.openspec.repo.changed')}</strong>
-          {/* La rama es el destino del commit, el mismo dato que el panel de
-              preparación declara al lado del mensaje. Recibe el mismo
-              tratamiento en los dos lugares para que no se lea como dos cosas
-              distintas; antes iba debajo, en chico, como si fuera un detalle. */}
-          <em className={styles.repoBranch}>{currentBranch || t('pipeline.openspec.repo.branchUnknown')}</em>
-          <em className={styles.repoHealthCta}>{t('pipeline.openspec.prepare.open')}</em>
-        </button>
-        <OpenSpecEngineCard
-          status={effectiveEngineStatus}
-          isLoading={engineLoading}
-          compact={true}
-          onOpenToolsTab={openToolsTab}
-          onOpenReview={toggleReview}
-          isReviewOpen={reviewOpen}
-        />
-      </header>
+      <ContentHeader className="h-11 border-b border-border-subtle/15 flex items-center justify-between gap-3 normal-case font-normal shrink-0">
+        {/* Left: Branch name and repo status indicators */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {/* Branch name */}
+          <div className="flex items-center gap-1.5 min-w-0 shrink">
+            <GitBranch size={13} className="shrink-0 text-text-secondary/70" />
+            <span
+              className="font-mono font-semibold text-xs text-text-primary truncate"
+              title={currentBranch || '-'}
+            >
+              {currentBranch || '-'}
+            </span>
+          </div>
+
+          {/* Indicators */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Working tree state */}
+            <div
+              role="status"
+              title={workingTreeClean ? t('pipeline.openspec.repo.clean') : t('pipeline.openspec.repo.changed')}
+              className={cn(
+                'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0',
+                workingTreeClean
+                  ? 'bg-secondary/10 text-secondary'
+                  : 'bg-[#fd9d1a]/15 text-[#fd9d1a]'
+              )}
+            >
+              {workingTreeClean ? (
+                <Check size={11} strokeWidth={2.5} className="shrink-0" />
+              ) : (
+                <AlertCircle size={11} className="shrink-0" />
+              )}
+              <span>
+                {workingTreeClean
+                  ? t('sidebar.workingTreeClean')
+                  : `${modifiedFiles.length} ${t('sidebar.workingTreeModified')}`}
+              </span>
+            </div>
+
+            {/* Tracking / validation status */}
+            {(() => {
+              const tracking = (currentBranch && branchTracking) ? branchTracking[currentBranch] : undefined;
+              if (tracking?.gone) {
+                return (
+                  <div
+                    role="status"
+                    title={t('sidebar.branchStatus.gone', { upstream: tracking.upstream ?? '' })}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-error/15 text-error"
+                  >
+                    <AlertCircle size={11} className="shrink-0" />
+                    <span>{t('sidebar.upstreamGone')}</span>
+                  </div>
+                );
+              }
+              if (tracking && (tracking.ahead > 0 || tracking.behind > 0)) {
+                return (
+                  <div
+                    role="status"
+                    title={t('sidebar.branchStatus.diverged', {
+                      upstream: tracking.upstream ?? '',
+                      ahead: tracking.ahead,
+                      behind: tracking.behind,
+                    })}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-secondary/10 text-secondary font-mono"
+                  >
+                    <GitMerge size={11} className="shrink-0" />
+                    <span>+{tracking.ahead} -{tracking.behind}</span>
+                  </div>
+                );
+              }
+              if (tracking) {
+                return (
+                  <div
+                    role="status"
+                    title={t('sidebar.branchStatus.synced', { upstream: tracking.upstream ?? '' })}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-secondary/10 text-secondary"
+                  >
+                    <Check size={11} strokeWidth={2.5} className="shrink-0" />
+                    <span>{t('sidebar.branchStatus.syncedShort')}</span>
+                  </div>
+                );
+              }
+              return (
+                <div
+                  role="status"
+                  title={t('sidebar.branchStatus.local')}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-text-primary/[0.035] text-text-secondary/80"
+                >
+                  <Monitor size={11} className="shrink-0" />
+                  <span>{t('sidebar.branchStatus.localShort')}</span>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* Right: Preparar commit */}
+        <div className="shrink-0 ml-auto flex items-center">
+          <div className="bg-bg-base/80 border border-border-subtle/30 rounded-lg flex items-center p-0.5 shadow-sm">
+            <button
+              type="button"
+              data-clean={workingTreeClean}
+              aria-expanded={prepareOpen}
+              title={t('pipeline.openspec.prepare.open')}
+              onClick={() => setPrepareOpen((open) => !open)}
+              className={cn(
+                "h-7 px-2.5 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
+                prepareOpen
+                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
+                  : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
+              )}
+            >
+              <GitCommit size={13} className="shrink-0" />
+              <span className="text-[11px] leading-none font-semibold">{t('pipeline.openspec.prepare.open')}</span>
+            </button>
+          </div>
+        </div>
+      </ContentHeader>
 
       <div className={styles.body}>
         {leftOpen && (
@@ -2465,6 +2547,21 @@ export function OpenSpecDashboard({
                dos lecturas del mismo estado. */
             <section className={styles.startScreen} aria-label={t('pipeline.openspec.start.title')}>
               <h3>{t('pipeline.openspec.start.title')}</h3>
+
+              <div className="flex items-center justify-between gap-4 p-3 rounded-lg border border-border-subtle/20 bg-bg-surface/40 my-3">
+                <dl className={styles.summaryFacts}>
+                  <div><dd>{specifications.length}</dd><dt>{t('pipeline.openspec.summary.specifications')}</dt></div>
+                  <div><dd>{taskPercent}%</dd><dt>{t('pipeline.openspec.summary.tasks')}</dt></div>
+                </dl>
+                <OpenSpecEngineCard
+                  status={effectiveEngineStatus}
+                  isLoading={engineLoading}
+                  compact={true}
+                  onOpenToolsTab={openToolsTab}
+                  onOpenReview={toggleReview}
+                  isReviewOpen={reviewOpen}
+                />
+              </div>
 
               {/* La guía va primero, sin excepción de estado: es la acción que
                   esta pantalla existe para ofrecer, y al final quedaba empujada

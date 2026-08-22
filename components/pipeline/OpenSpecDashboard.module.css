@@ -70,75 +70,20 @@
   container-type: inline-size;
 }
 
-.summaryBar {
-  min-height: 6rem;
-  /* Cuatro columnas para cuatro hijos: la insignia compacta del motor quedó
-     cuarta cuando se agregó y en tres pistas se acomodaba en una segunda fila,
-     mientras los contadores —con `min-width` fijo— desbordaban su pista y se
-     encimaban con el estado del repositorio. */
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-3);
-  border-bottom: 1px solid var(--os-border);
-  background: rgba(15, 37, 57, 0.72);
-  flex: 0 0 auto;
-}
-
-/* Dos líneas apiladas, dimensionadas contra la fila de contadores que tiene al
-   lado: el bloque entero ocupa el alto de la barra en vez de flotar en su
-   centro, así el encabezado queda encuadrado.
-   El tamaño baja respecto de la versión de una línea —el rótulo pasó de nueve
-   caracteres a veintitrés— y `line-height` ajustado es lo que las mantiene
-   juntas como una unidad y no como dos renglones sueltos. */
-.brand {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  font-size: var(--font-size-xl);
-  font-weight: 750;
-  line-height: 1.12;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-/* Las dos líneas tienen once caracteres pero no el mismo ancho: la primera lleva
-   un guion y una `i`, angostos, y la segunda una `m`, ancha. Con el mismo tamaño
-   la de arriba queda corta y el bloque se ve desalineado a la derecha.
-   El factor iguala los anchos y va en `em` para que siga al `clamp` del bloque en
-   vez de quedar clavado a un tamaño. Es un ajuste óptico: se estimó sobre la
-   medición del rótulo renderizado y lo confirma Ale mirándolo. */
-.brand > span:first-child { font-size: var(--font-size-lg); }
-
-/* La segunda línea en la monoespaciada del proyecto y con menos peso: la primera
-   nombra el método y la segunda lo califica, así que se distinguen por
-   tratamiento en vez de repetir el mismo bloque dos veces.
-   JetBrains Mono ya está cargada —la usa el resto del panel—, así que no entra
-   ninguna fuente nueva. Al ser monoespaciada y más liviana rinde más angosta que
-   la sans, y el tamaño lo compensa para que las dos líneas terminen juntas. */
-.brand > span:last-child {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--font-size-lg);
-  font-weight: 450;
-  letter-spacing: -0.02em;
-}
-
 .summaryFacts {
   display: flex;
   min-width: 0;
   align-items: stretch;
+  gap: var(--space-2);
 }
 
 .summaryFacts > div {
   display: flex;
-  flex: 0 0 auto;
+  flex: 1 1 0;
   min-width: 0;
   align-items: baseline;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-4);
-  border-left: 1px solid var(--os-border-strong);
+  padding: var(--space-1) 0;
 }
 
 .summaryFacts dt {
@@ -157,77 +102,6 @@
   flex-shrink: 0;
 }
 
-/* Control, no rótulo: abre la preparación del commit del repositorio.
-
-   Una sola línea y sin marco propio: va sobre la barra de resumen, que ya tiene
-   fondo y borde inferior, así que un marco adentro de otro marco era la caja que
-   sobraba. Antes era rótulo con la rama debajo en chico más una pastilla al
-   costado: tres tratamientos apilados para un control que hace una cosa. */
-.repoHealth {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: 2.75rem;
-  padding: var(--space-2) var(--space-3);
-  margin: 0;
-  justify-content: flex-end;
-  border: 0;
-  border-radius: var(--radius-lg);
-  background: none;
-  color: #c9d8e8;
-  cursor: pointer;
-  text-align: left;
-  font-weight: 650;
-  font-size: var(--font-size-xs);
-  font-family: var(--font-mono), ui-monospace, monospace;
-  transition: background-color 120ms ease;
-}
-
-.repoHealth:hover,
-.repoHealth:focus-visible { background: var(--os-surface); }
-.repoHealth[aria-expanded='true'] { background: rgba(94, 216, 255, 0.08); }
-
-.repoHealth > strong { font-weight: 650; white-space: nowrap; }
-
-/* Mismo tratamiento que la pastilla de rama del panel de preparación: el mismo
-   dato se ve igual en los dos lugares. Ámbar, para no competir con el cian de
-   la acción que tiene al lado. */
-.repoBranch {
-  flex: 0 0 auto;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid rgba(255, 191, 71, 0.45);
-  border-radius: var(--radius-xl);
-  color: var(--os-amber);
-  font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
-  font-style: normal;
-  white-space: nowrap;
-}
-
-/* La acción conserva su forma de control: sin marco sería indistinguible de la
-   frase que tiene al lado, que es el defecto opuesto al que se corrige. */
-.repoHealthCta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.75rem;
-  flex: 0 0 auto;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--os-cyan);
-  border-radius: var(--radius-md);
-  color: var(--os-cyan);
-  font-weight: 650;
-  font-size: var(--font-size-xs);
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-style: normal;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.repoHealth:hover .repoHealthCta,
-.repoHealth:focus-visible .repoHealthCta,
-.repoHealth[aria-expanded='true'] .repoHealthCta { background: rgba(94, 216, 255, 0.16); }
-
 .healthDot,
 .liveDot,
 .changeDot {
@@ -239,9 +113,6 @@
   background: var(--os-green);
   box-shadow: 0 0 0.65rem rgba(163, 241, 133, 0.32);
 }
-
-.repoHealth:not([data-clean='true']) .healthDot { background: var(--os-amber); }
-
 
 .body {
   position: relative;
@@ -2164,9 +2035,7 @@
     box-shadow: -1rem 0 2rem rgba(0, 0, 0, 0.42);
   }
   .dashboard[data-left-open='false'] .body { grid-template-columns: minmax(0, 1fr); }
-  .summaryBar { gap: var(--space-3); padding-inline: var(--space-4); }
   .summaryFacts > div { min-width: 0; padding-inline: var(--space-3); }
-  .repoHealth { min-width: auto; }
   .changeHeader { grid-template-columns: minmax(12rem, 0.8fr) minmax(23rem, 1.2fr); padding-inline: var(--space-4); }
 }
 
@@ -2185,13 +2054,6 @@
     background: #06182a;
     box-shadow: 1rem 0 2rem rgba(0, 0, 0, 0.42);
   }
-  .summaryBar { grid-template-columns: auto minmax(0, 1fr) auto auto; min-height: 5rem; gap: var(--space-2); }
-  /* Se encoge, no se oculta: dejó de ser un rótulo decorativo y es la única
-     puerta a la preparación del commit. Ocultarlo acá retiraba la capacidad
-     entera en anchos angostos. Cae la frase de estado, que es la parte larga; el
-     punto, la rama y la acción se conservan porque son lo que se necesita. */
-  .repoHealth { min-width: 0; }
-  .repoHealth > strong { display: none; }
   /* Dos opciones lado a lado se vuelven ilegibles acá: pasan a apilarse, y las
      acciones del siguiente paso ocupan el ancho para no quedar cortadas. */
   .intentSwitch { grid-template-columns: minmax(0, 1fr); }

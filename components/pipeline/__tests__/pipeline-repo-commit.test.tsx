@@ -314,15 +314,30 @@ describe('preparación a nivel del repositorio', { timeout: 15_000 }, () => {
       .toBe('fix(pipeline): lo escribí yo'));
   });
 
-  it('el encabezado declara la rama junto a la acción', () => {
-    // La rama es el destino del commit: pasó de texto secundario debajo del
-    // estado a leerse en la misma línea, con el mismo tratamiento que recibe
-    // dentro del panel de preparación.
+  it('la franja de identidad declara la rama junto al control de preparación, sin duplicarla en el botón', () => {
+    // La rama es el destino del commit: se lee en la misma franja de identidad
+    // que la acción de preparar commit (a la izquierda), pero ya no dentro del
+    // botón, para no duplicar el dato en la misma línea.
     renderDashboard();
 
+    const header = screen.getByTestId('content-header');
     const control = screen.getByRole('button', { name: /openspec\.prepare\.open/ });
-    expect(control.textContent).toContain('main');
+
+    // 1. La franja de identidad contiene la rama actual
+    expect(header.textContent).toContain('main');
+
+    // 2. La franja de identidad contiene el control de preparación
+    expect(header.contains(control)).toBe(true);
     expect(control.textContent).toContain('pipeline.openspec.prepare.open');
+
+    // 3. El botón NO contiene la rama
+    expect(control.textContent).not.toContain('main');
+
+    // 4. La rama aparece UNA sola vez en la franja de identidad (contando nodos)
+    const branchElements = Array.from(header.querySelectorAll('*')).filter(
+      (el) => el.children.length === 0 && el.textContent === 'main',
+    );
+    expect(branchElements).toHaveLength(1);
   });
 
   it('declara la rama a la que va el commit', () => {

@@ -57,5 +57,15 @@ es modificado— y ese significado está aprendido por quien usa la aplicación.
 armonizar puede volverlos menos distinguibles entre sí. La verificación de contraste no lo detecta:
 mide cada color contra su fondo, no unos contra otros. Es comprobación humana.
 
-**Medición de partida.** Diez tokens propios en Pipeline. El número de colores literales fuera de
-`globals.css` no está medido y debe informarse antes de migrar, como se hizo con los tamaños.
+**Medición de partida, hecha el 2026-08-22.** La hoja de estilos de la vista SDD
+—`components/pipeline/OpenSpecDashboard.module.css`— declara **sesenta y tres colores literales
+distintos en ciento treinta y seis apariciones**. Los diez tokens propios son la parte declarada; los
+cincuenta y tres restantes están escritos directo en las reglas, sin nombre y sin criterio: `#d8a657`
+aparece veinticuatro veces, `#38bdf8` ocho, `#94a3b8` ocho.
+
+Ese número cambia el tamaño del trabajo por seis, y también su fundamento. El problema no es sólo que
+la vista tenga paleta propia: es que **tiene un color por situación**. Un token existe para que una
+decisión de color se tome una vez y se propague sola; cincuenta y tres literales sueltos son
+cincuenta y tres decisiones que hay que volver a tomar cada vez que algo cambie, y que nadie va a
+encontrar todas. La verificación de procedencia que este change agrega es lo que impide que vuelvan a
+aparecer.

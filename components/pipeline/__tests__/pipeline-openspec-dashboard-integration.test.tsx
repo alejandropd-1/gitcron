@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { PipelineWorkspace } from '../PipelineWorkspace';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
+import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
+import { usePipelineStore } from '@/lib/pipeline-store';
 import type { OpenSpecEngineStatus } from '../../../types/pipeline';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 
@@ -95,30 +97,14 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
       },
     });
 
-    render(
-      <OpenSpecDashboard
-        snapshot={dummySnapshot}
-        repoPath="C:\\repo"
-        currentBranch="main"
-        workingTreeClean={true}
-        leftOpen={true}
-        rightOpen={false}
-        leftWidth={340}
-        rightWidth={340}
-        onResizeLeft={vi.fn()}
-        onResizeRight={vi.fn()}
-        projection={null}
-        runtimeHistory={[]}
-        onPauseAfterTask={vi.fn()}
-        onRespondDecision={vi.fn()}
-      />,
-    );
-
-    await vi.waitFor(() => {
-      expect(getEngineStatusMock).toHaveBeenCalledWith('C:\\\\repo');
+    usePipelineStore.setState({
+      snapshot: dummySnapshot,
+      selectedChangeId: null,
     });
 
-    // El sidebar izquierdo (navigator) contiene los títulos de navegación ("Cambio activo", "Completados recientes", "Especificaciones")
+    render(<OpenSpecSidebarNav />);
+
+    // El sidebar izquierdo contiene las secciones de navegación ("Cambios activos", "Completados", "Especificaciones")
     const nav = screen.getByLabelText(/Navegador de OpenSpec/i);
     expect(nav).toBeDefined();
     // No debe contener la tarjeta de motor en el sidebar izquierdo
@@ -423,5 +409,28 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     expect(screen.queryByRole('heading', { name: /Revisión de Actualización de OpenSpec/i })).toBeNull();
 
     delete (window as any).api;
+  });
+
+  it('el cuerpo de SDD preserva la zona central y retira las columnas navigator e inspector (5.1)', () => {
+    const { container } = render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    // El cuerpo central permanece en el DOM
+    const center = container.querySelector('main');
+    expect(center).not.toBeNull();
+
+    // Las columnas laterales navigator e inspector fueron retiradas del cuerpo (0 asides)
+    const asides = container.querySelectorAll('aside');
+    expect(asides.length).toBe(0);
   });
 });

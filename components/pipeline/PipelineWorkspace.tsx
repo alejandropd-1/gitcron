@@ -8,6 +8,7 @@ import { DEV_FIXTURE_NAMES, DEV_FIXTURES_ENABLED, loadDevFixture, type DevFixtur
 import { PipelineEmptyState } from './PipelineEmptyState';
 import { OpenSpecDashboard } from './OpenSpecDashboard';
 import { SUPPORTED_SNAPSHOT_VERSION, type PipelineSnapshot, type PipelineViewState } from './pipeline-view-state';
+import { usePipelineStore } from '@/lib/pipeline-store';
 import styles from './OpenSpecDashboard.module.css';
 
 export type PipelineSnapshotLoader = (
@@ -174,6 +175,18 @@ export function PipelineWorkspace({
   const snapshot = result?.snapshot
     ? mergeRuntimeIntoSnapshot(result.snapshot, fixtureActive ? null : projection)
     : null;
+
+  useEffect(() => {
+    usePipelineStore.getState().setSnapshot(snapshot);
+  }, [snapshot]);
+
+  useEffect(() => {
+    usePipelineStore.getState().setProjection(projection);
+  }, [projection]);
+
+  useEffect(() => {
+    usePipelineStore.getState().setRuntimeHistory(runtimeHistory);
+  }, [runtimeHistory]);
 
   const handleRespondDecision = useCallback((decisionId: string, optionId: string) => {
     const api = typeof window !== 'undefined' ? window.api : undefined;

@@ -2,6 +2,8 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
+import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
+import { usePipelineStore } from '@/lib/pipeline-store';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 
 /**
@@ -65,25 +67,32 @@ function snapshot(selectedChangeId: string | null): PipelineSnapshot {
 }
 
 function renderDashboard(selectedChangeId: string | null, onSelectChange: (id: string) => void) {
+  const snap = snapshot(selectedChangeId);
+  usePipelineStore.setState({
+    snapshot: snap,
+    selectedChangeId: null,
+  });
   return render(
-    <OpenSpecDashboard
-      snapshot={snapshot(selectedChangeId)}
-      repoPath="C:/repo"
-      currentBranch="fix/una-rama-que-no-matchea"
-      workingTreeClean
-      leftOpen
-      rightOpen={false}
-      leftWidth={320}
-      rightWidth={320}
-      onResizeLeft={() => undefined}
-      onResizeRight={() => undefined}
-      projection={null}
-      runtimeHistory={[]}
-      onRefresh={() => undefined}
-      onSelectChange={onSelectChange}
-      onPauseAfterTask={() => undefined}
-      onRespondDecision={() => undefined}
-    />,
+    <div>
+      <OpenSpecSidebarNav
+        onSelectChange={(id) => {
+          usePipelineStore.getState().setSelectedChangeId(id);
+          onSelectChange(id);
+        }}
+      />
+      <OpenSpecDashboard
+        snapshot={snap}
+        repoPath="C:/repo"
+        currentBranch="fix/una-rama-que-no-matchea"
+        workingTreeClean
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onSelectChange={onSelectChange}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />
+    </div>,
   );
 }
 

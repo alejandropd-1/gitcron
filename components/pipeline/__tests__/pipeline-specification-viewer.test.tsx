@@ -3,6 +3,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
+import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
+import { usePipelineStore } from '@/lib/pipeline-store';
 
 /**
  * Abrir una especificación consolidada desde el panel.
@@ -69,24 +71,27 @@ function renderDashboard(
     configurable: true,
     value: { pipelineReadSpecification, pipelineRuntime: { discover: vi.fn(), start: vi.fn(), stop: vi.fn() } },
   });
+  const snap = snapshot(openSpec);
+  usePipelineStore.setState({
+    snapshot: snap,
+    selectedChangeId: null,
+    openSpecificationId: null,
+  });
   return render(
-    <OpenSpecDashboard
-      snapshot={snapshot(openSpec)}
-      repoPath="C:/repo"
-      currentBranch="main"
-      workingTreeClean
-      leftOpen
-      rightOpen={false}
-      leftWidth={320}
-      rightWidth={320}
-      onResizeLeft={() => undefined}
-      onResizeRight={() => undefined}
-      projection={null}
-      runtimeHistory={[]}
-      onRefresh={() => undefined}
-      onPauseAfterTask={() => undefined}
-      onRespondDecision={() => undefined}
-    />,
+    <div>
+      <OpenSpecSidebarNav />
+      <OpenSpecDashboard
+        snapshot={snap}
+        repoPath="C:/repo"
+        currentBranch="main"
+        workingTreeClean
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />
+    </div>,
   );
 }
 

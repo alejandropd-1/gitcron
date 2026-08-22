@@ -3,6 +3,8 @@ import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
+import { OpenSpecInspector } from '../OpenSpecInspector';
+import { usePipelineStore } from '@/lib/pipeline-store';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 
 /**
@@ -93,25 +95,35 @@ function snapshot(): PipelineSnapshot {
 }
 
 function renderDashboard(projection: RuntimeProjection | null, history: RuntimeProjection[]) {
+  const snap = snapshot();
+  usePipelineStore.setState({
+    snapshot: snap,
+    projection,
+    runtimeHistory: history,
+    selectedChangeId: null,
+  });
   render(
-    <OpenSpecDashboard
-      snapshot={snapshot()}
-      repoPath="C:/repo"
-      currentBranch="main"
-      workingTreeClean
-      leftOpen={false}
-      rightOpen
-      leftWidth={320}
-      rightWidth={320}
-      onResizeLeft={() => undefined}
-      onResizeRight={() => undefined}
-      projection={projection}
-      runtimeHistory={history}
-      onRefresh={() => undefined}
-      onSelectChange={() => undefined}
-      onPauseAfterTask={() => undefined}
-      onRespondDecision={() => undefined}
-    />,
+    <div>
+      <OpenSpecDashboard
+        snapshot={snap}
+        repoPath="C:/repo"
+        currentBranch="main"
+        workingTreeClean
+        projection={projection}
+        runtimeHistory={history}
+        onRefresh={() => undefined}
+        onSelectChange={(id) => usePipelineStore.getState().setSelectedChangeId(id)}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />
+      <OpenSpecInspector
+        snapshot={snap}
+        repoPath="C:/repo"
+        projection={projection}
+        runtimeHistory={history}
+        onRespondDecision={() => undefined}
+      />
+    </div>,
   );
 }
 

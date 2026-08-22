@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { translate, LANGS, type Lang } from '@/lib/i18n';
+import { SESSION_STATUS_KEYS, resolveSessionStatusI18nKey } from '../pipeline-domain';
 
 const LANGUAGES: Lang[] = ['es', 'en', 'zh'];
 
@@ -101,6 +102,14 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.activity.noneForChange',
   'pipeline.openspec.activity.repoScope',
   'pipeline.openspec.activity.ranAt',
+  'pipeline.openspec.activity.status.running',
+  'pipeline.openspec.activity.status.completed',
+  'pipeline.openspec.activity.status.failed',
+  'pipeline.openspec.activity.status.interrupted',
+  'pipeline.openspec.activity.status.unknown',
+  'pipeline.openspec.activity.status.latest',
+  'pipeline.openspec.activity.status.none',
+  'pipeline.openspec.activity.status.idle',
   'pipeline.openspec.graph.label',
   'pipeline.openspec.graph.state.done',
   'pipeline.openspec.graph.state.ready',
@@ -441,6 +450,37 @@ describe('Pipeline i18n', () => {
         const text = translate(key, lang);
         expect(text).not.toContain('Pipeline');
         expect(text).not.toContain('流水线');
+      }
+    });
+  });
+
+  describe('session status i18n resolution', () => {
+    it('resolves every sessionStatusKey to a translated text and never the raw key in ES, EN, ZH', () => {
+      for (const lang of LANGUAGES) {
+        for (const status of SESSION_STATUS_KEYS) {
+          const key = resolveSessionStatusI18nKey(status);
+          const text = translate(key, lang);
+          expect(text).toBeTruthy();
+          expect(text).not.toBe(key);
+          expect(text).not.toContain('pipeline.openspec.activity.status');
+        }
+      }
+    });
+
+    it('fallback defaults to a valid declared status key and resolves to translated string', () => {
+      for (const lang of LANGUAGES) {
+        const fallbackKey = resolveSessionStatusI18nKey('unrecognized_status_value');
+        const text = translate(fallbackKey, lang);
+        expect(text).toBeTruthy();
+        expect(text).not.toBe(fallbackKey);
+        expect(text).not.toBe('unrecognized_status_value');
+        expect(text).not.toContain('pipeline.openspec.activity.status');
+
+        const nullKey = resolveSessionStatusI18nKey(null);
+        const nullText = translate(nullKey, lang);
+        expect(nullText).toBeTruthy();
+        expect(nullText).not.toBe(nullKey);
+        expect(nullText).not.toContain('pipeline.openspec.activity.status');
       }
     });
   });

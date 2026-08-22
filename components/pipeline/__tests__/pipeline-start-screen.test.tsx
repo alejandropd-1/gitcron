@@ -264,4 +264,33 @@ describe('pantalla de entrada del repositorio', () => {
     fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.back/ }));
     expect(screen.getByText('pipeline.openspec.start.title')).toBeTruthy();
   });
+
+  it('los contadores de especificaciones y tareas conservan sus rótulos y nunca se ocultan', () => {
+    renderDashboard(snapshot({
+      activeChanges: [change('uno', 2, 4)],
+      specificationsCount: 3,
+    }));
+
+    const factsDl = document.querySelector('dl[class*="summaryFacts"]');
+    expect(factsDl).not.toBeNull();
+
+    const dts = factsDl?.querySelectorAll('dt');
+    expect(dts?.length).toBe(2);
+
+    const dds = factsDl?.querySelectorAll('dd');
+    expect(dds?.length).toBe(2);
+
+    // Los rótulos existen con contenido de texto claro (especificaciones y tareas)
+    expect(dts?.[0].textContent?.trim()).toBe('pipeline.openspec.summary.specifications');
+    expect(dts?.[1].textContent?.trim()).toBe('pipeline.openspec.summary.tasks');
+    expect(dds?.[0].textContent?.trim()).toBe('3');
+    expect(dds?.[1].textContent?.trim()).toBe('50%');
+
+    // Ningún dt tiene display: none ni clase oculta
+    dts?.forEach((dt) => {
+      expect(dt.textContent?.trim()).toBeTruthy();
+      expect(dt.getAttribute('hidden')).toBeNull();
+      expect(dt.getAttribute('aria-hidden')).toBeNull();
+    });
+  });
 });

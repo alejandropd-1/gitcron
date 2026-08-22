@@ -16,8 +16,10 @@ import { useT } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 import { formatDate, formatInitials } from '@/lib/display-format';
 import { StagingPanel } from '@/components/StagingPanel';
+import { OpenSpecInspector } from '@/components/pipeline/OpenSpecInspector';
 
 type RepoDetailsPanelProps = {
+  activeTab?: string;
   // layout (estado de usePanelLayout, que vive en la página)
   graphMode: 'classic' | 'chronometric';
   detailsW: number;
@@ -37,6 +39,7 @@ type RepoDetailsPanelProps = {
 };
 
 export function RepoDetailsPanel({
+  activeTab,
   graphMode, detailsW, visible, isDragging, onResizeStart,
   onOpenStashModal, onOpenCommitFile, onSelectFile, onDiscardRequest,
   onRequestAmend, onRequestSquash, onFileContextMenu,
@@ -73,6 +76,7 @@ export function RepoDetailsPanel({
 
   return (
     <aside
+      data-testid="repo-details-panel"
       className={cn(
         "flex flex-col overflow-hidden z-30 relative bg-bg-surface shrink-0",
         !isDragging && "transition-all duration-300"
@@ -91,7 +95,11 @@ export function RepoDetailsPanel({
       >
         <div className="absolute inset-y-3 left-0.5 w-px bg-transparent group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
       </div>
-      {selectedCommit ? (
+      {activeTab === 'Pipeline' ? (
+        <div className="flex flex-col h-full overflow-y-auto min-h-0">
+          <OpenSpecInspector />
+        </div>
+      ) : selectedCommit ? (
         <div className="flex flex-col h-full">
           {/* Header bar: matches Unstaged header exactly in size, padding and font */}
           <div className="px-4 py-2 bg-bg-surface/75 flex items-center justify-between shrink-0">

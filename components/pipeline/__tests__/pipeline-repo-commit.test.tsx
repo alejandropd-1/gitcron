@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { useGitStore } from '@/lib/git-store';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
+import { OpenSpecInspector } from '../OpenSpecInspector';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 
 /**
@@ -354,22 +355,14 @@ describe('preparación a nivel del repositorio', { timeout: 15_000 }, () => {
       { path: 'openspec/changes/demo-change/tasks.md', staged: false },
       { path: 'components/ya-listo.tsx', staged: true },
     ]);
-    render(
-      <OpenSpecDashboard
-        snapshot={snapshot(['demo-change'])}
+    const snap = snapshot(['demo-change']);
+    const { rerender } = render(
+      <OpenSpecInspector
+        snapshot={snap}
         repoPath="C:/repo"
-        currentBranch="main"
-        workingTreeClean={false}
-        leftOpen={false}
-        rightOpen
-        leftWidth={320}
-        rightWidth={320}
-        onResizeLeft={() => undefined}
-        onResizeRight={() => undefined}
+        prepareOpen={false}
         projection={null}
         runtimeHistory={[]}
-        onRefresh={() => undefined}
-        onPauseAfterTask={() => undefined}
         onRespondDecision={() => undefined}
       />,
     );
@@ -377,14 +370,32 @@ describe('preparación a nivel del repositorio', { timeout: 15_000 }, () => {
     // Cerrado: la columna es la de siempre.
     expect(screen.getByText('pipeline.openspec.activity.title')).toBeTruthy();
 
-    openPrepare();
     // Abierto: la otra mitad del estado, que el panel filtra a propósito.
+    rerender(
+      <OpenSpecInspector
+        snapshot={snap}
+        repoPath="C:/repo"
+        prepareOpen={true}
+        projection={null}
+        runtimeHistory={[]}
+        onRespondDecision={() => undefined}
+      />,
+    );
     expect(screen.getByText('pipeline.openspec.prepare.stagedTitle')).toBeTruthy();
     expect(screen.getByText('components/ya-listo.tsx')).toBeTruthy();
     expect(screen.queryByText('pipeline.openspec.activity.title')).toBeNull();
 
     // Y al cerrar vuelve.
-    fireEvent.click(screen.getByRole('button', { name: /openspec\.prepare\.close/ }));
+    rerender(
+      <OpenSpecInspector
+        snapshot={snap}
+        repoPath="C:/repo"
+        prepareOpen={false}
+        projection={null}
+        runtimeHistory={[]}
+        onRespondDecision={() => undefined}
+      />,
+    );
     expect(screen.getByText('pipeline.openspec.activity.title')).toBeTruthy();
   });
 

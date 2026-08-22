@@ -1672,12 +1672,6 @@ export default function GitCronPage() {
               hasGithubUser: !!githubUser,
               isLoading,
               pipelineLayout: {
-                leftOpen: sidebarOpen,
-                rightOpen: detailsOpen,
-                leftWidth: sidebarW,
-                rightWidth: detailsW,
-                onResizeLeft: (event) => beginColDrag('sidebar', event),
-                onResizeRight: (event) => beginColDrag('details', event),
                 onEnsureRightOpen: ensureDetailsOpen,
               },
               onSelectCommit: handleSelectCommit,
@@ -1714,11 +1708,12 @@ export default function GitCronPage() {
           />
         </main>
 
-        {/* RIGHT PANEL: Commit details + staging — floats in chronometric view, inline in classic view */}
+        {/* RIGHT PANEL: Commit details + staging (Graph) or SDD inspector (Pipeline) */}
         <RepoDetailsPanel
+          activeTab={activeTab}
           graphMode={graphMode}
           detailsW={detailsW}
-          visible={activeTab === 'Pipeline' ? false : repositoryDetailsVisible}
+          visible={repositoryDetailsVisible}
           isDragging={isDragging}
           onResizeStart={(e) => beginColDrag('details', e)}
           onOpenStashModal={handleOpenStashModal}

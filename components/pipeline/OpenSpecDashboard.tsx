@@ -37,6 +37,7 @@ import { useGitStore, type GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { archivedChangeId, deriveRepoCommitScope, fileKind, soleChangeId, suggestCommitMessage, type ChangeAttribution, type CommitFileOrigin } from '@/lib/change-commit-scope';
 import { changeIdFromBranch } from '@/lib/change-branch';
+import { usePipelineStore } from '@/lib/pipeline-store';
 import { AiElapsed } from './AiElapsed';
 import { CommitDraftLog } from './CommitDraftLog';
 import { appendDraftChunks, clearDraftLog, finishDraftLog, startDraftLog } from '@/lib/commit-draft-log';
@@ -71,8 +72,7 @@ import {
   type PipelineActionIntent,
 } from './pipeline-next-action';
 import { groupActivity, runtimeDisplayName, type ActivityChannel } from './pipeline-domain';
-import { sortActiveChangesByProgress } from './pipeline-view-state';
-import type { OpenSpecChangeSummary, PipelineSnapshot } from './pipeline-view-state';
+import { sortActiveChangesByProgress, type OpenSpecChangeSummary, type PipelineSnapshot } from './pipeline-view-state';
 import styles from './OpenSpecDashboard.module.css';
 
 type OpenSpecDashboardProps = {
@@ -80,12 +80,12 @@ type OpenSpecDashboardProps = {
   repoPath: string;
   currentBranch: string;
   workingTreeClean: boolean;
-  leftOpen: boolean;
-  rightOpen: boolean;
-  leftWidth: number;
-  rightWidth: number;
-  onResizeLeft: (event: React.MouseEvent) => void;
-  onResizeRight: (event: React.MouseEvent) => void;
+  leftOpen?: boolean;
+  rightOpen?: boolean;
+  leftWidth?: number;
+  rightWidth?: number;
+  onResizeLeft?: (event: React.MouseEvent) => void;
+  onResizeRight?: (event: React.MouseEvent) => void;
   onEnsureRightOpen?: () => void;
   projection: RuntimeProjection | null;
   runtimeHistory: RuntimeProjection[];
@@ -141,8 +141,9 @@ const ACTIVITY_ICONS: Record<ActivityChannel, React.ComponentType<{ size?: numbe
 };
 
 function taskProgress(change: OpenSpecChangeSummary): { completed: number; total: number; percent: number } {
-  const total = change.tasks.length;
-  const completed = change.tasks.filter((task) => task.completed).length;
+  const tasks = Array.isArray(change.tasks) ? change.tasks : [];
+  const total = tasks.length;
+  const completed = tasks.filter((task) => task.completed).length;
   return { completed, total, percent: total === 0 ? 0 : Math.round((completed / total) * 100) };
 }
 
@@ -249,7 +250,12 @@ export function OpenSpecDashboard({
   const setCommitMessage = useGitStore((state) => state.setCommitMessage);
   const { stageFiles } = useGitActions();
   const openSpec = snapshot.openSpec;
-  const [selection, setSelection] = useState<string | null>(null);
+  const [selection, setSelectionState] = useState<string | null>(null);
+  const setSelection = (val: string | null | ((prev: string | null) => string | null)) => {
+    const next = typeof val === 'function' ? val(selection) : val;
+    setSelectionState(next);
+    usePipelineStore.getState().setSelectedChangeId(next);
+  };
   const [centerTab, setCenterTab] = useState<CenterTab>('work');
   const [evidenceTab, setEvidenceTab] = useState<DetailTab>('proposal');
   /**
@@ -342,12 +348,35 @@ export function OpenSpecDashboard({
    * pertenece a ningún cambio activo, es el resultado acumulado de todos los
    * archivados.
    */
-  const [openSpecificationId, setOpenSpecificationId] = useState<string | null>(null);
+  const [openSpecificationId, setOpenSpecificationIdState] = useState<string | null>(null);
+  const setOpenSpecificationId = (val: string | null | ((prev: string | null) => string | null)) => {
+    const next = typeof val === 'function' ? val(openSpecificationId) : val;
+    setOpenSpecificationIdState(next);
+    usePipelineStore.getState().setOpenSpecificationId(next);
+  };
+
+  useEffect(() => {
+    return usePipelineStore.subscribe((state, prevState) => {
+      if (state.selectedChangeId !== prevState.selectedChangeId) {
+        setSelectionState(state.selectedChangeId);
+      }
+      if (state.openSpecificationId !== prevState.openSpecificationId) {
+        setOpenSpecificationIdState(state.openSpecificationId);
+      }
+      if (state.railTab !== prevState.railTab) {
+        setRailTabState(state.railTab);
+      }
+    });
+  }, []);
   /**
    * Solapa del rail. Arranca en actividad: es lo que cambia mientras se trabaja,
    * y el estado de las herramientas se consulta cuando hace falta.
    */
-  const [railTab, setRailTab] = useState<'activity' | 'tools'>('activity');
+  const [railTab, setRailTabState] = useState<'activity' | 'tools'>('activity');
+  const setRailTab = (tab: 'activity' | 'tools') => {
+    setRailTabState(tab);
+    usePipelineStore.getState().setRailTab(tab);
+  };
   const [reviewOpen, setReviewOpen] = useState(false);
   const [updatePlan, setUpdatePlan] = useState<OpenSpecUpdatePlan | null>(null);
 
@@ -507,8 +536,6 @@ export function OpenSpecDashboard({
         ? false
         : null
     : snapshot.economy.reasoningAvailable;
-  const sessionStatusKey = selectedSession?.outcome
-    ?? (visibleActivity.length > 0 ? 'latest' : 'none');
   const runningAgent = snapshot.agents.find((agent) => agent.state === 'running') ?? snapshot.agents[0] ?? null;
   const runningName = runtimeDisplayName(selectedSession?.runtime ?? runningAgent?.runtime ?? null) ?? t('pipeline.openspec.activity.agentUnknown');
   const totalRequirements = specifications.reduce((total, item) => total + (item.requirements ?? 0), 0);
@@ -618,7 +645,11 @@ export function OpenSpecDashboard({
     setAiPhase(busy ? 'drafting' : 'idle');
     setAiStartedAt(busy ? Date.now() : null);
   };
-  const [aiNotice, setAiNotice] = useState<string | null>(null);
+  const [aiNotice, setAiNoticeState] = useState<string | null>(null);
+  const setAiNotice = (notice: string | null) => {
+    setAiNoticeState(notice);
+    usePipelineStore.getState().setAiNotice(notice);
+  };
   /**
    * Contexto y minutos de inactividad, elegidos antes de cargar.
    *
@@ -1391,15 +1422,7 @@ export function OpenSpecDashboard({
   }
 
   return (
-    <div
-      className={styles.dashboard}
-      data-left-open={leftOpen}
-      data-right-open={rightOpen}
-      style={{
-        '--openspec-left-width': `${Math.max(320, Math.min(leftWidth, 400))}px`,
-        '--openspec-right-width': `${Math.max(300, Math.min(rightWidth, 460))}px`,
-      } as React.CSSProperties}
-    >
+    <div className={`${styles.dashboard} ${styles.openspecScope}`}>
       <ContentHeader className="h-11 border-b border-border-subtle/15 flex items-center justify-between gap-3 normal-case font-normal shrink-0">
         {/* Left: Branch name and repo status indicators */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -1504,7 +1527,14 @@ export function OpenSpecDashboard({
               data-clean={workingTreeClean}
               aria-expanded={prepareOpen}
               title={t('pipeline.openspec.prepare.open')}
-              onClick={() => setPrepareOpen((open) => !open)}
+              onClick={() => {
+                const next = !prepareOpen;
+                setPrepareOpen(next);
+                usePipelineStore.getState().setPrepareOpen(next);
+                if (next && onEnsureRightOpen) {
+                  onEnsureRightOpen();
+                }
+              }}
               className={cn(
                 "h-7 px-2.5 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
                 prepareOpen
@@ -1520,149 +1550,6 @@ export function OpenSpecDashboard({
       </ContentHeader>
 
       <div className={styles.body}>
-        {leftOpen && (
-          <aside className={styles.navigator} aria-label={t('pipeline.openspec.navigator.label')}>
-            <div className={styles.resizeHandleLeft} role="separator" aria-orientation="vertical" title={t('pipeline.openspec.resize.left')} onMouseDown={onResizeLeft} />
-            <section className={styles.navSection} data-tone="active">
-              <h3>{t('pipeline.openspec.active.title')} <span>{activeChanges.length}</span></h3>
-              {/* La lista se desplaza dentro de su propio alto: sin esto crecía
-                  sin tope, dejaba cambios fuera de vista sin señal y empujaba
-                  las secciones de abajo detrás de toda la lista. */}
-              <div className={styles.activeList}>
-              {activeChanges.length === 0 ? (
-                <p className={styles.navEmpty}>{t('pipeline.openspec.active.empty')}</p>
-              ) : sortActiveChangesByProgress(activeChanges).map((change) => {
-                const itemProgress = taskProgress(change);
-                const isSelected = change.changeId === selectedId;
-                // Plegado por defecto: desplegar es una acción que se pide, no
-                // un efecto de seleccionar. Siguiendo a la selección, el
-                // desplegado ocupaba varias veces el alto de un ítem plegado, y
-                // al cambiar de cambio aparecía otro que estaba oculto.
-                const isExpanded = expandedChanges[change.changeId] ?? false;
-                const tasksDone = itemProgress.completed === itemProgress.total && itemProgress.total > 0;
-                // Sólo el cambio seleccionado transporta el markdown: en los
-                // demás el archivo se lista pero todavía no se puede abrir.
-                const readable = change.artifacts;
-
-                const artifactRow = (
-                  label: string,
-                  exists: boolean,
-                  stateLabel: string,
-                  tab: DetailTab | null,
-                  icon: React.ReactNode,
-                ) => (
-                  <button
-                    type="button"
-                    className={styles.artifactRow}
-                    disabled={!exists || tab === null || readable === null}
-                    onClick={() => openArtifact(change.changeId, tab)}
-                    title={exists ? t('pipeline.openspec.artifact.open', { file: label }) : undefined}
-                  >
-                    {icon} {label} <em data-done={exists}>{stateLabel}</em>
-                  </button>
-                );
-
-                return (
-                  /* La lista se reordena sola al tildar una casilla, así que un
-                     ítem puede saltar de posición mientras se lo mira.
-                     `layout` es lo que suaviza ese salto: el fade por sí solo no
-                     lo haría, porque React reusa el nodo por su `key` y lo
-                     reubica sin remontarlo. El fundido queda para cuando un
-                     cambio entra o sale de la lista, que es el mismo patrón de
-                     hidratación que ya usa el visor de diferencias.
-                     Corto a propósito: acompaña el movimiento, no lo protagoniza. */
-                  <motion.div
-                    key={change.changeId}
-                    layout={reducedMotion ? false : 'position'}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={reducedMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeOut' }}
-                    className={styles.activeChange}
-                    data-selected={isSelected}
-                  >
-                    <div className={styles.changeHeadingRow}>
-                      <button
-                        type="button"
-                        className={styles.changeSelect}
-                        onClick={() => selectChange(change.changeId)}
-                      >
-                        <span className={styles.changeHeading}>
-                          <span className={styles.changeDot} aria-hidden="true" />
-                          <strong>{change.changeId}</strong>
-                          <span>{itemProgress.percent}%</span>
-                        </span>
-                        <span className={styles.progressTrack} aria-label={t('pipeline.openspec.progress', { completed: itemProgress.completed, total: itemProgress.total })}>
-                          <span style={{ width: `${itemProgress.percent}%` }} />
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.changeToggle}
-                        aria-expanded={isExpanded}
-                        aria-label={t(isExpanded ? 'pipeline.openspec.change.collapse' : 'pipeline.openspec.change.expand', { change: change.changeId })}
-                        onClick={() => setExpandedChanges((current) => ({ ...current, [change.changeId]: !isExpanded }))}
-                      >
-                        <ChevronDown size={14} data-expanded={isExpanded} />
-                      </button>
-                    </div>
-
-                    {isExpanded && (
-                      <>
-                        <p className={styles.changeIntent}>{change.intent ?? t('pipeline.openspec.intentUnknown')}</p>
-                        <div className={styles.artifactList}>
-                          {artifactRow('proposal.md', change.proposalExists, change.proposalExists ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending'), 'proposal', <FileText size={13} />)}
-                          {artifactRow('design.md', change.designExists, change.designExists ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending'), 'design', <FileText size={13} />)}
-                          {artifactRow('specs/', change.specsCount > 0, change.specsCount > 0 ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending'), 'specs', <FolderOpen size={13} />)}
-                          {artifactRow('tasks.md', itemProgress.total > 0, tasksDone ? t('pipeline.openspec.complete') : t('pipeline.openspec.inProgress'), 'tasks', <FileText size={13} />)}
-                        </div>
-                      </>
-                    )}
-                  </motion.div>
-                );
-              })}
-              </div>
-            </section>
-
-            <section className={styles.navSection} data-tone="completed">
-              <h3>{t('pipeline.openspec.completed.title')} <span>{archivedChanges.length}</span></h3>
-              <div className={styles.compactList}>
-                {archivedChanges.slice(0, 8).map((change) => (
-                  <button type="button" key={`${change.archivedAt}-${change.changeId}`} data-selected={selectedId === change.changeId} onClick={() => selectChange(change.changeId)}>
-                    <CheckCircle2 size={13} />
-                    <strong>{change.changeId}</strong>
-                    <span>{change.archivedAt ?? t('pipeline.openspec.dateUnknown')}</span>
-                  </button>
-                ))}
-                {archivedChanges.length === 0 && <p className={styles.navEmpty}>{t('pipeline.openspec.completed.empty')}</p>}
-              </div>
-            </section>
-
-            <section className={styles.navSection} data-tone="specifications">
-              <h3>{t('pipeline.openspec.specifications.title')} <span>{specifications.length}</span></h3>
-              <div className={styles.specList}>
-                {/* Botón y no `div`: ahora hay contenido que mostrar. Antes se
-                    listaban como texto muerto porque el snapshot no traía nada
-                    que abrir. */}
-                {specifications.map((specification) => (
-                  <button
-                    type="button"
-                    key={specification.specificationId}
-                    title={specification.sourceRef}
-                    data-selected={openSpecificationId === specification.specificationId}
-                    onClick={() => setOpenSpecificationId(specification.specificationId)}
-                  >
-                    <BookOpen size={11} />
-                    <strong>{specification.specificationId}</strong>
-                    <span>{specification.requirements === null ? '—' : t('pipeline.openspec.requirements', { count: specification.requirements })}</span>
-                  </button>
-                ))}
-                {specifications.length === 0 && <p className={styles.navEmpty}>{t('pipeline.openspec.specifications.empty')}</p>}
-              </div>
-            </section>
-          </aside>
-        )}
-
         <main className={styles.center}>
           {hasAnyNotice && (
             <section className={styles.noticesGroup} aria-label={t('pipeline.openspec.notices.title')}>
@@ -1705,7 +1592,10 @@ export function OpenSpecDashboard({
                   <OpenSpecReadiness
                     present={openSpecPresent}
                     tools={openSpecTools}
-                    onShowDetail={rightOpen ? () => setRailTab('tools') : undefined}
+                    onShowDetail={() => {
+                      if (onEnsureRightOpen) onEnsureRightOpen();
+                      setRailTab('tools');
+                    }}
                   />
                 )}
                 {selectedChange && (
@@ -2703,181 +2593,6 @@ export function OpenSpecDashboard({
             <div data-status={workingTreeClean ? 'passed' : 'failed'}><CheckCircle2 size={18} /><span><strong>{t('pipeline.openspec.evidence.workingTree')}</strong><em>{workingTreeClean ? t('pipeline.openspec.repo.cleanShort') : t('pipeline.openspec.repo.changedShort')}</em></span></div>
           </footer>
         </main>
-
-        {rightOpen && prepareOpen && (
-          /* Mientras se prepara, la actividad de un runtime no interviene en la
-             decisión. Lo que sí falta es la otra mitad del estado: el panel
-             filtra los ya preparados para que el conteo baje, y eso los deja
-             invisibles. Acá se ven. Mostrar los NO preparados sería repetir lo
-             que el panel ya lista agrupado. */
-          <aside className={styles.activityRail} aria-label={t('pipeline.openspec.prepare.stagedTitle')}>
-            <div className={styles.resizeHandleRight} role="separator" aria-orientation="vertical" title={t('pipeline.openspec.resize.right')} onMouseDown={onResizeRight} />
-            <h3><GitBranch size={14} /> {t('pipeline.openspec.prepare.stagedTitle')}</h3>
-            {stagedFiles.length === 0 ? (
-              <p className={styles.railEmpty}>{t('pipeline.openspec.prepare.stagedEmpty')}</p>
-            ) : (
-              /* Vista, no superficie de acción: quitar del stage ya vive en el
-                 flujo de commit, y duplicarlo acá es lo que la guía prohíbe. */
-              <ul className={styles.stagedList}>
-                {stagedFiles.map((file) => (
-                  <li key={file.path}>
-                    <FileStatusBadge path={file.path} files={modifiedFiles} />
-                    <span>{file.path}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {/* El pensamiento del modelo, debajo de lo preparado y no en otra
-                solapa: durante una redacción el rail no mostraba nada, y lo que
-                está arriba está casi siempre vacío —es justo el caso de preparar
-                el primer commit—. Escondido tras una solapa habría que ir a
-                buscarlo, y el punto es que se vea sin pedirlo.
-                Se dibuja solo: sin redacción en curso no ocupa lugar. */}
-            <CommitDraftLog notice={aiNotice} />
-          </aside>
-        )}
-
-        {rightOpen && !prepareOpen && (
-          <aside className={styles.activityRail} aria-label={t('pipeline.openspec.activity.title')}>
-            <div className={styles.resizeHandleRight} role="separator" aria-orientation="vertical" title={t('pipeline.openspec.resize.right')} onMouseDown={onResizeRight} />
-            {/* Dos solapas y no dos bloques apilados: el rail es angosto y alto,
-                y lo que se consulta —el estado de las herramientas— no compite
-                por espacio con lo que se mira mientras corre una sesión. */}
-            <div className={styles.railTabs} role="tablist" aria-label={t('pipeline.openspec.rail.label')}>
-              <button type="button" role="tab" aria-selected={railTab === 'activity'} onClick={() => setRailTab('activity')}>
-                <Activity size={13} aria-hidden="true" /> {t('pipeline.openspec.activity.title')}
-              </button>
-              <button type="button" role="tab" aria-selected={railTab === 'tools'} onClick={() => setRailTab('tools')}>
-                <Wrench size={13} aria-hidden="true" /> {t('pipeline.openspec.rail.tools')}
-                {/* La cuenta va en la solapa: sin ella, saber que falta algo
-                    exigiría abrirla, que es lo que un aviso no puede pedir. */}
-                {pendingToolCount > 0 && <em className={styles.railTabBadge}>{pendingToolCount}</em>}
-              </button>
-            </div>
-
-            {railTab === 'tools' ? (
-              <div className={styles.toolsRailContent}>
-                <OpenSpecEngineCard
-                  status={effectiveEngineStatus}
-                  isLoading={engineLoading}
-                  onOpenToolsTab={() => setRailTab('tools')}
-                  onOpenReview={toggleReview}
-                  isReviewOpen={reviewOpen}
-                />
-                <OpenSpecToolList
-                  present={openSpecPresent}
-                  tools={openSpecTools}
-                  busy={initBusy}
-                  error={initError}
-                  needsTool={initNeedsTool}
-                  onInitialize={() => runOpenSpecInit()}
-                  onInitializeWith={(toolIds) => runOpenSpecInit(toolIds)}
-                />
-              </div>
-            ) : (
-            <>
-            {/* Sin `h3` con el mismo texto: la solapa activa ya dice qué se está
-                viendo, y repetirlo debajo es el rótulo duplicado que la guía de
-                este panel prohíbe. */}
-            {/* Sin cambio abierto la columna cae a lo último del repositorio, que
-                puede ser de otro día y de otro trabajo. Con un cambio abierto no
-                hace falta decirlo: el panel entero ya declara de cuál es. */}
-            {openChangeId === null && (
-              <p className={styles.railScope}>{t('pipeline.openspec.activity.repoScope')}</p>
-            )}
-            <section className={styles.liveActivity}>
-              <header>
-                <span className={styles.sessionIdentity}>
-                  <strong>{selectedSession || visibleActivity.length > 0 ? runningName : t('pipeline.openspec.activity.noSession')}</strong>
-                  <span className={styles.liveDot} data-active={selectedSession?.active || undefined} />
-                  <em>{t(`pipeline.openspec.activity.status.${sessionStatusKey}`)}</em>
-                  {/* Cuándo corrió, siempre y no sólo en las opciones del
-                      selector: el selector no se renderiza con una sola sesión,
-                      que es justo el caso donde falta. Sin esta marca, una
-                      sesión de días atrás se lee como actividad en curso. */}
-                  {selectedSession && (
-                    <em className={styles.sessionRanAt}>
-                      {t('pipeline.openspec.activity.ranAt', { at: formatSessionMoment(selectedSession.startedAt) })}
-                    </em>
-                  )}
-                </span>
-                {runtimeSessions.length > 1 && (
-                  <select
-                    className={styles.sessionSelect}
-                    aria-label={t('pipeline.openspec.activity.sessionPicker')}
-                    value={effectiveSessionId ?? ''}
-                    onChange={(event) => setSelectedSessionId(event.target.value)}
-                  >
-                    {runtimeSessions.map((session) => (
-                      <option key={session.sessionId} value={session.sessionId}>{formatSessionOption(session)}</option>
-                    ))}
-                  </select>
-                )}
-              </header>
-              {selectedSession && (
-                <p className={styles.sessionContext}>
-                  {[selectedSession.changeId, selectedSession.taskId].filter(Boolean).join(' · ') || t('pipeline.openspec.activity.noChange')}
-                </p>
-              )}
-              {activityGroups.length === 0 ? (
-                /* Un cambio sin sesiones lo declara: es un estado normal —recién
-                   creado, o trabajado desde afuera de la aplicación— y mostrar
-                   la sesión de otro para no dejar el espacio vacío es lo que
-                   producía la lectura equivocada. */
-                <p className={styles.railEmpty}>
-                  {selectedSession
-                    ? t('pipeline.activity.empty')
-                    : openChangeId !== null
-                      ? t('pipeline.openspec.activity.noneForChange')
-                      : t('pipeline.activity.noRuntime')}
-                </p>
-              ) : (
-                <ol>
-                  {activityGroups.slice(-12).map((entry) => {
-                    const Icon = ACTIVITY_ICONS[entry.channel];
-                    const localized = ['session.started', 'session.completed', 'session.failed', 'session.interrupted'].includes(entry.text);
-                    const gitEvidence = /^git\.changed files=(\d+) additions=(\d+|unknown) deletions=(\d+|unknown)$/.exec(entry.text);
-                    const validationEvidence = /^openspec\.validation\.(passed|failed|unknown)$/.exec(entry.text);
-                    const displayText = gitEvidence
-                      ? t('pipeline.openspec.activity.event.gitChanged', {
-                        files: gitEvidence[1],
-                        additions: gitEvidence[2] === 'unknown' ? '—' : gitEvidence[2],
-                        deletions: gitEvidence[3] === 'unknown' ? '—' : gitEvidence[3],
-                      })
-                      : validationEvidence
-                        ? t(`pipeline.openspec.activity.event.validation.${validationEvidence[1]}`)
-                        : localized
-                          ? t(`pipeline.openspec.activity.event.${entry.text}`)
-                          : entry.text;
-                    return (
-                      <li key={entry.key} data-channel={entry.channel}>
-                        <time>{formatTime(entry.at)}</time>
-                        <span className={styles.activityIcon}><Icon size={12} /></span>
-                        <div><strong>{t(`pipeline.channel.${entry.channel}`)}</strong><p>{displayText}</p></div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              )}
-            </section>
-            <section
-              className={styles.attention}
-              data-needed={snapshot.decisions.length > 0}
-              ref={attentionRef}
-              tabIndex={-1}
-              aria-label={t('pipeline.openspec.attention.title')}
-            >
-              <h4>{t('pipeline.openspec.attention.title')}</h4>
-              <DecisionInbox decisions={snapshot.decisions} onRespondDecision={onRespondDecision} />
-            </section>
-            </>
-            )}
-            <footer className={styles.railMeta}>
-              <span>{totalRequirements} {t('pipeline.openspec.summary.requirements')}</span>
-              <span>{openSpec?.reports.length ?? 0} {t('pipeline.openspec.summary.reports')}</span>
-            </footer>
-          </aside>
-        )}
       </div>
     </div>
   );

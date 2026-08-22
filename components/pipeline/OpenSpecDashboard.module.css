@@ -31,7 +31,10 @@
   overflow: auto;
 }
 
-.dashboard {
+.openspecScope,
+.dashboard,
+.navigator,
+.activityRail {
   --os-bg: rgba(2, 15, 30, 0.96);
   --os-surface: rgba(14, 35, 55, 0.72);
   --os-surface-strong: rgba(19, 43, 65, 0.9);
@@ -60,6 +63,9 @@
   /* Alto mínimo de un control con texto chico. WCAG 2.2 pide 24px de objetivo;
      los controles del panel quedaban en ~18px por tener sólo padding. */
   --control-min: 2.75rem;
+}
+
+.dashboard {
   display: flex;
   min-height: 0;
   height: 100%;
@@ -116,16 +122,12 @@
 
 .body {
   position: relative;
-  display: grid;
-  grid-template-columns: var(--openspec-left-width) minmax(0, 1fr) var(--openspec-right-width);
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
-
-.dashboard[data-left-open='false'] .body { grid-template-columns: minmax(0, 1fr) var(--openspec-right-width); }
-.dashboard[data-right-open='false'] .body { grid-template-columns: var(--openspec-left-width) minmax(0, 1fr); }
-.dashboard[data-left-open='false'][data-right-open='false'] .body { grid-template-columns: minmax(0, 1fr); }
 
 .navigator,
 .activityRail,
@@ -137,9 +139,7 @@
 .navigator {
   position: relative;
   overflow-y: auto;
-  border-right: 1px solid var(--os-border);
   scrollbar-width: thin;
-  background: rgba(5, 24, 40, 0.62);
 }
 
 .navSection {
@@ -1197,25 +1197,8 @@
   gap: var(--space-3);
   overflow-y: auto;
   padding: var(--space-4) var(--space-4);
-  border-left: 1px solid var(--os-border);
-  background: rgba(5, 24, 40, 0.72);
   scrollbar-width: thin;
 }
-
-.resizeHandleLeft,
-.resizeHandleRight {
-  position: absolute;
-  z-index: 20;
-  top: 0;
-  bottom: 0;
-  width: 0.45rem;
-  cursor: col-resize;
-}
-
-.resizeHandleLeft { right: 0; }
-.resizeHandleRight { left: 0; }
-.resizeHandleLeft:hover { border-right: 1px solid rgba(94, 216, 255, 0.55); }
-.resizeHandleRight:hover { border-left: 1px solid rgba(94, 216, 255, 0.55); }
 
 .activityRail > h3 { margin: 0; color: #b9c7d7; }
 
@@ -2017,49 +2000,17 @@
 .noActiveChange .nextStep { width: min(100%, 44rem); text-align: left; }
 
 @container (max-width: 1180px) {
-  .body,
-  .dashboard[data-left-open='false'] .body,
-  .dashboard[data-right-open='false'] .body {
-    grid-template-columns: var(--openspec-left-width) minmax(0, 1fr);
-  }
-
-  .activityRail {
-    position: absolute;
-    z-index: 12;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    width: var(--openspec-right-width);
-    background: #06182a;
-    box-shadow: -1rem 0 2rem rgba(0, 0, 0, 0.42);
-  }
-  .dashboard[data-left-open='false'] .body { grid-template-columns: minmax(0, 1fr); }
   .summaryFacts > div { min-width: 0; padding-inline: var(--space-3); }
   .changeHeader { grid-template-columns: minmax(12rem, 0.8fr) minmax(23rem, 1.2fr); padding-inline: var(--space-4); }
 }
 
 @container (max-width: 860px) {
-  .body,
-  .dashboard[data-left-open='false'] .body,
-  .dashboard[data-right-open='false'] .body { grid-template-columns: minmax(0, 1fr); }
-  .navigator {
-    position: absolute;
-    z-index: 11;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    display: block;
-    width: var(--openspec-left-width);
-    background: #06182a;
-    box-shadow: 1rem 0 2rem rgba(0, 0, 0, 0.42);
-  }
   /* Dos opciones lado a lado se vuelven ilegibles acá: pasan a apilarse, y las
      acciones del siguiente paso ocupan el ancho para no quedar cortadas. */
   .intentSwitch { grid-template-columns: minmax(0, 1fr); }
   .nextStepActions > button { flex: 1 1 auto; }
-  .summaryFacts > div { padding-inline: var(--space-2); gap: var(--space-1); }
-  .summaryFacts dt { display: none; }
+  .summaryFacts > div { padding-inline: var(--space-2); gap: var(--space-1); flex-direction: column; align-items: flex-start; }
+  .summaryFacts dt { color: var(--os-muted); font-size: var(--font-size-xs); }
   .changeHeader { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
   .taskDetail dl { grid-template-columns: minmax(0, 1fr); }
   .evidenceStrip { grid-template-columns: minmax(0, 1fr); }

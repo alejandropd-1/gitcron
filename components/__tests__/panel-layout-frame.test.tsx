@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RepoTabs } from '../RepoTabs';
 import { RepoSidebar } from '../RepoSidebar';
 import { RepoDetailsPanel } from '../RepoDetailsPanel';
 import { RepoMainView } from '../RepoMainView';
+import { OpenSpecDashboard } from '../pipeline/OpenSpecDashboard';
+import { usePanelLayout } from '@/hooks/use-panel-layout';
+import type { PipelineSnapshot } from '../pipeline/pipeline-view-state';
 
 vi.mock('next/dynamic', () => ({
   __esModule: true,
@@ -21,6 +24,13 @@ vi.mock('@/components/CommitGraph', () => ({
 
 vi.mock('@/components/pipeline/PipelineWorkspace', () => ({
   PipelineWorkspace: () => <div data-testid="mock-pipeline-workspace" />,
+}));
+
+vi.mock('@/lib/new-change-draft-store', () => ({
+  useNewChangeDraft: () => ({ open: false, mode: null }),
+  useNewChangeDraftStore: () => ({
+    actions: { clearDraft: vi.fn() },
+  }),
 }));
 
 vi.mock('@/hooks/use-translation', () => ({
@@ -557,5 +567,537 @@ describe('Panel layout armazón & separación de fondos (modo por omisión: chro
     expect(backButton.className).not.toContain('border');
     const headerContainer = backButton.closest('.shrink-0');
     expect(headerContainer?.className).not.toContain('border-b');
+  });
+});
+
+const dummySnapshot: PipelineSnapshot = {
+  schemaVersion: '1.0',
+  repoId: 'repo-1',
+  availableSources: ['git', 'openspec'],
+  hasPipelineActivity: false,
+  decisions: [],
+  agents: [],
+  activity: [],
+  economy: {
+    tokens: { input: 0, output: 0, reasoning: null, cacheRead: null },
+    costUsd: null,
+    costBasis: 'unknown',
+    costCoverage: { withCost: 0, total: 0 },
+    contextMaxTokens: null,
+    contextCurrentTokens: null,
+    compactionCount: null,
+    reasoningAvailable: null,
+  },
+  openSpec: {
+    selectedChangeId: null,
+    activeChanges: [
+      {
+        changeId: 'change-auth-flow',
+        validation: 'passed',
+        tasks: [
+          { id: '2.1', text: 'Task 2.1', completed: true, line: 1, sourceRef: 'tasks.md:1' },
+          { id: '2.2', text: 'Task 2.2', completed: false, line: 2, sourceRef: 'tasks.md:2' },
+        ],
+        proposalExists: true,
+        designExists: true,
+        specsCount: 1,
+        artifacts: { proposal: null, design: null, tasks: null, specs: [] },
+        intent: 'Unify auth tokens',
+      },
+    ],
+    archivedChanges: [
+      {
+        changeId: 'change-login-v1',
+        sourceRef: 'openspec/changes/archive/change-login-v1',
+        archivedAt: '2026-08-20',
+      },
+    ],
+    specifications: [
+      {
+        specificationId: 'auth-tokens',
+        sourceRef: 'specs/auth-tokens/spec.md',
+        requirements: 5,
+      },
+    ],
+    reports: [],
+    diagnostics: [],
+    observedAt: null,
+    latestGate: null,
+  },
+};
+
+describe('Compartir paneles laterales entre vistas (Fase 3 & fundición de laterales)', () => {
+  it('1. El marco derecho monta la pieza común RepoDetailsPanel tanto en Graph como en SDD', () => {
+    // Render en Graph
+    const { container, rerender } = render(
+      <RepoDetailsPanel
+        activeTab="Graph"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    const asideGraph = container.querySelector('aside');
+    expect(asideGraph).not.toBeNull();
+    expect(asideGraph?.getAttribute('data-testid')).toBe('repo-details-panel');
+
+    // Rerender en SDD (Pipeline)
+    rerender(
+      <RepoDetailsPanel
+        activeTab="Pipeline"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    const asidePipeline = container.querySelector('aside');
+    expect(asidePipeline).not.toBeNull();
+    expect(asidePipeline?.getAttribute('data-testid')).toBe('repo-details-panel');
+  });
+
+  it('2. En Graph muestra detalle de commit / preparación y en SDD muestra inspector con rail / herramientas', () => {
+    // En Graph: muestra sección de staging / commit o mensaje vacío
+    const { rerender } = render(
+      <RepoDetailsPanel
+        activeTab="Graph"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeNull();
+
+    // En SDD: monta OpenSpecInspector con solapas de Actividad y Herramientas
+    rerender(
+      <RepoDetailsPanel
+        activeTab="Pipeline"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeDefined();
+    expect(screen.getByRole('tab', { name: /pipeline\.openspec\.activity\.title/ })).toBeDefined();
+    expect(screen.getByRole('tab', { name: /pipeline\.openspec\.rail\.tools/ })).toBeDefined();
+  });
+
+  it('3. detailsOpen: false oculta el panel derecho en AMBAS vistas con rerender real', () => {
+    const { container, rerender } = render(
+      <RepoDetailsPanel
+        activeTab="Graph"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={false}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    // En Graph con visible=false, se oculta (width: 0, visibility: hidden)
+    const asideGraph = container.querySelector('aside');
+    expect(asideGraph).not.toBeNull();
+    expect(asideGraph?.style.visibility).toBe('hidden');
+    expect(asideGraph?.style.width).toBe('0px');
+
+    // En SDD con visible=false, también se oculta
+    rerender(
+      <RepoDetailsPanel
+        activeTab="Pipeline"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={false}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    const asidePipeline = container.querySelector('aside');
+    expect(asidePipeline).not.toBeNull();
+    expect(asidePipeline?.style.visibility).toBe('hidden');
+    expect(asidePipeline?.style.width).toBe('0px');
+  });
+
+  it('4. El botón de la barra de título de la ventana conmuta el panel en ambas vistas', () => {
+    const onToggleDetails = vi.fn();
+    const { rerender } = render(
+      <RepoTabs
+        repos={[{ path: '/test/repo', name: 'repo', isLoading: false } as any]}
+        activeIdx={0}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        onOpen={vi.fn()}
+        onReorder={vi.fn()}
+        sidebarOpen={true}
+        onToggleSidebar={vi.fn()}
+        detailsOpen={true}
+        onToggleDetails={onToggleDetails}
+      />
+    );
+
+    const toggleBtn = screen.getByRole('button', { name: 'toolbar.hideDetails' });
+    fireEvent.click(toggleBtn);
+    expect(onToggleDetails).toHaveBeenCalledTimes(1);
+
+    // Al estar cerrado
+    rerender(
+      <RepoTabs
+        repos={[{ path: '/test/repo', name: 'repo', isLoading: false } as any]}
+        activeIdx={0}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        onOpen={vi.fn()}
+        onReorder={vi.fn()}
+        sidebarOpen={true}
+        onToggleSidebar={vi.fn()}
+        detailsOpen={false}
+        onToggleDetails={onToggleDetails}
+      />
+    );
+
+    const showBtn = screen.getByRole('button', { name: 'toolbar.showDetails' });
+    fireEvent.click(showBtn);
+    expect(onToggleDetails).toHaveBeenCalledTimes(2);
+  });
+
+  it('5. En SDD (Pipeline), el panel lateral RepoSidebar muestra la navegación de SDD y no ramas', () => {
+    const { container } = render(
+      <RepoSidebar
+        activeTab="Pipeline"
+        graphMode="chronometric"
+        sidebarW={280}
+        sidebarOpen={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        activeView="repository"
+        onViewChange={vi.fn()}
+        isRepoStartView={false}
+        repoStartMode="open"
+        onRepoStartModeChange={vi.fn()}
+        onCloseRepoChooser={vi.fn()}
+        selectedBranchName="main"
+        onCheckoutAttempt={vi.fn()}
+        onSelectBranchInGraph={vi.fn()}
+        onBranchContextMenu={vi.fn()}
+        onRemoteBranchContextMenu={vi.fn()}
+        onDeleteBranchRequest={vi.fn()}
+        selectedPullRequest={null}
+        onSelectPullRequest={vi.fn()}
+        onPreviewStash={vi.fn()}
+        onCreateTagRequest={vi.fn()}
+        onDeleteTagRequest={vi.fn()}
+        selectedSettingsSection="general"
+        onSettingsSectionChange={vi.fn()}
+        selectedHelpSection="general"
+        onHelpSectionChange={vi.fn()}
+        onToggleCartography={vi.fn()}
+        onAddRemoteRequest={vi.fn()}
+        onRenameRemoteRequest={vi.fn()}
+        onSetRemoteUrlRequest={vi.fn()}
+        onDeleteRemoteRequest={vi.fn()}
+        onAddWorktreeRequest={vi.fn()}
+        onDeleteWorktreeRequest={vi.fn()}
+        onAddSubmoduleRequest={vi.fn()}
+        onUpdateSubmodule={vi.fn()}
+        onSyncSubmodules={vi.fn()}
+      />
+    );
+
+    // Debe contener el contenedor de navegación de OpenSpec
+    const sddNav = container.querySelector('[data-testid="openspec-sidebar-nav"]');
+    expect(sddNav).not.toBeNull();
+    // No debe contener el contenedor de ramas/referencias clásicas
+    const graphNav = container.querySelector('[data-testid="sidebar-branches-sections"]');
+    expect(graphNav).toBeNull();
+  });
+
+  it('6. En Graph, el panel lateral RepoSidebar muestra las secciones de ramas/referencias', () => {
+    const { container } = render(
+      <RepoSidebar
+        activeTab="Graph"
+        graphMode="chronometric"
+        sidebarW={280}
+        sidebarOpen={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        activeView="repository"
+        onViewChange={vi.fn()}
+        isRepoStartView={false}
+        repoStartMode="open"
+        onRepoStartModeChange={vi.fn()}
+        onCloseRepoChooser={vi.fn()}
+        selectedBranchName="main"
+        onCheckoutAttempt={vi.fn()}
+        onSelectBranchInGraph={vi.fn()}
+        onBranchContextMenu={vi.fn()}
+        onRemoteBranchContextMenu={vi.fn()}
+        onDeleteBranchRequest={vi.fn()}
+        selectedPullRequest={null}
+        onSelectPullRequest={vi.fn()}
+        onPreviewStash={vi.fn()}
+        onCreateTagRequest={vi.fn()}
+        onDeleteTagRequest={vi.fn()}
+        selectedSettingsSection="general"
+        onSettingsSectionChange={vi.fn()}
+        selectedHelpSection="general"
+        onHelpSectionChange={vi.fn()}
+        onToggleCartography={vi.fn()}
+        onAddRemoteRequest={vi.fn()}
+        onRenameRemoteRequest={vi.fn()}
+        onSetRemoteUrlRequest={vi.fn()}
+        onDeleteRemoteRequest={vi.fn()}
+        onAddWorktreeRequest={vi.fn()}
+        onDeleteWorktreeRequest={vi.fn()}
+        onAddSubmoduleRequest={vi.fn()}
+        onUpdateSubmodule={vi.fn()}
+        onSyncSubmodules={vi.fn()}
+      />
+    );
+
+    // Debe contener el contenedor de ramas/referencias clásicas
+    const graphNav = container.querySelector('[data-testid="sidebar-branches-sections"]');
+    expect(graphNav).not.toBeNull();
+    // No debe contener el contenedor de navegación de OpenSpec
+    const sddNav = container.querySelector('[data-testid="openspec-sidebar-nav"]');
+    expect(sddNav).toBeNull();
+  });
+
+  it('7. En AMBAS vistas, el lateral preserva el selector de vistas, la rama actual y la fila de 5 acciones (Pull, Push, etc.)', () => {
+    const { rerender } = render(
+      <RepoSidebar
+        activeTab="Graph"
+        graphMode="chronometric"
+        sidebarW={280}
+        sidebarOpen={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        activeView="repository"
+        onViewChange={vi.fn()}
+        isRepoStartView={false}
+        repoStartMode="open"
+        onRepoStartModeChange={vi.fn()}
+        onCloseRepoChooser={vi.fn()}
+        selectedBranchName="main"
+        onCheckoutAttempt={vi.fn()}
+        onSelectBranchInGraph={vi.fn()}
+        onBranchContextMenu={vi.fn()}
+        onRemoteBranchContextMenu={vi.fn()}
+        onDeleteBranchRequest={vi.fn()}
+        selectedPullRequest={null}
+        onSelectPullRequest={vi.fn()}
+        onPreviewStash={vi.fn()}
+        onCreateTagRequest={vi.fn()}
+        onDeleteTagRequest={vi.fn()}
+        selectedSettingsSection="general"
+        onSettingsSectionChange={vi.fn()}
+        selectedHelpSection="general"
+        onHelpSectionChange={vi.fn()}
+        onToggleCartography={vi.fn()}
+        onAddRemoteRequest={vi.fn()}
+        onRenameRemoteRequest={vi.fn()}
+        onSetRemoteUrlRequest={vi.fn()}
+        onDeleteRemoteRequest={vi.fn()}
+        onAddWorktreeRequest={vi.fn()}
+        onDeleteWorktreeRequest={vi.fn()}
+        onAddSubmoduleRequest={vi.fn()}
+        onUpdateSubmodule={vi.fn()}
+        onSyncSubmodules={vi.fn()}
+      />
+    );
+
+    // Graph view: actions are present
+    expect(screen.getByRole('button', { name: 'toolbar.pull' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'toolbar.push' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'toolbar.newBranch' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'toolbar.stash' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'toolbar.applyPatchTooltip' })).toBeDefined();
+
+    // SDD view (Pipeline): actions MUST remain present
+    rerender(
+      <RepoSidebar
+        activeTab="Pipeline"
+        graphMode="chronometric"
+        sidebarW={280}
+        sidebarOpen={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        activeView="repository"
+        onViewChange={vi.fn()}
+        isRepoStartView={false}
+        repoStartMode="open"
+        onRepoStartModeChange={vi.fn()}
+        onCloseRepoChooser={vi.fn()}
+        selectedBranchName="main"
+        onCheckoutAttempt={vi.fn()}
+        onSelectBranchInGraph={vi.fn()}
+        onBranchContextMenu={vi.fn()}
+        onRemoteBranchContextMenu={vi.fn()}
+        onDeleteBranchRequest={vi.fn()}
+        selectedPullRequest={null}
+        onSelectPullRequest={vi.fn()}
+        onPreviewStash={vi.fn()}
+        onCreateTagRequest={vi.fn()}
+        onDeleteTagRequest={vi.fn()}
+        selectedSettingsSection="general"
+        onSettingsSectionChange={vi.fn()}
+        selectedHelpSection="general"
+        onHelpSectionChange={vi.fn()}
+        onToggleCartography={vi.fn()}
+        onAddRemoteRequest={vi.fn()}
+        onRenameRemoteRequest={vi.fn()}
+        onSetRemoteUrlRequest={vi.fn()}
+        onDeleteRemoteRequest={vi.fn()}
+        onAddWorktreeRequest={vi.fn()}
+        onDeleteWorktreeRequest={vi.fn()}
+        onAddSubmoduleRequest={vi.fn()}
+        onUpdateSubmodule={vi.fn()}
+        onSyncSubmodules={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'toolbar.pull' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'toolbar.push' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'toolbar.newBranch' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'toolbar.stash' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'toolbar.applyPatchTooltip' })).toBeDefined();
+  });
+
+  it('8. El cuerpo de SDD (OpenSpecDashboard) contiene exactamente 0 elementos aside', () => {
+    const { container } = render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="/test/repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />
+    );
+
+    const asides = container.querySelectorAll('aside');
+    expect(asides.length).toBe(0);
+  });
+
+  it('9. La resolución de estado de sesión resuelve a textos traducidos reales para todos los estados posibles y nunca a la clave cruda', async () => {
+    const { translate } = await import('@/lib/i18n');
+    const { SESSION_STATUS_KEYS, resolveSessionStatusI18nKey } = await import('../pipeline/pipeline-domain');
+    const langs = ['es', 'en', 'zh'] as const;
+
+    for (const lang of langs) {
+      for (const status of SESSION_STATUS_KEYS) {
+        const key = resolveSessionStatusI18nKey(status);
+        const text = translate(key, lang);
+        expect(text).toBeTruthy();
+        expect(text).not.toBe(key);
+        expect(text).not.toBe(status);
+        expect(text).not.toContain('pipeline.openspec.activity.status');
+      }
+
+      // Probar fallback de estado desconocido o no mapeado
+      const fallbackKey = resolveSessionStatusI18nKey('unrecognized_state');
+      const fallbackText = translate(fallbackKey, lang);
+      expect(fallbackText).toBeTruthy();
+      expect(fallbackText).not.toBe(fallbackKey);
+      expect(fallbackText).not.toBe('unrecognized_state');
+      expect(fallbackText).not.toContain('pipeline.openspec.activity.status');
+    }
+  });
+
+  it('10. Los contadores en summaryFacts conservan sus etiquetas dt visibles y no las ocultan con display: none', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const cssPath = path.resolve(__dirname, '../pipeline/OpenSpecDashboard.module.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+    // La hoja de estilos no debe contener reglas que oculten los dt de summaryFacts
+    expect(cssContent).not.toMatch(/\.summaryFacts\s+dt\s*\{\s*display:\s*none;?\s*\}/);
+
+    const { container } = render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="/test/repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />
+    );
+
+    const factsDl = container.querySelector('dl[class*="summaryFacts"]');
+    expect(factsDl).not.toBeNull();
+    const dts = factsDl?.querySelectorAll('dt');
+    expect(dts?.length).toBe(2);
+    dts?.forEach((dt) => {
+      expect(dt.textContent?.trim()).toBeTruthy();
+    });
   });
 });

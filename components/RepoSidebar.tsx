@@ -41,6 +41,7 @@ import {
   StashItem,
   TagItem,
 } from '@/components/RepoSidebarParts';
+import { OpenSpecSidebarNav } from '@/components/pipeline/OpenSpecSidebarNav';
 
 type AppView = 'repository' | 'settings' | 'help' | 'profile';
 
@@ -741,283 +742,289 @@ export function RepoSidebar({
 
                   {/* ── CUERPO DE SECCIONES CON SCROLL (Solo esto se desplaza) ── */}
                   <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin pt-1 pb-2 px-1 space-y-0.5">
-                    <div className="px-3 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wider text-text-secondary/70 select-none">
-                      {t('sidebar.branchesAndRefs')}
-                    </div>
-                    {/* LOCAL — folder tree + ahead/behind chips */}
-                    <SidebarSection
-                      title={t('sidebar.local')}
-                      count={branches.length || undefined}
-                      icon={<Monitor size={12} className="text-primary" />}
-                      isOpen={sectionState.isOpen('local')}
-                      onToggle={() => sectionState.toggle('local')}
-                    >
-                      {branches.length === 0 && !repoPath && (
-                        <p className="px-4 py-2 text-xs text-text-secondary italic">{t('sidebar.noBranches')}</p>
-                      )}
-                      <BranchTree
-                        branches={branches}
-                        currentBranch={currentBranch}
-                        selectedBranch={selectedBranchName}
-                        tracking={branchTracking}
-                        onCheckout={(b) => onCheckoutAttempt(b)}
-                        onSelect={onSelectBranchInGraph}
-                        onContextMenu={(e, b) => {
-                          e.preventDefault();
-                          onBranchContextMenu({ x: e.clientX, y: e.clientY, branch: b });
-                        }}
-                        onDelete={(b) => onDeleteBranchRequest(b)}
-                      />
-                    </SidebarSection>
+                    {activeTab === 'Pipeline' ? (
+                      <OpenSpecSidebarNav />
+                    ) : (
+                      <div data-testid="sidebar-branches-sections">
+                        <div className="px-3 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wider text-text-secondary/70 select-none">
+                          {t('sidebar.branchesAndRefs')}
+                        </div>
+                        {/* LOCAL — folder tree + ahead/behind chips */}
+                        <SidebarSection
+                          title={t('sidebar.local')}
+                          count={branches.length || undefined}
+                          icon={<Monitor size={12} className="text-primary" />}
+                          isOpen={sectionState.isOpen('local')}
+                          onToggle={() => sectionState.toggle('local')}
+                        >
+                          {branches.length === 0 && !repoPath && (
+                            <p className="px-4 py-2 text-xs text-text-secondary italic">{t('sidebar.noBranches')}</p>
+                          )}
+                          <BranchTree
+                            branches={branches}
+                            currentBranch={currentBranch}
+                            selectedBranch={selectedBranchName}
+                            tracking={branchTracking}
+                            onCheckout={(b) => onCheckoutAttempt(b)}
+                            onSelect={onSelectBranchInGraph}
+                            onContextMenu={(e, b) => {
+                              e.preventDefault();
+                              onBranchContextMenu({ x: e.clientX, y: e.clientY, branch: b });
+                            }}
+                            onDelete={(b) => onDeleteBranchRequest(b)}
+                          />
+                        </SidebarSection>
 
-                    {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
-                    <SidebarSection
-                      title={t('sidebar.remote')}
-                      count={remoteBranches.length || undefined}
-                      icon={<Cloud size={12} className="text-primary" />}
-                      isOpen={sectionState.isOpen('remote')}
-                      onToggle={() => sectionState.toggle('remote')}
-                    >
-                      <RemoteBranchTree
-                        branches={remoteBranches}
-                        onCheckout={(b) => onCheckoutAttempt(b)}
-                        onContextMenu={(e, b) => {
-                          e.preventDefault();
-                          onRemoteBranchContextMenu({ x: e.clientX, y: e.clientY, branch: b });
-                        }}
-                      />
-                    </SidebarSection>
+                        {/* REMOTE branches (also as tree, grouped by 'origin/...') */}
+                        <SidebarSection
+                          title={t('sidebar.remote')}
+                          count={remoteBranches.length || undefined}
+                          icon={<Cloud size={12} className="text-primary" />}
+                          isOpen={sectionState.isOpen('remote')}
+                          onToggle={() => sectionState.toggle('remote')}
+                        >
+                          <RemoteBranchTree
+                            branches={remoteBranches}
+                            onCheckout={(b) => onCheckoutAttempt(b)}
+                            onContextMenu={(e, b) => {
+                              e.preventDefault();
+                              onRemoteBranchContextMenu({ x: e.clientX, y: e.clientY, branch: b });
+                            }}
+                          />
+                        </SidebarSection>
 
-                    {/* PULL REQUESTS — only when logged in to GitHub */}
-                    {githubUser && (
-                      <SidebarSection
-                        title={t('sidebar.pullRequests')}
-                        count={pullRequests.length || undefined}
-                        isOpen={sectionState.isOpen('pullRequests')}
-                        onToggle={() => sectionState.toggle('pullRequests')}
-                      >
-                        {pullRequests.length === 0 && (
-                          <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noPRs')}</p>
+                        {/* PULL REQUESTS — only when logged in to GitHub */}
+                        {githubUser && (
+                          <SidebarSection
+                            title={t('sidebar.pullRequests')}
+                            count={pullRequests.length || undefined}
+                            isOpen={sectionState.isOpen('pullRequests')}
+                            onToggle={() => sectionState.toggle('pullRequests')}
+                          >
+                            {pullRequests.length === 0 && (
+                              <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noPRs')}</p>
+                            )}
+                            {pullRequests.map((pr) => (
+                              <div
+                                key={pr.number}
+                                className={cn(
+                                  'group flex items-stretch text-sm transition-colors',
+                                  selectedPullRequest?.number === pr.number
+                                    ? 'bg-secondary/10 text-text-primary'
+                                    : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+                                )}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => onSelectPullRequest(pr)}
+                                  title={t('prDiff.view', { number: String(pr.number) })}
+                                  className="flex-1 min-w-0 text-left px-4 py-1.5 flex items-start gap-2"
+                                >
+                                  <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-text-secondary' : 'text-secondary')} />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[10px] font-mono text-text-secondary/70">#{pr.number}</span>
+                                      {pr.draft && <span className="text-[9px] text-text-secondary/70 uppercase">{t('sidebar.draft')}</span>}
+                                    </div>
+                                    <p className="text-xs truncate">{pr.title}</p>
+                                    <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-text-secondary/70">
+                                      <span className="truncate">{pr.branch}</span>
+                                      <span className="text-secondary">+{pr.additions}</span>
+                                      <span className="text-error">-{pr.deletions}</span>
+                                    </div>
+                                  </div>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => window.api?.shellOpenExternal(pr.url)}
+                                  title={t('sidebar.openInGitHub', { number: String(pr.number) })}
+                                  className="w-8 shrink-0 flex items-center justify-center text-text-secondary/70 hover:text-secondary opacity-0 group-hover:opacity-100 transition"
+                                >
+                                  <ExternalLink size={12} />
+                                </button>
+                              </div>
+                            ))}
+                          </SidebarSection>
                         )}
-                        {pullRequests.map((pr) => (
-                          <div
-                            key={pr.number}
-                            className={cn(
-                              'group flex items-stretch text-sm transition-colors',
-                              selectedPullRequest?.number === pr.number
-                                ? 'bg-secondary/10 text-text-primary'
-                                : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+
+                        {/* STASH */}
+                        <SidebarSection
+                          title={t('sidebar.stash')}
+                          count={stashes.length || undefined}
+                          isOpen={sectionState.isOpen('stashes')}
+                          onToggle={() => sectionState.toggle('stashes')}
+                          extra={stashes.length > 1 ? (
+                            showStashClearConfirm ? (
+                              <div className="flex items-center gap-1 ml-1">
+                                <button
+                                  onClick={async () => { await stashClear(); setShowStashClearConfirm(false); }}
+                                  className="text-[9px] px-1.5 py-0.5 rounded bg-error text-white font-bold"
+                                >
+                                  Sí, limpiar
+                                </button>
+                                <button
+                                  onClick={() => setShowStashClearConfirm(false)}
+                                  className="text-[9px] px-1.5 py-0.5 rounded bg-border-subtle text-text-secondary"
+                                >
+                                  No
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setShowStashClearConfirm(true)}
+                                className="text-[9px] text-text-secondary hover:text-error transition-colors ml-1 font-medium"
+                                title="Eliminar todos los stashes"
+                              >
+                                limpiar todo
+                              </button>
+                            )
+                          ) : undefined}
+                        >
+                          {stashes.length === 0 && repoPath && (
+                            <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noStashes')}</p>
+                          )}
+                          {stashes.map((s) => (
+                            <StashItem
+                              key={s.index}
+                              stash={s}
+                              onApply={() => stashApply(s.index)}
+                              onPop={() => stashPop(s.index)}
+                              onPreview={() => onPreviewStash(s)}
+                              onDrop={() => stashDrop(s.index)}
+                            />
+                          ))}
+                        </SidebarSection>
+
+                        {/* TAGS */}
+                        <SidebarSection
+                          title={t('sidebar.tags')}
+                          count={tags.length || undefined}
+                          isOpen={sectionState.isOpen('tags')}
+                          onToggle={() => sectionState.toggle('tags')}
+                          extra={repoPath ? (
+                            <button
+                              type="button"
+                              onClick={onCreateTagRequest}
+                              className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
+                              title={selectedCommit ? t('commitMenu.createTag') : `${t('commitMenu.createTag')} (HEAD)`}
+                              aria-label={selectedCommit ? t('commitMenu.createTag') : `${t('commitMenu.createTag')} (HEAD)`}
+                            >
+                              <Plus size={12} />
+                            </button>
+                          ) : undefined}
+                        >
+                          {tags.length === 0 && repoPath && (
+                            <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
+                          )}
+                          {tags.map((tg) => (
+                            <TagItem key={tg} name={tg} onDelete={() => onDeleteTagRequest(tg)} onPush={() => pushTag(tg)} />
+                          ))}
+                        </SidebarSection>
+
+                        {/* REMOTES */}
+                        {repoPath && (
+                          <SidebarSection
+                            title={t('sidebar.remotes')}
+                            count={remotes.length || undefined}
+                            isOpen={sectionState.isOpen('remotes')}
+                            onToggle={() => sectionState.toggle('remotes')}
+                            extra={(
+                              <button
+                                type="button"
+                                onClick={onAddRemoteRequest}
+                                className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
+                                title={t('sidebar.remoteAdd')}
+                              >
+                                <Plus size={12} />
+                              </button>
                             )}
                           >
-                            <button
-                              type="button"
-                              onClick={() => onSelectPullRequest(pr)}
-                              title={t('prDiff.view', { number: String(pr.number) })}
-                              className="flex-1 min-w-0 text-left px-4 py-1.5 flex items-start gap-2"
-                            >
-                              <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-text-secondary' : 'text-secondary')} />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[10px] font-mono text-text-secondary/70">#{pr.number}</span>
-                                  {pr.draft && <span className="text-[9px] text-text-secondary/70 uppercase">{t('sidebar.draft')}</span>}
-                                </div>
-                                <p className="text-xs truncate">{pr.title}</p>
-                                <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-text-secondary/70">
-                                  <span className="truncate">{pr.branch}</span>
-                                  <span className="text-secondary">+{pr.additions}</span>
-                                  <span className="text-error">-{pr.deletions}</span>
-                                </div>
-                              </div>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => window.api?.shellOpenExternal(pr.url)}
-                              title={t('sidebar.openInGitHub', { number: String(pr.number) })}
-                              className="w-8 shrink-0 flex items-center justify-center text-text-secondary/70 hover:text-secondary opacity-0 group-hover:opacity-100 transition"
-                            >
-                              <ExternalLink size={12} />
-                            </button>
-                          </div>
-                        ))}
-                      </SidebarSection>
-                    )}
-
-                    {/* STASH */}
-                    <SidebarSection
-                      title={t('sidebar.stash')}
-                      count={stashes.length || undefined}
-                      isOpen={sectionState.isOpen('stashes')}
-                      onToggle={() => sectionState.toggle('stashes')}
-                      extra={stashes.length > 1 ? (
-                        showStashClearConfirm ? (
-                          <div className="flex items-center gap-1 ml-1">
-                            <button
-                              onClick={async () => { await stashClear(); setShowStashClearConfirm(false); }}
-                              className="text-[9px] px-1.5 py-0.5 rounded bg-error text-white font-bold"
-                            >
-                              Sí, limpiar
-                            </button>
-                            <button
-                              onClick={() => setShowStashClearConfirm(false)}
-                              className="text-[9px] px-1.5 py-0.5 rounded bg-border-subtle text-text-secondary"
-                            >
-                              No
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setShowStashClearConfirm(true)}
-                            className="text-[9px] text-text-secondary hover:text-error transition-colors ml-1 font-medium"
-                            title="Eliminar todos los stashes"
-                          >
-                            limpiar todo
-                          </button>
-                        )
-                      ) : undefined}
-                    >
-                      {stashes.length === 0 && repoPath && (
-                        <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noStashes')}</p>
-                      )}
-                      {stashes.map((s) => (
-                        <StashItem
-                          key={s.index}
-                          stash={s}
-                          onApply={() => stashApply(s.index)}
-                          onPop={() => stashPop(s.index)}
-                          onPreview={() => onPreviewStash(s)}
-                          onDrop={() => stashDrop(s.index)}
-                        />
-                      ))}
-                    </SidebarSection>
-
-                    {/* TAGS */}
-                    <SidebarSection
-                      title={t('sidebar.tags')}
-                      count={tags.length || undefined}
-                      isOpen={sectionState.isOpen('tags')}
-                      onToggle={() => sectionState.toggle('tags')}
-                      extra={repoPath ? (
-                        <button
-                          type="button"
-                          onClick={onCreateTagRequest}
-                          className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
-                          title={selectedCommit ? t('commitMenu.createTag') : `${t('commitMenu.createTag')} (HEAD)`}
-                          aria-label={selectedCommit ? t('commitMenu.createTag') : `${t('commitMenu.createTag')} (HEAD)`}
-                        >
-                          <Plus size={12} />
-                        </button>
-                      ) : undefined}
-                    >
-                      {tags.length === 0 && repoPath && (
-                        <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
-                      )}
-                      {tags.map((tg) => (
-                        <TagItem key={tg} name={tg} onDelete={() => onDeleteTagRequest(tg)} onPush={() => pushTag(tg)} />
-                      ))}
-                    </SidebarSection>
-
-                    {/* REMOTES */}
-                    {repoPath && (
-                      <SidebarSection
-                        title={t('sidebar.remotes')}
-                        count={remotes.length || undefined}
-                        isOpen={sectionState.isOpen('remotes')}
-                        onToggle={() => sectionState.toggle('remotes')}
-                        extra={(
-                          <button
-                            type="button"
-                            onClick={onAddRemoteRequest}
-                            className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
-                            title={t('sidebar.remoteAdd')}
-                          >
-                            <Plus size={12} />
-                          </button>
-                        )}
-                      >
-                        {remotes.length === 0 && (
-                          <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noRemotes')}</p>
-                        )}
-                        {remotes.map((rm) => (
-                          <SidebarRemoteItem
-                            key={rm.name}
-                            remote={rm}
-                            onRename={() => onRenameRemoteRequest?.(rm)}
-                            onSetUrl={() => onSetRemoteUrlRequest?.(rm)}
-                            onDelete={() => onDeleteRemoteRequest?.(rm)}
-                          />
-                        ))}
-                      </SidebarSection>
-                    )}
-
-                    {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
-                    {repoPath && (
-                      <SidebarSection
-                        title={t('sidebar.worktrees')}
-                        count={worktrees.length > 1 ? worktrees.length - 1 : undefined}
-                        isOpen={sectionState.isOpen('worktrees')}
-                        onToggle={() => sectionState.toggle('worktrees')}
-                        extra={(
-                          <button
-                            type="button"
-                            onClick={onAddWorktreeRequest}
-                            className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
-                            title={t('sidebar.worktreeAdd')}
-                          >
-                            <Plus size={12} />
-                          </button>
-                        )}
-                      >
-                        {worktrees.length <= 1 ? (
-                          <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noWorktrees')}</p>
-                        ) : (
-                          worktrees.map((wt) => {
-                            const isMain = wt.path.replace(/\\/g, '/').toLowerCase() === repoPath.replace(/\\/g, '/').toLowerCase();
-                            if (isMain) return null;
-                            return (
-                              <SidebarWorktreeItem
-                                key={wt.path}
-                                wt={wt}
-                                isMain={isMain}
-                                onOpen={() => window.api?.shellOpenPath(wt.path)}
-                                onDelete={() => onDeleteWorktreeRequest?.(wt)}
+                            {remotes.length === 0 && (
+                              <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noRemotes')}</p>
+                            )}
+                            {remotes.map((rm) => (
+                              <SidebarRemoteItem
+                                key={rm.name}
+                                remote={rm}
+                                onRename={() => onRenameRemoteRequest?.(rm)}
+                                onSetUrl={() => onSetRemoteUrlRequest?.(rm)}
+                                onDelete={() => onDeleteRemoteRequest?.(rm)}
                               />
-                            );
-                          })
+                            ))}
+                          </SidebarSection>
                         )}
-                      </SidebarSection>
-                    )}
 
-                    {/* SUBMODULES */}
-                    {repoPath && (
-                      <SidebarSection
-                        title={t('sidebar.submodules')}
-                        count={submodules.length || undefined}
-                        isOpen={sectionState.isOpen('submodules')}
-                        onToggle={() => sectionState.toggle('submodules')}
-                        extra={(
-                          <button
-                            type="button"
-                            onClick={onAddSubmoduleRequest}
-                            className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
-                            title={t('sidebar.submoduleAdd')}
+                        {/* WORKTREES — git's native feature for multiple checkouts of the same repo */}
+                        {repoPath && (
+                          <SidebarSection
+                            title={t('sidebar.worktrees')}
+                            count={worktrees.length > 1 ? worktrees.length - 1 : undefined}
+                            isOpen={sectionState.isOpen('worktrees')}
+                            onToggle={() => sectionState.toggle('worktrees')}
+                            extra={(
+                              <button
+                                type="button"
+                                onClick={onAddWorktreeRequest}
+                                className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
+                                title={t('sidebar.worktreeAdd')}
+                              >
+                                <Plus size={12} />
+                              </button>
+                            )}
                           >
-                            <Plus size={12} />
-                          </button>
+                            {worktrees.length <= 1 ? (
+                              <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noWorktrees')}</p>
+                            ) : (
+                              worktrees.map((wt) => {
+                                const isMain = wt.path.replace(/\\/g, '/').toLowerCase() === repoPath.replace(/\\/g, '/').toLowerCase();
+                                if (isMain) return null;
+                                return (
+                                  <SidebarWorktreeItem
+                                    key={wt.path}
+                                    wt={wt}
+                                    isMain={isMain}
+                                    onOpen={() => window.api?.shellOpenPath(wt.path)}
+                                    onDelete={() => onDeleteWorktreeRequest?.(wt)}
+                                  />
+                                );
+                              })
+                            )}
+                          </SidebarSection>
                         )}
-                      >
-                        {submodules.length === 0 ? (
-                          <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noSubmodules')}</p>
-                        ) : (
-                          submodules.map((sm) => (
-                            <SidebarSubmoduleItem
-                              key={sm.path}
-                              sm={sm}
-                              onUpdate={() => onUpdateSubmodule?.(sm.path)}
-                              onSync={() => onSyncSubmodules?.()}
-                            />
-                          ))
+
+                        {/* SUBMODULES */}
+                        {repoPath && (
+                          <SidebarSection
+                            title={t('sidebar.submodules')}
+                            count={submodules.length || undefined}
+                            isOpen={sectionState.isOpen('submodules')}
+                            onToggle={() => sectionState.toggle('submodules')}
+                            extra={(
+                              <button
+                                type="button"
+                                onClick={onAddSubmoduleRequest}
+                                className="p-1 rounded text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-colors"
+                                title={t('sidebar.submoduleAdd')}
+                              >
+                                <Plus size={12} />
+                              </button>
+                            )}
+                          >
+                            {submodules.length === 0 ? (
+                              <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noSubmodules')}</p>
+                            ) : (
+                              submodules.map((sm) => (
+                                <SidebarSubmoduleItem
+                                  key={sm.path}
+                                  sm={sm}
+                                  onUpdate={() => onUpdateSubmodule?.(sm.path)}
+                                  onSync={() => onSyncSubmodules?.()}
+                                />
+                              ))
+                            )}
+                          </SidebarSection>
                         )}
-                      </SidebarSection>
+                      </div>
                     )}
                   </div>
                 </motion.div>

@@ -5,6 +5,8 @@ import { useGitStore } from '@/lib/git-store';
 import { clearDraftLog } from '@/lib/commit-draft-log';
 import type { DraftChunkEvent } from '@/types/commit-message-ai';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
+import { OpenSpecInspector } from '../OpenSpecInspector';
+import { usePipelineStore } from '@/lib/pipeline-store';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 
 /**
@@ -60,18 +62,30 @@ function snapshot(): PipelineSnapshot {
 
 /** El rail sólo existe con la columna derecha abierta: ahí es donde va el log. */
 function abrirPreparacion() {
+  const snap = snapshot();
+  usePipelineStore.setState({
+    snapshot: snap,
+    prepareOpen: true,
+  });
   render(
-    <OpenSpecDashboard
-      snapshot={snapshot()}
-      repoPath="C:/repo"
-      currentBranch="change/mi-cambio"
-      workingTreeClean={false}
-      leftOpen={false} rightOpen leftWidth={320} rightWidth={320}
-      onResizeLeft={() => undefined} onResizeRight={() => undefined}
-      projection={null} runtimeHistory={[]}
-      onRefresh={() => undefined} onPauseAfterTask={() => undefined}
-      onRespondDecision={() => undefined}
-    />,
+    <div>
+      <OpenSpecDashboard
+        snapshot={snap}
+        repoPath="C:/repo"
+        currentBranch="change/mi-cambio"
+        workingTreeClean={false}
+        rightOpen={true}
+        projection={null} runtimeHistory={[]}
+        onRefresh={() => undefined} onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />
+      <OpenSpecInspector
+        snapshot={snap}
+        repoPath="C:/repo"
+        projection={null} runtimeHistory={[]}
+        onRespondDecision={() => undefined}
+      />
+    </div>,
   );
   fireEvent.click(screen.getByRole('button', { name: /openspec\.prepare\.open/ }));
 }

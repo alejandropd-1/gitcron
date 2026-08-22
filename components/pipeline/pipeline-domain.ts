@@ -242,5 +242,31 @@ export type PipelineDiffItem = {
   taskId?: string | null;
 };
 
+export const SESSION_STATUS_KEYS = [
+  'running',
+  'completed',
+  'failed',
+  'interrupted',
+  'unknown',
+  'latest',
+  'none',
+  'idle',
+] as const;
 
+export type SessionStatusKey = typeof SESSION_STATUS_KEYS[number];
 
+export const SESSION_STATUS_I18N_MAP: Record<SessionStatusKey, string> = {
+  running: 'pipeline.openspec.activity.status.running',
+  completed: 'pipeline.openspec.activity.status.completed',
+  failed: 'pipeline.openspec.activity.status.failed',
+  interrupted: 'pipeline.openspec.activity.status.interrupted',
+  unknown: 'pipeline.openspec.activity.status.unknown',
+  latest: 'pipeline.openspec.activity.status.latest',
+  none: 'pipeline.openspec.activity.status.none',
+  idle: 'pipeline.openspec.activity.status.idle',
+};
+
+export function resolveSessionStatusI18nKey(status: string | null | undefined): string {
+  if (!status) return 'pipeline.openspec.activity.status.none';
+  return (SESSION_STATUS_I18N_MAP as Record<string, string>)[status] ?? 'pipeline.openspec.activity.status.unknown';
+}

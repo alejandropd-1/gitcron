@@ -97,13 +97,13 @@ type TabViewsProps = {
   modifiedFiles: GitFile[];
   hasGithubUser: boolean;
   isLoading: boolean;
-  pipelineLayout: {
-    leftOpen: boolean;
-    rightOpen: boolean;
-    leftWidth: number;
-    rightWidth: number;
-    onResizeLeft: (event: MouseEvent) => void;
-    onResizeRight: (event: MouseEvent) => void;
+  pipelineLayout?: {
+    leftOpen?: boolean;
+    rightOpen?: boolean;
+    leftWidth?: number;
+    rightWidth?: number;
+    onResizeLeft?: (event: MouseEvent) => void;
+    onResizeRight?: (event: MouseEvent) => void;
     onEnsureRightOpen?: () => void;
   };
   onSelectCommit: (commit: Commit, options?: CommitSelectOptions) => void;
@@ -198,13 +198,13 @@ export function RepoMainView({
         repoPath={tabViews.repoPath ?? 'C:\\gitcron-pipeline-preview'}
         currentBranch={tabViews.currentBranch || 'feature/resume-builder'}
         workingTreeClean={true}
-        leftOpen={tabViews.pipelineLayout.leftOpen}
-        rightOpen={tabViews.pipelineLayout.rightOpen}
-        leftWidth={tabViews.pipelineLayout.leftWidth}
-        rightWidth={tabViews.pipelineLayout.rightWidth}
-        onResizeLeft={tabViews.pipelineLayout.onResizeLeft}
-        onResizeRight={tabViews.pipelineLayout.onResizeRight}
-        onEnsureRightOpen={tabViews.pipelineLayout.onEnsureRightOpen}
+        leftOpen={tabViews.pipelineLayout?.leftOpen}
+        rightOpen={tabViews.pipelineLayout?.rightOpen}
+        leftWidth={tabViews.pipelineLayout?.leftWidth}
+        rightWidth={tabViews.pipelineLayout?.rightWidth}
+        onResizeLeft={tabViews.pipelineLayout?.onResizeLeft}
+        onResizeRight={tabViews.pipelineLayout?.onResizeRight}
+        onEnsureRightOpen={tabViews.pipelineLayout?.onEnsureRightOpen}
       />
     );
   }
@@ -281,13 +281,13 @@ export function RepoMainView({
         repoPath={tabViews.repoPath}
         currentBranch={tabViews.currentBranch}
         workingTreeClean={tabViews.modifiedFiles.length === 0}
-        leftOpen={tabViews.pipelineLayout.leftOpen}
-        rightOpen={tabViews.pipelineLayout.rightOpen}
-        leftWidth={tabViews.pipelineLayout.leftWidth}
-        rightWidth={tabViews.pipelineLayout.rightWidth}
-        onResizeLeft={tabViews.pipelineLayout.onResizeLeft}
-        onResizeRight={tabViews.pipelineLayout.onResizeRight}
-        onEnsureRightOpen={tabViews.pipelineLayout.onEnsureRightOpen}
+        leftOpen={tabViews.pipelineLayout?.leftOpen}
+        rightOpen={tabViews.pipelineLayout?.rightOpen}
+        leftWidth={tabViews.pipelineLayout?.leftWidth}
+        rightWidth={tabViews.pipelineLayout?.rightWidth}
+        onResizeLeft={tabViews.pipelineLayout?.onResizeLeft}
+        onResizeRight={tabViews.pipelineLayout?.onResizeRight}
+        onEnsureRightOpen={tabViews.pipelineLayout?.onEnsureRightOpen}
       />
     );
   }

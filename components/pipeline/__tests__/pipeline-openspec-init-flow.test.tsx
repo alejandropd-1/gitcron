@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNewChangeDraftStore } from '@/lib/new-change-draft-store';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
+import { OpenSpecInspector } from '../OpenSpecInspector';
 
 /**
  * Empezar un cambio en un repositorio al que le falta inicializar OpenSpec.
@@ -59,49 +60,58 @@ function snapshot(openSpecPresent: boolean): PipelineSnapshot {
 }
 
 function renderDashboard(present = false) {
+  const snap = snapshot(present);
   const view = render(
-    <OpenSpecDashboard
-      snapshot={snapshot(present)}
-      repoPath="C:/repo"
-      currentBranch="main"
-      workingTreeClean
-      leftOpen={false}
-      /* El rail abierto: la solapa de herramientas es a donde lleva el aviso. */
-      rightOpen
-      leftWidth={320}
-      rightWidth={320}
-      onResizeLeft={() => undefined}
-      onResizeRight={() => undefined}
-      projection={null}
-      runtimeHistory={[]}
-      onRefresh={() => undefined}
-      onPauseAfterTask={() => undefined}
-      onRespondDecision={() => undefined}
-    />,
-  );
-  return {
-    ...view,
-    /* Lo que hace `onRefresh`: el panel vuelve a leer el disco y llega un
-       snapshot nuevo. Se simula acá para poder mirar qué sobrevive. */
-    refreshWith: (next: boolean) => view.rerender(
+    <div>
       <OpenSpecDashboard
-        snapshot={snapshot(next)}
+        snapshot={snap}
         repoPath="C:/repo"
         currentBranch="main"
         workingTreeClean
-        leftOpen={false}
-        rightOpen
-        leftWidth={320}
-        rightWidth={320}
-        onResizeLeft={() => undefined}
-        onResizeRight={() => undefined}
         projection={null}
         runtimeHistory={[]}
         onRefresh={() => undefined}
         onPauseAfterTask={() => undefined}
         onRespondDecision={() => undefined}
-      />,
-    ),
+      />
+      <OpenSpecInspector
+        snapshot={snap}
+        repoPath="C:/repo"
+        projection={null}
+        runtimeHistory={[]}
+        onRespondDecision={() => undefined}
+      />
+    </div>,
+  );
+  return {
+    ...view,
+    /* Lo que hace `onRefresh`: el panel vuelve a leer el disco y llega un
+       snapshot nuevo. Se simula acá para poder mirar qué sobrevive. */
+    refreshWith: (next: boolean) => {
+      const nextSnap = snapshot(next);
+      view.rerender(
+        <div>
+          <OpenSpecDashboard
+            snapshot={nextSnap}
+            repoPath="C:/repo"
+            currentBranch="main"
+            workingTreeClean
+            projection={null}
+            runtimeHistory={[]}
+            onRefresh={() => undefined}
+            onPauseAfterTask={() => undefined}
+            onRespondDecision={() => undefined}
+          />
+          <OpenSpecInspector
+            snapshot={nextSnap}
+            repoPath="C:/repo"
+            projection={null}
+            runtimeHistory={[]}
+            onRespondDecision={() => undefined}
+          />
+        </div>,
+      );
+    },
   };
 }
 

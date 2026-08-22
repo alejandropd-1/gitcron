@@ -51,6 +51,6 @@
 - [x] 4.5 Informar cuántas reglas de estilo se retiraron y cuántas líneas quedó más corta la hoja de
   estilos de SDD. Declarar también cuántas declaraciones de borde y cuántos tokens `--os-*` siguen
   en pie, sin corregirlos: los resuelven otros changes.
-- [ ] 4.6 Revisión visual en la aplicación: la franja de SDD se ve igual que la del grafo, la rama y
+- [x] 4.6 Revisión visual en la aplicación: la franja de SDD se ve igual que la del grafo, la rama y
   el estado se leen sin encimarse, `Preparar commit` opera desde su lugar nuevo, y los contadores y
   la insignia del motor se leen en el cuerpo. **La marca Alejandro.**

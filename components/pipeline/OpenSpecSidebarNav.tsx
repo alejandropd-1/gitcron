@@ -1,15 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { BookOpen, CheckCircle2, ChevronDown, FileText, FolderOpen } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { useReducedMotion, motion } from 'motion/react';
 import type { DetailTab } from './PipelineDetails';
 import { sortActiveChangesByProgress, type OpenSpecChangeSummary, type PipelineSnapshot } from './pipeline-view-state';
 import { usePipelineStore } from '@/lib/pipeline-store';
+import { SidebarSection } from '@/components/RepoSidebarParts';
+import { useSidebarSectionState } from '@/hooks/use-sidebar-section-state';
+import { useGitStore } from '@/lib/git-store';
 import styles from './OpenSpecDashboard.module.css';
 
 export type OpenSpecSidebarNavProps = {
+  repoPath?: string | null;
   snapshot?: PipelineSnapshot | null;
   selectedChangeId?: string | null;
   onSelectChange?: (changeId: string) => void;
@@ -28,6 +32,7 @@ function taskProgress(change: OpenSpecChangeSummary): { completed: number; total
 }
 
 export function OpenSpecSidebarNav({
+  repoPath: propRepoPath,
   snapshot: propSnapshot,
   selectedChangeId: propSelectedId,
   onSelectChange: propOnSelectChange,
@@ -39,6 +44,10 @@ export function OpenSpecSidebarNav({
 }: OpenSpecSidebarNavProps) {
   const t = useT();
   const reducedMotion = useReducedMotion();
+  const gitRepoPath = useGitStore((s) => s.repoPath);
+  const effectiveRepoPath = propRepoPath !== undefined ? propRepoPath : gitRepoPath;
+  const sectionState = useSidebarSectionState(effectiveRepoPath);
+
   const storeSnapshot = usePipelineStore((s) => s.snapshot);
   const storeSelectedId = usePipelineStore((s) => s.selectedChangeId);
   const storeSetSelectedId = usePipelineStore((s) => s.setSelectedChangeId);
@@ -84,8 +93,12 @@ export function OpenSpecSidebarNav({
 
   return (
     <nav data-testid="openspec-sidebar-nav" className={`${styles.navigator} ${styles.openspecScope}`} aria-label={t('pipeline.openspec.navigator.label')}>
-      <section className={styles.navSection} data-tone="active">
-        <h3>{t('pipeline.openspec.active.title')} <span>{activeChanges.length}</span></h3>
+      <SidebarSection
+        title={t('pipeline.openspec.active.title')}
+        count={activeChanges.length}
+        isOpen={sectionState.isOpen('openspec-active')}
+        onToggle={() => sectionState.toggle('openspec-active')}
+      >
         <div className={styles.activeList}>
           {activeChanges.length === 0 ? (
             <p className={styles.navEmpty}>{t('pipeline.openspec.active.empty')}</p>
@@ -166,10 +179,14 @@ export function OpenSpecSidebarNav({
             );
           })}
         </div>
-      </section>
+      </SidebarSection>
 
-      <section className={styles.navSection} data-tone="completed">
-        <h3>{t('pipeline.openspec.completed.title')} <span>{archivedChanges.length}</span></h3>
+      <SidebarSection
+        title={t('pipeline.openspec.completed.title')}
+        count={archivedChanges.length}
+        isOpen={sectionState.isOpen('openspec-completed')}
+        onToggle={() => sectionState.toggle('openspec-completed')}
+      >
         <div className={styles.compactList}>
           {archivedChanges.slice(0, 8).map((change) => (
             <button type="button" key={`${change.archivedAt}-${change.changeId}`} data-selected={selectedId === change.changeId} onClick={() => selectChange(change.changeId)}>
@@ -180,10 +197,14 @@ export function OpenSpecSidebarNav({
           ))}
           {archivedChanges.length === 0 && <p className={styles.navEmpty}>{t('pipeline.openspec.completed.empty')}</p>}
         </div>
-      </section>
+      </SidebarSection>
 
-      <section className={styles.navSection} data-tone="specifications">
-        <h3>{t('pipeline.openspec.specifications.title')} <span>{specifications.length}</span></h3>
+      <SidebarSection
+        title={t('pipeline.openspec.specifications.title')}
+        count={specifications.length}
+        isOpen={sectionState.isOpen('openspec-specifications')}
+        onToggle={() => sectionState.toggle('openspec-specifications')}
+      >
         <div className={styles.specList}>
           {specifications.map((specification) => (
             <button
@@ -200,7 +221,7 @@ export function OpenSpecSidebarNav({
           ))}
           {specifications.length === 0 && <p className={styles.navEmpty}>{t('pipeline.openspec.specifications.empty')}</p>}
         </div>
-      </section>
+      </SidebarSection>
     </nav>
   );
 }

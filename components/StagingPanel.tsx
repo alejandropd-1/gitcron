@@ -6,6 +6,8 @@ import { useT } from '@/hooks/use-translation';
 import { type GitFile, useGitStore } from '@/lib/git-store';
 import { cn } from '@/lib/utils';
 import { useGitActions } from '@/hooks/use-git-actions';
+import { CommitDraftLog } from '@/components/pipeline/CommitDraftLog';
+import { usePipelineStore } from '@/lib/pipeline-store';
 
 type StagingPanelProps = {
   files: GitFile[];
@@ -34,6 +36,8 @@ export const StagingPanel = memo(function StagingPanel({
   const t = useT();
   const mergeInProgress = useGitStore((s) => s.mergeInProgress);
   const rebaseInProgress = useGitStore((s) => s.rebaseInProgress);
+  const currentBranch = useGitStore((s) => s.currentBranch);
+  const aiNotice = usePipelineStore((s) => s.aiNotice);
   const { continueInteractiveRebase, abortInteractiveRebase, undoInteractiveRebase } = useGitActions();
   const { unstaged, staged, untrackedCount } = useMemo(() => {
     const nextUnstaged = files.filter((file) => !file.staged);
@@ -191,7 +195,16 @@ export const StagingPanel = memo(function StagingPanel({
         </div>
       </div>
 
-      <div className="p-3 border-t border-border-subtle/15 bg-bg-surface/75 shrink-0">
+      <div className="p-3 border-t border-border-subtle/15 bg-bg-surface/75 shrink-0 flex flex-col gap-2">
+        <CommitDraftLog notice={aiNotice} />
+        <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+          <GitBranch size={12} className="text-secondary shrink-0" />
+          <span className="truncate">
+            {t('pipeline.openspec.prepare.toBranch', {
+              branch: currentBranch || t('pipeline.openspec.repo.branchUnknown'),
+            })}
+          </span>
+        </div>
         <textarea
           className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-16 focus:outline-none focus:border-secondary/30 resize-none"
           placeholder={t('staging.commitMsgPlaceholder')}

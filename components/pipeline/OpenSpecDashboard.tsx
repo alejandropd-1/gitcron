@@ -1644,10 +1644,9 @@ export function OpenSpecDashboard({
                   <strong>{t('pipeline.openspec.prepare.title')}</strong>
                   <span>{t('pipeline.openspec.prepare.help')}</span>
                   {/* Un commit lo definen tres cosas: qué archivos, con qué
-                      mensaje y a qué rama. La tercera no estaba acá. Hoy pasa
-                      desapercibido porque siempre es `main`; deja de pasarlo en
-                      cuanto haya más de una. Es dato, no control: este panel no
-                      ejecuta ninguna operación de Git. */}
+                      mensaje y a qué rama. La preparación ejecuta la operación
+                      de Git para dejar los archivos listos (`stageFiles`), y el
+                      commit se confirma desde el panel de staging. */}
                   <em className={styles.prepareBranch}>
                     <GitBranch size={11} />
                     {t('pipeline.openspec.prepare.toBranch', {

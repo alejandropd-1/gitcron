@@ -100,7 +100,8 @@ describe('abrir una especificación consolidada', () => {
     const read = vi.fn().mockResolvedValue({ success: true, content: '## Requisito: algo\n\ntexto' });
     renderDashboard(read);
 
-    // Botón, no texto muerto: ahora hay algo que abrir.
+    // Botón, no texto muerto: abriendo la sección de especificaciones primero.
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.specifications\.title/ }));
     fireEvent.click(screen.getByRole('button', { name: /pipeline-guided-workflow/ }));
 
     expect(await screen.findByText(/Requisito: algo/)).toBeTruthy();
@@ -111,6 +112,7 @@ describe('abrir una especificación consolidada', () => {
   it('un archivo vacío se declara, no deja el visor en blanco', async () => {
     renderDashboard(vi.fn().mockResolvedValue({ success: true, content: '' }));
 
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.specifications\.title/ }));
     fireEvent.click(screen.getByRole('button', { name: /pipeline-guided-workflow/ }));
 
     expect(await screen.findByText(/specifications\.emptyFile/)).toBeTruthy();
@@ -119,6 +121,7 @@ describe('abrir una especificación consolidada', () => {
   it('un fallo muestra el motivo real que informó el proceso principal', async () => {
     renderDashboard(vi.fn().mockResolvedValue({ success: false, error: 'too-large' }));
 
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.specifications\.title/ }));
     fireEvent.click(screen.getByRole('button', { name: /pipeline-guided-workflow/ }));
 
     expect(await screen.findByText(/specifications\.unreadable.*too-large/)).toBeTruthy();
@@ -142,10 +145,12 @@ describe('abrir una especificación consolidada', () => {
       }],
     });
 
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.specifications\.title/ }));
     fireEvent.click(screen.getByRole('button', { name: /pipeline-guided-workflow/ }));
     expect(await screen.findByText(/Requisito: algo/)).toBeTruthy();
 
-    // El de la barra lateral, que es el que se toca para cambiar de cambio.
+    // El de la barra lateral, abriendo la sección de activos.
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.active\.title/ }));
     const [sidebarEntry] = screen.getAllByRole('button', { name: /demo-change/ });
     fireEvent.click(sidebarEntry!);
 

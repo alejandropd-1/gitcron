@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
 import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
@@ -106,6 +106,10 @@ afterEach(cleanup);
  * el de la pantalla de entrada no.
  */
 function navItem(changeId: string): HTMLButtonElement {
+  const activeSectionToggle = screen.getByRole('button', { name: /pipeline\.openspec\.active\.title/ });
+  if (activeSectionToggle.getAttribute('aria-expanded') !== 'true') {
+    fireEvent.click(activeSectionToggle);
+  }
   const button = screen.getAllByText(changeId)
     .map((node) => node.closest('button'))
     .find((node): node is HTMLButtonElement => node !== null);
@@ -169,6 +173,7 @@ describe('sincronización entre el cambio mostrado y el leído', () => {
     const onSelectChange = vi.fn();
     renderDashboard(null, onSelectChange);
 
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.active\.title/ }));
     for (const toggle of screen.getAllByLabelText(/openspec\.change\.(expand|collapse)/)) {
       expect(toggle.getAttribute('aria-expanded')).toBe('false');
     }
@@ -183,6 +188,7 @@ describe('sincronización entre el cambio mostrado y el leído', () => {
     const onSelectChange = vi.fn();
     renderDashboard(null, onSelectChange);
 
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.active\.title/ }));
     // Se despliega el que NO está seleccionado: desplegar y seleccionar son
     // acciones independientes.
     const toggles = screen.getAllByLabelText(/openspec\.change\.(expand|collapse)/);

@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { formatDate, formatInitials } from '@/lib/display-format';
 import { StagingPanel } from '@/components/StagingPanel';
 import { OpenSpecInspector } from '@/components/pipeline/OpenSpecInspector';
+import { usePipelineStore } from '@/lib/pipeline-store';
 
 type RepoDetailsPanelProps = {
   activeTab?: string;
@@ -52,6 +53,7 @@ export function RepoDetailsPanel({
     selectedFile, isLoading,
   } = useGitStore();
   const { commitChanges, stageFile, stageFiles } = useGitActions();
+  const prepareOpen = usePipelineStore((s) => s.prepareOpen);
 
   // Files changed in the selected commit (lazy-loaded per selection).
   const [commitFiles, setCommitFiles] = useState<GitFile[]>([]);
@@ -95,11 +97,11 @@ export function RepoDetailsPanel({
       >
         <div className="absolute inset-y-3 left-0.5 w-px bg-transparent group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
       </div>
-      {activeTab === 'Pipeline' ? (
+      {activeTab === 'Pipeline' && !prepareOpen ? (
         <div className="flex flex-col h-full overflow-y-auto min-h-0">
           <OpenSpecInspector />
         </div>
-      ) : selectedCommit ? (
+      ) : activeTab !== 'Pipeline' && selectedCommit ? (
         <div className="flex flex-col h-full">
           {/* Header bar: matches Unstaged header exactly in size, padding and font */}
           <div className="px-4 py-2 bg-bg-surface/75 flex items-center justify-between shrink-0">

@@ -103,7 +103,7 @@ export function CommitDraftLog({ notice }: CommitDraftLogProps) {
   const nothingYet = log.reasoning.length === 0 && log.content.length === 0;
 
   return (
-    <section className={styles.draftLog} aria-label={t('pipeline.openspec.prepare.aiLogTitle')}>
+    <section className={`${styles.draftLog} ${styles.openspecScope}`} aria-label={t('pipeline.openspec.prepare.aiLogTitle')}>
       <h4>
         <Brain size={13} aria-hidden="true" />
         {t('pipeline.openspec.prepare.aiLogTitle')}

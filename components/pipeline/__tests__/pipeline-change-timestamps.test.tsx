@@ -150,7 +150,8 @@ describe('marcas de tiempo en el panel', () => {
       }],
     }), true);
     // Se entra al archivado desde la lista de completados de la barra lateral,
-    // como lo haría una persona.
+    // como lo haría una persona: abriendo la sección plegable primero.
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.completed\.title/ }));
     fireEvent.click(screen.getByRole('button', { name: /old-change/ }));
 
     expect(screen.getByText('pipeline.openspec.stamp.created')).toBeTruthy();

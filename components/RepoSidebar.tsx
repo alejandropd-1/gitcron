@@ -743,7 +743,7 @@ export function RepoSidebar({
                   {/* ── CUERPO DE SECCIONES CON SCROLL (Solo esto se desplaza) ── */}
                   <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin pt-1 pb-2 px-1 space-y-0.5">
                     {activeTab === 'Pipeline' ? (
-                      <OpenSpecSidebarNav />
+                      <OpenSpecSidebarNav repoPath={repoPath} />
                     ) : (
                       <div data-testid="sidebar-branches-sections">
                         <div className="px-3 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wider text-text-secondary/70 select-none">

@@ -142,26 +142,6 @@
   scrollbar-width: thin;
 }
 
-.navSection {
-  position: relative;
-  padding: var(--space-3) var(--space-4) var(--space-4) var(--space-4);
-  border-bottom: 1px solid var(--os-border);
-}
-
-.navSection::before {
-  position: absolute;
-  left: 0.55rem;
-  top: 0.8rem;
-  bottom: 0.9rem;
-  width: 1px;
-  background: var(--os-cyan);
-  content: '';
-}
-
-.navSection[data-tone='completed']::before { background: var(--os-green); }
-.navSection[data-tone='specifications']::before { background: var(--os-violet); }
-
-.navSection h3,
 .activityRail > h3 {
   display: flex;
   align-items: center;
@@ -175,18 +155,10 @@
   text-transform: uppercase;
 }
 
-.navSection[data-tone='completed'] h3 { color: var(--os-green); }
-.navSection[data-tone='specifications'] h3 { color: var(--os-violet); }
-.navSection h3 span { color: var(--os-muted); }
-
-/* Alto acotado con desplazamiento propio.
-   Sin tope, la lista crecía indefinidamente: dejaba cambios fuera de vista sin
-   ninguna señal y empujaba Completados y Especificaciones detrás de ella. El
-   tope es relativo al viewport para no imponer un alto fijo en ventanas chicas. */
+/* La lista de cambios activos despliega todo su contenido sin tope de alto ni
+   desplazamiento propio; el lateral provee el scroll general y la sección se pliega. */
 .activeList {
-  overflow-y: auto;
-  max-height: 34vh;
-  scrollbar-width: thin;
+  min-width: 0;
 }
 
 .activeChange {

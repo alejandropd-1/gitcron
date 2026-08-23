@@ -52,7 +52,7 @@ export function SidebarSection({
 
   return (
     <div className="mt-0.5">
-      <div className="w-full flex items-center gap-1.5 px-3 py-0.5 text-xs font-bold text-text-secondary">
+      <div className="w-full flex items-center gap-1.5 px-3 py-0.5 text-xs font-medium text-text-secondary">
         <button
           type="button"
           onClick={handleToggle}
@@ -61,7 +61,7 @@ export function SidebarSection({
         >
           <ChevronRight size={13} className={cn('transition-transform shrink-0', isOpen && 'rotate-90')} />
           {icon && <span className="shrink-0">{icon}</span>}
-          <span className="flex-1 text-left tracking-wider truncate">{title}</span>
+          <span className="flex-1 text-left tracking-wide truncate">{title}</span>
         </button>
         {count !== undefined && <span className="bg-border-subtle text-[10px] px-2 py-0.5 rounded-full font-mono">{count}</span>}
         {extra}

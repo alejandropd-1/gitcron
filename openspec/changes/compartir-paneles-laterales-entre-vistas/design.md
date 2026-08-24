@@ -102,6 +102,46 @@ Lo que NO se cruza queda igual de declarado: quitar del stage, descartar, enmend
 sobre el árbol de trabajo y no sobre un change. Llevarlos a SDD sí sería duplicar superficie, y es la
 clase de duplicación que la guía del repositorio prohíbe.
 
+### El panel derecho como lista de secciones, no como estados excluyentes
+
+Análisis pedido por Alejandro el 2026-08-24, a partir de su referencia: un panel que acumula
+funciones, despliega las que la persona elige, y muestra más o menos según la circunstancia.
+
+**Lo que el panel contiene hoy**, en sus cuatro estados: el inspector con sus dos solapas —sesiones y
+«necesita atención» por un lado, la tarjeta del motor por el otro—; la preparación con la lista de
+archivos ya preparados y la bitácora del modelo; el flujo de commit con su aviso de operación en
+curso, sus dos listas con contador y su bloque de confirmación; y el detalle del commit con su
+cabecera, sus metadatos y sus archivos.
+
+Todos son bloques con título y contenido. Esa forma ya está escrita en el proyecto: la sección
+plegable de `components/RepoSidebarParts.tsx:32`, con su control de plegado, su contador y su estado
+recordado por repositorio, que la fase 7 llevó al panel lateral.
+
+**La propuesta:** el panel derecho deja de alternar superficies excluyentes y pasa a ser una lista de
+secciones plegables, con la misma pieza. Qué secciones existen lo decide la circunstancia; cuáles
+están abiertas lo decide la persona, y se recuerda.
+
+Resuelve cuatro cosas a la vez. Agregar una función pasa a ser agregar una sección, no abrir otra
+superficie. Lo que no interesa se pliega en vez de competir por el alto. El alto deja de necesitar un
+tope arbitrario, porque cada sección aporta el suyo y el panel desplaza. Y la bitácora deja de
+empujar: es una sección más, que se abre cuando se quiere seguir el razonamiento y se pliega cuando
+no.
+
+**Resuelve además el defecto de estado duplicado.** Que el panel muestre una cosa *o* la otra es lo
+que obliga a recordar «a qué estado volver», y es exactamente donde se desincronizaron las dos copias
+de la preferencia de preparación. Con secciones no hay a dónde volver: la de confirmar aparece al
+preparar y desaparece al cerrar, mientras las demás siguen en su lugar. Nunca se reemplazó nada.
+
+Las familias quedarían así: en el grafo, detalle del commit, cambios sin preparar, listos para
+confirmar y confirmar; en la vista del ciclo, cambio en curso, actividad, herramientas y —sólo
+mientras se prepara— confirmar. La sección de confirmar es la misma en las dos, con la bitácora
+adentro: es el flujo único que la fase 6 conectó.
+
+**Consecuencia para la fase 4.** El alto arrastrable pierde sentido aplicado a una tarjeta suelta: si
+el panel es una lista que desplaza, no hay tal tarjeta. Lo que sigue valiendo de la definición
+original es que el panel no llegue al piso y que ese alto se arrastre, pero aplicado al panel entero.
+Queda pendiente de decisión de Alejandro con este análisis a la vista.
+
 ## Riesgo declarado
 
 El lienzo cronométrico se redimensiona cuando cambian los paneles, y su proyección depende del

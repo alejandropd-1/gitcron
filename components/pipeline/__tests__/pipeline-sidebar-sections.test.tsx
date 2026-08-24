@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
 import { RepoSidebar } from '@/components/RepoSidebar';
@@ -192,7 +192,10 @@ describe('OpenSpecSidebarNav con SidebarSection (5ter)', () => {
     fireEvent.click(activeToggle);
     expect(activeToggle.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByText('mi-cambio-activo')).toBeTruthy();
-    expect(screen.getByText('50%')).toBeTruthy();
+    const changeCard = screen.getByText('mi-cambio-activo').closest('button')!;
+    expect(within(changeCard).getByText('50%')).toBeTruthy();
+    const columnHeader = screen.getByTestId('sidebar-change-cycle-header');
+    expect(within(columnHeader).getByText('50%')).toBeTruthy();
 
     // 2. Plegar
     fireEvent.click(activeToggle);
@@ -210,7 +213,10 @@ describe('OpenSpecSidebarNav con SidebarSection (5ter)', () => {
 
     // Sección Activos: ID de cambio y porcentaje de tareas
     expect(screen.getByText('mi-cambio-activo')).toBeTruthy();
-    expect(screen.getByText('50%')).toBeTruthy();
+    const changeCard = screen.getByText('mi-cambio-activo').closest('button')!;
+    expect(within(changeCard).getByText('50%')).toBeTruthy();
+    const columnHeader = screen.getByTestId('sidebar-change-cycle-header');
+    expect(within(columnHeader).getByText('50%')).toBeTruthy();
 
     // Sección Completados: ID y fecha de archivado
     expect(screen.getByText('cambio-archivado-1')).toBeTruthy();

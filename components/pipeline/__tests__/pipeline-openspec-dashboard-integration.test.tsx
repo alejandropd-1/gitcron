@@ -152,8 +152,8 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     fireEvent.click(openToolsBtn);
     expect(onEnsureRightOpenMock).toHaveBeenCalledTimes(1);
 
-    // 2. Clic en insignia compacta
-    const compactBadge = screen.getByTitle(/v1.8.0 · Desactualizado/i);
+    // 2. Clic en insignia de motor en franja de identidad
+    const compactBadge = screen.getByTitle(/OpenSpec v1.8.0 · Desactualizado/i);
     fireEvent.click(compactBadge);
     expect(onEnsureRightOpenMock).toHaveBeenCalledTimes(2);
 

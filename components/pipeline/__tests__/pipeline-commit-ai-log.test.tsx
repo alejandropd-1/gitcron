@@ -65,7 +65,6 @@ function abrirPreparacion() {
   const snap = snapshot();
   usePipelineStore.setState({
     snapshot: snap,
-    prepareOpen: true,
   });
   render(
     <div>

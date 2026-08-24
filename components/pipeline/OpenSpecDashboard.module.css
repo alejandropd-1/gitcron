@@ -76,38 +76,6 @@
   container-type: inline-size;
 }
 
-.summaryFacts {
-  display: flex;
-  min-width: 0;
-  align-items: stretch;
-  gap: var(--space-2);
-}
-
-.summaryFacts > div {
-  display: flex;
-  flex: 1 1 0;
-  min-width: 0;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: var(--space-1) 0;
-}
-
-.summaryFacts dt {
-  color: var(--os-muted);
-  font-size: var(--font-size-xs);
-  white-space: nowrap;
-}
-
-.summaryFacts dd {
-  order: -1;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--font-size-md);
-  font-weight: 750;
-  color: #d9e5f3;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
 .healthDot,
 .liveDot,
 .changeDot {
@@ -316,7 +284,6 @@
 }
 .specificationHead {
   padding-bottom: var(--sp-3);
-  border-bottom: 1px solid var(--os-border);
 }
 .specificationHead h3 {
   display: flex;
@@ -372,7 +339,6 @@
   flex: 0 0 auto;
   min-height: 5.4rem;
   padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--os-border);
 }
 
 .changeTitle h3 { margin: 0 0 var(--space-3); color: #dce7f3; font-weight: 650; font-size: var(--font-size-sm); font-family: var(--font-mono), ui-monospace, monospace; letter-spacing: 0.04em; }
@@ -409,8 +375,7 @@
   align-items: end;
   justify-content: space-between;
   gap: var(--space-5);
-  padding-right: var(--space-5);
-  border-bottom: 1px solid var(--os-border);
+  padding: 0 var(--space-5) var(--sp-2) 0;
 }
 
 .tabs {
@@ -448,9 +413,9 @@
   padding: var(--space-4) var(--space-5);
 }
 
-.workArea > h4 { margin: 0 0 var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--os-border); font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; letter-spacing: 0.04em; }
-.taskList { margin: 0; padding: 0; list-style: none; }
-.taskList > li { display: grid; grid-template-columns: 1.25rem 3rem minmax(0, 1fr) auto; align-items: start; min-height: 3rem; padding: var(--space-2) var(--space-2); border-bottom: 1px solid var(--os-border); color: #d6e1ec; font-size: var(--font-size-xs); line-height: 1.5; font-family: var(--font-mono), ui-monospace, monospace; }
+.workArea > h4 { margin: 0 0 var(--space-3); font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; letter-spacing: 0.04em; }
+.taskList { display: flex; flex-direction: column; gap: var(--sp-1); margin: 0; padding: 0; list-style: none; }
+.taskList > li { display: grid; grid-template-columns: 1.25rem 3rem minmax(0, 1fr) auto; align-items: start; min-height: 3rem; padding: var(--space-2) var(--space-2); color: #d6e1ec; font-size: var(--font-size-xs); line-height: 1.5; font-family: var(--font-mono), ui-monospace, monospace; }
 /* La etiqueta se recorta en vez de invadir la columna del texto: si una tarea
    no trae numeración, el fallback es el hash y sin esto se solapaban. */
 .taskList > li > strong { overflow: hidden; color: var(--os-cyan); text-overflow: ellipsis; white-space: nowrap; }
@@ -473,7 +438,7 @@
 .taskStatus:hover:not(:disabled) { background: rgba(94, 216, 255, 0.14); color: var(--os-cyan); }
 .taskStatus:focus-visible { outline: 1px solid var(--os-cyan); outline-offset: 1px; }
 .taskStatus:disabled { cursor: not-allowed; opacity: 0.45; }
-.taskDetail { grid-column: 1 / -1; margin: var(--space-3) var(--space-1) 0 var(--space-8); padding-top: var(--space-3); border-top: 1px solid var(--os-border-strong); }
+.taskDetail { grid-column: 1 / -1; margin: var(--space-3) var(--space-1) 0 var(--space-8); }
 /* Una fila por dato, no dos columnas: los valores son rutas y frases, y
    partirlos en media caja los volvia ilegibles. El valor envuelve en vez de
    recortarse con puntos suspensivos — una ruta a medias no dice nada. */
@@ -656,7 +621,6 @@
 .groupHelp {
   margin: 0;
   padding-block-end: var(--sp-3);
-  border-block-end: 1px solid var(--os-border);
   color: var(--os-muted);
   font-size: var(--font-size-xs); line-height: 1.6; font-family: var(--font-mono), ui-monospace, monospace;
 }
@@ -1094,7 +1058,6 @@
      puede crecer lo que necesite y lo que sigue baja con él. */
   flex: 0 0 auto;
   padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--os-border-strong);
   background: rgba(10, 31, 49, 0.9);
 }
 .archiveConfirm .actions { padding-top: var(--space-2); }
@@ -1144,23 +1107,6 @@
   overflow-wrap: anywhere;
 }
 .fullActivity { padding-top: var(--space-4); }
-
-.evidenceStrip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  min-height: 4.7rem;
-  border-top: 1px solid var(--os-border);
-  background: rgba(9, 27, 43, 0.92);
-  flex: 0 0 auto;
-}
-
-.evidenceStrip > div { display: flex; min-width: 0; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-right: 1px solid var(--os-border-strong); color: var(--os-muted); }
-.evidenceStrip > div:last-child { border-right: 0; }
-.evidenceStrip > div[data-status='passed'] { color: var(--os-green); }
-.evidenceStrip > div[data-status='failed'] { color: var(--color-error); }
-.evidenceStrip span { display: grid; min-width: 0; gap: var(--space-1); }
-.evidenceStrip strong { color: #dbe5ef; font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; }
-.evidenceStrip em { overflow: hidden; color: currentColor; font-size: var(--font-size-xs); font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 
 .activityRail {
   position: relative;
@@ -1400,9 +1346,8 @@
 }
 
 .startScreen > h3 {
-  margin: 0;
+  margin: 0 0 var(--space-2);
   padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--os-border);
   color: #dce7f3;
   font-weight: 650; font-size: var(--font-size-sm); font-family: var(--font-mono), ui-monospace, monospace;
   letter-spacing: 0.04em;
@@ -1486,7 +1431,7 @@
 .startPendingToggle svg { transition: transform 120ms ease; }
 .startPendingToggle[aria-expanded='true'] svg { transform: rotate(180deg); }
 
-.startPending { margin: var(--space-2) 0 0; padding: var(--space-2) 0 0; border-top: 1px solid var(--os-border); list-style: none; }
+.startPending { margin: var(--space-3) 0 0; padding: 0; list-style: none; }
 .startPending > li {
   display: flex;
   align-items: flex-start;
@@ -1972,7 +1917,6 @@
 .noActiveChange .nextStep { width: min(100%, 44rem); text-align: left; }
 
 @container (max-width: 1180px) {
-  .summaryFacts > div { min-width: 0; padding-inline: var(--space-3); }
   .changeHeader { grid-template-columns: minmax(12rem, 0.8fr) minmax(23rem, 1.2fr); padding-inline: var(--space-4); }
 }
 
@@ -1981,12 +1925,8 @@
      acciones del siguiente paso ocupan el ancho para no quedar cortadas. */
   .intentSwitch { grid-template-columns: minmax(0, 1fr); }
   .nextStepActions > button { flex: 1 1 auto; }
-  .summaryFacts > div { padding-inline: var(--space-2); gap: var(--space-1); flex-direction: column; align-items: flex-start; }
-  .summaryFacts dt { color: var(--os-muted); font-size: var(--font-size-xs); }
   .changeHeader { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
   .taskDetail dl { grid-template-columns: minmax(0, 1fr); }
-  .evidenceStrip { grid-template-columns: minmax(0, 1fr); }
-  .evidenceStrip > div { min-height: 3.1rem; border-right: 0; border-bottom: 1px solid var(--os-border); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2037,7 +1977,7 @@
 .completedHeader {
   align-self: stretch;
   padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--os-border);
+  margin-bottom: var(--space-2);
 }
 /* Marcas de tiempo de un cambio.
    Se espacian con la escala --sp-*: ajustar valores sueltos queja por queja ya
@@ -2127,8 +2067,8 @@
   white-space: nowrap;
 }
 .outputInventorySection {
-  border-top: 1px solid var(--os-border, #1e354d);
-  padding-top: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-1);
 }
 .inventoryTitle {
   font-size: var(--font-size-xs);
@@ -2290,9 +2230,8 @@
   background: rgba(94, 216, 255, 0.08);
 }
 .advancedDiagnosticsContainer {
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--os-border, #1e354d);
+  margin-top: var(--space-3);
+  padding-top: var(--space-1);
 }
 .outputListScrollContainer {
   max-height: 180px;
@@ -2374,9 +2313,8 @@
   padding: var(--space-2);
 }
 .absentOutputsSection {
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px dashed var(--os-border, #1e354d);
+  margin-top: var(--space-3);
+  padding-top: var(--space-1);
 }
 .toggleAbsentBtn {
   display: flex;
@@ -2410,7 +2348,7 @@
 
 .reviewHead {
   padding-bottom: var(--sp-3);
-  border-bottom: 1px solid var(--os-border);
+  margin-bottom: var(--sp-2);
 }
 
 .reviewHeadTopRow {
@@ -2671,7 +2609,7 @@
   align-items: center;
   justify-content: flex-end;
   padding-top: var(--sp-3);
-  border-top: 1px solid var(--os-border);
+  margin-top: var(--sp-2);
 }
 
 .reviewPrimaryActionBtn {

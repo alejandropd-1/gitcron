@@ -1,8 +1,18 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
+import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
+import { usePipelineStore } from '@/lib/pipeline-store';
 import type { PipelineSnapshot } from '../pipeline-view-state';
+
+beforeEach(() => {
+  usePipelineStore.setState({
+    selectedChangeId: null,
+    openSpecificationId: null,
+    prepareOpen: false,
+  });
+});
 
 /**
  * La pantalla de entrada del repositorio.
@@ -265,32 +275,48 @@ describe('pantalla de entrada del repositorio', () => {
     expect(screen.getByText('pipeline.openspec.start.title')).toBeTruthy();
   });
 
-  it('los contadores de especificaciones y tareas conservan sus rótulos y nunca se ocultan', () => {
-    renderDashboard(snapshot({
+  it('los contadores se mudaron al lateral: ya no están en el cuerpo y se leen visibles en el navegador', () => {
+    // La intención es la misma que la prueba original: el dato no se oculta sino que se mudó al lateral.
+    const testSnapshot = snapshot({
       activeChanges: [change('uno', 2, 4)],
       specificationsCount: 3,
-    }));
-
-    const factsDl = document.querySelector('dl[class*="summaryFacts"]');
-    expect(factsDl).not.toBeNull();
-
-    const dts = factsDl?.querySelectorAll('dt');
-    expect(dts?.length).toBe(2);
-
-    const dds = factsDl?.querySelectorAll('dd');
-    expect(dds?.length).toBe(2);
-
-    // Los rótulos existen con contenido de texto claro (especificaciones y tareas)
-    expect(dts?.[0].textContent?.trim()).toBe('pipeline.openspec.summary.specifications');
-    expect(dts?.[1].textContent?.trim()).toBe('pipeline.openspec.summary.tasks');
-    expect(dds?.[0].textContent?.trim()).toBe('3');
-    expect(dds?.[1].textContent?.trim()).toBe('50%');
-
-    // Ningún dt tiene display: none ni clase oculta
-    dts?.forEach((dt) => {
-      expect(dt.textContent?.trim()).toBeTruthy();
-      expect(dt.getAttribute('hidden')).toBeNull();
-      expect(dt.getAttribute('aria-hidden')).toBeNull();
     });
+
+    render(
+      <div>
+        <OpenSpecDashboard
+          snapshot={testSnapshot}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean
+          leftOpen={true}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />
+        <OpenSpecSidebarNav repoPath="C:/repo" snapshot={testSnapshot} />
+      </div>,
+    );
+
+    // 1. Ya NO se montan en el cuerpo
+    const factsDl = document.querySelector('dl[class*="summaryFacts"]');
+    expect(factsDl).toBeNull();
+
+    // 2. El porcentaje global SÍ se lee en el rótulo de columna del lateral, con su rótulo visible
+    const sidebarNav = screen.getByTestId('openspec-sidebar-nav');
+    expect(sidebarNav).toBeTruthy();
+    expect(screen.getByText('sidebar.changeCycle')).toBeTruthy();
+    expect(screen.getByText('50%')).toBeTruthy();
+
+    // 3. El contador de especificaciones se lee en su sección del lateral
+    expect(screen.getByText('3')).toBeTruthy();
+    expect(screen.getByText('pipeline.openspec.specifications.title')).toBeTruthy();
   });
 });

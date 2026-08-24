@@ -1070,14 +1070,15 @@ describe('Compartir paneles laterales entre vistas (Fase 3 & fundición de later
     }
   });
 
-  it('10. Los contadores en summaryFacts conservan sus etiquetas dt visibles y no las ocultan con display: none', async () => {
+  it('10. Los contadores en el cuerpo se retiraron y el porcentaje se presenta visible en el lateral con clases de utilidad', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const cssPath = path.resolve(__dirname, '../pipeline/OpenSpecDashboard.module.css');
     const cssContent = fs.readFileSync(cssPath, 'utf-8');
 
-    // La hoja de estilos no debe contener reglas que oculten los dt de summaryFacts
-    expect(cssContent).not.toMatch(/\.summaryFacts\s+dt\s*\{\s*display:\s*none;?\s*\}/);
+    // La hoja de estilos ya no contiene reglas de summaryFacts ni evidenceStrip por haber quedado sin consumidor
+    expect(cssContent).not.toMatch(/\.summaryFacts/);
+    expect(cssContent).not.toMatch(/\.evidenceStrip/);
 
     const { container } = render(
       <OpenSpecDashboard
@@ -1089,15 +1090,11 @@ describe('Compartir paneles laterales entre vistas (Fase 3 & fundición de later
         runtimeHistory={[]}
         onPauseAfterTask={vi.fn()}
         onRespondDecision={vi.fn()}
-      />
+      />,
     );
 
+    // Los contadores del cuerpo ya no se montan
     const factsDl = container.querySelector('dl[class*="summaryFacts"]');
-    expect(factsDl).not.toBeNull();
-    const dts = factsDl?.querySelectorAll('dt');
-    expect(dts?.length).toBe(2);
-    dts?.forEach((dt) => {
-      expect(dt.textContent?.trim()).toBeTruthy();
-    });
+    expect(factsDl).toBeNull();
   });
 });

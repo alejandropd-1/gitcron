@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   FolderOpen,
   MinusSquare,
+  Package,
   PlusSquare,
   GitBranch,
   GitCommit,
@@ -55,7 +56,6 @@ import { ChangeBranchNotice } from './ChangeBranchNotice';
 import { deriveChangeBranchState } from '@/lib/change-branch';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
 import { OpenSpecReadiness, OpenSpecToolList } from './OpenSpecReadiness';
-import { OpenSpecEngineCard } from './OpenSpecEngineCard';
 import { OpenSpecUpdateReview } from './OpenSpecUpdateReview';
 import type { OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpecUpdatePlan } from '@/types/pipeline';
 import { SpecificationViewer } from './SpecificationViewer';
@@ -74,6 +74,14 @@ import {
 import { groupActivity, runtimeDisplayName, type ActivityChannel } from './pipeline-domain';
 import { sortActiveChangesByProgress, type OpenSpecChangeSummary, type PipelineSnapshot } from './pipeline-view-state';
 import styles from './OpenSpecDashboard.module.css';
+
+const INTEGRATION_STATE_KEY_MAP: Record<string, string> = {
+  'up-to-date': 'pipeline.openspec.engine.integrationState.upToDate',
+  outdated: 'pipeline.openspec.engine.integrationState.outdated',
+  conflicted: 'pipeline.openspec.engine.integrationState.conflicted',
+  custom: 'pipeline.openspec.engine.integrationState.custom',
+  unknown: 'pipeline.openspec.engine.integrationState.unknown',
+};
 
 type OpenSpecDashboardProps = {
   snapshot: PipelineSnapshot;
@@ -304,8 +312,12 @@ export function OpenSpecDashboard({
    * Panel de preparación abierto. Se abre a pedido desde el estado del árbol y
    * no al detectar que hay algo sin confirmar: abrirse solo taparía lo que se
    * estaba mirando sin que nadie lo pidiera.
+   *
+   * La única fuente de verdad es el store de Zustand para mantener
+   * sincronizados el cuerpo central y el panel derecho sin estados duplicados.
    */
-  const [prepareOpen, setPrepareOpen] = useState(false);
+  const prepareOpen = usePipelineStore((state) => state.prepareOpen);
+  const setPrepareOpen = usePipelineStore((state) => state.setPrepareOpen);
   /**
    * Cambios desplegados en la pantalla de entrada, y si la lista de archivados
    * está abierta. Plegados por defecto: con cuatro cambios de veintiocho tareas,
@@ -538,10 +550,6 @@ export function OpenSpecDashboard({
     : snapshot.economy.reasoningAvailable;
   const runningAgent = snapshot.agents.find((agent) => agent.state === 'running') ?? snapshot.agents[0] ?? null;
   const runningName = runtimeDisplayName(selectedSession?.runtime ?? runningAgent?.runtime ?? null) ?? t('pipeline.openspec.activity.agentUnknown');
-  const totalRequirements = specifications.reduce((total, item) => total + (item.requirements ?? 0), 0);
-  const totalTasks = activeChanges.reduce((total, change) => total + change.tasks.length, 0);
-  const completedTasks = activeChanges.reduce((total, change) => total + change.tasks.filter((task) => task.completed).length, 0);
-  const taskPercent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
 
   const nextAction = derivePipelineNextAction({
     fixtureActive,
@@ -944,6 +952,15 @@ export function OpenSpecDashboard({
     if (!prepareOpen) return;
     return window.api?.commitAi?.onChunk?.((event) => appendDraftChunks(event));
   }, [prepareOpen]);
+
+  /**
+   * Al desmontar el componente, la preparación no queda abierta en el store.
+   */
+  useEffect(() => {
+    return () => {
+      setPrepareOpen(false);
+    };
+  }, [setPrepareOpen]);
 
   /**
    * El modelo elegido, para saber si hace falta cargarlo antes de redactar.
@@ -1516,6 +1533,74 @@ export function OpenSpecDashboard({
                 </div>
               );
             })()}
+
+            {/* OpenSpec Engine version */}
+            {(() => {
+              const cliInstalled = effectiveEngineStatus?.cli?.installed;
+              const versionStr = cliInstalled
+                ? `OpenSpec v${effectiveEngineStatus.cli.runtimeVersion ?? '?'}`
+                : t('pipeline.openspec.engine.status.absent');
+              const stateKey = effectiveEngineStatus?.integrationState
+                ? (INTEGRATION_STATE_KEY_MAP[effectiveEngineStatus.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown')
+                : null;
+              const stateStr = stateKey ? t(stateKey) : null;
+              const engineTitle = cliInstalled && stateStr
+                ? `${versionStr} · ${stateStr}`
+                : versionStr;
+
+              return (
+                <div
+                  role="status"
+                  title={engineTitle}
+                  onClick={onEnsureRightOpen}
+                  className={cn(
+                    'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-text-primary/[0.035] text-text-secondary/80 font-mono',
+                    onEnsureRightOpen && 'cursor-pointer hover:bg-text-primary/[0.07]',
+                  )}
+                >
+                  <Package size={11} className="shrink-0" />
+                  <span>{versionStr}</span>
+                </div>
+              );
+            })()}
+
+            {/* OpenSpec Validation status */}
+            {(() => {
+              const valStatus = selectedChange?.validation;
+              let valText = t('pipeline.openspec.notApplicable');
+              let valClass = 'bg-text-primary/[0.035] text-text-secondary/80';
+              let valIcon = <ShieldCheck size={11} className="shrink-0" />;
+
+              if (selectedChange) {
+                if (valStatus === 'passed') {
+                  valText = t('pipeline.openspec.validation.passed');
+                  valClass = 'bg-secondary/10 text-secondary';
+                  valIcon = <Check size={11} strokeWidth={2.5} className="shrink-0" />;
+                } else if (valStatus === 'failed') {
+                  valText = t('pipeline.openspec.validation.failed');
+                  valClass = 'bg-error/15 text-error';
+                  valIcon = <AlertCircle size={11} className="shrink-0" />;
+                } else {
+                  valText = t('pipeline.openspec.validation.unknown');
+                  valClass = 'bg-text-primary/[0.035] text-text-secondary/80';
+                  valIcon = <ShieldCheck size={11} className="shrink-0" />;
+                }
+              }
+
+              return (
+                <div
+                  role="status"
+                  title={`${t('pipeline.openspec.evidence.validation')}: ${valText}`}
+                  className={cn(
+                    'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0',
+                    valClass,
+                  )}
+                >
+                  {valIcon}
+                  <span>{valText}</span>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -1530,7 +1615,6 @@ export function OpenSpecDashboard({
               onClick={() => {
                 const next = !prepareOpen;
                 setPrepareOpen(next);
-                usePipelineStore.getState().setPrepareOpen(next);
                 if (next && onEnsureRightOpen) {
                   onEnsureRightOpen();
                 }
@@ -2437,21 +2521,6 @@ export function OpenSpecDashboard({
             <section className={styles.startScreen} aria-label={t('pipeline.openspec.start.title')}>
               <h3>{t('pipeline.openspec.start.title')}</h3>
 
-              <div className="flex items-center justify-between gap-4 p-3 rounded-lg border border-border-subtle/20 bg-bg-surface/40 my-3">
-                <dl className={styles.summaryFacts}>
-                  <div><dd>{specifications.length}</dd><dt>{t('pipeline.openspec.summary.specifications')}</dt></div>
-                  <div><dd>{taskPercent}%</dd><dt>{t('pipeline.openspec.summary.tasks')}</dt></div>
-                </dl>
-                <OpenSpecEngineCard
-                  status={effectiveEngineStatus}
-                  isLoading={engineLoading}
-                  compact={true}
-                  onOpenToolsTab={openToolsTab}
-                  onOpenReview={toggleReview}
-                  isReviewOpen={reviewOpen}
-                />
-              </div>
-
               {/* La guía va primero, sin excepción de estado: es la acción que
                   esta pantalla existe para ofrecer, y al final quedaba empujada
                   fuera de vista por la lista de cambios. Una posición que cambia
@@ -2585,12 +2654,6 @@ export function OpenSpecDashboard({
 
             </section>
           )}
-
-          <footer className={styles.evidenceStrip}>
-            <div data-status={selectedChange?.validation ?? 'unknown'}><ShieldCheck size={18} /><span><strong>{t('pipeline.openspec.evidence.validation')}</strong><em>{selectedChange ? t(`pipeline.openspec.validation.${selectedChange.validation}`) : t('pipeline.openspec.notApplicable')}</em></span></div>
-            <div><GitBranch size={18} /><span><strong>{t('pipeline.openspec.evidence.branch')}</strong><em>{currentBranch || t('pipeline.openspec.repo.branchUnknown')}</em></span></div>
-            <div data-status={workingTreeClean ? 'passed' : 'failed'}><CheckCircle2 size={18} /><span><strong>{t('pipeline.openspec.evidence.workingTree')}</strong><em>{workingTreeClean ? t('pipeline.openspec.repo.cleanShort') : t('pipeline.openspec.repo.changedShort')}</em></span></div>
-          </footer>
         </main>
       </div>
     </div>

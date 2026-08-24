@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
@@ -161,7 +161,8 @@ describe('SDD adopta la franja de identidad unificada (ContentHeader)', () => {
     expect(prepareBtn.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('los contadores y la insignia del motor siguen presentes en el cuerpo de la vista (3.5)', () => {
+  it('la versión del motor está en la franja de identidad y los contadores ya no están en el cuerpo (3.5 actualizado en 8.3 y 8.5)', () => {
+    // La versión del motor se mudó a la franja de identidad (8.5) y los contadores de especificaciones/tareas salieron del cuerpo (8.3).
     render(
       <OpenSpecDashboard
         snapshot={snapshot()}
@@ -182,9 +183,10 @@ describe('SDD adopta la franja de identidad unificada (ContentHeader)', () => {
       />,
     );
 
-    expect(screen.getByText('pipeline.openspec.summary.specifications')).toBeDefined();
-    expect(screen.getByText('pipeline.openspec.summary.tasks')).toBeDefined();
-    expect(screen.getAllByText('1').length).toBeGreaterThan(0);
+    const header = screen.getByTestId('content-header');
+    expect(within(header).getByText('pipeline.openspec.engine.status.absent')).toBeDefined();
+    expect(screen.queryByText('pipeline.openspec.summary.specifications')).toBeNull();
+    expect(screen.queryByText('pipeline.openspec.summary.tasks')).toBeNull();
   });
 
   it('ninguna vista declara un encabezado propio fuera de la pieza común (3.6)', () => {

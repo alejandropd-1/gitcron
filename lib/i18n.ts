@@ -751,6 +751,7 @@ const es: Dict = {
 
   // ── Sidebar sections ──
   'sidebar.branchesAndRefs': 'Ramas y referencias',
+  'sidebar.changeCycle': 'Ciclo de cambios',
   'sidebar.local': 'LOCAL',
   'sidebar.remote': 'REMOTO',
   'sidebar.stash': 'STASH',
@@ -2568,6 +2569,7 @@ const en: Dict = {
 
   // ── Sidebar ──
   'sidebar.branchesAndRefs': 'Branches & References',
+  'sidebar.changeCycle': 'Change lifecycle',
   'sidebar.local': 'LOCAL',
   'sidebar.remote': 'REMOTE',
   'sidebar.stash': 'STASH',
@@ -4369,6 +4371,7 @@ const zh: Dict = {
   'repoTabs.close': '关闭 {{repo}}',
   'repoTabs.openAnother': '打开其他仓库',
   'sidebar.branchesAndRefs': '分支与引用',
+  'sidebar.changeCycle': '变更生命周期',
   'sidebar.local': 'LOCAL',
   'sidebar.remote': 'REMOTE',
   'sidebar.stash': 'STASH',

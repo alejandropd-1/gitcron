@@ -53,33 +53,52 @@ estado después. El grupo 3 pasa a ejecutarse antes de completar el 2.
 - [x] 3.5 Revisión visual: el panel derecho muestra lo que corresponde en cada vista y conserva su
   ancho arrastrable. **La comprueba Alejandro.**
 
-## 4. La tarjeta con alto arrastrable
+## 4. El panel derecho como lista de secciones
 
-- [ ] 4.1 Hacer que el panel derecho tenga alto propio: sigue en su columna y sigue repartiendo el
-  ancho con el contenido —no se superpone—, pero no llega al piso.
-- [ ] 4.2 Agregar el arrastre de alto con el puntero, tomando como modelo `beginRelationsDrag` de
-  `hooks/use-carto-layout.ts:57`: delta invertido si crece hacia arriba, acotado por un mínimo y un
-  máximo declarados, y persistido. Declarar en el reporte los dos límites elegidos y su motivo.
-- [ ] 4.3 Declarar si el alto se recuerda por repositorio o globalmente, y por qué. El ancho hoy es
-  global; la preferencia de ramas especulativas es por repositorio.
-- [ ] 4.4 Verificar que el arrastre de ancho sigue funcionando y que los dos ejes no se interfieren.
-- [ ] 4.5 En tests, cubrir que el alto se acota entre sus límites, que se persiste y que se restituye.
-  Afirmar sobre el valor guardado, no sobre el estilo aplicado.
-- [ ] 4.6 Revisión visual: arrastrar el alto y el ancho, cerrar y reabrir la aplicación, y comprobar
-  que el panel vuelve como quedó. **La comprueba Alejandro.**
+Reemplaza a la fase que planteaba una tarjeta con alto arrastrable. El análisis que la motiva está en
+`design.md`, sección «El panel derecho como lista de secciones, no como estados excluyentes»:
+**leerlo antes de empezar.**
+
+Los cuatro estados del panel contienen bloques con título y contenido, que es la forma de la sección
+plegable de `components/RepoSidebarParts.tsx:32` —la misma que la fase 7 llevó al lateral—. Pasando
+de estados excluyentes a lista de secciones se resuelven de una vez el acumulado de funciones, el
+alto, la bitácora que empuja, y la clase de defecto que produjo el estado duplicado de la
+preparación.
+
+- [ ] 4.1 Relevar qué bloques compone hoy cada uno de los cuatro estados del panel derecho, con
+  archivo y línea, y proponer con qué sección se corresponde cada uno. Declararlo antes de mover
+  nada.
+- [ ] 4.2 Hacer que el panel derecho presente sus contenidos como secciones plegables, con la misma
+  pieza que usa el panel lateral. NO escribir una pieza nueva ni una variante: si parece hacer falta,
+  frenar y reportar.
+- [ ] 4.3 Qué secciones existen lo decide la circunstancia; cuáles están abiertas lo decide quien usa
+  la aplicación, y se recuerda por repositorio con el mecanismo que ya existe.
+- [ ] 4.4 La bitácora de redacción del modelo pasa a ser una sección más, plegable. Deja de tener
+  tope de alto propio: el que aporta es el de su contenido, y el panel desplaza.
+- [ ] 4.5 Conservar lo que cada bloque hace hoy: el detalle del commit carga sus archivos al
+  seleccionar, el rail conserva su recuento pendiente, y el flujo de commit conserva su condición
+  sobre el árbol y su acción de confirmar.
+- [ ] 4.6 En tests, cubrir que el panel monta la misma sección plegable que el lateral, que las
+  secciones se pliegan y lo recuerdan, y que las de cada vista son las que corresponden. Afirmar
+  sobre el DOM montado y sobre el llamado.
+- [ ] 4.7 Decidir qué queda del alto arrastrable con el panel ya hecho: si el panel no llega al piso
+  y su alto se arrastra, o si el desplazamiento de la lista lo vuelve innecesario. **La decide
+  Alejandro** con el rediseño a la vista.
+- [ ] 4.8 Revisión visual: el panel acumula sus secciones, se pliegan las que no interesan, y ninguna
+  empuja a las demás fuera de vista. **La comprueba Alejandro.**
 
 ## 5. El cuerpo de SDD
 
 - [x] 5.1 Retirar del cuerpo de SDD las columnas cuya función pasó a los lugares de panel del
   armazón, según lo decidido en 1.3. Queda el contenido central.
-- [ ] 5.2 Retirar las líneas divisorias del cuerpo, conforme al requisito vigente de que la
+- [x] 5.2 Retirar las líneas divisorias del cuerpo, conforme al requisito vigente de que la
   separación se dé por fondo y espacio. Conservar las que comunican dato y no estructura —como el
   borde que señala estado de un archivo—, enumerando en el reporte cuáles se conservaron y por qué.
-- [ ] 5.3 **No tocar los tokens `--os-*`.** Los resuelve `unificar-paleta-carbon-soul`. Contarlos y
+- [x] 5.3 **No tocar los tokens `--os-*`.** Los resuelve `unificar-paleta-carbon-soul`. Contarlos y
   declararlos sin corregirlos.
-- [ ] 5.4 En tests, extender la verificación de bordes que ya existe para que alcance al cuerpo de
+- [x] 5.4 En tests, extender la verificación de bordes que ya existe para que alcance al cuerpo de
   SDD, con las excepciones de 5.2 declaradas explícitamente en el test.
-- [ ] 5.5 Informar cuántas líneas quedó más corta la hoja de estilos y cuántos bordes se retiraron.
+- [x] 5.5 Informar cuántas líneas quedó más corta la hoja de estilos y cuántos bordes se retiraron.
 - [x] 5.6 Revisión visual: el cuerpo de SDD se lee sin líneas y con aire, y nada quedó suelto ni
   amontonado. **La comprueba Alejandro.**
 
@@ -124,7 +143,7 @@ residuo del otro camino.
   es.
 - [x] 6.7 En tests, cubrir los cuatro estados del panel derecho y que confirmar desde la vista del
   ciclo invoca lo mismo que confirmar desde el grafo. Afirmar sobre el llamado, no sobre el render.
-- [ ] 6.8 Revisión visual: terminar una tarea, preparar, y confirmar el commit sin cambiar de
+- [x] 6.8 Revisión visual: terminar una tarea, preparar, y confirmar el commit sin cambiar de
   vista; y comprobar que el flujo libre del grafo sigue intacto. **La comprueba Alejandro.**
 
 ## 7. La información de SDD se remaqueta
@@ -151,21 +170,42 @@ la fase 5 esté puesta y se pueda ver el resultado.
 - [x] 7.6 Revisión visual: las secciones de SDD y las de Graph se ven y se comportan igual.
   **La comprueba Alejandro.**
 
-## 8. Cierre y validación
+## 8. La franja recibe lo que el cuerpo duplicaba
 
-- [x] 8.0 `pnpm build` sin errores. Se agrega el 2026-08-22 porque un selector rechazado por el
+Decisiones de Alejandro del 2026-08-24, sobre lo que quedó tras retirar las columnas del cuerpo.
+
+- [x] 8.1 Retirar el pie de evidencia del cuerpo de SDD (`OpenSpecDashboard.tsx:2589`). De sus tres
+  datos, la rama actual y el estado del árbol ya están en la franja de identidad.
+- [x] 8.2 Subir «Validación OpenSpec» a la franja de identidad, junto a la rama y al estado del
+  árbol. NO se retira: ejecuta `openspec validate <changeId> --strict --no-interactive` sobre el
+  cambio seleccionado —por eso informa «No aplica» cuando no hay ninguno— y es la única señal en la
+  aplicación de si un cambio está bien formado.
+- [x] 8.3 Retirar del cuerpo los contadores de especificaciones y tareas. El de especificaciones ya
+  figura como contador de su sección en el panel lateral.
+- [x] 8.4 Llevar el porcentaje global de tareas al panel lateral, como rótulo de columna con el
+  valor a su derecha. En el grafo ese lugar dice «Ramas y referencias»; en la vista del ciclo está
+  vacío.
+- [x] 8.5 Subir la versión del motor de OpenSpec a la franja de identidad.
+- [x] 8.6 En tests, cubrir que el pie ya no se monta, que la validación y la versión del motor están
+  en la franja, y que el porcentaje está en el lateral. Afirmar sobre el DOM montado.
+- [ ] 8.7 Revisión visual: nada quedó duplicado entre la franja y el cuerpo, y no se perdió ningún
+  dato. **La comprueba Alejandro.**
+
+## 9. Cierre y validación
+
+- [x] 9.0 `pnpm build` sin errores. Se agrega el 2026-08-22 porque un selector rechazado por el
   compilador de hojas de estilo dejó la aplicación sin arrancar mientras las 1452 pruebas daban en
   verde: la suite no procesa los módulos de estilo con el compilador de producción, así que ninguna
   cantidad de pruebas verdes dice que la aplicación levanta.
-- [ ] 8.1 `pnpm exec tsc --noEmit` sin errores de tipado.
-- [ ] 8.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada
+- [ ] 9.1 `pnpm exec tsc --noEmit` sin errores de tipado.
+- [ ] 9.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada
   una.
-- [ ] 8.3 `openspec validate compartir-paneles-laterales-entre-vistas --strict` en cero.
-- [ ] 8.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en
+- [ ] 9.3 `openspec validate compartir-paneles-laterales-entre-vistas --strict` en cero.
+- [ ] 9.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en
   Git.
-- [ ] 8.5 Informar si en alguna fase hizo falta tocar `components/ChronometricGraph.tsx`. Si hizo
+- [ ] 9.5 Informar si en alguna fase hizo falta tocar `components/ChronometricGraph.tsx`. Si hizo
   falta y se frenó, declarar en qué punto y qué se necesitaba: la autorización del invariante 12 se
   pide entonces, acotada y con fecha, y no antes.
-- [ ] 8.6 Revisión visual y funcional completa: los dos paneles se comportan igual en todas las
+- [ ] 9.6 Revisión visual y funcional completa: los dos paneles se comportan igual en todas las
   vistas, cada uno muestra lo que corresponde, el alto y el ancho se arrastran y se recuerdan, y el
   lienzo cronométrico sigue legible. **La marca Alejandro.**

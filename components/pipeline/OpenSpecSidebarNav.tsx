@@ -91,8 +91,26 @@ export function OpenSpecSidebarNav({
     if (propOnOpenArtifact) propOnOpenArtifact(changeId, tab);
   };
 
+  const totalTasks = activeChanges.reduce(
+    (total, change) => total + (Array.isArray(change.tasks) ? change.tasks.length : 0),
+    0,
+  );
+  const completedTasks = activeChanges.reduce(
+    (total, change) =>
+      total +
+      (Array.isArray(change.tasks)
+        ? change.tasks.filter((task) => task.completed).length
+        : 0),
+    0,
+  );
+  const taskPercent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
   return (
     <nav data-testid="openspec-sidebar-nav" className={`${styles.navigator} ${styles.openspecScope}`} aria-label={t('pipeline.openspec.navigator.label')}>
+      <div data-testid="sidebar-change-cycle-header" className="px-3 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wider text-text-secondary/70 select-none flex items-center justify-between">
+        <span>{t('sidebar.changeCycle')}</span>
+        <span>{taskPercent}%</span>
+      </div>
       <SidebarSection
         title={t('pipeline.openspec.active.title')}
         count={activeChanges.length}

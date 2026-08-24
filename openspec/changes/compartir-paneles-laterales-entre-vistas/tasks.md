@@ -147,6 +147,11 @@ Alejandro pidió dos cambios sobre lo que vio funcionando. Van como 4.10 a 4.16,
   pasa a ser ícono, título, control de plegado inmediatamente a su derecha, y recién después el
   contador y los controles de la sección. Hoy sólo seis secciones llevan ícono y con dos tamaños
   distintos: hay que darle uno a las dieciséis que no lo tienen y unificar tamaño y color.
+  **Criterio, decidido por Alejandro el 2026-08-24 sobre una referencia:** el ícono es monocromo y
+  del mismo color y tamaño que el texto al que acompaña —dice qué es la sección, no cuánto importa—.
+  El color queda reservado a lo que identifica una entidad concreta, que en la aplicación ya son el
+  punto de cada cambio en el lateral y el color de rama del grafo: ésos no se tocan y no se agregan
+  otros. Los rótulos de columna no llevan ícono, y los controles de cada sección siguen a la derecha.
 - [ ] 4.16 Unificar los títulos de sección entre las dos vistas. En el lateral del grafo están
   escritos en mayúsculas dentro de la propia cadena —`sidebar.local` vale `'LOCAL'`, y lo mismo
   `remote`, `stash`, `tags`, `worktrees`, `submodules`, `pullRequests` y `remotes`—, mientras que los

@@ -9,30 +9,33 @@
 // modales/menus de la página o navega al diff llega por props.
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { AlertCircle, Brain, GitBranch, Layers, Play, RotateCcw, Trash2, Zap } from 'lucide-react';
+import {
+  AlertCircle,
+  Brain,
+  Check,
+  FileDiff,
+  Files,
+  FolderGit2,
+  GitBranch,
+  GitCommitHorizontal,
+  Layers,
+  PackageCheck,
+  Play,
+  RotateCcw,
+  Trash2,
+  Zap,
+} from 'lucide-react';
 import { useGitStore, GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useT } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 import { formatDate, formatInitials } from '@/lib/display-format';
-import { SidebarSection } from '@/components/RepoSidebarParts';
-import { StagingFileRow } from '@/components/StagingPanel';
+import { SidebarSection, StagingFileRow } from '@/components/RepoSidebarParts';
 import { OpenSpecInspector } from '@/components/pipeline/OpenSpecInspector';
 import { CommitDraftLog } from '@/components/pipeline/CommitDraftLog';
 import { usePipelineStore } from '@/lib/pipeline-store';
-import { useSidebarSectionState } from '@/hooks/use-sidebar-section-state';
+import { DEFAULT_OPEN_RIGHT_PANEL, useSidebarSectionState } from '@/hooks/use-sidebar-section-state';
 import { getDraftLogSnapshot, subscribeDraftLog } from '@/lib/commit-draft-log';
-
-const DEFAULT_OPEN_RIGHT_PANEL = [
-  'details-commit',
-  'details-commit-files',
-  'details-unstaged',
-  'details-staged',
-  'details-draft-log',
-  'details-commit-box',
-  'details-activity',
-  'details-attention',
-] as const;
 
 type RepoDetailsPanelProps = {
   activeTab?: string;
@@ -119,6 +122,7 @@ export function RepoDetailsPanel({
   const renderCommitBox = () => (
     <SidebarSection
       title={t('staging.commitSectionTitle')}
+      icon={<Check size={13} aria-hidden="true" />}
       isOpen={sectionState.isOpen('details-commit-box')}
       onToggle={() => sectionState.toggle('details-commit-box')}
     >
@@ -145,7 +149,9 @@ export function RepoDetailsPanel({
         >
           {isLoading
             ? t('staging.committingState')
-            : t('staging.commitWithCountBtn', { count: staged.length })}
+            : staged.length > 0
+              ? t('staging.commitWithCountBtn', { count: staged.length })
+              : t('staging.commitBtn')}
         </button>
         {!isPipeline && (
           <>
@@ -220,6 +226,7 @@ export function RepoDetailsPanel({
               <SidebarSection
                 title={t('staging.stagedTitle')}
                 count={staged.length}
+                icon={<PackageCheck size={13} aria-hidden="true" />}
                 isOpen={sectionState.isOpen('details-staged')}
                 onToggle={() => sectionState.toggle('details-staged')}
               >
@@ -228,29 +235,12 @@ export function RepoDetailsPanel({
                 ) : (
                   <div className="p-1">
                     {staged.map((file) => (
-                      <div
+                      <StagingFileRow
                         key={file.path}
+                        file={file}
+                        selected={selectedFile?.path === file.path}
                         onClick={() => onSelectFile(file)}
-                        className={cn(
-                          'flex items-center gap-2 px-2 py-1.5 rounded transition-colors cursor-pointer',
-                          selectedFile?.path === file.path ? 'bg-secondary/15' : 'hover:bg-border-subtle/50',
-                        )}
-                      >
-                        <span className="text-xs truncate flex-1 text-text-primary">{file.path}</span>
-                        <div
-                          className={cn(
-                            'w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold shrink-0',
-                            file.conflicted ? 'bg-error/20 text-error border border-[#ff716c]/40 animate-pulse' :
-                            file.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
-                            file.status === 'added' ? 'bg-secondary/20 text-secondary' :
-                            file.status === 'renamed' ? 'bg-primary/20 text-primary' :
-                            file.status === 'untracked' ? 'bg-[#9eacc0]/20 text-text-secondary' :
-                            'bg-error/20 text-error',
-                          )}
-                        >
-                          {file.conflicted ? '!' : file.status[0].toUpperCase()}
-                        </div>
-                      </div>
+                      />
                     ))}
                   </div>
                 )}
@@ -274,7 +264,7 @@ export function RepoDetailsPanel({
       ) : selectedCommit ? (
         <div className="flex flex-col h-full">
           {/* Header bar: solo cuando hay commit elegido en vista Grafo */}
-          <div className="px-4 py-2 bg-bg-surface/75 flex items-center justify-between shrink-0 border-b border-border-subtle/15">
+          <div className="px-4 py-2 bg-bg-surface/75 flex items-center justify-between shrink-0">
             <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
               {t('commit.detailsTitle')}
             </span>
@@ -288,9 +278,10 @@ export function RepoDetailsPanel({
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-border-subtle/10">
+          <div className="flex-1 overflow-y-auto min-h-0">
             <SidebarSection
               title={t('commit.detailsTitle')}
+              icon={<GitCommitHorizontal size={13} aria-hidden="true" />}
               isOpen={sectionState.isOpen('details-commit')}
               onToggle={() => sectionState.toggle('details-commit')}
             >
@@ -318,6 +309,7 @@ export function RepoDetailsPanel({
             <SidebarSection
               title={t('commit.filesSectionTitle')}
               count={commitFiles.length}
+              icon={<Files size={13} aria-hidden="true" />}
               isOpen={sectionState.isOpen('details-commit-files')}
               onToggle={() => sectionState.toggle('details-commit-files')}
             >
@@ -359,6 +351,7 @@ export function RepoDetailsPanel({
               <SidebarSection
                 title={t('commit.worktreeSectionTitle')}
                 count={modifiedFiles.length}
+                icon={<FolderGit2 size={13} aria-hidden="true" />}
                 extra={
                   <div className="flex items-center gap-1">
                     <button
@@ -459,10 +452,11 @@ export function RepoDetailsPanel({
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-border-subtle/10">
+          <div className="flex-1 overflow-y-auto min-h-0">
             <SidebarSection
               title={t('staging.unstagedTitle')}
               count={unstaged.length}
+              icon={<FileDiff size={13} aria-hidden="true" />}
               extra={
                 <div className="flex items-center gap-2">
                   {untrackedCount > 0 && (
@@ -526,6 +520,7 @@ export function RepoDetailsPanel({
             <SidebarSection
               title={t('staging.stagedTitle')}
               count={staged.length}
+              icon={<PackageCheck size={13} aria-hidden="true" />}
               extra={
                 staged.length > 0 && (
                   <button

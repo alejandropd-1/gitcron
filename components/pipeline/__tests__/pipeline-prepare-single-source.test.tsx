@@ -182,7 +182,6 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
       selectedChangeId: 'demo-change',
       openSpecificationId: null,
       expandedChanges: {},
-      railTab: 'activity',
       lastPreparedCount: null,
     });
     useGitStore.setState({

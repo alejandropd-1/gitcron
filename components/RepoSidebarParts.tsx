@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   Archive,
@@ -12,9 +12,12 @@ import {
   Cloud,
   CloudOff,
   FileDiff,
+  FileText,
   Folder,
   GitBranch,
   HardDrive,
+  Minus,
+  Plus,
   RotateCcw,
   Tag,
   Trash2,
@@ -22,7 +25,7 @@ import {
 } from 'lucide-react';
 import { colorForBranch } from '@/components/CommitGraph';
 import { useT } from '@/hooks/use-translation';
-import { useGitStore } from '@/lib/git-store';
+import { type GitFile, useGitStore } from '@/lib/git-store';
 import { useBranchFolderState, type BranchFolderState } from '@/hooks/use-branch-folder-state';
 import { cn } from '@/lib/utils';
 import type { BranchTrackingInfo, StashEntry } from '@/types/electron';
@@ -52,24 +55,113 @@ export function SidebarSection({
 
   return (
     <div className="mt-0.5">
-      <div className="w-full flex items-center gap-1.5 px-3 py-0.5 text-xs font-medium text-text-secondary">
+      <div className="w-full flex items-center gap-1.5 px-3 py-0.5 text-xs font-medium rounded-md transition-colors min-h-[30px] text-text-secondary hover:bg-text-primary/10 hover:text-text-primary group">
         <button
           type="button"
           onClick={handleToggle}
           aria-expanded={isOpen}
-          className="flex items-center gap-2 flex-1 text-left hover:text-text-primary transition-colors min-h-[30px]"
+          className="flex items-center gap-1.5 min-w-0 max-w-full text-left transition-colors min-h-[30px] rounded-md focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
         >
-          <ChevronRight size={13} className={cn('transition-transform shrink-0', isOpen && 'rotate-90')} />
           {icon && <span className="shrink-0">{icon}</span>}
-          <span className="flex-1 text-left tracking-wide truncate">{title}</span>
+          <span className="tracking-wide truncate">{title}</span>
+          <ChevronRight
+            size={13}
+            className={cn(
+              'transition-all shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
+              isOpen && 'rotate-90',
+            )}
+          />
         </button>
-        {count !== undefined && <span className="bg-border-subtle text-[10px] px-2 py-0.5 rounded-full font-mono">{count}</span>}
+        <div className="flex-1" />
+        {count !== undefined && <span className="bg-border-subtle text-[10px] px-2 py-0.5 rounded-full font-mono shrink-0">{count}</span>}
         {extra}
       </div>
       {isOpen && <div className="space-y-0.5">{children}</div>}
     </div>
   );
 }
+
+export type StagingFileRowProps = {
+  file: GitFile;
+  selected: boolean;
+  direction?: 'stage' | 'unstage';
+  onClick: () => void;
+  onAction?: () => void;
+  onDiscard?: () => void;
+  onContextMenu?: (event: React.MouseEvent) => void;
+};
+
+export const StagingFileRow = memo(function StagingFileRow({
+  file, selected, direction, onClick, onAction, onDiscard, onContextMenu,
+}: StagingFileRowProps) {
+  const t = useT();
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+      className={cn(
+        'flex items-center gap-2 px-2 py-1.5 rounded group transition-colors cursor-pointer',
+        selected ? 'bg-secondary/15' : 'hover:bg-border-subtle/50',
+      )}
+    >
+      {onAction && direction && (
+        <button
+          type="button"
+          onClick={(event) => { event.stopPropagation(); onAction(); }}
+          title={direction === 'stage' ? t('staging.stageFileTooltip') : t('staging.unstageFileTooltip')}
+          className={cn(
+            'p-1 rounded shrink-0 transition-colors',
+            direction === 'stage'
+              ? 'text-text-secondary hover:text-secondary hover:bg-secondary/10'
+              : 'text-text-secondary hover:text-git-mod hover:bg-git-mod/10',
+          )}
+        >
+          {direction === 'stage' ? <Plus size={14} /> : <Minus size={14} />}
+        </button>
+      )}
+      <FileText
+        size={14}
+        className={cn(
+          'shrink-0',
+          file.conflicted ? 'text-error' :
+          file.status === 'modified' ? 'text-git-mod' :
+          file.status === 'added' ? 'text-secondary' :
+          file.status === 'renamed' ? 'text-primary' :
+          file.status === 'untracked' ? 'text-text-secondary' :
+          'text-error',
+        )}
+      />
+      <span className="text-xs truncate flex-1 text-text-primary group-hover:text-text-primary">{file.path}</span>
+      {isHovered && onDiscard && direction === 'stage' && (
+        <button
+          type="button"
+          onClick={(event) => { event.stopPropagation(); onDiscard(); }}
+          className="p-1 hover:text-error text-text-secondary shrink-0"
+          title={t('staging.discardFileTooltip')}
+        >
+          <Trash2 size={12} />
+        </button>
+      )}
+      <div
+        className={cn(
+          'w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold shrink-0',
+          file.conflicted ? 'bg-error/20 text-error border border-[#ff716c]/40 animate-pulse' :
+          file.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
+          file.status === 'added' ? 'bg-secondary/20 text-secondary' :
+          file.status === 'renamed' ? 'bg-primary/20 text-primary' :
+          file.status === 'untracked' ? 'bg-[#9eacc0]/20 text-text-secondary' :
+          'bg-error/20 text-error',
+        )}
+      >
+        {file.conflicted ? '!' : file.status[0].toUpperCase()}
+      </div>
+    </div>
+  );
+});
 
 export function SidebarItem({
   icon,
@@ -86,7 +178,7 @@ export function SidebarItem({
     <div
       onClick={onClick}
       className={cn(
-        'px-4 py-1 flex items-center gap-3 text-sm transition-colors group relative',
+        'px-3 py-1 flex items-center gap-3 text-sm transition-colors group relative',
         active ? 'text-secondary bg-secondary/10' : 'text-text-secondary hover:bg-border-subtle hover:text-text-primary',
         onClick && 'cursor-pointer',
       )}
@@ -243,7 +335,7 @@ function BranchFolderView({
     <div>
       <button
         onClick={() => folderState.toggle(folder.prefix)}
-        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
+        className="w-full pl-3 pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <Folder size={14} className="text-text-secondary shrink-0" />
@@ -371,7 +463,7 @@ function BranchRow({
 
   useEffect(() => {
     if (!isSelected) return;
-    rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    rowRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
   }, [isSelected]);
 
   return (
@@ -385,7 +477,7 @@ function BranchRow({
       title="Click: enfocar en graph · Doble click: checkout · Click derecho: opciones"
       className={cn(
         'flex items-center gap-2 py-1 pr-3 group cursor-pointer transition-colors relative',
-        indent ? 'pl-[46px]' : 'pl-[26px]',
+        indent ? 'pl-8' : 'pl-3',
         isActive
           ? 'bg-secondary/10 text-secondary'
           : isSelected
@@ -445,7 +537,7 @@ export function RemoteBranchTree({
             onDoubleClick={() => onCheckout(branch.fullPath)}
             onContextMenu={(event) => onContextMenu(event, branch.fullPath)}
             title="Doble click: checkout · Click derecho: opciones"
-            className="pl-[26px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary cursor-pointer transition-colors group relative"
+            className="pl-3 pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary cursor-pointer transition-colors group relative"
           >
             <Cloud size={13} className="shrink-0" style={{ color: branchColor }} />
             <span className="truncate text-xs flex-1 select-text">{branch.name}</span>
@@ -490,7 +582,7 @@ function RemoteFolderView({
     <div>
       <button
         onClick={() => folderState.toggle(folder.prefix)}
-        className="w-full pl-[26px] pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
+        className="w-full pl-3 pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <Folder size={13} className="text-text-secondary shrink-0" />
@@ -506,7 +598,7 @@ function RemoteFolderView({
                 key={branch.fullPath}
                 onDoubleClick={() => onCheckout(branch.fullPath)}
                 onContextMenu={(event) => onContextMenu(event, branch.fullPath)}
-                className="pl-[46px] pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary transition-colors cursor-pointer group relative"
+                className="pl-8 pr-3 py-1.5 flex items-center gap-2 text-sm text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary transition-colors cursor-pointer group relative"
                 title={`Doble click: checkout · Click derecho: opciones\n${branch.fullPath}`}
               >
                 <GitBranch size={13} className="shrink-0" style={{ color: branchColor }} />
@@ -544,7 +636,7 @@ export function StashItem({
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="px-4 py-1.5 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors"
+      className="px-3 py-1.5 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors"
       title={stash.message}
     >
       <Archive size={16} className="shrink-0" />
@@ -584,7 +676,7 @@ export function TagItem({
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="px-4 py-1.5 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
+      className="px-3 py-1.5 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
       title={name}
     >
       <Tag size={16} className="shrink-0" />

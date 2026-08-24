@@ -10,7 +10,6 @@ export type PipelineStoreState = {
   openSpecificationId: string | null;
   expandedChanges: Record<string, boolean>;
   prepareOpen: boolean;
-  railTab: 'activity' | 'tools';
   lastPreparedCount: number | null;
   aiNotice: string | null;
 
@@ -22,7 +21,6 @@ export type PipelineStoreState = {
   setExpandedChanges: (updater: (prev: Record<string, boolean>) => Record<string, boolean>) => void;
   toggleExpandedChange: (changeId: string) => void;
   setPrepareOpen: (open: boolean) => void;
-  setRailTab: (tab: 'activity' | 'tools') => void;
   setLastPreparedCount: (count: number | null) => void;
   setAiNotice: (notice: string | null) => void;
   reset: () => void;
@@ -36,7 +34,6 @@ export const usePipelineStore = create<PipelineStoreState>((set) => ({
   openSpecificationId: null,
   expandedChanges: {},
   prepareOpen: false,
-  railTab: 'activity',
   lastPreparedCount: null,
   aiNotice: null,
 
@@ -54,7 +51,6 @@ export const usePipelineStore = create<PipelineStoreState>((set) => ({
       },
     })),
   setPrepareOpen: (prepareOpen) => set({ prepareOpen }),
-  setRailTab: (railTab) => set({ railTab }),
   setLastPreparedCount: (lastPreparedCount) => set({ lastPreparedCount }),
   setAiNotice: (aiNotice) => set({ aiNotice }),
   reset: () =>
@@ -66,7 +62,6 @@ export const usePipelineStore = create<PipelineStoreState>((set) => ({
       openSpecificationId: null,
       expandedChanges: {},
       prepareOpen: false,
-      railTab: 'activity',
       lastPreparedCount: null,
       aiNotice: null,
     }),

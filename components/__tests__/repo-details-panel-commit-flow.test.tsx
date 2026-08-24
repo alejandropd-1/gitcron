@@ -70,7 +70,6 @@ describe('RepoDetailsPanel — Flujo de Commit Unificado y Cuatro Estados (Fase 
       selectedChangeId: null,
       openSpecificationId: null,
       expandedChanges: {},
-      railTab: 'activity',
       lastPreparedCount: null,
     });
     useGitStore.setState({

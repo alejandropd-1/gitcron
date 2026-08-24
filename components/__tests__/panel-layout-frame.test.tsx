@@ -6,10 +6,13 @@ import { RepoSidebar } from '../RepoSidebar';
 import { RepoDetailsPanel } from '../RepoDetailsPanel';
 import { RepoMainView } from '../RepoMainView';
 import { OpenSpecDashboard } from '../pipeline/OpenSpecDashboard';
+import { OpenSpecSidebarNav } from '../pipeline/OpenSpecSidebarNav';
+import { OpenSpecInspector } from '../pipeline/OpenSpecInspector';
+import { SidebarSection } from '../RepoSidebarParts';
 import { usePanelLayout } from '@/hooks/use-panel-layout';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { useGitStore } from '@/lib/git-store';
-import { useSidebarSectionState } from '@/hooks/use-sidebar-section-state';
+import { openSidebarSection, useSidebarSectionState } from '@/hooks/use-sidebar-section-state';
 import type { PipelineSnapshot } from '../pipeline/pipeline-view-state';
 
 vi.mock('next/dynamic', () => ({
@@ -23,6 +26,7 @@ vi.mock('@/components/ChronometricGraph', () => ({
 
 vi.mock('@/components/CommitGraph', () => ({
   CommitGraph: () => <div data-testid="mock-commit-graph" />,
+  colorForBranch: () => '#ffffff',
 }));
 
 vi.mock('@/lib/new-change-draft-store', () => ({
@@ -318,6 +322,17 @@ describe('Panel layout armazón & separación de fondos (modo por omisión: chro
 
     const main = container.querySelector('main');
     expect(main?.className).not.toContain('border-t');
+
+    // Interior del panel derecho: no declara líneas divisorias ni bordes de maqueta
+    const rightPanelInterior = asides[1].querySelectorAll('*');
+    for (const el of Array.from(rightPanelInterior)) {
+      const cls = el.className;
+      if (typeof cls === 'string') {
+        expect(cls).not.toContain('divide-y');
+        expect(cls).not.toContain('divide-border-subtle');
+        expect(cls).not.toContain('border-b border-border-subtle');
+      }
+    }
   });
 
   it('el contenedor del grafo en RepoMainView lleva bg-bg-base en modo cronométrico', () => {
@@ -1509,5 +1524,476 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
     expect(result.current.isOpen('details-unstaged')).toBe(false);
     expect(result.current.isOpen('local')).toBe(false);
     expect(result.current.isOpen('remoto')).toBe(false);
+  });
+
+  it('6. Que la sección de herramientas se gobierna únicamente con sectionState (4.10: un solo clic en el encabezado la cierra)', () => {
+    const repo = 'C:/tools-single-source-repo';
+    window.localStorage.removeItem(`gitcron:sidebarSections:${repo}`);
+
+    useGitStore.setState({ repoPath: repo });
+
+    const { rerender } = render(<OpenSpecInspector repoPath={repo} />);
+
+    // Por omisión, details-tools está cerrada
+    const toolsBtn = screen.getByRole('button', { name: /pipeline\.openspec\.rail\.tools/ });
+    expect(toolsBtn.getAttribute('aria-expanded')).toBe('false');
+
+    // Se simula la acción del aviso del centro "Abrir herramientas"
+    act(() => {
+      openSidebarSection(repo, 'details-tools');
+    });
+
+    rerender(<OpenSpecInspector repoPath={repo} />);
+    expect(toolsBtn.getAttribute('aria-expanded')).toBe('true');
+
+    // El primer clic en el encabezado DEBE cerrarla inmediatamente (sin estado paralelo)
+    fireEvent.click(toolsBtn);
+    expect(toolsBtn.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('7. Que el encabezado de SidebarSection presenta el ícono antes del título y el control de plegado después (4.15)', () => {
+    const { container } = render(
+      <SidebarSection
+        title="Sección de prueba"
+        icon={<span data-testid="custom-section-icon">ICON</span>}
+      >
+        <div>Contenido</div>
+      </SidebarSection>
+    );
+
+    const toggleButton = screen.getByRole('button', { name: /Sección de prueba/ });
+    const children = Array.from(toggleButton.children);
+    expect(children.length).toBe(3);
+
+    // 1. Ícono
+    expect(children[0].querySelector('[data-testid="custom-section-icon"]')).not.toBeNull();
+    // 2. Título
+    expect(children[1].textContent).toBe('Sección de prueba');
+    // 3. Control de plegado (ChevronRight)
+    expect(children[2].tagName.toLowerCase()).toBe('svg');
+
+    // Espacio flexible inmediatamente después del botón en el contenedor del encabezado
+    const headerContainer = toggleButton.parentElement;
+    expect(headerContainer?.children[1]?.className).toContain('flex-1');
+  });
+
+  it('8. Que ninguna de las veintiuna secciones queda sin ícono y ningún ícono de sección declara clase de color (4.15)', () => {
+    const repo = 'C:/all-sections-repo';
+    useGitStore.setState({
+      repoPath: repo,
+      branches: ['main'],
+      remoteBranches: ['origin/main'],
+      githubUser: { login: 'octocat' } as any,
+      pullRequests: [{ number: 1, title: 'PR 1', branch: 'feat', additions: 1, deletions: 0, draft: false, url: '' } as any],
+      stashes: [{ index: 0, message: 'stash 0', date: '2026-08-24' } as any],
+      tags: ['v1.0.0'],
+      remotes: [{ name: 'origin', fetchUrl: 'https://github.com/test/repo', pushUrl: 'https://github.com/test/repo' }],
+      worktrees: [{ path: 'C:/wt', branch: 'wt-branch' } as any],
+      submodules: [{ name: 'sub', path: 'sub', url: 'https://github.com/test/sub' } as any],
+      selectedCommit: {
+        hash: '1234567890abcdef',
+        shortHash: '1234567',
+        message: 'commit msg',
+        authorName: 'Ale',
+        authorEmail: 'ale@example.com',
+        date: '2026-08-24T12:00:00Z',
+      } as any,
+      modifiedFiles: [{ path: 'file1.ts', status: 'modified', staged: false }],
+    });
+
+    const mockSnapshot: PipelineSnapshot = {
+      openSpec: {
+        activeChanges: [{ changeId: 'change-1', intent: 'intent', tasks: [], proposalExists: true, designExists: true, specsCount: 1, validation: 'passed', artifacts: null, status: null } as any],
+        archivedChanges: [{ changeId: 'change-archived', archivedAt: '2026-08-24' } as any],
+        specifications: [{ specificationId: 'spec-1', sourceRef: 'ref', requirements: 1 }],
+      } as any,
+      decisions: [{ decisionId: 'dec-1', repoId: 'repo', changeId: 'change-1', title: 'dec', kind: 'clarification', status: 'pending', summary: 'sum', risk: 'low', riskReason: null, provenance: 'human', evidenceRefs: [], options: [], requestedAt: '2026-08-24' } as any],
+    } as any;
+
+    const { container: sidebarContainer } = render(
+      <RepoSidebar
+        graphMode="chronometric"
+        sidebarW={280}
+        sidebarOpen={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        activeView="repository"
+        onViewChange={vi.fn()}
+        isRepoStartView={false}
+        repoStartMode="open"
+        onRepoStartModeChange={vi.fn()}
+        onCloseRepoChooser={vi.fn()}
+        selectedBranchName="main"
+        onCheckoutAttempt={vi.fn()}
+        onSelectBranchInGraph={vi.fn()}
+        onBranchContextMenu={vi.fn()}
+        onRemoteBranchContextMenu={vi.fn()}
+        onDeleteBranchRequest={vi.fn()}
+        selectedPullRequest={null}
+        onSelectPullRequest={vi.fn()}
+        onPreviewStash={vi.fn()}
+        onCreateTagRequest={vi.fn()}
+        onDeleteTagRequest={vi.fn()}
+        selectedSettingsSection="general"
+        onSettingsSectionChange={vi.fn()}
+        selectedHelpSection="general"
+        onHelpSectionChange={vi.fn()}
+        onToggleCartography={vi.fn()}
+      />
+    );
+
+    const { container: openSpecSidebarContainer } = render(
+      <OpenSpecSidebarNav snapshot={mockSnapshot} />
+    );
+
+    const { container: detailsWithCommitContainer } = render(
+      <RepoDetailsPanel
+        activeTab="Graph"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    useGitStore.setState({ selectedCommit: null });
+    const { container: detailsStagingContainer } = render(
+      <RepoDetailsPanel
+        activeTab="Graph"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    const { container: inspectorContainer } = render(
+      <OpenSpecInspector snapshot={mockSnapshot} />
+    );
+
+    const allContainers = [
+      sidebarContainer,
+      openSpecSidebarContainer,
+      detailsWithCommitContainer,
+      detailsStagingContainer,
+      inspectorContainer,
+    ];
+
+    const forbiddenColorClasses = ['text-primary', 'text-secondary', 'text-git-mod', 'text-error', 'text-amber', 'text-cyan', 'text-blue', 'text-red', 'text-green', 'text-yellow'];
+
+    let totalSectionHeadersFound = 0;
+    const seenTitles = new Set<string>();
+
+    for (const cnt of allContainers) {
+      const headerButtons = cnt.querySelectorAll('button[aria-expanded]');
+      for (const btn of Array.from(headerButtons)) {
+        // Ignora botones que no sean encabezados de SidebarSection (por ejemplo changeToggle en lista interna)
+        const iconSpan = btn.children[0];
+        const titleSpan = btn.children[1];
+        const chevronSvg = btn.children[2];
+
+        if (!titleSpan || !chevronSvg || chevronSvg.tagName.toLowerCase() !== 'svg') continue;
+
+        const titleText = titleSpan.textContent?.trim() || '';
+        if (seenTitles.has(titleText)) continue;
+        seenTitles.add(titleText);
+        totalSectionHeadersFound++;
+
+        // 1. Tiene ícono antes del título
+        expect(iconSpan).toBeDefined();
+        const iconSvg = iconSpan.querySelector('svg') || (iconSpan.tagName.toLowerCase() === 'svg' ? iconSpan : null);
+        expect(iconSvg).not.toBeNull();
+
+        // 2. Ningún ícono ni su contenedor declara clase de color propia
+        const iconClass = (iconSvg as Element)?.getAttribute('class') || '';
+        const iconSpanClass = iconSpan.getAttribute('class') || '';
+        for (const forbidden of forbiddenColorClasses) {
+          expect(iconClass).not.toContain(forbidden);
+          expect(iconSpanClass).not.toContain(forbidden);
+        }
+      }
+    }
+
+    // Comprobamos que se cubrieron las 21 secciones únicas
+    expect(totalSectionHeadersFound).toBe(21);
+  });
+
+  it('9. Que las filas de primer nivel y el encabezado de sección declaran el mismo desplazamiento izquierdo (4.17)', () => {
+    const repo = 'C:/alignment-repo';
+    useGitStore.setState({
+      repoPath: repo,
+      branches: ['main', 'feature/login'],
+      currentBranch: 'main',
+      remoteBranches: [],
+      branchTracking: {},
+      stashes: [],
+      tags: [],
+      remotes: [],
+      worktrees: [],
+      submodules: [],
+      pullRequests: [],
+      githubUser: null,
+      selectedCommit: null,
+      modifiedFiles: [],
+      isLoading: false,
+    });
+
+    openSidebarSection(repo, 'local');
+
+    const { container } = render(
+      <RepoSidebar
+        graphMode="chronometric"
+        sidebarW={280}
+        sidebarOpen={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        activeView="repository"
+        onViewChange={vi.fn()}
+        isRepoStartView={false}
+        repoStartMode="open"
+        onRepoStartModeChange={vi.fn()}
+        onCloseRepoChooser={vi.fn()}
+        selectedBranchName="main"
+        onCheckoutAttempt={vi.fn()}
+        onSelectBranchInGraph={vi.fn()}
+        onBranchContextMenu={vi.fn()}
+        onRemoteBranchContextMenu={vi.fn()}
+        onDeleteBranchRequest={vi.fn()}
+        selectedPullRequest={null}
+        onSelectPullRequest={vi.fn()}
+        onPreviewStash={vi.fn()}
+        onCreateTagRequest={vi.fn()}
+        onDeleteTagRequest={vi.fn()}
+        selectedSettingsSection="general"
+        onSettingsSectionChange={vi.fn()}
+        selectedHelpSection="general"
+        onHelpSectionChange={vi.fn()}
+        onToggleCartography={vi.fn()}
+      />
+    );
+
+    // 1. Leer desplazamiento del encabezado de la sección 'local'
+    const sectionToggle = screen.getByRole('button', { name: /sidebar\.local/ });
+    const sectionHeaderDiv = sectionToggle.parentElement!;
+    const headerClasses = sectionHeaderDiv.className.split(/\s+/);
+    const headerPaddingLeft = headerClasses.find((c) => c.startsWith('pl-') || c.startsWith('px-'));
+    expect(headerPaddingLeft).toBe('px-3'); // 12px
+
+    // 2. Fila de rama raíz ('main'): tiene que declarar el mismo desplazamiento (12px)
+    const mainBranchRow = screen.getByText('main').closest('div')!;
+    const mainRowClasses = mainBranchRow.className.split(/\s+/);
+    const mainRowPaddingLeft = mainRowClasses.find((c) => c.startsWith('pl-') || c.startsWith('px-'));
+    expect(mainRowPaddingLeft).toBe('pl-3');
+    // Ambos equivalen a 12px desde el borde izquierdo
+    expect(mainRowPaddingLeft).toBe('pl-3');
+
+    // 3. Botón de carpeta raíz ('feature'): tiene que declarar 12px
+    const folderButton = screen.getByText('feature').closest('button')!;
+    const folderClasses = folderButton.className.split(/\s+/);
+    const folderPaddingLeft = folderClasses.find((c) => c.startsWith('pl-') || c.startsWith('px-'));
+    expect(folderPaddingLeft).toBe('pl-3');
+
+    // 4. Desplegar carpeta 'feature' y verificar el nivel anidado (32px = 12px + 20px escalón)
+    fireEvent.click(folderButton);
+    const nestedBranchRow = screen.getByText('login').closest('div')!;
+    const nestedRowClasses = nestedBranchRow.className.split(/\s+/);
+    const nestedRowPaddingLeft = nestedRowClasses.find((c) => c.startsWith('pl-') || c.startsWith('px-'));
+    expect(nestedRowPaddingLeft).toBe('pl-8'); // 32px
+  });
+
+  it('10. Que el control de plegado sólo aparece al pasar por encima y la fila del encabezado comparte las clases de hover de las acciones del lateral (4.18)', () => {
+    const repo = 'C:/hover-classes-repo';
+    useGitStore.setState({
+      repoPath: repo,
+      branches: ['main'],
+      currentBranch: 'main',
+      remoteBranches: [],
+      branchTracking: {},
+      stashes: [],
+      tags: [],
+      remotes: [],
+      worktrees: [],
+      submodules: [],
+      pullRequests: [],
+      githubUser: null,
+      selectedCommit: null,
+      modifiedFiles: [],
+      isLoading: false,
+    });
+
+    render(
+      <RepoSidebar
+        graphMode="chronometric"
+        sidebarW={280}
+        sidebarOpen={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        activeView="repository"
+        onViewChange={vi.fn()}
+        isRepoStartView={false}
+        repoStartMode="open"
+        onRepoStartModeChange={vi.fn()}
+        onCloseRepoChooser={vi.fn()}
+        selectedBranchName="main"
+        onCheckoutAttempt={vi.fn()}
+        onSelectBranchInGraph={vi.fn()}
+        onBranchContextMenu={vi.fn()}
+        onRemoteBranchContextMenu={vi.fn()}
+        onDeleteBranchRequest={vi.fn()}
+        selectedPullRequest={null}
+        onSelectPullRequest={vi.fn()}
+        onPreviewStash={vi.fn()}
+        onCreateTagRequest={vi.fn()}
+        onDeleteTagRequest={vi.fn()}
+        selectedSettingsSection="general"
+        onSettingsSectionChange={vi.fn()}
+        selectedHelpSection="general"
+        onHelpSectionChange={vi.fn()}
+        onToggleCartography={vi.fn()}
+      />
+    );
+
+    // 1. El chevron declara opacity-0 y group-hover:opacity-100 / group-focus-within:opacity-100
+    const localSectionToggle = screen.getByRole('button', { name: /sidebar\.local/ });
+    const chevronSvg = localSectionToggle.children[2];
+    expect(chevronSvg.tagName.toLowerCase()).toBe('svg');
+    const chevronClasses = chevronSvg.getAttribute('class') || '';
+    expect(chevronClasses).toContain('opacity-0');
+    expect(chevronClasses).toContain('group-hover:opacity-100');
+    expect(chevronClasses).toContain('group-focus-within:opacity-100');
+
+    // 2. La fila del encabezado y un botón de quickActions declaran las MISMAS clases de hover leídas dinámicamente del DOM
+    const quickActionButton = screen.getByRole('button', { name: 'toolbar.pull' });
+    const sectionHeaderDiv = localSectionToggle.parentElement!;
+
+    const actionHoverClasses = quickActionButton.className
+      .split(/\s+/)
+      .filter((c) => c.startsWith('hover:'))
+      .sort();
+    const sectionHoverClasses = sectionHeaderDiv.className
+      .split(/\s+/)
+      .filter((c) => c.startsWith('hover:'))
+      .sort();
+
+    expect(sectionHoverClasses).toEqual(actionHoverClasses);
+    expect(sectionHoverClasses).toContain('hover:bg-text-primary/10');
+    expect(sectionHoverClasses).toContain('hover:text-text-primary');
+  });
+
+  it('11. Que apretar el botón central «Abrir herramientas» despliega la sección details-tools en el inspector (Prueba de 4.10)', async () => {
+    const repo = 'C:/center-tools-btn-repo';
+    window.localStorage.removeItem(`gitcron:sidebarSections:${repo}`);
+
+    (window as any).api = {
+      ...((window as any).api || {}),
+      pipelineOpenSpec: {
+        ...((window as any).api?.pipelineOpenSpec || {}),
+        getEngineStatus: vi.fn().mockResolvedValue({
+          version: '1.8.0',
+          versionClass: 'supported',
+          integrationState: 'outdated',
+          repoState: 'ready',
+          cli: {
+            installed: true,
+            runtimeVersion: '1.8.0',
+            diagnostics: [],
+          },
+          divergence: { isDivergent: false, divergedFiles: [] },
+        }),
+        checkLatestVersion: vi.fn().mockResolvedValue(null),
+      },
+    };
+
+    useGitStore.setState({
+      repoPath: repo,
+      currentBranch: 'main',
+      branches: ['main'],
+      remoteBranches: [],
+      branchTracking: {},
+      modifiedFiles: [],
+      isLoading: false,
+    });
+
+    const mockSnapshotWithNotice: PipelineSnapshot = {
+      schemaVersion: '1.0',
+      repoId: 'repo-test',
+      availableSources: ['git', 'runtime', 'openspec'],
+      hasPipelineActivity: false,
+      decisions: [],
+      agents: [],
+      activity: [],
+      economy: {
+        tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
+        costUsd: 0,
+        costBasis: 'runtime_reported',
+        costCoverage: { withCost: 0, total: 0 },
+        contextMaxTokens: 200000,
+        contextCurrentTokens: 0,
+        compactionCount: 0,
+        reasoningAvailable: true,
+      },
+      diffs: [],
+      openSpec: {
+        selectedChangeId: null,
+        activeChanges: [],
+        archivedChanges: [],
+        specifications: [],
+        reports: [],
+        diagnostics: [],
+        observedAt: '2026-08-24T12:00:00Z',
+        latestGate: null,
+      },
+    };
+
+    render(
+      <div className="flex">
+        <OpenSpecDashboard
+          repoPath={repo}
+          currentBranch="main"
+          workingTreeClean={true}
+          snapshot={mockSnapshotWithNotice}
+          projection={null}
+          runtimeHistory={[]}
+          onPauseAfterTask={vi.fn()}
+          onRespondDecision={vi.fn()}
+          onEnsureRightOpen={vi.fn()}
+        />
+        <OpenSpecInspector repoPath={repo} snapshot={mockSnapshotWithNotice} />
+      </div>
+    );
+
+    // 1. Inicialmente details-tools está cerrada
+    const toolsSectionBtn = screen.getByRole('button', { name: /pipeline\.openspec\.rail\.tools/ });
+    expect(toolsSectionBtn.getAttribute('aria-expanded')).toBe('false');
+
+    // 2. Se encuentra el botón en el centro ("Abrir herramientas")
+    const openToolsCenterBtn = await screen.findByRole('button', { name: 'pipeline.openspec.engine.openToolsTab' });
+    expect(openToolsCenterBtn).toBeDefined();
+
+    // 3. Se hace clic en el botón del centro
+    fireEvent.click(openToolsCenterBtn);
+
+    // 4. La sección details-tools en el inspector queda desplegada
+    expect(toolsSectionBtn.getAttribute('aria-expanded')).toBe('true');
   });
 });

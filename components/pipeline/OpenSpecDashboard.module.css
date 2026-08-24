@@ -1604,32 +1604,7 @@
 .readinessLink:hover { border-color: var(--os-border-strong); background: var(--os-surface); color: var(--os-cyan); }
 .readinessLink:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
 
-/* Solapas del rail. La cuenta de pendientes va en la propia solapa: si hubiera
-   que abrirla para saber que falta algo, dejaría de ser un aviso. */
-.railTabs { display: flex; gap: var(--sp-1); margin-bottom: var(--sp-3); border-bottom: 1px solid var(--os-border); }
-.railTabs button {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-1);
-  padding: var(--sp-2) var(--sp-3);
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--os-muted);
-  cursor: pointer;
-  font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
-}
-.railTabs button[aria-selected='true'] { border-bottom-color: var(--os-cyan); color: var(--os-cyan); }
-.railTabs button:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
-.railTabBadge {
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-xl);
-  background: var(--os-amber, #d8a657);
-  color: #0a1f31;
-  font-size: var(--font-size-xs);
-  font-style: normal;
-  font-weight: 700;
-}
+
 .readinessList { display: grid; gap: var(--sp-1); margin: var(--sp-3) 0 0; padding: 0; list-style: none; }
 .readinessList > li {
   display: grid;

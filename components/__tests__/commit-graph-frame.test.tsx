@@ -178,7 +178,6 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
       /\.backToStart/, // CONTROL: botón de retorno
       /\.readiness/, // TARJETA / DATO / CONTROL: aviso del repositorio
       /\.branchBase/, // DATO: advertencia de rama base
-      /\.railTabs/, // PANEL DERECHO
       /\.railInitAction/, // CONTROL en panel derecho
       /\.railChoose/, // CONTROL / TARJETA en panel derecho
       /\.nextStep/, // TARJETA / DATO: banner de siguiente paso

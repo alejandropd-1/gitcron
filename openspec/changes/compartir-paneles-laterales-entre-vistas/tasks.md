@@ -113,35 +113,35 @@ rediseño empieza en 4.4.
 **Corrección de rumbo del 2026-08-24, segunda.** La auditoría del rediseño encontró cinco defectos y
 Alejandro pidió dos cambios sobre lo que vio funcionando. Van como 4.10 a 4.16, antes de la revisión.
 
-- [ ] 4.10 Una sola fuente para la sección de herramientas.
+- [x] 4.10 Una sola fuente para la sección de herramientas.
   `OpenSpecInspector.tsx:340` la abre con
   `sectionState.isOpen('details-tools') || storeRailTab === 'tools'`: dos estados para un booleano,
   conciliados con un `||` y un toggle compensatorio. Se puede reproducir: después de apretar «Abrir
   herramientas» desde el aviso del centro, el primer clic en el encabezado de Herramientas no la
   cierra, porque el toggle apaga una copia y prende la otra. El botón del centro tiene que abrir la
   sección, no encender un estado paralelo.
-- [ ] 4.11 Retirar `components/StagingPanel.tsx`, que quedó sin ningún consumidor.
+- [x] 4.11 Retirar `components/StagingPanel.tsx`, que quedó sin ningún consumidor.
   Sus 339 líneas ya no se montan: el panel derecho reescribió su contenido como secciones y sólo le
   importa `StagingFileRow`. Es una segunda copia del flujo de commit, que es exactamente lo que este
   change existe para eliminar. Mudar `StagingFileRow` a donde corresponda, retirar el resto, y
   declarar qué queda huérfano —`staging.commitBtn` y `staging.openRepoPrompt` en los tres idiomas—.
   De paso, la lista de preparados de la vista del ciclo (`RepoDetailsPanel.tsx:228`) escribe una
   tercera fila de archivo a mano en vez de usar `StagingFileRow`: unificarla o declarar por qué no.
-- [ ] 4.12 Retirar las líneas divisorias que volvieron al panel derecho:
+- [x] 4.12 Retirar las líneas divisorias que volvieron al panel derecho:
   `divide-y divide-border-subtle/10` en `RepoDetailsPanel.tsx:291` y `:462`, y
   `border-b border-border-subtle/15` en `:277`. Contradicen el requisito vigente que la tarea 5.2
   aplicó al cuerpo de SDD: la separación se da por fondo y espacio. La prueba que debería atajarlo
   —`panel-layout-frame.test.tsx:234`— sólo mira la barra de título, los dos `aside` y el `main`, y
   nunca entra al interior del panel: extenderla.
-- [ ] 4.13 Retirar el estado zombi `railTab`, que quedó en tres copias al desaparecer las solapas:
+- [x] 4.13 Retirar el estado zombi `railTab`, que quedó en tres copias al desaparecer las solapas:
   el store (`pipeline-store.ts:13`), un `useState` local en `OpenSpecDashboard.tsx:387` sincronizado
   por un `subscribe` (`:378`), y una derivación que nadie lee en `OpenSpecInspector.tsx:109`.
   Con él salen los huérfanos que dejó: las reglas `.railTabs` y `.railTabBadge` de la hoja de
   estilos, la clave `pipeline.openspec.rail.label` en los tres idiomas, y la entrada `/\.railTabs/`
   de la lista blanca de bordes de `commit-graph-frame.test.tsx:181`.
-- [ ] 4.14 Una sola lista de secciones abiertas por omisión. `DEFAULT_OPEN_RIGHT_PANEL` está escrita
+- [x] 4.14 Una sola lista de secciones abiertas por omisión. `DEFAULT_OPEN_RIGHT_PANEL` está escrita
   dos veces, en `RepoDetailsPanel.tsx:26` y en `OpenSpecInspector.tsx:18`.
-- [ ] 4.15 El control de plegado pasa a la derecha del texto y a la izquierda queda un ícono.
+- [x] 4.15 El control de plegado pasa a la derecha del texto y a la izquierda queda un ícono.
   Pedido de Alejandro del 2026-08-24 sobre la aplicación funcionando. Vale para las veintiuna
   secciones de la aplicación, en `SidebarSection` (`components/RepoSidebarParts.tsx:32`): el orden
   pasa a ser ícono, título, control de plegado inmediatamente a su derecha, y recién después el
@@ -152,18 +152,29 @@ Alejandro pidió dos cambios sobre lo que vio funcionando. Van como 4.10 a 4.16,
   El color queda reservado a lo que identifica una entidad concreta, que en la aplicación ya son el
   punto de cada cambio en el lateral y el color de rama del grafo: ésos no se tocan y no se agregan
   otros. Los rótulos de columna no llevan ícono, y los controles de cada sección siguen a la derecha.
-- [ ] 4.16 Unificar los títulos de sección entre las dos vistas. En el lateral del grafo están
+- [x] 4.16 Unificar los títulos de sección entre las dos vistas. En el lateral del grafo están
   escritos en mayúsculas dentro de la propia cadena —`sidebar.local` vale `'LOCAL'`, y lo mismo
   `remote`, `stash`, `tags`, `worktrees`, `submodules`, `pullRequests` y `remotes`—, mientras que los
   de la vista del ciclo son `'Cambio activo'`, `'Completados recientes'` y `'Especificaciones'`. Se
   corrige en `lib/i18n.ts` en los tres idiomas. Los rótulos de columna —«Ramas y referencias» y
   «Ciclo de cambios»— ya comparten clases y no se tocan.
-- [ ] 4.17 Decidir qué queda del alto arrastrable con el panel ya hecho: si el panel no llega al piso
+- [ ] 4.17 Alinear a la izquierda el contenido de «Local» y «Remoto». Pedido de Alejandro del
+  2026-08-24 sobre la aplicación funcionando: los íconos de las filas de rama tienen que caer sobre
+  el mismo eje que el ícono de su sección, hoy corridos hacia adentro por `pl-[26px]` en
+  `RepoSidebarParts.tsx:332`, `:474`, `:534`, `:579` —y `pl-[46px]` en `:474` y `:595` para el nivel
+  anidado, que conserva su escalón—. Alcanza a `BranchTree` y a `RemoteBranchTree`.
+- [ ] 4.18 El control de plegado aparece sólo al pasar por encima, y la fila del encabezado se
+  comporta como los botones de acción del lateral. Pedido de Alejandro del 2026-08-24. Hoy el
+  chevron está siempre a la vista y el encabezado sólo cambia el color del texto
+  (`RepoSidebarParts.tsx:60`), mientras que Pull, Push y Nueva branch (`RepoSidebar.tsx:715`) usan
+  fondo, radio y contorno de foco propios. El control se revela con opacidad y no se retira del
+  árbol: tiene que seguir alcanzable con el teclado y seguir declarando si la sección está
+  desplegada.
+- [ ] 4.19 Decidir qué queda del alto arrastrable con el panel ya hecho: si el panel no llega al piso
   y su alto se arrastra, o si el desplazamiento de la lista lo vuelve innecesario. **La decide
   Alejandro** con el rediseño a la vista.
-- [ ] 4.18 Revisión visual: el panel acumula sus secciones, se pliegan las que no interesan, y
+- [ ] 4.20 Revisión visual: el panel acumula sus secciones, se pliegan las que no interesan, y
   ninguna empuja a las demás fuera de vista. **La comprueba Alejandro.**
-
 ## 5. El cuerpo de SDD
 
 - [x] 5.1 Retirar del cuerpo de SDD las columnas cuya función pasó a los lugares de panel del

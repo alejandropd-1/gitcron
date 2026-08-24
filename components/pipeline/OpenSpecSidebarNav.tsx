@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { BookOpen, CheckCircle2, ChevronDown, FileText, FolderOpen } from 'lucide-react';
+import { BookOpen, CheckCircle2, ChevronDown, CircleDot, FileText, FolderOpen } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { useReducedMotion, motion } from 'motion/react';
 import type { DetailTab } from './PipelineDetails';
@@ -114,6 +114,7 @@ export function OpenSpecSidebarNav({
       <SidebarSection
         title={t('pipeline.openspec.active.title')}
         count={activeChanges.length}
+        icon={<CircleDot size={13} aria-hidden="true" />}
         isOpen={sectionState.isOpen('openspec-active')}
         onToggle={() => sectionState.toggle('openspec-active')}
       >
@@ -202,6 +203,7 @@ export function OpenSpecSidebarNav({
       <SidebarSection
         title={t('pipeline.openspec.completed.title')}
         count={archivedChanges.length}
+        icon={<CheckCircle2 size={13} aria-hidden="true" />}
         isOpen={sectionState.isOpen('openspec-completed')}
         onToggle={() => sectionState.toggle('openspec-completed')}
       >
@@ -220,6 +222,7 @@ export function OpenSpecSidebarNav({
       <SidebarSection
         title={t('pipeline.openspec.specifications.title')}
         count={specifications.length}
+        icon={<FileText size={13} aria-hidden="true" />}
         isOpen={sectionState.isOpen('openspec-specifications')}
         onToggle={() => sectionState.toggle('openspec-specifications')}
       >

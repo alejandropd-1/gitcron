@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, BrainCircuit, CheckCircle2, FileCode2, MessageSquareText, Wrench } from 'lucide-react';
+import { Activity, AlertTriangle, BrainCircuit, CheckCircle2, FileCode2, MessageSquareText, Wrench } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { useGitStore } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { SidebarSection } from '@/components/RepoSidebarParts';
-import { useSidebarSectionState, type SidebarSectionState } from '@/hooks/use-sidebar-section-state';
+import { DEFAULT_OPEN_RIGHT_PANEL, useSidebarSectionState, type SidebarSectionState } from '@/hooks/use-sidebar-section-state';
 import type { OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpecUpdatePlan, RuntimeProjection } from '@/types/pipeline';
 import { DecisionInbox } from './DecisionInbox';
 import { OpenSpecEngineCard } from './OpenSpecEngineCard';
@@ -14,17 +14,6 @@ import { OpenSpecToolList } from './OpenSpecReadiness';
 import { groupActivity, resolveSessionStatusI18nKey, runtimeDisplayName, type ActivityChannel } from './pipeline-domain';
 import type { PipelineSnapshot } from './pipeline-view-state';
 import styles from './OpenSpecDashboard.module.css';
-
-const DEFAULT_OPEN_RIGHT_PANEL = [
-  'details-commit',
-  'details-commit-files',
-  'details-unstaged',
-  'details-staged',
-  'details-draft-log',
-  'details-commit-box',
-  'details-activity',
-  'details-attention',
-] as const;
 
 const ACTIVITY_ICONS: Record<ActivityChannel, React.ComponentType<{ size?: number }>> = {
   narrative: MessageSquareText,
@@ -66,8 +55,6 @@ export type OpenSpecInspectorProps = {
   workingTreeClean?: boolean;
   projection?: RuntimeProjection | null;
   runtimeHistory?: RuntimeProjection[];
-  railTab?: 'activity' | 'tools';
-  onSetRailTab?: (tab: 'activity' | 'tools') => void;
   onPauseAfterTask?: () => void;
   onRespondDecision?: (decisionId: string, optionId: string) => void;
   onOpenReview?: () => void;
@@ -83,8 +70,6 @@ export function OpenSpecInspector({
   workingTreeClean = true,
   projection: propProjection,
   runtimeHistory: propRuntimeHistory,
-  railTab: propRailTab,
-  onSetRailTab,
   onPauseAfterTask = () => undefined,
   onRespondDecision = () => undefined,
   onOpenReview,
@@ -97,8 +82,6 @@ export function OpenSpecInspector({
   const storeProjection = usePipelineStore((s) => s.projection);
   const storeHistory = usePipelineStore((s) => s.runtimeHistory);
   const storeSelectedId = usePipelineStore((s) => s.selectedChangeId);
-  const storeRailTab = usePipelineStore((s) => s.railTab);
-  const storeSetRailTab = usePipelineStore((s) => s.setRailTab);
 
   const gitStoreRepoPath = useGitStore((s) => s.repoPath);
 
@@ -106,15 +89,9 @@ export function OpenSpecInspector({
   const repoPath = propRepoPath ?? gitStoreRepoPath;
   const projection = propProjection !== undefined ? propProjection : storeProjection;
   const runtimeHistory = propRuntimeHistory !== undefined ? propRuntimeHistory : storeHistory;
-  const railTab = propRailTab ?? storeRailTab;
 
   const localSectionState = useSidebarSectionState(repoPath, DEFAULT_OPEN_RIGHT_PANEL);
   const sectionState = propSectionState ?? localSectionState;
-
-  const setRailTab = (tab: 'activity' | 'tools') => {
-    if (onSetRailTab) onSetRailTab(tab);
-    storeSetRailTab(tab);
-  };
 
   const openSpec = snapshot?.openSpec;
   const openChangeId = storeSelectedId ?? openSpec?.selectedChangeId ?? null;
@@ -159,7 +136,7 @@ export function OpenSpecInspector({
 
   const openSpecTools = snapshot?.openSpec?.openSpecTools ?? [];
   const openSpecPresent = snapshot?.openSpec?.openSpecPresent ?? (engineStatus?.repoState === 'initialized');
-  const pendingToolCount = (engineStatus?.cli.diagnostics.length ?? 0) + (engineStatus?.integrationState === 'outdated' ? 1 : 0);
+  const pendingToolCount = (engineStatus?.cli?.diagnostics?.length ?? 0) + (engineStatus?.integrationState === 'outdated' ? 1 : 0);
 
   const runtimeSessions = useMemo(() => {
     const combined = [...(runtimeHistory ?? [])];
@@ -319,6 +296,7 @@ export function OpenSpecInspector({
         <SidebarSection
           title={t('pipeline.openspec.attention.title')}
           count={snapshot?.decisions?.length}
+          icon={<AlertTriangle size={13} aria-hidden="true" />}
           isOpen={sectionState.isOpen('details-attention')}
           onToggle={() => sectionState.toggle('details-attention')}
         >
@@ -337,19 +315,14 @@ export function OpenSpecInspector({
           title={t('pipeline.openspec.rail.tools')}
           count={pendingToolCount > 0 ? pendingToolCount : undefined}
           icon={<Wrench size={13} aria-hidden="true" />}
-          isOpen={sectionState.isOpen('details-tools') || storeRailTab === 'tools'}
-          onToggle={() => {
-            if (storeRailTab === 'tools') storeSetRailTab('activity');
-            sectionState.toggle('details-tools');
-          }}
+          isOpen={sectionState.isOpen('details-tools')}
+          onToggle={() => sectionState.toggle('details-tools')}
         >
           <div className={styles.toolsRailContent}>
             <OpenSpecEngineCard
               status={effectiveEngineStatus}
               isLoading={engineLoading}
-              onOpenToolsTab={() => {
-                if (!sectionState.isOpen('details-tools')) sectionState.toggle('details-tools');
-              }}
+              onOpenToolsTab={() => sectionState.open('details-tools')}
               onOpenReview={onOpenReview}
               isReviewOpen={isReviewOpen}
             />

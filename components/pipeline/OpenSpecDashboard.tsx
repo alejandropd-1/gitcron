@@ -38,6 +38,7 @@ import { useGitStore, type GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { archivedChangeId, deriveRepoCommitScope, fileKind, soleChangeId, suggestCommitMessage, type ChangeAttribution, type CommitFileOrigin } from '@/lib/change-commit-scope';
 import { changeIdFromBranch } from '@/lib/change-branch';
+import { openSidebarSection } from '@/hooks/use-sidebar-section-state';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { AiElapsed } from './AiElapsed';
 import { CommitDraftLog } from './CommitDraftLog';
@@ -229,7 +230,7 @@ export function OpenSpecDashboard({
   onResizeRight,
   onEnsureRightOpen,
   projection,
-  runtimeHistory,
+  runtimeHistory = [],
   fixtureActive = false,
   revalidating = false,
   onRefresh,
@@ -375,20 +376,9 @@ export function OpenSpecDashboard({
       if (state.openSpecificationId !== prevState.openSpecificationId) {
         setOpenSpecificationIdState(state.openSpecificationId);
       }
-      if (state.railTab !== prevState.railTab) {
-        setRailTabState(state.railTab);
-      }
     });
   }, []);
-  /**
-   * Solapa del rail. Arranca en actividad: es lo que cambia mientras se trabaja,
-   * y el estado de las herramientas se consulta cuando hace falta.
-   */
-  const [railTab, setRailTabState] = useState<'activity' | 'tools'>('activity');
-  const setRailTab = (tab: 'activity' | 'tools') => {
-    setRailTabState(tab);
-    usePipelineStore.getState().setRailTab(tab);
-  };
+
   const [reviewOpen, setReviewOpen] = useState(false);
   const [updatePlan, setUpdatePlan] = useState<OpenSpecUpdatePlan | null>(null);
 
@@ -396,7 +386,7 @@ export function OpenSpecDashboard({
     if (onEnsureRightOpen) {
       onEnsureRightOpen();
     }
-    setRailTab('tools');
+    openSidebarSection(repoPath, 'details-tools');
   };
 
   const openReview = () => {
@@ -522,9 +512,9 @@ export function OpenSpecDashboard({
    * y no hay contra qué restringir.
    */
   const openChangeId = selectedChange?.changeId ?? selectedArchive?.changeId ?? null;
-  const runtimeSessions = [projection, ...runtimeHistory]
-    .filter((entry): entry is RuntimeProjection => entry !== null)
-    .filter((entry, index, list) => list.findIndex((candidate) => candidate.sessionId === entry.sessionId) === index)
+  const runtimeSessions = [projection, ...(runtimeHistory || [])]
+    .filter((entry): entry is RuntimeProjection => Boolean(entry))
+    .filter((entry, index, list) => list.findIndex((candidate) => candidate?.sessionId === entry.sessionId) === index)
     .filter((entry) => openChangeId === null || entry.changeId === openChangeId)
     .sort((left, right) => right.startedAt.localeCompare(left.startedAt));
   // La proyección activa deja de privilegiarse por estar corriendo: si es de
@@ -1675,7 +1665,7 @@ export function OpenSpecDashboard({
                     tools={openSpecTools}
                     onShowDetail={() => {
                       if (onEnsureRightOpen) onEnsureRightOpen();
-                      setRailTab('tools');
+                      openSidebarSection(repoPath, 'details-tools');
                     }}
                   />
                 )}

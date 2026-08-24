@@ -46,10 +46,48 @@ function readStoredSections(repoPath: string | null): SectionRecord {
   }
 }
 
+export const DEFAULT_OPEN_RIGHT_PANEL = [
+  'details-commit',
+  'details-commit-files',
+  'details-unstaged',
+  'details-staged',
+  'details-draft-log',
+  'details-commit-box',
+  'details-activity',
+  'details-attention',
+] as const;
+
 export type SidebarSectionState = {
   isOpen: (sectionId: string) => boolean;
   toggle: (sectionId: string) => void;
+  open: (sectionId: string) => void;
+  setOpen: (sectionId: string, open: boolean) => void;
 };
+
+function writeStoredSections(repoPath: string | null, next: SectionRecord): void {
+  const key = storageKey(repoPath);
+  if (key && typeof window !== 'undefined') {
+    try {
+      window.localStorage?.setItem(key, JSON.stringify(next));
+      if (typeof window.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('gitcron:sidebarSections', { detail: { repoPath } }));
+      }
+    } catch {
+      // En modo privado o storage lleno no rompe la sesión
+    }
+  }
+}
+
+export function openSidebarSection(repoPath: string | null, sectionId: string): void {
+  if (!repoPath) return;
+  const currentStored = readStoredSections(repoPath);
+  if (currentStored[sectionId] === true) return;
+  const next: SectionRecord = {
+    ...currentStored,
+    [sectionId]: true,
+  };
+  writeStoredSections(repoPath, next);
+}
 
 export function useSidebarSectionState(
   repoPath: string | null,
@@ -60,6 +98,22 @@ export function useSidebarSectionState(
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setSections(readStoredSections(repoPath));
+  }, [repoPath]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+    const handleSync = (event: Event) => {
+      const customEvent = event as CustomEvent<{ repoPath?: string | null }>;
+      if (!customEvent.detail?.repoPath || customEvent.detail.repoPath === repoPath) {
+        setSections(readStoredSections(repoPath));
+      }
+    };
+    window.addEventListener('gitcron:sidebarSections', handleSync);
+    return () => {
+      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+        window.removeEventListener('gitcron:sidebarSections', handleSync);
+      }
+    };
   }, [repoPath]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -73,29 +127,36 @@ export function useSidebarSectionState(
     [sections, defaultOpen],
   );
 
+  const setOpen = useCallback(
+    (sectionId: string, shouldOpen: boolean) => {
+      const currentStored = readStoredSections(repoPath);
+      const next: SectionRecord = {
+        ...currentStored,
+        [sectionId]: shouldOpen,
+      };
+      writeStoredSections(repoPath, next);
+      setSections(next);
+    },
+    [repoPath],
+  );
+
+  const open = useCallback(
+    (sectionId: string) => {
+      setOpen(sectionId, true);
+    },
+    [setOpen],
+  );
+
   const toggle = useCallback(
     (sectionId: string) => {
       const currentStored = readStoredSections(repoPath);
       const currentlyOpen = sectionId in currentStored
         ? currentStored[sectionId]
         : Boolean(defaultOpen?.includes(sectionId));
-      const next: SectionRecord = {
-        ...currentStored,
-        [sectionId]: !currentlyOpen,
-      };
-
-      const key = storageKey(repoPath);
-      if (key && typeof window !== 'undefined') {
-        try {
-          window.localStorage.setItem(key, JSON.stringify(next));
-        } catch {
-          // En modo privado o storage lleno no rompe la sesión
-        }
-      }
-      setSections(next);
+      setOpen(sectionId, !currentlyOpen);
     },
-    [repoPath, defaultOpen],
+    [repoPath, defaultOpen, setOpen],
   );
 
-  return { isOpen, toggle };
+  return { isOpen, toggle, open, setOpen };
 }

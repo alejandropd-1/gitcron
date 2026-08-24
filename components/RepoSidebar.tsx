@@ -14,11 +14,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Activity, AlertCircle, AlertTriangle, Archive, ArrowLeft, Check, CheckCircle2,
+  Activity, AlertCircle, AlertTriangle, Archive, ArrowLeft, Boxes, Check, CheckCircle2,
   ChevronDown, Cloud, Download, Edit2, ExternalLink, FileInput, FileText,
-  Folder, FolderOpen, GitBranch, GitMerge, Github, Globe, HelpCircle, Layers,
-  Link2, Lock, Map, Monitor, Plus, Redo, RefreshCw, RotateCcw, Settings,
-  SlidersHorizontal, Sparkles, Terminal, Trash2, TreePine, Type, Undo, Upload,
+  Folder, FolderOpen, FolderTree, GitBranch, GitMerge, GitPullRequest, Github, Globe, HelpCircle, Layers,
+  Link2, Lock, Map, Monitor, Plus, Redo, RefreshCw, RotateCcw, Server, Settings,
+  SlidersHorizontal, Sparkles, Tag, Terminal, Trash2, TreePine, Type, Undo, Upload,
   UserCircle2, Zap,
 } from 'lucide-react';
 import { useGitStore } from '@/lib/git-store';
@@ -268,7 +268,7 @@ function SidebarRemoteItem({
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="px-4 py-1 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
+      className="px-3 py-1 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
       title={titleText}
     >
       <Globe size={14} className="shrink-0 text-text-secondary" />
@@ -323,7 +323,7 @@ function SidebarWorktreeItem({
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="px-4 py-1 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
+      className="px-3 py-1 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
       title={wt.path}
     >
       <button
@@ -362,13 +362,13 @@ function SidebarSubmoduleItem({
   sm: SubmoduleEntry;
   onUpdate: () => void;
   onSync: () => void;
-}) {
+  }) {
   const [isHovered, setIsHovered] = useState(false);
   return (
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="px-4 py-1.5 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
+      className="px-3 py-1.5 flex items-center gap-3 text-sm text-text-secondary hover:bg-border-subtle hover:text-text-primary transition-colors group relative"
       title={`${sm.path}\nCommit: ${sm.hash}`}
     >
       <Layers size={14} className="shrink-0 text-text-secondary" />
@@ -753,7 +753,7 @@ export function RepoSidebar({
                         <SidebarSection
                           title={t('sidebar.local')}
                           count={branches.length || undefined}
-                          icon={<Monitor size={12} className="text-primary" />}
+                          icon={<Monitor size={13} aria-hidden="true" />}
                           isOpen={sectionState.isOpen('local')}
                           onToggle={() => sectionState.toggle('local')}
                         >
@@ -779,7 +779,7 @@ export function RepoSidebar({
                         <SidebarSection
                           title={t('sidebar.remote')}
                           count={remoteBranches.length || undefined}
-                          icon={<Cloud size={12} className="text-primary" />}
+                          icon={<Cloud size={13} aria-hidden="true" />}
                           isOpen={sectionState.isOpen('remote')}
                           onToggle={() => sectionState.toggle('remote')}
                         >
@@ -798,6 +798,7 @@ export function RepoSidebar({
                           <SidebarSection
                             title={t('sidebar.pullRequests')}
                             count={pullRequests.length || undefined}
+                            icon={<GitPullRequest size={13} aria-hidden="true" />}
                             isOpen={sectionState.isOpen('pullRequests')}
                             onToggle={() => sectionState.toggle('pullRequests')}
                           >
@@ -818,7 +819,7 @@ export function RepoSidebar({
                                   type="button"
                                   onClick={() => onSelectPullRequest(pr)}
                                   title={t('prDiff.view', { number: String(pr.number) })}
-                                  className="flex-1 min-w-0 text-left px-4 py-1.5 flex items-start gap-2"
+                                  className="flex-1 min-w-0 text-left px-3 py-1.5 flex items-start gap-2"
                                 >
                                   <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-text-secondary' : 'text-secondary')} />
                                   <div className="flex-1 min-w-0">
@@ -851,6 +852,7 @@ export function RepoSidebar({
                         <SidebarSection
                           title={t('sidebar.stash')}
                           count={stashes.length || undefined}
+                          icon={<Archive size={13} aria-hidden="true" />}
                           isOpen={sectionState.isOpen('stashes')}
                           onToggle={() => sectionState.toggle('stashes')}
                           extra={stashes.length > 1 ? (
@@ -899,6 +901,7 @@ export function RepoSidebar({
                         <SidebarSection
                           title={t('sidebar.tags')}
                           count={tags.length || undefined}
+                          icon={<Tag size={13} aria-hidden="true" />}
                           isOpen={sectionState.isOpen('tags')}
                           onToggle={() => sectionState.toggle('tags')}
                           extra={repoPath ? (
@@ -926,6 +929,7 @@ export function RepoSidebar({
                           <SidebarSection
                             title={t('sidebar.remotes')}
                             count={remotes.length || undefined}
+                            icon={<Server size={13} aria-hidden="true" />}
                             isOpen={sectionState.isOpen('remotes')}
                             onToggle={() => sectionState.toggle('remotes')}
                             extra={(
@@ -959,6 +963,7 @@ export function RepoSidebar({
                           <SidebarSection
                             title={t('sidebar.worktrees')}
                             count={worktrees.length > 1 ? worktrees.length - 1 : undefined}
+                            icon={<FolderTree size={13} aria-hidden="true" />}
                             isOpen={sectionState.isOpen('worktrees')}
                             onToggle={() => sectionState.toggle('worktrees')}
                             extra={(
@@ -997,6 +1002,7 @@ export function RepoSidebar({
                           <SidebarSection
                             title={t('sidebar.submodules')}
                             count={submodules.length || undefined}
+                            icon={<Boxes size={13} aria-hidden="true" />}
                             isOpen={sectionState.isOpen('submodules')}
                             onToggle={() => sectionState.toggle('submodules')}
                             extra={(

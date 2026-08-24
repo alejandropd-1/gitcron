@@ -662,20 +662,6 @@
   font-style: normal;
 }
 
-/* Lo ya preparado, en la columna lateral. El panel filtra los staged para que el
-   conteo baje al preparar, y eso los dejaba invisibles. */
-.stagedList { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; padding: 0 var(--space-4); list-style: none; }
-.stagedList > li {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) 0;
-  color: #c2d0de;
-  font-weight: 500; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
-  user-select: text;
-}
-.stagedList > li span { min-width: 0; overflow-wrap: anywhere; }
-
 .messageField { display: flex; align-items: center; gap: var(--sp-2); margin: 0 0 var(--sp-5); }
 .messageField > strong { flex: 0 0 auto; color: var(--os-muted); font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; }
 .messageField input {

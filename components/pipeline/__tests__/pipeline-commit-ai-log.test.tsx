@@ -5,7 +5,7 @@ import { useGitStore } from '@/lib/git-store';
 import { clearDraftLog } from '@/lib/commit-draft-log';
 import type { DraftChunkEvent } from '@/types/commit-message-ai';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
-import { OpenSpecInspector } from '../OpenSpecInspector';
+import { RepoDetailsPanel } from '@/components/RepoDetailsPanel';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 
@@ -78,11 +78,22 @@ function abrirPreparacion() {
         onRefresh={() => undefined} onPauseAfterTask={() => undefined}
         onRespondDecision={() => undefined}
       />
-      <OpenSpecInspector
-        snapshot={snap}
-        repoPath="C:/repo"
-        projection={null} runtimeHistory={[]}
-        onRespondDecision={() => undefined}
+      <RepoDetailsPanel
+        activeTab="Pipeline"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
       />
     </div>,
   );
@@ -131,6 +142,7 @@ beforeEach(() => {
     return () => { emitir = null; };
   });
   useGitStore.setState({
+    repoPath: 'C:/repo',
     modifiedFiles: [{ path: 'components/algo.tsx', status: 'modified', staged: false }],
     commitMessage: '',
     setCommitMessage: vi.fn(),

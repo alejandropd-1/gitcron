@@ -1672,6 +1672,7 @@ export default function GitCronPage() {
               hasGithubUser: !!githubUser,
               isLoading,
               pipelineLayout: {
+                rightOpen: repositoryDetailsVisible,
                 onEnsureRightOpen: ensureDetailsOpen,
               },
               onSelectCommit: handleSelectCommit,

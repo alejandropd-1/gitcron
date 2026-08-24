@@ -653,11 +653,8 @@ export function OpenSpecDashboard({
     setAiPhase(busy ? 'drafting' : 'idle');
     setAiStartedAt(busy ? Date.now() : null);
   };
-  const [aiNotice, setAiNoticeState] = useState<string | null>(null);
-  const setAiNotice = (notice: string | null) => {
-    setAiNoticeState(notice);
-    usePipelineStore.getState().setAiNotice(notice);
-  };
+  const aiNotice = usePipelineStore((state) => state.aiNotice);
+  const setAiNotice = usePipelineStore((state) => state.setAiNotice);
   /**
    * Contexto y minutos de inactividad, elegidos antes de cargar.
    *

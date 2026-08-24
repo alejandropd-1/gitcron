@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, BrainCircuit, CheckCircle2, FileCode2, GitBranch, MessageSquareText, ShieldCheck, Wrench } from 'lucide-react';
+import { Activity, BrainCircuit, CheckCircle2, FileCode2, MessageSquareText, Wrench } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
-import { useGitStore, type GitFile } from '@/lib/git-store';
+import { useGitStore } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import type { OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpecUpdatePlan, RuntimeProjection } from '@/types/pipeline';
-import { CommitDraftLog } from './CommitDraftLog';
 import { DecisionInbox } from './DecisionInbox';
 import { OpenSpecEngineCard } from './OpenSpecEngineCard';
 import { OpenSpecToolList } from './OpenSpecReadiness';
@@ -47,15 +46,6 @@ function formatSessionOption(session: RuntimeProjection): string {
   return [runtime, context, started].filter(Boolean).join(' · ');
 }
 
-function FileStatusBadge({ path, files }: { path: string; files: GitFile[] }) {
-  const t = useT();
-  const status = files.find((file) => file.path === path)?.status ?? 'modified';
-  const label = t(`pipeline.openspec.prepare.state.${status}`);
-  return (
-    <span className={styles.fileStatus} data-status={status}>{label}</span>
-  );
-}
-
 export type OpenSpecInspectorProps = {
   snapshot?: PipelineSnapshot | null;
   repoPath?: string | null;
@@ -63,14 +53,12 @@ export type OpenSpecInspectorProps = {
   workingTreeClean?: boolean;
   projection?: RuntimeProjection | null;
   runtimeHistory?: RuntimeProjection[];
-  prepareOpen?: boolean;
   railTab?: 'activity' | 'tools';
   onSetRailTab?: (tab: 'activity' | 'tools') => void;
   onPauseAfterTask?: () => void;
   onRespondDecision?: (decisionId: string, optionId: string) => void;
   onOpenReview?: () => void;
   isReviewOpen?: boolean;
-  aiNotice?: any;
 };
 
 export function OpenSpecInspector({
@@ -80,35 +68,28 @@ export function OpenSpecInspector({
   workingTreeClean = true,
   projection: propProjection,
   runtimeHistory: propRuntimeHistory,
-  prepareOpen: propPrepareOpen,
   railTab: propRailTab,
   onSetRailTab,
   onPauseAfterTask = () => undefined,
   onRespondDecision = () => undefined,
   onOpenReview,
   isReviewOpen = false,
-  aiNotice: propAiNotice,
 }: OpenSpecInspectorProps) {
   const t = useT();
   const storeSnapshot = usePipelineStore((s) => s.snapshot);
   const storeProjection = usePipelineStore((s) => s.projection);
   const storeHistory = usePipelineStore((s) => s.runtimeHistory);
   const storeSelectedId = usePipelineStore((s) => s.selectedChangeId);
-  const storePrepareOpen = usePipelineStore((s) => s.prepareOpen);
   const storeRailTab = usePipelineStore((s) => s.railTab);
   const storeSetRailTab = usePipelineStore((s) => s.setRailTab);
-  const storeAiNotice = usePipelineStore((s) => s.aiNotice);
 
   const gitStoreRepoPath = useGitStore((s) => s.repoPath);
-  const modifiedFiles = useGitStore((s) => s.modifiedFiles);
 
   const snapshot = propSnapshot ?? storeSnapshot;
   const repoPath = propRepoPath ?? gitStoreRepoPath;
   const projection = propProjection !== undefined ? propProjection : storeProjection;
   const runtimeHistory = propRuntimeHistory !== undefined ? propRuntimeHistory : storeHistory;
-  const prepareOpen = propPrepareOpen !== undefined ? propPrepareOpen : storePrepareOpen;
   const railTab = propRailTab ?? storeRailTab;
-  const aiNotice = propAiNotice ?? storeAiNotice;
 
   const setRailTab = (tab: 'activity' | 'tools') => {
     if (onSetRailTab) onSetRailTab(tab);
@@ -117,7 +98,6 @@ export function OpenSpecInspector({
 
   const openSpec = snapshot?.openSpec;
   const openChangeId = storeSelectedId ?? openSpec?.selectedChangeId ?? null;
-  const stagedFiles = useMemo(() => modifiedFiles.filter((f) => f.staged), [modifiedFiles]);
 
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const attentionRef = useRef<HTMLElement | null>(null);
@@ -209,27 +189,6 @@ export function OpenSpecInspector({
       .catch((error: unknown) => setInitError(error instanceof Error ? error.message : 'unknown'))
       .finally(() => setInitBusy(false));
   };
-
-  if (prepareOpen) {
-    return (
-      <aside className={`${styles.activityRail} ${styles.openspecScope}`} aria-label={t('pipeline.openspec.prepare.stagedTitle')}>
-        <h3><GitBranch size={14} /> {t('pipeline.openspec.prepare.stagedTitle')}</h3>
-        {stagedFiles.length === 0 ? (
-          <p className={styles.railEmpty}>{t('pipeline.openspec.prepare.stagedEmpty')}</p>
-        ) : (
-          <ul className={styles.stagedList}>
-            {stagedFiles.map((file) => (
-              <li key={file.path}>
-                <FileStatusBadge path={file.path} files={modifiedFiles} />
-                <span>{file.path}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <CommitDraftLog notice={aiNotice} />
-      </aside>
-    );
-  }
 
   return (
     <aside className={`${styles.activityRail} ${styles.openspecScope}`} aria-label={t('pipeline.openspec.activity.title')}>

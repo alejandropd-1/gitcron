@@ -7,6 +7,8 @@ import { RepoDetailsPanel } from '../RepoDetailsPanel';
 import { RepoMainView } from '../RepoMainView';
 import { OpenSpecDashboard } from '../pipeline/OpenSpecDashboard';
 import { usePanelLayout } from '@/hooks/use-panel-layout';
+import { usePipelineStore } from '@/lib/pipeline-store';
+import { useGitStore } from '@/lib/git-store';
 import type { PipelineSnapshot } from '../pipeline/pipeline-view-state';
 
 vi.mock('next/dynamic', () => ({
@@ -20,10 +22,6 @@ vi.mock('@/components/ChronometricGraph', () => ({
 
 vi.mock('@/components/CommitGraph', () => ({
   CommitGraph: () => <div data-testid="mock-commit-graph" />,
-}));
-
-vi.mock('@/components/pipeline/PipelineWorkspace', () => ({
-  PipelineWorkspace: () => <div data-testid="mock-pipeline-workspace" />,
 }));
 
 vi.mock('@/lib/new-change-draft-store', () => ({
@@ -49,37 +47,41 @@ vi.mock('@/hooks/use-git-actions', () => ({
   }),
 }));
 
-vi.mock('@/lib/git-store', () => ({
-  useGitStore: (selector?: (s: any) => any) => {
-    const state = {
-      repoPath: '/test/repo',
-      isLoading: false,
-      branches: [],
-      remoteBranches: [],
-      remotes: [],
-      tags: [],
-      stashes: [],
-      pullRequests: [],
-      worktrees: [],
-      submodules: [],
-      modifiedFiles: [],
-      commitMessage: '',
-      setCommitMessage: vi.fn(),
-      isAIGeneratingMessage: false,
-      generateAICommitMessage: vi.fn(),
-      abortAIGeneration: vi.fn(),
-      githubUser: null,
-      enableCartography: false,
-      getActiveRepo: () => null,
-      openRepos: [],
-      activeRepoIdx: 0,
-      isFetchingRemote: false,
-      lastFetchTime: null,
-      autoFetchEnabled: false,
-    };
-    return selector ? selector(state) : state;
-  },
-}));
+const mockGitState = {
+  repoPath: '/test/repo',
+  isLoading: false,
+  branches: [],
+  remoteBranches: [],
+  remotes: [],
+  tags: [],
+  stashes: [],
+  pullRequests: [],
+  worktrees: [],
+  submodules: [],
+  modifiedFiles: [] as any[],
+  commitMessage: '',
+  setCommitMessage: vi.fn(),
+  isAIGeneratingMessage: false,
+  generateAICommitMessage: vi.fn(),
+  abortAIGeneration: vi.fn(),
+  githubUser: null,
+  enableCartography: false,
+  getActiveRepo: () => null,
+  openRepos: [],
+  activeRepoIdx: 0,
+  isFetchingRemote: false,
+  lastFetchTime: null,
+  autoFetchEnabled: false,
+};
+
+vi.mock('@/lib/git-store', () => {
+  const useGitStoreMock: any = (selector?: (s: any) => any) => {
+    return selector ? selector(mockGitState) : mockGitState;
+  };
+  useGitStoreMock.getState = () => mockGitState;
+  useGitStoreMock.setState = (partial: any) => Object.assign(mockGitState, typeof partial === 'function' ? partial(mockGitState) : partial);
+  return { useGitStore: useGitStoreMock };
+});
 
 afterEach(cleanup);
 
@@ -1096,5 +1098,142 @@ describe('Compartir paneles laterales entre vistas (Fase 3 & fundición de later
     // Los contadores del cuerpo ya no se montan
     const factsDl = container.querySelector('dl[class*="summaryFacts"]');
     expect(factsDl).toBeNull();
+  });
+
+  it('11. El valor de rightOpen que llega al cuerpo de SDD es el del armazón (pipelineLayout.rightOpen): en falso el aviso de autoría se presenta en el centro y en verdadero no', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const pageSrc = fs.readFileSync(path.resolve(__dirname, '../../app/page.tsx'), 'utf-8');
+
+    // 1. Verificación del cableado en app/page.tsx: pipelineLayout debe pasar rightOpen: repositoryDetailsVisible
+    const pipelineLayoutMatch = /pipelineLayout:\s*\{([^}]+)\}/.exec(pageSrc);
+    expect(pipelineLayoutMatch).not.toBeNull();
+    expect(pipelineLayoutMatch![1]).toMatch(/rightOpen:\s*repositoryDetailsVisible/);
+
+    const originalApi = (window as any).api;
+    const dummyPipelineState = {
+      repoId: 'repo-1',
+      observedAt: '2026-07-25T00:00:00.000Z',
+      revision: 1,
+      tasks: [],
+      reports: [],
+      decisions: [],
+      activeChanges: ['change-auth-flow'],
+      archivedChanges: [],
+      mergedChanges: [],
+      diagnostics: [],
+      selection: { changeId: 'change-auth-flow', confidence: 'confirmed', selectionRequired: false, reason: '' },
+      openSpecPresent: true,
+      openSpecChanges: [
+        {
+          changeId: 'change-auth-flow',
+          intent: 'Auth flow',
+          tasks: [{ id: '1', text: 'T1', completed: false, line: 1, sourceRef: 'tasks.md' }],
+          proposalExists: true,
+          designExists: true,
+          specsCount: 1,
+          validation: 'passed',
+          artifacts: null,
+        },
+      ],
+    };
+    (window as any).api = {
+      pipelineGetSnapshot: vi.fn().mockResolvedValue({ success: true, data: dummyPipelineState }),
+      pipelineOpenSpec: {
+        getEngineStatus: vi.fn().mockResolvedValue({
+          cli: { installed: true, runtimeVersion: '1.8.0', diagnostics: [] },
+          repoState: 'initialized',
+          integrationState: 'up-to-date',
+        }),
+      },
+      pipelineSubscribe: vi.fn(),
+      pipelineUnsubscribe: vi.fn(),
+      onPipelineSnapshotUpdated: vi.fn(),
+      pipelineRuntime: {
+        get: vi.fn().mockResolvedValue({ success: true, data: null }),
+        history: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      },
+    };
+
+    try {
+      // 2. Verificación del DOM montado a través de RepoMainView
+      useGitStore.setState({
+        modifiedFiles: [{ path: 'file.ts', status: 'modified', staged: false }],
+      });
+      usePipelineStore.setState({
+        snapshot: dummySnapshot,
+        prepareOpen: true,
+        aiNotice: 'Escrito por modelo Gemma 4',
+      });
+
+      const createTabViews = (rightOpen: boolean): any => ({
+        activeTab: 'Pipeline',
+        repoPath: '/test/repo',
+        commits: [],
+        selectedCommit: null,
+        filterText: '',
+        modifiedFiles: [{ path: 'file.ts', status: 'modified', staged: false }],
+        hasGithubUser: false,
+        isLoading: false,
+        currentBranch: 'main',
+        pipelineLayout: {
+          rightOpen,
+          onEnsureRightOpen: vi.fn(),
+        },
+        onSelectCommit: vi.fn(),
+        onCommitContextMenu: vi.fn(),
+      });
+
+      // Caso A: con rightOpen en false, el aviso de autoría se presenta en el centro del DOM
+      const { unmount } = render(
+        <RepoMainView
+          activeView="repository"
+          isRepoStartView={false}
+          cartographyActive={false}
+          cartographyRepoPath={null}
+          onExitCartography={vi.fn()}
+          settingsPanel={{} as any}
+          helpPanel={{} as any}
+          profilePanel={{} as any}
+          repoStart={{} as any}
+          diffViews={{ selectedFile: null } as any}
+          tabViews={createTabViews(false)}
+          graphView={{} as any}
+          interactiveRebase={{} as any}
+        />
+      );
+
+      expect(await screen.findByText('Escrito por modelo Gemma 4')).toBeTruthy();
+
+      unmount();
+
+      // Caso B: con rightOpen en true, el aviso de autoría NO se presenta en el centro del DOM
+      usePipelineStore.setState({
+        prepareOpen: true,
+      });
+      render(
+        <RepoMainView
+          activeView="repository"
+          isRepoStartView={false}
+          cartographyActive={false}
+          cartographyRepoPath={null}
+          onExitCartography={vi.fn()}
+          settingsPanel={{} as any}
+          helpPanel={{} as any}
+          profilePanel={{} as any}
+          repoStart={{} as any}
+          diffViews={{ selectedFile: null } as any}
+          tabViews={createTabViews(true)}
+          graphView={{} as any}
+          interactiveRebase={{} as any}
+        />
+      );
+
+      // Esperar que termine de cargar el workspace
+      await screen.findByRole('region', { name: 'pipeline.openspec.prepare.title' });
+      expect(screen.queryByText('Escrito por modelo Gemma 4')).toBeNull();
+    } finally {
+      (window as any).api = originalApi;
+    }
   });
 });

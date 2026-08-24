@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { useGitStore } from '@/lib/git-store';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
-import { OpenSpecInspector } from '../OpenSpecInspector';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 
 /**
@@ -348,55 +347,6 @@ describe('preparación a nivel del repositorio', { timeout: 15_000 }, () => {
     openPrepare();
 
     expect(screen.getByText(/openspec\.prepare\.toBranch.*"branch":"main"/)).toBeTruthy();
-  });
-
-  it('con el panel abierto la columna muestra lo ya preparado, no la actividad', () => {
-    setModified([
-      { path: 'openspec/changes/demo-change/tasks.md', staged: false },
-      { path: 'components/ya-listo.tsx', staged: true },
-    ]);
-    const snap = snapshot(['demo-change']);
-    const { rerender } = render(
-      <OpenSpecInspector
-        snapshot={snap}
-        repoPath="C:/repo"
-        prepareOpen={false}
-        projection={null}
-        runtimeHistory={[]}
-        onRespondDecision={() => undefined}
-      />,
-    );
-
-    // Cerrado: la columna es la de siempre.
-    expect(screen.getByText('pipeline.openspec.activity.title')).toBeTruthy();
-
-    // Abierto: la otra mitad del estado, que el panel filtra a propósito.
-    rerender(
-      <OpenSpecInspector
-        snapshot={snap}
-        repoPath="C:/repo"
-        prepareOpen={true}
-        projection={null}
-        runtimeHistory={[]}
-        onRespondDecision={() => undefined}
-      />,
-    );
-    expect(screen.getByText('pipeline.openspec.prepare.stagedTitle')).toBeTruthy();
-    expect(screen.getByText('components/ya-listo.tsx')).toBeTruthy();
-    expect(screen.queryByText('pipeline.openspec.activity.title')).toBeNull();
-
-    // Y al cerrar vuelve.
-    rerender(
-      <OpenSpecInspector
-        snapshot={snap}
-        repoPath="C:/repo"
-        prepareOpen={false}
-        projection={null}
-        runtimeHistory={[]}
-        onRespondDecision={() => undefined}
-      />,
-    );
-    expect(screen.getByText('pipeline.openspec.activity.title')).toBeTruthy();
   });
 
   it('sin archivos por preparar muestra el resumen en vez de la lista', async () => {

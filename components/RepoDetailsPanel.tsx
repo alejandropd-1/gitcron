@@ -1,23 +1,38 @@
 'use client';
 
-// Panel derecho de detalles: muestra el detalle del commit seleccionado (con
-// sus archivos y commit box) o, sin selección, el StagingPanel del working
-// tree. Flota en la vista chronometric y es inline en la clásica. Extraído de
-// app/page.tsx.
+// Panel derecho de detalles: muestra una lista única de secciones plegables
+// (SidebarSection) según la circunstancia activa (grafo con commit, grafo sin
+// commit, SDD sin preparar o SDD preparando). Flota en la vista chronometric y
+// es inline en la clásica. Extraído de app/page.tsx.
 //
 // Es dueño de la carga de archivos del commit (gitShowFiles). Lo que abre
 // modales/menus de la página o navega al diff llega por props.
 
-import { useEffect, useState } from 'react';
-import { Archive, Zap } from 'lucide-react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { AlertCircle, Brain, GitBranch, Layers, Play, RotateCcw, Trash2, Zap } from 'lucide-react';
 import { useGitStore, GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { useT } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 import { formatDate, formatInitials } from '@/lib/display-format';
-import { StagingPanel } from '@/components/StagingPanel';
+import { SidebarSection } from '@/components/RepoSidebarParts';
+import { StagingFileRow } from '@/components/StagingPanel';
 import { OpenSpecInspector } from '@/components/pipeline/OpenSpecInspector';
+import { CommitDraftLog } from '@/components/pipeline/CommitDraftLog';
 import { usePipelineStore } from '@/lib/pipeline-store';
+import { useSidebarSectionState } from '@/hooks/use-sidebar-section-state';
+import { getDraftLogSnapshot, subscribeDraftLog } from '@/lib/commit-draft-log';
+
+const DEFAULT_OPEN_RIGHT_PANEL = [
+  'details-commit',
+  'details-commit-files',
+  'details-unstaged',
+  'details-staged',
+  'details-draft-log',
+  'details-commit-box',
+  'details-activity',
+  'details-attention',
+] as const;
 
 type RepoDetailsPanelProps = {
   activeTab?: string;
@@ -41,7 +56,7 @@ type RepoDetailsPanelProps = {
 
 export function RepoDetailsPanel({
   activeTab,
-  graphMode, detailsW, visible, isDragging, onResizeStart,
+  detailsW, visible, isDragging, onResizeStart,
   onOpenStashModal, onOpenCommitFile, onSelectFile, onDiscardRequest,
   onRequestAmend, onRequestSquash, onFileContextMenu,
   onRequestResetAll, onRequestCleanUntracked,
@@ -50,10 +65,20 @@ export function RepoDetailsPanel({
   const {
     repoPath, selectedCommit, setSelectedCommit,
     modifiedFiles, commitMessage, setCommitMessage,
-    selectedFile, isLoading,
+    selectedFile, isLoading, currentBranch,
+    rebaseInProgress,
   } = useGitStore();
-  const { commitChanges, stageFile, stageFiles } = useGitActions();
+  const {
+    commitChanges, stageFile, stageFiles,
+    continueInteractiveRebase, abortInteractiveRebase, undoInteractiveRebase,
+  } = useGitActions();
+
   const prepareOpen = usePipelineStore((s) => s.prepareOpen);
+  const aiNotice = usePipelineStore((s) => s.aiNotice);
+  const draftLog = useSyncExternalStore(subscribeDraftLog, getDraftLogSnapshot, getDraftLogSnapshot);
+  const hasDraftLog = draftLog.draftId !== null || Boolean(aiNotice);
+
+  const sectionState = useSidebarSectionState(repoPath, DEFAULT_OPEN_RIGHT_PANEL);
 
   // Files changed in the selected commit (lazy-loaded per selection).
   const [commitFiles, setCommitFiles] = useState<GitFile[]>([]);
@@ -76,6 +101,96 @@ export function RepoDetailsPanel({
   }, [selectedCommit?.hash, repoPath]); // eslint-disable-line react-hooks/exhaustive-deps
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  const { unstaged, staged, untrackedCount } = useMemo(() => {
+    const nextUnstaged = modifiedFiles.filter((file) => !file.staged);
+    const nextStaged = modifiedFiles.filter((file) => file.staged);
+    return {
+      unstaged: nextUnstaged,
+      staged: nextStaged,
+      untrackedCount: nextUnstaged.filter((file) => file.status === 'untracked').length,
+    };
+  }, [modifiedFiles]);
+
+  const stageAll = () => stageFiles(unstaged.map((file) => file.path), true);
+  const unstageAll = () => stageFiles(staged.map((file) => file.path), false);
+
+  const isPipeline = activeTab === 'Pipeline';
+
+  const renderCommitBox = () => (
+    <SidebarSection
+      title={t('staging.commitSectionTitle')}
+      isOpen={sectionState.isOpen('details-commit-box')}
+      onToggle={() => sectionState.toggle('details-commit-box')}
+    >
+      <div className="p-3 bg-bg-surface/75 flex flex-col gap-2">
+        <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+          <GitBranch size={12} className="text-secondary shrink-0" />
+          <span className="truncate">
+            {t('pipeline.openspec.prepare.toBranch', {
+              branch: currentBranch || t('pipeline.openspec.repo.branchUnknown'),
+            })}
+          </span>
+        </div>
+        <textarea
+          className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-16 focus:outline-none focus:border-secondary/30 resize-none"
+          placeholder={t('staging.commitMsgPlaceholder')}
+          value={commitMessage}
+          onChange={(event) => setCommitMessage(event.target.value)}
+        />
+        <button
+          type="button"
+          onClick={commitChanges}
+          disabled={isLoading || !commitMessage.trim() || staged.length === 0 || !repoPath}
+          className="w-full py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-[#052900] rounded transition-colors"
+        >
+          {isLoading
+            ? t('staging.committingState')
+            : t('staging.commitWithCountBtn', { count: staged.length })}
+        </button>
+        {!isPipeline && (
+          <>
+            <div className="flex gap-2 mt-1">
+              <button
+                type="button"
+                onClick={onRequestAmend}
+                disabled={isLoading}
+                className="flex-1 py-1.5 px-2 bg-bg-surface/75 border border-border-subtle/15 hover:bg-border-subtle/50 text-text-secondary hover:text-text-primary rounded text-xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
+                title={t('staging.amendTooltip')}
+              >
+                <RotateCcw size={12} />
+                {t('staging.amendBtn')}
+              </button>
+              <button
+                type="button"
+                onClick={onRequestSquash}
+                disabled={isLoading}
+                className="flex-1 py-1.5 px-2 bg-bg-surface/75 border border-border-subtle/15 hover:bg-border-subtle/50 text-text-secondary hover:text-text-primary rounded text-xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
+                title={t('staging.squashTooltip')}
+              >
+                <Layers size={12} />
+                {t('staging.squashBtn')}
+              </button>
+            </div>
+            <div className="mt-1 text-right">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (confirm(t('rebase.banner.btn.undo') + '?')) {
+                    await undoInteractiveRebase('refs/gitcron/pre-rebase');
+                  }
+                }}
+                disabled={isLoading}
+                className="text-[10px] text-text-secondary hover:text-secondary hover:underline transition-colors disabled:opacity-40 font-semibold"
+              >
+                {t('rebase.banner.btn.undo')}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </SidebarSection>
+  );
+
   return (
     <aside
       data-testid="repo-details-panel"
@@ -97,18 +212,74 @@ export function RepoDetailsPanel({
       >
         <div className="absolute inset-y-3 left-0.5 w-px bg-transparent group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
       </div>
-      {activeTab === 'Pipeline' && !prepareOpen ? (
-        <div className="flex flex-col h-full overflow-y-auto min-h-0">
-          <OpenSpecInspector />
-        </div>
-      ) : activeTab !== 'Pipeline' && selectedCommit ? (
+
+      {isPipeline ? (
+        <OpenSpecInspector sectionState={sectionState}>
+          {prepareOpen && (
+            <>
+              <SidebarSection
+                title={t('staging.stagedTitle')}
+                count={staged.length}
+                isOpen={sectionState.isOpen('details-staged')}
+                onToggle={() => sectionState.toggle('details-staged')}
+              >
+                {staged.length === 0 ? (
+                  <p className="px-4 py-3 text-xs text-text-secondary/70 italic">{t('staging.noStagedChanges')}</p>
+                ) : (
+                  <div className="p-1">
+                    {staged.map((file) => (
+                      <div
+                        key={file.path}
+                        onClick={() => onSelectFile(file)}
+                        className={cn(
+                          'flex items-center gap-2 px-2 py-1.5 rounded transition-colors cursor-pointer',
+                          selectedFile?.path === file.path ? 'bg-secondary/15' : 'hover:bg-border-subtle/50',
+                        )}
+                      >
+                        <span className="text-xs truncate flex-1 text-text-primary">{file.path}</span>
+                        <div
+                          className={cn(
+                            'w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold shrink-0',
+                            file.conflicted ? 'bg-error/20 text-error border border-[#ff716c]/40 animate-pulse' :
+                            file.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
+                            file.status === 'added' ? 'bg-secondary/20 text-secondary' :
+                            file.status === 'renamed' ? 'bg-primary/20 text-primary' :
+                            file.status === 'untracked' ? 'bg-[#9eacc0]/20 text-text-secondary' :
+                            'bg-error/20 text-error',
+                          )}
+                        >
+                          {file.conflicted ? '!' : file.status[0].toUpperCase()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </SidebarSection>
+
+              {hasDraftLog && (
+                <SidebarSection
+                  title={t('pipeline.openspec.prepare.aiLogTitle')}
+                  icon={<Brain size={13} aria-hidden="true" />}
+                  isOpen={sectionState.isOpen('details-draft-log')}
+                  onToggle={() => sectionState.toggle('details-draft-log')}
+                >
+                  <CommitDraftLog notice={aiNotice} />
+                </SidebarSection>
+              )}
+
+              {renderCommitBox()}
+            </>
+          )}
+        </OpenSpecInspector>
+      ) : selectedCommit ? (
         <div className="flex flex-col h-full">
-          {/* Header bar: matches Unstaged header exactly in size, padding and font */}
-          <div className="px-4 py-2 bg-bg-surface/75 flex items-center justify-between shrink-0">
+          {/* Header bar: solo cuando hay commit elegido en vista Grafo */}
+          <div className="px-4 py-2 bg-bg-surface/75 flex items-center justify-between shrink-0 border-b border-border-subtle/15">
             <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
               {t('commit.detailsTitle')}
             </span>
             <button
+              type="button"
               onClick={() => setSelectedCommit(null)}
               className="text-[10px] text-text-secondary hover:text-[#052900] px-2 py-0.5 rounded hover:bg-secondary transition-colors"
               title={t('commit.goToStagingTooltip')}
@@ -116,160 +287,296 @@ export function RepoDetailsPanel({
               {t('commit.viewChangesBtn')}
             </button>
           </div>
-          {/* WIP banner: visible when commit is selected but there are unsaved changes */}
-          {modifiedFiles.length > 0 && (
-            <div className="shrink-0 bg-git-mod/[0.07]">
-              <div className="px-3 py-2 flex items-center gap-2">
-                <Archive size={13} className="text-git-mod shrink-0" />
-                <span className="text-[11px] font-bold text-text-primary flex-1">
-                  {t('commit.liveChangesTitle', { count: modifiedFiles.length })}
-                </span>
-                <button
-                  onClick={() => setSelectedCommit(null)}
-                  className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded transition-colors"
-                >
-                  {t('commit.viewChangesBtn')}
-                </button>
-                <button
-                  onClick={onOpenStashModal}
-                  disabled={isLoading}
-                  className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded transition-colors disabled:opacity-50"
-                  title={t('commit.stashTooltip')}
-                >
-                  Stash
-                </button>
-              </div>
-              <div className="max-h-36 overflow-y-auto p-1">
-                {modifiedFiles.map((file) => (
-                  <button
-                    key={`${file.staged ? 'staged' : 'unstaged'}:${file.path}`}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCommit(null);
-                      onSelectFile(file);
-                    }}
-                    className="w-full flex items-center gap-2 px-2 py-1 text-left text-text-secondary hover:bg-git-mod/10 hover:text-text-primary transition-colors"
-                    title={file.path}
-                  >
-                    <span className={cn(
-                      'w-4 shrink-0 text-[9px] font-bold',
-                      file.status === 'deleted' ? 'text-error' : file.status === 'modified' ? 'text-git-mod' : 'text-secondary',
-                    )}>
-                      {file.status === 'added' || file.status === 'untracked'
-                        ? 'A'
-                        : file.status === 'deleted'
-                          ? 'D'
-                          : file.status === 'renamed' ? 'R' : 'M'}
-                    </span>
-                    <span className="truncate text-[11px] flex-1">{file.path}</span>
-                    {file.staged && <span className="text-[9px] text-secondary">{t('commitTab.staged')}</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="p-4 bg-bg-surface/75 shrink-0">
-            <div className="flex justify-between items-start mb-2">
-              <div className="text-[12px] font-mono text-secondary select-text">commit: {selectedCommit.shortHash}</div>
-              <button className="flex items-center gap-1.5 px-2 py-1 rounded bg-border-subtle text-xs hover:bg-bg-surface/70 transition-colors">
-                <Zap size={12} className="text-git-mod" /> {t('commit.explainBtn')}
-              </button>
-            </div>
-            <h2 className="font-semibold mb-1 select-text">{selectedCommit.message}</h2>
-            <div className="text-xs text-text-secondary mb-4 select-text">{formatDate(selectedCommit.date)}</div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
-                {formatInitials(selectedCommit.authorName)}
-              </div>
-              <div>
-                <div className="text-sm font-medium select-text">{selectedCommit.authorName}</div>
-                <div className="text-[10px] text-text-secondary select-text">{selectedCommit.authorEmail}</div>
-              </div>
-            </div>
-          </div>
 
-          <div className="flex-1 overflow-y-auto">
-            <div className="px-4 py-2 flex justify-between items-center bg-bg-surface/75">
-              <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
-                {commitFilesLoading
-                  ? t('commit.loadingFiles')
-                  : t('commit.changedFilesCount', { count: commitFiles.length })}
-              </span>
-            </div>
-            <div className="p-1">
-              {commitFiles.map((file) => (
-                <button
-                  key={file.path}
-                  onClick={() => onOpenCommitFile(file)}
-                  className={cn(
-                    'w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors',
-                    selectedFile?.path === file.path
-                      ? 'bg-secondary/10 text-secondary'
-                      : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
-                  )}
-                >
-                  <span className={cn(
-                    'text-[10px] font-bold w-4 shrink-0',
-                    file.status === 'added' ? 'text-secondary' :
-                    file.status === 'deleted' ? 'text-error' :
-                    file.status === 'renamed' ? 'text-primary' :
-                    'text-git-mod',
-                  )}>
-                    {file.status === 'added' ? 'A' : file.status === 'deleted' ? 'D' : file.status === 'renamed' ? 'R' : 'M'}
-                  </span>
-                  <span className="truncate text-xs select-text">{file.path}</span>
-                </button>
-              ))}
-              {!commitFilesLoading && commitFiles.length === 0 && (
-                <p className="px-4 py-4 text-xs text-text-secondary/70 text-center">{t('commit.noFiles')}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="p-4 bg-bg-surface/75">
-            <textarea
-              className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-24 focus:outline-none focus:border-secondary/30 resize-none"
-              placeholder={t('staging.commitMsgPlaceholder')}
-              value={commitMessage}
-              onChange={(e) => setCommitMessage(e.target.value)}
-            />
-            <button
-              onClick={commitChanges}
-              disabled={isLoading || !commitMessage.trim() || !repoPath}
-              className="w-full mt-3 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold text-[#052900] rounded transition-colors shadow-lg shadow-secondary/20"
+          <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-border-subtle/10">
+            <SidebarSection
+              title={t('commit.detailsTitle')}
+              isOpen={sectionState.isOpen('details-commit')}
+              onToggle={() => sectionState.toggle('details-commit')}
             >
-              {isLoading
-                ? t('staging.committingState')
-                : t('staging.commitWithCountBtn', { count: modifiedFiles.filter((f) => f.staged).length })}
-            </button>
+              <div className="p-4 bg-bg-surface/75">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="text-[12px] font-mono text-secondary select-text">commit: {selectedCommit.shortHash}</div>
+                  <button type="button" className="flex items-center gap-1.5 px-2 py-1 rounded bg-border-subtle text-xs hover:bg-bg-surface/70 transition-colors">
+                    <Zap size={12} className="text-git-mod" /> {t('commit.explainBtn')}
+                  </button>
+                </div>
+                <h2 className="font-semibold mb-1 select-text">{selectedCommit.message}</h2>
+                <div className="text-xs text-text-secondary mb-4 select-text">{formatDate(selectedCommit.date)}</div>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
+                    {formatInitials(selectedCommit.authorName)}
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium select-text">{selectedCommit.authorName}</div>
+                    <div className="text-[10px] text-text-secondary select-text">{selectedCommit.authorEmail}</div>
+                  </div>
+                </div>
+              </div>
+            </SidebarSection>
+
+            <SidebarSection
+              title={t('commit.filesSectionTitle')}
+              count={commitFiles.length}
+              isOpen={sectionState.isOpen('details-commit-files')}
+              onToggle={() => sectionState.toggle('details-commit-files')}
+            >
+              <div className="p-1">
+                {commitFilesLoading ? (
+                  <p className="px-4 py-3 text-xs text-text-secondary/70 italic">{t('commit.loadingFiles')}</p>
+                ) : commitFiles.length === 0 ? (
+                  <p className="px-4 py-4 text-xs text-text-secondary/70 text-center">{t('commit.noFiles')}</p>
+                ) : (
+                  commitFiles.map((file) => (
+                    <button
+                      key={file.path}
+                      type="button"
+                      onClick={() => onOpenCommitFile(file)}
+                      className={cn(
+                        'w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors',
+                        selectedFile?.path === file.path
+                          ? 'bg-secondary/10 text-secondary'
+                          : 'text-text-secondary hover:bg-bg-surface/70 hover:text-text-primary',
+                      )}
+                    >
+                      <span className={cn(
+                        'text-[10px] font-bold w-4 shrink-0',
+                        file.status === 'added' ? 'text-secondary' :
+                        file.status === 'deleted' ? 'text-error' :
+                        file.status === 'renamed' ? 'text-primary' :
+                        'text-git-mod',
+                      )}>
+                        {file.status === 'added' ? 'A' : file.status === 'deleted' ? 'D' : file.status === 'renamed' ? 'R' : 'M'}
+                      </span>
+                      <span className="truncate text-xs select-text">{file.path}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </SidebarSection>
+
+            {modifiedFiles.length > 0 && (
+              <SidebarSection
+                title={t('commit.worktreeSectionTitle')}
+                count={modifiedFiles.length}
+                extra={
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCommit(null)}
+                      className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded transition-colors"
+                    >
+                      {t('commit.viewChangesBtn')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onOpenStashModal}
+                      disabled={isLoading}
+                      className="text-[10px] font-bold text-git-mod hover:text-[#052900] hover:bg-git-mod px-2 py-0.5 rounded transition-colors disabled:opacity-50"
+                      title={t('commit.stashTooltip')}
+                    >
+                      Stash
+                    </button>
+                  </div>
+                }
+                isOpen={sectionState.isOpen('details-worktree')}
+                onToggle={() => sectionState.toggle('details-worktree')}
+              >
+                <div className="p-1">
+                  {modifiedFiles.map((file) => (
+                    <button
+                      key={`${file.staged ? 'staged' : 'unstaged'}:${file.path}`}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCommit(null);
+                        onSelectFile(file);
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1 text-left text-text-secondary hover:bg-git-mod/10 hover:text-text-primary transition-colors"
+                      title={file.path}
+                    >
+                      <span className={cn(
+                        'w-4 shrink-0 text-[9px] font-bold',
+                        file.status === 'deleted' ? 'text-error' : file.status === 'modified' ? 'text-git-mod' : 'text-secondary',
+                      )}>
+                        {file.status === 'added' || file.status === 'untracked'
+                          ? 'A'
+                          : file.status === 'deleted'
+                            ? 'D'
+                            : file.status === 'renamed' ? 'R' : 'M'}
+                      </span>
+                      <span className="truncate text-[11px] flex-1">{file.path}</span>
+                      {file.staged && <span className="text-[9px] text-secondary">{t('commitTab.staged')}</span>}
+                    </button>
+                  ))}
+                </div>
+              </SidebarSection>
+            )}
+
+            {renderCommitBox()}
           </div>
         </div>
       ) : (
-        /* Working tree: Unstaged ↑↓ Staged */
-        <StagingPanel
-          files={modifiedFiles}
-          selectedFile={selectedFile}
-          repoPath={repoPath}
-          commitMessage={commitMessage}
-          setCommitMessage={setCommitMessage}
-          isLoading={isLoading}
-          onSelectFile={onSelectFile}
-          onStage={(path, stage) => stageFile(path, stage)}
-          onStageMany={(paths, stage) => stageFiles(paths, stage)}
-          onDiscard={(path) => {
-            const file = modifiedFiles.find((f) => f.path === path);
-            if (file) onDiscardRequest(file);
-          }}
-          onCommit={commitChanges}
-          onRequestAmend={onRequestAmend}
-          onRequestSquash={onRequestSquash}
-          onFileContextMenu={(e, file) => {
-            e.preventDefault();
-            onFileContextMenu({ x: e.clientX, y: e.clientY, file });
-          }}
-          onRequestResetAll={onRequestResetAll}
-          onRequestCleanUntracked={onRequestCleanUntracked}
-        />
+        <div className="flex flex-col h-full">
+          {/* Alerta de rebase interactivo en curso */}
+          {rebaseInProgress && (
+            <div className="p-3 bg-[#fd9d1a]/10 border-b border-[#fd9d1a]/30 flex flex-col gap-2 shrink-0">
+              <div className="flex items-start gap-2 text-[#fd9d1a]">
+                <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-bold block">{t('rebase.banner.title')}</span>
+                  <span className="text-[10px] text-text-secondary leading-normal block mt-0.5">
+                    {t('rebase.banner.desc')}
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await abortInteractiveRebase();
+                  }}
+                  disabled={isLoading}
+                  className="px-2.5 py-1 text-[10px] font-semibold text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/50 rounded transition-colors disabled:opacity-40"
+                >
+                  {t('rebase.banner.btn.abort')}
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await continueInteractiveRebase();
+                  }}
+                  disabled={isLoading}
+                  className="px-2.5 py-1 text-[10px] font-bold bg-[#fd9d1a] hover:bg-[#ffb03a] text-black rounded transition-colors disabled:opacity-40 flex items-center gap-1"
+                >
+                  {isLoading ? (
+                    <div className="w-3 h-3 rounded-full border border-black border-t-transparent animate-spin" />
+                  ) : (
+                    <Play size={10} className="fill-black" />
+                  )}
+                  {t('rebase.banner.btn.continue')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-border-subtle/10">
+            <SidebarSection
+              title={t('staging.unstagedTitle')}
+              count={unstaged.length}
+              extra={
+                <div className="flex items-center gap-2">
+                  {untrackedCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={onRequestCleanUntracked}
+                      disabled={isLoading}
+                      className="text-[10px] text-[#ffd98a] hover:text-[#201100] px-2 py-0.5 rounded border border-[#f4b942]/40 hover:bg-[#f4b942] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={t('staging.cleanUntrackedTooltip')}
+                    >
+                      {t('staging.cleanUntrackedBtn')}
+                    </button>
+                  )}
+                  {modifiedFiles.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={onRequestResetAll}
+                      className="p-1 text-text-secondary hover:text-error hover:bg-error/10 rounded transition-colors"
+                      title={t('staging.discardAllTooltip')}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                  {unstaged.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={stageAll}
+                      className="text-[10px] text-secondary hover:text-[#052900] px-2 py-0.5 rounded border border-secondary/40 hover:bg-secondary transition-colors"
+                    >
+                      {t('staging.stageAllBtn')}
+                    </button>
+                  )}
+                </div>
+              }
+              isOpen={sectionState.isOpen('details-unstaged')}
+              onToggle={() => sectionState.toggle('details-unstaged')}
+            >
+              {unstaged.length === 0 ? (
+                <p className="px-4 py-3 text-xs text-text-secondary/70 italic">{t('staging.noUnstagedChanges')}</p>
+              ) : (
+                <div className="p-1">
+                  {unstaged.map((file) => (
+                    <StagingFileRow
+                      key={file.path}
+                      file={file}
+                      selected={selectedFile?.path === file.path}
+                      direction="stage"
+                      onClick={() => onSelectFile(file)}
+                      onAction={() => stageFile(file.path, true)}
+                      onDiscard={() => onDiscardRequest(file)}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        onFileContextMenu({ x: event.clientX, y: event.clientY, file });
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </SidebarSection>
+
+            <SidebarSection
+              title={t('staging.stagedTitle')}
+              count={staged.length}
+              extra={
+                staged.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={unstageAll}
+                    className="text-[10px] text-text-secondary hover:text-[#020f1e] px-2 py-0.5 rounded border border-[#9eacc0]/40 hover:bg-[#9eacc0] transition-colors"
+                  >
+                    {t('staging.unstageAllBtn')}
+                  </button>
+                )
+              }
+              isOpen={sectionState.isOpen('details-staged')}
+              onToggle={() => sectionState.toggle('details-staged')}
+            >
+              {staged.length === 0 ? (
+                <p className="px-4 py-3 text-xs text-text-secondary/70 italic">{t('staging.noStagedChanges')}</p>
+              ) : (
+                <div className="p-1">
+                  {staged.map((file) => (
+                    <StagingFileRow
+                      key={file.path}
+                      file={file}
+                      selected={selectedFile?.path === file.path}
+                      direction="unstage"
+                      onClick={() => onSelectFile(file)}
+                      onAction={() => stageFile(file.path, false)}
+                      onDiscard={() => onDiscardRequest(file)}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        onFileContextMenu({ x: event.clientX, y: event.clientY, file });
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </SidebarSection>
+
+            {hasDraftLog && (
+              <SidebarSection
+                title={t('pipeline.openspec.prepare.aiLogTitle')}
+                icon={<Brain size={13} aria-hidden="true" />}
+                isOpen={sectionState.isOpen('details-draft-log')}
+                onToggle={() => sectionState.toggle('details-draft-log')}
+              >
+                <CommitDraftLog notice={aiNotice} />
+              </SidebarSection>
+            )}
+
+            {renderCommitBox()}
+          </div>
+        </div>
       )}
     </aside>
   );

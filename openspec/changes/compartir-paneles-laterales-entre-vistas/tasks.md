@@ -89,25 +89,25 @@ rediseño empieza en 4.4.
   estado local y en el store a la vez. Es la forma exacta del defecto de `prepareOpen` que este
   change ya corrigió, con la suerte de tener un solo punto de escritura. Se elimina la copia local;
   no se sincronizan dos estados con un efecto.
-- [ ] 4.4 Relevar qué bloques compone hoy cada uno de los estados del panel derecho, con archivo y
+- [x] 4.4 Relevar qué bloques compone hoy cada uno de los estados del panel derecho, con archivo y
   línea, y proponer con qué sección se corresponde cada uno. Declararlo antes de mover nada.
-- [ ] 4.5 Hacer que el panel derecho presente sus contenidos como secciones plegables, con la misma
+- [x] 4.5 Hacer que el panel derecho presente sus contenidos como secciones plegables, con la misma
   pieza que usa el panel lateral. NO escribir una pieza nueva ni una variante: si parece hacer falta,
   frenar y reportar.
-- [ ] 4.6 Qué secciones existen lo decide la circunstancia; cuáles están abiertas lo decide quien usa
+- [x] 4.6 Qué secciones existen lo decide la circunstancia; cuáles están abiertas lo decide quien usa
   la aplicación, y se recuerda por repositorio con el mecanismo que ya existe. Ese mecanismo
   —`hooks/use-sidebar-section-state.ts`— guarda hoy sólo los identificadores abiertos, así que todo
   lo que no figura arranca plegado. Se extiende para admitir secciones abiertas por omisión, leyendo
   el formato ya guardado; NO se escribe un segundo mecanismo.
-- [ ] 4.7 La bitácora de redacción del modelo pasa a ser una sección más, plegable. Deja de tener
+- [x] 4.7 La bitácora de redacción del modelo pasa a ser una sección más, plegable. Deja de tener
   tope de alto propio: el que aporta es el de su contenido, y el panel desplaza.
-- [ ] 4.8 Conservar lo que cada bloque hace hoy: el detalle del commit carga sus archivos al
+- [x] 4.8 Conservar lo que cada bloque hace hoy: el detalle del commit carga sus archivos al
   seleccionar, el rail conserva su recuento pendiente, y el flujo de commit conserva su condición
   sobre el árbol y su acción de confirmar. La caja de commit del detalle del commit
   (`RepoDetailsPanel.tsx:236`) y la del árbol de trabajo (`StagingPanel.tsx:217`) habilitan confirmar
   con condiciones distintas —la primera no exige nada preparado—. Al quedar una sola sección de
   confirmar, declarar con qué condición quedó y por qué.
-- [ ] 4.9 En tests, cubrir que el panel monta la misma sección plegable que el lateral, que las
+- [x] 4.9 En tests, cubrir que el panel monta la misma sección plegable que el lateral, que las
   secciones se pliegan y lo recuerdan, y que las de cada vista son las que corresponden. Afirmar
   sobre el DOM montado y sobre el llamado.
 - [ ] 4.10 Decidir qué queda del alto arrastrable con el panel ya hecho: si el panel no llega al piso

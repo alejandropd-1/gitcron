@@ -1181,22 +1181,15 @@
   color: var(--os-green);
 }
 
-/* El razonamiento. Monoespaciada y con su propio desplazamiento: es un flujo
-   largo, y sin techo empujaría todo lo demás fuera de la vista.
-   `pre-wrap` y no `pre`: el modelo escribe prosa, y el rail es angosto. */
-/* Techo y no piso: crece con el razonamiento hasta acá y después se desplaza
-   solo. Tenía `min-height: 6rem`, que reservaba el hueco aunque no hubiera nada
-   que poner. Sólo se dibuja si hay razonamiento, así que un modelo que no
-   razona no deja el espacio vacío. */
+/* El razonamiento. El alto lo aporta el contenido y el panel entero provee el
+   desplazamiento vertical. Se presenta en monoespacio con `pre-wrap` para el flujo
+   de prosa en el ancho del panel. */
 .draftLogStream {
-  overflow-y: auto;
-  max-height: 24rem;
   margin: 0;
   color: var(--os-muted);
   font-size: var(--font-size-xs); line-height: 1.55; font-family: var(--font-mono), ui-monospace, monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  scrollbar-width: thin;
 }
 
 /* La respuesta, separada del razonamiento y en el color del texto normal: es lo

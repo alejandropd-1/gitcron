@@ -23,6 +23,7 @@ vi.mock('@/hooks/use-translation', () => ({
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
   delete (window as any).api;
 });
 
@@ -175,7 +176,7 @@ describe('resultado de inicializar', () => {
     initOpenSpec.mockResolvedValue({ success: false, error: 'EACCES: permission denied', needsTool: false });
     renderDashboard();
 
-    fireEvent.click(screen.getByRole('tab', { name: /rail\.tools/ }));
+    fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
     fireEvent.click(screen.getByRole('button', { name: /rail\.init$/ }));
 
     const alert = await screen.findByRole('alert');
@@ -186,7 +187,7 @@ describe('resultado de inicializar', () => {
     initOpenSpec.mockResolvedValue({ success: false, error: 'No tools detected', needsTool: true });
     renderDashboard();
 
-    fireEvent.click(screen.getByRole('tab', { name: /rail\.tools/ }));
+    fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
     fireEvent.click(screen.getByRole('button', { name: /rail\.init$/ }));
 
     const claude = await screen.findByRole('checkbox', { name: /Claude Code/ });

@@ -89,16 +89,16 @@ describe('RepoDetailsPanel — Flujo de Commit Unificado y Cuatro Estados (Fase 
   });
 
   it('1. Cubre los cuatro estados del panel derecho con rerender real sobre DOM montado', () => {
-    // ESTADO 1: SDD con prepareOpen: false -> Monta OpenSpecInspector (rail tabs)
+    // ESTADO 1: SDD con prepareOpen: false -> Monta secciones de SDD (actividad, atención, herramientas)
     usePipelineStore.setState({ prepareOpen: false });
     useGitStore.setState({ selectedCommit: null });
     const { rerender } = renderPanel('Pipeline');
 
-    expect(screen.getByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeDefined();
-    expect(screen.getByRole('tab', { name: /pipeline\.openspec\.activity\.title/ })).toBeDefined();
+    expect(screen.getByText('pipeline.openspec.activity.title')).toBeDefined();
+    expect(screen.getByText('pipeline.openspec.rail.tools')).toBeDefined();
     expect(screen.queryByPlaceholderText('staging.commitMsgPlaceholder')).toBeNull();
 
-    // ESTADO 2: SDD con prepareOpen: true -> Monta StagingPanel (flujo de commit)
+    // ESTADO 2: SDD con prepareOpen: true -> Monta secciones de SDD + flujo de commit
     act(() => {
       usePipelineStore.setState({ prepareOpen: true });
     });
@@ -122,7 +122,7 @@ describe('RepoDetailsPanel — Flujo de Commit Unificado y Cuatro Estados (Fase 
       />
     );
 
-    expect(screen.queryByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeNull();
+    expect(screen.getByText('pipeline.openspec.activity.title')).toBeDefined();
     expect(screen.getByPlaceholderText('staging.commitMsgPlaceholder')).toBeDefined();
     expect(screen.getByText(/staging\.stagedTitle/)).toBeDefined();
     expect(screen.getByText('src/main.ts')).toBeDefined();
@@ -163,10 +163,10 @@ describe('RepoDetailsPanel — Flujo de Commit Unificado y Cuatro Estados (Fase 
       />
     );
 
-    expect(screen.getByText('commit.detailsTitle')).toBeDefined();
+    expect(screen.getAllByText('commit.detailsTitle').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/commit:\s*abc1234/)).toBeDefined();
     expect(screen.queryByText(/staging\.unstagedTitle/)).toBeNull();
-    expect(screen.queryByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeNull();
+    expect(screen.queryByText('pipeline.openspec.activity.title')).toBeNull();
 
     // ESTADO 4: Grafo con selectedCommit == null -> Monta StagingPanel (flujo libre)
     act(() => {
@@ -195,7 +195,7 @@ describe('RepoDetailsPanel — Flujo de Commit Unificado y Cuatro Estados (Fase 
     expect(screen.getByPlaceholderText('staging.commitMsgPlaceholder')).toBeDefined();
     expect(screen.getByText(/staging\.stagedTitle/)).toBeDefined();
     expect(screen.queryByText('commit.detailsTitle')).toBeNull();
-    expect(screen.queryByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeNull();
+    expect(screen.queryByText('pipeline.openspec.activity.title')).toBeNull();
   });
 
   it('2. Confirmar desde la vista SDD invoca EXACTAMENTE la misma función que confirmar desde el grafo', () => {

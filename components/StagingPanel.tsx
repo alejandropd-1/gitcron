@@ -260,7 +260,7 @@ export const StagingPanel = memo(function StagingPanel({
   );
 });
 
-type StagingFileRowProps = {
+export type StagingFileRowProps = {
   file: GitFile;
   selected: boolean;
   direction: 'stage' | 'unstage';
@@ -270,7 +270,7 @@ type StagingFileRowProps = {
   onContextMenu?: (event: React.MouseEvent) => void;
 };
 
-const StagingFileRow = memo(function StagingFileRow({
+export const StagingFileRow = memo(function StagingFileRow({
   file, selected, direction, onClick, onAction, onDiscard, onContextMenu,
 }: StagingFileRowProps) {
   const t = useT();

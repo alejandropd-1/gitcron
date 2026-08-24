@@ -241,7 +241,7 @@ describe('OpenSpecSidebarNav con SidebarSection (5ter)', () => {
     // Comprobar persistencia en localStorage con clave openspec-specifications
     const stored = window.localStorage.getItem('gitcron:sidebarSections:C:/test-repo');
     expect(stored).not.toBeNull();
-    expect(JSON.parse(stored!)).toContain('openspec-specifications');
+    expect(JSON.parse(stored!)['openspec-specifications']).toBe(true);
 
     unmount();
 

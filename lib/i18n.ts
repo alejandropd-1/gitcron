@@ -1640,6 +1640,7 @@ const es: Dict = {
   'dashboard.rateShort': 'Ratio: {{r}}%',
 
   // ── Staging Panel (Coloquial) ──
+  'staging.commitSectionTitle': 'Confirmar',
   'staging.unstagedTitle': 'Cambios sin preparar',
   'staging.stagedTitle': 'Cambios listos para guardar',
   'staging.discardAllTooltip': 'Borrar TODOS los cambios (reset --hard)',
@@ -1725,6 +1726,8 @@ const es: Dict = {
 
   // ── Commit details (Coloquial) ──
   'commit.detailsTitle': 'Detalles del commit',
+  'commit.filesSectionTitle': 'Archivos del commit',
+  'commit.worktreeSectionTitle': 'Cambios en el árbol',
   'commit.viewChangesBtn': 'Ver cambios →',
   'commit.goToStagingTooltip': 'Ir al área de preparación',
   'commit.unstagedChangesCount': '{{count}} cambios sin preparar',
@@ -3447,6 +3450,7 @@ const en: Dict = {
   'dashboard.rateShort': 'Ratio: {{r}}%',
 
   // ── Staging Panel (Colloquial) ──
+  'staging.commitSectionTitle': 'Commit',
   'staging.unstagedTitle': 'Unprepared changes',
   'staging.stagedTitle': 'Changes ready to save',
   'staging.discardAllTooltip': 'Delete ALL changes (reset --hard)',
@@ -3532,6 +3536,8 @@ const en: Dict = {
 
   // ── Commit details (Colloquial) ──
   'commit.detailsTitle': 'Commit details',
+  'commit.filesSectionTitle': 'Commit files',
+  'commit.worktreeSectionTitle': 'Working tree changes',
   'commit.viewChangesBtn': 'View changes →',
   'commit.goToStagingTooltip': 'Go to preparation area',
   'commit.unstagedChangesCount': '{{count}} unprepared changes',
@@ -5132,6 +5138,7 @@ const zh: Dict = {
   'dashboard.noDataShort': '无数据',
   'dashboard.totalShort': '总计: {{n}}',
   'dashboard.rateShort': '比例: {{r}}%',
+  'staging.commitSectionTitle': '提交',
   'staging.unstagedTitle': '未准备的更改',
   'staging.stagedTitle': '就绪保存的更改',
   'staging.discardAllTooltip': '丢弃所有更改 (reset --hard)',
@@ -5194,6 +5201,8 @@ const zh: Dict = {
   'settings.temporalAgent': 'Temporal Agent',
   'profile.githubAccount': 'GitHub 账户',
   'commit.detailsTitle': 'Commit 详情',
+  'commit.filesSectionTitle': 'Commit 文件',
+  'commit.worktreeSectionTitle': '工作树更改',
   'commit.viewChangesBtn': '查看更改 →',
   'commit.goToStagingTooltip': '转到准备区域',
   'commit.unstagedChangesCount': '{{count}} 个未准备的更改',

@@ -5,6 +5,8 @@ import { Activity, BrainCircuit, CheckCircle2, FileCode2, MessageSquareText, Wre
 import { useT } from '@/hooks/use-translation';
 import { useGitStore } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
+import { SidebarSection } from '@/components/RepoSidebarParts';
+import { useSidebarSectionState, type SidebarSectionState } from '@/hooks/use-sidebar-section-state';
 import type { OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpecUpdatePlan, RuntimeProjection } from '@/types/pipeline';
 import { DecisionInbox } from './DecisionInbox';
 import { OpenSpecEngineCard } from './OpenSpecEngineCard';
@@ -12,6 +14,17 @@ import { OpenSpecToolList } from './OpenSpecReadiness';
 import { groupActivity, resolveSessionStatusI18nKey, runtimeDisplayName, type ActivityChannel } from './pipeline-domain';
 import type { PipelineSnapshot } from './pipeline-view-state';
 import styles from './OpenSpecDashboard.module.css';
+
+const DEFAULT_OPEN_RIGHT_PANEL = [
+  'details-commit',
+  'details-commit-files',
+  'details-unstaged',
+  'details-staged',
+  'details-draft-log',
+  'details-commit-box',
+  'details-activity',
+  'details-attention',
+] as const;
 
 const ACTIVITY_ICONS: Record<ActivityChannel, React.ComponentType<{ size?: number }>> = {
   narrative: MessageSquareText,
@@ -59,6 +72,8 @@ export type OpenSpecInspectorProps = {
   onRespondDecision?: (decisionId: string, optionId: string) => void;
   onOpenReview?: () => void;
   isReviewOpen?: boolean;
+  sectionState?: SidebarSectionState;
+  children?: React.ReactNode;
 };
 
 export function OpenSpecInspector({
@@ -74,6 +89,8 @@ export function OpenSpecInspector({
   onRespondDecision = () => undefined,
   onOpenReview,
   isReviewOpen = false,
+  sectionState: propSectionState,
+  children,
 }: OpenSpecInspectorProps) {
   const t = useT();
   const storeSnapshot = usePipelineStore((s) => s.snapshot);
@@ -91,6 +108,9 @@ export function OpenSpecInspector({
   const runtimeHistory = propRuntimeHistory !== undefined ? propRuntimeHistory : storeHistory;
   const railTab = propRailTab ?? storeRailTab;
 
+  const localSectionState = useSidebarSectionState(repoPath, DEFAULT_OPEN_RIGHT_PANEL);
+  const sectionState = propSectionState ?? localSectionState;
+
   const setRailTab = (tab: 'activity' | 'tools') => {
     if (onSetRailTab) onSetRailTab(tab);
     storeSetRailTab(tab);
@@ -98,8 +118,6 @@ export function OpenSpecInspector({
 
   const openSpec = snapshot?.openSpec;
   const openChangeId = storeSelectedId ?? openSpec?.selectedChangeId ?? null;
-
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const attentionRef = useRef<HTMLElement | null>(null);
 
   // OpenSpec engine and tools state
@@ -144,12 +162,11 @@ export function OpenSpecInspector({
   const pendingToolCount = (engineStatus?.cli.diagnostics.length ?? 0) + (engineStatus?.integrationState === 'outdated' ? 1 : 0);
 
   const runtimeSessions = useMemo(() => {
-    const list: RuntimeProjection[] = [];
-    if (projection) list.push(projection);
-    for (const h of runtimeHistory) {
-      if (!list.some((s) => s.sessionId === h.sessionId)) list.push(h);
+    const combined = [...(runtimeHistory ?? [])];
+    if (projection && !combined.some((item) => item.sessionId === projection.sessionId)) {
+      combined.unshift(projection);
     }
-    return list;
+    return combined.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
   }, [projection, runtimeHistory]);
 
   const filteredSessions = useMemo(() => {
@@ -157,23 +174,46 @@ export function OpenSpecInspector({
     return runtimeSessions.filter((s) => s.changeId === openChangeId);
   }, [runtimeSessions, openChangeId]);
 
-  const effectiveSessionId = selectedSessionId ?? filteredSessions[0]?.sessionId ?? null;
-  const selectedSession = runtimeSessions.find((s) => s.sessionId === effectiveSessionId) ?? filteredSessions[0] ?? null;
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
-  const runningName = selectedSession ? (runtimeDisplayName(selectedSession.runtime) ?? selectedSession.runtime) : null;
-  const sessionStatusKey = selectedSession?.active ? 'running' : (selectedSession?.outcome ?? 'idle');
-  const visibleActivity = useMemo(() => selectedSession?.activity ?? snapshot?.activity ?? [], [selectedSession, snapshot]);
+  useEffect(() => {
+    if (selectedSessionId && !filteredSessions.some((session) => session.sessionId === selectedSessionId)) {
+      setSelectedSessionId(null);
+    }
+  }, [filteredSessions, selectedSessionId]);
+
+  const effectiveSessionId = useMemo(() => {
+    if (selectedSessionId && filteredSessions.some((s) => s.sessionId === selectedSessionId)) {
+      return selectedSessionId;
+    }
+    return filteredSessions[0]?.sessionId ?? null;
+  }, [filteredSessions, selectedSessionId]);
+
+  const selectedSession = useMemo(
+    () => filteredSessions.find((session) => session.sessionId === effectiveSessionId) ?? filteredSessions[0] ?? null,
+    [filteredSessions, effectiveSessionId],
+  );
+
+  const visibleActivity = useMemo(() => {
+    if (selectedSession) return selectedSession.activity;
+    if (openChangeId !== null) return [];
+    return snapshot?.activity ?? [];
+  }, [selectedSession, openChangeId, snapshot?.activity]);
+
   const activityGroups = useMemo(() => groupActivity(visibleActivity), [visibleActivity]);
 
-  const totalRequirements = useMemo(() => {
-    return (openSpec?.specifications ?? []).reduce((acc, s) => acc + (s.requirements ?? 0), 0);
-  }, [openSpec]);
+  const runningName = selectedSession ? (runtimeDisplayName(selectedSession.runtime) ?? selectedSession.runtime) : 'Agent';
+  const sessionStatusKey = selectedSession
+    ? (selectedSession.active ? 'running' : selectedSession.outcome)
+    : (filteredSessions[0] ? (filteredSessions[0].active ? 'running' : filteredSessions[0].outcome) : 'idle');
+  const totalRequirements = openSpec?.specifications?.reduce((acc, spec) => acc + (typeof spec.requirements === 'number' ? spec.requirements : 0), 0) ?? 0;
 
-  const runOpenSpecInit = (selectedToolIds?: string[]) => {
-    const api = typeof window !== 'undefined' ? window.api : undefined;
-    if (!api?.pipelineInitOpenSpec || initBusy || !repoPath) return;
+  const runOpenSpecInit = (toolIds?: string[]) => {
+    const api = typeof window !== 'undefined' ? (window as any).api : null;
+    if (!api?.pipelineInitOpenSpec || !repoPath) return;
     setInitBusy(true);
     setInitError(null);
+    const selectedToolIds = toolIds && toolIds.length > 0 ? toolIds : undefined;
     void api.pipelineInitOpenSpec(repoPath, selectedToolIds)
       .then((result: any) => {
         if (result?.success) {
@@ -184,45 +224,26 @@ export function OpenSpecInspector({
           setInitNeedsTool(true);
           return;
         }
-        setInitError(result?.error || 'unknown');
+        setInitError(result?.error ?? 'Error desconocido al inicializar OpenSpec');
       })
-      .catch((error: unknown) => setInitError(error instanceof Error ? error.message : 'unknown'))
-      .finally(() => setInitBusy(false));
+      .catch((err: any) => {
+        setInitError(err?.message ?? 'Error desconocido al inicializar OpenSpec');
+      })
+      .finally(() => {
+        setInitBusy(false);
+      });
   };
 
   return (
     <aside className={`${styles.activityRail} ${styles.openspecScope}`} aria-label={t('pipeline.openspec.activity.title')}>
-      <div className={styles.railTabs} role="tablist" aria-label={t('pipeline.openspec.rail.label')}>
-        <button type="button" role="tab" aria-selected={railTab === 'activity'} onClick={() => setRailTab('activity')}>
-          <Activity size={13} aria-hidden="true" /> {t('pipeline.openspec.activity.title')}
-        </button>
-        <button type="button" role="tab" aria-selected={railTab === 'tools'} onClick={() => setRailTab('tools')}>
-          <Wrench size={13} aria-hidden="true" /> {t('pipeline.openspec.rail.tools')}
-          {pendingToolCount > 0 && <em className={styles.railTabBadge}>{pendingToolCount}</em>}
-        </button>
-      </div>
-
-      {railTab === 'tools' ? (
-        <div className={styles.toolsRailContent}>
-          <OpenSpecEngineCard
-            status={effectiveEngineStatus}
-            isLoading={engineLoading}
-            onOpenToolsTab={() => setRailTab('tools')}
-            onOpenReview={onOpenReview}
-            isReviewOpen={isReviewOpen}
-          />
-          <OpenSpecToolList
-            present={openSpecPresent}
-            tools={openSpecTools}
-            busy={initBusy}
-            error={initError}
-            needsTool={initNeedsTool}
-            onInitialize={() => runOpenSpecInit()}
-            onInitializeWith={(toolIds) => runOpenSpecInit(toolIds)}
-          />
-        </div>
-      ) : (
-        <>
+      <div className={styles.railSections}>
+        <SidebarSection
+          title={t('pipeline.openspec.activity.title')}
+          count={activityGroups.length}
+          icon={<Activity size={13} aria-hidden="true" />}
+          isOpen={sectionState.isOpen('details-activity')}
+          onToggle={() => sectionState.toggle('details-activity')}
+        >
           {openChangeId === null && (
             <p className={styles.railScope}>{t('pipeline.openspec.activity.repoScope')}</p>
           )}
@@ -238,14 +259,14 @@ export function OpenSpecInspector({
                   </em>
                 )}
               </span>
-              {runtimeSessions.length > 1 && (
+              {filteredSessions.length > 1 && (
                 <select
                   className={styles.sessionSelect}
                   aria-label={t('pipeline.openspec.activity.sessionPicker')}
                   value={effectiveSessionId ?? ''}
                   onChange={(event) => setSelectedSessionId(event.target.value)}
                 >
-                  {runtimeSessions.map((session) => (
+                  {filteredSessions.map((session) => (
                     <option key={session.sessionId} value={session.sessionId}>{formatSessionOption(session)}</option>
                   ))}
                 </select>
@@ -266,7 +287,7 @@ export function OpenSpecInspector({
               </p>
             ) : (
               <ol>
-                {activityGroups.slice(-12).map((entry) => {
+                {activityGroups.slice(-12).map((entry, idx) => {
                   const Icon = ACTIVITY_ICONS[entry.channel];
                   const localized = ['session.started', 'session.completed', 'session.failed', 'session.interrupted'].includes(entry.text);
                   const gitEvidence = /^git\.changed files=(\d+) additions=(\d+|unknown) deletions=(\d+|unknown)$/.exec(entry.text);
@@ -283,7 +304,7 @@ export function OpenSpecInspector({
                         ? t(`pipeline.openspec.activity.event.${entry.text}`)
                         : entry.text;
                   return (
-                    <li key={entry.key} data-channel={entry.channel}>
+                    <li key={entry.key ?? `${entry.at}-${entry.channel}-${idx}`} data-channel={entry.channel}>
                       <time>{formatTime(entry.at)}</time>
                       <span className={styles.activityIcon}><Icon size={12} /></span>
                       <div><strong>{t(`pipeline.channel.${entry.channel}`)}</strong><p>{displayText}</p></div>
@@ -293,6 +314,14 @@ export function OpenSpecInspector({
               </ol>
             )}
           </section>
+        </SidebarSection>
+
+        <SidebarSection
+          title={t('pipeline.openspec.attention.title')}
+          count={snapshot?.decisions?.length}
+          isOpen={sectionState.isOpen('details-attention')}
+          onToggle={() => sectionState.toggle('details-attention')}
+        >
           <section
             className={styles.attention}
             data-needed={(snapshot?.decisions?.length ?? 0) > 0}
@@ -300,11 +329,44 @@ export function OpenSpecInspector({
             tabIndex={-1}
             aria-label={t('pipeline.openspec.attention.title')}
           >
-            <h4>{t('pipeline.openspec.attention.title')}</h4>
             <DecisionInbox decisions={snapshot?.decisions ?? []} onRespondDecision={onRespondDecision} />
           </section>
-        </>
-      )}
+        </SidebarSection>
+
+        <SidebarSection
+          title={t('pipeline.openspec.rail.tools')}
+          count={pendingToolCount > 0 ? pendingToolCount : undefined}
+          icon={<Wrench size={13} aria-hidden="true" />}
+          isOpen={sectionState.isOpen('details-tools') || storeRailTab === 'tools'}
+          onToggle={() => {
+            if (storeRailTab === 'tools') storeSetRailTab('activity');
+            sectionState.toggle('details-tools');
+          }}
+        >
+          <div className={styles.toolsRailContent}>
+            <OpenSpecEngineCard
+              status={effectiveEngineStatus}
+              isLoading={engineLoading}
+              onOpenToolsTab={() => {
+                if (!sectionState.isOpen('details-tools')) sectionState.toggle('details-tools');
+              }}
+              onOpenReview={onOpenReview}
+              isReviewOpen={isReviewOpen}
+            />
+            <OpenSpecToolList
+              present={openSpecPresent}
+              tools={openSpecTools}
+              busy={initBusy}
+              error={initError}
+              needsTool={initNeedsTool}
+              onInitialize={() => runOpenSpecInit()}
+              onInitializeWith={(toolIds) => runOpenSpecInit(toolIds)}
+            />
+          </div>
+        </SidebarSection>
+        {children}
+      </div>
+
       <footer className={styles.railMeta}>
         <span>{totalRequirements} {t('pipeline.openspec.summary.requirements')}</span>
         <span>{openSpec?.reports?.length ?? 0} {t('pipeline.openspec.summary.reports')}</span>

@@ -9,6 +9,7 @@ import { OpenSpecDashboard } from '../pipeline/OpenSpecDashboard';
 import { usePanelLayout } from '@/hooks/use-panel-layout';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { useGitStore } from '@/lib/git-store';
+import { useSidebarSectionState } from '@/hooks/use-sidebar-section-state';
 import type { PipelineSnapshot } from '../pipeline/pipeline-view-state';
 
 vi.mock('next/dynamic', () => ({
@@ -33,6 +34,7 @@ vi.mock('@/lib/new-change-draft-store', () => ({
 
 vi.mock('@/hooks/use-translation', () => ({
   useT: () => (key: string) => key,
+  tNow: (key: string) => key,
 }));
 
 vi.mock('@/hooks/use-git-actions', () => ({
@@ -47,7 +49,7 @@ vi.mock('@/hooks/use-git-actions', () => ({
   }),
 }));
 
-const mockGitState = {
+const INITIAL_GIT_STATE = {
   repoPath: '/test/repo',
   isLoading: false,
   branches: [],
@@ -74,6 +76,8 @@ const mockGitState = {
   autoFetchEnabled: false,
 };
 
+let mockGitState = { ...INITIAL_GIT_STATE };
+
 vi.mock('@/lib/git-store', () => {
   const useGitStoreMock: any = (selector?: (s: any) => any) => {
     return selector ? selector(mockGitState) : mockGitState;
@@ -83,7 +87,10 @@ vi.mock('@/lib/git-store', () => {
   return { useGitStore: useGitStoreMock };
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  mockGitState = { ...INITIAL_GIT_STATE, modifiedFiles: [] };
+});
 
 describe('Panel layout armazón & separación de fondos (modo por omisión: chronometric)', () => {
   it('RepoTabs renderiza controles accesibles de 44px para plegar paneles', () => {
@@ -703,9 +710,10 @@ describe('Compartir paneles laterales entre vistas (Fase 3 & fundición de later
       />
     );
 
-    expect(screen.queryByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeNull();
+    expect(screen.getByText('staging.unstagedTitle')).toBeDefined();
+    expect(screen.queryByText('pipeline.openspec.activity.title')).toBeNull();
 
-    // En SDD: monta OpenSpecInspector con solapas de Actividad y Herramientas
+    // En SDD: monta OpenSpecInspector con secciones de Actividad y Herramientas
     rerender(
       <RepoDetailsPanel
         activeTab="Pipeline"
@@ -726,9 +734,8 @@ describe('Compartir paneles laterales entre vistas (Fase 3 & fundición de later
       />
     );
 
-    expect(screen.getByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeDefined();
-    expect(screen.getByRole('tab', { name: /pipeline\.openspec\.activity\.title/ })).toBeDefined();
-    expect(screen.getByRole('tab', { name: /pipeline\.openspec\.rail\.tools/ })).toBeDefined();
+    expect(screen.getByText('pipeline.openspec.activity.title')).toBeDefined();
+    expect(screen.getByText('pipeline.openspec.rail.tools')).toBeDefined();
   });
 
   it('3. detailsOpen: false oculta el panel derecho en AMBAS vistas con rerender real', () => {
@@ -1105,8 +1112,11 @@ describe('Compartir paneles laterales entre vistas (Fase 3 & fundición de later
     const path = await import('path');
     const pageSrc = fs.readFileSync(path.resolve(__dirname, '../../app/page.tsx'), 'utf-8');
 
-    // 1. Verificación del cableado en app/page.tsx: pipelineLayout debe pasar rightOpen: repositoryDetailsVisible
-    const pipelineLayoutMatch = /pipelineLayout:\s*\{([^}]+)\}/.exec(pageSrc);
+    // Guarda del cableado de app/page.tsx: el único salto que la parte de DOM
+    // de esta misma prueba no alcanza —porque construye tabViews a mano—.
+    // No es una prueba de comportamiento y asegura que app/page.tsx conecte
+    // rightOpen a repositoryDetailsVisible dentro de pipelineLayout.
+    const pipelineLayoutMatch = /pipelineLayout:\s*\{((?:[^{}]|\{[^{}]*\})+)\}/.exec(pageSrc);
     expect(pipelineLayoutMatch).not.toBeNull();
     expect(pipelineLayoutMatch![1]).toMatch(/rightOpen:\s*repositoryDetailsVisible/);
 
@@ -1235,5 +1245,269 @@ describe('Compartir paneles laterales entre vistas (Fase 3 & fundición de later
     } finally {
       (window as any).api = originalApi;
     }
+  });
+});
+
+describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegables', () => {
+  it('1. Que la pieza que se monta en el panel derecho sea SidebarSection (misma aria-expanded y estructura que en el lateral)', () => {
+    useGitStore.setState({
+      repoPath: 'C:/test-sidebar-section',
+      modifiedFiles: [{ path: 'mod.ts', status: 'modified', staged: false }],
+      selectedCommit: null,
+    });
+
+    const { container } = render(
+      <RepoDetailsPanel
+        activeTab="Graph"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    // SidebarSection monta botones con aria-expanded para cada sección plegable
+    const sectionButtons = container.querySelectorAll('button[aria-expanded]');
+    expect(sectionButtons.length).toBeGreaterThanOrEqual(1);
+    const unstagedButton = screen.getByRole('button', { name: /staging\.unstagedTitle/ });
+    expect(unstagedButton.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('2. Que colapsar y expandir secciones del panel derecho persiste entre desmontajes', () => {
+    const repo = 'C:/test-persist-sections';
+    window.localStorage.removeItem(`gitcron:sidebarSections:${repo}`);
+
+    useGitStore.setState({
+      repoPath: repo,
+      modifiedFiles: [{ path: 'mod.ts', status: 'modified', staged: false }],
+      selectedCommit: null,
+    });
+
+    const { unmount } = render(
+      <RepoDetailsPanel
+        activeTab="Graph"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    // Abierta por omisión
+    const btn = screen.getByRole('button', { name: /staging\.unstagedTitle/ });
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+
+    // Colapsar
+    fireEvent.click(btn);
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+
+    // Desmontar y volver a montar
+    unmount();
+
+    render(
+      <RepoDetailsPanel
+        activeTab="Graph"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    const btnRemounted = screen.getByRole('button', { name: /staging\.unstagedTitle/ });
+    expect(btnRemounted.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('3. Que la composición de secciones por circunstancia coincide con la especificación en ambas vistas', () => {
+    // 3.1 Grafo sin commit
+    usePipelineStore.setState({ prepareOpen: false });
+    useGitStore.setState({
+      repoPath: 'C:/spec-repo',
+      selectedCommit: null,
+      modifiedFiles: [{ path: 'f.ts', status: 'modified', staged: false }],
+    });
+    const { rerender } = render(
+      <RepoDetailsPanel
+        activeTab="Graph"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('staging.unstagedTitle')).toBeDefined();
+    expect(screen.getByText('staging.stagedTitle')).toBeDefined();
+    expect(screen.getByText('staging.commitSectionTitle')).toBeDefined();
+    expect(screen.queryByText('commit.filesSectionTitle')).toBeNull();
+    expect(screen.queryByText('pipeline.openspec.activity.title')).toBeNull();
+
+    // 3.2 Grafo con commit
+    useGitStore.setState({
+      selectedCommit: {
+        hash: '1234567890',
+        shortHash: '1234567',
+        message: 'c1',
+        authorName: 'A',
+        authorEmail: 'a@a.com',
+        date: '2026-08-22T00:00:00Z',
+        parents: [],
+        refs: [],
+      },
+      modifiedFiles: [{ path: 'live.ts', status: 'modified', staged: false }],
+    });
+    rerender(
+      <RepoDetailsPanel
+        activeTab="Graph"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    expect(screen.getAllByText('commit.detailsTitle').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('commit.filesSectionTitle')).toBeDefined();
+    expect(screen.getByText('commit.worktreeSectionTitle')).toBeDefined();
+    expect(screen.getByText('staging.commitSectionTitle')).toBeDefined();
+    expect(screen.queryByText('staging.unstagedTitle')).toBeNull();
+
+    // 3.3 SDD sin preparar
+    useGitStore.setState({ selectedCommit: null });
+    usePipelineStore.setState({ prepareOpen: false });
+    rerender(
+      <RepoDetailsPanel
+        activeTab="Pipeline"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('pipeline.openspec.activity.title')).toBeDefined();
+    expect(screen.getByText('pipeline.openspec.attention.title')).toBeDefined();
+    expect(screen.getByText('pipeline.openspec.rail.tools')).toBeDefined();
+    expect(screen.queryByText('staging.commitSectionTitle')).toBeNull();
+    expect(screen.queryByText('commit.detailsTitle')).toBeNull();
+
+    // 3.4 SDD preparando
+    usePipelineStore.setState({ prepareOpen: true });
+    rerender(
+      <RepoDetailsPanel
+        activeTab="Pipeline"
+        graphMode="chronometric"
+        detailsW={320}
+        visible={true}
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('pipeline.openspec.activity.title')).toBeDefined();
+    expect(screen.getByText('pipeline.openspec.attention.title')).toBeDefined();
+    expect(screen.getByText('pipeline.openspec.rail.tools')).toBeDefined();
+    expect(screen.getByText('staging.stagedTitle')).toBeDefined();
+    expect(screen.getByText('staging.commitSectionTitle')).toBeDefined();
+    expect(screen.queryByText('staging.unstagedTitle')).toBeNull();
+  });
+
+  it('4. Que la migración desde un array viejo ([\'local\', \'remoto\']) en localStorage funciona y persiste como Record', () => {
+    const repo = 'C:/mig-repo-test';
+    window.localStorage.setItem(`gitcron:sidebarSections:${repo}`, JSON.stringify(['local', 'remoto']));
+
+    const { result } = renderHook(() => useSidebarSectionState(repo));
+
+    expect(result.current.isOpen('local')).toBe(true);
+    expect(result.current.isOpen('remoto')).toBe(true);
+    expect(result.current.isOpen('otro')).toBe(false);
+
+    act(() => {
+      result.current.toggle('otro');
+    });
+
+    expect(result.current.isOpen('otro')).toBe(true);
+    const stored = JSON.parse(window.localStorage.getItem(`gitcron:sidebarSections:${repo}`) || '{}');
+    expect(stored).toEqual({ local: true, remoto: true, otro: true });
+  });
+
+  it('5. Que useSidebarSectionState sin defaults se comporta igual que antes: todo cerrado por omisión', () => {
+    const repo = 'C:/clean-defaults-repo';
+    window.localStorage.removeItem(`gitcron:sidebarSections:${repo}`);
+
+    const { result } = renderHook(() => useSidebarSectionState(repo));
+
+    expect(result.current.isOpen('details-unstaged')).toBe(false);
+    expect(result.current.isOpen('local')).toBe(false);
+    expect(result.current.isOpen('remoto')).toBe(false);
   });
 });

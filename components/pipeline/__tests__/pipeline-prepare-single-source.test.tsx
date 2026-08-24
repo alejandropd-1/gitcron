@@ -203,16 +203,15 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
   it('1. Abrir la preparación desde la franja -> el panel derecho muestra el flujo de commit', () => {
     render(<IntegratedPipelineView />);
 
-    // Inicialmente: panel derecho en modo inspector (rail tabs)
-    expect(screen.getByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeDefined();
+    // Inicialmente: panel derecho con secciones de SDD (sin caja de commit)
+    expect(screen.getByText('pipeline.openspec.activity.title')).toBeDefined();
     expect(screen.queryByPlaceholderText('staging.commitMsgPlaceholder')).toBeNull();
 
     // Abrir preparación desde el botón de la franja
     const stripButton = screen.getByTitle('pipeline.openspec.prepare.open');
     fireEvent.click(stripButton);
 
-    // El panel derecho cambia a StagingPanel (flujo de commit)
-    expect(screen.queryByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeNull();
+    // El panel derecho suma el flujo de commit (caja de commit y lista staged)
     expect(screen.getByPlaceholderText('staging.commitMsgPlaceholder')).toBeDefined();
     expect(screen.getByText(/staging\.stagedTitle/)).toBeDefined();
     expect(usePipelineStore.getState().prepareOpen).toBe(true);
@@ -232,8 +231,8 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
     const closeButton = screen.getByText('pipeline.openspec.prepare.close');
     fireEvent.click(closeButton);
 
-    // El panel derecho DEBE volver al inspector
-    expect(screen.getByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeDefined();
+    // El panel derecho vuelve a mostrar sólo secciones de SDD sin caja de commit
+    expect(screen.getByText('pipeline.openspec.activity.title')).toBeDefined();
     expect(screen.queryByPlaceholderText('staging.commitMsgPlaceholder')).toBeNull();
     expect(usePipelineStore.getState().prepareOpen).toBe(false);
   });
@@ -255,7 +254,6 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
 
     // El panel derecho muestra el flujo de commit
     expect(screen.getByPlaceholderText('staging.commitMsgPlaceholder')).toBeDefined();
-    expect(screen.queryByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeNull();
     expect(usePipelineStore.getState().prepareOpen).toBe(true);
 
     // Cerrar preparación desde el botón de la franja
@@ -263,7 +261,7 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
     fireEvent.click(stripButton);
 
     // El panel derecho vuelve al inspector
-    expect(screen.getByRole('tablist', { name: 'pipeline.openspec.rail.label' })).toBeDefined();
+    expect(screen.getByText('pipeline.openspec.activity.title')).toBeDefined();
     expect(screen.queryByPlaceholderText('staging.commitMsgPlaceholder')).toBeNull();
     expect(usePipelineStore.getState().prepareOpen).toBe(false);
   });

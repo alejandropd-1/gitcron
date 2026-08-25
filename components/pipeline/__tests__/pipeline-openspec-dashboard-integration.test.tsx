@@ -26,14 +26,20 @@ vi.mock('@/hooks/use-git-actions', () => ({
 
 vi.mock('@/lib/new-change-draft-store', () => ({
   useNewChangeDraft: () => ({ open: false, mode: null }),
-  useNewChangeDraftStore: () => ({
-    actions: { clearDraft: vi.fn() },
-  }),
+  useNewChangeDraftStore: ((selector?: any) => {
+    const state = {
+      drafts: {},
+      patchDraft: vi.fn(),
+      clearDraft: vi.fn(),
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  }) as any,
 }));
 
 describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cableado Productivo)', () => {
   afterEach(() => {
     cleanup();
+    usePipelineStore.setState({ selectedChangeId: null, openSpecificationId: null });
   });
 
   const dummySnapshot: PipelineSnapshot = {
@@ -432,5 +438,291 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     // Las columnas laterales navigator e inspector fueron retiradas del cuerpo (0 asides)
     const asides = container.querySelectorAll('aside');
     expect(asides.length).toBe(0);
+  });
+
+  it('los cinco bloques del centro montan encabezado con la misma clase compartida (7.7, 7.9)', async () => {
+    const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
+    const checkLatestVersionMock = vi.fn().mockResolvedValue(null);
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: getEngineStatusMock,
+          checkLatestVersion: checkLatestVersionMock,
+          getUpdatePlan: vi.fn().mockResolvedValue(null),
+        },
+      },
+    });
+
+    const snapshotWithChange: PipelineSnapshot = {
+      ...dummySnapshot,
+      openSpec: {
+        ...dummySnapshot.openSpec!,
+        selectedChangeId: 'change-1',
+        activeChanges: [
+          {
+            changeId: 'change-1',
+            status: { schemaName: 'spec-driven', isComplete: false, isPlanningComplete: true, artifacts: [] },
+            tasks: [
+              { id: '1', line: 10, text: 'Tarea 1', completed: false },
+              { id: '2', line: 11, text: 'Tarea 2', completed: true },
+            ],
+          } as any,
+        ],
+        specifications: [
+          { specificationId: 'spec-1', name: 'Spec 1', requirements: 2 } as any,
+        ],
+      },
+    };
+
+    usePipelineStore.setState({ selectedChangeId: 'change-1' });
+
+    render(
+      <OpenSpecDashboard
+        snapshot={snapshotWithChange}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        leftOpen={true}
+        rightOpen={false}
+        leftWidth={340}
+        rightWidth={340}
+        onResizeLeft={vi.fn()}
+        onResizeRight={vi.fn()}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    // Entrar al cambio
+    const enterBtn = screen.getByRole('button', { name: /Entrar|Abrir/i });
+    fireEvent.click(enterBtn);
+
+    // 1. Siguiente paso
+    const nextStepHeading = await screen.findByRole('heading', { name: /Siguiente paso/i, level: 4 });
+    expect(nextStepHeading).toBeTruthy();
+
+    // 2. Avisos
+    const noticesHeading = await screen.findByRole('heading', { name: /Avisos/i, level: 4 });
+    expect(noticesHeading).toBeTruthy();
+
+    // 3. Tareas del cambio
+    const tasksHeading = await screen.findByRole('heading', { name: /Tareas del cambio/i, level: 4 });
+    expect(tasksHeading).toBeTruthy();
+
+    // 4. Lanzar agente (abrir lanzador haciendo clic en "Continuar con")
+    const continueBtn = screen.getByRole('button', { name: /Continuar con/i });
+    fireEvent.click(continueBtn);
+    const launcherHeading = await screen.findByRole('heading', { name: /Lanzar agente/i, level: 4 });
+    expect(launcherHeading).toBeTruthy();
+
+    // 5. Evidencia (pestaña Artefactos)
+    const artifactsTab = screen.getByRole('tab', { name: /Artefactos/i });
+    fireEvent.click(artifactsTab);
+    const evidenceHeading = await screen.findByRole('heading', { name: /Evidencia/i, level: 4 });
+    expect(evidenceHeading).toBeTruthy();
+
+    // 5b. Actividad (pestaña Actividad)
+    const activityTab = screen.getByRole('tab', { name: /Actividad/i });
+    fireEvent.click(activityTab);
+    const activityHeading = await screen.findByRole('heading', { name: /Actividad/i, level: 4 });
+    expect(activityHeading).toBeTruthy();
+
+    // Leemos la clase compartida del primer encabezado y comparamos con los demás
+    const sharedClass = Array.from(nextStepHeading.classList).find((cls) => cls.includes('blockHeader'));
+    expect(sharedClass).toBeDefined();
+
+    expect(Array.from(noticesHeading.classList)).toContain(sharedClass);
+    expect(Array.from(launcherHeading.classList)).toContain(sharedClass);
+    expect(Array.from(tasksHeading.classList)).toContain(sharedClass);
+    expect(Array.from(evidenceHeading.classList)).toContain(sharedClass);
+    expect(Array.from(activityHeading.classList)).toContain(sharedClass);
+
+    // Leemos la clase de bloque compartida del primer bloque y comparamos con los demás
+    const nextStepBlock = nextStepHeading.parentElement!;
+    const noticesBlock = noticesHeading.parentElement!;
+    const launcherBlock = launcherHeading.parentElement!;
+    const tasksBlock = tasksHeading.parentElement!;
+    const evidenceBlock = evidenceHeading.parentElement!;
+    const activityBlock = activityHeading.parentElement!;
+
+    const sharedBlockClass = Array.from(nextStepBlock.classList).find((cls) => cls.includes('centerBlock'));
+    expect(sharedBlockClass).toBeDefined();
+
+    expect(Array.from(noticesBlock.classList)).toContain(sharedBlockClass);
+    expect(Array.from(launcherBlock.classList)).toContain(sharedBlockClass);
+    expect(Array.from(tasksBlock.classList)).toContain(sharedBlockClass);
+    expect(Array.from(evidenceBlock.classList)).toContain(sharedBlockClass);
+    expect(Array.from(activityBlock.classList)).toContain(sharedBlockClass);
+
+    // Cada encabezado contiene su ícono SVG size={13} con aria-hidden="true"
+    for (const heading of [nextStepHeading, noticesHeading, launcherHeading, tasksHeading, evidenceHeading, activityHeading]) {
+      const svg = heading.querySelector('svg');
+      expect(svg).not.toBeNull();
+      expect(svg?.getAttribute('aria-hidden')).toBe('true');
+    }
+
+    vi.unstubAllGlobals();
+  });
+
+  it('«Avisos» se monta después de «Siguiente paso» con un cambio elegido y antes cuando no hay ninguno (7.8, 7.9)', async () => {
+    const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
+    const checkLatestVersionMock = vi.fn().mockResolvedValue(null);
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: getEngineStatusMock,
+          checkLatestVersion: checkLatestVersionMock,
+        },
+      },
+    });
+
+    const snapshotWithChange: PipelineSnapshot = {
+      ...dummySnapshot,
+      openSpec: {
+        ...dummySnapshot.openSpec!,
+        selectedChangeId: 'change-1',
+        activeChanges: [
+          {
+            changeId: 'change-1',
+            status: { schemaName: 'spec-driven', isComplete: false, isPlanningComplete: true, artifacts: [] },
+            tasks: [{ id: '1', line: 10, text: 'Tarea 1', completed: false }],
+          } as any,
+        ],
+      },
+    };
+
+    // Caso 1: CON cambio elegido -> «Avisos» va DESPUÉS de «Siguiente paso»
+    const { unmount: unmount1 } = render(
+      <OpenSpecDashboard
+        snapshot={snapshotWithChange}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    const enterBtn = screen.getByRole('button', { name: /Entrar|Abrir/i });
+    fireEvent.click(enterBtn);
+
+    const nextStepHeading = await screen.findByRole('heading', { name: /Siguiente paso/i, level: 4 });
+    const noticesHeadingWithChange = await screen.findByRole('heading', { name: /Avisos/i, level: 4 });
+
+    // En el DOM montado, noticesHeading sigue a nextStepHeading
+    expect(nextStepHeading.compareDocumentPosition(noticesHeadingWithChange) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    unmount1();
+
+    // Caso 2: SIN cambio elegido -> «Avisos» se monta arriba (antes del contenido de bienvenida/inicio)
+    const snapshotWithoutChange: PipelineSnapshot = {
+      ...dummySnapshot,
+      openSpec: {
+        ...dummySnapshot.openSpec!,
+        selectedChangeId: null,
+      },
+    };
+
+    usePipelineStore.setState({ selectedChangeId: null });
+
+    const { container: container2 } = render(
+      <OpenSpecDashboard
+        snapshot={snapshotWithoutChange}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    const noticesHeadingWithoutChange = await screen.findByRole('heading', { name: /Avisos/i, level: 4 });
+    expect(noticesHeadingWithoutChange).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: /Siguiente paso/i, level: 4 })).toBeNull();
+
+    // Avisos está en la parte superior de main
+    const mainEl = container2.querySelector('main');
+    expect(mainEl).not.toBeNull();
+    const firstSectionInMain = mainEl!.firstElementChild;
+    expect(firstSectionInMain?.getAttribute('aria-label')).toBe('Avisos');
+
+    vi.unstubAllGlobals();
+  });
+
+  it('el bloque de avisos anula su margen horizontal dentro de workArea para alinear con el resto de los bloques', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const cssPath = path.resolve(__dirname, '../OpenSpecDashboard.module.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+    // Afirmación sobre la regla de estilo: dentro de .workArea, .noticesGroup anula el margen horizontal
+    // (el padding horizontal ya lo aporta el contenedor .workArea)
+    expect(cssContent).toMatch(/\.workArea\s+\.noticesGroup\s*\{[^}]*margin-inline:\s*0/);
+
+    const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
+    const checkLatestVersionMock = vi.fn().mockResolvedValue(null);
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: getEngineStatusMock,
+          checkLatestVersion: checkLatestVersionMock,
+        },
+      },
+    });
+
+    const snapshotWithChange: PipelineSnapshot = {
+      ...dummySnapshot,
+      openSpec: {
+        ...dummySnapshot.openSpec!,
+        selectedChangeId: 'change-1',
+        activeChanges: [
+          {
+            changeId: 'change-1',
+            status: { schemaName: 'spec-driven', isComplete: false, isPlanningComplete: true, artifacts: [] },
+            tasks: [{ id: '1', line: 10, text: 'Tarea 1', completed: false }],
+          } as any,
+        ],
+      },
+    };
+
+    const { container } = render(
+      <OpenSpecDashboard
+        snapshot={snapshotWithChange}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    const enterBtn = screen.getByRole('button', { name: /Entrar|Abrir/i });
+    fireEvent.click(enterBtn);
+
+    // En el DOM montado con cambio elegido y solapa Trabajo activa:
+    const workArea = container.querySelector('div[class*="workArea"]');
+    expect(workArea).not.toBeNull();
+
+    const noticesSection = workArea!.querySelector('section[class*="noticesGroup"]');
+    const tasksBlock = workArea!.querySelectorAll('div[class*="centerBlock"]')[1]; // Segundo centerBlock = tasks
+
+    expect(noticesSection).not.toBeNull();
+    expect(tasksBlock).not.toBeNull();
+    // Ambos bloques son hijos directos del mismo contenedor de trabajo
+    expect(noticesSection!.parentElement).toBe(workArea);
+    expect(tasksBlock!.parentElement).toBe(workArea);
+
+    vi.unstubAllGlobals();
   });
 });

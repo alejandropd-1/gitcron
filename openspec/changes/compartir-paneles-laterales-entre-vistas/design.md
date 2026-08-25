@@ -142,6 +142,53 @@ el panel es una lista que desplaza, no hay tal tarjeta. Lo que sigue valiendo de
 original es que el panel no llegue al piso y que ese alto se arrastre, pero aplicado al panel entero.
 Queda pendiente de decisión de Alejandro con este análisis a la vista.
 
+### El cuerpo de SDD en una sola pista
+
+Relevamiento de la tarea 7.1, hecho el 2026-08-24 con las columnas ya retiradas.
+
+**Corrección del 2026-08-24, posterior:** la primera versión de este relevamiento presentó los cinco
+bloques como una sola columna. No lo son. El centro tiene tres solapas —Trabajo, Actividad y
+Artefactos, en `OpenSpecDashboard.tsx:271` y `:2180`—, y «Evidencia» y «Actividad» son solapas
+enteras, no bloques debajo de «Tareas». La columna es la solapa Trabajo, y tiene cuatro bloques.
+La decisión que sigue no cambia por eso: los encabezados hacen falta igual, y «Avisos» baja debajo
+de «Siguiente paso» dentro de esa solapa.
+
+Con un cambio elegido, la preparación cerrada y la solapa Trabajo activa, el centro se lee así:
+
+| # | Bloque | Dónde | ¿Encabezado? |
+|---|---|---|---|
+| 1 | Avisos | `OpenSpecDashboard.tsx:1626` | Sí — rótulo, ícono, recuadro y color |
+| 2 | Siguiente paso | `:2313` | No — un párrafo suelto |
+| 3 | Lanzador de agente | `:2317` | No |
+| 4 | Tareas | `:2334` | Sí — un `h4` |
+
+Y las otras dos solapas traen un bloque cada una, tampoco rotulado: evidencia (`:2411`) y actividad
+(`:2420`).
+
+Con la preparación abierta, el bloque de preparar (`:1709`) ocupa el lugar de los cuatro y trae su
+propio encabezado con la rama y los contadores.
+
+**Qué compite por atención.** «Avisos» es el único con rótulo, recuadro, color y posición de arriba,
+y es permanente: sus dos avisos son condiciones del repositorio, no del momento. Ocupa la primera
+pantalla entera y deja las tareas —lo que la persona fue a hacer— abajo del pliegue.
+
+**Qué quedó sin jerarquía.** Tres bloques seguidos sin rótulo. Antes los separaban líneas; la fase 5
+las retiró conforme al requisito vigente y nada las reemplazó. Es el costo previsto de esa fase, y
+es lo que 7.1 estaba escrita para encontrar.
+
+**Decisión de Alejandro del 2026-08-24 sobre tres caminos propuestos: jerarquía por encabezado, sin
+plegar.** Los tres bloques sin rótulo reciben el tratamiento que ya tiene «Avisos», y «Avisos» baja
+debajo de «Siguiente paso». Se descartó llevar el centro a secciones plegables como los dos
+laterales: plegar es comportamiento de superficie de contexto, y el centro es superficie de trabajo
+—plegar lo que uno fue a hacer no tiene sentido—. Si más adelante hiciera falta, se apoya sobre esto
+sin rehacerlo.
+
+**Fuera de alcance, y declarado.** El centro conserva su paleta propia: diez tokens `--os-*` con 277
+usos, más 214 apariciones de color literal —128 valores distintos— en su hoja de estilos. Los azules
+que se ven ahí (`#1e354d`, `rgba(2, 15, 30, 0.6)`, `#5ed8ff`) vienen de la paleta anterior. Lo
+resuelve `unificar-paleta-carbon-soul`, y la tarea 5.3 de este change ya lo dejó explícitamente
+afuera. Un change por vez.
+
 ## Riesgo declarado
 
 El lienzo cronométrico se redimensiona cuando cambian los paneles, y su proyección depende del

@@ -31,9 +31,14 @@ vi.mock('@/components/CommitGraph', () => ({
 
 vi.mock('@/lib/new-change-draft-store', () => ({
   useNewChangeDraft: () => ({ open: false, mode: null }),
-  useNewChangeDraftStore: () => ({
-    actions: { clearDraft: vi.fn() },
-  }),
+  useNewChangeDraftStore: ((selector?: any) => {
+    const state = {
+      drafts: {},
+      patchDraft: vi.fn(),
+      clearDraft: vi.fn(),
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  }) as any,
 }));
 
 vi.mock('@/hooks/use-translation', () => ({
@@ -94,6 +99,7 @@ vi.mock('@/lib/git-store', () => {
 afterEach(() => {
   cleanup();
   mockGitState = { ...INITIAL_GIT_STATE, modifiedFiles: [] };
+  usePipelineStore.setState({ selectedChangeId: null, openSpecificationId: null });
 });
 
 describe('Panel layout armazón & separación de fondos (modo por omisión: chronometric)', () => {
@@ -323,9 +329,87 @@ describe('Panel layout armazón & separación de fondos (modo por omisión: chro
     const main = container.querySelector('main');
     expect(main?.className).not.toContain('border-t');
 
-    // Interior del panel derecho: no declara líneas divisorias ni bordes de maqueta
+    // Interior del panel derecho y centro de SDD: no declaran líneas divisorias ni bordes de maqueta
     const rightPanelInterior = asides[1].querySelectorAll('*');
     for (const el of Array.from(rightPanelInterior)) {
+      const cls = el.className;
+      if (typeof cls === 'string') {
+        expect(cls).not.toContain('divide-y');
+        expect(cls).not.toContain('divide-border-subtle');
+        expect(cls).not.toContain('border-b border-border-subtle');
+      }
+    }
+
+    const sddCenterInterior = main ? main.querySelectorAll('*') : [];
+    for (const el of Array.from(sddCenterInterior)) {
+      const cls = el.className;
+      if (typeof cls === 'string') {
+        expect(cls).not.toContain('divide-y');
+        expect(cls).not.toContain('divide-border-subtle');
+        expect(cls).not.toContain('border-b border-border-subtle');
+      }
+    }
+
+    // Interior del centro de SDD (OpenSpecDashboard): no declara líneas divisorias ni bordes de maqueta
+    const sddSnapshot: PipelineSnapshot = {
+      schemaVersion: '1.0',
+      repoId: 'repo-1',
+      availableSources: ['git', 'openspec'],
+      hasPipelineActivity: false,
+      decisions: [],
+      agents: [],
+      activity: [],
+      economy: {
+        tokens: { input: 0, output: 0, reasoning: null, cacheRead: null },
+        costUsd: null,
+        costBasis: 'unknown',
+        costCoverage: { withCost: 0, total: 0 },
+        contextMaxTokens: null,
+        contextCurrentTokens: null,
+        compactionCount: null,
+        reasoningAvailable: null,
+      },
+      diffs: [],
+      openSpec: {
+        selectedChangeId: 'change-1',
+        activeChanges: [
+          {
+            changeId: 'change-1',
+            status: { schemaName: 'spec-driven', isComplete: false, isPlanningComplete: true, artifacts: [] },
+            tasks: [{ id: '1', line: 10, text: 'Task 1', completed: false }],
+          } as any,
+        ],
+        archivedChanges: [],
+        specifications: [],
+        reports: [],
+        diagnostics: [],
+        observedAt: '2026-08-24T12:00:00Z',
+        latestGate: null,
+      },
+    };
+
+    usePipelineStore.setState({ selectedChangeId: 'change-1' });
+
+    const { container: sddContainer } = render(
+      <OpenSpecDashboard
+        snapshot={sddSnapshot}
+        repoPath="/test/repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />
+    );
+
+    const enterBtn = screen.getByRole('button', { name: /openspec\.start\.(enter|openBranch)|Entrar|Abrir/i });
+    expect(enterBtn).toBeTruthy();
+    fireEvent.click(enterBtn);
+
+    const sddMain = sddContainer.querySelector('main');
+    const sddCenterInteriorNodes = sddMain ? sddMain.querySelectorAll('*') : [];
+    for (const el of Array.from(sddCenterInteriorNodes)) {
       const cls = el.className;
       if (typeof cls === 'string') {
         expect(cls).not.toContain('divide-y');

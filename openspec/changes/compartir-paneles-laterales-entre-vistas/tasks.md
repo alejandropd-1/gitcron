@@ -158,21 +158,25 @@ Alejandro pidió dos cambios sobre lo que vio funcionando. Van como 4.10 a 4.16,
   de la vista del ciclo son `'Cambio activo'`, `'Completados recientes'` y `'Especificaciones'`. Se
   corrige en `lib/i18n.ts` en los tres idiomas. Los rótulos de columna —«Ramas y referencias» y
   «Ciclo de cambios»— ya comparten clases y no se tocan.
-- [ ] 4.17 Alinear a la izquierda el contenido de «Local» y «Remoto». Pedido de Alejandro del
+- [x] 4.17 Alinear a la izquierda el contenido de «Local» y «Remoto». Pedido de Alejandro del
   2026-08-24 sobre la aplicación funcionando: los íconos de las filas de rama tienen que caer sobre
   el mismo eje que el ícono de su sección, hoy corridos hacia adentro por `pl-[26px]` en
   `RepoSidebarParts.tsx:332`, `:474`, `:534`, `:579` —y `pl-[46px]` en `:474` y `:595` para el nivel
   anidado, que conserva su escalón—. Alcanza a `BranchTree` y a `RemoteBranchTree`.
-- [ ] 4.18 El control de plegado aparece sólo al pasar por encima, y la fila del encabezado se
+- [x] 4.18 El control de plegado aparece sólo al pasar por encima, y la fila del encabezado se
   comporta como los botones de acción del lateral. Pedido de Alejandro del 2026-08-24. Hoy el
   chevron está siempre a la vista y el encabezado sólo cambia el color del texto
   (`RepoSidebarParts.tsx:60`), mientras que Pull, Push y Nueva branch (`RepoSidebar.tsx:715`) usan
   fondo, radio y contorno de foco propios. El control se revela con opacidad y no se retira del
   árbol: tiene que seguir alcanzable con el teclado y seguir declarando si la sección está
   desplegada.
-- [ ] 4.19 Decidir qué queda del alto arrastrable con el panel ya hecho: si el panel no llega al piso
+- [x] 4.19 Decidir qué queda del alto arrastrable con el panel ya hecho: si el panel no llega al piso
   y su alto se arrastra, o si el desplazamiento de la lista lo vuelve innecesario. **La decide
   Alejandro** con el rediseño a la vista.
+  **Decisión de Alejandro del 2026-08-24: se retira.** El alto arrastrable se pensó para una tarjeta
+  que no llegaba al piso, y ya no hay tarjeta: hay una lista que desplaza y secciones que se pliegan.
+  Arrastrar el alto sería una segunda manera de hacer lo que plegar ya hace, con una preferencia más
+  que recordar. El ancho arrastrable se conserva.
 - [ ] 4.20 Revisión visual: el panel acumula sus secciones, se pliegan las que no interesan, y
   ninguna empuja a las demás fuera de vista. **La comprueba Alejandro.**
 ## 5. El cuerpo de SDD
@@ -240,10 +244,15 @@ Pendiente declarado por Alejandro el 2026-08-22, posterior al retiro de las colu
 en una sola pista hay que revisar cómo se presenta lo que quedó, no sólo dónde. Se planifica cuando
 la fase 5 esté puesta y se pueda ver el resultado.
 
-- [ ] 7.1 Relevar, con el cuerpo ya en una sola pista, qué secciones quedaron y en qué orden se
+- [x] 7.1 Relevar, con el cuerpo ya en una sola pista, qué secciones quedaron y en qué orden se
   leen. Declarar cuáles compiten por atención y cuáles quedaron sin jerarquía.
-- [ ] 7.2 Proponer la disposición nueva sobre lo relevado, sin implementarla. **La decide
+  Relevado el 2026-08-24; está en `design.md`, sección «El cuerpo de SDD en una sola pista».
+- [x] 7.2 Proponer la disposición nueva sobre lo relevado, sin implementarla. **La decide
   Alejandro.**
+  **Decisión de Alejandro del 2026-08-24: jerarquía por encabezado, sin plegar.** Los tres bloques
+  que quedaron sin título reciben el mismo tratamiento de encabezado que ya tiene «Avisos», y
+  «Avisos» baja debajo de «Siguiente paso», para que lo primero que se lea sea qué hacer y no qué
+  está mal configurado. No se agrega plegado al centro: es superficie de trabajo, no de contexto.
 - [x] 7.3 Hacer que la navegación de SDD en el panel lateral use la misma sección plegable que el
   resto del lateral, la que hoy presenta ramas, remotos, solicitudes de incorporación y etiquetas:
   mismo tamaño de subtítulo, control de plegado a la izquierda y contador a la derecha. Hoy usa
@@ -257,6 +266,17 @@ la fase 5 esté puesta y se pueda ver el resultado.
   del lateral y que se pliega al accionarla. Afirmar sobre el llamado y sobre el DOM montado.
 - [x] 7.6 Revisión visual: las secciones de SDD y las de Graph se ven y se comportan igual.
   **La comprueba Alejandro.**
+
+- [x] 7.7 Dar encabezado a los tres bloques del centro que no lo tienen —siguiente paso, lanzador de
+  agente, y evidencia o actividad—, con el mismo tratamiento que ya tiene «Avisos»
+  (`OpenSpecDashboard.tsx:1626`): rótulo corto, ícono, y separación por fondo y espacio. Sin líneas
+  divisorias, conforme al requisito que la fase 5 aplicó al mismo cuerpo.
+- [x] 7.8 Bajar «Avisos» debajo de «Siguiente paso». Es una condición del repositorio y no del
+  momento, y hoy ocupa la primera pantalla entera mientras las tareas quedan abajo del pliegue.
+- [x] 7.9 En tests, cubrir que los cinco bloques del centro declaran encabezado y que «Avisos» se
+  monta después de «Siguiente paso». Afirmar sobre el DOM montado y sobre el orden, no sobre clases.
+- [ ] 7.10 Revisión visual: el cuerpo se lee de arriba abajo sin que ningún bloque tape al que
+  importa. **La comprueba Alejandro.**
 
 ## 8. La franja recibe lo que el cuerpo duplicaba
 

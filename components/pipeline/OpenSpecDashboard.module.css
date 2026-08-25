@@ -413,7 +413,6 @@
   padding: var(--space-4) var(--space-5);
 }
 
-.workArea > h4 { margin: 0 0 var(--space-3); font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; letter-spacing: 0.04em; }
 .taskList { display: flex; flex-direction: column; gap: var(--sp-1); margin: 0; padding: 0; list-style: none; }
 .taskList > li { display: grid; grid-template-columns: 1.25rem 3rem minmax(0, 1fr) auto; align-items: start; min-height: 3rem; padding: var(--space-2) var(--space-2); color: #d6e1ec; font-size: var(--font-size-xs); line-height: 1.5; font-family: var(--font-mono), ui-monospace, monospace; }
 /* La etiqueta se recorta en vez de invadir la columna del texto: si una tarea
@@ -1496,19 +1495,34 @@
   gap: var(--sp-2);
 }
 
-.noticesGroupTitle {
+/* Dentro del área de trabajo el relleno horizontal ya lo aporta el contenedor
+   (padding: var(--space-4) var(--space-5)), así que se anula el margen horizontal
+   para que el bloque de avisos alinee con sus hermanos. */
+.workArea .noticesGroup {
+  margin-inline: 0;
+}
+
+.centerBlock {
+  margin-bottom: var(--space-4);
+}
+
+.blockHeader {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  margin: 0;
+  margin: 0 0 var(--sp-2);
   font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--os-amber, #d8a657);
+  color: var(--os-muted);
 }
 
-.noticesGroupTitle > svg {
+.blockHeader > svg {
   flex: 0 0 auto;
+}
+
+.noticesGroupTitle {
+  color: var(--os-amber, #d8a657);
 }
 
 .noticesList {

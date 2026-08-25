@@ -181,19 +181,40 @@ Alejandro pidió dos cambios sobre lo que vio funcionando. Van como 4.10 a 4.16,
 la vista del ciclo, y pidió dos cambios sobre lo que vio funcionando. Entran como 4.20 y 4.21, y la
 revisión pasa a 4.22.
 
-- [ ] 4.20 El indicador de «Herramientas» deja de ser un número. Hoy
+- [x] 4.20 El indicador de «Herramientas» deja de ser un número. Hoy
   `OpenSpecInspector.tsx:316` muestra `pendingToolCount` como contador. Pasa a ser la misma
   advertencia ámbar que ya usa la tarjeta del motor —el ícono, sin número— y **no aparece nada**
   cuando no hay nada que resolver. Va en el lugar de los controles de la sección, no en el del
   ícono: el criterio de la 4.15 —ícono monocromo, sin color— sigue valiendo para el ícono, y el
   ámbar acá comunica un dato, que es la excepción que el invariante 11 admite.
-- [ ] 4.21 La bitácora de la redacción recupera un alto acotado, con degradado y control para
+- [x] 4.21 La bitácora de la redacción recupera un alto acotado, con degradado y control para
   desplegar. **Revierte en parte la 4.7**, y con motivo: al quitarle el tope, un razonamiento largo
   empuja a las demás secciones fuera de vista, que es lo que la 4.7 quería evitar y terminó
   provocando. Lo que se pide no es el tope viejo —un recorte con desplazamiento propio— sino una
   vista previa: alto fijo, un degradado en el borde inferior que declare que hay más, y un control
   para ver el pensamiento entero. Mientras el modelo escribe se sigue viendo lo último.
-- [ ] 4.22 Revisión visual: el panel acumula sus secciones, se pliegan las que no interesan, y
+- [x] 4.22 El degradado de la bitácora no puede tapar lo que el modelo está escribiendo. El efecto
+  de `CommitDraftLog.tsx:96` desplaza al final en cada pedazo, así que con el recuadro plegado lo
+  visible es la cola y lo cortado queda ARRIBA; el degradado, en cambio, se puso abajo
+  (`OpenSpecDashboard.module.css:1204`), justo sobre las líneas recién escritas. Va donde está el
+  corte. El control de desplegar se queda debajo.
+**De la revisión de Alejandro del 2026-08-24.** Dio por buenos el plegado recordado entre vistas, el
+control que aparece al pasar por encima y los cuatro rótulos del cuerpo. Marcó dos defectos.
+
+- [x] 4.23 Una sola definición de «hay algo que atender». El indicador de «Herramientas» no se
+  enciende aunque el centro esté avisando, porque hay dos fórmulas y sólo una está completa:
+  `OpenSpecDashboard.tsx:762` cuenta integración desactualizada, repositorio sin inicializar y
+  divergencia, y aparte las herramientas sin configurar (`:769`); `OpenSpecInspector.tsx:139` cuenta
+  los diagnósticos del CLI y la integración desactualizada, y nada más. En el repositorio de
+  Alejandro hay divergencia y una herramienta sin configurar —las dos que la segunda ignora—, así
+  que el centro grita y la sección queda muda. Queda una definición sola, en
+  `components/pipeline/pipeline-domain.ts`, usada por los dos. No se copia la buena al otro lado.
+- [x] 4.24 La bitácora deja de saltar, baja de alto y el degradado vuelve abajo.
+  Plegada usa `max-height`, así que el recuadro crece con cada pedazo y empuja lo de abajo: pasa a
+  alto fijo, que reserva su lugar desde el primer cuadro y no reintroduce el problema del
+  `min-height` retirado, porque sólo se dibuja cuando hay razonamiento. El alto baja de 14rem, y el
+  degradado vuelve al borde inferior — decisión de Alejandro tomada viendo las dos versiones.
+- [x] 4.25 Revisión visual: el panel acumula sus secciones, se pliegan las que no interesan, y
   ninguna empuja a las demás fuera de vista. **La comprueba Alejandro.**
 ## 5. El cuerpo de SDD
 
@@ -291,7 +312,68 @@ la fase 5 esté puesta y se pueda ver el resultado.
   momento, y hoy ocupa la primera pantalla entera mientras las tareas quedan abajo del pliegue.
 - [x] 7.9 En tests, cubrir que los cinco bloques del centro declaran encabezado y que «Avisos» se
   monta después de «Siguiente paso». Afirmar sobre el DOM montado y sobre el orden, no sobre clases.
-- [ ] 7.10 Revisión visual: el cuerpo se lee de arriba abajo sin que ningún bloque tape al que
+**Del repaso visual de Alejandro del 2026-08-24.** Confirmó el orden y la alineación, y marcó que
+«Siguiente paso» se pierde de vista y que los bloques no se distinguen entre sí. El relevamiento
+posterior encontró el motivo: en la hoja de estilos de la vista hay doce rótulos en versalita y los
+doce están en `--font-size-xs`, que la escala de `app/globals.css:26` define como «piso de
+legibilidad: metadatos, badges, timestamps». `.blockHeader` comparte tamaño, peso y color con tres
+botones y dos enlaces de la misma hoja, así que se lee como un control y no como un título.
+
+- [x] 7.10 Los encabezados de bloque del centro suben al escalón que la escala ya declara para
+  «títulos de sección»: `--font-size-md`. Y dejan de compartir peso y color con los controles.
+  Alcanza también a los dos rótulos de columna del lateral —«Ramas y referencias» y «Ciclo de
+  cambios»—, que hoy usan `text-[11px]` literal, por debajo del piso declarado y fuera de la escala.
+  **Sólo esos lugares.** El resto de la aplicación —129 apariciones de rótulo en versalita con 74
+  tratamientos distintos, de las cuales 97 usan un tamaño literal fuera de la escala— es un change
+  aparte: acá se toca lo que este change remaquetó.
+- [x] 7.11 «Avisos» pierde el ámbar del rótulo. El recuadro que lleva adentro ya es ámbar y ya
+  alcanza; con el título también en ámbar, el color vuelve a marcar jerarquía, que es lo contrario
+  del criterio que la tarea 4.15 fijó para los íconos. La jerarquía queda por posición y tamaño.
+- [x] 7.12 Los rótulos de los artefactos dejan de mostrarse en crudo.
+  `PipelineArtifactGraph.tsx:39` presenta `{artifact.id}` tal cual —«proposal», «design», «specs»,
+  «tasks»— mientras el estado de al lado sí pasa por `lib/i18n.ts`, así que cada ficha queda mitad
+  en inglés y mitad traducida. Incumple el invariante 8. El patrón correcto está tres líneas más
+  arriba en el mismo archivo: `STATE_LABEL_KEY`, un mapa explícito de valor a clave. Falta su
+  gemelo para los identificadores. Nunca armar la clave por interpolación.
+  Alejandro lo marcó el 2026-08-24 mirando la solapa Artefactos, que es el bloque al que la tarea
+  7.7 le puso encabezado.
+**Pedido de Alejandro del 2026-08-24.** «Avisos» ocupa cerca de la mitad de la primera pantalla, y
+dos de sus tres avisos no son avisos: son un atajo. Sus botones dicen «Abrir herramientas» y «Ver
+cuál», o sea que su única función es señalar la sección «Herramientas» del panel derecho, que está a
+un clic y ya muestra el detalle completo —la tarjeta del motor con su estado y la lista de
+herramientas—. Con el triángulo de la tarea 4.23 encendiéndose en esa sección, el atajo pierde su
+razón. Se retira la copia. Depende de que 4.23 esté puesta.
+
+- [x] 7.13 Retirar del centro los dos avisos que sólo apuntan al panel derecho: el de atención del
+  motor (`OpenSpecDashboard.tsx:1440`) y el de herramientas sin configurar. Su detalle vive completo
+  en la sección «Herramientas» y la señal es el triángulo de la 4.23.
+- [x] 7.14 El aviso de rama que no coincide con el cambio se queda en el centro. Habla del trabajo y
+  no de la herramienta, y no manda a ningún lado. Al quedar solo, deja de necesitar el grupo
+  «Avisos»: se presenta suelto, arriba de «Siguiente paso».
+- [x] 7.15 La franja declara el estado de atención del motor en vez de esconderlo. Hoy la ficha de
+  OpenSpec (`OpenSpecDashboard.tsx:1584`) muestra la versión y guarda el estado en el título
+  emergente, y sólo el de integración. Con los avisos fuera del cuerpo y el panel derecho pudiendo
+  estar cerrado, esa ficha es la única señal que queda: tiene que mostrar las tres causas, con la
+  misma definición de la 4.23.
+- [x] 7.16 En tests, cubrir que los dos avisos ya no se montan, que el de rama sí, y que la franja
+  enciende con cada una de las tres causas por separado. Afirmar sobre el DOM montado.
+- [x] 7.17 La insignia de OpenSpec de la franja despliega la sección «Herramientas», no sólo abre el
+  panel. Alejandro la apretó en ámbar el 2026-08-24 y el panel se abrió con la sección plegada: el
+  retiro de la 7.13 se llevó puesta `openToolsTab()`, que hacía las dos cosas, y dejó importado sin
+  usar `openSidebarSection`, que es justamente la que hace falta. «Necesita atención» no es el
+  destino: esa sección es la bandeja de decisiones del agente y no tiene relación con el motor.
+- [x] 7.18 Adaptar las cuatro pruebas que afirmaban sobre las superficies retiradas y dejaron la
+  suite en rojo —4 archivos, 9 pruebas—: `pipeline-change-branch-notice`, `pipeline-openspec-init-flow`,
+  `pipeline-prepare-single-source` y `pipeline-i18n`. Reapuntarlas al camino que ahora corre, sin
+  ablandar ni borrar lo que verificaban. El ejecutor hizo bien en frenar en la tanda anterior en vez
+  de tocarlas sin autorización; lo que faltó fue declarar en las validaciones que la suite quedaba
+  roja.
+- [x] 7.19 Retirar `OpenSpecReadiness`, que quedó sin consumidor al retirar el aviso del centro.
+  Su archivo se conserva porque exporta `OpenSpecToolList`, que sigue en uso desde el inspector. Sus
+  cinco claves i18n ya se habían borrado en la 7.13, así que el componente había quedado invocando
+  claves inexistentes: si volviera a montarse mostraría el nombre de la clave en pantalla. Lo
+  mantenía vivo su propia prueba, con seis casos. Es el mismo patrón que `StagingPanel`.
+- [x] 7.20 Revisión visual: el cuerpo se lee de arriba abajo sin que ningún bloque tape al que
   importa. **La comprueba Alejandro.**
 
 ## 8. La franja recibe lo que el cuerpo duplicaba
@@ -312,7 +394,7 @@ Decisiones de Alejandro del 2026-08-24, sobre lo que quedó tras retirar las col
 - [x] 8.5 Subir la versión del motor de OpenSpec a la franja de identidad.
 - [x] 8.6 En tests, cubrir que el pie ya no se monta, que la validación y la versión del motor están
   en la franja, y que el porcentaje está en el lateral. Afirmar sobre el DOM montado.
-- [ ] 8.7 Revisión visual: nada quedó duplicado entre la franja y el cuerpo, y no se perdió ningún
+- [x] 8.7 Revisión visual: nada quedó duplicado entre la franja y el cuerpo, y no se perdió ningún
   dato. **La comprueba Alejandro.**
 
 ## 9. Cierre y validación
@@ -321,15 +403,26 @@ Decisiones de Alejandro del 2026-08-24, sobre lo que quedó tras retirar las col
   compilador de hojas de estilo dejó la aplicación sin arrancar mientras las 1452 pruebas daban en
   verde: la suite no procesa los módulos de estilo con el compilador de producción, así que ninguna
   cantidad de pruebas verdes dice que la aplicación levanta.
-- [ ] 9.1 `pnpm exec tsc --noEmit` sin errores de tipado.
-- [ ] 9.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada
+- [x] 9.1 `pnpm exec tsc --noEmit` sin errores de tipado.
+  Verificado el 2026-08-24: salida 0, sin errores.
+- [x] 9.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada
   una.
-- [ ] 9.3 `openspec validate compartir-paneles-laterales-entre-vistas --strict` en cero.
-- [ ] 9.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en
+- [x] 9.3 `openspec validate compartir-paneles-laterales-entre-vistas --strict` en cero.
+- [x] 9.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en
   Git.
-- [ ] 9.5 Informar si en alguna fase hizo falta tocar `components/ChronometricGraph.tsx`. Si hizo
+- [x] 9.5 Informar si en alguna fase hizo falta tocar `components/ChronometricGraph.tsx`. Si hizo
   falta y se frenó, declarar en qué punto y qué se necesitaba: la autorización del invariante 12 se
   pide entonces, acotada y con fecha, y no antes.
-- [ ] 9.6 Revisión visual y funcional completa: los dos paneles se comportan igual en todas las
+**Evidencia del cierre, 2026-08-24.** `pnpm build` salida 0 —falla sólo si corre encima de otro
+build sobre el mismo `.next`; solo, da cero—. `pnpm exec tsc --noEmit` salida 0. `pnpm test`:
+**169 archivos / 1494 pruebas** en verde en dos pasadas consecutivas.
+`openspec validate --strict`: «Change 'compartir-paneles-laterales-entre-vistas' is valid», salida 0.
+`git diff --check` salida 0; `git status --short --branch` informa la rama y 23 archivos sin
+confirmar, sin ejecutar ningún Git mutante.
+**Sobre el invariante 12:** `components/ChronometricGraph.tsx` y `components/CommitGraph.tsx` no se
+tocaron en ninguna fase de toda la rama —comprobado con `git diff main...HEAD` sobre los dos
+archivos, sin salida—. Nunca hizo falta pedir la autorización.
+
+- [x] 9.6 Revisión visual y funcional completa: los dos paneles se comportan igual en todas las
   vistas, cada uno muestra lo que corresponde, el alto y el ancho se arrastran y se recuerdan, y el
   lienzo cronométrico sigue legible. **La marca Alejandro.**

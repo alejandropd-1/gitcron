@@ -1180,15 +1180,68 @@
   color: var(--os-green);
 }
 
-/* El razonamiento. El alto lo aporta el contenido y el panel entero provee el
-   desplazamiento vertical. Se presenta en monoespacio con `pre-wrap` para el flujo
-   de prosa en el ancho del panel. */
+.draftLogStreamWrapper {
+  position: relative;
+}
+
+/* El razonamiento. Vista previa con alto FIJO (8rem) para evitar saltos
+   en el contenido inferior mientras se reciben chunks, y sin scroll propio.
+   Al desplegar se retira la altura fija y el panel entero desplaza con normalidad. */
 .draftLogStream {
   margin: 0;
+  height: 8rem;
+  overflow: hidden;
   color: var(--os-muted);
   font-size: var(--font-size-xs); line-height: 1.55; font-family: var(--font-mono), ui-monospace, monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.draftLogStream[data-expanded='true'] {
+  height: auto;
+}
+
+.draftLogFade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5rem;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(3, 18, 31, 0.95));
+}
+
+.draftLogToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  align-self: flex-start;
+  margin-top: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--os-border);
+  border-radius: var(--radius-default);
+  background: rgba(3, 18, 31, 0.6);
+  color: var(--os-muted);
+  cursor: pointer;
+  font-weight: 600; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.02em;
+  transition: color 0.12s, border-color 0.12s, background-color 0.12s;
+}
+
+.draftLogToggleBtn:hover,
+.draftLogToggleBtn:focus-visible {
+  border-color: var(--os-border-strong);
+  background: var(--os-surface);
+  color: var(--os-cyan);
+}
+
+.draftLogToggleIcon {
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.draftLogToggleIconRotated {
+  transform: rotate(180deg);
 }
 
 /* La respuesta, separada del razonamiento y en el color del texto normal: es lo
@@ -1485,23 +1538,6 @@
    Ámbar y no rojo: es algo que conviene resolver, no un fallo. Va arriba de la
    guía porque se tiene que saber antes de elegir por dónde seguir, y no aparece
    cuando está todo en orden —un bloque que siempre está enseña a saltearlo—. */
-/* El contenedor agrupador de avisos de la columna central (2.9):
-   agrupa los avisos de salud/atención del motor y de herramientas bajo un
-   encabezado común, compartiendo el mismo patrón visual y espaciado coherente. */
-.noticesGroup {
-  margin: var(--sp-4) var(--sp-5) 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-
-/* Dentro del área de trabajo el relleno horizontal ya lo aporta el contenedor
-   (padding: var(--space-4) var(--space-5)), así que se anula el margen horizontal
-   para que el bloque de avisos alinee con sus hermanos. */
-.workArea .noticesGroup {
-  margin-inline: 0;
-}
-
 .centerBlock {
   margin-bottom: var(--space-4);
 }
@@ -1511,29 +1547,14 @@
   align-items: center;
   gap: var(--sp-2);
   margin: 0 0 var(--sp-2);
-  font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
-  letter-spacing: 0.06em;
+  font-weight: 600; font-size: var(--font-size-md); font-family: var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--os-muted);
+  color: #dce7f3;
 }
 
 .blockHeader > svg {
   flex: 0 0 auto;
-}
-
-.noticesGroupTitle {
-  color: var(--os-amber, #d8a657);
-}
-
-.noticesList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-
-.noticesList > .readiness,
-.noticesList > .centerAttentionBanner {
-  margin: 0;
 }
 
 /* El aviso: una línea. El detalle vive en el rail, así que acá sólo hace falta
@@ -1552,17 +1573,9 @@
   color: var(--os-amber, #d8a657);
   text-align: left;
 }
-.readinessMain {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--sp-3);
-  width: 100%;
-}
 /* El icono no se encoge: es flex y sin esto el texto largo lo aplastaba a un
    óvalo. */
-.readinessMain > svg,
 .readiness > svg { flex: 0 0 auto; margin-top: var(--space-1); }
-.readinessMain > p,
 .readiness > p {
   flex: 1 1 auto;
   min-width: 0;
@@ -1570,20 +1583,7 @@
   color: var(--os-muted);
   font-size: var(--font-size-xs); line-height: 1.5; font-family: var(--font-mono), ui-monospace, monospace;
 }
-.readinessMain > p > strong,
 .readiness > p > strong { color: var(--os-amber, #d8a657); font-weight: 650; }
-.readinessActions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--sp-2);
-  width: 100%;
-}
-/* El aviso de rama comparte la caja del de OpenSpec, sin variante de color: es
-   el mismo tipo de cosa —algo del repositorio que conviene saber antes de
-   seguir— y ámbar es lo que en este panel significa «esto pide tu atención».
-   Se probó en cyan y Ale lo marcó: contra el cyan del resto del panel se leía
-   como más texto de lo mismo, que es justo lo que un aviso no puede parecer. */
 
 /* De dónde sale la rama, dentro del formulario. Ámbar por el mismo motivo: es
    una advertencia sobre la base, no una nota al pie. */
@@ -1601,22 +1601,6 @@
 .branchBase > em { display: block; margin-top: var(--sp-1); font-style: normal; opacity: 0.75; }
 
 .startScreen .readiness { margin-inline: 0; }
-
-.readinessLink {
-  flex: 0 0 auto;
-  padding: var(--sp-1) var(--sp-3);
-  border: 1px solid var(--os-border);
-  border-radius: var(--radius-md);
-  background: none;
-  color: var(--os-muted);
-  cursor: pointer;
-  font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-.readinessLink:hover { border-color: var(--os-border-strong); background: var(--os-surface); color: var(--os-cyan); }
-.readinessLink:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
 
 
 .readinessList { display: grid; gap: var(--sp-1); margin: var(--sp-3) 0 0; padding: 0; list-style: none; }
@@ -2214,66 +2198,13 @@
   background: #0f172a;
   color: #94a3b8;
 }
-.centerAttentionBanner {
-  /* Mismo patrón visual y misma ubicación que `.readiness` (2.9): el aviso del
-     motor y el de herramientas hablan de lo mismo —la salud de la integración
-     de OpenSpec— y conviven agrupados en `.noticesGroup` con estilos unificados. */
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  margin: 0;
-  padding: var(--sp-3) var(--sp-4);
-  border: 1px solid var(--os-border-strong);
-  border-left: 2px solid var(--os-amber, #d8a657);
-  border-radius: var(--radius-md);
-  background: rgba(10, 31, 49, 0.78);
-  color: var(--os-amber, #d8a657);
-  text-align: left;
-  font-size: var(--font-size-xs); line-height: 1.5; font-family: var(--font-mono), ui-monospace, monospace;
-}
-.centerAttentionMain {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--sp-3);
-  width: 100%;
-}
-.centerAttentionMain > svg,
-.centerAttentionBanner > svg { flex: 0 0 auto; margin-top: var(--space-1); }
-.centerAttentionMain > span,
-.centerAttentionBanner > span {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin: 0;
-  color: var(--os-muted);
-}
-.centerAttentionActions {
-  display: flex;
+.toolsSectionWarning {
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: var(--sp-2);
-  width: 100%;
-  white-space: nowrap;
+  color: var(--os-amber);
+  flex-shrink: 0;
 }
-/* Mismo tratamiento que `.readinessLink`: la acción del aviso del motor y la
-   del aviso de herramientas llevan al mismo lugar y se ven igual. */
-.centerAttentionBtn {
-  flex: 0 0 auto;
-  padding: var(--sp-1) var(--sp-3);
-  border: 1px solid var(--os-border);
-  border-radius: var(--radius-md);
-  background: none;
-  color: var(--os-muted);
-  cursor: pointer;
-  font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-.centerAttentionBtn:hover {
-  border-color: var(--os-border-strong);
-  background: var(--os-surface);
-  color: var(--os-cyan);
-}
+
 .toolsRailContent {
   display: flex;
   flex-direction: column;

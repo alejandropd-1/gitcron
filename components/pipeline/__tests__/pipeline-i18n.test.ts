@@ -180,9 +180,7 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.prepare.deselectAll',
   'pipeline.openspec.prepare.preparedSummary',
   'pipeline.openspec.prepare.preparedSummary.one',
-  'pipeline.openspec.prepare.empty',
-  // Sub-namespace pipeline.openspec.engine.* (2.13) y avisos agrupados (2.9)
-  'pipeline.openspec.notices.title',
+  // Sub-namespace pipeline.openspec.engine.* (2.13)
   'pipeline.openspec.engine.cardTitle',
   'pipeline.openspec.engine.provenance.global',
   'pipeline.openspec.engine.provenance.local',
@@ -239,8 +237,6 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.engine.advanced.convergentNotice',
   'pipeline.openspec.engine.advanced.divergentNotice',
   'pipeline.openspec.engine.advanced.undeterminedNotice',
-  'pipeline.openspec.engine.openToolsTab',
-  'pipeline.openspec.engine.attentionNotice',
   'pipeline.openspec.engine.attentionReason.outdated',
   'pipeline.openspec.engine.attentionReason.notInitialized',
   'pipeline.openspec.engine.attentionReason.divergent',

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { OpenSpecReadiness, OpenSpecToolList } from '../OpenSpecReadiness';
+import { OpenSpecToolList } from '../OpenSpecReadiness';
 
 /**
  * Lo que le falta al repositorio para que el método funcione.
@@ -24,48 +24,6 @@ const tool = (toolId: string, configured: boolean) => ({
   label: toolId,
   directory: `.${toolId}`,
   configured,
-});
-
-describe('estado de preparación del repositorio', () => {
-  it('declara el repositorio sin OpenSpec y nombra la consecuencia', () => {
-    render(<OpenSpecReadiness present={false} tools={[]} />);
-
-    expect(screen.getByText(/readiness\.missingTitle/)).toBeTruthy();
-    // No alcanza con decir que falta: hay que decir qué pasa si no se resuelve.
-    expect(screen.getByText(/readiness\.missingHelp/)).toBeTruthy();
-  });
-
-  it('avisa cuántas faltan, sin listar el detalle', () => {
-    // El aviso interrumpe y por eso es una línea; el detalle vive en el rail.
-    render(<OpenSpecReadiness present tools={[tool('codex', true), tool('antigravity', false)]} />);
-
-    expect(screen.getByText(/readiness\.toolsTitle.*1/)).toBeTruthy();
-    expect(screen.queryByText('antigravity')).toBeNull();
-  });
-
-  it('no muestra nada cuando está todo en orden', () => {
-    // Un bloque que siempre está enseña a saltearlo, incluido el día que dice algo.
-    const { container } = render(<OpenSpecReadiness present tools={[tool('codex', true)]} />);
-    expect(container.firstChild).toBeNull();
-  });
-
-  it('sin OpenSpec también ofrece una salida', () => {
-    // Declarar sin ofrecer nada deja sabiendo que falta algo y sin qué hacer.
-    render(<OpenSpecReadiness present={false} tools={[]} onShowDetail={() => undefined} />);
-    expect(screen.getByRole('button', { name: /readiness\.resolve/ })).toBeTruthy();
-  });
-
-  it('sin a dónde llevar no ofrece la salida', () => {
-    // Con el rail cerrado el botón abriría una solapa que nadie ve.
-    render(<OpenSpecReadiness present={false} tools={[]} />);
-    expect(screen.queryByRole('button')).toBeNull();
-  });
-
-  it('sin el dato no afirma nada', () => {
-    // Un snapshot de una versión anterior no lo trae, y no saber no es «no hay».
-    const { container } = render(<OpenSpecReadiness />);
-    expect(container.firstChild).toBeNull();
-  });
 });
 
 describe('detalle de herramientas en el rail', () => {

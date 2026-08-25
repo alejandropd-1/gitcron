@@ -11,7 +11,13 @@ import type { OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpecUpdatePlan, R
 import { DecisionInbox } from './DecisionInbox';
 import { OpenSpecEngineCard } from './OpenSpecEngineCard';
 import { OpenSpecToolList } from './OpenSpecReadiness';
-import { groupActivity, resolveSessionStatusI18nKey, runtimeDisplayName, type ActivityChannel } from './pipeline-domain';
+import {
+  groupActivity,
+  hasOpenSpecAttention,
+  resolveSessionStatusI18nKey,
+  runtimeDisplayName,
+  type ActivityChannel,
+} from './pipeline-domain';
 import type { PipelineSnapshot } from './pipeline-view-state';
 import styles from './OpenSpecDashboard.module.css';
 
@@ -136,7 +142,11 @@ export function OpenSpecInspector({
 
   const openSpecTools = snapshot?.openSpec?.openSpecTools ?? [];
   const openSpecPresent = snapshot?.openSpec?.openSpecPresent ?? (engineStatus?.repoState === 'initialized');
-  const pendingToolCount = (engineStatus?.cli?.diagnostics?.length ?? 0) + (engineStatus?.integrationState === 'outdated' ? 1 : 0);
+  const needsToolsAttention = hasOpenSpecAttention({
+    engineStatus: effectiveEngineStatus,
+    openSpecTools,
+    openSpecPresent,
+  });
 
   const runtimeSessions = useMemo(() => {
     const combined = [...(runtimeHistory ?? [])];
@@ -313,7 +323,14 @@ export function OpenSpecInspector({
 
         <SidebarSection
           title={t('pipeline.openspec.rail.tools')}
-          count={pendingToolCount > 0 ? pendingToolCount : undefined}
+          extra={needsToolsAttention ? (
+            <AlertTriangle
+              size={13}
+              className={styles.toolsSectionWarning}
+              role="img"
+              aria-label={t('pipeline.openspec.engine.generalStatus.needsAttention')}
+            />
+          ) : undefined}
           icon={<Wrench size={13} aria-hidden="true" />}
           isOpen={sectionState.isOpen('details-tools')}
           onToggle={() => sectionState.toggle('details-tools')}

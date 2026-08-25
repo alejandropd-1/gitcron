@@ -4,9 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   AlertCircle,
-  AlertTriangle,
   ArrowRight,
-  BookOpen,
   Check,
   CheckCircle2,
   Circle,
@@ -44,22 +42,18 @@ import { changeIdFromBranch } from '@/lib/change-branch';
 import { openSidebarSection } from '@/hooks/use-sidebar-section-state';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { AiElapsed } from './AiElapsed';
-import { CommitDraftLog } from './CommitDraftLog';
 import { appendDraftChunks, clearDraftLog, finishDraftLog, startDraftLog } from '@/lib/commit-draft-log';
 import { adviceKeyForStreamError } from '@/lib/stream-error-advice';
 import { MIN_CONTEXT_LENGTH, filterDraftableModels, type LocalModel } from '@/types/commit-message-ai';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
-import { DecisionInbox } from './DecisionInbox';
 import { PipelineDetails, type DetailTab } from './PipelineDetails';
 import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { PipelineNextStepGuide } from './PipelineNextStepGuide';
-import { motion, useReducedMotion } from 'motion/react';
+import { useReducedMotion } from 'motion/react';
 import { ChangeBranchNotice } from './ChangeBranchNotice';
-import { deriveChangeBranchState } from '@/lib/change-branch';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
-import { OpenSpecReadiness, OpenSpecToolList } from './OpenSpecReadiness';
 import { OpenSpecUpdateReview } from './OpenSpecUpdateReview';
 import type { OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpecUpdatePlan } from '@/types/pipeline';
 import { SpecificationViewer } from './SpecificationViewer';
@@ -75,8 +69,13 @@ import {
   resolveTaskText,
   type PipelineActionIntent,
 } from './pipeline-next-action';
-import { groupActivity, runtimeDisplayName, type ActivityChannel } from './pipeline-domain';
-import { sortActiveChangesByProgress, type OpenSpecChangeSummary, type PipelineSnapshot } from './pipeline-view-state';
+import {
+  groupActivity,
+  hasOpenSpecEngineAttention,
+  runtimeDisplayName,
+  type ActivityChannel,
+} from './pipeline-domain';
+import type { OpenSpecChangeSummary, PipelineSnapshot } from './pipeline-view-state';
 import styles from './OpenSpecDashboard.module.css';
 
 const INTEGRATION_STATE_KEY_MAP: Record<string, string> = {
@@ -382,35 +381,22 @@ export function OpenSpecDashboard({
     });
   }, []);
 
-  const [reviewOpen, setReviewOpen] = useState(false);
+  const reviewOpen = usePipelineStore((state) => state.reviewOpen);
+  const setReviewOpen = usePipelineStore((state) => state.setReviewOpen);
   const [updatePlan, setUpdatePlan] = useState<OpenSpecUpdatePlan | null>(null);
 
-  const openToolsTab = () => {
-    if (onEnsureRightOpen) {
-      onEnsureRightOpen();
-    }
-    openSidebarSection(repoPath, 'details-tools');
-  };
-
-  const openReview = () => {
-    const api = typeof window !== 'undefined' ? window.api : undefined;
-    if (api?.pipelineOpenSpec?.getUpdatePlan) {
-      void api.pipelineOpenSpec.getUpdatePlan(repoPath).then((plan) => {
-        setUpdatePlan(plan);
-      }).catch(() => {
-        // Silently keep fallback plan
-      });
-    }
-    setReviewOpen(true);
-  };
-
-  const toggleReview = () => {
+  useEffect(() => {
     if (reviewOpen) {
-      setReviewOpen(false);
-    } else {
-      openReview();
+      const api = typeof window !== 'undefined' ? window.api : undefined;
+      if (api?.pipelineOpenSpec?.getUpdatePlan) {
+        void api.pipelineOpenSpec.getUpdatePlan(repoPath).then((plan) => {
+          setUpdatePlan(plan);
+        }).catch(() => {
+          // Silently keep fallback plan
+        });
+      }
     }
-  };
+  }, [reviewOpen, repoPath]);
   const [initBusy, setInitBusy] = useState(false);
   /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
   const [initError, setInitError] = useState<string | null>(null);
@@ -740,9 +726,7 @@ export function OpenSpecDashboard({
   }, [engineSnapshot, latestRegistryCheck]);
 
   /**
-   * Razones reales observadas del aviso central (2.9): declara cuál condición
-   * ocurre —o ambas si son ambas—, en vez de enumerar las dos posibles unidas
-   * por un «o» que la tarjeta de al lado desmiente.
+   * Razones reales observadas del estado del motor para la franja de identidad (7.15).
    */
   const attentionReasonSeparator = uiLanguage === 'en' ? ' and ' : uiLanguage === 'zh' ? '，' : ' y ';
   const attentionReasons = effectiveEngineStatus
@@ -758,25 +742,6 @@ export function OpenSpecDashboard({
           : []),
       ]
     : [];
-
-  const hasEngineAttention = Boolean(
-    effectiveEngineStatus &&
-      (effectiveEngineStatus.integrationState === 'outdated' ||
-        effectiveEngineStatus.repoState === 'not-initialized' ||
-        effectiveEngineStatus.divergence?.isDivergent),
-  );
-
-  const pendingOpenSpecTools = (openSpecTools ?? []).filter((tool) => !tool.configured);
-  const hasReadinessNotice = Boolean(
-    openSpecPresent !== undefined && (!openSpecPresent || pendingOpenSpecTools.length > 0),
-  );
-
-  const branchMismatchState = selectedChange
-    ? deriveChangeBranchState(currentBranch, selectedChange.changeId)
-    : null;
-  const hasBranchMismatchNotice = Boolean(branchMismatchState && !branchMismatchState.matches);
-
-  const hasAnyNotice = hasEngineAttention || hasReadinessNotice || hasBranchMismatchNotice;
 
   // Lo que la rama declara sobre el trabajo del árbol.
   //
@@ -1428,63 +1393,6 @@ export function OpenSpecDashboard({
     }
   }
 
-  const renderNoticesSection = () => {
-    if (!hasAnyNotice) return null;
-    return (
-      <section className={cn(styles.centerBlock, styles.noticesGroup)} aria-label={t('pipeline.openspec.notices.title')}>
-        <h4 className={cn(styles.blockHeader, styles.noticesGroupTitle)}>
-          <AlertTriangle size={13} aria-hidden="true" />
-          <span>{t('pipeline.openspec.notices.title')}</span>
-        </h4>
-        <div className={styles.noticesList}>
-          {hasEngineAttention && (
-            <div className={styles.centerAttentionBanner}>
-              <div className={styles.centerAttentionMain}>
-                <AlertTriangle size={15} aria-hidden="true" />
-                <span>
-                  {t('pipeline.openspec.engine.attentionNotice', {
-                    reasons: attentionReasons.join(attentionReasonSeparator),
-                  })}
-                </span>
-              </div>
-              <div className={styles.centerAttentionActions}>
-                <button
-                  type="button"
-                  className={styles.centerAttentionBtn}
-                  onClick={toggleReview}
-                >
-                  {reviewOpen
-                    ? t('pipeline.openspec.engine.closeReviewAction')
-                    : t('pipeline.openspec.engine.reviewAction')}
-                </button>
-                <button
-                  type="button"
-                  className={styles.centerAttentionBtn}
-                  onClick={openToolsTab}
-                >
-                  {t('pipeline.openspec.engine.openToolsTab')}
-                </button>
-              </div>
-            </div>
-          )}
-          {hasReadinessNotice && (
-            <OpenSpecReadiness
-              present={openSpecPresent}
-              tools={openSpecTools}
-              onShowDetail={() => {
-                if (onEnsureRightOpen) onEnsureRightOpen();
-                openSidebarSection(repoPath, 'details-tools');
-              }}
-            />
-          )}
-          {selectedChange && (
-            <ChangeBranchNotice branch={currentBranch} changeId={selectedChange.changeId} />
-          )}
-        </div>
-      </section>
-    );
-  };
-
   return (
     <div className={`${styles.dashboard} ${styles.openspecScope}`}>
       <ContentHeader className="h-11 border-b border-border-subtle/15 flex items-center justify-between gap-3 normal-case font-normal shrink-0">
@@ -1591,17 +1499,26 @@ export function OpenSpecDashboard({
                 ? (INTEGRATION_STATE_KEY_MAP[effectiveEngineStatus.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown')
                 : null;
               const stateStr = stateKey ? t(stateKey) : null;
-              const engineTitle = cliInstalled && stateStr
-                ? `${versionStr} · ${stateStr}`
+              const engineAttention = hasOpenSpecEngineAttention(effectiveEngineStatus);
+              const engineTitle = cliInstalled
+                ? (engineAttention && attentionReasons.length > 0
+                    ? `${versionStr} · ${attentionReasons.join(attentionReasonSeparator)}`
+                    : (stateStr ? `${versionStr} · ${stateStr}` : versionStr))
                 : versionStr;
 
               return (
                 <div
                   role="status"
                   title={engineTitle}
-                  onClick={onEnsureRightOpen}
+                  onClick={() => {
+                    openSidebarSection(repoPath, 'details-tools');
+                    onEnsureRightOpen?.();
+                  }}
                   className={cn(
-                    'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-text-primary/[0.035] text-text-secondary/80 font-mono',
+                    'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 font-mono',
+                    engineAttention
+                      ? 'bg-[var(--os-amber)]/15 text-[var(--os-amber)]'
+                      : 'bg-text-primary/[0.035] text-text-secondary/80',
                     onEnsureRightOpen && 'cursor-pointer hover:bg-text-primary/[0.07]',
                   )}
                 >
@@ -1682,7 +1599,6 @@ export function OpenSpecDashboard({
 
       <div className={styles.body}>
         <main className={styles.center}>
-          {!selectedChange && renderNoticesSection()}
           {/* La preparación se resuelve antes que el cambio seleccionado: es del
               repositorio y tiene que alcanzarse sin ninguno, que es exactamente
               el estado que dejaba un archivado sin confirmar. */}
@@ -2317,6 +2233,9 @@ export function OpenSpecDashboard({
 
               {centerTab === 'work' ? (
                 <div className={styles.workArea}>
+                  {selectedChange && (
+                    <ChangeBranchNotice branch={currentBranch} changeId={selectedChange.changeId} />
+                  )}
                   <div className={styles.centerBlock}>
                     <h4 className={styles.blockHeader}>
                       <ArrowRight size={13} aria-hidden="true" />
@@ -2324,7 +2243,6 @@ export function OpenSpecDashboard({
                     </h4>
                     <p className={styles.nextStepInline}>{t(nextAction.helpKey, nextAction.helpParams)}</p>
                   </div>
-                  {renderNoticesSection()}
                   {/* El lanzador aparece arriba, junto al botón que lo abrió, y no
                       al final de una lista que puede requerir scroll. */}
                   {launchTarget && (

@@ -12,79 +12,14 @@ import { OPENSPEC_TOOL_DIRECTORIES } from '@/electron/pipeline/openspec-tooling'
 import styles from './OpenSpecDashboard.module.css';
 
 /**
- * Lo que le falta al repositorio, separado en dos piezas por lo que hace cada una.
+ * Lista y configuración de herramientas de OpenSpec en el panel inspector lateral.
  *
- * `OpenSpecReadiness` es el **aviso**: una línea arriba de la guía, que aparece
- * sólo cuando falta algo. Interrumpe, y por eso no puede vivir detrás de una
- * solapa: lo que hay que ver antes de empezar no se puede pedir que lo vayan a
- * buscar.
- *
- * `OpenSpecToolList` es la **referencia**: la lista completa, en el rail. Se
- * consulta cuando se quiere, incluye las que están bien, y no urge.
- *
- * Los dos estados que muestran eran invisibles hasta ahora. No tener `openspec/`
- * se ve igual que un repositorio recién empezado. Y una herramienta presente sin
- * sus skills convive con un repositorio correctamente inicializado: su ejecutor
- * no sabe que existe el canal de instrucciones, así que trabaja sin el método y
- * sin avisar. Pasó con Antigravity en `odontoPau`.
+ * `OpenSpecToolList` es la **referencia**: la lista completa de herramientas detectadas
+ * en el repositorio y su estado de configuración de skills/instrucciones. Se ubica en la
+ * sección «Herramientas» del inspector derecho y permite ejecutar la inicialización de
+ * OpenSpec (`openspec init`) o seleccionar herramientas interactivamente cuando el CLI
+ * lo requiere.
  */
-
-export type OpenSpecReadinessProps = {
-  present?: boolean;
-  tools?: OpenSpecToolEvidence[];
-  /**
-   * Lleva al detalle, que vive en el rail, y ahí está la única acción que
-   * inicializa.
-   *
-   * El aviso no repite el botón: los dos serían el mismo control con el mismo
-   * texto y el mismo efecto, visibles a la vez, que es lo que la guía de este
-   * panel prohíbe. Sin este callback el aviso sólo declara —que es lo correcto
-   * cuando el rail está cerrado y no habría a dónde llevar—.
-   */
-  onShowDetail?: () => void;
-};
-
-export function OpenSpecReadiness({ present, tools, onShowDetail }: OpenSpecReadinessProps) {
-  const t = useT();
-  // `undefined` es un snapshot de una versión anterior que no trae el dato. No
-  // saber no es «no hay»: sin el dato no se afirma nada.
-  if (present === undefined) return null;
-
-  const pending = (tools ?? []).filter((tool) => !tool.configured);
-  if (present && pending.length === 0) return null;
-
-  return (
-    <section className={styles.readiness} data-kind={present ? 'tools' : 'missing'}>
-      <div className={styles.readinessMain}>
-        <AlertCircle size={15} aria-hidden="true" />
-        <p>
-          <strong>
-            {present
-              ? t('pipeline.openspec.readiness.toolsTitle', { count: pending.length })
-              : t('pipeline.openspec.readiness.missingTitle')}
-          </strong>
-          {' '}
-          {present
-            ? t('pipeline.openspec.readiness.toolsHelp')
-            : t('pipeline.openspec.readiness.missingHelp')}
-        </p>
-      </div>
-      {/* También sin OpenSpec: declarar sin ofrecer salida deja a la persona
-          sabiendo que algo falta y sin nada que hacer al respecto, que es el
-          peor de los dos estados. El rótulo cambia porque lo que espera del
-          otro lado es distinto: cuál falta, o cómo resolverlo. */}
-      {onShowDetail && (
-        <div className={styles.readinessActions}>
-          <button type="button" className={styles.readinessLink} onClick={onShowDetail}>
-            {present
-              ? t('pipeline.openspec.readiness.seeDetail')
-              : t('pipeline.openspec.readiness.resolve')}
-          </button>
-        </div>
-      )}
-    </section>
-  );
-}
 
 export type OpenSpecToolListProps = {
   present?: boolean;

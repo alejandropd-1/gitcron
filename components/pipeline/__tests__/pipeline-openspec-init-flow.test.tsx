@@ -131,8 +131,10 @@ describe('empezar un cambio sin OpenSpec inicializado', () => {
     renderDashboard();
     fireEvent.click(screen.getByRole('button', { name: /next\.noActive\.propose/ }));
 
+    // Desplegar sección de herramientas en el inspector
+    fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
     expect(screen.getAllByText(/readiness\.missingTitle/).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /readiness\.resolve/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /rail\.init$/ })).toBeTruthy();
     // No bloquea: el formulario está y se puede llegar a lanzarlo.
     expect(screen.getByRole('button', { name: /newChange\.propose\.review/ })).toBeTruthy();
   });
@@ -148,8 +150,8 @@ describe('empezar un cambio sin OpenSpec inicializado', () => {
       target: { value: 'ordenar-rail' },
     });
 
-    // El aviso lleva al detalle, y ahí vive la única acción que inicializa.
-    fireEvent.click(screen.getByRole('button', { name: /readiness\.resolve/ }));
+    // Desplegar herramientas e inicializar
+    fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
     fireEvent.click(screen.getByRole('button', { name: /rail\.init$/ }));
     await waitFor(() => expect(initOpenSpec).toHaveBeenCalledWith('C:/repo', undefined));
 
@@ -164,7 +166,7 @@ describe('empezar un cambio sin OpenSpec inicializado', () => {
   it('nada se escribe sin la acción humana', () => {
     renderDashboard();
     fireEvent.click(screen.getByRole('button', { name: /next\.noActive\.propose/ }));
-    fireEvent.click(screen.getByRole('button', { name: /readiness\.resolve/ }));
+    fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
 
     // Ver el estado no escribe: hasta acá sólo se leyó y se navegó.
     expect(initOpenSpec).not.toHaveBeenCalled();

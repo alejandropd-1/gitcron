@@ -163,20 +163,21 @@ function renderDashboard(currentBranch: string) {
 }
 
 describe('el panel, con un cambio abierto', () => {
-  it('declara la discrepancia dentro del contenedor de avisos y el trabajo sigue disponible', () => {
+  it('declara la discrepancia suelta y el trabajo sigue disponible', () => {
     renderDashboard('main');
 
-    const noticesGroup = screen.getByRole('region', { name: /notices\.title/ });
-    expect(noticesGroup).toBeTruthy();
-    expect(noticesGroup.textContent).toMatch(/branch\.mismatchTitle.*main/);
-    expect(noticesGroup.textContent).toMatch(/change\/declare-change-branch/);
+    const notice = screen.getByText(/branch\.mismatchTitle.*main/);
+    expect(notice).toBeTruthy();
+    expect(notice.closest('section')?.getAttribute('data-kind')).toBe('branch');
+    expect(screen.getByText(/change\/declare-change-branch/)).toBeTruthy();
+    expect(screen.queryByRole('region', { name: /notices\.title/ })).toBeNull();
 
     // No bloquea: el cambio abierto sigue siendo trabajable.
     expect(screen.getByRole('tab', { name: /openspec\.tabs\.work/ })).toBeTruthy();
     expect(screen.getAllByText('declare-change-branch').length).toBeGreaterThan(0);
   });
 
-  it('en la rama del cambio no declara nada y no renderiza el contenedor de avisos si no hay otros', () => {
+  it('en la rama del cambio no declara nada y no renderiza el aviso si no hay otros', () => {
     renderDashboard('change/declare-change-branch');
     expect(screen.queryByText(/branch\.mismatchTitle/)).toBeNull();
     expect(screen.queryByRole('region', { name: /notices\.title/ })).toBeNull();

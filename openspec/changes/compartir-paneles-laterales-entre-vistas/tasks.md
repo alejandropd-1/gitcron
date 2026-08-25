@@ -177,7 +177,23 @@ Alejandro pidió dos cambios sobre lo que vio funcionando. Van como 4.10 a 4.16,
   que no llegaba al piso, y ya no hay tarjeta: hay una lista que desplaza y secciones que se pliegan.
   Arrastrar el alto sería una segunda manera de hacer lo que plegar ya hace, con una preferencia más
   que recordar. El ancho arrastrable se conserva.
-- [ ] 4.20 Revisión visual: el panel acumula sus secciones, se pliegan las que no interesan, y
+**Del repaso visual de Alejandro del 2026-08-24.** Confirmó que el plegado se recuerda entre Graph y
+la vista del ciclo, y pidió dos cambios sobre lo que vio funcionando. Entran como 4.20 y 4.21, y la
+revisión pasa a 4.22.
+
+- [ ] 4.20 El indicador de «Herramientas» deja de ser un número. Hoy
+  `OpenSpecInspector.tsx:316` muestra `pendingToolCount` como contador. Pasa a ser la misma
+  advertencia ámbar que ya usa la tarjeta del motor —el ícono, sin número— y **no aparece nada**
+  cuando no hay nada que resolver. Va en el lugar de los controles de la sección, no en el del
+  ícono: el criterio de la 4.15 —ícono monocromo, sin color— sigue valiendo para el ícono, y el
+  ámbar acá comunica un dato, que es la excepción que el invariante 11 admite.
+- [ ] 4.21 La bitácora de la redacción recupera un alto acotado, con degradado y control para
+  desplegar. **Revierte en parte la 4.7**, y con motivo: al quitarle el tope, un razonamiento largo
+  empuja a las demás secciones fuera de vista, que es lo que la 4.7 quería evitar y terminó
+  provocando. Lo que se pide no es el tope viejo —un recorte con desplazamiento propio— sino una
+  vista previa: alto fijo, un degradado en el borde inferior que declare que hay más, y un control
+  para ver el pensamiento entero. Mientras el modelo escribe se sigue viendo lo último.
+- [ ] 4.22 Revisión visual: el panel acumula sus secciones, se pliegan las que no interesan, y
   ninguna empuja a las demás fuera de vista. **La comprueba Alejandro.**
 ## 5. El cuerpo de SDD
 

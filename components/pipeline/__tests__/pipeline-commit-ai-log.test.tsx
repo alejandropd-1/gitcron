@@ -382,3 +382,98 @@ describe('cuando el contexto elegido no alcanza', () => {
     expect(estado.textContent).toContain('"minutes":5');
   });
 });
+
+describe('alto acotado y control de despliegue en la bitácora (4.21)', () => {
+  it('no muestra degradado ni botón de desplegar cuando el razonamiento no desborda', async () => {
+    // En jsdom configuramos getters para simular que el contenido cabe dentro de la altura visible
+    const originalScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight');
+    const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', { configurable: true, get: () => 100 });
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 200 });
+
+    try {
+      abrirPreparacion();
+      const marca = await pedirRedaccion();
+      await waitFor(() => expect(emitir).not.toBeNull());
+
+      act(() => {
+        emitir?.({ draftId: marca, chunks: [{ kind: 'reasoning', text: 'razonamiento corto' }] });
+      });
+
+      expect(await screen.findByText(/razonamiento corto/)).toBeTruthy();
+
+      // No debe existir el botón de desplegar/plegar
+      expect(screen.queryByRole('button', { name: /aiLogExpand|aiLogCollapse/ })).toBeNull();
+      // El pre no tiene data-expanded
+      const pre = screen.getByText('razonamiento corto');
+      expect(pre.getAttribute('data-expanded')).toBeNull();
+    } finally {
+      if (originalScrollHeight) Object.defineProperty(HTMLElement.prototype, 'scrollHeight', originalScrollHeight);
+      if (originalClientHeight) Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight);
+    }
+  });
+
+  it('presenta el control sólo cuando el razonamiento desborda y al accionarlo retira el tope de altura', async () => {
+    // En jsdom configuramos getters para simular que el razonamiento desborda la caja (scrollHeight > clientHeight)
+    const originalScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight');
+    const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', { configurable: true, get: () => 500 });
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 200 });
+
+    try {
+      abrirPreparacion();
+      const marca = await pedirRedaccion();
+      await waitFor(() => expect(emitir).not.toBeNull());
+
+      act(() => {
+        emitir?.({ draftId: marca, chunks: [{ kind: 'reasoning', text: 'razonamiento largo que desborda el recuadro' }] });
+      });
+
+      expect(await screen.findByText(/razonamiento largo que desborda/)).toBeTruthy();
+
+      // 1. Desborda: aparece el botón para desplegar
+      const toggleBtn = await screen.findByRole('button', { name: /aiLogExpand/ });
+      expect(toggleBtn).toBeTruthy();
+
+      const pre = screen.getByText('razonamiento largo que desborda el recuadro');
+      // Inicialmente plegado
+      expect(pre.getAttribute('data-expanded')).toBeNull();
+
+      // 2. Al hacer clic, se despliega
+      fireEvent.click(toggleBtn);
+
+      // El botón ahora dice plegar
+      expect(screen.getByRole('button', { name: /aiLogCollapse/ })).toBeTruthy();
+      // El pre ahora declara data-expanded="true" para retirar el tope de altura
+      expect(pre.getAttribute('data-expanded')).toBe('true');
+
+      // 3. Al volver a hacer clic, se pliega de nuevo
+      fireEvent.click(toggleBtn);
+      expect(screen.getByRole('button', { name: /aiLogExpand/ })).toBeTruthy();
+      expect(pre.getAttribute('data-expanded')).toBeNull();
+    } finally {
+      if (originalScrollHeight) Object.defineProperty(HTMLElement.prototype, 'scrollHeight', originalScrollHeight);
+      if (originalClientHeight) Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight);
+    }
+  });
+
+  it('declara alto fijo (8rem) en la hoja de estilos y degradado inferior (4.24)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const cssPath = path.resolve(__dirname, '../OpenSpecDashboard.module.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+    // 1. draftLogStream declara alto FIJO (8rem), overflow hidden, y NO max-height (4.24)
+    expect(cssContent).toMatch(/\.draftLogStream\s*\{[^}]*height:\s*8rem/);
+    expect(cssContent).not.toMatch(/\.draftLogStream\s*\{[^}]*max-height:/);
+    expect(cssContent).toMatch(/\.draftLogStream\s*\{[^}]*overflow:\s*hidden/);
+
+    // 2. draftLogStream[data-expanded='true'] pasa a height: auto (4.24)
+    expect(cssContent).toMatch(/\.draftLogStream\[data-expanded='true'\]\s*\{[^}]*height:\s*auto/);
+
+    // 3. draftLogFade declara degradado hacia el fondo y se ancla en el borde inferior (bottom: 0) (4.24)
+    expect(cssContent).toMatch(/\.draftLogFade\s*\{[^}]*background:\s*linear-gradient\(to bottom,\s*transparent/);
+    expect(cssContent).toMatch(/\.draftLogFade\s*\{[^}]*bottom:\s*0/);
+    expect(cssContent).not.toMatch(/\.draftLogFade\s*\{[^}]*top:\s*0/);
+  });
+});

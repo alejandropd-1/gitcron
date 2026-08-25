@@ -239,7 +239,8 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
   it('3. Abrirla desde el cuerpo (camino línea 1631) y cerrarla desde la franja -> vuelve al inspector', async () => {
     render(<IntegratedPipelineView />);
 
-    // Abrir revisión de actualización en el cuerpo (esperando a que cargue el estado del motor)
+    // Abrir sección herramientas en el inspector y luego abrir revisión
+    fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
     const reviewButton = await screen.findByText('pipeline.openspec.engine.reviewAction');
     fireEvent.click(reviewButton);
 
@@ -278,6 +279,7 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
 
     // Camino B: Abrir desde cuerpo (revisión), cerrar desde franja
     render(<IntegratedPipelineView />);
+    fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
     const reviewButton = await screen.findByText('pipeline.openspec.engine.reviewAction');
     fireEvent.click(reviewButton);
     const executeBtn = await screen.findByText('pipeline.openspec.engine.review.executeUpdate');

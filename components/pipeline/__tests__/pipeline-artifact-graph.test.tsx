@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PipelineDetails } from '../PipelineDetails';
+import { PipelineArtifactGraph } from '../PipelineArtifactGraph';
 import type { OpenSpecChangeStatus } from '@/types/pipeline';
 import type { OpenSpecChangeSummary, PipelineSnapshot } from '../pipeline-view-state';
 
@@ -78,9 +79,9 @@ describe('grafo de artefactos de OpenSpec', () => {
       applyRequires: ['tasks'],
       isComplete: false,
     }));
-    expect(screen.getByText('proposal')).toBeTruthy();
+    expect(screen.getByText('pipeline.openspec.graph.artifact.proposal')).toBeTruthy();
     expect(screen.getByText('pipeline.openspec.graph.state.done')).toBeTruthy();
-    expect(screen.getByText('design')).toBeTruthy();
+    expect(screen.getByText('pipeline.openspec.graph.artifact.design')).toBeTruthy();
     expect(screen.getByText('pipeline.openspec.graph.state.ready')).toBeTruthy();
   });
 
@@ -93,7 +94,7 @@ describe('grafo de artefactos de OpenSpec', () => {
       applyRequires: ['tasks'],
       isComplete: false,
     }));
-    expect(screen.getByText('tasks')).toBeTruthy();
+    expect(screen.getByText('pipeline.openspec.graph.artifact.tasks')).toBeTruthy();
     expect(screen.getByText('pipeline.openspec.graph.state.blocked')).toBeTruthy();
     expect(screen.getByText(/pipeline\.openspec\.graph\.missingDeps/).textContent).toMatch(/design/);
   });
@@ -108,10 +109,46 @@ describe('grafo de artefactos de OpenSpec', () => {
       applyRequires: ['tasks'],
       isComplete: false,
     }));
-    expect(screen.getByText('specs')).toBeTruthy();
+    expect(screen.getByText('pipeline.openspec.graph.artifact.specs')).toBeTruthy();
     expect(screen.getByText('pipeline.openspec.graph.state.skipped')).toBeTruthy();
     expect(screen.getByText('custom')).toBeTruthy();
     expect(screen.getByText('pipeline.openspec.graph.state.unknown')).toBeTruthy();
+  });
+
+  it('la ficha de cada artefacto presenta su rótulo traducido y NO el identificador crudo (7.12)', () => {
+    const { container } = render(
+      <PipelineArtifactGraph
+        status={{
+          available: true,
+          artifacts: [
+            { id: 'proposal', state: 'done', missingDeps: [] },
+            { id: 'design', state: 'ready', missingDeps: [] },
+            { id: 'specs', state: 'blocked', missingDeps: [] },
+            { id: 'tasks', state: 'skipped', missingDeps: [] },
+          ],
+          applyRequires: [],
+          isComplete: false,
+        }}
+      />
+    );
+
+    const ids = Array.from(container.querySelectorAll('.pipeline-artifact-graph__id')).map(
+      (el) => el.textContent?.trim()
+    );
+
+    // Los 4 artefactos conocidos deben presentar su clave de traducción
+    expect(ids).toEqual([
+      'pipeline.openspec.graph.artifact.proposal',
+      'pipeline.openspec.graph.artifact.design',
+      'pipeline.openspec.graph.artifact.specs',
+      'pipeline.openspec.graph.artifact.tasks',
+    ]);
+
+    // Ninguno debe contener el identificador en crudo
+    expect(ids).not.toContain('proposal');
+    expect(ids).not.toContain('design');
+    expect(ids).not.toContain('specs');
+    expect(ids).not.toContain('tasks');
   });
 
   it('sin grafo (status null) no renderiza la superficie ni inventa estado', () => {

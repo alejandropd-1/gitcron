@@ -746,7 +746,7 @@ export function RepoSidebar({
                       <OpenSpecSidebarNav repoPath={repoPath} />
                     ) : (
                       <div data-testid="sidebar-branches-sections">
-                        <div className="px-3 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wider text-text-secondary/70 select-none">
+                        <div className="px-3 pt-1 pb-1 text-xs font-bold uppercase tracking-wider text-text-secondary/70 select-none">
                           {t('sidebar.branchesAndRefs')}
                         </div>
                         {/* LOCAL — folder tree + ahead/behind chips */}

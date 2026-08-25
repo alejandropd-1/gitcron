@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RepoTabs } from '../RepoTabs';
 import { RepoSidebar } from '../RepoSidebar';
@@ -2018,6 +2018,8 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
       isLoading: false,
     });
 
+    const onEnsureRightOpenMock = vi.fn();
+
     const mockSnapshotWithNotice: PipelineSnapshot = {
       schemaVersion: '1.0',
       repoId: 'repo-test',
@@ -2026,17 +2028,8 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
       decisions: [],
       agents: [],
       activity: [],
-      economy: {
-        tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
-        costUsd: 0,
-        costBasis: 'runtime_reported',
-        costCoverage: { withCost: 0, total: 0 },
-        contextMaxTokens: 200000,
-        contextCurrentTokens: 0,
-        compactionCount: 0,
-        reasoningAvailable: true,
-      },
       diffs: [],
+      economy: { reasoningAvailable: null } as PipelineSnapshot['economy'],
       openSpec: {
         selectedChangeId: null,
         activeChanges: [],
@@ -2044,8 +2037,10 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
         specifications: [],
         reports: [],
         diagnostics: [],
-        observedAt: '2026-08-24T12:00:00Z',
+        observedAt: '2026-08-25T08:00:00Z',
         latestGate: null,
+        openSpecPresent: true,
+        openSpecTools: [{ toolId: 'git', label: 'Git', directory: '.git', configured: true }],
       },
     };
 
@@ -2060,7 +2055,7 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
           runtimeHistory={[]}
           onPauseAfterTask={vi.fn()}
           onRespondDecision={vi.fn()}
-          onEnsureRightOpen={vi.fn()}
+          onEnsureRightOpen={onEnsureRightOpenMock}
         />
         <OpenSpecInspector repoPath={repo} snapshot={mockSnapshotWithNotice} />
       </div>
@@ -2070,14 +2065,102 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
     const toolsSectionBtn = screen.getByRole('button', { name: /pipeline\.openspec\.rail\.tools/ });
     expect(toolsSectionBtn.getAttribute('aria-expanded')).toBe('false');
 
-    // 2. Se encuentra el botón en el centro ("Abrir herramientas")
-    const openToolsCenterBtn = await screen.findByRole('button', { name: 'pipeline.openspec.engine.openToolsTab' });
-    expect(openToolsCenterBtn).toBeDefined();
+    // 2. Se encuentra la insignia en la franja
+    const engineChip = screen.getByTitle(/pipeline\.openspec\.engine\.status/i);
+    // 3. Se hace clic en la insignia
+    fireEvent.click(engineChip);
+    expect(onEnsureRightOpenMock).toHaveBeenCalledTimes(1);
 
-    // 3. Se hace clic en el botón del centro
-    fireEvent.click(openToolsCenterBtn);
-
-    // 4. La sección details-tools en el inspector queda desplegada
+    // 4. Que apretar la insignia deja la sección «Herramientas» desplegada en el DOM
     expect(toolsSectionBtn.getAttribute('aria-expanded')).toBe('true');
+
+    // 5. El centro NO monta el botón huérfano
+    expect(screen.queryByRole('button', { name: /openToolsTab/i })).toBeNull();
+  });
+
+  it('12. Que con pendingToolCount en cero la sección Herramientas NO presenta número ni advertencia, y con uno o más presenta la advertencia con nombre accesible y ningún número (4.20)', async () => {
+    const repo = 'C:/test-tools-section';
+
+    // Caso A: pendingToolCount en 0 (sin herramientas faltantes ni integración desactualizada)
+    (window as any).api = {
+      ...((window as any).api || {}),
+      pipelineOpenSpec: {
+        ...((window as any).api?.pipelineOpenSpec || {}),
+        getEngineStatus: vi.fn().mockResolvedValue({
+          version: '1.8.0',
+          versionClass: 'supported',
+          integrationState: 'up-to-date',
+          repoState: 'initialized',
+          cli: {
+            installed: true,
+            runtimeVersion: '1.8.0',
+            diagnostics: [],
+          },
+          divergence: { isDivergent: false, divergedFiles: [] },
+        }),
+        checkLatestVersion: vi.fn().mockResolvedValue(null),
+      },
+    };
+
+    const snapshotClean: PipelineSnapshot = {
+      ...dummySnapshot,
+      openSpec: {
+        ...dummySnapshot.openSpec!,
+        selectedChangeId: null,
+        activeChanges: [],
+        archivedChanges: [],
+        specifications: [],
+        reports: [],
+        diagnostics: [],
+        observedAt: '2026-08-25T08:00:00Z',
+        latestGate: null,
+        openSpecPresent: true,
+        openSpecTools: [{ toolId: 'git', label: 'Git', directory: '.git', configured: true }],
+      },
+    };
+
+    const { unmount } = render(<OpenSpecInspector repoPath={repo} snapshot={snapshotClean} />);
+
+    // El botón de la sección "Herramientas"
+    const toolsBtn = await screen.findByRole('button', { name: /pipeline\.openspec\.rail\.tools/ });
+    const toolsSectionHeader = toolsBtn.parentElement!;
+
+    // 1. No hay número (span con count de tipo mono/badge)
+    const countBadge = toolsSectionHeader.querySelector('span.font-mono, span.bg-border-subtle');
+    expect(countBadge).toBeNull();
+
+    // 2. No hay ícono de advertencia
+    const warningIcon = toolsSectionHeader.querySelector('svg[aria-label="pipeline.openspec.engine.generalStatus.needsAttention"]');
+    expect(warningIcon).toBeNull();
+
+    unmount();
+
+    // Caso B: pendingToolCount > 0 (integrationState: 'outdated')
+    (window as any).api.pipelineOpenSpec.getEngineStatus = vi.fn().mockResolvedValue({
+      version: '1.8.0',
+      versionClass: 'supported',
+      integrationState: 'outdated',
+      repoState: 'initialized',
+      cli: {
+        installed: true,
+        runtimeVersion: '1.8.0',
+        diagnostics: [],
+      },
+      divergence: { isDivergent: false, divergedFiles: [] },
+    });
+
+    render(<OpenSpecInspector repoPath={repo} snapshot={snapshotClean} />);
+
+    const toolsBtnWithPending = await screen.findByRole('button', { name: /pipeline\.openspec\.rail\.tools/ });
+    const toolsSectionHeaderWithPending = toolsBtnWithPending.parentElement!;
+
+    // 1. NO hay número
+    const countBadgeWithPending = toolsSectionHeaderWithPending.querySelector('span.font-mono, span.bg-border-subtle');
+    expect(countBadgeWithPending).toBeNull();
+
+    // 2. SÍ presenta el ícono AlertTriangle con su nombre accesible y sin aria-hidden
+    const warningIconWithPending = await within(toolsSectionHeaderWithPending).findByRole('img', { name: 'pipeline.openspec.engine.generalStatus.needsAttention' });
+    expect(warningIconWithPending).not.toBeNull();
+    expect(warningIconWithPending.getAttribute('aria-hidden')).toBeNull();
   });
 });

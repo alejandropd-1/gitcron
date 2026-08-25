@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { PipelineWorkspace } from '../PipelineWorkspace';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
 import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
+import { OpenSpecInspector } from '../OpenSpecInspector';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import type { OpenSpecEngineStatus } from '../../../types/pipeline';
 import type { PipelineSnapshot } from '../pipeline-view-state';
@@ -149,25 +150,16 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
       />,
     );
 
-    await vi.waitFor(() => {
-      expect(screen.getByText(/OpenSpec requiere atención/i)).toBeDefined();
-    });
-
-    // 1. Clic en botón central "Abrir Herramientas > OpenSpec"
-    const openToolsBtn = screen.getByRole('button', { name: /Abrir Herramientas > OpenSpec/i });
-    fireEvent.click(openToolsBtn);
-    expect(onEnsureRightOpenMock).toHaveBeenCalledTimes(1);
-
-    // 2. Clic en insignia de motor en franja de identidad
-    const compactBadge = screen.getByTitle(/OpenSpec v1.8.0 · Desactualizado/i);
+    // Clic en insignia de motor en franja de identidad abre el panel derecho si está cerrado
+    const compactBadge = await screen.findByTitle(/OpenSpec v1.8.0/i);
     fireEvent.click(compactBadge);
-    expect(onEnsureRightOpenMock).toHaveBeenCalledTimes(2);
+    expect(onEnsureRightOpenMock).toHaveBeenCalledTimes(1);
 
     vi.unstubAllGlobals();
   });
 
-  it('renderiza el contenedor y título de Avisos sólo cuando hay al menos un aviso, y no los renderiza sin avisos', async () => {
-    // 1. Con aviso: integración desactualizada
+  it('con atención del motor y con herramientas sin configurar, el centro NO monta ningún aviso, en las dos situaciones por separado (7.13, 7.16)', async () => {
+    // 1. Situación A: atención del motor (integración desactualizada)
     const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
     const checkLatestVersionMock = vi.fn().mockResolvedValue(null);
 
@@ -200,13 +192,13 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     );
 
     await vi.waitFor(() => {
-      // Con aviso: el contenedor de Avisos y su título existen
-      expect(screen.getByRole('region', { name: 'Avisos' })).toBeDefined();
-      expect(screen.getByText('Avisos')).toBeDefined();
-      expect(screen.getByText(/OpenSpec requiere atención/i)).toBeDefined();
+      // El centro NO monta aviso de atención del motor ni encabezado «Avisos»
+      expect(screen.queryByRole('heading', { name: /Avisos/i, level: 4 })).toBeNull();
+      expect(screen.queryByText(/OpenSpec requiere atención/i)).toBeNull();
+      expect(screen.queryByRole('button', { name: /Abrir Herramientas/i })).toBeNull();
     });
 
-    // 2. Sin avisos: motor al día, repo inicializado, herramientas configuradas, sin divergencia
+    // 2. Situación B: herramientas sin configurar (motor limpio)
     const dummyStatusClean: OpenSpecEngineStatus = {
       cli: {
         installed: true,
@@ -232,13 +224,13 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
       },
     };
 
-    const cleanSnapshot: PipelineSnapshot = {
+    const unconfiguredToolsSnapshot: PipelineSnapshot = {
       ...dummySnapshot,
       openSpec: {
         ...dummySnapshot.openSpec!,
         openSpecPresent: true,
         openSpecTools: [
-          { toolId: 'codex', label: 'Codex', directory: '.codex', configured: true },
+          { toolId: 'custom-tool', label: 'Custom Tool', directory: '.custom', configured: false },
         ],
       },
     };
@@ -247,8 +239,8 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
 
     rerender(
       <OpenSpecDashboard
-        snapshot={cleanSnapshot}
-        repoPath="C:\\clean-repo"
+        snapshot={unconfiguredToolsSnapshot}
+        repoPath="C:\\repo"
         currentBranch="main"
         workingTreeClean={true}
         leftOpen={true}
@@ -265,10 +257,9 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     );
 
     await vi.waitFor(() => {
-      // Sin avisos: el contenedor de Avisos y su título no se renderizan
-      expect(screen.queryByRole('region', { name: 'Avisos' })).toBeNull();
-      expect(screen.queryByText('Avisos')).toBeNull();
-      expect(screen.queryByText(/OpenSpec requiere atención/i)).toBeNull();
+      // El centro NO monta aviso de herramientas sin configurar ni encabezado «Avisos»
+      expect(screen.queryByRole('heading', { name: /Avisos/i, level: 4 })).toBeNull();
+      expect(screen.queryByText(/herramienta.*sin configurar/i)).toBeNull();
     });
 
     vi.unstubAllGlobals();
@@ -363,26 +354,48 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
       },
     });
 
-    const { container } = render(
-      <OpenSpecDashboard
-        snapshot={dummySnapshot}
-        repoPath="C:\\repo"
-        currentBranch="main"
-        workingTreeClean={true}
-        leftOpen={true}
-        rightOpen={false}
-        leftWidth={340}
-        rightWidth={340}
-        onResizeLeft={vi.fn()}
-        onResizeRight={vi.fn()}
-        projection={null}
-        runtimeHistory={[]}
-        onPauseAfterTask={vi.fn()}
-        onRespondDecision={vi.fn()}
-      />,
-    );
+    const TestComponent = () => {
+      const reviewOpen = usePipelineStore((s) => s.reviewOpen);
+      const toggleReviewOpen = usePipelineStore((s) => s.toggleReviewOpen);
+      return (
+        <div className="flex">
+          <OpenSpecDashboard
+            snapshot={dummySnapshot}
+            repoPath="C:\\repo"
+            currentBranch="main"
+            workingTreeClean={true}
+            leftOpen={true}
+            rightOpen={false}
+            leftWidth={340}
+            rightWidth={340}
+            onResizeLeft={vi.fn()}
+            onResizeRight={vi.fn()}
+            projection={null}
+            runtimeHistory={[]}
+            onPauseAfterTask={vi.fn()}
+            onRespondDecision={vi.fn()}
+          />
+          <OpenSpecInspector
+            repoPath="C:\\repo"
+            snapshot={dummySnapshot}
+            sectionState={{
+              isOpen: (id) => id === 'details-tools',
+              toggle: vi.fn(),
+              open: vi.fn(),
+              setOpen: vi.fn(),
+            }}
+            isReviewOpen={reviewOpen}
+            onOpenReview={toggleReviewOpen}
+          />
+        </div>
+      );
+    };
 
-    // Esperar a que cargue el estado y se muestre el aviso
+    usePipelineStore.setState({ reviewOpen: false });
+
+    const { container } = render(<TestComponent />);
+
+    // Esperar a que cargue el estado y se muestre el botón en la tarjeta del motor en el inspector
     const reviewBtn = await screen.findByRole('button', { name: /Revisar actualización/i });
     expect(reviewBtn).toBeTruthy();
 
@@ -397,7 +410,7 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     expect(mainSection).not.toBeNull();
     expect(mainSection!.textContent).toContain('Revisión de Actualización de OpenSpec');
 
-    // 2. El botón del aviso ahora alterna a "Cerrar revisión"
+    // 2. El botón de la tarjeta del motor ahora alterna a "Cerrar revisión"
     const toggleCloseBtn = screen.getByRole('button', { name: /Cerrar revisión/i });
     expect(toggleCloseBtn).toBeTruthy();
 
@@ -504,27 +517,23 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     const nextStepHeading = await screen.findByRole('heading', { name: /Siguiente paso/i, level: 4 });
     expect(nextStepHeading).toBeTruthy();
 
-    // 2. Avisos
-    const noticesHeading = await screen.findByRole('heading', { name: /Avisos/i, level: 4 });
-    expect(noticesHeading).toBeTruthy();
-
-    // 3. Tareas del cambio
+    // 2. Tareas del cambio
     const tasksHeading = await screen.findByRole('heading', { name: /Tareas del cambio/i, level: 4 });
     expect(tasksHeading).toBeTruthy();
 
-    // 4. Lanzar agente (abrir lanzador haciendo clic en "Continuar con")
+    // 3. Lanzar agente (abrir lanzador haciendo clic en "Continuar con")
     const continueBtn = screen.getByRole('button', { name: /Continuar con/i });
     fireEvent.click(continueBtn);
     const launcherHeading = await screen.findByRole('heading', { name: /Lanzar agente/i, level: 4 });
     expect(launcherHeading).toBeTruthy();
 
-    // 5. Evidencia (pestaña Artefactos)
+    // 4. Evidencia (pestaña Artefactos)
     const artifactsTab = screen.getByRole('tab', { name: /Artefactos/i });
     fireEvent.click(artifactsTab);
     const evidenceHeading = await screen.findByRole('heading', { name: /Evidencia/i, level: 4 });
     expect(evidenceHeading).toBeTruthy();
 
-    // 5b. Actividad (pestaña Actividad)
+    // 4b. Actividad (pestaña Actividad)
     const activityTab = screen.getByRole('tab', { name: /Actividad/i });
     fireEvent.click(activityTab);
     const activityHeading = await screen.findByRole('heading', { name: /Actividad/i, level: 4 });
@@ -534,15 +543,19 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     const sharedClass = Array.from(nextStepHeading.classList).find((cls) => cls.includes('blockHeader'));
     expect(sharedClass).toBeDefined();
 
-    expect(Array.from(noticesHeading.classList)).toContain(sharedClass);
     expect(Array.from(launcherHeading.classList)).toContain(sharedClass);
     expect(Array.from(tasksHeading.classList)).toContain(sharedClass);
     expect(Array.from(evidenceHeading.classList)).toContain(sharedClass);
     expect(Array.from(activityHeading.classList)).toContain(sharedClass);
 
+    expect(nextStepHeading.className).toBe(sharedClass);
+    expect(launcherHeading.className).toBe(sharedClass);
+    expect(tasksHeading.className).toBe(sharedClass);
+    expect(evidenceHeading.className).toBe(sharedClass);
+    expect(activityHeading.className).toBe(sharedClass);
+
     // Leemos la clase de bloque compartida del primer bloque y comparamos con los demás
     const nextStepBlock = nextStepHeading.parentElement!;
-    const noticesBlock = noticesHeading.parentElement!;
     const launcherBlock = launcherHeading.parentElement!;
     const tasksBlock = tasksHeading.parentElement!;
     const evidenceBlock = evidenceHeading.parentElement!;
@@ -551,14 +564,13 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     const sharedBlockClass = Array.from(nextStepBlock.classList).find((cls) => cls.includes('centerBlock'));
     expect(sharedBlockClass).toBeDefined();
 
-    expect(Array.from(noticesBlock.classList)).toContain(sharedBlockClass);
     expect(Array.from(launcherBlock.classList)).toContain(sharedBlockClass);
     expect(Array.from(tasksBlock.classList)).toContain(sharedBlockClass);
     expect(Array.from(evidenceBlock.classList)).toContain(sharedBlockClass);
     expect(Array.from(activityBlock.classList)).toContain(sharedBlockClass);
 
     // Cada encabezado contiene su ícono SVG size={13} con aria-hidden="true"
-    for (const heading of [nextStepHeading, noticesHeading, launcherHeading, tasksHeading, evidenceHeading, activityHeading]) {
+    for (const heading of [nextStepHeading, launcherHeading, tasksHeading, evidenceHeading, activityHeading]) {
       const svg = heading.querySelector('svg');
       expect(svg).not.toBeNull();
       expect(svg?.getAttribute('aria-hidden')).toBe('true');
@@ -567,106 +579,40 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     vi.unstubAllGlobals();
   });
 
-  it('«Avisos» se monta después de «Siguiente paso» con un cambio elegido y antes cuando no hay ninguno (7.8, 7.9)', async () => {
-    const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
-    const checkLatestVersionMock = vi.fn().mockResolvedValue(null);
-
-    vi.stubGlobal('window', {
-      api: {
-        pipelineOpenSpec: {
-          getEngineStatus: getEngineStatusMock,
-          checkLatestVersion: checkLatestVersionMock,
-        },
-      },
-    });
-
-    const snapshotWithChange: PipelineSnapshot = {
-      ...dummySnapshot,
-      openSpec: {
-        ...dummySnapshot.openSpec!,
-        selectedChangeId: 'change-1',
-        activeChanges: [
-          {
-            changeId: 'change-1',
-            status: { schemaName: 'spec-driven', isComplete: false, isPlanningComplete: true, artifacts: [] },
-            tasks: [{ id: '1', line: 10, text: 'Tarea 1', completed: false }],
-          } as any,
-        ],
-      },
-    };
-
-    // Caso 1: CON cambio elegido -> «Avisos» va DESPUÉS de «Siguiente paso»
-    const { unmount: unmount1 } = render(
-      <OpenSpecDashboard
-        snapshot={snapshotWithChange}
-        repoPath="C:\\repo"
-        currentBranch="main"
-        workingTreeClean={true}
-        projection={null}
-        runtimeHistory={[]}
-        onPauseAfterTask={vi.fn()}
-        onRespondDecision={vi.fn()}
-      />,
-    );
-
-    const enterBtn = screen.getByRole('button', { name: /Entrar|Abrir/i });
-    fireEvent.click(enterBtn);
-
-    const nextStepHeading = await screen.findByRole('heading', { name: /Siguiente paso/i, level: 4 });
-    const noticesHeadingWithChange = await screen.findByRole('heading', { name: /Avisos/i, level: 4 });
-
-    // En el DOM montado, noticesHeading sigue a nextStepHeading
-    expect(nextStepHeading.compareDocumentPosition(noticesHeadingWithChange) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-
-    unmount1();
-
-    // Caso 2: SIN cambio elegido -> «Avisos» se monta arriba (antes del contenido de bienvenida/inicio)
-    const snapshotWithoutChange: PipelineSnapshot = {
-      ...dummySnapshot,
-      openSpec: {
-        ...dummySnapshot.openSpec!,
-        selectedChangeId: null,
-      },
-    };
-
-    usePipelineStore.setState({ selectedChangeId: null });
-
-    const { container: container2 } = render(
-      <OpenSpecDashboard
-        snapshot={snapshotWithoutChange}
-        repoPath="C:\\repo"
-        currentBranch="main"
-        workingTreeClean={true}
-        projection={null}
-        runtimeHistory={[]}
-        onPauseAfterTask={vi.fn()}
-        onRespondDecision={vi.fn()}
-      />,
-    );
-
-    const noticesHeadingWithoutChange = await screen.findByRole('heading', { name: /Avisos/i, level: 4 });
-    expect(noticesHeadingWithoutChange).toBeTruthy();
-    expect(screen.queryByRole('heading', { name: /Siguiente paso/i, level: 4 })).toBeNull();
-
-    // Avisos está en la parte superior de main
-    const mainEl = container2.querySelector('main');
-    expect(mainEl).not.toBeNull();
-    const firstSectionInMain = mainEl!.firstElementChild;
-    expect(firstSectionInMain?.getAttribute('aria-label')).toBe('Avisos');
-
-    vi.unstubAllGlobals();
-  });
-
-  it('el bloque de avisos anula su margen horizontal dentro de workArea para alinear con el resto de los bloques', async () => {
+  it('los encabezados de bloque del centro declaran el escalón de título de sección y NO el tamaño de los botones (7.10)', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const cssPath = path.resolve(__dirname, '../OpenSpecDashboard.module.css');
     const cssContent = fs.readFileSync(cssPath, 'utf-8');
 
-    // Afirmación sobre la regla de estilo: dentro de .workArea, .noticesGroup anula el margen horizontal
-    // (el padding horizontal ya lo aporta el contenedor .workArea)
-    expect(cssContent).toMatch(/\.workArea\s+\.noticesGroup\s*\{[^}]*margin-inline:\s*0/);
+    // Extraemos las declaraciones de font-size de .blockHeader y de los botones (.backToStart, etc.)
+    const blockHeaderMatch = cssContent.match(/\.blockHeader\s*\{[^}]*font-size:\s*var\((--font-size-[a-z0-9-]+)\)/);
+    const buttonMatch = cssContent.match(/\.backToStart\s*\{[^}]*font-size:\s*var\((--font-size-[a-z0-9-]+)\)/);
 
+    expect(blockHeaderMatch).not.toBeNull();
+    expect(buttonMatch).not.toBeNull();
+
+    const headerScaleStep = blockHeaderMatch![1];
+    const buttonScaleStep = buttonMatch![1];
+
+    // .blockHeader debe declarar el escalón de título de sección (--font-size-md)
+    expect(headerScaleStep).toBe('--font-size-md');
+    // Y NO debe compartir el mismo tamaño que los botones (--font-size-xs)
+    expect(headerScaleStep).not.toBe(buttonScaleStep);
+  });
+
+  it('el bloque de avisos retira noticesGroup, noticesList y centerAttentionBanner de la hoja de estilos (7.11, 7.14)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const cssPath = path.resolve(__dirname, '../OpenSpecDashboard.module.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+    expect(cssContent).not.toMatch(/\.noticesGroup/);
+    expect(cssContent).not.toMatch(/\.noticesList/);
+    expect(cssContent).not.toMatch(/\.centerAttentionBanner/);
+  });
+
+  it('el aviso de rama SÍ se monta cuando la rama no coincide, y no lleva el encabezado «Avisos» (7.14, 7.16)', async () => {
     const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
     const checkLatestVersionMock = vi.fn().mockResolvedValue(null);
 
@@ -710,19 +656,398 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     const enterBtn = screen.getByRole('button', { name: /Entrar|Abrir/i });
     fireEvent.click(enterBtn);
 
-    // En el DOM montado con cambio elegido y solapa Trabajo activa:
-    const workArea = container.querySelector('div[class*="workArea"]');
-    expect(workArea).not.toBeNull();
+    // 1. ChangeBranchNotice se monta directamente en workArea arriba de «Siguiente paso»
+    const branchNotice = container.querySelector('section[data-kind="branch"]');
+    expect(branchNotice).not.toBeNull();
 
-    const noticesSection = workArea!.querySelector('section[class*="noticesGroup"]');
-    const tasksBlock = workArea!.querySelectorAll('div[class*="centerBlock"]')[1]; // Segundo centerBlock = tasks
+    const nextStepHeading = await screen.findByRole('heading', { name: /Siguiente paso/i, level: 4 });
+    const nextStepBlock = nextStepHeading.parentElement!;
 
-    expect(noticesSection).not.toBeNull();
-    expect(tasksBlock).not.toBeNull();
-    // Ambos bloques son hijos directos del mismo contenedor de trabajo
-    expect(noticesSection!.parentElement).toBe(workArea);
-    expect(tasksBlock!.parentElement).toBe(workArea);
+    // branchNotice precede a nextStepBlock
+    expect(branchNotice!.compareDocumentPosition(nextStepBlock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
+    // 2. NO existe ningún encabezado de «Avisos»
+    expect(screen.queryByRole('heading', { name: /Avisos/i, level: 4 })).toBeNull();
+    expect(screen.queryByText('Avisos')).toBeNull();
+
+    vi.unstubAllGlobals();
+  });
+
+  it('sin cambio elegido el centro no monta nada arriba de la pantalla de inicio (7.14, 7.16)', async () => {
+    const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
+    const checkLatestVersionMock = vi.fn().mockResolvedValue(null);
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: getEngineStatusMock,
+          checkLatestVersion: checkLatestVersionMock,
+        },
+      },
+    });
+
+    const snapshotWithoutChange: PipelineSnapshot = {
+      ...dummySnapshot,
+      openSpec: {
+        ...dummySnapshot.openSpec!,
+        selectedChangeId: null,
+      },
+    };
+
+    usePipelineStore.setState({ selectedChangeId: null });
+
+    const { container } = render(
+      <OpenSpecDashboard
+        snapshot={snapshotWithoutChange}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    // 1. Sin cambio elegido no hay avisos en el centro
+    expect(screen.queryByRole('heading', { name: /Avisos/i, level: 4 })).toBeNull();
+    expect(screen.queryByText(/OpenSpec requiere atención/i)).toBeNull();
+
+    // 2. El primer elemento de main es la pantalla de inicio
+    const mainEl = container.querySelector('main');
+    expect(mainEl).not.toBeNull();
+    const firstSectionInMain = mainEl!.firstElementChild;
+    expect(firstSectionInMain?.className).toContain('startScreen');
+
+    vi.unstubAllGlobals();
+  });
+
+  it('la franja enciende con CADA UNA de las tres causas por separado: desactualizada, sin inicializar, divergente (7.15, 7.16)', async () => {
+    // Causa 1: integración desactualizada
+    const outdatedStatus: OpenSpecEngineStatus = {
+      ...dummyStatusOutdated,
+      integrationState: 'outdated',
+      repoState: 'initialized',
+      divergence: { isDivergent: false, reason: null, overallStatus: 'convergent', globalProfileClass: 'core', repoProfileClass: 'core' },
+    };
+
+    const getStatusMock = vi.fn().mockResolvedValue(outdatedStatus);
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: getStatusMock,
+          checkLatestVersion: vi.fn().mockResolvedValue(null),
+        },
+      },
+    });
+
+    const { unmount: unmount1 } = render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    const chipOutdated = await screen.findByRole('status', { name: /OpenSpec v1\.8\.0/i });
+    expect(chipOutdated.className).toMatch(/text-\[var\(--os-amber\)\]/);
+    expect(chipOutdated.getAttribute('title')).toMatch(/desactualizada/i);
+    unmount1();
+
+    // Causa 2: repositorio sin inicializar
+    const notInitStatus: OpenSpecEngineStatus = {
+      ...dummyStatusOutdated,
+      integrationState: 'up-to-date',
+      repoState: 'not-initialized',
+      divergence: { isDivergent: false, reason: null, overallStatus: 'convergent', globalProfileClass: 'core', repoProfileClass: 'core' },
+    };
+    getStatusMock.mockResolvedValue(notInitStatus);
+
+    const { unmount: unmount2 } = render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    const chipNotInit = await screen.findByRole('status', { name: /OpenSpec v1\.8\.0/i });
+    expect(chipNotInit.className).toMatch(/text-\[var\(--os-amber\)\]/);
+    expect(chipNotInit.getAttribute('title')).toMatch(/no está inicializado/i);
+    unmount2();
+
+    // Causa 3: divergente
+    const divergentStatus: OpenSpecEngineStatus = {
+      ...dummyStatusOutdated,
+      integrationState: 'up-to-date',
+      repoState: 'initialized',
+      divergence: {
+        isDivergent: true,
+        reason: { kind: 'profile-mismatch', globalProfileClass: 'custom', repoProfileClass: 'core' },
+        overallStatus: 'divergent',
+        globalProfileClass: 'custom',
+        repoProfileClass: 'core',
+      },
+    };
+    getStatusMock.mockResolvedValue(divergentStatus);
+
+    const { unmount: unmount3 } = render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    const chipDivergent = await screen.findByRole('status', { name: /OpenSpec v1\.8\.0/i });
+    expect(chipDivergent.className).toMatch(/text-\[var\(--os-amber\)\]/);
+    expect(chipDivergent.getAttribute('title')).toMatch(/divergen/i);
+    unmount3();
+
+    // Caso limpio: convergente y al día
+    const cleanStatus: OpenSpecEngineStatus = {
+      ...dummyStatusOutdated,
+      integrationState: 'up-to-date',
+      repoState: 'initialized',
+      divergence: { isDivergent: false, reason: null, overallStatus: 'convergent', globalProfileClass: 'core', repoProfileClass: 'core' },
+    };
+    getStatusMock.mockResolvedValue(cleanStatus);
+
+    const { unmount: unmount4 } = render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    const chipClean = await screen.findByRole('status', { name: /OpenSpec v1\.8\.0/i });
+    expect(chipClean.className).not.toMatch(/text-\[var\(--os-amber\)\]/);
+    unmount4();
+
+    vi.unstubAllGlobals();
+  });
+
+  it('con divergencia y sin nada más, el centro NO avisa Y la sección enciende el triángulo (7.13, 7.16)', async () => {
+    const divergenceStatus: OpenSpecEngineStatus = {
+      ...dummyStatusOutdated,
+      integrationState: 'up-to-date',
+      divergence: {
+        isDivergent: true,
+        reason: {
+          kind: 'profile-mismatch',
+          globalProfileClass: 'custom',
+          repoProfileClass: 'core',
+        },
+        overallStatus: 'divergent',
+        globalProfileClass: 'custom',
+        repoProfileClass: 'core',
+      },
+    };
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: vi.fn().mockResolvedValue(divergenceStatus),
+          checkLatestVersion: vi.fn().mockResolvedValue(null),
+        },
+      },
+    });
+
+    const snapshotDivergent: PipelineSnapshot = {
+      ...dummySnapshot,
+      openSpec: {
+        ...dummySnapshot.openSpec!,
+        selectedChangeId: null,
+        openSpecTools: [{ toolId: 'git', label: 'Git', directory: '.git', configured: true }],
+        openSpecPresent: true,
+      },
+    };
+
+    // 1. Centro (OpenSpecDashboard) -> NO monta avisos
+    const { unmount: unmountCenter } = render(
+      <OpenSpecDashboard
+        snapshot={snapshotDivergent}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('heading', { name: /Avisos/i, level: 4 })).toBeNull();
+    expect(screen.queryByText(/OpenSpec requiere atención/i)).toBeNull();
+
+    unmountCenter();
+
+    // 2. Sección lateral (OpenSpecInspector) -> SÍ enciende el triángulo
+    const { unmount: unmountSection } = render(
+      <OpenSpecInspector repoPath="C:\\repo" snapshot={snapshotDivergent} />,
+    );
+
+    const toolsBtn = await screen.findByRole('button', { name: /Herramientas|tools/i });
+    const toolsSectionHeader = toolsBtn.parentElement!;
+    const warningIcon = await within(toolsSectionHeader).findByRole('img', {
+      name: /Necesita atención|needsAttention/i,
+    });
+    expect(warningIcon).toBeTruthy();
+    expect(warningIcon.getAttribute('aria-hidden')).toBeNull();
+
+    unmountSection();
+    vi.unstubAllGlobals();
+  });
+
+  it('con herramienta sin configurar y sin nada más, el centro NO avisa Y la sección enciende el triángulo (7.13, 7.16)', async () => {
+    const cleanEngineStatus: OpenSpecEngineStatus = {
+      ...dummyStatusOutdated,
+      integrationState: 'up-to-date',
+      divergence: {
+        isDivergent: false,
+        reason: null,
+        overallStatus: 'convergent',
+        globalProfileClass: 'core',
+        repoProfileClass: 'core',
+      },
+    };
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: vi.fn().mockResolvedValue(cleanEngineStatus),
+          checkLatestVersion: vi.fn().mockResolvedValue(null),
+        },
+      },
+    });
+
+    const snapshotUnconfiguredTool: PipelineSnapshot = {
+      ...dummySnapshot,
+      openSpec: {
+        ...dummySnapshot.openSpec!,
+        selectedChangeId: null,
+        openSpecTools: [{ toolId: 'custom-tool', label: 'Custom Tool', directory: '.custom', configured: false }],
+        openSpecPresent: true,
+      },
+    };
+
+    // 1. Centro (OpenSpecDashboard) -> NO monta avisos
+    const { unmount: unmountCenter } = render(
+      <OpenSpecDashboard
+        snapshot={snapshotUnconfiguredTool}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('heading', { name: /Avisos/i, level: 4 })).toBeNull();
+    expect(screen.queryByText(/herramienta.*sin configurar/i)).toBeNull();
+
+    unmountCenter();
+
+    // 2. Sección lateral (OpenSpecInspector) -> SÍ enciende el triángulo
+    const { unmount: unmountSection } = render(
+      <OpenSpecInspector repoPath="C:\\repo" snapshot={snapshotUnconfiguredTool} />,
+    );
+
+    const toolsBtn = await screen.findByRole('button', { name: /Herramientas|tools/i });
+    const toolsSectionHeader = toolsBtn.parentElement!;
+    const warningIcon = await within(toolsSectionHeader).findByRole('img', {
+      name: /Necesita atención|needsAttention/i,
+    });
+    expect(warningIcon).toBeTruthy();
+    expect(warningIcon.getAttribute('aria-hidden')).toBeNull();
+
+    unmountSection();
+    vi.unstubAllGlobals();
+  });
+
+  it('el centro y la sección comparten la misma condición de atención ante estado limpio (7.13, 7.15, 7.16)', async () => {
+    const cleanEngineStatus: OpenSpecEngineStatus = {
+      ...dummyStatusOutdated,
+      integrationState: 'up-to-date',
+      divergence: {
+        isDivergent: false,
+        reason: null,
+        overallStatus: 'convergent',
+        globalProfileClass: 'core',
+        repoProfileClass: 'core',
+      },
+    };
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: vi.fn().mockResolvedValue(cleanEngineStatus),
+          checkLatestVersion: vi.fn().mockResolvedValue(null),
+        },
+      },
+    });
+
+    const snapshotClean: PipelineSnapshot = {
+      ...dummySnapshot,
+      openSpec: {
+        ...dummySnapshot.openSpec!,
+        selectedChangeId: null,
+        openSpecTools: [{ toolId: 'git', label: 'Git', directory: '.git', configured: true }],
+        openSpecPresent: true,
+      },
+    };
+
+    // 1. Centro limpio -> NO muestra sección de avisos
+    const { unmount: unmountCenter } = render(
+      <OpenSpecDashboard
+        snapshot={snapshotClean}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('heading', { name: /Avisos/i, level: 4 })).toBeNull();
+    unmountCenter();
+
+    // 2. Sección limpia -> NO muestra ícono de advertencia
+    const { unmount: unmountSection } = render(
+      <OpenSpecInspector repoPath="C:\\repo" snapshot={snapshotClean} />,
+    );
+
+    const toolsBtn = await screen.findByRole('button', { name: /Herramientas|tools/i });
+    const toolsSectionHeader = toolsBtn.parentElement!;
+    const warningIcon = toolsSectionHeader.querySelector('svg[aria-label="Necesita atención"], svg[aria-label="pipeline.openspec.engine.generalStatus.needsAttention"]');
+    expect(warningIcon).toBeNull();
+
+    unmountSection();
     vi.unstubAllGlobals();
   });
 });

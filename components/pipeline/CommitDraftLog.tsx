@@ -15,11 +15,12 @@
 // 4.18). Suscribiéndose acá, lo único que se vuelve a dibujar es esto.
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { AlertTriangle, Brain, Check, Copy } from 'lucide-react';
+import { AlertTriangle, Brain, Check, ChevronDown, Copy } from 'lucide-react';
 import { getDraftLogSnapshot, subscribeDraftLog, REASONING_LIMIT } from '@/lib/commit-draft-log';
 import { adviceKeyForStreamError } from '@/lib/stream-error-advice';
 import { useGitStore } from '@/lib/git-store';
 import { useT } from '@/hooks/use-translation';
+import { cn } from '@/lib/utils';
 import { DraftingThought } from './DraftingThought';
 import styles from './OpenSpecDashboard.module.css';
 
@@ -44,6 +45,8 @@ export function CommitDraftLog({ notice }: CommitDraftLogProps) {
   const streamRef = useRef<HTMLPreElement | null>(null);
   const [copiedReasoning, setCopiedReasoning] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const copyReasoningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copyContentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -89,9 +92,17 @@ export function CommitDraftLog({ notice }: CommitDraftLogProps) {
   // Sin suavizado: a ocho actualizaciones por segundo un desplazamiento animado
   // nunca termina el anterior y el texto queda temblando. Y con
   // `prefers-reduced-motion` no habría que animarlo igual.
+  //
+  // La medición de desbordamiento vive acá adentro para no medir en cada render:
+  // sólo se guarda en estado cuando el valor cambia, evitando re-renderizados
+  // innecesarios durante el stream.
   useEffect(() => {
     const node = streamRef.current;
-    if (node) node.scrollTop = node.scrollHeight;
+    if (node) {
+      node.scrollTop = node.scrollHeight;
+      const overflowing = node.scrollHeight > node.clientHeight;
+      setIsOverflowing((prev) => (prev !== overflowing ? overflowing : prev));
+    }
   }, [log.reasoning, log.content]);
 
   // Sin redacción y sin aviso no hay nada que decir, y un bloque vacío
@@ -196,7 +207,36 @@ export function CommitDraftLog({ notice }: CommitDraftLogProps) {
                   <span>{copiedReasoning ? t('pipeline.openspec.prepare.aiLogCopied') : t('pipeline.openspec.prepare.aiLogCopy')}</span>
                 </button>
               </div>
-              <pre ref={streamRef} className={styles.draftLogStream}>{log.reasoning}</pre>
+              <div className={styles.draftLogStreamWrapper}>
+                <pre
+                  ref={streamRef}
+                  className={styles.draftLogStream}
+                  data-expanded={isExpanded ? 'true' : undefined}
+                >
+                  {log.reasoning}
+                </pre>
+                {isOverflowing && !isExpanded && (
+                  <div className={styles.draftLogFade} aria-hidden="true" />
+                )}
+              </div>
+              {isOverflowing && (
+                <button
+                  type="button"
+                  className={styles.draftLogToggleBtn}
+                  onClick={() => setIsExpanded(!isExpanded)}
+                >
+                  <ChevronDown
+                    size={12}
+                    className={cn(styles.draftLogToggleIcon, isExpanded && styles.draftLogToggleIconRotated)}
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {isExpanded
+                      ? t('pipeline.openspec.prepare.aiLogCollapse')
+                      : t('pipeline.openspec.prepare.aiLogExpand')}
+                  </span>
+                </button>
+              )}
             </div>
           )}
           {/* La respuesta, aparte del razonamiento: son dos cosas distintas y

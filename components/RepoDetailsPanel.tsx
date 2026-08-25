@@ -77,6 +77,8 @@ export function RepoDetailsPanel({
   } = useGitActions();
 
   const prepareOpen = usePipelineStore((s) => s.prepareOpen);
+  const reviewOpen = usePipelineStore((s) => s.reviewOpen);
+  const toggleReviewOpen = usePipelineStore((s) => s.toggleReviewOpen);
   const aiNotice = usePipelineStore((s) => s.aiNotice);
   const draftLog = useSyncExternalStore(subscribeDraftLog, getDraftLogSnapshot, getDraftLogSnapshot);
   const hasDraftLog = draftLog.draftId !== null || Boolean(aiNotice);
@@ -220,7 +222,11 @@ export function RepoDetailsPanel({
       </div>
 
       {isPipeline ? (
-        <OpenSpecInspector sectionState={sectionState}>
+        <OpenSpecInspector
+          sectionState={sectionState}
+          isReviewOpen={reviewOpen}
+          onOpenReview={toggleReviewOpen}
+        >
           {prepareOpen && (
             <>
               <SidebarSection

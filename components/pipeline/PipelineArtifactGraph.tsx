@@ -30,23 +30,34 @@ const STATE_LABEL_KEY: Record<OpenSpecArtifactState, string> = {
   unknown: 'pipeline.openspec.graph.state.unknown',
 };
 
+const ARTIFACT_LABEL_KEY: Record<string, string> = {
+  proposal: 'pipeline.openspec.graph.artifact.proposal',
+  design: 'pipeline.openspec.graph.artifact.design',
+  specs: 'pipeline.openspec.graph.artifact.specs',
+  tasks: 'pipeline.openspec.graph.artifact.tasks',
+};
+
 export function PipelineArtifactGraph({ status }: { status: OpenSpecChangeStatus }) {
   const t = useT();
   return (
     <ul className="pipeline-artifact-graph" aria-label={t('pipeline.openspec.graph.label')}>
-      {status.artifacts.map((artifact) => (
-        <li key={artifact.id} data-state={artifact.state}>
-          <span className="pipeline-artifact-graph__id">{artifact.id}</span>
-          <span className="pipeline-artifact-graph__state">
-            {t(STATE_LABEL_KEY[artifact.state] ?? 'pipeline.openspec.graph.state.unknown')}
-          </span>
-          {artifact.state === 'blocked' && artifact.missingDeps.length > 0 && (
-            <span className="pipeline-artifact-graph__deps">
-              {t('pipeline.openspec.graph.missingDeps', { deps: artifact.missingDeps.join(', ') })}
+      {status.artifacts.map((artifact) => {
+        const labelKey = ARTIFACT_LABEL_KEY[artifact.id];
+        const artifactLabel = labelKey ? t(labelKey) : artifact.id;
+        return (
+          <li key={artifact.id} data-state={artifact.state}>
+            <span className="pipeline-artifact-graph__id">{artifactLabel}</span>
+            <span className="pipeline-artifact-graph__state">
+              {t(STATE_LABEL_KEY[artifact.state] ?? 'pipeline.openspec.graph.state.unknown')}
             </span>
-          )}
-        </li>
-      ))}
+            {artifact.state === 'blocked' && artifact.missingDeps.length > 0 && (
+              <span className="pipeline-artifact-graph__deps">
+                {t('pipeline.openspec.graph.missingDeps', { deps: artifact.missingDeps.join(', ') })}
+              </span>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

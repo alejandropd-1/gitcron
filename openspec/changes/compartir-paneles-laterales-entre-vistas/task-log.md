@@ -6,3 +6,7 @@
 - 2026-08-23 00:49 — marcada — "5ter.6 Revisión visual: las secciones de SDD y las de Graph se ven y se comportan igual."
 - 2026-08-23 01:24 — marcada — "6.8 Revisión visual: terminar una tarea, preparar, y confirmar el commit sin cambiar de"
 - 2026-08-23 02:23 — marcada — "5.6 Revisión visual: el cuerpo de SDD se lee sin líneas y con aire, y nada quedó suelto ni"
+- 2026-08-25 15:32 — marcada — "4.25 Revisión visual: el panel acumula sus secciones, se pliegan las que no interesan, y"
+- 2026-08-25 15:32 — marcada — "7.20 Revisión visual: el cuerpo se lee de arriba abajo sin que ningún bloque tape al que"
+- 2026-08-25 15:32 — marcada — "8.7 Revisión visual: nada quedó duplicado entre la franja y el cuerpo, y no se perdió ningún"
+- 2026-08-25 15:57 — marcada — "9.6 Revisión visual y funcional completa: los dos paneles se comportan igual en todas las"

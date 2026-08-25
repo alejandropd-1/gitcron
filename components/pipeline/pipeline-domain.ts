@@ -1,4 +1,9 @@
-import type { PipelineDataProvenance, PipelineEvidenceStatus } from '@/types/pipeline';
+import type {
+  OpenSpecEngineStatus,
+  OpenSpecToolEvidence,
+  PipelineDataProvenance,
+  PipelineEvidenceStatus,
+} from '@/types/pipeline';
 
 
 export type DecisionOption = {
@@ -269,4 +274,53 @@ export const SESSION_STATUS_I18N_MAP: Record<SessionStatusKey, string> = {
 export function resolveSessionStatusI18nKey(status: string | null | undefined): string {
   if (!status) return 'pipeline.openspec.activity.status.none';
   return (SESSION_STATUS_I18N_MAP as Record<string, string>)[status] ?? 'pipeline.openspec.activity.status.unknown';
+}
+
+/* ─────────── TANDA 4 / FASE 4: derivaciones de atención OpenSpec ─────────── */
+
+/**
+ * Evalúa si el motor de OpenSpec requiere atención (actualización de versión,
+ * repositorio sin inicializar, divergencia de esquemas o fallos en cli.diagnostics).
+ */
+export function hasOpenSpecEngineAttention(engineStatus: OpenSpecEngineStatus | null | undefined): boolean {
+  if (!engineStatus) return false;
+  return Boolean(
+    engineStatus.integrationState === 'outdated' ||
+      engineStatus.repoState === 'not-initialized' ||
+      engineStatus.divergence?.isDivergent ||
+      (engineStatus.cli?.diagnostics?.length ?? 0) > 0,
+  );
+}
+
+/**
+ * Evalúa si las herramientas de OpenSpec requieren atención (herramientas sin configurar
+ * o integración ausente).
+ */
+export function hasOpenSpecToolsAttention(
+  tools: { configured?: boolean }[] | null | undefined,
+  openSpecPresent: boolean | undefined,
+): boolean {
+  const pending = (tools ?? []).filter((tool) => !tool.configured);
+  return Boolean(openSpecPresent !== undefined && (!openSpecPresent || pending.length > 0));
+}
+
+export type OpenSpecAttentionParams = {
+  engineStatus: OpenSpecEngineStatus | null | undefined;
+  openSpecTools?: { configured?: boolean }[] | null;
+  openSpecPresent?: boolean;
+};
+
+/**
+ * Definición única de «hay algo que atender» en OpenSpec (4.23), compartida entre
+ * el cuerpo central (OpenSpecDashboard) y el inspector lateral (OpenSpecInspector).
+ */
+export function hasOpenSpecAttention({
+  engineStatus,
+  openSpecTools,
+  openSpecPresent,
+}: OpenSpecAttentionParams): boolean {
+  return (
+    hasOpenSpecEngineAttention(engineStatus) ||
+    hasOpenSpecToolsAttention(openSpecTools, openSpecPresent)
+  );
 }

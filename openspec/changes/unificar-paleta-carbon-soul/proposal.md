@@ -22,14 +22,27 @@ declarada, y ninguna propia. Hoy la aplicación no la cumple.
 - **Los acentos se revisan contra el fondo carbón.** Éxito, error, advertencia, información y los
   colores de estado de Git se ajustan para pertenecer a la misma familia que los fondos, sin perder
   su significado ni bajar del contraste exigido.
-- **La verificación automática se extiende al color.** Se agrega una comprobación que falla ante
-  cualquier color literal declarado fuera de `app/globals.css`, del mismo modo que ya se comprueban
-  los tamaños, los espaciados y los radios.
+- **La escala tipográfica entra al mismo alcance.** La aplicación declara siete escalones en
+  `app/globals.css:26-32`, cada uno con su propósito escrito —`--font-size-md` dice «títulos de
+  sección»—, y no los usa: hay **129 rótulos en versalita con 74 tratamientos distintos**, y **95 de
+  ellos declaran un tamaño literal por debajo del piso de 12px** que la propia escala define como
+  «piso de legibilidad». Es el mismo problema que el color, en otra dimensión: la norma está escrita
+  y la aplicación no la cumple.
+- **La verificación automática se extiende al color, y la de tamaños se arregla.** La comprobación
+  de escala **ya existe** —`lib/__tests__/visual-scale-scan.test.ts`— pero escanea dos archivos CSS
+  y ningún `.tsx`, que es exactamente donde están los 95 literales. Pasa en verde porque no mira
+  donde está el problema. La de color nace con el mismo escáner, corregido: si no alcanza a los
+  `.tsx`, nace ciega igual.
 
-**Fuera de alcance, explícitamente:** la disposición de Pipeline —sus tres columnas y su
-amontonamiento son un trabajo aparte—; los colores del lienzo cronométrico, protegidos por el
-invariante 12 y sin autorización vigente para este alcance; y agregar colores que no resuelvan un
-caso ya existente.
+**Fuera de alcance, explícitamente:** la maquetación del cuerpo de la vista del ciclo —dónde va cada
+cosa, las solapas, los botones, los avisos— es un change aparte, decidido con Alejandro el
+2026-08-24: color y escala se miden contra una norma declarada, la disposición son decisiones suyas
+una por una, y mezclarlas produce un change donde lo verificable y lo opinable se estorban. Tampoco
+entran los colores del lienzo cronométrico, protegidos por el invariante 12 y sin autorización
+vigente para este alcance; ni agregar colores o escalones que no resuelvan un caso ya existente.
+
+*(La mención anterior a «las tres columnas de Pipeline» quedó sin objeto: las retiró
+`compartir-paneles-laterales-entre-vistas`, archivado el 2026-08-24.)*
 
 ## Capabilities
 
@@ -39,12 +52,29 @@ caso ya existente.
 
 ### Modified Capabilities
 
-Ninguna. `ui-visual-system` ya norma la escala y la accesibilidad; el color queda como capacidad
-propia porque su regla es de procedencia y no de medida.
+- `ui-visual-system`: ya norma la escala, pero su verificación automática sólo alcanza a dos hojas de
+  estilo. Se extiende a los componentes, que es donde están los tamaños fuera de norma.
+
+El color queda igual como capacidad propia, porque su regla es de procedencia y no de medida.
 
 ## Impact
 
-**Estilos.** `components/pipeline/OpenSpecDashboard.module.css` pierde sus diez tokens propios.
+**Medición de partida, rehecha el 2026-08-24.** La del 2026-08-22 quedó vieja: la hoja de estilos de
+la vista del ciclo pasó de **63 colores literales distintos en 136 apariciones** a **129 distintos en
+213 apariciones**. El trabajo se duplicó mientras se remaquetaba la vista, que es la mejor evidencia
+de por qué hace falta la verificación: sin una guarda, cada tanda agrega literales nuevos.
+
+Y hay tres tokens que la medición anterior no vio. La hoja **define diez** `--os-*` pero **usa doce
+nombres en 268 lugares**: `--os-fg` (7 usos), `--os-bg-deep` (4) y `--os-red` (1) **nunca se
+declaran**. Siempre gana su valor de reserva —y `--os-fg` tiene tres valores de reserva distintos—,
+así que son tokens de mentira: parecen una decisión tomada una vez y son un literal con nombre.
+
+Fuera de esa hoja, `components/` declara **937 apariciones de color literal con 230 valores
+distintos**, y `app/` otras 94 con 66. La migración empieza por la vista del ciclo, que es la peor,
+pero la verificación tiene que alcanzar a todo.
+
+**Estilos.** `components/pipeline/OpenSpecDashboard.module.css` pierde sus diez tokens propios y sus
+tres fantasmas.
 `app/globals.css` revisa sus acentos y, si Pipeline requiere algún matiz que la paleta no tiene, lo
 incorpora con nombre general en lugar de dejarlo dentro de una vista.
 

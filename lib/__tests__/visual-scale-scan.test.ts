@@ -65,7 +65,7 @@ describe('visual-scale-scan - Verificación automática de escala de tipografía
     const result = compareScaleBaseline(actualPerFile, baseline);
 
     if (!result.passed) {
-      expect.fail(`Discrepancia contra la línea de base de escala visual:\n\n${result.errorMessage}`);
+      expect.fail(result.errorMessage);
     }
 
     expect(result.passed).toBe(true);

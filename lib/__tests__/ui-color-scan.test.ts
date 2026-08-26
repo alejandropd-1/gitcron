@@ -65,7 +65,7 @@ describe('ui-color-scan - Verificación automática de paleta de color (The Comp
     const result = compareBaseline(actualPerFile, baseline);
 
     if (!result.passed) {
-      expect.fail(`Discrepancia contra la línea de base de paleta de color:\n\n${result.errorMessage}`);
+      expect.fail(result.errorMessage);
     }
 
     expect(result.passed).toBe(true);

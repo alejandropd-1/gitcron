@@ -422,9 +422,13 @@ export function extractBaselineEntries(
  */
 export function compareBaseline(
   actual: BaselineRecord,
-  baseline: BaselineFileStructure | BaselineRecord
+  baseline: BaselineFileStructure | BaselineRecord,
+  options?: { baselineName?: string } | string
 ): BaselineComparisonResult {
   const { combined } = extractBaselineEntries(baseline);
+  const baselineLabel = typeof options === 'string'
+    ? options
+    : options?.baselineName ?? 'paleta de color';
 
   const newViolations: Array<{ file: string; value: string; count: number }> = [];
   const increasedViolations: Array<{ file: string; value: string; actual: number; expected: number }> = [];
@@ -460,7 +464,7 @@ export function compareBaseline(
     return { passed: true, newViolations, increasedViolations, missingViolations };
   }
 
-  const errorParts: string[] = ['Discrepancia contra la línea de base de paleta de color:'];
+  const errorParts: string[] = [`Discrepancia contra la línea de base de ${baselineLabel}:`];
 
   if (newViolations.length > 0) {
     errorParts.push(`\n[CASO 1: VIOLACIÓN NUEVA NO DECLARADA EN LÍNEA DE BASE (${newViolations.length})]:`);

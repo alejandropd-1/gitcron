@@ -180,3 +180,17 @@
       `/\.railTabs/` protegiendo una regla que ya estaba muerta. Las dos
       primeras las corrigen las tareas 1.5 y 1.6 de
       `unificar-paleta-carbon-soul`.
+
+23. **Un token se elige por lo que significa, no por su valor.** Dos tokens con
+    el mismo valor hexadecimal no son intercambiables si nombran cosas distintas,
+    y elegir por valor reintroduce la confusión que el token vino a resolver.
+    - **El caso real del change `unificar-paleta-carbon-soul`, 2026-08-26.**
+      `--color-warning` (#d8a657) se agregó en `unificar-paleta-carbon-soul` como
+      el único token nuevo del change, justamente para no colapsar «atención del
+      sistema» con «archivo modificado» (`--color-git-mod`, #fd9d1a). Al migrar
+      `components/TemporalAgentSettings.tsx` se eligió `--color-git-mod` porque su
+      valor era idéntico al literal viejo, y ocho elementos que avisan de costo, de
+      clave faltante y de error quedaron pintados como si fueran modificaciones de
+      archivo. El nombre que se le puso a la constante —`COLOR_WARNING` apuntando a
+      `git-mod`— fue la evidencia de que el rol real era el otro. Costó una tanda
+      entera detectarlo y otra corregirlo.

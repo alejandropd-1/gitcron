@@ -8,6 +8,7 @@ describe('visual-scale - isOffScaleValue & findOffScaleDeclarations', () => {
     isTsx?: boolean;
     expectedViolations: number;
     expectedProperty?: string;
+    expectedValue?: string;
   }> = [
     {
       name: 'font-size: 0.625rem (literal, debe detectarse)',
@@ -15,6 +16,7 @@ describe('visual-scale - isOffScaleValue & findOffScaleDeclarations', () => {
       isTsx: false,
       expectedViolations: 1,
       expectedProperty: 'font-size',
+      expectedValue: '0.625rem',
     },
     {
       name: 'font-size: var(--font-size-sm) (correcto)',
@@ -28,6 +30,7 @@ describe('visual-scale - isOffScaleValue & findOffScaleDeclarations', () => {
       isTsx: false,
       expectedViolations: 1,
       expectedProperty: 'padding',
+      expectedValue: '4px 8px',
     },
     {
       name: 'padding: var(--space-2) var(--space-3) (correcto)',
@@ -53,6 +56,7 @@ describe('visual-scale - isOffScaleValue & findOffScaleDeclarations', () => {
       isTsx: false,
       expectedViolations: 1,
       expectedProperty: 'gap',
+      expectedValue: '12px',
     },
     {
       name: 'margin-block: var(--space-4) (correcto)',
@@ -66,6 +70,7 @@ describe('visual-scale - isOffScaleValue & findOffScaleDeclarations', () => {
       isTsx: false,
       expectedViolations: 1,
       expectedProperty: 'border-radius',
+      expectedValue: '6px',
     },
     {
       name: 'border-radius: var(--radius-md) (correcto)',
@@ -79,6 +84,7 @@ describe('visual-scale - isOffScaleValue & findOffScaleDeclarations', () => {
       isTsx: true,
       expectedViolations: 1,
       expectedProperty: 'text',
+      expectedValue: '9px',
     },
     {
       name: 'text-[10px] y gap-[12px] en un componente .tsx (deben detectarse)',
@@ -98,6 +104,46 @@ describe('visual-scale - isOffScaleValue & findOffScaleDeclarations', () => {
       isTsx: true,
       expectedViolations: 0,
     },
+    {
+      name: 'fontSize: 11 en style object de TSX (debe detectarse como font-size: 11px)',
+      content: '<span style={{ fontSize: 11 }}>Texto</span>',
+      isTsx: true,
+      expectedViolations: 1,
+      expectedProperty: 'font-size',
+      expectedValue: '11px',
+    },
+    {
+      name: 'fontSize: "0.64rem" en style object de TSX (debe detectarse como font-size: 0.64rem)',
+      content: '<p style={{ fontSize: "0.64rem" }}>Texto</p>',
+      isTsx: true,
+      expectedViolations: 1,
+      expectedProperty: 'font-size',
+      expectedValue: '0.64rem',
+    },
+    {
+      name: 'padding: 7 y borderRadius: 4 en style object de TSX (deben detectarse como 7px y 4px)',
+      content: '<div style={{ padding: 7, borderRadius: 4 }}>Caja</div>',
+      isTsx: true,
+      expectedViolations: 2,
+    },
+    {
+      name: 'style con tokens CSS var(--font-size-xs) y var(--radius-sm) (correcto)',
+      content: '<div style={{ fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-sm)" }}>Caja</div>',
+      isTsx: true,
+      expectedViolations: 0,
+    },
+    {
+      name: 'style con valores 0 y keywords auto/inherit (correcto)',
+      content: '<div style={{ padding: 0, margin: "0 auto", gap: 0 }}>Caja</div>',
+      isTsx: true,
+      expectedViolations: 0,
+    },
+    {
+      name: 'anotaciones de tipo TypeScript fontSize: number (no debe detectarse como violación)',
+      content: 'interface StyleProps {\n  fontSize: number;\n  padding?: string;\n}',
+      isTsx: true,
+      expectedViolations: 0,
+    },
   ];
 
   for (const c of cases) {
@@ -106,6 +152,9 @@ describe('visual-scale - isOffScaleValue & findOffScaleDeclarations', () => {
       expect(violations.length).toBe(c.expectedViolations);
       if (c.expectedProperty && violations.length > 0) {
         expect(violations[0].property).toBe(c.expectedProperty);
+      }
+      if (c.expectedValue && violations.length > 0) {
+        expect(violations[0].value).toBe(c.expectedValue);
       }
     });
   }

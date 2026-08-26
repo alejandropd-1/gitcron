@@ -1188,6 +1188,8 @@ export function OpenSpecDashboard({
       // volviera a incluir archivos que ya no están en la lista.
       setChosenFiles([]);
       setSuccess(tCount('pipeline.openspec.prepare.done', chosen.length));
+    } catch (error: unknown) {
+      setAiNotice(error instanceof Error ? error.message : t('pipeline.openspec.prepare.aiFailed', { detail: '—' }));
     } finally {
       setPrepareBusy(false);
     }
@@ -1204,17 +1206,21 @@ export function OpenSpecDashboard({
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!selectedChange || fixtureActive || !api?.pipelineSetTaskChecked) return;
     setTaskError(null);
-    const response = await api.pipelineSetTaskChecked(repoPath, selectedChange.changeId, line, text, completed);
-    const result = response as { success?: boolean; error?: string } | null;
-    if (result?.success) {
-      // La lista se relee del disco: la casilla cambia porque el archivo lo
-      // dice, no porque la llamada haya vuelto sin error.
-      onRefresh?.();
-      return;
+    try {
+      const response = await api.pipelineSetTaskChecked(repoPath, selectedChange.changeId, line, text, completed);
+      const result = response as { success?: boolean; error?: string } | null;
+      if (result?.success) {
+        // La lista se relee del disco: la casilla cambia porque el archivo lo
+        // dice, no porque la llamada haya vuelto sin error.
+        onRefresh?.();
+        return;
+      }
+      setTaskError(result?.error === 'mismatch'
+        ? t('pipeline.openspec.task.mismatch')
+        : t('pipeline.openspec.task.failed'));
+    } catch (error: unknown) {
+      setTaskError(error instanceof Error ? error.message : t('pipeline.openspec.task.failed'));
     }
-    setTaskError(result?.error === 'mismatch'
-      ? t('pipeline.openspec.task.mismatch')
-      : t('pipeline.openspec.task.failed'));
   };
 
   /**
@@ -1678,7 +1684,11 @@ export function OpenSpecDashboard({
                         type="button"
                         className={styles.primaryAction}
                         aria-disabled={prepareBusy || fixtureActive || chosen.length === 0}
-                        onClick={() => void prepareCommit()}
+                        onClick={() => {
+                          void prepareCommit().catch((error: unknown) => {
+                            setAiNotice(error instanceof Error ? error.message : t('pipeline.openspec.prepare.aiFailed', { detail: '—' }));
+                          });
+                        }}
                       >
                         {prepareBusy ? <Loader2 size={14} className={styles.spin} /> : <GitBranch size={14} />}
                         {t('pipeline.openspec.prepare.action')}
@@ -2221,7 +2231,10 @@ export function OpenSpecDashboard({
                     : 'pipeline.openspec.task.uncheckConfirm')}
                   cancelLabel={t('pipeline.openspec.archive.cancel')}
                   onConfirm={() => {
-                    void setTaskChecked(taskToggleRequest.line, taskToggleRequest.text, taskToggleRequest.completed);
+                    void setTaskChecked(taskToggleRequest.line, taskToggleRequest.text, taskToggleRequest.completed)
+                      .catch((error: unknown) => {
+                        setTaskError(error instanceof Error ? error.message : t('pipeline.openspec.task.failed'));
+                      });
                     setTaskToggleRequest(null);
                   }}
                   onCancel={() => setTaskToggleRequest(null)}

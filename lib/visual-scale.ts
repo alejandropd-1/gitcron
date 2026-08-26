@@ -5,41 +5,44 @@ export interface OffScaleDeclaration {
   property: string;
   value: string;
   raw: string;
+  source?: 'css' | 'tailwind' | 'js-style';
 }
 
-const CHECKED_PROPERTIES = new Set([
-  'font-size',
-  'padding',
-  'padding-top',
-  'padding-right',
-  'padding-bottom',
-  'padding-left',
-  'padding-inline',
-  'padding-inline-start',
-  'padding-inline-end',
-  'padding-block',
-  'padding-block-start',
-  'padding-block-end',
-  'margin',
-  'margin-top',
-  'margin-right',
-  'margin-bottom',
-  'margin-left',
-  'margin-inline',
-  'margin-inline-start',
-  'margin-inline-end',
-  'margin-block',
-  'margin-block-start',
-  'margin-block-end',
-  'gap',
-  'row-gap',
-  'column-gap',
-  'border-radius',
-  'border-top-left-radius',
-  'border-top-right-radius',
-  'border-bottom-left-radius',
-  'border-bottom-right-radius',
-]);
+export const JS_TO_CSS_PROPERTIES: Record<string, string> = {
+  fontSize: 'font-size',
+  padding: 'padding',
+  paddingTop: 'padding-top',
+  paddingRight: 'padding-right',
+  paddingBottom: 'padding-bottom',
+  paddingLeft: 'padding-left',
+  paddingInline: 'padding-inline',
+  paddingInlineStart: 'padding-inline-start',
+  paddingInlineEnd: 'padding-inline-end',
+  paddingBlock: 'padding-block',
+  paddingBlockStart: 'padding-block-start',
+  paddingBlockEnd: 'padding-block-end',
+  margin: 'margin',
+  marginTop: 'margin-top',
+  marginRight: 'margin-right',
+  marginBottom: 'margin-bottom',
+  marginLeft: 'margin-left',
+  marginInline: 'margin-inline',
+  marginInlineStart: 'margin-inline-start',
+  marginInlineEnd: 'margin-inline-end',
+  marginBlock: 'margin-block',
+  marginBlockStart: 'margin-block-start',
+  marginBlockEnd: 'margin-block-end',
+  gap: 'gap',
+  rowGap: 'row-gap',
+  columnGap: 'column-gap',
+  borderRadius: 'border-radius',
+  borderTopLeftRadius: 'border-top-left-radius',
+  borderTopRightRadius: 'border-top-right-radius',
+  borderBottomLeftRadius: 'border-bottom-left-radius',
+  borderBottomRightRadius: 'border-bottom-right-radius',
+};
+
+const CHECKED_PROPERTIES = new Set(Object.values(JS_TO_CSS_PROPERTIES));
 
 const ALLOWED_KEYWORDS = new Set([
   '0',
@@ -56,6 +59,20 @@ const ALLOWED_KEYWORDS = new Set([
   'normal',
   'transparent',
   'currentcolor',
+]);
+
+const TS_TYPE_KEYWORDS = new Set([
+  'number',
+  'string',
+  'boolean',
+  'any',
+  'unknown',
+  'never',
+  'void',
+  'null',
+  'undefined',
+  'symbol',
+  'bignumber',
 ]);
 
 /**
@@ -127,9 +144,17 @@ export function isOffScaleValue(property: string, value: string): boolean {
 const TW_SCALE_REGEX = /(?:[a-zA-Z0-9_\-\:\[\]\.]+:)?(text|p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|gap|gap-x|gap-y|rounded|rounded-[trblse])-\[([^\]]+)\](?:\/[^\s"'`]+)?/g;
 const SIZE_OR_LENGTH_REGEX = /^(?:-?[0-9]*\.?[0-9]+(?:px|rem|em|pt|vh|vw|%)|-?[0-9]+)$/;
 
+const JS_PROP_NAMES = Object.keys(JS_TO_CSS_PROPERTIES).join('|');
+const JS_STYLE_PROP_REGEX = new RegExp(`\\b(${JS_PROP_NAMES})\\s*:\\s*([^,;{}]+)`, 'g');
+
 /**
  * Pure function that analyzes a CSS stylesheet or TSX component string and returns all declarations
  * of font-size, padding, margin, gap, and border-radius that do not use design system tokens.
+ *
+ * Detects:
+ * 1. CSS property declarations outside @theme.
+ * 2. Tailwind utility classes with bracketed arbitrary values (`text-[10px]`, `p-[1px]`).
+ * 3. JS style objects (`style={{ fontSize: 11, padding: '8px 16px' }}`) with numbers or strings.
  */
 export function findOffScaleDeclarations(
   content: string,
@@ -167,6 +192,7 @@ export function findOffScaleDeclarations(
               property: prop,
               value: val,
               raw: `${match[1]}: ${match[2]}`.trim(),
+              source: 'css',
             });
           }
         }
@@ -175,9 +201,11 @@ export function findOffScaleDeclarations(
     return offScale;
   }
 
-  // Detección en TSX: clases arbitrarias de tamaño/espaciado
+  // Detección en TSX:
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex];
+
+    // 1. Clases arbitrarias de Tailwind (e.g. text-[11px], p-[1px])
     let match: RegExpExecArray | null;
     TW_SCALE_REGEX.lastIndex = 0;
 
@@ -192,6 +220,54 @@ export function findOffScaleDeclarations(
           property: propType,
           value: bracketContent,
           raw: match[0],
+          source: 'tailwind',
+        });
+      }
+    }
+
+    // 2. Objetos de estilo JS / React (e.g. style={{ fontSize: 11, padding: '8px 16px' }})
+    const lineWithoutTw = line.replace(TW_SCALE_REGEX, (m) => ' '.repeat(m.length));
+
+    JS_STYLE_PROP_REGEX.lastIndex = 0;
+    let jm: RegExpExecArray | null;
+    while ((jm = JS_STYLE_PROP_REGEX.exec(lineWithoutTw)) !== null) {
+      const jsProp = jm[1];
+      const cssProp = JS_TO_CSS_PROPERTIES[jsProp];
+      const rawVal = jm[2].trim();
+
+      // Ignorar anotaciones de tipo TypeScript (e.g. fontSize: number; padding?: string)
+      if (TS_TYPE_KEYWORDS.has(rawVal.toLowerCase())) continue;
+
+      let cleanVal = rawVal;
+      let isStringLiteral = false;
+      if (
+        (cleanVal.startsWith("'") && cleanVal.endsWith("'")) ||
+        (cleanVal.startsWith('"') && cleanVal.endsWith('"')) ||
+        (cleanVal.startsWith('`') && cleanVal.endsWith('`'))
+      ) {
+        cleanVal = cleanVal.slice(1, -1).trim();
+        isStringLiteral = true;
+      }
+
+      let isNumericLiteral = false;
+      if (/^-?[0-9]+(?:\.[0-9]+)?$/.test(cleanVal)) {
+        if (cleanVal === '0') continue;
+        cleanVal = `${cleanVal}px`;
+        isNumericLiteral = true;
+      }
+
+      // Solo evaluamos literales numéricos o cadenas literales
+      if (!isNumericLiteral && !isStringLiteral) {
+        continue;
+      }
+
+      if (isOffScaleValue(cssProp, cleanVal)) {
+        offScale.push({
+          line: lineIndex + 1,
+          property: cssProp,
+          value: cleanVal,
+          raw: jm[0].trim(),
+          source: 'js-style',
         });
       }
     }
@@ -200,4 +276,9 @@ export function findOffScaleDeclarations(
   return offScale;
 }
 
-export { compareBaseline as compareScaleBaseline };
+export function compareScaleBaseline(
+  actual: Parameters<typeof compareBaseline>[0],
+  baseline: Parameters<typeof compareBaseline>[1]
+): ReturnType<typeof compareBaseline> {
+  return compareBaseline(actual, baseline, 'escala visual');
+}

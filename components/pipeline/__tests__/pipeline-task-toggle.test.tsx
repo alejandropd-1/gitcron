@@ -202,4 +202,16 @@ describe('cambiar el estado de una tarea desde la guía', { timeout: 15_000 }, (
 
     expect(pipelineSetTaskChecked).not.toHaveBeenCalled();
   });
+
+  it('un rechazo del IPC al marcar o desmarcar muestra el aviso de error al usuario y no deja rechazo sin manejar', async () => {
+    pipelineSetTaskChecked.mockRejectedValueOnce(new Error('Permiso denegado'));
+    renderDashboard();
+    enterChange();
+
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.task\.check$/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /openspec\.task\.checkConfirm/ }));
+
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.getByText('Permiso denegado')).toBeTruthy();
+  });
 });

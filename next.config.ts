@@ -26,8 +26,25 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ['motion'],
   webpack: (config, { dev }) => {
-    if (dev && process.env.DISABLE_HMR === 'true') {
-      config.watchOptions = { ignored: /.*/ };
+    if (dev) {
+      if (process.env.DISABLE_HMR === 'true') {
+        config.watchOptions = { ignored: /.*/ };
+      } else {
+        // En dev, ignorar las rutas que la propia aplicación modifica en runtime
+        // (por ejemplo: openspec/changes/<id>/tasks.md y task-log.md al tildar tareas
+        // o sincronizar especificaciones con OpenSpec, y metadatos de Git/CodeGraph).
+        // Si webpack las observara en desarrollo, cada escritura de la aplicación dispararía
+        // una recompilación y HMR en bucle, provocando "Runtime Error: [object Event]"
+        // al usar gitCronos sobre su propio repositorio (caso real 2026-08-26).
+        config.watchOptions = {
+          ...config.watchOptions,
+          ignored: [
+            '**/openspec/**',
+            '**/.git/**',
+            '**/.codegraph/**',
+          ],
+        };
+      }
     }
     return config;
   },

@@ -1,13 +1,15 @@
 {
   "_meta": {
-    "descripcion": "Línea de base de declaraciones de escala visual y tipográfica fuera de norma",
-    "fecha": "2026-08-25",
-    "motivoExencion": "Invariante 12: ChronometricGraph.tsx y CommitGraph.tsx protegidos, sin autorización de modificación visual vigente al 2026-08-25."
+    "descripcion": "Línea de base de declaraciones de escala visual y tipográfica fuera de norma (ampliada con objetos de estilo JS/TSX)",
+    "fecha": "2026-08-26",
+    "motivoExencion": "Invariante 12: ChronometricGraph.tsx y CommitGraph.tsx protegidos, sin autorización de modificación visual vigente al 2026-08-26."
   },
   "exento": {
     "components/ChronometricGraph.tsx": {
+      "100px": 4,
       "10px": 34,
       "9px": 22,
+      "120px": 1,
       "1px": 3,
       "12px": 2,
       "11px": 4,
@@ -35,6 +37,12 @@
     "components/ContextMenus.tsx": {
       "0.8125rem": 1,
       "0.625rem": 1
+    },
+    "components/CopyButton.tsx": {
+      "6px": 1,
+      "10px": 1,
+      "3px 8px": 1,
+      "4px": 1
     },
     "components/DiffViewer.tsx": {
       "11px": 2,
@@ -133,13 +141,33 @@
       "11px": 3
     },
     "components/cartography/SemanticGraphLens.tsx": {
+      "0.16px": 1,
       "11px": 5,
-      "9px": 3,
-      "10px": 2
+      "10px": 3,
+      "9px": 3
     },
     "components/pipeline/OpenSpecDashboard.tsx": {
       "10px": 7,
       "11px": 1
+    },
+    "components/pipeline/OpenSpecEngineCard.tsx": {
+      "0.4rem": 1
+    },
+    "components/pipeline/OpenSpecUpdateReview.tsx": {
+      "0.4rem 0 0": 2,
+      "1.2rem": 2,
+      "0.64rem": 5,
+      "0.4rem": 3,
+      "0.66rem": 7,
+      "0 0 0.4rem": 3,
+      "1px": 3,
+      "0.5rem": 1,
+      "0.2rem": 1,
+      "2px": 1,
+      "0.2rem 0": 1,
+      "0 0 0.5rem": 1,
+      "0.68rem": 1,
+      "0.6rem": 1
     },
     "components/temporal/AgentDashboard.tsx": {
       "10px": 8,

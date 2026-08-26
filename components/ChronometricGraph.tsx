@@ -2085,12 +2085,14 @@ export function ChronometricGraph({
       id="chronometric-container"
     >
       {/* 2D Infinite Interactive Canvas Viewport */}
+      {/* Provisional: data-keep-color evita que el filtro global de tema claro invierta el lienzo del grafo. Se retira en el change reemplazar-tema-claro-invertido. */}
       <div
         ref={containerRef}
         onMouseDown={handleMouseDown}
         className={`flex-1 overflow-hidden relative cursor-grab ${
           isDragging ? 'cursor-grabbing' : ''
         }`}
+        data-keep-color
       >
         <svg
           width="100%"

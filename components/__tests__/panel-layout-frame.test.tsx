@@ -1905,7 +1905,7 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
     expect(nestedRowPaddingLeft).toBe('pl-8'); // 32px
   });
 
-  it('10. Que el control de plegado sólo aparece al pasar por encima y la fila del encabezado comparte las clases de hover de las acciones del lateral (4.18)', () => {
+  it('10. Que el control de plegado está siempre visible y la fila del encabezado comparte las clases de hover de las acciones del lateral (4.18)', () => {
     const repo = 'C:/hover-classes-repo';
     useGitStore.setState({
       repoPath: repo,
@@ -1957,14 +1957,14 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
       />
     );
 
-    // 1. El chevron declara opacity-0 y group-hover:opacity-100 / group-focus-within:opacity-100
+    // 1. El chevron está siempre visible (sin opacity-0 ni group-hover:opacity-100) y tiene transition-transform
     const localSectionToggle = screen.getByRole('button', { name: /sidebar\.local/ });
     const chevronSvg = localSectionToggle.children[2];
     expect(chevronSvg.tagName.toLowerCase()).toBe('svg');
     const chevronClasses = chevronSvg.getAttribute('class') || '';
-    expect(chevronClasses).toContain('opacity-0');
-    expect(chevronClasses).toContain('group-hover:opacity-100');
-    expect(chevronClasses).toContain('group-focus-within:opacity-100');
+    expect(chevronClasses).not.toContain('opacity-0');
+    expect(chevronClasses).not.toContain('group-hover:opacity-100');
+    expect(chevronClasses).toContain('transition-transform');
 
     // 2. La fila del encabezado y un botón de quickActions declaran las MISMAS clases de hover leídas dinámicamente del DOM
     const quickActionButton = screen.getByRole('button', { name: 'toolbar.pull' });

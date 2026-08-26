@@ -191,7 +191,7 @@ function Bubble({
   }
   if (turn.role === 'error') {
     return (
-      <div className="flex items-start gap-1.5 rounded-lg border border-[#ffa8a3]/30 bg-[#ffa8a3]/5 px-2.5 py-1.5 text-[11px] text-[#ffa8a3]">
+      <div className="flex items-start gap-1.5 rounded-lg border border-error/30 bg-error/5 px-2.5 py-1.5 text-[11px] text-error">
         <AlertTriangle size={13} className="mt-0.5 shrink-0" />
         <span className="min-w-0 break-words">{turn.text}</span>
       </div>

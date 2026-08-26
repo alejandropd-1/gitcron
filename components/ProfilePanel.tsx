@@ -87,7 +87,7 @@ export function ProfilePanel({
                     className="w-16 h-16 rounded-full border border-secondary/30"
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-secondary to-[#68b24f] flex items-center justify-center text-base font-bold text-[#052900]">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-secondary to-git-add/80 flex items-center justify-center text-base font-bold text-bg-base">
                     {userInitials(githubUser)}
                   </div>
                 )}
@@ -132,7 +132,7 @@ export function ProfilePanel({
             </div>
           ) : deviceCodeInfo ? (
             <div className="bg-bg-base/60 border border-secondary/40 rounded-xl p-5 text-center">
-              <p className="text-xs font-semibold text-[#ffd98a] mb-4">
+              <p className="text-xs font-semibold text-warning mb-4">
                 {t('profile.deviceCodeShown')}
               </p>
               <div className="flex items-center justify-center gap-2 mb-4">
@@ -177,7 +177,7 @@ export function ProfilePanel({
                   className={cn(
                     'flex-1 px-3 py-2 text-xs font-bold rounded-lg transition-colors',
                     authMode === 'oauth'
-                      ? 'bg-secondary text-[#052900]'
+                      ? 'bg-secondary text-bg-base'
                       : 'text-text-secondary hover:text-text-primary',
                   )}
                 >
@@ -188,7 +188,7 @@ export function ProfilePanel({
                   className={cn(
                     'flex-1 px-3 py-2 text-xs font-bold rounded-lg transition-colors',
                     authMode === 'token'
-                      ? 'bg-secondary text-[#052900]'
+                      ? 'bg-secondary text-bg-base'
                       : 'text-text-secondary hover:text-text-primary',
                   )}
                 >
@@ -203,7 +203,7 @@ export function ProfilePanel({
                   <button
                     onClick={handleLoginWithGitHub}
                     disabled={isLoggingIn}
-                    className="w-full py-3 bg-[#24292e] hover:bg-[#373e47] border border-[#444c56] disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-black/20"
+                    className="w-full py-3 bg-bg-surface hover:bg-bg-overlay border border-border-subtle disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-black/20"
                   >
                     <Github size={16} />
                     {isLoggingIn ? t('profile.starting') : t('profile.continueWithGitHub')}
@@ -237,7 +237,7 @@ export function ProfilePanel({
                   <button
                     onClick={handleConnectGitHub}
                     disabled={!tokenInput.trim() || isLoading}
-                    className="w-full py-2.5 bg-gradient-to-br from-secondary to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-xs font-bold rounded-lg transition-colors"
+                    className="w-full py-2.5 bg-gradient-to-br from-secondary to-git-add/80 hover:from-git-add hover:to-git-add/90 shadow-lg shadow-secondary/20 disabled:opacity-50 text-bg-base text-xs font-bold rounded-lg transition-colors"
                   >
                     {isLoading ? t('profile.tokenVerifying') : t('profile.tokenConnect')}
                   </button>

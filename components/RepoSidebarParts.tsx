@@ -8,7 +8,7 @@ import {
   ArrowUp,
   Check,
   ChevronDown,
-  ChevronRight,
+  ChevronUp,
   Cloud,
   CloudOff,
   FileDiff,
@@ -64,11 +64,11 @@ export function SidebarSection({
         >
           {icon && <span className="shrink-0">{icon}</span>}
           <span className="tracking-wide truncate">{title}</span>
-          <ChevronRight
+          <ChevronDown
             size={13}
             className={cn(
-              'transition-all shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
-              isOpen && 'rotate-90',
+              'transition-transform shrink-0',
+              isOpen && 'rotate-180',
             )}
           />
         </button>
@@ -149,11 +149,11 @@ export const StagingFileRow = memo(function StagingFileRow({
       <div
         className={cn(
           'w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold shrink-0',
-          file.conflicted ? 'bg-error/20 text-error border border-[#ff716c]/40 animate-pulse' :
+          file.conflicted ? 'bg-error/20 text-error border border-git-delete/40 animate-pulse' :
           file.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
           file.status === 'added' ? 'bg-secondary/20 text-secondary' :
           file.status === 'renamed' ? 'bg-primary/20 text-primary' :
-          file.status === 'untracked' ? 'bg-[#9eacc0]/20 text-text-secondary' :
+          file.status === 'untracked' ? 'bg-border-subtle/20 text-text-secondary' :
           'bg-error/20 text-error',
         )}
       >
@@ -337,7 +337,7 @@ function BranchFolderView({
         onClick={() => folderState.toggle(folder.prefix)}
         className="w-full pl-3 pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
       >
-        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        {isOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         <Folder size={14} className="text-text-secondary shrink-0" />
         <span className="truncate flex-1 text-left select-text">{folder.prefix}</span>
         <span className="text-[10px] text-text-secondary/70">{folder.branches.length}</span>
@@ -584,7 +584,7 @@ function RemoteFolderView({
         onClick={() => folderState.toggle(folder.prefix)}
         className="w-full pl-3 pr-3 py-1 flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-surface/70 transition-colors"
       >
-        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        {isOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         <Folder size={13} className="text-text-secondary shrink-0" />
         <span className="truncate flex-1 text-left select-text">{folder.prefix}</span>
         <span className="text-[10px] text-text-secondary/70">{folder.branches.length}</span>

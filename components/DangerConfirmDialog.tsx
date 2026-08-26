@@ -68,7 +68,7 @@ export function DangerConfirmDialog({
               <button
                 onClick={onConfirm}
                 disabled={disabled}
-                className="px-4 py-2 bg-error hover:bg-[#ffa8a3] disabled:opacity-50 text-[#490006] text-sm font-bold rounded"
+                className="px-4 py-2 bg-error hover:bg-error/80 disabled:opacity-50 text-white text-sm font-bold rounded"
               >
                 {confirmLabel}
               </button>

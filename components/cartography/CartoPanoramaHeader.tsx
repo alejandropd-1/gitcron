@@ -113,8 +113,8 @@ function HeaderHint({
   tone?: 'muted' | 'error';
 }) {
   return (
-    <div className={`flex items-center gap-2 text-xs ${tone === 'error' ? 'text-[#ffa8a3]' : 'text-carto-text-muted'}`}>
-      <span className={tone === 'error' ? 'text-[#ffa8a3]' : 'text-carto-accent'}>{icon}</span>
+    <div className={`flex items-center gap-2 text-xs ${tone === 'error' ? 'text-error' : 'text-carto-text-muted'}`}>
+      <span className={tone === 'error' ? 'text-error' : 'text-carto-accent'}>{icon}</span>
       <span>{text}</span>
     </div>
   );

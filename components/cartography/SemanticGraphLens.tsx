@@ -479,8 +479,8 @@ function weightedFlowEdge(source: string, target: string, weight: number, index:
       fontWeight: 800,
     },
     labelBgStyle: {
-      fill: 'rgba(4, 16, 29, 0.92)',
-      stroke: 'rgba(253, 179, 58, 0.24)',
+      fill: 'color-mix(in srgb, var(--color-carto-canvas) 92%, transparent)',
+      stroke: 'color-mix(in srgb, var(--color-warning) 24%, transparent)',
       strokeWidth: 1,
     },
     labelBgPadding: [4, 3],
@@ -642,7 +642,7 @@ function GraphHint({
   return (
     <div
       className={`flex h-full min-h-[14rem] flex-col items-center justify-center gap-2 px-6 text-center text-xs ${
-        tone === 'error' ? 'text-[#ffa8a3]' : 'text-carto-text-muted'
+        tone === 'error' ? 'text-error' : 'text-carto-text-muted'
       }`}
     >
       {icon}

@@ -1419,7 +1419,7 @@ export function OpenSpecDashboard({
                 'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0',
                 workingTreeClean
                   ? 'bg-secondary/10 text-secondary'
-                  : 'bg-[#fd9d1a]/15 text-[#fd9d1a]'
+                  : 'bg-git-mod/15 text-git-mod'
               )}
             >
               {workingTreeClean ? (
@@ -1517,7 +1517,7 @@ export function OpenSpecDashboard({
                   className={cn(
                     'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 font-mono',
                     engineAttention
-                      ? 'bg-[var(--os-amber)]/15 text-[var(--os-amber)]'
+                      ? 'bg-warning/15 text-warning'
                       : 'bg-text-primary/[0.035] text-text-secondary/80',
                     onEnsureRightOpen && 'cursor-pointer hover:bg-text-primary/[0.07]',
                   )}
@@ -1586,7 +1586,7 @@ export function OpenSpecDashboard({
               className={cn(
                 "h-7 px-2.5 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
                 prepareOpen
-                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
+                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_color-mix(in_srgb,var(--color-git-add)_25%,transparent)]"
                   : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
               )}
             >

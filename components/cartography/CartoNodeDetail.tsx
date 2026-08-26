@@ -219,7 +219,7 @@ function Banner({
 }) {
   const cls =
     tone === 'error'
-      ? 'border-[#ffa8a3]/30 bg-[#ffa8a3]/5 text-[#ffa8a3]'
+      ? 'border-error/30 bg-error/5 text-error'
       : 'border-carto-grid bg-carto-node/[0.03] text-carto-text-muted';
   return (
     <div className={`flex items-start gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] ${cls}`}>

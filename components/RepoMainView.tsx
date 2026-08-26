@@ -431,7 +431,7 @@ function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphV
                 'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0',
                 modifiedFiles.length === 0
                   ? 'bg-secondary/10 text-secondary'
-                  : 'bg-[#fd9d1a]/15 text-[#fd9d1a]'
+                  : 'bg-git-mod/15 text-git-mod'
               )}
             >
               {modifiedFiles.length === 0 ? (
@@ -514,7 +514,7 @@ function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphV
                 className={cn(
                   "h-7 px-2 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
                   graphView.activeGraphMode === 'classic'
-                    ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
+                    ? "bg-secondary/15 text-secondary shadow-[0_0_6px_color-mix(in_srgb,var(--color-git-add)_25%,transparent)]"
                     : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
                 )}
                 title={t('toolbar.viewClassicTooltip')}
@@ -530,7 +530,7 @@ function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphV
                 className={cn(
                   "h-7 px-2 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
                   graphView.activeGraphMode === 'chronometric'
-                    ? "bg-secondary/15 text-secondary shadow-[0_0_6px_rgba(163,241,133,0.25)]"
+                    ? "bg-secondary/15 text-secondary shadow-[0_0_6px_color-mix(in_srgb,var(--color-git-add)_25%,transparent)]"
                     : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
                 )}
                 title={t('toolbar.viewChronometricTooltip')}
@@ -587,7 +587,7 @@ function ClassicGraphView({ tabViews, graphView }: { tabViews: TabViewsProps; gr
                   graphView.onChangeGraphMode('chronometric');
                   if (!graphView.showSpeculative) graphView.onToggleSpeculative();
                 }}
-                className="text-[9px] normal-case px-2 py-0.5 rounded bg-[#5ed8ff]/10 text-[#5ed8ff] border border-[#5ed8ff]/30 hover:bg-[#5ed8ff]/20 transition-colors font-mono"
+                className="text-[9px] normal-case px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors font-mono"
                 title={t('graph.speculativeBadgeTooltip', { count: graphView.speculativeBranches.length })}
               >
                 {t('graph.speculativeBadge', { count: graphView.speculativeBranches.length })}

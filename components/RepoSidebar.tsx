@@ -1247,7 +1247,7 @@ export function RepoSidebar({
                     className="h-8 w-8 shrink-0 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-[10px] font-bold text-[#052900]">
+                  <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-git-add to-git-add/80 flex items-center justify-center text-[10px] font-bold text-bg-base">
                     {userInitials(githubUser)}
                   </div>
                 )}

@@ -2,25 +2,26 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getScannedUiFiles } from '../scan-targets';
-import { findOffScaleDeclarations, compareScaleBaseline } from '../visual-scale';
+import { findOffPaletteDeclarations, compareBaseline } from '../ui-color';
 
-describe('visual-scale-scan - Verificación automática de escala de tipografía y espaciado', () => {
+describe('ui-color-scan - Verificación automática de paleta de color (The Compiled Carbon Soul)', () => {
   const scannedFiles = getScannedUiFiles();
-  const baselinePath = path.resolve(__dirname, '../baselines/visual-scale-baseline.json');
+  const baselinePath = path.resolve(__dirname, '../baselines/ui-color-baseline.json');
 
-  it('los archivos de interfaz no deben contener declaraciones de tamaño o espaciado fuera de escala', () => {
+  it('los archivos de interfaz no deben contener colores literales fuera de la paleta general', () => {
     const actualPerFile: Record<string, Record<string, number>> = {};
     let totalViolations = 0;
-    const detailedViolations: Array<{ file: string; line: number; property: string; value: string; raw: string }> = [];
+    const detailedViolations: Array<{ file: string; line: number; value: string; raw: string }> = [];
 
     for (const relativePath of scannedFiles) {
       const fullPath = path.resolve(process.cwd(), relativePath);
       if (!fs.existsSync(fullPath)) continue;
 
       const content = fs.readFileSync(fullPath, 'utf-8');
+      const isGlobalsCss = relativePath === 'app/globals.css';
       const isTsx = relativePath.endsWith('.tsx');
 
-      const violations = findOffScaleDeclarations(content, { isTsx });
+      const violations = findOffPaletteDeclarations(content, { isTsx, isGlobalsCss });
 
       if (violations.length > 0) {
         actualPerFile[relativePath] = {};
@@ -29,7 +30,6 @@ describe('visual-scale-scan - Verificación automática de escala de tipografía
           detailedViolations.push({
             file: relativePath,
             line: v.line,
-            property: v.property,
             value: v.value,
             raw: v.raw,
           });
@@ -51,7 +51,7 @@ describe('visual-scale-scan - Verificación automática de escala de tipografía
           .join('\n');
 
         expect.fail(
-          `Verificación de escala visual sin línea de base: se encontraron ${totalViolations} violaciones en ${Object.keys(actualPerFile).length} archivos:\n${fileSummary}`
+          `Verificación de paleta de color sin línea de base: se encontraron ${totalViolations} violaciones en ${Object.keys(actualPerFile).length} archivos:\n${fileSummary}`
         );
       }
       expect(totalViolations).toBe(0);
@@ -62,12 +62,19 @@ describe('visual-scale-scan - Verificación automática de escala de tipografía
     const baselineContent = fs.readFileSync(baselinePath, 'utf-8');
     const baseline = JSON.parse(baselineContent) as Record<string, Record<string, number>>;
 
-    const result = compareScaleBaseline(actualPerFile, baseline);
+    const result = compareBaseline(actualPerFile, baseline);
 
     if (!result.passed) {
-      expect.fail(`Discrepancia contra la línea de base de escala visual:\n\n${result.errorMessage}`);
+      expect.fail(`Discrepancia contra la línea de base de paleta de color:\n\n${result.errorMessage}`);
     }
 
     expect(result.passed).toBe(true);
+  });
+
+  it('la hoja de estilos de Pipeline (OpenSpecDashboard.module.css) no contiene declaraciones ni tokens locales propios', () => {
+    const cssPath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+    const content = fs.readFileSync(cssPath, 'utf-8');
+    const violations = findOffPaletteDeclarations(content, { isTsx: false });
+    expect(violations.length).toBe(0);
   });
 });

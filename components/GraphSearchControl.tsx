@@ -136,7 +136,7 @@ export function GraphSearchControl({
           disabled={disabled}
         />
         {filterText && (
-          <span className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_8px_rgba(163,241,133,0.7)]" />
+          <span className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_8px_color-mix(in_srgb,var(--color-git-add)_70%,transparent)]" />
         )}
       </div>
       {showSearchPopover && searchPopoverPos && (

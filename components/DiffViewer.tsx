@@ -108,14 +108,14 @@ export function DiffViewer({
 
   if (!diff) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[#9eacc0] text-sm">
+      <div className="flex-1 flex items-center justify-center text-text-secondary text-sm">
         {t('diff.noChanges')}
       </div>
     );
   }
   if (hunks.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[#9eacc0] text-sm">
+      <div className="flex-1 flex items-center justify-center text-text-secondary text-sm">
         {t('diff.binaryFile')}
       </div>
     );
@@ -130,15 +130,15 @@ export function DiffViewer({
         <div className="px-4 py-2 border-b border-border-subtle/20 bg-bg-surface flex items-center justify-between shrink-0">
           <span className="text-xs font-mono text-text-primary truncate">{filePath}</span>
           <div className="flex gap-3 text-[11px] font-mono shrink-0 ml-3">
-            <span className="text-[#a3f185]">+{adds}</span>
-            <span className="text-[#ff716c]">-{removes}</span>
+            <span className="text-git-add">+{adds}</span>
+            <span className="text-git-delete">-{removes}</span>
           </div>
         </div>
       )}
       <div className="flex-1 overflow-auto font-mono text-[12px] leading-[1.5]">
         <div className="min-w-full inline-block">
           {hunks.map((hunk, hi) => (
-            <div key={hi} className="border-b border-[#3c495a]/20">
+            <div key={hi} className="border-b border-border-subtle/20">
               <div className="px-4 py-1 bg-bg-overlay text-text-secondary text-[11px] sticky top-0 z-10 select-none flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate">{hunk.header}</span>
                 {hunkActions && (selectedLinesByHunk[hi]?.length ?? 0) > 0 && (
@@ -240,22 +240,22 @@ function DiffLineRow({
   onToggleSelected: () => void;
 }) {
   const t = useT();
-  const bg = line.type === 'add' ? 'bg-[#a3f185]/10 hover:bg-[#a3f185]/20'
-    : line.type === 'remove' ? 'bg-[#ff716c]/10 hover:bg-[#ff716c]/20'
-    : line.type === 'no-newline' ? 'bg-[#3c495a]/10'
-    : 'hover:bg-[#3c495a]/30';
+  const bg = line.type === 'add' ? 'bg-git-add/10 hover:bg-git-add/20'
+    : line.type === 'remove' ? 'bg-git-delete/10 hover:bg-git-delete/20'
+    : line.type === 'no-newline' ? 'bg-border-subtle/10'
+    : 'hover:bg-border-subtle/30';
   const marker = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : line.type === 'no-newline' ? '\\' : ' ';
-  const markerColor = line.type === 'add' ? 'text-[#a3f185]'
-    : line.type === 'remove' ? 'text-[#ff716c]' : 'text-[#9eacc0]';
-  const textColor = line.type === 'add' ? 'text-[#c1f0a8]'
-    : line.type === 'remove' ? 'text-[#ffa8a3]'
-    : line.type === 'no-newline' ? 'text-[#9eacc0]' : 'text-[#d9e7fc]';
+  const markerColor = line.type === 'add' ? 'text-git-add'
+    : line.type === 'remove' ? 'text-git-delete' : 'text-text-secondary';
+  const textColor = line.type === 'add' ? 'text-git-add'
+    : line.type === 'remove' ? 'text-git-delete'
+    : line.type === 'no-newline' ? 'text-text-secondary' : 'text-text-primary';
   const canSelectLine = lineSelectionEnabled && (line.type === 'add' || line.type === 'remove');
 
   return (
     <div className={cn('flex items-stretch', bg)}>
       {lineSelectionEnabled && (
-        <span className="w-7 shrink-0 flex items-center justify-center border-r border-[#3c495a]/20 py-[1px]">
+        <span className="w-7 shrink-0 flex items-center justify-center border-r border-border-subtle/20 py-[1px]">
           {canSelectLine && (
             <input
               type="checkbox"
@@ -267,10 +267,10 @@ function DiffLineRow({
           )}
         </span>
       )}
-      <span className="w-12 text-right pr-2 select-none text-[#697789] border-r border-[#3c495a]/20 shrink-0 text-[10px] py-[1px]">
+      <span className="w-12 text-right pr-2 select-none text-text-secondary border-r border-border-subtle/20 shrink-0 text-[10px] py-[1px]">
         {line.oldLineNum ?? ''}
       </span>
-      <span className="w-12 text-right pr-2 select-none text-[#697789] border-r border-[#3c495a]/20 shrink-0 text-[10px] py-[1px]">
+      <span className="w-12 text-right pr-2 select-none text-text-secondary border-r border-border-subtle/20 shrink-0 text-[10px] py-[1px]">
         {line.newLineNum ?? ''}
       </span>
       <span className={cn('w-6 text-center select-none shrink-0', markerColor)}>{marker}</span>

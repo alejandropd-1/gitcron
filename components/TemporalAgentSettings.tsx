@@ -2,9 +2,8 @@
 
 // components/TemporalAgentSettings.tsx
 // Per-repo Settings panel for the Temporal Agent (Phase 0).
-// Reads/writes via window.api.temporalAgent (no localStorage, no secrets here).
-// Palette: "The Compiled Soul" — navy #020f1e, neon green #a3f185,
-// cyan #5ed8ff, warning orange #fd9d1a.
+// Panel de configuración por repositorio para el Agente Temporal.
+// Tokens de interfaz alineados con el sistema Carbon Soul (Shared / Semantics).
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRotatingThoughts } from '@/hooks/use-rotating-thoughts';
@@ -20,9 +19,9 @@ import { Brain } from 'lucide-react';
 import { CopyButton } from './CopyButton';
 import { OPENROUTER_MODELS } from '@/lib/openrouter-models';
 
-const GREEN = '#a3f185';
-const CYAN = '#5ed8ff';
-const ORANGE = '#fd9d1a';
+const COLOR_SUCCESS = 'var(--color-git-add)';
+const COLOR_PRIMARY = 'var(--color-primary)';
+const COLOR_WARNING = 'var(--color-git-mod)';
 
 // Phase 3 / Phase 4: OpenRouter is the primary provider (one key → many models).
 // The model catalogue lives in lib/openrouter-models (shared with Cartografía).
@@ -320,27 +319,23 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
   const currentThought = useRotatingThoughts(thoughts, predicting);
 
   // El avance se deriva: mientras predice manda la animación, y al terminar
-  // vale 100 sin que nadie lo escriba. Escribirlo desde el efecto era un
-  // `setState` sincrónico ahí adentro, que es lo que el linter marca.
   const progress = predicting ? animatedProgress : (result ? 100 : 0);
 
   useEffect(() => {
     if (!predicting) return;
 
-    // El valor arranca en cero acá y no en el estado: así cada predicción nueva
-    // empieza de cero sin tener que reiniciar nada desde el efecto.
     let value = 0;
     const progressInterval = setInterval(() => {
       value = value >= 95
-        ? value + (99 - value) * 0.02 // crawl near the end
-        : value + (95 - value) * 0.08; // asymptotic rise
+        ? value + (99 - value) * 0.02
+        : value + (95 - value) * 0.08;
       setAnimatedProgress(value);
     }, 300);
 
     return () => clearInterval(progressInterval);
   }, [predicting]);
 
-  if (!config) return <div style={{ color: '#9BA1B0' }}>Loading…</div>;
+  if (!config) return <div style={{ color: 'var(--color-text-secondary)' }}>Loading…</div>;
 
   function patch(p: Partial<TemporalAgentConfig>) {
     setConfig((c) => (c ? { ...c, ...p } : c));
@@ -373,14 +368,14 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
   }
 
   return (
-    <section style={{ color: '#E1E1E6', display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <section style={{ color: 'var(--color-text-primary)', display: 'flex', flexDirection: 'column', gap: 18 }}>
       <header style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Temporal Agent</h3>
-        <span style={{ fontSize: 11, color: CYAN, border: `1px solid ${CYAN}`, borderRadius: 9999, padding: '1px 8px' }}>
+        <span style={{ fontSize: 11, color: COLOR_PRIMARY, border: `1px solid ${COLOR_PRIMARY}`, borderRadius: 9999, padding: '1px 8px' }}>
           {t('temporalAgent.experimental')}
         </span>
       </header>
-      <p style={{ fontSize: 13, color: '#9BA1B0', margin: 0 }}>
+      <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: 0 }}>
         {t('temporalAgent.description', { repo: repoName })}
       </p>
 
@@ -415,26 +410,26 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
         </select>
       </Row>
       {config.privacyScope === 'metadata-plus-files' && (
-        <p style={{ fontSize: 12, color: ORANGE, margin: 0 }}>
+        <p style={{ fontSize: 12, color: COLOR_WARNING, margin: 0 }}>
           {t('temporalAgent.filenamesWarning')}
         </p>
       )}
 
       {/* Skill profile */}
       <div style={cardStyle}>
-        <h4 style={{ fontSize: 13, fontWeight: 600, margin: '0 0 10px', color: GREEN }}>
+        <h4 style={{ fontSize: 13, fontWeight: 600, margin: '0 0 10px', color: COLOR_SUCCESS }}>
           {t('temporalAgent.focusProfileHeading')}
         </h4>
         <TagInput
           label={t('temporalAgent.focusAreas')}
           tags={config.skillProfile.focusAreas}
-          color={GREEN}
+          color={COLOR_SUCCESS}
           onChange={(tags) => patchSkill({ focusAreas: tags })}
         />
         <TagInput
           label={t('temporalAgent.avoidTopics')}
           tags={config.skillProfile.avoidTopics}
-          color={ORANGE}
+          color={COLOR_WARNING}
           onChange={(tags) => patchSkill({ avoidTopics: tags })}
         />
         <Row label={t('temporalAgent.confidenceThreshold', { val: config.skillProfile.confidenceThreshold.toFixed(2) })}>
@@ -445,33 +440,33 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
             step={0.05}
             value={config.skillProfile.confidenceThreshold}
             onChange={(e) => patchSkill({ confidenceThreshold: Number(e.target.value) })}
-            style={{ accentColor: CYAN, width: 180 }}
+            style={{ accentColor: COLOR_PRIMARY, width: 180 }}
           />
         </Row>
       </div>
 
       {/* AI access — the renderer only ever learns whether a key exists. */}
       <div style={cardStyle}>
-        <h4 style={{ fontSize: 13, fontWeight: 600, margin: '0 0 10px', color: CYAN }}>
+        <h4 style={{ fontSize: 13, fontWeight: 600, margin: '0 0 10px', color: COLOR_PRIMARY }}>
           {t('temporalAgent.aiAccessHeading')}
         </h4>
         <Row label={t('temporalAgent.apiKeyStatus')}>
           {hasKey === null ? (
-            <span style={{ fontSize: 12, color: '#9BA1B0' }}>{t('temporalAgent.keyChecking')}</span>
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{t('temporalAgent.keyChecking')}</span>
           ) : hasKey ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-              <span style={{ fontSize: 12, color: GREEN }}>{t('temporalAgent.keyConfigured')}</span>
+              <span style={{ fontSize: 12, color: COLOR_SUCCESS }}>{t('temporalAgent.keyConfigured')}</span>
               {keyFingerprint && (
-                <code style={{ fontSize: 11, color: '#9BA1B0', fontFamily: 'JetBrains Mono, monospace' }}>
+                <code style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontFamily: 'JetBrains Mono, monospace' }}>
                   {t('temporalAgent.keyFingerprint', { fp: keyFingerprint })}
                 </code>
               )}
             </div>
           ) : (
-            <span style={{ fontSize: 12, color: ORANGE }}>{t('temporalAgent.keyNotSet')}</span>
+            <span style={{ fontSize: 12, color: COLOR_WARNING }}>{t('temporalAgent.keyNotSet')}</span>
           )}
         </Row>
-        <p style={{ fontSize: 12, color: '#9BA1B0', margin: '0 0 8px' }}>
+        <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: '0 0 8px' }}>
           {t('temporalAgent.keyDescription')}
         </p>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -495,7 +490,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
 
         {/* Model id — NOT a secret; saved in plain config with the rest of the prefs. */}
         <div style={{ marginTop: 12 }}>
-          <label style={{ fontSize: 12, color: '#9BA1B0', display: 'block', marginBottom: 6 }}>
+          <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 6 }}>
             {t('temporalAgent.modelLabel')}
           </label>
           <ModelSelect
@@ -503,13 +498,13 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
             onChange={(v) => patch({ model: v })}
           />
           {config.model && (
-            <p style={{ fontSize: 11, color: GREEN, margin: '6px 0 0' }}>
+            <p style={{ fontSize: 11, color: COLOR_SUCCESS, margin: '6px 0 0' }}>
               {t('temporalAgent.modelActive')}{' '}
               <code style={{ fontFamily: 'JetBrains Mono, monospace' }}>{config.model}</code>
             </p>
           )}
           {!config.model && (
-            <p style={{ fontSize: 11, color: '#697789', margin: '6px 0 0' }}>
+            <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', margin: '6px 0 0' }}>
               {t('temporalAgent.modelEmptyPrefix')}{' '}
               <code>anthropic/claude-sonnet-4.5</code>
               {t('temporalAgent.modelEmptySuffix')}
@@ -519,11 +514,11 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
       </div>
 
       {/* Prediction trigger — visually distinct from save/config: this is the expensive action. */}
-      <div style={{ ...cardStyle, borderColor: `${CYAN}50` }}>
+      <div style={{ ...cardStyle, borderColor: 'color-mix(in srgb, var(--color-primary) 31.4%, transparent)' }}>
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: '#697789', flex: 1, minWidth: 200, lineHeight: 1.4 }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', flex: 1, minWidth: 200, lineHeight: 1.4 }}>
             {t('temporalAgent.predictDesc')}{' '}
-            <strong style={{ color: ORANGE }}>{t('temporalAgent.predictCost')}</strong>
+            <strong style={{ color: COLOR_WARNING }}>{t('temporalAgent.predictCost')}</strong>
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
             {predicting ? (
@@ -532,9 +527,9 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
                   disabled
                   style={{
                     ...primaryBtn,
-                    background: '#2D2E39',
-                    color: CYAN,
-                    border: `1px solid ${CYAN}40`,
+                    background: 'var(--color-bg-surface)',
+                    color: COLOR_PRIMARY,
+                    border: '1px solid color-mix(in srgb, var(--color-primary) 25.1%, transparent)',
                     fontWeight: 600,
                     fontSize: 13,
                     padding: '10px 20px',
@@ -548,8 +543,8 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
                   onClick={cancelPrediction}
                   style={{
                     ...ghostBtn,
-                    color: ORANGE,
-                    borderColor: `${ORANGE}50`,
+                    color: COLOR_WARNING,
+                    borderColor: 'color-mix(in srgb, var(--color-git-mod) 31.4%, transparent)',
                     fontSize: 12,
                     padding: '8px 16px',
                   }}
@@ -562,15 +557,15 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
                 onClick={predict}
                 style={{
                   ...primaryBtn,
-                  background: CYAN,
-                  color: '#020f1e',
+                  background: COLOR_PRIMARY,
+                  color: 'var(--color-bg-base)',
                   fontWeight: 700,
                   fontSize: 14,
                   padding: '12px 24px',
                   border: 'none',
                   borderRadius: 8,
                   minWidth: 180,
-                  boxShadow: `0 0 14px ${CYAN}25`,
+                  boxShadow: '0 0 14px color-mix(in srgb, var(--color-primary) 14.5%, transparent)',
                   cursor: 'pointer',
                 }}
               >
@@ -582,19 +577,19 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
         {predicting && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-              <span style={{ color: CYAN, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
-                <Brain size={14} className="animate-pulse" style={{ color: CYAN }} />
-                <span style={{ color: '#d9e7fc', opacity: 0.95 }}>{currentThought}</span>
+              <span style={{ color: COLOR_PRIMARY, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
+                <Brain size={14} className="animate-pulse" style={{ color: COLOR_PRIMARY }} />
+                <span style={{ color: 'var(--color-text-primary)', opacity: 0.95 }}>{currentThought}</span>
               </span>
-              <span style={{ color: '#9eacc0', fontFamily: 'monospace', fontSize: 11 }}>{Math.round(progress)}%</span>
+              <span style={{ color: 'var(--color-text-secondary)', fontFamily: 'monospace', fontSize: 11 }}>{Math.round(progress)}%</span>
             </div>
             {/* Progress Bar Container */}
-            <div style={{ width: '100%', height: 4, background: '#1A1B23', borderRadius: 2, overflow: 'hidden', border: '1px solid rgba(217, 231, 252, 0.05)' }}>
+            <div style={{ width: '100%', height: 4, background: 'var(--color-bg-surface)', borderRadius: 2, overflow: 'hidden', border: '1px solid var(--color-border-subtle)' }}>
               <div
                 style={{
                   height: '100%',
                   width: `${progress}%`,
-                  background: `linear-gradient(90deg, ${CYAN}, ${GREEN})`,
+                  background: `linear-gradient(90deg, ${COLOR_PRIMARY}, ${COLOR_SUCCESS})`,
                   borderRadius: 2,
                   transition: 'width 0.3s cubic-bezier(0.1, 0.8, 0.25, 1)',
                 }}
@@ -603,17 +598,17 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
           </div>
         )}
         {cancelled && (
-          <p style={{ fontSize: 12, color: '#9eacc0', margin: '10px 0 0' }}>
+          <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: '10px 0 0' }}>
             {t('temporalAgent.cancelled')}
           </p>
         )}
         {predictError && (
-          <p style={{ fontSize: 12, color: ORANGE, margin: '10px 0 0' }}>Error: {predictError}</p>
+          <p style={{ fontSize: 12, color: COLOR_WARNING, margin: '10px 0 0' }}>Error: {predictError}</p>
         )}
         {result && (
-          <div style={{ marginTop: 12, padding: '10px 14px', background: `${GREEN}10`, border: `1px solid ${GREEN}30`, borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: GREEN, fontWeight: 'bold', fontSize: 14 }}>✓</span>
-            <span style={{ color: '#d9e7fc', fontSize: 12 }}>
+          <div style={{ marginTop: 12, padding: '10px 14px', background: 'color-mix(in srgb, var(--color-git-add) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-git-add) 18.8%, transparent)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: COLOR_SUCCESS, fontWeight: 'bold', fontSize: 14 }}>✓</span>
+            <span style={{ color: 'var(--color-text-primary)', fontSize: 12 }}>
               {language === 'en'
                 ? 'Prediction completed successfully! New speculative branches have been generated in your graph.'
                 : '¡Predicción completada con éxito! Se han generado las nuevas ramas especulativas en tu gráfico.'}
@@ -621,10 +616,10 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
           </div>
         )}
         {result && (
-          <div style={{ marginTop: 14, fontSize: 12, color: '#cbc3d7' }}>
-            <div style={{ color: GREEN, marginBottom: 6 }}>
+          <div style={{ marginTop: 14, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+            <div style={{ color: COLOR_SUCCESS, marginBottom: 6 }}>
               {result.branches.length} branch{result.branches.length === 1 ? '' : 'es'} {t('temporalAgent.resultFrom')}{' '}
-              <span style={{ color: CYAN }}>{result.provider}</span>
+              <span style={{ color: COLOR_PRIMARY }}>{result.provider}</span>
             </div>
             <ul style={{ margin: 0, paddingLeft: 16 }}>
               {result.branches.map((b) => (
@@ -645,12 +640,12 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
           {t('temporalAgent.viewNotes')}
         </button>
         {savedAt && (
-          <span style={{ fontSize: 12, color: GREEN, fontWeight: 600 }}>
+          <span style={{ fontSize: 12, color: COLOR_SUCCESS, fontWeight: 600 }}>
             {t('temporalAgent.savedConfirmation')}
           </span>
         )}
         {saveError && (
-          <span style={{ fontSize: 12, color: ORANGE }}>
+          <span style={{ fontSize: 12, color: COLOR_WARNING }}>
             Error: {saveError}
           </span>
         )}
@@ -658,38 +653,38 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
 
       {/* Active config summary */}
       <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <strong style={{ color: '#9BA1B0', fontSize: 12 }}>{t('temporalAgent.configSummaryLabel')}</strong>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', fontSize: 11, color: '#9BA1B0' }}>
+        <strong style={{ color: 'var(--color-text-secondary)', fontSize: 12 }}>{t('temporalAgent.configSummaryLabel')}</strong>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', fontSize: 11, color: 'var(--color-text-secondary)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: '#697789' }}>status:</span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>status:</span>
             {config.enabled ? (
-              <span style={{ color: GREEN, fontWeight: 'bold', background: `${GREEN}10`, border: `1px solid ${GREEN}30`, borderRadius: 4, padding: '1px 6px' }}>on</span>
+              <span style={{ color: COLOR_SUCCESS, fontWeight: 'bold', background: 'color-mix(in srgb, var(--color-git-add) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-git-add) 18.8%, transparent)', borderRadius: 4, padding: '1px 6px' }}>on</span>
             ) : (
-              <span style={{ color: ORANGE, fontWeight: 'bold', background: `${ORANGE}10`, border: `1px solid ${ORANGE}30`, borderRadius: 4, padding: '1px 6px' }}>off</span>
+              <span style={{ color: COLOR_WARNING, fontWeight: 'bold', background: 'color-mix(in srgb, var(--color-git-mod) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-git-mod) 18.8%, transparent)', borderRadius: 4, padding: '1px 6px' }}>off</span>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: '#697789' }}>scope:</span>
-            <span style={{ color: CYAN, background: `${CYAN}10`, border: `1px solid ${CYAN}30`, borderRadius: 4, padding: '1px 6px' }}>{config.privacyScope}</span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>scope:</span>
+            <span style={{ color: COLOR_PRIMARY, background: 'color-mix(in srgb, var(--color-primary) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary) 18.8%, transparent)', borderRadius: 4, padding: '1px 6px' }}>{config.privacyScope}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: '#697789' }}>modelo:</span>
-            <code style={{ color: CYAN, fontFamily: 'JetBrains Mono, monospace', background: `${CYAN}10`, border: `1px solid ${CYAN}30`, borderRadius: 4, padding: '1px 6px' }}>{config.model || 'default'}</code>
+            <span style={{ color: 'var(--color-text-secondary)' }}>modelo:</span>
+            <code style={{ color: COLOR_PRIMARY, fontFamily: 'JetBrains Mono, monospace', background: 'color-mix(in srgb, var(--color-primary) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary) 18.8%, transparent)', borderRadius: 4, padding: '1px 6px' }}>{config.model || 'default'}</code>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: '#697789' }}>threshold:</span>
-            <span style={{ color: GREEN, background: `${GREEN}10`, border: `1px solid ${GREEN}30`, borderRadius: 4, padding: '1px 6px' }}>{config.skillProfile.confidenceThreshold.toFixed(2)}</span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>threshold:</span>
+            <span style={{ color: COLOR_SUCCESS, background: 'color-mix(in srgb, var(--color-git-add) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-git-add) 18.8%, transparent)', borderRadius: 4, padding: '1px 6px' }}>{config.skillProfile.confidenceThreshold.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: '#697789' }}>freq:</span>
-            <span style={{ color: CYAN, background: `${CYAN}10`, border: `1px solid ${CYAN}30`, borderRadius: 4, padding: '1px 6px' }}>{config.frequency}</span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>freq:</span>
+            <span style={{ color: COLOR_PRIMARY, background: 'color-mix(in srgb, var(--color-primary) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary) 18.8%, transparent)', borderRadius: 4, padding: '1px 6px' }}>{config.frequency}</span>
           </div>
           {config.skillProfile.focusAreas.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
-              <span style={{ color: '#697789' }}>focus:</span>
+              <span style={{ color: 'var(--color-text-secondary)' }}>focus:</span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {config.skillProfile.focusAreas.map(f => (
-                  <span key={f} style={{ color: GREEN, background: `${GREEN}10`, border: `1px solid ${GREEN}30`, borderRadius: 4, padding: '1px 6px' }}>{f}</span>
+                  <span key={f} style={{ color: COLOR_SUCCESS, background: 'color-mix(in srgb, var(--color-git-add) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-git-add) 18.8%, transparent)', borderRadius: 4, padding: '1px 6px' }}>{f}</span>
                 ))}
               </div>
             </div>
@@ -700,7 +695,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
       {showNotes && (
         <div style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <strong style={{ fontSize: 12, color: CYAN }}>{t('temporalAgent.notesHeading')}</strong>
+            <strong style={{ fontSize: 12, color: COLOR_PRIMARY }}>{t('temporalAgent.notesHeading')}</strong>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <CopyButton text={notesMd || ''} />
               <button onClick={() => setShowNotes(false)} style={ghostBtn}>
@@ -716,7 +711,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
               fontSize: 11,
               lineHeight: 1.5,
               fontFamily: 'JetBrains Mono, monospace',
-              color: '#cbc3d7',
+              color: 'var(--color-text-secondary)',
               whiteSpace: 'pre-wrap',
             }}
           >
@@ -750,7 +745,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
         borderRadius: 9999,
         border: 'none',
         cursor: 'pointer',
-        background: on ? '#a3f185' : '#2D2E39',
+        background: on ? 'var(--color-git-add)' : 'var(--color-border-subtle)',
         position: 'relative',
         transition: 'background 0.2s',
       }}
@@ -763,7 +758,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
           width: 18,
           height: 18,
           borderRadius: 9999,
-          background: on ? '#020f1e' : '#9BA1B0',
+          background: on ? 'var(--color-bg-base)' : 'var(--color-text-secondary)',
           transition: 'left 0.2s',
         }}
       />
@@ -837,7 +832,7 @@ function TagInput({
   }
   return (
     <div style={{ marginBottom: 12 }}>
-      <label style={{ fontSize: 12, color: '#9BA1B0', display: 'block', marginBottom: 6 }}>{label}</label>
+      <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 6 }}>{label}</label>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
         {tags.map((tag) => (
           <span
@@ -875,24 +870,24 @@ function TagInput({
 }
 
 const selectStyle: React.CSSProperties = {
-  background: '#1A1B23',
-  color: '#E1E1E6',
-  border: '1px solid #2D2E39',
+  background: 'var(--color-bg-surface)',
+  color: 'var(--color-text-primary)',
+  border: '1px solid var(--color-border-subtle)',
   borderRadius: 6,
   padding: '6px 8px',
   fontSize: 13,
 };
 
 const cardStyle: React.CSSProperties = {
-  background: '#15121b',
-  border: '1px solid #2D2E39',
+  background: 'var(--color-bg-surface)',
+  border: '1px solid var(--color-border-subtle)',
   borderRadius: 10,
   padding: 14,
 };
 
 const primaryBtn: React.CSSProperties = {
-  background: '#a3f185',
-  color: '#020f1e',
+  background: 'var(--color-git-add)',
+  color: 'var(--color-bg-base)',
   border: 'none',
   borderRadius: 6,
   padding: '8px 16px',
@@ -903,8 +898,8 @@ const primaryBtn: React.CSSProperties = {
 
 const ghostBtn: React.CSSProperties = {
   background: 'transparent',
-  color: '#9BA1B0',
-  border: '1px solid #2D2E39',
+  color: 'var(--color-text-secondary)',
+  border: '1px solid var(--color-border-subtle)',
   borderRadius: 6,
   padding: '8px 14px',
   fontSize: 13,

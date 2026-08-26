@@ -755,7 +755,7 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     );
 
     const chipOutdated = await screen.findByRole('status', { name: /OpenSpec v1\.8\.0/i });
-    expect(chipOutdated.className).toMatch(/text-\[var\(--os-amber\)\]/);
+    expect(chipOutdated.className).toMatch(/text-warning/);
     expect(chipOutdated.getAttribute('title')).toMatch(/desactualizada/i);
     unmount1();
 
@@ -782,7 +782,7 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     );
 
     const chipNotInit = await screen.findByRole('status', { name: /OpenSpec v1\.8\.0/i });
-    expect(chipNotInit.className).toMatch(/text-\[var\(--os-amber\)\]/);
+    expect(chipNotInit.className).toMatch(/text-warning/);
     expect(chipNotInit.getAttribute('title')).toMatch(/no está inicializado/i);
     unmount2();
 
@@ -815,7 +815,7 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     );
 
     const chipDivergent = await screen.findByRole('status', { name: /OpenSpec v1\.8\.0/i });
-    expect(chipDivergent.className).toMatch(/text-\[var\(--os-amber\)\]/);
+    expect(chipDivergent.className).toMatch(/text-warning/);
     expect(chipDivergent.getAttribute('title')).toMatch(/divergen/i);
     unmount3();
 
@@ -842,7 +842,7 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     );
 
     const chipClean = await screen.findByRole('status', { name: /OpenSpec v1\.8\.0/i });
-    expect(chipClean.className).not.toMatch(/text-\[var\(--os-amber\)\]/);
+    expect(chipClean.className).not.toMatch(/text-warning/);
     unmount4();
 
     vi.unstubAllGlobals();

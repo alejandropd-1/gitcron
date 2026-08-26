@@ -153,3 +153,30 @@
       depende de ese código; no demuestra que ese código gobierne la
       aplicación. Cuando la corrección es una delegación, el sabotaje
       tiene que hacer fallar un test **del otro lado** de la delegación.
+
+22. **Una comprobación automática vale lo que abarca.** Una verificación que
+    recorre un **conjunto** de archivos para hacer cumplir una regla declara,
+    en su propio archivo, cuáles recorre y cuáles deja afuera, con el motivo.
+    La que promete más de lo que mira es peor que no tenerla: da permiso.
+    - **Alcance de esta regla.** Aplica a las que recorren un conjunto —listas
+      blancas, escaneos de hojas de estilo o de componentes, comprobaciones de
+      escala, de color, de tamaño de objetivo—. **No** aplica a la prueba que
+      lee un archivo puntual: un fixture, la salida de un binario, un
+      artefacto. Y **no obliga a reescribir lo que ya está**: rige para lo que
+      se escriba o se toque de acá en adelante.
+    - **No alcanza con recorrer: hay que notar cuando se deja de recorrer.**
+      Una verificación con línea de base tiene que fallar también cuando una
+      violación declarada **desaparece**, porque eso es o progreso —y hay que
+      podar la lista— o el escáner que se quedó ciego. Las dos ameritan que
+      alguien mire.
+    - **Casos reales del change `compartir-paneles-laterales-entre-vistas`,
+      2026-08-24.** `visual-scale-scan` escaneaba `app/globals.css` y una hoja
+      de módulo, y ningún `.tsx`: pasaba en verde con 95 tamaños literales
+      fuera de escala, que están justamente en los `.tsx`. La prueba «los
+      componentes del armazón no declaran líneas de borde de maqueta» miraba
+      la barra de título, dos `aside` y el `main`, y nunca entraba al interior
+      de los paneles: dos `divide-y` nuevos pasaron sin que nadie los viera. Y
+      la lista blanca de bordes de `commit-graph-frame` conservaba la entrada
+      `/\.railTabs/` protegiendo una regla que ya estaba muerta. Las dos
+      primeras las corrigen las tareas 1.5 y 1.6 de
+      `unificar-paleta-carbon-soul`.

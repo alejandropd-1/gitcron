@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, Check, ChevronRight, ExternalLink, FileText, Loader2 } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, ExternalLink, FileText, Loader2 } from 'lucide-react';
 import type { ChangelogEntry, ChangelogGroup } from '@/lib/changelog';
 
 type ChangelogPreviewProps = {
@@ -45,7 +45,7 @@ function ChangelogStatus({ error, isLoading }: { error: string | null; isLoading
 
   if (error) {
     return (
-      <div className="m-4 rounded-lg border border-error/25 bg-error/10 px-3 py-2 text-sm text-[#ffb8ad] flex items-center gap-2">
+      <div className="m-4 rounded-lg border border-error/25 bg-error/10 px-3 py-2 text-sm text-error flex items-center gap-2">
         <AlertCircle size={14} className="shrink-0" />
         {error}
       </div>
@@ -96,7 +96,7 @@ function ChangelogEntryDetails({ entry, entryIndex }: { entry: ChangelogEntry; e
             <p className="mt-1 text-sm font-semibold text-text-primary truncate">{entry.title}</p>
           )}
         </div>
-        <ChevronRight size={15} className="text-text-secondary shrink-0 transition-transform group-open:rotate-90" />
+        <ChevronDown size={15} className="text-text-secondary shrink-0 transition-transform group-open:rotate-180" />
       </summary>
 
       <div className="px-4 pb-4 space-y-4">

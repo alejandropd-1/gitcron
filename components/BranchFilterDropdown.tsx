@@ -56,7 +56,7 @@ export function BranchFilterDropdown() {
           <Filter size={15} />
         </div>
         {!graphShowAllBranches && (
-          <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_6px_rgba(163,241,133,0.7)]" />
+          <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_6px_color-mix(in_srgb,var(--color-git-add)_70%,transparent)]" />
         )}
       </button>
 

@@ -77,7 +77,7 @@ export function StashCreateModal({ open, onClose, message, onMessageChange, onSu
               <button
                 type="submit"
                 disabled={isLoading}
-                className="px-4 py-2 bg-gradient-to-br from-[#fd9d1a] to-[#c96c00] hover:from-[#ffb247] hover:to-[#b75f00] shadow-lg shadow-git-mod/10 disabled:opacity-40 disabled:cursor-not-allowed text-[#201100] text-sm font-bold rounded flex items-center gap-2"
+                className="px-4 py-2 bg-git-mod hover:bg-git-mod/90 shadow-lg shadow-git-mod/10 disabled:opacity-40 disabled:cursor-not-allowed text-bg-base text-sm font-bold rounded flex items-center gap-2"
               >
                 {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} />}
                 {isLoading ? t('stashModal.saving') : t('stashModal.save')}
@@ -142,7 +142,7 @@ export function StashPreviewModal({ preview, onClose }: StashPreviewModalProps) 
               </div>
               <pre
                 tabIndex={0}
-                className="rounded border border-border-subtle/15 bg-[#06111f] p-3 overflow-auto max-h-[52vh] text-[11px] leading-relaxed text-text-primary font-mono whitespace-pre"
+                className="rounded border border-border-subtle/15 bg-bg-surface p-3 overflow-auto max-h-[52vh] text-[11px] leading-relaxed text-text-primary font-mono whitespace-pre"
               >
                 <code>{preview.diff || t('stashPreview.noDiff')}</code>
               </pre>
@@ -170,7 +170,7 @@ export function StashPreviewModal({ preview, onClose }: StashPreviewModalProps) 
                   await stashPop(index);
                 }}
                 disabled={isLoading}
-                className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-40 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
+                className="px-4 py-2 bg-git-add hover:bg-git-add/90 shadow-lg shadow-git-add/20 disabled:opacity-40 text-bg-base text-sm font-bold rounded flex items-center gap-2"
               >
                 <Upload size={14} /> {t('stashPreview.pop')}
               </button>

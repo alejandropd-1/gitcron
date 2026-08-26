@@ -64,7 +64,7 @@ export const PALETTE_PAIRS: ContrastPairCheck[] = [
   {
     description: '--color-secondary (Green) on --color-bg-base',
     type: 'text',
-    foreground: '#a3f185',
+    foreground: '#a3be8c',
     background: '#2e3440',
     minRatio: 4.5,
   },
@@ -193,5 +193,18 @@ describe('palette-contrast - Verificación de contraste WCAG AA', () => {
     }
 
     expect(failingPairs.length).toBe(0);
+  });
+
+  it('el acento verde (--color-git-add) debe estar fijado en #a3be8c (Nord14) en globals.css', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const cssPath = path.resolve(process.cwd(), 'app/globals.css');
+    const content = fs.readFileSync(cssPath, 'utf-8');
+
+    const gitAddMatch = content.match(/--color-git-add:\s*(#[0-9a-fA-F]{3,8})/);
+    expect(gitAddMatch?.[1]?.toLowerCase()).toBe('#a3be8c');
+
+    const secondaryMatch = content.match(/--color-secondary:\s*([^;]+);/);
+    expect(secondaryMatch?.[1]?.trim()).toBe('var(--color-git-add)');
   });
 });

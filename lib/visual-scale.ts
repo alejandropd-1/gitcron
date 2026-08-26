@@ -1,3 +1,5 @@
+import { stripCommentsPreservingLines, compareBaseline } from './ui-color';
+
 export interface OffScaleDeclaration {
   line: number;
   property: string;
@@ -93,7 +95,6 @@ export function isOffScaleValue(property: string, value: string): boolean {
   if (isValidValueToken(trimmed)) return false;
 
   // Split multi-value shorthand (e.g. padding: var(--space-2) var(--space-3) or padding: 4px 8px)
-  // We need to split respecting nested parentheses (e.g. var(--a, fallback), clamp(...), calc(...))
   const tokens: string[] = [];
   let current = '';
   let parenDepth = 0;
@@ -123,65 +124,80 @@ export function isOffScaleValue(property: string, value: string): boolean {
   return !allValid;
 }
 
+const TW_SCALE_REGEX = /(?:[a-zA-Z0-9_\-\:\[\]\.]+:)?(text|p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|gap|gap-x|gap-y|rounded|rounded-[trblse])-\[([^\]]+)\](?:\/[^\s"'`]+)?/g;
+const SIZE_OR_LENGTH_REGEX = /^(?:-?[0-9]*\.?[0-9]+(?:px|rem|em|pt|vh|vw|%)|-?[0-9]+)$/;
+
 /**
- * Pure function that analyzes a CSS stylesheet string and returns all declarations of
- * font-size, padding, margin, and gap that do not use design system tokens.
+ * Pure function that analyzes a CSS stylesheet or TSX component string and returns all declarations
+ * of font-size, padding, margin, gap, and border-radius that do not use design system tokens.
  */
-export function findOffScaleDeclarations(cssText: string): OffScaleDeclaration[] {
+export function findOffScaleDeclarations(
+  content: string,
+  options: { isTsx?: boolean } = {}
+): OffScaleDeclaration[] {
   const offScale: OffScaleDeclaration[] = [];
+  const cleanContent = stripCommentsPreservingLines(content);
+  const lines = cleanContent.split('\n');
 
-  // Replace comments with whitespace preserving newlines so line numbers stay 1-to-1 accurate
-  let cleanCss = '';
-  let insideComment = false;
+  const isTsx = options.isTsx ?? (content.includes('import React') || content.includes('className=') || content.includes('export default') || content.includes('<div') || content.includes('<span'));
 
-  for (let i = 0; i < cssText.length; i++) {
-    if (!insideComment && cssText[i] === '/' && cssText[i + 1] === '*') {
-      insideComment = true;
-      cleanCss += '  ';
-      i++;
-    } else if (insideComment && cssText[i] === '*' && cssText[i + 1] === '/') {
-      insideComment = false;
-      cleanCss += '  ';
-      i++;
-    } else if (insideComment) {
-      cleanCss += cssText[i] === '\n' ? '\n' : ' ';
-    } else {
-      cleanCss += cssText[i];
+  if (!isTsx) {
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      const line = lines[lineIndex];
+      const trimmedLine = line.trim();
+
+      // Skip empty lines or at-rules like @import, @theme definitions
+      if (!trimmedLine || trimmedLine.startsWith('@import') || trimmedLine.startsWith('@theme')) {
+        continue;
+      }
+
+      // Match property declarations: property : value [;}]
+      const declRegex = /([\w-]+)\s*:\s*([^;{}]+?)(?:;|\}|$)/g;
+      let match: RegExpExecArray | null;
+
+      while ((match = declRegex.exec(line)) !== null) {
+        const prop = match[1].trim().toLowerCase();
+        const val = match[2].trim();
+
+        // Only check inspected properties or font shorthand
+        if (CHECKED_PROPERTIES.has(prop) || prop === 'font') {
+          if (isOffScaleValue(prop, val)) {
+            offScale.push({
+              line: lineIndex + 1,
+              property: prop,
+              value: val,
+              raw: `${match[1]}: ${match[2]}`.trim(),
+            });
+          }
+        }
+      }
     }
+    return offScale;
   }
 
-  const lines = cleanCss.split('\n');
-
+  // Detección en TSX: clases arbitrarias de tamaño/espaciado
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex];
-    const trimmedLine = line.trim();
-
-    // Skip empty lines or at-rules like @import, @theme definitions
-    if (!trimmedLine || trimmedLine.startsWith('@import') || trimmedLine.startsWith('@theme')) {
-      continue;
-    }
-
-    // Match property declarations: property : value [;}]
-    const declRegex = /([\w-]+)\s*:\s*([^;{}]+?)(?:;|\}|$)/g;
     let match: RegExpExecArray | null;
+    TW_SCALE_REGEX.lastIndex = 0;
 
-    while ((match = declRegex.exec(line)) !== null) {
-      const prop = match[1].trim().toLowerCase();
-      const val = match[2].trim();
+    while ((match = TW_SCALE_REGEX.exec(line)) !== null) {
+      const propType = match[1];
+      const bracketContent = match[2].trim();
+      if (bracketContent.startsWith('var(')) continue;
 
-      // Only check inspected properties or font shorthand
-      if (CHECKED_PROPERTIES.has(prop) || prop === 'font') {
-        if (isOffScaleValue(prop, val)) {
-          offScale.push({
-            line: lineIndex + 1,
-            property: prop,
-            value: val,
-            raw: `${match[1]}: ${match[2]}`.trim(),
-          });
-        }
+      if (SIZE_OR_LENGTH_REGEX.test(bracketContent)) {
+        offScale.push({
+          line: lineIndex + 1,
+          property: propType,
+          value: bracketContent,
+          raw: match[0],
+        });
       }
     }
   }
 
   return offScale;
 }
+
+export { compareBaseline as compareScaleBaseline };

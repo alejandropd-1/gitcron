@@ -74,12 +74,12 @@ export function UpdateControls({
         <button
           type="button"
           onClick={() => setShowUpdateMenu((v) => !v)}
-          className="relative text-[10px] font-mono font-bold text-[#052900] bg-secondary border border-[#68b24f] rounded px-2 py-0.5 select-none hover:brightness-110 transition"
+          className="relative text-[10px] font-mono font-bold text-bg-base bg-secondary border border-git-add rounded px-2 py-0.5 select-none hover:brightness-110 transition"
           title={updateInfo ? t('update.availableTitle', { version: updateInfo.version }) : t('settings.version')}
         >
           v{pkg.version}
           {(updateStatus === 'available' || updateStatus === 'downloaded') && (
-            <span className="absolute -right-1 -top-1 w-2 h-2 rounded-full bg-git-mod ring-2 ring-bg-base/70 shadow-[0_0_8px_rgba(var(--color-git-mod-rgb),0.9)]" />
+            <span className="absolute -right-1 -top-1 w-2 h-2 rounded-full bg-git-mod ring-2 ring-bg-base/70 shadow-[0_0_8px_var(--color-git-mod)]" />
           )}
         </button>
         <AnimatePresence>
@@ -94,7 +94,7 @@ export function UpdateControls({
                 <div className={cn(
                   'mt-1 h-2 w-2 rounded-full shrink-0',
                   updateStatus === 'available' || updateStatus === 'downloaded'
-                    ? 'bg-git-mod shadow-[0_0_8px_rgba(var(--color-git-mod-rgb),0.8)]'
+                    ? 'bg-git-mod shadow-[0_0_8px_var(--color-git-mod)]'
                     : 'bg-border-subtle',
                 )} />
                 <div className="min-w-0 flex-1">

@@ -19,10 +19,10 @@ import type { ProjectionConfig } from '@/lib/chronometric-projection';
 import type { TemporalAgentDecision } from '@/types/temporal-agent';
 import { useT } from '@/hooks/use-translation';
 
-const CYAN = '#5ed8ff';
-const GREEN = '#a3f185';
-const REJECT_RED = '#dc6a6a';
-const DEFER_ORANGE = '#fd9d1a';
+const CYAN = 'var(--color-primary)';
+const GREEN = 'var(--color-git-add)';
+const REJECT_RED = 'var(--color-error)';
+const DEFER_ORANGE = 'var(--color-git-mod)';
 
 function getOutcomeLabel(outcome: string, t: ReturnType<typeof useT>): string {
   const map: Record<string, string> = {
@@ -176,7 +176,7 @@ export function SpeculativeBranches({
               cx={n.x}
               cy={n.y}
               r={8}
-              fill="#020f1e"
+              fill="var(--color-bg-base)"
               stroke={accentColor}
               strokeWidth={isSelected ? 2.2 : 1.5}
               strokeDasharray="2 3"
@@ -230,7 +230,7 @@ export function SpeculativeBranches({
                       x={isFirstLine ? 24 : 0}
                       y={0}
                       fontSize="9.5"
-                      fill="#d9e7fc"
+                      fill="var(--color-text-primary)"
                       className="font-sans"
                     >
                       {line}

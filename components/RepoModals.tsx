@@ -120,7 +120,7 @@ function PrimaryButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex h-10 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-secondary to-[#68b24f] px-4 text-sm font-extrabold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:cursor-not-allowed disabled:opacity-50"
+      className="flex h-10 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-secondary to-git-add/80 px-4 text-sm font-extrabold text-bg-base shadow-lg shadow-secondary/20 transition-colors hover:from-git-add hover:to-git-add/90 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {isLoading ? <Loader2 size={14} className="animate-spin" /> : icon}
       {isLoading ? loadingText : children}
@@ -293,7 +293,7 @@ function CloneSourceTabs({
         onClick={() => setSource('my-repos')}
         className={cn(
           'h-9 rounded-md text-xs font-extrabold transition-colors',
-          source === 'my-repos' ? 'bg-secondary text-[#052900]' : 'text-text-secondary hover:text-text-primary',
+          source === 'my-repos' ? 'bg-secondary text-bg-base' : 'text-text-secondary hover:text-text-primary',
         )}
       >
         Mis repos de GitHub
@@ -304,7 +304,7 @@ function CloneSourceTabs({
         onClick={() => setSource('url')}
         className={cn(
           'h-9 rounded-md text-xs font-extrabold transition-colors',
-          source === 'url' ? 'bg-secondary text-[#052900]' : 'text-text-secondary hover:text-text-primary',
+          source === 'url' ? 'bg-secondary text-bg-base' : 'text-text-secondary hover:text-text-primary',
         )}
       >
         URL manual

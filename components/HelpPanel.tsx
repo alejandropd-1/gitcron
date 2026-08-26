@@ -151,11 +151,11 @@ export function HelpPanel({
                       <span>{t('page.help.flow.step5')}</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-secondary text-[#052900] flex items-center justify-center">✓</span>
+                      <span className="w-5 h-5 rounded-full bg-secondary text-bg-base flex items-center justify-center">✓</span>
                       <span>Click <strong className="text-secondary">{t('page.help.flow.step6')}</strong></span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-secondary text-[#052900] flex items-center justify-center">✓</span>
+                      <span className="w-5 h-5 rounded-full bg-secondary text-bg-base flex items-center justify-center">✓</span>
                       <span>Click <strong className="text-secondary">{t('page.help.flow.step7')}</strong></span>
                     </li>
                   </ol>

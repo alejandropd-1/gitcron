@@ -512,6 +512,7 @@ function GraphRowView({
             opacity: selected ? 0.6 : branchHighlighted ? 0.54 : 0.42,
           }}
         />
+      {/* Provisional: data-keep-color evita que el filtro global de tema claro invierta los carriles y nodos del grafo. Se retira en el change reemplazar-tema-claro-invertido. */}
       <svg width={graphWidth} height={ROW_H} className="block relative z-10" style={{ overflow: 'visible' }} data-keep-color>
         {/* Pass-through lanes */}
         {row.activeLanes.map(({ lane, color }) => (
@@ -668,6 +669,7 @@ function WIPRow({
       </div>
 
       <div className="shrink-0 overflow-visible" style={{ width: graphColumnWidth }}>
+        {/* Provisional: data-keep-color evita que el filtro global de tema claro invierta los carriles y nodos del grafo. Se retira en el change reemplazar-tema-claro-invertido. */}
         <svg width={graphWidth} height={ROW_H} className="block" style={{ overflow: 'visible' }} data-keep-color>
           <line
             x1={PADDING_LEFT} y1={ROW_H / 2} x2={PADDING_LEFT} y2={ROW_H}

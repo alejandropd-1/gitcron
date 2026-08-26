@@ -47,16 +47,16 @@ export function TaskConfirmToast({
           aria-modal="false"
           className="pointer-events-auto px-4 py-3 glass-alert-warning text-text-primary rounded-lg shadow-2xl flex items-center gap-3 w-[min(calc(100vw-2rem),760px)]"
         >
-          <AlertCircle size={20} className="shrink-0 text-[#f4b942]" />
+          <AlertCircle size={20} className="shrink-0 text-warning" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[#ffd98a] leading-tight">{title}</p>
+            <p className="text-sm font-semibold text-warning leading-tight">{title}</p>
             <p className="text-xs text-text-secondary mt-0.5 leading-snug">{description}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={onConfirm}
-              className="px-3 py-1.5 text-xs font-bold bg-[#f4b942]/15 hover:bg-[#f4b942]/25 text-[#ffd98a] rounded transition-colors whitespace-nowrap"
+              className="px-3 py-1.5 text-xs font-bold bg-warning/15 hover:bg-warning/25 text-warning rounded transition-colors whitespace-nowrap"
             >
               {confirmLabel}
             </button>

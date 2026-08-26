@@ -152,9 +152,9 @@ export function RepoTabs({
                   }, 50);
                 }}
                 className={cn(
-                  'app-titlebar-control group h-8 min-w-0 max-w-52 rounded-md flex items-center transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] cursor-grab active:cursor-grabbing',
+                  'app-titlebar-control group h-8 min-w-0 max-w-52 rounded-md flex items-center transition-colors shadow-[inset_0_1px_0_color-mix(in_srgb,var(--color-text-primary)_4%,transparent)] cursor-grab active:cursor-grabbing',
                   isActive
-                    ? 'bg-text-primary/10 text-text-primary shadow-[0_0_6px_rgba(163,241,133,0.22),inset_0_1px_0_rgba(255,255,255,0.1)]'
+                    ? 'bg-text-primary/10 text-text-primary shadow-[0_0_6px_color-mix(in_srgb,var(--color-git-add)_22%,transparent),inset_0_1px_0_color-mix(in_srgb,var(--color-text-primary)_10%,transparent)]'
                     : 'bg-text-primary/[0.035] text-text-secondary hover:text-text-primary hover:bg-text-primary/[0.07]',
                 )}
               >
@@ -173,8 +173,8 @@ export function RepoTabs({
                       className={cn(
                         'w-1.5 h-1.5 rounded-full shrink-0',
                         (repo.modifiedFiles && repo.modifiedFiles.length > 0)
-                          ? 'bg-git-mod shadow-[0_0_6px_rgba(253,157,26,0.6)]'
-                          : 'bg-secondary shadow-[0_0_6px_rgba(163,241,133,0.5)]',
+                          ? 'bg-git-mod shadow-[0_0_6px_color-mix(in_srgb,var(--color-git-mod)_60%,transparent)]'
+                          : 'bg-secondary shadow-[0_0_6px_color-mix(in_srgb,var(--color-git-add)_50%,transparent)]',
                       )}
                     />
                   )}
@@ -253,7 +253,7 @@ export function RepoTabs({
           aria-label="Cerrar"
           title="Cerrar"
           onClick={() => window.api?.windowClose()}
-          className="h-8 w-10 my-2 rounded-md flex items-center justify-center text-text-secondary hover:bg-error/20 hover:text-[#ffdad6] transition-colors"
+          className="h-8 w-10 my-2 rounded-md flex items-center justify-center text-text-secondary hover:bg-error/20 hover:text-error transition-colors"
         >
           <X size={15} />
         </button>

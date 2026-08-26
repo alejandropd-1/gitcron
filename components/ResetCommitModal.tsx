@@ -108,10 +108,10 @@ export function ResetCommitModal({ commitHash, onClose, onConfirm }: ResetCommit
                   value="hard"
                   checked={resetMode === 'hard'}
                   onChange={() => setResetMode('hard')}
-                  className="mt-1 accent-[#dc6a6a]"
+                  className="mt-1 accent-error"
                 />
                 <div>
-                  <span className="text-xs font-bold text-[#dc6a6a] block">Hard (--hard)</span>
+                  <span className="text-xs font-bold text-error block">Hard (--hard)</span>
                   <span className="text-[11px] text-text-secondary leading-relaxed block mt-0.5">
                     {t('resetModal.hard')}
                   </span>
@@ -122,7 +122,7 @@ export function ResetCommitModal({ commitHash, onClose, onConfirm }: ResetCommit
             {/* Hard Reset Warnings & Confirmation Checkbox */}
             {resetMode === 'hard' && (
               <div className="flex flex-col gap-3 p-3 rounded bg-red-500/10 border border-red-500/30 mb-5 animate-pulse-slow">
-                <div className="flex gap-2 text-[#dc6a6a]">
+                <div className="flex gap-2 text-error">
                   <AlertCircle size={16} className="shrink-0 mt-0.5" />
                   <span className="text-[11px] leading-relaxed font-semibold">
                     {t('resetModal.warning')}
@@ -133,7 +133,7 @@ export function ResetCommitModal({ commitHash, onClose, onConfirm }: ResetCommit
                     type="checkbox"
                     checked={hardResetConfirmed}
                     onChange={(e) => setHardResetConfirmed(e.target.checked)}
-                    className="mt-0.5 accent-[#dc6a6a]"
+                    className="mt-0.5 accent-error"
                   />
                   <span className="text-[10px] text-text-primary leading-normal">
                     {t('resetModal.confirmCheckbox')}
@@ -151,8 +151,8 @@ export function ResetCommitModal({ commitHash, onClose, onConfirm }: ResetCommit
                 disabled={isLoading || (resetMode === 'hard' && !hardResetConfirmed)}
                 className={`px-4 py-2 text-sm font-bold rounded shadow-lg transition-all ${
                   resetMode === 'hard'
-                    ? 'bg-gradient-to-br from-[#dc6a6a] to-[#b34f4f] hover:from-[#e57979] hover:to-[#9f3e3e] shadow-red-500/10 text-white disabled:opacity-40 disabled:cursor-not-allowed'
-                    : 'bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-secondary/20 disabled:opacity-50 text-[#052900]'
+                    ? 'bg-error hover:bg-error/90 shadow-error/10 text-white disabled:opacity-40 disabled:cursor-not-allowed'
+                    : 'bg-git-add hover:bg-git-add/90 shadow-git-add/20 disabled:opacity-50 text-bg-base'
                 }`}
               >
                 <RotateCcw size={14} className="inline mr-1" /> {t('resetModal.button')}

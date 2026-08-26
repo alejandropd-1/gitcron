@@ -435,7 +435,7 @@ export function SettingsPanel({
                     {defaultFolder && (
                       <button
                         onClick={() => changeDefaultFolder(null)}
-                        className="px-4 py-2.5 rounded-lg border bg-bg-base/70 border-border-subtle/15 text-sm text-text-secondary hover:text-[#ffa8a3] hover:border-[#ffa8a3]/30 transition-colors"
+                        className="px-4 py-2.5 rounded-lg border bg-bg-base/70 border-border-subtle/15 text-sm text-text-secondary hover:text-error hover:border-error/30 transition-colors"
                       >
                         {t('settings.defaultFolderClear')}
                       </button>

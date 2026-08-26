@@ -23,4 +23,18 @@ describe('Pipeline details', () => {
     expect(withoutAgent?.agentId).toBeNull();
     expect(withoutAgent?.taskId).toBeNull();
   });
+
+  it('la pestaña activa de detalles no tiene declaraciones duplicadas ni botón cian pleno en globals.css', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const cssPath = path.resolve(process.cwd(), 'app/globals.css');
+    const content = fs.readFileSync(cssPath, 'utf-8');
+
+    // Comprueba que .pipeline-details__tab--active no esté declarado más de una vez
+    const matches = content.match(/\.pipeline-details__tab--active\s*\{/g);
+    expect(matches?.length).toBe(1);
+
+    // Comprueba que no tenga la regla contradictoria agresiva con fondo cian pleno
+    expect(content).not.toMatch(/\.pipeline-details__tab--active\s*\{[^}]*background-color:\s*var\(--color-primary\)/);
+  });
 });

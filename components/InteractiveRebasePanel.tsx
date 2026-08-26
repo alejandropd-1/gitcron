@@ -389,12 +389,12 @@ export default function InteractiveRebasePanel({
             <button
               onClick={handleStart}
               disabled={isLoading || !!validationError}
-              className="px-4 py-2 text-xs font-bold rounded shadow-lg bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] text-[#052900] disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1 cursor-pointer"
+              className="px-4 py-2 text-xs font-bold rounded shadow-lg bg-gradient-to-br from-git-add to-git-add/80 hover:from-git-add hover:to-git-add/90 text-bg-base disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1 cursor-pointer"
             >
               {isLoading ? (
-                <div className="w-3.5 h-3.5 rounded-full border border-[#052900] border-t-transparent animate-spin mr-1" />
+                <div className="w-3.5 h-3.5 rounded-full border border-bg-base border-t-transparent animate-spin mr-1" />
               ) : (
-                <Play size={11} className="fill-[#052900]" />
+                <Play size={11} className="fill-bg-base" />
               )}
               {t('rebase.btn.start')}
             </button>

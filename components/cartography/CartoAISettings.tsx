@@ -158,7 +158,7 @@ export function CartoAISettings() {
               {probing ? t('cartography.ai.checking') : t('cartography.ai.check')}
             </button>
             {probe && (
-              <span className={cn('flex items-center gap-1.5 text-xs', probe.available ? 'text-secondary' : 'text-[#ffa8a3]')}>
+              <span className={cn('flex items-center gap-1.5 text-xs', probe.available ? 'text-secondary' : 'text-error')}>
                 {probe.available ? <Wifi size={13} /> : <WifiOff size={13} />}
                 <span className="min-w-0">
                   {probe.available ? t('cartography.ai.available') : (probe.detail || t('cartography.ai.unavailable'))}
@@ -228,7 +228,7 @@ function OnlineAccess({ model, onModelChange }: { model: string; onModelChange: 
           ) : hasKey ? (
             <span className="text-secondary">{t('cartography.ai.keyConfigured')}</span>
           ) : (
-            <span className="text-[#ffa8a3]">{t('cartography.ai.keyNotSet')}</span>
+            <span className="text-error">{t('cartography.ai.keyNotSet')}</span>
           )}
         </span>
       </div>
@@ -262,7 +262,7 @@ function OnlineAccess({ model, onModelChange }: { model: string; onModelChange: 
           <button
             type="button"
             onClick={() => void removeKey()}
-            className="shrink-0 rounded-lg border border-border-subtle/20 bg-bg-base/70 px-3 py-2 text-sm text-text-secondary transition-colors hover:text-[#ffa8a3] hover:border-[#ffa8a3]/30"
+            className="shrink-0 rounded-lg border border-border-subtle/20 bg-bg-base/70 px-3 py-2 text-sm text-text-secondary transition-colors hover:text-error hover:border-error/30"
           >
             {t('cartography.ai.removeKey')}
           </button>

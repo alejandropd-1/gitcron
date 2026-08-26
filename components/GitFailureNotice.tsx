@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, ChevronRight } from 'lucide-react';
+import { AlertTriangle, ChevronDown } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { describePushFailure, type FailureRemedy } from '@/lib/git-failure-message';
 import { cn } from '@/lib/utils';
@@ -44,7 +44,7 @@ export function GitFailureNotice({
     // proyecto ya tiene, con fondo opaco al 98%. La primera versión usaba un
     // ámbar al 5% y el texto se leía encima del grafo — Ale lo marcó.
     <div className={cn('glass-alert-warning rounded-lg p-3 text-sm', className)}>
-      <p className="flex items-start gap-2 text-[#ffd98a]">
+      <p className="flex items-start gap-2 text-warning">
         <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
         <span className="font-medium">{t(failure.key, failure.params)}</span>
       </p>
@@ -52,7 +52,7 @@ export function GitFailureNotice({
       {failure.remedy && onRemedy && (
         <button
           type="button"
-          className="mt-2.5 rounded bg-[#f4b942]/15 px-3 py-1.5 text-xs font-bold text-[#ffd98a] transition-colors hover:bg-[#f4b942]/25 disabled:opacity-50"
+          className="mt-2.5 rounded bg-warning/15 px-3 py-1.5 text-xs font-bold text-warning transition-colors hover:bg-warning/25 disabled:opacity-50"
           disabled={busy}
           onClick={() => onRemedy(failure.remedy!)}
         >
@@ -66,16 +66,16 @@ export function GitFailureNotice({
           tiene que leer. */}
       <button
         type="button"
-        className="mt-2 flex items-center gap-1 text-xs text-[#ffd98a]/70 transition-colors hover:text-[#ffd98a]"
+        className="mt-2 flex items-center gap-1 text-xs text-warning/70 transition-colors hover:text-warning"
         onClick={() => setShowRaw((open) => !open)}
         aria-expanded={showRaw}
       >
-        <ChevronRight size={13} className={cn('transition-transform', showRaw && 'rotate-90')} aria-hidden="true" />
+        <ChevronDown size={13} className={cn('transition-transform', showRaw && 'rotate-180')} aria-hidden="true" />
         {t('git.pushFailure.showRaw')}
       </button>
       {showRaw && (
         // `user-select` explícito: el caso de uso es copiarlo para pedir ayuda.
-        <pre className="mt-1 max-h-48 select-text overflow-auto whitespace-pre-wrap break-words rounded bg-black/40 p-2 text-[11px] text-[#ffd98a]/80">
+        <pre className="mt-1 max-h-48 select-text overflow-auto whitespace-pre-wrap break-words rounded bg-black/40 p-2 text-[11px] text-warning/80">
           {failure.raw}
         </pre>
       )}

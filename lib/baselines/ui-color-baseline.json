@@ -1,0 +1,53 @@
+{
+  "_comment_exento_sombras": "La paleta Carbon Soul no tiene con qué hacer una sombra —su color más oscuro es --color-bg-surface (#272c36), que es la superficie misma, y Nord no trae negro—. Una sombra no es color de marca sino una señal de elevación y profundidad geométrica, por lo que no le corresponde token y queda exenta.",
+  "exento": {
+    "components/ChronometricGraph.tsx": {
+      "#a3f185": 35,
+      "#5ed8ff": 55,
+      "#dc6a6a": 8,
+      "#fd9d1a": 11,
+      "#697789": 35,
+      "#d9e7fc": 9,
+      "#80d1e2": 5,
+      "#1984cd": 1,
+      "#e5d6b4": 7,
+      "#81d2e7": 1,
+      "#b2dece": 3,
+      "#75d0ee": 3,
+      "#51c9f2": 4,
+      "#f4c569": 2,
+      "#020f1e": 4,
+      "rgba(94, 216, 255, 0.25)": 1,
+      "rgba(94, 216, 255, 0.1)": 1,
+      "rgba(94, 216, 255, 0.5)": 1,
+      "rgba(94, 216, 255, 0.2)": 1,
+      "rgba(0, 0, 0, 0.45)": 1,
+      "rgba(255, 255, 255, 0.08)": 1,
+      "rgba(163, 241, 133, 0.1)": 1,
+      "#9eacc0": 6,
+      "#b6f59f": 1,
+      "#2D2E39": 2,
+      "#cbc3d7": 2,
+      "#3c495a": 1,
+      "#061625": 1
+    },
+    "components/CommitGraph.tsx": {
+      "#fd9d1a": 1,
+      "#9eacc0": 1,
+      "#020f1e": 1,
+      "#d9e7fc": 3,
+      "#697789": 2,
+      "#a3f185": 1
+    },
+    "app/globals.css": {
+      "#f5f5f7": 1,
+      "rgba(0, 0, 0, 0.28)": 1,
+      "rgba(0, 0, 0, 0.42)": 1,
+      "rgba(0, 0, 0, 0.5)": 2
+    },
+    "components/RepoSidebarParts.tsx": {
+      "rgba(0,0,0,0.25)": 2
+    }
+  },
+  "pendiente": {}
+}

@@ -103,7 +103,7 @@ export function CheckoutConflictModal({
               <button
                 onClick={() => onStashAndSwitch(checkoutConflict.branch)}
                 disabled={isLoading}
-                className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
+                className="px-4 py-2 bg-git-add hover:bg-git-add/90 shadow-lg shadow-git-add/20 disabled:opacity-50 text-bg-base text-sm font-bold rounded flex items-center gap-2"
               >
                 <Archive size={14} />
                 {t('checkoutConflict.stashAndSwitch')}
@@ -151,12 +151,12 @@ export function ResetAllConfirmDialog({
           aria-describedby="reset-all-description"
           className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[310] glass-alert-error rounded-lg shadow-2xl px-4 py-3 flex items-start gap-3 w-[min(calc(100vw-2rem),760px)]"
         >
-          <AlertCircle size={20} className="text-[#ffdad6] shrink-0 mt-0.5" aria-hidden="true" />
+          <AlertCircle size={20} className="text-error shrink-0 mt-0.5" aria-hidden="true" />
           <div className="flex-1 min-w-0">
-            <p id="reset-all-title" className="text-sm font-bold text-[#ffdad6]">
+            <p id="reset-all-title" className="text-sm font-bold text-error">
               {t('resetAll.title')}
             </p>
-            <p id="reset-all-description" className="text-xs text-[#ffdad6]/90 mt-0.5 leading-snug">
+            <p id="reset-all-description" className="text-xs text-error/90 mt-0.5 leading-snug">
               {t('resetAll.warning')}
             </p>
           </div>
@@ -164,7 +164,7 @@ export function ResetAllConfirmDialog({
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 text-xs font-medium text-[#ffdad6] hover:text-white rounded transition-colors"
+              className="px-3 py-1.5 text-xs font-medium text-error hover:text-white rounded transition-colors"
             >
               {t('modal.cancel')}
             </button>
@@ -172,7 +172,7 @@ export function ResetAllConfirmDialog({
               type="button"
               onClick={onConfirm}
               disabled={isLoading}
-              className="px-3 py-1.5 text-xs font-bold bg-error hover:bg-[#ff8a86] text-white rounded transition-colors disabled:opacity-50"
+              className="px-3 py-1.5 text-xs font-bold bg-error hover:bg-error/80 text-white rounded transition-colors disabled:opacity-50"
             >
               {t('resetAll.button')}
             </button>
@@ -227,7 +227,7 @@ export function CleanUntrackedModal({
           >
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
-                <h3 className="font-bold text-[#ffd98a] flex items-center gap-2">
+                <h3 className="font-bold text-warning flex items-center gap-2">
                   <Trash2 size={16} /> {t('cleanModal.title')}
                 </h3>
                 <p className="text-xs text-text-secondary mt-1">{t('cleanModal.desc')}</p>
@@ -237,7 +237,7 @@ export function CleanUntrackedModal({
               </button>
             </div>
 
-            <div className="flex items-start gap-2 p-3 rounded bg-[#f4b942]/10 border border-[#f4b942]/30 text-[#ffd98a] mb-4">
+            <div className="flex items-start gap-2 p-3 rounded bg-warning/10 border border-warning/30 text-warning mb-4">
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
               <p className="text-[11px] leading-relaxed font-semibold">{t('cleanModal.warning')}</p>
             </div>
@@ -251,7 +251,7 @@ export function CleanUntrackedModal({
                   type="button"
                   onClick={() => setSelectedCleanFiles(new Set(cleanableFiles.filter((filePath) => !filePath.endsWith('/'))))}
                   disabled={cleanModalLoading || cleanableFiles.length === 0}
-                  className="text-[10px] text-secondary hover:text-[#052900] px-2 py-0.5 rounded border border-secondary/40 hover:bg-secondary transition-colors disabled:opacity-40"
+                  className="text-[10px] text-secondary hover:text-bg-base px-2 py-0.5 rounded border border-secondary/40 hover:bg-secondary transition-colors disabled:opacity-40"
                 >
                   {t('cleanModal.selectFiles')}
                 </button>
@@ -259,7 +259,7 @@ export function CleanUntrackedModal({
                   type="button"
                   onClick={() => setSelectedCleanFiles(new Set())}
                   disabled={cleanModalLoading || cleanableFiles.length === 0}
-                  className="text-[10px] text-text-secondary hover:text-bg-base px-2 py-0.5 rounded border border-[#9eacc0]/40 hover:bg-[#9eacc0] transition-colors disabled:opacity-40"
+                  className="text-[10px] text-text-secondary hover:text-bg-base px-2 py-0.5 rounded border border-border-subtle hover:bg-border-subtle transition-colors disabled:opacity-40"
                 >
                   {t('cleanModal.selectNone')}
                 </button>
@@ -295,10 +295,10 @@ export function CleanUntrackedModal({
                             return next;
                           });
                         }}
-                        className="accent-[#f4b942] shrink-0"
+                        className="accent-warning shrink-0"
                       />
                       {filePath.endsWith('/') ? (
-                        <Folder size={13} className="text-[#ffd98a] shrink-0" />
+                        <Folder size={13} className="text-warning shrink-0" />
                       ) : (
                         <FileText size={13} className="text-text-secondary shrink-0" />
                       )}
@@ -319,7 +319,7 @@ export function CleanUntrackedModal({
               <button
                 onClick={onClean}
                 disabled={cleanModalLoading || selectedCleanFiles.size === 0}
-                className="px-4 py-2 bg-gradient-to-br from-[#dc6a6a] to-[#b34f4f] hover:from-[#e57979] hover:to-[#9f3e3e] shadow-lg shadow-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded flex items-center gap-2"
+                className="px-4 py-2 bg-error hover:bg-error/90 shadow-lg shadow-error/20 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded flex items-center gap-2"
               >
                 {cleanModalLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 {cleanModalLoading ? t('cleanModal.cleaning') : t('cleanModal.cleanSelected')}
@@ -385,7 +385,7 @@ export function AmendLastCommitModal({
               </button>
             </div>
             <p className="text-xs text-text-secondary mb-3">{t('amend.desc')}</p>
-            <div className="bg-git-mod/10 border border-git-mod/30 rounded p-2 text-xs text-[#ffd89e] mb-4">
+            <div className="bg-git-mod/10 border border-git-mod/30 rounded p-2 text-xs text-warning mb-4">
               {t('amend.warning')}
             </div>
             <div className="space-y-3 flex-1 overflow-y-auto scrollbar-thin">
@@ -414,7 +414,7 @@ export function AmendLastCommitModal({
               <button
                 onClick={onConfirm}
                 disabled={isLoading || !hasCommits}
-                className="flex-1 py-2 bg-gradient-to-br from-[#fd9d1a] to-[#c87d10] hover:from-[#feab33] hover:to-[#d68f1f] disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-[#2a1500] rounded transition-colors"
+                className="flex-1 py-2 bg-git-mod hover:bg-git-mod/90 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-bg-base rounded transition-colors"
               >
                 {isLoading ? '...' : t('amend.button')}
               </button>
@@ -486,7 +486,7 @@ export function SquashCommitsModal({
                 <X size={16} />
               </button>
             </div>
-            <div className="bg-git-mod/10 border border-git-mod/30 rounded p-2 text-xs text-[#ffd89e] mb-4">
+            <div className="bg-git-mod/10 border border-git-mod/30 rounded p-2 text-xs text-warning mb-4">
               {t('page.modals.squash.warning')}
             </div>
             <div className="space-y-4">
@@ -502,7 +502,7 @@ export function SquashCommitsModal({
                       className={cn(
                         'flex-1 py-2 rounded border text-sm font-bold transition-colors',
                         squashN === n
-                          ? 'bg-git-mod/15 border-[#fd9d1a]/50 text-git-mod'
+                          ? 'bg-git-mod/15 border-git-mod/50 text-git-mod'
                           : 'bg-bg-base/70 border-border-subtle/30 text-text-secondary hover:text-text-primary'
                       )}
                     >
@@ -538,7 +538,7 @@ export function SquashCommitsModal({
               <button
                 onClick={onConfirm}
                 disabled={isLoading || commits.length < 2}
-                className="flex-1 py-2 bg-gradient-to-br from-[#fd9d1a] to-[#c87d10] hover:from-[#feab33] hover:to-[#d68f1f] disabled:opacity-40 text-sm font-bold text-[#2a1500] rounded transition-colors"
+                className="flex-1 py-2 bg-git-mod hover:bg-git-mod/90 disabled:opacity-40 text-sm font-bold text-bg-base rounded transition-colors"
               >
                 {isLoading ? '...' : t('page.modals.squash.button', { n: squashN })}
               </button>
@@ -607,7 +607,7 @@ export function NewBranchModal({
         <button
           onClick={onCreate}
           disabled={!branchName.trim() || isLoading}
-          className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
+          className="px-4 py-2 bg-git-add hover:bg-git-add/90 shadow-lg shadow-git-add/20 disabled:opacity-50 text-bg-base text-sm font-bold rounded"
         >
           <Plus size={14} className="inline mr-1" /> {t('modal.create')}
         </button>
@@ -683,7 +683,7 @@ export function CreateTagModal({
         <button
           onClick={onCreate}
           disabled={!tagName.trim() || isLoading}
-          className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
+          className="px-4 py-2 bg-git-add hover:bg-git-add/90 shadow-lg shadow-git-add/20 disabled:opacity-50 text-bg-base text-sm font-bold rounded"
         >
           <Plus size={14} className="inline mr-1" /> {t('createTag.button')}
         </button>
@@ -734,7 +734,7 @@ export function MergeNeedsCheckoutModal({
         <button
           onClick={onConfirm}
           disabled={isLoading}
-          className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded flex items-center gap-2"
+          className="px-4 py-2 bg-git-add hover:bg-git-add/90 shadow-lg shadow-git-add/20 disabled:opacity-50 text-bg-base text-sm font-bold rounded flex items-center gap-2"
         >
           <GitMerge size={14} />
           {t('mergeCheckout.button', { branch: targetBranch })}
@@ -788,7 +788,7 @@ export function RenameBranchModal({
         <button
           onClick={onConfirm}
           disabled={!newName.trim() || newName === oldName || isLoading}
-          className="px-4 py-2 bg-gradient-to-br from-[#a3f185] to-[#68b24f] hover:from-[#95e279] hover:to-[#4a9a31] shadow-lg shadow-secondary/20 disabled:opacity-50 text-[#052900] text-sm font-bold rounded"
+          className="px-4 py-2 bg-git-add hover:bg-git-add/90 shadow-lg shadow-git-add/20 disabled:opacity-50 text-bg-base text-sm font-bold rounded"
         >
           {t('rename.button')}
         </button>
@@ -819,19 +819,19 @@ export function ForcePushConfirmModal({
       open={open}
       onClose={onCancel}
       backdropClassName="fixed inset-0 bg-black/70 flex items-center justify-center z-[300]"
-      panelClassName="bg-[#152335]/98 backdrop-blur-xl border border-[#ffa8a3]/20 rounded-2xl p-6 w-[480px]"
+      panelClassName="bg-bg-surface backdrop-blur-xl border border-error/20 rounded-2xl p-6 w-[480px]"
     >
       <div className="flex items-start gap-4 mb-5">
-        <div className="p-3 bg-[#9f0519]/25 rounded-xl border border-[#9f0519]/40 text-[#ff8b87] shrink-0">
+        <div className="p-3 bg-error/25 rounded-xl border border-error/40 text-error shrink-0">
           <AlertCircle size={24} />
         </div>
         <div className="flex-1">
-          <h3 className="font-extrabold text-lg text-[#ffdad6] mb-2 tracking-tight">{t('page.modals.forcePush.title')}</h3>
-          <p className="text-sm text-[#ccdbe8] leading-relaxed mb-3">
+          <h3 className="font-extrabold text-lg text-error mb-2 tracking-tight">{t('page.modals.forcePush.title')}</h3>
+          <p className="text-sm text-text-primary leading-relaxed mb-3">
             {t('page.modals.forcePush.desc')}
           </p>
           <div className="bg-bg-base/80 border border-border-subtle/25 rounded-xl p-3 mb-1">
-            <p className="text-[11px] text-[#ff8b87] uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5">
+            <p className="text-[11px] text-error uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5">
               {t('page.modals.forcePush.warningTitle')}
             </p>
             <p className="text-xs text-text-secondary leading-relaxed">
@@ -843,13 +843,13 @@ export function ForcePushConfirmModal({
       <div className="flex gap-3 justify-end">
         <button
           onClick={onCancel}
-          className="px-5 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-[#1a2e44]/50 rounded-xl transition duration-200"
+          className="px-5 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-overlay/50 rounded-xl transition duration-200"
         >
           {t('modal.cancel')}
         </button>
         <button
           onClick={onConfirm}
-          className="px-5 py-2.5 bg-gradient-to-br from-[#ff8b87] to-[#d63a35] hover:from-[#ff9f9c] hover:to-[#e64742] shadow-lg shadow-[#d63a35]/20 text-[#fff0ef] text-sm font-bold rounded-xl transition duration-200"
+          className="px-5 py-2.5 bg-error hover:bg-error/90 shadow-lg shadow-error/20 text-white text-sm font-bold rounded-xl transition duration-200"
         >
           {t('page.modals.forcePush.confirmBtn')}
         </button>
@@ -981,7 +981,7 @@ export function InitializeRepoGuardModal({
       backdropClassName="fixed inset-0 bg-black/65 flex items-center justify-center z-[220] px-4"
       panelClassName="glass-overlay rounded-xl shadow-2xl w-[min(calc(100vw-2rem),540px)] overflow-hidden border border-secondary/25"
     >
-      <div className="h-2 bg-gradient-to-r from-secondary via-primary to-[#ffd98a]" />
+      <div className="h-2 bg-gradient-to-r from-secondary via-primary to-warning" />
       <div className="p-6">
         <div className="flex items-start gap-4">
           <div className="shrink-0 rounded-lg border border-secondary/35 bg-secondary/12 p-3 text-secondary shadow-lg shadow-secondary/10">
@@ -1081,15 +1081,15 @@ export function InitializeRepoGuardModal({
               </div>
             )}
             {remoteError && (
-              <div className="mt-3 flex items-start gap-2 rounded border border-[#ff8b87]/25 bg-[#9f0519]/15 px-3 py-2 text-xs leading-relaxed text-[#ffdad6]">
-                <AlertCircle size={14} className="mt-0.5 shrink-0 text-[#ff8b87]" />
+              <div className="mt-3 flex items-start gap-2 rounded border border-error/25 bg-error/15 px-3 py-2 text-xs leading-relaxed text-error">
+                <AlertCircle size={14} className="mt-0.5 shrink-0 text-error" />
                 <span>{remoteError}</span>
               </div>
             )}
             {remoteHasHistory && (
-              <div className="mt-3 rounded border border-[#ffd98a]/30 bg-[#ffd98a]/10 p-3">
+              <div className="mt-3 rounded border border-warning/30 bg-warning/10 p-3">
                 <div className="flex items-start gap-2 text-xs leading-relaxed text-text-primary">
-                  <AlertCircle size={14} className="mt-0.5 shrink-0 text-[#ffd98a]" />
+                  <AlertCircle size={14} className="mt-0.5 shrink-0 text-warning" />
                   <div>
                     <p className="font-bold">{t('initGuard.remoteHistory.title')}</p>
                     <p className="mt-1 text-text-secondary">{t('initGuard.remoteHistory.desc')}</p>
@@ -1105,7 +1105,7 @@ export function InitializeRepoGuardModal({
                     type="button"
                     onClick={handleAdoptRemote}
                     disabled={isBusy}
-                    className="flex items-center gap-2 rounded border border-[#ffd98a]/35 bg-[#ffd98a]/15 px-4 py-2 text-sm font-bold text-[#ffe8ad] transition-colors hover:bg-[#ffd98a]/20 disabled:opacity-50"
+                    className="flex items-center gap-2 rounded border border-warning/35 bg-warning/15 px-4 py-2 text-sm font-bold text-warning transition-colors hover:bg-warning/20 disabled:opacity-50"
                   >
                     <GitBranch size={14} />
                     {t('initGuard.remoteHistory.action')}
@@ -1278,8 +1278,8 @@ export function PublishRepositoryModal({
         </button>
       )}
       {error && (
-        <div className="mt-4 flex items-start gap-2 rounded border border-[#ff8b87]/25 bg-[#9f0519]/15 px-3 py-2 text-xs leading-relaxed text-[#ffdad6]" role="alert">
-          <AlertCircle size={14} className="mt-0.5 shrink-0 text-[#ff8b87]" />
+        <div className="mt-4 flex items-start gap-2 rounded border border-error/25 bg-error/15 px-3 py-2 text-xs leading-relaxed text-error" role="alert">
+          <AlertCircle size={14} className="mt-0.5 shrink-0 text-error" />
           <span>{error}</span>
         </div>
       )}
@@ -1362,7 +1362,7 @@ export function AddRemoteModal({ show, onClose, onAdd, isLoading }: AddRemoteMod
           <button
             type="submit"
             disabled={isLoading || !name.trim() || !url.trim()}
-            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-secondary to-[#68b24f] px-4 text-xs font-extrabold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-git-add px-4 text-xs font-extrabold text-bg-base shadow-lg shadow-git-add/20 transition-colors hover:bg-git-add/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
             {t('sidebar.remoteAdd')}
@@ -1434,7 +1434,7 @@ export function RenameRemoteModal({ remote, onClose, onRename, isLoading }: Rena
           <button
             type="submit"
             disabled={isLoading || !newName.trim() || newName.trim() === remote?.name}
-            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-secondary to-[#68b24f] px-4 text-xs font-extrabold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-git-add px-4 text-xs font-extrabold text-bg-base shadow-lg shadow-git-add/20 transition-colors hover:bg-git-add/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
             {t('sidebar.remoteRename')}
@@ -1506,7 +1506,7 @@ export function SetRemoteUrlModal({ remote, onClose, onSetUrl, isLoading }: SetR
           <button
             type="submit"
             disabled={isLoading || !url.trim()}
-            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-secondary to-[#68b24f] px-4 text-xs font-extrabold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-git-add px-4 text-xs font-extrabold text-bg-base shadow-lg shadow-git-add/20 transition-colors hover:bg-git-add/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
             {t('sidebar.remoteSetUrl')}
@@ -1615,7 +1615,7 @@ export function NewWorktreeModal({ show, onClose, onAdd, onPickFolder, isLoading
           <button
             type="submit"
             disabled={isLoading || !folderPath.trim() || !branch.trim()}
-            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-secondary to-[#68b24f] px-4 text-xs font-extrabold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-git-add px-4 text-xs font-extrabold text-bg-base shadow-lg shadow-git-add/20 transition-colors hover:bg-git-add/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
             {t('sidebar.worktreeAdd')}
@@ -1701,7 +1701,7 @@ export function NewSubmoduleModal({ show, onClose, onAdd, isLoading }: NewSubmod
           <button
             type="submit"
             disabled={isLoading || !url.trim() || !path.trim()}
-            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-secondary to-[#68b24f] px-4 text-xs font-extrabold text-[#052900] shadow-lg shadow-secondary/20 transition-colors hover:from-[#95e279] hover:to-[#4a9a31] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-git-add px-4 text-xs font-extrabold text-bg-base shadow-lg shadow-git-add/20 transition-colors hover:bg-git-add/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
             {t('sidebar.submoduleAdd')}

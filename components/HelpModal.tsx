@@ -21,7 +21,7 @@ export function StatusBadge({ label, count, color, letter }: { label: string; co
 export function FlowStep({ n, done, children }: { n: number; done: boolean; children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-3">
-      <span className={cn('shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold', done ? 'bg-secondary text-[#052900]' : 'bg-border-subtle text-text-secondary')}>
+      <span className={cn('shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold', done ? 'bg-secondary text-bg-base' : 'bg-border-subtle text-text-secondary')}>
         {done ? '✓' : n}
       </span>
       <span className={cn('flex-1', done && 'text-text-secondary')}>{children}</span>

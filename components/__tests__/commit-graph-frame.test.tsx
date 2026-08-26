@@ -234,30 +234,30 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
 
   it('conserva explícitamente los bordes de datos y tarjetas requeridos', () => {
     // 1. DATO: Fila de tarea actual en curso lleva acento cian
-    expect(cssContent).toMatch(/\.taskList\s*>\s*li\[data-current='true'\]\s*\{[^}]*border-left:\s*3px\s+solid\s+var\(--os-cyan\)/);
+    expect(cssContent).toMatch(/\.taskList\s*>\s*li\[data-current='true'\]\s*\{[^}]*border-left:\s*3px\s+solid\s+var\(--color-primary\)/);
 
     // 2. TARJETA: Grupo de archivos encapsulado
-    expect(cssContent).toMatch(/\.fileGroup\s*\{[^}]*border:\s*1px\s+solid\s+var\(--os-border\)/);
+    expect(cssContent).toMatch(/\.fileGroup\s*\{[^}]*border:\s*1px\s+solid\s+var\(--color-border-subtle\)/);
 
     // 3. TARJETA: Tarjeta de sector de IA
-    expect(cssContent).toMatch(/\.aiPanel\s*\{[^}]*border:\s*1px\s+solid\s+var\(--os-border\)/);
+    expect(cssContent).toMatch(/\.aiPanel\s*\{[^}]*border:\s*1px\s+solid\s+var\(--color-border-subtle\)/);
 
     // 4. DATO: Aviso de autoría por IA lleva acento ámbar
-    expect(cssContent).toMatch(/\.aiNotice\s*\{[^}]*border-left:\s*2px\s+solid\s+var\(--os-amber/);
+    expect(cssContent).toMatch(/\.aiNotice\s*\{[^}]*border-left:\s*2px\s+solid\s+var\(--color-warning\)/);
 
     // 5. DATO: Advertencia sobre rama base lleva acento ámbar
-    expect(cssContent).toMatch(/\.branchBase\s*\{[^}]*border-left:\s*2px\s+solid\s+var\(--os-amber/);
+    expect(cssContent).toMatch(/\.branchBase\s*\{[^}]*border-left:\s*2px\s+solid\s+var\(--color-warning\)/);
 
     // 6. DATO: Siguiente paso lleva acento cian
-    expect(cssContent).toMatch(/\.nextStep\s*\{[^}]*border-left:\s*2px\s+solid\s+var\(--os-cyan/);
+    expect(cssContent).toMatch(/\.nextStep\s*\{[^}]*border-left:\s*2px\s+solid\s+var\(--color-primary\)/);
 
     // 7. TARJETA: Tarjeta del motor OpenSpec
-    expect(cssContent).toMatch(/\.engineCard\s*\{[^}]*border:\s*1px\s+solid\s+var\(--os-border/);
+    expect(cssContent).toMatch(/\.engineCard\s*\{[^}]*border:\s*1px\s+solid\s+var\(--color-border-subtle\)/);
 
     // 8. DATO: Divergencia en rojo
-    expect(cssContent).toMatch(/\.divergenceNotice\[data-status='divergent'\]\s*\{[^}]*border:\s*1px\s+solid\s+rgba\(239,\s*68,\s*68/);
+    expect(cssContent).toMatch(/\.divergenceNotice\[data-status='divergent'\]\s*\{[^}]*border:\s*1px\s+solid\s+color-mix\(in srgb,\s*var\(--color-error\)/);
 
     // 9. TARJETA / DATO: Banner de seguridad en revisión
-    expect(cssContent).toMatch(/\.reviewSafetyBanner\s*\{[^}]*border-left:\s*3px\s+solid\s+var\(--os-cyan/);
+    expect(cssContent).toMatch(/\.reviewSafetyBanner\s*\{[^}]*border-left:\s*3px\s+solid\s+var\(--color-primary\)/);
   });
 });

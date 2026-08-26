@@ -185,9 +185,9 @@ export function PageToasts({
             aria-modal="false"
             className="pointer-events-auto px-4 py-3 glass-alert-warning text-text-primary rounded-lg shadow-2xl flex items-center gap-3 w-[min(calc(100vw-2rem),760px)]"
           >
-            <AlertCircle size={20} className="shrink-0 text-[#f4b942]" />
+            <AlertCircle size={20} className="shrink-0 text-warning" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#ffd98a] leading-tight">
+              <p className="text-sm font-semibold text-warning leading-tight">
                 {pullDecision.mode === 'diverged'
                   ? t('pullDecision.divergedTitle', { branch: pullDecision.branch })
                   : t('pullDecision.behindTitle', { branch: pullDecision.branch })}
@@ -224,13 +224,13 @@ export function PageToasts({
               <button
                 type="button"
                 onClick={() => void onPullDecision('merge')}
-                className="px-3 py-1.5 text-xs font-bold bg-[#f4b942]/15 hover:bg-[#f4b942]/25 text-[#ffd98a] rounded transition-colors whitespace-nowrap"
+                className="px-3 py-1.5 text-xs font-bold bg-warning/15 hover:bg-warning/25 text-warning rounded transition-colors whitespace-nowrap"
                 title={t('pullDecision.mergeTooltip')}
               >
                 {t('pullDecision.mergeBtn')}
               </button>
             </div>
-            <button type="button" onClick={onDismissPullDecision} className="hover:opacity-70 shrink-0 text-[#ffd98a]">
+            <button type="button" onClick={onDismissPullDecision} className="hover:opacity-70 shrink-0 text-warning">
               <X size={16} />
             </button>
           </motion.div>
@@ -246,9 +246,9 @@ export function PageToasts({
             aria-modal="false"
             className="pointer-events-auto p-4 glass-alert-warning text-text-primary rounded-lg shadow-2xl flex items-start gap-3 w-[min(calc(100vw-2rem),760px)]"
           >
-            <AlertCircle size={20} className="shrink-0 mt-0.5 text-[#f4b942]" />
+            <AlertCircle size={20} className="shrink-0 mt-0.5 text-warning" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#ffd98a] leading-tight">
+              <p className="text-sm font-semibold text-warning leading-tight">
                 {stageIssue.ignoredPaths.length === 1
                   ? t('stageIssue.titleOne')
                   : t('stageIssue.titleMany', { count: stageIssue.ignoredPaths.length })}
@@ -260,7 +260,7 @@ export function PageToasts({
               </p>
               <div className="mt-2 max-h-24 overflow-y-auto flex flex-col gap-1">
                 {stageIssue.ignoredPaths.map((file) => (
-                  <div key={file} className="flex items-center gap-2 text-xs font-mono text-[#ffd98a]/90">
+                  <div key={file} className="flex items-center gap-2 text-xs font-mono text-warning/90">
                     <FileText size={12} className="shrink-0 opacity-70" />
                     <span className="truncate" title={file}>{file}</span>
                   </div>
@@ -282,7 +282,7 @@ export function PageToasts({
                   if (ok) setError(null);
                 }}
                 disabled={isLoading}
-                className="px-3 py-1.5 text-xs font-bold bg-[#f4b942]/15 hover:bg-[#f4b942]/25 text-[#ffd98a] rounded transition-colors whitespace-nowrap disabled:opacity-50"
+                className="px-3 py-1.5 text-xs font-bold bg-warning/15 hover:bg-warning/25 text-warning rounded transition-colors whitespace-nowrap disabled:opacity-50"
                 title={t('stageIssue.forceTooltip')}
               >
                 {t('stageIssue.force')}
@@ -295,7 +295,7 @@ export function PageToasts({
                 {t('stageIssue.dismiss')}
               </button>
             </div>
-            <button type="button" onClick={() => setError(null)} className="hover:opacity-70 shrink-0 text-[#ffd98a]">
+            <button type="button" onClick={() => setError(null)} className="hover:opacity-70 shrink-0 text-warning">
               <X size={16} />
             </button>
           </motion.div>
@@ -339,7 +339,7 @@ export function PageToasts({
             <button
               type="button"
               onClick={() => setError(null)}
-              className="glass-alert-warning shrink-0 rounded-lg p-2 text-[#ffd98a] shadow-2xl hover:opacity-70"
+              className="glass-alert-warning shrink-0 rounded-lg p-2 text-warning shadow-2xl hover:opacity-70"
             >
               <X size={16} />
             </button>
@@ -354,7 +354,7 @@ export function PageToasts({
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
             role="alert"
             aria-live="assertive"
-            className="pointer-events-auto p-3 bg-[#9f0519] text-[#ffdad6] rounded-lg shadow-2xl flex items-start gap-3 border border-[#ffa8a3]/20 max-w-[min(calc(100vw-2rem),640px)]"
+            className="pointer-events-auto p-3 bg-error text-white rounded-lg shadow-2xl flex items-start gap-3 border border-error/20 max-w-[min(calc(100vw-2rem),640px)]"
           >
             <AlertCircle size={20} className="shrink-0 mt-0.5" />
             <span className="text-sm font-medium flex-1 whitespace-pre-line">{error}</span>
@@ -366,7 +366,7 @@ export function PageToasts({
                   const ok = await removeIndexLock();
                   if (ok) setError(null);
                 }}
-                className="shrink-0 px-3 py-1 text-xs font-bold bg-[#ffa8a3]/20 hover:bg-[#ffa8a3]/30 text-[#ffdad6] rounded transition-colors"
+                className="shrink-0 px-3 py-1 text-xs font-bold bg-white/20 hover:bg-white/30 text-white rounded transition-colors"
                 title="Borra .git/index.lock y refresca el estado"
               >
                 Eliminar lock
@@ -377,7 +377,7 @@ export function PageToasts({
                 type="button"
                 onClick={onTrustSafeDirectory}
                 disabled={isLoading}
-                className="shrink-0 px-3 py-1 text-xs font-bold bg-[#ffa8a3]/20 hover:bg-[#ffa8a3]/30 text-[#ffdad6] rounded transition-colors disabled:opacity-50"
+                className="shrink-0 px-3 py-1 text-xs font-bold bg-white/20 hover:bg-white/30 text-white rounded transition-colors disabled:opacity-50"
                 title="Agrega esta carpeta a git config --global safe.directory y vuelve a abrirla"
               >
                 Confiar carpeta

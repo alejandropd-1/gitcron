@@ -24,12 +24,12 @@ import {
 import { cn } from '@/lib/utils';
 
 // Color palette constants ("The Compiled Soul")
-const NAVY = '#020f1e';
-const GREEN = '#a3f185';
-const CYAN = '#5ed8ff';
-const ORANGE = '#fd9d1a';
-const RED = '#dc6a6a';
-const GRAY = '#697789';
+const NAVY = 'var(--color-bg-base)';
+const GREEN = 'var(--color-git-add)';
+const CYAN = 'var(--color-primary)';
+const ORANGE = 'var(--color-git-mod)';
+const RED = 'var(--color-error)';
+const GRAY = 'var(--color-text-secondary)';
 
 interface Props {
   repoPath: string | null;
@@ -163,7 +163,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
       {/* Top Header Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border-subtle/15 pb-4">
         <div>
-          <h3 className="text-base font-bold flex items-center gap-2 text-[#5ed8ff]">
+          <h3 className="text-base font-bold flex items-center gap-2 text-primary">
             <Activity size={18} /> {t('dashboard.title')}
           </h3>
           <p className="text-xs text-text-secondary mt-1">{t('dashboard.subtitle')}</p>
@@ -171,14 +171,14 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
 
         {/* View Switcher & Refresh */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="flex bg-[#041224] border border-[#5ed8ff]/15 rounded-lg p-0.5 text-xs font-semibold">
+          <div className="flex bg-bg-surface border border-primary/15 rounded-lg p-0.5 text-xs font-semibold">
             <button
               onClick={() => setViewMode('repo')}
               disabled={!repoPath}
               className={cn(
                 'px-3 py-1.5 rounded transition-colors',
                 viewMode === 'repo'
-                  ? 'bg-[#5ed8ff]/15 text-[#5ed8ff]'
+                  ? 'bg-primary/15 text-primary'
                   : 'text-text-secondary hover:text-text-primary disabled:opacity-40 disabled:pointer-events-none'
               )}
             >
@@ -189,7 +189,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
               className={cn(
                 'px-3 py-1.5 rounded transition-colors',
                 viewMode === 'unified'
-                  ? 'bg-[#5ed8ff]/15 text-[#5ed8ff]'
+                  ? 'bg-primary/15 text-primary'
                   : 'text-text-secondary hover:text-text-primary'
               )}
             >
@@ -200,7 +200,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
           <button
             onClick={loadData}
             title="Recargar datos"
-            className="p-2 border border-border-subtle/30 bg-[#041224]/50 hover:bg-[#5ed8ff]/10 hover:border-[#5ed8ff]/30 text-text-secondary hover:text-[#5ed8ff] rounded-lg transition-all"
+            className="p-2 border border-border-subtle/30 bg-bg-surface/50 hover:bg-primary/10 hover:border-primary/30 text-text-secondary hover:text-primary rounded-lg transition-all"
           >
             <RefreshCw size={14} className={cn(loading && 'animate-spin')} />
           </button>
@@ -214,8 +214,8 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
         </div>
       ) : history.length === 0 ? (
         /* ELEGANT EMPTY STATE */
-        <div className="flex flex-col items-center justify-center border border-dashed border-[#5ed8ff]/15 bg-[#030e1a]/60 rounded-xl p-10 text-center font-mono select-none">
-          <div className="p-3 bg-[#5ed8ff]/5 border border-[#5ed8ff]/20 rounded-full text-[#5ed8ff] animate-pulse">
+        <div className="flex flex-col items-center justify-center border border-dashed border-primary/15 bg-bg-surface/60 rounded-xl p-10 text-center font-mono select-none">
+          <div className="p-3 bg-primary/5 border border-primary/20 rounded-full text-primary animate-pulse">
             <Layers size={28} />
           </div>
           <h4 className="text-sm font-bold text-text-primary mt-4 uppercase tracking-wider">
@@ -225,13 +225,13 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
             {t('dashboard.emptyDesc')}
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3 text-[10px] uppercase font-bold text-text-secondary">
-            <span className="px-2 py-1 bg-[#a3f185]/5 border border-[#a3f185]/20 rounded text-[#a3f185]">
+            <span className="px-2 py-1 bg-git-add/5 border border-git-add/20 rounded text-git-add">
               + 1 Aceptar / Acierto
             </span>
-            <span className="px-2 py-1 bg-[#dc6a6a]/5 border border-[#dc6a6a]/20 rounded text-[#dc6a6a]">
+            <span className="px-2 py-1 bg-error/5 border border-error/20 rounded text-error">
               0 Rechazar / Error
             </span>
-            <span className="px-2 py-1 bg-[#fd9d1a]/5 border border-[#fd9d1a]/20 rounded text-[#fd9d1a]">
+            <span className="px-2 py-1 bg-git-mod/5 border border-git-mod/20 rounded text-git-mod">
               Censurado / Diferir
             </span>
           </div>
@@ -241,7 +241,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
         <div className="space-y-6">
           {/* STATS OVERVIEW CARDS */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-[#041224]/60 border border-border-subtle/15 rounded-lg p-3 font-mono">
+            <div className="bg-bg-surface/60 border border-border-subtle/15 rounded-lg p-3 font-mono">
               <div className="text-[9px] uppercase tracking-wider text-text-secondary/70">
                 {t('dashboard.brierScore')}
               </div>
@@ -250,10 +250,10 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                   'text-2xl font-bold mt-1 tracking-tight',
                   stats.brier !== null
                     ? stats.brier <= 0.1
-                      ? 'text-[#a3f185]'
+                      ? 'text-git-add'
                       : stats.brier <= 0.2
-                        ? 'text-[#5ed8ff]'
-                        : 'text-[#fd9d1a]'
+                        ? 'text-primary'
+                        : 'text-git-mod'
                     : 'text-text-secondary'
                 )}
               >
@@ -264,23 +264,23 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
               </div>
             </div>
 
-            <div className="bg-[#041224]/60 border border-border-subtle/15 rounded-lg p-3 font-mono">
+            <div className="bg-bg-surface/60 border border-border-subtle/15 rounded-lg p-3 font-mono">
               <div className="text-[9px] uppercase tracking-wider text-text-secondary/70">
                 Predicciones
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1 tracking-tight">
                 {stats.totalBranches}
               </div>
-              <div className="text-[9px] text-[#fd9d1a] mt-1 font-sans">
+              <div className="text-[9px] text-git-mod mt-1 font-sans">
                 {t('dashboard.unresolvedCount', { count: stats.deferredBranches })}
               </div>
             </div>
 
-            <div className="bg-[#041224]/60 border border-border-subtle/15 rounded-lg p-3 font-mono">
+            <div className="bg-bg-surface/60 border border-border-subtle/15 rounded-lg p-3 font-mono">
               <div className="text-[9px] uppercase tracking-wider text-text-secondary/70">
                 Resueltas
               </div>
-              <div className="text-2xl font-bold text-[#a3f185] mt-1 tracking-tight">
+              <div className="text-2xl font-bold text-git-add mt-1 tracking-tight">
                 {stats.resolvedBranches}
               </div>
               <div className="text-[9px] text-text-secondary mt-1 font-sans">
@@ -288,11 +288,11 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
               </div>
             </div>
 
-            <div className="bg-[#041224]/60 border border-border-subtle/15 rounded-lg p-3 font-mono">
+            <div className="bg-bg-surface/60 border border-border-subtle/15 rounded-lg p-3 font-mono">
               <div className="text-[9px] uppercase tracking-wider text-text-secondary/70">
                 Calibración
               </div>
-              <div className="text-2xl font-bold text-[#5ed8ff] mt-1 tracking-tight">
+              <div className="text-2xl font-bold text-primary mt-1 tracking-tight">
                 {stats.resolvedBranches > 0 ? (stats.calibration.filter(b => b.count > 0).length) : 0} / 10
               </div>
               <div className="text-[9px] text-text-secondary mt-1 font-sans">
@@ -304,9 +304,9 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
           {/* TWO GRAPHICS GRID */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* 1. CURVE OF CALIBRATION */}
-            <div className="bg-[#041224]/40 border border-border-subtle/15 rounded-xl p-4 flex flex-col gap-3">
+            <div className="bg-bg-surface/40 border border-border-subtle/15 rounded-xl p-4 flex flex-col gap-3">
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#5ed8ff] flex items-center gap-1.5 font-mono">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 font-mono">
                   <Sparkles size={12} /> {t('dashboard.calibrationCurve')}
                 </h4>
                 <p className="text-[10px] text-text-secondary mt-0.5">{t('dashboard.calibrationCurveDesc')}</p>
@@ -331,8 +331,8 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                         y={padding}
                         width={chartWidth - 2 * padding}
                         height={chartHeight - 2 * padding}
-                        fill="rgba(2, 15, 30, 0.4)"
-                        stroke="rgba(94, 216, 255, 0.1)"
+                        fill="color-mix(in srgb, var(--color-bg-base) 40%, transparent)"
+                        stroke="color-mix(in srgb, var(--color-primary) 10%, transparent)"
                         strokeWidth={1}
                       />
 
@@ -349,7 +349,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                               y1={tickY}
                               x2={chartWidth - padding}
                               y2={tickY}
-                              stroke="rgba(94, 216, 255, 0.05)"
+                              stroke="color-mix(in srgb, var(--color-primary) 5%, transparent)"
                               strokeDasharray="2 2"
                             />
                             {/* Grid line X */}
@@ -358,7 +358,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                               y1={padding}
                               x2={tickX}
                               y2={chartHeight - padding}
-                              stroke="rgba(94, 216, 255, 0.05)"
+                              stroke="color-mix(in srgb, var(--color-primary) 5%, transparent)"
                               strokeDasharray="2 2"
                             />
                             {/* Labels Y */}
@@ -389,7 +389,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                         y1={chartHeight - padding}
                         x2={chartWidth - padding}
                         y2={padding}
-                        stroke="rgba(94, 216, 255, 0.3)"
+                        stroke="color-mix(in srgb, var(--color-primary) 30%, transparent)"
                         strokeWidth={1.5}
                         strokeDasharray="4 4"
                       />
@@ -416,7 +416,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                               cy={p.y}
                               r={p.radius}
                               fill={isHovered ? CYAN : GREEN}
-                              stroke="#020f1e"
+                              stroke="var(--color-bg-base)"
                               strokeWidth={1.5}
                               className="cursor-pointer transition-all hover:scale-125"
                               onMouseEnter={() => setHoveredBin(p.idx)}
@@ -460,16 +460,16 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                     {/* Interactive legend details */}
                     <div className="flex justify-between items-center gap-6 mt-3 text-[9px] font-mono border-t border-border-subtle/10 pt-2 w-full max-w-[380px]">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-0.5 border-t border-dashed border-[#5ed8ff]/50" />
+                        <div className="w-2.5 h-0.5 border-t border-dashed border-primary/50" />
                         <span className="text-text-secondary">{t('dashboard.idealLine')}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-[#a3f185]" />
+                        <div className="w-2 h-2 rounded-full bg-git-add" />
                         <span className="text-text-secondary">{t('dashboard.actualAccuracy')}</span>
                       </div>
 
                       {hoveredBin !== null ? (
-                        <div className="text-[#5ed8ff] font-bold bg-[#5ed8ff]/10 px-2 py-0.5 rounded border border-[#5ed8ff]/15">
+                        <div className="text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/15">
                           Bin {(hoveredBin * 10).toFixed(0)}-{((hoveredBin + 1) * 10).toFixed(0)}%: n = {stats.calibration[hoveredBin].count} · Aciertos = {Math.round((stats.calibration[hoveredBin].accuracy ?? 0) * 100)}%
                         </div>
                       ) : (
@@ -484,9 +484,9 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
             </div>
 
             {/* 2. HISTORY OF DECISIONS (TIMELINE) */}
-            <div className="bg-[#041224]/40 border border-border-subtle/15 rounded-xl p-4 flex flex-col gap-3">
+            <div className="bg-bg-surface/40 border border-border-subtle/15 rounded-xl p-4 flex flex-col gap-3">
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#5ed8ff] flex items-center gap-1.5 font-mono">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 font-mono">
                   <Activity size={12} /> {t('dashboard.outcomeBreakdown')}
                 </h4>
                 <p className="text-[10px] text-text-secondary mt-0.5">Evolución de las decisiones de las predicciones en el tiempo.</p>
@@ -511,8 +511,8 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                         y={padding}
                         width={chartWidth - 2 * padding}
                         height={chartHeight - 2 * padding}
-                        fill="rgba(2, 15, 30, 0.4)"
-                        stroke="rgba(94, 216, 255, 0.1)"
+                        fill="color-mix(in srgb, var(--color-bg-base) 40%, transparent)"
+                        stroke="color-mix(in srgb, var(--color-primary) 10%, transparent)"
                         strokeWidth={1}
                       />
 
@@ -527,7 +527,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                               y1={padding}
                               x2={p.x}
                               y2={chartHeight - padding}
-                              stroke="rgba(94, 216, 255, 0.05)"
+                              stroke="color-mix(in srgb, var(--color-primary) 5%, transparent)"
                             />
                             {showLabel && (
                               <text
@@ -620,25 +620,25 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                     <div className="flex flex-wrap justify-between items-center gap-3 mt-3 text-[9px] font-mono border-t border-border-subtle/10 pt-2 w-full max-w-[420px]">
                       <div className="flex gap-3">
                         <div className="flex items-center gap-1">
-                          <div className="w-2.5 h-2 bg-[#5ed8ff]" />
+                          <div className="w-2.5 h-2 bg-primary" />
                           <span className="text-text-secondary text-[8px]">Mat</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <div className="w-2.5 h-2 bg-[#a3f185]" />
+                          <div className="w-2.5 h-2 bg-git-add" />
                           <span className="text-text-secondary text-[8px]">Acept</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <div className="w-2.5 h-2 bg-[#fd9d1a]" />
+                          <div className="w-2.5 h-2 bg-git-mod" />
                           <span className="text-text-secondary text-[8px]">Difer</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <div className="w-2.5 h-2 bg-[#dc6a6a]" />
+                          <div className="w-2.5 h-2 bg-error" />
                           <span className="text-text-secondary text-[8px]">Rech</span>
                         </div>
                       </div>
 
                       {hoveredDay !== null ? (
-                        <div className="text-[#5ed8ff] font-bold bg-[#5ed8ff]/10 px-2 py-0.5 rounded border border-[#5ed8ff]/15">
+                        <div className="text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/15">
                           {hoveredDay}:{' '}
                           {(() => {
                             const entry = stats.breakdown.find((d) => d.period === hoveredDay);
@@ -662,8 +662,8 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
           {/* LOWER GRID: ACCEPTANCE BY TYPE & PROVIDER COMPARISON */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* A. ACCEPTANCE BY TYPE */}
-            <div className="bg-[#041224]/30 border border-border-subtle/15 rounded-xl p-4 font-mono">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-[#5ed8ff] mb-3 flex items-center gap-1.5">
+            <div className="bg-bg-surface/30 border border-border-subtle/15 rounded-xl p-4 font-mono">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3 flex items-center gap-1.5">
                 <CheckCircle size={13} /> {t('dashboard.acceptanceByType')}
               </h4>
 
@@ -674,7 +674,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                   return (
                     <div key={type} className="space-y-1">
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="font-semibold capitalize text-[#d9e7fc]">
+                        <span className="font-semibold capitalize text-text-primary">
                           {type === 'improvement'
                             ? 'Mejora'
                             : type === 'breakthrough'
@@ -687,9 +687,9 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                             : `${s.accepted}/${s.total} (${ratePercent}%)`}
                         </span>
                       </div>
-                      <div className="h-2 bg-[#020f1e] rounded-full overflow-hidden border border-border-subtle/10 relative">
+                      <div className="h-2 bg-bg-base rounded-full overflow-hidden border border-border-subtle/10 relative">
                         <div
-                          className="h-full bg-[#a3f185] rounded-full transition-all duration-500"
+                          className="h-full bg-git-add rounded-full transition-all duration-500"
                           style={{ width: `${isZero ? 0 : ratePercent}%` }}
                         />
                       </div>
@@ -700,8 +700,8 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
             </div>
 
             {/* B. PROVIDER COMPARISON */}
-            <div className="bg-[#041224]/30 border border-border-subtle/15 rounded-xl p-4 font-mono">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-[#5ed8ff] mb-3 flex items-center gap-1.5">
+            <div className="bg-bg-surface/30 border border-border-subtle/15 rounded-xl p-4 font-mono">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3 flex items-center gap-1.5">
                 <XCircle size={13} /> {t('dashboard.providerComparison')}
               </h4>
 
@@ -718,7 +718,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                     return (
                       <div key={idx} className="flex justify-between items-center py-2 text-[10px]">
                         <div className="min-w-0">
-                          <div className="font-bold text-[#d9e7fc] truncate">{modelName}</div>
+                          <div className="font-bold text-text-primary truncate">{modelName}</div>
                           <div className="text-[8px] text-text-secondary/80 font-mono uppercase tracking-wider mt-0.5">
                             {p.provider} · {t('dashboard.totalShort', { n: p.count })}
                           </div>
@@ -731,8 +731,8 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                               'font-bold mt-0.5',
                               p.brierScore !== null
                                 ? p.brierScore <= 0.1
-                                  ? 'text-[#a3f185]'
-                                  : 'text-[#5ed8ff]'
+                                  ? 'text-git-add'
+                                  : 'text-primary'
                                 : 'text-text-secondary'
                             )}
                           >

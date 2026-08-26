@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RepoTabs } from '../RepoTabs';
 import { RepoSidebar, SidebarDropdown, type DropdownMenuItem } from '../RepoSidebar';
+import { SidebarSection } from '../RepoSidebarParts';
 
 vi.mock('@/hooks/use-translation', () => ({
   useT: () => (key: string) => key,
@@ -537,6 +538,39 @@ describe('Grupo 8: Correcciones visuales y de disposición', () => {
       expect(screen.queryByTestId('graph-mode-row')).toBeNull();
       expect(screen.queryByLabelText('toolbar.viewClassicBtn')).toBeNull();
       expect(screen.queryByLabelText('toolbar.viewChronometricBtn')).toBeNull();
+    });
+  });
+
+  describe('Convención de chevrons en acordiones (un acordeón cerrado apunta abajo, abierto apunta arriba)', () => {
+    it('un acordeón cerrado apunta abajo, abierto apunta arriba y el chevron es siempre visible', () => {
+      const { rerender } = render(
+        <SidebarSection title="Local Branches" isOpen={false}>
+          <div>branch list</div>
+        </SidebarSection>
+      );
+
+      const toggleButton = screen.getByRole('button', { name: /Local Branches/ });
+      const chevronSvg = toggleButton.querySelector('svg')!;
+      expect(chevronSvg).toBeDefined();
+
+      const closedClasses = chevronSvg.getAttribute('class') || '';
+      // El indicador debe verse siempre (sin opacidad condicional oculta)
+      expect(closedClasses).not.toContain('opacity-0');
+      // Cerrado: declara el ícono lucide-chevron-down y apunta abajo (sin rotación a 90deg ni 180deg)
+      expect(closedClasses).toContain('lucide-chevron-down');
+      expect(closedClasses).not.toContain('rotate-90');
+      expect(closedClasses).not.toContain('rotate-180');
+
+      // Abierto: rota 180deg para apuntar arriba
+      rerender(
+        <SidebarSection title="Local Branches" isOpen={true}>
+          <div>branch list</div>
+        </SidebarSection>
+      );
+      const openClasses = chevronSvg.getAttribute('class') || '';
+      expect(openClasses).toContain('lucide-chevron-down');
+      expect(openClasses).toContain('rotate-180');
+      expect(openClasses).not.toContain('rotate-90');
     });
   });
 });

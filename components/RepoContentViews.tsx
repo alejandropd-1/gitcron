@@ -98,7 +98,7 @@ export const HistoryView = memo(function HistoryView({
                               'text-[9px] px-1.5 py-0.5 rounded border whitespace-nowrap font-medium',
                               isTag ? 'bg-git-mod/15 text-git-mod border-git-mod/30'
                                 : isCurrent ? 'bg-secondary/20 text-secondary border-secondary/40'
-                                : isRemote ? 'bg-primary/10 text-primary border-[#5ed8ff]/30'
+                                : isRemote ? 'bg-primary/10 text-primary border-primary/30'
                                 : 'bg-secondary/15 text-secondary border-secondary/30',
                             )}
                           >
@@ -115,7 +115,7 @@ export const HistoryView = memo(function HistoryView({
                 {commit.message}
               </p>
               <div className="flex items-center gap-2 text-xs text-text-secondary">
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-[#a3f185] to-[#68b24f] flex items-center justify-center text-[8px] font-bold text-[#052900]">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-git-add to-git-add/80 flex items-center justify-center text-[8px] font-bold text-bg-base">
                   {formatInitials(commit.authorName)}
                 </div>
                 <span className="select-text">{commit.authorName}</span>
@@ -335,11 +335,11 @@ export const CommitTabView = memo(function CommitTabView({ modifiedFiles, hasGit
                 {t('commitTab.changesByTypeLabel')}
               </h3>
               <div className="grid grid-cols-2 gap-2">
-                {statusCount('modified') > 0 && <StatusBadge label={t('status.modified')} count={statusCount('modified')} color="#fd9d1a" letter="M" />}
-                {statusCount('added') > 0 && <StatusBadge label={t('status.added')} count={statusCount('added')} color="#a3f185" letter="A" />}
-                {statusCount('deleted') > 0 && <StatusBadge label={t('status.deleted')} count={statusCount('deleted')} color="#ff716c" letter="D" />}
-                {statusCount('untracked') > 0 && <StatusBadge label={t('status.untracked')} count={statusCount('untracked')} color="#9eacc0" letter="U" />}
-                {statusCount('renamed') > 0 && <StatusBadge label={t('status.renamed')} count={statusCount('renamed')} color="#5ed8ff" letter="R" />}
+                {statusCount('modified') > 0 && <StatusBadge label={t('status.modified')} count={statusCount('modified')} color="var(--color-git-mod)" letter="M" />}
+                {statusCount('added') > 0 && <StatusBadge label={t('status.added')} count={statusCount('added')} color="var(--color-git-add)" letter="A" />}
+                {statusCount('deleted') > 0 && <StatusBadge label={t('status.deleted')} count={statusCount('deleted')} color="var(--color-error)" letter="D" />}
+                {statusCount('untracked') > 0 && <StatusBadge label={t('status.untracked')} count={statusCount('untracked')} color="var(--color-text-secondary)" letter="U" />}
+                {statusCount('renamed') > 0 && <StatusBadge label={t('status.renamed')} count={statusCount('renamed')} color="var(--color-primary)" letter="R" />}
               </div>
             </div>
 
@@ -420,7 +420,7 @@ export function PullRequestDiffView({
           <span className="text-xs font-mono text-secondary">PR #{pullRequest.number}</span>
           <div className="flex-1" />
           {pullRequest.draft && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#697789]/20 text-text-secondary uppercase">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-border-subtle/20 text-text-secondary uppercase">
               {t('sidebar.draft')}
             </span>
           )}
@@ -572,7 +572,7 @@ export function FileDiffView({
             file.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
             file.status === 'added' ? 'bg-secondary/20 text-secondary' :
             file.status === 'renamed' ? 'bg-primary/20 text-primary' :
-            file.status === 'untracked' ? 'bg-[#9eacc0]/20 text-text-secondary' :
+            file.status === 'untracked' ? 'bg-border-subtle/20 text-text-secondary' :
             'bg-error/20 text-error',
           )}
         >

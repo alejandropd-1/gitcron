@@ -176,12 +176,12 @@ Se hace por tandas, de mayor a menor, podando la línea de base en cada una.
 - [x] 5.2 Lo que resta de `app/globals.css` (35), empezando por las fichas de artefactos
   (`.pipeline-artifact-graph li[data-state]`, líneas 2335 a 2351), que todavía declaran `#6fac39`,
   `#a3f185`, `#5ed8ff` y `#ffbf47` a mano.
-- [ ] 5.3 `DiffViewer` (23), `PageToasts` (23), `PredictionDetail` (22) y `RepoDetailsPanel` (21).
-- [ ] 5.4 La cola: los veintitrés archivos restantes, de 13 violaciones para abajo.
-- [ ] 5.5 En cada tanda, conservar el significado de lo que se migra y declarar si algún estado dejó
+- [x] 5.3 `DiffViewer` (23), `PageToasts` (23), `PredictionDetail` (22) y `RepoDetailsPanel` (21).
+- [x] 5.4 La cola: los veintitrés archivos restantes, de 13 violaciones para abajo.
+- [x] 5.5 En cada tanda, conservar el significado de lo que se migra y declarar si algún estado dejó
   de distinguirse. Vale sobre todo para `DiffViewer`, donde conviven agregado, eliminado y
   modificado, que es el caso de la tarea 4.4.
-- [ ] 5.6 Confirmar que la parte pendiente quedó en cero.
+- [x] 5.6 Confirmar que la parte pendiente quedó en cero.
 
 - [x] 5.7 Ampliar el detector: define «literal» demasiado angosto y por eso la línea de base llegó a
   cinco con setenta y uno a la vista. Auditoría del 2026-08-25. No ve tres formas:
@@ -206,25 +206,33 @@ Entra al mismo change por decisión de Alejandro del 2026-08-24: comparte la nor
 escáner y la guarda con el color. Lo que NO entra es la maquetación —dónde va cada cosa—, que es un
 change aparte.
 
-- [ ] 6.1 Relevar los rótulos en versalita de la aplicación y declarar el número de partida. La
+- [x] 6.1 Relevar los rótulos en versalita de la aplicación y declarar el número de partida. La
   medición del 2026-08-24 dio **129 rótulos con 74 tratamientos distintos**, de los cuales **95
   declaran un tamaño literal** —7px, 8px, 9px, 10px y 11px— por debajo del piso de 12px que
   `app/globals.css:26` define como «piso de legibilidad».
-- [ ] 6.2 Para cada uso, resolver contra el escalón de la escala que le corresponde según el
+- [x] 6.2 Ampliar el detector de escala antes de migrar: define «declaración» demasiado angosto.
+  `lib/visual-scale.ts` sólo veía clases de utilidad con corchetes y declaraciones CSS, así que no
+  veía los objetos de estilo de React. El relevamiento de 6.1 encontró **52 `fontSize` invisibles**,
+  23 de ellos bajo el piso de 12px, incluidos trece en `rem` —`0.64rem` es 10.24px—. Es el mismo
+  punto ciego que tenía el detector de color antes de la tarea 5.7, cuando la línea de base decía 5
+  y había 102. Al ampliarlo, la línea de base pasó de **316 a 477**: 392 pendientes en 35 archivos
+  y 85 exentas. La conversión rem→px usa base 16, que es lo que declaran los comentarios de los
+  escalones en `app/globals.css:26-32` (`0.75rem` = 12px).
+- [ ] 6.3 Para cada uso, resolver contra el escalón de la escala que le corresponde según el
   propósito que la propia escala declara: `xs` para metadatos y badges, `sm` para texto secundario y
   controles compactos, `md` para títulos de sección. No agregar escalones: si algo no encaja en
   ninguno, declararlo en lugar de inventar uno.
-- [ ] 6.3 En la hoja de estilos de la vista del ciclo hay doce rótulos y **los doce están en `xs`**,
+- [ ] 6.4 En la hoja de estilos de la vista del ciclo hay doce rótulos y **los doce están en `xs`**,
   con cinco pesos y cinco colores distintos. Ahí el problema no es sólo el tamaño: un encabezado con
   el mismo tamaño, peso y color que un botón se lee como un botón. Distinguir familia por familia y
   declarar el criterio.
-- [ ] 6.4 Confirmar que la verificación de 1.5 ya no reporta nada.
-- [ ] 6.5 Revisión visual: los rótulos se distinguen del texto y de los controles, y la jerarquía se
+- [ ] 6.5 Confirmar que la verificación de 1.5 ya no reporta nada.
+- [ ] 6.6 Revisión visual: los rótulos se distinguen del texto y de los controles, y la jerarquía se
   lee sin depender del color. **La comprueba Alejandro.**
 
 ## 7. Cierre y validación
 
-- [ ] 6.0 `pnpm build` sin errores. Va primero y no es una formalidad: un selector rechazado por el
+- [ ] 7.0 `pnpm build` sin errores. Va primero y no es una formalidad: un selector rechazado por el
   compilador de hojas de estilo deja la aplicación sin arrancar mientras la suite entera da en verde,
   porque las pruebas no procesan los módulos de estilo con el compilador de producción. En un change
   que reescribe hojas de estilo, es la validación que más puede fallar. Si falla con «build worker

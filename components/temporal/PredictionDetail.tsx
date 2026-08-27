@@ -89,10 +89,10 @@ function DetailField({
 }) {
   return (
     <div className="min-w-0 rounded border border-border-subtle/15 bg-bg-surface/55 px-3 py-2">
-      <div className="text-[8px] font-bold uppercase tracking-wider text-text-secondary/80">{label}</div>
+      <div className="text-[var(--font-size-xs)] font-bold uppercase tracking-wider text-text-secondary/80">{label}</div>
       <div
         className={cn(
-          'mt-1 text-[10px] leading-relaxed text-text-primary/90',
+          'mt-1 text-[var(--font-size-xs)] leading-relaxed text-text-primary/90',
           value === '—' && 'text-text-secondary/60',
           mono && 'font-mono text-primary/85',
           multiline ? 'whitespace-pre-line' : 'truncate',
@@ -109,7 +109,7 @@ function DecisionBadge({ kind, lang }: { kind: DecisionKind; lang: Lang }) {
   const color = DECISION_COLOR[kind];
   return (
     <span
-      className="rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+      className="rounded border px-1.5 py-0.5 text-[var(--font-size-xs)] font-bold uppercase tracking-wider"
       style={{
         color,
         borderColor: `color-mix(in srgb, ${color} 40%, transparent)`,
@@ -139,15 +139,15 @@ export function PredictionDetail({
         <button
           type="button"
           onClick={onBack}
-          className="rounded border border-primary/25 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary transition-colors hover:border-primary/55 hover:bg-primary/15"
+          className="rounded border border-primary/25 bg-primary/10 px-2.5 py-1 text-[var(--font-size-xs)] font-bold uppercase tracking-wider text-primary transition-colors hover:border-primary/55 hover:bg-primary/15"
         >
           ← {translate('predictionDetail.back', lang)}
         </button>
         <div className="min-w-0 text-right">
-          <div className="text-[8px] font-bold uppercase tracking-wider text-text-secondary/75">
+          <div className="text-[var(--font-size-xs)] font-bold uppercase tracking-wider text-text-secondary/75">
             {translate('predictionDetail.title', lang)}
           </div>
-          <div className="truncate text-[11px] font-bold text-text-primary">{formatValue(branch.message)}</div>
+          <div className="truncate text-[var(--font-size-xs)] font-bold text-text-primary">{formatValue(branch.message)}</div>
         </div>
       </div>
 
@@ -169,7 +169,7 @@ export function PredictionDetail({
       </section>
 
       <section className="overflow-hidden rounded border border-border-subtle/15 bg-bg-surface/55">
-        <header className="border-b border-border-subtle/15 px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-text-secondary">
+        <header className="border-b border-border-subtle/15 px-3 py-2 text-[var(--font-size-xs)] font-bold uppercase tracking-wider text-text-secondary">
           {translate('predictionDetail.decisions', lang)}
         </header>
         {sortedDecisions.length > 0 ? (
@@ -184,12 +184,12 @@ export function PredictionDetail({
                 <li key={decision.id} className="flex flex-col gap-1.5 px-3 py-2">
                   <div className="flex items-center justify-between gap-3">
                     <DecisionBadge kind={kind} lang={lang} />
-                    <time className="text-[9px] text-text-secondary/75" dateTime={decision.decidedAt}>
+                    <time className="text-[var(--font-size-xs)] text-text-secondary/75" dateTime={decision.decidedAt}>
                       {formatDateTime(decision.decidedAt, lang)}
                     </time>
                   </div>
                   {isMaterialized && (
-                    <div className="flex flex-wrap items-center gap-2 text-[9px]">
+                    <div className="flex flex-wrap items-center gap-2 text-[var(--font-size-xs)]">
                       <span className="text-text-secondary/80">{translate('predictionDetail.materializedRef', lang)}</span>
                       <span
                         className={cn(
@@ -222,7 +222,7 @@ export function PredictionDetail({
             })}
           </ol>
         ) : (
-          <p className="px-3 py-2 text-[10px] italic text-text-secondary/70">
+          <p className="px-3 py-2 text-[var(--font-size-xs)] italic text-text-secondary/70">
             {translate('predictionDetail.noDecisions', lang)}
           </p>
         )}

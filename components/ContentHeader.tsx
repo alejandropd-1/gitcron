@@ -27,7 +27,7 @@ export function ContentHeader({
     <div
       data-testid={testId}
       className={cn(
-        'sticky top-0 bg-bg-surface/75 z-10 h-9 px-4 text-[11px] text-text-secondary uppercase tracking-wider font-bold shrink-0 flex items-center',
+        'sticky top-0 bg-bg-surface/75 z-10 h-9 px-4 text-[var(--font-size-xs)] text-text-secondary uppercase font-medium shrink-0 flex items-center',
         (left || right) && 'justify-between gap-2',
         className,
       )}

@@ -58,3 +58,6 @@ docs/ai/logs/
 # no del proyecto. Se colaban en cada preparación de commit como si fueran
 # trabajo del change en curso.
 .zcode/
+
+# Scripts
+scripts/*.json

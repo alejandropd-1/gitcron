@@ -4,6 +4,9 @@
     "fecha": "2026-08-26",
     "motivoExencion": "Invariante 12: ChronometricGraph.tsx y CommitGraph.tsx protegidos, sin autorización de modificación visual vigente al 2026-08-26."
   },
+  "_comment_exento_interactiverebasepanel_68px": "pl-[68px] es sangría de alineación con una columna, no un escalón de espaciado. El escalón más cercano es --space-8 (48px) y no hay ninguno cerca.",
+  "_comment_exento_diffviewer_1px": "py-[1px] en las columnas de número de línea es ajuste de alineación vertical de una línea de texto, no espaciado. Existe --spacing-panel-gap con el mismo valor, pero usarlo sería elegir el token por su valor y no por su significado, que es lo que el invariante 23 prohíbe.",
+  "_comment_exento_semanticgraphlens_016px": "No es CSS. Es fitViewOptions={{ padding: 0.16 }} en la línea 261, una prop de React Flow que expresa un ratio (16% de margen al encuadrar el grafo). El detector la lee como px. Es un falso positivo.",
   "exento": {
     "components/ChronometricGraph.tsx": {
       "100px": 4,
@@ -21,19 +24,18 @@
     "components/CommitGraph.tsx": {
       "10px": 3,
       "11px": 1
+    },
+    "components/InteractiveRebasePanel.tsx": {
+      "68px": 1
+    },
+    "components/DiffViewer.tsx": {
+      "1px": 3
+    },
+    "components/cartography/SemanticGraphLens.tsx": {
+      "0.16px": 1
     }
   },
   "pendiente": {
-    "components/ChangelogPreview.tsx": {
-      "11px": 2
-    },
-    "components/ConflictResolver.tsx": {
-      "10px": 6,
-      "11px": 5
-    },
-    "components/ContentHeader.tsx": {
-      "11px": 1
-    },
     "components/ContextMenus.tsx": {
       "0.8125rem": 1,
       "0.625rem": 1
@@ -47,40 +49,11 @@
     "components/DiffViewer.tsx": {
       "11px": 2,
       "12px": 1,
-      "10px": 3,
-      "1px": 3
-    },
-    "components/GitFailureNotice.tsx": {
-      "11px": 1
-    },
-    "components/HelpModal.tsx": {
-      "10px": 2
+      "10px": 3
     },
     "components/InteractiveRebasePanel.tsx": {
       "10px": 3,
-      "11px": 1,
-      "68px": 1
-    },
-    "components/PageToasts.tsx": {
-      "10px": 1,
       "11px": 1
-    },
-    "components/PageWidgets.tsx": {
-      "9px": 1
-    },
-    "components/ProfilePanel.tsx": {
-      "10px": 2,
-      "11px": 1
-    },
-    "components/RepoActionModals.tsx": {
-      "11px": 15,
-      "10px": 8
-    },
-    "components/RepoContentViews.tsx": {
-      "11px": 3,
-      "9px": 1,
-      "8px": 1,
-      "10px": 7
     },
     "components/RepoDetailsPanel.tsx": {
       "10px": 12,
@@ -88,67 +61,16 @@
       "12px": 1,
       "9px": 2
     },
-    "components/RepoMainView.tsx": {
-      "10px": 6,
-      "11px": 2,
-      "9px": 1
-    },
-    "components/RepoModals.tsx": {
-      "11px": 2
-    },
     "components/RepoSidebar.tsx": {
       "17px": 2,
       "10px": 11,
       "11px": 6,
       "9px": 4
     },
-    "components/RepoSidebarParts.tsx": {
-      "10px": 4,
-      "9px": 1
-    },
-    "components/ResetCommitModal.tsx": {
-      "11px": 4,
-      "10px": 1
-    },
-    "components/SettingsPanel.tsx": {
-      "10px": 3
-    },
-    "components/StashModals.tsx": {
-      "11px": 2,
-      "10px": 1
-    },
-    "components/UpdateControls.tsx": {
-      "10px": 4,
-      "11px": 1
-    },
-    "components/cartography/CartoAISettings.tsx": {
-      "11px": 5
-    },
-    "components/cartography/CartoAskBox.tsx": {
-      "11px": 3,
-      "10px": 4
-    },
-    "components/cartography/CartoNodeDetail.tsx": {
-      "11px": 12,
-      "10px": 2
-    },
-    "components/cartography/CartoPanoramaHeader.tsx": {
-      "11px": 1,
-      "10px": 2
-    },
-    "components/cartography/CartographyView.tsx": {
-      "10px": 1,
-      "11px": 3
-    },
     "components/cartography/SemanticGraphLens.tsx": {
-      "0.16px": 1,
       "11px": 5,
       "10px": 3,
       "9px": 3
-    },
-    "components/pipeline/OpenSpecDashboard.tsx": {
-      "10px": 7,
-      "11px": 1
     },
     "components/pipeline/OpenSpecEngineCard.tsx": {
       "0.4rem": 1
@@ -174,12 +96,6 @@
       "9px": 10,
       "8px": 8,
       "7px": 3
-    },
-    "components/temporal/PredictionDetail.tsx": {
-      "8px": 2,
-      "10px": 3,
-      "9px": 4,
-      "11px": 1
     }
   }
 }

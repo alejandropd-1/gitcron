@@ -75,7 +75,7 @@ export function GitFailureNotice({
       </button>
       {showRaw && (
         // `user-select` explícito: el caso de uso es copiarlo para pedir ayuda.
-        <pre className="mt-1 max-h-48 select-text overflow-auto whitespace-pre-wrap break-words rounded bg-black/40 p-2 text-[11px] text-warning/80">
+        <pre className="mt-1 max-h-48 select-text overflow-auto whitespace-pre-wrap break-words rounded bg-black/40 p-2 text-[var(--font-size-xs)] text-warning/80">
           {failure.raw}
         </pre>
       )}

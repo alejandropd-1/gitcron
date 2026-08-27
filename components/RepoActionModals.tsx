@@ -89,7 +89,7 @@ export function CheckoutConflictModal({
               </div>
             </div>
 
-            <div className="bg-bg-base border border-border-subtle/15 rounded p-3 mb-4 text-[11px] font-mono text-text-secondary/70 max-h-32 overflow-y-auto">
+            <div className="bg-bg-base border border-border-subtle/15 rounded p-3 mb-4 text-[var(--font-size-xs)] font-mono text-text-secondary/70 max-h-32 overflow-y-auto">
               {checkoutConflict.error}
             </div>
 
@@ -109,7 +109,7 @@ export function CheckoutConflictModal({
                 {t('checkoutConflict.stashAndSwitch')}
               </button>
             </div>
-            <p className="text-[10px] text-text-secondary/70 mt-3 text-center">
+            <p className="text-[var(--font-size-xs)] text-text-secondary/70 mt-3 text-center">
               {t('checkoutConflict.stashAndSwitchDesc')}
             </p>
           </motion.div>
@@ -239,11 +239,11 @@ export function CleanUntrackedModal({
 
             <div className="flex items-start gap-2 p-3 rounded bg-warning/10 border border-warning/30 text-warning mb-4">
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
-              <p className="text-[11px] leading-relaxed font-semibold">{t('cleanModal.warning')}</p>
+              <p className="text-[var(--font-size-xs)] leading-relaxed font-semibold">{t('cleanModal.warning')}</p>
             </div>
 
             <div className="flex items-center justify-between gap-3 mb-2">
-              <span className="text-[11px] text-text-secondary font-bold uppercase tracking-wider">
+              <span className="text-[var(--font-size-xs)] text-text-secondary font-bold uppercase tracking-wider">
                 {t('cleanModal.selectedCount', { count: selectedCleanFiles.size })}
               </span>
               <div className="flex items-center gap-2">
@@ -251,7 +251,7 @@ export function CleanUntrackedModal({
                   type="button"
                   onClick={() => setSelectedCleanFiles(new Set(cleanableFiles.filter((filePath) => !filePath.endsWith('/'))))}
                   disabled={cleanModalLoading || cleanableFiles.length === 0}
-                  className="text-[10px] text-secondary hover:text-bg-base px-2 py-0.5 rounded border border-secondary/40 hover:bg-secondary transition-colors disabled:opacity-40"
+                  className="text-[var(--font-size-xs)] text-secondary hover:text-bg-base px-2 py-0.5 rounded border border-secondary/40 hover:bg-secondary transition-colors disabled:opacity-40"
                 >
                   {t('cleanModal.selectFiles')}
                 </button>
@@ -259,7 +259,7 @@ export function CleanUntrackedModal({
                   type="button"
                   onClick={() => setSelectedCleanFiles(new Set())}
                   disabled={cleanModalLoading || cleanableFiles.length === 0}
-                  className="text-[10px] text-text-secondary hover:text-bg-base px-2 py-0.5 rounded border border-border-subtle hover:bg-border-subtle transition-colors disabled:opacity-40"
+                  className="text-[var(--font-size-xs)] text-text-secondary hover:text-bg-base px-2 py-0.5 rounded border border-border-subtle hover:bg-border-subtle transition-colors disabled:opacity-40"
                 >
                   {t('cleanModal.selectNone')}
                 </button>
@@ -390,7 +390,7 @@ export function AmendLastCommitModal({
             </div>
             <div className="space-y-3 flex-1 overflow-y-auto scrollbar-thin">
               <div>
-                <label className="text-[10px] uppercase tracking-wider font-bold text-text-secondary block mb-1">
+                <label className="text-[var(--font-size-xs)] uppercase tracking-wider font-bold text-text-secondary block mb-1">
                   {t('amend.currentMessage')}
                 </label>
                 <div className="bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-secondary font-mono whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
@@ -398,7 +398,7 @@ export function AmendLastCommitModal({
                 </div>
               </div>
               <div>
-                <label className="text-[10px] uppercase tracking-wider font-bold text-text-secondary block mb-1">
+                <label className="text-[var(--font-size-xs)] uppercase tracking-wider font-bold text-text-secondary block mb-1">
                   {t('amend.newMessage')}
                 </label>
                 <textarea
@@ -491,7 +491,7 @@ export function SquashCommitsModal({
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] uppercase tracking-wider font-bold text-text-secondary block mb-2">
+                <label className="text-[var(--font-size-xs)] uppercase tracking-wider font-bold text-text-secondary block mb-2">
                   {t('page.modals.squash.lastCommits')}
                 </label>
                 <div className="flex gap-2">
@@ -522,7 +522,7 @@ export function SquashCommitsModal({
                 </div>
               </div>
               <div>
-                <label className="text-[10px] uppercase tracking-wider font-bold text-text-secondary block mb-1">
+                <label className="text-[var(--font-size-xs)] uppercase tracking-wider font-bold text-text-secondary block mb-1">
                   {t('page.modals.squash.newMessage')}
                 </label>
                 <textarea
@@ -831,7 +831,7 @@ export function ForcePushConfirmModal({
             {t('page.modals.forcePush.desc')}
           </p>
           <div className="bg-bg-base/80 border border-border-subtle/25 rounded-xl p-3 mb-1">
-            <p className="text-[11px] text-error uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5">
+            <p className="text-[var(--font-size-xs)] text-error uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5">
               {t('page.modals.forcePush.warningTitle')}
             </p>
             <p className="text-xs text-text-secondary leading-relaxed">
@@ -1006,7 +1006,7 @@ export function InitializeRepoGuardModal({
         </div>
 
         <div className="mt-5 rounded border border-border-subtle/20 bg-bg-base/75 p-3">
-          <p className="mb-1 text-[10px] font-bold uppercase text-text-secondary">
+          <p className="mb-1 text-[var(--font-size-xs)] font-bold uppercase text-text-secondary">
             {t('initGuard.pathLabel')}
           </p>
           <p className="select-text break-all font-mono text-xs text-text-primary">
@@ -1056,7 +1056,7 @@ export function InitializeRepoGuardModal({
 
         {remoteOpen && (
           <form onSubmit={handleRemoteSubmit} className="mt-4 rounded border border-border-subtle/20 bg-bg-base/55 p-3">
-            <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+            <label className="mb-1.5 block text-[var(--font-size-xs)] font-extrabold uppercase tracking-wider text-text-secondary">
               {t('initGuard.remoteUrlLabel')}
             </label>
             <input
@@ -1093,7 +1093,7 @@ export function InitializeRepoGuardModal({
                   <div>
                     <p className="font-bold">{t('initGuard.remoteHistory.title')}</p>
                     <p className="mt-1 text-text-secondary">{t('initGuard.remoteHistory.desc')}</p>
-                    <p className="mt-2 text-[11px] text-text-secondary">
+                    <p className="mt-2 text-[var(--font-size-xs)] text-text-secondary">
                       {pendingRepo?.isInitialized
                         ? t('initGuard.remoteHistory.backup')
                         : t('initGuard.remoteHistory.files')}
@@ -1248,7 +1248,7 @@ export function PublishRepositoryModal({
         </div>
       ) : (
         <form onSubmit={handleLink}>
-          <label htmlFor="publish-remote-url" className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+          <label htmlFor="publish-remote-url" className="mb-1.5 block text-[var(--font-size-xs)] font-extrabold uppercase tracking-wider text-text-secondary">
             {t('publishRemote.urlLabel')}
           </label>
           <input
@@ -1329,7 +1329,7 @@ export function AddRemoteModal({ show, onClose, onAdd, isLoading }: AddRemoteMod
       </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
-          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+          <label className="mb-1.5 block text-[var(--font-size-xs)] font-extrabold uppercase tracking-wider text-text-secondary">
             {t('remote.name')}
           </label>
           <input
@@ -1341,7 +1341,7 @@ export function AddRemoteModal({ show, onClose, onAdd, isLoading }: AddRemoteMod
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+          <label className="mb-1.5 block text-[var(--font-size-xs)] font-extrabold uppercase tracking-wider text-text-secondary">
             {t('remote.url')}
           </label>
           <input
@@ -1412,7 +1412,7 @@ export function RenameRemoteModal({ remote, onClose, onRename, isLoading }: Rena
           <span className="text-xs text-text-secondary block mb-1">
             Renombrando remoto: <strong className="text-text-primary font-bold">{remote?.name}</strong>
           </span>
-          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+          <label className="mb-1.5 block text-[var(--font-size-xs)] font-extrabold uppercase tracking-wider text-text-secondary">
             {t('remote.newName')}
           </label>
           <input
@@ -1484,7 +1484,7 @@ export function SetRemoteUrlModal({ remote, onClose, onSetUrl, isLoading }: SetR
           <span className="text-xs text-text-secondary block mb-1">
             Remoto: <strong className="text-text-primary font-bold">{remote?.name}</strong>
           </span>
-          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+          <label className="mb-1.5 block text-[var(--font-size-xs)] font-extrabold uppercase tracking-wider text-text-secondary">
             {t('remote.newUrl')}
           </label>
           <input
@@ -1568,7 +1568,7 @@ export function NewWorktreeModal({ show, onClose, onAdd, onPickFolder, isLoading
       </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
-          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+          <label className="mb-1.5 block text-[var(--font-size-xs)] font-extrabold uppercase tracking-wider text-text-secondary">
             {t('worktree.path')}
           </label>
           <div className="flex gap-2">
@@ -1589,7 +1589,7 @@ export function NewWorktreeModal({ show, onClose, onAdd, onPickFolder, isLoading
           </div>
         </div>
         <div>
-          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+          <label className="mb-1.5 block text-[var(--font-size-xs)] font-extrabold uppercase tracking-wider text-text-secondary">
             {t('worktree.branch')}
           </label>
           <select
@@ -1668,7 +1668,7 @@ export function NewSubmoduleModal({ show, onClose, onAdd, isLoading }: NewSubmod
       </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
-          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+          <label className="mb-1.5 block text-[var(--font-size-xs)] font-extrabold uppercase tracking-wider text-text-secondary">
             {t('submodule.url')}
           </label>
           <input
@@ -1680,7 +1680,7 @@ export function NewSubmoduleModal({ show, onClose, onAdd, isLoading }: NewSubmod
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+          <label className="mb-1.5 block text-[var(--font-size-xs)] font-extrabold uppercase tracking-wider text-text-secondary">
             {t('submodule.path')}
           </label>
           <input

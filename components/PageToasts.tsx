@@ -156,7 +156,7 @@ export function PageToasts({
                       ))}
                     </div>
                     {pullSummary && (
-                      <div className="text-[10px] opacity-75 font-mono text-secondary/90 border-t border-secondary/10 pt-1.5 mt-0.5 truncate" title={pullSummary}>
+                      <div className="text-[var(--font-size-xs)] opacity-75 font-mono text-secondary/90 border-t border-secondary/10 pt-1.5 mt-0.5 truncate" title={pullSummary}>
                         {pullSummary}
                       </div>
                     )}
@@ -267,7 +267,7 @@ export function PageToasts({
                 ))}
               </div>
               {stageIssue.lineEndingPaths.length > 0 && (
-                <p className="text-[11px] text-text-secondary/80 mt-2 leading-snug">
+                <p className="text-[var(--font-size-xs)] text-text-secondary/80 mt-2 leading-snug">
                   {stageIssue.lineEndingPaths.length === 1
                     ? t('stageIssue.lineEndingOne')
                     : t('stageIssue.lineEndingMany', { count: stageIssue.lineEndingPaths.length })}

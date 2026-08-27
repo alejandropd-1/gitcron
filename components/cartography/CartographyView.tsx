@@ -129,7 +129,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
             <h2 className="truncate text-base font-bold tracking-wide text-carto-text">
               {t('cartography.title')}
             </h2>
-            <span className="ml-1 rounded-full border border-carto-accent/35 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-carto-accent">
+            <span className="ml-1 rounded-full border border-carto-accent/35 px-2 py-0.5 text-[var(--font-size-xs)] font-bold uppercase tracking-widest text-carto-accent">
               Beta
             </span>
           </div>
@@ -156,7 +156,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                 {t('cartography.title')}
               </span>
               {graphStatus?.state === 'ready' && graphStatus.stats && (
-                <span className="shrink-0 text-[11px] text-carto-text-muted">
+                <span className="shrink-0 text-[var(--font-size-xs)] text-carto-text-muted">
                   {t('cartography.semantic.indexStats', {
                     nodes: graphStatus.stats.nodes,
                     edges: graphStatus.stats.edges,
@@ -172,7 +172,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                     type="button"
                     onClick={() => updatePersonaMode(mode)}
                     aria-pressed={personaMode === mode}
-                    className={`px-2 py-1 text-[11px] font-semibold tracking-wide transition-colors ${
+                    className={`px-2 py-1 text-[var(--font-size-xs)] font-semibold tracking-wide transition-colors ${
                       personaMode === mode
                         ? 'bg-carto-accent/15 text-carto-accent'
                         : 'text-carto-text-muted hover:bg-carto-node/5 hover:text-carto-text'
@@ -186,7 +186,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
                 type="button"
                 onClick={() => void refreshLens()}
                 disabled={!repoPath}
-                className="flex items-center gap-1.5 rounded border border-carto-grid px-2.5 py-1 text-[11px] font-semibold tracking-wide text-carto-text-muted transition-colors hover:border-carto-accent/50 hover:text-carto-text disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded border border-carto-grid px-2.5 py-1 text-[var(--font-size-xs)] font-semibold tracking-wide text-carto-text-muted transition-colors hover:border-carto-accent/50 hover:text-carto-text disabled:opacity-40"
               >
                 <RefreshCw size={12} />
                 {t('cartography.refresh')}

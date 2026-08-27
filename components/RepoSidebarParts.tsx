@@ -73,7 +73,7 @@ export function SidebarSection({
           />
         </button>
         <div className="flex-1" />
-        {count !== undefined && <span className="bg-border-subtle text-[10px] px-2 py-0.5 rounded-full font-mono shrink-0">{count}</span>}
+        {count !== undefined && <span className="bg-border-subtle text-[var(--font-size-xs)] px-2 py-0.5 rounded-full font-mono shrink-0">{count}</span>}
         {extra}
       </div>
       {isOpen && <div className="space-y-0.5">{children}</div>}
@@ -148,7 +148,7 @@ export const StagingFileRow = memo(function StagingFileRow({
       )}
       <div
         className={cn(
-          'w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold shrink-0',
+          'w-4 h-4 rounded flex items-center justify-center text-[var(--font-size-xs)] font-bold shrink-0',
           file.conflicted ? 'bg-error/20 text-error border border-git-delete/40 animate-pulse' :
           file.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
           file.status === 'added' ? 'bg-secondary/20 text-secondary' :
@@ -340,7 +340,7 @@ function BranchFolderView({
         {isOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         <Folder size={14} className="text-text-secondary shrink-0" />
         <span className="truncate flex-1 text-left select-text">{folder.prefix}</span>
-        <span className="text-[10px] text-text-secondary/70">{folder.branches.length}</span>
+        <span className="text-[var(--font-size-xs)] text-text-secondary/70">{folder.branches.length}</span>
       </button>
       {isOpen && (
         <div>
@@ -413,7 +413,7 @@ function BranchStatusIndicator({ tracking }: { tracking?: BranchTrackingInfo }) 
 
   return (
     <span
-      className="flex items-center gap-1 shrink-0 ml-1 text-[10px] font-mono"
+      className="flex items-center gap-1 shrink-0 ml-1 text-[var(--font-size-xs)] font-mono"
       title={t('sidebar.branchStatus.diverged', { upstream, ahead, behind })}
     >
       <Cloud size={12} className="text-git-mod" />
@@ -587,7 +587,7 @@ function RemoteFolderView({
         {isOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         <Folder size={13} className="text-text-secondary shrink-0" />
         <span className="truncate flex-1 text-left select-text">{folder.prefix}</span>
-        <span className="text-[10px] text-text-secondary/70">{folder.branches.length}</span>
+        <span className="text-[var(--font-size-xs)] text-text-secondary/70">{folder.branches.length}</span>
       </button>
       {isOpen && (
         <div>

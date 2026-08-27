@@ -67,7 +67,7 @@ export function StashCreateModal({ open, onClose, message, onMessageChange, onSu
               placeholder={t('stashModal.messagePlaceholder')}
               className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-git-mod/50 mb-2"
             />
-            <p className="text-[11px] text-text-secondary leading-relaxed mb-5">
+            <p className="text-[var(--font-size-xs)] text-text-secondary leading-relaxed mb-5">
               {t('stashModal.desc')}
             </p>
             <div className="flex gap-2 justify-end">
@@ -126,7 +126,7 @@ export function StashPreviewModal({ preview, onClose }: StashPreviewModalProps) 
 
             <div className="grid grid-cols-[220px_minmax(0,1fr)] gap-3 min-h-0 flex-1">
               <div className="rounded border border-border-subtle/15 bg-bg-base/70 overflow-hidden min-h-0">
-                <div className="px-3 py-2 border-b border-border-subtle/15 text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+                <div className="px-3 py-2 border-b border-border-subtle/15 text-[var(--font-size-xs)] font-bold uppercase tracking-wider text-text-secondary">
                   {t('stashPreview.files', { count: preview.files.length })}
                 </div>
                 <div className="max-h-[52vh] overflow-y-auto p-1">
@@ -142,7 +142,7 @@ export function StashPreviewModal({ preview, onClose }: StashPreviewModalProps) 
               </div>
               <pre
                 tabIndex={0}
-                className="rounded border border-border-subtle/15 bg-bg-surface p-3 overflow-auto max-h-[52vh] text-[11px] leading-relaxed text-text-primary font-mono whitespace-pre"
+                className="rounded border border-border-subtle/15 bg-bg-surface p-3 overflow-auto max-h-[52vh] text-[var(--font-size-xs)] leading-relaxed text-text-primary font-mono whitespace-pre"
               >
                 <code>{preview.diff || t('stashPreview.noDiff')}</code>
               </pre>

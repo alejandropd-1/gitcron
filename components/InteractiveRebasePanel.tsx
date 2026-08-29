@@ -280,7 +280,7 @@ export default function InteractiveRebasePanel({
         )}
 
         {/* List Header */}
-        <div className="px-6 py-2.5 border-b border-border-subtle/15 bg-bg-surface/20 flex text-[10px] font-bold text-text-secondary uppercase tracking-wider shrink-0 select-none mt-2">
+        <div className="px-6 py-2.5 border-b border-border-subtle/15 bg-bg-surface/20 flex text-[length:var(--font-size-2xs)] font-bold text-text-secondary uppercase tracking-wider shrink-0 select-none mt-2">
           <span className="w-12" />
           <span className="w-32">Acción</span>
           <span className="w-24">Commit</span>
@@ -324,7 +324,7 @@ export default function InteractiveRebasePanel({
                     </div>
 
                     {/* Hash */}
-                    <div className="w-24 shrink-0 pr-2 font-mono text-[11px] text-text-secondary flex items-center gap-1.5 select-all">
+                    <div className="w-24 shrink-0 pr-2 font-mono text-[length:var(--font-size-xs)] text-text-secondary flex items-center gap-1.5 select-all">
                       {isPushed && (
                         <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" title="Pushed to remote" />
                       )}
@@ -347,7 +347,7 @@ export default function InteractiveRebasePanel({
                         className="overflow-hidden bg-bg-base/40 border-t border-border-subtle/5"
                       >
                         <div className="pl-[68px] pr-6 py-2.5 flex flex-col gap-1.5">
-                          <span className="text-[10px] font-bold text-secondary uppercase tracking-wider flex items-center gap-1">
+                          <span className="text-[length:var(--font-size-2xs)] font-bold text-secondary uppercase tracking-wider flex items-center gap-1">
                             <Edit2 size={10} /> Mensaje del commit
                           </span>
                           <textarea
@@ -374,7 +374,7 @@ export default function InteractiveRebasePanel({
                 <AlertTriangle size={12} /> {validationError}
               </span>
             ) : (
-              <span className="text-[10px] text-text-secondary/60 flex items-center gap-1">
+              <span className="text-[length:var(--font-size-xs)] text-text-secondary/60 flex items-center gap-1">
                 <HelpCircle size={10} /> Arrastra las filas para reordenar la secuencia.
               </span>
             )}

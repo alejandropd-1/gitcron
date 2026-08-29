@@ -89,7 +89,7 @@ export function CartoNodeDetail({
           type="button"
           onClick={onBack}
           title={t('cartography.detail.back')}
-          className="flex shrink-0 items-center gap-1 rounded border border-carto-grid px-1.5 py-0.5 text-[var(--font-size-xs)] font-semibold text-carto-text-muted transition-colors hover:border-carto-accent/50 hover:text-carto-text"
+          className="flex shrink-0 items-center gap-1 rounded border border-carto-grid px-1.5 py-0.5 text-[length:var(--font-size-2xs)] font-semibold text-carto-text-muted transition-colors hover:border-carto-accent/50 hover:text-carto-text"
         >
           <ArrowLeft size={12} />
         </button>
@@ -97,14 +97,14 @@ export function CartoNodeDetail({
         <span className="truncate text-xs font-bold tracking-wide text-carto-text" title={node.name}>
           {node.name}
         </span>
-        <span className="shrink-0 rounded border border-carto-accent/30 px-1.5 py-0.5 text-[var(--font-size-xs)] font-bold uppercase tracking-widest text-carto-accent">
+        <span className="shrink-0 rounded border border-carto-accent/30 px-1.5 py-0.5 text-[length:var(--font-size-2xs)] font-bold uppercase tracking-widest text-carto-accent">
           {node.kind}
         </span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-3 py-2.5">
         {/* Ruta */}
-        <p className="mb-3 truncate font-mono text-[var(--font-size-xs)] text-carto-text-muted" title={loc}>
+        <p className="mb-3 truncate font-mono text-[length:var(--font-size-xs)] text-carto-text-muted" title={loc}>
           {loc}
         </p>
 
@@ -122,7 +122,7 @@ export function CartoNodeDetail({
             className="mt-4 rounded-lg border border-carto-grid bg-carto-node/[0.025] px-3 py-2"
             open={technicalOpenDefault}
           >
-            <summary className="cursor-pointer text-[var(--font-size-xs)] font-bold uppercase tracking-widest text-carto-text-muted transition-colors hover:text-carto-text">
+            <summary className="cursor-pointer text-[length:var(--font-size-2xs)] font-bold uppercase tracking-widest text-carto-text-muted transition-colors hover:text-carto-text">
               {t('cartography.detail.technicalDetails')}
             </summary>
             <div className="mt-3 flex flex-col gap-3">
@@ -193,7 +193,7 @@ function ExplanationBlock({
         <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-carto-text">
           {explanation.text}
         </p>
-        <div className="mt-2 flex items-center gap-2 font-mono text-[var(--font-size-xs)] text-carto-text-muted/70">
+        <div className="mt-2 flex items-center gap-2 font-mono text-[length:var(--font-size-xs)] text-carto-text-muted/70">
           <span className="truncate">{explanation.provider}</span>
           {result?.cached && (
             <span className="flex shrink-0 items-center gap-1 rounded border border-carto-accent/25 px-1 py-0.5 text-carto-accent/80">
@@ -222,7 +222,7 @@ function Banner({
       ? 'border-error/30 bg-error/5 text-error'
       : 'border-carto-grid bg-carto-node/[0.03] text-carto-text-muted';
   return (
-    <div className={`flex items-start gap-1.5 rounded-lg border px-2.5 py-2 text-[var(--font-size-xs)] ${cls}`}>
+    <div className={`flex items-start gap-1.5 rounded-lg border px-2.5 py-2 text-[length:var(--font-size-2xs)] ${cls}`}>
       <span className="mt-0.5 shrink-0">{icon}</span>
       <span className="min-w-0 break-words leading-relaxed">{text}</span>
     </div>
@@ -238,20 +238,20 @@ function ImpactSection({ summary, files }: { summary: string; files: string[] })
     <div>
       <div className="mb-1 flex items-center gap-1.5">
         <Zap size={13} className="text-carto-accent" />
-        <span className="text-[var(--font-size-xs)] font-bold uppercase tracking-widest text-carto-text-muted">
+        <span className="text-[length:var(--font-size-2xs)] font-bold uppercase tracking-widest text-carto-text-muted">
           {t('cartography.graph.impact')}
         </span>
       </div>
-      <p className="pl-5 text-[var(--font-size-xs)] text-carto-text-muted">{summary}</p>
+      <p className="pl-5 text-[length:var(--font-size-xs)] text-carto-text-muted">{summary}</p>
       {shown.length > 0 && (
         <ul className="mt-0.5 flex flex-col gap-0.5 pl-5">
           {shown.map((p) => (
-            <li key={p} className="truncate font-mono text-[var(--font-size-xs)] text-carto-text" title={p}>
+            <li key={p} className="truncate font-mono text-[length:var(--font-size-xs)] text-carto-text" title={p}>
               {p}
             </li>
           ))}
           {files.length > shown.length && (
-            <li className="text-[var(--font-size-xs)] text-carto-text-muted">
+            <li className="text-[length:var(--font-size-xs)] text-carto-text-muted">
               {t('cartography.graph.more', { count: files.length - shown.length })}
             </li>
           )}
@@ -276,8 +276,8 @@ function RelatedSection({
     <div>
       <div className="mb-1 flex items-center gap-1.5">
         {icon}
-        <span className="text-[var(--font-size-xs)] font-bold uppercase tracking-widest text-carto-text-muted">{title}</span>
-        <span className="text-[var(--font-size-xs)] text-carto-text-muted">· {items.length}</span>
+        <span className="text-[length:var(--font-size-2xs)] font-bold uppercase tracking-widest text-carto-text-muted">{title}</span>
+        <span className="text-[length:var(--font-size-xs)] text-carto-text-muted">· {items.length}</span>
       </div>
       {items.length === 0 ? (
         <p className="pl-5 text-xs text-carto-text-muted/70">{t('cartography.graph.none')}</p>
@@ -286,7 +286,7 @@ function RelatedSection({
           {shown.map((it) => (
             <li
               key={`${it.filePath}#${it.name}`}
-              className="truncate font-mono text-[var(--font-size-xs)] text-carto-text"
+              className="truncate font-mono text-[length:var(--font-size-xs)] text-carto-text"
               title={`${it.name} — ${it.filePath}`}
             >
               <span className="text-carto-text">{it.name}</span>
@@ -294,7 +294,7 @@ function RelatedSection({
             </li>
           ))}
           {items.length > shown.length && (
-            <li className="text-[var(--font-size-xs)] text-carto-text-muted">
+            <li className="text-[length:var(--font-size-xs)] text-carto-text-muted">
               {t('cartography.graph.more', { count: items.length - shown.length })}
             </li>
           )}

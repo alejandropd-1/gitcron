@@ -1422,7 +1422,7 @@ export function OpenSpecDashboard({
               role="status"
               title={workingTreeClean ? t('pipeline.openspec.repo.clean') : t('pipeline.openspec.repo.changed')}
               className={cn(
-                'flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--font-size-xs)] font-semibold shrink-0',
+                'flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0',
                 workingTreeClean
                   ? 'bg-secondary/10 text-secondary'
                   : 'bg-git-mod/15 text-git-mod'
@@ -1448,7 +1448,7 @@ export function OpenSpecDashboard({
                   <div
                     role="status"
                     title={t('sidebar.branchStatus.gone', { upstream: tracking.upstream ?? '' })}
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--font-size-xs)] font-semibold shrink-0 bg-error/15 text-error"
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0 bg-error/15 text-error"
                   >
                     <AlertCircle size={11} className="shrink-0" />
                     <span>{t('sidebar.upstreamGone')}</span>
@@ -1464,7 +1464,7 @@ export function OpenSpecDashboard({
                       ahead: tracking.ahead,
                       behind: tracking.behind,
                     })}
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--font-size-xs)] font-semibold shrink-0 bg-secondary/10 text-secondary font-mono"
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0 bg-secondary/10 text-secondary font-mono"
                   >
                     <GitMerge size={11} className="shrink-0" />
                     <span>+{tracking.ahead} -{tracking.behind}</span>
@@ -1476,7 +1476,7 @@ export function OpenSpecDashboard({
                   <div
                     role="status"
                     title={t('sidebar.branchStatus.synced', { upstream: tracking.upstream ?? '' })}
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--font-size-xs)] font-semibold shrink-0 bg-secondary/10 text-secondary"
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0 bg-secondary/10 text-secondary"
                   >
                     <Check size={11} strokeWidth={2.5} className="shrink-0" />
                     <span>{t('sidebar.branchStatus.syncedShort')}</span>
@@ -1487,7 +1487,7 @@ export function OpenSpecDashboard({
                 <div
                   role="status"
                   title={t('sidebar.branchStatus.local')}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--font-size-xs)] font-semibold shrink-0 bg-text-primary/[0.035] text-text-secondary/80"
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0 bg-text-primary/[0.035] text-text-secondary/80"
                 >
                   <Monitor size={11} className="shrink-0" />
                   <span>{t('sidebar.branchStatus.localShort')}</span>
@@ -1521,7 +1521,7 @@ export function OpenSpecDashboard({
                     onEnsureRightOpen?.();
                   }}
                   className={cn(
-                    'flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--font-size-xs)] font-semibold shrink-0 font-mono',
+                    'flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0 font-mono',
                     engineAttention
                       ? 'bg-warning/15 text-warning'
                       : 'bg-text-primary/[0.035] text-text-secondary/80',
@@ -1562,7 +1562,7 @@ export function OpenSpecDashboard({
                   role="status"
                   title={`${t('pipeline.openspec.evidence.validation')}: ${valText}`}
                   className={cn(
-                    'flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--font-size-xs)] font-semibold shrink-0',
+                    'flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0',
                     valClass,
                   )}
                 >
@@ -1597,7 +1597,7 @@ export function OpenSpecDashboard({
               )}
             >
               <GitCommit size={13} className="shrink-0" />
-              <span className="text-[var(--font-size-xs)] leading-none font-semibold">{t('pipeline.openspec.prepare.open')}</span>
+              <span className="text-[length:var(--font-size-xs)] leading-none font-semibold">{t('pipeline.openspec.prepare.open')}</span>
             </button>
           </div>
         </div>

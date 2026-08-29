@@ -224,7 +224,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
           <p className="text-xs text-text-secondary max-w-md mt-2 leading-relaxed font-sans">
             {t('dashboard.emptyDesc')}
           </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-3 text-[10px] uppercase font-bold text-text-secondary">
+          <div className="mt-6 flex flex-wrap justify-center gap-3 text-[length:var(--font-size-2xs)] uppercase font-bold text-text-secondary">
             <span className="px-2 py-1 bg-git-add/5 border border-git-add/20 rounded text-git-add">
               + 1 Aceptar / Acierto
             </span>
@@ -242,7 +242,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
           {/* STATS OVERVIEW CARDS */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-bg-surface/60 border border-border-subtle/15 rounded-lg p-3 font-mono">
-              <div className="text-[9px] uppercase tracking-wider text-text-secondary/70">
+              <div className="text-[length:var(--font-size-2xs)] uppercase tracking-wider text-text-secondary/70">
                 {t('dashboard.brierScore')}
               </div>
               <div
@@ -259,43 +259,43 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
               >
                 {stats.brier !== null ? stats.brier.toFixed(4) : '—'}
               </div>
-              <div className="text-[9px] text-text-secondary mt-1 font-sans leading-relaxed">
+              <div className="text-[length:var(--font-size-xs)] text-text-secondary mt-1 font-sans leading-relaxed">
                 {t('dashboard.brierScoreDesc')}
               </div>
             </div>
 
             <div className="bg-bg-surface/60 border border-border-subtle/15 rounded-lg p-3 font-mono">
-              <div className="text-[9px] uppercase tracking-wider text-text-secondary/70">
+              <div className="text-[length:var(--font-size-2xs)] uppercase tracking-wider text-text-secondary/70">
                 Predicciones
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1 tracking-tight">
                 {stats.totalBranches}
               </div>
-              <div className="text-[9px] text-git-mod mt-1 font-sans">
+              <div className="text-[length:var(--font-size-xs)] text-git-mod mt-1 font-sans">
                 {t('dashboard.unresolvedCount', { count: stats.deferredBranches })}
               </div>
             </div>
 
             <div className="bg-bg-surface/60 border border-border-subtle/15 rounded-lg p-3 font-mono">
-              <div className="text-[9px] uppercase tracking-wider text-text-secondary/70">
+              <div className="text-[length:var(--font-size-2xs)] uppercase tracking-wider text-text-secondary/70">
                 Resueltas
               </div>
               <div className="text-2xl font-bold text-git-add mt-1 tracking-tight">
                 {stats.resolvedBranches}
               </div>
-              <div className="text-[9px] text-text-secondary mt-1 font-sans">
+              <div className="text-[length:var(--font-size-xs)] text-text-secondary mt-1 font-sans">
                 Muestras para Brier y calibración.
               </div>
             </div>
 
             <div className="bg-bg-surface/60 border border-border-subtle/15 rounded-lg p-3 font-mono">
-              <div className="text-[9px] uppercase tracking-wider text-text-secondary/70">
+              <div className="text-[length:var(--font-size-2xs)] uppercase tracking-wider text-text-secondary/70">
                 Calibración
               </div>
               <div className="text-2xl font-bold text-primary mt-1 tracking-tight">
                 {stats.resolvedBranches > 0 ? (stats.calibration.filter(b => b.count > 0).length) : 0} / 10
               </div>
-              <div className="text-[9px] text-text-secondary mt-1 font-sans">
+              <div className="text-[length:var(--font-size-xs)] text-text-secondary mt-1 font-sans">
                 Bins con datos estadísticos.
               </div>
             </div>
@@ -309,12 +309,12 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                 <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 font-mono">
                   <Sparkles size={12} /> {t('dashboard.calibrationCurve')}
                 </h4>
-                <p className="text-[10px] text-text-secondary mt-0.5">{t('dashboard.calibrationCurveDesc')}</p>
+                <p className="text-[length:var(--font-size-xs)] text-text-secondary mt-0.5">{t('dashboard.calibrationCurveDesc')}</p>
               </div>
 
               <div className="flex-1 flex justify-center items-center relative min-h-60">
                 {stats.resolvedBranches === 0 ? (
-                  <div className="text-[10px] font-mono text-text-secondary">
+                  <div className="text-[length:var(--font-size-2xs)] font-mono text-text-secondary">
                     CALIBRATION CURVE REQUIRES AT LEAST 1 RESOLVED PREDICTION
                   </div>
                 ) : (
@@ -365,7 +365,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                             <text
                               x={padding - 6}
                               y={tickY + 3}
-                              className="text-[8px] font-mono fill-text-secondary/70 text-right"
+                              className="text-[length:var(--font-size-2xs)] font-mono fill-text-secondary/70 text-right"
                               textAnchor="end"
                             >
                               {(tickVal * 100).toFixed(0)}%
@@ -374,7 +374,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                             <text
                               x={tickX}
                               y={chartHeight - padding + 12}
-                              className="text-[8px] font-mono fill-text-secondary/70 text-center"
+                              className="text-[length:var(--font-size-2xs)] font-mono fill-text-secondary/70 text-center"
                               textAnchor="middle"
                             >
                               {(tickVal * 100).toFixed(0)}%
@@ -441,7 +441,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                       <text
                         x={chartWidth / 2}
                         y={chartHeight - 4}
-                        className="text-[7px] font-mono uppercase tracking-wider fill-text-secondary/60 text-center"
+                        className="text-[length:var(--font-size-2xs)] font-mono uppercase tracking-wider fill-text-secondary/60 text-center"
                         textAnchor="middle"
                       >
                         Confianza predicha (IA)
@@ -450,7 +450,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                         x={4}
                         y={chartHeight / 2}
                         transform={`rotate(-90 8 ${chartHeight / 2})`}
-                        className="text-[7px] font-mono uppercase tracking-wider fill-text-secondary/60 text-center"
+                        className="text-[length:var(--font-size-2xs)] font-mono uppercase tracking-wider fill-text-secondary/60 text-center"
                         textAnchor="middle"
                       >
                         Precisión real (Acierto)
@@ -458,7 +458,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                     </svg>
 
                     {/* Interactive legend details */}
-                    <div className="flex justify-between items-center gap-6 mt-3 text-[9px] font-mono border-t border-border-subtle/10 pt-2 w-full max-w-[380px]">
+                    <div className="flex justify-between items-center gap-6 mt-3 text-[length:var(--font-size-2xs)] font-mono border-t border-border-subtle/10 pt-2 w-full max-w-[380px]">
                       <div className="flex items-center gap-1.5">
                         <div className="w-2.5 h-0.5 border-t border-dashed border-primary/50" />
                         <span className="text-text-secondary">{t('dashboard.idealLine')}</span>
@@ -489,12 +489,12 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                 <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 font-mono">
                   <Activity size={12} /> {t('dashboard.outcomeBreakdown')}
                 </h4>
-                <p className="text-[10px] text-text-secondary mt-0.5">Evolución de las decisiones de las predicciones en el tiempo.</p>
+                <p className="text-[length:var(--font-size-xs)] text-text-secondary mt-0.5">Evolución de las decisiones de las predicciones en el tiempo.</p>
               </div>
 
               <div className="flex-1 flex justify-center items-center relative min-h-60">
                 {stats.breakdown.length === 0 ? (
-                  <div className="text-[10px] font-mono text-text-secondary">
+                  <div className="text-[length:var(--font-size-2xs)] font-mono text-text-secondary">
                     DECISION TIMELINE REQUIRES AT LEAST 1 PREDICTION RUN
                   </div>
                 ) : (
@@ -533,7 +533,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                               <text
                                 x={p.x}
                                 y={chartHeight - padding + 12}
-                                className="text-[7px] font-mono fill-text-secondary/70 text-center"
+                                className="text-[length:var(--font-size-2xs)] font-mono fill-text-secondary/70 text-center"
                                 textAnchor="middle"
                               >
                                 {p.d.period.slice(5)} {/* MM-DD */}
@@ -617,23 +617,23 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                     </svg>
 
                     {/* Interactive legend details */}
-                    <div className="flex flex-wrap justify-between items-center gap-3 mt-3 text-[9px] font-mono border-t border-border-subtle/10 pt-2 w-full max-w-[420px]">
+                    <div className="flex flex-wrap justify-between items-center gap-3 mt-3 text-[length:var(--font-size-2xs)] font-mono border-t border-border-subtle/10 pt-2 w-full max-w-[420px]">
                       <div className="flex gap-3">
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2 bg-primary" />
-                          <span className="text-text-secondary text-[8px]">Mat</span>
+                          <span className="text-text-secondary text-[length:var(--font-size-2xs)]">Mat</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2 bg-git-add" />
-                          <span className="text-text-secondary text-[8px]">Acept</span>
+                          <span className="text-text-secondary text-[length:var(--font-size-2xs)]">Acept</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2 bg-git-mod" />
-                          <span className="text-text-secondary text-[8px]">Difer</span>
+                          <span className="text-text-secondary text-[length:var(--font-size-2xs)]">Difer</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2 bg-error" />
-                          <span className="text-text-secondary text-[8px]">Rech</span>
+                          <span className="text-text-secondary text-[length:var(--font-size-2xs)]">Rech</span>
                         </div>
                       </div>
 
@@ -673,7 +673,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                   const isZero = s.total === 0;
                   return (
                     <div key={type} className="space-y-1">
-                      <div className="flex items-center justify-between text-[10px]">
+                      <div className="flex items-center justify-between text-[length:var(--font-size-xs)]">
                         <span className="font-semibold capitalize text-text-primary">
                           {type === 'improvement'
                             ? 'Mejora'
@@ -707,7 +707,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
 
               <div className="space-y-2 max-h-[140px] overflow-y-auto divide-y divide-border-subtle/10 pr-1">
                 {stats.providers.length === 0 ? (
-                  <div className="text-[10px] text-text-secondary italic text-center py-4">
+                  <div className="text-[length:var(--font-size-xs)] text-text-secondary italic text-center py-4">
                     Sin datos de modelos/proveedores para comparar.
                   </div>
                 ) : (
@@ -716,16 +716,16 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                       ? p.model.split('/').pop() || p.model
                       : 'Default Model';
                     return (
-                      <div key={idx} className="flex justify-between items-center py-2 text-[10px]">
+                      <div key={idx} className="flex justify-between items-center py-2 text-[length:var(--font-size-xs)]">
                         <div className="min-w-0">
                           <div className="font-bold text-text-primary truncate">{modelName}</div>
-                          <div className="text-[8px] text-text-secondary/80 font-mono uppercase tracking-wider mt-0.5">
+                          <div className="text-[length:var(--font-size-2xs)] text-text-secondary/80 font-mono uppercase tracking-wider mt-0.5">
                             {p.provider} · {t('dashboard.totalShort', { n: p.count })}
                           </div>
                         </div>
 
                         <div className="text-right shrink-0">
-                          <div className="text-[8px] text-text-secondary/70 uppercase">Brier</div>
+                          <div className="text-[length:var(--font-size-2xs)] text-text-secondary/70 uppercase">Brier</div>
                           <div
                             className={cn(
                               'font-bold mt-0.5',

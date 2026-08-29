@@ -161,7 +161,7 @@ function ShortcutsSection({ rebindShortcut, resetShortcutsToDefaults }: Shortcut
         <button
           type="button"
           onClick={() => resetShortcutsToDefaults()}
-          className="text-[var(--font-size-xs)] uppercase tracking-wider font-bold text-text-secondary hover:text-secondary transition-colors"
+          className="text-[length:var(--font-size-2xs)] uppercase tracking-wider font-bold text-text-secondary hover:text-secondary transition-colors"
         >
           {t('settings.shortcutsReset')}
         </button>
@@ -178,7 +178,7 @@ function ShortcutsSection({ rebindShortcut, resetShortcutsToDefaults }: Shortcut
                 type="button"
                 onClick={() => setEditingId(isEditing ? null : s.id)}
                 className={cn(
-                  'px-2 py-1 rounded font-mono text-[var(--font-size-xs)] border transition-colors min-w-[100px] text-center',
+                  'px-2 py-1 rounded font-mono text-[length:var(--font-size-2xs)] border transition-colors min-w-[100px] text-center',
                   isEditing
                     ? 'bg-secondary/15 border-secondary/50 text-secondary animate-pulse'
                     : 'bg-bg-base border-border-subtle/30 text-text-primary hover:border-secondary/40',
@@ -628,7 +628,7 @@ export function SettingsPanel({
                         <div className="flex-1 h-1.5 bg-bg-overlay rounded-full overflow-hidden">
                           <div className="h-full bg-secondary rounded-full transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
                         </div>
-                        <span className="text-[var(--font-size-xs)] font-mono text-secondary w-8 text-right">{downloadProgress}%</span>
+                        <span className="text-[length:var(--font-size-xs)] font-mono text-secondary w-8 text-right">{downloadProgress}%</span>
                       </div>
                     )}
                   </div>

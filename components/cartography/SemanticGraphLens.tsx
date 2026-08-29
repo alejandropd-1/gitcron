@@ -270,7 +270,7 @@ export function SemanticGraphLens({
       </ReactFlow>
 
       <div className="pointer-events-none absolute left-3 top-3 flex max-w-[min(60rem,calc(100%-1.5rem))] flex-wrap items-center gap-2">
-        <div className="pointer-events-auto flex items-center gap-2 rounded border border-carto-accent/25 bg-carto-canvas/90 px-2.5 py-1.5 text-[11px] text-carto-text-muted shadow-lg shadow-black/20">
+        <div className="pointer-events-auto flex items-center gap-2 rounded border border-carto-accent/25 bg-carto-canvas/90 px-2.5 py-1.5 text-[length:var(--font-size-xs)] text-carto-text-muted shadow-lg shadow-black/20">
           <Layers3 size={13} className="text-carto-accent" />
           <span className="font-mono">
             {t('cartography.semantic.groupStats', {
@@ -280,13 +280,13 @@ export function SemanticGraphLens({
             })}
           </span>
         </div>
-        <div className="pointer-events-auto rounded border border-carto-grid bg-carto-canvas/90 px-2.5 py-1.5 text-[11px] font-semibold text-carto-text-muted">
+        <div className="pointer-events-auto rounded border border-carto-grid bg-carto-canvas/90 px-2.5 py-1.5 text-[length:var(--font-size-2xs)] font-semibold text-carto-text-muted">
           {expandedRoles.length > 0
             ? t('cartography.semantic.expandedGroups', { count: expandedRoles.length })
             : t('cartography.semantic.groupOverview')}
         </div>
         {graph.truncated || flow.edges.length >= MAX_FLOW_EDGES ? (
-          <div className="pointer-events-auto rounded border border-carto-accent/25 bg-carto-accent/10 px-2.5 py-1.5 text-[11px] font-semibold text-carto-accent">
+          <div className="pointer-events-auto rounded border border-carto-accent/25 bg-carto-accent/10 px-2.5 py-1.5 text-[length:var(--font-size-2xs)] font-semibold text-carto-accent">
             {t('cartography.semantic.limited')}
           </div>
         ) : null}
@@ -553,17 +553,17 @@ function SemanticGroupNode({ data }: NodeProps<SemanticGroupFlowNode>) {
             <p className="truncate text-sm font-bold text-carto-text">{data.roleLabel}</p>
             <span className="carto-semantic-node__count">{data.count}</span>
           </div>
-          <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-carto-text-muted">
+          <p className="mt-1 line-clamp-2 text-[length:var(--font-size-xs)] leading-snug text-carto-text-muted">
             {data.summary ?? data.roleDescription}
           </p>
         </div>
       </div>
 
       <div className="mt-3 border-t border-carto-grid/70 pt-2">
-        <p className="mb-1.5 text-[9px] font-bold uppercase text-carto-text-muted">{data.keyFilesLabel}</p>
+        <p className="mb-1.5 text-[length:var(--font-size-2xs)] font-bold uppercase text-carto-text-muted">{data.keyFilesLabel}</p>
         <ul className="space-y-1">
           {data.keyFiles.slice(0, 3).map((file) => (
-            <li key={file.node.id} className="flex min-w-0 items-center gap-1.5 text-[10px]">
+            <li key={file.node.id} className="flex min-w-0 items-center gap-1.5 text-[length:var(--font-size-xs)]">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: data.role.color }} />
               <span className="min-w-0 flex-1 truncate font-mono text-carto-text">{file.node.filePath}</span>
               <span className="shrink-0 font-mono text-carto-text-muted">{file.degree}</span>
@@ -572,7 +572,7 @@ function SemanticGroupNode({ data }: NodeProps<SemanticGroupFlowNode>) {
         </ul>
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-2 text-[10px] font-bold uppercase text-carto-accent">
+      <div className="mt-3 flex items-center justify-between gap-2 text-[length:var(--font-size-2xs)] font-bold uppercase text-carto-accent">
         <button
           type="button"
           className="nodrag nopan flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-left transition-colors hover:bg-carto-accent/10 hover:text-carto-text focus:outline-none focus:ring-1 focus:ring-carto-accent/55"
@@ -615,12 +615,12 @@ function SemanticFileNode({ data, selected }: NodeProps<SemanticFileFlowNode>) {
           <FileCode size={14} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-mono text-[11px] font-bold text-carto-text">{file}</p>
-          <p className="truncate font-mono text-[9px] text-carto-text-muted">{dir}</p>
+          <p className="truncate font-mono text-[length:var(--font-size-xs)] font-bold text-carto-text">{file}</p>
+          <p className="truncate font-mono text-[length:var(--font-size-xs)] text-carto-text-muted">{dir}</p>
         </div>
         <span className="carto-semantic-node__count">{data.relationCount}</span>
       </div>
-      <p className="mt-1 truncate text-[9px] font-bold uppercase text-carto-text-muted">
+      <p className="mt-1 truncate text-[length:var(--font-size-2xs)] font-bold uppercase text-carto-text-muted">
         {data.roleLabel}
       </p>
       <Handle type="source" position={Position.Right} isConnectable={false} />

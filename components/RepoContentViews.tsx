@@ -83,7 +83,7 @@ export const HistoryView = memo(function HistoryView({
             >
               <div className="flex items-start justify-between gap-4 mb-1.5">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <code className="text-[var(--font-size-xs)] font-mono text-secondary shrink-0 select-text">{commit.shortHash}</code>
+                  <code className="text-[length:var(--font-size-xs)] font-mono text-secondary shrink-0 select-text">{commit.shortHash}</code>
                   {commit.refs && commit.refs.length > 0 && (
                     <div className="flex gap-1 flex-wrap">
                       {commit.refs.slice(0, 3).map((ref) => {
@@ -95,7 +95,7 @@ export const HistoryView = memo(function HistoryView({
                           <span
                             key={ref}
                             className={cn(
-                              'text-[var(--font-size-xs)] px-1.5 py-0.5 rounded border whitespace-nowrap font-medium',
+                              'text-[length:var(--font-size-2xs)] px-1.5 py-0.5 rounded border whitespace-nowrap font-medium',
                               isTag ? 'bg-git-mod/15 text-git-mod border-git-mod/30'
                                 : isCurrent ? 'bg-secondary/20 text-secondary border-secondary/40'
                                 : isRemote ? 'bg-primary/10 text-primary border-primary/30'
@@ -109,18 +109,18 @@ export const HistoryView = memo(function HistoryView({
                     </div>
                   )}
                 </div>
-                <span className="text-[var(--font-size-xs)] text-text-secondary/70 shrink-0 font-mono select-text">{formatDate(commit.date)}</span>
+                <span className="text-[length:var(--font-size-xs)] text-text-secondary/70 shrink-0 font-mono select-text">{formatDate(commit.date)}</span>
               </div>
               <p className="text-sm font-medium mb-1.5 select-text text-text-primary">
                 {commit.message}
               </p>
               <div className="flex items-center gap-2 text-xs text-text-secondary">
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-git-add to-git-add/80 flex items-center justify-center text-[var(--font-size-xs)] font-bold text-bg-base">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-git-add to-git-add/80 flex items-center justify-center text-[length:var(--font-size-xs)] font-bold text-bg-base">
                   {formatInitials(commit.authorName)}
                 </div>
                 <span className="select-text">{commit.authorName}</span>
                 <span className="text-text-secondary/70">·</span>
-                <span className="text-text-secondary/70 font-mono text-[var(--font-size-xs)] select-text">{commit.authorEmail}</span>
+                <span className="text-text-secondary/70 font-mono text-[length:var(--font-size-xs)] select-text">{commit.authorEmail}</span>
               </div>
             </div>
           );
@@ -171,7 +171,7 @@ export function FileHistoryView({
         <span className="text-text-secondary/70">/</span>
         <span className="text-xs text-text-primary font-mono truncate">{file.path}</span>
         <div className="flex-1" />
-        <span className="text-[var(--font-size-xs)] px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/25 font-bold">
+        <span className="text-[length:var(--font-size-2xs)] px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/25 font-bold">
           {t('fileHistory.title')}
         </span>
       </div>
@@ -226,7 +226,7 @@ export function BlameView({
         <span className="text-text-secondary/70">/</span>
         <span className="text-xs text-text-primary font-mono truncate">{file.path}</span>
         <div className="flex-1" />
-        <span className="text-[var(--font-size-xs)] px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/25 font-bold">
+        <span className="text-[length:var(--font-size-2xs)] px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/25 font-bold">
           {t('blame.title')}
         </span>
       </div>
@@ -420,7 +420,7 @@ export function PullRequestDiffView({
           <span className="text-xs font-mono text-secondary">PR #{pullRequest.number}</span>
           <div className="flex-1" />
           {pullRequest.draft && (
-            <span className="text-[var(--font-size-xs)] px-1.5 py-0.5 rounded bg-border-subtle/20 text-text-secondary uppercase">
+            <span className="text-[length:var(--font-size-2xs)] px-1.5 py-0.5 rounded bg-border-subtle/20 text-text-secondary uppercase">
               {t('sidebar.draft')}
             </span>
           )}
@@ -436,7 +436,7 @@ export function PullRequestDiffView({
           <FileDiff size={18} className="text-primary shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
             <h2 className="font-semibold text-text-primary truncate">{pullRequest.title}</h2>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-[var(--font-size-xs)] text-text-secondary">
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-[length:var(--font-size-xs)] text-text-secondary">
               <span>@{pullRequest.author}</span>
               <span className="text-text-secondary/70">·</span>
               <span className="font-mono text-primary">{pullRequest.branch}</span>
@@ -455,13 +455,13 @@ export function PullRequestDiffView({
               <span
                 key={file.filename}
                 title={file.previousFilename ? `${file.previousFilename} → ${file.filename}` : file.filename}
-                className="shrink-0 max-w-[220px] truncate rounded border border-border-subtle/20 bg-bg-base px-2 py-1 text-[var(--font-size-xs)] font-mono text-text-secondary"
+                className="shrink-0 max-w-[220px] truncate rounded border border-border-subtle/20 bg-bg-base px-2 py-1 text-[length:var(--font-size-2xs)] font-mono text-text-secondary"
               >
                 {file.filename}
               </span>
             ))}
             {pullRequestDiff.files.length > 18 && (
-              <span className="shrink-0 rounded border border-border-subtle/20 bg-bg-base px-2 py-1 text-[var(--font-size-xs)] font-mono text-text-secondary/70">
+              <span className="shrink-0 rounded border border-border-subtle/20 bg-bg-base px-2 py-1 text-[length:var(--font-size-2xs)] font-mono text-text-secondary/70">
                 +{pullRequestDiff.files.length - 18}
               </span>
             )}
@@ -567,7 +567,7 @@ export function FileDiffView({
             merge—: la etiqueta contradecía a la pantalla que la rodeaba. */}
         <span
           className={cn(
-            'text-[var(--font-size-xs)] px-1.5 py-0.5 rounded font-bold',
+            'text-[length:var(--font-size-2xs)] px-1.5 py-0.5 rounded font-bold',
             file.conflicted ? 'bg-error/20 text-error' :
             file.status === 'modified' ? 'bg-git-mod/20 text-git-mod' :
             file.status === 'added' ? 'bg-secondary/20 text-secondary' :

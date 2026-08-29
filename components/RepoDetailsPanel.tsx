@@ -188,7 +188,7 @@ export function RepoDetailsPanel({
                   }
                 }}
                 disabled={isLoading}
-                className="text-[10px] text-text-secondary hover:text-secondary hover:underline transition-colors disabled:opacity-40 font-semibold"
+                className="text-[length:var(--font-size-xs)] text-text-secondary hover:text-secondary hover:underline transition-colors disabled:opacity-40 font-semibold"
               >
                 {t('rebase.banner.btn.undo')}
               </button>
@@ -271,13 +271,13 @@ export function RepoDetailsPanel({
         <div className="flex flex-col h-full">
           {/* Header bar: solo cuando hay commit elegido en vista Grafo */}
           <div className="px-4 py-2 bg-bg-surface/75 flex items-center justify-between shrink-0">
-            <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
+            <span className="text-[length:var(--font-size-2xs)] font-bold text-text-secondary uppercase tracking-wider">
               {t('commit.detailsTitle')}
             </span>
             <button
               type="button"
               onClick={() => setSelectedCommit(null)}
-              className="text-[10px] text-text-secondary hover:text-bg-base px-2 py-0.5 rounded hover:bg-secondary transition-colors"
+              className="text-[length:var(--font-size-xs)] text-text-secondary hover:text-bg-base px-2 py-0.5 rounded hover:bg-secondary transition-colors"
               title={t('commit.goToStagingTooltip')}
             >
               {t('commit.viewChangesBtn')}
@@ -293,7 +293,7 @@ export function RepoDetailsPanel({
             >
               <div className="p-4 bg-bg-surface/75">
                 <div className="flex justify-between items-start mb-2">
-                  <div className="text-[12px] font-mono text-secondary select-text">commit: {selectedCommit.shortHash}</div>
+                  <div className="text-[length:var(--font-size-xs)] font-mono text-secondary select-text">commit: {selectedCommit.shortHash}</div>
                   <button type="button" className="flex items-center gap-1.5 px-2 py-1 rounded bg-border-subtle text-xs hover:bg-bg-surface/70 transition-colors">
                     <Zap size={12} className="text-git-mod" /> {t('commit.explainBtn')}
                   </button>
@@ -306,7 +306,7 @@ export function RepoDetailsPanel({
                   </div>
                   <div>
                     <div className="text-sm font-medium select-text">{selectedCommit.authorName}</div>
-                    <div className="text-[10px] text-text-secondary select-text">{selectedCommit.authorEmail}</div>
+                    <div className="text-[length:var(--font-size-xs)] text-text-secondary select-text">{selectedCommit.authorEmail}</div>
                   </div>
                 </div>
               </div>
@@ -338,7 +338,7 @@ export function RepoDetailsPanel({
                       )}
                     >
                       <span className={cn(
-                        'text-[10px] font-bold w-4 shrink-0',
+                        'text-[length:var(--font-size-2xs)] font-bold w-4 shrink-0',
                         file.status === 'added' ? 'text-secondary' :
                         file.status === 'deleted' ? 'text-error' :
                         file.status === 'renamed' ? 'text-primary' :
@@ -363,7 +363,7 @@ export function RepoDetailsPanel({
                     <button
                       type="button"
                       onClick={() => setSelectedCommit(null)}
-                      className="text-[10px] font-bold text-git-mod hover:text-bg-base hover:bg-git-mod px-2 py-0.5 rounded transition-colors"
+                      className="text-[length:var(--font-size-xs)] font-bold text-git-mod hover:text-bg-base hover:bg-git-mod px-2 py-0.5 rounded transition-colors"
                     >
                       {t('commit.viewChangesBtn')}
                     </button>
@@ -371,7 +371,7 @@ export function RepoDetailsPanel({
                       type="button"
                       onClick={onOpenStashModal}
                       disabled={isLoading}
-                      className="text-[10px] font-bold text-git-mod hover:text-bg-base hover:bg-git-mod px-2 py-0.5 rounded transition-colors disabled:opacity-50"
+                      className="text-[length:var(--font-size-xs)] font-bold text-git-mod hover:text-bg-base hover:bg-git-mod px-2 py-0.5 rounded transition-colors disabled:opacity-50"
                       title={t('commit.stashTooltip')}
                     >
                       Stash
@@ -394,7 +394,7 @@ export function RepoDetailsPanel({
                       title={file.path}
                     >
                       <span className={cn(
-                        'w-4 shrink-0 text-[9px] font-bold',
+                        'w-4 shrink-0 text-[length:var(--font-size-2xs)] font-bold',
                         file.status === 'deleted' ? 'text-error' : file.status === 'modified' ? 'text-git-mod' : 'text-secondary',
                       )}>
                         {file.status === 'added' || file.status === 'untracked'
@@ -403,8 +403,8 @@ export function RepoDetailsPanel({
                             ? 'D'
                             : file.status === 'renamed' ? 'R' : 'M'}
                       </span>
-                      <span className="truncate text-[11px] flex-1">{file.path}</span>
-                      {file.staged && <span className="text-[9px] text-secondary">{t('commitTab.staged')}</span>}
+                      <span className="truncate text-[length:var(--font-size-xs)] flex-1">{file.path}</span>
+                      {file.staged && <span className="text-[length:var(--font-size-2xs)] text-secondary">{t('commitTab.staged')}</span>}
                     </button>
                   ))}
                 </div>
@@ -423,7 +423,7 @@ export function RepoDetailsPanel({
                 <AlertCircle size={14} className="shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <span className="text-xs font-bold block">{t('rebase.banner.title')}</span>
-                  <span className="text-[10px] text-text-secondary leading-normal block mt-0.5">
+                  <span className="text-[length:var(--font-size-xs)] text-text-secondary leading-normal block mt-0.5">
                     {t('rebase.banner.desc')}
                   </span>
                 </div>
@@ -435,7 +435,7 @@ export function RepoDetailsPanel({
                     await abortInteractiveRebase();
                   }}
                   disabled={isLoading}
-                  className="px-2.5 py-1 text-[10px] font-semibold text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/50 rounded transition-colors disabled:opacity-40"
+                  className="px-2.5 py-1 text-[length:var(--font-size-xs)] font-semibold text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/50 rounded transition-colors disabled:opacity-40"
                 >
                   {t('rebase.banner.btn.abort')}
                 </button>
@@ -445,7 +445,7 @@ export function RepoDetailsPanel({
                     await continueInteractiveRebase();
                   }}
                   disabled={isLoading}
-                  className="px-2.5 py-1 text-[10px] font-bold bg-git-mod hover:bg-git-mod/90 text-bg-base rounded transition-colors disabled:opacity-40 flex items-center gap-1"
+                  className="px-2.5 py-1 text-[length:var(--font-size-xs)] font-bold bg-git-mod hover:bg-git-mod/90 text-bg-base rounded transition-colors disabled:opacity-40 flex items-center gap-1"
                 >
                   {isLoading ? (
                     <div className="w-3 h-3 rounded-full border border-black border-t-transparent animate-spin" />
@@ -470,7 +470,7 @@ export function RepoDetailsPanel({
                       type="button"
                       onClick={onRequestCleanUntracked}
                       disabled={isLoading}
-                      className="text-[10px] text-warning hover:text-bg-base px-2 py-0.5 rounded border border-warning/40 hover:bg-warning transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="text-[length:var(--font-size-xs)] text-warning hover:text-bg-base px-2 py-0.5 rounded border border-warning/40 hover:bg-warning transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       title={t('staging.cleanUntrackedTooltip')}
                     >
                       {t('staging.cleanUntrackedBtn')}
@@ -490,7 +490,7 @@ export function RepoDetailsPanel({
                     <button
                       type="button"
                       onClick={stageAll}
-                      className="text-[10px] text-secondary hover:text-bg-base px-2 py-0.5 rounded border border-secondary/40 hover:bg-secondary transition-colors"
+                      className="text-[length:var(--font-size-xs)] text-secondary hover:text-bg-base px-2 py-0.5 rounded border border-secondary/40 hover:bg-secondary transition-colors"
                     >
                       {t('staging.stageAllBtn')}
                     </button>
@@ -532,7 +532,7 @@ export function RepoDetailsPanel({
                   <button
                     type="button"
                     onClick={unstageAll}
-                    className="text-[10px] text-text-secondary hover:text-bg-base px-2 py-0.5 rounded border border-border-subtle hover:bg-border-subtle transition-colors"
+                    className="text-[length:var(--font-size-xs)] text-text-secondary hover:text-bg-base px-2 py-0.5 rounded border border-border-subtle hover:bg-border-subtle transition-colors"
                   >
                     {t('staging.unstageAllBtn')}
                   </button>

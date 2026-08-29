@@ -117,10 +117,10 @@ function ConflictCodeBlock({ title, label, lines, tone }: { title: string; label
 
   return (
     <div className="min-w-0">
-      <div className={cn('px-2 py-1 rounded-t border text-[var(--font-size-xs)] font-bold uppercase tracking-wider truncate', toneClass)}>
+      <div className={cn('px-2 py-1 rounded-t border text-[length:var(--font-size-2xs)] font-bold uppercase tracking-wider truncate', toneClass)}>
         {title}: <span className="font-mono normal-case tracking-normal">{label}</span>
       </div>
-      <pre className="max-h-40 overflow-auto rounded-b border-x border-b border-border-subtle/15 bg-bg-surface p-2 text-[var(--font-size-xs)] leading-relaxed text-text-primary font-mono whitespace-pre">
+      <pre className="max-h-40 overflow-auto rounded-b border-x border-b border-border-subtle/15 bg-bg-surface p-2 text-[length:var(--font-size-xs)] leading-relaxed text-text-primary font-mono whitespace-pre">
         <code>{lines.length > 0 ? joinLines(lines) : '(empty)'}</code>
       </pre>
     </div>
@@ -181,7 +181,7 @@ export function ConflictResolver({
           <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
             {t('conflictResolver.desc', { count: conflictSegments.length })}
           </p>
-          <p className="text-[var(--font-size-xs)] text-text-secondary/80 mt-1 font-mono truncate">{filePath}</p>
+          <p className="text-[length:var(--font-size-xs)] text-text-secondary/80 mt-1 font-mono truncate">{filePath}</p>
         </div>
       </div>
 
@@ -191,35 +191,35 @@ export function ConflictResolver({
           return (
             <section key={segment.conflictIndex} className="overflow-hidden">
               <div className="py-2 flex items-center justify-between gap-3">
-                <span className="text-[var(--font-size-xs)] font-bold text-text-secondary uppercase tracking-wider">
+                <span className="text-[length:var(--font-size-2xs)] font-bold text-text-secondary uppercase tracking-wider">
                   {t('conflictResolver.hunkTitle', { index: segment.conflictIndex + 1 })}
                 </span>
                 <div className="flex flex-wrap justify-end gap-1.5">
                   <button
                     type="button"
                     onClick={() => setResolutions((prev) => prev.map((value, index) => index === segment.conflictIndex ? joinLines(segment.ours) : value))}
-                    className="px-2 py-1 text-[var(--font-size-xs)] rounded border border-secondary/35 text-secondary hover:bg-secondary hover:text-bg-base transition-colors"
+                    className="px-2 py-1 text-[length:var(--font-size-2xs)] rounded border border-secondary/35 text-secondary hover:bg-secondary hover:text-bg-base transition-colors"
                   >
                     {t('conflictResolver.acceptOurs')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setResolutions((prev) => prev.map((value, index) => index === segment.conflictIndex ? joinLines(segment.theirs) : value))}
-                    className="px-2 py-1 text-[var(--font-size-xs)] rounded border border-primary/35 text-primary hover:bg-primary hover:text-bg-base transition-colors"
+                    className="px-2 py-1 text-[length:var(--font-size-2xs)] rounded border border-primary/35 text-primary hover:bg-primary hover:text-bg-base transition-colors"
                   >
                     {t('conflictResolver.acceptTheirs')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setResolutions((prev) => prev.map((value, index) => index === segment.conflictIndex ? joinLines([...segment.ours, ...segment.theirs]) : value))}
-                    className="px-2 py-1 text-[var(--font-size-xs)] rounded border border-border-subtle/30 text-text-secondary hover:text-text-primary hover:bg-border-subtle/30 transition-colors"
+                    className="px-2 py-1 text-[length:var(--font-size-2xs)] rounded border border-border-subtle/30 text-text-secondary hover:text-text-primary hover:bg-border-subtle/30 transition-colors"
                   >
                     {t('conflictResolver.acceptBothOursFirst')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setResolutions((prev) => prev.map((value, index) => index === segment.conflictIndex ? joinLines([...segment.theirs, ...segment.ours]) : value))}
-                    className="px-2 py-1 text-[var(--font-size-xs)] rounded border border-border-subtle/30 text-text-secondary hover:text-text-primary hover:bg-border-subtle/30 transition-colors"
+                    className="px-2 py-1 text-[length:var(--font-size-2xs)] rounded border border-border-subtle/30 text-text-secondary hover:text-text-primary hover:bg-border-subtle/30 transition-colors"
                   >
                     {t('conflictResolver.acceptBothTheirsFirst')}
                   </button>
@@ -235,13 +235,13 @@ export function ConflictResolver({
                   </div>
                 )}
                 <label className="xl:col-span-2 min-w-0">
-                  <span className="text-[var(--font-size-xs)] font-bold uppercase tracking-wider text-text-secondary block mb-1">
+                  <span className="text-[length:var(--font-size-2xs)] font-bold uppercase tracking-wider text-text-secondary block mb-1">
                     {t('conflictResolver.finalLabel')}
                   </span>
                   <textarea
                     value={current}
                     onChange={(event) => setResolutions((prev) => prev.map((value, index) => index === segment.conflictIndex ? event.target.value : value))}
-                    className="w-full min-h-28 max-h-64 bg-bg-surface border border-border-subtle/20 rounded p-2 text-[var(--font-size-xs)] leading-relaxed text-text-primary font-mono resize-y focus:outline-none focus:border-git-mod/50"
+                    className="w-full min-h-28 max-h-64 bg-bg-surface border border-border-subtle/20 rounded p-2 text-[length:var(--font-size-xs)] leading-relaxed text-text-primary font-mono resize-y focus:outline-none focus:border-git-mod/50"
                     spellCheck={false}
                   />
                 </label>
@@ -252,7 +252,7 @@ export function ConflictResolver({
       </div>
 
       <div className="px-4 py-3 border-t border-border-subtle/15 bg-bg-surface/35 flex items-center justify-between gap-3">
-        <div className="flex items-start gap-2 text-[var(--font-size-xs)] text-text-secondary">
+        <div className="flex items-start gap-2 text-[length:var(--font-size-xs)] text-text-secondary">
           <AlertCircle size={14} className="text-git-mod shrink-0 mt-0.5" />
           <span>{t('conflictResolver.saveHint')}</span>
         </div>

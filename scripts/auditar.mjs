@@ -29,7 +29,10 @@ const L = (k, v) => console.log('  ' + k.padEnd(13) + v);
 // 1 y 2. por cada archivo: literales que quedaron, y que el diff toque solo escala
 for (const archivo of archivos) {
   const src = fs.readFileSync(archivo, 'utf-8');
-  const lit = (src.match(/text-\[\d+(\.\d+)?px\]|fontSize:\s*\d+(\.\d+)?\b|fontSize:\s*'[\d.]+rem'/g) || []).length;
+  // Cubre px y rem en las dos formas de escritura. Hasta el 2026-08-28 no veia
+  // text-[Nrem] ni fontSize:'Npx', asi que informaba 0 literales en archivos que si
+  // los tenian (ContextMenus.tsx, con 0.8125rem y 0.625rem): era un falso verde.
+  const lit = (src.match(/text-\[\d+(\.\d+)?(px|rem)\]|fontSize:\s*'?[\d.]+(px|rem)?'?/g) || []).length;
   const tok = (src.match(/var\(--font-size-|var\(--space-|var\(--radius-/g) || []).length;
   const ajenas = sh(`git diff -- "${archivo}"`).out.split('\n')
     .filter(l => /^[+-]/.test(l) && !/^[+-][+-]/.test(l))
@@ -52,13 +55,16 @@ const exenEsperado = globalThis.__exentoEsperado;
 if (typeof exenEsperado === 'number' && exen !== exenEsperado) fallos.push(`el exento es ${exen}, se esperaba ${exenEsperado}`);
 
 // 4. las seis validaciones
+// El build va PRIMERO: desde el 2026-08-27 la suite incluye una comprobacion que lee el
+// CSS compilado de out/, asi que sin build previo `pnpm test` falla por falta de artefacto
+// y no por un defecto real.
+let build = sh('pnpm build');
+if (build.code !== 0 && /Compiled successfully/.test(build.out)) build = sh('pnpm build'); // falso negativo por concurrencia
 const test = sinColor(sh('pnpm test').out);
 const tf = test.match(/Test Files\s+(\d+) passed/), tt = test.match(/Tests\s+(\d+) passed/);
 const verde = tf && tt && !/\d+ failed/.test(test);
 const tsc = sh('pnpm exec tsc --noEmit');
 const osp = sh('pnpm exec openspec validate unificar-paleta-carbon-soul --strict');
-let build = sh('pnpm build');
-if (build.code !== 0 && /Compiled successfully/.test(build.out)) build = sh('pnpm build'); // falso negativo por concurrencia
 const dch = sh('git diff --check');
 L('validaciones', `build ${build.code} · tsc ${tsc.code} · ${verde ? tf[1]+'/'+tt[1] : 'TESTS EN ROJO'} · openspec ${/is valid/.test(osp.out) ? 'ok' : 'FALLA'} · diff-check ${dch.code}`);
 if (build.code) fallos.push(`build salio ${build.code}`);

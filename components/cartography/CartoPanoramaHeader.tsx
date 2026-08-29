@@ -55,12 +55,12 @@ export function CartoPanoramaHeader({ repoPath, status, refreshKey }: CartoPanor
   return (
     <details className="shrink-0 border-b border-carto-grid bg-carto-canvas/95">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors hover:bg-carto-node/[0.035] [&::-webkit-details-marker]:hidden">
-        <span className="flex min-w-0 items-center gap-2 text-[var(--font-size-xs)] font-bold uppercase tracking-widest text-carto-accent">
+        <span className="flex min-w-0 items-center gap-2 text-[length:var(--font-size-2xs)] font-bold uppercase tracking-widest text-carto-accent">
           <Sparkles size={14} />
           {t('cartography.panorama.summary')}
         </span>
         {panorama ? (
-          <span className="truncate font-mono text-[var(--font-size-xs)] text-carto-text-muted/75">
+          <span className="truncate font-mono text-[length:var(--font-size-xs)] text-carto-text-muted/75">
             {t('cartography.panorama.structure', { hash: panorama.structureHash })}
             {' · '}
             {t('cartography.panorama.deterministicStats', {
@@ -84,7 +84,7 @@ export function CartoPanoramaHeader({ repoPath, status, refreshKey }: CartoPanor
             <p className="max-w-4xl text-sm leading-relaxed text-carto-text-muted">
               {t('cartography.panorama.mapReady')}
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-2 font-mono text-[var(--font-size-xs)] text-carto-text-muted/75">
+            <div className="mt-3 flex flex-wrap items-center gap-2 font-mono text-[length:var(--font-size-xs)] text-carto-text-muted/75">
               <span>{t('cartography.panorama.structure', { hash: panorama.structureHash })}</span>
               <span className="flex items-center gap-1 rounded border border-carto-grid px-1.5 py-0.5">
                 <Blocks size={10} />

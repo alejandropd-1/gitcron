@@ -76,7 +76,7 @@ export function ResetCommitModal({ commitHash, onClose, onConfirm }: ResetCommit
                 />
                 <div>
                   <span className="text-xs font-bold text-text-primary block">Soft (--soft)</span>
-                  <span className="text-[var(--font-size-xs)] text-text-secondary leading-relaxed block mt-0.5">
+                  <span className="text-[length:var(--font-size-xs)] text-text-secondary leading-relaxed block mt-0.5">
                     {t('resetModal.soft')}
                   </span>
                 </div>
@@ -94,7 +94,7 @@ export function ResetCommitModal({ commitHash, onClose, onConfirm }: ResetCommit
                 />
                 <div>
                   <span className="text-xs font-bold text-text-primary block">Mixed (--mixed)</span>
-                  <span className="text-[var(--font-size-xs)] text-text-secondary leading-relaxed block mt-0.5">
+                  <span className="text-[length:var(--font-size-xs)] text-text-secondary leading-relaxed block mt-0.5">
                     {t('resetModal.mixed')}
                   </span>
                 </div>
@@ -112,7 +112,7 @@ export function ResetCommitModal({ commitHash, onClose, onConfirm }: ResetCommit
                 />
                 <div>
                   <span className="text-xs font-bold text-error block">Hard (--hard)</span>
-                  <span className="text-[var(--font-size-xs)] text-text-secondary leading-relaxed block mt-0.5">
+                  <span className="text-[length:var(--font-size-xs)] text-text-secondary leading-relaxed block mt-0.5">
                     {t('resetModal.hard')}
                   </span>
                 </div>
@@ -124,7 +124,7 @@ export function ResetCommitModal({ commitHash, onClose, onConfirm }: ResetCommit
               <div className="flex flex-col gap-3 p-3 rounded bg-red-500/10 border border-red-500/30 mb-5 animate-pulse-slow">
                 <div className="flex gap-2 text-error">
                   <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                  <span className="text-[var(--font-size-xs)] leading-relaxed font-semibold">
+                  <span className="text-[length:var(--font-size-xs)] leading-relaxed font-semibold">
                     {t('resetModal.warning')}
                   </span>
                 </div>
@@ -135,7 +135,7 @@ export function ResetCommitModal({ commitHash, onClose, onConfirm }: ResetCommit
                     onChange={(e) => setHardResetConfirmed(e.target.checked)}
                     className="mt-0.5 accent-error"
                   />
-                  <span className="text-[var(--font-size-xs)] text-text-primary leading-normal">
+                  <span className="text-[length:var(--font-size-xs)] text-text-primary leading-normal">
                     {t('resetModal.confirmCheckbox')}
                   </span>
                 </label>

@@ -58,7 +58,7 @@ function ChangelogStatus({ error, isLoading }: { error: string | null; isLoading
 function ChangelogGroupCard({ group }: { group: ChangelogGroup }) {
   return (
     <div className="rounded-lg border border-border-subtle/10 bg-bg-overlay/25 p-3">
-      <h4 className="text-[var(--font-size-xs)] uppercase font-extrabold text-text-secondary tracking-wider mb-2">
+      <h4 className="text-[length:var(--font-size-2xs)] uppercase font-extrabold text-text-secondary tracking-wider mb-2">
         {group.label}
       </h4>
       <ul className="space-y-2.5">
@@ -89,7 +89,7 @@ function ChangelogEntryDetails({ entry, entryIndex }: { entry: ChangelogEntry; e
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-secondary font-mono text-xs font-extrabold">v{entry.version}</span>
             {entry.date && (
-              <span className="text-[var(--font-size-xs)] text-text-secondary/70 font-medium">{entry.date}</span>
+              <span className="text-[length:var(--font-size-xs)] text-text-secondary/70 font-medium">{entry.date}</span>
             )}
           </div>
           {entry.title && (

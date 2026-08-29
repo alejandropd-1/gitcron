@@ -97,7 +97,7 @@ export function ProfilePanel({
                   </p>
                   <p className="text-xs text-secondary truncate">@{githubUser.login}</p>
                   {githubUser.email && (
-                    <p className="text-[var(--font-size-xs)] text-text-secondary truncate mt-0.5">
+                    <p className="text-[length:var(--font-size-xs)] text-text-secondary truncate mt-0.5">
                       {githubUser.email}
                     </p>
                   )}
@@ -147,7 +147,7 @@ export function ProfilePanel({
                   <Copy size={14} />
                 </button>
               </div>
-              <p className="text-[var(--font-size-xs)] text-text-secondary mb-3">
+              <p className="text-[length:var(--font-size-xs)] text-text-secondary mb-3">
                 {t('profile.browserNotOpened')}{' '}
                 <button
                   onClick={() => window.api?.shellOpenPath(deviceCodeInfo.verificationUri)}
@@ -208,7 +208,7 @@ export function ProfilePanel({
                     <Github size={16} />
                     {isLoggingIn ? t('profile.starting') : t('profile.continueWithGitHub')}
                   </button>
-                  <p className="text-[var(--font-size-xs)] text-text-secondary/70 text-center">
+                  <p className="text-[length:var(--font-size-xs)] text-text-secondary/70 text-center">
                     {t('profile.oauthFooter')}
                   </p>
                 </>

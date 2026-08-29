@@ -93,8 +93,8 @@ describe('visual-scale - isOffScaleValue & findOffScaleDeclarations', () => {
       expectedViolations: 2,
     },
     {
-      name: 'text-[var(--font-size-xs)] en un componente .tsx (correcto, no debe detectarse)',
-      content: '<div className="text-[var(--font-size-xs)] p-2">Texto</div>',
+      name: 'text-[length:var(--font-size-xs)] en un componente .tsx (correcto, no debe detectarse)',
+      content: '<div className="text-[length:var(--font-size-xs)] p-2">Texto</div>',
       isTsx: true,
       expectedViolations: 0,
     },

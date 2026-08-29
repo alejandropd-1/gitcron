@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "descripcion": "Línea de base de declaraciones de escala visual y tipográfica fuera de norma (ampliada con objetos de estilo JS/TSX)",
-    "fecha": "2026-08-26",
+    "descripcion": "Línea de base de declaraciones de escala visual y tipográfica fuera de norma (ampliada con objetos de estilo JS/TSX) | Podado el 2026-08-28: AgentDashboard.tsx migrado (29 declaraciones, 20 a --font-size-2xs por rotulacion accesoria y 9 a --font-size-xs). | 2026-08-28: RepoDetailsPanel.tsx migrado (17 declaraciones, 4 a --font-size-2xs y 13 a --font-size-xs). | 2026-08-28: tanda C migrada (SemanticGraphLens 10, DiffViewer 6, InteractiveRebasePanel 4, ContextMenus 2). | 2026-08-28: RepoSidebar.tsx migrado (23 declaraciones, 10 a --font-size-2xs, 11 a --font-size-xs, 2 a titulo de seccion).",
+    "fecha": "2026-08-28",
     "motivoExencion": "Invariante 12: ChronometricGraph.tsx y CommitGraph.tsx protegidos, sin autorización de modificación visual vigente al 2026-08-26."
   },
   "_comment_exento_interactiverebasepanel_68px": "pl-[68px] es sangría de alineación con una columna, no un escalón de espaciado. El escalón más cercano es --space-8 (48px) y no hay ninguno cerca.",
@@ -36,41 +36,14 @@
     }
   },
   "pendiente": {
-    "components/ContextMenus.tsx": {
-      "0.8125rem": 1,
-      "0.625rem": 1
-    },
     "components/CopyButton.tsx": {
       "6px": 1,
       "10px": 1,
       "3px 8px": 1,
       "4px": 1
     },
-    "components/DiffViewer.tsx": {
-      "11px": 2,
-      "12px": 1,
-      "10px": 3
-    },
-    "components/InteractiveRebasePanel.tsx": {
-      "10px": 3,
-      "11px": 1
-    },
-    "components/RepoDetailsPanel.tsx": {
-      "10px": 12,
-      "11px": 2,
-      "12px": 1,
-      "9px": 2
-    },
-    "components/RepoSidebar.tsx": {
-      "17px": 2,
-      "10px": 11,
-      "11px": 6,
-      "9px": 4
-    },
     "components/cartography/SemanticGraphLens.tsx": {
-      "11px": 5,
-      "10px": 3,
-      "9px": 3
+      "10px": 1
     },
     "components/pipeline/OpenSpecEngineCard.tsx": {
       "0.4rem": 1
@@ -90,12 +63,7 @@
       "0 0 0.5rem": 1,
       "0.68rem": 1,
       "0.6rem": 1
-    },
-    "components/temporal/AgentDashboard.tsx": {
-      "10px": 8,
-      "9px": 10,
-      "8px": 8,
-      "7px": 3
     }
-  }
+  },
+  "_comment_pendiente_semanticgraphlens_478": "La unica declaracion que queda es fontSize: 10 en la linea 478 (labelStyle de una arista de React Flow). Alejandro la saco de la tanda automatica el 2026-08-28 para validarla a ojo: pasa a var() como CSS, pero si React Flow usa el numero para posicionar la etiqueta, con var() no puede. Sigue en pendiente, no en exento, porque la decision no esta tomada."
 }

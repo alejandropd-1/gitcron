@@ -96,7 +96,7 @@ export function CartoAISettings() {
       {settings.enabled && (
         <div className="space-y-4">
           <div>
-            <span className="mb-2 block text-[var(--font-size-xs)] font-bold uppercase tracking-wider text-text-secondary">
+            <span className="mb-2 block text-[length:var(--font-size-2xs)] font-bold uppercase tracking-wider text-text-secondary">
               {t('cartography.ai.providerLabel')}
             </span>
             <div className="grid grid-cols-2 gap-2">
@@ -124,7 +124,7 @@ export function CartoAISettings() {
           {/* LOCAL: el modelo es el nombre cargado en LM Studio (texto libre). */}
           {settings.mode === 'local' && (
             <div>
-              <label className="mb-2 block text-[var(--font-size-xs)] font-bold uppercase tracking-wider text-text-secondary">
+              <label className="mb-2 block text-[length:var(--font-size-2xs)] font-bold uppercase tracking-wider text-text-secondary">
                 {t('cartography.ai.modelLabel')}
               </label>
               <input
@@ -219,7 +219,7 @@ function OnlineAccess({ model, onModelChange }: { model: string; onModelChange: 
     <div className="space-y-3 rounded-lg border border-border-subtle/15 bg-bg-base/40 p-3">
       <div className="flex items-center gap-2">
         <KeyRound size={13} className="text-secondary" />
-        <span className="text-[var(--font-size-xs)] font-bold uppercase tracking-wider text-text-secondary">
+        <span className="text-[length:var(--font-size-2xs)] font-bold uppercase tracking-wider text-text-secondary">
           {t('cartography.ai.onlineKeyTitle')}
         </span>
         <span className="ml-auto text-xs">
@@ -234,7 +234,7 @@ function OnlineAccess({ model, onModelChange }: { model: string; onModelChange: 
       </div>
 
       {hasKey && fingerprint && (
-        <code className="block font-mono text-[var(--font-size-xs)] text-text-secondary/70">
+        <code className="block font-mono text-[length:var(--font-size-xs)] text-text-secondary/70">
           {t('cartography.ai.keyFingerprint', { fp: fingerprint })}
         </code>
       )}
@@ -271,7 +271,7 @@ function OnlineAccess({ model, onModelChange }: { model: string; onModelChange: 
 
       {/* Selector de modelo (mismo catálogo que el Temporal Agent) */}
       <div>
-        <label className="mb-2 block text-[var(--font-size-xs)] font-bold uppercase tracking-wider text-text-secondary">
+        <label className="mb-2 block text-[length:var(--font-size-2xs)] font-bold uppercase tracking-wider text-text-secondary">
           {t('cartography.ai.onlineModelLabel')}
         </label>
         <ModelSelect value={model} onChange={onModelChange} />

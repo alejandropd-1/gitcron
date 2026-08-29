@@ -42,7 +42,7 @@ export function UpdateControls({
         <button
           type="button"
           onClick={onInstallUpdate}
-          className="h-7 px-2.5 rounded border border-secondary/45 bg-secondary/18 text-[var(--font-size-xs)] font-bold text-secondary hover:bg-secondary/28 transition-colors"
+          className="h-7 px-2.5 rounded border border-secondary/45 bg-secondary/18 text-[length:var(--font-size-2xs)] font-bold text-secondary hover:bg-secondary/28 transition-colors"
           title={t('update.install')}
         >
           UPDATE
@@ -57,7 +57,7 @@ export function UpdateControls({
               style={{ width: `${downloadProgress}%` }}
             />
           </div>
-          <span className="text-[var(--font-size-xs)] font-mono text-secondary w-7 text-right shrink-0">
+          <span className="text-[length:var(--font-size-xs)] font-mono text-secondary w-7 text-right shrink-0">
             {downloadProgress}%
           </span>
         </div>
@@ -74,7 +74,7 @@ export function UpdateControls({
         <button
           type="button"
           onClick={() => setShowUpdateMenu((v) => !v)}
-          className="relative text-[var(--font-size-xs)] font-mono font-bold text-bg-base bg-secondary border border-git-add rounded px-2 py-0.5 select-none hover:brightness-110 transition"
+          className="relative text-[length:var(--font-size-2xs)] font-mono font-bold text-bg-base bg-secondary border border-git-add rounded px-2 py-0.5 select-none hover:brightness-110 transition"
           title={updateInfo ? t('update.availableTitle', { version: updateInfo.version }) : t('settings.version')}
         >
           v{pkg.version}
@@ -103,7 +103,7 @@ export function UpdateControls({
                       ? t('update.availableTitle', { version: updateInfo.version })
                       : t('update.currentTitle')}
                   </p>
-                  <p className="mt-0.5 text-[var(--font-size-xs)] text-text-secondary">
+                  <p className="mt-0.5 text-[length:var(--font-size-xs)] text-text-secondary">
                     {updateInfo
                       ? t('update.currentVersion', { version: pkg.version })
                       : t('update.currentDesc')}
@@ -115,7 +115,7 @@ export function UpdateControls({
                   <div className="flex-1 h-1.5 bg-bg-base/70/90 rounded-full overflow-hidden">
                     <div className="h-full bg-secondary rounded-full transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
                   </div>
-                  <span className="text-[var(--font-size-xs)] font-mono text-secondary w-8 text-right">{downloadProgress}%</span>
+                  <span className="text-[length:var(--font-size-xs)] font-mono text-secondary w-8 text-right">{downloadProgress}%</span>
                 </div>
               )}
               <div className="mt-3 flex items-center gap-2">

@@ -59,7 +59,7 @@ function ContextMenuItem({
       disabled={disabled}
       title={title}
       className={cn(
-        'w-full flex items-center justify-between px-4 py-1.5 text-[0.8125rem] leading-5 text-left transition-colors',
+        'w-full flex items-center justify-between px-4 py-1.5 text-[length:var(--font-size-xs)] leading-5 text-left transition-colors',
         disabled
           ? 'text-text-secondary/40 cursor-not-allowed'
           : danger
@@ -68,7 +68,7 @@ function ContextMenuItem({
       )}
     >
       <span className="text-left">{text}</span>
-      {textSecondary && <span className="text-[0.625rem] opacity-50 ml-4 shrink-0">{textSecondary}</span>}
+      {textSecondary && <span className="text-[length:var(--font-size-2xs)] opacity-50 ml-4 shrink-0">{textSecondary}</span>}
     </button>
   );
 }

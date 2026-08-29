@@ -1,4 +1,13 @@
 @import "tailwindcss";
+  /* Los archivos de prueba no generan interfaz: si Tailwind los escanea, cualquier clase
+     mencionada en un fixture o en un mensaje de error termina en el CSS de produccion.
+     Caso real del 2026-08-27: lib/__tests__/font-size-as-color.test.ts nombra
+     text-[var(--font-size-xs)] en su mensaje de error y Tailwind generaba la regla.
+     Las rutas de @source not son relativas a esta hoja (app/), no a la raiz del
+     proyecto: por eso arrancan con ../. */
+   @source not "../lib/__tests__";
+   @source not "../components/**/__tests__";
+   @source not "../scripts";
 @import "@xyflow/react/dist/style.css";
 
 /* ==========================================================================
@@ -22,6 +31,16 @@
   --color-text-secondary: #d8dee9; /* Muted descriptions, secondary labels | Chronometric Canvas axis metadata labels */
 
   /* Shared Typography Scale (Affects: text-size across all views) */
+  /* 10px - Rotulacion accesoria: tags, badges y encabezados de columna. NO es texto
+     de lectura: son etiquetas que se reconocen, no se leen. Dos motivos, medidos el
+     2026-08-27: (1) components/CommitGraph.tsx usa 10px para esta familia desde
+     siempre y es la mitad de la interfaz que se ve equilibrada, porque quedo exenta
+     por el invariante 12 y nunca se migro; (2) una mayuscula ocupa la altura de
+     mayuscula y una minuscula la altura de x, asi que un rotulo en versalita a 12px
+     se ve 24% mas alto que el texto de 13px que encabeza, y a 10px solo 4%. El piso
+     de --font-size-xs sigue rigiendo para todo texto que se lee. */
+  --font-size-2xs: 0.625rem;
+
   /* Piso de legibilidad: 12px (0.75rem). Ningún texto de UI se declara por debajo de este umbral. */
   --font-size-xs: 0.75rem; /* 12px - Piso de legibilidad: metadatos, badges, timestamps, tags accesorios */
   --font-size-sm: 0.8125rem; /* 13px - Texto secundario, tablas densas, botones compactos, labels de campo */

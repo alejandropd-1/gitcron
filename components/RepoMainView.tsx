@@ -428,7 +428,7 @@ function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphV
               role="status"
               title={modifiedFiles.length === 0 ? t('pipeline.openspec.repo.clean') : t('pipeline.openspec.repo.changed')}
               className={cn(
-                'flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--font-size-xs)] font-semibold shrink-0',
+                'flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0',
                 modifiedFiles.length === 0
                   ? 'bg-secondary/10 text-secondary'
                   : 'bg-git-mod/15 text-git-mod'
@@ -454,7 +454,7 @@ function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphV
                   <div
                     role="status"
                     title={t('sidebar.branchStatus.gone', { upstream: tracking.upstream ?? '' })}
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--font-size-xs)] font-semibold shrink-0 bg-error/15 text-error"
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0 bg-error/15 text-error"
                   >
                     <AlertCircle size={11} className="shrink-0" />
                     <span>{t('sidebar.upstreamGone')}</span>
@@ -470,7 +470,7 @@ function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphV
                       ahead: tracking.ahead,
                       behind: tracking.behind,
                     })}
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--font-size-xs)] font-semibold shrink-0 bg-secondary/10 text-secondary font-mono"
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0 bg-secondary/10 text-secondary font-mono"
                   >
                     <GitMerge size={11} className="shrink-0" />
                     <span>+{tracking.ahead} -{tracking.behind}</span>
@@ -482,7 +482,7 @@ function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphV
                   <div
                     role="status"
                     title={t('sidebar.branchStatus.synced', { upstream: tracking.upstream ?? '' })}
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--font-size-xs)] font-semibold shrink-0 bg-secondary/10 text-secondary"
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0 bg-secondary/10 text-secondary"
                   >
                     <Check size={11} strokeWidth={2.5} className="shrink-0" />
                     <span>{t('sidebar.branchStatus.syncedShort')}</span>
@@ -493,7 +493,7 @@ function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphV
                 <div
                   role="status"
                   title={t('sidebar.branchStatus.local')}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--font-size-xs)] font-semibold shrink-0 bg-text-primary/[0.035] text-text-secondary/80"
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0 bg-text-primary/[0.035] text-text-secondary/80"
                 >
                   <Monitor size={11} className="shrink-0" />
                   <span>{t('sidebar.branchStatus.localShort')}</span>
@@ -521,7 +521,7 @@ function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphV
                 aria-label={t('toolbar.viewClassicBtn')}
               >
                 <Rows3 size={13} className="shrink-0" />
-                <span className="text-[var(--font-size-xs)] leading-none font-semibold">{t('toolbar.viewClassicBtn')}</span>
+                <span className="text-[length:var(--font-size-xs)] leading-none font-semibold">{t('toolbar.viewClassicBtn')}</span>
               </button>
               <button
                 type="button"
@@ -537,7 +537,7 @@ function GraphTabView({ tabViews, graphView }: { tabViews: TabViewsProps; graphV
                 aria-label={t('toolbar.viewChronometricBtn')}
               >
                 <Waypoints size={13} className="shrink-0" />
-                <span className="text-[var(--font-size-xs)] leading-none font-semibold">{t('toolbar.viewChronometricBtn')}</span>
+                <span className="text-[length:var(--font-size-xs)] leading-none font-semibold">{t('toolbar.viewChronometricBtn')}</span>
               </button>
             </div>
           </div>
@@ -587,14 +587,14 @@ function ClassicGraphView({ tabViews, graphView }: { tabViews: TabViewsProps; gr
                   graphView.onChangeGraphMode('chronometric');
                   if (!graphView.showSpeculative) graphView.onToggleSpeculative();
                 }}
-                className="text-[var(--font-size-xs)] normal-case px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors font-mono"
+                className="text-[length:var(--font-size-2xs)] normal-case px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors font-mono"
                 title={t('graph.speculativeBadgeTooltip', { count: graphView.speculativeBranches.length })}
               >
                 {t('graph.speculativeBadge', { count: graphView.speculativeBranches.length })}
               </button>
             )}
             {tabViews.filterText.trim() && (
-              <span className="text-[var(--font-size-xs)] normal-case px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
+              <span className="text-[length:var(--font-size-2xs)] normal-case px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
                 {t('graph.filterActive')}
               </span>
             )}

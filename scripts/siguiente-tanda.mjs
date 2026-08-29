@@ -135,9 +135,11 @@ IMPORTANTE: **no leas los archivos enteros.** Lei solo los rangos de lineas indi
 arriba, con el offset y el limite de la herramienta de lectura. Ahi esta todo lo que
 tenes que cambiar, y algunos de estos archivos pesan mas que tu ventana de contexto.
 
-Dos formas posibles de escritura:
-  className="text-[${tamanos[0]}px]"    ->  className="text-[var(--font-size-xs)]"
-  style={{ fontSize: ${tamanos[0]} }}   ->  style={{ fontSize: 'var(--font-size-xs)' }}
+Dos formas posibles de escritura. **Ojo con el prefijo \`length:\` en la clase**: sin el,
+Tailwind no puede saber si un text-[...] con var() adentro es color o tamano, elige color,
+y el elemento se queda SIN tamano. Verificado el 2026-08-27: genero 141 clases rotas.
+  className="text-[${tanda[0].vals[0][0]}]"    ->  className="text-[length:var(${token(tanda[0].vals[0][0])})]"
+  style={{ fontSize: '${tanda[0].vals[0][0]}' }}   ->  style={{ fontSize: 'var(${token(tanda[0].vals[0][0])})' }}
 
 \`text-xs\`, \`text-sm\` y demas son clases estandar de Tailwind, NO literales. No las toques.
 Si encontras un tamano literal que no sea ${listaTamanos}, PARA y reporta cual y en que

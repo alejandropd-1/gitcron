@@ -184,7 +184,7 @@ export function SidebarDropdown({
         aria-expanded={isOpen}
         aria-controls={`${id}-menu`}
         className={cn(
-          'min-h-[38px] pl-1 pr-2 py-1 rounded-lg text-[17px] font-bold tracking-tight transition-colors inline-flex items-center gap-1.5',
+          'min-h-[38px] pl-1 pr-2 py-1 rounded-lg text-[length:var(--font-size-md)] font-bold tracking-tight transition-colors inline-flex items-center gap-1.5',
           'text-text-primary hover:bg-text-primary/10',
           'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
           isOpen && 'bg-text-primary/10 text-secondary',
@@ -195,7 +195,7 @@ export function SidebarDropdown({
       >
         <div className="flex items-center gap-2 min-w-0">
           {icon && <span className="shrink-0 text-text-secondary/80 flex items-center justify-center w-4 h-4">{icon}</span>}
-          <span className="truncate text-[17px] font-bold">{label}</span>
+          <span className="truncate text-[length:var(--font-size-md)] font-bold">{label}</span>
         </div>
         <ChevronDown size={14} className={cn('transition-transform duration-150 shrink-0 opacity-70', isOpen && 'rotate-180 text-secondary opacity-100')} />
       </button>
@@ -239,7 +239,7 @@ export function SidebarDropdown({
                 <span className="truncate font-medium">{item.label}</span>
               </div>
               {item.shortcut && (
-                <kbd className="ml-2 px-1.5 py-0.5 text-[10px] font-mono rounded bg-text-primary/[0.06] text-text-secondary/70 shrink-0">
+                <kbd className="ml-2 px-1.5 py-0.5 text-[length:var(--font-size-2xs)] font-mono rounded bg-text-primary/[0.06] text-text-secondary/70 shrink-0">
                   {item.shortcut}
                 </kbd>
               )}
@@ -274,7 +274,7 @@ function SidebarRemoteItem({
       <Globe size={14} className="shrink-0 text-text-secondary" />
       <div className="flex-1 min-w-0">
         <span className="truncate text-xs font-semibold block select-text">{remote.name}</span>
-        <span className="truncate text-[10px] text-text-secondary/70 block select-text font-mono">{remote.fetchUrl}</span>
+        <span className="truncate text-[length:var(--font-size-xs)] text-text-secondary/70 block select-text font-mono">{remote.fetchUrl}</span>
       </div>
       <div className={cn(
         'flex items-center gap-1 shrink-0 z-10 transition-opacity',
@@ -333,7 +333,7 @@ function SidebarWorktreeItem({
         <TreePine size={14} className={cn("shrink-0", isMain ? "text-secondary" : "text-primary")} />
         <span className="truncate text-xs flex-1 select-text">{name}</span>
         {wt.branch && (
-          <span className="text-[10px] font-mono text-text-secondary/70 shrink-0 bg-bg-surface px-1 rounded">{wt.branch}</span>
+          <span className="text-[length:var(--font-size-xs)] font-mono text-text-secondary/70 shrink-0 bg-bg-surface px-1 rounded">{wt.branch}</span>
         )}
       </button>
       {!isMain && (
@@ -374,7 +374,7 @@ function SidebarSubmoduleItem({
       <Layers size={14} className="shrink-0 text-text-secondary" />
       <div className="flex-1 min-w-0">
         <span className="truncate text-xs block select-text font-medium">{sm.path}</span>
-        <span className="truncate text-[10px] text-text-secondary/70 block select-text font-mono">{sm.hash.slice(0, 7)}</span>
+        <span className="truncate text-[length:var(--font-size-xs)] text-text-secondary/70 block select-text font-mono">{sm.hash.slice(0, 7)}</span>
       </div>
       <div className={cn(
         'flex items-center gap-1 shrink-0 z-10 transition-opacity',
@@ -731,7 +731,7 @@ export function RepoSidebar({
                             <span className="truncate font-medium">{action.label}</span>
                           </div>
                           {action.shortcut && (
-                            <kbd className="ml-2 px-1.5 py-0.5 text-[10px] font-mono rounded bg-text-primary/[0.06] text-text-secondary/70 shrink-0">
+                            <kbd className="ml-2 px-1.5 py-0.5 text-[length:var(--font-size-2xs)] font-mono rounded bg-text-primary/[0.06] text-text-secondary/70 shrink-0">
                               {action.shortcut}
                             </kbd>
                           )}
@@ -803,7 +803,7 @@ export function RepoSidebar({
                             onToggle={() => sectionState.toggle('pullRequests')}
                           >
                             {pullRequests.length === 0 && (
-                              <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noPRs')}</p>
+                              <p className="px-4 py-1 text-[length:var(--font-size-xs)] text-text-secondary italic">{t('sidebar.noPRs')}</p>
                             )}
                             {pullRequests.map((pr) => (
                               <div
@@ -824,11 +824,11 @@ export function RepoSidebar({
                                   <GitMerge size={14} className={cn('shrink-0 mt-0.5', pr.draft ? 'text-text-secondary' : 'text-secondary')} />
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1">
-                                      <span className="text-[10px] font-mono text-text-secondary/70">#{pr.number}</span>
-                                      {pr.draft && <span className="text-[9px] text-text-secondary/70 uppercase">{t('sidebar.draft')}</span>}
+                                      <span className="text-[length:var(--font-size-2xs)] font-mono text-text-secondary/70">#{pr.number}</span>
+                                      {pr.draft && <span className="text-[length:var(--font-size-2xs)] text-text-secondary/70 uppercase">{t('sidebar.draft')}</span>}
                                     </div>
                                     <p className="text-xs truncate">{pr.title}</p>
-                                    <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-text-secondary/70">
+                                    <div className="mt-0.5 flex items-center gap-2 text-[length:var(--font-size-xs)] font-mono text-text-secondary/70">
                                       <span className="truncate">{pr.branch}</span>
                                       <span className="text-secondary">+{pr.additions}</span>
                                       <span className="text-error">-{pr.deletions}</span>
@@ -860,13 +860,13 @@ export function RepoSidebar({
                               <div className="flex items-center gap-1 ml-1">
                                 <button
                                   onClick={async () => { await stashClear(); setShowStashClearConfirm(false); }}
-                                  className="text-[9px] px-1.5 py-0.5 rounded bg-error text-white font-bold"
+                                  className="text-[length:var(--font-size-2xs)] px-1.5 py-0.5 rounded bg-error text-white font-bold"
                                 >
                                   Sí, limpiar
                                 </button>
                                 <button
                                   onClick={() => setShowStashClearConfirm(false)}
-                                  className="text-[9px] px-1.5 py-0.5 rounded bg-border-subtle text-text-secondary"
+                                  className="text-[length:var(--font-size-2xs)] px-1.5 py-0.5 rounded bg-border-subtle text-text-secondary"
                                 >
                                   No
                                 </button>
@@ -874,7 +874,7 @@ export function RepoSidebar({
                             ) : (
                               <button
                                 onClick={() => setShowStashClearConfirm(true)}
-                                className="text-[9px] text-text-secondary hover:text-error transition-colors ml-1 font-medium"
+                                className="text-[length:var(--font-size-xs)] text-text-secondary hover:text-error transition-colors ml-1 font-medium"
                                 title="Eliminar todos los stashes"
                               >
                                 limpiar todo
@@ -883,7 +883,7 @@ export function RepoSidebar({
                           ) : undefined}
                         >
                           {stashes.length === 0 && repoPath && (
-                            <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noStashes')}</p>
+                            <p className="px-4 py-1 text-[length:var(--font-size-xs)] text-text-secondary italic">{t('sidebar.noStashes')}</p>
                           )}
                           {stashes.map((s) => (
                             <StashItem
@@ -917,7 +917,7 @@ export function RepoSidebar({
                           ) : undefined}
                         >
                           {tags.length === 0 && repoPath && (
-                            <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noTags')}</p>
+                            <p className="px-4 py-1 text-[length:var(--font-size-xs)] text-text-secondary italic">{t('sidebar.noTags')}</p>
                           )}
                           {tags.map((tg) => (
                             <TagItem key={tg} name={tg} onDelete={() => onDeleteTagRequest(tg)} onPush={() => pushTag(tg)} />
@@ -944,7 +944,7 @@ export function RepoSidebar({
                             )}
                           >
                             {remotes.length === 0 && (
-                              <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noRemotes')}</p>
+                              <p className="px-4 py-1 text-[length:var(--font-size-xs)] text-text-secondary italic">{t('sidebar.noRemotes')}</p>
                             )}
                             {remotes.map((rm) => (
                               <SidebarRemoteItem
@@ -978,7 +978,7 @@ export function RepoSidebar({
                             )}
                           >
                             {worktrees.length <= 1 ? (
-                              <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noWorktrees')}</p>
+                              <p className="px-4 py-1 text-[length:var(--font-size-xs)] text-text-secondary italic">{t('sidebar.noWorktrees')}</p>
                             ) : (
                               worktrees.map((wt) => {
                                 const isMain = wt.path.replace(/\\/g, '/').toLowerCase() === repoPath.replace(/\\/g, '/').toLowerCase();
@@ -1017,7 +1017,7 @@ export function RepoSidebar({
                             )}
                           >
                             {submodules.length === 0 ? (
-                              <p className="px-4 py-1 text-[11px] text-text-secondary italic">{t('sidebar.noSubmodules')}</p>
+                              <p className="px-4 py-1 text-[length:var(--font-size-xs)] text-text-secondary italic">{t('sidebar.noSubmodules')}</p>
                             ) : (
                               submodules.map((sm) => (
                                 <SidebarSubmoduleItem
@@ -1050,7 +1050,7 @@ export function RepoSidebar({
                 </span>
                 <button
                   onClick={() => onViewChange('repository')}
-                  className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
+                  className="text-text-secondary hover:text-text-primary text-[length:var(--font-size-2xs)] uppercase font-bold flex items-center gap-1"
                   title={t('common.backToRepo')}
                 >
                   <ArrowLeft size={12} />
@@ -1105,7 +1105,7 @@ export function RepoSidebar({
                 </span>
                 <button
                   onClick={() => onViewChange('repository')}
-                  className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
+                  className="text-text-secondary hover:text-text-primary text-[length:var(--font-size-2xs)] uppercase font-bold flex items-center gap-1"
                   title={t('common.backToRepo')}
                 >
                   <ArrowLeft size={12} />
@@ -1153,7 +1153,7 @@ export function RepoSidebar({
                 </span>
                 <button
                   onClick={() => onViewChange('repository')}
-                  className="text-text-secondary hover:text-text-primary text-[10px] uppercase font-bold flex items-center gap-1"
+                  className="text-text-secondary hover:text-text-primary text-[length:var(--font-size-2xs)] uppercase font-bold flex items-center gap-1"
                   title={t('common.backToRepo')}
                 >
                   <ArrowLeft size={12} />
@@ -1247,7 +1247,7 @@ export function RepoSidebar({
                     className="h-8 w-8 shrink-0 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-git-add to-git-add/80 flex items-center justify-center text-[10px] font-bold text-bg-base">
+                  <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-git-add to-git-add/80 flex items-center justify-center text-[length:var(--font-size-2xs)] font-bold text-bg-base">
                     {userInitials(githubUser)}
                   </div>
                 )}

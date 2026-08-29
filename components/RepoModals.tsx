@@ -35,7 +35,7 @@ function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: React.R
   return (
     <label
       htmlFor={htmlFor}
-      className="mb-1.5 block text-[var(--font-size-xs)] font-extrabold uppercase tracking-wider text-text-secondary"
+      className="mb-1.5 block text-[length:var(--font-size-2xs)] font-extrabold uppercase tracking-wider text-text-secondary"
     >
       {children}
     </label>
@@ -43,7 +43,7 @@ function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: React.R
 }
 
 function FieldHint({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-[var(--font-size-xs)] leading-relaxed text-text-secondary/75">{children}</p>;
+  return <p className="mt-1 text-[length:var(--font-size-xs)] leading-relaxed text-text-secondary/75">{children}</p>;
 }
 
 function TextInput({

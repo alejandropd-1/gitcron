@@ -129,20 +129,20 @@ export function DiffViewer({
       {filePath && (
         <div className="px-4 py-2 border-b border-border-subtle/20 bg-bg-surface flex items-center justify-between shrink-0">
           <span className="text-xs font-mono text-text-primary truncate">{filePath}</span>
-          <div className="flex gap-3 text-[11px] font-mono shrink-0 ml-3">
+          <div className="flex gap-3 text-[length:var(--font-size-xs)] font-mono shrink-0 ml-3">
             <span className="text-git-add">+{adds}</span>
             <span className="text-git-delete">-{removes}</span>
           </div>
         </div>
       )}
-      <div className="flex-1 overflow-auto font-mono text-[12px] leading-[1.5]">
+      <div className="flex-1 overflow-auto font-mono text-[length:var(--font-size-xs)] leading-[1.5]">
         <div className="min-w-full inline-block">
           {hunks.map((hunk, hi) => (
             <div key={hi} className="border-b border-border-subtle/20">
-              <div className="px-4 py-1 bg-bg-overlay text-text-secondary text-[11px] sticky top-0 z-10 select-none flex items-center gap-2">
+              <div className="px-4 py-1 bg-bg-overlay text-text-secondary text-[length:var(--font-size-xs)] sticky top-0 z-10 select-none flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate">{hunk.header}</span>
                 {hunkActions && (selectedLinesByHunk[hi]?.length ?? 0) > 0 && (
-                  <span className="shrink-0 text-[10px] text-secondary">
+                  <span className="shrink-0 text-[length:var(--font-size-xs)] text-secondary">
                     {t('diff.selectedLines', { count: String(selectedLinesByHunk[hi].length) })}
                   </span>
                 )}
@@ -267,10 +267,10 @@ function DiffLineRow({
           )}
         </span>
       )}
-      <span className="w-12 text-right pr-2 select-none text-text-secondary border-r border-border-subtle/20 shrink-0 text-[10px] py-[1px]">
+      <span className="w-12 text-right pr-2 select-none text-text-secondary border-r border-border-subtle/20 shrink-0 text-[length:var(--font-size-2xs)] py-[1px]">
         {line.oldLineNum ?? ''}
       </span>
-      <span className="w-12 text-right pr-2 select-none text-text-secondary border-r border-border-subtle/20 shrink-0 text-[10px] py-[1px]">
+      <span className="w-12 text-right pr-2 select-none text-text-secondary border-r border-border-subtle/20 shrink-0 text-[length:var(--font-size-2xs)] py-[1px]">
         {line.newLineNum ?? ''}
       </span>
       <span className={cn('w-6 text-center select-none shrink-0', markerColor)}>{marker}</span>

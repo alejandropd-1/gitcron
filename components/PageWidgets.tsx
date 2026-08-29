@@ -62,7 +62,7 @@ export function ToolbarButton({
       )}
     >
       <div className="w-5 h-5 shrink-0 flex items-center justify-center">{icon}</div>
-      {label && <span className="text-[var(--font-size-xs)] leading-none font-bold uppercase tracking-tighter text-text-secondary">{label}</span>}
+      {label && <span className="text-[length:var(--font-size-2xs)] leading-none font-bold uppercase tracking-tighter text-text-secondary">{label}</span>}
     </button>
   );
 }

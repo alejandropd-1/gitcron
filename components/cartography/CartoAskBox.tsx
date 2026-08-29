@@ -106,7 +106,7 @@ export function CartoAskBox({ repoPath, onSelectNode }: CartoAskBoxProps) {
       {/* Cabecera */}
       <div className="flex shrink-0 items-center gap-2 border-b border-carto-grid px-3 py-2">
         <Bot size={13} className="shrink-0 text-carto-accent" />
-        <span className="truncate text-[var(--font-size-xs)] font-bold uppercase tracking-widest text-carto-text-muted">
+        <span className="truncate text-[length:var(--font-size-2xs)] font-bold uppercase tracking-widest text-carto-text-muted">
           {t('cartography.ai.askTitle')}
         </span>
         {turns.length > 0 && (
@@ -114,7 +114,7 @@ export function CartoAskBox({ repoPath, onSelectNode }: CartoAskBoxProps) {
             type="button"
             onClick={() => setTurns([])}
             title={t('cartography.ai.clear')}
-            className="ml-auto flex items-center gap-1 text-[var(--font-size-xs)] text-carto-text-muted transition-colors hover:text-carto-text"
+            className="ml-auto flex items-center gap-1 text-[length:var(--font-size-xs)] text-carto-text-muted transition-colors hover:text-carto-text"
           >
             <Trash2 size={12} />
           </button>
@@ -191,7 +191,7 @@ function Bubble({
   }
   if (turn.role === 'error') {
     return (
-      <div className="flex items-start gap-1.5 rounded-lg border border-error/30 bg-error/5 px-2.5 py-1.5 text-[var(--font-size-xs)] text-error">
+      <div className="flex items-start gap-1.5 rounded-lg border border-error/30 bg-error/5 px-2.5 py-1.5 text-[length:var(--font-size-2xs)] text-error">
         <AlertTriangle size={13} className="mt-0.5 shrink-0" />
         <span className="min-w-0 break-words">{turn.text}</span>
       </div>
@@ -205,7 +205,7 @@ function Bubble({
 
         {turn.usedNodes.length > 0 ? (
           <div className="mt-2 border-t border-carto-grid pt-1.5">
-            <p className="mb-1 text-[var(--font-size-xs)] font-semibold uppercase tracking-wider text-carto-text-muted/70">
+            <p className="mb-1 text-[length:var(--font-size-2xs)] font-semibold uppercase tracking-wider text-carto-text-muted/70">
               {t('cartography.ai.basedOn')}
             </p>
             <div className="flex flex-wrap gap-1">
@@ -215,7 +215,7 @@ function Bubble({
                   type="button"
                   onClick={() => onSelectNode(node)}
                   title={node.filePath}
-                  className="flex max-w-full items-center gap-1 rounded border border-carto-grid bg-carto-node/[0.04] px-1.5 py-0.5 text-[var(--font-size-xs)] text-carto-text-muted transition-colors hover:border-carto-accent/50 hover:text-carto-text"
+                  className="flex max-w-full items-center gap-1 rounded border border-carto-grid bg-carto-node/[0.04] px-1.5 py-0.5 text-[length:var(--font-size-2xs)] text-carto-text-muted transition-colors hover:border-carto-accent/50 hover:text-carto-text"
                 >
                   <FileCode size={10} className="shrink-0 text-carto-accent/70" />
                   <span className="truncate font-mono">{node.name}</span>
@@ -224,12 +224,12 @@ function Bubble({
             </div>
           </div>
         ) : (
-          <p className="mt-2 border-t border-carto-grid pt-1.5 text-[var(--font-size-xs)] italic text-carto-text-muted/60">
+          <p className="mt-2 border-t border-carto-grid pt-1.5 text-[length:var(--font-size-xs)] italic text-carto-text-muted/60">
             {t('cartography.ai.noMatches')}
           </p>
         )}
 
-        <p className="mt-1.5 font-mono text-[var(--font-size-xs)] text-carto-text-muted/70">
+        <p className="mt-1.5 font-mono text-[length:var(--font-size-xs)] text-carto-text-muted/70">
           {turn.provider} · {t('cartography.ai.contextChars', { chars: turn.promptChars })}
         </p>
       </div>

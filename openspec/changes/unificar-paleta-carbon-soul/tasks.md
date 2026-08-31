@@ -218,30 +218,30 @@ change aparte.
   y había 102. Al ampliarlo, la línea de base pasó de **316 a 477**: 392 pendientes en 35 archivos
   y 85 exentas. La conversión rem→px usa base 16, que es lo que declaran los comentarios de los
   escalones en `app/globals.css:26-32` (`0.75rem` = 12px).
-- [ ] 6.3 Para cada uso, resolver contra el escalón de la escala que le corresponde según el
+- [x] 6.3 Para cada uso, resolver contra el escalón de la escala que le corresponde según el
   propósito que la propia escala declara: `xs` para metadatos y badges, `sm` para texto secundario y
   controles compactos, `md` para títulos de sección. No agregar escalones: si algo no encaja en
   ninguno, declararlo en lugar de inventar uno.
-- [ ] 6.4 En la hoja de estilos de la vista del ciclo hay doce rótulos y **los doce están en `xs`**,
+- [x] 6.4 En la hoja de estilos de la vista del ciclo hay doce rótulos y **los doce están en `xs`**,
   con cinco pesos y cinco colores distintos. Ahí el problema no es sólo el tamaño: un encabezado con
   el mismo tamaño, peso y color que un botón se lee como un botón. Distinguir familia por familia y
   declarar el criterio.
-- [ ] 6.5 Confirmar que la verificación de 1.5 ya no reporta nada.
-- [ ] 6.6 Revisión visual: los rótulos se distinguen del texto y de los controles, y la jerarquía se
+- [x] 6.5 Confirmar que la verificación de 1.5 ya no reporta nada.
+- [x] 6.6 Revisión visual: los rótulos se distinguen del texto y de los controles, y la jerarquía se
   lee sin depender del color. **La comprueba Alejandro.**
 
 ## 7. Cierre y validación
 
-- [ ] 7.0 `pnpm build` sin errores. Va primero y no es una formalidad: un selector rechazado por el
+- [x] 7.0 `pnpm build` sin errores. Va primero y no es una formalidad: un selector rechazado por el
   compilador de hojas de estilo deja la aplicación sin arrancar mientras la suite entera da en verde,
   porque las pruebas no procesan los módulos de estilo con el compilador de producción. En un change
   que reescribe hojas de estilo, es la validación que más puede fallar. Si falla con «build worker
   exited with code 1», correrlo solo antes de reportarlo: pasa con dos builds sobre el mismo `.next`.
-- [ ] 7.1 `pnpm exec tsc --noEmit` sin errores de tipado.
-- [ ] 7.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada una.
-- [ ] 7.3 `openspec validate unificar-paleta-carbon-soul --strict` en cero.
-- [ ] 7.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en Git.
-- [ ] 7.5 Informar la medición final contra la de 1.4 y la de 1.5: cuántos colores fuera de la paleta
+- [x] 7.1 `pnpm exec tsc --noEmit` sin errores de tipado.
+- [x] 7.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada una.
+- [x] 7.3 `openspec validate unificar-paleta-carbon-soul --strict` en cero.
+- [x] 7.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en Git.
+- [x] 7.5 Informar la medición final contra la de 1.4 y la de 1.5: cuántos colores fuera de la paleta
   y cuántos tamaños fuera de escala quedan, y dónde. **La parte pendiente de la línea de base tiene
   que quedar vacía**: si queda una sola entrada ahí, declarar cuál y por qué, y el change no cierra
   hasta que esté decidido.

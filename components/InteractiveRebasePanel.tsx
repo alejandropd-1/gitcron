@@ -248,7 +248,7 @@ export default function InteractiveRebasePanel({
         {/* Header */}
         <div className="px-6 py-4 border-b border-border-subtle/15 bg-bg-surface/50 flex items-center justify-between shrink-0">
           <div>
-            <h3 className="font-bold text-base text-secondary flex items-center gap-2">
+            <h3 className="font-bold text-[length:var(--font-size-lg)] text-secondary flex items-center gap-2">
               <Play size={16} className="text-secondary rotate-90" /> {t('rebase.title')}
             </h3>
             <p className="text-xs text-text-secondary mt-0.5">

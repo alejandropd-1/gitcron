@@ -324,7 +324,7 @@ export function SettingsPanel({
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
           <div className="flex min-w-0 items-center gap-2">
             <Settings size={18} className="text-secondary shrink-0" />
-            <h2 className="truncate text-base font-bold text-text-primary">
+            <h2 className="truncate text-[length:var(--font-size-lg)] font-bold text-text-primary">
               {selectedSettingsSection === 'language' && t('settings.language')}
               {selectedSettingsSection === 'fontSize' && t('settings.fontSize')}
               {selectedSettingsSection === 'defaultFolder' && t('settings.defaultFolder')}

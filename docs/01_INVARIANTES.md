@@ -194,3 +194,29 @@
       archivo. El nombre que se le puso a la constante —`COLOR_WARNING` apuntando a
       `git-mod`— fue la evidencia de que el rol real era el otro. Costó una tanda
       entera detectarlo y otra corregirlo.
+
+24. **En Tailwind CSS v4, las clases arbitrarias de tamaño exigen prefijo de tipo.**
+    La utilidad `text-[...]` es sobrecargada: por omisión Tailwind la resuelve como
+    color (`color: var(...)`), no como tamaño tipográfico (`font-size: var(...)`), a
+    menos que el valor tenga una unidad evidente o lleve el prefijo explícito
+    `text-[length:var(--font-size-*)]`. Sin el prefijo `length:`, una clase como
+    `text-[var(--font-size-*)]` genera `color: var(--font-size-*)` en el CSS compilado,
+    dejando el texto con el tamaño heredado y un color roto.
+    - **El caso real del change `unificar-paleta-carbon-soul`, 2026-08-27.**
+      Al migrar encabezados y rótulos a tokens tipográficos con clases arbitrarias de
+      Tailwind, `text-[var(--font-size-*)]` (como `lg` o `xs`) compilaron silenciosamente a
+      propiedades de `color`. Se construyó la guarda `lib/__tests__/font-size-as-color.test.ts`
+      y la directiva `@source not` en `app/globals.css` para verificar el CSS generado
+      en build y asegurar que ningún token `--font-size-*` termine emitiéndose en una
+      propiedad `color`.
+
+25. **Un fallo de `pnpm build` con `ENOENT ...nft.json` es caché stale y se cura con `rm -rf .next`.**
+    Cuando Next.js completa la compilación con éxito pero falla en la fase de recolección
+    de trazas de empaquetado (`Collecting build traces...`) con error de tipo
+    `ENOENT: no such file or directory, open '...nft.json'`, la causa es un estado residual
+    o inconsistente de compilaciones previas en el directorio `.next/`.
+    - **Regla de recuperación.** No alterar código ni configuración ante este fallo.
+      La solución operativa es purgar el directorio de compilación (`rm -rf .next` o
+      `Remove-Item -Recurse -Force .next` en PowerShell) y relanzar `pnpm build`. En
+      cambios que modifican módulos CSS o configuración de compilación, limpiar `.next`
+      antes de construir evita falsos negativos.

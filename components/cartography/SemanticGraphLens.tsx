@@ -475,7 +475,7 @@ function weightedFlowEdge(source: string, target: string, weight: number, index:
     },
     labelStyle: {
       fill: 'var(--color-carto-accent)',
-      fontSize: 10,
+      fontSize: 'var(--font-size-2xs)',
       fontWeight: 800,
     },
     labelBgStyle: {

@@ -1,3 +1,18 @@
+/* ==========================================================================
+   RÓTULOS Y JERARQUÍA TIPOGRÁFICA DE LA VISTA DEL CICLO (Tarea 6.4)
+   Criterio por familias funcionales para evitar colapso de jerarquía:
+   1. ENCABEZADO: Títulos de sección/tarjeta (h3, h4, inventoryTitle, reviewSectionTitle).
+      -> font-size: xs / sm / md, peso 650/700, color text-primary o primary.
+   2. VALOR: Datos principales e información dinámica (axisValue, factValue).
+      -> font-size: base / xs, peso regular o 650, color text-primary.
+   3. ETIQUETA / METADATO: Rótulos descriptivos, metadatos y ejes (axisLabel, axisMeta, compactMeta, reviewFactLabel).
+      -> Rotulación accesoria: font-size: 2xs (10px), color text-secondary, uppercase / tracking.
+   4. ESTADO: Badges e indicadores de condición (nextStepBadge, provenanceBadge, outputKindBadge, blockedTag, generalStatusBadge, presenceBadge, reviewSkillTag).
+      -> Rotulación accesoria: font-size: 2xs (10px), peso 600/700, colores semánticos con fondo color-mix.
+   5. ACCIÓN: Controles interactivos y botones secundarios (nextStepDismiss, toggleAdvancedBtn, reviewCopyBtn).
+      -> font-size: xs (12px), peso 650/600 (legibilidad interactiva para clics).
+   ========================================================================== */
+
 .workspace {
   position: relative;
   display: flex;
@@ -1700,7 +1715,7 @@
 
 .nextStepBadge {
   color: var(--color-primary);
-  font-weight: 700; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 700; font-size: var(--font-size-2xs); font-family: var(--font-mono), ui-monospace, monospace;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -1969,12 +1984,14 @@
   color: var(--color-text-primary);
 }
 .provenanceBadge {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-default);
   background: var(--color-border-subtle);
   color: var(--color-primary);
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .engineAxesGrid {
   display: flex;
@@ -1990,16 +2007,18 @@
   border-radius: var(--radius-md);
 }
 .axisLabel {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   color: var(--color-text-secondary);
   margin-bottom: var(--space-1);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 .axisValue {
   font-size: var(--font-size-base);
   color: var(--color-text-primary);
 }
 .axisMeta {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   color: var(--color-primary);
 }
 .displayPathCode {
@@ -2015,8 +2034,9 @@
 }
 .inventoryTitle {
   font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  font-weight: 600;
+  color: var(--color-text-primary);
+  font-weight: 650;
+  letter-spacing: 0.02em;
 }
 .inventoryHelp {
   margin: var(--space-1) 0 var(--space-2);
@@ -2037,11 +2057,12 @@
   margin-bottom: var(--space-1);
 }
 .outputKindBadge {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   padding: var(--space-1) var(--space-1);
   border-radius: var(--radius-default);
   background: var(--color-bg-surface);
   color: var(--color-accent-purple);
+  font-weight: 600;
 }
 .outputKindBadge[data-kind='repo-local'] {
   color: var(--color-git-add);
@@ -2052,8 +2073,10 @@
 }
 .blockedTag {
   color: var(--color-error);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .compactEngineBadge {
   display: flex;
@@ -2069,7 +2092,7 @@
 }
 .compactMeta {
   font-style: normal;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   color: var(--color-text-secondary);
 }
 .divergenceNotice {
@@ -2120,8 +2143,10 @@
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-default);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .generalStatusBadge[data-status='ready'] {
   background: color-mix(in srgb, var(--color-git-add) 15%, transparent);
@@ -2183,11 +2208,12 @@
   padding-right: var(--space-1);
 }
 .presenceBadge {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   padding: var(--space-1) var(--space-1);
   border-radius: var(--radius-default);
   background: var(--color-bg-surface);
   color: var(--color-text-secondary);
+  font-weight: 600;
 }
 .toolsSectionWarning {
   display: inline-flex;
@@ -2339,7 +2365,7 @@
 
 .reviewFactLabel {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -2467,7 +2493,8 @@
   display: inline-block;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-default);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
   background: color-mix(in srgb, var(--color-border-subtle) 50%, transparent);
   color: var(--color-text-secondary);
 }

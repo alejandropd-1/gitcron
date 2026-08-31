@@ -126,7 +126,7 @@ export function CartographyView({ repoPath, onExit }: CartographyViewProps) {
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-carto-accent/15 text-carto-accent">
               <Map size={16} />
             </span>
-            <h2 className="truncate text-base font-bold tracking-wide text-carto-text">
+            <h2 className="truncate text-[length:var(--font-size-lg)] font-bold tracking-wide text-carto-text">
               {t('cartography.title')}
             </h2>
             <span className="ml-1 rounded-full border border-carto-accent/35 px-2 py-0.5 text-[length:var(--font-size-2xs)] font-bold uppercase tracking-widest text-carto-accent">

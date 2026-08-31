@@ -296,7 +296,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
         </div>
 
         {onOpenReview && (
-          <div style={{ marginTop: '0.4rem' }}>
+          <div style={{ marginTop: 'var(--space-1)' }}>
             <button
               type="button"
               className={styles.centerAttentionBtn}

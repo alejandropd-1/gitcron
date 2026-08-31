@@ -163,7 +163,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
       {/* Top Header Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border-subtle/15 pb-4">
         <div>
-          <h3 className="text-base font-bold flex items-center gap-2 text-primary">
+          <h3 className="text-[length:var(--font-size-lg)] font-bold flex items-center gap-2 text-primary">
             <Activity size={18} /> {t('dashboard.title')}
           </h3>
           <p className="text-xs text-text-secondary mt-1">{t('dashboard.subtitle')}</p>

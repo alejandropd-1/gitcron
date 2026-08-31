@@ -194,7 +194,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                     })()}
               </p>
               {executionResult.filesUpdated.length > 0 && (
-                <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.2rem', fontSize: '0.64rem', color: 'var(--color-primary)' }}>
+                <ul style={{ margin: 'var(--space-1) 0 0', paddingLeft: 'var(--space-4)', fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>
                   {executionResult.filesUpdated.map((f) => (
                     <li key={f}><code>{f}</code></li>
                   ))}
@@ -245,9 +245,9 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           </div>
 
           {cli?.displayPath && (
-            <div style={{ marginTop: '0.4rem' }}>
+            <div style={{ marginTop: 'var(--space-1)' }}>
               <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.advanced.routeAndProvenance')}: </span>
-              <code style={{ fontSize: '0.66rem', color: 'var(--color-primary)' }}>{cli.displayPath}</code>
+              <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>{cli.displayPath}</code>
             </div>
           )}
         </section>
@@ -256,7 +256,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
         {latest?.latestVersion && cli?.runtimeVersion && latest.latestVersion !== cli.runtimeVersion && (
           <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.hostUpgrade.title')}>
             <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.hostUpgrade.title')}</h3>
-            <p style={{ margin: '0 0 0.4rem', color: 'var(--color-text-secondary)', fontSize: '0.66rem' }}>
+            <p style={{ margin: '0 0 var(--space-1)', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
               {t('pipeline.openspec.engine.hostUpgrade.help')}
             </p>
             <div className={styles.reviewCommandPre}>
@@ -285,7 +285,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           </div>
 
           {action === 'blocked' && (
-            <p style={{ margin: '0.4rem 0 0', color: 'var(--color-error)', fontSize: '0.66rem' }}>
+            <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>
               {t('pipeline.openspec.engine.matrix.blockedReason', {
                 reason: updatePlan?.reason ?? t('pipeline.openspec.engine.preview.blockedReason'),
               })}
@@ -294,7 +294,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
 
           {officialCommand && (
             <div className={styles.reviewCommandBox}>
-              <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '0.66rem' }}>
+              <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
                 {t('pipeline.openspec.engine.matrix.commandHelp')}
               </p>
               <div className={styles.reviewCommandPre}>
@@ -420,19 +420,19 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           </div>
 
           {/* Colisiones o conflictos */}
-          <div style={{ marginTop: '0.5rem' }}>
+          <div style={{ marginTop: 'var(--space-2)' }}>
             <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.coexistence.collisionsTitle')}: </span>
             {coexistence.nameCollisions.length === 0 && coexistence.conflicts.length === 0 ? (
-              <span style={{ color: 'var(--color-git-add)', fontSize: '0.66rem' }}>{t('pipeline.openspec.engine.coexistence.noCollisions')}</span>
+              <span style={{ color: 'var(--color-git-add)', fontSize: 'var(--font-size-xs)' }}>{t('pipeline.openspec.engine.coexistence.noCollisions')}</span>
             ) : (
-              <div style={{ marginTop: '0.2rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ marginTop: 'var(--space-1)', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
                 {coexistence.nameCollisions.map((col) => (
-                  <span key={col} style={{ color: 'var(--color-warning)', fontSize: '0.64rem' }}>
+                  <span key={col} style={{ color: 'var(--color-warning)', fontSize: 'var(--font-size-xs)' }}>
                     ⚠️ Colisión de nombre: <code>{col}</code> existe en configuración legacy y nueva.
                   </span>
                 ))}
                 {coexistence.conflicts.map((conf, idx) => (
-                  <span key={idx} style={{ color: 'var(--color-error)', fontSize: '0.64rem' }}>
+                  <span key={idx} style={{ color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>
                     ⚠️ Conflicto: {conf}
                   </span>
                 ))}
@@ -451,18 +451,18 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
             <h3 className={styles.reviewSectionTitle} style={{ color: 'var(--color-git-mod)' }}>
               {t('pipeline.openspec.engine.review.forceOptionTitle')}
             </h3>
-            <p style={{ margin: '0 0 0.4rem', color: 'var(--color-text-secondary)', fontSize: '0.66rem' }}>
+            <p style={{ margin: '0 0 var(--space-1)', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
               {t('pipeline.openspec.engine.review.forceWarning')}
             </p>
-            <div style={{ margin: '0.2rem 0', fontSize: '0.66rem', color: 'var(--color-text-primary)' }}>
+            <div style={{ margin: 'var(--space-1) 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-primary)' }}>
               <span>{t('pipeline.openspec.engine.review.forceFilesToClean')}</span>
             </div>
-            <ul style={{ margin: '0 0 0.5rem', paddingLeft: '1.2rem', fontSize: '0.64rem', color: 'var(--color-git-mod)' }}>
+            <ul style={{ margin: '0 0 var(--space-2)', paddingLeft: 'var(--space-4)', fontSize: 'var(--font-size-xs)', color: 'var(--color-git-mod)' }}>
               {coexistence.legacySkills.map((s) => (
                 <li key={s.path}><code>{s.path}</code></li>
               ))}
             </ul>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.68rem', color: 'var(--color-text-primary)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', cursor: 'pointer', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-primary)' }}>
               <input
                 type="checkbox"
                 checked={forceConfirmed}
@@ -479,7 +479,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
             <h3 className={styles.reviewSectionTitle}>
               {t('pipeline.openspec.engine.outputsTitle')} ({presentOutputs.length})
             </h3>
-            <p style={{ margin: '0 0 0.4rem', color: 'var(--color-text-secondary)', fontSize: '0.64rem' }}>
+            <p style={{ margin: '0 0 var(--space-1)', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
               {t('pipeline.openspec.engine.outputsHelp')}
             </p>
             <div className={styles.outputListScrollContainer}>
@@ -510,7 +510,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
         )}
 
         {/* SALVAGUARDAS DE GIT Y ACCIONES EN EL PIE */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.6rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginTop: 'var(--space-2)' }}>
           {isMainOrMaster && (
             <div className={styles.reviewWarningAlert}>
               <AlertTriangle size={14} color="var(--color-error)" aria-hidden="true" style={{ flex: '0 0 auto', marginTop: 1 }} />

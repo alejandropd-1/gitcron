@@ -184,7 +184,7 @@ export function SidebarDropdown({
         aria-expanded={isOpen}
         aria-controls={`${id}-menu`}
         className={cn(
-          'min-h-[38px] pl-1 pr-2 py-1 rounded-lg text-[length:var(--font-size-md)] font-bold tracking-tight transition-colors inline-flex items-center gap-1.5',
+          'min-h-[38px] pl-1 pr-2 py-1 rounded-lg text-[length:var(--font-size-lg)] font-bold tracking-tight transition-colors inline-flex items-center gap-1.5',
           'text-text-primary hover:bg-text-primary/10',
           'focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
           isOpen && 'bg-text-primary/10 text-secondary',
@@ -195,7 +195,7 @@ export function SidebarDropdown({
       >
         <div className="flex items-center gap-2 min-w-0">
           {icon && <span className="shrink-0 text-text-secondary/80 flex items-center justify-center w-4 h-4">{icon}</span>}
-          <span className="truncate text-[length:var(--font-size-md)] font-bold">{label}</span>
+          <span className="truncate text-[length:var(--font-size-lg)] font-bold">{label}</span>
         </div>
         <ChevronDown size={14} className={cn('transition-transform duration-150 shrink-0 opacity-70', isOpen && 'rotate-180 text-secondary opacity-100')} />
       </button>
@@ -263,6 +263,7 @@ function SidebarRemoteItem({
   onDelete: () => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const t = useT();
   const titleText = `${remote.name}\nFetch: ${remote.fetchUrl || '-'}\nPush: ${remote.pushUrl || '-'}`;
   return (
     <div
@@ -283,21 +284,21 @@ function SidebarRemoteItem({
         <button
           onClick={(e) => { e.stopPropagation(); onSetUrl(); }}
           className="p-1 hover:text-secondary transition-colors"
-          title="Cambiar URL"
+          title={t('sidebar.remoteSetUrl')}
         >
           <Link2 size={12} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onRename(); }}
           className="p-1 hover:text-secondary transition-colors"
-          title="Renombrar"
+          title={t('sidebar.remoteRename')}
         >
           <Edit2 size={12} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="p-1 hover:text-error transition-colors"
-          title="Eliminar"
+          title={t('sidebar.remoteRemove')}
         >
           <Trash2 size={12} />
         </button>
@@ -318,6 +319,7 @@ function SidebarWorktreeItem({
   isMain: boolean;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const t = useT();
   const name = wt.path.split(/[/\\]/).pop() || wt.path;
   return (
     <div
@@ -344,7 +346,7 @@ function SidebarWorktreeItem({
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
             className="p-1 hover:text-error transition-colors"
-            title="Eliminar worktree"
+            title={t('sidebar.worktreeRemove')}
           >
             <Trash2 size={12} />
           </button>
@@ -364,6 +366,7 @@ function SidebarSubmoduleItem({
   onSync: () => void;
   }) {
   const [isHovered, setIsHovered] = useState(false);
+  const t = useT();
   return (
     <div
       onMouseEnter={() => setIsHovered(true)}
@@ -383,14 +386,14 @@ function SidebarSubmoduleItem({
         <button
           onClick={(e) => { e.stopPropagation(); onUpdate(); }}
           className="p-1 hover:text-secondary transition-colors"
-          title="Actualizar (update)"
+          title={t('sidebar.submoduleUpdate')}
         >
           <RefreshCw size={12} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onSync(); }}
           className="p-1 hover:text-secondary transition-colors"
-          title="Sincronizar (sync)"
+          title={t('sidebar.submoduleSync')}
         >
           <Link2 size={12} />
         </button>
@@ -604,7 +607,7 @@ export function RepoSidebar({
       <div
         onMouseDown={onResizeStart}
         className="group absolute top-0 right-0 h-full w-2 cursor-col-resize z-40"
-        title="Arrastrar para redimensionar"
+        title={t('sidebar.resizeHandle')}
       >
         <div className="absolute inset-y-3 right-0.5 w-px bg-transparent group-hover:bg-secondary/45 group-active:bg-secondary/70 transition-colors" />
       </div>
@@ -875,7 +878,7 @@ export function RepoSidebar({
                               <button
                                 onClick={() => setShowStashClearConfirm(true)}
                                 className="text-[length:var(--font-size-xs)] text-text-secondary hover:text-error transition-colors ml-1 font-medium"
-                                title="Eliminar todos los stashes"
+                                title={t('sidebar.stashDropAll')}
                               >
                                 limpiar todo
                               </button>

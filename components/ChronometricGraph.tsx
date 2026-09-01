@@ -2071,7 +2071,7 @@ export function ChronometricGraph({
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-text-secondary text-ui-body bg-bg-base select-none">
         <GitCommit size={20} className="mb-2 text-text-secondary/70" />
-        <p>No se encontraron commits en este rango de búsqueda.</p>
+        <p>{t('graph.noCommitsInRange')}</p>
       </div>
     );
   }
@@ -3322,7 +3322,7 @@ export function ChronometricGraph({
             <div
               onMouseDown={onCentauroResizeStart}
               className="absolute -top-1.5 left-0 right-0 h-3 cursor-row-resize z-30 group flex items-center justify-center"
-              title="Arrastrar para redimensionar"
+              title={t('sidebar.resizeHandle')}
             >
               <div className="w-12 h-1 rounded-full bg-border-subtle group-hover:bg-secondary transition-colors" />
             </div>

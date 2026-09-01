@@ -248,4 +248,54 @@ change aparte.
   La parte **exenta** no se vacía en este change: son los archivos del invariante 12, y se declaran
   con su cuenta final. Mientras exista una entrada exenta, el archivo de línea de base se conserva —
   se retira el día que quede vacío del todo.
-- [ ] 7.6 Revisión visual en la aplicación: Pipeline afinado con el resto, estados distinguibles entre sí, y acentos que pertenecen a la misma familia sin perder su significado. **La marca Alejandro.**
+- [x] 7.6 Revisión visual en la aplicación: Pipeline afinado con el resto, estados distinguibles entre sí, y acentos que pertenecen a la misma familia sin perder su significado. **La marca Alejandro.**
+
+## 8. Strings de interfaz fuera de `lib/i18n.ts`
+
+Entra al change por decisión de Alejandro del 2026-08-31, con el mismo argumento que la escala
+tipográfica en el grupo 6: comparte la norma incumplida —el invariante 8—, comparte el método de
+línea de base y detector, y las tandas se ejecutan sobre los mismos archivos que ya se estaban
+tocando. Lo que **no** entra es traducir la aplicación entera: este grupo salda lo que se midió y
+declara con número lo que queda.
+
+- [x] 8.1 Declarar qué **no** es deuda de i18n, antes de contar nada. Tres familias, decididas por
+  Alejandro el 2026-08-31 y escritas en `scripts/detectar-i18n.mjs` con su fundamento:
+  **la jerga de Git** (merge, commit, push, pull, fetch, rebase, stash, stage, checkout, worktree,
+  submodule, fast-forward, cherry-pick, squash y las opciones `--soft`/`--hard`), porque un usuario
+  de Git busca «merge», no «fusionar», y traducirla hace la interfaz menos legible;
+  **los nombres propios** (GitCron, GitHub, OpenSpec, `Temporal Agent`, `Brier`), y
+  **la rotulación del HUD Centauro** en `ChronometricGraph.tsx` (`TARGET_LOCKED // LOCK_STABLE`,
+  `[CHRONO_START // T_MIN]`, `SHA //`), que es estética del HUD y no texto que se lea.
+  El diccionario ya aplicaba este criterio sin declararlo: `'sidebar.stashDrop'` en chino es
+  `'删除 Stash'`, con «Stash» sin traducir.
+- [x] 8.2 Construir el detector `scripts/detectar-i18n.mjs`, con su cobertura declarada en la
+  cabecera del propio archivo (invariante 22): los 73 `.tsx` bajo `components/` y `app/`, sin
+  `__tests__`, en seis formas de aparición. **Se corrigió ocho veces, en las dos direcciones**, y
+  cada corrección quedó anotada con el caso que la originó:
+  contaba `fontSize: 'var(--font-size-md)'` como texto porque leía el `:` de una propiedad como el
+  de un ternario —1018 de los primeros 1093 hallazgos eran valores CSS—;
+  descartaba `mi-nuevo-proyecto` y `mi-repo` como si fueran clases de Tailwind;
+  no veía el texto que no empieza con `>` y termina con `<` en la misma línea, que en JSX
+  multilínea es casi todo; y contaba la prosa de los comentarios de bloque.
+- [x] 8.3 Migrar en cuatro tandas, cada una con el mapeo cerrado antes de ejecutarla —clave, texto
+  y las tres traducciones— y auditada contra el árbol: **50 strings migradas** en 9 archivos, con
+  **30 claves nuevas en los tres idiomas** (90 líneas de diccionario más 12 de comentario). Las
+  tandas fueron `RepoSidebar`; `RepoTabs` y `RepoModals`; `TemporalAgentSettings` y `AgentDashboard`;
+  y `ChronometricGraph`, `InteractiveRebasePanel` y `RepoActionModals`.
+  `ChronometricGraph.tsx` está protegido por el invariante 12: sus dos sustituciones cambian de
+  dónde sale el texto y no tocan ni una coordenada ni un color, y así quedó declarado.
+- [x] 8.4 **Declarar el hallazgo que más costó**: buena parte de la deuda no era traducción
+  faltante sino traducción hecha que no se usaba. Los tres placeholders de `RepoModals.tsx` tenían
+  clave con valor en inglés y chino desde antes —`'my-new-project'`, `'user/repo.git'`, `'my-repo'`—
+  y el componente los escribía a mano en castellano: un usuario en inglés veía `mi-nuevo-proyecto`.
+  Lo mismo con `'clone.loading'` y con `'sidebar.resizeHandle'`, que estaba escrito a mano en dos
+  archivos distintos. De las 50 migradas, más de una docena reusaron una clave existente sin crear
+  ninguna.
+- [x] 8.5 Declarar con número lo que queda y decidir dónde se salda: **69 strings en 24 archivos**,
+  ninguno con más de 11. Ese número es un
+  **piso, no un total**, y el detector lo declara: no alcanza a ver las strings sueltas en código
+  —`setError('Error al preparar rebase')`, `throw new Error(...)`, donde viven casi todos los
+  mensajes de error— ni los template literals con interpolación. Se descubrió el 2026-08-31, cuando
+  un ejecutor enumeró a mano 33 strings en tres archivos que el script no veía.
+  **No se saldan en este change.** Sale como change propio, y ahí corresponde decidir si la guarda
+  pasa a ser una prueba con línea de base, como `visual-scale-scan` y `ui-color-scan`.

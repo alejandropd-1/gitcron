@@ -6,6 +6,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/hooks/use-translation';
 
 export type RepoStartMode = 'open' | 'create' | 'clone';
 
@@ -167,11 +168,12 @@ function OpenExistingPane({
   isLoading: boolean;
   onOpenExisting: () => Promise<void>;
 }) {
+  const t = useT();
   return (
     <div>
       <SectionTitle
         icon={<FolderOpen size={18} />}
-        title="Abrir repositorio existente"
+        title={t('openRepo.title')}
         description="Seleccioná una carpeta local que ya tenga un repositorio Git inicializado."
       />
       <PrimaryButton
@@ -203,6 +205,7 @@ function CreateRepoPane({
   const [parent, setParent] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [withGitHub, setWithGitHub] = useState(false);
+  const t = useT();
   const trimmedName = name.trim();
   const canSubmit = Boolean(parent && trimmedName && /^[a-zA-Z0-9._-]+$/.test(trimmedName));
 
@@ -221,7 +224,7 @@ function CreateRepoPane({
     <div>
       <SectionTitle
         icon={<Sparkles size={18} />}
-        title="Crear repositorio nuevo"
+        title={t('initRepo.title')}
         description="Definí el nombre, la carpeta padre y, si querés, crealo también como repo privado en GitHub."
       />
       <div className="space-y-4">
@@ -232,7 +235,7 @@ function CreateRepoPane({
             autoFocus
             value={name}
             onChange={setName}
-            placeholder="mi-nuevo-proyecto"
+            placeholder={t('initRepo.namePlaceholder')}
           />
           <FieldHint>Solo letras, números, guiones, puntos y underscores.</FieldHint>
         </div>
@@ -258,7 +261,7 @@ function CreateRepoPane({
           />
           <Github size={15} className="shrink-0 text-text-secondary" />
           <span className="text-text-primary">
-            {githubConnected ? 'Crear también en GitHub (privado) y conectar' : 'Crear también en GitHub (necesita login)'}
+            {githubConnected ? t('initRepo.alsoOnGitHub') : t('initRepo.alsoOnGitHubNeedsAuth')}
           </span>
         </label>
 
@@ -327,6 +330,7 @@ function RepoList({
   onSelect: (repo: RemoteRepo) => void;
 }) {
   const filtered = repos.filter((repo) => repo.fullName.toLowerCase().includes(filter.toLowerCase()));
+  const t = useT();
 
   return (
     <div className="flex min-h-0 flex-col gap-2">
@@ -335,7 +339,7 @@ function RepoList({
         <input
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
-          placeholder="Buscar..."
+          placeholder={t('clone.search')}
           className="h-11 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 pl-9 pr-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55"
         />
       </div>
@@ -346,7 +350,7 @@ function RepoList({
             <Loader2 size={14} className="animate-spin" /> Cargando tus repos...
           </p>
         ) : filtered.length === 0 ? (
-          <p className="p-4 text-center text-sm text-text-secondary">Sin resultados</p>
+          <p className="p-4 text-center text-sm text-text-secondary">{t('clone.noResults')}</p>
         ) : (
           filtered.map((repo) => (
             <button
@@ -389,6 +393,7 @@ function CloneRepoPane({
   onComplete?: () => void;
 }) {
   const [source, setSource] = useState<'my-repos' | 'url'>(githubConnected ? 'my-repos' : 'url');
+  const t = useT();
   const [url, setUrl] = useState('');
   const [parent, setParent] = useState<string | null>(null);
   const [folderName, setFolderName] = useState('');
@@ -430,7 +435,7 @@ function CloneRepoPane({
     <div>
       <SectionTitle
         icon={<Download size={18} />}
-        title="Clonar repositorio"
+        title={t('clone.title')}
         description="Elegí un repo de tu cuenta de GitHub o pegá una URL manual, y definí dónde clonarlo."
       />
       <div className="space-y-4">
@@ -453,7 +458,7 @@ function CloneRepoPane({
               mono
               value={url}
               onChange={setUrl}
-              placeholder="https://github.com/usuario/repo.git"
+              placeholder={t('clone.urlPlaceholder')}
             />
           </div>
         )}
@@ -469,7 +474,7 @@ function CloneRepoPane({
               id="clone-folder-name"
               value={folderName}
               onChange={setFolderName}
-              placeholder="mi-repo"
+              placeholder={t('clone.folderNamePlaceholder')}
             />
           </div>
         </div>

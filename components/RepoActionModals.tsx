@@ -1336,7 +1336,7 @@ export function AddRemoteModal({ show, onClose, onAdd, isLoading }: AddRemoteMod
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. upstream"
+            placeholder={t('remote.namePlaceholder')}
             className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55"
           />
         </div>
@@ -1419,7 +1419,7 @@ export function RenameRemoteModal({ remote, onClose, onRename, isLoading }: Rena
             autoFocus
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="e.g. upstream"
+            placeholder={t('remote.namePlaceholder')}
             className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55"
           />
         </div>
@@ -1575,7 +1575,7 @@ export function NewWorktreeModal({ show, onClose, onAdd, onPickFolder, isLoading
             <input
               readOnly
               value={folderPath}
-              placeholder="Click al botón para seleccionar..."
+              placeholder={t('worktree.folderPlaceholder')}
               className="h-10 flex-1 rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-xs text-text-primary outline-none font-mono"
             />
             <button
@@ -1686,7 +1686,7 @@ export function NewSubmoduleModal({ show, onClose, onAdd, isLoading }: NewSubmod
           <input
             value={path}
             onChange={(e) => setPath(e.target.value)}
-            placeholder="e.g. libs/my-submodule"
+            placeholder={t('submodule.pathPlaceholder')}
             className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
           />
         </div>

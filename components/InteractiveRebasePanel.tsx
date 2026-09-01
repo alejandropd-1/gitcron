@@ -230,7 +230,7 @@ export default function InteractiveRebasePanel({
       <div className="flex-1 flex flex-col items-center justify-center p-6 bg-bg-base/40">
         <div className="glass-overlay rounded-xl p-8 flex flex-col items-center gap-4">
           <div className="w-8 h-8 rounded-full border-2 border-secondary border-t-transparent animate-spin" />
-          <span className="text-sm font-semibold text-text-primary">Preparando interactiva...</span>
+          <span className="text-sm font-semibold text-text-primary">{t('rebase.preparing')}</span>
         </div>
       </div>
     );
@@ -282,9 +282,9 @@ export default function InteractiveRebasePanel({
         {/* List Header */}
         <div className="px-6 py-2.5 border-b border-border-subtle/15 bg-bg-surface/20 flex text-[length:var(--font-size-2xs)] font-bold text-text-secondary uppercase tracking-wider shrink-0 select-none mt-2">
           <span className="w-12" />
-          <span className="w-32">Acción</span>
+          <span className="w-32">{t('rebase.colAction')}</span>
           <span className="w-24">Commit</span>
-          <span className="flex-1">Mensaje</span>
+          <span className="flex-1">{t('rebase.colMessage')}</span>
         </div>
 
         {/* Scrollable Commits List */}
@@ -326,7 +326,7 @@ export default function InteractiveRebasePanel({
                     {/* Hash */}
                     <div className="w-24 shrink-0 pr-2 font-mono text-[length:var(--font-size-xs)] text-text-secondary flex items-center gap-1.5 select-all">
                       {isPushed && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" title="Pushed to remote" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" title={t('rebase.pushedToRemote')} />
                       )}
                       {item.hash.slice(0, 7)}
                     </div>
@@ -354,7 +354,7 @@ export default function InteractiveRebasePanel({
                             value={item.newMessage ?? ''}
                             onChange={(e) => handleMessageChange(item.hash, e.target.value)}
                             className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-xs font-mono text-text-primary h-14 focus:outline-none focus:border-secondary/30 resize-none"
-                            placeholder="Escribe el nuevo mensaje..."
+                            placeholder={t('rebase.newMessagePlaceholder')}
                           />
                         </div>
                       </motion.div>

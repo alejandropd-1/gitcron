@@ -44,3 +44,4 @@
       - `components/cartography/SemanticGraphLens.tsx`: 1
       - `components/pipeline/OpenSpecUpdateReview.tsx`: 3
         *(Total exenciones: 93)*
+- 2026-09-01 12:51 — marcada — "7.6 Revisión visual en la aplicación: Pipeline afinado con el resto, estados distinguibles entre sí, y acentos que pertenecen a la misma familia sin perder su significado. **La marca Alejandro.**"

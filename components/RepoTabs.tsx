@@ -232,8 +232,8 @@ export function RepoTabs({
       <div className="app-titlebar-control h-12 self-stretch flex items-stretch shrink-0 pr-3 gap-1">
         <button
           type="button"
-          aria-label="Minimizar"
-          title="Minimizar"
+          aria-label={t('window.minimize')}
+          title={t('window.minimize')}
           onClick={() => window.api?.windowMinimize()}
           className="h-8 w-10 my-2 rounded-md flex items-center justify-center text-text-secondary hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
         >
@@ -241,8 +241,8 @@ export function RepoTabs({
         </button>
         <button
           type="button"
-          aria-label={maximized ? 'Restaurar' : 'Maximizar'}
-          title={maximized ? 'Restaurar' : 'Maximizar'}
+          aria-label={maximized ? t('window.restore') : t('window.maximize')}
+          title={maximized ? t('window.restore') : t('window.maximize')}
           onClick={() => void window.api?.windowToggleMaximize()}
           className="h-8 w-10 my-2 rounded-md flex items-center justify-center text-text-secondary hover:bg-text-primary/[0.09] hover:text-text-primary transition-colors"
         >
@@ -250,8 +250,8 @@ export function RepoTabs({
         </button>
         <button
           type="button"
-          aria-label="Cerrar"
-          title="Cerrar"
+          aria-label={t('window.close')}
+          title={t('window.close')}
           onClick={() => window.api?.windowClose()}
           className="h-8 w-10 my-2 rounded-md flex items-center justify-center text-text-secondary hover:bg-error/20 hover:text-error transition-colors"
         >

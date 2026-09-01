@@ -199,7 +199,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
 
           <button
             onClick={loadData}
-            title="Recargar datos"
+            title={t('dashboard.reload')}
             className="p-2 border border-border-subtle/30 bg-bg-surface/50 hover:bg-primary/10 hover:border-primary/30 text-text-secondary hover:text-primary rounded-lg transition-all"
           >
             <RefreshCw size={14} className={cn(loading && 'animate-spin')} />
@@ -210,7 +210,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
       {loading ? (
         <div className="flex min-h-60 items-center justify-center text-text-secondary font-mono text-xs gap-2">
           <RefreshCw size={16} className="animate-spin text-secondary" />
-          <span>SCANNING DATABASE...</span>
+          <span>{t('dashboard.scanning')}</span>
         </div>
       ) : history.length === 0 ? (
         /* ELEGANT EMPTY STATE */
@@ -489,7 +489,7 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                 <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 font-mono">
                   <Activity size={12} /> {t('dashboard.outcomeBreakdown')}
                 </h4>
-                <p className="text-[length:var(--font-size-xs)] text-text-secondary mt-0.5">Evolución de las decisiones de las predicciones en el tiempo.</p>
+                <p className="text-[length:var(--font-size-xs)] text-text-secondary mt-0.5">{t('dashboard.decisionsOverTimeDesc')}</p>
               </div>
 
               <div className="flex-1 flex justify-center items-center relative min-h-60">
@@ -621,19 +621,19 @@ export function AgentDashboard({ repoPath, repoName }: Props) {
                       <div className="flex gap-3">
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2 bg-primary" />
-                          <span className="text-text-secondary text-[length:var(--font-size-2xs)]">Mat</span>
+                          <span className="text-text-secondary text-[length:var(--font-size-2xs)]">{t('dashboard.abbrMaterialized')}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2 bg-git-add" />
-                          <span className="text-text-secondary text-[length:var(--font-size-2xs)]">Acept</span>
+                          <span className="text-text-secondary text-[length:var(--font-size-2xs)]">{t('dashboard.abbrAccepted')}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2 bg-git-mod" />
-                          <span className="text-text-secondary text-[length:var(--font-size-2xs)]">Difer</span>
+                          <span className="text-text-secondary text-[length:var(--font-size-2xs)]">{t('dashboard.abbrDeferred')}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2 bg-error" />
-                          <span className="text-text-secondary text-[length:var(--font-size-2xs)]">Rech</span>
+                          <span className="text-text-secondary text-[length:var(--font-size-2xs)]">{t('dashboard.abbrRejected')}</span>
                         </div>
                       </div>
 

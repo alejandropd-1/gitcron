@@ -335,7 +335,7 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
     return () => clearInterval(progressInterval);
   }, [predicting]);
 
-  if (!config) return <div style={{ color: 'var(--color-text-secondary)' }}>Loading…</div>;
+  if (!config) return <div style={{ color: 'var(--color-text-secondary)' }}>{t('temporalAgent.loading')}</div>;
 
   function patch(p: Partial<TemporalAgentConfig>) {
     setConfig((c) => (c ? { ...c, ...p } : c));
@@ -656,32 +656,32 @@ export function TemporalAgentSettings({ repoPath, repoName, onPrediction, onConf
         <strong style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>{t('temporalAgent.configSummaryLabel')}</strong>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2) var(--space-3)', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-            <span style={{ color: 'var(--color-text-secondary)' }}>status:</span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>{t('temporalAgent.summaryStatus')}</span>
             {config.enabled ? (
-              <span style={{ color: COLOR_SUCCESS, fontWeight: 'bold', background: 'color-mix(in srgb, var(--color-git-add) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-git-add) 18.8%, transparent)', borderRadius: 'var(--radius-default)', padding: 'var(--space-1) var(--space-2)' }}>on</span>
+              <span style={{ color: COLOR_SUCCESS, fontWeight: 'bold', background: 'color-mix(in srgb, var(--color-git-add) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-git-add) 18.8%, transparent)', borderRadius: 'var(--radius-default)', padding: 'var(--space-1) var(--space-2)' }}>{t('temporalAgent.summaryOn')}</span>
             ) : (
-              <span style={{ color: COLOR_WARNING, fontWeight: 'bold', background: 'color-mix(in srgb, var(--color-warning) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-warning) 18.8%, transparent)', borderRadius: 'var(--radius-default)', padding: 'var(--space-1) var(--space-2)' }}>off</span>
+              <span style={{ color: COLOR_WARNING, fontWeight: 'bold', background: 'color-mix(in srgb, var(--color-warning) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-warning) 18.8%, transparent)', borderRadius: 'var(--radius-default)', padding: 'var(--space-1) var(--space-2)' }}>{t('temporalAgent.summaryOff')}</span>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-            <span style={{ color: 'var(--color-text-secondary)' }}>scope:</span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>{t('temporalAgent.summaryScope')}</span>
             <span style={{ color: COLOR_PRIMARY, background: 'color-mix(in srgb, var(--color-primary) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary) 18.8%, transparent)', borderRadius: 'var(--radius-default)', padding: 'var(--space-1) var(--space-2)' }}>{config.privacyScope}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-            <span style={{ color: 'var(--color-text-secondary)' }}>modelo:</span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>{t('temporalAgent.summaryModel')}</span>
             <code style={{ color: COLOR_PRIMARY, fontFamily: 'JetBrains Mono, monospace', background: 'color-mix(in srgb, var(--color-primary) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary) 18.8%, transparent)', borderRadius: 'var(--radius-default)', padding: 'var(--space-1) var(--space-2)' }}>{config.model || 'default'}</code>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-            <span style={{ color: 'var(--color-text-secondary)' }}>threshold:</span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>{t('temporalAgent.summaryThreshold')}</span>
             <span style={{ color: COLOR_SUCCESS, background: 'color-mix(in srgb, var(--color-git-add) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-git-add) 18.8%, transparent)', borderRadius: 'var(--radius-default)', padding: 'var(--space-1) var(--space-2)' }}>{config.skillProfile.confidenceThreshold.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-            <span style={{ color: 'var(--color-text-secondary)' }}>freq:</span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>{t('temporalAgent.summaryFreq')}</span>
             <span style={{ color: COLOR_PRIMARY, background: 'color-mix(in srgb, var(--color-primary) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary) 18.8%, transparent)', borderRadius: 'var(--radius-default)', padding: 'var(--space-1) var(--space-2)' }}>{config.frequency}</span>
           </div>
           {config.skillProfile.focusAreas.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', width: '100%' }}>
-              <span style={{ color: 'var(--color-text-secondary)' }}>focus:</span>
+              <span style={{ color: 'var(--color-text-secondary)' }}>{t('temporalAgent.summaryFocus')}</span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
                 {config.skillProfile.focusAreas.map(f => (
                   <span key={f} style={{ color: COLOR_SUCCESS, background: 'color-mix(in srgb, var(--color-git-add) 6.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-git-add) 18.8%, transparent)', borderRadius: 'var(--radius-default)', padding: 'var(--space-1) var(--space-2)' }}>{f}</span>

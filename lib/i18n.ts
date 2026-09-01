@@ -803,6 +803,10 @@ const es: Dict = {
   'worktree.hasChangesTitle': 'El worktree tiene cambios sin confirmar',
   'worktree.hasChangesDesc': 'La copia de trabajo en «{{path}}» tiene cambios que todavía no se confirmaron. Eliminarla ahora los borra.',
   'worktree.hasChangesAction': 'Eliminar igual',
+  // ── Placeholders de los modales de repositorio ──
+  'remote.namePlaceholder': 'ej. upstream',
+  'worktree.folderPlaceholder': 'Click al botón para seleccionar...',
+  'submodule.pathPlaceholder': 'ej. libs/mi-submodulo',
   'worktree.notEmptyTitle': 'Quedaron archivos que Git no gestiona',
   'worktree.notEmptyDesc': 'Git borró lo que tenía seguido, pero en «{{path}}» quedan al menos {{count}} archivos ignorados —dependencias instaladas, casi siempre—. Por eso no puede quitar la carpeta.',
   'worktree.notEmptyWarning': '⚠ La salida es borrar la carpeta completa, con todo lo que tenga adentro. No se puede deshacer.',
@@ -911,6 +915,7 @@ const es: Dict = {
 
   // ── Graph ──
   'graph.noCommits': 'Sin commits',
+  'graph.noCommitsInRange': 'No se encontraron commits en este rango de búsqueda.',
   'graph.justNow': 'Justo ahora',
   'graph.minutesAgo': 'hace {{n}}m',
   'graph.hoursAgo': 'hace {{n}}h',
@@ -1115,6 +1120,13 @@ const es: Dict = {
   'newBranch.create': 'Crear',
 
   // ── Modal: Init Repo ──
+  // ── Controles de ventana ──
+  'window.minimize': 'Minimizar',
+  'window.maximize': 'Maximizar',
+  'window.restore': 'Restaurar',
+  'window.close': 'Cerrar',
+  // ── Modal: Open Repo ──
+  'openRepo.title': 'Abrir repositorio existente',
   'initRepo.title': 'Crear repositorio nuevo',
   'initRepo.name': 'Nombre del repo',
   'initRepo.namePlaceholder': 'mi-nuevo-proyecto',
@@ -1330,6 +1342,11 @@ const es: Dict = {
 
   // ── Interactive rebase ──
   'rebase.title': 'Rebase Interactivo',
+  'rebase.preparing': 'Preparando interactiva...',
+  'rebase.colAction': 'Acción',
+  'rebase.colMessage': 'Mensaje',
+  'rebase.pushedToRemote': 'Ya está en el remoto',
+  'rebase.newMessagePlaceholder': 'Escribe el nuevo mensaje...',
   'rebase.subtitle': 'Rebasando commits desde {{base}} hasta HEAD',
   'rebase.action.pick': 'Conservar (Pick)',
   'rebase.action.reword': 'Reescribir (Reword)',
@@ -1570,6 +1587,16 @@ const es: Dict = {
 
   // ── Temporal Agent Settings ──
   'temporalAgent.experimental': 'experimental',
+  // ── Temporal Agent: resumen de configuracion ──
+  'temporalAgent.loading': 'Cargando…',
+  'temporalAgent.summaryStatus': 'estado:',
+  'temporalAgent.summaryOn': 'activo',
+  'temporalAgent.summaryOff': 'inactivo',
+  'temporalAgent.summaryScope': 'alcance:',
+  'temporalAgent.summaryModel': 'modelo:',
+  'temporalAgent.summaryThreshold': 'umbral:',
+  'temporalAgent.summaryFreq': 'frec:',
+  'temporalAgent.summaryFocus': 'foco:',
   'temporalAgent.description': 'Permite que una IA proponga ramas especulativas futuras para {{repo}} en el gráfico cronométrico. Opt-in. Nada se envía hasta que disparás un análisis.',
   'temporalAgent.enableLabel': 'Activar para este repositorio',
   'temporalAgent.frequencyLabel': 'Frecuencia de análisis',
@@ -1619,6 +1646,13 @@ const es: Dict = {
   'temporalAgent.resultFrom': 'de',
   'settings.agentDashboard': 'Dashboard temporal',
   'dashboard.title': 'Dashboard Estadístico del Temporal Agent',
+  'dashboard.reload': 'Recargar datos',
+  'dashboard.scanning': 'ESCANEANDO BASE DE DATOS...',
+  'dashboard.decisionsOverTimeDesc': 'Evolución de las decisiones de las predicciones en el tiempo.',
+  'dashboard.abbrMaterialized': 'Mat',
+  'dashboard.abbrAccepted': 'Acept',
+  'dashboard.abbrDeferred': 'Difer',
+  'dashboard.abbrRejected': 'Rech',
   'dashboard.subtitle': 'Métricas de calibración y desempeño predictivo del agente centauro.',
   'dashboard.brierScore': 'Brier Score',
   'dashboard.brierScoreDesc': 'Mide la precisión de las predicciones de probabilidad. Más bajo es mejor (0 = perfecto, 0.25 = azar puro, 1 = completamente errado).',
@@ -2625,6 +2659,10 @@ const en: Dict = {
   'worktree.hasChangesTitle': 'The worktree has uncommitted changes',
   'worktree.hasChangesDesc': 'The working copy at "{{path}}" has changes that were never committed. Deleting it now discards them.',
   'worktree.hasChangesAction': 'Delete anyway',
+  // ── Placeholders de los modales de repositorio ──
+  'remote.namePlaceholder': 'e.g. upstream',
+  'worktree.folderPlaceholder': 'Click the button to select...',
+  'submodule.pathPlaceholder': 'e.g. libs/my-submodule',
   'worktree.notEmptyTitle': 'Files Git does not track were left behind',
   'worktree.notEmptyDesc': 'Git removed what it tracked, but at least {{count}} ignored files remain in "{{path}}" — usually installed dependencies. That is why it cannot remove the folder.',
   'worktree.notEmptyWarning': '⚠ The way out is deleting the whole folder with everything inside. This cannot be undone.',
@@ -2819,6 +2857,13 @@ const en: Dict = {
   'newBranch.create': 'Create',
 
   // ── Init Repo ──
+  // ── Controles de ventana ──
+  'window.minimize': 'Minimize',
+  'window.maximize': 'Maximize',
+  'window.restore': 'Restore',
+  'window.close': 'Close',
+  // ── Modal: Open Repo ──
+  'openRepo.title': 'Open existing repository',
   'initRepo.title': 'Create new repository',
   'initRepo.name': 'Repo name',
   'initRepo.namePlaceholder': 'my-new-project',
@@ -2903,6 +2948,7 @@ const en: Dict = {
 
   // ── Graph ──
   'graph.noCommits': 'No commits',
+  'graph.noCommitsInRange': 'No commits found in this search range.',
   'graph.justNow': 'Just now',
   'graph.minutesAgo': '{{n}}m ago',
   'graph.hoursAgo': '{{n}}h ago',
@@ -3152,6 +3198,11 @@ const en: Dict = {
 
   // ── Interactive rebase ──
   'rebase.title': 'Interactive Rebase',
+  'rebase.preparing': 'Preparing interactive rebase...',
+  'rebase.colAction': 'Action',
+  'rebase.colMessage': 'Message',
+  'rebase.pushedToRemote': 'Pushed to remote',
+  'rebase.newMessagePlaceholder': 'Type the new message...',
   'rebase.subtitle': 'Rebasing commits from {{base}} to HEAD',
   'rebase.action.pick': 'Pick',
   'rebase.action.reword': 'Reword',
@@ -3381,6 +3432,16 @@ const en: Dict = {
   'error.patchApply': 'Could not apply the patch file',
   // ── Temporal Agent Settings ──
   'temporalAgent.experimental': 'experimental',
+  // ── Temporal Agent: resumen de configuracion ──
+  'temporalAgent.loading': 'Loading…',
+  'temporalAgent.summaryStatus': 'status:',
+  'temporalAgent.summaryOn': 'on',
+  'temporalAgent.summaryOff': 'off',
+  'temporalAgent.summaryScope': 'scope:',
+  'temporalAgent.summaryModel': 'model:',
+  'temporalAgent.summaryThreshold': 'threshold:',
+  'temporalAgent.summaryFreq': 'freq:',
+  'temporalAgent.summaryFocus': 'focus:',
   'temporalAgent.description': 'Lets an AI propose speculative future branches for {{repo}} on the chronometric graph. Opt-in. Nothing is sent anywhere until you trigger an analysis.',
   'temporalAgent.enableLabel': 'Enable for this repo',
   'temporalAgent.frequencyLabel': 'Analysis frequency',
@@ -3430,6 +3491,13 @@ const en: Dict = {
   'temporalAgent.resultFrom': 'from',
   'settings.agentDashboard': 'Agent Dashboard',
   'dashboard.title': 'Temporal Agent Statistical Dashboard',
+  'dashboard.reload': 'Reload data',
+  'dashboard.scanning': 'SCANNING DATABASE...',
+  'dashboard.decisionsOverTimeDesc': 'Evolution of prediction decisions over time.',
+  'dashboard.abbrMaterialized': 'Mat',
+  'dashboard.abbrAccepted': 'Acc',
+  'dashboard.abbrDeferred': 'Def',
+  'dashboard.abbrRejected': 'Rej',
   'dashboard.subtitle': 'Calibration metrics and predictive performance of the centaur agent.',
   'dashboard.brierScore': 'Brier Score',
   'dashboard.brierScoreDesc': 'Measures the accuracy of probability predictions. Lower is better (0 = perfect, 0.25 = pure chance, 1 = completely wrong).',
@@ -4429,6 +4497,10 @@ const zh: Dict = {
   'worktree.hasChangesTitle': '该工作树有未提交的更改',
   'worktree.hasChangesDesc': '「{{path}}」中的工作副本有尚未提交的更改。现在删除会丢失它们。',
   'worktree.hasChangesAction': '仍然删除',
+  // ── Placeholders de los modales de repositorio ──
+  'remote.namePlaceholder': '例如 upstream',
+  'worktree.folderPlaceholder': '点击按钮选择…',
+  'submodule.pathPlaceholder': '例如 libs/my-submodule',
   'worktree.notEmptyTitle': '仍有 Git 未跟踪的文件',
   'worktree.notEmptyDesc': 'Git 已删除其跟踪的内容，但「{{path}}」中至少还有 {{count}} 个被忽略的文件 — 通常是已安装的依赖。因此无法移除该文件夹。',
   'worktree.notEmptyWarning': '⚠ 解决办法是删除整个文件夹及其全部内容。此操作无法撤销。',
@@ -4523,6 +4595,7 @@ const zh: Dict = {
   'branchType.breakthrough': '突破',
   'branchType.trend': '趋势',
   'graph.noCommits': '无 Commit',
+  'graph.noCommitsInRange': '在此搜索范围内未找到 Commit。',
   'graph.justNow': '刚刚',
   'graph.minutesAgo': '{{n}} 分钟前',
   'graph.hoursAgo': '{{n}} 小时前',
@@ -4668,6 +4741,13 @@ const zh: Dict = {
   'newBranch.fromCommit': '来自 Commit：',
   'newBranch.namePlaceholder': 'feature/my-new-feature',
   'newBranch.create': '创建',
+  // ── Controles de ventana ──
+  'window.minimize': '最小化',
+  'window.maximize': '最大化',
+  'window.restore': '还原',
+  'window.close': '关闭',
+  // ── Modal: Open Repo ──
+  'openRepo.title': '打开现有仓库',
   'initRepo.title': '创建新仓库',
   'initRepo.name': '仓库名称',
   'initRepo.namePlaceholder': 'my-new-project',
@@ -4873,6 +4953,11 @@ const zh: Dict = {
 
   // ── Interactive rebase ──
   'rebase.title': '交互式 Rebase',
+  'rebase.preparing': '正在准备交互式 Rebase…',
+  'rebase.colAction': '操作',
+  'rebase.colMessage': '消息',
+  'rebase.pushedToRemote': '已推送到远程',
+  'rebase.newMessagePlaceholder': '输入新消息…',
   'rebase.subtitle': '正在从 {{base}} Rebase 提交到 HEAD',
   'rebase.action.pick': '保留 (Pick)',
   'rebase.action.reword': '修改信息 (Reword)',
@@ -5071,6 +5156,16 @@ const zh: Dict = {
   'success.resetAll': '所有本地更改均已丢弃',
   'error.resetCommit': '重置仓库失败: {{error}}',
   'temporalAgent.experimental': '实验性',
+  // ── Temporal Agent: resumen de configuracion ──
+  'temporalAgent.loading': '加载中…',
+  'temporalAgent.summaryStatus': '状态:',
+  'temporalAgent.summaryOn': '开启',
+  'temporalAgent.summaryOff': '关闭',
+  'temporalAgent.summaryScope': '范围:',
+  'temporalAgent.summaryModel': '模型:',
+  'temporalAgent.summaryThreshold': '阈值:',
+  'temporalAgent.summaryFreq': '频率:',
+  'temporalAgent.summaryFocus': '焦点:',
   'error.patchApply': '无法应用补丁文件',
   'temporalAgent.description': '允许 AI 在时序图上为 {{repo}} 推荐未来的投机性 Branch。选择加入。在您触发分析之前不会发送任何内容。',
   'temporalAgent.enableLabel': '为此仓库启用',
@@ -5121,6 +5216,13 @@ const zh: Dict = {
   'temporalAgent.resultFrom': '来自',
   'settings.agentDashboard': '代理仪表盘',
   'dashboard.title': 'Temporal Agent 统计仪表盘',
+  'dashboard.reload': '重新加载数据',
+  'dashboard.scanning': '正在扫描数据库…',
+  'dashboard.decisionsOverTimeDesc': '预测决策随时间的演变。',
+  'dashboard.abbrMaterialized': '实现',
+  'dashboard.abbrAccepted': '接受',
+  'dashboard.abbrDeferred': '推迟',
+  'dashboard.abbrRejected': '拒绝',
   'dashboard.subtitle': '半人马代理的校准指标与预测表现。',
   'dashboard.brierScore': 'Brier 评分',
   'dashboard.brierScoreDesc': '衡量概率预测的准确性。越低越好 (0 = 完美，0.25 = 纯随机，1 = 完全错误)。',

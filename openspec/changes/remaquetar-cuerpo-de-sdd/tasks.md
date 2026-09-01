@@ -69,7 +69,7 @@ declaradas acá para que no vivan en el chat, que es donde se pierden.
 - [ ] 3.1 En tests, sostener lo que se decidió: que un bloque no vuelva a duplicarse, que un rótulo
   no falte, que el orden sea el acordado. Afirmar sobre el DOM montado y sobre el orden.
   Una prueba puede sostener una decisión ya tomada; no puede tomarla.
-- [ ] 3.2 Declarar qué NO cubre la verificación de este change, conforme al invariante 22.
+- [ ] 3.2 Declarar qué NO cubre la verificación de este change, declarando qué archivos recorre: una comprobación vale lo que abarca.
 
 ## 4. Cierre y validación
 

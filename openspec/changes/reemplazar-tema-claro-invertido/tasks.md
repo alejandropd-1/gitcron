@@ -17,7 +17,7 @@ mientras tanto. **Se retira acá**, en la fase 4.
 - [x] 0.1 El lienzo del grafo quedaba con los colores invertidos en tema claro. Se le aplicó
   `data-keep-color` al contenedor raíz del viewport en `ChronometricGraph.tsx`, que es el mecanismo
   de escape del filtro que ya existía. El diff son dos lineas —un comentario y el atributo—: ni un
-  color ni una coordenada, para no tocar el invariante 12. La tarea 4.2 lo retira y la 5.2 lo
+  color ni una coordenada, para no tocar los grafos protegidos, que no se modifican sin validación visual explícita de Alejandro. La tarea 4.2 lo retira y la 5.2 lo
   reemplaza por fondo propio.
 
 ## 0 bis. Caso nuevo relevado: los controles nativos
@@ -63,7 +63,7 @@ Se escribe antes de tocar los acentos para que mida el trabajo de la fase 3 en v
 - [ ] 2.1 Extender `lib/__tests__/palette-contrast.test.ts` a los dos temas. Hoy enumera sus pares
   bajo «Accents as text on dark backgrounds» y pasa en verde con los seis acentos fallando en claro.
 - [ ] 2.2 Declarar en el propio archivo de prueba qué temas recorre y qué umbral aplica a cada par
-  —4.5 para texto normal, 3.0 para texto grande y elementos de interfaz—. Es el invariante 22.
+  —4.5 para texto normal, 3.0 para texto grande y elementos de interfaz—. La comprobación declara qué archivos recorre: vale lo que abarca.
 - [ ] 2.3 La comprobación **debe fallar al escribirse**, con los seis acentos en rojo sobre el tema
   claro. Registrar el número y los seis ratios: es la medición de partida.
 - [ ] 2.4 Prueba de sabotaje: bajar un acento por debajo del umbral en un tema y confirmar que la
@@ -103,12 +103,12 @@ elegir valores, y los elige Alejandro.
 
 - [ ] 5.1 Decidir, mirando la aplicación con los neutros claros ya puestos, si el lienzo cronométrico
   acompaña el tema o queda oscuro siempre. La propuesta es que quede fijo, como el lienzo de un
-  editor de video o un mapa: son 212 colores exentos por el invariante 12 que no responden a tokens.
+  editor de video o un mapa: son 212 colores exentos de los grafos protegidos —`ChronometricGraph.tsx` y `CommitGraph.tsx`, que no se tocan sin validación visual explícita de Alejandro— que no responden a tokens.
   La decisión es de Alejandro y se toma viendo, no leyendo.
 - [ ] 5.2 Si queda fijo: darle fondo propio para que su contraste interno no dependa del tema, y
   declararlo en el spec con el motivo.
 - [ ] 5.3 Si acompaña el tema: eso requiere migrar los 212 literales de `ChronometricGraph.tsx` y
-  `CommitGraph.tsx`, lo que necesita la validación visual de Alejandro que pide el invariante 12,
+  `CommitGraph.tsx`, lo que necesita la validación visual explícita de Alejandro que piden los grafos protegidos,
   acotada y con fecha. En ese caso se declara como grupo aparte, no se hace de paso.
 - [ ] 5.4 Revisar el resto de las superficies con color propio —imágenes, íconos de proveedor,
   avatares— y declarar cuáles no acompañan el tema y por qué.
@@ -120,4 +120,4 @@ elegir valores, y los elige Alejandro.
 - [ ] 6.2 Recorrer la aplicación entera en tema claro con Alejandro: no hay verificación automática
   que diga si un tema «se siente» suave.
 - [ ] 6.3 Cierre con `pnpm build`, `pnpm exec tsc --noEmit`, `pnpm test` y
-  `openspec validate reemplazar-tema-claro-invertido --strict`. Invariante 14.
+  `openspec validate reemplazar-tema-claro-invertido --strict`.

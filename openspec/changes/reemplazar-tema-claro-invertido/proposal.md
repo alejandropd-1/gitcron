@@ -47,9 +47,9 @@ que diseñarlos**, con el ojo de Alejandro y una verificación de contraste al l
   en `RepoTabs.tsx`—.
 - **La verificación de contraste pasa a recorrer los dos temas.** Hoy `lib/__tests__/palette-contrast.test.ts`
   sólo declara pares «as text on dark backgrounds»: valida la mitad de lo que existe, que es el
-  invariante 22.
+  que una comprobación vale lo que abarca.
 - **Las superficies de datos declaran si tienen tema fijo.** Los 212 colores exentos por el
-  invariante 12 —`ChronometricGraph.tsx` y `CommitGraph.tsx`— no responden a tokens, así que un tema
+  los grafos protegidos —`ChronometricGraph.tsx` y `CommitGraph.tsx`, que no se tocan sin validación visual explícita de Alejandro— no responden a tokens, así que un tema
   por tokens no los alcanza y quedarían oscuros sobre fondo claro. Un lienzo de datos con tema fijo
   es una decisión legítima; lo que no es legítimo es que quede así sin decidirlo.
 

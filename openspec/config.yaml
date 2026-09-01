@@ -5,6 +5,34 @@ context: |
   All artifacts must be written in es.
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
 
+  GitCron es un cliente Git de escritorio. Renderer en Next.js 15 con `output: 'export'`
+  —estático, sin servidor— sobre React 19 y Tailwind 4; proceso principal en Electron 42;
+  TypeScript 5.9 en todo. Estado con Zustand, Git con simple-git, GitHub con @octokit/rest,
+  y persistencia con `node:sqlite`, el módulo nativo de Node, sin dependencia externa.
+  Build: `next build` para el renderer y tsup para el main, empaquetado con electron-builder.
+  Pruebas con Vitest.
+
+  Rama por cambio. Lo primero al empezar un cambio, antes de escribir ningún artefacto, es
+  crear la rama y pararse en ella: `git checkout -b change/<slug>`, con el mismo slug del
+  cambio. Si ya existe la rama de este mismo cambio, pararse en ella: es trabajo propio que se
+  retoma. Si la que existe es la de otro cambio, informarlo y parar —cambiarse arrastra sus
+  commits y eso lo decide una persona—. Crear la rama es parte de abrir el cambio y no algo
+  que haya que pedir: es local, reversible y no publica nada. Lo que sí se informa es que se
+  creó y con qué nombre. Vale igual si el cambio se crea desde la terminal con `openspec new
+  change`: la convención no depende de haber pasado por ninguna pantalla. GitCron lo automatiza
+  al proponer un cambio, y si la rama falla no lanza la sesión, porque arrancar en otra sería
+  divergencia entre lo declarado y lo ejecutado. Fusionar a `main` y borrar la rama son
+  acciones humanas: el ejecutor no fusiona, no borra la rama y no vuelve a `main` por su cuenta.
+
+  Esto NO aplica al trabajo normal: implementar, corregir, refactorizar y revisar no
+  requieren consultar nada. Aplica sólo cuando se va a proponer o construir una pieza
+  de metodología —un generador de tandas, un auditor, un formato de tareas, un canal
+  para pasarle reglas a un ejecutor—. Ahí, antes de escribirla, mirar si OpenSpec ya
+  la trae: `openspec --help` y el `--help` del subcomando que corresponda lo dicen en
+  un segundo, y responden por la versión instalada en esta máquina. La documentación
+  web sólo si el CLI no alcanza. El 2026-09-01 se escribió un change entero para
+  construir tres piezas que OpenSpec ya tenía.
+
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
 # Example:

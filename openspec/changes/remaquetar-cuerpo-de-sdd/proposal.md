@@ -32,7 +32,7 @@ ochenta y siete tareas.
   estuvieron duplicadas, mientras la vista tiene su propia hoja.
 
 **Fuera de alcance, explícitamente:** el color y la escala tipográfica, que resuelve
-`unificar-paleta-carbon-soul`; la geometría del lienzo cronométrico, protegida por el invariante 12;
+`unificar-paleta-carbon-soul`; la geometría del lienzo cronométrico, que no se toca sin validación visual explícita de Alejandro;
 y agregar información que hoy no exista. Este change mueve, agrupa y jerarquiza lo que ya está.
 
 ## Capabilities

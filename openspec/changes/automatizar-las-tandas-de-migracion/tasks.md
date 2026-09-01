@@ -94,7 +94,7 @@ Nace genérico.
   perdido pruebas.
 - [ ] 7.4 Correr las validaciones en el orden que corresponde: `pnpm build` **antes** de `pnpm test`,
   porque la suite lee el CSS compilado de `out/`. Y ante un fallo de build con `ENOENT ...nft.json`,
-  limpiar `.next` y reintentar una vez antes de declararlo (invariante 25).
+  limpiar `.next` y reintentar una vez antes de declararlo: es caché stale, no un defecto del código.
 
 ## 8. La guarda con línea de base
 
@@ -105,7 +105,7 @@ Nace genérico.
 - [ ] 8.2 Crear `lib/baselines/i18n-baseline.json` con las entradas actuales y las exenciones ya
   decididas, cada una con su motivo escrito, siguiendo el formato de los `_comment_exento_*` que ya
   usan las otras dos líneas de base.
-- [ ] 8.3 Declarar en la cabecera del test qué archivos recorre (invariante 22).
+- [ ] 8.3 Declarar en la cabecera del test qué archivos recorre: vale lo que abarca.
 
 ## 9. Comprobar que las guardas detectan
 

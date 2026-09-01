@@ -16,9 +16,13 @@
 
 ## 4. Cierre
 
-- [ ] 4.1 `pnpm exec tsc --noEmit` en cero
-- [ ] 4.2 `pnpm test` en verde, con la diferencia de conteo justificada
-- [ ] 4.3 `pnpm exec eslint` limpio sobre lo tocado
-- [ ] 4.4 `openspec validate add-opencode-runtime --strict` válido
-- [ ] 4.5 Reporte en `docs/reports/`
+- [ ] 4.1 `pnpm build` en cero. Va **primero** y no es formalidad: la suite lee el CSS
+  compilado de `out/`, así que sin build previo `pnpm test` falla por falta de artefacto y no
+  por un defecto real. Si falla con `ENOENT ...nft.json` en «Collecting build traces» después
+  de decir «Compiled successfully», es caché stale: limpiar `.next` y reintentar.
+- [ ] 4.2 `pnpm exec tsc --noEmit` en cero
+- [ ] 4.3 `pnpm test` en verde, con la diferencia de conteo justificada. El punto de partida
+  al 2026-09-01 es 173 archivos / 1538 pruebas.
+- [ ] 4.4 `pnpm exec eslint` limpio sobre lo tocado
+- [ ] 4.5 `openspec validate add-opencode-runtime --strict` válido
 - [ ] 4.6 Frenar antes de staging y entregar a Ale con la QA visual pendiente

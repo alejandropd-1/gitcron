@@ -44,7 +44,7 @@ La comprobación automática de contraste SHALL declarar qué temas recorre, y S
 que la aplicación ofrece. Una comprobación que recorre un solo tema NO SHALL presentarse como
 verificación de la paleta.
 
-Es el invariante 22 aplicado a este caso: hoy `lib/__tests__/palette-contrast.test.ts` enumera sus
+Acá vale la regla de que una comprobación vale lo que abarca, y declara qué archivos recorre, aplicada a este caso: hoy `lib/__tests__/palette-contrast.test.ts` enumera sus
 pares bajo el rótulo «Accents as text on dark backgrounds» y pasa en verde mientras los seis acentos
 fallan en el tema claro.
 
@@ -61,7 +61,7 @@ fallan en el tema claro.
 Una superficie que no acompaña el cambio de tema SHALL declararlo de forma explícita, con el motivo,
 y SHALL presentar su propio fondo en lugar de apoyarse en el fondo del tema activo.
 
-El caso declarado: los 212 colores exentos por el invariante 12 —203 en `ChronometricGraph.tsx` y 9
+El caso declarado: los 212 colores exentos de los grafos protegidos —`ChronometricGraph.tsx` y `CommitGraph.tsx`, que no se tocan sin validación visual explícita de Alejandro— —203 en `ChronometricGraph.tsx` y 9
 en `CommitGraph.tsx`— son literales que no responden a tokens. Al retirar el filtro, un tema por
 tokens no los alcanza y quedarían con color de tema oscuro sobre fondo claro. Un lienzo de datos con
 tema fijo es una decisión legítima, como en los editores de video y los mapas; lo que no es legítimo

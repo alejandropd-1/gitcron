@@ -14,16 +14,18 @@
 
 ## 2. La instrucción sale del motor
 
-- [ ] 2.1 Reemplazar `composeProposeInstruction` por el consumo de la instrucción que devuelve el
-  motor para esa operación. Lo que la aplicación agrega encima es el objetivo y el alcance que
-  escribió la persona, no una lista de comandos. (Decisión: desmarcada; al proponer, el change no
-  existe aún en disco y `openspec instructions` exige `--change` sobre un change existente).
+- [x] 2.1 La instrucción de propuesta no consulta al motor: al proponer,
+  `openspec/changes/<slug>` aún no existe en disco y `openspec instructions` exige un change
+  existente (medido: `error: "Change 'x' not found"`). Se compone con lo que declaró la
+  persona —objetivo, slug, alcance— y el agente ejecutor inicializa el scaffold. Decisión
+  documentada en `design.md`.
 - [x] 2.2 Lo mismo con `composeApplyInstruction`, `composeArchiveInstruction` y
   `composeExploreInstruction`, en `components/pipeline/pipeline-next-action.ts`.
 - [x] 2.3 Entregar al ejecutor el `context` y el `operationGuidance` que vienen en la misma
   respuesta.
-- [ ] 2.4 Un fallo del motor —o un estado bloqueado— informa el motivo real y no arranca ninguna
-  sesión. (Decisión: desmarcada en el flujo de nuevo cambio al no haber consulta síncrona al motor previa al scaffold).
+- [x] 2.4 Un fallo del motor —o un estado bloqueado— informa el motivo real y no arranca ninguna
+  sesión (implementado en `apply` y reintento en el panel principal; excluye la propuesta inicial
+  que compone su instrucción sin invocar al motor sobre un change inexistente).
 - [x] 2.5 Pruebas: la instrucción entregada contiene lo que devolvió el motor; un motor que falla
   no arranca nada; una regla nueva en el `config.yaml` llega al ejecutor sin tocar la aplicación.
 
@@ -31,7 +33,7 @@
 
 - [x] 3.1 `openspec show <change> --diff` para mostrar qué altera un change, donde hoy se lee el
   artefacto entero.
-- [ ] 3.2 Se evalúa `openspec validate --archived` y se decide no dejar un canal IPC desconectado; la
+- [x] 3.2 Se evalúa `openspec validate --archived` y se decide no dejar un canal IPC desconectado; la
   comprobación de tareas pendientes y consistencia delta previa al archivado la realiza GitCron en 3.5
   mediante `openspec-delta-validator.ts` antes de ejecutar `openspec archive`.
 - [x] 3.3 Evaluar `opsx-update` —revisar el plan de un change sin tocar código— y declarar si

@@ -13,6 +13,7 @@ const {
   composeArchiveInstruction,
   composeExploreInstruction,
   composeProposeInstruction,
+  derivePipelineNextAction,
 } = await import('../../components/pipeline/pipeline-next-action');
 const {
   validateExploreForm,
@@ -213,18 +214,50 @@ describe('OpenSpec Instructions (Group 2)', () => {
       expect(result.instruction).not.toContain('openspec new change');
     });
 
-    it('los canales de error de rama y motor están separados con sus propias claves i18n', () => {
+    it('el canal de error del motor en instrucciones informa el error con su propia clave i18n', () => {
       const langs = ['es', 'en', 'zh'] as const;
       for (const lang of langs) {
         const branchMsg = translate('pipeline.newChange.propose.branchFailed', lang);
-        const engineMsg = translate('pipeline.newChange.propose.engineFailed', lang);
+        const engineMsg = translate('pipeline.next.engineError', lang, { error: 'test-error' });
 
         expect(branchMsg).toBeDefined();
         expect(engineMsg).toBeDefined();
         expect(branchMsg).not.toBe(engineMsg);
-        expect(branchMsg.length).toBeGreaterThan(0);
-        expect(engineMsg.length).toBeGreaterThan(0);
+        expect(engineMsg).toContain('test-error');
       }
+    });
+
+    it('un fallo del motor o estado bloqueado informa el motivo real y no arranca ninguna sesión (2.4)', () => {
+      const pendingTask = {
+        id: '1.2',
+        description: 'Tarea pendiente',
+        completed: false,
+        line: 10,
+        slug: '1.2',
+      };
+      const changeSummary: any = {
+        changeId: 'mi-change',
+        tasks: [pendingTask],
+        validation: 'passed',
+      };
+
+      const result = derivePipelineNextAction({
+        fixtureActive: false,
+        selectedChange: changeSummary,
+        selectedArchivedChangeId: null,
+        decisions: [],
+        projection: null,
+        engineInstructions: {
+          instruction: null,
+          context: null,
+          error: 'Change is blocked by dependency: specs missing',
+        },
+      });
+
+      expect(result.helpKey).toBe('pipeline.next.engineError');
+      expect(result.helpParams?.error).toBe('Change is blocked by dependency: specs missing');
+      expect(result.primary).toBeNull();
+      expect(result.instruction).toBeNull();
     });
   });
 

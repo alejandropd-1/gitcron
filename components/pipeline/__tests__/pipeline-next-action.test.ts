@@ -149,6 +149,39 @@ describe('derivePipelineNextAction · matriz de estados', () => {
     expect(result.instruction).toContain('«demo-change»');
   });
 
+  it('un fallo del motor en tarea pendiente informa el motivo real y no arranca ninguna sesión', () => {
+    const result = derivePipelineNextAction(input({
+      selectedChange: change(),
+      engineInstructions: {
+        instruction: null,
+        context: null,
+        error: 'Change is blocked by dependency: specs missing',
+      },
+    }));
+    expect(result.kind).toBe('task-pending');
+    expect(result.helpKey).toBe('pipeline.next.engineError');
+    expect(result.helpParams?.error).toBe('Change is blocked by dependency: specs missing');
+    expect(result.primary).toBeNull();
+    expect(result.instruction).toBeNull();
+  });
+
+  it('un fallo del motor en reintento de sesión informa el motivo real y no arranca ninguna sesión', () => {
+    const result = derivePipelineNextAction(input({
+      selectedChange: change(),
+      projection: projection({ outcome: 'failed' }),
+      engineInstructions: {
+        instruction: null,
+        context: null,
+        error: 'Engine crashed with exit code 1',
+      },
+    }));
+    expect(result.kind).toBe('session-retry');
+    expect(result.helpKey).toBe('pipeline.next.engineError');
+    expect(result.helpParams?.error).toBe('Engine crashed with exit code 1');
+    expect(result.primary).toBeNull();
+    expect(result.instruction).toBeNull();
+  });
+
   it('con sesión activa dirige a la actividad y no ofrece arrancar otra', () => {
     const result = derivePipelineNextAction(input({
       selectedChange: change(),

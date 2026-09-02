@@ -553,16 +553,37 @@ export function OpenSpecDashboard({
       target: 'apply',
       changeId: selectedChange.changeId,
     }).then((res) => {
-      if (!cancelled && res.ok && res.data) {
+      if (cancelled) return;
+      if (res.ok && res.data) {
+        if (res.data.state === 'blocked') {
+          const blockedReason = res.data.status?.find((s) => s.severity === 'error')?.message || 'Change blocked by OpenSpec';
+          setEngineInstructions({
+            instruction: null,
+            context: null,
+            error: blockedReason,
+          });
+        } else {
+          setEngineInstructions({
+            instruction: res.data.instruction,
+            context: res.data.context,
+            error: null,
+          });
+        }
+      } else {
         setEngineInstructions({
-          instruction: res.data.instruction,
-          context: res.data.context,
+          instruction: null,
+          context: null,
+          error: res.error || 'instructions-failed',
         });
-      } else if (!cancelled) {
-        setEngineInstructions(null);
       }
-    }).catch(() => {
-      if (!cancelled) setEngineInstructions(null);
+    }).catch((err: unknown) => {
+      if (!cancelled) {
+        setEngineInstructions({
+          instruction: null,
+          context: null,
+          error: err instanceof Error ? err.message : 'instructions-failed',
+        });
+      }
     });
     return () => {
       cancelled = true;

@@ -99,6 +99,7 @@ export type PipelineNextAction = {
 export type EngineInstructionInput = {
   instruction?: string | null;
   context?: string | null;
+  error?: string | null;
 } | null;
 
 export type PipelineNextActionInput = {
@@ -417,6 +418,19 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
     const failed = projection.outcome === 'failed' || projection.outcome === 'interrupted';
     const stalled = targetTask !== null && !targetTask.completed;
     if (targetTask && (failed || stalled)) {
+      if (input.engineInstructions?.error) {
+        return {
+          kind: 'session-retry',
+          titleKey: failed ? 'pipeline.next.retry.title' : 'pipeline.next.retry.stalledTitle',
+          titleParams: { task: resolveTaskLabel(targetTask) },
+          helpKey: 'pipeline.next.engineError',
+          helpParams: { error: input.engineInstructions.error },
+          primary: null,
+          secondary: button({ kind: 'view-activity' }, 'pipeline.next.retry.activity'),
+          instruction: null,
+        };
+      }
+
       return {
         kind: 'session-retry',
         titleKey: failed ? 'pipeline.next.retry.title' : 'pipeline.next.retry.stalledTitle',
@@ -481,6 +495,19 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
   const nextTask = selectedChange.tasks.find((task) => !task.completed) ?? null;
   if (nextTask) {
     const counts = taskCounts(selectedChange);
+    if (input.engineInstructions?.error) {
+      return {
+        kind: 'task-pending',
+        titleKey: 'pipeline.next.task.title',
+        titleParams: { task: resolveTaskLabel(nextTask), completed: counts.completed, total: counts.total },
+        helpKey: 'pipeline.next.engineError',
+        helpParams: { error: input.engineInstructions.error },
+        primary: null,
+        secondary: null,
+        instruction: null,
+      };
+    }
+
     return {
       kind: 'task-pending',
       titleKey: 'pipeline.next.task.title',

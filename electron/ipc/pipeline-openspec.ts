@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ipcMain } from 'electron';
 import type {
+  InstructionsOpenSpecResult,
   OpenSpecDivergenceReason,
   OpenSpecEngineStatus,
   OpenSpecExecuteResult,
@@ -19,7 +20,9 @@ import {
   type AuthorizedOpenSpecRuntime,
 } from '../pipeline/openspec-engine';
 import {
+  instructionsOpenSpecWithCli,
   runOpenSpecUpdate,
+  type InstructionsOpenSpecOptions,
   type RunOpenSpecUpdateOptions,
 } from '../pipeline/openspec-cli';
 import { readOpenSpecGlobalConfig } from '../pipeline/openspec-global-config';
@@ -48,6 +51,7 @@ export interface OpenSpecIpcDeps {
   validateRepoPath?: (p: unknown) => string | null;
   getGitInfo?: (repoPath: string) => Promise<RealGitInfo>;
   runUpdate?: (repoPath: string, options?: RunOpenSpecUpdateOptions) => Promise<OpenSpecRunUpdateResult>;
+  getInstructions?: (repoPath: string, target: string, options?: InstructionsOpenSpecOptions) => Promise<InstructionsOpenSpecResult>;
 }
 
 /**
@@ -561,6 +565,39 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
       const force = Boolean((payload as any)?.force);
       return runUpdate(validRepoPath, {
         force,
+        runtime: authorizedRuntime,
+      });
+    },
+  );
+
+  // 7. Instructions
+  ipc.handle(
+    'pipeline:openspec:instructions',
+    async (_event, payload?: unknown): Promise<InstructionsOpenSpecResult> => {
+      validateStrictPayloadKeys(payload, ['repoPath', 'target', 'changeId', 'schema']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+
+      const target = typeof (payload as any)?.target === 'string' ? (payload as any).target.trim() : '';
+      if (!target) {
+        return { ok: false, error: 'target-required', data: null };
+      }
+
+      const changeId = typeof (payload as any)?.changeId === 'string' ? (payload as any).changeId.trim() : null;
+      const schema = typeof (payload as any)?.schema === 'string' ? (payload as any).schema.trim() : null;
+
+      const getUserDataDir = deps.getUserDataDir ?? (() => null);
+      const userDataDir = getUserDataDir();
+      const resolveRuntime = deps.resolveRuntime ?? resolveOpenSpecExecutable;
+      const authorizedRuntime = resolveRuntime({ userDataDir, repoPath: validRepoPath });
+
+      const getInstructions = deps.getInstructions ?? instructionsOpenSpecWithCli;
+      return getInstructions(validRepoPath, target, {
+        changeId,
+        schema,
         runtime: authorizedRuntime,
       });
     },

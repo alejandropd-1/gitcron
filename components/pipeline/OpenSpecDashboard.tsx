@@ -67,6 +67,7 @@ import {
   hasDiffEvidence,
   resolveTaskLabel,
   resolveTaskText,
+  type EngineInstructionInput,
   type PipelineActionIntent,
 } from './pipeline-next-action';
 import {
@@ -530,6 +531,38 @@ export function OpenSpecDashboard({
   const runningAgent = snapshot.agents.find((agent) => agent.state === 'running') ?? snapshot.agents[0] ?? null;
   const runningName = runtimeDisplayName(selectedSession?.runtime ?? runningAgent?.runtime ?? null) ?? t('pipeline.openspec.activity.agentUnknown');
 
+  const [engineInstructions, setEngineInstructions] = useState<EngineInstructionInput>(null);
+
+  useEffect(() => {
+    if (!selectedChange?.changeId || fixtureActive) {
+      return;
+    }
+    const api = typeof window !== 'undefined' ? window.api : undefined;
+    if (!api?.pipelineOpenSpec?.getInstructions) {
+      return;
+    }
+    let cancelled = false;
+    void api.pipelineOpenSpec.getInstructions({
+      repoPath,
+      target: 'apply',
+      changeId: selectedChange.changeId,
+    }).then((res) => {
+      if (!cancelled && res.ok && res.data) {
+        setEngineInstructions({
+          instruction: res.data.instruction,
+          context: res.data.context,
+        });
+      } else if (!cancelled) {
+        setEngineInstructions(null);
+      }
+    }).catch(() => {
+      if (!cancelled) setEngineInstructions(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedChange?.changeId, repoPath, fixtureActive]);
+
   const nextAction = derivePipelineNextAction({
     fixtureActive,
     selectedChange,
@@ -538,6 +571,7 @@ export function OpenSpecDashboard({
     projection,
     hasActiveChanges: activeChanges.length > 0,
     hasDiffs: hasDiffEvidence(snapshot),
+    engineInstructions,
   });
   // Se resuelve contra la lista para que un identificador que ya no exista
   // —porque el repositorio cambió— no deje la vista abierta sobre la nada.

@@ -91,6 +91,8 @@ export function PipelineNewChangeFlow({
   const setWithBranch = (next: boolean) => patchDraft(repoPath, { withBranch: next });
   /** Motivo real informado por Git. No se normaliza a un mensaje propio. */
   const [branchError, setBranchError] = useState<string | null>(null);
+  /** Motivo real informado por el motor OpenSpec si una consulta falla o está bloqueada. */
+  const [engineError, setEngineError] = useState<string | null>(null);
   /**
    * Crear la rama a partir de `main` en vez de donde se está parado.
    *
@@ -110,6 +112,9 @@ export function PipelineNewChangeFlow({
   const switchMode = (next: PipelineNewChangeMode) => {
     setMode(next);
     setErrors({});
+    setBranchError(null);
+    setEngineError(null);
+    setDirtyBlocked(false);
     setInstruction(null);
   };
 
@@ -117,20 +122,17 @@ export function PipelineNewChangeFlow({
    * Valida y, si corresponde, deja el repositorio parado en la rama del cambio
    * antes de entregar la instrucción al lanzador.
    *
-   * Éste es el único momento en que la aplicación conoce el slug y todavía no
-   * abrió ningún proceso: el cambio lo crea después un runtime ejecutando
-   * `openspec new change`. La rama no se crea dentro del lanzador porque el
-   * lanzador es el único que abre procesos, y su fallo se confundiría con un
-   * fallo de arranque.
-   *
-   * Un fallo al crearla **no** lanza la sesión: la persona acaba de leer que se
-   * iba a trabajar en `change/<slug>`, y arrancar en otra rama sería divergencia
-   * entre lo declarado y lo ejecutado.
+   * Al proponer un nuevo change, la carpeta aún no existe en disco:
+   * `openspec instructions proposal --change <slug>` fallaría con "Change 'x' not found".
+   * La instrucción se compone con el objetivo y alcance declarados por la persona,
+   * delegando la creación del scaffold y los artefactos al ejecutor sin inventar llamadas
+   * a un change inexistente.
    */
   const submitPropose = async () => {
     const result = validateProposeForm({ objective, slug, constraints });
     setErrors(result.errors);
     setBranchError(null);
+    setEngineError(null);
     if (result.focus === 'objective') objectiveRef.current?.focus();
     else if (result.focus === 'slug') slugRef.current?.focus();
     if (!result.instruction) {
@@ -181,14 +183,28 @@ export function PipelineNewChangeFlow({
       // dejaba afirmando el viejo.
       onRefresh?.();
     }
+
     setInstruction(result.instruction);
   };
 
+  /**
+   * Explorar es una actividad previa que no posee un change ni artefactos asociados.
+   * Por contrato del CLI, `openspec instructions` exige `--change <id>`; al no existir
+   * un change para explorar, la instrucción se compone directamente a partir de la
+   * descripción de la idea planteada por la persona.
+   */
   const submitExplore = () => {
     const result = validateExploreForm({ description });
     setErrors(result.errors);
+    setBranchError(null);
+    setEngineError(null);
+    if (result.focus === 'description') {
+      descriptionRef.current?.focus();
+      setInstruction(null);
+      return;
+    }
+
     setInstruction(result.instruction);
-    if (result.focus === 'description') descriptionRef.current?.focus();
   };
 
   return (
@@ -332,6 +348,11 @@ export function PipelineNewChangeFlow({
               {t('pipeline.newChange.propose.branchFailed')} {branchError}
             </p>
           )}
+          {engineError && (
+            <p className={styles.flowError} role="alert">
+              {t('pipeline.newChange.propose.engineFailed')} {engineError}
+            </p>
+          )}
 
           <button type="button" className={styles.primaryAction} onClick={() => void submitPropose()}>
             {t('pipeline.newChange.propose.review')}
@@ -356,6 +377,12 @@ export function PipelineNewChangeFlow({
               </em>
             )}
           </label>
+
+          {engineError && (
+            <p className={styles.flowError} role="alert">
+              {t('pipeline.newChange.propose.engineFailed')} {engineError}
+            </p>
+          )}
 
           <button type="button" className={styles.primaryAction} onClick={submitExplore}>
             {t('pipeline.newChange.explore.review')}

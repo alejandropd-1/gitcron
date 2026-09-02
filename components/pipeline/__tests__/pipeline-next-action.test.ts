@@ -351,15 +351,19 @@ describe('composición de instrucciones', () => {
    * `.claude/commands/`, así que la sesión terminaba sin hacer nada. Ahora
    * nombran los comandos del CLI, que es lo que esos guiones hacen igual.
    */
-  it('la instrucción de implementación nombra cambio, tarea y texto', () => {
-    const instruction = composeApplyInstruction('c1', '2.1', 'hacer algo');
+  it('la instrucción de implementación nombra cambio, tarea y texto, y consume datos del motor', () => {
+    const instruction = composeApplyInstruction('c1', '2.1', 'hacer algo', {
+      instruction: 'Read context files and work through tasks.',
+      context: 'Language: es\nRegla de prueba',
+    });
 
     expect(instruction).toContain('«c1»');
     expect(instruction).toContain('tarea 2.1');
     expect(instruction).toContain('hacer algo');
-    // Los comandos que respaldan la acción, para que no haya que inferirlos.
-    expect(instruction).toContain('openspec status --change "c1" --json');
-    expect(instruction).toContain('openspec instructions tasks --change "c1" --json');
+    expect(instruction).toContain('Read context files and work through tasks.');
+    expect(instruction).toContain('Contexto del proyecto:\nLanguage: es\nRegla de prueba');
+    // La instrucción ya no enumera comandos del CLI a mano
+    expect(instruction).not.toContain('openspec status --change');
   });
 
   it('compone Archive', () => {
@@ -367,12 +371,19 @@ describe('composición de instrucciones', () => {
   });
 
   it('la instrucción de propuesta nombra el slug, el objetivo y las restricciones', () => {
-    const instruction = composeProposeInstruction('mi-cambio', 'lograr X', 'sin tocar Y');
+    const instruction = composeProposeInstruction('mi-cambio', 'lograr X', 'sin tocar Y', {
+      instruction: 'Instrucción base del motor',
+      context: 'Contexto de arquitectura',
+    });
 
     expect(instruction).toContain('«mi-cambio»');
-    expect(instruction).toContain('openspec new change "mi-cambio"');
+    expect(instruction).toContain('Instrucción base del motor');
     expect(instruction).toContain('Objetivo: lograr X');
     expect(instruction).toContain('Alcance y restricciones: sin tocar Y');
+    expect(instruction).toContain('Contexto del proyecto:\nContexto de arquitectura');
+    // No enumera comandos uno por uno a mano
+    expect(instruction).not.toContain('openspec new change');
+    expect(instruction).not.toContain('openspec status');
   });
 
   it('omite la línea de alcance cuando no hay restricciones', () => {
@@ -382,13 +393,16 @@ describe('composición de instrucciones', () => {
   });
 
   it('la instrucción de exploración no compromete estructura', () => {
-    const instruction = composeExploreInstruction('  una idea  ');
+    const instruction = composeExploreInstruction('  una idea  ', {
+      context: 'Contexto de exploración',
+    });
 
     expect(instruction).toContain('Quiero explorar: una idea');
     // Explorar es pensar antes de decidir: crear un change acá convertiría la
     // duda en una decisión tomada.
     expect(instruction).toContain('sin crear ningún change');
     expect(instruction).not.toContain('openspec new change');
+    expect(instruction).toContain('Contexto del proyecto:\nContexto de exploración');
   });
 
   it('ninguna instrucción depende de un comando de extensión', () => {

@@ -591,5 +591,32 @@ export interface OpenSpecRunUpdateResult {
   message?: string;
 }
 
+export interface OpenSpecInstructionsPayload {
+  changeName?: string;
+  changeDir?: string;
+  schemaName?: string;
+  contextFiles?: Record<string, string[]>;
+  progress?: { total: number; complete: number; remaining: number };
+  tasks?: Array<{ id: string; description: string; done: boolean }>;
+  state?: string;
+  instruction?: string;
+  context?: string;
+  template?: string;
+  rules?: string[] | string;
+  dependencies?: Array<{ id: string; done: boolean; path: string; description: string }>;
+  unlocks?: string[];
+  outputPath?: string;
+  resolvedOutputPath?: string;
+  existingOutputPaths?: string[];
+  root?: { path: string; source: string };
+  status?: Array<{ severity: string; code: string; message: string }>;
+}
+
+export interface InstructionsOpenSpecResult {
+  ok: boolean;
+  error: string | null;
+  data: OpenSpecInstructionsPayload | null;
+}
+
 export * from './runtime';
 export * from './projection';

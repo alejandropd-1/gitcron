@@ -1,7 +1,9 @@
 import type {
+  InstructionsOpenSpecResult,
   OpenSpecArtifactState,
   OpenSpecArtifactStatus,
   OpenSpecChangeStatus,
+  OpenSpecInstructionsPayload,
   OpenSpecRunUpdateResult,
   OpenSpecValidationStatus,
 } from '../../types/pipeline';
@@ -384,5 +386,62 @@ export async function runOpenSpecUpdate(
       filesUpdated,
       errors: [reason.slice(0, 4000)],
     };
+  }
+}
+
+export interface InstructionsOpenSpecOptions extends CliExecutionOptions {
+  changeId?: string | null;
+  schema?: string | null;
+}
+
+/**
+ * Obtiene las instrucciones enriquecidas del CLI con `openspec instructions <target> --json`.
+ */
+export async function instructionsOpenSpecWithCli(
+  repoPath: string,
+  target: string,
+  options?: InstructionsOpenSpecOptions,
+): Promise<InstructionsOpenSpecResult> {
+  const runtime = resolveRuntime(options, repoPath);
+  if (!runtime) return { ok: false, error: 'openspec-cli-not-found', data: null };
+
+  const args = ['instructions', target];
+  if (options?.changeId && isValidChangeId(options.changeId)) {
+    args.push('--change', options.changeId);
+  }
+  if (options?.schema && typeof options.schema === 'string' && options.schema.trim().length > 0) {
+    args.push('--schema', options.schema.trim());
+  }
+  args.push('--json');
+
+  try {
+    const { stdout } = await runAuthorizedOpenSpec(runtime, args, {
+      cwd: repoPath,
+      timeout: 15_000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    const parsed = JSON.parse(stdout) as OpenSpecInstructionsPayload;
+    if (Array.isArray(parsed.status) && parsed.status.some((s) => s.severity === 'error')) {
+      const errorMsg = parsed.status.find((s) => s.severity === 'error')?.message ?? 'instructions-error';
+      return { ok: false, error: errorMsg, data: parsed };
+    }
+    return { ok: true, error: null, data: parsed };
+  } catch (error) {
+    const detail = error as { stderr?: unknown; stdout?: unknown; message?: unknown };
+    let reason = [detail.stderr, detail.stdout, detail.message]
+      .map((part) => (typeof part === 'string' ? part.trim() : ''))
+      .find((part) => part.length > 0) ?? 'instructions-failed';
+    try {
+      if (typeof detail.stdout === 'string') {
+        const parsed = JSON.parse(detail.stdout) as OpenSpecInstructionsPayload;
+        if (Array.isArray(parsed.status) && parsed.status.some((s) => s.severity === 'error')) {
+          reason = parsed.status.find((s) => s.severity === 'error')?.message ?? reason;
+          return { ok: false, error: reason, data: parsed };
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return { ok: false, error: reason.slice(0, 4000), data: null };
   }
 }

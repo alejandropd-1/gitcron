@@ -576,6 +576,12 @@ interface ElectronAPI {
     executeUpdate(repoPath: string): Promise<import('./pipeline').OpenSpecExecuteResult>;
     runUpdate(repoPath: string, plan?: import('./pipeline').OpenSpecUpdatePlan, force?: boolean): Promise<import('./pipeline').OpenSpecRunUpdateResult>;
     getPreview(repoPath: string): Promise<import('./pipeline').OpenSpecPreviewResult>;
+    getInstructions(options: {
+      repoPath: string;
+      target: string;
+      changeId?: string | null;
+      schema?: string | null;
+    }): Promise<import('./pipeline').InstructionsOpenSpecResult>;
   };
 }
 

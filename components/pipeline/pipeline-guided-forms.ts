@@ -1,4 +1,9 @@
-import { composeExploreInstruction, composeProposeInstruction, isValidChangeSlug } from './pipeline-next-action';
+import {
+  composeExploreInstruction,
+  composeProposeInstruction,
+  isValidChangeSlug,
+  type EngineInstructionInput,
+} from './pipeline-next-action';
 
 /**
  * Reglas del flujo guiado, fuera de los componentes.
@@ -26,6 +31,7 @@ export function validateProposeForm(input: {
   objective: string;
   slug: string;
   constraints?: string;
+  engine?: EngineInstructionInput;
 }): ProposeFormResult {
   const errors: ProposeFormErrors = {};
   if (!input.objective.trim()) errors.objective = 'pipeline.newChange.error.objective';
@@ -36,7 +42,7 @@ export function validateProposeForm(input: {
     errors,
     focus,
     instruction: focus === null
-      ? composeProposeInstruction(input.slug.trim(), input.objective, input.constraints)
+      ? composeProposeInstruction(input.slug.trim(), input.objective, input.constraints, input.engine)
       : null,
   };
 }
@@ -47,11 +53,14 @@ export type ExploreFormResult = {
   instruction: string | null;
 };
 
-export function validateExploreForm(input: { description: string }): ExploreFormResult {
+export function validateExploreForm(input: {
+  description: string;
+  engine?: EngineInstructionInput;
+}): ExploreFormResult {
   if (!input.description.trim()) {
     return { errors: { description: 'pipeline.newChange.error.description' }, focus: 'description', instruction: null };
   }
-  return { errors: {}, focus: null, instruction: composeExploreInstruction(input.description) };
+  return { errors: {}, focus: null, instruction: composeExploreInstruction(input.description, input.engine) };
 }
 
 /**

@@ -96,6 +96,11 @@ export type PipelineNextAction = {
   instruction: string | null;
 };
 
+export type EngineInstructionInput = {
+  instruction?: string | null;
+  context?: string | null;
+} | null;
+
 export type PipelineNextActionInput = {
   /** Hay datos de vista previa en pantalla. Bloquea todo lo ejecutable. */
   fixtureActive: boolean;
@@ -103,6 +108,11 @@ export type PipelineNextActionInput = {
   selectedArchivedChangeId: string | null;
   decisions: DecisionRequest[];
   projection: RuntimeProjection | null;
+  /**
+   * Instrucciones y contexto devueltos por el motor OpenSpec.
+   * Si no se proporcionan, se utilizan las instrucciones por defecto.
+   */
+  engineInstructions?: EngineInstructionInput;
   /**
    * Si el repositorio tiene cambios en curso, más allá de que haya alguno
    * elegido. Es el dato mínimo que distingue «no elegiste ninguno» de «no hay
@@ -173,29 +183,34 @@ export function resolveTaskText(task: { id: string; text: string }): string {
 }
 
 /**
- * Instrucción de implementación, autosuficiente.
+ * Instrucción de implementación, proveniente del motor OpenSpec.
  *
- * Antes empezaba con `/opsx:apply`, un comando de extensión que sólo existe si
- * el runtime lo tiene instalado. En este repositorio viven en
- * `.agent/workflows/` y `.opencode/commands/`, pero `.claude/commands/` no
- * existe: con Claude la sesión terminaba sin hacer nada. Es el mismo defecto que
- * ya se corrigió en `composeArchiveInstruction`, que quedó a medias.
- *
- * Esos comandos son guiones en markdown que indican correr el CLI. Nombrar esos
- * comandos acá hace lo mismo sin depender de que el guion esté instalado.
+ * Consume el canal (`instruction`, `context`) que devuelve el CLI en vez de
+ * componer comandos a mano. La aplicación agrega únicamente la identificación
+ * de la tarea y el cambio.
  */
-export function composeApplyInstruction(changeId: string, taskId: string, taskText: string): string {
-  return [
-    `Implementá la tarea ${taskId} del change «${changeId}» en este repositorio.`,
-    '',
-    'Antes de escribir, consultá el estado y las instrucciones del artefacto:',
-    `  openspec status --change "${changeId}" --json`,
-    `  openspec instructions tasks --change "${changeId}" --json`,
-    '',
-    `Tarea ${taskId}: ${taskText}`,
-    '',
-    'Marcá la casilla en tasks.md sólo después de haberla completado.',
-  ].join('\n');
+export function composeApplyInstruction(
+  changeId: string,
+  taskId: string,
+  taskText: string,
+  engine?: EngineInstructionInput,
+): string {
+  const parts: string[] = [];
+  const baseInstruction = engine?.instruction?.trim();
+
+  parts.push(
+    baseInstruction && baseInstruction.length > 0
+      ? `Implementá la tarea ${taskId} del change «${changeId}» en este repositorio.\n\n${baseInstruction}`
+      : `Implementá la tarea ${taskId} del change «${changeId}» en este repositorio.`,
+  );
+
+  parts.push(`Tarea ${taskId}: ${taskText.trim()}`);
+
+  if (engine?.context && engine.context.trim()) {
+    parts.push(`Contexto del proyecto:\n${engine.context.trim()}`);
+  }
+
+  return parts.join('\n\n');
 }
 
 /**
@@ -214,27 +229,38 @@ export function composeArchiveInstruction(changeId: string): string {
 }
 
 /**
- * Instrucción de propuesta, autosuficiente por el mismo motivo que la de
- * implementación.
+ * Instrucción de propuesta, proveniente del motor OpenSpec.
  *
- * La línea de alcance se omite entera cuando no hay texto: emitirla vacía le
- * pediría al agente que respete una restricción que nadie escribió.
+ * Consume la instrucción del motor si se proporciona y agrega encima
+ * únicamente el objetivo y el alcance que escribió la persona, sin enumerar
+ * comandos del CLI a mano.
  */
-export function composeProposeInstruction(slug: string, objective: string, constraints?: string): string {
+export function composeProposeInstruction(
+  slug: string,
+  objective: string,
+  constraints?: string,
+  engine?: EngineInstructionInput,
+): string {
+  const parts: string[] = [];
   const scope = constraints?.trim();
-  const lines = [
-    `Creá el change «${slug}» en este repositorio y generá sus artefactos de planificación.`,
-    '',
-    `  openspec new change "${slug}"`,
-    `  openspec status --change "${slug}" --json`,
-    '',
-    'Para cada artefacto que quede en estado `ready`, pedí sus instrucciones antes de escribirlo:',
-    `  openspec instructions <artefacto> --change "${slug}" --json`,
-    '',
-    `Objetivo: ${objective.trim()}`,
-  ];
-  if (scope) lines.push(`Alcance y restricciones: ${scope}`);
-  return lines.join('\n');
+  const baseInstruction = engine?.instruction?.trim();
+
+  parts.push(
+    baseInstruction && baseInstruction.length > 0
+      ? `Creá el change «${slug}» en este repositorio y generá sus artefactos de planificación.\n\n${baseInstruction}`
+      : `Creá el change «${slug}» en este repositorio y generá sus artefactos de planificación.`,
+  );
+
+  parts.push(`Objetivo: ${objective.trim()}`);
+  if (scope) {
+    parts.push(`Alcance y restricciones: ${scope}`);
+  }
+
+  if (engine?.context && engine.context.trim()) {
+    parts.push(`Contexto del proyecto:\n${engine.context.trim()}`);
+  }
+
+  return parts.join('\n\n');
 }
 
 /**
@@ -243,15 +269,28 @@ export function composeProposeInstruction(slug: string, objective: string, const
  * No crea nada a propósito: explorar es pensar en voz alta antes de comprometer
  * estructura, y arrancar creando un change convertiría la duda en una decisión.
  */
-export function composeExploreInstruction(description: string): string {
-  return [
+export function composeExploreInstruction(
+  description: string,
+  engine?: EngineInstructionInput,
+): string {
+  const parts: string[] = [
     'Explorá esta idea en el repositorio sin crear ningún change ni artefacto todavía.',
-    '',
     `Quiero explorar: ${description.trim()}`,
-    '',
-    'Mirá cómo está resuelto hoy, proponé el camino más limpio y decime qué alcance tendría.',
-    'Si la idea se sostiene, el change se crea después, como paso aparte.',
-  ].join('\n');
+  ];
+
+  if (engine?.instruction && engine.instruction.trim()) {
+    parts.push(engine.instruction.trim());
+  } else {
+    parts.push(
+      'Mirá cómo está resuelto hoy, proponé el camino más limpio y decime qué alcance tendría.\nSi la idea se sostiene, el change se crea después, como paso aparte.',
+    );
+  }
+
+  if (engine?.context && engine.context.trim()) {
+    parts.push(`Contexto del proyecto:\n${engine.context.trim()}`);
+  }
+
+  return parts.join('\n\n');
 }
 
 function taskCounts(change: OpenSpecChangeSummary): { completed: number; total: number } {
@@ -393,6 +432,7 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
           selectedChange.changeId,
           resolveTaskLabel(targetTask),
           resolveTaskText(targetTask),
+          input.engineInstructions,
         ),
       };
     }
@@ -457,6 +497,7 @@ export function derivePipelineNextAction(input: PipelineNextActionInput): Pipeli
         selectedChange.changeId,
         resolveTaskLabel(nextTask),
         resolveTaskText(nextTask),
+        input.engineInstructions,
       ),
     };
   }

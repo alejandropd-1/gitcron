@@ -12,6 +12,17 @@ context: |
   Build: `next build` para el renderer y tsup para el main, empaquetado con electron-builder.
   Pruebas con Vitest.
 
+  Una regla vive en un solo lugar. Si está en este archivo, no se repite en un prompt, en un
+  spec ni en un tasks.md. Cuando la misma regla existe en dos lados, tarde o temprano dicen
+  cosas distintas y nadie sabe cuál manda. El 2026-09-01 el cierre de una tanda estaba escrito
+  acá, en un documento de invariantes y en cada prompt: las tres versiones diferían, y la del
+  documento omitía el paso que hacía fallar la suite.
+
+  Nada se cita por número. Se escribe lo que la regla dice, o no se escribe. Una referencia
+  como «conforme al invariante 12» deja de significar algo en el momento en que ese documento
+  se mueve o se borra, y no hay forma de darse cuenta: nada falla. El mismo día se encontraron
+  catorce citas así apuntando al vacío, en changes y en specs consolidadas.
+
   Rama por cambio. Lo primero al empezar un cambio, antes de escribir ningún artefacto, es
   crear la rama y pararse en ella: `git checkout -b change/<slug>`, con el mismo slug del
   cambio. Si ya existe la rama de este mismo cambio, pararse en ella: es trabajo propio que se

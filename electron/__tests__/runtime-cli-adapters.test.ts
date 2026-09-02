@@ -96,7 +96,7 @@ describe('structured CLI runtime adapters', () => {
       expectedInputTokens: 41220,
     },
   ])('streams and normalizes $name without placing the instruction in argv', async ({ fixture, create, expectedKind, expectedInputTokens }) => {
-    const bytes = fs.readFileSync(path.resolve('docs/pipeline/f03/fixtures', fixture));
+    const bytes = fs.readFileSync(path.resolve('electron/__tests__/fixtures/f03/fixtures', fixture));
     const runner = new FixtureRunner(bytes);
     const adapter = create(baseRequest.canonicalRepoPath, runner, () => '2026-07-24T00:00:00.000Z');
     const instruction = 'PRIVATE_FIXTURE_INSTRUCTION';

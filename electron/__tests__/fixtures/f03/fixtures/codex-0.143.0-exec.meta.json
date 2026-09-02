@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "runtime": "codex",
+  "runtimeVersion": "0.143.0",
+  "transport": "exec-jsonl",
+  "capturedAt": "2026-07-24",
+  "orchestrationMode": "direct",
+  "fixtureStatus": "verified_degraded",
+  "rawEventCount": 8,
+  "retainedRepresentativeEventCount": 7,
+  "exitCode": 0,
+  "stderrBytes": 2580,
+  "requestedModel": null,
+  "reportedModel": null,
+  "resultMatchedFixture": true,
+  "billingSemantics": "unknown",
+  "captureAttemptCount": 1,
+  "captureNotes": [
+    "The read-only tool command failed and was retained as conformance evidence.",
+    "The final agent message still matched the fictitious fixture exactly.",
+    "The stream did not report model, context window, or cost.",
+    "Raw output was stored outside the repository and removed after sanitization."
+  ]
+}

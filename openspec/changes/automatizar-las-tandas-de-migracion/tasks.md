@@ -120,9 +120,7 @@ Nace genérico.
 
 - [ ] 10.1 `pnpm build` sin errores, primero y no como formalidad.
 - [ ] 10.2 `pnpm exec tsc --noEmit` sin errores de tipado.
-- [ ] 10.3 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de
-  cada una. El punto de partida al 2026-09-01 es **173 archivos / 1538 pruebas**; si el número baja,
-  se borró una prueba y hay que decirlo.
+- [ ] 10.3 `pnpm test` en verde.
 - [ ] 10.4 `openspec validate automatizar-las-tandas-de-migracion --strict` en cero.
 - [ ] 10.5 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada
   en Git.

@@ -63,7 +63,7 @@ class AcpFixtureRunner extends RuntimeProcessRunner {
 
 function initFixtureResponse(): Buffer {
   const fixture = JSON.parse(fs.readFileSync(
-    path.resolve('docs/pipeline/f03/fixtures/opencode-1.18.3-acp-initialize.sanitized.json'),
+    path.resolve('electron/__tests__/fixtures/f03/fixtures/opencode-1.18.3-acp-initialize.sanitized.json'),
     'utf8',
   )) as { response: unknown };
   return Buffer.from(`${JSON.stringify(fixture.response)}\n`);
@@ -71,7 +71,7 @@ function initFixtureResponse(): Buffer {
 
 function sessionNewFixtureResponse(): Buffer {
   const fixture = JSON.parse(fs.readFileSync(
-    path.resolve('docs/pipeline/f03/fixtures/opencode-1.18.3-acp-session-new.sanitized.json'),
+    path.resolve('electron/__tests__/fixtures/f03/fixtures/opencode-1.18.3-acp-session-new.sanitized.json'),
     'utf8',
   )) as { response: unknown; notifications: unknown[] };
   const lines = [JSON.stringify(fixture.response), ...fixture.notifications.map((n) => JSON.stringify(n))];

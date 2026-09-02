@@ -62,7 +62,7 @@ sin radio propio y sin separación respecto del borde de la ventana. La geometr�
 vista de grafo los dos paneles son tarjetas con borde que flotan sobre el lienzo, mientras que en
 otras vistas las columnas se pegan a los bordes; el resultado es que el mismo elemento se presenta de
 dos maneras según dónde se lo mire, y la persona no puede aprender la composición una vez. La
-referencia declarada en el invariante 11 —aplicaciones de trabajo del estilo de Codex o Unsloth—
+referencia declarada —aplicaciones de trabajo del estilo de Codex o Unsloth—
 resuelve esto con una sola superficie de armazón y una sola arista contra el contenido.
 
 Esta regla alcanza al armazón, no al contenido: dentro del área de trabajo las tarjetas que agrupan

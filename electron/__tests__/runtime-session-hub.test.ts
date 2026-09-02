@@ -295,4 +295,84 @@ describe('RuntimeSessionHub', () => {
     await hub.disposeAll();
     expect(adapter.shutdownCalls).toBeGreaterThan(0);
   });
+
+  it('discovers OpenCode as launchable when the binary responds', async () => {
+    class RespondingOpenCodeAdapter extends FakeAdapter {
+      override async discover(): Promise<RuntimeDiscovery> {
+        return {
+          installed: true,
+          executable: 'opencode',
+          runtimeVersion: '1.18.3',
+          evidenceStatus: 'pending_fixture',
+          evidenceRefs: [],
+          diagnostics: [],
+        };
+      }
+    }
+    const bus = { registerSession: vi.fn(), unregisterSession: vi.fn() };
+    const hub = new RuntimeSessionHub(
+      bus,
+      vi.fn(),
+      () => '2026-07-26T00:05:00.000Z',
+      [
+        { runtime: 'claude', create: () => new FakeAdapter(), controlCapabilities: ['cancel-run'], launchable: true, modifiesRepo: true },
+        { runtime: 'opencode', executable: 'opencode', create: () => new RespondingOpenCodeAdapter(), controlCapabilities: ['cancel-run', 'kill-process'], launchable: true, modifiesRepo: true },
+      ],
+    );
+    const discovered = await hub.discover('C:/repo');
+    const openCode = discovered.find((entry) => entry.runtime === 'opencode');
+    expect(openCode).toBeDefined();
+    expect(openCode).toMatchObject({
+      runtime: 'opencode',
+      installed: true,
+      launchable: true,
+      startModifiesRepo: true,
+    });
+  });
+
+  it('lists missing OpenCode with diagnostics without breaking other runtimes', async () => {
+    class MissingOpenCodeAdapter extends FakeAdapter {
+      override async discover(): Promise<RuntimeDiscovery> {
+        return {
+          installed: false,
+          executable: null,
+          runtimeVersion: null,
+          evidenceStatus: 'unknown',
+          evidenceRefs: [],
+          diagnostics: ['OpenCode executable unavailable'],
+        };
+      }
+    }
+    const bus = { registerSession: vi.fn(), unregisterSession: vi.fn() };
+    const hub = new RuntimeSessionHub(
+      bus,
+      vi.fn(),
+      () => '2026-07-26T00:05:00.000Z',
+      [
+        { runtime: 'claude', create: () => new FakeAdapter(), controlCapabilities: ['cancel-run'], launchable: true, modifiesRepo: true },
+        { runtime: 'opencode', executable: 'opencode', create: () => new MissingOpenCodeAdapter(), controlCapabilities: ['cancel-run', 'kill-process'], launchable: true, modifiesRepo: true },
+      ],
+    );
+    const discovered = await hub.discover('C:/repo');
+    const claude = discovered.find((entry) => entry.runtime === 'claude');
+    const openCode = discovered.find((entry) => entry.runtime === 'opencode');
+
+    expect(claude).toMatchObject({ runtime: 'claude', installed: true, launchable: true });
+    expect(openCode).toMatchObject({
+      runtime: 'opencode',
+      installed: false,
+      launchable: false,
+      diagnostics: ['OpenCode executable unavailable'],
+    });
+  });
+
+  it('includes opencode in default hub discovery along with claude, codex and agy', async () => {
+    const bus = { registerSession: vi.fn(), unregisterSession: vi.fn() };
+    const hub = new RuntimeSessionHub(bus, vi.fn());
+    const discovered = await hub.discover('C:/repo');
+    const runtimes = discovered.map((entry) => entry.runtime);
+    expect(runtimes).toEqual(['claude', 'codex', 'agy', 'opencode']);
+    const openCode = discovered.find((entry) => entry.runtime === 'opencode');
+    expect(openCode?.startModifiesRepo).toBe(true);
+  });
 });

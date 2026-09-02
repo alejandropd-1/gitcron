@@ -11,6 +11,7 @@ import type { PipelineControlBus } from '../control/control-bus';
 import { createClaudeRuntimeAdapter } from '../runtime-adapters/claude-adapter';
 import { createCodexRuntimeAdapter } from '../runtime-adapters/codex-adapter';
 import { createAgyWrapperRuntimeAdapter } from '../runtime-adapters/agy-adapter';
+import { createOpenCodeAcpRuntimeAdapter } from '../runtime-adapters/opencode-acp-adapter';
 import { asRecord } from '../runtime-adapters/normalization';
 import type { RuntimeAdapter } from '../runtime-adapters/runtime-adapter';
 import { RuntimeProjectionBuilder } from './runtime-projection';
@@ -61,7 +62,8 @@ const STRUCTURED_CLI_CONTROLS: PipelineControlAction[] = ['cancel-run', 'kill-pr
 
 type AdapterEntry = {
   runtime: PipelineRuntime;
-  create: (canonicalRepoPath: string) => RuntimeAdapter;
+  executable?: string;
+  create: (canonicalRepoPath: string, executable?: string) => RuntimeAdapter;
   controlCapabilities: PipelineControlAction[];
   /**
    * `false` para adaptadores que no implementan `start()` con stream — hoy
@@ -84,13 +86,20 @@ type AdapterEntry = {
  * porque es un **proveedor de modelos**, no un runtime de agente, y la unión
  * `PipelineRuntime` lo excluye deliberadamente. Meterlo acá bajo `'unknown'` le
  * inventaría una identidad de runtime que su propio adaptador se niega a
- * afirmar. OpenCode también queda fuera: su factory exige una ruta de
- * ejecutable explícita que hoy no se configura en ningún lado.
+ * afirmar.
  */
 const ADAPTERS: AdapterEntry[] = [
   { runtime: 'claude', create: (repo) => createClaudeRuntimeAdapter(repo), controlCapabilities: STRUCTURED_CLI_CONTROLS, launchable: true, modifiesRepo: true },
   { runtime: 'codex', create: (repo) => createCodexRuntimeAdapter(repo), controlCapabilities: STRUCTURED_CLI_CONTROLS, launchable: true, modifiesRepo: false },
   { runtime: 'agy', create: (repo) => createAgyWrapperRuntimeAdapter(repo), controlCapabilities: [], launchable: false, modifiesRepo: false },
+  {
+    runtime: 'opencode',
+    executable: 'opencode',
+    create: (repo, executable = 'opencode') => createOpenCodeAcpRuntimeAdapter(repo, executable),
+    controlCapabilities: STRUCTURED_CLI_CONTROLS,
+    launchable: true,
+    modifiesRepo: true,
+  },
 ];
 
 export interface StartRuntimeSessionInput {
@@ -141,7 +150,7 @@ export class RuntimeSessionHub {
   /** Qué runtimes hay instalados y cuáles se pueden lanzar de verdad. */
   async discover(canonicalRepoPath: string): Promise<RuntimeDiscoveryEntry[]> {
     return Promise.all(this.adapters.map(async (entry) => {
-      const adapter = entry.create(canonicalRepoPath);
+      const adapter = entry.create(canonicalRepoPath, entry.executable);
       const discovery = await adapter.discover();
       // El alcance real de una sesión lo declara el adaptador, no lo infiere la
       // UI: hoy los nativos corren con herramientas de sólo lectura y lo dicen
@@ -195,7 +204,7 @@ export class RuntimeSessionHub {
     if (!entry) return { ok: false, error: 'unknown_runtime' };
     if (!entry.launchable) return { ok: false, error: 'runtime_not_launchable' };
 
-    const adapter = entry.create(input.canonicalRepoPath);
+    const adapter = entry.create(input.canonicalRepoPath, entry.executable);
     if (!adapter.start) return { ok: false, error: 'runtime_not_launchable' };
 
     const abort = new AbortController();

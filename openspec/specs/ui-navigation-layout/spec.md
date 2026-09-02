@@ -76,7 +76,7 @@ espacio en lo que se usa de a ratos. Recargar acompaña a esas dos porque es la 
 conceptual: sincronizar con el remoto.
 
 Lo que cambia es dónde ocurre. Seis controles no justifican una franja que atraviesa la pantalla
-entera antes de que empiece el trabajo, y la referencia declarada en el invariante 11 resuelve el
+entera antes de que empiece el trabajo, y la referencia declarada resuelve el
 caso concentrando el control en el lateral y dejando la ventana con sus pestañas.
 
 Lo que se agrega es la distinción entre las dos franjas. La redacción anterior prohibía «ninguna
@@ -223,8 +223,7 @@ cuando cualquiera de los paneles esté plegado.
 
 El fundamento es que un control de disposición no puede vivir dentro de aquello que dispone: si el
 control que reabre el panel lateral estuviera en el panel lateral, plegarlo lo dejaría inalcanzable.
-La barra de ventana es la única superficie que no se pliega, y es donde la referencia declarada en el
-invariante 11 ubica sus propios controles equivalentes.
+La barra de ventana es la única superficie que no se pliega, y es donde la referencia declarada ubica sus propios controles equivalentes.
 
 #### Scenario: Panel lateral plegado
 - **WHEN** el panel lateral está plegado

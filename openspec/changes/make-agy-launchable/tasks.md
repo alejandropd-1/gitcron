@@ -23,7 +23,7 @@
 ## 5. Cierre
 
 - [ ] 5.1 `pnpm exec tsc --noEmit` en cero
-- [ ] 5.2 `pnpm test` en verde, con la diferencia de conteo justificada
+- [ ] 5.2 `pnpm test` en verde
 - [ ] 5.3 `pnpm exec eslint` limpio sobre lo tocado
 - [ ] 5.4 `openspec validate make-agy-launchable --strict` válido
 - [ ] 5.5 Reporte en `docs/reports/`

@@ -123,7 +123,7 @@ describe('runtime adapter TANDA 0 conformance', () => {
   });
 
   it('versions one sanitized evidence row per supported direct adapter/provider', () => {
-    const matrixPath = path.resolve('docs/pipeline/f03/runtime-adapter-matrix.json');
+    const matrixPath = path.resolve('electron/__tests__/fixtures/f03/runtime-adapter-matrix.json');
     const raw = fs.readFileSync(matrixPath, 'utf8');
     const matrix = JSON.parse(raw) as {
       schemaVersion: string;
@@ -150,7 +150,7 @@ describe('runtime adapter TANDA 0 conformance', () => {
   });
 
   it('keeps captured runtime fixtures parseable and free of local identity/secrets', () => {
-    const fixtureDirectory = path.resolve('docs/pipeline/f03/fixtures');
+    const fixtureDirectory = path.resolve('electron/__tests__/fixtures/f03/fixtures');
     for (const filename of fs.readdirSync(fixtureDirectory)) {
       const raw = fs.readFileSync(path.join(fixtureDirectory, filename), 'utf8');
       expect(raw).not.toMatch(/C:\\Users\\|authorization|bearer\s+|api[_-]?key|cookie|sk-[A-Za-z0-9_-]+/i);

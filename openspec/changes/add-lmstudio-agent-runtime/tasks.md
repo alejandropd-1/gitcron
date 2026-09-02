@@ -38,7 +38,7 @@
 ## 6. Cierre
 
 - [ ] 6.1 `pnpm exec tsc --noEmit` en cero
-- [ ] 6.2 `pnpm test` en verde, con la diferencia de conteo justificada
+- [ ] 6.2 `pnpm test` en verde
 - [ ] 6.3 `pnpm exec eslint` limpio sobre lo tocado
 - [ ] 6.4 `openspec validate add-lmstudio-agent-runtime --strict` válido
 - [ ] 6.5 Reporte en `docs/reports/`

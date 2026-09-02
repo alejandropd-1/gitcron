@@ -15,7 +15,7 @@ import {
   type RuntimeProcessSpec,
 } from '../pipeline/runtime-adapters';
 
-const USAGE_FIXTURE = 'docs/pipeline/f03/fixtures/lmstudio-9902c3a-usage.sanitized.json';
+const USAGE_FIXTURE = 'electron/__tests__/fixtures/f03/fixtures/lmstudio-9902c3a-usage.sanitized.json';
 
 /**
  * Verbatim response captured from a real local completion (F03).

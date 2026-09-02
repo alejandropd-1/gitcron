@@ -1,0 +1,71 @@
+{
+  "fixtureType": "real-local-probe",
+  "capturedAt": "2026-07-24",
+  "runtime": "lmstudio",
+  "adapterId": "lmstudio-provider",
+  "transport": "openai-http",
+  "baseUrl": "http://127.0.0.1:1234",
+  "probes": {
+    "cliVersion": {
+      "command": "lms --version",
+      "rawOutput": "CLI commit: 9902c3a",
+      "parsedCommit": "9902c3a"
+    },
+    "loadedModels": {
+      "command": "lms ps --json",
+      "rawOutput": "[]",
+      "interpretation": "server reachable with no model loaded; context.max_tokens stays unknown"
+    },
+    "modelList": {
+      "request": "GET /v1/models",
+      "status": 200,
+      "payloadShape": "OpenAI-compatible { object: 'list', data: [{ id, object, owned_by }] }",
+      "observedModelCount": 12,
+      "sampleIds": [
+        "google/gemma-4-12b-qat",
+        "qwen/qwen3.6-27b"
+      ],
+      "note": "sampleIds truncated from the 12 ids returned; full list is operator-local and not required as evidence"
+    },
+    "nativeCatalog": {
+      "request": "GET /api/v1/models",
+      "status": 200,
+      "payloadShape": "{ models: [{ type, key, max_context_length, loaded_instances, capabilities }] }",
+      "observedModelCount": 12,
+      "toolUseCapableCount": 11,
+      "latencyMsObserved": 15,
+      "sample": [
+        {
+          "key": "qwen/qwen3.6-27b",
+          "type": "llm",
+          "max_context_length": 262144,
+          "loaded_instances": [],
+          "capabilities": { "trained_for_tool_use": true }
+        }
+      ],
+      "note": "exposes context limits, loaded state and tool-use capability that /v1/models does not"
+    },
+    "agenticChat": {
+      "request": "POST /api/v1/chat",
+      "observedStatus": 400,
+      "probe": "empty JSON body, deliberately invalid",
+      "interpretation": "endpoint exists on this build (400 validation, not 404). No inference was executed.",
+      "note": "per LM Studio docs this endpoint accepts an `integrations` field (ephemeral_mcp / mcp.json) and runs the agentic tool loop server-side, returning output[] with reasoning/message/tool_call plus stats. NOT implemented in F03."
+    }
+  },
+  "observedHealth": {
+    "status": "healthy",
+    "evidenceStatus": "verified",
+    "latencyMsObserved": 465,
+    "diagnostics": ["LM Studio has no model loaded"]
+  },
+  "notInvoked": [
+    "POST /v1/chat/completions",
+    "model load / unload",
+    "server start"
+  ],
+  "usageEvidence": {
+    "ref": "docs/pipeline/f00/fixtures/lmstudio-classification.sanitized.json",
+    "note": "token counts come from that real local capture; this probe performs no inference"
+  }
+}

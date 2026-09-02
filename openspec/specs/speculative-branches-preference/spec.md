@@ -14,7 +14,7 @@ elección antes de mostrarse, y SHALL NOT quedar sujeto únicamente a que la rep
 del grafo esté habilitada. Su rótulo y su tooltip SHALL provenir de la capa de traducción.
 
 El fundamento es que las ramas especulativas son conjeturas de un agente sobre trabajo que no
-ocurrió, y el invariante 11 exige que lo especulativo jamás se confunda visualmente con lo real.
+ocurrió, y lo especulativo jamás puede confundirse visualmente con lo real.
 Encenderlas automáticamente invierte quién decide: quien genera la conjetura termina decidiendo que
 se vea.
 

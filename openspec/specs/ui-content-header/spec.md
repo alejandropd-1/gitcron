@@ -48,7 +48,7 @@ Los rótulos del encabezado SHALL declararse en `lib/i18n.ts` en los tres idioma
 escribirse dentro de un componente. Las cadenas que informan cantidades SHALL resolverse con la
 interpolación de valores que el módulo ya provee, y ninguna clave SHALL armarse concatenando trozos.
 
-El fundamento es el invariante 8, que hoy no se cumple en dos de las cuatro superficies relevadas: el
+El fundamento es que toda string de interfaz pasa por `lib/i18n.ts` en sus tres idiomas, y hoy eso no se cumple en dos de las cuatro superficies relevadas: el
 grafo clásico escribe los nombres de sus cinco columnas en inglés dentro del JSX, y el historial arma
 su rótulo en castellano por interpolación. La consecuencia es visible: la aplicación en inglés muestra
 el historial en castellano y la aplicación en castellano muestra las columnas del grafo en inglés.
@@ -117,7 +117,7 @@ debajo de la primera, porque describen la tabla y no la vista.
 
 El fundamento es doble. Por un lado, el selector que elige entre las dos representaciones no pertenece
 a ninguna: debe estar disponible desde las dos por igual. Por el otro, `components/ChronometricGraph.tsx`
-está protegido por el invariante 12, y ubicar el encabezado en el contenedor común permite que la
+no se toca sin validación visual explícita, y ubicar el encabezado en el contenedor común permite que la
 representación cronométrica lo reciba sin que ese archivo se edite.
 
 La contrapartida queda declarada: el lienzo cronométrico dispone de menos alto, y su proyección

@@ -34,7 +34,7 @@ const identity = (runtime: PipelineIdentity['runtime']): PipelineIdentity => ({
 });
 
 function fixtureRecords(name: string): unknown[] {
-  return fs.readFileSync(path.resolve('docs/pipeline/f03/fixtures', name), 'utf8')
+  return fs.readFileSync(path.resolve('electron/__tests__/fixtures/f03/fixtures', name), 'utf8')
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => JSON.parse(line));

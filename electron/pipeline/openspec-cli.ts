@@ -445,3 +445,66 @@ export async function instructionsOpenSpecWithCli(
     return { ok: false, error: reason.slice(0, 4000), data: null };
   }
 }
+
+export interface ShowOpenSpecOptions extends CliExecutionOptions {
+  diff?: boolean;
+  json?: boolean;
+}
+
+export interface ShowOpenSpecChangeResult {
+  ok: boolean;
+  error: string | null;
+  content: string | null;
+  data?: unknown;
+}
+
+/**
+ * Muestra el contenido o diff de un change usando `openspec show <changeId> [--diff] [--json]`.
+ */
+export async function showOpenSpecChangeWithCli(
+  repoPath: string,
+  changeId: string,
+  options?: ShowOpenSpecOptions,
+): Promise<ShowOpenSpecChangeResult> {
+  if (!isValidChangeId(changeId)) return { ok: false, error: 'invalid-change-id', content: null };
+
+  const runtime = resolveRuntime(options, repoPath);
+  if (!runtime) return { ok: false, error: 'openspec-cli-not-found', content: null };
+
+  const args = ['show', changeId];
+  if (options?.diff) {
+    args.push('--diff');
+  }
+  if (options?.json) {
+    args.push('--json');
+  }
+
+  try {
+    const { stdout } = await runAuthorizedOpenSpec(runtime, args, {
+      cwd: repoPath,
+      timeout: 15_000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    let data: unknown = undefined;
+    if (options?.json) {
+      try {
+        data = JSON.parse(stdout);
+      } catch {
+        // ignore
+      }
+    }
+    return { ok: true, error: null, content: stdout, data };
+  } catch (error) {
+    const detail = error as { stderr?: unknown; stdout?: unknown; message?: unknown };
+    const reason = [detail.stderr, detail.stdout, detail.message]
+      .map((part) => (typeof part === 'string' ? part.trim() : ''))
+      .find((part) => part.length > 0) ?? 'show-failed';
+    return { ok: false, error: reason.slice(0, 4000), content: null };
+  }
+}
+
+export interface ValidateArchivedResult {
+  ok: boolean;
+  error: string | null;
+  output: string | null;
+}

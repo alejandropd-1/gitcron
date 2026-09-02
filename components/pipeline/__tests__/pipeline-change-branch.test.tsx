@@ -66,7 +66,7 @@ describe('la rama del cambio al empezarlo', () => {
     // que ya tienen significado en este proyecto.
     renderFlow();
     fillForm('mi-cambio');
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     await vi.waitFor(() => expect(gitCreateBranch).toHaveBeenCalledWith('C:/repo', 'change/mi-cambio'));
     await vi.waitFor(() => expect(screen.getByTestId('launcher')).toBeTruthy());
@@ -76,7 +76,7 @@ describe('la rama del cambio al empezarlo', () => {
     renderFlow();
     fillForm('mi-cambio');
     fireEvent.click(screen.getByRole('checkbox'));
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     expect(gitCreateBranch).not.toHaveBeenCalled();
   });
@@ -89,7 +89,7 @@ describe('la rama del cambio al empezarlo', () => {
     gitCreateBranch.mockResolvedValue({ success: false, error: 'permission denied' });
     renderFlow();
     fillForm('mi-cambio');
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     await vi.waitFor(() => expect(screen.getByRole('alert').textContent).toContain('permission denied'));
     expect(screen.queryByTestId('launcher')).toBeNull();
@@ -104,7 +104,7 @@ describe('la rama del cambio al empezarlo', () => {
     gitCheckout.mockResolvedValue({ success: true });
     renderFlow();
     fillForm('mi-cambio');
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     await vi.waitFor(() => expect(gitCheckout).toHaveBeenCalledWith('C:/repo', 'change/mi-cambio'));
     expect(screen.queryByRole('alert')).toBeNull();
@@ -124,7 +124,7 @@ describe('la rama del cambio al empezarlo', () => {
 
   it('un formulario inválido no crea ninguna rama', () => {
     renderFlow();
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     expect(gitCreateBranch).not.toHaveBeenCalled();
     expect(screen.queryByTestId('launcher')).toBeNull();

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   AlertCircle,
+  AlertTriangle,
   ArrowRight,
   Check,
   CheckCircle2,
@@ -55,7 +56,7 @@ import { useReducedMotion } from 'motion/react';
 import { ChangeBranchNotice } from './ChangeBranchNotice';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
 import { OpenSpecUpdateReview } from './OpenSpecUpdateReview';
-import type { OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpecUpdatePlan } from '@/types/pipeline';
+import type { ArchivePlan, OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpecUpdatePlan } from '@/types/pipeline';
 import { SpecificationViewer } from './SpecificationViewer';
 import { TaskConfirmToast } from './TaskConfirmToast';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
@@ -77,6 +78,10 @@ import {
   type ActivityChannel,
 } from './pipeline-domain';
 import type { OpenSpecChangeSummary, PipelineSnapshot } from './pipeline-view-state';
+import {
+  OPENSPEC_CYCLE_TARGET_VERSION,
+  isInstalledAheadOfCycle,
+} from '@/lib/openspec-version';
 import styles from './OpenSpecDashboard.module.css';
 
 const INTEGRATION_STATE_KEY_MAP: Record<string, string> = {
@@ -303,6 +308,7 @@ export function OpenSpecDashboard({
    * comando exacto y recién al confirmarlo se ejecuta.
    */
   const [archiveRequest, setArchiveRequest] = useState<{ changeId: string; command: string } | null>(null);
+  const [archivePlanData, setArchivePlanData] = useState<ArchivePlan | null>(null);
   const [archiveBusy, setArchiveBusy] = useState(false);
   /**
    * Archivos elegidos para preparar. Vacío por defecto y para todos los grupos:
@@ -1374,8 +1380,16 @@ export function OpenSpecDashboard({
         closeFlow();
         setLaunchTarget(null);
         setArchiveError(null);
+        setArchivePlanData(null);
         setArchiveRequest({ changeId: intent.changeId, command: composeArchiveInstruction(intent.changeId) });
         setCenterTab('work');
+        if (typeof window !== 'undefined' && window.api?.pipelineArchivePlan) {
+          void window.api.pipelineArchivePlan(repoPath, intent.changeId).then((res) => {
+            if (res.success && res.data) {
+              setArchivePlanData(res.data);
+            }
+          }).catch(() => {});
+        }
         break;
       }
       case 'focus-decision':
@@ -1532,18 +1546,29 @@ export function OpenSpecDashboard({
             {/* OpenSpec Engine version */}
             {(() => {
               const cliInstalled = effectiveEngineStatus?.cli?.installed;
+              const runtimeVer = effectiveEngineStatus?.cli?.runtimeVersion ?? null;
+              const isAhead = isInstalledAheadOfCycle(runtimeVer);
               const versionStr = cliInstalled
-                ? `OpenSpec v${effectiveEngineStatus.cli.runtimeVersion ?? '?'}`
+                ? `OpenSpec v${runtimeVer ?? '?'}`
                 : t('pipeline.openspec.engine.status.absent');
               const stateKey = effectiveEngineStatus?.integrationState
                 ? (INTEGRATION_STATE_KEY_MAP[effectiveEngineStatus.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown')
                 : null;
               const stateStr = stateKey ? t(stateKey) : null;
-              const engineAttention = hasOpenSpecEngineAttention(effectiveEngineStatus);
+              const engineAttention = hasOpenSpecEngineAttention(effectiveEngineStatus) || isAhead;
+              const aheadNotice = isAhead
+                ? t('pipeline.openspec.engine.versionAheadOfCycle', { installed: runtimeVer ?? '?', cycle: OPENSPEC_CYCLE_TARGET_VERSION })
+                : null;
               const engineTitle = cliInstalled
-                ? (engineAttention && attentionReasons.length > 0
-                    ? `${versionStr} · ${attentionReasons.join(attentionReasonSeparator)}`
-                    : (stateStr ? `${versionStr} · ${stateStr}` : versionStr))
+                ? [
+                    versionStr,
+                    t('pipeline.openspec.engine.cycleVersion', { version: OPENSPEC_CYCLE_TARGET_VERSION }),
+                    stateStr,
+                    aheadNotice,
+                    engineAttention && attentionReasons.length > 0 ? attentionReasons.join(attentionReasonSeparator) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
                 : versionStr;
 
               return (
@@ -2212,6 +2237,16 @@ export function OpenSpecDashboard({
                     <span>{t('pipeline.openspec.archive.confirmHelp')}</span>
                   </div>
                   <pre className={styles.archiveCommand}><code>{archiveRequest.command}</code></pre>
+                  {archivePlanData?.errors && archivePlanData.errors.length > 0 && (
+                    <div role="alert">
+                      {archivePlanData.errors.map((err, idx) => (
+                        <p key={idx} className={styles.archiveError}>
+                          <AlertTriangle size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 'var(--space-1)' }} />
+                          {err}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                   {archiveError && (
                     <p className={styles.archiveError} role="alert">
                       {t('pipeline.openspec.archive.failed')} {archiveError}
@@ -2221,7 +2256,7 @@ export function OpenSpecDashboard({
                     <button
                       type="button"
                       className={styles.primaryAction}
-                      disabled={archiveBusy || fixtureActive}
+                      disabled={archiveBusy || fixtureActive || (archivePlanData?.canArchive === false)}
                       onClick={confirmArchive}
                     >
                       {archiveBusy
@@ -2235,7 +2270,7 @@ export function OpenSpecDashboard({
                       type="button"
                       className={styles.secondaryAction}
                       disabled={archiveBusy}
-                      onClick={() => { setArchiveRequest(null); setArchiveError(null); }}
+                      onClick={() => { setArchiveRequest(null); setArchiveError(null); setArchivePlanData(null); }}
                     >
                       {t('pipeline.openspec.archive.cancel')}
                     </button>
@@ -2404,6 +2439,7 @@ export function OpenSpecDashboard({
                   </h4>
                   <PipelineDetails
                     snapshot={snapshot}
+                    repoPath={repoPath}
                     selectedChange={selectedChange}
                     tab={evidenceTab}
                     onTabChange={setEvidenceTab}
@@ -2467,6 +2503,7 @@ export function OpenSpecDashboard({
                 ) : (
                   <PipelineDetails
                     snapshot={snapshot}
+                    repoPath={repoPath}
                     selectedChange={{
                       changeId: selectedArchive.changeId,
                       intent: null,

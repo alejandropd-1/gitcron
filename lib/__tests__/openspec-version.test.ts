@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyOpenSpecVersion,
   compareSemver,
+  isInstalledAheadOfCycle,
+  OPENSPEC_CYCLE_TARGET_VERSION,
   parseSemver,
   SUPPORTED_OPENSPEC_VERSIONS,
 } from '../openspec-version';
@@ -10,6 +12,7 @@ describe('parseSemver', () => {
   it('parsea MAJOR.MINOR.PATCH', () => {
     expect(parseSemver('1.5.0')).toEqual({ major: 1, minor: 5, patch: 0 });
     expect(parseSemver('1.8.0')).toEqual({ major: 1, minor: 8, patch: 0 });
+    expect(parseSemver('1.11.0')).toEqual({ major: 1, minor: 11, patch: 0 });
   });
 
   it('descarta el prerelease', () => {
@@ -30,13 +33,14 @@ describe('compareSemver', () => {
   it('compara por major, minor y patch', () => {
     expect(compareSemver(parseSemver('1.5.0')!, parseSemver('1.8.0')!)).toBeLessThan(0);
     expect(compareSemver(parseSemver('1.8.0')!, parseSemver('1.5.0')!)).toBeGreaterThan(0);
-    expect(compareSemver(parseSemver('1.8.0')!, parseSemver('1.8.0')!)).toBe(0);
+    expect(compareSemver(parseSemver('1.11.0')!, parseSemver('1.11.0')!)).toBe(0);
   });
 });
 
-describe('classifyOpenSpecVersion (rango 1.5.0–1.9.0)', () => {
-  it('declara el rango soportado del proyecto', () => {
-    expect(SUPPORTED_OPENSPEC_VERSIONS).toEqual({ min: '1.5.0', max: '1.9.0' });
+describe('classifyOpenSpecVersion (rango 1.5.0–1.11.0)', () => {
+  it('declara la versión objetivo del ciclo y el rango soportado del proyecto', () => {
+    expect(OPENSPEC_CYCLE_TARGET_VERSION).toBe('1.11.0');
+    expect(SUPPORTED_OPENSPEC_VERSIONS).toEqual({ min: '1.5.0', max: '1.11.0' });
   });
 
   it('clasifica supported dentro del rango', () => {
@@ -44,6 +48,7 @@ describe('classifyOpenSpecVersion (rango 1.5.0–1.9.0)', () => {
     expect(classifyOpenSpecVersion('1.7.0')).toBe('supported');
     expect(classifyOpenSpecVersion('1.8.0')).toBe('supported');
     expect(classifyOpenSpecVersion('1.9.0')).toBe('supported');
+    expect(classifyOpenSpecVersion('1.11.0')).toBe('supported');
   });
 
   it('clasifica too-old por debajo del mínimo', () => {
@@ -52,7 +57,7 @@ describe('classifyOpenSpecVersion (rango 1.5.0–1.9.0)', () => {
   });
 
   it('clasifica too-new por encima del máximo', () => {
-    expect(classifyOpenSpecVersion('1.9.1')).toBe('too-new');
+    expect(classifyOpenSpecVersion('1.11.1')).toBe('too-new');
     expect(classifyOpenSpecVersion('2.0.0')).toBe('too-new');
   });
 
@@ -65,5 +70,16 @@ describe('classifyOpenSpecVersion (rango 1.5.0–1.9.0)', () => {
   it('respeta un rango custom', () => {
     expect(classifyOpenSpecVersion('1.8.0', { min: '1.8.0', max: '1.8.0' })).toBe('supported');
     expect(classifyOpenSpecVersion('1.7.0', { min: '1.8.0', max: '1.8.0' })).toBe('too-old');
+  });
+});
+
+describe('isInstalledAheadOfCycle', () => {
+  it('detecta correctamente si la versión instalada supera a la versión del ciclo declarada', () => {
+    expect(isInstalledAheadOfCycle('1.11.0')).toBe(false);
+    expect(isInstalledAheadOfCycle('1.10.0')).toBe(false);
+    expect(isInstalledAheadOfCycle('1.11.1')).toBe(true);
+    expect(isInstalledAheadOfCycle('1.12.0')).toBe(true);
+    expect(isInstalledAheadOfCycle('2.0.0')).toBe(true);
+    expect(isInstalledAheadOfCycle(null)).toBe(false);
   });
 });

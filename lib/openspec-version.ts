@@ -13,10 +13,13 @@ export interface OpenSpecVersionRange {
   max: string;
 }
 
+/** Versión de OpenSpec contra la que está diseñado y escrito el ciclo SDD de GitCron. */
+export const OPENSPEC_CYCLE_TARGET_VERSION = '1.11.0';
+
 /** Rango soportado por esta versión de GitCron, inclusivo en ambos extremos. */
 export const SUPPORTED_OPENSPEC_VERSIONS: Readonly<OpenSpecVersionRange> = {
   min: '1.5.0',
-  max: '1.9.0',
+  max: '1.11.0',
 };
 
 export type OpenSpecVersionClass = 'supported' | 'too-old' | 'too-new' | 'unknown';
@@ -66,4 +69,18 @@ export function classifyOpenSpecVersion(
   if (min && compareSemver(parsed, min) < 0) return 'too-old';
   if (max && compareSemver(parsed, max) > 0) return 'too-new';
   return 'supported';
+}
+
+/**
+ * Comprueba si una versión instalada de OpenSpec es posterior a la versión
+ * contra la que está diseñado el ciclo de la aplicación (1.11.0).
+ */
+export function isInstalledAheadOfCycle(
+  installedVersion: string | null | undefined,
+  cycleVersion: string = OPENSPEC_CYCLE_TARGET_VERSION,
+): boolean {
+  const installed = parseSemver(installedVersion);
+  const cycle = parseSemver(cycleVersion);
+  if (!installed || !cycle) return false;
+  return compareSemver(installed, cycle) > 0;
 }

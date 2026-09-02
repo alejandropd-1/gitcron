@@ -170,7 +170,7 @@ describe('Pipeline Archive IPC — candado de autorización sobre pipeline:archi
     expect(canonical).not.toBeNull();
 
     const planRes = await get('pipeline:archive-plan')(null, repoDir, 'mi-cambio');
-    expect(planRes).toEqual({
+    expect(planRes).toMatchObject({
       success: true,
       data: { archiveCommand: 'openspec archive mi-cambio --yes' },
     });

@@ -618,5 +618,33 @@ export interface InstructionsOpenSpecResult {
   data: OpenSpecInstructionsPayload | null;
 }
 
+export interface ShowOpenSpecChangeResult {
+  ok: boolean;
+  error: string | null;
+  content: string | null;
+  data?: unknown;
+}
+
+export interface DeltaSpecRequirementIssue {
+  capability: string;
+  requirement: string;
+  type: 'MODIFIED' | 'REMOVED';
+  reason: string;
+}
+
+export interface IncompleteTaskIssue {
+  id: string;
+  description: string;
+  line: number;
+}
+
+export interface ArchivePlan {
+  archiveCommand: string;
+  canArchive?: boolean;
+  errors?: string[];
+  requirementIssues?: DeltaSpecRequirementIssue[];
+  incompleteTasks?: IncompleteTaskIssue[];
+}
+
 export * from './runtime';
 export * from './projection';

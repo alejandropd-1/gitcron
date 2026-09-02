@@ -86,7 +86,7 @@ describe('la base de la rama del cambio', () => {
     // sin fusionar a propósito.
     renderFlow({ currentBranch: 'vieja', divergence: behindMain });
     fillForm();
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     await vi.waitFor(() => expect(gitCreateBranch).toHaveBeenCalledWith('C:/repo', 'change/mi-cambio'));
   });
@@ -95,7 +95,7 @@ describe('la base de la rama del cambio', () => {
     renderFlow({ currentBranch: 'vieja', divergence: behindMain });
     fillForm();
     fireEvent.click(screen.getByRole('checkbox', { name: /propose\.fromBase/ }));
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     await vi.waitFor(() => expect(gitCreateBranch).toHaveBeenCalledWith('C:/repo', 'change/mi-cambio', 'main'));
   });
@@ -110,7 +110,7 @@ describe('la evidencia después de crear la rama', () => {
     const onRefresh = vi.fn();
     renderFlow({ currentBranch: 'main', workingTreeClean: true, onRefresh });
     fillForm();
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     await vi.waitFor(() => expect(onRefresh).toHaveBeenCalled());
   });
@@ -123,7 +123,7 @@ describe('la evidencia después de crear la rama', () => {
     const onRefreshRetomada = vi.fn();
     renderFlow({ currentBranch: 'main', workingTreeClean: true, onRefresh: onRefreshRetomada });
     fillForm();
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     await vi.waitFor(() => expect(onRefreshRetomada).toHaveBeenCalled());
     expect(screen.queryByRole('alert')).toBeNull();
@@ -135,7 +135,7 @@ describe('la evidencia después de crear la rama', () => {
     const onRefresh = vi.fn();
     renderFlow({ currentBranch: 'main', workingTreeClean: true, onRefresh });
     fillForm();
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     await vi.waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
     expect(onRefresh).not.toHaveBeenCalled();
@@ -146,7 +146,7 @@ describe('la evidencia después de crear la rama', () => {
     renderFlow({ currentBranch: 'main', workingTreeClean: true, onRefresh });
     fillForm();
     fireEvent.click(screen.getByRole('checkbox', { name: /propose\.branch/ }));
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     expect(onRefresh).not.toHaveBeenCalled();
   });
@@ -156,7 +156,7 @@ describe('árbol de trabajo sucio', () => {
   it('no crea la rama y declara el motivo', async () => {
     renderFlow({ currentBranch: 'main', workingTreeClean: false });
     fillForm();
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     await vi.waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/propose\.branchDirty/));
     expect(gitCreateBranch).not.toHaveBeenCalled();
@@ -167,7 +167,7 @@ describe('árbol de trabajo sucio', () => {
   it('con el árbol limpio la crea como siempre', async () => {
     renderFlow({ currentBranch: 'main', workingTreeClean: true });
     fillForm();
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     await vi.waitFor(() => expect(gitCreateBranch).toHaveBeenCalledWith('C:/repo', 'change/mi-cambio'));
   });
@@ -176,7 +176,7 @@ describe('árbol de trabajo sucio', () => {
     // `undefined` es no saber, y con eso la rama se crea como hasta ahora.
     renderFlow({ currentBranch: 'main' });
     fillForm();
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     await vi.waitFor(() => expect(gitCreateBranch).toHaveBeenCalled());
   });

@@ -52,6 +52,7 @@ export interface OpenSpecIpcDeps {
   getGitInfo?: (repoPath: string) => Promise<RealGitInfo>;
   runUpdate?: (repoPath: string, options?: RunOpenSpecUpdateOptions) => Promise<OpenSpecRunUpdateResult>;
   getInstructions?: (repoPath: string, target: string, options?: InstructionsOpenSpecOptions) => Promise<InstructionsOpenSpecResult>;
+  showChange?: (repoPath: string, changeId: string, options?: import('../pipeline/openspec-cli').ShowOpenSpecOptions) => Promise<import('../pipeline/openspec-cli').ShowOpenSpecChangeResult>;
 }
 
 /**
@@ -598,6 +599,39 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
       return getInstructions(validRepoPath, target, {
         changeId,
         schema,
+        runtime: authorizedRuntime,
+      });
+    },
+  );
+
+  // 8. Show Change / Diff
+  ipc.handle(
+    'pipeline:openspec:show',
+    async (_event, payload?: unknown): Promise<import('../pipeline/openspec-cli').ShowOpenSpecChangeResult> => {
+      validateStrictPayloadKeys(payload, ['repoPath', 'changeId', 'diff', 'json']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+
+      const changeId = typeof (payload as any)?.changeId === 'string' ? (payload as any).changeId.trim() : '';
+      if (!changeId) {
+        return { ok: false, error: 'changeId-required', content: null };
+      }
+
+      const diff = (payload as any)?.diff === true;
+      const json = (payload as any)?.json === true;
+
+      const getUserDataDir = deps.getUserDataDir ?? (() => null);
+      const userDataDir = getUserDataDir();
+      const resolveRuntime = deps.resolveRuntime ?? resolveOpenSpecExecutable;
+      const authorizedRuntime = resolveRuntime({ userDataDir, repoPath: validRepoPath });
+
+      const showChange = deps.showChange ?? (await import('../pipeline/openspec-cli')).showOpenSpecChangeWithCli;
+      return showChange(validRepoPath, changeId, {
+        diff,
+        json,
         runtime: authorizedRuntime,
       });
     },

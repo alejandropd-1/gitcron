@@ -410,5 +410,7 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('pipeline:openspec:preview', { repoPath }),
     getInstructions: (options: { repoPath: string; target: string; changeId?: string | null; schema?: string | null }) =>
       ipcRenderer.invoke('pipeline:openspec:instructions', options),
+    showChange: (options: { repoPath: string; changeId: string; diff?: boolean; json?: boolean }) =>
+      ipcRenderer.invoke('pipeline:openspec:show', options),
   },
 });

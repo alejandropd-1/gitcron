@@ -136,7 +136,7 @@ describe('empezar un cambio sin OpenSpec inicializado', () => {
     expect(screen.getAllByText(/readiness\.missingTitle/).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /rail\.init$/ })).toBeTruthy();
     // No bloquea: el formulario está y se puede llegar a lanzarlo.
-    expect(screen.getByRole('button', { name: /newChange\.propose\.review/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ })).toBeTruthy();
   });
 
   it('inicializar desde el aviso conserva el objetivo y el slug', async () => {

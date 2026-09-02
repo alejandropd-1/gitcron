@@ -91,8 +91,6 @@ export function PipelineNewChangeFlow({
   const setWithBranch = (next: boolean) => patchDraft(repoPath, { withBranch: next });
   /** Motivo real informado por Git. No se normaliza a un mensaje propio. */
   const [branchError, setBranchError] = useState<string | null>(null);
-  /** Motivo real informado por el motor OpenSpec si una consulta falla o está bloqueada. */
-  const [engineError, setEngineError] = useState<string | null>(null);
   /**
    * Crear la rama a partir de `main` en vez de donde se está parado.
    *
@@ -113,7 +111,6 @@ export function PipelineNewChangeFlow({
     setMode(next);
     setErrors({});
     setBranchError(null);
-    setEngineError(null);
     setDirtyBlocked(false);
     setInstruction(null);
   };
@@ -122,17 +119,17 @@ export function PipelineNewChangeFlow({
    * Valida y, si corresponde, deja el repositorio parado en la rama del cambio
    * antes de entregar la instrucción al lanzador.
    *
-   * Al proponer un nuevo change, la carpeta aún no existe en disco:
-   * `openspec instructions proposal --change <slug>` fallaría con "Change 'x' not found".
-   * La instrucción se compone con el objetivo y alcance declarados por la persona,
-   * delegando la creación del scaffold y los artefactos al ejecutor sin inventar llamadas
-   * a un change inexistente.
+   * Al proponer un nuevo change, la carpeta aún no existe en el sistema de archivos:
+   * `openspec instructions proposal --change <slug>` exige obligatoriamente `--change`
+   * y falla con "Change 'x' not found" si el directorio no existe.
+   * La instrucción de propuesta se compone con el objetivo y alcance declarados por la persona,
+   * delegando la creación del scaffold y los artefactos al ejecutor sin consultar al motor
+   * sobre un change inexistente.
    */
   const submitPropose = async () => {
     const result = validateProposeForm({ objective, slug, constraints });
     setErrors(result.errors);
     setBranchError(null);
-    setEngineError(null);
     if (result.focus === 'objective') objectiveRef.current?.focus();
     else if (result.focus === 'slug') slugRef.current?.focus();
     if (!result.instruction) {
@@ -197,7 +194,6 @@ export function PipelineNewChangeFlow({
     const result = validateExploreForm({ description });
     setErrors(result.errors);
     setBranchError(null);
-    setEngineError(null);
     if (result.focus === 'description') {
       descriptionRef.current?.focus();
       setInstruction(null);
@@ -348,14 +344,18 @@ export function PipelineNewChangeFlow({
               {t('pipeline.newChange.propose.branchFailed')} {branchError}
             </p>
           )}
-          {engineError && (
-            <p className={styles.flowError} role="alert">
-              {t('pipeline.newChange.propose.engineFailed')} {engineError}
-            </p>
-          )}
-
+          {/* Decisión de 4.2: se corrige el rótulo del botón para nombrar explícitamente la
+              creación de la rama en Git («Crear rama y elegir runtime» cuando withBranch está
+              marcado, y «Elegir runtime» cuando no).
+              - No se pide confirmación modal: la casilla `withBranch` ya es la decisión explícita
+                de la persona en el formulario; un diálogo extra añadiría fricción innecesaria.
+              - No se mueve la creación al lanzamiento: al pasar a la pantalla del lanzador,
+                el repositorio ya debe estar parado en la rama correspondiente para que la vista
+                previa de la instrucción y el entorno de trabajo sean coherentes con el cambio. */}
           <button type="button" className={styles.primaryAction} onClick={() => void submitPropose()}>
-            {t('pipeline.newChange.propose.review')}
+            {withBranch
+              ? t('pipeline.newChange.propose.createBranchAndReview')
+              : t('pipeline.newChange.propose.review')}
           </button>
         </div>
       ) : (
@@ -368,21 +368,19 @@ export function PipelineNewChangeFlow({
               rows={3}
               value={description}
               aria-invalid={errors.description ? true : undefined}
-              aria-describedby={errors.description ? `${fieldId}-description-error` : undefined}
+              aria-describedby={errors.description ? `${fieldId}-description-error` : `${fieldId}-description-help`}
               onChange={(event) => setDescription(event.target.value)}
             />
-            {errors.description && (
+            {errors.description ? (
               <em id={`${fieldId}-description-error`} className={styles.flowError} role="alert">
                 {t(errors.description)}
               </em>
+            ) : (
+              <em id={`${fieldId}-description-help`} className={styles.flowHint}>
+                {t('pipeline.newChange.explore.descriptionHelp')}
+              </em>
             )}
           </label>
-
-          {engineError && (
-            <p className={styles.flowError} role="alert">
-              {t('pipeline.newChange.propose.engineFailed')} {engineError}
-            </p>
-          )}
 
           <button type="button" className={styles.primaryAction} onClick={submitExplore}>
             {t('pipeline.newChange.explore.review')}

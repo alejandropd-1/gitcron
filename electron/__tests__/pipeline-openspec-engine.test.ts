@@ -780,22 +780,29 @@ describe('discoverOpenSpecCli', () => {
     expect(result.evidenceStatus).toBe('confirmed');
   });
 
-  it('declara supported para 1.9.0 y too-new para 1.9.1', async () => {
-    const result190 = await discoverOpenSpecCli({
+  it('declara supported para 1.11.0 y too-new para 1.11.1', async () => {
+    const runtime: AuthorizedOpenSpecRuntime = {
+      executablePath: '/usr/local/bin/openspec',
+      command: 'openspec',
+      shell: false,
+      displayPath: '/usr/local/bin/openspec',
+      provenance: 'global',
+    };
+    const result1110 = await discoverOpenSpecCli({
       resolve: () => runtime,
       realpath: (p) => p,
       probePathState: () => 'exists',
-      runVersion: async () => ({ stdout: '1.9.0', stderr: '' }),
+      runVersion: async () => ({ stdout: '1.11.0', stderr: '' }),
     });
-    expect(result190.versionClass).toBe('supported');
+    expect(result1110.versionClass).toBe('supported');
 
-    const result191 = await discoverOpenSpecCli({
+    const result1111 = await discoverOpenSpecCli({
       resolve: () => runtime,
       realpath: (p) => p,
       probePathState: () => 'exists',
-      runVersion: async () => ({ stdout: '1.9.1', stderr: '' }),
+      runVersion: async () => ({ stdout: '1.11.1', stderr: '' }),
     });
-    expect(result191.versionClass).toBe('too-new');
+    expect(result1111.versionClass).toBe('too-new');
   });
 
   it('declara el motor ausente cuando no resuelve ejecutable', async () => {

@@ -481,7 +481,7 @@ interface ElectronAPI {
   pipelineSubscribe: (repoPath: string, selectedChangeId?: string | null) => Promise<GitResult<PipelineState>>;
   pipelineUnsubscribe: (repoPath: string) => Promise<GitResult>;
   /** Plan del archivado: el comando que se va a ejecutar. No ejecuta nada. */
-  pipelineArchivePlan: (repoPath: string, changeId: string) => Promise<GitResult>;
+  pipelineArchivePlan: (repoPath: string, changeId: string) => Promise<GitResult<import('./pipeline').ArchivePlan>>;
   /** Archiva un change desde el proceso principal. No toca Git. */
   pipelineArchiveChange: (repoPath: string, changeId: string) => Promise<GitResult>;
   /** Cambia el estado de una tarea del change. `expectedText` verifica que sea la misma. */
@@ -582,6 +582,12 @@ interface ElectronAPI {
       changeId?: string | null;
       schema?: string | null;
     }): Promise<import('./pipeline').InstructionsOpenSpecResult>;
+    showChange(options: {
+      repoPath: string;
+      changeId: string;
+      diff?: boolean;
+      json?: boolean;
+    }): Promise<import('./pipeline').ShowOpenSpecChangeResult>;
   };
 }
 

@@ -35,9 +35,10 @@ describe('IPC de archivado de un change', () => {
 
   async function register(
     archive: (repoPath: string, changeId: string) => Promise<{ ok: boolean; error: string | null }>,
+    validateDelta = vi.fn().mockResolvedValue({ valid: true, errors: [], requirementIssues: [], incompleteTasks: [], hasIncompleteTasks: false }),
   ) {
     const { registerPipelineArchiveHandlers } = await import('../ipc/pipeline-archive');
-    registerPipelineArchiveHandlers(() => null, archive, binding as never);
+    registerPipelineArchiveHandlers(() => null, archive, binding as never, validateDelta as never);
     return {
       plan: ipc.handlers.get('pipeline:archive-plan')!,
       run: ipc.handlers.get('pipeline:archive-change')!,
@@ -86,6 +87,30 @@ describe('IPC de archivado de un change', () => {
     await run(null, 'C:/repo', 'mi-cambio');
 
     expect(archive).toHaveBeenCalledWith('C:/repo-real', 'mi-cambio');
+  });
+
+  it('bloquea el archivado cuando validateDelta reporta errores de requisitos o tareas pendientes', async () => {
+    const archive = vi.fn(ok);
+    const validateDelta = vi.fn().mockResolvedValue({
+      valid: false,
+      errors: ['Requisito MODIFIED inexistente en spec consolidada', '1 tarea incompleta'],
+      requirementIssues: [{ capability: 'cap1', requirement: 'Req1', operation: 'MODIFIED', reason: 'inexistente' }],
+      incompleteTasks: [{ id: '1.1', text: 'Tarea 1' }],
+      hasIncompleteTasks: true,
+    });
+
+    const { run, plan } = await register(archive, validateDelta);
+
+    const planRes = await plan(null, 'C:/repo', 'mi-cambio') as { success: boolean; data: any };
+    expect(planRes.success).toBe(true);
+    expect(planRes.data.canArchive).toBe(false);
+    expect(planRes.data.errors).toHaveLength(2);
+
+    const runRes = await run(null, 'C:/repo', 'mi-cambio') as { success: boolean; error: string; stage: string };
+    expect(runRes.success).toBe(false);
+    expect(runRes.stage).toBe('validation');
+    expect(runRes.error).toContain('Requisito MODIFIED inexistente');
+    expect(archive).not.toHaveBeenCalled();
   });
 
   it('reports the CLI failure instead of declaring success', async () => {

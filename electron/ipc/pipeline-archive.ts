@@ -1,6 +1,7 @@
 import type { BrowserWindow } from 'electron';
 import { ipcMain } from 'electron';
 import { archiveOpenSpecChangeWithCli } from '../pipeline/openspec-cli';
+import { validateChangeDeltaRequirements, type DeltaValidationResult } from '../pipeline/openspec-delta-validator';
 import { PipelineService } from '../pipeline/pipeline-service';
 import { errMsg, validRepoPath } from './shared';
 import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
@@ -18,10 +19,8 @@ import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
  * herramientas de Git que la aplicación ya ofrece.
  */
 
-/** Lo que va a ocurrir, para mostrarlo antes de ejecutar nada. */
-interface ArchivePlan {
-  archiveCommand: string;
-}
+import type { ArchivePlan } from '../../types/pipeline';
+export type { ArchivePlan };
 
 function validChangeId(value: unknown): value is string {
   return isValidOpenSpecChangeSlug(value);
@@ -41,13 +40,24 @@ export function registerPipelineArchiveHandlers(
   getMainWindow: () => BrowserWindow | null = () => null,
   archive = archiveOpenSpecChangeWithCli,
   service = new PipelineService(),
+  validateDelta = validateChangeDeltaRequirements,
 ): void {
   ipcMain.handle('pipeline:archive-plan', async (_event, repoPath: unknown, changeId: unknown) => {
     if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
     if (!validChangeId(changeId)) return { success: false, error: 'Identificador de cambio inválido' };
     try {
-      await service.resolveBinding(repoPath);
-      return { success: true, data: buildPlan(changeId) };
+      const { canonicalPath } = await service.resolveBinding(repoPath);
+      const deltaCheck = await validateDelta(canonicalPath, changeId);
+      return {
+        success: true,
+        data: {
+          ...buildPlan(changeId),
+          canArchive: deltaCheck.valid,
+          errors: deltaCheck.errors,
+          requirementIssues: deltaCheck.requirementIssues,
+          incompleteTasks: deltaCheck.incompleteTasks,
+        },
+      };
     } catch (error) {
       return { success: false, error: errMsg(error) };
     }
@@ -64,6 +74,14 @@ export function registerPipelineArchiveHandlers(
       // evidencia: si divergieran, se archivaría en un repositorio distinto del
       // que la vista está mostrando.
       const { canonicalPath } = await service.resolveBinding(repoPath);
+
+      // Comprobar que los requisitos MODIFIED existan en la spec consolidada
+      // y que no haya tareas pendientes antes de ejecutar el CLI (Tareas 3.2 y 3.5).
+      const deltaCheck = await validateDelta(canonicalPath, changeId);
+      if (!deltaCheck.valid) {
+        return { success: false, error: deltaCheck.errors.join(' | '), stage: 'validation' };
+      }
+
       const result = await archive(canonicalPath, changeId);
       // El resultado se lee del CLI, no del hecho de que el proceso terminó.
       if (!result.ok) return { success: false, error: result.error, stage: 'archive' };

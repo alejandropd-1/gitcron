@@ -131,7 +131,7 @@ describe('cuándo se descarta', () => {
     const [objective, slugField] = screen.getAllByRole('textbox');
     fireEvent.change(objective, { target: { value: 'un objetivo suficientemente claro' } });
     fireEvent.change(slugField, { target: { value: 'mi-cambio' } });
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ }));
 
     fireEvent.click(await screen.findByTestId('launcher'));
 

@@ -6,6 +6,10 @@ import type {
   OpenSpecEngineStatus,
   OpenSpecVersionClass,
 } from '../../types/pipeline';
+import {
+  OPENSPEC_CYCLE_TARGET_VERSION,
+  isInstalledAheadOfCycle,
+} from '@/lib/openspec-version';
 import styles from './OpenSpecDashboard.module.css';
 
 const VERSION_CLASS_KEY_MAP: Record<OpenSpecVersionClass, string> = {
@@ -276,6 +280,22 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
           </strong>
           {latestStatusText && <small className={styles.axisMeta}>· {latestStatusText}</small>}
         </div>
+
+        <div className={styles.summaryFactRow}>
+          <span>{t('pipeline.openspec.engine.cycleVersion', { version: OPENSPEC_CYCLE_TARGET_VERSION })}</span>
+        </div>
+
+        {isInstalledAheadOfCycle(cli.runtimeVersion) && (
+          <div className={styles.summaryFactRow} role="status">
+            <span style={{ color: 'var(--color-warning)' }}>
+              <AlertTriangle size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 'var(--space-1)' }} />
+              {t('pipeline.openspec.engine.versionAheadOfCycle', {
+                installed: cli.runtimeVersion ?? '?',
+                cycle: OPENSPEC_CYCLE_TARGET_VERSION,
+              })}
+            </span>
+          </div>
+        )}
 
         <div className={styles.summaryFactRow}>
           <span>{t('pipeline.openspec.engine.axis.repo')}:</span>

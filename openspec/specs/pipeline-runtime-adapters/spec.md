@@ -5,7 +5,9 @@
 Definir el contrato común de los adaptadores de runtime (`RuntimeAdapter`) que observan
 ejecuciones de runtimes directos y proveedores locales sin requerir Hermes como gateway
 obligatorio, con degradación explícita por runtime y conformance parametrizada.
+
 ## Requirements
+
 ### Requirement: Interfaz común con degradación explícita
 Cada `RuntimeAdapter` SHALL declarar identidad, transporte, versión y capabilities negociadas, y SHALL implementar sólo los métodos respaldados por esa declaración.
 
@@ -70,3 +72,17 @@ convierte un rechazo en una afirmación falsa que el usuario no tiene forma de c
 - **THEN** el adaptador no inventa un fallo y conserva la derivación basada en la marca de error del
   runtime
 
+### Requirement: Factory de adaptador con ejecutable resuelto por el hub
+El hub SHALL poder pasar un `executable` resuelto al factory del adaptador cuando el adaptador lo requiera. Los adaptadores que resuelven su propio binario internamente (claude, codex, agy) SHALL ignorar el parámetro. Un adaptador cuyo binario pueda variar (opencode) SHALL recibir el ejecutable del hub en vez de hardcodearlo.
+
+#### Scenario: OpenCode registrado como lanzable
+- **WHEN** el hub construye los adaptadores para discovery
+- **THEN** OpenCode aparece con `launchable: true` cuando el binario `opencode` está instalado y su handshake ACP responde
+
+#### Scenario: OpenCode ausente
+- **WHEN** el binario `opencode` no está en PATH
+- **THEN** se lista con `installed: false` y su diagnóstico, sin romper el listado de los demás runtimes
+
+#### Scenario: Sesión que modifica el repo
+- **WHEN** una sesión de OpenCode arranca
+- **THEN** el launcher exige confirmación explícita, porque `modifiesRepo` es `true`

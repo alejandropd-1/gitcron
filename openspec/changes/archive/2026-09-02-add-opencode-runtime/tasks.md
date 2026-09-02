@@ -25,4 +25,4 @@
 - [x] 4.3 `pnpm test` en verde
 - [x] 4.4 `pnpm exec eslint` limpio sobre lo tocado
 - [x] 4.5 `openspec validate add-opencode-runtime --strict` válido
-- [ ] 4.6 Frenar antes de staging y entregar a Ale con la QA visual pendiente
+- [x] 4.6 Frenar antes de staging y entregar a Ale con la QA visual pendiente

@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Factory de adaptador con ejecutable resuelto por el hub
 El hub SHALL poder pasar un `executable` resuelto al factory del adaptador cuando el adaptador lo requiera. Los adaptadores que resuelven su propio binario internamente (claude, codex, agy) SHALL ignorar el parámetro. Un adaptador cuyo binario pueda variar (opencode) SHALL recibir el ejecutable del hub en vez de hardcodearlo.

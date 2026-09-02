@@ -38,6 +38,27 @@
 
 - [ ] 5.1 En `electron/ipc/pipeline-archive.ts`, aceptar un motivo opcional y conservarlo junto a los artefactos del cambio archivado, legible sin la aplicación.
 - [ ] 5.2 En `electron/__tests__/`, verificar que archivar sin motivo sigue funcionando y que con motivo el texto queda escrito con el cambio.
+- [ ] 5.3 **Archivar no puede depender de que nadie más mire el repositorio.** En Windows,
+  `openspec archive` falla con `EPERM: operation not permitted, rename` sobre
+  `openspec/changes/<id>` cuando cualquier proceso tiene un archivo de esa carpeta abierto, y el
+  sistema no permite renombrarla.
+  Caso real del 2026-09-02: falló desde la aplicación, desde la terminal, y también con la
+  aplicación y el entorno de desarrollo cerrados. El bloqueo eran **dos servidores MCP** —CodeGraph
+  y Fallow— que indexan el árbol con vigilante propio; matándolos, el archivado pasó en el primer
+  intento. Verificado además con un `rename` a mano desde el shell, que fallaba igual: **el
+  bloqueo es del sistema de archivos, no del CLI ni de la aplicación**.
+  Es intermitente, y por eso engaña: el índice de CodeGraph se había reescrito esa misma mañana
+  después de un día de mover archivos en masa, mientras que el archivado del día anterior había
+  funcionado sin problema. Un fallo así apunta siempre a lo último que se tocó —esa mañana se había
+  actualizado OpenSpec— y no a su causa.
+  El error se lee como si el CLI tuviera una salida sin usar —«No fallback copy was attempted»—
+  pero en `dist/core/archive.js` de la 1.11 ese respaldo es **otro `rename`**, a una carpeta
+  `.openspec-move-<uuid>`. Si el primero falló porque la carpeta está tomada, el segundo falla por
+  lo mismo: la copia directa habría funcionado y el CLI no llega a intentarla. Es un defecto de la
+  herramienta y corresponde reportarlo con `openspec feedback` antes de rodearlo acá.
+  Lo que la aplicación sí puede hacer: reconocer el `EPERM`, decir que lo causa un proceso con la
+  carpeta abierta, y no presentarlo como un fallo del cambio —el cambio está bien; lo que falla es
+  la mudanza—.
 
 ## 6. Instalación del motor
 
@@ -73,8 +94,19 @@
 - [ ] 9.3 Construir la confirmación de la instalación global mostrando comando literal, rutas resueltas del gestor y de Node, y la lista de repositorios abiertos que quedarían afectados.
 - [ ] 9.4 Agregar el botón de sincronización con su vista previa, y el campo opcional de motivo en el archivado, destacado cuando queden tareas sin completar.
 - [ ] 9.5 Presentar toda operación bloqueada como control deshabilitado con su motivo al lado, sin depender del desplazamiento, incluido el bloqueo sobre la rama principal para actualizar la integración y archivar.
-- [ ] 9.6 Agregar a `lib/i18n.ts` las claves en ES, EN y ZH de todo lo anterior, mapeando cada código de error del proceso principal a su clave, sin armar claves por interpolación de plantilla y sin dejar ninguna clave sin consumidor.
-- [ ] 9.7 Actualizar `components/pipeline/__tests__/pipeline-i18n.test.ts` con las claves nuevas y verificar la paridad en los tres idiomas.
+- [ ] 9.6 **Ejecutar el comando que la aplicación ya muestra, sin salir de ella.** Cada operación
+  del ciclo declara el comando que va a correr —el archivado muestra `openspec archive <id> --yes`—
+  pero ese texto no se puede copiar ni ejecutar: cuando el botón falla hay que transcribirlo a mano
+  en otra ventana. Caso real del 2026-09-02, con el archivado fallando por permisos de Windows.
+  Se acota a comandos `openspec`: un intérprete libre es una superficie de riesgo con los permisos
+  de quien usa la aplicación, y no hace falta para el caso que lo motiva. Ya existe
+  `terminalOpen(repoPath)` en `types/electron.d.ts`, que abre una terminal externa y no ejecuta
+  nada adentro: esto es distinto y no lo reemplaza.
+  **Ojo con lo que NO resuelve**: el fallo que lo motivó viene de que la aplicación vigila el
+  repositorio, así que el mismo comando lanzado desde acá fallaría igual. Lo que se arregla en 5.3
+  es otra cosa y va primero.
+- [ ] 9.7 Agregar a `lib/i18n.ts` las claves en ES, EN y ZH de todo lo anterior, mapeando cada código de error del proceso principal a su clave, sin armar claves por interpolación de plantilla y sin dejar ninguna clave sin consumidor.
+- [ ] 9.8 Actualizar `components/pipeline/__tests__/pipeline-i18n.test.ts` con las claves nuevas y verificar la paridad en los tres idiomas.
 
 ## 10. Cierre y validación
 

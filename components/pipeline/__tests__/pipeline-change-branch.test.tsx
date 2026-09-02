@@ -23,6 +23,7 @@ vi.mock('../PipelineRuntimeLauncher', () => ({
 }));
 
 const gitCreateBranch = vi.fn();
+const gitCheckout = vi.fn();
 const ORIGINAL_API = (globalThis as { window?: { api?: unknown } }).window?.api;
 
 beforeEach(() => {
@@ -30,7 +31,8 @@ beforeEach(() => {
   // aparece en la siguiente. Es la contrapartida de que sobreviva al desmontaje.
   useNewChangeDraftStore.setState({ drafts: {} });
   gitCreateBranch.mockReset().mockResolvedValue({ success: true });
-  Object.defineProperty(window, 'api', { configurable: true, value: { gitCreateBranch } });
+  gitCheckout.mockReset().mockResolvedValue({ success: true });
+  Object.defineProperty(window, 'api', { configurable: true, value: { gitCreateBranch, gitCheckout } });
 });
 
 afterEach(() => {
@@ -81,14 +83,31 @@ describe('la rama del cambio al empezarlo', () => {
 
   it('un fallo muestra el motivo real y no deja arrancar la sesión', async () => {
     // Arrancar igual dejaría al agente en una rama distinta de la declarada, que
-    // es divergencia entre lo declarado y lo ejecutado.
-    gitCreateBranch.mockResolvedValue({ success: false, error: 'branch already exists' });
+    // es divergencia entre lo declarado y lo ejecutado. El caso simulado ya no es
+    // «ya existe»: ésa es la rama de este mismo cambio y se retoma, lo cubre la
+    // prueba de abajo. Acá se prueba un fallo del que no se puede volver.
+    gitCreateBranch.mockResolvedValue({ success: false, error: 'permission denied' });
     renderFlow();
     fillForm('mi-cambio');
     fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
 
-    await vi.waitFor(() => expect(screen.getByRole('alert').textContent).toContain('branch already exists'));
+    await vi.waitFor(() => expect(screen.getByRole('alert').textContent).toContain('permission denied'));
     expect(screen.queryByTestId('launcher')).toBeNull();
+  });
+
+  it('la rama de este mismo cambio ya existe: se para en ella y sigue', async () => {
+    // Es trabajo propio que se retoma, no una rama ajena: el nombre lo construye
+    // el propio formulario a partir del slug, así que un «already exists» sólo
+    // puede ser de este cambio. Cortar acá obligaba a salir de la aplicación a
+    // cambiarse de rama a mano, y al volver el flujo seguía trabado.
+    gitCreateBranch.mockResolvedValue({ success: false, error: 'branch already exists' });
+    gitCheckout.mockResolvedValue({ success: true });
+    renderFlow();
+    fillForm('mi-cambio');
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+
+    await vi.waitFor(() => expect(gitCheckout).toHaveBeenCalledWith('C:/repo', 'change/mi-cambio'));
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('declara que arma la instrucción y no los artefactos', () => {

@@ -157,12 +157,23 @@ export function PipelineNewChangeFlow({
         ? await window.api?.gitCreateBranch(repoPath, branchName, 'main')
         : await window.api?.gitCreateBranch(repoPath, branchName);
       if (!created?.success) {
-        // El motivo real, sin normalizar: uno genérico obliga a ir a la terminal
-        // a averiguar qué pasó. No se intenta cambiarse a una rama existente
-        // porque arrastraría los commits de otro trabajo.
-        setBranchError(created?.error || 'unknown');
-        setInstruction(null);
-        return;
+        // La rama de **este mismo cambio** ya existe: es trabajo propio que se
+        // retoma, así que el repositorio se para en ella en vez de cortar el
+        // flujo. `branchName` lo construye esta función a partir del slug, de
+        // modo que un «already exists» sólo puede ser de esta rama y nunca de
+        // otro trabajo: cambiarse no arrastra commits ajenos. Cualquier otro
+        // fallo sigue cortando, con el motivo real y sin normalizar, porque uno
+        // genérico obliga a ir a la terminal a averiguar qué pasó.
+        //
+        // Con `fromMain` marcado la rama no se recrea desde main: ya existe y
+        // rehacerla descartaría lo que tenga. Se retoma donde quedó.
+        const yaExistia = /already exists/i.test(created?.error ?? '');
+        const parado = yaExistia ? await window.api?.gitCheckout(repoPath, branchName) : null;
+        if (!parado?.success) {
+          setBranchError(created?.error || 'unknown');
+          setInstruction(null);
+          return;
+        }
       }
       // La rama recién creada es dónde está parado el repositorio ahora, y el
       // panel lo declara en la franja de evidencia. Sin releer seguía mostrando

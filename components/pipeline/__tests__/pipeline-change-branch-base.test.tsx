@@ -27,6 +27,7 @@ vi.mock('../PipelineRuntimeLauncher', () => ({
 }));
 
 const gitCreateBranch = vi.fn();
+const gitCheckout = vi.fn();
 const ORIGINAL_API = (globalThis as { window?: { api?: unknown } }).window?.api;
 
 beforeEach(() => {
@@ -34,7 +35,8 @@ beforeEach(() => {
   // aparece en la siguiente.
   useNewChangeDraftStore.setState({ drafts: {} });
   gitCreateBranch.mockReset().mockResolvedValue({ success: true });
-  Object.defineProperty(window, 'api', { configurable: true, value: { gitCreateBranch } });
+  gitCheckout.mockReset().mockResolvedValue({ success: true });
+  Object.defineProperty(window, 'api', { configurable: true, value: { gitCreateBranch, gitCheckout } });
 });
 
 afterEach(() => {
@@ -113,9 +115,23 @@ describe('la evidencia después de crear la rama', () => {
     await vi.waitFor(() => expect(onRefresh).toHaveBeenCalled());
   });
 
+  it('retomar la rama de este mismo cambio sí dispara relectura', async () => {
+    // El repositorio cambió de rama: sin releer, la franja de evidencia seguiría
+    // afirmando la anterior. Es el mismo motivo por el que se relee al crearla.
+    gitCreateBranch.mockResolvedValue({ success: false, error: 'branch already exists' });
+    gitCheckout.mockResolvedValue({ success: true });
+    const onRefreshRetomada = vi.fn();
+    renderFlow({ currentBranch: 'main', workingTreeClean: true, onRefresh: onRefreshRetomada });
+    fillForm();
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.propose\.review/ }));
+
+    await vi.waitFor(() => expect(onRefreshRetomada).toHaveBeenCalled());
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('un fallo al crearla no dispara relectura', async () => {
     // No cambió nada en Git: releer sugeriría que sí.
-    gitCreateBranch.mockResolvedValue({ success: false, error: 'branch already exists' });
+    gitCreateBranch.mockResolvedValue({ success: false, error: 'permission denied' });
     const onRefresh = vi.fn();
     renderFlow({ currentBranch: 'main', workingTreeClean: true, onRefresh });
     fillForm();

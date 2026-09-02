@@ -37,6 +37,14 @@
   reemplaza algo que la aplicación hace a mano o si queda fuera de alcance.
 - [ ] 3.4 Declarar qué se hace con `templates`, `workset` y `schemas`: se usan, o se declara por
   qué no.
+- [ ] 3.5 Comprobar que cada bloque `## MODIFIED Requirements` de un change apunte a un requisito
+  que exista en la spec consolidada, y avisarlo antes del archivado. Caso real del 2026-09-02:
+  `add-opencode-runtime` declaraba `MODIFIED` sobre «Factory de adaptador con ejecutable resuelto
+  por el hub», un requisito que no existía —era nuevo y correspondía `ADDED`—. **`openspec validate
+  --strict` daba válido igual**: esa correspondencia no se comprueba. El error apareció recién al
+  archivar, que es el último paso posible, con el change escrito un mes antes y ya fusionado a
+  `main`. Verificar primero si el CLI lo cubre con algún comando: si lo cubre se usa, y si no, lo
+  comprueba la aplicación antes de ofrecer el archivado.
 
 ## 4. El formulario declara qué hace
 

@@ -65,7 +65,7 @@
 
 ## 6. Revisión visual
 
-- [ ] 6.1 El ciclo se opera de punta a punta desde la aplicación: proponer, elegir runtime,
+- [x] 6.1 El ciclo se opera de punta a punta desde la aplicación: proponer, elegir runtime,
   implementar y archivar, sin que el formulario mienta sobre lo que escribe. **La comprueba
   Alejandro.**
 

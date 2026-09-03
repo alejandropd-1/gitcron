@@ -52,7 +52,7 @@
   aplicación y el entorno de desarrollo cerrados. El bloqueo eran **dos servidores MCP** —CodeGraph
   y Fallow— que indexan el árbol con vigilante propio; matándolos, el archivado pasó en el primer
   intento. Verificado además con un `rename` a mano desde el shell, que fallaba igual: **el
-  bloqueo es del sistema de archivos, no del CLI ni de la aplicación**.
+  bloqueo lo impone el sistema de archivos, no el CLI**.
   Es intermitente, y por eso engaña: el índice de CodeGraph se había reescrito esa misma mañana
   después de un día de mover archivos en masa, mientras que el archivado del día anterior había
   funcionado sin problema. Un fallo así apunta siempre a lo último que se tocó —esa mañana se había
@@ -65,6 +65,31 @@
   Lo que la aplicación sí puede hacer: reconocer el `EPERM`, decir que lo causa un proceso con la
   carpeta abierta, y no presentarlo como un fallo del cambio —el cambio está bien; lo que falla es
   la mudanza—.
+  **Medición del 2026-09-03, que corrige lo anterior: el proceso que bloquea puede ser la propia
+  aplicación.** Ese día el archivado falló con los servidores MCP ya detenidos. Listando los
+  descriptores del sistema con `NtQuerySystemInformation`, los handles sobre
+  `openspec/changes/<id>/specs` eran de dos procesos propios: `electron.exe`, por el vigilante
+  Chokidar de `electron/ipc/watchers.ts`, y el `node.exe` de `tsup --watch` que levanta
+  `pnpm electron:dev`. En Windows, vigilar un árbol con `ReadDirectoryChangesW` mantiene abiertos
+  handles `FILE_LIST_DIRECTORY` sobre cada carpeta vigilada, y con un handle de directorio abierto
+  el sistema prohíbe renombrar esa carpeta aunque deje crear, escribir y borrar los archivos de
+  adentro. Por eso los cinco archivos del cambio se abrían sin problema y el directorio no se podía
+  mover: **el bloqueo es de carpeta, no de archivo**, y buscarlo archivo por archivo no lo
+  encuentra.
+  El reintento con retroceso que quedó en `archiveOpenSpecChangeWithCli` cubre bloqueos
+  transitorios —un antivirus, el indexador—, no éste: los handles de un vigilante no se sueltan en
+  1,2 segundos, están abiertos mientras la aplicación corra. Las dos salidas que sí resuelven el
+  caso son acotar el vigilante del compilador (tarea 5.4) y soltar el vigilante propio durante la
+  mudanza: cuál se elige, o si van las dos, se decide acá y se declara con su motivo.
+
+- [ ] 5.4 **El compilador de desarrollo no tiene por qué vigilar el repositorio entero.** En
+  `package.json`, `electron:dev` corre `npm run build:electron -- --watch` sin ruta, y `tsup.config.ts`
+  no declara `watch`, así que el vigilante toma el árbol completo desde la raíz y pone handles sobre
+  `openspec/changes/`, que no es código que compile. Acotarlo a lo que tsup construye saca de en
+  medio a uno de los dos bloqueadores medidos en 5.3, y no cambia nada del ciclo de desarrollo.
+  Comprobar después que un cambio en `electron/` sigue recompilando `dist/main.js`, porque si el
+  vigilante queda mal acotado el síntoma es que la recompilación deja de dispararse, y eso ya costó
+  media hora una vez.
 
 ## 6. Instalación del motor
 

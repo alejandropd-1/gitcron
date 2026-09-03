@@ -106,9 +106,25 @@ describe('OpenSpec Groups 4 y 5 — Formulario transparente y declaración de ve
       ).toBeTruthy();
     });
 
-    it('no muestra advertencia de desfase cuando la versión instalada es igual o menor a la del ciclo', () => {
+    it('informa cuando la versión instalada es anterior a la versión declarada del ciclo (5.2)', () => {
+      const behindStatus: OpenSpecEngineStatus = {
+        ...baseStatus,
+        cli: {
+          ...baseStatus.cli,
+          runtimeVersion: '1.5.0',
+        },
+      };
+
+      render(<OpenSpecEngineCard status={behindStatus} />);
+      expect(
+        screen.getByText('pipeline.openspec.engine.versionBehindCycle:{"installed":"1.5.0","cycle":"1.11.0"}'),
+      ).toBeTruthy();
+    });
+
+    it('no muestra advertencias de desfase cuando la versión instalada es exactamente igual a la del ciclo', () => {
       render(<OpenSpecEngineCard status={baseStatus} />);
       expect(screen.queryByText(/pipeline\.openspec\.engine\.versionAheadOfCycle/)).toBeNull();
+      expect(screen.queryByText(/pipeline\.openspec\.engine\.versionBehindCycle/)).toBeNull();
     });
   });
 });

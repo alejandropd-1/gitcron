@@ -186,6 +186,8 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.engine.provenance.local',
   'pipeline.openspec.engine.provenance.managed',
   'pipeline.openspec.engine.provenance.unknown',
+  'pipeline.openspec.engine.versionAheadOfCycle',
+  'pipeline.openspec.engine.versionBehindCycle',
   'pipeline.openspec.engine.axis.engine',
   'pipeline.openspec.engine.axis.repo',
   'pipeline.openspec.engine.axis.integration',

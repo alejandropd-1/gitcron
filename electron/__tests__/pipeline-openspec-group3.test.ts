@@ -227,7 +227,7 @@ Descripción del segundo requisito.
     });
   });
 
-  describe('IPC handlers para show y validate-archived', () => {
+  describe('IPC handler para show', () => {
     it('pipeline:openspec:show valida payload y ejecuta showChange', async () => {
       const handlers = new Map<string, Function>();
       const mockIpc = {

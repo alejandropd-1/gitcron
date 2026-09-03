@@ -3,6 +3,7 @@ import {
   classifyOpenSpecVersion,
   compareSemver,
   isInstalledAheadOfCycle,
+  isInstalledBehindCycle,
   OPENSPEC_CYCLE_TARGET_VERSION,
   parseSemver,
   SUPPORTED_OPENSPEC_VERSIONS,
@@ -81,5 +82,21 @@ describe('isInstalledAheadOfCycle', () => {
     expect(isInstalledAheadOfCycle('1.12.0')).toBe(true);
     expect(isInstalledAheadOfCycle('2.0.0')).toBe(true);
     expect(isInstalledAheadOfCycle(null)).toBe(false);
+  });
+});
+
+describe('isInstalledBehindCycle', () => {
+  it('detecta correctamente si la versión instalada está por debajo de la versión del ciclo declarada', () => {
+    // Caso borde: 1.5.0 contra ciclo 1.11.0 (seis minors de distancia, dentro de rango soportado)
+    expect(isInstalledBehindCycle('1.5.0')).toBe(true);
+    expect(isInstalledBehindCycle('1.10.0')).toBe(true);
+    expect(isInstalledBehindCycle('1.10.9')).toBe(true);
+    // Caso igual a igual: 1.11.0 contra 1.11.0 no debe avisar nada
+    expect(isInstalledBehindCycle('1.11.0')).toBe(false);
+    // Casos posteriores no avisan en esta función
+    expect(isInstalledBehindCycle('1.11.1')).toBe(false);
+    expect(isInstalledBehindCycle('1.12.0')).toBe(false);
+    expect(isInstalledBehindCycle(null)).toBe(false);
+    expect(isInstalledBehindCycle(undefined)).toBe(false);
   });
 });

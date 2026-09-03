@@ -61,7 +61,7 @@
 ## 5. La versión deja de ser un supuesto
 
 - [x] 5.1 Declarar en la aplicación contra qué versión de OpenSpec está escrito el ciclo.
-- [x] 5.2 Informar cuando la versión instalada supera a la declarada, para que el desfase se vea.
+- [x] 5.2 Informar cuando la versión instalada difiere de la declarada del ciclo (tanto si la supera como si es anterior), para que el desfase se vea en ambas direcciones.
 
 ## 6. Revisión visual
 

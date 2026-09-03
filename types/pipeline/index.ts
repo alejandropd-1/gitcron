@@ -602,7 +602,6 @@ export interface OpenSpecInstructionsPayload {
   instruction?: string;
   context?: string;
   template?: string;
-  rules?: string[] | string;
   dependencies?: Array<{ id: string; done: boolean; path: string; description: string }>;
   unlocks?: string[];
   outputPath?: string;

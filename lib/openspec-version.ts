@@ -84,3 +84,23 @@ export function isInstalledAheadOfCycle(
   if (!installed || !cycle) return false;
   return compareSemver(installed, cycle) > 0;
 }
+
+/**
+ * Comprueba si una versión instalada de OpenSpec es anterior a la versión
+ * contra la que está diseñado el ciclo de la aplicación (1.11.0).
+ *
+ * Este caso importa porque el ciclo está escrito contra 1.11.0 y consume
+ * campos estructurados del JSON (como `instruction`, `context`,
+ * `resolvedOutputPath`, `diff`) que las versiones anteriores pueden no
+ * devolver o devolver incompletos, provocando que la instrucción llegue
+ * degradada al agente ejecutor sin que nadie se entere.
+ */
+export function isInstalledBehindCycle(
+  installedVersion: string | null | undefined,
+  cycleVersion: string = OPENSPEC_CYCLE_TARGET_VERSION,
+): boolean {
+  const installed = parseSemver(installedVersion);
+  const cycle = parseSemver(cycleVersion);
+  if (!installed || !cycle) return false;
+  return compareSemver(installed, cycle) < 0;
+}

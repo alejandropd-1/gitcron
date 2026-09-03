@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { useT } from '@/hooks/use-translation';
 import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, HelpCircle } from 'lucide-react';
 import type {
+  OpenSpecCliProvenance,
   OpenSpecDivergenceReason,
   OpenSpecEngineStatus,
   OpenSpecVersionClass,
 } from '../../types/pipeline';
 import {
   OPENSPEC_CYCLE_TARGET_VERSION,
+  SUPPORTED_OPENSPEC_VERSIONS,
   isInstalledAheadOfCycle,
+  isInstalledBehindCycle,
 } from '@/lib/openspec-version';
 import styles from './OpenSpecDashboard.module.css';
 
@@ -33,12 +36,11 @@ const INTEGRATION_STATE_KEY_MAP: Record<string, string> = {
   unknown: 'pipeline.openspec.engine.integrationState.unknown',
 };
 
-const PROVENANCE_KEY_MAP: Record<string, string> = {
+const PROVENANCE_KEY_MAP: Record<OpenSpecCliProvenance, string> = {
   global: 'pipeline.openspec.engine.provenance.global',
+  local: 'pipeline.openspec.engine.provenance.local',
   managed: 'pipeline.openspec.engine.provenance.managed',
-  custom: 'pipeline.openspec.engine.provenance.custom',
-  'repo-local': 'pipeline.openspec.engine.provenance.repoLocal',
-  missing: 'pipeline.openspec.engine.provenance.missing',
+  unknown: 'pipeline.openspec.engine.provenance.unknown',
 };
 
 const GENERAL_STATUS_KEY_MAP: Record<'ready' | 'needs-attention' | 'unknown', string> = {
@@ -53,6 +55,29 @@ const PRESENCE_KEY_MAP: Record<string, string> = {
   divergent: 'pipeline.openspec.engine.presence.divergent',
   blocked: 'pipeline.openspec.engine.presence.blocked',
 };
+
+/**
+ * Evalúa si la versión del motor presenta desfase respecto a la versión
+ * objetivo del ciclo (sea por superarla o por ser anterior).
+ *
+ * Decisión de ubicación y motivo:
+ * Esta comprobación vive aquí como función exportada para que la tarjeta de diagnóstico
+ * y cualquier consumidor compartan exactamente la misma regla de desfase de ciclo.
+ * Se apoya de forma directa en las funciones simétricas `isInstalledAheadOfCycle`
+ * e `isInstalledBehindCycle` de `lib/openspec-version.ts`, las mismas que alimentan
+ * la franja superior de OpenSpecDashboard.tsx (`hasOpenSpecEngineAttention || isAhead || isBehind`).
+ * Al calcularse el desfase con esta función única, la insignia general de la tarjeta
+ * y el chip de la franja superior quedan acoplados al mismo hecho objetivo y no pueden divergir.
+ */
+export function hasOpenSpecCycleMismatch(
+  runtimeVersion: string | null | undefined,
+  cycleVersion: string = OPENSPEC_CYCLE_TARGET_VERSION,
+): boolean {
+  return (
+    isInstalledAheadOfCycle(runtimeVersion, cycleVersion) ||
+    isInstalledBehindCycle(runtimeVersion, cycleVersion)
+  );
+}
 
 export interface OpenSpecEngineCardProps {
   status: OpenSpecEngineStatus | null;
@@ -196,7 +221,11 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   }
 
   const cli = status.cli;
-  const provenanceKey = PROVENANCE_KEY_MAP[cli.provenance] ?? 'pipeline.openspec.engine.provenance.missing';
+  // Si la procedencia no coincide con los cuatro valores del contrato ('global', 'local',
+  // 'managed', 'unknown'), se rotula como desconocida: declarar «ausente» ante un valor no
+  // reconocido afirmaría falsamente que el motor no está instalado cuando en realidad se
+  // descubrió un binario cuya ubicación no se pudo clasificar.
+  const provenanceKey = (cli.provenance && PROVENANCE_KEY_MAP[cli.provenance]) ?? 'pipeline.openspec.engine.provenance.unknown';
   const provenanceLabel = t(provenanceKey);
 
   const latest = status.latestAvailable;
@@ -219,6 +248,10 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   }
 
   // Determinar estado general: ready | needs-attention | unknown
+  const isAhead = isInstalledAheadOfCycle(cli.runtimeVersion);
+  const isBehind = isInstalledBehindCycle(cli.runtimeVersion);
+  const isCycleMismatch = hasOpenSpecCycleMismatch(cli.runtimeVersion);
+
   let generalStatus: 'ready' | 'needs-attention' | 'unknown' = 'ready';
   if (status.integrationState === 'unknown' || status.repoState === 'unknown') {
     generalStatus = 'unknown';
@@ -229,7 +262,8 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     status.integrationState === 'outdated' ||
     status.integrationState === 'conflicted' ||
     status.repoState === 'not-initialized' ||
-    status.divergence?.isDivergent
+    status.divergence?.isDivergent ||
+    isCycleMismatch
   ) {
     generalStatus = 'needs-attention';
   }
@@ -238,8 +272,8 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
 
   const versionClassKey = cli.versionClass ? (VERSION_CLASS_KEY_MAP[cli.versionClass] ?? 'pipeline.openspec.engine.versionClass.unknown') : 'pipeline.openspec.engine.versionClass.unknown';
   const versionClassText = t(versionClassKey, {
-    min: cli.supportedRange?.min ?? '1.5.0',
-    max: cli.supportedRange?.max ?? '1.9.0',
+    min: cli.supportedRange?.min ?? SUPPORTED_OPENSPEC_VERSIONS.min,
+    max: cli.supportedRange?.max ?? SUPPORTED_OPENSPEC_VERSIONS.max,
   });
   const versionStr = cli.runtimeVersion ? `v${cli.runtimeVersion}` : '';
   const engineText = versionStr ? `${versionStr} · ${versionClassText}` : versionClassText;
@@ -285,11 +319,23 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
           <span>{t('pipeline.openspec.engine.cycleVersion', { version: OPENSPEC_CYCLE_TARGET_VERSION })}</span>
         </div>
 
-        {isInstalledAheadOfCycle(cli.runtimeVersion) && (
+        {isAhead && (
           <div className={styles.summaryFactRow} role="status">
             <span style={{ color: 'var(--color-warning)' }}>
               <AlertTriangle size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 'var(--space-1)' }} />
               {t('pipeline.openspec.engine.versionAheadOfCycle', {
+                installed: cli.runtimeVersion ?? '?',
+                cycle: OPENSPEC_CYCLE_TARGET_VERSION,
+              })}
+            </span>
+          </div>
+        )}
+
+        {isBehind && (
+          <div className={styles.summaryFactRow} role="status">
+            <span style={{ color: 'var(--color-warning)' }}>
+              <AlertTriangle size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 'var(--space-1)' }} />
+              {t('pipeline.openspec.engine.versionBehindCycle', {
                 installed: cli.runtimeVersion ?? '?',
                 cycle: OPENSPEC_CYCLE_TARGET_VERSION,
               })}

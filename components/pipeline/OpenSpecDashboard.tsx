@@ -81,6 +81,7 @@ import type { OpenSpecChangeSummary, PipelineSnapshot } from './pipeline-view-st
 import {
   OPENSPEC_CYCLE_TARGET_VERSION,
   isInstalledAheadOfCycle,
+  isInstalledBehindCycle,
 } from '@/lib/openspec-version';
 import styles from './OpenSpecDashboard.module.css';
 
@@ -1569,6 +1570,7 @@ export function OpenSpecDashboard({
               const cliInstalled = effectiveEngineStatus?.cli?.installed;
               const runtimeVer = effectiveEngineStatus?.cli?.runtimeVersion ?? null;
               const isAhead = isInstalledAheadOfCycle(runtimeVer);
+              const isBehind = isInstalledBehindCycle(runtimeVer);
               const versionStr = cliInstalled
                 ? `OpenSpec v${runtimeVer ?? '?'}`
                 : t('pipeline.openspec.engine.status.absent');
@@ -1576,16 +1578,18 @@ export function OpenSpecDashboard({
                 ? (INTEGRATION_STATE_KEY_MAP[effectiveEngineStatus.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown')
                 : null;
               const stateStr = stateKey ? t(stateKey) : null;
-              const engineAttention = hasOpenSpecEngineAttention(effectiveEngineStatus) || isAhead;
-              const aheadNotice = isAhead
+              const engineAttention = hasOpenSpecEngineAttention(effectiveEngineStatus) || isAhead || isBehind;
+              const cycleNotice = isAhead
                 ? t('pipeline.openspec.engine.versionAheadOfCycle', { installed: runtimeVer ?? '?', cycle: OPENSPEC_CYCLE_TARGET_VERSION })
-                : null;
+                : isBehind
+                  ? t('pipeline.openspec.engine.versionBehindCycle', { installed: runtimeVer ?? '?', cycle: OPENSPEC_CYCLE_TARGET_VERSION })
+                  : null;
               const engineTitle = cliInstalled
                 ? [
                     versionStr,
                     t('pipeline.openspec.engine.cycleVersion', { version: OPENSPEC_CYCLE_TARGET_VERSION }),
                     stateStr,
-                    aheadNotice,
+                    cycleNotice,
                     engineAttention && attentionReasons.length > 0 ? attentionReasons.join(attentionReasonSeparator) : null,
                   ]
                     .filter(Boolean)

@@ -91,6 +91,27 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     integrationState: 'outdated',
   };
 
+  const dummyCliHealthy: OpenSpecEngineStatus['cli'] = {
+    installed: true,
+    runtimeVersion: '1.11.0',
+    provenance: 'global',
+    displayPath: 'C:\\global\\openspec.cmd',
+    supportedRange: { min: '1.5.0', max: '1.11.0' },
+    versionClass: 'supported',
+    evidenceStatus: 'confirmed',
+    diagnostics: [],
+  };
+
+  const dummyStatusHealthy: OpenSpecEngineStatus = {
+    cli: dummyCliHealthy,
+    latestAvailable: null,
+    globalConfig: null,
+    installedIntegration: null,
+    repoState: 'initialized',
+    integrationState: 'up-to-date',
+    divergence: { isDivergent: false, reason: null, overallStatus: 'convergent', globalProfileClass: 'core', repoProfileClass: 'core' },
+  };
+
   it('reserva el sidebar izquierdo exclusivamente para navegación y no incluye la tarjeta de motor', async () => {
     const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
     const checkLatestVersionMock = vi.fn().mockResolvedValue(null);
@@ -819,13 +840,8 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     expect(chipDivergent.getAttribute('title')).toMatch(/divergen/i);
     unmount3();
 
-    // Caso limpio: convergente y al día
-    const cleanStatus: OpenSpecEngineStatus = {
-      ...dummyStatusOutdated,
-      integrationState: 'up-to-date',
-      repoState: 'initialized',
-      divergence: { isDivergent: false, reason: null, overallStatus: 'convergent', globalProfileClass: 'core', repoProfileClass: 'core' },
-    };
+    // Caso limpio: convergente, al día y con motor alineado al ciclo
+    const cleanStatus: OpenSpecEngineStatus = dummyStatusHealthy;
     getStatusMock.mockResolvedValue(cleanStatus);
 
     const { unmount: unmount4 } = render(
@@ -841,9 +857,48 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
       />,
     );
 
-    const chipClean = await screen.findByRole('status', { name: /OpenSpec v1\.8\.0/i });
+    const chipClean = await screen.findByRole('status', { name: /OpenSpec v1\.11\.0/i });
     expect(chipClean.className).not.toMatch(/text-warning/);
     unmount4();
+
+    vi.unstubAllGlobals();
+  });
+
+  it('la franja superior enciende con advertencia y muestra el aviso cuando el motor está atrasado respecto al ciclo (isBehind / 5.2)', async () => {
+    const behindStatus: OpenSpecEngineStatus = {
+      ...dummyStatusHealthy,
+      cli: {
+        ...dummyCliHealthy,
+        runtimeVersion: '1.8.0',
+      },
+    };
+
+    const getStatusMock = vi.fn().mockResolvedValue(behindStatus);
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: getStatusMock,
+          checkLatestVersion: vi.fn().mockResolvedValue(null),
+        },
+      },
+    });
+
+    render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    const chipBehind = await screen.findByRole('status', { name: /OpenSpec v1\.8\.0/i });
+    expect(chipBehind.className).toMatch(/text-warning/);
+    expect(chipBehind.getAttribute('title')).toMatch(/anterior al ciclo declarado/i);
 
     vi.unstubAllGlobals();
   });

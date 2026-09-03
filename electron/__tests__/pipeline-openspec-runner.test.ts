@@ -100,6 +100,22 @@ describe('OpenSpec Runner y Wrappers: evidencia de runtime exacto con espacios y
     expect(res.ok).toBe(true);
   });
 
+  it('archiveOpenSpecChangeWithCli reintenta ante EPERM transitorio de Windows y tiene éxito al liberarse el bloqueo', async () => {
+    let attempts = 0;
+    execFileMock.mockImplementation((_cmd, _args, _opts, callback: (e: unknown, r: { stdout: string; stderr: string }) => void) => {
+      attempts++;
+      if (attempts === 1) {
+        callback(new Error('EPERM: operation not permitted, rename C:\\repo\\change -> C:\\repo\\.openspec-move-tmp'), { stdout: '', stderr: '' });
+      } else {
+        callback(null, { stdout: '', stderr: '' });
+      }
+    });
+
+    const res = await archiveOpenSpecChangeWithCli('C:/repo', 'mi-cambio', { runtime: runtimeWithSpaces });
+    expect(res.ok).toBe(true);
+    expect(attempts).toBe(2);
+  });
+
   it('validateOpenSpecChangeWithCli usa runtime.executablePath y argumentos exactos', async () => {
     execFileMock.mockImplementation((cmd, args, _opts, callback: (e: unknown, r: { stdout: string; stderr: string }) => void) => {
       expect(cmd).toBe(expectedExecCmd);

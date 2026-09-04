@@ -1,4 +1,9 @@
-## MODIFIED Requirements
+# sdd-body-layout Specification
+
+## Purpose
+TBD - created by archiving change remaquetar-cuerpo-de-sdd. Update Purpose after archive.
+
+## Requirements
 
 ### Requirement: La presentación SHALL declarar su jerarquía
 

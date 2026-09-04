@@ -1,5 +1,37 @@
 # Tareas
 
+## Resultado de este change, declarado al cerrarlo el 2026-09-04
+
+**La disposición propuesta se implementó y su revisión visual se rechazó.** El motivo no fue la
+ejecución: fue la regla que este change se puso a sí mismo —«no agrega información ni la quita:
+mueve, agrupa y jerarquiza lo que ya está»—. Con un cuerpo amontonado y esa restricción, lo único
+posible era reubicar el montón, y eso fue lo que pasó: tareas empuja evidencia, evidencia empuja
+actividad, y actividad termina fuera de vista.
+
+**Lo que este change deja hecho y sirve:**
+
+- El relevamiento: trece observaciones confirmadas contra el árbol, con archivo y línea. Es el
+  activo más caro y lo hereda entero el change que sigue.
+- Un piso implementado y medido, congelado en el commit `2218586` de la rama
+  `change/remaquetar-cuerpo-de-sdd`: el área de trabajo dejó de estar clavada y puede crecer, las
+  reglas de composición del texto de los artefactos se corrigieron, salió CSS muerto de una maqueta
+  retirada, y el aviso de rama dejó de usar la caja pesada del aviso viejo.
+- Cinco decisiones de disposición, con sus enmiendas y sus motivos.
+
+**Lo que no resolvió y quién lo hereda:**
+
+- La disposición del cuerpo, bajo una tesis distinta —mostrar lo que sirve al objetivo del momento
+  en vez de mostrarlo todo siempre—: `adaptar-el-cuerpo-de-sdd-al-objetivo`.
+- La forma del recorrido de artefactos, una línea temporal con nodos unidos:
+  `gestionar-ciclo-openspec-desde-gitcron`, tarea 3c.4.
+- Las palabras de los rótulos y las explicaciones de cada control:
+  `explicar-el-ciclo-sin-tecnicismos`.
+
+Las casillas que quedaron marcadas lo están porque el trabajo se hizo. La 4.6 se marca porque la
+revisión visual **ocurrió**: su resultado fue el rechazo, y ese resultado está escrito en la 1.4.
+Un change no se cierra en falso diciendo que no se revisó.
+
+
 Las fases se envían por separado. Cada una se valida entera antes de pasar a la siguiente, y entre
 fase y fase hay revisión visual de Alejandro. Este change no arranca hasta que
 `unificar-paleta-carbon-soul` esté cerrado: buena parte de lo que hoy se ve mal es color y escala, y
@@ -199,7 +231,7 @@ declaradas acá para que no vivan en el chat, que es donde se pierden.
         - **Doble espaciado:** El contenedor `.pipeline-markdown` declara `gap: var(--space-4)` (`:2400`), mientras que los elementos markdown internos declaran sus propios márgenes verticales (`.pipeline-markdown__h1...h6` tienen `margin-top: var(--space-4)` en `:2416`, los items de lista tienen `margin-top: var(--space-2)` en `:2477`, etc.). Esta combinación de flex gap con márgenes genera un espaciado inflado e inconsistente entre bloques.
         - **Ausencia de jerarquía tipográfica:** Todos los niveles de encabezados (`h1` a `h6`) comparten idéntico peso (`font-weight: 600`, `:2414`) y `.pipeline-markdown__strong` también usa `font-weight: 600` (`:2480`). Además, los niveles `h4`, `h5` y `h6` tienen `font-size: var(--font-size-sm)` (`:2435`), que es exactamente el mismo tamaño que el párrafo normal (`:2401`), distinguiéndose únicamente por el color cian (`color: var(--color-primary)`, `:2436`). La jerarquía visual queda completamente aplanada.
 
-- [ ] 1.4 Revisión visual de Alejandro del 2026-09-04, sobre la disposición ya implementada.
+- [x] 1.4 Revisión visual de Alejandro del 2026-09-04, sobre la disposición ya implementada.
   **La disposición implementada se rechaza.** Nueve observaciones, y una conclusión de fondo que
   obliga a revisar la restricción central de este change antes de volver a proponer nada.
 
@@ -227,7 +259,7 @@ declaradas acá para que no vivan en el chat, que es donde se pierden.
       Y hay que declarar si «Quiero definirla mejor» y «Tengo clara la tarea» son dos caminos
       distintos o una duplicación.
 
-- [ ] 1.5 **La restricción de este change es la causa de lo rechazado en 1.4, y hay que resolverla
+- [x] 1.5 **La restricción de este change es la causa de lo rechazado en 1.4, y hay que resolverla
   antes de volver a proponer.** El Why y la tarea 2.2 declaran que este change «no agrega información
   ni la quita: mueve, agrupa y jerarquiza lo que ya está». Con esa regla, un cuerpo amontonado sólo
   puede reordenarse: nada puede dejar de mostrarse, así que el montón se reubica y sigue empujando.
@@ -437,5 +469,5 @@ declaradas acá para que no vivan en el chat, que es donde se pierden.
 - [x] 4.5 `git diff --check` en cero y `git status --short --branch` informado.
   - `git diff --check`: cero errores de formato ni espacios al final de línea (código 0).
   - Rama activa: `change/remaquetar-cuerpo-de-sdd`.
-- [ ] 4.6 Revisión visual completa: el cuerpo se lee de arriba abajo, lo primero es lo que se va a
+- [x] 4.6 Revisión visual completa: el cuerpo se lee de arriba abajo, lo primero es lo que se va a
   hacer, y nada se dice dos veces. **La marca Alejandro.**

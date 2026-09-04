@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Check, Circle, Lock, Play } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import type { OpenSpecArtifactState, OpenSpecChangeStatus } from '@/types/pipeline';
 
@@ -44,11 +45,21 @@ export function PipelineArtifactGraph({ status }: { status: OpenSpecChangeStatus
       {status.artifacts.map((artifact) => {
         const labelKey = ARTIFACT_LABEL_KEY[artifact.id];
         const artifactLabel = labelKey ? t(labelKey) : artifact.id;
+        const stateText = t(STATE_LABEL_KEY[artifact.state] ?? 'pipeline.openspec.graph.state.unknown');
         return (
           <li key={artifact.id} data-state={artifact.state}>
             <span className="pipeline-artifact-graph__id">{artifactLabel}</span>
-            <span className="pipeline-artifact-graph__state">
-              {t(STATE_LABEL_KEY[artifact.state] ?? 'pipeline.openspec.graph.state.unknown')}
+            <span className="pipeline-artifact-graph__state" title={stateText}>
+              <span className="pipeline-artifact-graph__sr-text">{stateText}</span>
+              {artifact.state === 'done' ? (
+                <Check size={13} aria-hidden="true" />
+              ) : artifact.state === 'ready' ? (
+                <Play size={11} aria-hidden="true" />
+              ) : artifact.state === 'blocked' ? (
+                <Lock size={12} aria-hidden="true" />
+              ) : (
+                <Circle size={10} aria-hidden="true" />
+              )}
             </span>
             {artifact.state === 'blocked' && artifact.missingDeps.length > 0 && (
               <span className="pipeline-artifact-graph__deps">

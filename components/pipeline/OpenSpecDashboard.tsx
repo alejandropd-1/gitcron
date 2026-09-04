@@ -276,6 +276,8 @@ export function OpenSpecDashboard({
   };
   const [centerTab, setCenterTab] = useState<CenterTab>('work');
   const [evidenceTab, setEvidenceTab] = useState<DetailTab>('proposal');
+  const [glossaryOpen, setGlossaryOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   /**
    * Cambios desplegados. Sin entrada, un cambio va plegado.
    *
@@ -2160,96 +2162,89 @@ export function OpenSpecDashboard({
                 data-revalidating={revalidating || undefined}
                 aria-busy={revalidating || undefined}
               >
-                <div className={styles.changeTitle}>
-                  {/* Volver al estado del repositorio: sin esto, entrar a un
-                      cambio era un viaje de ida y la pantalla de entrada sólo se
-                      vería al abrir el panel. */}
-                  <button type="button" className={styles.backToStart} onClick={() => setSelection(null)}>
-                    <ChevronLeft size={12} /> {t('pipeline.openspec.start.back')}
+                {/* Fila 1: Navegación, Identidad del cambio y Glosario */}
+                <div className={styles.headerRow1}>
+                  <div className={styles.headerIdentity}>
+                    <button type="button" className={styles.backToStart} onClick={() => setSelection(null)}>
+                      <ChevronLeft size={12} /> {t('pipeline.openspec.start.back')}
+                    </button>
+                    <h3>
+                      {t('pipeline.openspec.change.active')}: <strong>{selectedChange.changeId}</strong>
+                      <ChangeTimestampLabel labelKey="pipeline.openspec.stamp.created" stamp={selectedChange.createdAt} />
+                    </h3>
+                    <ChangeBranchNotice branch={currentBranch} changeId={selectedChange.changeId} />
+                  </div>
+
+                  <button
+                    type="button"
+                    className={styles.glossaryToggleBtn}
+                    onClick={() => setGlossaryOpen((prev) => !prev)}
+                    title={t('pipeline.details.glossary')}
+                  >
+                    <span>?</span>
+                    <span>{t('pipeline.details.glossary')}</span>
                   </button>
-                  <h3>
-                    {t('pipeline.openspec.change.active')}: <strong>{selectedChange.changeId}</strong>
-                    {/* Junto al título: la antigüedad es lo primero que se
-                        quiere saber al mirar un cambio, y hasta ahora obligaba
-                        a salir a Git. */}
-                    <ChangeTimestampLabel labelKey="pipeline.openspec.stamp.created" stamp={selectedChange.createdAt} />
-                  </h3>
-                  {/* El recorte visual es de tres líneas; el texto completo queda
-                      accesible acá y sin recortar en el panel izquierdo. */}
-                  <p title={selectedChange.intent ?? undefined}>
-                    <span>{t('pipeline.openspec.intent')}:</span> {selectedChange.intent ?? t('pipeline.openspec.intentUnknown')}
-                  </p>
+                </div>
+
+                {/* Fila 2: Acción Principal Dominante (Siguiente Paso) y Acciones Accesorias */}
+                <div className={styles.headerRow2}>
+                  <div className={styles.headerMainAction}>
+                    <div className={cn(styles.headerMainActionRow, styles.centerBlock)}>
+                      <h4 className={styles.blockHeader} style={{ margin: 0, padding: 0, border: 'none', background: 'transparent' }}>
+                        <ArrowRight size={13} aria-hidden="true" />
+                        <span>{t('pipeline.openspec.nextStep.title')}</span>
+                      </h4>
+                      {primaryAction && (
+                        <button
+                          type="button"
+                          className={styles.primaryAction}
+                          disabled={fixtureActive && primaryAction.executable}
+                          title={t(nextAction.helpKey, nextAction.helpParams)}
+                          onClick={() => handleIntent(primaryAction.intent)}
+                        >
+                          {primaryAction.executable ? <Play size={14} /> : <Activity size={14} />}
+                          {t(primaryAction.labelKey, primaryAction.labelParams)}
+                        </button>
+                      )}
+                      <p className={styles.nextStepInline}>{t(nextAction.helpKey, nextAction.helpParams)}</p>
+                    </div>
+                    <span className={styles.actionMicroCopy}>
+                      [declaración inline de la operación disparada sobre el repo]
+                    </span>
+                  </div>
+
+                  <div className={styles.headerAccessoryActions}>
+                    {secondaryAction && (
+                      <button
+                        type="button"
+                        className={styles.secondaryAction}
+                        disabled={fixtureActive && secondaryAction.executable}
+                        onClick={() => handleIntent(secondaryAction.intent)}
+                      >
+                        {secondaryAction.intent.kind === 'pause-after-task' && <Pause size={14} />}
+                        {t(secondaryAction.labelKey, secondaryAction.labelParams)}
+                      </button>
+                    )}
+                    {selectedArchive === null && primaryAction?.intent.kind !== 'start-archive' && (
+                      <button
+                        type="button"
+                        className={styles.secondaryAction}
+                        disabled={!archive.available || fixtureActive}
+                        title={archive.reasonKey ? t(archive.reasonKey) : t('pipeline.openspec.archive.help')}
+                        onClick={() => handleIntent({ kind: 'start-archive', changeId: selectedChange.changeId })}
+                      >
+                        <FolderOpen size={14} />
+                        {archive.pendingTasks > 0
+                          ? t('pipeline.openspec.archive.actionPending', { count: archive.pendingTasks })
+                          : t('pipeline.openspec.archive.action')}
+                      </button>
+                    )}
+                    <button type="button" className={styles.secondaryAction} disabled={!hasDiffEvidence(snapshot)} onClick={() => handleIntent({ kind: 'view-diff' })}>
+                      <Code2 size={14} /> {t('pipeline.openspec.actions.diff')}
+                    </button>
+                  </div>
                 </div>
               </header>
-
-              {/* Las acciones comparten fila con las pestañas: es el punto más
-                  alto y estable del panel, así el CTA no se va con el scroll de
-                  la lista de tareas. */}
-              <div className={styles.tabsRow}>
-                <div className={styles.tabs} role="tablist" aria-label={t('pipeline.openspec.tabs.label')}>
-                  <button type="button" role="tab" aria-selected={centerTab === 'work'} onClick={() => setCenterTab('work')}>{t('pipeline.openspec.tabs.work')}</button>
-                  {/* Sin pestaña de commit: el commit es del repositorio, no del
-                      cambio, y su preparación vive en el encabezado. Sostener las
-                      dos superficies daría dos caminos a la misma acción con
-                      alcances distintos. */}
-                  <button type="button" role="tab" aria-selected={centerTab === 'activity'} onClick={() => setCenterTab('activity')}>{t('pipeline.openspec.tabs.activity')}</button>
-                  <button type="button" role="tab" aria-selected={centerTab === 'artifacts'} onClick={() => setCenterTab('artifacts')}>{t('pipeline.openspec.tabs.artifacts')}</button>
-                </div>
-                <div className={styles.actions}>
-                  {primaryAction && (
-                    <button
-                      type="button"
-                      className={styles.primaryAction}
-                      disabled={fixtureActive && primaryAction.executable}
-                      title={t(nextAction.helpKey, nextAction.helpParams)}
-                      onClick={() => handleIntent(primaryAction.intent)}
-                    >
-                      {primaryAction.executable ? <Play size={14} /> : <Activity size={14} />}
-                      {t(primaryAction.labelKey, primaryAction.labelParams)}
-                    </button>
-                  )}
-                  {secondaryAction && (
-                    <button
-                      type="button"
-                      className={styles.secondaryAction}
-                      disabled={fixtureActive && secondaryAction.executable}
-                      onClick={() => handleIntent(secondaryAction.intent)}
-                    >
-                      {secondaryAction.intent.kind === 'pause-after-task' && <Pause size={14} />}
-                      {t(secondaryAction.labelKey, secondaryAction.labelParams)}
-                    </button>
-                  )}
-                  {/* Archivar siempre está a la vista mientras el cambio no esté
-                      archivado: si no se puede, se dice por qué en vez de
-                      desaparecer. Con tareas pendientes se declara cuántas, para
-                      que archivar no sea una decisión tomada a ciegas.
-
-                      Excepción: cuando la acción primaria derivada ya es archivar
-                      (validación aprobada y sin tareas pendientes), este botón no
-                      se renderiza. Renderizarlo duplicaría el control con el mismo
-                      texto y el mismo efecto, lo que la guía prohíbe. En los demás
-                      estados sí aporta: con tareas pendientes ofrece archivar
-                      declarando cuántas, y con validación no aprobada muestra el
-                      motivo por el que no se puede. */}
-                  {selectedArchive === null && primaryAction?.intent.kind !== 'start-archive' && (
-                    <button
-                      type="button"
-                      className={styles.secondaryAction}
-                      disabled={!archive.available || fixtureActive}
-                      title={archive.reasonKey ? t(archive.reasonKey) : t('pipeline.openspec.archive.help')}
-                      onClick={() => handleIntent({ kind: 'start-archive', changeId: selectedChange.changeId })}
-                    >
-                      <FolderOpen size={14} />
-                      {archive.pendingTasks > 0
-                        ? t('pipeline.openspec.archive.actionPending', { count: archive.pendingTasks })
-                        : t('pipeline.openspec.archive.action')}
-                    </button>
-                  )}
-                  <button type="button" className={styles.secondaryAction} disabled={!hasDiffEvidence(snapshot)} onClick={() => handleIntent({ kind: 'view-diff' })}>
-                    <Code2 size={14} /> {t('pipeline.openspec.actions.diff')}
-                  </button>
-                </div>
-              </div>
 
               {/* Pegada a la fila de acciones y FUERA del área con scroll.
                   Adentro, pedir el archivado con la lista de tareas desplazada
@@ -2338,18 +2333,7 @@ export function OpenSpecDashboard({
                 <p className={styles.archiveError} role="alert">{taskError}</p>
               )}
 
-              {centerTab === 'work' ? (
                 <div className={styles.workArea}>
-                  {selectedChange && (
-                    <ChangeBranchNotice branch={currentBranch} changeId={selectedChange.changeId} />
-                  )}
-                  <div className={styles.centerBlock}>
-                    <h4 className={styles.blockHeader}>
-                      <ArrowRight size={13} aria-hidden="true" />
-                      <span>{t('pipeline.openspec.nextStep.title')}</span>
-                    </h4>
-                    <p className={styles.nextStepInline}>{t(nextAction.helpKey, nextAction.helpParams)}</p>
-                  </div>
                   {/* El lanzador aparece arriba, junto al botón que lo abrió, y no
                       al final de una lista que puede requerir scroll. */}
                   {launchTarget && (
@@ -2375,6 +2359,8 @@ export function OpenSpecDashboard({
                       />
                     </div>
                   )}
+
+                  {/* Sección A: Lista de tareas */}
                   <div className={styles.centerBlock}>
                     <h4 className={styles.blockHeader}>
                       <ListChecks size={13} aria-hidden="true" />
@@ -2411,40 +2397,42 @@ export function OpenSpecDashboard({
                             <span>{resolveTaskText(task)}</span>
                             {current && runtimeActive && <em>{t('pipeline.openspec.task.running')}</em>}
                             {current && (
-                              <div className={styles.taskDetail}>
-                                <dl>
-                                  <div>
-                                    <span className={styles.taskDetailIcon} aria-hidden="true"><User size={13} /></span>
-                                    <dt>{t('pipeline.openspec.task.agent')}</dt>
-                                    <dd>{changeSession ? runningName : t('pipeline.openspec.task.noSession')}</dd>
-                                  </div>
-                                  <div>
-                                    <span className={styles.taskDetailIcon} aria-hidden="true"><FileText size={13} /></span>
-                                    <dt>{t('pipeline.openspec.task.source')}</dt>
-                                    <dd>{task.sourceRef}</dd>
-                                  </div>
-                                  <div>
-                                    {/* Lo que se mide es `git diff --numstat HEAD` al cerrar la
-                                        sesión, no lo que escribió esta tarea. El rótulo dice eso:
-                                        atribuir el delta a la tarea exigiría snapshots de
-                                        contenido por tarea, que hoy no se capturan. */}
-                                    <span className={styles.taskDetailIcon} aria-hidden="true"><GitCompare size={13} /></span>
-                                    <dt>{t('pipeline.openspec.task.workingTree')}</dt>
-                                    <dd>{gitDelta
-                                      ? t('pipeline.openspec.task.workingTreeValue', {
-                                        files: gitDelta.files,
-                                        additions: gitDelta.additions === 'unknown' ? '—' : gitDelta.additions,
-                                        deletions: gitDelta.deletions === 'unknown' ? '—' : gitDelta.deletions,
-                                      })
-                                      : t('pipeline.openspec.task.notReported')}</dd>
-                                  </div>
-                                  <div>
-                                    <span className={styles.taskDetailIcon} aria-hidden="true"><Activity size={13} /></span>
-                                    <dt>{t('pipeline.openspec.task.lastActivity')}</dt>
-                                    <dd>{lastObservedActivity ?? t('pipeline.openspec.task.notReported')}</dd>
-                                  </div>
-                                </dl>
-                              </div>
+                              changeSession ? (
+                                <div className={styles.taskDetail}>
+                                  <dl>
+                                    <div>
+                                      <span className={styles.taskDetailIcon} aria-hidden="true"><User size={13} /></span>
+                                      <dt>{t('pipeline.openspec.task.agent')}</dt>
+                                      <dd>{runningName}</dd>
+                                    </div>
+                                    <div>
+                                      <span className={styles.taskDetailIcon} aria-hidden="true"><FileText size={13} /></span>
+                                      <dt>{t('pipeline.openspec.task.source')}</dt>
+                                      <dd>{task.sourceRef}</dd>
+                                    </div>
+                                    <div>
+                                      <span className={styles.taskDetailIcon} aria-hidden="true"><GitCompare size={13} /></span>
+                                      <dt>{t('pipeline.openspec.task.workingTree')}</dt>
+                                      <dd>{gitDelta
+                                        ? t('pipeline.openspec.task.workingTreeValue', {
+                                          files: gitDelta.files,
+                                          additions: gitDelta.additions === 'unknown' ? '—' : gitDelta.additions,
+                                          deletions: gitDelta.deletions === 'unknown' ? '—' : gitDelta.deletions,
+                                        })
+                                        : t('pipeline.openspec.task.notReported')}</dd>
+                                    </div>
+                                    <div>
+                                      <span className={styles.taskDetailIcon} aria-hidden="true"><Activity size={13} /></span>
+                                      <dt>{t('pipeline.openspec.task.lastActivity')}</dt>
+                                      <dd>{lastObservedActivity ?? t('pipeline.openspec.task.notReported')}</dd>
+                                    </div>
+                                  </dl>
+                                </div>
+                              ) : (
+                                <p className={styles.taskNoSession}>
+                                  {t('pipeline.openspec.task.noSession')}
+                                </p>
+                              )
                             )}
                           </li>
                         );
@@ -2452,38 +2440,70 @@ export function OpenSpecDashboard({
                       {selectedChange.tasks.length === 0 && <li className={styles.taskEmpty}>{t('pipeline.openspec.tasks.empty')}</li>}
                     </ol>
                   </div>
+
+                  {/* Sección B: Recorrido e Inspección de Artefactos (Decisión d, Enmienda 1.2 b) */}
+                  <div className={cn(styles.centerBlock, styles.evidencePanel)}>
+                    <h4 className={styles.blockHeader}>
+                      <FileSearch size={13} aria-hidden="true" />
+                      <span>{t('pipeline.openspec.evidence.title')}</span>
+                    </h4>
+                    <PipelineDetails
+                      snapshot={snapshot}
+                      repoPath={repoPath}
+                      selectedChange={selectedChange}
+                      tab={evidenceTab}
+                      onTabChange={setEvidenceTab}
+                    />
+                  </div>
+
+                  {/* Bloque III: Actividad Subordinada y Bajo Demanda */}
+                  <details
+                    className={cn(styles.centerBlock, styles.fullActivity)}
+                    open={activityOpen}
+                    onToggle={(e) => setActivityOpen(e.currentTarget.open)}
+                  >
+                    <summary className={styles.centerBlock} style={{ cursor: 'pointer', listStyle: 'none' }}>
+                      <h4 className={styles.blockHeader}>
+                        <Activity size={13} aria-hidden="true" style={{ display: 'inline', verticalAlign: 'middle', marginRight: 'var(--space-2)' }} />
+                        <span>{t('pipeline.activity.title')}</span>
+                        {visibleActivity.length > 0 && <span style={{ marginLeft: 'var(--space-2)', opacity: 0.6 }}>({visibleActivity.length})</span>}
+                      </h4>
+                    </summary>
+                    {activityOpen && (
+                      <div style={{ marginTop: 'var(--space-3)' }}>
+                        <ActivityFeed
+                          entries={visibleActivity}
+                          reasoningAvailable={selectedReasoningAvailable}
+                          runtimeAttached={selectedSession !== null || projection !== null}
+                          agentRuntimes={Object.fromEntries(snapshot.agents.map((agent) => [agent.agentId, agent.runtime]))}
+                        />
+                      </div>
+                    )}
+                  </details>
                 </div>
-              ) : centerTab === 'artifacts' ? (
-                /* Los artefactos del cambio seleccionado tienen su propia pestaña,
-                   al lado de Trabajo y Actividad: antes colgaban al final del panel
-                   de Trabajo, lo que hacía la lectura incómoda. */
-                <div className={cn(styles.centerBlock, styles.evidencePanel)}>
-                  <h4 className={styles.blockHeader}>
-                    <FileSearch size={13} aria-hidden="true" />
-                    <span>{t('pipeline.openspec.evidence.title')}</span>
-                  </h4>
-                  <PipelineDetails
-                    snapshot={snapshot}
-                    repoPath={repoPath}
-                    selectedChange={selectedChange}
-                    tab={evidenceTab}
-                    onTabChange={setEvidenceTab}
-                  />
-                </div>
-              ) : (
-                <div className={cn(styles.centerBlock, styles.fullActivity)}>
-                  <h4 className={styles.blockHeader}>
-                    <Activity size={13} aria-hidden="true" />
-                    <span>{t('pipeline.activity.title')}</span>
-                  </h4>
-                  <ActivityFeed
-                    entries={visibleActivity}
-                    reasoningAvailable={selectedReasoningAvailable}
-                    runtimeAttached={selectedSession !== null || projection !== null}
-                    agentRuntimes={Object.fromEntries(snapshot.agents.map((agent) => [agent.agentId, agent.runtime]))}
-                  />
-                </div>
-              )}
+
+                {/* Drawer contextual de glosario al paso (Decisión e) */}
+                {glossaryOpen && (
+                  <aside className={styles.glossaryDrawer} aria-label={t('pipeline.details.glossary')}>
+                    <div className={styles.glossaryDrawerHeader}>
+                      <h4>{t('pipeline.details.glossary')}</h4>
+                      <button
+                        type="button"
+                        className={styles.glossaryDrawerClose}
+                        onClick={() => setGlossaryOpen(false)}
+                        aria-label="Cerrar glosario"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className={styles.glossaryDrawerBody}>
+                      <p>{t('pipeline.details.noGlossary')}</p>
+                      <p style={{ marginTop: 'var(--space-3)', opacity: 0.6 }}>
+                        [marcador de posición: consulta contextual de términos del método]
+                      </p>
+                    </div>
+                  </aside>
+                )}
             </>
           ) : selectedArchive ? (
             <section className={styles.completedSummary}>

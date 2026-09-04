@@ -172,8 +172,8 @@ describe('el panel, con un cambio abierto', () => {
     expect(screen.getByText(/change\/declare-change-branch/)).toBeTruthy();
     expect(screen.queryByRole('region', { name: /notices\.title/ })).toBeNull();
 
-    // No bloquea: el cambio abierto sigue siendo trabajable.
-    expect(screen.getByRole('tab', { name: /openspec\.tabs\.work/ })).toBeTruthy();
+    // No bloquea: el cambio abierto sigue siendo trabajable (superficie soberana con tareas).
+    expect(screen.getByRole('list')).toBeTruthy();
     expect(screen.getAllByText('declare-change-branch').length).toBeGreaterThan(0);
   });
 

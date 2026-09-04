@@ -24,17 +24,22 @@ describe('Pipeline details', () => {
     expect(withoutAgent?.taskId).toBeNull();
   });
 
-  it('la pestaña activa de detalles no tiene declaraciones duplicadas ni botón cian pleno en globals.css', () => {
+  it('la pestaña activa de detalles se aloja en OpenSpecDashboard.module.css y no en globals.css', () => {
     const fs = require('node:fs');
     const path = require('node:path');
-    const cssPath = path.resolve(process.cwd(), 'app/globals.css');
-    const content = fs.readFileSync(cssPath, 'utf-8');
+    const globalsPath = path.resolve(process.cwd(), 'app/globals.css');
+    const globalsContent = fs.readFileSync(globalsPath, 'utf-8');
+    const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+    const moduleContent = fs.readFileSync(modulePath, 'utf-8');
 
-    // Comprueba que .pipeline-details__tab--active no esté declarado más de una vez
-    const matches = content.match(/\.pipeline-details__tab--active\s*\{/g);
+    // Comprueba que ya no esté en globals.css (mudado a la hoja de la vista)
+    expect(globalsContent).not.toMatch(/\.pipeline-details__tab--active\s*\{/);
+
+    // Comprueba que en el module CSS esté declarado exactamente una vez (usando :global para encapsulación)
+    const matches = moduleContent.match(/(?::global\()?\s*\.pipeline-details__tab--active\s*\)?\s*\{/g);
     expect(matches?.length).toBe(1);
 
     // Comprueba que no tenga la regla contradictoria agresiva con fondo cian pleno
-    expect(content).not.toMatch(/\.pipeline-details__tab--active\s*\{[^}]*background-color:\s*var\(--color-primary\)/);
+    expect(moduleContent).not.toMatch(/\.pipeline-details__tab--active[^{]*\{[^}]*background-color:\s*var\(--color-primary\)/);
   });
 });

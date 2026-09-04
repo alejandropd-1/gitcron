@@ -41,8 +41,8 @@ export function ChangeBranchNotice({ branch, changeId }: ChangeBranchNoticeProps
   if (state === null || state.matches) return null;
 
   return (
-    <section className={styles.readiness} data-kind="branch">
-      <GitBranch size={15} aria-hidden="true" />
+    <section className={styles.branchNoticeBadge} data-kind="branch">
+      <GitBranch size={13} aria-hidden="true" />
       <p>
         <strong>{t('pipeline.openspec.branch.mismatchTitle', { branch: state.actual })}</strong>
         {' '}

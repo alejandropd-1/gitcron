@@ -548,15 +548,11 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     const launcherHeading = await screen.findByRole('heading', { name: /Lanzar agente/i, level: 4 });
     expect(launcherHeading).toBeTruthy();
 
-    // 4. Evidencia (pestaña Artefactos)
-    const artifactsTab = screen.getByRole('tab', { name: /Artefactos/i });
-    fireEvent.click(artifactsTab);
+    // 4. Evidencia (presente directamente en la superficie soberana)
     const evidenceHeading = await screen.findByRole('heading', { name: /Evidencia/i, level: 4 });
     expect(evidenceHeading).toBeTruthy();
 
-    // 4b. Actividad (pestaña Actividad)
-    const activityTab = screen.getByRole('tab', { name: /Actividad/i });
-    fireEvent.click(activityTab);
+    // 4b. Actividad (presente en el bloque subordinado colapsable)
     const activityHeading = await screen.findByRole('heading', { name: /Actividad/i, level: 4 });
     expect(activityHeading).toBeTruthy();
 

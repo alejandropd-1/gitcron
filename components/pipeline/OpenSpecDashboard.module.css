@@ -335,47 +335,115 @@
    con ella: sostenía dos filas de etapas que ya no están, y conservarlo dejaría
    un hueco que pide llenarse con algo. */
 .changeHeader {
-  display: grid;
-  align-items: center;
-  gap: var(--space-5);
-  /* `flex: 0 0 auto` no es decorativo: sin él este bloque es un item flexible
-     dentro de un contenedor con `overflow: hidden`, se comprime hasta el
-     `min-height` y un intent largo se derrama por encima de las pestañas. */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   flex: 0 0 auto;
-  min-height: 5.4rem;
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-bg-base);
 }
 
-.changeTitle h3 { margin: 0 0 var(--space-3); color: var(--color-text-primary); font-weight: 650; font-size: var(--font-size-sm); font-family: var(--font-mono), ui-monospace, monospace; letter-spacing: 0.04em; }
-.changeTitle h3 strong { color: var(--color-text-primary); }
-/* El intent sale del primer párrafo de `proposal.md` y puede ser largo. Se
-   recorta a tres líneas para que el encabezado no se coma el área de trabajo;
-   el texto completo queda en el `title` y en el panel izquierdo. */
-.changeTitle p {
-  display: -webkit-box;
-  overflow: hidden;
+.headerRow1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.headerIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.headerIdentity h3 {
   margin: 0;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs); line-height: 1.45; font-family: var(--font-mono), ui-monospace, monospace;
+  color: var(--color-text-primary);
+  font-weight: 650;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
-.changeTitle p span { color: var(--color-text-primary); }
 
+.headerIdentity h3 strong {
+  color: var(--color-text-primary);
+}
 
-/* Pestañas a la izquierda y acciones a la derecha, en la misma fila: el CTA
-   queda en el punto más alto y estable del panel, fuera del scroll. */
+.headerRow2 {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.headerMainAction {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.headerMainActionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.actionMicroCopy {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+.headerAccessoryActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.headerAccessoryActions button {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+}
+
+.glossaryToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--color-border-subtle) 60%, transparent);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.glossaryToggleBtn:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.changeTitle h3 { margin: 0; color: var(--color-text-primary); font-weight: 650; font-size: var(--font-size-sm); font-family: var(--font-mono), ui-monospace, monospace; letter-spacing: 0.04em; }
+.changeTitle h3 strong { color: var(--color-text-primary); }
+
 .tabsRow {
   display: flex;
-  /* Mismo motivo que en `.changeHeader`: sin esto la barra se comprime y las
-     pestañas terminan solapadas con el contenido. */
   flex: 0 0 auto;
-  /* Las acciones bajan a su propia línea antes que pisar las pestañas. Con los
-     dos paneles laterales abiertos, pestañas + cuatro acciones no entran en un
-     renglón: sin esto, `.tabs` se encogía por debajo de su contenido y sus
-     botones desbordaban su caja, quedando pintados debajo de las acciones. El
-     texto se veía duplicado y el click aterrizaba en la pestaña de abajo en vez
-     del botón de arriba. */
   flex-wrap: wrap;
   align-items: end;
   justify-content: space-between;
@@ -386,16 +454,12 @@
 .tabs {
   display: flex;
   gap: var(--space-6);
-  /* No se encoge por debajo de su contenido: es lo que producía el solape. */
   flex: 0 0 auto;
   height: 3.2rem;
   align-items: end;
   padding: 0 var(--space-5);
 }
 
-/* En esta fila las acciones son compactas: compiten en altura con las pestañas,
-   no con el contenido. Ocupan el resto del renglón y se alinean a la derecha;
-   cuando no entran, el renglón envuelve y quedan en su propia línea. */
 .tabsRow .actions { flex: 1 1 auto; justify-content: flex-end; margin: 0 0 var(--space-2); }
 .tabsRow .actions button { min-height: 2.75rem; min-width: 2.75rem; padding: var(--space-2) var(--space-4); }
 
@@ -412,7 +476,16 @@
 .tabs button[aria-selected='true'] { color: var(--color-primary); }
 .tabs button[aria-selected='true']::after { position: absolute; right: 0; bottom: 0; left: 0; height: 2px; background: var(--color-primary); content: ''; }
 
-.workArea,
+.workArea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--space-4) var(--space-5);
+  overflow-y: auto;
+}
+
 .fullActivity {
   flex: 0 0 auto;
   padding: var(--space-4) var(--space-5);
@@ -1548,6 +1621,11 @@
   margin-bottom: var(--space-4);
 }
 
+.headerMainActionRow.centerBlock,
+summary.centerBlock {
+  margin-bottom: 0;
+}
+
 .blockHeader {
   display: flex;
   align-items: center;
@@ -2543,4 +2621,241 @@
 .reviewPrimaryActionBtn:hover {
   background: var(--color-primary);
   color: var(--color-bg-base);
+}
+
+/* ==========================================================================
+   PANEL DE EVIDENCIA Y GRAFO DE ARTEFACTOS (Tareas 2.4 y 2.6)
+   Mudados desde globals.css a la hoja de la vista.
+   ========================================================================== */
+
+.openspecScope :global(.pipeline-details) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-surface);
+}
+
+.openspecScope :global(.pipeline-details__header) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.openspecScope :global(.pipeline-details__title) {
+  font-size: var(--font-size-base);
+  font-weight: 650;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+/* Solapas de artefactos integradas con borde inferior continuo (Observación 6) */
+.openspecScope :global(.pipeline-details__tabs) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: 0;
+}
+
+.openspecScope :global(.pipeline-details__tab) {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.openspecScope :global(.pipeline-details__tab:hover) {
+  color: var(--color-text-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+.openspecScope :global(.pipeline-details__tab--active) {
+  background-color: transparent;
+  color: var(--color-primary);
+  border-bottom: 2px solid var(--color-primary);
+  font-weight: 650;
+}
+
+.openspecScope :global(.pipeline-details__empty) {
+  padding: var(--space-5) 0;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Grafo de artefactos (Observación 7) */
+.openspecScope :global(.pipeline-artifact-graph) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.openspecScope :global(.pipeline-artifact-graph li) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-overlay);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.openspecScope :global(.pipeline-artifact-graph__id) {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+.openspecScope :global(.pipeline-artifact-graph__state) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+}
+
+.openspecScope :global(.pipeline-artifact-graph__sr-text) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.openspecScope :global(.pipeline-artifact-graph__deps) {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  opacity: 0.8;
+}
+
+.openspecScope :global(.pipeline-artifact-graph li[data-state='done']) {
+  border-color: color-mix(in srgb, var(--color-git-add) 55%, transparent);
+  background: color-mix(in srgb, var(--color-git-add) 18%, transparent);
+}
+.openspecScope :global(.pipeline-artifact-graph li[data-state='done'] .pipeline-artifact-graph__state) { color: var(--color-git-add); }
+
+.openspecScope :global(.pipeline-artifact-graph li[data-state='ready']) {
+  border-color: color-mix(in srgb, var(--color-primary) 50%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+.openspecScope :global(.pipeline-artifact-graph li[data-state='ready'] .pipeline-artifact-graph__state) { color: var(--color-primary); }
+
+.openspecScope :global(.pipeline-artifact-graph li[data-state='blocked']) {
+  border-color: color-mix(in srgb, var(--color-warning) 50%, transparent);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+}
+.openspecScope :global(.pipeline-artifact-graph li[data-state='blocked'] .pipeline-artifact-graph__state) { color: var(--color-warning); }
+
+/* Badge de aviso de rama compacto (Observación 2) */
+.branchNoticeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  color: var(--color-warning);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+.branchNoticeBadge > svg { flex: 0 0 auto; }
+.branchNoticeBadge > p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-xs); }
+.branchNoticeBadge > p > strong { color: var(--color-warning); font-weight: 600; }
+
+/* Sin sesión registrada para la tarea (Observación 5) */
+.taskNoSession {
+  grid-column: 1 / -1;
+  margin: var(--space-2) var(--space-1) 0 var(--space-8);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-style: italic;
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+/* Drawer contextual de glosario (Decisión e) */
+.glossaryDrawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 22rem;
+  max-width: 100%;
+  background: var(--color-bg-surface);
+  border-left: 1px solid var(--color-border-subtle);
+  box-shadow: -4px 0 16px color-mix(in srgb, var(--color-bg-base) 75%, transparent);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.glossaryDrawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.glossaryDrawerHeader h4 {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+.glossaryDrawerClose {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--space-1);
+  display: grid;
+  place-items: center;
+}
+
+.glossaryDrawerClose:hover {
+  color: var(--color-text-primary);
+}
+
+.glossaryDrawerBody {
+  padding: var(--space-4);
+  overflow-y: auto;
+  flex: 1 1 auto;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+/* Modal / panel enfocado para nuevo cambio sin empujar lista (Observación 9) */
+.startNewChangeModal {
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  padding: var(--space-4);
 }

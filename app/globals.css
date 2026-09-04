@@ -765,17 +765,8 @@ body, .font-sans {
    panel de cifras acotadas nunca lleva `scrolls`, así que se ve entero siempre.
    Ésa es la diferencia entre "esta lista sigue" y "te corté los datos".
 */
-.pipeline-card[data-scrolls] .pipeline-card__body {
-  max-height: 26rem;
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-
-/* La bitácora abarca dos filas: merece más aire, es el relato. */
-.pipeline-card[style*="activity"] .pipeline-card__body {
-  max-height: none;
-  min-height: 14rem;
-}
+/* RETIRADO (Observación 8): .pipeline-card[data-scrolls] y .pipeline-card[style*="activity"]
+   Eran CSS muerto de una maqueta retirada con cero apariciones en el repositorio. */
 
 /* Tono: tiñe la espina entera, que es la pieza que se ve de reojo. Refuerza,
    nunca reemplaza al texto que ya dice qué pasa. */
@@ -2258,163 +2249,33 @@ body, .font-sans {
   color: var(--color-text-primary);
 }
 
-/* ─── TANDA 4: Detalle, Diffs, Auditoría y Gates ─── */
+/* ─── TANDA 4: Detalle, Diffs, Auditoría y Gates ───
+   (Las reglas de .pipeline-details y .pipeline-artifact-graph se mudaron
+    a OpenSpecDashboard.module.css según la tarea 2.6 del change remaquetar-cuerpo-de-sdd) */
 
-.pipeline-details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  background-color: var(--color-bg-surface);
-}
-
-.pipeline-details__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--color-border-subtle);
-}
-
-.pipeline-details__title {
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
-.pipeline-details__tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.pipeline-details__tab {
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--font-size-xs);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-bg-overlay);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-
-.pipeline-details__tab:hover {
-  color: var(--color-text-primary);
-  border-color: var(--color-border-subtle);
-}
-
-.pipeline-details__tab--active {
-  background-color: var(--color-bg-surface);
-  color: var(--color-text-primary);
-  border-color: var(--color-primary);
-  font-weight: 500;
-}
-
-.pipeline-details__empty {
-  padding: var(--space-5) 0;
-  text-align: center;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-/* Grafo de artefactos de OpenSpec: el estado real que devuelve el CLI para el
-   cambio seleccionado. Vive arriba del contenido, declarando de qué estado es
-   cada artefacto antes de leerlo. Denso, sin texto explicativo: un id, un
-   estado y, si bloquea, qué le falta. Los tokens son los de la barra de fases
-   (verde hecho, cian habilitado, ámbar bloqueado). */
-.pipeline-artifact-graph {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: 0 0 var(--space-3);
-  padding: 0;
-  list-style: none;
-}
-
-.pipeline-artifact-graph li {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--font-size-xs);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-bg-overlay);
-  color: var(--color-text-secondary);
-  line-height: 1.4;
-}
-
-.pipeline-artifact-graph__id {
-  font-weight: 500;
-  color: var(--color-text-primary);
-  text-transform: lowercase;
-}
-
-.pipeline-artifact-graph__state {
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  opacity: 0.85;
-}
-
-.pipeline-artifact-graph__deps {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  opacity: 0.8;
-}
-
-.pipeline-artifact-graph li[data-state='done'] {
-  border-color: color-mix(in srgb, var(--color-git-add) 55%, transparent);
-  background: color-mix(in srgb, var(--color-git-add) 18%, transparent);
-}
-.pipeline-artifact-graph li[data-state='done'] .pipeline-artifact-graph__state { color: var(--color-git-add); }
-
-.pipeline-artifact-graph li[data-state='ready'] {
-  border-color: color-mix(in srgb, var(--color-primary) 50%, transparent);
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-}
-.pipeline-artifact-graph li[data-state='ready'] .pipeline-artifact-graph__state { color: var(--color-primary); }
-
-.pipeline-artifact-graph li[data-state='blocked'] {
-  border-color: color-mix(in srgb, var(--color-warning) 50%, transparent);
-  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
-}
-.pipeline-artifact-graph li[data-state='blocked'] .pipeline-artifact-graph__state { color: var(--color-warning); }
-
-/* Safe Markdown */
-/* `proposal.md` y `design.md` son documentos largos de prosa densa. El ritmo de
-   acá se heredó de cuando el panel mostraba fragmentos cortos: con todos los
-   bloques a la misma distancia no hay dónde descansar la vista ni cómo
-   reconocer la estructura sin leerla. Sube un escalón, no dos: esto se lee
-   dentro de un panel denso, y llevarlo a ritmo de artículo lo haría ocupar el
-   doble. */
+/* Safe Markdown (Observación 13)
+   Se elimina la colisión de flex gap con margin-top y se restituye la jerarquía tipográfica. */
 .pipeline-markdown {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 0;
   font-size: var(--font-size-sm);
   line-height: 1.75;
   color: var(--color-text-primary);
 }
 
-/* Un encabezado se despega de lo que lo precede más que de lo que introduce:
-   así la separación agrupa en vez de sólo espaciar. */
+.pipeline-markdown > * {
+  margin-top: 0;
+  margin-bottom: var(--space-3);
+}
+
 .pipeline-markdown__h1,
 .pipeline-markdown__h2,
 .pipeline-markdown__h3,
 .pipeline-markdown__h4,
 .pipeline-markdown__h5,
 .pipeline-markdown__h6 {
-  font-weight: 600;
   color: var(--color-text-primary);
-  margin-top: var(--space-4);
-  margin-bottom: calc(-1 * var(--space-2));
   line-height: 1.35;
 }
 
@@ -2423,25 +2284,45 @@ body, .font-sans {
 .pipeline-markdown__h3:first-child,
 .pipeline-markdown__h4:first-child { margin-top: 0; }
 
-.pipeline-markdown__h1 { font-size: var(--font-size-lg); }
-.pipeline-markdown__h2 { font-size: var(--font-size-md); }
-.pipeline-markdown__h3 { font-size: var(--font-size-base); }
-/* El cuarto nivel es el de cada escenario, el más frecuente de una spec: se
-   distingue del párrafo por color y espaciado más que por tamaño, para que una
-   pantalla con veinte escenarios no se vuelva una escalera de títulos. */
+.pipeline-markdown__h1 {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-2);
+}
+
+.pipeline-markdown__h2 {
+  font-size: var(--font-size-md);
+  font-weight: 650;
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-2);
+}
+
+.pipeline-markdown__h3 {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-1);
+}
+
 .pipeline-markdown__h4,
 .pipeline-markdown__h5,
 .pipeline-markdown__h6 {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 650;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--color-primary);
   margin-top: var(--space-3);
+  margin-bottom: var(--space-1);
 }
 
 .pipeline-markdown__blockquote {
   padding: var(--space-1) 0 var(--space-1) var(--space-4);
   border-left: 3px solid var(--color-primary);
   color: var(--color-text-secondary);
-  margin: 0;
+  margin: 0 0 var(--space-3);
   line-height: 1.7;
 }
 
@@ -2454,6 +2335,7 @@ body, .font-sans {
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   overflow-x: auto;
+  margin: 0 0 var(--space-3);
 }
 
 .pipeline-markdown__inline-code {
@@ -2464,12 +2346,9 @@ body, .font-sans {
   border-radius: var(--radius-sm);
 }
 
-/* El reajuste global de la aplicación borra los marcadores de todas las listas,
-   y eso es correcto para el resto del producto. Acá se restituyen: en un
-   documento, una lista tiene que distinguirse de un párrafo indentado. */
 .pipeline-markdown__list {
   padding-left: var(--space-5);
-  margin: 0;
+  margin: 0 0 var(--space-3);
   line-height: 1.7;
   list-style: disc outside;
 }
@@ -2477,7 +2356,7 @@ body, .font-sans {
 .pipeline-markdown__list > li + li { margin-top: var(--space-2); }
 
 .pipeline-markdown__strong {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text-primary);
 }
 
@@ -3436,7 +3315,6 @@ body, .font-sans {
    from hierarchy, not from placing another card inside every block. */
 .pipeline-now,
 .pipeline-economy,
-.pipeline-details,
 .pipeline-launcher {
   padding: 0;
   border: 0;
@@ -3561,7 +3439,6 @@ body, .font-sans {
 
 .pipeline-control-bar__btn,
 .pipeline-filter,
-.pipeline-details__tab,
 .pipeline-decision__option-button {
   min-height: 26px;
   border-radius: var(--radius-sm) var(--radius-full) var(--radius-full) var(--radius-sm);
@@ -3921,7 +3798,6 @@ body, .font-sans {
   .pipeline-now__fact,
   .pipeline-control-bar__btn,
   .pipeline-filter,
-  .pipeline-details__tab,
   .pipeline-decision__option-button {
     transition: none;
   }

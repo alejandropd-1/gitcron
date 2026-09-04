@@ -17,7 +17,7 @@ export type PipelineDetailsProps = {
   onTabChange?: (tab: DetailTab) => void;
 };
 
-export type DetailTab = 'proposal' | 'design' | 'specs' | 'tasks' | 'diffs';
+export type DetailTab = 'proposal' | 'design' | 'specs' | 'tasks' | 'diffs' | 'glossary';
 
 /** Un artefacto ausente se declara como tal, no se muestra como cuerpo vacío. */
 const EMPTY_KEYS: Record<'proposal' | 'design' | 'tasks', string> = {
@@ -113,6 +113,7 @@ export function PipelineDetails({
           {tabButton('specs', `${t('pipeline.details.specs')} (${deltaSpecs.length})`)}
           {tabButton('tasks', t('pipeline.details.tasks'))}
           {tabButton('diffs', `${t('pipeline.details.diffs')} (${diffCount})`)}
+          {tabButton('glossary', t('pipeline.details.glossary'))}
         </div>
       </div>
 
@@ -124,7 +125,7 @@ export function PipelineDetails({
           ? <PipelineArtifactGraph status={selectedChange.status} />
           : null}
 
-        {activeTab === 'proposal' && markdownPanel('proposal', artifacts?.proposal ?? null)}
+        {activeTab === 'proposal' && markdownPanel('proposal', artifacts?.proposal ?? (selectedChange?.intent ? `## ${t('pipeline.details.proposal')}\n\n${selectedChange.intent}` : null))}
         {activeTab === 'design' && markdownPanel('design', artifacts?.design ?? null)}
         {activeTab === 'tasks' && markdownPanel('tasks', artifacts?.tasks ?? null)}
 
@@ -152,6 +153,17 @@ export function PipelineDetails({
         {activeTab === 'diffs' && (
           <div role="tabpanel" id="panel-diffs" aria-labelledby="tab-diffs" className="pipeline-details__panel">
             <LazyDiffViewer diffs={snapshot.diffs ?? []} agentRuntimes={agentRuntimes} />
+          </div>
+        )}
+
+        {activeTab === 'glossary' && (
+          <div role="tabpanel" id="panel-glossary" aria-labelledby="tab-glossary" className="pipeline-details__panel">
+            <div className="pipeline-details__empty">
+              <p>{t('pipeline.details.noGlossary')}</p>
+              <p style={{ marginTop: 'var(--space-2)', opacity: 0.6, fontSize: 'var(--font-size-xs)' }}>
+                [marcador de posición: glosario de términos del método]
+              </p>
+            </div>
           </div>
         )}
       </div>

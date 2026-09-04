@@ -201,6 +201,12 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
       /\.reviewCoexistenceCol/, // TARJETA: columna de convivencia
       /\.reviewSkillTag/, // DATO: chip de skill
       /\.reviewPrimaryActionBtn/, // CONTROL: acción de revisión
+      /\.branchNoticeBadge/, // DATO: badge compacto de discrepancia de rama
+      /\.glossaryToggleBtn/, // CONTROL: botón de acceso a glosario
+      /\.glossaryDrawer/, // TARJETA / PANEL: drawer lateral de glosario
+      /\.startNewChangeModal/, // TARJETA / MODAL: contenedor de alta de nuevo cambio
+      /pipeline-details/, // TARJETA / CONTROL: evidencia migrada de globals.css
+      /pipeline-artifact-graph/, // DATO: grafo de artefactos migrado de globals.css
       /:root/, // TOKENS (--os-border)
       /\.openspecScope/, // SCOPE
       /\.dashboard/, // ROOT

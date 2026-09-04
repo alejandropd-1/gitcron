@@ -72,14 +72,17 @@ export class StructuredCliRuntimeAdapter implements RuntimeAdapter {
         evidenceRefs: this.config.evidenceRef ? [this.config.evidenceRef] : [],
         diagnostics: matchesReference ? [] : installed ? ['Runtime version not verified against a reference'] : ['Runtime version probe failed'],
       };
-    } catch {
+    } catch (error) {
+      // El motivo medido, no un genérico: si el binario existe pero la app no
+      // lo resuelve, el diagnóstico debe decir por qué (camino encontrado,
+      // forma no lanzable, PATH usado), no "no disponible".
       return {
         installed: false,
         executable: null,
         runtimeVersion: null,
         evidenceStatus: 'unknown',
         evidenceRefs: this.config.evidenceRef ? [this.config.evidenceRef] : [],
-        diagnostics: ['Runtime executable unavailable'],
+        diagnostics: [error instanceof Error ? error.message : String(error)],
       };
     }
   }

@@ -1,5 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 const DEFAULT_MAX_BYTES = 2 * 1024 * 1024;
@@ -11,6 +12,7 @@ const BASE_ENV_KEYS = [
   'PATH',
   'Path',
   'PATHEXT',
+  'ComSpec',
   'SYSTEMROOT',
   'WINDIR',
   'TEMP',
@@ -84,6 +86,82 @@ async function assertCanonicalCwd(cwd: string, expected: string): Promise<string
   return actualPath;
 }
 
+export interface RuntimeExecutableResolution {
+  file: string;
+  viaShell: boolean;
+}
+
+const DEFAULT_PATHEXT = '.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC';
+const DIRECT_EXTENSIONS = new Set(['.com', '.exe']);
+const SHELL_EXTENSIONS = new Set(['.bat', '.cmd']);
+
+function fileExtension(name: string): string {
+  const base = name.toLowerCase();
+  const dot = base.lastIndexOf('.');
+  return dot > 0 ? base.slice(dot) : '';
+}
+
+// Resuelve un ejecutable con la misma semántica que cmd.exe recorre PATH por
+// directorio y PATHEXT, pero declarando el entorno usado. Node/libuv solo
+// intenta `.com`/`.exe` para nombres sin extensión (src/win/process.c), así
+// que un shim `codex.cmd` o `opencode.CMD` nunca se encuentra solo; y
+// CreateProcess rechaza lanzar batch files directamente (Node lo mapea a
+// EINVAL en src/process_wrap.cc), por eso los candidatos `.bat`/`.cmd` se
+// marcan para pasar por el shell.
+// El parámetro es un mapa de variables (no NodeJS.ProcessEnv) porque solo se leen PATH/Path/PATHEXT.
+export async function resolveRuntimeExecutable(
+  name: string,
+  env: Record<string, string | undefined>,
+): Promise<RuntimeExecutableResolution> {
+  if (name.includes('\\') || name.includes('/')) {
+    return { file: name, viaShell: SHELL_EXTENSIONS.has(fileExtension(name)) };
+  }
+
+  const pathValue = env.PATH ?? env.Path ?? '';
+  const directories = pathValue.split(';').filter((entry) => entry.trim() !== '');
+  const rawPathExt = (env.PATHEXT ?? '').trim();
+  const extensions = (rawPathExt || DEFAULT_PATHEXT)
+    .split(';')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== '');
+  const hasExtension = fileExtension(name) !== '';
+  let bareCandidate: string | null = null;
+
+  for (const directory of directories) {
+    const base = path.join(directory, name);
+    const candidates = hasExtension ? [base] : extensions.map((extension) => `${base}${extension}`);
+    for (const candidate of candidates) {
+      try {
+        if (!(await fs.stat(candidate)).isFile()) continue;
+      } catch {
+        continue;
+      }
+      const extension = fileExtension(candidate);
+      if (DIRECT_EXTENSIONS.has(extension)) return { file: candidate, viaShell: false };
+      if (SHELL_EXTENSIONS.has(extension)) return { file: candidate, viaShell: true };
+      throw new Error(
+        `Runtime executable '${name}' resolved to ${candidate} in the application environment PATH, which this application cannot launch`,
+      );
+    }
+    if (!hasExtension && bareCandidate === null) {
+      try {
+        if ((await fs.stat(base)).isFile()) bareCandidate = base;
+      } catch {
+        // Sin candidato sin extensión en este directorio.
+      }
+    }
+  }
+
+  if (bareCandidate !== null) {
+    throw new Error(
+      `Runtime executable '${name}' was found as ${bareCandidate} in the application environment PATH, but it has no launchable Windows form (.exe, .com, .bat or .cmd)`,
+    );
+  }
+  throw new Error(
+    `Runtime executable '${name}' was not found in the application environment PATH (${directories.length} directories, PATHEXT: ${rawPathExt || DEFAULT_PATHEXT})`,
+  );
+}
+
 export class RuntimeProcessRunner {
   private readonly owned = new Map<string, OwnedProcess>();
 
@@ -119,10 +197,14 @@ export class RuntimeProcessRunner {
 
     let child: ChildProcessWithoutNullStreams;
     try {
-      child = spawn(spec.executable, [...spec.args], {
+      const env = minimalEnvironment(spec.env);
+      const resolution = await resolveRuntimeExecutable(spec.executable, env);
+      // `viaShell` solo para batch files: Node no puede CreateProcess un
+      // `.cmd`/`.bat` directo (EINVAL), y el shell aplica su quoting estándar.
+      child = spawn(resolution.file, [...spec.args], {
         cwd,
-        env: minimalEnvironment(spec.env),
-        shell: false,
+        env,
+        shell: resolution.viaShell,
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
       });

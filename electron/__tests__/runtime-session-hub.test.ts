@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   PipelineEventEnvelope,
   RuntimeDescriptor,
@@ -16,6 +19,28 @@ const DESCRIPTOR: RuntimeDescriptor = {
   adapterId: 'fake', runtime: 'claude', adapterKind: 'structured-cli',
   transport: 'test', runtimeVersion: '1.0.0', protocolVersion: null, capabilities: [],
 };
+
+const hubFixtureDirectories: string[] = [];
+
+async function hubFixtureDirectory(): Promise<string> {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'gitcron-runtime-hub-'));
+  hubFixtureDirectories.push(directory);
+  return directory;
+}
+
+afterEach(async () => {
+  await Promise.all(hubFixtureDirectories.splice(0).map((directory) => fs.rm(directory, { recursive: true, force: true })));
+});
+
+async function withPath(pathValue: string, fn: () => Promise<void>): Promise<void> {
+  const original = process.env.PATH;
+  process.env.PATH = pathValue;
+  try {
+    await fn();
+  } finally {
+    process.env.PATH = original;
+  }
+}
 
 function envelope(kind: string, payload: unknown = {}): PipelineEventEnvelope {
   return {
@@ -374,5 +399,59 @@ describe('RuntimeSessionHub', () => {
     expect(runtimes).toEqual(['claude', 'codex', 'agy', 'opencode']);
     const openCode = discovered.find((entry) => entry.runtime === 'opencode');
     expect(openCode?.startModifiesRepo).toBe(true);
+  });
+
+  it('keeps a launchable:false adapter unlaunchable and lists it with its reason', async () => {
+    // `agy` se declara no lanzable en el registro: la corrección de resolución
+    // del ejecutable no puede volverlo lanzable por accidente, y si aparece en
+    // la lista lo hace con su motivo.
+    const bus = { registerSession: vi.fn(), unregisterSession: vi.fn() };
+    const hub = new RuntimeSessionHub(bus, vi.fn());
+    const discovered = await hub.discover('C:/repo');
+    const agy = discovered.find((entry) => entry.runtime === 'agy');
+    expect(agy?.launchable).toBe(false);
+    expect(agy?.diagnostics).toContain('adapter_has_no_event_stream');
+  });
+});
+
+describe.skipIf(process.platform !== 'win32')('installed runtimes through the real PATH', () => {
+  it('lists a launchable runtime as installed when its .cmd shim resolves through the application PATH', async () => {
+    // Medido: Node/libuv no encuentra `codex`/`opencode` porque solo intenta
+    // `.com`/`.exe`; el shim real es un `.cmd`. Con la resolución compartida
+    // del runner, el mismo registro default los descubre y los ofrece.
+    const fixture = await hubFixtureDirectory();
+    await fs.writeFile(path.join(fixture, 'codex.cmd'), '@echo codex-cli 0.143.0\r\n');
+    await fs.writeFile(path.join(fixture, 'opencode.CMD'), '@echo 1.18.3\r\n');
+    const bus = { registerSession: vi.fn(), unregisterSession: vi.fn() };
+    const hub = new RuntimeSessionHub(bus, vi.fn());
+    await withPath(`${fixture};${process.env.PATH}`, async () => {
+      const discovered = await hub.discover(fixture);
+      const codex = discovered.find((entry) => entry.runtime === 'codex');
+      const openCode = discovered.find((entry) => entry.runtime === 'opencode');
+      // La versión del fixture coincide con la referencia auditada, así que el
+      // hub reporta la versión canónica del descriptor, no la salida cruda.
+      expect(codex).toMatchObject({ installed: true, launchable: true, runtimeVersion: '0.143.0' });
+      expect(openCode).toMatchObject({ installed: true, launchable: true, runtimeVersion: '1.18.3' });
+    });
+  });
+
+  it('lists an installed-but-unresolvable runtime with the measured reason instead of omitting it', async () => {
+    // Si el binario existe pero la app no puede lanzarlo (shim POSIX sin
+    // extensión), el diagnóstico dice por qué y con qué entorno se buscó,
+    // en vez de un genérico "no disponible".
+    const fixture = await hubFixtureDirectory();
+    await fs.writeFile(path.join(fixture, 'codex'), '#!/bin/sh\n');
+    const bus = { registerSession: vi.fn(), unregisterSession: vi.fn() };
+    const hub = new RuntimeSessionHub(bus, vi.fn());
+    await withPath(fixture, async () => {
+      const discovered = await hub.discover(fixture);
+      const codex = discovered.find((entry) => entry.runtime === 'codex');
+      expect(codex).toMatchObject({ installed: false, launchable: false });
+      expect(codex?.diagnostics.join(' ')).toContain(path.join(fixture, 'codex'));
+      expect(codex?.diagnostics.join(' ')).toMatch(/no launchable Windows form/);
+      const openCode = discovered.find((entry) => entry.runtime === 'opencode');
+      expect(openCode).toMatchObject({ installed: false, launchable: false });
+      expect(openCode?.diagnostics.join(' ')).toMatch(/not found in the application environment PATH/);
+    });
   });
 });

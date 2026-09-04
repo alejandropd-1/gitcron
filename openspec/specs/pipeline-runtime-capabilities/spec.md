@@ -3,7 +3,9 @@
 ## Purpose
 
 Definir evidencia y degradación para capacidades de runtimes, proveedores y adaptadores.
+
 ## Requirements
+
 ### Requirement: Matriz con procedencia por celda
 La matriz SHALL cubrir Hermes, Claude, Codex, `agy`, OpenCode, Z.ai vía OpenCode y LM Studio para observación, reasoning, tools, usage, costo, contexto, selección de modelo, pausa, interrupt, kill, resume, auth y estabilidad de schema. Cada afirmación SHALL tener estado y evidencia.
 
@@ -69,7 +71,12 @@ Cuando el lector de evidencia no puede determinar la disponibilidad de OpenSpec 
 - **THEN** el diagnóstico describe la indisponibilidad de OpenSpec sin nombrar "scaffold"
 
 ### Requirement: Lanzabilidad basada en instalación, no en fixture
-Un runtime SHALL ser lanzable cuando el adaptador lo declara lanzable y el binario está instalado. La coincidencia exacta de versión con un fixture auditado SHALL NOT ser condición de lanzamiento. `evidenceStatus` SHALL ser un metadato informativo que la UI muestra; SHALL NOT bloquear el arranque.
+Un runtime SHALL ser lanzable cuando el adaptador lo declara lanzable y el binario está instalado.
+La coincidencia exacta de versión con un fixture auditado SHALL NOT ser condición de lanzamiento.
+`evidenceStatus` SHALL ser un metadato informativo que la UI muestra; SHALL NOT bloquear el
+arranque. La resolución del ejecutable SHALL declarar con qué entorno se hizo, y un runtime que el
+sistema tiene instalado pero la aplicación no resuelve SHALL aparecer con el motivo medido en vez
+de omitirse.
 
 #### Scenario: Versión instalada distinta de la de referencia
 - **WHEN** discovery encuentra un runtime instalado cuya versión difiere de cualquier referencia previa
@@ -83,6 +90,10 @@ Un runtime SHALL ser lanzable cuando el adaptador lo declara lanzable y el binar
 - **WHEN** un adaptador no implementa `start()` o se declara no lanzable
 - **THEN** el runtime no es lanzable y se lista con su motivo, sin depender de la versión
 
+#### Scenario: Instalado en el sistema pero no resuelto por la aplicación
+- **WHEN** un runtime cuyo adaptador se declara lanzable está instalado y es invocable fuera de la aplicación, y el descubrimiento de la aplicación no lo resuelve
+- **THEN** el runtime aparece en la superficie de arranque con el motivo por el que no se pudo resolver, y no se omite de la lista
+
 ### Requirement: `evidenceStatus` informativo y honesto
 Una capability SHALL conservar `evidenceStatus` como metadato que refleja si existe evidencia respaldadora. Sin fixture o referencia que la respalde, SHALL declararse `pending_fixture`; SHALL NEVER declararse `verified` sin evidencia. Este estado SHALL mostrarse al usuario sin impedir el lanzamiento.
 
@@ -93,4 +104,3 @@ Una capability SHALL conservar `evidenceStatus` como metadato que refleja si exi
 #### Scenario: Capability con evidencia respaldadora
 - **WHEN** existe referencia verificada para la capability
 - **THEN** se declara `verified` y el runtime es lanzable
-

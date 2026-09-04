@@ -44,9 +44,9 @@
 
 ## 4. Comprobación en la aplicación
 
-- [ ] 4.1 Abrir el desplegable de runtime y ver ofrecidos los que están instalados, con los que no
+- [x] 4.1 Abrir el desplegable de runtime y ver ofrecidos los que están instalados, con los que no
   se puedan ofrecer listados y con motivo. **La comprueba Alejandro.**
-- [ ] 4.2 Comprobarlo también sobre la aplicación empaquetada, no sólo en desarrollo: la resolución
+- [x] 4.2 Comprobarlo también sobre la aplicación empaquetada, no sólo en desarrollo: la resolución
   de ejecutables es distinta ahí, y es donde la mide la persona que la usa. **La marca Alejandro.**
 
 ## 5. Cierre

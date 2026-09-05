@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
 import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
 import { usePipelineStore } from '@/lib/pipeline-store';
+import { useNewChangeDraftStore } from '@/lib/new-change-draft-store';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 
 beforeEach(() => {
@@ -12,6 +13,7 @@ beforeEach(() => {
     openSpecificationId: null,
     prepareOpen: false,
   });
+  useNewChangeDraftStore.setState({ drafts: {} });
 });
 
 /**
@@ -96,7 +98,7 @@ function snapshot(overrides: {
 }
 
 function renderDashboard(state: PipelineSnapshot = snapshot(), onSelectChange = vi.fn()) {
-  render(
+  const result = render(
     <OpenSpecDashboard
       snapshot={state}
       repoPath="C:/repo"
@@ -116,7 +118,7 @@ function renderDashboard(state: PipelineSnapshot = snapshot(), onSelectChange = 
       onRespondDecision={() => undefined}
     />,
   );
-  return onSelectChange;
+  return Object.assign(onSelectChange, result);
 }
 
 afterEach(cleanup);
@@ -253,14 +255,14 @@ describe('pantalla de entrada del repositorio', () => {
     expect(document.querySelector('ol[aria-label*="lifecycle"]')).toBeNull();
   });
 
-  it('la guía conserva su acción sin el contador', () => {
-    // La guía completa vive en la pantalla de entrada; dentro de un cambio
-    // abierto queda su ayuda en línea. Retirar el contador no retira ninguna
-    // de las dos: siguen diciendo qué conviene hacer.
+  it('el bloque «Empezar un cambio» reemplaza a la guía en inicio y conserva la acción', () => {
+    // En inicio no hay secuencia que continuar: «Siguiente paso» deja de llamarse así
+    // y pasa a ser «Empezar un cambio». Conserva la ayuda contextual.
     renderDashboard();
 
-    expect(screen.getAllByText('pipeline.next.label').length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'pipeline.openspec.start.newChange' })).toBeTruthy();
     expect(screen.getByText('pipeline.next.noSelection.help')).toBeTruthy();
+    expect(screen.queryByText('pipeline.next.label')).toBeNull();
     expect(screen.queryByText(/pipeline\.next\.step/)).toBeNull();
   });
 
@@ -318,5 +320,255 @@ describe('pantalla de entrada del repositorio', () => {
     // 3. El contador de especificaciones se lee en su sección del lateral
     expect(screen.getByText('3')).toBeTruthy();
     expect(screen.getByText('pipeline.openspec.specifications.title')).toBeTruthy();
+  });
+
+  it('el bloque «Empezar un cambio» tiene la jerarquía aprobada y textos veraces', () => {
+    renderDashboard();
+
+    const proposeBtn = screen.getByRole('button', { name: /pipeline\.next\.noActive\.propose/ });
+    const exploreBtn = screen.getByRole('button', { name: /pipeline\.next\.noActive\.explore/ });
+
+    // 1. Jerarquía: Propose es primaryAction (relleno cian), Explore es secondaryAction (marco)
+    expect(proposeBtn.className).toContain('primaryAction');
+    expect(exploreBtn.className).toContain('secondaryAction');
+
+    // 2. Lo dicho en pantalla es veraz
+    expect(screen.getByText('pipeline.openspec.start.proposeHelp')).toBeTruthy();
+    expect(screen.getByText('pipeline.openspec.start.exploreHelp')).toBeTruthy();
+  });
+
+  it('el formulario de nuevo cambio se renderiza soberano en el cuerpo y no como modal o diálogo flotante', () => {
+    const { container } = renderDashboard(snapshot({ activeChanges: [change('en-progreso', 3, 5)] }));
+
+    // La lista está en pantalla
+    expect(screen.getByText('en-progreso')).toBeTruthy();
+    expect(screen.getByText('pipeline.openspec.start.inProgress')).toBeTruthy();
+
+    // Abrimos el formulario pulsando «Tengo claro el cambio»
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.next\.noActive\.propose/ }));
+
+    // El formulario NO se abre en un diálogo modal ni overlay flotante
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(container.querySelector('[class*="startNewChangeOverlay"]')).toBeNull();
+
+    // El formulario ocupa el cuerpo de forma soberana
+    expect(screen.getByRole('heading', { name: 'pipeline.newChange.title' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'pipeline.newChange.close' })).toBeTruthy();
+  });
+
+  it('el formulario se puede cerrar con «Cerrar sin empezar» sin haber creado nada', () => {
+    renderDashboard(snapshot({ activeChanges: [change('en-progreso', 3, 5)] }));
+
+    // Abrir formulario
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.next\.noActive\.propose/ }));
+    expect(screen.getByRole('heading', { name: 'pipeline.newChange.title' })).toBeTruthy();
+
+    // Cerrar sin empezar
+    const closeBtn = screen.getByRole('button', { name: 'pipeline.newChange.close' });
+    expect(closeBtn).toBeTruthy();
+    fireEvent.click(closeBtn);
+
+    // El formulario se retira y vuelve la lista de cambios en curso
+    expect(screen.queryByRole('heading', { name: 'pipeline.newChange.title' })).toBeNull();
+    expect(screen.getByText('en-progreso')).toBeTruthy();
+    // El borrador está limpio y cerrado
+    expect(useNewChangeDraftStore.getState().drafts['C:/repo']?.open).toBeFalsy();
+  });
+
+  it('«CERRADOS» no ocupa franja al pie de la pantalla y vive en el intercambiador de vistas', () => {
+    const { container } = render(
+      <OpenSpecDashboard
+        snapshot={snapshot({ archivedCount: 2 })}
+        repoPath="C:/repo"
+        currentBranch="main"
+        workingTreeClean
+        leftOpen={false}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+
+    // El bloque de archivados ya no es una sección estática con título h4 al pie
+    const startScreenEl = container.querySelector('section[class*="startScreen"]');
+    expect(startScreenEl).toBeTruthy();
+
+    // El bloque principal en inicio es CAMBIOS EN CURSO (startMainBlock)
+    const mainBlock = container.querySelector('div[class*="startMainBlock"]');
+    expect(mainBlock).toBeTruthy();
+
+    // Los archivados ya no tienen un menú desplegable hacia abajo en el encabezado
+    const headerEl = container.querySelector('header[class*="startHeader"]');
+    expect(headerEl).toBeTruthy();
+    expect(headerEl?.querySelector('div[class*="startArchivedAccess"]')).toBeNull();
+
+    // Viven como entrada accesible en el riel intercambiador lateral
+    const railEl = container.querySelector('nav[class*="switcherRail"]');
+    expect(railEl).toBeTruthy();
+    const archivedBtn = railEl?.querySelector('button[data-view-id="archived"]');
+    expect(archivedBtn).toBeTruthy();
+  });
+
+  it('elegir una entrada del panel intercambiador traslada la vista elegida al cuerpo y la anterior al panel', () => {
+    const { container } = renderDashboard(
+      snapshot({
+        activeChanges: [change('en-progreso', 3, 5)],
+        archivedCount: 2,
+      }),
+    );
+
+    // Estado inicial: cuerpo muestra «En curso», panel muestra «Archivados» y «Empezar un cambio»
+    const railEl = container.querySelector('nav[class*="switcherRail"]');
+    expect(railEl).toBeTruthy();
+
+    expect(screen.getByText('en-progreso')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'pipeline.openspec.start.title' })).toBeTruthy();
+    expect(railEl?.querySelector('button[data-view-id="archived"]')).toBeTruthy();
+    expect(railEl?.querySelector('button[data-view-id="new-change"]')).toBeTruthy();
+    expect(railEl?.querySelector('button[data-view-id="in-progress"]')).toBeNull();
+
+    // Conmutamos a «Archivados» desde el riel
+    const archivedRailBtn = railEl!.querySelector('button[data-view-id="archived"]') as HTMLButtonElement;
+    fireEvent.click(archivedRailBtn);
+
+    // Ahora el cuerpo muestra «Archivados»
+    expect(screen.getByRole('heading', { name: 'pipeline.openspec.start.archived' })).toBeTruthy();
+    expect(screen.queryByText('en-progreso')).toBeNull();
+
+    // Y el panel ahora muestra «En curso» y ya no muestra «Archivados»
+    expect(railEl?.querySelector('button[data-view-id="in-progress"]')).toBeTruthy();
+    expect(railEl?.querySelector('button[data-view-id="archived"]')).toBeNull();
+
+    // Conmutamos de regreso a «En curso» desde el riel
+    const inProgressRailBtn = railEl!.querySelector('button[data-view-id="in-progress"]') as HTMLButtonElement;
+    fireEvent.click(inProgressRailBtn);
+
+    // El cuerpo vuelve a mostrar «En curso» con sus cambios
+    expect(screen.getByText('en-progreso')).toBeTruthy();
+    expect(railEl?.querySelector('button[data-view-id="archived"]')).toBeTruthy();
+    expect(railEl?.querySelector('button[data-view-id="in-progress"]')).toBeNull();
+  });
+
+  it('la incorporación de una nueva entrada en el intercambiador no desplaza las ranuras previas', () => {
+    const { container, rerender } = renderDashboard(
+      snapshot({
+        activeChanges: [change('en-progreso', 3, 5)],
+        archivedCount: 2,
+      }),
+    );
+
+    const railEl = container.querySelector('nav[class*="switcherRail"]');
+    expect(railEl).toBeTruthy();
+
+    // Comprobamos que la ranura 1 contiene «archived» y la ranura 2 contiene «new-change»
+    const slot1Initial = railEl?.querySelector('div[data-slot="1"] button');
+    const slot2Initial = railEl?.querySelector('div[data-slot="2"] button');
+
+    expect(slot1Initial?.getAttribute('data-view-id')).toBe('archived');
+    expect(slot2Initial?.getAttribute('data-view-id')).toBe('new-change');
+
+    // Cambiamos el snapshot o añadimos datos: las ranuras estables preservan sus posiciones relativas
+    rerender(
+      <OpenSpecDashboard
+        snapshot={snapshot({
+          activeChanges: [change('en-progreso', 3, 5), change('otro-cambio', 1, 2)],
+          archivedCount: 5,
+        })}
+        repoPath="C:/repo"
+        currentBranch="main"
+        workingTreeClean
+        leftOpen={false}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+
+    const slot1After = railEl?.querySelector('div[data-slot="1"] button');
+    const slot2After = railEl?.querySelector('div[data-slot="2"] button');
+
+    expect(slot1After?.getAttribute('data-view-id')).toBe('archived');
+    expect(slot2After?.getAttribute('data-view-id')).toBe('new-change');
+  });
+
+  it('preserva el estado de tareas desplegadas y borrador al conmutar vistas en el cuerpo', () => {
+    const { container } = renderDashboard(
+      snapshot({
+        activeChanges: [change('en-progreso', 1, 3)],
+        archivedCount: 2,
+      }),
+    );
+
+    // 1. En «in-progress», desplegamos las tareas pendientes del cambio
+    const pendingToggle = screen.getByRole('button', { name: /pipeline\.openspec\.start\.pending/ });
+    expect(pendingToggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(pendingToggle);
+    expect(pendingToggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('1.1 tarea')).toBeTruthy();
+
+    // 2. Conmutamos a «new-change» mediante el botón de nuevo cambio
+    const newChangeRailBtn = container.querySelector('button[data-view-id="new-change"]') as HTMLButtonElement;
+    fireEvent.click(newChangeRailBtn);
+
+    // Escribimos un objetivo en el borrador
+    const objectiveInput = screen.getByRole('textbox', { name: /pipeline\.newChange\.propose\.objective/ });
+    fireEvent.change(objectiveInput, { target: { value: 'Refactorizar vista con ViewSwitcherRail' } });
+    expect(useNewChangeDraftStore.getState().drafts['C:/repo']?.objective).toBe('Refactorizar vista con ViewSwitcherRail');
+
+    // 3. Conmutamos de regreso a «in-progress»
+    const inProgressRailBtn = container.querySelector('button[data-view-id="in-progress"]') as HTMLButtonElement;
+    fireEvent.click(inProgressRailBtn);
+
+    // Comprobamos que el despliegue de tareas pendientes SE MANTIENE
+    expect(screen.getByText('1.1 tarea')).toBeTruthy();
+
+    // 4. Volvemos a «new-change»
+    const newChangeAgain = container.querySelector('button[data-view-id="new-change"]') as HTMLButtonElement;
+    fireEvent.click(newChangeAgain);
+
+    // Comprobamos que el texto del objetivo SE MANTIENE
+    const restoredObjective = screen.getByRole('textbox', { name: /pipeline\.newChange\.propose\.objective/ });
+    expect((restoredObjective as HTMLTextAreaElement).value).toBe('Refactorizar vista con ViewSwitcherRail');
+  });
+
+  it('permite colapsar y expandir el panel intercambiador a demanda', () => {
+    const { container } = renderDashboard(
+      snapshot({
+        activeChanges: [change('en-progreso', 3, 5)],
+        archivedCount: 2,
+      }),
+    );
+
+    const railEl = container.querySelector('nav[class*="switcherRail"]');
+    expect(railEl).toBeTruthy();
+    expect(railEl?.getAttribute('data-collapsed')).toBe('false');
+
+    // Pulsamos el botón de colapso discreto
+    const toggleBtn = screen.getByRole('button', { name: 'pipeline.switcher.collapse' });
+    fireEvent.click(toggleBtn);
+
+    // El riel pasa a estado colapsado
+    expect(railEl?.getAttribute('data-collapsed')).toBe('true');
+
+    // Pulsamos nuevamente para reabrir
+    const expandBtn = screen.getByRole('button', { name: 'pipeline.switcher.expand' });
+    fireEvent.click(expandBtn);
+
+    // El riel vuelve a estado expandido
+    expect(railEl?.getAttribute('data-collapsed')).toBe('false');
   });
 });

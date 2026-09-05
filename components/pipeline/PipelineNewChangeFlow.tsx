@@ -208,6 +208,7 @@ export function PipelineNewChangeFlow({
       {/* La salida no vive acá: va en la fila de la guía, junto a las dos
           acciones que abren este formulario. Puesta adentro competía con el
           selector de modo en vez de leerse como su contraria. */}
+      {/* Selector de modo compacto (Obs. 26): no se repiten las fichas grandes explicativas ya elegidas. */}
       <div className={styles.intentSwitch} role="group" aria-label={t('pipeline.newChange.intent.question')}>
         <button
           type="button"
@@ -216,9 +217,8 @@ export function PipelineNewChangeFlow({
           aria-pressed={mode === 'propose'}
           onClick={() => switchMode('propose')}
         >
-          <FileText size={14} aria-hidden="true" />
-          <strong>{t('pipeline.newChange.intent.propose')}</strong>
-          <span>{t('pipeline.newChange.intent.proposeHelp')}</span>
+          <FileText size={13} aria-hidden="true" />
+          <span>{t('pipeline.newChange.intent.propose')}</span>
         </button>
         <button
           type="button"
@@ -227,9 +227,8 @@ export function PipelineNewChangeFlow({
           aria-pressed={mode === 'explore'}
           onClick={() => switchMode('explore')}
         >
-          <BookOpen size={14} aria-hidden="true" />
-          <strong>{t('pipeline.newChange.intent.explore')}</strong>
-          <span>{t('pipeline.newChange.intent.exploreHelp')}</span>
+          <BookOpen size={13} aria-hidden="true" />
+          <span>{t('pipeline.newChange.intent.explore')}</span>
         </button>
       </div>
 

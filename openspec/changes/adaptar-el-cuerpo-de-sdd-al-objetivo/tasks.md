@@ -324,9 +324,14 @@ junto y se rechazó todo junto, sin que hubiera un punto intermedio donde frenar
   trae —los cambios con su conteo, la rama, las fuentes, las acciones disponibles— y lo que no
   corresponde no está. **Decidido el 2026-09-04 por Alejandro, mirando la referencia en dos
   estados distintos:**
-  - **No flota por encima del contenido.** Cuando existe, ocupa su propia franja de alto completo y
-    el contenido principal ocupa la suya. El motivo: así el panel puede crecer en alto más adelante
-    sin pelear con lo que tiene debajo ni taparlo.
+  - **No flota por encima del contenido.** Ocupa su propia franja a la derecha y el contenido
+    principal ocupa la suya, sin taparse. El motivo: así el panel puede crecer más adelante sin
+    pelear con lo que tiene debajo.
+    **Corregido el 2026-09-04, tras ver el mecanismo andando: el panel NO es de alto completo.**
+    Esto enmienda lo que decía antes esta misma línea, que era un error de transcripción de la
+    decisión de Alejandro. El panel **toma la altura de su contenido**: se agranda y se achica según
+    lo que haya, como la caja «Entorno» de la referencia. Y cuando tiene poca información, la
+    presenta desplegable, del mismo modo que ya lo hace el panel derecho de la aplicación.
   - **Y cuando no tiene nada que mostrar, no existe**, y el contenido se queda con todo el ancho.
     Alejandro lo midió abriendo un chat nuevo en la referencia: sin nada iniciado, el panel no está
     y la maqueta se acopla. Es la tesis de este change aplicada al panel mismo: no se reserva lugar
@@ -515,6 +520,69 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
 - [ ] 4.2 Ninguna superficie que se abre empuja fuera de vista lo que se estaba mirando.
 - [ ] 4.3 Cada superficie condicional declara qué la habilitó, y la condición sale de evidencia
   observada.
+
+- [ ] 4.4 **Revisión visual de la Región 1 por Alejandro, 2026-09-04. Se acepta el avance y se
+  corrigen cuatro cosas.** «Está empezando a verse mejor», con estas observaciones:
+
+  23. **«93 archivados» se despliega hacia abajo como un menú.** Tiene que comportarse como el
+      panel derecho de la aplicación: al pulsarlo, **el listado se muestra en el cuerpo**, no se
+      abre hacia abajo empujando lo que está debajo. Es el modelo de intercambio aplicado acá.
+  24. **El formulario se abre como modal encima del cuerpo, y los modales no van para esto.**
+      Estaba avisado y se hizo igual, por una razón entendible —el intercambiador todavía no
+      existe—, pero la solución no es un modal.
+  25. **«Tengo clara la tarea» no es el nombre.** Alejandro: «parece gallego». Y proponer un cambio
+      no es «una tarea»: medido contra la propia herramienta, OpenSpec llama **change** a la unidad
+      de trabajo —`openspec new change`, `proposal.md`, *propose a change*— y **task** a las tareas
+      de adentro de un change. El rótulo actual invierte los dos términos. Lo que se muestre tiene
+      que usar el vocabulario de la herramienta. **La redacción final es de
+      `explicar-el-ciclo-sin-tecnicismos`; acá se declara que el término está mal usado.**
+  26. **Al elegir una de las dos opciones, las dos vuelven a mostrarse en fichas grandes.** Es
+      redundante: ya se eligió. La elección hecha no tiene que repetirse ocupando el mismo espacio
+      que antes de elegir.
+
+- [ ] 4.5 **Agujero de la propuesta que destapó la revisión de 4.4, y hay que resolver antes de
+  seguir.** La resolución del panel declara que **en la pantalla de inicio el panel no existe** y el
+  cuerpo va a ancho completo. Pero las observaciones 23 y 24 piden exactamente lo contrario: que
+  «archivados» y el formulario de empezar un cambio **se muestren en el cuerpo intercambiando con lo
+  que había**, que es lo que hace el panel.
+  O el intercambiador también gobierna la pantalla de inicio —y entonces ahí hay panel, o al menos
+  el mecanismo de intercambio sin la franja—, o esa pantalla necesita su propia regla declarada.
+  Sin resolver esto, la Región 1 no se puede terminar: sus dos defectos restantes son casos del
+  mecanismo que todavía no existe.
+
+  **Resuelto el 2026-09-04 por Alejandro:**
+  - **El intercambiador gobierna todas las pantallas del cuerpo del ciclo, incluida la de inicio.**
+    Una sola regla para todas: dos comportamientos distintos en dos pantallas es lo que hace que la
+    aplicación se sienta inconsistente.
+  - **El panel está presente prácticamente siempre.** Sus palabras: «es un sidebar que está para
+    todos; más allá de que aparezca según las circunstancias y se popule con las opciones a elegir,
+    es casi de cabeza que va, porque siempre tiene algo que mostrar para hacer click». La regla de
+    que desaparece cuando no tiene nada **sigue valiendo, pero como caso borde y no como caso
+    normal**: en la pantalla de inicio conviven los cambios en curso, los archivados y el
+    formulario; en un cambio activo conviven las tareas, los artefactos y lo que traiga la
+    circunstancia. Siempre hay al menos otra vista disponible.
+  - **Consecuencia sobre el orden de implementación: el panel pasa a construirse primero**, antes de
+    terminar la Región 1. Sus dos defectos restantes —el desplegable de archivados y el modal del
+    formulario— son casos del mecanismo, y resolverlos sin él sólo produce más parches. El orden que
+    declara la tarea 3.6 queda corregido acá.
+
+- [ ] 4.6 **Segunda revisión visual de Alejandro, 2026-09-04, con el intercambiador ya andando.**
+  «Me va gustando: cambia según la opción que elegís y usa el cuerpo para mostrar el contenido.»
+  Tres correcciones:
+
+  27. **«Empezar un cambio» está dos veces.** Sigue como bloque en el cuerpo de la pantalla de
+      inicio y además es una entrada del panel. Con el mecanismo andando, el bloque del cuerpo
+      sobra: la entrada del panel ya lo hace. Se retira del cuerpo.
+  28. **El panel toma la altura de su contenido, no la de la ventana.** Ver la corrección escrita en
+      la tarea 3.4. Se agranda y se achica según lo que haya, y con poca información lo presenta
+      desplegable, como el panel derecho actual.
+  29. **El control de mostrar y ocultar, tomado de la referencia.** En la interfaz de Codex se llama
+      «Alternar resumen fijado», su ícono vive arriba y separado del panel, y hace dos cosas: al
+      activarlo el panel aparece **corriendo el contenido del medio** para hacerle lugar, y al
+      desactivarlo desaparece **devolviéndole ese lugar al contenido**, que queda siempre centrado.
+      Ese desplazamiento **no incumple** «Un control no desplaza a los demás al cambiar»: ese
+      requisito prohíbe que algo se mueva **solo**, no que se mueva porque la persona lo pidió. Hay
+      que declarar esa distinción al implementarlo, para que nadie la lea al revés más adelante.
 
 ## 5. Pruebas
 

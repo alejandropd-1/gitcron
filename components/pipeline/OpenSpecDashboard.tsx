@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   AlertCircle,
   AlertTriangle,
+  Archive,
   ArrowRight,
   Check,
   CheckCircle2,
@@ -17,8 +18,10 @@ import {
   ChevronLeft,
   FolderOpen,
   ListChecks,
+  ListTodo,
   MinusSquare,
   Package,
+  Plus,
   PlusSquare,
   GitBranch,
   GitCommit,
@@ -60,6 +63,7 @@ import type { ArchivePlan, OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpec
 import { SpecificationViewer } from './SpecificationViewer';
 import { TaskConfirmToast } from './TaskConfirmToast';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
+import { ViewSwitcherRail, type ViewSwitcherItem } from './ViewSwitcherRail';
 import { useNewChangeDraft, useNewChangeDraftStore } from '@/lib/new-change-draft-store';
 import {
   composeArchiveInstruction,
@@ -452,6 +456,33 @@ export function OpenSpecDashboard({
   const dismissFlow = () => clearDraft(repoPath);
   const attentionRef = useRef<HTMLElement>(null);
 
+  type StartView = 'in-progress' | 'archived' | 'new-change';
+  const [activeStartView, setActiveStartView] = useState<StartView>(() => (draft.open ? 'new-change' : 'in-progress'));
+  const [isSwitcherCollapsed, setIsSwitcherCollapsed] = useState(false);
+  const startScrollPositionsRef = useRef<Record<string, number>>({});
+  const startBodyRef = useRef<HTMLDivElement>(null);
+
+  const handleSwitchStartView = (nextView: StartView) => {
+    if (startBodyRef.current) {
+      startScrollPositionsRef.current[activeStartView] = startBodyRef.current.scrollTop;
+    }
+    if (nextView === 'new-change') {
+      if (!draft.open) {
+        patchDraft(repoPath, { open: true, mode: draft.mode ?? 'propose' });
+      }
+    } else if (draft.open) {
+      closeFlow();
+    }
+    setActiveStartView(nextView);
+  };
+
+  useLayoutEffect(() => {
+    if (startBodyRef.current) {
+      const saved = startScrollPositionsRef.current[activeStartView] ?? 0;
+      startBodyRef.current.scrollTop = saved;
+    }
+  }, [activeStartView]);
+
   const activeChanges = openSpec?.activeChanges ?? [];
   const archivedChanges = openSpec?.archivedChanges ?? [];
   const specifications = openSpec?.specifications ?? [];
@@ -488,6 +519,31 @@ export function OpenSpecDashboard({
   const startChanges = activeChanges
     .map((change) => ({ change, progress: taskProgress(change) }))
     .sort((left, right) => right.progress.percent - left.progress.percent);
+
+  const startViews: ViewSwitcherItem[] = useMemo(() => [
+    {
+      id: 'in-progress',
+      label: t('pipeline.openspec.start.inProgress'),
+      count: activeChanges.length,
+      icon: <ListTodo size={13} />,
+      slotIndex: 1,
+    },
+    {
+      id: 'archived',
+      label: archivedChanges.length === 0
+        ? t('pipeline.openspec.start.neverArchived')
+        : t(archivedChanges.length === 1 ? 'pipeline.openspec.start.archivedCount.one' : 'pipeline.openspec.start.archivedCount', { count: archivedChanges.length }),
+      disabled: archivedChanges.length === 0,
+      icon: <Archive size={13} />,
+      slotIndex: activeStartView === 'in-progress' ? 1 : 2,
+    },
+    {
+      id: 'new-change',
+      label: t('pipeline.openspec.start.newChange'),
+      icon: <Plus size={13} />,
+      slotIndex: 2,
+    },
+  ], [activeChanges.length, archivedChanges.length, activeStartView, t]);
   /** Lo que falta de un cambio. El avance ya está en la barra; esto es qué queda. */
   const pendingOf = (change: OpenSpecChangeSummary) => change.tasks.filter((task) => !task.completed);
   const nextTask = selectedChange?.tasks.find((task) => !task.completed) ?? null;
@@ -2583,142 +2639,235 @@ export function OpenSpecDashboard({
             /* Pantalla de entrada del repositorio. Absorbe la vieja
                `noActiveChange`, que sólo aparecía sin cambios ni archivados:
                tener dos pantallas de repositorio según cuántos cambios haya daba
-               dos lecturas del mismo estado. */
-            <section className={styles.startScreen} aria-label={t('pipeline.openspec.start.title')}>
-              <h3>{t('pipeline.openspec.start.title')}</h3>
+               dos lecturas del mismo estado.
 
-              {/* La guía va primero, sin excepción de estado: es la acción que
-                  esta pantalla existe para ofrecer, y al final quedaba empujada
-                  fuera de vista por la lista de cambios. Una posición que cambia
-                  según el contenido obliga a buscarla. */}
-              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: dismissFlow } : undefined} />
-              {flowMode && (
-                <PipelineNewChangeFlow
-                  repoPath={repoPath}
-                  projection={projection}
-                  blockedByFixture={fixtureActive}
-                  onStarted={() => setCenterTab('activity')}
-                  currentBranch={currentBranch}
-                  divergence={snapshot.branchDivergence}
-                  workingTreeClean={workingTreeClean}
-                  onRefresh={onRefresh}
-                />
-              )}
+               Gobernada por el mecanismo de intercambio de vistas (ViewSwitcherRail):
+               - El cuerpo muestra una vista soberana por vez: 'in-progress', 'archived' o 'new-change'.
+               - El riel lateral presenta las vistas alternativas disponibles en ranuras estables.
+               - Intercambiar preserva la posición de scroll y el estado de la vista. */
+            <div className={styles.startScreenWrapper}>
+              <div className={styles.startBody} ref={startBodyRef}>
+                {activeStartView === 'in-progress' && (
+                  <section className={styles.startScreen} aria-label={t('pipeline.openspec.start.title')}>
+                    <header className={styles.startHeader}>
+                      <div className={styles.startHeaderTitleGroup}>
+                        <h3>{t('pipeline.openspec.start.title')}</h3>
+                        <p className={styles.startSpecsBadge}>
+                          {specifications.length === 0
+                            ? t('pipeline.openspec.start.specsPending')
+                            : t('pipeline.openspec.start.specificationsCount', { count: specifications.length })}
+                        </p>
+                      </div>
+                    </header>
 
-              <div className={styles.startBlock}>
-                <h4>{t('pipeline.openspec.start.inProgress')} <span>{activeChanges.length}</span></h4>
-                {activeChanges.length === 0 ? (
-                  <p className={styles.startNote}>{t('pipeline.openspec.start.noActive')}</p>
-                ) : (
-                  <ul className={styles.startList}>
-                    {startChanges.map(({ change, progress }) => (
-                      <li key={change.changeId} data-branch={change.changeId === branchChangeId || undefined}>
-                        <div className={styles.startItemHead}>
-                          <strong>{change.changeId}</strong>
-                          {/* La rama se señala, no navega: gastarla en saltar
-                              adentro la volvía invisible. */}
-                          {change.changeId === branchChangeId && (
-                            <em className={styles.branchPill}>{t('pipeline.openspec.start.branchMatch')}</em>
-                          )}
+                    {/* Bloque «Empezar un cambio»: sustituye a la guía "Siguiente paso" en inicio.
+                        Jerarquización de acciones:
+                        - «Tengo claro el cambio» (primaryAction, cian, crea cambio y rama)
+                        - «Quiero definirlo mejor» (secondaryAction, marco, exploratorio sin ramas) */}
+                    <section className={styles.startNewChangeBlock} aria-label={t('pipeline.openspec.start.newChange')}>
+                      <div className={styles.startNewChangeBlockHeader}>
+                        <h4>{t('pipeline.openspec.start.newChange')}</h4>
+                      </div>
+                      <p className={styles.startNewChangeHelp}>{t(nextAction.helpKey, nextAction.helpParams)}</p>
+
+                      <div className={styles.startNewChangeActions}>
+                        <div className={styles.startActionItem}>
+                          <button
+                            type="button"
+                            className={styles.primaryAction}
+                            disabled={fixtureActive}
+                            onClick={() => {
+                              handleIntent({ kind: 'open-propose-flow' });
+                              handleSwitchStartView('new-change');
+                            }}
+                          >
+                            <Play size={14} aria-hidden="true" />
+                            {t('pipeline.next.noActive.propose')}
+                          </button>
+                          <span className={styles.startActionHelp}>{t('pipeline.openspec.start.proposeHelp')}</span>
+                        </div>
+
+                        <div className={styles.startActionItem}>
                           <button
                             type="button"
                             className={styles.secondaryAction}
-                            onClick={() => selectChange(change.changeId)}
+                            disabled={fixtureActive}
+                            onClick={() => {
+                              handleIntent({ kind: 'open-explore-flow' });
+                              handleSwitchStartView('new-change');
+                            }}
                           >
-                            {t('pipeline.openspec.start.enter')}
+                            {t('pipeline.next.noActive.explore')}
                           </button>
+                          <span className={styles.startActionHelp}>{t('pipeline.openspec.start.exploreHelp')}</span>
                         </div>
-                        <p title={change.intent ?? undefined}>{change.intent ?? t('pipeline.openspec.intentUnknown')}</p>
-                        <div className={styles.startProgress}>
-                          <span>
-                            {progress.total === 0
-                              ? t('pipeline.openspec.start.noTasks')
-                              : t('pipeline.openspec.start.tasks', { done: progress.completed, total: progress.total })}
-                          </span>
-                          {progress.total > 0 && (
-                            <span className={styles.startBar} aria-hidden="true">
-                              <span style={{ width: `${progress.percent}%` }} />
-                            </span>
-                          )}
-                          {/* Saber que van cinco de seis no dice cuál es la
-                              sexta, que es con lo que se decide. Plegado por
-                              defecto: con cuatro cambios de veintiocho tareas,
-                              esta pantalla sería una lista de tareas. */}
-                          {pendingOf(change).length > 0 && (
-                            <button
-                              type="button"
-                              className={styles.startPendingToggle}
-                              aria-expanded={expandedStart[change.changeId] ?? false}
-                              onClick={() => setExpandedStart((current) => ({
-                                ...current,
-                                [change.changeId]: !(current[change.changeId] ?? false),
-                              }))}
-                            >
-                              <ChevronDown size={12} />
-                              {tCount('pipeline.openspec.start.pending', pendingOf(change).length)}
-                            </button>
-                          )}
-                        </div>
-                        {(expandedStart[change.changeId] ?? false) && (
-                          /* Sólo lo pendiente: el avance ya está en la barra y
-                             en el conteo, y lo que falta es lo que sirve. */
-                          <ul className={styles.startPending}>
-                            {pendingOf(change).map((task) => (
-                              <li key={task.id}><Circle size={9} /> {task.text}</li>
+                      </div>
+                    </section>
+
+                    {/* Centro de la pantalla: CAMBIOS EN CURSO */}
+                    <div className={styles.startMainBlock}>
+                      <div className={styles.startBlock}>
+                        <h4>{t('pipeline.openspec.start.inProgress')} <span>{activeChanges.length}</span></h4>
+                        {activeChanges.length === 0 ? (
+                          <p className={styles.startNote}>{t('pipeline.openspec.start.noActive')}</p>
+                        ) : (
+                          <ul className={styles.startList}>
+                            {startChanges.map(({ change, progress }) => (
+                              <li key={change.changeId} data-branch={change.changeId === branchChangeId || undefined}>
+                                <div className={styles.startItemHead}>
+                                  <strong>{change.changeId}</strong>
+                                  {/* La rama se señala, no navega: gastarla en saltar
+                                      adentro la volvía invisible. */}
+                                  {change.changeId === branchChangeId && (
+                                    <em className={styles.branchPill}>{t('pipeline.openspec.start.branchMatch')}</em>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className={styles.secondaryAction}
+                                    onClick={() => selectChange(change.changeId)}
+                                  >
+                                    {t('pipeline.openspec.start.enter')}
+                                  </button>
+                                </div>
+                                <p title={change.intent ?? undefined}>{change.intent ?? t('pipeline.openspec.intentUnknown')}</p>
+                                <div className={styles.startProgress}>
+                                  <span>
+                                    {progress.total === 0
+                                      ? t('pipeline.openspec.start.noTasks')
+                                      : t('pipeline.openspec.start.tasks', { done: progress.completed, total: progress.total })}
+                                  </span>
+                                  {progress.total > 0 && (
+                                    <span className={styles.startBar} aria-hidden="true">
+                                      <span style={{ width: `${progress.percent}%` }} />
+                                    </span>
+                                  )}
+                                  {/* Saber que van cinco de seis no dice cuál es la
+                                      sexta, que es con lo que se decide. Plegado por
+                                      defecto: con cuatro cambios de veintiocho tareas,
+                                      esta pantalla sería una lista de tareas. */}
+                                  {pendingOf(change).length > 0 && (
+                                    <button
+                                      type="button"
+                                      className={styles.startPendingToggle}
+                                      aria-expanded={expandedStart[change.changeId] ?? false}
+                                      onClick={() => setExpandedStart((current) => ({
+                                        ...current,
+                                        [change.changeId]: !(current[change.changeId] ?? false),
+                                      }))}
+                                    >
+                                      <ChevronDown size={12} />
+                                      {tCount('pipeline.openspec.start.pending', pendingOf(change).length)}
+                                    </button>
+                                  )}
+                                </div>
+                                {(expandedStart[change.changeId] ?? false) && (
+                                  /* Sólo lo pendiente: el avance ya está en la barra y
+                                     en el conteo, y lo que falta es lo que sirve. */
+                                  <ul className={styles.startPending}>
+                                    {pendingOf(change).map((task) => (
+                                      <li key={task.id}><Circle size={9} /> {task.text}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </li>
                             ))}
                           </ul>
                         )}
-                      </li>
-                    ))}
-                  </ul>
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                {activeStartView === 'archived' && (
+                  <section className={styles.startScreen} aria-label={t('pipeline.openspec.start.archived')}>
+                    <header className={styles.startHeader}>
+                      <div className={styles.startHeaderTitleGroup}>
+                        <h3>{t('pipeline.openspec.start.archived')}</h3>
+                        <p className={styles.startSpecsBadge}>
+                          {tCount('pipeline.openspec.start.archivedCount', archivedChanges.length)}
+                        </p>
+                      </div>
+                    </header>
+
+                    <div className={styles.startMainBlock}>
+                      <div className={styles.startBlock}>
+                        <h4>{t('pipeline.openspec.start.closed')} <span>{archivedChanges.length}</span></h4>
+                        {archivedChanges.length === 0 ? (
+                          <p className={styles.startNote}>{t('pipeline.openspec.start.neverArchived')}</p>
+                        ) : (
+                          <ul className={styles.startList}>
+                            {archivedChanges.map((change) => (
+                              <li key={`${change.archivedAt}-${change.changeId}`}>
+                                <div className={styles.startItemHead}>
+                                  <div className={styles.startItemTitleWithIcon}>
+                                    <CheckCircle2 size={13} className={styles.startArchivedIcon} />
+                                    <strong>{change.changeId}</strong>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className={styles.secondaryAction}
+                                    aria-label={`${change.changeId} ${t('pipeline.openspec.start.enter')}`}
+                                    onClick={() => selectChange(change.changeId)}
+                                  >
+                                    {t('pipeline.openspec.start.enter')}
+                                  </button>
+                                </div>
+                                <p>{change.archivedAt ?? t('pipeline.openspec.dateUnknown')}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                {activeStartView === 'new-change' && (
+                  <section className={styles.startScreen} aria-label={t('pipeline.newChange.title')}>
+                    <header className={styles.startHeader}>
+                      <div className={styles.startHeaderTitleGroup}>
+                        <h3>{t('pipeline.newChange.title')}</h3>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.secondaryAction}
+                        onClick={() => {
+                          dismissFlow();
+                          handleSwitchStartView('in-progress');
+                        }}
+                      >
+                        {t('pipeline.newChange.close')}
+                      </button>
+                    </header>
+
+                    <div className={styles.startMainBlock}>
+                      <div className={styles.startNewChangeModal}>
+                        <PipelineNewChangeFlow
+                          repoPath={repoPath}
+                          projection={projection}
+                          blockedByFixture={fixtureActive}
+                          onStarted={() => setCenterTab('activity')}
+                          currentBranch={currentBranch}
+                          divergence={snapshot.branchDivergence}
+                          workingTreeClean={workingTreeClean}
+                          onRefresh={onRefresh}
+                        />
+                      </div>
+                    </div>
+                  </section>
                 )}
               </div>
 
-              {/* Lo archivado no se cuenta como un cero más: un cero de
-                  archivados es el estado normal antes del primer archivado, y un
-                  cero de cambios activos significa lo contrario. Presentarlos
-                  igual hacía leer como vacío un repositorio casi terminado. */}
-              <div className={styles.startBlock}>
-                <h4>{t('pipeline.openspec.start.closed')}</h4>
-                {archivedChanges.length === 0 ? (
-                  <p className={styles.startNote}>{t('pipeline.openspec.start.neverArchived')}</p>
-                ) : (
-                  <>
-                    {/* La barra lateral corta en los ocho más recientes, que es
-                        acceso rápido. El panorama del repositorio vive acá, así
-                        que acá se puede llegar a todos. */}
-                    <button
-                      type="button"
-                      className={styles.startPendingToggle}
-                      aria-expanded={archivedOpen}
-                      onClick={() => setArchivedOpen((open) => !open)}
-                    >
-                      <ChevronDown size={12} />
-                      {tCount('pipeline.openspec.start.archivedCount', archivedChanges.length)}
-                    </button>
-                    {archivedOpen && (
-                      <ul className={styles.startArchived}>
-                        {archivedChanges.map((change) => (
-                          <li key={`${change.archivedAt}-${change.changeId}`}>
-                            <button type="button" onClick={() => selectChange(change.changeId)}>
-                              <CheckCircle2 size={11} />
-                              <strong>{change.changeId}</strong>
-                              <span>{change.archivedAt ?? t('pipeline.openspec.dateUnknown')}</span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </>
-                )}
-                <p className={styles.startNote}>
-                  {specifications.length === 0
-                    ? t('pipeline.openspec.start.specsPending')
-                    : t('pipeline.openspec.start.specificationsCount', { count: specifications.length })}
-                </p>
-              </div>
-
-            </section>
+              <ViewSwitcherRail
+                views={startViews}
+                activeViewId={activeStartView}
+                onSwitchView={(viewId) => handleSwitchStartView(viewId as StartView)}
+                isCollapsed={isSwitcherCollapsed}
+                onToggleCollapse={() => setIsSwitcherCollapsed((c) => !c)}
+                ariaLabel={t('pipeline.switcher.views')}
+                collapseAriaLabel={isSwitcherCollapsed ? t('pipeline.switcher.expand') : t('pipeline.switcher.collapse')}
+              />
+            </div>
           )}
         </main>
       </div>

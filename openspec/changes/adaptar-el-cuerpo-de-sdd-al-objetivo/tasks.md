@@ -600,6 +600,21 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
   cortados—: es la tanda siguiente y está previsto. El contenido del glosario es de
   `explicar-el-ciclo-sin-tecnicismos`; acá sólo se retira su botón cuando se rehaga esa cabecera.
 
+- [ ] 4.8 **Observación de Alejandro del 2026-09-04 sobre el navegador de cambios.**
+
+  33. **El botón de flecha de cada cambio ocupa mucho y despliega la información en el lugar.** En
+      el navegador de cambios de la izquierda, cada cambio tiene un botón que abre debajo el estado
+      de sus artefactos —`proposal.md` completo, `design.md` pendiente, `specs/` completo,
+      `tasks.md` en progreso—. Ese botón se retira, y esa información **pasa a mostrarse en el
+      cuerpo** al elegir el cambio en el navegador. Un clic sobre el cambio y la información
+      aparece donde se lee, no colgando del navegador.
+
+  **Nota de alcance, declarada porque roza el borde de este change:** el navegador de cambios es el
+  panel izquierdo y no el cuerpo. Se acepta acá porque lo que se pide es justamente **mover
+  contenido del panel al cuerpo**, que es la tesis de este change aplicada a su punto de entrada, y
+  porque el destino de esa información es el cuerpo. No habilita a rediseñar el navegador: se
+  retira ese botón y se muda lo que desplegaba, nada más.
+
 ## 5. Pruebas
 
 - [ ] 5.1 Sostener lo decidido: que una superficie sin contenido no ocupe lugar, que siga siendo

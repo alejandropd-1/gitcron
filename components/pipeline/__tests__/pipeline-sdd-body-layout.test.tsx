@@ -135,46 +135,87 @@ function renderSdd(currentBranch = 'main') {
 
 describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
   describe('2.2 Superficie soberana y lectura de arriba a abajo', () => {
-    it('el cuerpo unifica Trabajo e Inspección en un único flujo vertical sin solapas superiores divisorias', () => {
+    it('el cuerpo gobierna las vistas de Trabajo e Inspección mediante el intercambiador sin solapas superiores divisorias', () => {
       renderSdd();
 
       // Las solapas rígidas superiores que dividían Trabajo de Artefactos ya no existen
       expect(screen.queryByRole('tab', { name: /openspec\.tabs\.work/i })).toBeNull();
       expect(screen.queryByRole('tab', { name: /openspec\.tabs\.details/i })).toBeNull();
 
-      // En su lugar, el área de tareas y el visor de evidencia están montados simultáneamente en el DOM
+      // En su lugar, el área de tareas es la vista por defecto y el rail permite cambiar a artefactos
       const taskList = screen.getByRole('list');
       expect(taskList).toBeTruthy();
 
-      const evidenceHeading = screen.getByRole('heading', { name: /pipeline\.openspec\.evidence\.title/i });
-      expect(evidenceHeading).toBeTruthy();
+      const artifactsRailBtn = screen.getByRole('button', { name: /pipeline\.switcher\.artifacts/i });
+      expect(artifactsRailBtn).toBeTruthy();
 
-      // En el orden del DOM, la lista de tareas precede a la inspección de artefactos
-      const positionComparison = taskList.compareDocumentPosition(evidenceHeading);
-      expect(positionComparison & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      fireEvent.click(artifactsRailBtn);
+      const tablist = screen.getByRole('tablist', { name: /pipeline\.details\.title/i });
+      expect(tablist).toBeTruthy();
     });
 
     it('la cabecera ubica el siguiente paso presidido por el CTA antes del área de trabajo', () => {
       renderSdd();
 
-      const nextStepHeading = screen.getByRole('heading', { name: /pipeline\.openspec\.nextStep\.title/i });
+      const nextStepCTA = screen.getByRole('button', { name: /pipeline\.next\.task\.action/i });
       const taskList = screen.getByRole('list');
 
-      // El siguiente paso en la cabecera precede a la lista de tareas en el DOM
-      const comparison = nextStepHeading.compareDocumentPosition(taskList);
+      // El CTA en la cabecera precede a la lista de tareas en el DOM
+      const comparison = nextStepCTA.compareDocumentPosition(taskList);
       expect(comparison & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
-    it('la actividad está subordinada en un bloque colapsable bajo demanda al pie', () => {
+    it('la actividad no aparece sin bitácora y está disponible en el intercambiador cuando existe registro', () => {
       renderSdd();
+      // Sin actividad registrada ni sesión, la entrada no existe en el rail
+      expect(screen.queryByRole('button', { name: /pipeline\.switcher\.activity/i })).toBeNull();
 
-      const activityHeading = screen.getByRole('heading', { name: /pipeline\.activity\.title/i });
-      expect(activityHeading).toBeTruthy();
+      cleanup();
 
-      // Vive dentro de un elemento <summary> dentro de <details>
-      const details = activityHeading.closest('details');
-      expect(details).not.toBeNull();
-      expect(details?.open).toBe(false);
+      // Con actividad registrada, la entrada aparece en el rail y abre su vista soberana
+      render(
+        <OpenSpecDashboard
+          snapshot={mockSnapshot()}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={{
+            sessionId: 'sess-1',
+            changeId: 'cambio-ejemplo',
+            startedAt: '2026-09-04T12:00:00Z',
+            runtime: 'hermes',
+            role: 'agent',
+            taskId: 't-1',
+            status: 'running',
+            activity: [
+              {
+                id: 'act-1',
+                timestamp: '2026-09-04T12:00:00Z',
+                type: 'log',
+                message: 'Sesión iniciada',
+              } as any,
+            ],
+          } as any}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+      const enterBtn = screen.getAllByRole('button', { name: /openspec\.start\.enter/ })[0];
+      fireEvent.click(enterBtn);
+
+      const activityRailBtn = screen.getByRole('button', { name: /pipeline\.switcher\.activity/i });
+      expect(activityRailBtn).toBeTruthy();
+
+      fireEvent.click(activityRailBtn);
+      expect(screen.getByRole('region', { name: /pipeline\.switcher\.activity/i })).toBeTruthy();
     });
   });
 
@@ -182,28 +223,31 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
     it('el botón de acción principal se distingue claramente de las acciones accesorias', () => {
       renderSdd();
 
-      // El CTA de siguiente paso tiene la clase primaryAction dominante
+      // El CTA de siguiente paso tiene la clase primaryAction dominante en la cabecera
       const nextStepCTA = screen.getByRole('button', { name: /pipeline\.next\.task\.action/i });
       expect(Array.from(nextStepCTA.classList).some((c) => c.includes('primaryAction'))).toBe(true);
 
-      // Las acciones accesorias (Archivar cambio, Ver diff) tienen la clase secondaryAction
+      // La acción accesoria de archivar está en la ranura de entorno del panel con secondaryAction
       const archiveBtn = screen.getByRole('button', { name: /pipeline\.openspec\.archive\.action/i });
       expect(Array.from(archiveBtn.classList).some((c) => c.includes('secondaryAction'))).toBe(true);
 
-      const diffBtn = screen.getByRole('button', { name: /pipeline\.openspec\.actions\.diff/i });
-      expect(Array.from(diffBtn.classList).some((c) => c.includes('secondaryAction'))).toBe(true);
+      // Ver diffs es una vista del rail cuando hay diffs
+      const diffRailBtn = screen.getByRole('button', { name: /pipeline\.switcher\.diffs/i });
+      expect(diffRailBtn).toBeTruthy();
     });
   });
 
   describe('2.4 Solapas de inspección y rótulos frente a OpenSpec 1.11', () => {
-    it('las pestañas de evidencia declaran los seis rótulos funcionales y mantienen semántica de solapa', () => {
+    it('al seleccionar artefactos en el rail, las pestañas de evidencia declaran los rótulos funcionales', () => {
       renderSdd();
+
+      // Cambiar a vista de artefactos
+      fireEvent.click(screen.getByRole('button', { name: /pipeline\.switcher\.artifacts/i }));
 
       const tablist = screen.getByRole('tablist', { name: /pipeline\.details\.title/i });
       expect(tablist).toBeTruthy();
 
       const tabs = screen.getAllByRole('tab');
-      // 6 pestañas: propuesta, diseño, specs, tareas, diffs, glosario
       expect(tabs.length).toBe(6);
 
       const expectedLabels = [
@@ -245,7 +289,7 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       expect(header.textContent).not.toContain('Este es el texto completo de la justificación e intención');
     });
 
-    it('la tarea activa sin sesión registrada no renderiza las cuatro filas vacías de detalle', () => {
+    it('la tarea activa sin sesión registrada no renderiza las cuatro filas vacías de detalle ni frase de disculpa', () => {
       renderSdd();
 
       // Sin sesión, no se dibuja .taskDetail con cuatro filas de "No informado"
@@ -253,12 +297,13 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       expect(screen.queryByText(/pipeline\.openspec\.task\.source/i)).toBeNull();
       expect(screen.queryByText(/pipeline\.openspec\.task\.workingTree/i)).toBeNull();
 
-      // En su lugar se muestra una única línea discreta
-      expect(screen.getByText(/pipeline\.openspec\.task\.noSession/i)).toBeTruthy();
+      // Enmienda fechada 2026-09-04: Tampoco se dibuja frase de disculpa
+      expect(screen.queryByText(/pipeline\.openspec\.task\.noSession/i)).toBeNull();
     });
 
     it('el grafo de artefactos no repite la palabra HECHO cuatro veces y usa íconos semánticos', () => {
       renderSdd();
+      fireEvent.click(screen.getByRole('button', { name: /pipeline\.switcher\.artifacts/i }));
 
       const graphItems = document.querySelectorAll('.pipeline-artifact-graph li');
       // Cada ítem contiene un ícono SVG y un texto accesible para screen readers

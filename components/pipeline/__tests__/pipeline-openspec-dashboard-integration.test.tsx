@@ -534,64 +534,22 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     const enterBtn = screen.getByRole('button', { name: /Entrar|Abrir/i });
     fireEvent.click(enterBtn);
 
-    // 1. Siguiente paso
-    const nextStepHeading = await screen.findByRole('heading', { name: /Siguiente paso/i, level: 4 });
-    expect(nextStepHeading).toBeTruthy();
-
-    // 2. Tareas del cambio
-    const tasksHeading = await screen.findByRole('heading', { name: /Tareas del cambio/i, level: 4 });
-    expect(tasksHeading).toBeTruthy();
-
-    // 3. Lanzar agente (abrir lanzador haciendo clic en "Continuar con")
+    // 1. Abrir el lanzador haciendo clic en el CTA de cabecera
     const continueBtn = screen.getByRole('button', { name: /Continuar con/i });
     fireEvent.click(continueBtn);
     const launcherHeading = await screen.findByRole('heading', { name: /Lanzar agente/i, level: 4 });
     expect(launcherHeading).toBeTruthy();
+    expect(Array.from(launcherHeading.classList).some((cls) => cls.includes('blockHeader'))).toBe(true);
 
-    // 4. Evidencia (presente directamente en la superficie soberana)
-    const evidenceHeading = await screen.findByRole('heading', { name: /Evidencia/i, level: 4 });
-    expect(evidenceHeading).toBeTruthy();
-
-    // 4b. Actividad (presente en el bloque subordinado colapsable)
-    const activityHeading = await screen.findByRole('heading', { name: /Actividad/i, level: 4 });
-    expect(activityHeading).toBeTruthy();
-
-    // Leemos la clase compartida del primer encabezado y comparamos con los demás
-    const sharedClass = Array.from(nextStepHeading.classList).find((cls) => cls.includes('blockHeader'));
-    expect(sharedClass).toBeDefined();
-
-    expect(Array.from(launcherHeading.classList)).toContain(sharedClass);
-    expect(Array.from(tasksHeading.classList)).toContain(sharedClass);
-    expect(Array.from(evidenceHeading.classList)).toContain(sharedClass);
-    expect(Array.from(activityHeading.classList)).toContain(sharedClass);
-
-    expect(nextStepHeading.className).toBe(sharedClass);
-    expect(launcherHeading.className).toBe(sharedClass);
-    expect(tasksHeading.className).toBe(sharedClass);
-    expect(evidenceHeading.className).toBe(sharedClass);
-    expect(activityHeading.className).toBe(sharedClass);
-
-    // Leemos la clase de bloque compartida del primer bloque y comparamos con los demás
-    const nextStepBlock = nextStepHeading.parentElement!;
     const launcherBlock = launcherHeading.parentElement!;
-    const tasksBlock = tasksHeading.parentElement!;
-    const evidenceBlock = evidenceHeading.parentElement!;
-    const activityBlock = activityHeading.parentElement!;
+    expect(Array.from(launcherBlock.classList).some((cls) => cls.includes('centerBlock'))).toBe(true);
 
-    const sharedBlockClass = Array.from(nextStepBlock.classList).find((cls) => cls.includes('centerBlock'));
-    expect(sharedBlockClass).toBeDefined();
+    const svg = launcherHeading.querySelector('svg');
+    expect(svg).not.toBeNull();
+    expect(svg?.getAttribute('aria-hidden')).toBe('true');
 
-    expect(Array.from(launcherBlock.classList)).toContain(sharedBlockClass);
-    expect(Array.from(tasksBlock.classList)).toContain(sharedBlockClass);
-    expect(Array.from(evidenceBlock.classList)).toContain(sharedBlockClass);
-    expect(Array.from(activityBlock.classList)).toContain(sharedBlockClass);
-
-    // Cada encabezado contiene su ícono SVG size={13} con aria-hidden="true"
-    for (const heading of [nextStepHeading, launcherHeading, tasksHeading, evidenceHeading, activityHeading]) {
-      const svg = heading.querySelector('svg');
-      expect(svg).not.toBeNull();
-      expect(svg?.getAttribute('aria-hidden')).toBe('true');
-    }
+    // 2. La lista de tareas queda limpia sin el título redundante «Tareas del cambio»
+    expect(screen.queryByRole('heading', { name: /Tareas del cambio/i, level: 4 })).toBeNull();
 
     vi.unstubAllGlobals();
   });
@@ -673,15 +631,9 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     const enterBtn = screen.getByRole('button', { name: /Entrar|Abrir/i });
     fireEvent.click(enterBtn);
 
-    // 1. ChangeBranchNotice se monta directamente en workArea arriba de «Siguiente paso»
+    // 1. ChangeBranchNotice se monta en la ranura de entorno del panel cuando la rama no coincide
     const branchNotice = container.querySelector('section[data-kind="branch"]');
     expect(branchNotice).not.toBeNull();
-
-    const nextStepHeading = await screen.findByRole('heading', { name: /Siguiente paso/i, level: 4 });
-    const nextStepBlock = nextStepHeading.parentElement!;
-
-    // branchNotice precede a nextStepBlock
-    expect(branchNotice!.compareDocumentPosition(nextStepBlock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     // 2. NO existe ningún encabezado de «Avisos»
     expect(screen.queryByRole('heading', { name: /Avisos/i, level: 4 })).toBeNull();

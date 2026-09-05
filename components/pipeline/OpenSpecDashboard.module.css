@@ -336,18 +336,12 @@
    un hueco que pide llenarse con algo. */
 .changeHeader {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
   flex: 0 0 auto;
   padding: var(--space-3) var(--space-5);
   background: var(--color-bg-base);
-}
-
-.headerRow1 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
@@ -374,68 +368,17 @@
   color: var(--color-text-primary);
 }
 
-.headerRow2 {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-
-.headerMainAction {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.headerMainActionRow {
+.headerActions {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.actionMicroCopy {
-  display: block;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  font-family: var(--font-mono), ui-monospace, monospace;
-}
-
-.headerAccessoryActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
   margin-left: auto;
+  flex-wrap: wrap;
 }
 
-.headerAccessoryActions button {
-  min-height: 2.75rem;
-  min-width: 2.75rem;
+.headerActions .primaryAction {
+  min-height: 2.5rem;
   padding: var(--space-2) var(--space-4);
-}
-
-.glossaryToggleBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid color-mix(in srgb, var(--color-border-subtle) 60%, transparent);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  font-family: var(--font-mono), ui-monospace, monospace;
-  cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease;
-}
-
-.glossaryToggleBtn:hover {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
 }
 
 .changeTitle h3 { margin: 0; color: var(--color-text-primary); font-weight: 650; font-size: var(--font-size-sm); font-family: var(--font-mono), ui-monospace, monospace; letter-spacing: 0.04em; }
@@ -493,9 +436,8 @@
 
 .taskList { display: flex; flex-direction: column; gap: var(--sp-1); margin: 0; padding: 0; list-style: none; }
 .taskList > li { display: grid; grid-template-columns: 1.25rem 3rem minmax(0, 1fr) auto; align-items: start; min-height: 3rem; padding: var(--space-2) var(--space-2); color: var(--color-text-primary); font-size: var(--font-size-xs); line-height: 1.5; font-family: var(--font-mono), ui-monospace, monospace; }
-/* La etiqueta se recorta en vez de invadir la columna del texto: si una tarea
-   no trae numeración, el fallback es el hash y sin esto se solapaban. */
-.taskList > li > strong { overflow: hidden; color: var(--color-primary); text-overflow: ellipsis; white-space: nowrap; }
+/* La etiqueta se muestra completa sin elipsis ni recortes destructivos. */
+.taskList > li > strong { color: var(--color-primary); overflow-wrap: anywhere; }
 .taskList > li[data-completed='true'] > strong { color: var(--color-text-secondary); }
 .taskList > li[data-current='true'] { border-left: 3px solid var(--color-primary); background: var(--color-bg-surface); }
 .taskList > li[data-completed='true'] .taskStatus {
@@ -1449,10 +1391,8 @@
   display: flex;
   flex-direction: row;
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 100%;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
 }
 
 .startBody {
@@ -1461,8 +1401,6 @@
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
-  height: 100%;
-  overflow-y: auto;
 }
 
 .startItemTitleWithIcon {
@@ -2968,9 +2906,12 @@ summary.centerBlock {
   min-height: 0;
   height: auto;
   align-self: flex-start;
+  position: sticky;
+  top: var(--space-5);
+  z-index: 5;
   padding: var(--space-2);
   border-radius: var(--radius-md);
-  box-shadow: inset 0 0 0 1px var(--color-border-subtle);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--color-text-primary) 6%, transparent);
   background: color-mix(in srgb, var(--color-bg-surface) 60%, transparent);
   transition: width 160ms ease, flex-basis 160ms ease;
   margin: var(--space-5) var(--space-5) var(--space-5) 0;
@@ -3074,5 +3015,21 @@ summary.centerBlock {
 .railEnvironment {
   margin-top: auto;
   padding: var(--space-2) var(--space-3);
-  box-shadow: 0 -1px 0 var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-shadow: 0 -1px 0 color-mix(in srgb, var(--color-border-subtle) 50%, transparent);
+}
+
+/* Espacio reservado para la línea de tiempo de artefactos (herencia 3c.4). */
+.artifactTimelineSlot {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-surface) 50%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border-subtle) 40%, transparent);
+  margin-bottom: var(--space-4);
 }

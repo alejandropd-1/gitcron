@@ -132,6 +132,7 @@ const PIPELINE_KEYS = [
   'pipeline.switcher.views',
   'pipeline.switcher.collapse',
   'pipeline.switcher.expand',
+  'pipeline.switcher.toggle',
   'pipeline.openspec.start.enter',
   'pipeline.openspec.start.branchMatch',
   'pipeline.openspec.start.tasks',

@@ -1484,6 +1484,9 @@
   gap: var(--space-5);
   padding: var(--space-5) var(--space-5);
   overflow-y: auto;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
 }
 
 .startHeader {
@@ -1513,88 +1516,6 @@
   margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
-  font-family: var(--font-mono), ui-monospace, monospace;
-}
-
-.startArchivedAccess {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.startArchivedDropdown {
-  position: relative;
-}
-
-.startArchivedDropdown > .startArchived {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 30;
-  min-width: 18rem;
-  max-height: 20rem;
-  overflow-y: auto;
-  margin-top: var(--space-1);
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-surface);
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-bg-base) 60%, transparent);
-}
-
-.startNewChangeBlock {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-bg-surface) 50%, transparent);
-}
-
-.startNewChangeBlockHeader {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.startNewChangeBlockHeader > h4 {
-  margin: 0;
-  color: var(--color-text-primary);
-  font-weight: 650;
-  font-size: var(--font-size-xs);
-  font-family: var(--font-mono), ui-monospace, monospace;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.startNewChangeHelp {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  line-height: 1.5;
-  font-family: var(--font-mono), ui-monospace, monospace;
-}
-
-.startNewChangeActions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-}
-
-.startActionItem {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 14rem;
-}
-
-.startActionHelp {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-2xs);
-  line-height: 1.4;
   font-family: var(--font-mono), ui-monospace, monospace;
 }
 
@@ -3045,68 +2966,22 @@ summary.centerBlock {
   width: 230px;
   flex: 0 0 230px;
   min-height: 0;
-  height: 100%;
-  box-shadow: -1px 0 0 var(--color-border-subtle);
+  height: auto;
+  align-self: flex-start;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--color-border-subtle);
   background: color-mix(in srgb, var(--color-bg-surface) 60%, transparent);
   transition: width 160ms ease, flex-basis 160ms ease;
-}
-
-.switcherRail[data-collapsed='true'] {
-  width: 44px;
-  flex: 0 0 44px;
-}
-
-.railHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-3) var(--space-3) var(--space-2);
-  min-height: 38px;
-}
-
-.switcherRail[data-collapsed='true'] .railHeader {
-  justify-content: center;
-  padding: var(--space-3) var(--space-1) var(--space-2);
-}
-
-.railTitle {
-  font-size: var(--font-size-xs);
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.railCollapseToggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-1);
-  border-radius: var(--radius-default);
-  background: transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: color 140ms ease, background 140ms ease;
-}
-
-.railCollapseToggle:hover {
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-border-subtle) 18%, transparent);
+  margin: var(--space-5) var(--space-5) var(--space-5) 0;
 }
 
 .railSlots {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  flex: 1 1 auto;
-  overflow-y: auto;
-}
-
-.switcherRail[data-collapsed='true'] .railSlots {
-  padding: var(--space-2) var(--space-1);
-  align-items: center;
+  padding: var(--space-2) 0 0;
+  flex: 0 0 auto;
 }
 
 .railSlot {
@@ -3200,8 +3075,4 @@ summary.centerBlock {
   margin-top: auto;
   padding: var(--space-2) var(--space-3);
   box-shadow: 0 -1px 0 var(--color-border-subtle);
-}
-
-.switcherRail[data-collapsed='true'] .railEnvironment {
-  display: none;
 }

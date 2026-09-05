@@ -1,6 +1,6 @@
 import React from 'react';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SidebarSection } from '@/components/RepoSidebarParts';
 import styles from './OpenSpecDashboard.module.css';
 
 export const VIEW_SWITCHER_SLOTS = [1, 2, 3, 4] as const;
@@ -31,16 +31,18 @@ export type ViewSwitcherRailProps = {
 /**
  * Intercambiador dinámico de vistas (Modelo Codex dinámico).
  *
- * Principio de funcionamiento:
+ * Principio de funcionamiento (Revisión visual 4.6 / Tarea 3.4):
  * - El cuerpo central muestra una única vista soberana por vez.
- * - El riel lateral lista todas las demás vistas disponibles que NO se están
+ * - El panel lateral lista todas las demás vistas disponibles que NO se están
  *   mirando en ese instante, organizadas en ranuras estables.
+ * - Toma la altura de su contenido (height: auto; align-self: flex-start),
+ *   creciendo y achicándose según lo que tenga adentro como la caja «Entorno» de Codex.
+ * - Presenta su contenido desplegable mediante `SidebarSection`, reusando el patrón
+ *   del panel derecho de la aplicación para plegar y desplegar con poca o mucha información.
  * - Al pulsar cualquier entrada del riel, pasa al cuerpo central y la vista
  *   que estaba en el cuerpo pasa al riel.
  * - Si sólo hay una vista disponible y no hay señales de entorno, el riel no
  *   se monta en el DOM (retorna null), cediendo el 100% del ancho al cuerpo.
- * - Ocupa su propia franja vertical de alto completo lado a lado con el cuerpo;
- *   no flota ni se superpone encima del contenido.
  */
 export function ViewSwitcherRail({
   views,
@@ -50,7 +52,6 @@ export function ViewSwitcherRail({
   onToggleCollapse,
   environmentSlot,
   ariaLabel = 'Vistas',
-  collapseAriaLabel,
   className,
 }: ViewSwitcherRailProps) {
   const availableViews = views.filter((v) => v.id !== activeViewId);
@@ -66,73 +67,53 @@ export function ViewSwitcherRail({
       aria-label={ariaLabel}
       data-collapsed={isCollapsed ? 'true' : 'false'}
     >
-      <div className={styles.railHeader}>
-        {!isCollapsed && <span className={styles.railTitle}>{ariaLabel}</span>}
-        {onToggleCollapse && (
-          <button
-            type="button"
-            className={styles.railCollapseToggle}
-            aria-label={
-              collapseAriaLabel ??
-              (isCollapsed ? 'Desplegar panel de vistas' : 'Plegar panel de vistas')
-            }
-            title={isCollapsed ? 'Desplegar panel' : 'Plegar panel'}
-            onClick={onToggleCollapse}
-          >
-            {isCollapsed ? <ChevronLeft size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
-          </button>
-        )}
-      </div>
-
-      <div className={styles.railSlots}>
-        {VIEW_SWITCHER_SLOTS.map((slotIdx) => {
-          const item = availableViews.find((v) => v.slotIndex === slotIdx);
-          return (
-            <div
-              key={slotIdx}
-              className={styles.railSlot}
-              data-slot={slotIdx}
-              data-occupied={Boolean(item) ? 'true' : 'false'}
-            >
-              {item && (
-                <button
-                  type="button"
-                  className={styles.railItem}
-                  data-slot={slotIdx}
-                  data-view-id={item.id}
-                  title={
-                    isCollapsed
-                      ? `${item.label}${item.count !== undefined && item.count !== null ? ` (· ${item.count})` : ''}`
-                      : undefined
-                  }
-                  onClick={() => onSwitchView(item.id)}
-                  disabled={item.disabled}
-                >
-                  {item.icon && <span className={styles.railItemIcon} aria-hidden="true">{item.icon}</span>}
-                  {!isCollapsed && (
-                    <>
-                      <span className={styles.railItemLabel}>{item.label}</span>
-                      {item.count !== undefined && item.count !== null && (
-                        <span className={styles.railItemCount} aria-label={`${item.count}`}>
-                          <span className={styles.railItemCountSep}>·</span>
-                          <span className={styles.railItemCountValue}>{item.count}</span>
-                        </span>
-                      )}
-                      {item.badge && <span className={styles.railItemBadge}>{item.badge}</span>}
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {environmentSlot && (
-        <div className={styles.railEnvironment} data-slot="environment">
-          {environmentSlot}
+      <SidebarSection
+        title={ariaLabel}
+        count={availableViews.length}
+        isOpen={!isCollapsed}
+        onToggle={onToggleCollapse}
+      >
+        <div className={styles.railSlots}>
+          {VIEW_SWITCHER_SLOTS.map((slotIdx) => {
+            const item = availableViews.find((v) => v.slotIndex === slotIdx);
+            return (
+              <div
+                key={slotIdx}
+                className={styles.railSlot}
+                data-slot={slotIdx}
+                data-occupied={Boolean(item) ? 'true' : 'false'}
+              >
+                {item && (
+                  <button
+                    type="button"
+                    className={styles.railItem}
+                    data-slot={slotIdx}
+                    data-view-id={item.id}
+                    onClick={() => onSwitchView(item.id)}
+                    disabled={item.disabled}
+                  >
+                    {item.icon && <span className={styles.railItemIcon} aria-hidden="true">{item.icon}</span>}
+                    <span className={styles.railItemLabel}>{item.label}</span>
+                    {item.count !== undefined && item.count !== null && (
+                      <span className={styles.railItemCount} aria-label={`${item.count}`}>
+                        <span className={styles.railItemCountSep}>·</span>
+                        <span className={styles.railItemCountValue}>{item.count}</span>
+                      </span>
+                    )}
+                    {item.badge && <span className={styles.railItemBadge}>{item.badge}</span>}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
-      )}
+
+        {environmentSlot && (
+          <div className={styles.railEnvironment} data-slot="environment">
+            {environmentSlot}
+          </div>
+        )}
+      </SidebarSection>
     </nav>
   );
 }

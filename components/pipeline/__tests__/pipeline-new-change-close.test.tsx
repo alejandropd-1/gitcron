@@ -80,25 +80,25 @@ describe('cerrar el flujo de cambio nuevo', () => {
   it('el flujo se puede cerrar sin empezar nada', () => {
     renderDashboard();
 
-    fireEvent.click(screen.getByRole('button', { name: /next\.noActive\.propose/ }));
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.newChange/ }));
     expect(screen.getByRole('button', { name: /newChange\.close/ })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /newChange\.close/ }));
 
     // Vuelve la pantalla de inicio, sin el formulario.
     expect(screen.queryByRole('button', { name: /newChange\.close/ })).toBeNull();
-    expect(screen.getByRole('button', { name: /next\.noActive\.propose/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /openspec\.start\.newChange/ })).toBeTruthy();
   });
 
   it('cerrar sin empezar descarta lo escrito', () => {
     // El borrador sobrevive a cambiar de solapa, pero no a que la persona diga
     // que no lo quiere: son los dos momentos en que deja de ser un borrador.
     renderDashboard();
-    fireEvent.click(screen.getByRole('button', { name: /next\.noActive\.propose/ }));
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.newChange/ }));
     fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'algo a medio escribir' } });
 
     fireEvent.click(screen.getByRole('button', { name: /newChange\.close/ }));
-    fireEvent.click(screen.getByRole('button', { name: /next\.noActive\.propose/ }));
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.newChange/ }));
 
     expect((screen.getAllByRole('textbox')[0] as HTMLTextAreaElement).value).toBe('');
   });
@@ -107,7 +107,8 @@ describe('cerrar el flujo de cambio nuevo', () => {
     // Las dos entradas al flujo tenían el mismo problema.
     renderDashboard();
 
-    fireEvent.click(screen.getByRole('button', { name: /next\.noActive\.explore/ }));
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.newChange/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newChange\.intent\.explore/ }));
     fireEvent.click(screen.getByRole('button', { name: /newChange\.close/ }));
 
     expect(screen.queryByRole('button', { name: /newChange\.close/ })).toBeNull();

@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ViewSwitcherRail, type ViewSwitcherItem } from '../ViewSwitcherRail';
+
+afterEach(cleanup);
 
 describe('ViewSwitcherRail - Intercambiador modular de vistas', () => {
   it('retorna null (no se monta) si sólo hay una vista disponible y no hay señales de entorno', () => {
@@ -95,7 +97,7 @@ describe('ViewSwitcherRail - Intercambiador modular de vistas', () => {
     expect(slot3After?.getAttribute('data-view-id')).toBe('diffs');
   });
 
-  it('permite colapsar el riel a franja mínima sin texto y reabrirlo', () => {
+  it('permite colapsar el contenido del panel mediante la sección desplegable y reabrirlo', () => {
     const onToggle = vi.fn();
     const views: ViewSwitcherItem[] = [
       { id: 'archived', label: 'Archivados', slotIndex: 1 },
@@ -108,11 +110,15 @@ describe('ViewSwitcherRail - Intercambiador modular de vistas', () => {
         onSwitchView={() => undefined}
         isCollapsed={false}
         onToggleCollapse={onToggle}
+        ariaLabel="Vistas"
       />,
     );
 
-    const collapseBtn = screen.getByRole('button', { name: /Plegar panel de vistas/ });
-    fireEvent.click(collapseBtn);
+    const sectionToggleBtn = screen.getByRole('button', { name: /Vistas/ });
+    expect(sectionToggleBtn.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: /Archivados/ })).toBeTruthy();
+
+    fireEvent.click(sectionToggleBtn);
     expect(onToggle).toHaveBeenCalled();
 
     // Rerender colapsado
@@ -123,9 +129,11 @@ describe('ViewSwitcherRail - Intercambiador modular de vistas', () => {
         onSwitchView={() => undefined}
         isCollapsed={true}
         onToggleCollapse={onToggle}
+        ariaLabel="Vistas"
       />,
     );
 
-    expect(screen.getByRole('button', { name: /Desplegar panel de vistas/ })).toBeTruthy();
+    expect(sectionToggleBtn.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('button', { name: /Archivados/ })).toBeNull();
   });
 });

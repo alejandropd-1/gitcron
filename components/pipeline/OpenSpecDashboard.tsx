@@ -36,6 +36,7 @@ import {
   Wrench,
   MessageSquareText,
   BrainCircuit,
+  PanelRight,
 } from 'lucide-react';
 import { ContentHeader } from '@/components/ContentHeader';
 import { cn } from '@/lib/utils';
@@ -458,6 +459,21 @@ export function OpenSpecDashboard({
 
   type StartView = 'in-progress' | 'archived' | 'new-change';
   const [activeStartView, setActiveStartView] = useState<StartView>(() => (draft.open ? 'new-change' : 'in-progress'));
+  /**
+   * Aclaración de arquitectura (Revisión visual 4.6 / Tarea 3.4):
+   * Que el control «Alternar resumen fijado» corra el contenido del medio para hacerle
+   * lugar al panel (o le devuelva ese lugar al ocultarlo) NO incumple el requisito
+   * consolidado «Un control no desplaza a los demás al cambiar».
+   *
+   * Dicho requisito prohíbe terminantemente que los elementos de la interfaz se muevan
+   * SOLOS, sin que nadie lo haya pedido (por ejemplo, que una lista crezca o un desplegable
+   * empuje fuera de vista lo que se estaba mirando).
+   *
+   * En este caso, el desplazamiento del contenido es la respuesta deliberada, directa y
+   * esperada a una acción explícita de la persona al alternar la visibilidad del panel.
+   * El contenido central permanece siempre centrado en ambos estados.
+   */
+  const [isSwitcherOpen, setIsSwitcherOpen] = useState(true);
   const [isSwitcherCollapsed, setIsSwitcherCollapsed] = useState(false);
   const startScrollPositionsRef = useRef<Record<string, number>>({});
   const startBodyRef = useRef<HTMLDivElement>(null);
@@ -1716,8 +1732,8 @@ export function OpenSpecDashboard({
           </div>
         </div>
 
-        {/* Right: Preparar commit */}
-        <div className="shrink-0 ml-auto flex items-center">
+        {/* Right: Acciones de encabezado */}
+        <div className="shrink-0 ml-auto flex items-center gap-1.5">
           <div className="bg-bg-base/80 border border-border-subtle/30 rounded-lg flex items-center p-0.5 shadow-sm">
             <button
               type="button"
@@ -1740,6 +1756,25 @@ export function OpenSpecDashboard({
             >
               <GitCommit size={13} className="shrink-0" />
               <span className="text-[length:var(--font-size-xs)] leading-none font-semibold">{t('pipeline.openspec.prepare.open')}</span>
+            </button>
+          </div>
+
+          {/* Alternar resumen fijado (intercambiador de vistas) */}
+          <div className="bg-bg-base/80 border border-border-subtle/30 rounded-lg flex items-center p-0.5 shadow-sm">
+            <button
+              type="button"
+              aria-label={t('pipeline.switcher.toggle')}
+              aria-expanded={isSwitcherOpen}
+              title={t('pipeline.switcher.toggle')}
+              onClick={() => setIsSwitcherOpen((prev) => !prev)}
+              className={cn(
+                "h-7 px-2 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
+                isSwitcherOpen
+                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
+                  : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
+              )}
+            >
+              <PanelRight size={13} className="shrink-0" />
             </button>
           </div>
         </div>
@@ -2660,50 +2695,6 @@ export function OpenSpecDashboard({
                       </div>
                     </header>
 
-                    {/* Bloque «Empezar un cambio»: sustituye a la guía "Siguiente paso" en inicio.
-                        Jerarquización de acciones:
-                        - «Tengo claro el cambio» (primaryAction, cian, crea cambio y rama)
-                        - «Quiero definirlo mejor» (secondaryAction, marco, exploratorio sin ramas) */}
-                    <section className={styles.startNewChangeBlock} aria-label={t('pipeline.openspec.start.newChange')}>
-                      <div className={styles.startNewChangeBlockHeader}>
-                        <h4>{t('pipeline.openspec.start.newChange')}</h4>
-                      </div>
-                      <p className={styles.startNewChangeHelp}>{t(nextAction.helpKey, nextAction.helpParams)}</p>
-
-                      <div className={styles.startNewChangeActions}>
-                        <div className={styles.startActionItem}>
-                          <button
-                            type="button"
-                            className={styles.primaryAction}
-                            disabled={fixtureActive}
-                            onClick={() => {
-                              handleIntent({ kind: 'open-propose-flow' });
-                              handleSwitchStartView('new-change');
-                            }}
-                          >
-                            <Play size={14} aria-hidden="true" />
-                            {t('pipeline.next.noActive.propose')}
-                          </button>
-                          <span className={styles.startActionHelp}>{t('pipeline.openspec.start.proposeHelp')}</span>
-                        </div>
-
-                        <div className={styles.startActionItem}>
-                          <button
-                            type="button"
-                            className={styles.secondaryAction}
-                            disabled={fixtureActive}
-                            onClick={() => {
-                              handleIntent({ kind: 'open-explore-flow' });
-                              handleSwitchStartView('new-change');
-                            }}
-                          >
-                            {t('pipeline.next.noActive.explore')}
-                          </button>
-                          <span className={styles.startActionHelp}>{t('pipeline.openspec.start.exploreHelp')}</span>
-                        </div>
-                      </div>
-                    </section>
-
                     {/* Centro de la pantalla: CAMBIOS EN CURSO */}
                     <div className={styles.startMainBlock}>
                       <div className={styles.startBlock}>
@@ -2858,15 +2849,16 @@ export function OpenSpecDashboard({
                 )}
               </div>
 
-              <ViewSwitcherRail
-                views={startViews}
-                activeViewId={activeStartView}
-                onSwitchView={(viewId) => handleSwitchStartView(viewId as StartView)}
-                isCollapsed={isSwitcherCollapsed}
-                onToggleCollapse={() => setIsSwitcherCollapsed((c) => !c)}
-                ariaLabel={t('pipeline.switcher.views')}
-                collapseAriaLabel={isSwitcherCollapsed ? t('pipeline.switcher.expand') : t('pipeline.switcher.collapse')}
-              />
+              {isSwitcherOpen && (
+                <ViewSwitcherRail
+                  views={startViews}
+                  activeViewId={activeStartView}
+                  onSwitchView={(viewId) => handleSwitchStartView(viewId as StartView)}
+                  isCollapsed={isSwitcherCollapsed}
+                  onToggleCollapse={() => setIsSwitcherCollapsed((c) => !c)}
+                  ariaLabel={t('pipeline.switcher.views')}
+                />
+              )}
             </div>
           )}
         </main>

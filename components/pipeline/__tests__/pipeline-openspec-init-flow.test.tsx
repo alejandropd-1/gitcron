@@ -129,7 +129,7 @@ beforeEach(() => {
 describe('empezar un cambio sin OpenSpec inicializado', () => {
   it('lo declara y ofrece resolverlo, sin impedir empezar', () => {
     renderDashboard();
-    fireEvent.click(screen.getByRole('button', { name: /next\.noActive\.propose/ }));
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.newChange/ }));
 
     // Desplegar sección de herramientas en el inspector
     fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
@@ -141,7 +141,7 @@ describe('empezar un cambio sin OpenSpec inicializado', () => {
 
   it('inicializar desde el aviso conserva el objetivo y el slug', async () => {
     const { refreshWith } = renderDashboard();
-    fireEvent.click(screen.getByRole('button', { name: /next\.noActive\.propose/ }));
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.newChange/ }));
 
     fireEvent.change(screen.getByLabelText(/newChange\.propose\.objective/), {
       target: { value: 'ordenar el rail de actividad' },
@@ -165,7 +165,7 @@ describe('empezar un cambio sin OpenSpec inicializado', () => {
 
   it('nada se escribe sin la acción humana', () => {
     renderDashboard();
-    fireEvent.click(screen.getByRole('button', { name: /next\.noActive\.propose/ }));
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.newChange/ }));
     fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
 
     // Ver el estado no escribe: hasta acá sólo se leyó y se navegó.

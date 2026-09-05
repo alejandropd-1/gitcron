@@ -584,6 +584,22 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       requisito prohíbe que algo se mueva **solo**, no que se mueva porque la persona lo pidió. Hay
       que declarar esa distinción al implementarlo, para que nadie la lea al revés más adelante.
 
+- [ ] 4.7 **Tercera revisión visual de Alejandro, 2026-09-04.** «La pantalla de inicio me gusta.»
+  Tres detalles de forma del panel, tomados de la referencia:
+
+  30. **La barra de desplazamiento del cuerpo va contra el borde derecho de la ventana**, no dentro
+      del contenedor del contenido. En la referencia, el contenido se desplaza y su barra queda
+      pegada al extremo de la ventana, no rodeando la caja.
+  31. **El panel queda fijo al desplazarse.** Cuando el cuerpo se desplaza, el panel no se va con
+      él: se queda donde está.
+  32. **El panel no lleva borde que lo separe.** Tiene que condecir con el cuerpo, no leerse como
+      una caja aparte pegada al costado. A lo sumo una sombra suave. Hoy tiene un borde delimitador.
+
+  Confirmado además que **la vista del cambio activo sigue sin tocar** —cabecera amontonada, botón
+  de glosario, «Siguiente paso», «Archivar cambio» suelto, «TAREAS DEL CAMBIO» y los textos
+  cortados—: es la tanda siguiente y está previsto. El contenido del glosario es de
+  `explicar-el-ciclo-sin-tecnicismos`; acá sólo se retira su botón cuando se rehaga esa cabecera.
+
 ## 5. Pruebas
 
 - [ ] 5.1 Sostener lo decidido: que una superficie sin contenido no ocupe lugar, que siga siendo

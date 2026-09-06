@@ -71,7 +71,8 @@ describe('revalidación del workspace', { timeout: 15_000 }, () => {
     let resolveLoad: ((value: PipelineSnapshot) => void) | undefined;
     const loadSnapshot: PipelineSnapshotLoader = () => new Promise((resolve) => { resolveLoad = resolve; });
 
-    render(<PipelineWorkspace repoPath="C:/repo" loadSnapshot={loadSnapshot} />);
+    // Esta prueba necesita el panel flotante montado (rightOpen={false}) para alcanzar la acción que ejercita.
+    render(<PipelineWorkspace repoPath="C:/repo" loadSnapshot={loadSnapshot} rightOpen={false} />);
 
     // Primera carga: no hay nada vigente que conservar, así que sí corresponde.
     expect(document.querySelector('[data-estado="loading"]')).toBeTruthy();
@@ -91,7 +92,8 @@ describe('revalidación del workspace', { timeout: 15_000 }, () => {
       return new Promise((resolve) => { pending = resolve; });
     };
 
-    render(<PipelineWorkspace repoPath="C:/repo" loadSnapshot={loadSnapshot} />);
+    // Esta prueba necesita el panel flotante montado (rightOpen={false}) para alcanzar la acción que ejercita.
+    render(<PipelineWorkspace repoPath="C:/repo" loadSnapshot={loadSnapshot} rightOpen={false} />);
     await vi.waitFor(() => expect(screen.getAllByText('demo-change').length).toBeGreaterThan(0));
 
     // El panel abre en el estado del repositorio: entrar al cambio es una

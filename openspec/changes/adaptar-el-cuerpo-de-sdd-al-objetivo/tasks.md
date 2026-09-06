@@ -840,6 +840,88 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       Lo que cambio es lo que ve cualquier consumidor que omita la propiedad, que hoy son solo las
       pruebas. Decidir si se revierte el valor y se arregla la prueba donde correspondia.
 
+- [ ] 4.16 **Novena revision visual de Alejandro, 2026-09-06**, con el anclaje, los fondos y el
+  encabezado fijo ya andando. Siete observaciones.
+
+  48. **Las tarjetas de la pantalla de inicio siguen con borde, y el boton de adentro tambien.**
+      Pide sacarles el borde y, mejor aun, estandarizar ese boton a lo que la aplicacion ya usa
+      para desplegar contenido.
+      Medido el 2026-09-06: `.startList > li`
+      (`components/pipeline/OpenSpecDashboard.module.css:1392-1397`) ya tomo el fondo claro
+      (`--color-bg-overlay`) pero conserva `border: 1px solid var(--color-border-subtle)`. Con la
+      tarjeta levantada por el fondo, el borde es la segunda senal que sobra.
+      El boton «Ver las N que faltan» es `.startPendingToggle` (`:1430-1442`), que declara borde
+      propio en verde (`--color-git-add` al 34%), tipografia monoespaciada y peso 600. Su propio
+      comentario dice que es «mismo nivel 3 que `groupToggle`»: si son el mismo nivel, tienen que
+      verse igual y no declararse por separado.
+
+  49. **La vista de tareas: alineacion, icono de completado y hover disparejo.**
+      Pide alinear el encabezado fijo, llevar las casillas a la izquierda, darle a la tarea
+      terminada un tilde verde encerrado en circulo, alinear tambien las que parecen
+      radiobuttons, y arreglar el hover que «queda medio raro con mas padding de un lado que del
+      otro».
+      Causa medida el 2026-09-06, y es una sola: el tamano y el area de contacto de la casilla
+      **se declaran unicamente para las tareas completadas.** La regla
+      `.taskList > li[data-completed='true'] .taskStatus`
+      (`components/pipeline/OpenSpecDashboard.module.css:345-358`) fija `min-width: 2.75rem`,
+      `min-height: 2.75rem`, `padding: var(--space-2)` y `margin: calc(-1 * var(--space-2))`.
+      Una tarea pendiente no recibe nada de eso: su boton mide lo que mide el icono. Por eso las
+      casillas no se alinean entre si y el rectangulo del hover cambia de tamano segun el estado
+      de la fila.
+      Ademas la columna que las aloja mide `1.25rem` (`:336`, primera columna de la grilla)
+      mientras la casilla completada pide `2.75rem`: la casilla no entra en su columna.
+      Los iconos hoy son `<Check size={14} />` para completada y `<Circle size={14} />` para
+      pendiente (`components/pipeline/OpenSpecDashboard.tsx:2699`), sin color de exito: el tilde
+      hereda `--color-text-secondary`.
+
+  50. **Artefactos y evidencia: sobra el contenedor y sobran los bordes.**
+      Pide retirar la caja que envuelve a las solapas de cada artefacto y sacarle los bordes.
+
+  51. **El estado por artefacto se dice dos veces, y las solapas lo dicen una tercera.**
+      Alejandro: dejar solo la tarjeta del principio, poner los estados despues del titulo y
+      **en horizontal, como linea de tiempo**; y que las cuatro solapas de artefacto desaparezcan
+      y se conviertan en ese mismo contenedor de arriba.
+      Medido el 2026-09-06, y las dos superficies **no tienen la misma fuente**:
+      - La tarjeta de arriba es la que se mudo del navegador izquierdo en la tarea 4.11
+        (`components/pipeline/OpenSpecDashboard.tsx:2757-2760`). Deriva el estado de la aplicacion:
+        `proposalExists`, `designExists`, `specsCount > 0` y la cuenta de tareas. Cada fila abre su
+        archivo.
+      - La fila de abajo es `PipelineArtifactGraph`
+        (`components/pipeline/PipelineDetails.tsx:124-125`), alimentada por `status.artifacts` de
+        `openspec status --json`. Su propio encabezado
+        (`components/pipeline/PipelineArtifactGraph.tsx:8-24`) declara la regla: «no se inventa
+        estado derivando de tareas o validacion, que es justo el modelo propio que este cambio
+        deja de usar para esta superficie», y si el CLI no entrega grafo, la superficie no se
+        dibuja.
+      **Consecuencia para la union: el estado que sobrevive es el del CLI, no el derivado.** Lo
+      que la tarjeta aporta y el grafo no es la navegacion —abrir cada artefacto—, y eso es
+      justamente lo que la observacion 51 le pide ademas: que la linea reemplace a las solapas.
+      La superficie unica queda siendo: estado del CLI + navegacion por artefacto, en horizontal.
+      **Frontera a declarar antes de dibujar:** la propuesta de este change dice que la linea de
+      tiempo con nodos unidos es de `gestionar-ciclo-openspec-desde-gitcron`, seccion 3c. Lectura
+      propuesta: este change resuelve **que aparece, donde y con que estado** —la franja horizontal
+      que muestra y navega—, y el otro resuelve **el recorrido dibujado con nodos unidos** sobre
+      esa misma franja. Si Alejandro prefiere mover la frontera, se declara y se anota en los dos
+      changes. **La decide Alejandro.**
+
+  52. **Las solapas «Archivos y diffs git» y «Glosario del metodo» sobran.**
+      Alejandro: «no se para que sirven, creo que estan al pedo».
+      Medido el 2026-09-06:
+      - «Glosario del metodo» (`components/pipeline/PipelineDetails.tsx:116` y `:159-166`) es un
+        marcador de posicion: su panel muestra un texto fijo escrito a mano en castellano dentro
+        del componente, «[marcador de posicion: glosario de terminos del metodo]». Es el caso que
+        la tarea 3.6 ya habia confirmado, y pertenece a `explicar-el-ciclo-sin-tecnicismos`.
+      - «Archivos y diffs git» (`:115`) muestra lo mismo que la vista de diffs que el panel
+        flotante ya ofrece (`components/pipeline/OpenSpecDashboard.tsx:815` y `:2802`), que ademas
+        solo aparece cuando hay diffs. La solapa esta siempre, diga «(0)» o no.
+      Las dos se retiran, con todo lo que quede huerfano detras.
+
+  53. **En la vista de una tarea, el panel dice «Volver al inicio» y tiene que decir «En curso».**
+      Con su icono, que ya existe: la pantalla de inicio declara la vista `in-progress` con el
+      rotulo `pipeline.openspec.start.inProgress` y el icono `ListTodo`
+      (`components/pipeline/OpenSpecDashboard.tsx`, definicion de `startViews`). Volver no es «ir
+      al inicio»: es volver a los cambios en curso, que es una vista con nombre propio.
+
 ## 5. Pruebas
 
 - [ ] 5.1 Sostener lo decidido: que una superficie sin contenido no ocupe lugar, que siga siendo

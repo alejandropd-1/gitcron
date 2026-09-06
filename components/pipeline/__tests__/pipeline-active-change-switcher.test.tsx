@@ -917,4 +917,43 @@ describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
       expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
     });
   });
+
+  describe('4.15 / Observación 46: Encabezado sticky (.changeHeader) con scroll en el cuerpo', () => {
+    it('el encabezado permanece fijo y opaco sobre el lienzo cuando el cuerpo se desplaza en scroll profundo', () => {
+      const cssPath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+      // 1. .changeHeader está declarado con position: sticky, top: 0, z-index >= 4 y background opaco var(--color-bg-base)
+      const headerMatch = cssContent.match(/\.changeHeader\s*\{([^}]+)\}/);
+      expect(headerMatch).not.toBeNull();
+      const headerBody = headerMatch![1];
+      expect(headerBody).toMatch(/position:\s*sticky/);
+      expect(headerBody).toMatch(/top:\s*0/);
+      expect(headerBody).toMatch(/z-index:\s*[4-9]/);
+      expect(headerBody).toMatch(/background:\s*var\(--color-bg-base\)/);
+
+      // 2. .startBody es el contenedor y no se colapsa (flex: 1 0 auto, min-height: 100%, height: auto)
+      const bodyMatch = cssContent.match(/\.startBody\s*\{([^}]+)\}/);
+      expect(bodyMatch).not.toBeNull();
+      const bodyCss = bodyMatch![1];
+      expect(bodyCss).toMatch(/flex:\s*1\s+0\s+auto/);
+      expect(bodyCss).toMatch(/min-height:\s*100%/);
+      expect(bodyCss).toMatch(/height:\s*auto/);
+
+      // 3. Montado en el DOM: .changeHeader permanece montado, visible y accesible tras scroll profundo en .center
+      const { container } = renderActiveChange();
+      const header = container.querySelector('[class*="changeHeader"]');
+      expect(header).toBeTruthy();
+      expect(header?.textContent).toContain('pipeline.openspec.change.active');
+
+      const center = container.querySelector('[class*="center"]');
+      if (center) {
+        fireEvent.scroll(center, { target: { scrollTop: 3000 } });
+      }
+
+      // Sigue montado y legible
+      expect(container.querySelector('[class*="changeHeader"]')).toBeTruthy();
+      expect(header?.textContent).toContain('pipeline.openspec.change.active');
+    });
+  });
 });

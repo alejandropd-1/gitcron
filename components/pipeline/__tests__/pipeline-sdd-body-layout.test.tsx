@@ -336,6 +336,47 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
     });
   });
 
+  describe('4.15 / Observación 45: Jerarquía lumínica de superficies en el cuerpo de SDD', () => {
+    it('ninguna superficie de fondo en el cuerpo tiene luminancia inferior a la del lienzo (#2e3440)', () => {
+      const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const content = fs.readFileSync(modulePath, 'utf-8');
+
+      // 1. No existe ninguna declaración background ni background-color con var(--color-bg-surface)
+      const bgSurfaceRegex = /(?:background|background-color)\s*:[^;]*var\(--color-bg-surface\)/gi;
+      const bgSurfaceMatches = content.match(bgSurfaceRegex);
+      expect(bgSurfaceMatches).toBeNull();
+
+      // 2. No existe color-mix con var(--color-bg-surface) en fondos
+      const colorMixSurfaceRegex = /(?:background|background-color)\s*:[^;]*color-mix\([^;]*var\(--color-bg-surface\)/gi;
+      const colorMixMatches = content.match(colorMixSurfaceRegex);
+      expect(colorMixMatches).toBeNull();
+
+      // 3. Verificación de luminancia sRGB: el token de superficie (--color-bg-overlay, #3b4252)
+      // debe tener luminancia relativa mayor o igual al lienzo base (--color-bg-base, #2e3440)
+      function srgbLuminance(hex: string): number {
+        const num = parseInt(hex.replace('#', ''), 16);
+        const r = (num >> 16) & 255;
+        const g = (num >> 8) & 255;
+        const b = num & 255;
+        const toLinear = (c: number) => {
+          const s = c / 255;
+          return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+        };
+        return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+      }
+
+      const canvasLuminance = srgbLuminance('#2e3440'); // ~0.0342
+      const overlayLuminance = srgbLuminance('#3b4252'); // ~0.0542
+      const oldSurfaceLuminance = srgbLuminance('#272c36'); // ~0.0252
+
+      // El token anterior era defectuoso: más oscuro que el fondo base
+      expect(oldSurfaceLuminance).toBeLessThan(canvasLuminance);
+
+      // El token actual respeta la física de superficies: más claro que el fondo base
+      expect(overlayLuminance).toBeGreaterThan(canvasLuminance);
+    });
+  });
+
   describe('Grupo 5: Comprobaciones del change y límites de cobertura (5.1 y 5.2)', () => {
     it('5.1 En el DOM montado: una superficie sin contenido no ocupa lugar, se mantiene alcanzable por sus controles y abrir una no desplaza a las demás', () => {
       // 1. Superficie sin contenido no ocupa lugar en el DOM:

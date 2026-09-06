@@ -37,6 +37,8 @@ import {
   MessageSquareText,
   BrainCircuit,
   PanelRight,
+  RotateCcw,
+  Undo2,
 } from 'lucide-react';
 import { ContentHeader } from '@/components/ContentHeader';
 import { cn } from '@/lib/utils';
@@ -477,7 +479,6 @@ export function OpenSpecDashboard({
    * El contenido central permanece siempre centrado en ambos estados.
    */
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(true);
-  const [isSwitcherCollapsed, setIsSwitcherCollapsed] = useState(false);
   const startScrollPositionsRef = useRef<Record<string, number>>({});
   const startBodyRef = useRef<HTMLDivElement>(null);
 
@@ -563,6 +564,24 @@ export function OpenSpecDashboard({
       slotIndex: 2,
     },
   ], [activeChanges.length, archivedChanges.length, activeStartView, t]);
+
+  const archiveViews: ViewSwitcherItem[] = useMemo(() => [
+    {
+      id: 'start',
+      label: t('pipeline.switcher.start'),
+      icon: <ChevronLeft size={13} />,
+      slotIndex: 1,
+    },
+  ], [t]);
+
+  const specViews: ViewSwitcherItem[] = useMemo(() => [
+    {
+      id: 'start',
+      label: t('pipeline.switcher.start'),
+      icon: <ChevronLeft size={13} />,
+      slotIndex: 1,
+    },
+  ], [t]);
   /** Lo que falta de un cambio. El avance ya está en la barra; esto es qué queda. */
   const pendingOf = (change: OpenSpecChangeSummary) => change.tasks.filter((task) => !task.completed);
   const nextTask = selectedChange?.tasks.find((task) => !task.completed) ?? null;
@@ -692,23 +711,48 @@ export function OpenSpecDashboard({
   const hasActivity = runtimeActive || visibleActivity.length > 0;
 
   const changeViews: ViewSwitcherItem[] = useMemo(() => {
+    if (launchTarget) {
+      return [
+        {
+          id: 'tasks',
+          label: t('pipeline.switcher.tasksReturn'),
+          count: selectedChange ? selectedChange.tasks.length : null,
+          icon: <ListChecks size={13} />,
+          slotIndex: 1,
+        },
+        {
+          id: 'start',
+          label: t('pipeline.switcher.start'),
+          icon: <Undo2 size={13} />,
+          slotIndex: 2,
+        },
+      ];
+    }
     const items: ViewSwitcherItem[] = [];
 
-    // Ranura 1: Vista principal alternativa (Tareas / Artefactos)
+    // Ranura 1: Volver al inicio (navegación contextual dinámica del panel)
+    items.push({
+      id: 'start',
+      label: t('pipeline.switcher.start'),
+      icon: <ChevronLeft size={13} />,
+      slotIndex: 1,
+    });
+
+    // Ranura 2: Vista principal alternativa (Tareas / Artefactos)
     if (activeChangeView === 'artifacts') {
       items.push({
         id: 'tasks',
         label: t('pipeline.switcher.tasks'),
         count: selectedChange ? pendingOf(selectedChange).length : 0,
         icon: <ListChecks size={13} />,
-        slotIndex: 1,
+        slotIndex: 2,
       });
     } else {
       items.push({
         id: 'artifacts',
         label: t('pipeline.switcher.artifacts'),
         icon: <FileText size={13} />,
-        slotIndex: 1,
+        slotIndex: 2,
       });
       if (activeChangeView !== 'tasks') {
         items.push({
@@ -716,23 +760,23 @@ export function OpenSpecDashboard({
           label: t('pipeline.switcher.tasks'),
           count: selectedChange ? pendingOf(selectedChange).length : 0,
           icon: <ListChecks size={13} />,
-          slotIndex: 2,
+          slotIndex: 3,
         });
       }
     }
 
-    // Ranura 2: Diffs (sólo si hay cambios sin confirmar)
+    // Ranura 3: Diffs (sólo si hay cambios sin confirmar)
     if (hasDiffs) {
       items.push({
         id: 'diffs',
         label: t('pipeline.switcher.diffs'),
         count: snapshot.diffs?.length ?? 0,
         icon: <Code2 size={13} />,
-        slotIndex: (activeChangeView === 'tasks' || activeChangeView === 'artifacts') ? 2 : 3,
+        slotIndex: (activeChangeView === 'tasks' || activeChangeView === 'artifacts') ? 3 : 4,
       });
     }
 
-    // Ranura 3: Actividad (sólo si hay sesión o bitácora)
+    // Ranura 4: Actividad (sólo si hay sesión o bitácora)
     if (hasActivity) {
       items.push({
         id: 'activity',
@@ -740,12 +784,12 @@ export function OpenSpecDashboard({
         badge: runtimeActive ? t('pipeline.openspec.task.running') : undefined,
         count: visibleActivity.length > 0 ? visibleActivity.length : null,
         icon: <Activity size={13} />,
-        slotIndex: (activeChangeView === 'tasks' || activeChangeView === 'artifacts') ? 3 : 4,
+        slotIndex: (activeChangeView === 'tasks' || activeChangeView === 'artifacts') ? 4 : 5,
       });
     }
 
     return items;
-  }, [activeChangeView, selectedChange, hasDiffs, hasActivity, snapshot.diffs?.length, runtimeActive, visibleActivity.length, t]);
+  }, [launchTarget, activeChangeView, selectedChange, hasDiffs, hasActivity, snapshot.diffs?.length, runtimeActive, visibleActivity.length, t]);
 
 
   /**
@@ -1607,7 +1651,7 @@ export function OpenSpecDashboard({
       // Exactamente uno: con cero o con varios no hay forma verificable de saber
       // cual corresponde a la sesion que acaba de cerrar, y se deja la seleccion
       // como estaba en vez de adivinar.
-      if (added.length === 1) {
+      if (added.length === 1 && flowMode) {
         setSelection(added[0]);
         closeFlow();
         setLaunchTarget(null);
@@ -1620,27 +1664,97 @@ export function OpenSpecDashboard({
       <ChangeBranchNotice branch={currentBranch} changeId={selectedChange.changeId} />
     ) : null;
 
-    const archiveBtn = selectedChange && selectedArchive === null && primaryAction?.intent.kind !== 'start-archive' ? (
+    const cancelBtn = launchTarget ? (
       <button
         type="button"
-        className={styles.secondaryAction}
+        className={cn(styles.railActionItem, styles.secondaryAction)}
+        title={t('pipeline.openspec.archive.cancel')}
+        onClick={() => setLaunchTarget(null)}
+      >
+        <span className={styles.railItemIcon} aria-hidden="true">
+          <RotateCcw size={13} />
+        </span>
+        <span className={styles.railItemLabel}>
+          {t('pipeline.openspec.archive.cancel')}
+        </span>
+      </button>
+    ) : null;
+
+    const continueBtn = (!launchTarget && primaryAction) ? (
+      <button
+        type="button"
+        className={cn(styles.railActionItem, styles.railPrimaryAction, styles.primaryAction)}
+        disabled={fixtureActive && primaryAction.executable}
+        title={t(nextAction.helpKey, nextAction.helpParams)}
+        onClick={() => handleIntent(primaryAction.intent)}
+      >
+        <span className={cn(styles.railItemIcon, styles.railPrimaryIcon)} aria-hidden="true">
+          {primaryAction.executable ? <Play size={13} fill="currentColor" /> : <Activity size={13} />}
+        </span>
+        <span className={styles.railItemLabel}>
+          {t(primaryAction.labelKey, primaryAction.labelParams)}
+        </span>
+      </button>
+    ) : null;
+
+    const secondaryBtn = (!launchTarget && secondaryAction) ? (
+      <button
+        type="button"
+        className={cn(styles.railActionItem, styles.secondaryAction)}
+        disabled={fixtureActive && secondaryAction.executable}
+        onClick={() => handleIntent(secondaryAction.intent)}
+      >
+        <span className={styles.railItemIcon} aria-hidden="true">
+          {secondaryAction.intent.kind === 'pause-after-task' && <Pause size={13} />}
+        </span>
+        <span className={styles.railItemLabel}>
+          {t(secondaryAction.labelKey, secondaryAction.labelParams)}
+        </span>
+      </button>
+    ) : null;
+
+    const archiveBtn = (!launchTarget && selectedChange && selectedArchive === null && primaryAction?.intent.kind !== 'start-archive') ? (
+      <button
+        type="button"
+        className={cn(styles.railActionItem, styles.secondaryAction)}
         disabled={!archive.available || fixtureActive}
         title={archive.reasonKey ? t(archive.reasonKey) : t('pipeline.openspec.archive.help')}
         onClick={() => handleIntent({ kind: 'start-archive', changeId: selectedChange.changeId })}
       >
-        <FolderOpen size={14} />
-        {archive.pendingTasks > 0
-          ? t('pipeline.openspec.archive.actionPending', { count: archive.pendingTasks })
-          : t('pipeline.openspec.archive.action')}
+        <span className={styles.railItemIcon} aria-hidden="true">
+          <FolderOpen size={13} />
+        </span>
+        <span className={styles.railItemLabel}>
+          {archive.pendingTasks > 0
+            ? t('pipeline.openspec.archive.actionPending', { count: archive.pendingTasks })
+            : t('pipeline.openspec.archive.action')}
+        </span>
       </button>
     ) : null;
 
-    if (!mismatchNotice && !archiveBtn) return null;
+    const actionCount = (cancelBtn ? 1 : 0) + (continueBtn ? 1 : 0) + (secondaryBtn ? 1 : 0) + (archiveBtn ? 1 : 0);
+
+    if (!mismatchNotice && actionCount === 0) return null;
 
     return (
       <>
         {mismatchNotice}
-        {archiveBtn}
+        {actionCount > 0 && (
+          <div className={styles.railSection}>
+            <div className={styles.railSectionHeader}>
+              <span className={styles.railSectionTitle}>{t('pipeline.switcher.actions')}</span>
+              <span className={styles.railItemCount} aria-label={`${actionCount}`}>
+                <span className={styles.railItemCountValue}>{actionCount}</span>
+              </span>
+            </div>
+            <div className={styles.railSlots}>
+              {cancelBtn}
+              {continueBtn}
+              {secondaryBtn}
+              {archiveBtn}
+            </div>
+          </div>
+        )}
       </>
     );
   })();
@@ -1891,13 +2005,29 @@ export function OpenSpecDashboard({
               salvo la preparación: ésta es del repositorio y no puede quedar
               tapada por lo que se esté leyendo. */}
           {!prepareOpen && openSpecification ? (
-            <SpecificationViewer
-              repoPath={repoPath}
-              specificationId={openSpecification.specificationId}
-              requirements={openSpecification.requirements}
-              sourceRef={openSpecification.sourceRef}
-              onBack={() => setOpenSpecificationId(null)}
-            />
+            <div className={styles.startScreenWrapper}>
+              {isSwitcherOpen && (
+                <ViewSwitcherRail
+                  views={specViews}
+                  activeViewId="spec"
+                  onSwitchView={(viewId) => {
+                    if (viewId === 'start') {
+                      setOpenSpecificationId(null);
+                    }
+                  }}
+                  ariaLabel={t('pipeline.switcher.views')}
+                />
+              )}
+              <div className={styles.startBody} ref={startBodyRef}>
+                <SpecificationViewer
+                  repoPath={repoPath}
+                  specificationId={openSpecification.specificationId}
+                  requirements={openSpecification.requirements}
+                  sourceRef={openSpecification.sourceRef}
+                  onBack={() => setOpenSpecificationId(null)}
+                />
+              </div>
+            </div>
           ) : !prepareOpen && reviewOpen ? (
             <OpenSpecUpdateReview
               repoPath={repoPath}
@@ -2346,135 +2476,122 @@ export function OpenSpecDashboard({
               )}
             </section>
           ) : selectedChange ? (
-            <>
-              {/* Encabezado desinflado: sólo navegación, título del cambio y CTA primario derivado */}
-              <header
-                className={styles.changeHeader}
-                data-revalidating={revalidating || undefined}
-                aria-busy={revalidating || undefined}
-              >
-                <div className={styles.headerIdentity}>
-                  <button type="button" className={styles.backToStart} onClick={() => { setSelection(null); setActiveChangeView('tasks'); }}>
-                    <ChevronLeft size={12} /> {t('pipeline.openspec.start.back')}
-                  </button>
-                  <h3>
-                    {t('pipeline.openspec.change.active')}: <strong>{selectedChange.changeId}</strong>
-                    <ChangeTimestampLabel labelKey="pipeline.openspec.stamp.created" stamp={selectedChange.createdAt} />
-                  </h3>
-                </div>
-
-                <div className={styles.headerActions}>
-                  {primaryAction && (
-                    <button
-                      type="button"
-                      className={styles.primaryAction}
-                      disabled={fixtureActive && primaryAction.executable}
-                      title={t(nextAction.helpKey, nextAction.helpParams)}
-                      onClick={() => handleIntent(primaryAction.intent)}
-                    >
-                      {primaryAction.executable ? <Play size={14} /> : <Activity size={14} />}
-                      {t(primaryAction.labelKey, primaryAction.labelParams)}
-                    </button>
-                  )}
-                  {secondaryAction && (
-                    <button
-                      type="button"
-                      className={styles.secondaryAction}
-                      disabled={fixtureActive && secondaryAction.executable}
-                      onClick={() => handleIntent(secondaryAction.intent)}
-                    >
-                      {secondaryAction.intent.kind === 'pause-after-task' && <Pause size={14} />}
-                      {t(secondaryAction.labelKey, secondaryAction.labelParams)}
-                    </button>
-                  )}
-                </div>
-              </header>
-
-              {/* Pegada a la cabecera y FUERA del área con scroll */}
-              {archiveRequest && (
-                <div className={styles.archiveConfirm}>
-                  <div className={styles.archiveConfirmHead}>
-                    <strong>{t('pipeline.openspec.archive.confirmTitle')}</strong>
-                    <span>{t('pipeline.openspec.archive.confirmHelp')}</span>
-                  </div>
-                  <pre className={styles.archiveCommand}><code>{archiveRequest.command}</code></pre>
-                  {archivePlanData?.errors && archivePlanData.errors.length > 0 && (
-                    <div role="alert">
-                      {archivePlanData.errors.map((err, idx) => (
-                        <p key={idx} className={styles.archiveError}>
-                          <AlertTriangle size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 'var(--space-1)' }} />
-                          {err}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  {archiveError && (
-                    <p className={styles.archiveError} role="alert">
-                      {t('pipeline.openspec.archive.failed')} {archiveError}
-                    </p>
-                  )}
-                  <div className={styles.actions}>
-                    <button
-                      type="button"
-                      className={styles.primaryAction}
-                      disabled={archiveBusy || fixtureActive || (archivePlanData?.canArchive === false)}
-                      onClick={confirmArchive}
-                    >
-                      {archiveBusy
-                        ? <Loader2 size={14} className={styles.spin} />
-                        : <FolderOpen size={14} />}
-                      {archiveBusy
-                        ? t('pipeline.openspec.archive.running')
-                        : t('pipeline.openspec.archive.confirmAction')}
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.secondaryAction}
-                      disabled={archiveBusy}
-                      onClick={() => { setArchiveRequest(null); setArchiveError(null); setArchivePlanData(null); }}
-                    >
-                      {t('pipeline.openspec.archive.cancel')}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {taskToggleRequest && (
-                <TaskConfirmToast
-                  title={t(taskToggleRequest.completed
-                    ? 'pipeline.openspec.task.checkTitle'
-                    : 'pipeline.openspec.task.uncheckTitle', { task: taskToggleRequest.label })}
-                  description={t(taskToggleRequest.completed
-                    ? 'pipeline.openspec.task.checkHelp'
-                    : 'pipeline.openspec.task.uncheckHelp')}
-                  confirmLabel={t(taskToggleRequest.completed
-                    ? 'pipeline.openspec.task.checkConfirm'
-                    : 'pipeline.openspec.task.uncheckConfirm')}
-                  cancelLabel={t('pipeline.openspec.archive.cancel')}
-                  onConfirm={() => {
-                    void setTaskChecked(taskToggleRequest.line, taskToggleRequest.text, taskToggleRequest.completed)
-                      .catch((error: unknown) => {
-                        setTaskError(error instanceof Error ? error.message : t('pipeline.openspec.task.failed'));
-                      });
-                    setTaskToggleRequest(null);
+            <div className={styles.startScreenWrapper}>
+              {isSwitcherOpen && (
+                <ViewSwitcherRail
+                  views={changeViews}
+                  activeViewId={launchTarget ? 'launch' : activeChangeView}
+                  onSwitchView={(viewId) => {
+                    setLaunchTarget(null);
+                    if (viewId === 'start') {
+                      setSelection(null);
+                      setActiveChangeView('tasks');
+                    } else {
+                      setActiveChangeView(viewId as ActiveChangeView);
+                    }
                   }}
-                  onCancel={() => setTaskToggleRequest(null)}
+                  environmentSlot={changeEnvironmentSlot}
+                  ariaLabel={t('pipeline.switcher.views')}
                 />
               )}
-              {taskError && (
-                <p className={styles.archiveError} role="alert">{taskError}</p>
-              )}
-
-              {/* El cuerpo gobernado por el mecanismo de intercambio de vistas */}
-              <div className={styles.startScreenWrapper}>
-                <div className={styles.startBody}>
-                  {/* Vista A: TAREAS */}
-                  {activeChangeView === 'tasks' && (
-                    <section className={styles.startScreen} aria-label={t('pipeline.switcher.tasks')}>
-                      {nextAction.helpKey && (
+              <div className={styles.startBody} ref={startBodyRef}>
+                {/* Encabezado limpio: contenido dentro del cuerpo del medio */}
+                <header
+                  className={styles.changeHeader}
+                  data-revalidating={revalidating || undefined}
+                  aria-busy={revalidating || undefined}
+                >
+                  <div className={styles.headerIdentity}>
+                    <div className={styles.changeTitleGroup}>
+                      <h3>
+                        {t('pipeline.openspec.change.active')}: <strong>{selectedChange.changeId}</strong>
+                        <ChangeTimestampLabel labelKey="pipeline.openspec.stamp.created" stamp={selectedChange.createdAt} />
+                      </h3>
+                      {!launchTarget && nextAction.helpKey && (
                         <p className={styles.nextStepInline}>{t(nextAction.helpKey, nextAction.helpParams)}</p>
                       )}
-                      {launchTarget && (
+                    </div>
+                  </div>
+                </header>
+
+                {/* Pegada a la cabecera y en el cuerpo del medio */}
+                {archiveRequest && (
+                  <div className={styles.archiveConfirm}>
+                    <div className={styles.archiveConfirmHead}>
+                      <strong>{t('pipeline.openspec.archive.confirmTitle')}</strong>
+                      <span>{t('pipeline.openspec.archive.confirmHelp')}</span>
+                    </div>
+                    <pre className={styles.archiveCommand}><code>{archiveRequest.command}</code></pre>
+                    {archivePlanData?.errors && archivePlanData.errors.length > 0 && (
+                      <div role="alert">
+                        {archivePlanData.errors.map((err, idx) => (
+                          <p key={idx} className={styles.archiveError}>
+                            <AlertTriangle size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 'var(--space-1)' }} />
+                            {err}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {archiveError && (
+                      <p className={styles.archiveError} role="alert">
+                        {t('pipeline.openspec.archive.failed')} {archiveError}
+                      </p>
+                    )}
+                    <div className={styles.actions}>
+                      <button
+                        type="button"
+                        className={styles.primaryAction}
+                        disabled={archiveBusy || fixtureActive || (archivePlanData?.canArchive === false)}
+                        onClick={confirmArchive}
+                      >
+                        {archiveBusy
+                          ? <Loader2 size={14} className={styles.spin} />
+                          : <FolderOpen size={14} />}
+                        {archiveBusy
+                          ? t('pipeline.openspec.archive.running')
+                          : t('pipeline.openspec.archive.confirmAction')}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.secondaryAction}
+                        disabled={archiveBusy}
+                        onClick={() => { setArchiveRequest(null); setArchiveError(null); setArchivePlanData(null); }}
+                      >
+                        {t('pipeline.openspec.archive.cancel')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {taskToggleRequest && (
+                  <TaskConfirmToast
+                    title={t(taskToggleRequest.completed
+                      ? 'pipeline.openspec.task.checkTitle'
+                      : 'pipeline.openspec.task.uncheckTitle', { task: taskToggleRequest.label })}
+                    description={t(taskToggleRequest.completed
+                      ? 'pipeline.openspec.task.checkHelp'
+                      : 'pipeline.openspec.task.uncheckHelp')}
+                    confirmLabel={t(taskToggleRequest.completed
+                      ? 'pipeline.openspec.task.checkConfirm'
+                      : 'pipeline.openspec.task.uncheckConfirm')}
+                    cancelLabel={t('pipeline.openspec.archive.cancel')}
+                    onConfirm={() => {
+                      void setTaskChecked(taskToggleRequest.line, taskToggleRequest.text, taskToggleRequest.completed)
+                        .catch((error: unknown) => {
+                          setTaskError(error instanceof Error ? error.message : t('pipeline.openspec.task.failed'));
+                        });
+                      setTaskToggleRequest(null);
+                    }}
+                    onCancel={() => setTaskToggleRequest(null)}
+                  />
+                )}
+                {taskError && (
+                  <p className={styles.archiveError} role="alert">{taskError}</p>
+                )}
+                  {/* Vista A: TAREAS (o pantalla dedicada de continuación) */}
+                  {activeChangeView === 'tasks' && (
+                    launchTarget ? (
+                      <section className={styles.startScreen} aria-label={t('pipeline.openspec.launcher.title')}>
                         <div
                           className={cn(styles.centerBlock, styles.launcherPanel)}
                           data-launcher-loading={launcherLoading || undefined}
@@ -2493,17 +2610,19 @@ export function OpenSpecDashboard({
                             blockedByFixture={fixtureActive}
                             startLabelKey={launchTarget.taskId ? 'pipeline.launcher.startApply' : 'pipeline.launcher.startArchive'}
                             onStarted={() => {
+                              setLaunchTarget(null);
                               setActiveChangeView('activity');
                               setCenterTab('activity');
                             }}
                             onDiscoveringChange={setLauncherLoading}
                           />
                         </div>
-                      )}
-
-                      {/* Lista de tareas limpia: SIN título redundante */}
-                      <div className={styles.centerBlock}>
-                        <ol className={styles.taskList}>
+                      </section>
+                    ) : (
+                      <section className={styles.startScreen} aria-label={t('pipeline.switcher.tasks')}>
+                        {/* Lista de tareas limpia: SIN título redundante */}
+                        <div className={styles.centerBlock}>
+                          <ol className={styles.taskList}>
                           {selectedChange.tasks.map((task) => {
                             const current = task.id === nextTask?.id;
                             return (
@@ -2568,7 +2687,7 @@ export function OpenSpecDashboard({
                         </ol>
                       </div>
                     </section>
-                  )}
+                  ))}
 
                   {/* Vista B: ARTEFACTOS Y EVIDENCIA */}
                   {activeChangeView === 'artifacts' && (
@@ -2617,94 +2736,97 @@ export function OpenSpecDashboard({
                     </section>
                   )}
                 </div>
-
-                {isSwitcherOpen && (
-                  <ViewSwitcherRail
-                    views={changeViews}
-                    activeViewId={activeChangeView}
-                    onSwitchView={(viewId) => setActiveChangeView(viewId as ActiveChangeView)}
-                    isCollapsed={isSwitcherCollapsed}
-                    onToggleCollapse={() => setIsSwitcherCollapsed((c) => !c)}
-                    environmentSlot={changeEnvironmentSlot}
-                    ariaLabel={t('pipeline.switcher.views')}
-                  />
-                )}
               </div>
-            </>
           ) : selectedArchive ? (
-            <section className={styles.completedSummary}>
-              {/* La identidad del cambio queda fija arriba mientras se recorren
-                  sus artefactos: al llegar el contenido, el resumen se iba de
-                  vista con el scroll y se perdía de qué cambio se estaba
-                  mirando. */}
-              <div className={styles.completedHeader}>
-                <CheckCircle2 size={38} />
-                <p>{t('pipeline.openspec.change.completed')}</p>
-                <h3>{selectedArchive.changeId}</h3>
-                {/* Creación y archivado, ambas con hora: con la fecha sola no se
-                    podía saber cuánto duró el trabajo.
-
-                    Acá vivían tres filas que se retiraron. Dos eran texto
-                    constante —"Especificaciones principales" y "Actividad y
-                    evidencia" rendían siempre "Conservadas", sin consultar el
-                    cambio— y la tercera mostraba una ruta cuya fecha ya estaba
-                    impresa arriba. Una fila que siempre dice lo mismo enseña a
-                    saltear el bloque entero, incluido lo que sí varía. */}
-                <div className={styles.completedStamps}>
-                  <ChangeTimestampLabel labelKey="pipeline.openspec.stamp.created" stamp={selectedArchive.createdAt} />
-                  <ChangeTimestampLabel labelKey="pipeline.openspec.stamp.archived" stamp={selectedArchive.archivedOn} />
-                  {!selectedArchive.archivedOn && (
-                    <span className={styles.changeStamp}>
-                      <span>{t('pipeline.openspec.stamp.archived')}</span> {selectedArchive.archivedAt ?? t('pipeline.openspec.dateUnknown')}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: dismissFlow } : undefined} />
-              {/* Lo archivado es el registro de lo que se hizo, incluida la
-                  firma humana. Revisarlo no debería obligar a salir de la
-                  aplicación ni a leer el diff del commit de archivado. */}
-              {/* La región existe desde el primer render, aunque el contenido
-                  todavía no haya llegado: al seleccionar un archivado hay una
-                  relectura de por medio, y sin reservar el espacio la vista
-                  saltaba de una ficha corta a una pantalla entera. */}
-              <div className={styles.archivedArtifacts} data-pending={!selectedArchive.artifacts || undefined}>
-                {!selectedArchive.artifacts ? (
-                  <p className={styles.archivedPending}>{t('pipeline.revalidating')}</p>
-                ) : (
-                  <PipelineDetails
-                    snapshot={snapshot}
-                    repoPath={repoPath}
-                    selectedChange={{
-                      changeId: selectedArchive.changeId,
-                      intent: null,
-                      tasks: [],
-                      proposalExists: selectedArchive.artifacts.proposal !== null,
-                      designExists: selectedArchive.artifacts.design !== null,
-                      specsCount: selectedArchive.artifacts.specs.length,
-                      validation: 'unknown',
-                      artifacts: selectedArchive.artifacts,
-                    }}
-                    tab={evidenceTab}
-                    onTabChange={setEvidenceTab}
-                  />
-                )}
-              </div>
-              {flowMode && (
-                <>
-                  <PipelineNewChangeFlow
-                    repoPath={repoPath}
-                    projection={projection}
-                    blockedByFixture={fixtureActive}
-                    onStarted={() => setCenterTab('activity')}
-                    currentBranch={currentBranch}
-                    divergence={snapshot.branchDivergence}
-                    workingTreeClean={workingTreeClean}
-                    onRefresh={onRefresh}
-                  />
-                </>
+            <div className={styles.startScreenWrapper}>
+              {isSwitcherOpen && (
+                <ViewSwitcherRail
+                  views={archiveViews}
+                  activeViewId="archive"
+                  onSwitchView={(viewId) => {
+                    if (viewId === 'start') {
+                      setSelection(null);
+                    }
+                  }}
+                  ariaLabel={t('pipeline.switcher.views')}
+                />
               )}
-            </section>
+              <div className={styles.startBody} ref={startBodyRef}>
+                <section className={styles.completedSummary}>
+                  {/* La identidad del cambio queda fija arriba mientras se recorren
+                      sus artefactos: al llegar el contenido, el resumen se iba de
+                      vista con el scroll y se perdía de qué cambio se estaba
+                      mirando. */}
+                  <div className={styles.completedHeader}>
+                    <CheckCircle2 size={38} />
+                    <p>{t('pipeline.openspec.change.completed')}</p>
+                    <h3>{selectedArchive.changeId}</h3>
+                    {/* Creación y archivado, ambas con hora: con la fecha sola no se
+                        podía saber cuánto duró el trabajo.
+
+                        Acá vivían tres filas que se retiraron. Dos eran texto
+                        constante —"Especificaciones principales" y "Actividad y
+                        evidencia" rendían siempre "Conservadas", sin consultar el
+                        cambio— y la tercera mostraba una ruta cuya fecha ya estaba
+                        impresa arriba. Una fila que siempre dice lo mismo enseña a
+                        saltear el bloque entero, incluido lo que sí varía. */}
+                    <div className={styles.completedStamps}>
+                      <ChangeTimestampLabel labelKey="pipeline.openspec.stamp.created" stamp={selectedArchive.createdAt} />
+                      <ChangeTimestampLabel labelKey="pipeline.openspec.stamp.archived" stamp={selectedArchive.archivedOn} />
+                      {!selectedArchive.archivedOn && (
+                        <span className={styles.changeStamp}>
+                          <span>{t('pipeline.openspec.stamp.archived')}</span> {selectedArchive.archivedAt ?? t('pipeline.openspec.dateUnknown')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: dismissFlow } : undefined} />
+                  {/* Lo archivado es el registro de lo que se hizo, incluida la
+                      firma humana. Revisarlo no debería obligar a salir de la
+                      aplicación ni a leer el diff del commit de archivado. */}
+                  {/* La región existe desde el primer render, aunque el contenido
+                      todavía no haya llegado: al seleccionar un archivado hay una
+                      relectura de por medio, y sin reservar el espacio la vista
+                      saltaba de una ficha corta a una pantalla entera. */}
+                  <div className={styles.archivedArtifacts} data-pending={!selectedArchive.artifacts || undefined}>
+                    {!selectedArchive.artifacts ? (
+                      <p className={styles.archivedPending}>{t('pipeline.revalidating')}</p>
+                    ) : (
+                      <PipelineDetails
+                        snapshot={snapshot}
+                        repoPath={repoPath}
+                        selectedChange={{
+                          changeId: selectedArchive.changeId,
+                          intent: null,
+                          tasks: [],
+                          proposalExists: selectedArchive.artifacts.proposal !== null,
+                          designExists: selectedArchive.artifacts.design !== null,
+                          specsCount: selectedArchive.artifacts.specs.length,
+                          validation: 'unknown',
+                          artifacts: selectedArchive.artifacts,
+                        }}
+                        tab={evidenceTab}
+                        onTabChange={setEvidenceTab}
+                      />
+                    )}
+                  </div>
+                  {flowMode && (
+                    <>
+                      <PipelineNewChangeFlow
+                        repoPath={repoPath}
+                        projection={projection}
+                        blockedByFixture={fixtureActive}
+                        onStarted={() => setCenterTab('activity')}
+                        currentBranch={currentBranch}
+                        divergence={snapshot.branchDivergence}
+                        workingTreeClean={workingTreeClean}
+                        onRefresh={onRefresh}
+                      />
+                    </>
+                  )}
+                </section>
+              </div>
+            </div>
           ) : (
             /* Pantalla de entrada del repositorio. Absorbe la vieja
                `noActiveChange`, que sólo aparecía sin cambios ni archivados:
@@ -2889,8 +3011,6 @@ export function OpenSpecDashboard({
                   views={startViews}
                   activeViewId={activeStartView}
                   onSwitchView={(viewId) => handleSwitchStartView(viewId as StartView)}
-                  isCollapsed={isSwitcherCollapsed}
-                  onToggleCollapse={() => setIsSwitcherCollapsed((c) => !c)}
                   ariaLabel={t('pipeline.switcher.views')}
                 />
               )}

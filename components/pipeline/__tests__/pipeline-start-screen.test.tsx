@@ -285,7 +285,7 @@ describe('pantalla de entrada del repositorio', () => {
     expect(screen.getByText(/openspec\.change\.active/)).toBeTruthy();
     expect(onSelectChange).toHaveBeenCalledWith('primero');
 
-    fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.back/ }));
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.switcher\.start|openspec\.start\.back/ }));
     expect(screen.getByText('pipeline.openspec.start.title')).toBeTruthy();
   });
 
@@ -557,7 +557,7 @@ describe('pantalla de entrada del repositorio', () => {
     expect((restoredObjective as HTMLTextAreaElement).value).toBe('Refactorizar vista con ViewSwitcherRail');
   });
 
-  it('permite colapsar el contenido del panel mediante la sección desplegable y reabrirlo', () => {
+  it('la sección de vistas en el panel presenta un rótulo estático no plegable y mantiene los ítems visibles', () => {
     const { container } = renderDashboard(
       snapshot({
         activeChanges: [change('en-progreso', 3, 5)],
@@ -567,23 +567,15 @@ describe('pantalla de entrada del repositorio', () => {
 
     const railEl = container.querySelector('nav[class*="switcherRail"]');
     expect(railEl).toBeTruthy();
-    expect(railEl?.getAttribute('data-collapsed')).toBe('false');
 
-    // Encabezado de la sección desplegable (SidebarSection)
-    const sectionToggleBtn = screen.getByRole('button', { name: /pipeline\.switcher\.views/ });
-    expect(sectionToggleBtn.getAttribute('aria-expanded')).toBe('true');
-    expect(railEl?.querySelector('button[data-view-id="archived"]')).toBeTruthy();
+    // El encabezado de la sección no es un botón plegable (SidebarSection toggle)
+    const sectionToggleBtn = screen.queryByRole('button', { name: /pipeline\.switcher\.views/ });
+    expect(sectionToggleBtn).toBeNull();
 
-    // Plegamos la sección interna
-    fireEvent.click(sectionToggleBtn);
-    expect(railEl?.getAttribute('data-collapsed')).toBe('true');
-    expect(sectionToggleBtn.getAttribute('aria-expanded')).toBe('false');
-    expect(railEl?.querySelector('button[data-view-id="archived"]')).toBeNull();
+    // El rótulo de la sección está presente dentro del riel
+    expect(railEl?.textContent).toContain('pipeline.switcher.views');
 
-    // Desplegamos nuevamente
-    fireEvent.click(sectionToggleBtn);
-    expect(railEl?.getAttribute('data-collapsed')).toBe('false');
-    expect(sectionToggleBtn.getAttribute('aria-expanded')).toBe('true');
+    // Los ítems del riel se encuentran montados y visibles sin colapsar
     expect(railEl?.querySelector('button[data-view-id="archived"]')).toBeTruthy();
   });
 

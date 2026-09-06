@@ -13,6 +13,25 @@ describe('Pipeline pure parsers', () => {
     ]);
   });
 
+  it('unifica líneas de continuación indentadas en una descripción de tarea completa', () => {
+    const markdown = [
+      '- [ ] 1.1 Primera línea de la tarea y qué declarar,',
+      '  segunda línea indentada que continúa la descripción.',
+      '',
+      '- [x] 1.2 Otra tarea en una sola línea',
+    ].join('\n');
+    const tasks = parseMarkdownTasks(markdown, 'tasks.md');
+    expect(tasks).toHaveLength(2);
+    expect(tasks[0]).toEqual({
+      id: expect.any(String),
+      completed: false,
+      text: '1.1 Primera línea de la tarea y qué declarar, segunda línea indentada que continúa la descripción.',
+      line: 1,
+      sourceRef: 'tasks.md',
+    });
+    expect(tasks[1].text).toBe('1.2 Otra tarea en una sola línea');
+  });
+
   it('extracts an explicit audit verdict and findings', () => {
     const audit = parseAudit('## Veredicto: RECHAZADO\n\n- path traversal\n- unknown as zero', 'audit.md');
     expect(audit).toMatchObject({ verdict: 'rejected', confidence: 'confirmed' });

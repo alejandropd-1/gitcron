@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BookOpen, ChevronLeft } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { SafeMarkdown } from './SafeMarkdown';
 import styles from './OpenSpecDashboard.module.css';
@@ -29,7 +29,7 @@ export type SpecificationViewerProps = {
   specificationId: string;
   requirements: number | null;
   sourceRef: string;
-  onBack: () => void;
+  onBack?: () => void;
 };
 
 export function SpecificationViewer({
@@ -71,9 +71,6 @@ export function SpecificationViewer({
   return (
     <section className={styles.specificationView}>
       <header className={styles.specificationHead}>
-        <button type="button" className={styles.backToStart} onClick={onBack}>
-          <ChevronLeft size={12} /> {t('pipeline.openspec.start.back')}
-        </button>
         <h3>
           <BookOpen size={16} /> {specificationId}
           <span>

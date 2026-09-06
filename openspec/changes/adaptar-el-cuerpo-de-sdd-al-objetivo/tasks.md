@@ -615,6 +615,136 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
   porque el destino de esa información es el cuerpo. No habilita a rediseñar el navegador: se
   retira ese botón y se muda lo que desplegaba, nada más.
 
+- [ ] 4.9 **Cuarta revisión visual de Alejandro, 2026-09-04.** «La gran mayoría están bien, pero
+  empezó a hacer cualquiera con el panel.» Tres defectos, con su causa medida:
+
+  34. **El panel desaparece al desplazarse hondo.** Causa medida: `.startScreen` lleva
+      `padding: var(--space-4) var(--space-5) calc(100vh - var(--space-16))`, o sea **casi una
+      pantalla entera de relleno vacío abajo**, agregada a propósito como «buffer para sticky». El
+      panel se ancla dentro de `.startScreenWrapper`, que termina donde termina el contenido, antes
+      de ese relleno. Entonces se ancla bien mientras hay contenido y **se suelta al entrar en el
+      relleno**, que es justo cuando la persona sigue desplazándose. **El parche es la causa del
+      defecto que pretendía arreglar**: hay que sacarlo y resolver el anclaje de otra forma.
+  35. **Los ítems del panel no se ven como los del panel derecho.** Alejandro pidió que se vieran
+      como los de ese panel —donde están los commits y demás—. Se hizo lo contrario: `.railItem`,
+      `.railActionItem` y `.railPrimaryAction` recibieron borde propio y fondo de tarjeta.
+      **Y para que eso pasara la verificación, se agregaron cuatro excepciones al escáner de bordes
+      de `components/__tests__/commit-graph-frame.test.tsx`.** Ese escáner existe para que los
+      bordes no proliferen: en vez de no agregarlos, se desactivó el control que los impedía.
+      Hay que revertir las cuatro excepciones y adoptar el tratamiento del panel derecho.
+  36. **Al pulsar «Vistas» el panel se achica.** Es consecuencia directa de que el panel tome la
+      altura de su contenido: al plegar la sección, el panel se encoge con ella.
+      **Decisión y motivo:** La sección «Vistas» **no debe poder plegarse independientemente**.
+      *Motivo:*
+      - El panel flotante ya cuenta con su propio control de alternancia general en la barra de control
+        («Alternar resumen fijado», `isSwitcherOpen`), que abre o retira el panel por completo para ceder
+        el ancho al cuerpo. Plegar además cada sección interna es un segundo mecanismo redundante para el
+        mismo fin.
+      - Al contener únicamente dos o tres ítems estables (Tareas/Artefactos, Diffs, Actividad), plegar
+        la sección no ahorra espacio de lectura útil y sólo provoca un encogimiento espurio del panel que
+        destruye su presencia visual.
+      Por lo tanto, la sección se mantiene permanentemente desplegada mientras el panel esté activo.
+
+- [ ] 4.10 **Quinta revisión visual de Alejandro, 2026-09-04**, con la aplicación reiniciada.
+
+  37. **El panel se sigue soltando al desplazarse, y la causa es estructural, no el relleno.**
+      Medido sobre el árbol real: el contenedor que desplaza es `.center`, declarado
+      `display: flex; flex-direction: column; overflow-y: auto`. Adentro,
+      `.startScreenWrapper` —que aloja al panel y al cuerpo como hermanos— está declarado
+      `flex: 1 1 auto; min-height: 100%`. Ese `flex-shrink: 1` permite que el wrapper **se encoja
+      al alto del contenedor** mientras el contenido de `.startBody` se desborda. El anclaje del
+      panel vive dentro del wrapper, así que tiene **una pantalla de recorrido y después se
+      suelta**: por eso no falla enseguida sino al desplazarse hondo.
+      El wrapper tiene que medir lo que mide su contenido. Retirar el relleno de compensación fue
+      correcto pero no alcanzaba: la causa es el encogimiento del contenedor del anclaje.
+  38. **La vista de un cambio archivado quedó obsoleta y sin salida.** Al entrar a un completado
+      reciente desde el navegador izquierdo, el cuerpo muestra la maqueta vieja y **no hay forma de
+      volver**: el panel no ofrece «Volver al inicio» en ese estado. Lo mismo con la vista de una
+      especificación, que conserva el botón «VER EL REPOSITORIO» del diseño anterior. El
+      intercambiador tiene que gobernar también estos dos estados.
+
+- [ ] 4.11 **Pregunta de alcance de Alejandro del 2026-09-04, para decidir antes de seguir.**
+  Observa que los ítems del navegador izquierdo —cambio activo, completados recientes,
+  especificaciones— **ya están distribuidos** entre el contenido de la pantalla de inicio y el panel
+  flotante, y que «Especificaciones» podría vivir también en el panel.
+  Si es así, el navegador izquierdo estaría repitiendo lo que el cuerpo y el panel ya resuelven.
+  Medir qué ofrece hoy ese navegador que no esté disponible por otro camino, y declarar si se reduce,
+  se retira o se conserva con su motivo. **No se toca nada del navegador hasta que esto se decida.**
+  **Resuelto el 2026-09-04 por Alejandro:**
+  - **Las tres secciones de SDD salen del navegador izquierdo.** Sin ellas, ese navegador queda
+    **igual que como está en la vista Graph**: sus acciones generales de repositorio y nada más. No
+    se rediseña, se le retira lo que el cuerpo y el panel ya resuelven.
+  - **Lo que cambia es el cuerpo.** El resto se adapta solo: el panel derecho sigue como está, y al
+    entrar a SDD el cuerpo muestra el contenido de SDD.
+  - **El desplegable de estado por artefacto** —`proposal.md` completo, `design.md` pendiente,
+    `specs/` completo, `tasks.md` en progreso— **pasa al cuerpo del cambio al abrirlo**, que es lo
+    que ya anticipaba la observación 33.
+    Nota de destino, para no inventarle uno nuevo: ese desplegable **es** el estado por artefacto, y
+    el estado por artefacto es exactamente el contenido del lugar ya reservado para la línea de
+    tiempo dentro de la vista de artefactos. Va ahí. Mientras `gestionar-ciclo-openspec-desde-gitcron`
+    no construya la línea con nodos, ese lugar puede mostrar el estado tal como lo mostraba el
+    desplegable.
+
+- [ ] 4.12 **Sexta revision visual de Alejandro, 2026-09-06**, con el anclaje ya funcionando. El
+  desplazamiento quedo resuelto: el panel se mantiene a la vista de punta a punta.
+
+  39. **Las dos acciones del panel siguen con estetica de boton, no de item de listado.**
+      Sus palabras: los botones del panel flotante no tienen que tener la estetica de botones sino
+      la misma de los items de listado, con sus respectivos iconos, o sea sacarles el borde y el
+      hover de botones. Senalo la seccion «Acciones» —«Continuar con 4.1» y «Archivar cambio (20
+      sin tildar)»—, que se ven encajonadas mientras «Volver al inicio» y «Artefactos y evidencia»,
+      dos renglones mas arriba, no.
+      Causa medida el 2026-09-06 sobre el arbol real: esos dos botones se declaran en
+      `components/pipeline/OpenSpecDashboard.tsx:1686` y `:1719` como
+      `cn(styles.railActionItem, styles.primaryAction)` y
+      `cn(styles.railActionItem, styles.secondaryAction)`. La regla base `.primaryAction,
+      .secondaryAction` (`components/pipeline/OpenSpecDashboard.module.css:509-523`) declara
+      `border: 1px solid var(--color-border-subtle)`, `font-family: var(--font-mono)` y
+      `font-weight: 700`. La correccion del riel (`:3106-3131`) reajusta fondo, relleno, altura,
+      peso y sombra, **pero no anula ni el borde ni la tipografia monoespaciada**, asi que las dos
+      llegan intactas a la pantalla.
+      El hover tiene el mismo agujero: `.secondaryAction:hover:not(:disabled)` (`:528`) pinta
+      `border-color: var(--color-primary)`, y la correccion del riel (`:3128`) solo reajusta fondo
+      y color. Al pasar el puntero el contorno se enciende en cian: es el hover de boton que
+      Alejandro pide sacar.
+      El unico rasgo que puede distinguir a la accion principal del resto de los items es el color
+      de acento de su texto y su icono, que `.railPrimaryAction` ya declara. Ni contorno, ni fondo
+      relleno, ni tipografia aparte, ni hover propio.
+
+  40. **Auditoria del 2026-09-06: la prueba que decia cuidar esto pasa igual.**
+      `components/pipeline/__tests__/pipeline-active-change-switcher.test.tsx:502` recorre las
+      reglas del CSS y denuncia bordes, pero **solo mira las reglas cuyo selector nombra al riel**
+      (`.railItem`, `.railActionItem`, `.railPrimaryAction`, `.switcherRail .primaryAction`,
+      `.switcherRail .secondaryAction`). El borde que se ve en pantalla no viene de ninguna de
+      ellas: viene de `.primaryAction, .secondaryAction`, que el boton tambien lleva puesta. Una
+      comprobacion que recorre el origen declarado en vez del efecto sobre el elemento pasa en
+      verde mientras el defecto esta a la vista. Lo mismo vale para `:485`.
+      La comprobacion tiene que partir de **todas** las clases que el elemento lleva puestas, y no
+      de los selectores que mencionan al riel.
+
+  41. **Auditoria del 2026-09-06: restos de la maqueta anterior.**
+      - El boton «VER EL REPOSITORIO» salio del TSX, pero sus reglas `.backToStart` siguen en
+        `components/pipeline/OpenSpecDashboard.module.css:1613-1632` y `:544`, ya sin ningun
+        consumidor en la aplicacion. Dos pruebas quedaron atadas a que ese CSS exista:
+        `components/pipeline/__tests__/pipeline-openspec-dashboard-integration.test.tsx:565` lee su
+        `font-size` para compararlo con el de `.blockHeader`, y
+        `components/__tests__/commit-graph-frame.test.tsx:178` lo declara excepcion del escaner de
+        bordes. Retirar el CSS obliga a resolver las dos: la primera necesita otro control vivo
+        contra el cual comparar, y la segunda pierde una excepcion que ya no protege nada.
+      - `components/pipeline/ViewSwitcherRail.tsx:22-26` sigue declarando `isCollapsed`,
+        `onToggleCollapse` y `collapseAriaLabel` en su tipo. Ya no se desestructuran, ya no se usan
+        y nadie los pasa. El tipo sigue ofreciendo un plegado que la observacion 36 decidio que no
+        existe.
+      - `components/pipeline/OpenSpecDashboard.tsx:1708` dibuja el hueco del icono de la accion
+        secundaria como `{secondaryAction.intent.kind === 'pause-after-task' && <Pause size={13} />}`.
+        Cuando la intencion es otra, el `<span>` queda vacio pero el `gap` del renglon se aplica
+        igual y el rotulo arranca corrido respecto de los que si tienen icono. Alejandro pidio los
+        items «con sus respectivos iconos»: o la accion tiene el suyo, o el hueco no se dibuja.
+      - Las claves `pipeline.switcher.collapse` y `pipeline.switcher.expand` de `lib/i18n.ts:455-456`
+        quedaron sin consumidor en la aplicacion al retirarse el plegado: el unico lugar que las
+        nombra es `components/pipeline/__tests__/pipeline-i18n.test.ts:133-134`, que exige que
+        existan. Seis textos —dos claves por tres lenguas— que ya no rotulan nada.
+
 ## 5. Pruebas
 
 - [ ] 5.1 Sostener lo decidido: que una superficie sin contenido no ocupe lugar, que siga siendo

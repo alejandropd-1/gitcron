@@ -29,7 +29,9 @@ function stableId(sourceRef: string, line: number, text: string): string {
 export function parseMarkdownTasks(markdown: string, sourceRef: string): TaskEvidence[] {
   const tasks: TaskEvidence[] = [];
   let fenced = false;
-  for (const [index, line] of markdown.split(/\r?\n/).entries()) {
+  const lines = markdown.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
     if (/^\s*(```|~~~)/.test(line)) {
       fenced = !fenced;
       continue;
@@ -37,10 +39,27 @@ export function parseMarkdownTasks(markdown: string, sourceRef: string): TaskEvi
     if (fenced) continue;
     const match = /^\s*[-*+]\s+\[([ xX])\]\s+(.+?)\s*$/.exec(line);
     if (!match) continue;
-    const text = match[2];
+
+    const textParts = [match[2]];
+    let nextIndex = index + 1;
+    while (nextIndex < lines.length) {
+      const nextLine = lines[nextIndex];
+      if (/^\s*(```|~~~)/.test(nextLine)) break;
+      if (/^\s*[-*+]\s+\[([ xX])\]/.test(nextLine)) break;
+      if (/^\s*#{1,6}\s+/.test(nextLine)) break;
+      const continuationMatch = /^(\s{2,}|\t)(\S.*)$/.exec(nextLine);
+      if (continuationMatch) {
+        textParts.push(continuationMatch[2].trim());
+        nextIndex++;
+      } else {
+        break;
+      }
+    }
+
+    const fullText = textParts.join(' ');
     tasks.push({
-      id: stableId(sourceRef, index + 1, text),
-      text,
+      id: stableId(sourceRef, index + 1, fullText),
+      text: fullText,
       completed: match[1].toLowerCase() === 'x',
       line: index + 1,
       sourceRef,

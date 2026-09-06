@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, fireEvent } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent, act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -125,6 +125,89 @@ function renderActiveChange(props: {
   if (enterBtns.length > 0) {
     fireEvent.click(enterBtns[0]);
   }
+  return rendered;
+}
+
+function renderArchivedChange(archivedChangeId = 'cambio-archivado') {
+  const snap = mockSnapshot();
+  if (snap.openSpec) {
+    snap.openSpec.selectedChangeId = archivedChangeId;
+    snap.openSpec.activeChanges = [];
+    snap.openSpec.archivedChanges = [
+      {
+        changeId: archivedChangeId,
+        createdAt: '2026-08-01T10:00:00Z',
+        archivedOn: '2026-08-05T10:00:00Z',
+        archivedAt: '2026-08-05 10:00',
+        artifacts: {
+          proposal: '# Propuesta archivada',
+          specs: [],
+          design: '# Diseño archivado',
+          tasks: '- [x] 1.1 Completada',
+        },
+      } as any,
+    ];
+  }
+
+  const rendered = render(
+    <OpenSpecDashboard
+      snapshot={snap}
+      repoPath="C:/repo"
+      currentBranch="main"
+      workingTreeClean={true}
+      projection={null}
+      runtimeHistory={[]}
+      onRefresh={() => undefined}
+      onPauseAfterTask={() => undefined}
+      onRespondDecision={() => undefined}
+    />,
+  );
+
+  act(() => {
+    usePipelineStore.setState({
+      selectedChangeId: archivedChangeId,
+      openSpecificationId: null,
+    });
+  });
+
+  return rendered;
+}
+
+function renderSpecification(specId = 'spec-1') {
+  const snap = mockSnapshot();
+  if (snap.openSpec) {
+    snap.openSpec.selectedChangeId = null;
+    snap.openSpec.activeChanges = [];
+    snap.openSpec.specifications = [
+      {
+        specificationId: specId,
+        requirements: 5,
+        sourceRef: `openspec/specs/${specId}/spec.md`,
+      },
+    ];
+  }
+
+  const rendered = render(
+    <OpenSpecDashboard
+      snapshot={snap}
+      repoPath="C:/repo"
+      currentBranch="main"
+      workingTreeClean={true}
+      projection={null}
+      runtimeHistory={[]}
+      onRefresh={() => undefined}
+      onPauseAfterTask={() => undefined}
+      onRespondDecision={() => undefined}
+    />,
+  );
+
+  act(() => {
+    usePipelineStore.setState({
+      selectedChangeId: null,
+      openSpecificationId: specId,
+    });
+  });
+
   return rendered;
 }
 
@@ -284,5 +367,248 @@ describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
     const timelineSlot = container.querySelector('div[data-slot="artifact-timeline"]');
     expect(timelineSlot).not.toBeNull();
     expect(timelineSlot?.getAttribute('aria-label')).toBe('pipeline.openspec.artifacts.timelineSlot');
+  });
+
+  it('el sidebar flotante dinámico ofrece volver al inicio y la cabecera no tiene botón ver el repositorio', () => {
+    renderActiveChange();
+
+    const header = screen.getByRole('banner');
+    // En la cabecera no está el botón "Ver el repositorio"
+    expect(header.querySelector('button[class*="backToStart"]')).toBeNull();
+
+    // El panel dinámico ofrece la opción de volver al inicio
+    const backToStartOption = screen.getByRole('button', { name: 'pipeline.switcher.start' });
+    expect(backToStartOption).toBeTruthy();
+
+    // Al clickear volver al inicio, regresa a la pantalla de entrada del repositorio
+    fireEvent.click(backToStartOption);
+    expect(screen.getByRole('region', { name: 'pipeline.openspec.start.title' })).toBeTruthy();
+  });
+
+  it('el sidebar flotante presenta encabezados de rótulo no plegables para Vistas y Acciones, y Continuar con tarea vive en Acciones', () => {
+    renderActiveChange();
+
+    const rail = screen.getByRole('navigation', { name: 'pipeline.switcher.views' });
+    expect(rail).toBeTruthy();
+
+    // Los encabezados de sección quedan como rótulos y no como controles plegables (no tienen button ni aria-expanded)
+    const collapsibleButtons = rail.querySelectorAll('button[aria-expanded]');
+    expect(collapsibleButtons.length).toBe(0);
+
+    // Rótulos de Vistas y Acciones presentes en el riel
+    expect(rail.textContent).toContain('pipeline.switcher.views');
+    expect(rail.textContent).toContain('pipeline.switcher.actions');
+
+    // "Continuar con..." está en el rail bajo la sección de Acciones, no en el banner del header
+    const header = screen.getByRole('banner');
+    expect(header.querySelector('button[class*="primaryAction"]')).toBeNull();
+
+    const continueBtn = rail.querySelector('button[class*="railPrimaryAction"]');
+    expect(continueBtn).toBeTruthy();
+    expect(continueBtn?.textContent).toContain('pipeline.next.task.action');
+
+    // "Archivar cambio" también está dentro del rail
+    const archiveBtn = rail.querySelector('button[title*="pipeline.openspec.archive"]');
+    expect(archiveBtn).toBeTruthy();
+  });
+
+  it('continuar con tarea abre pantalla dedicada de lanzador sin empujar tareas, y el riel ofrece volver a tareas o cancelar', () => {
+    renderActiveChange();
+
+    // 1. Inicialmente se muestran las tareas
+    expect(screen.getByRole('region', { name: 'pipeline.switcher.tasks' })).toBeTruthy();
+    expect(screen.getByRole('list')).toBeTruthy();
+
+    // 2. Pulsar "Continuar con..." en el riel
+    const rail = screen.getByRole('navigation', { name: 'pipeline.switcher.views' });
+    const continueBtn = rail.querySelector('button[class*="railPrimaryAction"]') as HTMLButtonElement;
+    expect(continueBtn).toBeTruthy();
+    fireEvent.click(continueBtn);
+
+    // 3. Ahora se muestra la pantalla dedicada del lanzador, y la lista de tareas NO está en el cuerpo
+    expect(screen.getByRole('region', { name: 'pipeline.openspec.launcher.title' })).toBeTruthy();
+    expect(screen.queryByRole('list')).toBeNull();
+
+    // 4. El riel se actualizó dinámicamente:
+    // - En Vistas ofrece "Volver a tareas"
+    const returnToTasksBtn = screen.getByRole('button', { name: /pipeline\.switcher\.tasksReturn/ });
+    expect(returnToTasksBtn).toBeTruthy();
+
+    // - En Acciones ofrece "Cancelar"
+    const cancelBtn = rail.querySelector('button[title="pipeline.openspec.archive.cancel"]') as HTMLButtonElement;
+    expect(cancelBtn).toBeTruthy();
+
+    // 5. Al pulsar "Cancelar", se cierra el lanzador y se restaura la lista de tareas
+    fireEvent.click(cancelBtn);
+    expect(screen.getByRole('region', { name: 'pipeline.switcher.tasks' })).toBeTruthy();
+    expect(screen.getByRole('list')).toBeTruthy();
+  });
+
+  it('el encabezado alinea el título del cambio y la descripción dentro de changeTitleGroup', () => {
+    const { container } = renderActiveChange();
+
+    const titleGroup = container.querySelector('[class*="changeTitleGroup"]');
+    expect(titleGroup).toBeTruthy();
+
+    const title = titleGroup?.querySelector('h3');
+    expect(title?.textContent).toContain('pipeline.openspec.change.active');
+
+    const desc = titleGroup?.querySelector('p[class*="nextStepInline"]');
+    expect(desc?.textContent).toContain('pipeline.next.task.help');
+  });
+
+  it('el panel sigue anclado con el cuerpo desplazado a fondo', () => {
+    const cssPath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+    // 1. No lleva relleno de compensación artificial (calc(100vh))
+    expect(cssContent).not.toMatch(/\.startScreen\s*\{[^}]*calc\(100vh/);
+
+    // 2. El panel está configurado con anclaje sticky superior
+    expect(cssContent).toMatch(/\.switcherRail\s*\{[^}]*position:\s*sticky/);
+    expect(cssContent).toMatch(/\.switcherRail\s*\{[^}]*top:\s*var\(--space-5\)/);
+
+    // 3. Montado en el DOM, el panel permanece visible en el contenedor al simular scroll profundo
+    const { container } = renderActiveChange();
+    const rail = screen.getByRole('navigation', { name: 'pipeline.switcher.views' });
+    expect(rail).toBeTruthy();
+
+    const center = container.querySelector('[class*="center"]');
+    if (center) {
+      fireEvent.scroll(center, { target: { scrollTop: 3000 } });
+    }
+
+    // El riel permanece anclado y accesible en el DOM
+    expect(screen.getByRole('navigation', { name: 'pipeline.switcher.views' })).toBeTruthy();
+  });
+
+  it('los ítems del panel no declaran borde propio', () => {
+    const cssPath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+    // Comprueba que los ítems del riel no declaran borde ni borde-color
+    const railItemMatch = cssContent.match(/\.railItem\s*,\s*\.railActionItem\s*\{([^}]+)\}/);
+    expect(railItemMatch).not.toBeNull();
+    const railItemBody = railItemMatch![1];
+    expect(railItemBody).not.toMatch(/border\s*:/);
+    expect(railItemBody).not.toMatch(/border-color\s*:/);
+
+    // Tampoco la acción principal del riel declara bordes
+    const primaryActionMatch = cssContent.match(/\.railPrimaryAction\s*\{([^}]+)\}/);
+    expect(primaryActionMatch).not.toBeNull();
+    expect(primaryActionMatch![1]).not.toMatch(/border/);
+  });
+
+  it('el escáner de bordes pasa sin excepciones nuevas', () => {
+    // 1. Las 4 excepciones fueron revertidas de commit-graph-frame.test.tsx
+    const testPath = path.resolve(process.cwd(), 'components/__tests__/commit-graph-frame.test.tsx');
+    const testContent = fs.readFileSync(testPath, 'utf-8');
+    expect(testContent).not.toMatch(/\/\.railItem\//);
+    expect(testContent).not.toMatch(/\/\.railActionItem\//);
+    expect(testContent).not.toMatch(/\/\.railPrimaryAction\//);
+    expect(testContent).not.toMatch(/\/\.switcherRail\//);
+
+    // 2. Ninguna regla de los ítems del riel en OpenSpecDashboard.module.css declara bordes
+    const cssPath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+    const ruleRegex = /([^{]+)\{([^}]+)\}/g;
+    let match: RegExpExecArray | null;
+
+    const unexpectedRailBorders: string[] = [];
+    while ((match = ruleRegex.exec(cssContent)) !== null) {
+      const selector = match[1].trim();
+      const body = match[2];
+      if (/(\.railItem|\.railActionItem|\.railPrimaryAction|\.switcherRail\s+\.(primaryAction|secondaryAction))/.test(selector)) {
+        const borderProps = body
+          .split(';')
+          .map((s) => s.trim())
+          .filter(
+            (s) =>
+              s &&
+              /^(border|border-top|border-bottom|border-left|border-right|border-color|border-block|border-inline)/i.test(s) &&
+              !s.startsWith('border-radius')
+          );
+        if (borderProps.length > 0) {
+          unexpectedRailBorders.push(`${selector}: ${borderProps.join(', ')}`);
+        }
+      }
+    }
+
+    expect(unexpectedRailBorders).toEqual([]);
+  });
+
+  it('el contenedor que ancla al panel no se encoge por debajo del alto de su contenido', () => {
+    const cssPath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+    // 1. .startScreenWrapper está declarado con flex: 1 0 auto (prohibiendo flex-shrink: 1)
+    const wrapperMatch = cssContent.match(/\.startScreenWrapper\s*\{([^}]+)\}/);
+    expect(wrapperMatch).not.toBeNull();
+    const wrapperBody = wrapperMatch![1];
+    expect(wrapperBody).toMatch(/flex:\s*1\s+0\s+auto/);
+    expect(wrapperBody).not.toMatch(/flex:\s*1\s+1\s+auto/);
+    expect(wrapperBody).not.toMatch(/flex-shrink:\s*1/);
+
+    // 2. No lleva rellenos mágicos de compensación atados a la ventana
+    expect(cssContent).not.toMatch(/\.startScreen\s*\{[^}]*calc\(100vh/);
+    expect(cssContent).not.toMatch(/\.startScreenWrapper\s*\{[^}]*calc\(100vh/);
+
+    // 3. Montado en el DOM, .startScreenWrapper aloja a .switcherRail y .startBody como hermanos
+    const { container } = renderActiveChange();
+    const wrapper = container.querySelector('[class*="startScreenWrapper"]');
+    expect(wrapper).toBeTruthy();
+    const rail = wrapper?.querySelector('nav[class*="switcherRail"]');
+    const body = wrapper?.querySelector('div[class*="startBody"]');
+    expect(rail).toBeTruthy();
+    expect(body).toBeTruthy();
+  });
+
+  it('desde un cambio archivado y desde una especificación, el panel ofrece la salida al inicio', () => {
+    // 1. Desde un cambio archivado:
+    const { unmount: unmountArchive } = renderArchivedChange('cambio-archivado');
+
+    // El riel de navegación del intercambiador está presente
+    const archiveRail = screen.getByRole('navigation', { name: 'pipeline.switcher.views' });
+    expect(archiveRail).toBeTruthy();
+
+    // Ofrece "Volver al inicio"
+    const backFromArchiveBtn = screen.getByRole('button', { name: 'pipeline.switcher.start' });
+    expect(backFromArchiveBtn).toBeTruthy();
+
+    // Al clickear, regresa a la pantalla de entrada del repositorio
+    fireEvent.click(backFromArchiveBtn);
+    expect(screen.getByRole('region', { name: 'pipeline.openspec.start.title' })).toBeTruthy();
+    unmountArchive();
+
+    // 2. Desde una especificación:
+    const { unmount: unmountSpec } = renderSpecification('spec-prueba');
+
+    // El riel de navegación del intercambiador está presente
+    const specRail = screen.getByRole('navigation', { name: 'pipeline.switcher.views' });
+    expect(specRail).toBeTruthy();
+
+    // Ofrece "Volver al inicio"
+    const backFromSpecBtn = screen.getByRole('button', { name: 'pipeline.switcher.start' });
+    expect(backFromSpecBtn).toBeTruthy();
+
+    // Al clickear, cierra la especificación y regresa a la pantalla de entrada del repositorio
+    fireEvent.click(backFromSpecBtn);
+    expect(screen.getByRole('region', { name: 'pipeline.openspec.start.title' })).toBeTruthy();
+    unmountSpec();
+  });
+
+  it('ninguna de esas dos vistas conserva controles de la maqueta anterior', () => {
+    // 1. En la vista de especificación, no existe el botón .backToStart («VER EL REPOSITORIO»)
+    const { unmount: unmountSpec } = renderSpecification('spec-prueba');
+    expect(screen.queryByRole('button', { name: /pipeline\.openspec\.start\.back/ })).toBeNull();
+    const specHeader = screen.getByRole('heading', { name: /spec-prueba/ }).closest('header');
+    expect(specHeader?.querySelector('button[class*="backToStart"]')).toBeNull();
+    unmountSpec();
+
+    // 2. En la vista de cambio archivado, el control de regreso está en el riel y no como botón suelto de cabecera
+    const { unmount: unmountArchive } = renderArchivedChange('cambio-archivado');
+    const header = screen.getByRole('heading', { name: 'cambio-archivado' }).closest('div');
+    expect(header?.querySelector('button[class*="backToStart"]')).toBeNull();
+    unmountArchive();
   });
 });

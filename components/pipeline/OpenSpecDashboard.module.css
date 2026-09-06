@@ -340,8 +340,11 @@
   justify-content: space-between;
   gap: var(--space-4);
   flex: 0 0 auto;
-  padding: var(--space-3) var(--space-5);
-  background: var(--color-bg-base);
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-5) var(--space-2);
+  background: transparent;
   flex-wrap: wrap;
 }
 
@@ -352,7 +355,14 @@
   flex-wrap: wrap;
 }
 
-.headerIdentity h3 {
+.changeTitleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.headerIdentity h3,
+.changeTitleGroup h3 {
   margin: 0;
   color: var(--color-text-primary);
   font-weight: 650;
@@ -364,8 +374,18 @@
   gap: var(--space-2);
 }
 
-.headerIdentity h3 strong {
+.headerIdentity h3 strong,
+.changeTitleGroup h3 strong {
   color: var(--color-text-primary);
+}
+
+.changeTitleGroup .nextStepInline {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  text-align: left;
 }
 
 .headerActions {
@@ -440,6 +460,10 @@
 .taskList > li > strong { color: var(--color-primary); overflow-wrap: anywhere; }
 .taskList > li[data-completed='true'] > strong { color: var(--color-text-secondary); }
 .taskList > li[data-current='true'] { border-left: 3px solid var(--color-primary); background: var(--color-bg-surface); }
+.taskList > li > span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 .taskList > li[data-completed='true'] .taskStatus {
   display: grid;
   place-items: center;
@@ -1383,14 +1407,15 @@
   color: var(--color-git-add);
 }
 
-/* Pantalla de entrada del repositorio. Es estado, no bienvenida: sin ilustración,
-   sin texto explicativo y con la misma densidad del resto del panel, según la
-   invariante 11. Alineada arriba y no centrada, porque con cuatro cambios en
-   curso el centrado deja la lista bailando según cuántos haya. */
+/* `.startScreenWrapper` es el contenedor del anclaje de `.switcherRail` (Tarea 4.10):
+   Aloja al panel y a `.startBody` como hermanos flex dentro de `.center` (`overflow-y: auto`).
+   Se declara `flex: 1 0 auto` (prohibiendo `flex-shrink: 1`) para evitar que el wrapper se encoja
+   al alto del contenedor mientras `.startBody` se desborda. Al medir siempre lo que mide su
+   contenido, el elemento `position: sticky` recorre la totalidad del cuerpo sin soltarse. */
 .startScreenWrapper {
   display: flex;
   flex-direction: row;
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   min-height: 100%;
   width: 100%;
 }
@@ -1401,6 +1426,7 @@
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
+  order: 1;
 }
 
 .startItemTitleWithIcon {
@@ -1420,8 +1446,7 @@
   flex: 1 1 auto;
   flex-direction: column;
   gap: var(--space-5);
-  padding: var(--space-5) var(--space-5);
-  overflow-y: auto;
+  padding: var(--space-4) var(--space-5) var(--space-8);
   width: 100%;
   max-width: 820px;
   margin: 0 auto;
@@ -1971,7 +1996,7 @@ summary.centerBlock {
 .noActiveChange .nextStep { width: min(100%, 44rem); text-align: left; }
 
 @container (max-width: 1180px) {
-  .changeHeader { grid-template-columns: minmax(12rem, 0.8fr) minmax(23rem, 1.2fr); padding-inline: var(--space-4); }
+  .changeHeader { grid-template-columns: minmax(12rem, 0.8fr) minmax(23rem, 1.2fr); padding-inline: var(--space-5); }
 }
 
 @container (max-width: 860px) {
@@ -2898,30 +2923,65 @@ summary.centerBlock {
    Intercambiador dinámico de vistas (ViewSwitcherRail)
    ========================================================================== */
 
+/* Anclaje del panel flotante y tratamiento visual idéntico al panel derecho (Tarea 4.9):
+   1. El anclaje se resuelve mediante `position: sticky; top: var(--space-5)` dentro
+      del contenedor en flujo `.startScreenWrapper`, que abarca todo el contenido de `.startBody`
+      sin requerir rellenos artificiales de compensación en `.startScreen`.
+   2. Los ítems del riel adoptan el tratamiento visual del panel derecho de la aplicación
+      (`RepoSidebarParts` / `RepoDetailsPanel`): sin bordes propios, fondo transparente en reposo,
+      hover suave integrado con la tipografía y peso adecuado.
+   3. Las secciones internas del riel no se pliegan independientemente (Obs. 36): sus encabezados
+      son rótulos fijos y la visibilidad general se delega al control del panel en la barra superior. */
 .switcherRail {
-  display: flex;
-  flex-direction: column;
-  width: 230px;
-  flex: 0 0 230px;
-  min-height: 0;
-  height: auto;
+  flex: 0 0 240px;
+  width: 240px;
+  max-width: 260px;
   align-self: flex-start;
+  height: auto;
   position: sticky;
   top: var(--space-5);
   z-index: 5;
   padding: var(--space-2);
   border-radius: var(--radius-md);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--color-text-primary) 6%, transparent);
-  background: color-mix(in srgb, var(--color-bg-surface) 60%, transparent);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-bg-base) 80%, transparent), 0 1px 3px color-mix(in srgb, var(--color-bg-base) 50%, transparent);
+  background: var(--color-bg-surface);
   transition: width 160ms ease, flex-basis 160ms ease;
-  margin: var(--space-5) var(--space-5) var(--space-5) 0;
+  margin: var(--space-4) var(--space-5) var(--space-5) 0;
+  order: 2;
+}
+
+.railSection {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.railSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  min-height: 1.875rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.railSectionTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .railSlots {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-2) 0 0;
+  gap: var(--space-1);
+  padding: var(--space-1) 0 0;
   flex: 0 0 auto;
 }
 
@@ -2934,36 +2994,33 @@ summary.centerBlock {
   display: none;
 }
 
-.railItem {
+.railItem,
+.railActionItem {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  padding: var(--space-2) var(--space-3);
-  box-shadow: inset 0 0 0 1px var(--color-border-subtle);
-  border-radius: var(--radius-default);
-  background: color-mix(in srgb, var(--color-border-subtle) 8%, transparent);
-  color: var(--color-text-primary);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
   cursor: pointer;
   text-align: left;
   font-size: var(--font-size-xs);
-  font-family: var(--font-mono), ui-monospace, monospace;
-  transition: box-shadow 140ms ease, background 140ms ease, color 140ms ease;
+  font-family: inherit;
+  font-weight: 500;
+  transition: background 120ms ease, color 120ms ease;
+  min-height: 1.875rem;
 }
 
-.switcherRail[data-collapsed='true'] .railItem {
-  justify-content: center;
-  padding: var(--space-2);
-  width: 32px;
-  height: 32px;
+.railItem:hover:not(:disabled),
+.railActionItem:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+  color: var(--color-text-primary);
 }
 
-.railItem:hover:not(:disabled) {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 48%, transparent);
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-}
-
-.railItem:disabled {
+.railItem:disabled,
+.railActionItem:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -2973,6 +3030,12 @@ summary.centerBlock {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: color 120ms ease;
+}
+
+.railItem:hover:not(:disabled) .railItemIcon,
+.railActionItem:hover:not(:disabled) .railItemIcon {
   color: var(--color-primary);
 }
 
@@ -2981,20 +3044,25 @@ summary.centerBlock {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .railItemCount {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  justify-content: center;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-2xs);
   color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-border-subtle) 60%, transparent);
+  font-family: var(--font-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 
 .railItemCountSep {
-  opacity: 0.6;
+  display: none;
 }
 
 .railItemCountValue {
@@ -3013,12 +3081,53 @@ summary.centerBlock {
 }
 
 .railEnvironment {
-  margin-top: auto;
-  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-2) 0 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   box-shadow: 0 -1px 0 color-mix(in srgb, var(--color-border-subtle) 50%, transparent);
+}
+
+.railPrimaryAction {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.railPrimaryAction:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+
+.railPrimaryIcon {
+  color: var(--color-primary);
+}
+
+.switcherRail .primaryAction,
+.switcherRail .secondaryAction {
+  min-height: 1.875rem;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
+  justify-content: flex-start;
+  box-shadow: none;
+}
+
+.switcherRail .primaryAction {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.switcherRail .primaryAction:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+
+.switcherRail .secondaryAction:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+  color: var(--color-text-primary);
 }
 
 /* Espacio reservado para la línea de tiempo de artefactos (herencia 3c.4). */
@@ -3032,4 +3141,14 @@ summary.centerBlock {
   background: color-mix(in srgb, var(--color-bg-surface) 50%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border-subtle) 40%, transparent);
   margin-bottom: var(--space-4);
+}
+
+.artifactTimelineSlot:empty {
+  display: none;
+  height: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  box-shadow: none;
+  background: transparent;
 }

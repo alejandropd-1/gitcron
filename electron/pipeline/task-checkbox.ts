@@ -42,7 +42,9 @@ export function toggleTaskCheckbox(
   if (!match) return { ok: false, reason: 'not-found' };
 
   const [, open, , close, text] = match;
-  if (text.trim() !== expectedText.trim()) return { ok: false, reason: 'mismatch' };
+  if (text.trim() !== expectedText.trim() && !expectedText.trim().startsWith(text.trim())) {
+    return { ok: false, reason: 'mismatch' };
+  }
 
   lines[index] = `${open}${completed ? 'x' : ' '}${close}${text}`;
   return { ok: true, content: lines.join('\n'), text: text.trim() };

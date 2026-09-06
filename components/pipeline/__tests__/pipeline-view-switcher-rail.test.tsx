@@ -97,43 +97,28 @@ describe('ViewSwitcherRail - Intercambiador modular de vistas', () => {
     expect(slot3After?.getAttribute('data-view-id')).toBe('diffs');
   });
 
-  it('permite colapsar el contenido del panel mediante la sección desplegable y reabrirlo', () => {
-    const onToggle = vi.fn();
+  it('la sección de vistas se presenta con encabezado de rótulo no plegable y mantiene sus ítems visibles', () => {
     const views: ViewSwitcherItem[] = [
       { id: 'archived', label: 'Archivados', slotIndex: 1 },
     ];
 
-    const { rerender } = render(
+    render(
       <ViewSwitcherRail
         views={views}
         activeViewId="in-progress"
         onSwitchView={() => undefined}
-        isCollapsed={false}
-        onToggleCollapse={onToggle}
         ariaLabel="Vistas"
       />,
     );
 
-    const sectionToggleBtn = screen.getByRole('button', { name: /Vistas/ });
-    expect(sectionToggleBtn.getAttribute('aria-expanded')).toBe('true');
+    // El encabezado no es un botón interactivo de alternancia/plegado
+    const sectionToggleBtn = screen.queryByRole('button', { name: /Vistas/ });
+    expect(sectionToggleBtn).toBeNull();
+
+    // El encabezado se presenta como rótulo de texto fijo
+    expect(screen.getByText('Vistas')).toBeTruthy();
+
+    // Los ítems del riel permanecen siempre visibles
     expect(screen.getByRole('button', { name: /Archivados/ })).toBeTruthy();
-
-    fireEvent.click(sectionToggleBtn);
-    expect(onToggle).toHaveBeenCalled();
-
-    // Rerender colapsado
-    rerender(
-      <ViewSwitcherRail
-        views={views}
-        activeViewId="in-progress"
-        onSwitchView={() => undefined}
-        isCollapsed={true}
-        onToggleCollapse={onToggle}
-        ariaLabel="Vistas"
-      />,
-    );
-
-    expect(sectionToggleBtn.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.queryByRole('button', { name: /Archivados/ })).toBeNull();
   });
 });

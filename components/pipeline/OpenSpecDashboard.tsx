@@ -506,6 +506,7 @@ export function OpenSpecDashboard({
    * El contenido central permanece siempre centrado en ambos estados.
    */
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(true);
+  const isSwitcherVisible = isSwitcherOpen && !rightOpen;
   const startScrollPositionsRef = useRef<Record<string, number>>({});
   const startBodyRef = useRef<HTMLDivElement>(null);
 
@@ -566,6 +567,21 @@ export function OpenSpecDashboard({
   const startChanges = activeChanges
     .map((change) => ({ change, progress: taskProgress(change) }))
     .sort((left, right) => right.progress.percent - left.progress.percent);
+
+  const totalGlobalTasks = activeChanges.reduce(
+    (total, change) => total + (Array.isArray(change.tasks) ? change.tasks.length : 0),
+    0,
+  );
+  const completedGlobalTasks = activeChanges.reduce(
+    (total, change) =>
+      total +
+      (Array.isArray(change.tasks)
+        ? change.tasks.filter((task) => task.completed).length
+        : 0),
+    0,
+  );
+  const globalTaskPercent =
+    totalGlobalTasks === 0 ? null : Math.round((completedGlobalTasks / totalGlobalTasks) * 100);
 
   const startViews: ViewSwitcherItem[] = useMemo(() => [
     {
@@ -2010,14 +2026,22 @@ export function OpenSpecDashboard({
             <button
               type="button"
               aria-label={t('pipeline.switcher.toggle')}
-              aria-expanded={isSwitcherOpen}
-              title={t('pipeline.switcher.toggle')}
-              onClick={() => setIsSwitcherOpen((prev) => !prev)}
+              aria-expanded={isSwitcherVisible}
+              aria-disabled={rightOpen}
+              disabled={rightOpen}
+              title={rightOpen ? t('pipeline.switcher.toggleDisabledHelp') : t('pipeline.switcher.toggle')}
+              onClick={() => {
+                if (!rightOpen) {
+                  setIsSwitcherOpen((prev) => !prev);
+                }
+              }}
               className={cn(
                 "h-7 px-2 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
-                isSwitcherOpen
-                  ? "bg-secondary/15 text-secondary shadow-[0_0_6px_color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
-                  : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
+                rightOpen
+                  ? "opacity-50 cursor-not-allowed text-text-secondary"
+                  : isSwitcherOpen
+                    ? "bg-secondary/15 text-secondary shadow-[0_0_6px_color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
+                    : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
               )}
             >
               <PanelRight size={13} className="shrink-0" />
@@ -2036,7 +2060,7 @@ export function OpenSpecDashboard({
               tapada por lo que se esté leyendo. */}
           {!prepareOpen && openSpecification ? (
             <div className={styles.startScreenWrapper}>
-              {isSwitcherOpen && (
+              {isSwitcherVisible && (
                 <ViewSwitcherRail
                   views={specViews}
                   activeViewId="spec"
@@ -2507,7 +2531,7 @@ export function OpenSpecDashboard({
             </section>
           ) : selectedChange ? (
             <div className={styles.startScreenWrapper}>
-              {isSwitcherOpen && (
+              {isSwitcherVisible && (
                 <ViewSwitcherRail
                   views={changeViews}
                   activeViewId={launchTarget ? 'launch' : activeChangeView}
@@ -2802,7 +2826,7 @@ export function OpenSpecDashboard({
               </div>
           ) : selectedArchive ? (
             <div className={styles.startScreenWrapper}>
-              {isSwitcherOpen && (
+              {isSwitcherVisible && (
                 <ViewSwitcherRail
                   views={archiveViews}
                   activeViewId="archive"
@@ -2908,9 +2932,17 @@ export function OpenSpecDashboard({
                       <div className={styles.startHeaderTitleGroup}>
                         <h3>{t('pipeline.openspec.start.title')}</h3>
                         <p className={styles.startSpecsBadge}>
-                          {specifications.length === 0
-                            ? t('pipeline.openspec.start.specsPending')
-                            : t('pipeline.openspec.start.specificationsCount', { count: specifications.length })}
+                          <span>
+                            {specifications.length === 0
+                              ? t('pipeline.openspec.start.specsPending')
+                              : t('pipeline.openspec.start.specificationsCount', { count: specifications.length })}
+                          </span>
+                          <span> · </span>
+                          <span data-testid="start-global-progress">
+                            {globalTaskPercent !== null
+                              ? t('pipeline.openspec.start.globalProgress', { percent: globalTaskPercent })
+                              : t('pipeline.openspec.start.noTasksToMeasure')}
+                          </span>
                         </p>
                       </div>
                     </header>
@@ -3069,7 +3101,7 @@ export function OpenSpecDashboard({
                 )}
               </div>
 
-              {isSwitcherOpen && (
+              {isSwitcherVisible && (
                 <ViewSwitcherRail
                   views={startViews}
                   activeViewId={activeStartView}

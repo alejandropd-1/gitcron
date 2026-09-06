@@ -769,6 +769,77 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       que ya reune las cuentas del repositorio —cambios en curso, archivados, especificaciones—, y
       donde un porcentaje global responde a la misma pregunta que ellas. **La decide Alejandro.**
 
+- [ ] 4.14 **Septima revision visual de Alejandro, 2026-09-06.** «Va queriendo, mejoro.»
+
+  43. **El panel flotante y el navegador derecho no pueden estar los dos a la vez.**
+      Sus palabras: «si elijo desplegar el sidebar de la derecha, entonces el sidebar flotante
+      desaparece por default, es decir, se desactiva, y si cierro el sidebar de la derecha,
+      entonces vuelve a activarse el sidebar flotante».
+      Es la misma tesis del change aplicada a dos superficies que compiten por el mismo lugar: con
+      el navegador derecho abierto, el panel flotante deja de servir al objetivo del momento
+      —lo que ofrece ya esta a la vista, a la derecha— y solo aprieta al cuerpo.
+      Medido el 2026-09-06: `isSwitcherOpen` se declara en
+      `components/pipeline/OpenSpecDashboard.tsx:508` como estado local inicializado en `true`, sin
+      relacion alguna con `rightOpen`, que llega como propiedad en `:270` y hoy solo se consulta en
+      `:2383`. Las cuatro apariciones del panel (`:2039`, `:2510`, `:2805`, `:3072`) se controlan
+      unicamente con `isSwitcherOpen`, y el control de la barra superior vive en `:2010-2024`.
+
+- [ ] 4.15 **Octava revision visual de Alejandro, 2026-09-06**, con la interfaz de Codex al lado
+  como referencia.
+
+  44. **El panel flotante usa el token mas oscuro de la paleta, y tiene que usar el mas claro.**
+      Alejandro pidio aclarar su fondo para que se parezca al de la referencia, buscando primero
+      entre los tokens que ya existen antes de crear uno nuevo.
+      Medido el 2026-09-06: `app/globals.css:23-25` declara tres tonos de fondo, y su orden real de
+      claridad es `--color-bg-surface` (#272c36, el mas oscuro, rotulado «Window frame, toolbars,
+      sidebars, list panels»), `--color-bg-base` (#2e3440, el medio, rotulado «Primary canvas /
+      content area backdrop») y `--color-bg-overlay` (#3b4252, el mas claro, rotulado «Dialogs,
+      dropdowns, ContextMenu cards»).
+      `.switcherRail` (`components/pipeline/OpenSpecDashboard.module.css:2789`) declara hoy
+      `background: var(--color-bg-surface)`: el token del armazon, el mas oscuro de los tres, sobre
+      una superficie que flota por encima del cuerpo. Por eso se lee como un hueco y no como una
+      tarjeta apoyada.
+      **No hace falta token nuevo.** `--color-bg-overlay` es el que la paleta ya reserva para las
+      superficies que flotan —dialogos, desplegables, tarjetas de menu contextual—, que es
+      exactamente lo que el panel es.
+
+  45. **En el cuerpo, las tarjetas son mas oscuras que el fondo y tienen que ser mas claras.**
+      Sus palabras, mostrando la referencia: la tarjeta de contenido es de un color mas claro que
+      el cuerpo, «no al contrario como pasa ahora con GitCron en SDD».
+      Medido el 2026-09-06 y es literal:
+      - El cuerpo `.center` (`:206`) usa `--color-bg-base` (#2e3440).
+      - Las tarjetas de cambio `.startList > li` (`:1388-1393`) usan `--color-bg-surface`
+        (#272c36), **mas oscuro que el cuerpo que las contiene**.
+      - La tarjeta de evidencia `.evidencePanel` (`:928`) usa el mismo token al 78%, tambien mas
+        oscuro.
+      La jerarquia esta invertida: lo que esta encima se hunde en vez de levantarse.
+
+  46. **Encabezado fijo mientras el contenido se desplaza.** En la referencia, la barra de
+      encabezado de la pieza queda anclada arriba y el contenido corre por debajo. Alejandro lo
+      propone para el titulo de la tarea en curso.
+      Trampa medida, la misma que costo cinco entregas con el panel: `position: sticky` solo recorre
+      el alto de su contenedor. `.startBody`
+      (`components/pipeline/OpenSpecDashboard.module.css`) se declara `flex: 1 1 auto; min-height: 0`,
+      asi que se encoge al alto visible mientras su contenido se desborda. Un encabezado anclado
+      adentro de `.startBody` se va a soltar exactamente igual que se soltaba el panel. El
+      contenedor del anclaje tiene que medir lo que mide su contenido, como se resolvio en la
+      observacion 37.
+
+  47. **Auditoria del 2026-09-06: un valor por omision de la aplicacion cambiado para que pase una
+      prueba.** Al implementar la observacion 43, `components/pipeline/PipelineWorkspace.tsx:61`
+      paso de `rightOpen = true` a `rightOpen = false`. No estaba pedido y el reporte lo menciona
+      como detalle de implementacion, no como decision.
+      Motivo real, medido: `components/pipeline/__tests__/pipeline-workspace-revalidate.test.tsx:74`
+      y `:94` montan `PipelineWorkspace` sin pasar `rightOpen`, y una de esas pruebas pulsa
+      `pipeline.next.validationUnknown.action`, que es un boton que vive **dentro del panel
+      flotante**. Con el valor anterior el panel no se montaba y la prueba fallaba. El arreglo
+      correspondia a la prueba —dos lineas pasando `rightOpen={false}`—, no al valor por omision del
+      componente.
+      Alcance real hoy: **ninguno en pantalla.** `app/page.tsx:1675` siempre pasa
+      `rightOpen: repositoryDetailsVisible`, asi que la aplicacion nunca usa ese valor por omision.
+      Lo que cambio es lo que ve cualquier consumidor que omita la propiedad, que hoy son solo las
+      pruebas. Decidir si se revierte el valor y se arregla la prueba donde correspondia.
+
 ## 5. Pruebas
 
 - [ ] 5.1 Sostener lo decidido: que una superficie sin contenido no ocupe lugar, que siga siendo

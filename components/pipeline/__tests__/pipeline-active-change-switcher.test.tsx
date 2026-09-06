@@ -100,6 +100,7 @@ function renderActiveChange(props: {
   diffs?: PipelineSnapshot['diffs'];
   projection?: any;
   currentBranch?: string;
+  rightOpen?: boolean;
 } = {}) {
   const rendered = render(
     <OpenSpecDashboard
@@ -108,7 +109,7 @@ function renderActiveChange(props: {
       currentBranch={props.currentBranch ?? 'main'}
       workingTreeClean={true}
       leftOpen={false}
-      rightOpen={false}
+      rightOpen={props.rightOpen ?? false}
       leftWidth={320}
       rightWidth={320}
       onResizeLeft={() => undefined}
@@ -128,7 +129,7 @@ function renderActiveChange(props: {
   return rendered;
 }
 
-function renderArchivedChange(archivedChangeId = 'cambio-archivado') {
+function renderArchivedChange(archivedChangeId = 'cambio-archivado', options: { rightOpen?: boolean } = {}) {
   const snap = mockSnapshot();
   if (snap.openSpec) {
     snap.openSpec.selectedChangeId = archivedChangeId;
@@ -155,6 +156,12 @@ function renderArchivedChange(archivedChangeId = 'cambio-archivado') {
       repoPath="C:/repo"
       currentBranch="main"
       workingTreeClean={true}
+      leftOpen={false}
+      rightOpen={options.rightOpen ?? false}
+      leftWidth={320}
+      rightWidth={320}
+      onResizeLeft={() => undefined}
+      onResizeRight={() => undefined}
       projection={null}
       runtimeHistory={[]}
       onRefresh={() => undefined}
@@ -173,7 +180,7 @@ function renderArchivedChange(archivedChangeId = 'cambio-archivado') {
   return rendered;
 }
 
-function renderSpecification(specId = 'spec-1') {
+function renderSpecification(specId = 'spec-1', options: { rightOpen?: boolean } = {}) {
   const snap = mockSnapshot();
   if (snap.openSpec) {
     snap.openSpec.selectedChangeId = null;
@@ -193,6 +200,12 @@ function renderSpecification(specId = 'spec-1') {
       repoPath="C:/repo"
       currentBranch="main"
       workingTreeClean={true}
+      leftOpen={false}
+      rightOpen={options.rightOpen ?? false}
+      leftWidth={320}
+      rightWidth={320}
+      onResizeLeft={() => undefined}
+      onResizeRight={() => undefined}
       projection={null}
       runtimeHistory={[]}
       onRefresh={() => undefined}
@@ -209,6 +222,39 @@ function renderSpecification(specId = 'spec-1') {
   });
 
   return rendered;
+}
+
+function renderStartScreen(options: { rightOpen?: boolean } = {}) {
+  const snap = mockSnapshot();
+  if (snap.openSpec) {
+    snap.openSpec.selectedChangeId = null;
+  }
+  act(() => {
+    usePipelineStore.setState({
+      selectedChangeId: null,
+      openSpecificationId: null,
+    });
+  });
+
+  return render(
+    <OpenSpecDashboard
+      snapshot={snap}
+      repoPath="C:/repo"
+      currentBranch="main"
+      workingTreeClean={true}
+      leftOpen={false}
+      rightOpen={options.rightOpen ?? false}
+      leftWidth={320}
+      rightWidth={320}
+      onResizeLeft={() => undefined}
+      onResizeRight={() => undefined}
+      projection={null}
+      runtimeHistory={[]}
+      onRefresh={() => undefined}
+      onPauseAfterTask={() => undefined}
+      onRespondDecision={() => undefined}
+    />,
+  );
 }
 
 describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
@@ -654,5 +700,221 @@ describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
     const header = screen.getByRole('heading', { name: 'cambio-archivado' }).closest('div');
     expect(header?.querySelector('button[class*="backToStart"]')).toBeNull();
     unmountArchive();
+  });
+
+  describe('4.14 / Observación 43: Incompatibilidad de convivencia entre el panel flotante y el navegador derecho (rightOpen)', () => {
+    it('en las 4 pantallas (inicio, cambio activo, cambio archivado, especificación), si rightOpen es true el panel flotante se desactiva y el botón superior se deshabilita', () => {
+      // 1. Pantalla de inicio
+      const { container: startContainer, unmount: unmountStart } = renderStartScreen({ rightOpen: true });
+      expect(startContainer.querySelector('nav[class*="switcherRail"]')).toBeNull();
+      const startBtn = screen.getByRole('button', { name: 'pipeline.switcher.toggle' });
+      expect(startBtn.getAttribute('disabled')).not.toBeNull();
+      expect(startBtn.getAttribute('aria-disabled')).toBe('true');
+      expect(startBtn.getAttribute('aria-expanded')).toBe('false');
+      expect(startBtn.getAttribute('title')).toBe('pipeline.switcher.toggleDisabledHelp');
+      expect(startBtn.className).toContain('opacity-50');
+      expect(startBtn.className).toContain('cursor-not-allowed');
+      unmountStart();
+
+      // 2. Cambio activo
+      const { container: activeContainer, unmount: unmountActive } = renderActiveChange({ rightOpen: true });
+      expect(activeContainer.querySelector('nav[class*="switcherRail"]')).toBeNull();
+      const activeBtn = screen.getByRole('button', { name: 'pipeline.switcher.toggle' });
+      expect(activeBtn.getAttribute('disabled')).not.toBeNull();
+      expect(activeBtn.getAttribute('aria-disabled')).toBe('true');
+      expect(activeBtn.getAttribute('aria-expanded')).toBe('false');
+      expect(activeBtn.getAttribute('title')).toBe('pipeline.switcher.toggleDisabledHelp');
+      unmountActive();
+
+      // 3. Cambio archivado
+      const { container: archiveContainer, unmount: unmountArchive } = renderArchivedChange('cambio-archivado', { rightOpen: true });
+      expect(archiveContainer.querySelector('nav[class*="switcherRail"]')).toBeNull();
+      const archiveBtn = screen.getByRole('button', { name: 'pipeline.switcher.toggle' });
+      expect(archiveBtn.getAttribute('disabled')).not.toBeNull();
+      expect(archiveBtn.getAttribute('aria-disabled')).toBe('true');
+      expect(archiveBtn.getAttribute('aria-expanded')).toBe('false');
+      expect(archiveBtn.getAttribute('title')).toBe('pipeline.switcher.toggleDisabledHelp');
+      unmountArchive();
+
+      // 4. Visor de especificación
+      const { container: specContainer, unmount: unmountSpec } = renderSpecification('spec-prueba', { rightOpen: true });
+      expect(specContainer.querySelector('nav[class*="switcherRail"]')).toBeNull();
+      const specBtn = screen.getByRole('button', { name: 'pipeline.switcher.toggle' });
+      expect(specBtn.getAttribute('disabled')).not.toBeNull();
+      expect(specBtn.getAttribute('aria-disabled')).toBe('true');
+      expect(specBtn.getAttribute('aria-expanded')).toBe('false');
+      expect(specBtn.getAttribute('title')).toBe('pipeline.switcher.toggleDisabledHelp');
+      unmountSpec();
+    });
+
+    it('al pulsar el botón cuando está deshabilitado por rightOpen, no alterna el estado y el panel no se monta', () => {
+      const { container } = renderStartScreen({ rightOpen: true });
+      const toggleBtn = screen.getByRole('button', { name: 'pipeline.switcher.toggle' });
+      expect(container.querySelector('nav[class*="switcherRail"]')).toBeNull();
+
+      fireEvent.click(toggleBtn);
+      expect(container.querySelector('nav[class*="switcherRail"]')).toBeNull();
+      expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('al cerrar el navegador derecho (rightOpen pasa a false), el panel vuelve a activarse y el botón se rehabilita', () => {
+      const snap = mockSnapshot();
+      if (snap.openSpec) {
+        snap.openSpec.selectedChangeId = null;
+      }
+      act(() => {
+        usePipelineStore.setState({
+          selectedChangeId: null,
+          openSpecificationId: null,
+        });
+      });
+
+      const { container, rerender } = render(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={true}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      // Con rightOpen=true: panel ausente, botón deshabilitado
+      expect(container.querySelector('nav[class*="switcherRail"]')).toBeNull();
+      const btnInitial = screen.getByRole('button', { name: 'pipeline.switcher.toggle' });
+      expect(btnInitial.getAttribute('disabled')).not.toBeNull();
+
+      // Rerender con rightOpen=false: panel presente, botón habilitado
+      rerender(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      expect(container.querySelector('nav[class*="switcherRail"]')).toBeTruthy();
+      const btnRestored = screen.getByRole('button', { name: 'pipeline.switcher.toggle' });
+      expect(btnRestored.getAttribute('disabled')).toBeNull();
+      expect(btnRestored.getAttribute('aria-disabled')).toBe('false');
+      expect(btnRestored.getAttribute('aria-expanded')).toBe('true');
+      expect(btnRestored.getAttribute('title')).toBe('pipeline.switcher.toggle');
+    });
+
+    it('si el usuario cerró voluntariamente el panel con rightOpen=false, abrir y cerrar el navegador derecho respeta su decisión manteniéndolo cerrado', () => {
+      const snap = mockSnapshot();
+      if (snap.openSpec) {
+        snap.openSpec.selectedChangeId = null;
+      }
+      act(() => {
+        usePipelineStore.setState({
+          selectedChangeId: null,
+          openSpecificationId: null,
+        });
+      });
+
+      const { container, rerender } = render(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      // Estado inicial: panel abierto
+      expect(container.querySelector('nav[class*="switcherRail"]')).toBeTruthy();
+      const toggleBtn = screen.getByRole('button', { name: 'pipeline.switcher.toggle' });
+
+      // Usuario cierra voluntariamente el panel
+      fireEvent.click(toggleBtn);
+      expect(container.querySelector('nav[class*="switcherRail"]')).toBeNull();
+      expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
+
+      // Se abre el sidebar derecho (rightOpen=true)
+      rerender(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={true}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+      expect(container.querySelector('nav[class*="switcherRail"]')).toBeNull();
+      expect(toggleBtn.getAttribute('disabled')).not.toBeNull();
+
+      // Se vuelve a cerrar el sidebar derecho (rightOpen=false): el panel NO se reactiva solo
+      rerender(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+      expect(container.querySelector('nav[class*="switcherRail"]')).toBeNull();
+      expect(toggleBtn.getAttribute('disabled')).toBeNull();
+      expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
+
+      // Si el usuario decide volver a abrirlo explícitamente, se abre
+      fireEvent.click(toggleBtn);
+      expect(container.querySelector('nav[class*="switcherRail"]')).toBeTruthy();
+      expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
+    });
   });
 });

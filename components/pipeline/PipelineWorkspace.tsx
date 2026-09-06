@@ -58,7 +58,7 @@ export function PipelineWorkspace({
   currentBranch = '',
   workingTreeClean = true,
   leftOpen = true,
-  rightOpen = true,
+  rightOpen = false,
   leftWidth = 288,
   rightWidth = 320,
   onResizeLeft = () => undefined,

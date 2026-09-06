@@ -622,4 +622,29 @@ describe('pantalla de entrada del repositorio', () => {
     expect(switcherRules).toContain('align-self: flex-start');
     expect(switcherRules).not.toContain('height: 100%');
   });
+
+  it('calcula el porcentaje global de tareas como suma ponderada de todos los cambios activos y no como promedio de porcentajes', () => {
+    // Cambio 1: 1 de 1 tarea (100%)
+    // Cambio 2: 1 de 3 tareas (33.3%)
+    // Suma: 2 de 4 tareas = 50%
+    // Si fuera promedio de porcentajes daría (100 + 33) / 2 = 66.5% o 67%
+    renderDashboard(snapshot({
+      activeChanges: [change('uno', 1, 1), change('dos', 1, 3)],
+    }));
+
+    const progressEl = screen.getByTestId('start-global-progress');
+    expect(progressEl).toBeTruthy();
+    expect(progressEl.textContent).toBe('pipeline.openspec.start.globalProgress:{"percent":50}');
+  });
+
+  it('cuando no hay tareas para medir en cambios activos, no dibuja 0% y muestra el rótulo sin tareas', () => {
+    renderDashboard(snapshot({
+      activeChanges: [],
+    }));
+
+    const progressEl = screen.getByTestId('start-global-progress');
+    expect(progressEl).toBeTruthy();
+    expect(progressEl.textContent).toBe('pipeline.openspec.start.noTasksToMeasure');
+    expect(progressEl.textContent).not.toContain('0%');
+  });
 });

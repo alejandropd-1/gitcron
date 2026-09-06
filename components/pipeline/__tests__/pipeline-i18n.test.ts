@@ -131,6 +131,7 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.start.archived',
   'pipeline.switcher.views',
   'pipeline.switcher.toggle',
+  'pipeline.switcher.toggleDisabledHelp',
   'pipeline.switcher.tasks',
   'pipeline.switcher.artifacts',
   'pipeline.switcher.diffs',
@@ -154,6 +155,8 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.start.archivedCount.one',
   'pipeline.openspec.start.specificationsCount',
   'pipeline.openspec.start.specsPending',
+  'pipeline.openspec.start.globalProgress',
+  'pipeline.openspec.start.noTasksToMeasure',
   // Preparación del commit del repositorio. Van acá para que las tres lenguas
   // queden exigidas: el riesgo real no es que falte una traducción sino que
   // quede una que hable "del cambio" sobre una superficie que ya no lo es.
@@ -409,6 +412,11 @@ describe('Pipeline i18n', () => {
       expect(tasks).toContain('5');
       expect(tasks).toContain('6');
       expect(tasks).not.toMatch(/\{\{/);
+
+      // El avance global de tareas en la cabecera de la pantalla de entrada
+      const globalProgress = translate('pipeline.openspec.start.globalProgress', lang, { percent: 75 });
+      expect(globalProgress).toContain('75');
+      expect(globalProgress).not.toMatch(/\{\{/);
 
       // Divergencia de perfiles y workflows estructurada en las 3 lenguas
       const profileDiv = translate('pipeline.openspec.engine.divergence.profileMismatch', lang, {

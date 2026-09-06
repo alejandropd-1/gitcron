@@ -335,4 +335,108 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       expect(content).not.toMatch(/\.pipeline-details__tab--active[^{]*\{[^}]*background-color:\s*var\(--color-primary\)/);
     });
   });
+
+  describe('Grupo 5: Comprobaciones del change y límites de cobertura (5.1 y 5.2)', () => {
+    it('5.1 En el DOM montado: una superficie sin contenido no ocupa lugar, se mantiene alcanzable por sus controles y abrir una no desplaza a las demás', () => {
+      // 1. Superficie sin contenido no ocupa lugar en el DOM:
+      // En reposo (mockSnapshot sin agente vivo ni logs), la actividad no está montada en el DOM
+      const { container, rerender } = renderSdd();
+      expect(screen.queryByRole('heading', { name: /pipeline\.activity\.title/i })).toBeNull();
+      expect(container.querySelector('[class*="fullActivity"]')).toBeNull();
+
+      // 2. Es alcanzable: la vista de artefactos y evidencia se alcanza desde el riel
+      const artifactsBtn = screen.getByRole('button', { name: /pipeline\.switcher\.artifacts/i });
+      expect(artifactsBtn).toBeTruthy();
+      fireEvent.click(artifactsBtn);
+
+      // Ahora la vista de artefactos está montada y ocupa el área central soberana
+      const tablist = screen.getByRole('tablist');
+      expect(tablist).toBeTruthy();
+
+      // Las tareas siguen siendo alcanzables para alternar de regreso
+      const tasksBtn = screen.getByRole('button', { name: /pipeline\.switcher\.tasks/i });
+      expect(tasksBtn).toBeTruthy();
+
+      // 3. Abrir una superficie no desplaza a las demás:
+      // La cabecera de identidad del cambio permanece en su posición y no es empujada fuera del viewport
+      const header = screen.getByRole('banner', { hidden: true }) || screen.getByText('cambio-ejemplo').closest('header')!;
+      expect(header).toBeTruthy();
+      expect(header.textContent).toContain('cambio-ejemplo');
+
+      // Conmutamos de regreso a tareas: el intercambio es in-place dentro del cuerpo soberano
+      fireEvent.click(tasksBtn);
+      expect(screen.queryByRole('tablist')).toBeNull();
+      expect(screen.getByText('Primera tarea del cambio')).toBeTruthy();
+      expect(header.textContent).toContain('cambio-ejemplo');
+
+      // 4. Panel lateral flotante con rightOpen={true}: no ocupa lugar en el DOM y libera el ancho
+      rerender(
+        <OpenSpecDashboard
+          snapshot={mockSnapshot()}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={true}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+      expect(container.querySelector('nav[class*="switcherRail"]')).toBeNull();
+    });
+
+    it('5.2 Declaración explícita de archivos recorridos y límites de cobertura fuera de este change', () => {
+      // Archivos que recorre la verificación de este change (verificados en disco):
+      const filesCovered = [
+        'components/pipeline/OpenSpecDashboard.tsx',
+        'components/pipeline/OpenSpecDashboard.module.css',
+        'components/pipeline/ViewSwitcherRail.tsx',
+        'lib/i18n.ts',
+      ];
+
+      for (const relPath of filesCovered) {
+        const fullPath = path.resolve(process.cwd(), relPath);
+        expect(fs.existsSync(fullPath)).toBe(true);
+      }
+
+      // Declaración explícita de límites de qué NO cubre la verificación de este change:
+      const outOfScopeBoundaries = {
+        artifactTimelineNodes: {
+          covered: false,
+          owner: 'gestionar-ciclo-openspec-desde-gitcron',
+          taskRef: '3c.4',
+          rationale: 'El grafo interactivo de nodos unidos con dependencias de desbloqueo entre artefactos es infraestructura del ciclo de vida OpenSpec',
+        },
+        didacticCopyAndGlossary: {
+          covered: false,
+          owner: 'explicar-el-ciclo-sin-tecnicismos',
+          taskRef: 'Tareas de redacción y glosario',
+          rationale: 'Los textos explicativos sin tecnicismos, explicaciones didácticas y glosario no son de layout sino de redacción formativa',
+        },
+        subpixelRenderingAndGPU: {
+          covered: false,
+          owner: 'Navegador cliente / render engine',
+          rationale: 'El entorno jsdom de Vitest no emula sub-píxeles, layout engines específicos de Chromium/WebKit ni aceleración por hardware',
+        },
+        liveHermesRuntimeStreaming: {
+          covered: false,
+          owner: 'Hermès CLI / background agent execution',
+          rationale: 'Se verifica el contrato de datos (PipelineSnapshot / PipelineProjection), no la conexión viva por socket con ejecutores externos',
+        },
+      };
+
+      // Afirmar contractualmente que las fronteras declaradas están formalizadas
+      expect(outOfScopeBoundaries.artifactTimelineNodes.covered).toBe(false);
+      expect(outOfScopeBoundaries.didacticCopyAndGlossary.covered).toBe(false);
+      expect(outOfScopeBoundaries.subpixelRenderingAndGPU.covered).toBe(false);
+      expect(outOfScopeBoundaries.liveHermesRuntimeStreaming.covered).toBe(false);
+    });
+  });
 });

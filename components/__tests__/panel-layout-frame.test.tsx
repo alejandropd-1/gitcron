@@ -6,7 +6,6 @@ import { RepoSidebar } from '../RepoSidebar';
 import { RepoDetailsPanel } from '../RepoDetailsPanel';
 import { RepoMainView } from '../RepoMainView';
 import { OpenSpecDashboard } from '../pipeline/OpenSpecDashboard';
-import { OpenSpecSidebarNav } from '../pipeline/OpenSpecSidebarNav';
 import { OpenSpecInspector } from '../pipeline/OpenSpecInspector';
 import { SidebarSection } from '../RepoSidebarParts';
 import { usePanelLayout } from '@/hooks/use-panel-layout';
@@ -933,11 +932,11 @@ describe('Compartir paneles laterales entre vistas (Fase 3 & fundición de later
     expect(onToggleDetails).toHaveBeenCalledTimes(2);
   });
 
-  it('5. En SDD (Pipeline), el panel lateral RepoSidebar muestra la navegación de SDD y no ramas', () => {
+  it('5. En SDD (Pipeline), el panel lateral RepoSidebar muestra las secciones de ramas/referencias igual que en Graph (4.11)', () => {
     const { container } = render(
       <RepoSidebar
         activeTab="Pipeline"
-        graphMode="chronometric"
+        graphMode="classic"
         sidebarW={280}
         sidebarOpen={true}
         isDragging={false}
@@ -976,12 +975,12 @@ describe('Compartir paneles laterales entre vistas (Fase 3 & fundición de later
       />
     );
 
-    // Debe contener el contenedor de navegación de OpenSpec
+    // Ya no contiene el contenedor de navegación de OpenSpec (4.11)
     const sddNav = container.querySelector('[data-testid="openspec-sidebar-nav"]');
-    expect(sddNav).not.toBeNull();
-    // No debe contener el contenedor de ramas/referencias clásicas
+    expect(sddNav).toBeNull();
+    // Contiene el contenedor de ramas/referencias clásicas igual que Graph
     const graphNav = container.querySelector('[data-testid="sidebar-branches-sections"]');
-    expect(graphNav).toBeNull();
+    expect(graphNav).not.toBeNull();
   });
 
   it('6. En Graph, el panel lateral RepoSidebar muestra las secciones de ramas/referencias', () => {
@@ -1726,10 +1725,6 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
       />
     );
 
-    const { container: openSpecSidebarContainer } = render(
-      <OpenSpecSidebarNav snapshot={mockSnapshot} />
-    );
-
     const { container: detailsWithCommitContainer } = render(
       <RepoDetailsPanel
         activeTab="Graph"
@@ -1777,7 +1772,6 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
 
     const allContainers = [
       sidebarContainer,
-      openSpecSidebarContainer,
       detailsWithCommitContainer,
       detailsStagingContainer,
       inspectorContainer,
@@ -1818,8 +1812,8 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
       }
     }
 
-    // Comprobamos que se cubrieron las 21 secciones únicas
-    expect(totalSectionHeadersFound).toBe(21);
+    // Comprobamos que se cubrieron las 18 secciones únicas (21 menos las 3 de OpenSpecSidebarNav retiradas)
+    expect(totalSectionHeadersFound).toBe(18);
   });
 
   it('9. Que las filas de primer nivel y el encabezado de sección declaran el mismo desplazamiento izquierdo (4.17)', () => {

@@ -19,11 +19,8 @@ export type ViewSwitcherRailProps = {
   views: ViewSwitcherItem[];
   activeViewId: string;
   onSwitchView: (viewId: string) => void;
-  isCollapsed?: boolean;
-  onToggleCollapse?: () => void;
   environmentSlot?: React.ReactNode;
   ariaLabel?: string;
-  collapseAriaLabel?: string;
   className?: string;
   style?: React.CSSProperties;
 };

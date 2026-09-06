@@ -48,7 +48,6 @@
 
 .openspecScope,
 .dashboard,
-.navigator,
 .activityRail {
   /* Escala de espaciado, base 0.25rem. Existe porque el panel se venía ajustando
      valor por valor —0.55, 0.7, 0.9— y cada arreglo puntual desalineaba el
@@ -102,17 +101,10 @@
   overflow: hidden;
 }
 
-.navigator,
 .activityRail,
 .center {
   min-width: 0;
   min-height: 0;
-}
-
-.navigator {
-  position: relative;
-  overflow-y: auto;
-  scrollbar-width: thin;
 }
 
 .activityRail > h3 {
@@ -128,97 +120,7 @@
   text-transform: uppercase;
 }
 
-/* La lista de cambios activos despliega todo su contenido sin tope de alto ni
-   desplazamiento propio; el lateral provee el scroll general y la sección se pliega. */
-.activeList {
-  min-width: 0;
-}
-
-.activeChange {
-  width: 100%;
-  padding: var(--space-2) var(--space-3) var(--space-3);
-  border: 1px solid transparent;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  transition: border-color 140ms ease, background 140ms ease;
-}
-
-.activeChange:hover,
-.activeChange[data-selected='true'] {
-  border-color: color-mix(in srgb, var(--color-primary) 16%, transparent);
-  background: color-mix(in srgb, var(--color-border-subtle) 34%, transparent);
-}
-
-/* El encabezado se parte en dos controles: seleccionar el cambio y plegarlo son
-   acciones distintas, y con varios cambios apilados hace falta poder cerrar uno
-   sin dejar de trabajar en él. */
-.changeHeadingRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-2); }
-.changeSelect { display: grid; gap: var(--space-2); padding: 0; border: 0; background: transparent; color: inherit; text-align: left; }
-.changeToggle {
-  display: grid;
-  width: 2.75rem;
-  height: 2.75rem;
-  min-width: 44px;
-  min-height: 44px;
-  place-items: center;
-  border: 0;
-  border-radius: var(--radius-default);
-  background: transparent;
-  color: var(--color-text-secondary);
-}
-.changeToggle:hover { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); }
-.changeToggle svg { transition: transform 140ms ease; }
-.changeToggle svg[data-expanded='true'] { transform: rotate(180deg); }
-
-.changeHeading {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.changeHeading strong {
-  overflow: hidden;
-  color: var(--color-text-primary);
-  font-weight: 700; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.changeHeading > span:last-child { color: var(--color-text-secondary); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; }
-.changeDot { background: var(--color-primary); box-shadow: none; }
-
-.progressTrack {
-  display: block;
-  height: 0.38rem;
-  margin: var(--space-2) 0 var(--space-3) var(--space-4);
-  overflow: hidden;
-  background: color-mix(in srgb, var(--color-border-subtle) 25%, transparent);
-}
-
-.progressTrack > span {
-  display: block;
-  height: 100%;
-  background: var(--color-primary);
-  transition: width 240ms ease;
-}
-
-/* Recortado a cuatro líneas: el intent viene del primer párrafo de
-   `proposal.md`, que puede ser extenso, y la tarjeta del cambio no debe empujar
-   fuera de vista a "Completados recientes" y "Especificaciones". */
-.changeIntent {
-  display: -webkit-box;
-  overflow: hidden;
-  margin: 0 var(--space-1) var(--space-3) var(--space-4);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  line-height: 1.45;
-}
-
-.artifactList { display: grid; gap: var(--space-1); margin-left: var(--space-4); }
+.artifactList { display: grid; gap: var(--space-1); width: 100%; }
 /* Cada archivo es un control: abre su contenido en la columna central. */
 .artifactRow {
   display: grid;
@@ -238,38 +140,11 @@
 /* Deshabilitado significa que ese archivo todavía no se puede leer, no que esté
    roto: se atenúa sin desaparecer, porque su estado sigue siendo información. */
 .artifactRow:disabled { cursor: default; opacity: 0.55; }
-.artifactList em { color: var(--color-warning); font-size: var(--font-size-xs); font-style: normal; }
-.artifactList em[data-done='true'] { color: var(--color-git-add); }
+.artifactList em,
+.artifactTimelineSlot em { color: var(--color-warning); font-size: var(--font-size-xs); font-style: normal; }
+.artifactList em[data-done='true'],
+.artifactTimelineSlot em[data-done='true'] { color: var(--color-git-add); }
 
-.compactList,
-.specList { display: grid; }
-
-.compactList button,
-.specList > button {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 2.75rem;
-  padding: var(--space-1) var(--space-2);
-  border: 0;
-  background: transparent;
-  color: var(--color-git-add);
-  text-align: left;
-}
-
-.compactList button:hover,
-.compactList button[data-selected='true'] { background: color-mix(in srgb, var(--color-git-add) 7%, transparent); }
-.compactList strong,
-.specList strong { overflow: hidden; color: var(--color-text-primary); font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }
-.compactList span,
-.specList span { color: var(--color-text-secondary); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; white-space: nowrap; }
-.specList > button { min-height: 2.75rem; color: var(--color-accent-purple); cursor: pointer; }
-/* Se pueden abrir, así que se comportan como los demás controles de la barra.
-   Antes eran `div` porque no había contenido que mostrar. */
-.specList > button:hover,
-.specList > button[data-selected='true'] { background: color-mix(in srgb, var(--color-accent-purple) 9%, transparent); }
-.navEmpty,
 .railEmpty { margin: var(--space-3) var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-xs); line-height: 1.45; }
 
 /* Especificación abierta en el centro.
@@ -540,8 +415,7 @@
 .groupToggle:focus-visible,
 .fileChoice:focus-within,
 .startPendingToggle:focus-visible,
-.startArchived button:focus-visible,
-.backToStart:focus-visible {
+.startArchived button:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
 }
@@ -1599,38 +1473,6 @@
 .startArchived svg { align-self: center; flex: 0 0 auto; color: var(--color-git-add); }
 .startBar { flex: 1 1 auto; height: 0.28rem; border-radius: var(--radius-default); background: var(--color-border-subtle); }
 .startBar > span { display: block; height: 100%; border-radius: var(--radius-default); background: var(--color-primary); }
-
-/* Vuelta al estado del repositorio desde adentro de un cambio. */
-/* Se lee como botón, no como texto con una flecha.
-   Antes declaraba `border: 0` y `background: none`, que es el mismo problema que
-   ya trajo `legible-panel-controls`. Se toma el criterio del "Volver al
-   Repositorio" de Configuración —contorno y respiro— con los tokens de este
-   panel: copiar sus clases de Tailwind metería la tipografía del resto de la
-   aplicación en medio del módulo y se vería pegado, no integrado.
-   El tamaño chico y la versalita se conservan a propósito: volver es una acción
-   secundaria respecto de lo que se está mirando, y lo que faltaba era el
-   contorno, no el tamaño. */
-.backToStart {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-1);
-  padding: var(--sp-1) var(--sp-3);
-  margin: 0 0 var(--sp-3) 0;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  background: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-.backToStart:hover {
-  border-color: var(--color-border-subtle);
-  background: var(--color-bg-surface);
-  color: var(--color-primary);
-}
 
 .completedSummary > p,
 .noActiveChange > p { margin: var(--space-3) 0 var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; }
@@ -3103,39 +2945,12 @@ summary.centerBlock {
   color: var(--color-primary);
 }
 
-.switcherRail .primaryAction,
-.switcherRail .secondaryAction {
-  min-height: 1.875rem;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-weight: 500;
-  border-radius: var(--radius-md);
-  padding: var(--space-1) var(--space-2);
-  justify-content: flex-start;
-  box-shadow: none;
-}
-
-.switcherRail .primaryAction {
-  color: var(--color-primary);
-  font-weight: 600;
-}
-
-.switcherRail .primaryAction:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  color: var(--color-primary);
-}
-
-.switcherRail .secondaryAction:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
-  color: var(--color-text-primary);
-}
-
 /* Espacio reservado para la línea de tiempo de artefactos (herencia 3c.4). */
 .artifactTimelineSlot {
   min-height: 2.75rem;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: var(--space-1);
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--color-bg-surface) 50%, transparent);

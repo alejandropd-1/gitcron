@@ -2,7 +2,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
-import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 
@@ -73,49 +72,22 @@ function renderDashboard(selectedChangeId: string | null, onSelectChange: (id: s
     selectedChangeId: null,
   });
   return render(
-    <div>
-      <OpenSpecSidebarNav
-        onSelectChange={(id) => {
-          usePipelineStore.getState().setSelectedChangeId(id);
-          onSelectChange(id);
-        }}
-      />
-      <OpenSpecDashboard
-        snapshot={snap}
-        repoPath="C:/repo"
-        currentBranch="fix/una-rama-que-no-matchea"
-        workingTreeClean
-        projection={null}
-        runtimeHistory={[]}
-        onRefresh={() => undefined}
-        onSelectChange={onSelectChange}
-        onPauseAfterTask={() => undefined}
-        onRespondDecision={() => undefined}
-      />
-    </div>,
+    <OpenSpecDashboard
+      snapshot={snap}
+      repoPath="C:/repo"
+      currentBranch="fix/una-rama-que-no-matchea"
+      workingTreeClean
+      projection={null}
+      runtimeHistory={[]}
+      onRefresh={() => undefined}
+      onSelectChange={onSelectChange}
+      onPauseAfterTask={() => undefined}
+      onRespondDecision={() => undefined}
+    />,
   );
 }
 
 afterEach(cleanup);
-
-/**
- * El ítem del cambio en la columna izquierda.
- *
- * El identificador también aparece en la pantalla de entrada, así que buscarlo
- * por texto devuelve dos nodos. El de la columna es el que cuelga de un botón;
- * el de la pantalla de entrada no.
- */
-function navItem(changeId: string): HTMLButtonElement {
-  const activeSectionToggle = screen.getByRole('button', { name: /pipeline\.openspec\.active\.title/ });
-  if (activeSectionToggle.getAttribute('aria-expanded') !== 'true') {
-    fireEvent.click(activeSectionToggle);
-  }
-  const button = screen.getAllByText(changeId)
-    .map((node) => node.closest('button'))
-    .find((node): node is HTMLButtonElement => node !== null);
-  if (!button) throw new Error(`Sin ítem de navegación para ${changeId}`);
-  return button;
-}
 
 describe('sincronización entre el cambio mostrado y el leído', () => {
   it('sin elección explícita no muestra ningún cambio ni informa ninguno', async () => {
@@ -161,52 +133,5 @@ describe('sincronización entre el cambio mostrado y el leído', () => {
 
     screen.getByRole('button', { name: /pipeline\.switcher\.start|openspec\.start\.back/ }).click();
     await vi.waitFor(() => expect(screen.getByText('pipeline.openspec.start.title')).toBeTruthy());
-  });
-
-  /**
-   * Desplegado siguiendo a la selección: el detalle ocupa varias veces el alto
-   * de un ítem plegado, así que al cambiar de cambio se plegaba el anterior, se
-   * liberaba espacio y aparecía otro que estaba fuera de vista. Un elemento que
-   * se descubre por rebote de otra acción no está realmente presentado.
-   */
-  it('seleccionar un cambio no lo despliega', async () => {
-    const onSelectChange = vi.fn();
-    renderDashboard(null, onSelectChange);
-
-    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.active\.title/ }));
-    for (const toggle of screen.getAllByLabelText(/openspec\.change\.(expand|collapse)/)) {
-      expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    }
-
-    navItem('segundo').click();
-    for (const toggle of screen.getAllByLabelText(/openspec\.change\.(expand|collapse)/)) {
-      expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    }
-  });
-
-  it('el control de desplegado sí lo despliega, sin depender de la selección', async () => {
-    const onSelectChange = vi.fn();
-    renderDashboard(null, onSelectChange);
-
-    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.active\.title/ }));
-    // Se despliega el que NO está seleccionado: desplegar y seleccionar son
-    // acciones independientes.
-    const toggles = screen.getAllByLabelText(/openspec\.change\.(expand|collapse)/);
-    toggles[1].click();
-    await vi.waitFor(() => expect(
-      screen.getAllByLabelText(/openspec\.change\.(expand|collapse)/)[1].getAttribute('aria-expanded'),
-    ).toBe('true'));
-    expect(screen.getAllByLabelText(/openspec\.change\.(expand|collapse)/)[0].getAttribute('aria-expanded')).toBe('false');
-  });
-
-  it('no pisa la selección manual del usuario', async () => {
-    const onSelectChange = vi.fn();
-    // El estado del repositorio deriva `primero` de la rama: eso ya no entra a
-    // ningún cambio, y elegir el otro tampoco puede quedar pisado.
-    renderDashboard('primero', onSelectChange);
-
-    navItem('segundo').click();
-    await vi.waitFor(() => expect(onSelectChange).toHaveBeenCalledWith('segundo'));
-    expect(onSelectChange).not.toHaveBeenCalledWith('primero');
   });
 });

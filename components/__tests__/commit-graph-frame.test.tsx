@@ -175,7 +175,6 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
       /\.branchPill/, // DATO: píldora de coincidencia de rama
       /\.startPendingToggle/, // CONTROL: desplegable de pendientes
       /\.startArchived/, // RESET
-      /\.backToStart/, // CONTROL: botón de retorno
       /\.readiness/, // TARJETA / DATO / CONTROL: aviso del repositorio
       /\.branchBase/, // DATO: advertencia de rama base
       /\.railInitAction/, // CONTROL en panel derecho

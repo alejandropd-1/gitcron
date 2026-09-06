@@ -745,6 +745,30 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
         nombra es `components/pipeline/__tests__/pipeline-i18n.test.ts:133-134`, que exige que
         existan. Seis textos —dos claves por tres lenguas— que ya no rotulan nada.
 
+- [ ] 4.13 **Auditoria del 2026-09-06, despues de reducir el navegador izquierdo.**
+
+  42. **El porcentaje global de tareas se perdio sin destino declarado.**
+      El navegador retirado no eran solo tres secciones: su rotulo de columna mostraba
+      «Ciclo de cambios» junto al **porcentaje global de tareas de todos los cambios activos**,
+      calculado en `components/pipeline/OpenSpecSidebarNav.tsx:106` como
+      `Math.round((completedTasks / totalTasks) * 100)` sobre la suma de todos los cambios, y
+      dibujado en `:110-113` bajo `data-testid="sidebar-change-cycle-header"`.
+      Ese numero **ya no existe en ninguna parte de la aplicacion**: el `data-testid` no aparece en
+      ningun archivo, la clave `sidebar.changeCycle` se retiro de las tres lenguas, y lo unico que
+      queda es el porcentaje **por cambio** de la lista de la pantalla de entrada
+      (`components/pipeline/OpenSpecDashboard.tsx:2952`), que es otro dato.
+      Dos pruebas lo cuidaban y las dos dejaron de hacerlo:
+      `components/pipeline/__tests__/pipeline-identity-strip-evidence.test.tsx` retiro entera
+      «8.4 El porcentaje global de tareas esta en el lateral en la vista del ciclo», y
+      `components/pipeline/__tests__/pipeline-start-screen.test.tsx` reemplazo su afirmacion sobre
+      el porcentaje global por una sobre el contador de especificaciones.
+      No es lo que decidio Alejandro en la 4.11: el retiro alcanzaba a las tres secciones, no al
+      rotulo de columna. La suite queda en verde porque las dos pruebas que lo exigian se
+      reescribieron, no porque el dato siga estando.
+      **Falta decidir su destino.** El lugar natural es el encabezado de la pantalla de entrada,
+      que ya reune las cuentas del repositorio —cambios en curso, archivados, especificaciones—, y
+      donde un porcentaje global responde a la misma pregunta que ellas. **La decide Alejandro.**
+
 ## 5. Pruebas
 
 - [ ] 5.1 Sostener lo decidido: que una superficie sin contenido no ocupe lugar, que siga siendo

@@ -130,8 +130,6 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.start.inProgress',
   'pipeline.openspec.start.archived',
   'pipeline.switcher.views',
-  'pipeline.switcher.collapse',
-  'pipeline.switcher.expand',
   'pipeline.switcher.toggle',
   'pipeline.switcher.tasks',
   'pipeline.switcher.artifacts',

@@ -483,20 +483,48 @@ describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
   });
 
   it('los ítems del panel no declaran borde propio', () => {
+    // Caso medido el 2026-09-06: la prueba anterior pasaba en verde mientras las dos acciones del panel
+    // se veían encajonadas porque sólo inspeccionaba selectores con nombre de riel (.railItem, .switcherRail)
+    // en vez de las clases que el elemento efectivamente lleva puestas (.primaryAction, .secondaryAction agregaban borde y tipografía mono).
+    renderActiveChange();
+    const rail = screen.getByRole('navigation', { name: 'pipeline.switcher.views' });
+    const buttons = Array.from(rail.querySelectorAll('button'));
+    expect(buttons.length).toBeGreaterThan(0);
+
+    const appliedClasses = Array.from(new Set(buttons.flatMap((btn) => Array.from(btn.classList))));
     const cssPath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
     const cssContent = fs.readFileSync(cssPath, 'utf-8');
 
-    // Comprueba que los ítems del riel no declaran borde ni borde-color
-    const railItemMatch = cssContent.match(/\.railItem\s*,\s*\.railActionItem\s*\{([^}]+)\}/);
-    expect(railItemMatch).not.toBeNull();
-    const railItemBody = railItemMatch![1];
-    expect(railItemBody).not.toMatch(/border\s*:/);
-    expect(railItemBody).not.toMatch(/border-color\s*:/);
+    const ruleRegex = /([^{]+)\{([^}]+)\}/g;
+    let match: RegExpExecArray | null;
+    const unexpectedBorders: string[] = [];
 
-    // Tampoco la acción principal del riel declara bordes
-    const primaryActionMatch = cssContent.match(/\.railPrimaryAction\s*\{([^}]+)\}/);
-    expect(primaryActionMatch).not.toBeNull();
-    expect(primaryActionMatch![1]).not.toMatch(/border/);
+    while ((match = ruleRegex.exec(cssContent)) !== null) {
+      const selector = match[1].trim();
+      const body = match[2];
+
+      const targetsClass = appliedClasses.some((cls) => {
+        const pattern = new RegExp(`\\.${cls}(?:[:\\s,\\[>]|$)`);
+        return pattern.test(selector);
+      });
+
+      if (targetsClass) {
+        const borderProps = body
+          .split(';')
+          .map((s) => s.trim())
+          .filter(
+            (s) =>
+              s &&
+              /^(border|border-top|border-bottom|border-left|border-right|border-color|border-block|border-inline)/i.test(s) &&
+              !s.startsWith('border-radius')
+          );
+        if (borderProps.length > 0) {
+          unexpectedBorders.push(`${selector}: ${borderProps.join(', ')}`);
+        }
+      }
+    }
+
+    expect(unexpectedBorders).toEqual([]);
   });
 
   it('el escáner de bordes pasa sin excepciones nuevas', () => {
@@ -508,33 +536,49 @@ describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
     expect(testContent).not.toMatch(/\/\.railPrimaryAction\//);
     expect(testContent).not.toMatch(/\/\.switcherRail\//);
 
-    // 2. Ninguna regla de los ítems del riel en OpenSpecDashboard.module.css declara bordes
+    // Caso medido el 2026-09-06: la prueba anterior pasaba en verde mientras las dos acciones del panel
+    // se veían encajonadas porque sólo inspeccionaba selectores con nombre de riel (.railItem, .switcherRail)
+    // en vez de las clases reales del elemento (.primaryAction, .secondaryAction agregaban borde,
+    // border-color, box-shadow de contorno y tipografía monoespaciada).
+    renderActiveChange();
+    const rail = screen.getByRole('navigation', { name: 'pipeline.switcher.views' });
+    const buttons = Array.from(rail.querySelectorAll('button'));
+    expect(buttons.length).toBeGreaterThan(0);
+
+    const appliedClasses = Array.from(new Set(buttons.flatMap((btn) => Array.from(btn.classList))));
     const cssPath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
     const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
     const ruleRegex = /([^{]+)\{([^}]+)\}/g;
     let match: RegExpExecArray | null;
+    const defects: string[] = [];
 
-    const unexpectedRailBorders: string[] = [];
     while ((match = ruleRegex.exec(cssContent)) !== null) {
       const selector = match[1].trim();
       const body = match[2];
-      if (/(\.railItem|\.railActionItem|\.railPrimaryAction|\.switcherRail\s+\.(primaryAction|secondaryAction))/.test(selector)) {
-        const borderProps = body
-          .split(';')
-          .map((s) => s.trim())
-          .filter(
-            (s) =>
-              s &&
-              /^(border|border-top|border-bottom|border-left|border-right|border-color|border-block|border-inline)/i.test(s) &&
-              !s.startsWith('border-radius')
-          );
-        if (borderProps.length > 0) {
-          unexpectedRailBorders.push(`${selector}: ${borderProps.join(', ')}`);
+
+      const targetsClass = appliedClasses.some((cls) => {
+        const pattern = new RegExp(`\\.${cls}(?:[:\\s,\\[>]|$)`);
+        return pattern.test(selector);
+      });
+
+      if (targetsClass) {
+        const decls = body.split(';').map((s) => s.trim()).filter(Boolean);
+        for (const decl of decls) {
+          if (/^(border|border-top|border-bottom|border-left|border-right|border-color|border-block|border-inline)/i.test(decl) && !decl.startsWith('border-radius')) {
+            defects.push(`${selector} [border]: ${decl}`);
+          }
+          if (/^box-shadow\s*:\s*.*(?:1px|inset)/i.test(decl)) {
+            defects.push(`${selector} [contour box-shadow]: ${decl}`);
+          }
+          if (/^font-family\s*:\s*.*(?:--font-mono|monospace|ui-monospace)/i.test(decl)) {
+            defects.push(`${selector} [monospace font]: ${decl}`);
+          }
         }
       }
     }
 
-    expect(unexpectedRailBorders).toEqual([]);
+    expect(defects).toEqual([]);
   });
 
   it('el contenedor que ancla al panel no se encoge por debajo del alto de su contenido', () => {

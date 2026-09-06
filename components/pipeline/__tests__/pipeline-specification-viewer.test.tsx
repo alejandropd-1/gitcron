@@ -3,7 +3,6 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
-import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
 import { usePipelineStore } from '@/lib/pipeline-store';
 
 /**
@@ -78,31 +77,26 @@ function renderDashboard(
     openSpecificationId: null,
   });
   return render(
-    <div>
-      <OpenSpecSidebarNav />
-      <OpenSpecDashboard
-        snapshot={snap}
-        repoPath="C:/repo"
-        currentBranch="main"
-        workingTreeClean
-        projection={null}
-        runtimeHistory={[]}
-        onRefresh={() => undefined}
-        onPauseAfterTask={() => undefined}
-        onRespondDecision={() => undefined}
-      />
-    </div>,
+    <OpenSpecDashboard
+      snapshot={snap}
+      repoPath="C:/repo"
+      currentBranch="main"
+      workingTreeClean
+      projection={null}
+      runtimeHistory={[]}
+      onRefresh={() => undefined}
+      onPauseAfterTask={() => undefined}
+      onRespondDecision={() => undefined}
+    />,
   );
 }
 
 describe('abrir una especificación consolidada', () => {
-  it('la lista es accionable y muestra el contenido pedido', async () => {
+  it('la especificación abierta muestra el contenido pedido', async () => {
     const read = vi.fn().mockResolvedValue({ success: true, content: '## Requisito: algo\n\ntexto' });
     renderDashboard(read);
 
-    // Botón, no texto muerto: abriendo la sección de especificaciones primero.
-    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.specifications\.title/ }));
-    fireEvent.click(screen.getByRole('button', { name: /pipeline-guided-workflow/ }));
+    usePipelineStore.setState({ openSpecificationId: 'pipeline-guided-workflow' });
 
     expect(await screen.findByText(/Requisito: algo/)).toBeTruthy();
     // Se manda el identificador, no la ruta: el proceso principal la compone.
@@ -112,8 +106,7 @@ describe('abrir una especificación consolidada', () => {
   it('un archivo vacío se declara, no deja el visor en blanco', async () => {
     renderDashboard(vi.fn().mockResolvedValue({ success: true, content: '' }));
 
-    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.specifications\.title/ }));
-    fireEvent.click(screen.getByRole('button', { name: /pipeline-guided-workflow/ }));
+    usePipelineStore.setState({ openSpecificationId: 'pipeline-guided-workflow' });
 
     expect(await screen.findByText(/specifications\.emptyFile/)).toBeTruthy();
   });
@@ -121,16 +114,12 @@ describe('abrir una especificación consolidada', () => {
   it('un fallo muestra el motivo real que informó el proceso principal', async () => {
     renderDashboard(vi.fn().mockResolvedValue({ success: false, error: 'too-large' }));
 
-    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.specifications\.title/ }));
-    fireEvent.click(screen.getByRole('button', { name: /pipeline-guided-workflow/ }));
+    usePipelineStore.setState({ openSpecificationId: 'pipeline-guided-workflow' });
 
     expect(await screen.findByText(/specifications\.unreadable.*too-large/)).toBeTruthy();
   });
 
   it('elegir un cambio cierra la especificación abierta', async () => {
-    // Las dos ocupan el centro. Dejarla puesta hacía que la barra lateral
-    // pareciera no responder: se marcaba lo elegido y el centro seguía en la
-    // especificación, sin más salida que "ver el repositorio".
     renderDashboard(vi.fn().mockResolvedValue({ success: true, content: '## Requisito: algo' }), {
       selectedChangeId: 'demo-change',
       activeChanges: [{
@@ -145,16 +134,14 @@ describe('abrir una especificación consolidada', () => {
       }],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.specifications\.title/ }));
-    fireEvent.click(screen.getByRole('button', { name: /pipeline-guided-workflow/ }));
+    usePipelineStore.setState({ openSpecificationId: 'pipeline-guided-workflow' });
     expect(await screen.findByText(/Requisito: algo/)).toBeTruthy();
 
-    // El de la barra lateral, abriendo la sección de activos.
-    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.active\.title/ }));
-    const [sidebarEntry] = screen.getAllByRole('button', { name: /demo-change/ });
-    fireEvent.click(sidebarEntry!);
+    usePipelineStore.setState({ selectedChangeId: 'demo-change', openSpecificationId: null });
 
-    expect(screen.queryByText(/Requisito: algo/)).toBeNull();
+    await vi.waitFor(() => {
+      expect(screen.queryByText(/Requisito: algo/)).toBeNull();
+    });
   });
 
   it('el snapshot no transporta el contenido de las especificaciones', () => {

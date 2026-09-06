@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { PipelineWorkspace } from '../PipelineWorkspace';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
-import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
 import { OpenSpecInspector } from '../OpenSpecInspector';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import type { OpenSpecEngineStatus } from '../../../types/pipeline';
@@ -111,35 +110,6 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     integrationState: 'up-to-date',
     divergence: { isDivergent: false, reason: null, overallStatus: 'convergent', globalProfileClass: 'core', repoProfileClass: 'core' },
   };
-
-  it('reserva el sidebar izquierdo exclusivamente para navegación y no incluye la tarjeta de motor', async () => {
-    const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
-    const checkLatestVersionMock = vi.fn().mockResolvedValue(null);
-
-    vi.stubGlobal('window', {
-      api: {
-        pipelineOpenSpec: {
-          getEngineStatus: getEngineStatusMock,
-          checkLatestVersion: checkLatestVersionMock,
-        },
-      },
-    });
-
-    usePipelineStore.setState({
-      snapshot: dummySnapshot,
-      selectedChangeId: null,
-    });
-
-    render(<OpenSpecSidebarNav />);
-
-    // El sidebar izquierdo contiene las secciones de navegación ("Cambios activos", "Completados", "Especificaciones")
-    const nav = screen.getByLabelText(/Navegador de OpenSpec/i);
-    expect(nav).toBeDefined();
-    // No debe contener la tarjeta de motor en el sidebar izquierdo
-    expect(nav.querySelector('._engineCardSection_e0f15a')).toBeNull();
-
-    vi.unstubAllGlobals();
-  });
 
   it('propaga onEnsureRightOpen a través de PipelineWorkspace cuando se interactúa con el botón central y la insignia compacta', async () => {
     const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
@@ -560,9 +530,9 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     const cssPath = path.resolve(__dirname, '../OpenSpecDashboard.module.css');
     const cssContent = fs.readFileSync(cssPath, 'utf-8');
 
-    // Extraemos las declaraciones de font-size de .blockHeader y de los botones (.backToStart, etc.)
+    // Observación 41: Extraemos las declaraciones de font-size de .blockHeader y de los controles vivos del panel (.railActionItem, que reemplaza al histórico .backToStart)
     const blockHeaderMatch = cssContent.match(/\.blockHeader\s*\{[^}]*font-size:\s*var\((--font-size-[a-z0-9-]+)\)/);
-    const buttonMatch = cssContent.match(/\.backToStart\s*\{[^}]*font-size:\s*var\((--font-size-[a-z0-9-]+)\)/);
+    const buttonMatch = cssContent.match(/(?:\.railItem|\.railActionItem)[^{]*\{[^}]*font-size:\s*var\((--font-size-[a-z0-9-]+)\)/);
 
     expect(blockHeaderMatch).not.toBeNull();
     expect(buttonMatch).not.toBeNull();

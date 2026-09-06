@@ -101,6 +101,33 @@ const INTEGRATION_STATE_KEY_MAP: Record<string, string> = {
   unknown: 'pipeline.openspec.engine.integrationState.unknown',
 };
 
+function getSecondaryActionIcon(intent: PipelineActionIntent): React.ReactNode | null {
+  switch (intent.kind) {
+    case 'pause-after-task':
+      return <Pause size={13} />;
+    case 'view-activity':
+      return <Activity size={13} />;
+    case 'view-evidence':
+      return <FileText size={13} />;
+    case 'view-diff':
+      return <GitCompare size={13} />;
+    case 'open-explore-flow':
+      return <FileSearch size={13} />;
+    case 'open-propose-flow':
+      return <Plus size={13} />;
+    case 'start-apply':
+      return <Play size={13} />;
+    case 'start-archive':
+      return <FolderOpen size={13} />;
+    case 'focus-decision':
+      return <BrainCircuit size={13} />;
+    case 'refresh-validation':
+      return <RotateCcw size={13} />;
+    default:
+      return null;
+  }
+}
+
 type OpenSpecDashboardProps = {
   snapshot: PipelineSnapshot;
   repoPath: string;
@@ -1667,7 +1694,7 @@ export function OpenSpecDashboard({
     const cancelBtn = launchTarget ? (
       <button
         type="button"
-        className={cn(styles.railActionItem, styles.secondaryAction)}
+        className={styles.railActionItem}
         title={t('pipeline.openspec.archive.cancel')}
         onClick={() => setLaunchTarget(null)}
       >
@@ -1683,7 +1710,7 @@ export function OpenSpecDashboard({
     const continueBtn = (!launchTarget && primaryAction) ? (
       <button
         type="button"
-        className={cn(styles.railActionItem, styles.railPrimaryAction, styles.primaryAction)}
+        className={cn(styles.railActionItem, styles.railPrimaryAction)}
         disabled={fixtureActive && primaryAction.executable}
         title={t(nextAction.helpKey, nextAction.helpParams)}
         onClick={() => handleIntent(primaryAction.intent)}
@@ -1697,16 +1724,19 @@ export function OpenSpecDashboard({
       </button>
     ) : null;
 
+    const secondaryIcon = secondaryAction ? getSecondaryActionIcon(secondaryAction.intent) : null;
     const secondaryBtn = (!launchTarget && secondaryAction) ? (
       <button
         type="button"
-        className={cn(styles.railActionItem, styles.secondaryAction)}
+        className={styles.railActionItem}
         disabled={fixtureActive && secondaryAction.executable}
         onClick={() => handleIntent(secondaryAction.intent)}
       >
-        <span className={styles.railItemIcon} aria-hidden="true">
-          {secondaryAction.intent.kind === 'pause-after-task' && <Pause size={13} />}
-        </span>
+        {secondaryIcon && (
+          <span className={styles.railItemIcon} aria-hidden="true">
+            {secondaryIcon}
+          </span>
+        )}
         <span className={styles.railItemLabel}>
           {t(secondaryAction.labelKey, secondaryAction.labelParams)}
         </span>
@@ -1716,7 +1746,7 @@ export function OpenSpecDashboard({
     const archiveBtn = (!launchTarget && selectedChange && selectedArchive === null && primaryAction?.intent.kind !== 'start-archive') ? (
       <button
         type="button"
-        className={cn(styles.railActionItem, styles.secondaryAction)}
+        className={styles.railActionItem}
         disabled={!archive.available || fixtureActive}
         title={archive.reasonKey ? t(archive.reasonKey) : t('pipeline.openspec.archive.help')}
         onClick={() => handleIntent({ kind: 'start-archive', changeId: selectedChange.changeId })}
@@ -2690,25 +2720,58 @@ export function OpenSpecDashboard({
                   ))}
 
                   {/* Vista B: ARTEFACTOS Y EVIDENCIA */}
-                  {activeChangeView === 'artifacts' && (
-                    <section className={styles.startScreen} aria-label={t('pipeline.switcher.artifacts')}>
-                      {/* Espacio reservado para la línea de tiempo de artefactos (3c.4). */}
-                      <div
-                        className={styles.artifactTimelineSlot}
-                        data-slot="artifact-timeline"
-                        aria-label={t('pipeline.openspec.artifacts.timelineSlot')}
-                      />
-                      <div className={cn(styles.centerBlock, styles.evidencePanel)}>
-                        <PipelineDetails
-                          snapshot={snapshot}
-                          repoPath={repoPath}
-                          selectedChange={selectedChange}
-                          tab={evidenceTab}
-                          onTabChange={setEvidenceTab}
-                        />
-                      </div>
-                    </section>
-                  )}
+                  {activeChangeView === 'artifacts' && (() => {
+                    const artifactTasks = Array.isArray(selectedChange.tasks) ? selectedChange.tasks : [];
+                    const artifactTotalTasks = artifactTasks.length;
+                    const artifactCompletedTasks = artifactTasks.filter((task) => task.completed).length;
+                    const artifactTasksDone = artifactCompletedTasks === artifactTotalTasks && artifactTotalTasks > 0;
+                    const readable = selectedChange.artifacts;
+
+                    const artifactRow = (
+                      label: string,
+                      exists: boolean,
+                      stateLabel: string,
+                      tab: DetailTab,
+                      icon: React.ReactNode,
+                    ) => (
+                      <button
+                        type="button"
+                        className={styles.artifactRow}
+                        disabled={!exists || readable === null}
+                        onClick={() => setEvidenceTab(tab)}
+                        title={exists ? t('pipeline.openspec.artifact.open', { file: label }) : undefined}
+                      >
+                        {icon} <span>{label}</span> <em data-done={exists}>{stateLabel}</em>
+                      </button>
+                    );
+
+                    return (
+                      <section className={styles.startScreen} aria-label={t('pipeline.switcher.artifacts')}>
+                        {/* Espacio reservado para la línea de tiempo de artefactos (3c.4). */}
+                        <div
+                          className={styles.artifactTimelineSlot}
+                          data-slot="artifact-timeline"
+                          aria-label={t('pipeline.openspec.artifacts.timelineSlot')}
+                        >
+                          <div className={styles.artifactList}>
+                            {artifactRow('proposal.md', selectedChange.proposalExists, selectedChange.proposalExists ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending'), 'proposal', <FileText size={13} />)}
+                            {artifactRow('design.md', selectedChange.designExists, selectedChange.designExists ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending'), 'design', <FileText size={13} />)}
+                            {artifactRow('specs/', selectedChange.specsCount > 0, selectedChange.specsCount > 0 ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending'), 'specs', <FolderOpen size={13} />)}
+                            {artifactRow('tasks.md', artifactTotalTasks > 0, artifactTasksDone ? t('pipeline.openspec.complete') : t('pipeline.openspec.inProgress'), 'tasks', <FileText size={13} />)}
+                          </div>
+                        </div>
+                        <div className={cn(styles.centerBlock, styles.evidencePanel)}>
+                          <PipelineDetails
+                            snapshot={snapshot}
+                            repoPath={repoPath}
+                            selectedChange={selectedChange}
+                            tab={evidenceTab}
+                            onTabChange={setEvidenceTab}
+                          />
+                        </div>
+                      </section>
+                    );
+                  })()}
 
                   {/* Vista C: DIFFS (sólo si hay cambios sin confirmar) */}
                   {activeChangeView === 'diffs' && (

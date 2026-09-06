@@ -223,13 +223,16 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
     it('el botón de acción principal se distingue claramente de las acciones accesorias', () => {
       renderSdd();
 
-      // El CTA de siguiente paso tiene la clase primaryAction dominante en la cabecera
+      // Observación 39: La acción principal se distingue por el color de acento de railPrimaryAction
+      // y ya no lleva primaryAction (estética de botón encajonado con borde y tipografía mono).
       const nextStepCTA = screen.getByRole('button', { name: /pipeline\.next\.task\.action/i });
-      expect(Array.from(nextStepCTA.classList).some((c) => c.includes('primaryAction'))).toBe(true);
+      expect(Array.from(nextStepCTA.classList).some((c) => c.includes('railPrimaryAction'))).toBe(true);
 
-      // La acción accesoria de archivar está en la ranura de entorno del panel con secondaryAction
+      // Observación 39: Las acciones accesorias llevan railActionItem a secas (sin railPrimaryAction)
+      // y ya no llevan secondaryAction, quedando idénticas a los ítems de listado por construcción.
       const archiveBtn = screen.getByRole('button', { name: /pipeline\.openspec\.archive\.action/i });
-      expect(Array.from(archiveBtn.classList).some((c) => c.includes('secondaryAction'))).toBe(true);
+      expect(Array.from(archiveBtn.classList).some((c) => c.includes('railActionItem'))).toBe(true);
+      expect(Array.from(archiveBtn.classList).some((c) => c.includes('railPrimaryAction'))).toBe(false);
 
       // Ver diffs es una vista del rail cuando hay diffs
       const diffRailBtn = screen.getByRole('button', { name: /pipeline\.switcher\.diffs/i });

@@ -2,7 +2,6 @@
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
-import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
 import { RepoSidebar } from '@/components/RepoSidebar';
 import { useGitStore } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
@@ -365,57 +364,26 @@ describe('Fase 8: La franja recibe lo que el cuerpo duplicaba', () => {
     expect(screen.queryByText('tareas')).toBeNull();
   });
 
-  it('8.4 El porcentaje global de tareas está en el lateral en la vista del ciclo, y NO en la del grafo', () => {
-    // 2 cambios: 'uno' al 50% (1/2) y 'dos' al 0% (0/2) -> global 25% (1/4)
-    const snap = makeSnapshot([
-      makeChange('uno', 'passed', 1, 2),
-      makeChange('dos', 'passed', 0, 2),
-    ]);
-    usePipelineStore.setState({ snapshot: snap });
-
-    // 1. En la vista del ciclo (activeTab="Pipeline"), el lateral muestra el rótulo y el porcentaje global
-    const { unmount } = renderSidebar('Pipeline');
-
-    const sidebarNav = screen.getByTestId('openspec-sidebar-nav');
-    expect(sidebarNav).toBeDefined();
-    const columnHeader = screen.getByTestId('sidebar-change-cycle-header');
-    expect(within(columnHeader).getByText('Ciclo de cambios')).toBeDefined();
-    expect(within(columnHeader).getByText('25%')).toBeDefined();
-
-    unmount();
-
-    // 2. En la vista del grafo (activeTab="Graph"), el lateral muestra Ramas y referencias y NO el porcentaje
-    renderSidebar('Graph');
-
-    const graphBranchesSection = screen.getByTestId('sidebar-branches-sections');
-    expect(graphBranchesSection).toBeDefined();
-    expect(within(graphBranchesSection).getByText('Ramas y referencias')).toBeDefined();
-    expect(within(graphBranchesSection).queryByText('25%')).toBeNull();
-    expect(within(graphBranchesSection).queryByText('50%')).toBeNull();
-    expect(within(graphBranchesSection).queryByText('Ciclo de cambios')).toBeNull();
-  });
-
-  it('8.4 El rótulo de columna del lateral resuelve el mismo tratamiento en las dos vistas', () => {
-    const snap = makeSnapshot([makeChange('uno', 'passed', 2, 4)]);
-
-    // Rótulo en vista Graph
+  it('8.4 El lateral en vista Pipeline renderiza Ramas y referencias con el mismo tratamiento que en Graph (4.11)', () => {
+    // 1. Rótulo en vista Graph
     const { unmount } = renderSidebar('Graph');
+    const graphSection = screen.getByTestId('sidebar-branches-sections');
+    expect(graphSection).toBeDefined();
     const graphLabel = screen.getByText('Ramas y referencias');
     const graphClasses = new Set(graphLabel.className.split(' ').filter(Boolean));
+    expect(screen.queryByTestId('openspec-sidebar-nav')).toBeNull();
 
     unmount();
 
-    // Rótulo en vista Pipeline (contenedor del rótulo de columna)
-    render(
-      <OpenSpecSidebarNav snapshot={snap} repoPath="C:/repo" />,
-    );
-    const cycleLabelContainer = screen.getByText('Ciclo de cambios').parentElement;
-    expect(cycleLabelContainer).not.toBeNull();
-    const cycleClasses = new Set(cycleLabelContainer!.className.split(' ').filter(Boolean));
+    // 2. Rótulo en vista Pipeline: idéntico al de Graph
+    renderSidebar('Pipeline');
+    const pipelineSection = screen.getByTestId('sidebar-branches-sections');
+    expect(pipelineSection).toBeDefined();
+    const pipelineLabel = screen.getByText('Ramas y referencias');
+    const pipelineClasses = new Set(pipelineLabel.className.split(' ').filter(Boolean));
+    expect(screen.queryByTestId('openspec-sidebar-nav')).toBeNull();
 
     // Comparar que todas las clases de tratamiento visual de Graph estén en Pipeline
-    for (const cls of graphClasses) {
-      expect(cycleClasses.has(cls)).toBe(true);
-    }
+    expect(pipelineClasses).toEqual(graphClasses);
   });
 });

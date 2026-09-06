@@ -3,7 +3,6 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
-import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
 import { usePipelineStore } from '@/lib/pipeline-store';
 
 /**
@@ -54,26 +53,23 @@ function snapshot(openSpec: Partial<PipelineSnapshot['openSpec']>): PipelineSnap
   } as PipelineSnapshot;
 }
 
-function renderDashboard(snap: PipelineSnapshot, leftOpen = false) {
+function renderDashboard(snap: PipelineSnapshot) {
   usePipelineStore.setState({
     snapshot: snap,
     selectedChangeId: null,
   });
   return render(
-    <div>
-      {leftOpen && <OpenSpecSidebarNav />}
-      <OpenSpecDashboard
-        snapshot={snap}
-        repoPath="C:/repo"
-        currentBranch="main"
-        workingTreeClean
-        projection={null}
-        runtimeHistory={[]}
-        onRefresh={() => undefined}
-        onPauseAfterTask={() => undefined}
-        onRespondDecision={() => undefined}
-      />
-    </div>,
+    <OpenSpecDashboard
+      snapshot={snap}
+      repoPath="C:/repo"
+      currentBranch="main"
+      workingTreeClean
+      projection={null}
+      runtimeHistory={[]}
+      onRefresh={() => undefined}
+      onPauseAfterTask={() => undefined}
+      onRespondDecision={() => undefined}
+    />,
   );
 }
 
@@ -148,11 +144,10 @@ describe('marcas de tiempo en el panel', () => {
         createdAt: { at: '2026-07-20T09:00:00-03:00', source: 'commit' as const },
         archivedOn: { at: '2026-07-23T18:30:00-03:00', source: 'commit' as const },
       }],
-    }), true);
-    // Se entra al archivado desde la lista de completados de la barra lateral,
-    // como lo haría una persona: abriendo la sección plegable primero.
-    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.completed\.title/ }));
-    fireEvent.click(screen.getByRole('button', { name: /old-change/ }));
+    }));
+    // Se entra al archivado desde la pantalla de entrada del repositorio
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.start\.archivedCount/ }));
+    fireEvent.click(screen.getByRole('button', { name: /old-change.*openspec\.start\.enter/ }));
 
     expect(screen.getByText('pipeline.openspec.stamp.created')).toBeTruthy();
     expect(screen.getByText('pipeline.openspec.stamp.archived')).toBeTruthy();

@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
-import { OpenSpecSidebarNav } from '../OpenSpecSidebarNav';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { useNewChangeDraftStore } from '@/lib/new-change-draft-store';
 import type { PipelineSnapshot } from '../pipeline-view-state';
@@ -289,49 +288,38 @@ describe('pantalla de entrada del repositorio', () => {
     expect(screen.getByText('pipeline.openspec.start.title')).toBeTruthy();
   });
 
-  it('los contadores se mudaron al lateral: ya no están en el cuerpo y se leen visibles en el navegador', () => {
-    // La intención es la misma que la prueba original: el dato no se oculta sino que se mudó al lateral.
+  it('los contadores ya no están en el cuerpo como dl y el de especificaciones se muestra en el encabezado', () => {
     const testSnapshot = snapshot({
       activeChanges: [change('uno', 2, 4)],
       specificationsCount: 3,
     });
 
     render(
-      <div>
-        <OpenSpecDashboard
-          snapshot={testSnapshot}
-          repoPath="C:/repo"
-          currentBranch="main"
-          workingTreeClean
-          leftOpen={true}
-          rightOpen={false}
-          leftWidth={320}
-          rightWidth={320}
-          onResizeLeft={() => undefined}
-          onResizeRight={() => undefined}
-          projection={null}
-          runtimeHistory={[]}
-          onRefresh={() => undefined}
-          onPauseAfterTask={() => undefined}
-          onRespondDecision={() => undefined}
-        />
-        <OpenSpecSidebarNav repoPath="C:/repo" snapshot={testSnapshot} />
-      </div>,
+      <OpenSpecDashboard
+        snapshot={testSnapshot}
+        repoPath="C:/repo"
+        currentBranch="main"
+        workingTreeClean
+        leftOpen={true}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
     );
 
-    // 1. Ya NO se montan en el cuerpo
+    // 1. Ya NO se montan en el cuerpo como dl
     const factsDl = document.querySelector('dl[class*="summaryFacts"]');
     expect(factsDl).toBeNull();
 
-    // 2. El porcentaje global SÍ se lee en el rótulo de columna del lateral, con su rótulo visible
-    const sidebarNav = screen.getByTestId('openspec-sidebar-nav');
-    expect(sidebarNav).toBeTruthy();
-    expect(screen.getByText('sidebar.changeCycle')).toBeTruthy();
-    expect(screen.getByText('50%')).toBeTruthy();
-
-    // 3. El contador de especificaciones se lee en su sección del lateral
-    expect(screen.getByText('3')).toBeTruthy();
-    expect(screen.getByText('pipeline.openspec.specifications.title')).toBeTruthy();
+    // 2. El contador de especificaciones se lee en el encabezado de la pantalla de entrada
+    expect(screen.getByText('pipeline.openspec.start.specificationsCount:{"count":3}')).toBeTruthy();
   });
 
   it('el selector de modo en el formulario nuevo cambio presenta las dos intenciones sin redundancia', () => {

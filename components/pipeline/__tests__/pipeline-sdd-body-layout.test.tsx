@@ -447,13 +447,15 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       expect(container.querySelector('nav[class*="switcherRail"]')).toBeNull();
     });
 
-    it('5.2 Declaración explícita de archivos recorridos y límites de cobertura fuera de este change', () => {
-      // Archivos que recorre la verificación de este change (verificados en disco):
+    it('5.2 Declaración explícita de archivos recorridos, límites de cobertura y los tres casos fundamento', () => {
+      // 1. Archivos que recorre cada comprobación de este change (verificados en disco):
       const filesCovered = [
         'components/pipeline/OpenSpecDashboard.tsx',
         'components/pipeline/OpenSpecDashboard.module.css',
+        'components/pipeline/PipelineDetails.tsx',
         'components/pipeline/ViewSwitcherRail.tsx',
         'lib/i18n.ts',
+        'lib/change-branch.ts',
       ];
 
       for (const relPath of filesCovered) {
@@ -461,13 +463,43 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
         expect(fs.existsSync(fullPath)).toBe(true);
       }
 
-      // Declaración explícita de límites de qué NO cubre la verificación de este change:
+      // 2. Los tres casos fundamento por los cuales las comprobaciones deben afirmar sobre
+      // el efecto en el DOM montado y no sólo sobre el origen declarado en CSS o código fuente:
+      const foundationalFailureCases = {
+        escanerBordesCiego: {
+          descripcion: 'El escáner de bordes pasaba en verde con los botones encajonados',
+          mecanismoDeFallo: 'Se comprobaba la ausencia o presencia de cadenas literales de texto en el CSS sin medir el efecto visual resultante en el DOM montado ni la composición de cajas.',
+          remedioAdoptado: 'Comprobaciones de geometría, paddings y clases aplicadas directamente sobre los elementos montados en el DOM.',
+        },
+        anclajeEnContenedorErroneo: {
+          descripcion: 'El anclaje del panel flotante se afirmó sobre el contenedor equivocado (.startBody)',
+          mecanismoDeFallo: 'Se aplicó flex: 1 0 auto (flex-shrink: 0) a .startBody para resolver un problema vertical (anclaje del panel sticky), pero .startBody es hijo de .startScreenWrapper que tiene flex-direction: row; el flex-shrink: 0 terminó gobernando el ancho, impidiendo el encogimiento horizontal y provocando desborde con el navegador derecho abierto (Obs 58).',
+          remedioAdoptado: 'Mantener flex: 1 0 auto sólo en el wrapper vertical .startScreenWrapper, y devolver flex: 1 1 auto a .startBody con min-width: 0, verificando el comportamiento en las 4 pantallas con rightOpen true y false.',
+        },
+        solapasPropuestaVsEspecificacionesDuplicadas: {
+          descripcion: 'La solapa de especificaciones nunca se comprobó que mostrara algo distinto de la propuesta',
+          mecanismoDeFallo: 'Las pruebas anteriores sólo verificaban que el tabpanel montara un SafeMarkdown, sin comprobar el texto ni contrastar que «Propuesta» y «Especificaciones» mostraran contenidos distintos. Esto ocultó que openspec change show --diff sobreescribía las deltaSpecs con el documento completo del cambio arrancando por la propuesta (Obs 62).',
+          remedioAdoptado: 'Prueba explícita sobre el DOM montado que verifica que «Propuesta» y «Especificaciones» rinden contenidos mutuamente excluyentes y que las deltaSpecs se muestran sección por sección por capacidad.',
+        },
+      };
+
+      expect(foundationalFailureCases.escanerBordesCiego.mecanismoDeFallo).toBeTruthy();
+      expect(foundationalFailureCases.anclajeEnContenedorErroneo.mecanismoDeFallo).toBeTruthy();
+      expect(foundationalFailureCases.solapasPropuestaVsEspecificacionesDuplicadas.mecanismoDeFallo).toBeTruthy();
+
+      // 3. Declaración explícita de límites de qué NO cubre la verificación de este change:
       const outOfScopeBoundaries = {
         artifactTimelineNodes: {
           covered: false,
           owner: 'gestionar-ciclo-openspec-desde-gitcron',
           taskRef: '3c.4',
           rationale: 'El grafo interactivo de nodos unidos con dependencias de desbloqueo entre artefactos es infraestructura del ciclo de vida OpenSpec',
+        },
+        diagnosticsAndEngineCard: {
+          covered: false,
+          owner: 'gestionar-ciclo-openspec-desde-gitcron',
+          taskRef: 'Obs 59',
+          rationale: 'La tarjeta del motor OpenSpec, sus diagnósticos avanzados y el aviso ámbar en la solapa de Herramientas pertenecen a gestionar-ciclo-openspec-desde-gitcron',
         },
         didacticCopyAndGlossary: {
           covered: false,
@@ -487,8 +519,8 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
         },
       };
 
-      // Afirmar contractualmente que las fronteras declaradas están formalizadas
       expect(outOfScopeBoundaries.artifactTimelineNodes.covered).toBe(false);
+      expect(outOfScopeBoundaries.diagnosticsAndEngineCard.covered).toBe(false);
       expect(outOfScopeBoundaries.didacticCopyAndGlossary.covered).toBe(false);
       expect(outOfScopeBoundaries.subpixelRenderingAndGPU.covered).toBe(false);
       expect(outOfScopeBoundaries.liveHermesRuntimeStreaming.covered).toBe(false);
@@ -573,6 +605,391 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       expect(detailsMatch![1]).toMatch(/border:\s*0/);
       expect(detailsMatch![1]).toMatch(/background-color:\s*transparent/);
       expect(detailsMatch![1]).not.toMatch(/border:\s*1px solid/);
+    });
+  });
+
+  describe('4.17 / Observaciones 54 y 55: Vista archivada y alineación de casillas de tarea', () => {
+    it('Obs 54: la vista del cambio archivado no monta PipelineNextStepGuide y el conmutador ofrece volver a Archivados y Nuevo cambio', () => {
+      const snap = mockSnapshot();
+      snap.openSpec!.archivedChanges = [
+        {
+          changeId: 'cambio-archivado',
+          sourceRef: 'openspec/changes/archive/cambio-archivado',
+          createdAt: { at: '2026-09-01T10:00:00Z', source: 'commit' },
+          archivedAt: '2026-09-02T12:00:00Z',
+          archivedOn: { at: '2026-09-02T12:00:00Z', source: 'commit' },
+          artifacts: {
+            proposal: '# Propuesta archivada',
+            specs: [],
+            design: '# Diseño archivado',
+            tasks: '- [x] 1.1 Hecho',
+          },
+        },
+      ];
+
+      const onSelectChange = vi.fn();
+
+      render(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+          onSelectChange={onSelectChange}
+        />,
+      );
+
+      // Ir a la pestaña de archivados en la pantalla de inicio y entrar al archivado
+      const archivedTabBtn = screen.getByRole('button', { name: /pipeline\.openspec\.start\.archivedCount/i });
+      fireEvent.click(archivedTabBtn);
+
+      const enterArchiveBtn = screen.getByRole('button', { name: /openspec\.start\.enter/i });
+      fireEvent.click(enterArchiveBtn);
+
+      // 1. No monta tarjeta de siguiente paso
+      expect(screen.queryByRole('heading', { name: /pipeline\.next\.label|Siguiente paso/i })).toBeNull();
+      expect(screen.queryByRole('heading', { name: /pipeline\.next\.archived\.title/i })).toBeNull();
+
+      // 2. El conmutador declara ranura 1 hacia Archivados y ranura 2 hacia nuevo cambio
+      const backToArchivedBtn = screen.getByRole('button', { name: /pipeline\.openspec\.start\.archivedCount/i });
+      expect(backToArchivedBtn).toBeTruthy();
+      expect(backToArchivedBtn.getAttribute('data-slot')).toBe('1');
+
+      const newChangeBtn = screen.getByRole('button', { name: /pipeline\.openspec\.start\.newChange/i });
+      expect(newChangeBtn).toBeTruthy();
+      expect(newChangeBtn.getAttribute('data-slot')).toBe('2');
+
+      // 3. Pulsar volver a archivados deselecciona y regresa a la vista de inicio de archivados
+      fireEvent.click(backToArchivedBtn);
+      expect(screen.getByText('pipeline.openspec.start.archived')).toBeTruthy();
+    });
+
+    it('Obs 55: las casillas de tarea (.taskStatus) alinean su ícono con la primera línea de texto y conservan la misma distancia superior', () => {
+      const snap = mockSnapshot();
+      // Dos tareas: una de una sola línea corta, y otra de múltiples renglones
+      snap.openSpec!.activeChanges[0].tasks = [
+        {
+          id: 't-short',
+          line: 10,
+          text: '1.1 Tarea corta',
+          completed: false,
+          sourceRef: 'tasks.md:10',
+        },
+        {
+          id: 't-long',
+          line: 20,
+          text: '1.2 Tarea larga que tiene múltiples renglones de contenido para comprobar que el botón de estado mantiene exactamente la misma distancia del borde superior de la fila sin importar el largo del texto',
+          completed: true,
+          sourceRef: 'tasks.md:20',
+        },
+      ];
+
+      render(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      // Entrar al cambio
+      fireEvent.click(screen.getAllByRole('button', { name: /openspec\.start\.enter/ })[0]);
+
+      const taskList = document.querySelector('ol[class*="taskList"]');
+      expect(taskList).toBeTruthy();
+      const items = taskList!.querySelectorAll('li');
+      expect(items.length).toBe(2);
+
+      const btn1 = items[0].querySelector('button[class*="taskStatus"]');
+      const btn2 = items[1].querySelector('button[class*="taskStatus"]');
+      expect(btn1).toBeTruthy();
+      expect(btn2).toBeTruthy();
+
+      // Ambas tareas renderizan SVG de 16px (geometría unificada en completada y pendiente)
+      const svg1 = btn1!.querySelector('svg');
+      const svg2 = btn2!.querySelector('svg');
+      expect(svg1).toBeTruthy();
+      expect(svg2).toBeTruthy();
+      expect(svg1!.getAttribute('width')).toBe('16');
+      expect(svg2!.getAttribute('width')).toBe('16');
+
+      // Inspección CSS:
+      const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const css = fs.readFileSync(modulePath, 'utf-8');
+
+      // .taskList > li declara align-items: start para que la primera línea comience arriba en 1 o N renglones
+      const taskLiMatch = css.match(/\.taskList\s*>\s*li\s*\{([^}]+)\}/);
+      expect(taskLiMatch).toBeTruthy();
+      expect(taskLiMatch![1]).toMatch(/align-items:\s*start/);
+
+      // .taskStatus declara align-items: flex-start y conserva el target de 2.75rem
+      const taskStatusMatch = css.match(/\.taskStatus\s*\{([^}]+)\}/);
+      expect(taskStatusMatch).toBeTruthy();
+      expect(taskStatusMatch![1]).toMatch(/align-items:\s*flex-start/);
+      expect(taskStatusMatch![1]).toMatch(/min-height:\s*2\.75rem/);
+      expect(taskStatusMatch![1]).toMatch(/min-width:\s*2\.75rem/);
+
+      // .taskStatus svg calcula margin-top para centrar ópticamente con la primera línea de texto (1.5 * var(--font-size-xs))
+      const taskSvgMatch = css.match(/\.taskStatus\s+svg\s*\{([^}]+)\}/);
+      expect(taskSvgMatch).toBeTruthy();
+      expect(taskSvgMatch![1]).toMatch(/margin-top:\s*calc\(\(1\.5\s*\*\s*var\(--font-size-xs\)\s*-\s*1rem\)\s*\/\s*2\)/);
+    });
+  });
+
+  describe('4.18 / Observación 58: Desborde horizontal y encogimiento en el eje horizontal', () => {
+    it('Obs 58: ninguna de las superficies que se reparten la fila declara flex-shrink: 0 en el eje horizontal', () => {
+      // Razón de la comprobación:
+      // El 2026-09-06 el arreglo vertical del anclaje se aplicó en un contenedor en fila
+      // (.startBody dentro de .startScreenWrapper, que es display: flex; flex-direction: row)
+      // usando flex: 1 0 auto. Al prohibir flex-shrink: 1 en un flex item horizontal, el cuerpo
+      // no podía encogerse por debajo del ancho de su contenido al abrir el navegador derecho,
+      // desbordando horizontalmente la fila con una barra de scroll y texto cortado.
+      // Para resolverlo, .startBody declara flex: 1 1 auto y min-width: 0, permitiendo que el
+      // cuerpo se encoja a lo ancho, mientras preserva min-height: 100% y height: auto para
+      // sostener el anclaje vertical del riel flotante.
+      const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const css = fs.readFileSync(modulePath, 'utf-8');
+
+      // .startBody permite encogimiento horizontal con flex: 1 1 auto
+      const bodyMatch = css.match(/\.startBody\s*\{([^}]+)\}/);
+      expect(bodyMatch).toBeTruthy();
+      const bodyRules = bodyMatch![1];
+      expect(bodyRules).toMatch(/flex:\s*1\s+1\s+auto/);
+      expect(bodyRules).not.toMatch(/flex:\s*1\s+0\s+auto/);
+      expect(bodyRules).not.toMatch(/flex-shrink:\s*0/);
+      expect(bodyRules).toMatch(/min-width:\s*0/);
+      expect(bodyRules).toMatch(/min-height:\s*100%/);
+      expect(bodyRules).toMatch(/height:\s*auto/);
+
+      // .startScreenWrapper sostiene el anclaje vertical dentro de .center (flex-direction: column)
+      const wrapperMatch = css.match(/\.startScreenWrapper\s*\{([^}]+)\}/);
+      expect(wrapperMatch).toBeTruthy();
+      const wrapperRules = wrapperMatch![1];
+      expect(wrapperRules).toMatch(/flex:\s*1\s+0\s+auto/);
+      expect(wrapperRules).toMatch(/flex-direction:\s*row/);
+    });
+
+    it('Obs 58: recorrido de las cuatro pantallas (inicio, cambio activo, cambio archivado y especificación) con rightOpen true y false', () => {
+      const snap = mockSnapshot();
+      snap.openSpec!.archivedChanges = [
+        {
+          changeId: 'archivado-1',
+          sourceRef: 'openspec/changes/archive/archivado-1',
+          createdAt: { at: '2026-09-01T10:00:00Z', source: 'commit' },
+          archivedAt: '2026-09-02T12:00:00Z',
+          archivedOn: { at: '2026-09-02T12:00:00Z', source: 'commit' },
+          artifacts: { proposal: '# P', specs: [], design: '# D', tasks: '- [x] 1.1' },
+        },
+      ];
+      snap.openSpec!.specifications = [
+        {
+          specificationId: 'spec-1',
+          title: 'Especificación 1',
+          sourceRef: 'openspec/specs/spec-1/spec.md',
+        } as any,
+      ];
+
+      // 1. Pantalla de inicio
+      const { container, rerender } = render(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      // Inicio, rightOpen false: wrapper aloja startBody y switcherRail
+      let wrapper = container.querySelector('[class*="startScreenWrapper"]');
+      let body = wrapper?.querySelector('[class*="startBody"]');
+      let rail = wrapper?.querySelector('nav[class*="switcherRail"]');
+      expect(wrapper).toBeTruthy();
+      expect(body).toBeTruthy();
+      expect(rail).toBeTruthy();
+
+      // Inicio, rightOpen true: switcherRail no se monta, startBody dispone de todo el ancho
+      rerender(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={true}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+      wrapper = container.querySelector('[class*="startScreenWrapper"]');
+      body = wrapper?.querySelector('[class*="startBody"]');
+      rail = wrapper?.querySelector('nav[class*="switcherRail"]');
+      expect(wrapper).toBeTruthy();
+      expect(body).toBeTruthy();
+      expect(rail).toBeNull();
+
+      // 2. Pantalla de cambio activo (entrar a 'cambio-ejemplo')
+      rerender(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+      fireEvent.click(screen.getAllByRole('button', { name: /openspec\.start\.enter/ })[0]);
+
+      // Activo, rightOpen false
+      wrapper = container.querySelector('[class*="startScreenWrapper"]');
+      body = wrapper?.querySelector('[class*="startBody"]');
+      rail = wrapper?.querySelector('nav[class*="switcherRail"]');
+      expect(wrapper).toBeTruthy();
+      expect(body).toBeTruthy();
+      expect(rail).toBeTruthy();
+
+      // Activo, rightOpen true
+      rerender(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={true}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+      wrapper = container.querySelector('[class*="startScreenWrapper"]');
+      body = wrapper?.querySelector('[class*="startBody"]');
+      rail = wrapper?.querySelector('nav[class*="switcherRail"]');
+      expect(wrapper).toBeTruthy();
+      expect(body).toBeTruthy();
+      expect(rail).toBeNull();
+
+      // 3. Pantalla de cambio archivado
+      // Volver a inicio desde el riel
+      rerender(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+      const backToStartBtn = screen.getByRole('button', { name: /pipeline\.openspec\.start\.inProgress/i });
+      fireEvent.click(backToStartBtn);
+
+      // Ir a la pestaña de archivados en la pantalla de inicio
+      const archivedTab = screen.getByRole('button', { name: /pipeline\.openspec\.start\.archivedCount/i });
+      fireEvent.click(archivedTab);
+
+      const enterArchiveBtn = screen.getByRole('button', { name: /openspec\.start\.enter/i });
+      fireEvent.click(enterArchiveBtn);
+
+      // Archivado, rightOpen false
+      wrapper = container.querySelector('[class*="startScreenWrapper"]');
+      body = wrapper?.querySelector('[class*="startBody"]');
+      rail = wrapper?.querySelector('nav[class*="switcherRail"]');
+      expect(wrapper).toBeTruthy();
+      expect(body).toBeTruthy();
+      expect(rail).toBeTruthy();
+
+      // Archivado, rightOpen true
+      rerender(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={true}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+      wrapper = container.querySelector('[class*="startScreenWrapper"]');
+      body = wrapper?.querySelector('[class*="startBody"]');
+      rail = wrapper?.querySelector('nav[class*="switcherRail"]');
+      expect(wrapper).toBeTruthy();
+      expect(body).toBeTruthy();
+      expect(rail).toBeNull();
     });
   });
 });

@@ -98,12 +98,16 @@ function snapshot(overrides: {
   } as PipelineSnapshot;
 }
 
-function renderDashboard(state: PipelineSnapshot = snapshot(), onSelectChange = vi.fn()) {
+function renderDashboard(
+  state: PipelineSnapshot = snapshot(),
+  onSelectChange = vi.fn(),
+  options: { currentBranch?: string } = {},
+) {
   const result = render(
     <OpenSpecDashboard
       snapshot={state}
       repoPath="C:/repo"
-      currentBranch="main"
+      currentBranch={options.currentBranch ?? "main"}
       workingTreeClean
       leftOpen={false}
       rightOpen={false}
@@ -136,7 +140,7 @@ describe('pantalla de entrada del repositorio', () => {
   });
 
   it('el estado de odontoPau no se lee como vacío', () => {
-    // Dos cambios activos, cero archivados, cero especificaciones, mayoría de
+    // odontoPau: 2 cambios en curso, 0 archivados, 0 specs, 83% (5 de 6) de las
     // tareas hechas. Lo que corresponde decir es que todavía no se archivó nada.
     renderDashboard(snapshot({
       activeChanges: [change('uno', 5, 6), change('dos', 5, 6)],
@@ -162,7 +166,8 @@ describe('pantalla de entrada del repositorio', () => {
   });
 
   it('la correspondencia con la rama se señala sin entrar al cambio', () => {
-    const onSelectChange = renderDashboard(snapshot({ selectedChangeId: 'segundo' }));
+    // La correspondencia se deriva de currentBranch='change/segundo' y no de la selección
+    const onSelectChange = renderDashboard(snapshot(), vi.fn(), { currentBranch: 'change/segundo' });
 
     expect(screen.getByText('pipeline.openspec.start.branchMatch')).toBeTruthy();
     expect(screen.queryByText(/openspec\.change\.active/)).toBeNull();
@@ -646,5 +651,139 @@ describe('pantalla de entrada del repositorio', () => {
     expect(progressEl).toBeTruthy();
     expect(progressEl.textContent).toBe('pipeline.openspec.start.noTasksToMeasure');
     expect(progressEl.textContent).not.toContain('0%');
+  });
+
+  describe('Obs 61: la etiqueta «CORRESPONDE A LA RAMA ACTUAL» y data-branch se derivan estrictamente de la rama', () => {
+    it('caso 1: rama change/<slug> de la lista lleva data-branch y etiqueta; al entrar a OTRO cambio y volver, la etiqueta no se mueve', () => {
+      const snap = snapshot({
+        activeChanges: [change('cambio-rama', 2, 4), change('otro-cambio', 1, 3)],
+      });
+
+      const { container } = render(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="change/cambio-rama"
+          workingTreeClean
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      // Tarjeta de 'cambio-rama' lleva data-branch y la insignia
+      const items = container.querySelectorAll('ul[class*="startList"] > li');
+      expect(items.length).toBe(2);
+
+      const ramaItem = Array.from(items).find((li) => li.textContent?.includes('cambio-rama'));
+      const otroItem = Array.from(items).find((li) => li.textContent?.includes('otro-cambio'));
+      expect(ramaItem).toBeTruthy();
+      expect(otroItem).toBeTruthy();
+
+      expect(ramaItem?.getAttribute('data-branch')).toBe('true');
+      expect(ramaItem?.textContent).toContain('pipeline.openspec.start.branchMatch');
+
+      expect(otroItem?.getAttribute('data-branch')).toBeNull();
+      expect(otroItem?.textContent).not.toContain('pipeline.openspec.start.branchMatch');
+
+      // Entramos al OTRO cambio
+      const enterOtroBtn = otroItem?.querySelector('button[class*="secondaryAction"]');
+      expect(enterOtroBtn).toBeTruthy();
+      fireEvent.click(enterOtroBtn!);
+
+      // Ahora estamos dentro del cambio activo
+      expect(screen.getByText(/pipeline\.openspec\.change\.active/)).toBeTruthy();
+
+      // Volvemos a la pantalla de inicio usando el riel
+      const startRailBtn = screen.getByRole('button', { name: /pipeline\.openspec\.start\.inProgress/i });
+      fireEvent.click(startRailBtn);
+
+      // En la pantalla de inicio, la etiqueta NO se movió al que se abrió; sigue en 'cambio-rama'
+      const itemsAfter = container.querySelectorAll('ul[class*="startList"] > li');
+      const ramaItemAfter = Array.from(itemsAfter).find((li) => li.textContent?.includes('cambio-rama'));
+      const otroItemAfter = Array.from(itemsAfter).find((li) => li.textContent?.includes('otro-cambio'));
+
+      expect(ramaItemAfter?.getAttribute('data-branch')).toBe('true');
+      expect(ramaItemAfter?.textContent).toContain('pipeline.openspec.start.branchMatch');
+
+      expect(otroItemAfter?.getAttribute('data-branch')).toBeNull();
+      expect(otroItemAfter?.textContent).not.toContain('pipeline.openspec.start.branchMatch');
+    });
+
+    it('caso 2: rama main (o cualquier rama sin change/<slug>) no marca ninguna tarjeta con data-branch ni etiqueta', () => {
+      const snap = snapshot({
+        activeChanges: [change('cambio-1', 2, 4), change('cambio-2', 1, 3)],
+      });
+
+      const { container } = render(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      const items = container.querySelectorAll('ul[class*="startList"] > li');
+      expect(items.length).toBe(2);
+
+      for (const item of Array.from(items)) {
+        expect(item.getAttribute('data-branch')).toBeNull();
+        expect(item.textContent).not.toContain('pipeline.openspec.start.branchMatch');
+      }
+    });
+
+    it('caso 3: rama change/<slug> de un cambio que NO está en la lista no marca ninguna tarjeta', () => {
+      const snap = snapshot({
+        activeChanges: [change('cambio-1', 2, 4), change('cambio-2', 1, 3)],
+      });
+
+      const { container } = render(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="change/cambio-fantasma"
+          workingTreeClean
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      const items = container.querySelectorAll('ul[class*="startList"] > li');
+      expect(items.length).toBe(2);
+
+      for (const item of Array.from(items)) {
+        expect(item.getAttribute('data-branch')).toBeNull();
+        expect(item.textContent).not.toContain('pipeline.openspec.start.branchMatch');
+      }
+    });
   });
 });

@@ -922,6 +922,157 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       (`components/pipeline/OpenSpecDashboard.tsx`, definicion de `startViews`). Volver no es «ir
       al inicio»: es volver a los cambios en curso, que es una vista con nombre propio.
 
+- [ ] 4.17 **Decima revision visual de Alejandro, 2026-09-06.** Tres observaciones.
+
+  54. **La vista de un cambio archivado sigue mostrando la tarjeta de «siguiente paso».**
+      Alejandro la tacho en pantalla: en un cambio ya archivado, «Este trabajo termino / Empezar
+      otro cambio / Quiero definirlo mejor» ocupa el cuerpo antes del contenido. Pide sacarla, y
+      que empezar un cambio nuevo se ofrezca **desde el panel flotante**, como se hizo en las
+      otras pantallas.
+      Medido el 2026-09-06: `PipelineNextStepGuide` se monta una sola vez en todo el archivo,
+      en `components/pipeline/OpenSpecDashboard.tsx:2829`, y esa unica aparicion esta **dentro de
+      la rama de `selectedArchive`**. O sea: la tarjeta ya salio del cuerpo en la vista del cambio
+      activo —su accion vive en el panel— y quedo solo en la vista del archivado, que es la que no
+      se habia rediseniado.
+      El rotulo es `pipeline.next.archived.title` (`lib/i18n.ts:129`) bajo el encabezado
+      `pipeline.openspec.nextStep.title` (`:408`).
+      Nota de vocabulario, para no repetir el caso de la observacion 53: el panel de esta vista
+      ofrece hoy «Volver al inicio». Desde un cambio archivado, la vista a la que se vuelve es
+      **«Archivados»**, no «En curso» ni «el inicio». Declararlo al resolverlo.
+
+  55. **Las casillas de tarea quedan hundidas respecto de la primera linea de texto.**
+      Alejandro: «que se alineen hacia arriba en verticalidad, estan medios raros alineados
+      ahora».
+      Causa medida el 2026-09-06: la fila `.taskList > li`
+      (`components/pipeline/OpenSpecDashboard.module.css:336`) declara `align-items: start`, asi
+      que el texto arranca arriba. Pero el boton `.taskStatus` mide `min-height: 2.75rem` con
+      `place-items: center`: dentro de esa caja de 44px, el icono de 14px se centra, y termina
+      unos 15px por debajo de donde arranca la primera linea del texto.
+      El area de contacto de 2.75rem no se achica —es la que hace que la casilla se pueda pulsar—:
+      lo que tiene que cambiar es donde se apoya el icono dentro de ella. El criterio: el centro
+      optico del icono coincide con el centro de la primera linea de texto de la fila, no con el
+      centro de la fila entera.
+
+  56. **El contenido de los artefactos se sigue leyendo como texto plano.**
+      Alejandro: «el contenido de adentro sigue sin estar con formato, o sea es texto plano, no se
+      si no se decodifica el markdown».
+      Causa medida el 2026-09-06, y es una sola para los dos sintomas.
+      `components/pipeline/SafeMarkdown.tsx` **si** sabe interpretar `**negrita**` y
+      `` `codigo` `` (`renderInline`, `:102-134`). El problema esta antes, en el analisis por
+      lineas: `parseMarkdown` empuja **un parrafo por cada linea no vacia** del archivo
+      (`:85`, `blocks.push({ type: 'paragraph', text: trimmed })`), sin unir nunca las lineas
+      consecutivas en un parrafo.
+      Los `.md` de este repositorio vienen cortados a unos 100 caracteres, asi que:
+      - Un parrafo de cuatro renglones se dibuja como **cuatro parrafos**, cada uno con su
+        separacion. Es el interlineado enorme que se ve en pantalla.
+      - Una negrita que cruza un corte de linea —`**su revision visual se` / `rechazo**`— queda
+        partida en dos bloques distintos. Ninguno de los dos coincide con `\*\*[^*]+\*\*`, asi
+        que **los asteriscos se imprimen literales**. Es exactamente lo que Alejandro ve.
+      Se arreglan las dos cosas con un solo cambio: acumular las lineas consecutivas en un mismo
+      parrafo y cerrarlo con la linea en blanco, que es como se separan los parrafos en markdown.
+      Esto ademas cumple el requisito ya consolidado «El contenido de los artefactos se lee con
+      ritmo», que la propuesta de este change denuncia como incumplido desde el principio.
+
+  57. **Vista al pasar, y NO es de este change:** la misma captura muestra el mensaje «El motor
+      OpenSpec informo un error o estado bloqueado: Command failed:
+      "%OPENSPEC_EXEC_TARGET%" instructions apply --change adaptar-el-cuerpo-de-sdd-al-objetivo
+      --json». Ese `%OPENSPEC_EXEC_TARGET%` sin expandir es deliberado en el lanzamiento
+      —`electron/pipeline/openspec-engine.ts:60` y `:72` pasan la ruta del ejecutable por variable
+      de entorno para que la expanda el interprete y no se rompa con rutas con espacios—, pero el
+      mensaje de error se lo muestra crudo a la persona en vez del comando real. El fallo de fondo
+      y su mensaje pertenecen a `gestionar-ciclo-openspec-desde-gitcron`, que es el dueno de la
+      operacion. Queda anotado aca para que no se pierda; **no se toca en este change.**
+
+- [ ] 4.18 **Undecima revision visual de Alejandro, 2026-09-06.** Dos observaciones y un resto.
+
+  58. **Con el navegador derecho abierto, el cuerpo se desborda a lo ancho y aparece una barra de
+      desplazamiento horizontal.** El texto queda cortado a mitad de palabra en el borde derecho.
+      Causa medida el 2026-09-06: `.startScreenWrapper`
+      (`components/pipeline/OpenSpecDashboard.module.css:1301-1307`) es
+      `display: flex; flex-direction: row`, o sea que el `flex` de sus hijos gobierna el eje
+      **horizontal**. Y `.startBody` (`:1309-1317`) quedo declarado `flex: 1 0 auto`, es decir
+      `flex-shrink: 0`: **no puede achicarse por debajo del ancho de su contenido.** Cuando el
+      navegador derecho se abre y el contenedor se angosta, el cuerpo se niega a encoger y la fila
+      se desborda.
+      El `flex-shrink: 0` llego ahi resolviendo la observacion 37, que era un problema **vertical**:
+      el contenedor del anclaje del panel no podia encogerse en alto. Pero `.startBody` vive dentro
+      de un contenedor en fila, asi que ese mismo valor gobierna el ancho, que es donde hace dano.
+      Sus partes verticales —`min-height: 100%` y `height: auto`— son las que resuelven el anclaje
+      y se conservan. El `min-width: 0` que ya tiene es necesario pero no alcanza mientras el
+      encogimiento este en cero.
+      `.startScreenWrapper` si conserva su `flex: 1 0 auto`: **ese** vive dentro de `.center`, que
+      es `flex-direction: column`, asi que ahi el valor gobierna el alto y es el que sostiene el
+      anclaje.
+
+  59. **El aviso ambar de «Herramientas» no dice de que avisa, y la tarjeta que abre dice LISTO.**
+      Alejandro lo leyo como un aviso espurio. Medido el 2026-09-06, **no es espurio: hay algo**,
+      pero es ilegible.
+      El triangulo se dibuja en `components/pipeline/OpenSpecInspector.tsx:326-330` cuando
+      `hasOpenSpecAttention` da verdadero. Esa funcion
+      (`components/pipeline/pipeline-domain.ts:285-305`) se enciende con cuatro condiciones del
+      motor —integracion desactualizada, repositorio sin inicializar, divergencia, o `diagnostics`
+      con al menos una entrada— o con herramientas sin configurar.
+      La captura de Alejandro descarta casi todas: la tarjeta dice «Repositorio: Inicializado»,
+      «Integracion instalada: Al dia» y las cuatro herramientas «configurada». Lo que queda es
+      `diagnostics`, y la propia tarjeta muestra su causa sin nombrarla como tal: **«Motor OpenSpec:
+      Version no clasificada»**. `electron/pipeline/openspec-engine.ts:466` empuja exactamente
+      `'version output not recognized'` a `diagnostics` cuando no logra interpretar la salida de
+      `openspec --version`.
+      O sea: el aviso es honesto y el motivo esta en pantalla, pero presentado como un dato neutro
+      al lado de una insignia verde que dice **LISTO**. Dos veredictos opuestos en la misma tarjeta,
+      y el detalle escondido detras de «Ver diagnostico avanzado», que arranca plegado.
+      **Frontera: esto no es de este change.** La tarjeta del motor, sus diagnosticos y el hecho de
+      que no se reconozca la version instalada pertenecen a
+      `gestionar-ciclo-openspec-desde-gitcron`, dueno de la operacion, igual que la observacion 57.
+      Queda anotado para que no se pierda.
+
+  60. **Auditoria del 2026-09-06: comentario que nombra clases que ya no existen.** Al retirar
+      `PipelineNextStepGuide`, el inventario de clases del encabezado de
+      `components/pipeline/OpenSpecDashboard.module.css` siguio citando `nextStepBadge` (linea 10) y
+      `nextStepDismiss` (linea 12) como ejemplos. Ninguna de las dos existe ya como regla ni tiene
+      consumidor. Un comentario que documenta la taxonomia del archivo y nombra clases muertas
+      envejece igual que el codigo muerto.
+      Tambien quedo desordenada la numeracion de
+      `components/__tests__/commit-graph-frame.test.tsx`: al retirar el punto 6 se renumero el
+      siguiente a 6, pero el que sigue quedo en 8.
+
+- [ ] 4.19 **Duodecima revision visual de Alejandro, 2026-09-06.** Dos defectos de contenido: la
+  aplicacion afirma dos cosas que no son ciertas.
+
+  61. **La etiqueta «CORRESPONDE A LA RAMA ACTUAL» sigue al cambio que se abrio, no a la rama.**
+      Alejandro: entra a una tarea desde el inicio, vuelve, y la etiqueta quedo puesta sobre esa
+      tarea en vez de sobre la que corresponde a la rama.
+      Causa medida el 2026-09-06, y es literal: `components/pipeline/OpenSpecDashboard.tsx:560`
+      declara `const branchChangeId = openSpec?.selectedChangeId ?? null;`. Eso **no es** el cambio
+      de la rama: es el **cambio seleccionado**. `electron/pipeline/repo-evidence-reader.ts:329-332`
+      lo confirma del otro lado: cuando llega una seleccion manual valida, la devuelve como
+      `selectedChangeId` con `reason: 'manual'`. Al abrir un cambio, la seleccion pasa a ser ese, y
+      la etiqueta lo sigue.
+      La funcion correcta **ya existe y advierte contra este error por escrito**:
+      `changeIdFromBranch(branch)` en `lib/change-branch.ts:32-41`, cuyo comentario dice que
+      cualquier rama que no sea `change/<slug>` devuelve `null` y no una suposicion, porque
+      «heredar el cambio seleccionado en la pantalla seria inventar la atribucion que este trabajo
+      existe para no inventar». Es exactamente lo que la etiqueta hace hoy.
+      `currentBranch` ya llega como propiedad del componente. No hay que traer nada nuevo.
+      Nota de alcance: la etiqueta no es decorativa. Dice de quien es el trabajo que se esta
+      haciendo, y hoy lo dice mal.
+
+  62. **La solapa «Especificaciones» muestra el cambio entero, que empieza por la propuesta.**
+      Alejandro: «Propuesta» y «Especificaciones» muestran lo mismo al principio, y solo te das
+      cuenta de que una es mas larga cuando scrolleas.
+      Causa medida el 2026-09-06: el panel de especificaciones
+      (`components/pipeline/PipelineDetails.tsx:112-114`) pregunta primero por `changeDiff` y, si
+      existe, dibuja **eso** y nunca llega a las especificaciones. `changeDiff` se llena en `:53-74`
+      con `openspec change show --diff` a traves de `pipelineOpenSpec.showChange`, cuyo resultado es
+      **el documento completo del cambio**, que arranca por la propuesta.
+      Las especificaciones de verdad —`artifacts.specs`, o sea el contenido de `specs/` del cambio,
+      con una seccion por capacidad— viven en `deltaSpecs` (`:81`) y solo se dibujan cuando
+      `changeDiff` es nulo, es decir **cuando el comando del CLI falla**. La solapa que deberia
+      mostrar los requisitos por capacidad casi nunca los muestra.
+      La solapa tiene que mostrar lo que su nombre dice. Que hacer con el documento completo
+      —si tiene lugar propio o no tiene ninguno— se decide y se declara, pero no puede seguir
+      debajo del rotulo de otra cosa.
+
 ## 5. Pruebas
 
 - [ ] 5.1 Sostener lo decidido: que una superficie sin contenido no ocupe lugar, que siga siendo
@@ -931,7 +1082,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
 
 ## 6. Revisión visual
 
-- [ ] 6.1 El cuerpo se lee de arriba abajo, lo primero es lo que se va a hacer, nada se dice dos
+- [x] 6.1 El cuerpo se lee de arriba abajo, lo primero es lo que se va a hacer, nada se dice dos
   veces, y nada que no sirva al momento ocupa lugar. **La marca Alejandro.**
 
 ## 7. Cierre

@@ -2,86 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import type { AuthorizedOpenSpecRuntime } from '../pipeline/openspec-engine';
 
-const execFileMock = vi.fn();
-
-vi.mock('node:child_process', () => ({
-  execFile: (...args: unknown[]) => execFileMock(...args),
-}));
-
-const {
-  showOpenSpecChangeWithCli,
-} = await import('../pipeline/openspec-cli');
 const {
   extractRequirementTitlesFromMarkdown,
   parseDeltaSpecRequirements,
   validateChangeDeltaRequirements,
 } = await import('../pipeline/openspec-delta-validator');
-const { registerOpenSpecIpcHandlers } = await import('../ipc/pipeline-openspec');
 
-describe('OpenSpec Group 3 — Lo que la versión nueva ya trae (3.1, 3.2, 3.5)', () => {
-  const mockRuntime: AuthorizedOpenSpecRuntime = {
-    executablePath: 'C:\\custom\\path\\openspec.cmd',
-    command: 'openspec.cmd',
-    shell: true,
-    displayPath: 'C:\\custom\\path\\openspec.cmd',
-    provenance: 'global',
-  };
-
+describe('OpenSpec Group 3 — Lo que la versión nueva ya trae (3.2, 3.5)', () => {
   beforeEach(() => {
-    execFileMock.mockReset();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  describe('3.1 openspec show <change> --diff', () => {
-    it('ejecuta openspec show con --diff y retorna el contenido del diff', async () => {
-      execFileMock.mockImplementation((_cmd, args, _opts, callback: (e: unknown, r: { stdout: string; stderr: string }) => void) => {
-        expect(args).toEqual(['show', 'mi-cambio', '--diff']);
-        callback(null, {
-          stdout: 'Specifications Changed (diffs)\n\nADDED: Nueva capacidad',
-          stderr: '',
-        });
-      });
-
-      const result = await showOpenSpecChangeWithCli('C:/repo', 'mi-cambio', {
-        runtime: mockRuntime,
-        diff: true,
-      });
-
-      expect(result.ok).toBe(true);
-      expect(result.error).toBeNull();
-      expect(result.content).toContain('Specifications Changed (diffs)');
-    });
-
-    it('ejecuta openspec show con --diff --json y parsea la respuesta estructurada', async () => {
-      execFileMock.mockImplementation((_cmd, args, _opts, callback: (e: unknown, r: { stdout: string; stderr: string }) => void) => {
-        expect(args).toEqual(['show', 'mi-cambio', '--diff', '--json']);
-        callback(null, {
-          stdout: JSON.stringify({ deltas: [{ spec: 'cap-1', operation: 'ADDED' }] }),
-          stderr: '',
-        });
-      });
-
-      const result = await showOpenSpecChangeWithCli('C:/repo', 'mi-cambio', {
-        runtime: mockRuntime,
-        diff: true,
-        json: true,
-      });
-
-      expect(result.ok).toBe(true);
-      expect(result.data).toEqual({ deltas: [{ spec: 'cap-1', operation: 'ADDED' }] });
-    });
-
-    it('rechaza un slug inválido sin ejecutar ningún proceso', async () => {
-      const result = await showOpenSpecChangeWithCli('C:/repo', '../invalido', { runtime: mockRuntime });
-      expect(result.ok).toBe(false);
-      expect(result.error).toBe('invalid-change-id');
-      expect(execFileMock).not.toHaveBeenCalled();
-    });
   });
 
   describe('3.5 Validación de MODIFIED Requirements contra specs consolidadas', () => {
@@ -224,37 +158,6 @@ Descripción del segundo requisito.
       } finally {
         await fs.rm(tmpDir, { recursive: true, force: true });
       }
-    });
-  });
-
-  describe('IPC handler para show', () => {
-    it('pipeline:openspec:show valida payload y ejecuta showChange', async () => {
-      const handlers = new Map<string, Function>();
-      const mockIpc = {
-        handle: (channel: string, listener: Function) => {
-          handlers.set(channel, listener);
-        },
-      };
-
-      registerOpenSpecIpcHandlers({
-        ipcMain: mockIpc,
-        getUserDataDir: () => 'C:/userData',
-        getAuthorizedRepoRoots: () => ['C:/valid-repo'],
-        validateRepoPath: (p: unknown) => (p === 'C:/valid-repo' ? 'C:/valid-repo' : null),
-        showChange: vi.fn().mockResolvedValue({ ok: true, error: null, content: 'Diff output' }),
-      });
-
-      const showHandler = handlers.get('pipeline:openspec:show');
-      expect(showHandler).toBeDefined();
-
-      // Rechaza payload con clave extra
-      await expect(
-        showHandler!({}, { repoPath: 'C:/valid-repo', changeId: 'c1', unknownKey: true }),
-      ).rejects.toThrow(/IPC Security Error/);
-
-      // Acepta payload válido
-      const response = await showHandler!({}, { repoPath: 'C:/valid-repo', changeId: 'c1', diff: true });
-      expect(response).toEqual({ ok: true, error: null, content: 'Diff output' });
     });
   });
 });

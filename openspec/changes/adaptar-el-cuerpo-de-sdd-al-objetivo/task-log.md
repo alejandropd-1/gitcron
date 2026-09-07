@@ -6,3 +6,4 @@
 - 2026-09-04 21:25 — marcada — "3.3 Declarar si «Tengo clara la tarea» y «Quiero definirla mejor» siguen siendo dos caminos y"
 - 2026-09-04 21:25 — marcada — "3.4 Resolver la forma del panel lateral flotante. Referencia declarada por Alejandro el"
 - 2026-09-04 21:25 — marcada — "3.5 Declarar el alcance del panel: este change lo resuelve para el cuerpo del ciclo. Dejar el"
+- 2026-09-07 13:26 — marcada — "6.1 El cuerpo se lee de arriba abajo, lo primero es lo que se va a hacer, nada se dice dos"

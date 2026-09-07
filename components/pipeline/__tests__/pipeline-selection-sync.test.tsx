@@ -65,7 +65,11 @@ function snapshot(selectedChangeId: string | null): PipelineSnapshot {
   } as PipelineSnapshot;
 }
 
-function renderDashboard(selectedChangeId: string | null, onSelectChange: (id: string) => void) {
+function renderDashboard(
+  selectedChangeId: string | null,
+  onSelectChange: (id: string) => void,
+  currentBranch = 'fix/una-rama-que-no-matchea',
+) {
   const snap = snapshot(selectedChangeId);
   usePipelineStore.setState({
     snapshot: snap,
@@ -75,7 +79,7 @@ function renderDashboard(selectedChangeId: string | null, onSelectChange: (id: s
     <OpenSpecDashboard
       snapshot={snap}
       repoPath="C:/repo"
-      currentBranch="fix/una-rama-que-no-matchea"
+      currentBranch={currentBranch}
       workingTreeClean
       projection={null}
       runtimeHistory={[]}
@@ -108,7 +112,7 @@ describe('sincronización entre el cambio mostrado y el leído', () => {
     // Se señala en la pantalla de entrada en vez de abrirse: gastarla en saltar
     // adentro volvía invisible la correspondencia.
     const onSelectChange = vi.fn();
-    renderDashboard('primero', onSelectChange);
+    renderDashboard('primero', onSelectChange, 'change/primero');
 
     await Promise.resolve();
     expect(onSelectChange).not.toHaveBeenCalled();

@@ -582,12 +582,6 @@ interface ElectronAPI {
       changeId?: string | null;
       schema?: string | null;
     }): Promise<import('./pipeline').InstructionsOpenSpecResult>;
-    showChange(options: {
-      repoPath: string;
-      changeId: string;
-      diff?: boolean;
-      json?: boolean;
-    }): Promise<import('./pipeline').ShowOpenSpecChangeResult>;
   };
 }
 

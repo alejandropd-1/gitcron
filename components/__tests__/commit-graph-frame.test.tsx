@@ -253,16 +253,13 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
     // 5. DATO: Advertencia sobre rama base lleva acento ámbar
     expect(cssContent).toMatch(/\.branchBase\s*\{[^}]*border-left:\s*2px\s+solid\s+var\(--color-warning\)/);
 
-    // 6. DATO: Siguiente paso lleva acento cian
-    expect(cssContent).toMatch(/\.nextStep\s*\{[^}]*border-left:\s*2px\s+solid\s+var\(--color-primary\)/);
-
-    // 7. TARJETA: Tarjeta del motor OpenSpec
+    // 6. TARJETA: Tarjeta del motor OpenSpec
     expect(cssContent).toMatch(/\.engineCard\s*\{[^}]*border:\s*1px\s+solid\s+var\(--color-border-subtle\)/);
 
-    // 8. DATO: Divergencia en rojo
+    // 7. DATO: Divergencia en rojo
     expect(cssContent).toMatch(/\.divergenceNotice\[data-status='divergent'\]\s*\{[^}]*border:\s*1px\s+solid\s+color-mix\(in srgb,\s*var\(--color-error\)/);
 
-    // 9. TARJETA / DATO: Banner de seguridad en revisión
+    // 8. TARJETA / DATO: Banner de seguridad en revisión
     expect(cssContent).toMatch(/\.reviewSafetyBanner\s*\{[^}]*border-left:\s*3px\s+solid\s+var\(--color-primary\)/);
   });
 });

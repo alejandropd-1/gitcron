@@ -27,11 +27,19 @@ function parseMarkdown(raw: string): Block[] {
   let codeLines: string[] = [];
   let codeLang = '';
   let currentList: string[] = [];
+  let currentParagraphLines: string[] = [];
 
   const flushList = () => {
     if (currentList.length > 0) {
       blocks.push({ type: 'list', items: [...currentList] });
       currentList = [];
+    }
+  };
+
+  const flushParagraph = () => {
+    if (currentParagraphLines.length > 0) {
+      blocks.push({ type: 'paragraph', text: currentParagraphLines.join(' ') });
+      currentParagraphLines = [];
     }
   };
 
@@ -41,6 +49,7 @@ function parseMarkdown(raw: string): Block[] {
 
     // Code block check
     if (trimmed.startsWith('```')) {
+      flushParagraph();
       flushList();
       if (inCodeBlock) {
         blocks.push({
@@ -66,27 +75,34 @@ function parseMarkdown(raw: string): Block[] {
     // List check
     const listMatch = line.match(/^[\s]*[-*]\s+(.*)$/);
     if (listMatch) {
+      flushParagraph();
       currentList.push(listMatch[1]);
       continue;
     } else {
       flushList();
     }
 
-    if (!trimmed) continue;
+    if (!trimmed) {
+      flushParagraph();
+      continue;
+    }
 
     // Encabezados: se cuentan las almohadillas en vez de comparar prefijos uno
     // por uno. Tres comparaciones escritas a mano fueron lo que dejó afuera el
     // cuarto nivel, y una cuarta habría dejado afuera el quinto.
     const headingMatch = /^(#{1,6})\s+(.*)$/.exec(trimmed);
     if (headingMatch) {
+      flushParagraph();
       blocks.push({ type: 'heading', level: headingMatch[1].length, text: headingMatch[2].trim() });
     } else if (trimmed.startsWith('> ')) {
+      flushParagraph();
       blocks.push({ type: 'blockquote', text: trimmed.slice(2).trim() });
     } else {
-      blocks.push({ type: 'paragraph', text: trimmed });
+      currentParagraphLines.push(trimmed);
     }
   }
 
+  flushParagraph();
   flushList();
   if (inCodeBlock) {
     blocks.push({
@@ -102,7 +118,7 @@ function parseMarkdown(raw: string): Block[] {
 /** Renderiza inline markdown: **bold** e `code`. Sin usar dangerouslySetInnerHTML. */
 function renderInline(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  const regex = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+  const regex = /(\*\*(?:[^*]|\*(?!\*))+\*\*|`[^`]+`)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -114,7 +130,7 @@ function renderInline(text: string): React.ReactNode[] {
     if (token.startsWith('**') && token.endsWith('**')) {
       parts.push(
         <strong key={match.index} className="pipeline-markdown__strong">
-          {token.slice(2, -2)}
+          {renderInline(token.slice(2, -2))}
         </strong>
       );
     } else if (token.startsWith('`') && token.endsWith('`')) {

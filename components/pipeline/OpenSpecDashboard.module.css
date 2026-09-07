@@ -3,13 +3,13 @@
    Criterio por familias funcionales para evitar colapso de jerarquía:
    1. ENCABEZADO: Títulos de sección/tarjeta (h3, h4, inventoryTitle, reviewSectionTitle).
       -> font-size: xs / sm / md, peso 650/700, color text-primary o primary.
-   2. VALOR: Datos principales e información dinámica (axisValue, factValue).
+   2. VALOR: Datos principales e información dinámica (axisValue).
       -> font-size: base / xs, peso regular o 650, color text-primary.
    3. ETIQUETA / METADATO: Rótulos descriptivos, metadatos y ejes (axisLabel, axisMeta, compactMeta, reviewFactLabel).
       -> Rotulación accesoria: font-size: 2xs (10px), color text-secondary, uppercase / tracking.
-   4. ESTADO: Badges e indicadores de condición (nextStepBadge, provenanceBadge, outputKindBadge, blockedTag, generalStatusBadge, presenceBadge, reviewSkillTag).
+   4. ESTADO: Badges e indicadores de condición (provenanceBadge, outputKindBadge, blockedTag, generalStatusBadge, presenceBadge, reviewSkillTag).
       -> Rotulación accesoria: font-size: 2xs (10px), peso 600/700, colores semánticos con fondo color-mix.
-   5. ACCIÓN: Controles interactivos y botones secundarios (nextStepDismiss, toggleAdvancedBtn, reviewCopyBtn).
+   5. ACCIÓN: Controles interactivos y botones secundarios (toggleAdvancedBtn, reviewCopyBtn).
       -> font-size: xs (12px), peso 650/600 (legibilidad interactiva para clics).
    ========================================================================== */
 
@@ -343,8 +343,9 @@
   word-break: break-word;
 }
 .taskStatus {
-  display: grid;
-  place-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
   min-width: 2.75rem;
   min-height: 2.75rem;
   padding: 0;
@@ -355,6 +356,11 @@
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease;
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+}
+.taskStatus svg {
+  margin-top: calc((1.5 * var(--font-size-xs) - 1rem) / 2);
 }
 .taskList > li[data-completed='true'] .taskStatus {
   color: var(--color-git-add);
@@ -1303,7 +1309,7 @@
 .startBody {
   display: flex;
   flex-direction: column;
-  flex: 1 0 auto;
+  flex: 1 1 auto;
   min-height: 100%;
   height: auto;
   min-width: 0;
@@ -1663,68 +1669,6 @@ summary.centerBlock {
   overflow-wrap: anywhere;
 }
 
-/* Siguiente paso
-   Bloque compacto: el tope de contenido es estructural (etiqueta, título, una
-   frase, una acción primaria y una secundaria condicional), así que el estilo
-   sólo tiene que sostenerlo, no contenerlo. */
-.nextStep {
-  margin-top: var(--space-4);
-  padding: var(--space-4) var(--space-4);
-  border: 1px solid var(--color-border-subtle);
-  border-left: 2px solid var(--color-primary);
-  background: color-mix(in srgb, var(--color-bg-overlay) 78%, transparent);
-}
-
-.nextStepHeader { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
-
-.nextStepBadge {
-  color: var(--color-primary);
-  font-weight: 700; font-size: var(--font-size-2xs); font-family: var(--font-mono), ui-monospace, monospace;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.nextStepTitle { margin: var(--space-2) 0 0; color: var(--color-text-primary); font-weight: 700; font-size: var(--font-size-md); font-family: var(--font-mono), ui-monospace, monospace; }
-.nextStepHelp { margin: var(--space-2) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; }
-.nextStepActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-3); }
-
-/* La salida del grupo, al final de la fila y separada del resto: cierra lo que
-   las otras dos abren, y no es una tercera forma de empezar. Sin contorno lleno
-   para que no compita con ellas, pero con borde para leerse como control —el
-   mismo criterio del botón de volver—. */
-.nextStepDismiss {
-  margin-left: auto;
-  padding: var(--sp-1) var(--sp-3);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  background: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-.nextStepDismiss:hover {
-  border-color: var(--color-border-subtle);
-  background: var(--color-bg-overlay);
-  color: var(--color-primary);
-}
-.nextStepDismiss:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
-
-/* La decisión pendiente y el fallo no pueden leerse igual que el curso normal. */
-.nextStep[data-kind='decision-pending'] { border-left-color: var(--color-warning); }
-.nextStep[data-kind='decision-pending'] .nextStepBadge { color: var(--color-warning); }
-.nextStep[data-kind='session-retry'] { border-left-color: var(--color-error); }
-.nextStep[data-kind='session-retry'] .nextStepBadge { color: var(--color-error); }
-.nextStep[data-kind='validation-failed'] { border-left-color: var(--color-error); }
-.nextStep[data-kind='validation-failed'] .nextStepBadge { color: var(--color-error); }
-.nextStep[data-kind='ready-to-archive'] { border-left-color: var(--color-git-add); }
-.nextStep[data-kind='ready-to-archive'] .nextStepBadge { color: var(--color-git-add); }
-/* La vista previa se apaga: no compite con el trabajo real. */
-.nextStep[data-kind='fixture-preview'] { border-left-color: var(--color-text-secondary); opacity: 0.85; }
-.nextStep[data-kind='fixture-preview'] .nextStepBadge { color: var(--color-text-secondary); }
-
 /* Con cambio activo la guía no es un bloque aparte: el stepper ya dice dónde
    estás y el CTA lleva la tarea en el nombre. Queda una sola línea sobre los
    botones, que explica qué va a pasar al confirmarlos. */
@@ -1732,36 +1676,6 @@ summary.centerBlock {
   margin: 0 0 var(--space-4);
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs); line-height: 1.5; font-family: var(--font-mono), ui-monospace, monospace;
-}
-
-.nextStepDisclosure { margin-top: var(--space-3); }
-
-.disclosureToggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
-  cursor: pointer;
-}
-
-.disclosureToggle:hover { color: var(--color-primary); }
-.disclosureToggle svg { transition: transform 140ms ease; }
-.disclosureToggle svg[data-open='true'] { transform: rotate(180deg); }
-
-.instructionPreview {
-  margin: var(--space-2) 0 0;
-  padding: var(--space-3) var(--space-3);
-  overflow-x: auto;
-  border: 1px solid var(--color-border-subtle);
-  background: color-mix(in srgb, var(--color-bg-overlay) 85%, transparent);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
 /* Flujo de cambio nuevo */
@@ -1850,18 +1764,12 @@ summary.centerBlock {
 .flowError { color: var(--color-error); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; font-style: normal; }
 .flowHint { color: var(--color-text-secondary); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; font-style: normal; }
 
-/* Los estados vacíos centran su contenido, pero la guía y el formulario se leen
-   como bloques: se alinean a la izquierda dentro de ese contexto. */
-.completedSummary .nextStep,
-.noActiveChange .nextStep { width: min(100%, 44rem); text-align: left; }
-
 @container (max-width: 1180px) {
   .changeHeader { grid-template-columns: minmax(12rem, 0.8fr) minmax(23rem, 1.2fr); padding-inline: var(--space-5); }
 }
 
 @container (max-width: 860px) {
   .intentSwitch { flex-wrap: wrap; }
-  .nextStepActions > button { flex: 1 1 auto; }
   .changeHeader { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
   .taskDetail dl { grid-template-columns: minmax(0, 1fr); }
 }

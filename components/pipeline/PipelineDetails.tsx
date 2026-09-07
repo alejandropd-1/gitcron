@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useT } from '@/hooks/use-translation';
 import type { OpenSpecChangeSummary, PipelineSnapshot } from './pipeline-view-state';
 import { SafeMarkdown } from './SafeMarkdown';
@@ -26,16 +26,18 @@ const EMPTY_KEYS: Record<'proposal' | 'design' | 'tasks', string> = {
 };
 
 /**
- * Lector de los artefactos del cambio y de los diffs observados.
+ * Vista de detalle de un cambio OpenSpec.
+ *
+ * Muestra el contenido de los artefactos del cambio (propuesta, especificaciones,
+ * diseño y tareas).
  *
  * El markdown llega dentro de la evidencia, ya contenido al repositorio por el
  * proceso main: el renderer no lee archivos. Un artefacto ausente se declara
  * como tal en vez de mostrarse como un cuerpo vacío.
- * Se aprovecha `openspec show <change> --diff` para mostrar directamente qué altera un change.
  */
 export function PipelineDetails({
   snapshot: _snapshot,
-  repoPath,
+  repoPath: _repoPath,
   selectedChange = null,
   tab,
   onTabChange,
@@ -43,35 +45,11 @@ export function PipelineDetails({
   const t = useT();
   // Controlado si el contenedor pasa `tab`; si no, se gobierna solo.
   const [ownTab, setOwnTab] = useState<DetailTab>('proposal');
-  const [changeDiff, setChangeDiff] = useState<string | null>(null);
   const activeTab = tab ?? ownTab;
   const setActiveTab = (next: DetailTab) => {
     setOwnTab(next);
     onTabChange?.(next);
   };
-
-  useEffect(() => {
-    if (!selectedChange?.changeId || !repoPath) {
-      return;
-    }
-    const api = typeof window !== 'undefined' ? window.api : undefined;
-    if (!api?.pipelineOpenSpec?.showChange) {
-      return;
-    }
-    let cancelled = false;
-    void api.pipelineOpenSpec.showChange({ repoPath, changeId: selectedChange.changeId, diff: true }).then((res) => {
-      if (!cancelled && res.ok && res.content) {
-        setChangeDiff(res.content);
-      } else if (!cancelled) {
-        setChangeDiff(null);
-      }
-    }).catch(() => {
-      if (!cancelled) setChangeDiff(null);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedChange?.changeId, repoPath]);
 
   if (!selectedChange) {
     return null;
@@ -109,11 +87,7 @@ export function PipelineDetails({
 
         {activeTab === 'specs' && (
           <div role="tabpanel" id="panel-specs" aria-labelledby="tab-specs" className="pipeline-details__panel">
-            {changeDiff ? (
-              <section className="pipeline-details__spec">
-                <SafeMarkdown content={changeDiff} />
-              </section>
-            ) : deltaSpecs.length === 0 ? (
+            {deltaSpecs.length === 0 ? (
               <div className="pipeline-details__empty">{t('pipeline.details.noSpecs')}</div>
             ) : (
               deltaSpecs.map((spec) => (

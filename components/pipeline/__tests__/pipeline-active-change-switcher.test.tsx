@@ -653,21 +653,26 @@ describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
     expect(body).toBeTruthy();
   });
 
-  it('desde un cambio archivado y desde una especificación, el panel ofrece la salida al inicio', () => {
-    // 1. Desde un cambio archivado:
+  it('desde un cambio archivado y desde una especificación, el panel ofrece la salida adecuada', () => {
+    // 1. Desde un cambio archivado: la ranura 1 ofrece volver a Archivados y la ranura 2 ofrece Nuevo cambio
     const { unmount: unmountArchive } = renderArchivedChange('cambio-archivado');
 
     // El riel de navegación del intercambiador está presente
     const archiveRail = screen.getByRole('navigation', { name: 'pipeline.switcher.views' });
     expect(archiveRail).toBeTruthy();
 
-    // Ofrece "Volver al inicio"
-    const backFromArchiveBtn = screen.getByRole('button', { name: 'pipeline.switcher.start' });
+    // Ofrece "Archivados" (ranura 1) y "Nuevo cambio" (ranura 2)
+    const backFromArchiveBtn = screen.getByRole('button', { name: /pipeline\.openspec\.start\.archivedCount/ });
     expect(backFromArchiveBtn).toBeTruthy();
+    expect(backFromArchiveBtn.getAttribute('data-slot')).toBe('1');
 
-    // Al clickear, regresa a la pantalla de entrada del repositorio
+    const newChangeBtn = screen.getByRole('button', { name: /pipeline\.openspec\.start\.newChange/ });
+    expect(newChangeBtn).toBeTruthy();
+    expect(newChangeBtn.getAttribute('data-slot')).toBe('2');
+
+    // Al clickear, regresa a la vista de archivados del repositorio
     fireEvent.click(backFromArchiveBtn);
-    expect(screen.getByRole('region', { name: 'pipeline.openspec.start.title' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: /pipeline\.openspec\.start\.archived/ })).toBeTruthy();
     unmountArchive();
 
     // 2. Desde una especificación:
@@ -932,11 +937,12 @@ describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
       expect(headerBody).toMatch(/z-index:\s*[4-9]/);
       expect(headerBody).toMatch(/background:\s*var\(--color-bg-base\)/);
 
-      // 2. .startBody es el contenedor y no se colapsa (flex: 1 0 auto, min-height: 100%, height: auto)
+      // 2. .startBody sostiene el alto del anclaje (min-height: 100%, height: auto) pero permite
+      // encogerse en el eje horizontal (flex: 1 1 auto) para evitar desbordes con el navegador derecho abierto (Obs 58)
       const bodyMatch = cssContent.match(/\.startBody\s*\{([^}]+)\}/);
       expect(bodyMatch).not.toBeNull();
       const bodyCss = bodyMatch![1];
-      expect(bodyCss).toMatch(/flex:\s*1\s+0\s+auto/);
+      expect(bodyCss).toMatch(/flex:\s*1\s+1\s+auto/);
       expect(bodyCss).toMatch(/min-height:\s*100%/);
       expect(bodyCss).toMatch(/height:\s*auto/);
 

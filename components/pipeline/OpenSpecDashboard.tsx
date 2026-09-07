@@ -57,7 +57,6 @@ import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
 import { PipelineDetails, type DetailTab } from './PipelineDetails';
 import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
-import { PipelineNextStepGuide } from './PipelineNextStepGuide';
 import { useReducedMotion } from 'motion/react';
 import { ChangeBranchNotice } from './ChangeBranchNotice';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
@@ -557,8 +556,15 @@ export function OpenSpecDashboard({
   const selectedId = selection && selectableIds.has(selection) ? selection : null;
   const selectedChange = activeChanges.find((change) => change.changeId === selectedId) ?? null;
   const selectedArchive = archivedChanges.find((change) => change.changeId === selectedId) ?? null;
-  /** El que la rama identifica, si el backend pudo derivarlo. Se señala, no se abre. */
-  const branchChangeId = openSpec?.selectedChangeId ?? null;
+  /**
+   * Identificador del cambio que la rama actual nombra, si la rama es
+   * `change/<slug>`. Se deriva estrictamente de `currentBranch` con
+   * `changeIdFromBranch`. No se hereda de `openSpec.selectedChangeId` (que es la
+   * selección manual y cambia al abrir cualquier cambio).
+   * La etiqueta «CORRESPONDE A LA RAMA ACTUAL» y `data-branch` señalan la
+   * correspondencia con la rama, no la selección.
+   */
+  const branchChangeId = changeIdFromBranch(currentBranch);
   /**
    * Cambios de la pantalla de entrada, por avance descendente: adelante lo que
    * está por cerrarse. Queda para validación visual si conviene este orden o el
@@ -610,12 +616,20 @@ export function OpenSpecDashboard({
 
   const archiveViews: ViewSwitcherItem[] = useMemo(() => [
     {
-      id: 'start',
-      label: t('pipeline.switcher.start'),
-      icon: <ChevronLeft size={13} />,
+      id: 'archived',
+      label: archivedChanges.length === 0
+        ? t('pipeline.openspec.start.neverArchived')
+        : t(archivedChanges.length === 1 ? 'pipeline.openspec.start.archivedCount.one' : 'pipeline.openspec.start.archivedCount', { count: archivedChanges.length }),
+      icon: <Archive size={13} />,
       slotIndex: 1,
     },
-  ], [t]);
+    {
+      id: 'new-change',
+      label: t('pipeline.openspec.start.newChange'),
+      icon: <Plus size={13} />,
+      slotIndex: 2,
+    },
+  ], [archivedChanges.length, t]);
 
   const specViews: ViewSwitcherItem[] = useMemo(() => [
     {
@@ -2696,7 +2710,7 @@ export function OpenSpecDashboard({
                                     completed: !task.completed,
                                   })}
                                 >
-                                  {task.completed ? <CheckCircle2 size={16} /> : <Circle size={14} />}
+                                  {task.completed ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                                 </button>
                                 <strong>{resolveTaskLabel(task)}</strong>
                                 <span>{resolveTaskText(task)}</span>
@@ -2790,8 +2804,12 @@ export function OpenSpecDashboard({
                   views={archiveViews}
                   activeViewId="archive"
                   onSwitchView={(viewId) => {
-                    if (viewId === 'start') {
+                    if (viewId === 'archived' || viewId === 'start') {
                       setSelection(null);
+                      setActiveStartView('archived');
+                    } else if (viewId === 'new-change') {
+                      setSelection(null);
+                      handleSwitchStartView('new-change');
                     }
                   }}
                   ariaLabel={t('pipeline.switcher.views')}
@@ -2826,7 +2844,6 @@ export function OpenSpecDashboard({
                       )}
                     </div>
                   </div>
-                  <PipelineNextStepGuide action={nextAction} onAct={handleIntent} executionBlocked={fixtureActive} dismiss={flowMode ? { labelKey: 'pipeline.newChange.close', onDismiss: dismissFlow } : undefined} />
                   {/* Lo archivado es el registro de lo que se hizo, incluida la
                       firma humana. Revisarlo no debería obligar a salir de la
                       aplicación ni a leer el diff del commit de archivado. */}

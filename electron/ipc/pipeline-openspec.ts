@@ -206,7 +206,10 @@ export async function buildEngineStatusSnapshot(
       integrationState = 'outdated';
     } else if (installedIntegration.missing && installedIntegration.missing.length > 0) {
       integrationState = 'outdated';
-    } else if (installedIntegration.skills.length > 0) {
+    } else if (
+      installedIntegration.targets.includes('agents') &&
+      (installedIntegration.installedWorkflowsByTarget['agents']?.length ?? 0) > 0
+    ) {
       const hasModifiedOfficialSkills = installedIntegration.skills.some(
         (s) => s.isOfficial && s.origin === 'custom-agents',
       );

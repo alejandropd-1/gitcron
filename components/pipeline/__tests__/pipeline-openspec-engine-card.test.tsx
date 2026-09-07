@@ -299,4 +299,95 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
     // 2. El texto esperado debe estar presente en el render
     expect(screen.getByText(new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'))).toBeDefined();
   });
+
+  it('el estado resumido no dice «Al día» ni «Listo» si el detalle informa un target sin configurar (1.3)', () => {
+    const statusWithUnconfiguredTarget: OpenSpecEngineStatus = {
+      cli: {
+        installed: true,
+        runtimeVersion: '1.11.0',
+        provenance: 'global',
+        displayPath: 'C:\\global\\openspec.cmd',
+        supportedRange: { min: '1.5.0', max: '1.11.0' },
+        versionClass: 'supported',
+        evidenceStatus: 'confirmed',
+        diagnostics: [],
+      },
+      latestAvailable: null,
+      globalConfig: null,
+      installedIntegration: {
+        skills: [],
+        generatedBy: '1.11.0',
+        markersFound: [],
+        outputInventory: [],
+        evidenceStatus: 'confirmed',
+        tools: [],
+        targets: [],
+        configuredTools: [],
+        presentToolDirectories: ['agents'],
+        configuredAgentsCount: 0,
+        totalPresentAgentsCount: 1,
+        installedWorkflowsByTarget: {},
+        missing: null,
+        legacy: [],
+        customized: [],
+        conflicts: null,
+      },
+      repoState: 'initialized',
+      integrationState: 'up-to-date',
+    };
+
+    render(<OpenSpecEngineCard status={statusWithUnconfiguredTarget} compact={false} />);
+
+    // 1. El estado resumido de la integración NO puede decir «Al día»
+    expect(screen.queryByText(/^Al día$/i)).toBeNull();
+    expect(screen.getByText(/Desactualizado/i)).toBeDefined();
+
+    // 2. La insignia general NO puede decir «Listo», debe decir «Necesita atención»
+    expect(screen.queryByText(/Listo/i)).toBeNull();
+    expect(screen.getByText(/Necesita atención/i)).toBeDefined();
+
+    // 3. El detalle informa la proporción con target sin configurar
+    expect(screen.getByText(/0 de 1 agentes configurados/i)).toBeDefined();
+  });
+
+  it('en modo compacto no declara «Al día» si el detalle informa un target sin configurar (1.3)', () => {
+    const statusWithUnconfiguredTarget: OpenSpecEngineStatus = {
+      cli: {
+        installed: true,
+        runtimeVersion: '1.11.0',
+        provenance: 'global',
+        displayPath: 'C:\\global\\openspec.cmd',
+        supportedRange: { min: '1.5.0', max: '1.11.0' },
+        versionClass: 'supported',
+        evidenceStatus: 'confirmed',
+        diagnostics: [],
+      },
+      latestAvailable: null,
+      globalConfig: null,
+      installedIntegration: {
+        skills: [],
+        generatedBy: '1.11.0',
+        markersFound: [],
+        outputInventory: [],
+        evidenceStatus: 'confirmed',
+        tools: [],
+        targets: [],
+        configuredTools: [],
+        presentToolDirectories: ['agents'],
+        configuredAgentsCount: 0,
+        totalPresentAgentsCount: 1,
+        installedWorkflowsByTarget: {},
+        missing: null,
+        legacy: [],
+        customized: [],
+        conflicts: null,
+      },
+      repoState: 'initialized',
+      integrationState: 'up-to-date',
+    };
+
+    render(<OpenSpecEngineCard status={statusWithUnconfiguredTarget} compact={true} />);
+    expect(screen.queryByText(/Al día/i)).toBeNull();
+    expect(screen.getByText(/Desactualizado/i)).toBeDefined();
+  });
 });

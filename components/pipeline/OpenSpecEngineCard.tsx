@@ -79,6 +79,34 @@ export function hasOpenSpecCycleMismatch(
   );
 }
 
+/**
+ * Deriva el estado de integración efectivo impidiendo que se declare «al día»
+ * si el detalle informa un target sin configurar (1.3 / Invariante de Coherencia).
+ */
+export function deriveEffectiveIntegrationState(
+  status: OpenSpecEngineStatus | null | undefined,
+): OpenSpecEngineStatus['integrationState'] {
+  if (!status) return 'unknown';
+  const installed = status.installedIntegration;
+  const configuredCount =
+    installed?.configuredAgentsCount ?? installed?.configuredCount ?? (installed?.tools?.length ?? 0);
+  const totalCount =
+    installed?.totalPresentAgentsCount ?? installed?.totalPresentCount ?? configuredCount;
+
+  const hasUnconfiguredTarget =
+    (totalCount > 0 && configuredCount < totalCount) ||
+    Boolean(
+      installed?.presentToolDirectories &&
+        installed?.configuredTools &&
+        installed.presentToolDirectories.some((tool) => !installed.configuredTools?.includes(tool)),
+    );
+
+  if (status.integrationState === 'up-to-date' && hasUnconfiguredTarget) {
+    return 'outdated';
+  }
+  return status.integrationState;
+}
+
 export interface OpenSpecEngineCardProps {
   status: OpenSpecEngineStatus | null;
   isLoading?: boolean;
@@ -175,17 +203,18 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
         </div>
       );
     }
+    const effectiveIntegrationState = deriveEffectiveIntegrationState(status);
     const versionStr = `v${status.cli.runtimeVersion ?? '?'}`;
-    const stateStr = t(INTEGRATION_STATE_KEY_MAP[status.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown');
+    const stateStr = t(INTEGRATION_STATE_KEY_MAP[effectiveIntegrationState] ?? 'pipeline.openspec.engine.integrationState.unknown');
     return (
       <div
         className={styles.compactEngineBadge}
-        data-state={status.integrationState}
+        data-state={effectiveIntegrationState}
         title={`${versionStr} · ${stateStr}`}
         onClick={onOpenToolsTab}
         style={{ cursor: onOpenToolsTab ? 'pointer' : 'default' }}
       >
-        <span className={styles.healthDot} data-state={status.integrationState} aria-hidden="true" />
+        <span className={styles.healthDot} data-state={effectiveIntegrationState} aria-hidden="true" />
         <strong>{t('pipeline.openspec.engine.axis.engine')} {versionStr}</strong>
         <em className={styles.compactMeta}>({stateStr})</em>
       </div>
@@ -247,23 +276,38 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     latestStatusText = `${t('pipeline.openspec.engine.latestAvailable', { version: latest.latestVersion })} (${t(freshnessKey, { age: latest.cacheAgeSeconds ?? 0 })})`;
   }
 
+  const installed = status.installedIntegration;
+  const configuredCount = installed?.configuredAgentsCount ?? installed?.configuredCount ?? (installed?.tools?.length ?? 0);
+  const totalCount = installed?.totalPresentAgentsCount ?? installed?.totalPresentCount ?? configuredCount;
+
+  const hasUnconfiguredTarget =
+    (totalCount > 0 && configuredCount < totalCount) ||
+    Boolean(
+      installed?.presentToolDirectories &&
+        installed?.configuredTools &&
+        installed.presentToolDirectories.some((tool) => !installed.configuredTools?.includes(tool)),
+    );
+
+  const effectiveIntegrationState = deriveEffectiveIntegrationState(status);
+
   // Determinar estado general: ready | needs-attention | unknown
   const isAhead = isInstalledAheadOfCycle(cli.runtimeVersion);
   const isBehind = isInstalledBehindCycle(cli.runtimeVersion);
   const isCycleMismatch = hasOpenSpecCycleMismatch(cli.runtimeVersion);
 
   let generalStatus: 'ready' | 'needs-attention' | 'unknown' = 'ready';
-  if (status.integrationState === 'unknown' || status.repoState === 'unknown') {
+  if (effectiveIntegrationState === 'unknown' || status.repoState === 'unknown') {
     generalStatus = 'unknown';
   } else if (
     !cli.installed ||
     cli.versionClass === 'too-old' ||
     cli.versionClass === 'too-new' ||
-    status.integrationState === 'outdated' ||
-    status.integrationState === 'conflicted' ||
+    effectiveIntegrationState === 'outdated' ||
+    effectiveIntegrationState === 'conflicted' ||
     status.repoState === 'not-initialized' ||
     status.divergence?.isDivergent ||
-    isCycleMismatch
+    isCycleMismatch ||
+    hasUnconfiguredTarget
   ) {
     generalStatus = 'needs-attention';
   }
@@ -277,10 +321,6 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   });
   const versionStr = cli.runtimeVersion ? `v${cli.runtimeVersion}` : '';
   const engineText = versionStr ? `${versionStr} · ${versionClassText}` : versionClassText;
-
-  const installed = status.installedIntegration;
-  const configuredCount = installed?.configuredAgentsCount ?? installed?.configuredCount ?? (installed?.tools?.length ?? 0);
-  const totalCount = installed?.totalPresentAgentsCount ?? installed?.totalPresentCount ?? configuredCount;
 
   const agentsText = totalCount > 0 && totalCount !== configuredCount
     ? t('pipeline.openspec.engine.agentsConfiguredRatio', { configured: configuredCount, total: totalCount })
@@ -352,8 +392,8 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
 
         <div className={styles.summaryFactRow}>
           <span>{t('pipeline.openspec.engine.axis.integration')}:</span>
-          <strong data-state={status.integrationState}>
-            {t(INTEGRATION_STATE_KEY_MAP[status.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown')}
+          <strong data-state={effectiveIntegrationState}>
+            {t(INTEGRATION_STATE_KEY_MAP[effectiveIntegrationState] ?? 'pipeline.openspec.engine.integrationState.unknown')}
           </strong>
         </div>
 

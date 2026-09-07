@@ -4,6 +4,46 @@
 - [ ] 1.2 En `electron/__tests__/pipeline-openspec-evidence.test.ts`, agregar un caso con workflows presentes sólo en `.codex`/`.agent` y ninguno en `.agents`, afirmando que `integrationState` NO es `up-to-date`. Ejecutar la prueba de sabotaje: revertir 1.1, confirmar que el caso falla, restaurar, y pegar en el reporte la salida de la corrida fallida.
 - [ ] 1.3 En `components/pipeline/OpenSpecEngineCard.tsx`, verificar que el estado resumido no pueda decir «Al día» mientras el detalle informa un target sin configurar, y agregar el caso al test del componente.
 
+- [ ] 1.4 **Auditoria del 2026-09-07: la tarjeta gano una segunda autoridad sobre el estado de
+  integracion, y las demas superficies no se enteran.**
+  Al resolver 1.3 se agrego `deriveEffectiveIntegrationState` en
+  `components/pipeline/OpenSpecEngineCard.tsx:82-108`: una **segunda derivacion** del estado de
+  integracion, hecha en el renderer, que degrada `up-to-date` a `outdated` cuando el detalle informa
+  un target sin configurar.
+  El problema no es la regla, que es correcta: es **donde vive**. Ahora hay dos autoridades que
+  calculan lo mismo con entradas distintas:
+  - El proceso principal, en `electron/ipc/pipeline-openspec.ts` (`buildEngineStatusSnapshot`), que
+    tras 1.1 lo deriva de `installedWorkflowsByTarget` y `targets`.
+  - La tarjeta, que lo re-deriva de `configuredAgentsCount`, `totalPresentAgentsCount`,
+    `presentToolDirectories` y `configuredTools`.
+  Y **nadie mas conoce la segunda**. Medido el 2026-09-07, los otros dos consumidores siguen leyendo
+  el valor crudo del proceso principal:
+  - `lib/openspec-update-guide.ts:130-135`, `deriveUpdateMatrixAction`, que con `up-to-date` devuelve
+    `none`: **no ofrece actualizar**.
+  - `components/pipeline/pipeline-domain.ts:288`, `hasOpenSpecEngineAttention`, que enciende el
+    triangulo ambar del inspector.
+  Consecuencia: en el caso que 1.3 dice resolver, la tarjeta pasa a decir «Desactualizado» y
+  «Necesita atencion» mientras la aplicacion **no ofrece ninguna accion** y el triangulo del
+  inspector no se enciende. Se cambio una contradiccion por otra.
+  Ademas, la tarea 1.3 pedia **verificar** que el resumen no pudiera decir «Al dia» con un target sin
+  configurar, y agregar el caso a la prueba del componente. Que la verificacion no se sostuviera sin
+  agregar un mecanismo nuevo es la senal de que **1.1 quedo incompleta**: la regla pertenece a la
+  fuente, no a la pantalla.
+  Resolver llevando la regla al proceso principal y dejando que la tarjeta muestre lo que recibe.
+
+- [ ] 1.5 **Registro del 2026-09-07: una prueba afirmaba el defecto como si fuera lo correcto.**
+  `electron/__tests__/pipeline-openspec-evidence.test.ts:322`, en la prueba «reproduce en disco real
+  el caso exacto de Alejandro: CLI 1.5, legacy skills 1.5, custom skills y global config 5
+  workflows», afirmaba `expect(snapshot.integrationState).toBe('up-to-date')` sobre un repositorio
+  con los skills oficiales unicamente en `.codex` y ningun workflow oficial en `.agents`.
+  Es exactamente la mentira que el `proposal.md` de este change denuncia, escrita como expectativa.
+  La prueba reproducia el caso que Alejandro reporto y afirmaba el veredicto equivocado como
+  correcto: mientras estuviera asi, cualquier arreglo de 1.1 la habria hecho fallar y habria parecido
+  una regresion.
+  Se cambio a `toBe('outdated')` en la tanda del 2026-09-07, declarado en el reporte. Queda anotado
+  porque es el tipo de hallazgo que hay que poder encontrar despues: una comprobacion en verde no
+  dice que el comportamiento sea correcto, dice que es el que alguien escribio.
+
 ## 2. Autoría de tareas en el proceso principal
 
 - [ ] 2.1 En `electron/pipeline/task-checkbox.ts`, agregar funciones puras `addTaskLine`, `editTaskText`, `moveTaskLine` y `removeTaskLine` con la misma forma de resultado tipado que `toggleTaskCheckbox` y su misma verificación de `expectedText`, sin alterar ninguna línea ajena a la operación.

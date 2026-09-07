@@ -320,10 +320,66 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
 
       expect(snapshot.cli.runtimeVersion).toBe('1.5.0');
       expect(snapshot.repoState).toBe('initialized');
-      expect(snapshot.integrationState).toBe('up-to-date');
+      expect(snapshot.integrationState).toBe('outdated');
       expect(snapshot.divergence?.isDivergent).toBe(true);
       expect(snapshot.divergence?.overallStatus).toBe('divergent');
       expect(typeof snapshot.divergence?.reason).toBe('object');
+    } finally {
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    }
+  });
+
+  it('declara integrationState como no up-to-date (outdated) con workflows sólo en .codex/.agent y ninguno en .agents', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-legacy-only-'));
+    try {
+      const gitDir = path.join(tempDir, '.git');
+      fs.mkdirSync(gitDir, { recursive: true });
+      fs.writeFileSync(path.join(gitDir, 'HEAD'), 'ref: refs/heads/main\n');
+
+      const openspecDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(openspecDir, { recursive: true });
+      fs.writeFileSync(path.join(openspecDir, 'config.yaml'), 'schema: spec-driven\n');
+
+      const codexSkillDir = path.join(tempDir, '.codex', 'skills', 'openspec-apply-change');
+      fs.mkdirSync(codexSkillDir, { recursive: true });
+      fs.writeFileSync(path.join(codexSkillDir, 'SKILL.md'), '---\ngeneratedBy: "1.11.0"\n---\nLegacy codex skill\n');
+
+      const agentSkillDir = path.join(tempDir, '.agent', 'skills', 'openspec-apply-change');
+      fs.mkdirSync(agentSkillDir, { recursive: true });
+      fs.writeFileSync(path.join(agentSkillDir, 'SKILL.md'), '---\ngeneratedBy: "1.11.0"\n---\nLegacy agent skill\n');
+
+      const customAgentDir = path.join(tempDir, '.agents', 'skills', 'custom-tool');
+      fs.mkdirSync(customAgentDir, { recursive: true });
+      fs.writeFileSync(path.join(customAgentDir, 'SKILL.md'), '---\nname: custom-tool\n---\nCustom skill\n');
+
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(tempDir);
+
+      const snapshot = await buildEngineStatusSnapshot(tempDir, {
+        discoverCli: async () => ({
+          installed: true,
+          runtimeVersion: '1.11.0',
+          provenance: 'global',
+          displayPath: 'C:\\global\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.11.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        }),
+        readGlobalConfig: async () => ({
+          rawProfile: 'core',
+          configuredWorkflows: ['apply'],
+          origin: 'cli',
+          readAt: new Date().toISOString(),
+        }),
+      });
+
+      expect(snapshot.integrationState).not.toBe('up-to-date');
+      expect(snapshot.integrationState).toBe('outdated');
     } finally {
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });

@@ -483,7 +483,35 @@ interface ElectronAPI {
   /** Plan del archivado: el comando que se va a ejecutar. No ejecuta nada. */
   pipelineArchivePlan: (repoPath: string, changeId: string) => Promise<GitResult<import('./pipeline').ArchivePlan>>;
   /** Archiva un change desde el proceso principal. No toca Git. Acepta motivo opcional. */
-  pipelineArchiveChange: (repoPath: string, changeId: string, reason?: string) => Promise<GitResult>;
+  pipelineArchiveChange: (repoPath: string, changeId: string, reason?: string) => Promise<GitResult & { watcherWarning?: string }>;
+  /** Vista previa de sincronización de specs con openspec-sync-specs (Alternativa B). No escribe en disco. */
+  pipelineSyncPreview: (
+    repoPath: string,
+    changeId: string,
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    reason?: string;
+    data?: {
+      changeId: string;
+      workflow: string;
+      items: Array<{
+        capability: string;
+        mainSpecPath: string;
+        deltaSpecPath: string;
+        originalContent: string;
+        proposedContent: string;
+        diff: string;
+      }>;
+    };
+  }>;
+  /** Ejecución de sincronización de specs. Requiere confirmación explícita previa. No hace commit en Git. */
+  pipelineSyncExecute: (
+    repoPath: string,
+    changeId: string,
+    acceptedItems: Array<{ capability: string; content: string }>,
+    options?: { confirmed?: boolean },
+  ) => Promise<{ success: boolean; error?: string; stage?: string; filesWritten?: string[] }>;
   /** Cambia el estado de una tarea del change. `expectedText` verifica que sea la misma. */
   pipelineSetTaskChecked: (
     repoPath: string,

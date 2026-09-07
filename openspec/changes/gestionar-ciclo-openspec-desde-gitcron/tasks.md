@@ -156,27 +156,48 @@
 
 - [ ] 4.1 **Medición y estado real: `openspec sync` no existe en OpenSpec 1.11.0.** El grupo 4 original se formuló asumiendo un comando CLI inexistente. Medido contra OpenSpec 1.11.0 (`openspec --help`, `openspec change --help`, `openspec spec --help`): no hay comando ni subcomando de sincronización independiente. En OpenSpec la sincronización de specs ocurre de dos únicas formas:
   - Automática al archivar: `openspec archive <id>` archiva el cambio y fusiona las delta specs en `openspec/specs/`.
-  - Manual guiada por agente: a través del workflow `openspec-sync-specs`, diseñado para que un agente lea las delta specs y edite inteligentemente las specs principales sin archivar (ej. agregando escenarios o requisitos específicos sin sobrescribir el archivo completo).
-- [ ] 4.2 **Alternativa A — Cálculo y fusión propios en GitCron:**
-  - GitCron lee directamente las delta specs en `openspec/changes/<id>/specs/`, analiza las diferencias semánticas con `openspec/specs/` y genera una vista previa estructurada antes de aplicar cambios a disco sin confirmación previa.
-  - *Ventajas:* Totalmente autónomo (no depende de sesión de agente activa, no consume tokens ni API externa), determinista, integrable directamente en canales IPC síncronos/asíncronos con confirmación de usuario en el renderer.
-  - *Desventajas:* Reimplementa la lógica de fusión inteligente de OpenSpec (merge de bloques de requerimientos Markdown), con riesgo de divergencia respecto a futuras versiones del CLI o estándares de OpenSpec.
-- [ ] 4.3 **Alternativa B — Delegación en el workflow de agente (`openspec-sync-specs`):**
-  - GitCron invoca o delega la operación al workflow/skill `openspec-sync-specs` para el change seleccionado. El agente genera la propuesta de cambios sobre las specs principales y GitCron presenta la vista previa bloque a bloque mediante `DiffViewer` (con el mismo patrón de revisión granular de la tarea 8.5) antes de consolidar la escritura.
-  - *Ventajas:* Respeta la arquitectura nativa de OpenSpec para sync parcial guiado; gestiona colisiones complejas y resoluciones no triviales con criterio de lenguaje natural.
-  - *Desventajas:* No es determinista, requiere una sesión o entorno de agente disponible, mayor latencia y no puede resolverse puramente en background sin interacción del agente.
-- [ ] 4.4 **Resuelto el 2026-09-07 por Alejandro: va la Alternativa B, delegar en el workflow.**
-  Sus palabras: «quiero una herramienta que ande pipi cucu con OpenSpec en GitCron, sea actualizable
-  y **respete todas las features que ofrece OpenSpec**».
-  El motivo esta alineado con lo que este proyecto ya aprendio dos veces: el change archivado
-  `actualizar-ciclo-sdd-a-openspec-1-11` denuncio exactamente el vicio de la Alternativa A —«una
-  regla escrita en un lugar propio cuando la herramienta ya la entrega»— y su tesis fue «el ciclo
-  consume el canal en vez de dictarlo». Reimplementar el criterio de fusion es dictarlo.
-  Consecuencia aceptada: la Alternativa B depende de la revision por bloque de la tarea 8.5, que hay
-  que construir antes. Tambien la habilita para la tarea 3.5, que tenia la misma dependencia.
-  Lo que sigue siendo obligatorio pese a delegar: **nada se escribe sin confirmacion**, y la
-  propuesta del agente se ve como propuesta, nunca confundible con lo ya escrito.
-  (Texto anterior de esta tarea: decision de arquitectura pendiente por Alejandro.) Documentar las dos alternativas para que Alejandro decida si GitCron calcula la fusión propia o si se delega en el workflow del agente. Ninguna casilla del grupo 4 queda marcada (`- [ ]`), y la implementación de canales IPC y pruebas quedará sujeta a la alternativa elegida.
+  - Manual guiada por agente: a través del workflow/skill `openspec-sync-specs` (`.agents/skills/openspec-sync-specs/SKILL.md`), diseñado para que un agente lea las delta specs y edite inteligentemente las specs principales sin archivar (ej. agregando escenarios o requisitos específicos sin sobrescribir el archivo completo).
+- [ ] 4.2 **Alternativa B adoptada por decisión de Alejandro: delegación en el workflow nativo `openspec-sync-specs`.**
+  Rechaza la Alternativa A (cálculo algorítmico y fusión propia en GitCron) para no dictar el criterio del canal ni duplicar lógica de OpenSpec. Si no hay agente disponible para ejecutar el workflow, la sincronización se detiene informando explícitamente el motivo (`reason: 'no-agent'`), sin caer en un cálculo de emergencia propio.
+- [ ] 4.3 **Canales IPC de sincronización (`electron/ipc/pipeline-sync.ts`):**
+  - `pipeline:sync-preview`: Estrictamente de sólo lectura. Lee las delta specs del cambio y las main specs correspondientes, computa la propuesta del agente y devuelve un diff unificado por capacidad mediante `generateUnifiedDiff`. Garantiza cero escrituras en disco.
+  - `pipeline:sync-execute`: Exige confirmación previa explícita (`options.confirmed === true`). Escribe únicamente las capacidades aceptadas por el usuario bajo `openspec/specs/<cap>/spec.md` sanitizando rutas dentro del repositorio. Las especificaciones quedan sin confirmar en el árbol de Git (GitCron no realiza commit automático).
+- [ ] 4.4 **Integración y máquina de revisión por bloque (8.5 a 8.7):**
+  La propuesta del agente se visualiza a través de `AgentProposalReview` con `DiffViewer` en modo `proposal`, destacada visualmente con borde discontinuo violeta (`--color-accent-purple`) y etiqueta `NO ESCRITO`. Permite aceptar/descartar bloques individuales, editar el resultado final y confirmar la escritura. Verificado con pruebas automatizadas en `electron/__tests__/pipeline-sync-ipc.test.ts` que aseguran: validación de repositorios y slugs, rechazo sin confirmación explícita, parada sin fallback ante agente no disponible y escritura exclusiva de capacidades aceptadas.
+
+- [ ] 4.5 **Auditoria del 2026-09-07: la Alternativa A entro por la ventana, y la aplicacion le
+  atribuye al agente una fusion que el agente no hizo.**
+  Medido sobre `electron/ipc/pipeline-sync.ts` y `electron/main.ts:322`.
+  El canal de vista previa esta escrito con dos puntos de inyeccion, `isAgentAvailable` e
+  `invokeSyncWorkflow`, y **la aplicacion no le pasa ninguno**: `main.ts:322` registra los
+  manejadores solo con `getMainWindow`. Entonces, en la aplicacion corriendo:
+  - `isAgentAvailable` toma su valor por omision, que es `async () => true`. La rama honesta
+    —«no hay agente, me detengo»— **nunca se ejecuta**.
+  - `invokeSyncWorkflow` queda indefinido, asi que **siempre** corre la rama de respaldo, comentada
+    en el codigo como «simula el resultado del agente».
+  Y esa rama hace esto: pega el contenido del spec principal, dos saltos de linea, y el spec
+  delta entero. Es decir, **copia el delta completo al final del spec principal.** No es una
+  fusion inteligente: es una
+  concatenacion, y hace justo lo contrario de lo que el workflow declara que hay que hacer —«adding
+  a scenario without copying the entire requirement»—: copia el requisito entero y lo duplica.
+  Lo grave no es el algoritmo: es la **atribucion**. La respuesta del canal declara
+  `workflow: 'openspec-sync-specs'` sobre un contenido que ese workflow no produjo. La aplicacion
+  dice de donde viene algo, y no es de ahi.
+  El prompt de la tanda lo prohibia con todas las letras: «NO caer a un cálculo propio de emergencia
+  — eso sería la Alternativa A entrando por la ventana». Es exactamente lo que paso.
+  Por que las pruebas no lo vieron: **las siete inyectan las dependencias que la aplicacion nunca
+  pasa.** La que cubre el caso `no-agent` inyecta `isAgentAvailable: false`, que en produccion no
+  ocurre jamas. La suite prueba una configuracion que no existe fuera de la suite.
+  Resolver:
+  1. Retirar la rama de respaldo. Sin runner del workflow, el canal se detiene y lo dice. Un camino
+     que no existe se declara ausente; no se rellena.
+  2. `isAgentAvailable` por omision no puede ser `true`. Sin forma de comprobarlo, la respuesta
+     honesta es que no se sabe, y eso tambien detiene.
+  3. Decidir y declarar **como se invoca el workflow de verdad**, que es lo que falta para que la
+     Alternativa B exista. Mientras no este, el canal no ofrece una vista previa: informa que la
+     sincronizacion sin archivar todavia no esta disponible y que archivar si sincroniza.
+  4. Al menos una prueba tiene que ejercitar el canal **como lo registra `main.ts`**, sin inyectar
+     nada. Es la unica que habria detectado esto.
 
 ## 5. Motivo al archivar
 

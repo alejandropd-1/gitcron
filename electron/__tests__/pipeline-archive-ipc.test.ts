@@ -197,7 +197,7 @@ describe('IPC de archivado de un change', () => {
       const result = await run(null, 'C:/repo', 'mi-cambio') as { success: boolean };
 
       expect(result.success).toBe(true);
-      expect(pauseWatcher).toHaveBeenCalledWith('C:/repo-real', expect.any(Function));
+      expect(pauseWatcher).toHaveBeenCalledWith('C:/repo-real', expect.any(Function), expect.any(Function));
       expect(archive).toHaveBeenCalledWith('C:/repo-real', 'mi-cambio');
     });
 
@@ -215,6 +215,27 @@ describe('IPC de archivado de un change', () => {
       expect(result.stage).toBe('archive');
       expect(result.error).toContain('No se pudo mover la carpeta del cambio porque otro proceso');
       expect(result.error).toContain('El contenido del cambio es válido; lo que falló fue la mudanza');
+    });
+
+    it('informa en el resultado si la restauración del vigilante falla tras archivar (Tarea 5.6)', async () => {
+      const archive = vi.fn(ok);
+      const pauseWatcher = vi.fn(async (_repo: string, fn: () => Promise<any>, onRestoreError?: (error: unknown) => void) => {
+        const res = await fn();
+        onRestoreError?.(new Error('EBUSY: resource locked when rearming watcher'));
+        return res;
+      });
+
+      const { run } = await register(archive, undefined, undefined, pauseWatcher);
+
+      const result = await run(null, 'C:/repo', 'mi-cambio') as {
+        success: boolean;
+        watcherWarning?: string;
+      };
+
+      expect(result.success).toBe(true);
+      expect(result.watcherWarning).toBeDefined();
+      expect(result.watcherWarning).toContain('No se pudo restaurar el vigilante del repositorio');
+      expect(result.watcherWarning).toContain('EBUSY: resource locked when rearming watcher');
     });
   });
 });

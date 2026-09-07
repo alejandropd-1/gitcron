@@ -125,6 +125,7 @@ function createWatcherInstance(targetPath: string): FSWatcher {
 export async function withRepoWatcherPaused<T>(
   targetPath: string,
   action: () => Promise<T>,
+  onRestoreError?: (error: unknown) => void,
 ): Promise<T> {
   return enqueueWatcherOperation(targetPath, async () => {
     const existing = repoWatchers.get(targetPath);
@@ -142,8 +143,9 @@ export async function withRepoWatcherPaused<T>(
         try {
           const rearmed = createWatcherInstance(targetPath);
           repoWatchers.set(targetPath, rearmed);
-        } catch {
-          // ignore
+        } catch (error) {
+          console.warn(`[watchers] No se pudo restaurar el vigilante para ${targetPath}:`, error);
+          onRestoreError?.(error);
         }
       }
     }

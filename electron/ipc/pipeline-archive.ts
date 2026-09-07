@@ -25,7 +25,7 @@ import type { ArchivePlan } from '../../types/pipeline';
 export type { ArchivePlan };
 
 export type WriteArchiveReason = (repoPath: string, changeId: string, reason: string) => Promise<void>;
-export type PauseWatcherDuring = <T>(repoPath: string, fn: () => Promise<T>) => Promise<T>;
+export type PauseWatcherDuring = <T>(repoPath: string, fn: () => Promise<T>, onRestoreError?: (error: unknown) => void) => Promise<T>;
 
 const defaultWriteReason: WriteArchiveReason = async (repoPath, changeId, reason) => {
   const resolved = resolveInside(repoPath, `openspec/changes/${changeId}/archive-reason.md`);
@@ -104,19 +104,40 @@ export function registerPipelineArchiveHandlers(
         await writeReason(canonicalPath, changeId, reason.trim());
       }
 
-      // Soltar vigilante propio durante la mudanza de carpeta en Windows (Tarea 5.3)
-      const result = await pauseWatcher(canonicalPath, () => archive(canonicalPath, changeId));
+      // Soltar vigilante propio durante la mudanza de carpeta en Windows (Tareas 5.3 y 5.6)
+      let watcherError: string | undefined;
+      const result = await pauseWatcher(
+        canonicalPath,
+        () => archive(canonicalPath, changeId),
+        (err) => {
+          watcherError = errMsg(err);
+        },
+      );
+
+      const watcherWarning = watcherError
+        ? `No se pudo restaurar el vigilante del repositorio tras archivar: ${watcherError}`
+        : undefined;
 
       // El resultado se lee del CLI, no del hecho de que el proceso terminó.
       if (!result.ok) {
         if (result.error && FOLDER_LOCK_PATTERN.test(result.error)) {
-          return { success: false, error: FOLDER_LOCK_MESSAGE, stage: 'archive' };
+          return {
+            success: false,
+            error: FOLDER_LOCK_MESSAGE,
+            stage: 'archive',
+            ...(watcherWarning ? { watcherWarning } : {}),
+          };
         }
-        return { success: false, error: result.error, stage: 'archive' };
+        return {
+          success: false,
+          error: result.error,
+          stage: 'archive',
+          ...(watcherWarning ? { watcherWarning } : {}),
+        };
       }
 
       getMainWindow()?.webContents.send('repo:fs-change', { repoPath: canonicalPath });
-      return { success: true };
+      return { success: true, ...(watcherWarning ? { watcherWarning } : {}) };
     } catch (error) {
       const message = errMsg(error);
       if (FOLDER_LOCK_PATTERN.test(message)) {

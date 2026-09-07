@@ -1,6 +1,6 @@
 import { defineConfig } from 'tsup';
 
-export default defineConfig((options) => [
+export default defineConfig([
   {
     // Main process — bundle ALL dependencies into a single file.
     // Only 'electron' stays external (it's provided by the Electron runtime).
@@ -9,7 +9,6 @@ export default defineConfig((options) => [
     outDir: 'dist',
     target: 'node22',
     bundle: true,
-    watch: options.watch ? ['electron', 'types', 'lib'] : false,
     // Bundle everything except 'electron' (provided by the Electron runtime)
     // and `@colbymchenry/codegraph` (Cartography's CodeGraph engine): it
     // re-exports a per-platform bundle with WASM/tree-sitter that it resolves via
@@ -40,7 +39,6 @@ export default defineConfig((options) => [
     outDir: 'dist',
     target: 'node22',
     bundle: true,
-    watch: options.watch ? ['electron', 'types', 'lib'] : false,
     noExternal: [/^(?!electron$|node:).+/],
     external: ['electron'],
     esbuildOptions(options) {

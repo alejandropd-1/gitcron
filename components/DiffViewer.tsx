@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Minus, Plus, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Check, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/use-translation';
 
-interface DiffLine {
+export interface DiffLine {
   index: number;
   type: 'context' | 'add' | 'remove' | 'no-newline';
   content: string;
@@ -13,26 +13,32 @@ interface DiffLine {
   newLineNum?: number;
 }
 
-interface DiffHunk {
+export interface DiffHunk {
   header: string;
   lines: DiffLine[];
 }
 
-export type HunkActionMode = 'stage' | 'unstage';
+export type HunkActionMode = 'stage' | 'unstage' | 'proposal';
 
-type HunkActions = {
+export type HunkProposalStatus = 'pending' | 'applied' | 'discarded';
+
+export type HunkActions = {
   mode: HunkActionMode;
   busyHunkIndex?: number | null;
   disabled?: boolean;
   onStageHunk?: (hunkIndex: number, selectedLines?: number[]) => void;
   onUnstageHunk?: (hunkIndex: number, selectedLines?: number[]) => void;
   onDiscardHunk?: (hunkIndex: number, selectedLines?: number[]) => void;
+  onApplyHunk?: (hunkIndex: number, selectedLines?: number[]) => void;
+  hunkStatuses?: Record<number, HunkProposalStatus>;
 };
 
-function parseDiff(raw: string): DiffHunk[] {
+export function parseDiff(raw: string): DiffHunk[] {
   if (!raw) return [];
   const hunks: DiffHunk[] = [];
-  const lines = raw.split('\n');
+  const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = normalized.split('\n');
+  if (lines[lines.length - 1] === '') lines.pop();
   let currentHunk: DiffHunk | null = null;
   let oldLineNum = 0;
   let newLineNum = 0;
@@ -91,10 +97,12 @@ export function DiffViewer({
   const t = useT();
   const hunks = useMemo(() => parseDiff(diff), [diff]);
   const [selectedLinesByHunk, setSelectedLinesByHunk] = useState<Record<number, number[]>>({});
+  const [prevDiff, setPrevDiff] = useState(diff);
 
-  useEffect(() => {
+  if (prevDiff !== diff) {
+    setPrevDiff(diff);
     setSelectedLinesByHunk({});
-  }, [diff]);
+  }
 
   const toggleLineSelection = (hunkIndex: number, lineIndex: number) => {
     setSelectedLinesByHunk((current) => {
@@ -141,6 +149,25 @@ export function DiffViewer({
             <div key={hi} className="border-b border-border-subtle/20">
               <div className="px-4 py-1 bg-bg-overlay text-text-secondary text-[length:var(--font-size-xs)] sticky top-0 z-10 select-none flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate">{hunk.header}</span>
+                {hunkActions?.mode === 'proposal' && (
+                  <span
+                    data-testid={`proposal-hunk-badge-${hi}`}
+                    className={cn(
+                      'shrink-0 text-[length:var(--font-size-2xs)] px-1.5 py-0.5 rounded font-mono',
+                      hunkActions.hunkStatuses?.[hi] === 'applied'
+                        ? 'border border-git-add/40 bg-git-add/10 text-git-add font-medium'
+                        : hunkActions.hunkStatuses?.[hi] === 'discarded'
+                        ? 'border border-border-subtle/40 bg-bg-surface text-text-secondary line-through'
+                        : 'border border-dashed border-accent-purple/50 bg-accent-purple/10 text-accent-purple font-medium',
+                    )}
+                  >
+                    {hunkActions.hunkStatuses?.[hi] === 'applied'
+                      ? t('diff.applied')
+                      : hunkActions.hunkStatuses?.[hi] === 'discarded'
+                      ? t('diff.discarded')
+                      : t('diff.proposal')}
+                  </span>
+                )}
                 {hunkActions && (selectedLinesByHunk[hi]?.length ?? 0) > 0 && (
                   <span className="shrink-0 text-[length:var(--font-size-xs)] text-secondary">
                     {t('diff.selectedLines', { count: String(selectedLinesByHunk[hi].length) })}
@@ -162,6 +189,7 @@ export function DiffViewer({
                     wordWrap={wordWrap}
                     lineSelectionEnabled={!!hunkActions}
                     selected={!!selectedLinesByHunk[hi]?.includes(line.index)}
+                    dimmed={hunkActions?.mode === 'proposal' && hunkActions.hunkStatuses?.[hi] === 'discarded'}
                     onToggleSelected={() => toggleLineSelection(hi, line.index)}
                   />
                 ))}
@@ -200,7 +228,7 @@ function HunkActionButtons({
         >
           {isBusy ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
         </button>
-      ) : (
+      ) : actions.mode === 'unstage' ? (
         <button
           type="button"
           onClick={() => actions.onUnstageHunk?.(hunkIndex, selectedLinePayload)}
@@ -210,6 +238,29 @@ function HunkActionButtons({
         >
           {isBusy ? <Loader2 size={13} className="animate-spin" /> : <Minus size={13} />}
         </button>
+      ) : (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            data-testid={`proposal-apply-hunk-${hunkIndex}`}
+            onClick={() => (actions.onApplyHunk ?? actions.onStageHunk)?.(hunkIndex, selectedLinePayload)}
+            disabled={disabled || (!actions.onApplyHunk && !actions.onStageHunk)}
+            title={selectedLinePayload ? (t('diff.applySelectedLines') || 'Aplicar líneas seleccionadas') : (t('diff.applyHunk') || 'Aplicar bloque')}
+            className="h-6 w-6 rounded border border-git-add/30 bg-git-add/10 text-git-add hover:bg-git-add/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+            {isBusy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+          </button>
+          <button
+            type="button"
+            data-testid={`proposal-discard-hunk-${hunkIndex}`}
+            onClick={() => actions.onDiscardHunk?.(hunkIndex, selectedLinePayload)}
+            disabled={disabled || !actions.onDiscardHunk}
+            title={selectedLinePayload ? (t('diff.discardSelectedLinesProposal') || 'Descartar líneas seleccionadas') : (t('diff.discardHunkProposal') || 'Descartar bloque')}
+            className="h-6 w-6 rounded border border-error/30 bg-error/10 text-error hover:bg-error/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
       )}
       {actions.mode === 'stage' && actions.onDiscardHunk && (
         <button
@@ -231,16 +282,20 @@ function DiffLineRow({
   wordWrap,
   lineSelectionEnabled,
   selected,
+  dimmed,
   onToggleSelected,
 }: {
   line: DiffLine;
   wordWrap: boolean;
   lineSelectionEnabled: boolean;
   selected: boolean;
+  dimmed?: boolean;
   onToggleSelected: () => void;
 }) {
   const t = useT();
-  const bg = line.type === 'add' ? 'bg-git-add/10 hover:bg-git-add/20'
+  const bg = dimmed
+    ? 'opacity-40 bg-bg-surface line-through'
+    : line.type === 'add' ? 'bg-git-add/10 hover:bg-git-add/20'
     : line.type === 'remove' ? 'bg-git-delete/10 hover:bg-git-delete/20'
     : line.type === 'no-newline' ? 'bg-border-subtle/10'
     : 'hover:bg-border-subtle/30';

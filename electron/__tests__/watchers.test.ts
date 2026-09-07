@@ -141,6 +141,36 @@ describe('repository watcher lifecycle', () => {
     expect(result).toBe('passthrough');
     expect(mocks.watch).not.toHaveBeenCalled();
   });
+
+  it('notifica onRestoreError cuando la re-creación del vigilante falla (Tarea 5.6)', async () => {
+    const { registerWatcherHandlers } = await import('../ipc/watchers');
+    const { authorizedRepoStore } = await import('../ipc/authorized-repos');
+    vi.spyOn(authorizedRepoStore, 'isAuthorized').mockReturnValue(true);
+    registerWatcherHandlers(() => null);
+    const watch = mocks.handlers.get('repo:watch');
+    if (!watch) throw new Error('watcher handler not registered');
+
+    const repoPath = 'C:/work/repo-restore-fail';
+    await watch(null, repoPath);
+    expect(mocks.watch).toHaveBeenCalledTimes(1);
+
+    mocks.watch.mockImplementationOnce(() => {
+      throw new Error('EPERM: cannot watch directory');
+    });
+
+    let reportedError: any = null;
+    const result = await withRepoWatcherPaused(
+      repoPath,
+      async () => 'finished-action',
+      (err) => {
+        reportedError = err;
+      },
+    );
+
+    expect(result).toBe('finished-action');
+    expect(reportedError).toBeInstanceOf(Error);
+    expect(reportedError.message).toContain('EPERM: cannot watch directory');
+  });
 });
 
 // La regla de qué se observa dentro de `.git/` es una lista blanca. Estos tests

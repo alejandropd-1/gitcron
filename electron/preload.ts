@@ -316,6 +316,16 @@ contextBridge.exposeInMainWorld('api', {
   /** Archiva un change: mueve el cambio y consolida specs. No toca Git. Acepta motivo opcional. */
   pipelineArchiveChange: (repoPath: string, changeId: string, reason?: string) =>
     ipcRenderer.invoke('pipeline:archive-change', repoPath, changeId, reason),
+  /** Vista previa de sincronización de specs con openspec-sync-specs (Alternativa B). No escribe en disco. */
+  pipelineSyncPreview: (repoPath: string, changeId: string) =>
+    ipcRenderer.invoke('pipeline:sync-preview', repoPath, changeId),
+  /** Ejecución de sincronización de specs. Requiere confirmación explícita previa. No hace commit en Git. */
+  pipelineSyncExecute: (
+    repoPath: string,
+    changeId: string,
+    acceptedItems: Array<{ capability: string; content: string }>,
+    options?: { confirmed?: boolean },
+  ) => ipcRenderer.invoke('pipeline:sync-execute', repoPath, changeId, acceptedItems, options),
   /** Cambia el estado de una tarea. `expectedText` verifica que sea la misma. */
   pipelineSetTaskChecked: (
     repoPath: string,

@@ -7,7 +7,7 @@
     "dev": "next dev -p 3001",
     "build": "next build",
     "build:electron": "tsup",
-    "electron:dev": "npm run build:electron && concurrently \"next dev -p 3001\" \"npm run build:electron -- --watch electron\" \"wait-on http://localhost:3001 && node scripts/wait-for-patched-main.mjs && electron .\"",
+    "electron:dev": "npm run build:electron && concurrently \"next dev -p 3001\" \"npm run build:electron -- --watch electron --watch types --watch lib\" \"wait-on http://localhost:3001 && node scripts/wait-for-patched-main.mjs && electron .\"",
     "start": "next start",
     "lint": "eslint .",
     "clean": "next clean",

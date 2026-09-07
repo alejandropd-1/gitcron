@@ -27,6 +27,7 @@ import { registerPipelineHandlers } from './ipc/pipeline';
 import { PipelineControlBus } from './pipeline/control/control-bus';
 import { registerPipelineControlHandlers } from './ipc/pipeline-control';
 import { registerPipelineArchiveHandlers } from './ipc/pipeline-archive';
+import { registerPipelineSyncHandlers } from './ipc/pipeline-sync';
 import { registerPipelineTaskHandlers } from './ipc/pipeline-tasks';
 import { registerPipelineSpecHandlers } from './ipc/pipeline-specs';
 import { registerOpenSpecIpcHandlers } from './ipc/pipeline-openspec';
@@ -318,6 +319,7 @@ const pipelineRuntimeHub = new RuntimeSessionHub(
 );
 registerPipelineRuntimeHandlers(pipelineRuntimeHub); // pipeline:runtime:*
 registerPipelineArchiveHandlers(getMainWindow);  // pipeline:archive-change (escribe: fuera del módulo read-only)
+registerPipelineSyncHandlers(getMainWindow);     // pipeline:sync-preview, pipeline:sync-execute (Alternativa B)
 registerPipelineTaskHandlers();    // pipeline:set-task-checked, add-task, edit-task, move-task, remove-task (autoría y estado)
 registerPipelineSpecHandlers();    // pipeline:read-specification (sólo lee; fuera del snapshot por peso)
 registerOpenSpecIpcHandlers({ getUserDataDir: () => app.getPath('userData') }); // pipeline:openspec:* (sólo diagnóstico y lectura)

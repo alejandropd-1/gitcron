@@ -773,11 +773,11 @@ export function OpenSpecDashboard({
     }
     const items: ViewSwitcherItem[] = [];
 
-    // Ranura 1: Volver al inicio (navegación contextual dinámica del panel)
+    // Ranura 1: Volver a cambios en curso (navegación contextual dinámica del panel)
     items.push({
       id: 'start',
-      label: t('pipeline.switcher.start'),
-      icon: <ChevronLeft size={13} />,
+      label: t('pipeline.openspec.start.inProgress'),
+      icon: <ListTodo size={13} />,
       slotIndex: 1,
     });
 
@@ -1659,7 +1659,6 @@ export function OpenSpecDashboard({
         // Los artefactos/diffs viven en su propia vista soberana ahora.
         setActiveChangeView('diffs');
         setCenterTab('artifacts');
-        if (intent.kind === 'view-diff') setEvidenceTab('diffs');
         break;
       case 'refresh-validation':
         onRefresh?.();
@@ -2539,6 +2538,7 @@ export function OpenSpecDashboard({
                     setLaunchTarget(null);
                     if (viewId === 'start') {
                       setSelection(null);
+                      setActiveStartView('in-progress');
                       setActiveChangeView('tasks');
                     } else {
                       setActiveChangeView(viewId as ActiveChangeView);
@@ -2696,7 +2696,7 @@ export function OpenSpecDashboard({
                                     completed: !task.completed,
                                   })}
                                 >
-                                  {task.completed ? <Check size={14} /> : <Circle size={14} />}
+                                  {task.completed ? <CheckCircle2 size={16} /> : <Circle size={14} />}
                                 </button>
                                 <strong>{resolveTaskLabel(task)}</strong>
                                 <span>{resolveTaskText(task)}</span>
@@ -2744,58 +2744,17 @@ export function OpenSpecDashboard({
                   ))}
 
                   {/* Vista B: ARTEFACTOS Y EVIDENCIA */}
-                  {activeChangeView === 'artifacts' && (() => {
-                    const artifactTasks = Array.isArray(selectedChange.tasks) ? selectedChange.tasks : [];
-                    const artifactTotalTasks = artifactTasks.length;
-                    const artifactCompletedTasks = artifactTasks.filter((task) => task.completed).length;
-                    const artifactTasksDone = artifactCompletedTasks === artifactTotalTasks && artifactTotalTasks > 0;
-                    const readable = selectedChange.artifacts;
-
-                    const artifactRow = (
-                      label: string,
-                      exists: boolean,
-                      stateLabel: string,
-                      tab: DetailTab,
-                      icon: React.ReactNode,
-                    ) => (
-                      <button
-                        type="button"
-                        className={styles.artifactRow}
-                        disabled={!exists || readable === null}
-                        onClick={() => setEvidenceTab(tab)}
-                        title={exists ? t('pipeline.openspec.artifact.open', { file: label }) : undefined}
-                      >
-                        {icon} <span>{label}</span> <em data-done={exists}>{stateLabel}</em>
-                      </button>
-                    );
-
-                    return (
-                      <section className={styles.startScreen} aria-label={t('pipeline.switcher.artifacts')}>
-                        {/* Espacio reservado para la línea de tiempo de artefactos (3c.4). */}
-                        <div
-                          className={styles.artifactTimelineSlot}
-                          data-slot="artifact-timeline"
-                          aria-label={t('pipeline.openspec.artifacts.timelineSlot')}
-                        >
-                          <div className={styles.artifactList}>
-                            {artifactRow('proposal.md', selectedChange.proposalExists, selectedChange.proposalExists ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending'), 'proposal', <FileText size={13} />)}
-                            {artifactRow('design.md', selectedChange.designExists, selectedChange.designExists ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending'), 'design', <FileText size={13} />)}
-                            {artifactRow('specs/', selectedChange.specsCount > 0, selectedChange.specsCount > 0 ? t('pipeline.openspec.complete') : t('pipeline.openspec.pending'), 'specs', <FolderOpen size={13} />)}
-                            {artifactRow('tasks.md', artifactTotalTasks > 0, artifactTasksDone ? t('pipeline.openspec.complete') : t('pipeline.openspec.inProgress'), 'tasks', <FileText size={13} />)}
-                          </div>
-                        </div>
-                        <div className={cn(styles.centerBlock, styles.evidencePanel)}>
-                          <PipelineDetails
-                            snapshot={snapshot}
-                            repoPath={repoPath}
-                            selectedChange={selectedChange}
-                            tab={evidenceTab}
-                            onTabChange={setEvidenceTab}
-                          />
-                        </div>
-                      </section>
-                    );
-                  })()}
+                  {activeChangeView === 'artifacts' && (
+                    <section className={styles.startScreen} aria-label={t('pipeline.switcher.artifacts')}>
+                      <PipelineDetails
+                        snapshot={snapshot}
+                        repoPath={repoPath}
+                        selectedChange={selectedChange}
+                        tab={evidenceTab}
+                        onTabChange={setEvidenceTab}
+                      />
+                    </section>
+                  )}
 
                   {/* Vista C: DIFFS (sólo si hay cambios sin confirmar) */}
                   {activeChangeView === 'diffs' && (

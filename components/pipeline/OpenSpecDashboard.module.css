@@ -333,7 +333,7 @@
 }
 
 .taskList { display: flex; flex-direction: column; gap: var(--sp-1); margin: 0; padding: 0; list-style: none; }
-.taskList > li { display: grid; grid-template-columns: 1.25rem 3rem minmax(0, 1fr) auto; align-items: start; min-height: 3rem; padding: var(--space-2) var(--space-2); color: var(--color-text-primary); font-size: var(--font-size-xs); line-height: 1.5; font-family: var(--font-mono), ui-monospace, monospace; }
+.taskList > li { display: grid; grid-template-columns: 2.75rem 3rem minmax(0, 1fr) auto; align-items: start; min-height: 3rem; padding: var(--space-2) 0; color: var(--color-text-primary); font-size: var(--font-size-xs); line-height: 1.5; font-family: var(--font-mono), ui-monospace, monospace; }
 /* La etiqueta se muestra completa sin elipsis ni recortes destructivos. */
 .taskList > li > strong { color: var(--color-primary); overflow-wrap: anywhere; }
 .taskList > li[data-completed='true'] > strong { color: var(--color-text-secondary); }
@@ -342,19 +342,22 @@
   overflow-wrap: anywhere;
   word-break: break-word;
 }
-.taskList > li[data-completed='true'] .taskStatus {
+.taskStatus {
   display: grid;
   place-items: center;
   min-width: 2.75rem;
   min-height: 2.75rem;
-  padding: var(--space-2);
-  margin: calc(-1 * var(--space-2));
+  padding: 0;
+  margin: 0;
   border: 0;
   border-radius: var(--radius-default);
   background: none;
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease;
+}
+.taskList > li[data-completed='true'] .taskStatus {
+  color: var(--color-git-add);
 }
 .taskStatus:hover:not(:disabled) { background: color-mix(in srgb, var(--color-primary) 14%, transparent); color: var(--color-primary); }
 .taskStatus:focus-visible { outline: 1px solid var(--color-primary); outline-offset: 1px; }
@@ -1391,11 +1394,13 @@
 .startList { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .startList > li {
   padding: var(--space-3) var(--space-3);
-  border: 1px solid var(--color-border-subtle);
+  border: 0;
   border-radius: var(--radius-lg);
   background: var(--color-bg-overlay);
 }
-.startList > li[data-branch] { border-color: var(--color-primary); }
+.startList > li[data-branch] {
+  border-left: 3px solid var(--color-primary);
+}
 .startList > li > p {
   display: -webkit-box;
   overflow: hidden;
@@ -1426,24 +1431,33 @@
 /* Desplegables de la pantalla de entrada: qué falta en un cambio, y la lista
    completa de archivados. Plegados por defecto para que esto siga siendo una
    pantalla de estado y no una lista de tareas. */
-/* Mismo nivel 3 que `groupToggle`: despliega contenido, no actúa sobre el repo. */
 .startPendingToggle {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   gap: var(--sp-1);
-  min-block-size: var(--control-min);
-  padding: var(--sp-1) var(--sp-3);
-  border: 1px solid color-mix(in srgb, var(--color-git-add) 34%, transparent);
+  min-block-size: 2.75rem;
+  min-height: 2.75rem;
+  padding: var(--sp-1) var(--sp-2);
+  border: 0;
   border-radius: var(--radius-md);
   background: none;
-  color: var(--color-git-add);
+  color: var(--color-text-secondary);
   cursor: pointer;
-  font-weight: 600; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 600;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  transition: color 120ms ease;
 }
-.startPendingToggle:hover { border-color: var(--color-git-add); background: color-mix(in srgb, var(--color-git-add) 12%, transparent); }
-.startPendingToggle svg { transition: transform 120ms ease; }
-.startPendingToggle[aria-expanded='true'] svg { transform: rotate(180deg); }
+.startPendingToggle:hover {
+  color: var(--color-primary);
+}
+.startPendingToggle svg {
+  transition: transform 120ms ease;
+}
+.startPendingToggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
 
 .startPending { margin: var(--space-3) 0 0; padding: 0; list-style: none; }
 .startPending > li {
@@ -2519,10 +2533,9 @@ summary.centerBlock {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  background-color: var(--color-bg-overlay);
+  padding: 0;
+  border: 0;
+  background-color: transparent;
 }
 
 .openspecScope :global(.pipeline-details__header) {
@@ -2532,7 +2545,7 @@ summary.centerBlock {
   justify-content: space-between;
   gap: var(--space-3);
   padding-bottom: 0;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border: 0;
 }
 
 .openspecScope :global(.pipeline-details__title) {
@@ -2551,6 +2564,10 @@ summary.centerBlock {
 }
 
 .openspecScope :global(.pipeline-details__tab) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
   padding: var(--space-2) var(--space-3);
   font-size: var(--font-size-xs);
   font-weight: 600;
@@ -2604,6 +2621,12 @@ summary.centerBlock {
   background-color: var(--color-bg-overlay);
   color: var(--color-text-secondary);
   line-height: 1.4;
+}
+
+.openspecScope :global(.pipeline-artifact-graph li:has(button)) {
+  padding: 0;
+  border: 0;
+  background: none;
 }
 
 .openspecScope :global(.pipeline-artifact-graph__id) {

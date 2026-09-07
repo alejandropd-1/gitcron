@@ -131,7 +131,7 @@ describe('sincronización entre el cambio mostrado y el leído', () => {
     screen.getAllByRole('button', { name: /openspec\.start\.enter/ })[0].click();
     await vi.waitFor(() => expect(screen.queryByText(/openspec\.change\.active/)).toBeTruthy());
 
-    screen.getByRole('button', { name: /pipeline\.switcher\.start|openspec\.start\.back/ }).click();
+    screen.getByRole('button', { name: /pipeline\.openspec\.start\.inProgress|pipeline\.switcher\.start|openspec\.start\.back/ }).click();
     await vi.waitFor(() => expect(screen.getByText('pipeline.openspec.start.title')).toBeTruthy());
   });
 });

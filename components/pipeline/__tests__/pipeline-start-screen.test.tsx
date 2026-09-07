@@ -284,7 +284,7 @@ describe('pantalla de entrada del repositorio', () => {
     expect(screen.getByText(/openspec\.change\.active/)).toBeTruthy();
     expect(onSelectChange).toHaveBeenCalledWith('primero');
 
-    fireEvent.click(screen.getByRole('button', { name: /pipeline\.switcher\.start|openspec\.start\.back/ }));
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.start\.inProgress|pipeline\.switcher\.start|openspec\.start\.back/ }));
     expect(screen.getByText('pipeline.openspec.start.title')).toBeTruthy();
   });
 

@@ -81,6 +81,17 @@ function mockSnapshot(): PipelineSnapshot {
           designExists: true,
           specsCount: 1,
           validation: 'unknown' as const,
+          status: {
+            available: true,
+            artifacts: [
+              { id: 'proposal', state: 'done', missingDeps: [] },
+              { id: 'design', state: 'done', missingDeps: [] },
+              { id: 'specs', state: 'done', missingDeps: [] },
+              { id: 'tasks', state: 'ready', missingDeps: [] },
+            ],
+            applyRequires: ['tasks'],
+            isComplete: false,
+          },
           artifacts: {
             proposal: '# Propuesta\n\nTexto de la propuesta.',
             specs: [{ name: 'cap-1', content: '# Capacidad 1' }],
@@ -251,24 +262,27 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       expect(tablist).toBeTruthy();
 
       const tabs = screen.getAllByRole('tab');
-      expect(tabs.length).toBe(6);
+      // Con Obs 52 se retiran diffs y glossary, dejando los 4 artefactos canónicos
+      expect(tabs.length).toBe(4);
 
       const expectedLabels = [
-        /pipeline\.details\.proposal/i,
-        /pipeline\.details\.design/i,
-        /pipeline\.details\.specs/i,
-        /pipeline\.details\.tasks/i,
-        /pipeline\.details\.diffs/i,
-        /pipeline\.details\.glossary/i,
+        /pipeline\.details\.proposal|pipeline\.openspec\.graph\.artifact\.proposal/i,
+        /pipeline\.details\.design|pipeline\.openspec\.graph\.artifact\.design/i,
+        /pipeline\.details\.specs|pipeline\.openspec\.graph\.artifact\.specs/i,
+        /pipeline\.details\.tasks|pipeline\.openspec\.graph\.artifact\.tasks/i,
       ];
 
       for (const expected of expectedLabels) {
         expect(tabs.some((t) => expected.test(t.textContent || ''))).toBe(true);
       }
 
+      // Se retiran diffs y glossary de las solapas
+      expect(tabs.some((t) => /pipeline\.details\.diffs/i.test(t.textContent || ''))).toBe(false);
+      expect(tabs.some((t) => /pipeline\.details\.glossary/i.test(t.textContent || ''))).toBe(false);
+
       // La primera solapa (propuesta) arranca activa
       const activeTab = tabs.find((t) => t.getAttribute('aria-selected') === 'true');
-      expect(activeTab?.textContent).toMatch(/pipeline\.details\.proposal/i);
+      expect(activeTab?.textContent).toMatch(/proposal/i);
       expect(activeTab?.className).toContain('pipeline-details__tab--active');
     });
   });
@@ -478,6 +492,87 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       expect(outOfScopeBoundaries.didacticCopyAndGlossary.covered).toBe(false);
       expect(outOfScopeBoundaries.subpixelRenderingAndGPU.covered).toBe(false);
       expect(outOfScopeBoundaries.liveHermesRuntimeStreaming.covered).toBe(false);
+    });
+  });
+
+  describe('4.16 / Observaciones 48, 49 y 50: Tarjetas de inicio, geometría de tareas y contenedor de evidencia', () => {
+    it('Obs 48: las tarjetas de inicio retiran el borde perimetral, [data-branch] usa border-left y .startPendingToggle no tiene borde', () => {
+      const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const css = fs.readFileSync(modulePath, 'utf-8');
+
+      // 1. .startList > li tiene border: 0 (no conserva border: 1px solid)
+      const startListMatch = css.match(/\.startList\s*>\s*li\s*\{([^}]+)\}/);
+      expect(startListMatch).toBeTruthy();
+      expect(startListMatch![1]).toMatch(/border:\s*0/);
+      expect(startListMatch![1]).not.toMatch(/border:\s*1px solid/);
+
+      // 2. .startList > li[data-branch] define border-left de 3px con var(--color-primary)
+      const branchMatch = css.match(/\.startList\s*>\s*li\[data-branch\]\s*\{([^}]+)\}/);
+      expect(branchMatch).toBeTruthy();
+      expect(branchMatch![1]).toMatch(/border-left:\s*3px solid var\(--color-primary\)/);
+
+      // 3. .startPendingToggle tiene min-height/min-block-size de 2.75rem y border: 0
+      const pendingToggleMatch = css.match(/\.startPendingToggle\s*\{([^}]+)\}/);
+      expect(pendingToggleMatch).toBeTruthy();
+      expect(pendingToggleMatch![1]).toMatch(/(?:min-height|min-block-size):\s*2\.75rem/);
+      expect(pendingToggleMatch![1]).toMatch(/border:\s*0/);
+    });
+
+    it('Obs 49: la casilla de tarea unifica su caja a 2.75rem en completadas y pendientes, usa CheckCircle2 y color-git-add', () => {
+      renderSdd();
+
+      // En el DOM montado:
+      const taskList = document.querySelector('ol[class*="taskList"]');
+      expect(taskList).toBeTruthy();
+
+      const taskItems = taskList!.querySelectorAll('li');
+      expect(taskItems.length).toBe(2);
+
+      const pendingItem = taskItems[0];
+      const completedItem = taskItems[1];
+
+      expect(pendingItem.getAttribute('data-completed')).toBe('false');
+      expect(completedItem.getAttribute('data-completed')).toBe('true');
+
+      const pendingBtn = pendingItem.querySelector('button[class*="taskStatus"]');
+      const completedBtn = completedItem.querySelector('button[class*="taskStatus"]');
+      expect(pendingBtn).toBeTruthy();
+      expect(completedBtn).toBeTruthy();
+
+      // La tarea completada renderiza el ícono CheckCircle2 (con SVG)
+      expect(completedBtn!.querySelector('svg')).toBeTruthy();
+
+      // Inspección CSS:
+      const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const css = fs.readFileSync(modulePath, 'utf-8');
+
+      // .taskStatus base declara 2.75rem de ancho y alto, padding 0 y margin 0
+      const taskStatusMatch = css.match(/\.taskStatus\s*\{([^}]+)\}/);
+      expect(taskStatusMatch).toBeTruthy();
+      expect(taskStatusMatch![1]).toMatch(/min-width:\s*2\.75rem/);
+      expect(taskStatusMatch![1]).toMatch(/min-height:\s*2\.75rem/);
+      expect(taskStatusMatch![1]).not.toMatch(/margin:\s*calc\(-1/);
+
+      // .taskList > li declara 2.75rem en la primera columna
+      const taskLiMatch = css.match(/\.taskList\s*>\s*li\s*\{([^}]+)\}/);
+      expect(taskLiMatch).toBeTruthy();
+      expect(taskLiMatch![1]).toMatch(/grid-template-columns:\s*2\.75rem\s+3rem/);
+
+      // .taskList > li[data-completed='true'] .taskStatus define var(--color-git-add)
+      const completedStatusMatch = css.match(/\.taskList\s*>\s*li\[data-completed='true'\]\s+\.taskStatus\s*\{([^}]+)\}/);
+      expect(completedStatusMatch).toBeTruthy();
+      expect(completedStatusMatch![1]).toMatch(/color:\s*var\(--color-git-add\)/);
+    });
+
+    it('Obs 50: el contenedor de evidencia retira el borde perimetral y fondo encapsulado', () => {
+      const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const css = fs.readFileSync(modulePath, 'utf-8');
+
+      const detailsMatch = css.match(/\.openspecScope\s+:global\(\.pipeline-details\)\s*\{([^}]+)\}/);
+      expect(detailsMatch).toBeTruthy();
+      expect(detailsMatch![1]).toMatch(/border:\s*0/);
+      expect(detailsMatch![1]).toMatch(/background-color:\s*transparent/);
+      expect(detailsMatch![1]).not.toMatch(/border:\s*1px solid/);
     });
   });
 });

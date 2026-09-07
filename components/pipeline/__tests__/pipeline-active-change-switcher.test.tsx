@@ -422,11 +422,11 @@ describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
     // En la cabecera no está el botón "Ver el repositorio"
     expect(header.querySelector('button[class*="backToStart"]')).toBeNull();
 
-    // El panel dinámico ofrece la opción de volver al inicio
-    const backToStartOption = screen.getByRole('button', { name: 'pipeline.switcher.start' });
+    // El panel dinámico ofrece la opción de volver a los cambios en curso
+    const backToStartOption = screen.getByRole('button', { name: 'pipeline.openspec.start.inProgress' });
     expect(backToStartOption).toBeTruthy();
 
-    // Al clickear volver al inicio, regresa a la pantalla de entrada del repositorio
+    // Al clickear volver a en curso, regresa a la pantalla de entrada del repositorio
     fireEvent.click(backToStartOption);
     expect(screen.getByRole('region', { name: 'pipeline.openspec.start.title' })).toBeTruthy();
   });

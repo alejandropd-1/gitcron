@@ -4,8 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { useT } from '@/hooks/use-translation';
 import type { OpenSpecChangeSummary, PipelineSnapshot } from './pipeline-view-state';
 import { SafeMarkdown } from './SafeMarkdown';
-import { LazyDiffViewer } from './LazyDiffViewer';
-import { PipelineArtifactGraph, shouldShowArtifactGraph } from './PipelineArtifactGraph';
+import { PipelineArtifactGraph, type DetailTab } from './PipelineArtifactGraph';
+
+export type { DetailTab };
 
 export type PipelineDetailsProps = {
   snapshot: PipelineSnapshot;
@@ -16,8 +17,6 @@ export type PipelineDetailsProps = {
   tab?: DetailTab;
   onTabChange?: (tab: DetailTab) => void;
 };
-
-export type DetailTab = 'proposal' | 'design' | 'specs' | 'tasks' | 'diffs' | 'glossary';
 
 /** Un artefacto ausente se declara como tal, no se muestra como cuerpo vacío. */
 const EMPTY_KEYS: Record<'proposal' | 'design' | 'tasks', string> = {
@@ -35,7 +34,7 @@ const EMPTY_KEYS: Record<'proposal' | 'design' | 'tasks', string> = {
  * Se aprovecha `openspec show <change> --diff` para mostrar directamente qué altera un change.
  */
 export function PipelineDetails({
-  snapshot,
+  snapshot: _snapshot,
   repoPath,
   selectedChange = null,
   tab,
@@ -74,27 +73,12 @@ export function PipelineDetails({
     };
   }, [selectedChange?.changeId, repoPath]);
 
-  const diffCount = snapshot.diffs?.length ?? 0;
-  const artifacts = selectedChange?.artifacts ?? null;
+  if (!selectedChange) {
+    return null;
+  }
+
+  const artifacts = selectedChange.artifacts ?? null;
   const deltaSpecs = artifacts?.specs ?? [];
-
-  const agentRuntimes = Object.fromEntries(
-    snapshot.agents.map((agent) => [agent.agentId, agent.runtime])
-  );
-
-  const tabButton = (id: DetailTab, label: string) => (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={activeTab === id}
-      aria-controls={`panel-${id}`}
-      id={`tab-${id}`}
-      className={`pipeline-details__tab ${activeTab === id ? 'pipeline-details__tab--active' : ''}`}
-      onClick={() => setActiveTab(id)}
-    >
-      {label}
-    </button>
-  );
 
   const markdownPanel = (id: 'proposal' | 'design' | 'tasks', content: string | null) => (
     <div role="tabpanel" id={`panel-${id}`} aria-labelledby={`tab-${id}`} className="pipeline-details__panel">
@@ -106,25 +90,19 @@ export function PipelineDetails({
 
   return (
     <div className="pipeline-details">
-      <div className="pipeline-details__header">
-        <div className="pipeline-details__tabs" role="tablist" aria-label={t('pipeline.details.title')}>
-          {tabButton('proposal', t('pipeline.details.proposal'))}
-          {tabButton('design', t('pipeline.details.design'))}
-          {tabButton('specs', `${t('pipeline.details.specs')} (${deltaSpecs.length})`)}
-          {tabButton('tasks', t('pipeline.details.tasks'))}
-          {tabButton('diffs', `${t('pipeline.details.diffs')} (${diffCount})`)}
-          {tabButton('glossary', t('pipeline.details.glossary'))}
-        </div>
+      <div
+        className="pipeline-details__header"
+        data-slot="artifact-timeline"
+        aria-label={t('pipeline.openspec.artifacts.timelineSlot')}
+      >
+        <PipelineArtifactGraph
+          status={selectedChange.status}
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+        />
       </div>
 
       <div className="pipeline-details__body">
-        {/* El grafo del CLI declara el estado real de cada artefacto antes de
-            su contenido. Es el dato que consume-openspec-status cableó hasta
-            acá: si no hay grafo, no se dibuja ni se inventa un sustituto. */}
-        {shouldShowArtifactGraph(selectedChange?.status)
-          ? <PipelineArtifactGraph status={selectedChange.status} />
-          : null}
-
         {activeTab === 'proposal' && markdownPanel('proposal', artifacts?.proposal ?? (selectedChange?.intent ? `## ${t('pipeline.details.proposal')}\n\n${selectedChange.intent}` : null))}
         {activeTab === 'design' && markdownPanel('design', artifacts?.design ?? null)}
         {activeTab === 'tasks' && markdownPanel('tasks', artifacts?.tasks ?? null)}
@@ -147,23 +125,6 @@ export function PipelineDetails({
                 </section>
               ))
             )}
-          </div>
-        )}
-
-        {activeTab === 'diffs' && (
-          <div role="tabpanel" id="panel-diffs" aria-labelledby="tab-diffs" className="pipeline-details__panel">
-            <LazyDiffViewer diffs={snapshot.diffs ?? []} agentRuntimes={agentRuntimes} />
-          </div>
-        )}
-
-        {activeTab === 'glossary' && (
-          <div role="tabpanel" id="panel-glossary" aria-labelledby="tab-glossary" className="pipeline-details__panel">
-            <div className="pipeline-details__empty">
-              <p>{t('pipeline.details.noGlossary')}</p>
-              <p style={{ marginTop: 'var(--space-2)', opacity: 0.6, fontSize: 'var(--font-size-xs)' }}>
-                [marcador de posición: glosario de términos del método]
-              </p>
-            </div>
           </div>
         )}
       </div>

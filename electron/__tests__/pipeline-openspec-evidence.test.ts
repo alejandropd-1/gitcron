@@ -389,6 +389,60 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
     }
   });
 
+  it('buildEngineStatusSnapshot deriva integrationState como outdated si hay targets sin configurar (1.4)', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-unconfigured-target-'));
+    try {
+      const gitDir = path.join(tempDir, '.git');
+      fs.mkdirSync(gitDir, { recursive: true });
+      fs.writeFileSync(path.join(gitDir, 'HEAD'), 'ref: refs/heads/main\n');
+
+      const openspecDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(openspecDir, { recursive: true });
+      fs.writeFileSync(path.join(openspecDir, 'config.yaml'), 'schema: spec-driven\n');
+
+      // .agents con workflows oficiales
+      const agentSkillDir = path.join(tempDir, '.agents', 'skills', 'openspec-apply-change');
+      fs.mkdirSync(agentSkillDir, { recursive: true });
+      fs.writeFileSync(path.join(agentSkillDir, 'SKILL.md'), '---\ngeneratedBy: "1.11.0"\n---\nOfficial agent skill\n');
+
+      // Un directorio de herramientas presente en disco que no está en las configuradas
+      const claudeDir = path.join(tempDir, '.claude', 'commands');
+      fs.mkdirSync(claudeDir, { recursive: true });
+      fs.writeFileSync(path.join(claudeDir, 'test.md'), 'cmd');
+
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(tempDir);
+
+      const snapshot = await buildEngineStatusSnapshot(tempDir, {
+        discoverCli: async () => ({
+          installed: true,
+          runtimeVersion: '1.11.0',
+          provenance: 'global',
+          displayPath: 'C:\\global\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.11.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        }),
+        readGlobalConfig: async () => ({
+          rawProfile: 'core',
+          configuredWorkflows: ['apply'],
+          origin: 'cli',
+          readAt: new Date().toISOString(),
+        }),
+      });
+
+      // La autoridad única en main deriva outdated porque .claude está presente pero sin configurar
+      expect(snapshot.integrationState).toBe('outdated');
+    } finally {
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    }
+  });
+
   describe('convergencia por target y perfiles (2.9 / Invariantes 8 & 19)', () => {
     it('target presente con cero workflows oficiales (.agents con custom skills) participa del cálculo e impide convergencia', async () => {
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-target-conv-neg-'));

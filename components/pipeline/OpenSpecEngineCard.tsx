@@ -5,6 +5,7 @@ import type {
   OpenSpecCliProvenance,
   OpenSpecDivergenceReason,
   OpenSpecEngineStatus,
+  OpenSpecStoreDiagnostic,
   OpenSpecVersionClass,
 } from '../../types/pipeline';
 import {
@@ -77,34 +78,6 @@ export function hasOpenSpecCycleMismatch(
     isInstalledAheadOfCycle(runtimeVersion, cycleVersion) ||
     isInstalledBehindCycle(runtimeVersion, cycleVersion)
   );
-}
-
-/**
- * Deriva el estado de integración efectivo impidiendo que se declare «al día»
- * si el detalle informa un target sin configurar (1.3 / Invariante de Coherencia).
- */
-export function deriveEffectiveIntegrationState(
-  status: OpenSpecEngineStatus | null | undefined,
-): OpenSpecEngineStatus['integrationState'] {
-  if (!status) return 'unknown';
-  const installed = status.installedIntegration;
-  const configuredCount =
-    installed?.configuredAgentsCount ?? installed?.configuredCount ?? (installed?.tools?.length ?? 0);
-  const totalCount =
-    installed?.totalPresentAgentsCount ?? installed?.totalPresentCount ?? configuredCount;
-
-  const hasUnconfiguredTarget =
-    (totalCount > 0 && configuredCount < totalCount) ||
-    Boolean(
-      installed?.presentToolDirectories &&
-        installed?.configuredTools &&
-        installed.presentToolDirectories.some((tool) => !installed.configuredTools?.includes(tool)),
-    );
-
-  if (status.integrationState === 'up-to-date' && hasUnconfiguredTarget) {
-    return 'outdated';
-  }
-  return status.integrationState;
 }
 
 export interface OpenSpecEngineCardProps {
@@ -203,18 +176,17 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
         </div>
       );
     }
-    const effectiveIntegrationState = deriveEffectiveIntegrationState(status);
     const versionStr = `v${status.cli.runtimeVersion ?? '?'}`;
-    const stateStr = t(INTEGRATION_STATE_KEY_MAP[effectiveIntegrationState] ?? 'pipeline.openspec.engine.integrationState.unknown');
+    const stateStr = t(INTEGRATION_STATE_KEY_MAP[status.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown');
     return (
       <div
         className={styles.compactEngineBadge}
-        data-state={effectiveIntegrationState}
+        data-state={status.integrationState}
         title={`${versionStr} · ${stateStr}`}
         onClick={onOpenToolsTab}
         style={{ cursor: onOpenToolsTab ? 'pointer' : 'default' }}
       >
-        <span className={styles.healthDot} data-state={effectiveIntegrationState} aria-hidden="true" />
+        <span className={styles.healthDot} data-state={status.integrationState} aria-hidden="true" />
         <strong>{t('pipeline.openspec.engine.axis.engine')} {versionStr}</strong>
         <em className={styles.compactMeta}>({stateStr})</em>
       </div>
@@ -280,34 +252,23 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const configuredCount = installed?.configuredAgentsCount ?? installed?.configuredCount ?? (installed?.tools?.length ?? 0);
   const totalCount = installed?.totalPresentAgentsCount ?? installed?.totalPresentCount ?? configuredCount;
 
-  const hasUnconfiguredTarget =
-    (totalCount > 0 && configuredCount < totalCount) ||
-    Boolean(
-      installed?.presentToolDirectories &&
-        installed?.configuredTools &&
-        installed.presentToolDirectories.some((tool) => !installed.configuredTools?.includes(tool)),
-    );
-
-  const effectiveIntegrationState = deriveEffectiveIntegrationState(status);
-
   // Determinar estado general: ready | needs-attention | unknown
   const isAhead = isInstalledAheadOfCycle(cli.runtimeVersion);
   const isBehind = isInstalledBehindCycle(cli.runtimeVersion);
   const isCycleMismatch = hasOpenSpecCycleMismatch(cli.runtimeVersion);
 
   let generalStatus: 'ready' | 'needs-attention' | 'unknown' = 'ready';
-  if (effectiveIntegrationState === 'unknown' || status.repoState === 'unknown') {
+  if (status.integrationState === 'unknown' || status.repoState === 'unknown') {
     generalStatus = 'unknown';
   } else if (
     !cli.installed ||
     cli.versionClass === 'too-old' ||
     cli.versionClass === 'too-new' ||
-    effectiveIntegrationState === 'outdated' ||
-    effectiveIntegrationState === 'conflicted' ||
+    status.integrationState === 'outdated' ||
+    status.integrationState === 'conflicted' ||
     status.repoState === 'not-initialized' ||
     status.divergence?.isDivergent ||
-    isCycleMismatch ||
-    hasUnconfiguredTarget
+    isCycleMismatch
   ) {
     generalStatus = 'needs-attention';
   }
@@ -392,8 +353,8 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
 
         <div className={styles.summaryFactRow}>
           <span>{t('pipeline.openspec.engine.axis.integration')}:</span>
-          <strong data-state={effectiveIntegrationState}>
-            {t(INTEGRATION_STATE_KEY_MAP[effectiveIntegrationState] ?? 'pipeline.openspec.engine.integrationState.unknown')}
+          <strong data-state={status.integrationState}>
+            {t(INTEGRATION_STATE_KEY_MAP[status.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown')}
           </strong>
         </div>
 
@@ -588,6 +549,111 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
               )}
             </div>
           )}
+
+          {/* Diagnósticos del Motor CLI (openspec doctor & context) (Grupo 3b) */}
+          <div className={styles.cliDiagnosticsSection}>
+            {/* 1. openspec doctor --json */}
+            <div className={styles.cliDiagnosticGroup} data-testid="openspec-doctor-section">
+              <div className={styles.cliDiagnosticHeader}>
+                <strong>{t('pipeline.openspec.engine.advanced.doctorTitle')}</strong>
+                <code className={styles.cliCommandProvenance}>openspec doctor --json</code>
+              </div>
+              {!status.doctor ? (
+                <p className={styles.cliDiagnosticUnavailable}>
+                  {t('pipeline.openspec.engine.advanced.cliUnavailable')}
+                </p>
+              ) : !status.doctor.ok ? (
+                <p className={styles.cliDiagnosticUnavailable}>
+                  {status.doctor.error || t('pipeline.openspec.engine.advanced.cliUnavailable')}
+                </p>
+              ) : (
+                (() => {
+                  const doctorDiagnostics: OpenSpecStoreDiagnostic[] = [
+                    ...(status.doctor.data?.status ?? []),
+                    ...(status.doctor.data?.root?.status ?? []),
+                    ...(status.doctor.data?.store?.status ?? []),
+                    ...(status.doctor.data?.references?.flatMap((r) => r.status ?? []) ?? []),
+                  ];
+                  if (doctorDiagnostics.length === 0) {
+                    return (
+                      <p className={styles.cliDiagnosticClean}>
+                        {t('pipeline.openspec.engine.advanced.cliClean')}
+                      </p>
+                    );
+                  }
+                  return (
+                    <ul className={styles.cliDiagnosticList}>
+                      {doctorDiagnostics.map((diag, idx) => (
+                        <li key={`${diag.code}-${idx}`} className={styles.cliDiagnosticItem}>
+                          <div className={styles.cliDiagnosticItemRow}>
+                            <span className={styles.cliSeverityBadge} data-severity={diag.severity}>
+                              {diag.severity}
+                            </span>
+                            <span>{diag.message}</span>
+                          </div>
+                          {diag.fix && (
+                            <span className={styles.cliDiagnosticFix}>
+                              {t('pipeline.openspec.engine.advanced.fixLabel', { fix: diag.fix })}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()
+              )}
+            </div>
+
+            {/* 2. openspec context --json */}
+            <div className={styles.cliDiagnosticGroup} data-testid="openspec-context-section">
+              <div className={styles.cliDiagnosticHeader}>
+                <strong>{t('pipeline.openspec.engine.advanced.contextTitle')}</strong>
+                <code className={styles.cliCommandProvenance}>openspec context --json</code>
+              </div>
+              {!status.contextBrief ? (
+                <p className={styles.cliDiagnosticUnavailable}>
+                  {t('pipeline.openspec.engine.advanced.cliUnavailable')}
+                </p>
+              ) : !status.contextBrief.ok ? (
+                <p className={styles.cliDiagnosticUnavailable}>
+                  {status.contextBrief.error || t('pipeline.openspec.engine.advanced.cliUnavailable')}
+                </p>
+              ) : (
+                (() => {
+                  const contextDiagnostics: OpenSpecStoreDiagnostic[] = [
+                    ...(status.contextBrief.data?.status ?? []),
+                    ...(status.contextBrief.data?.members?.flatMap((m) => m.status ?? []) ?? []),
+                  ];
+                  if (contextDiagnostics.length === 0) {
+                    return (
+                      <p className={styles.cliDiagnosticClean}>
+                        {t('pipeline.openspec.engine.advanced.cliClean')}
+                      </p>
+                    );
+                  }
+                  return (
+                    <ul className={styles.cliDiagnosticList}>
+                      {contextDiagnostics.map((diag, idx) => (
+                        <li key={`${diag.code}-${idx}`} className={styles.cliDiagnosticItem}>
+                          <div className={styles.cliDiagnosticItemRow}>
+                            <span className={styles.cliSeverityBadge} data-severity={diag.severity}>
+                              {diag.severity}
+                            </span>
+                            <span>{diag.message}</span>
+                          </div>
+                          {diag.fix && (
+                            <span className={styles.cliDiagnosticFix}>
+                              {t('pipeline.openspec.engine.advanced.fixLabel', { fix: diag.fix })}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()
+              )}
+            </div>
+          </div>
         </div>
       )}
     </section>

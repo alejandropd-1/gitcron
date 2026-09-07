@@ -3,6 +3,8 @@ import * as path from 'node:path';
 import { ipcMain } from 'electron';
 import type {
   InstructionsOpenSpecResult,
+  OpenSpecContextBriefResult,
+  OpenSpecDoctorResult,
   OpenSpecDivergenceReason,
   OpenSpecEngineStatus,
   OpenSpecExecuteResult,
@@ -20,8 +22,11 @@ import {
   type AuthorizedOpenSpecRuntime,
 } from '../pipeline/openspec-engine';
 import {
+  contextOpenSpecWithCli,
+  doctorOpenSpecWithCli,
   instructionsOpenSpecWithCli,
   runOpenSpecUpdate,
+  type CliExecutionOptions,
   type InstructionsOpenSpecOptions,
   type RunOpenSpecUpdateOptions,
 } from '../pipeline/openspec-cli';
@@ -52,6 +57,8 @@ export interface OpenSpecIpcDeps {
   getGitInfo?: (repoPath: string) => Promise<RealGitInfo>;
   runUpdate?: (repoPath: string, options?: RunOpenSpecUpdateOptions) => Promise<OpenSpecRunUpdateResult>;
   getInstructions?: (repoPath: string, target: string, options?: InstructionsOpenSpecOptions) => Promise<InstructionsOpenSpecResult>;
+  runDoctor?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecDoctorResult>;
+  runContext?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecContextBriefResult>;
 }
 
 /**
@@ -206,16 +213,40 @@ export async function buildEngineStatusSnapshot(
       integrationState = 'outdated';
     } else if (installedIntegration.missing && installedIntegration.missing.length > 0) {
       integrationState = 'outdated';
-    } else if (
-      installedIntegration.targets.includes('agents') &&
-      (installedIntegration.installedWorkflowsByTarget['agents']?.length ?? 0) > 0
-    ) {
-      const hasModifiedOfficialSkills = installedIntegration.skills.some(
-        (s) => s.isOfficial && s.origin === 'custom-agents',
-      );
-      integrationState = hasModifiedOfficialSkills ? 'custom' : 'up-to-date';
     } else {
-      integrationState = 'outdated';
+      const configuredCount =
+        installedIntegration.configuredAgentsCount ??
+        installedIntegration.configuredCount ??
+        installedIntegration.configuredTools?.length ??
+        installedIntegration.tools?.length ??
+        0;
+      const totalCount =
+        installedIntegration.totalPresentAgentsCount ??
+        installedIntegration.totalPresentCount ??
+        configuredCount;
+      const hasUnconfiguredTarget =
+        (totalCount > 0 && configuredCount < totalCount) ||
+        Boolean(
+          installedIntegration.presentToolDirectories &&
+            installedIntegration.configuredTools &&
+            installedIntegration.presentToolDirectories.some(
+              (tool) => !installedIntegration.configuredTools?.includes(tool),
+            ),
+        );
+
+      if (hasUnconfiguredTarget) {
+        integrationState = 'outdated';
+      } else if (
+        installedIntegration.targets.includes('agents') &&
+        (installedIntegration.installedWorkflowsByTarget['agents']?.length ?? 0) > 0
+      ) {
+        const hasModifiedOfficialSkills = installedIntegration.skills.some(
+          (s) => s.isOfficial && s.origin === 'custom-agents',
+        );
+        integrationState = hasModifiedOfficialSkills ? 'custom' : 'up-to-date';
+      } else {
+        integrationState = 'outdated';
+      }
     }
   }
 
@@ -357,6 +388,36 @@ export async function buildEngineStatusSnapshot(
     }
   }
 
+  // 7.5. Diagnósticos de salud y contexto del motor CLI (Grupo 3b)
+  let doctorResult: OpenSpecDoctorResult | null = null;
+  let contextResult: OpenSpecContextBriefResult | null = null;
+
+  if (validRepoPath && cli.installed) {
+    const doctorFn = deps.runDoctor ?? doctorOpenSpecWithCli;
+    const contextFn = deps.runContext ?? contextOpenSpecWithCli;
+    try {
+      const [doc, ctx] = await Promise.all([
+        doctorFn(validRepoPath, { runtime: authorizedRuntime }).catch((err) => ({
+          command: 'openspec doctor --json' as const,
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+          data: null,
+        })),
+        contextFn(validRepoPath, { runtime: authorizedRuntime }).catch((err) => ({
+          command: 'openspec context --json' as const,
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+          data: null,
+        })),
+      ]);
+      doctorResult = doc;
+      contextResult = ctx;
+    } catch {
+      doctorResult = null;
+      contextResult = null;
+    }
+  }
+
   return {
     cli,
     latestAvailable: cachedRegistry,
@@ -373,6 +434,8 @@ export async function buildEngineStatusSnapshot(
       repoProfileClass: repoProfileRes.profileClass,
       targetConvergences,
     },
+    doctor: doctorResult,
+    contextBrief: contextResult,
   };
 }
 
@@ -603,6 +666,44 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
         schema,
         runtime: authorizedRuntime,
       });
+    },
+  );
+
+  // 8. Doctor command (Tarea 3b.1)
+  ipc.handle(
+    'pipeline:openspec:doctor',
+    async (_event, payload?: unknown): Promise<OpenSpecDoctorResult> => {
+      validateStrictPayloadKeys(payload, ['repoPath']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+      const getUserDataDir = deps.getUserDataDir ?? (() => null);
+      const userDataDir = getUserDataDir();
+      const doctorFn = deps.runDoctor ?? doctorOpenSpecWithCli;
+      const resolveRuntime = deps.resolveRuntime ?? resolveOpenSpecExecutable;
+      const authorizedRuntime = resolveRuntime({ userDataDir, repoPath: validRepoPath });
+      return doctorFn(validRepoPath, { runtime: authorizedRuntime });
+    },
+  );
+
+  // 9. Context command (Tarea 3b.2)
+  ipc.handle(
+    'pipeline:openspec:context',
+    async (_event, payload?: unknown): Promise<OpenSpecContextBriefResult> => {
+      validateStrictPayloadKeys(payload, ['repoPath']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+      const getUserDataDir = deps.getUserDataDir ?? (() => null);
+      const userDataDir = getUserDataDir();
+      const contextFn = deps.runContext ?? contextOpenSpecWithCli;
+      const resolveRuntime = deps.resolveRuntime ?? resolveOpenSpecExecutable;
+      const authorizedRuntime = resolveRuntime({ userDataDir, repoPath: validRepoPath });
+      return contextFn(validRepoPath, { runtime: authorizedRuntime });
     },
   );
 }

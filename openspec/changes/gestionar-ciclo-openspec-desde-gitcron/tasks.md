@@ -171,6 +171,47 @@
   comprobar que el camino a actualizar existe en pantalla. Actualizar a mano antes de construir 6.7
   lo consume.
 
+- [ ] 6.9 **Idea de Alejandro del 2026-09-07, y su dependencia declarada.** Que la comprobacion de
+  version no se quede en «hay una nueva»: que entre a ver que cambio, juzgue si rompe algo de lo que
+  GitCron consume, y si rompe, **proponga la estrategia** —que habria que modificar y en que orden—,
+  explicada en criollo. Alejandro imagina resolver la explicacion con un modelo, preferentemente
+  local.
+  **Esa parte no se puede construir todavia, y el motivo esta medido.** Al 2026-09-07 la capa que
+  llama a modelos esta partida en tres pilas que no se conocen entre si:
+  - `electron/ai/providers/` — `claude.ts`, `openrouter.ts`, `index.ts`.
+  - `electron/ai/carto/` — su propio `openrouter.ts`, su propio `lmstudio.ts` y su `provider.ts`.
+  - `electron/ai/commit-message/` — su propio `local-provider.ts`, con SSE y bombeo de trozos aparte.
+  La duplicacion es literal, no conceptual: `electron/ai/providers/openrouter.ts:20` y
+  `electron/ai/carto/openrouter.ts:23` declaran **el mismo endpoint y la misma cabecera
+  `http-referer`**; `electron/ai/carto/lmstudio.ts:25` y
+  `electron/ai/commit-message/local-provider.ts:40` declaran **el mismo `http://localhost:1234`**. El
+  segundo lo dice por escrito en su encabezado (`:7`): «El de Cartografia tiene
+  `http://localhost:1234` escrito en el codigo».
+  Construir la explicacion asistida sobre esto agrega **una cuarta pila**. Antes hay que unificar, y
+  eso es otro change.
+  **Distincion que la unificacion no puede borrar**, para que no se decida mal: son dos trabajos
+  distintos.
+  - **Runtimes que ejecutan trabajo sobre el repositorio** —Claude Code, Codex, OpenCode, Qwen, y LM
+    Studio segun el change `add-lmstudio-agent-runtime`—: bucles de agente con herramientas que
+    editan archivos, con su contrato propio (`launchable`, `modifiesRepo`) y su registro.
+  - **Llamadas que producen texto** —mensajes de commit, respuestas de Cartografia, y esta
+    explicacion—: una consulta, una respuesta, sin escribir en el repositorio.
+  Lo que esta duplicado es lo segundo. Unificar lo primero con lo segundo mezclaria dos contratos que
+  no son el mismo.
+  Nota sobre las claves: Alejandro pidio «tokens de variables de entorno». El proyecto ya resuelve
+  eso mejor y no hace falta cambiarlo: `electron/ai/key-store.ts` es un baul cifrado multi-proveedor
+  con `safeStorage` de Electron —DPAPI en Windows—, donde la clave vive solo en el proceso principal
+  y **nunca** se expone por IPC. No hay un solo `process.env` en toda la capa de IA, y es a
+  proposito. Lo unico que lo ata hoy a una de las tres pilas es su tipo, que es
+  `AIPredictionProvider['id']` de `types/temporal-agent`.
+  Nota sobre Unsloth Desktop: **no existe ninguna referencia en el repositorio**, medido el
+  2026-09-07. Y su forma —URL remota via Cloudflare mas token— es la misma que la de las otras dos
+  configuraciones: LM Studio es URL local sin clave, OpenRouter es URL fija con clave. Las tres son
+  «URL base mas clave opcional» sobre una API compatible con OpenAI. Eso es un argumento a favor de
+  unificar, no tres integraciones distintas.
+  **Que decide Alejandro:** si se abre el change de unificacion antes de esta tarea, y con que
+  alcance. Mientras no exista, 6.8 se queda en medir y reportar, sin explicacion asistida.
+
 ## 7. Perfil de workflows
 
 - [ ] 7.1 En `electron/pipeline/`, agregar la lectura de `openspec config list` devolviendo perfil y workflows habilitados como datos, sin enum cerrado en el código.
@@ -188,6 +229,34 @@
 - [ ] 8.5 Agregar a `components/DiffViewer.tsx` un modo de propuesta con acciones de aplicar y descartar por bloque, reutilizando `parseDiff` y la selección de líneas existentes, sin alterar el comportamiento de los modos `stage` y `unstage`.
 - [ ] 8.6 Construir la revisión de una propuesta de agente sobre 8.5: aceptar y rechazar por bloque, editar el resultado, y escribir sólo al confirmar. La propuesta debe distinguirse visualmente de lo ya escrito, sin inventar una paleta propia: lo especulativo jamás puede confundirse visualmente con lo real.
 - [ ] 8.7 Verificar con tests de componente que descartar una propuesta no invoca el canal de escritura, y que aceptar parcialmente escribe únicamente los bloques aceptados.
+
+- [ ] 8.8 **Reordenar tareas arrastrando, pedido de Alejandro del 2026-09-07.** «Estaria bueno poder
+  hacer un drag and drop de las tareas vigentes, para reordenar a la vista.»
+  La parte de abajo ya esta planificada: `moveTaskLine` es una de las cuatro funciones puras que pide
+  la tarea 2.1, y su canal IPC lo pide la 2.4. Esta tarea es **solo la superficie**: arrastrar una
+  tarea de la lista y soltarla en su lugar nuevo, que escribe con ese canal.
+  No traer dependencia nueva: el proyecto ya arrastra y suelta en cuatro lugares
+  —`components/InteractiveRebasePanel.tsx`, `components/RepoSidebar.tsx`,
+  `components/RepoSidebarParts.tsx` y `components/RepoTabs.tsx`—, medido el 2026-09-07. Medir cual de
+  esos patrones sirve y adoptarlo, o declarar por que ninguno sirve.
+  Reglas que no se negocian: se puede reordenar con teclado, no solo con el mouse; mientras el
+  arrastre esta en curso nada mas de la pantalla se mueve; y si la escritura falla, la lista vuelve a
+  como estaba y lo dice, en vez de quedar mostrando un orden que el archivo no tiene.
+
+- [ ] 8.9 **La conversacion que abre un cambio, con cara de aplicacion.** Pedido de Alejandro del
+  2026-09-07, mostrando la rutina del CLI: `/opsx:explore` pregunta que se quiere explorar, mira el
+  proyecto, propone un camino y pregunta si se acota; `/opsx:propose` crea el cambio y declara que
+  artefacto escribio y para que sirve cada uno; `/opsx:apply` va tildando; `/opsx:archive` cierra y
+  dice adonde quedo.
+  «Eso tendria que mostrarse con una interfaz linda y amena en GitCron, que es mas o menos lo que
+  tenemos ahora cuando empezamos una task nueva.»
+  Punto de partida medido el 2026-09-07: `components/pipeline/PipelineNewChangeFlow.tsx`, 414 lineas,
+  que ya hace la primera pregunta.
+  Lo que falta es que sea **un recorrido y no un formulario**: cada paso dice donde esta parado, que
+  le contesto el motor y que sigue. Lo que el CLI ya devuelve se muestra; lo que no, se declara. No
+  inventar pasos que el motor no tiene ni prometer que hara algo que no hace.
+  Frontera: las palabras de cada paso las decide `explicar-el-ciclo-sin-tecnicismos`. Esta tarea
+  decide el recorrido y su forma.
 
 ## 9. Interfaz: motor, sync, archivado y jerarquía
 
@@ -209,6 +278,63 @@
   es otra cosa y va primero.
 - [ ] 9.7 Agregar a `lib/i18n.ts` las claves en ES, EN y ZH de todo lo anterior, mapeando cada código de error del proceso principal a su clave, sin armar claves por interpolación de plantilla y sin dejar ninguna clave sin consumidor.
 - [ ] 9.8 Actualizar `components/pipeline/__tests__/pipeline-i18n.test.ts` con las claves nuevas y verificar la paridad en los tres idiomas.
+
+## 9b. Una sola forma de llamar a un modelo
+
+Alejandro decidio el 2026-09-07 que esto entra **en este change** y no en uno aparte: «metemos todo
+aca, quiero terminar de una vez por todas». Se dejo constancia de que abrirlo aparte era la
+alternativa; la decision es suya y esta tomada.
+
+Estado medido el 2026-09-07: la capa que llama a modelos esta partida en tres pilas que no se
+conocen entre si, y la duplicacion es literal.
+- `electron/ai/providers/openrouter.ts:20` y `electron/ai/carto/openrouter.ts:23` declaran **el mismo
+  endpoint y la misma cabecera `http-referer`**.
+- `electron/ai/carto/lmstudio.ts:25` y `electron/ai/commit-message/local-provider.ts:40` declaran **el
+  mismo `http://localhost:1234`**. El segundo lo dice por escrito en su encabezado (`:7`).
+
+- [ ] 9b.1 Inventariar las tres pilas con archivo y linea: que hace cada una, que comparten y en que
+  se diferencian de verdad. Declarar cual queda como base y por que. No empezar a mover codigo antes
+  de esto.
+- [ ] 9b.2 **Distincion que la unificacion no puede borrar.** Son dos trabajos distintos y solo uno
+  se unifica aca: los **runtimes que ejecutan trabajo sobre el repositorio** —Claude Code, Codex,
+  OpenCode, Qwen, y LM Studio segun el change `add-lmstudio-agent-runtime`— son bucles de agente con
+  herramientas que editan archivos, con contrato propio (`launchable`, `modifiesRepo`) y registro
+  propio. Lo que se unifica es lo otro: las **llamadas que producen texto** —mensaje de commit,
+  respuestas de Cartografia, y la explicacion de la 9c—. Declararlo en el codigo, no solo aca.
+- [ ] 9b.3 Una sola forma de declarar un proveedor de texto: **URL base mas clave opcional** sobre una
+  API compatible con OpenAI. Las tres configuraciones que hay que cubrir caben en esa forma, medido el
+  2026-09-07: LM Studio es URL local sin clave; Unsloth Desktop es URL remota por Cloudflare con
+  token; OpenRouter es URL fija con clave. No son tres integraciones.
+- [ ] 9b.4 Unsloth Desktop: **no existe ninguna referencia en el repositorio**, medido el 2026-09-07.
+  Se agrega como una configuracion mas de 9b.3, no como pila propia.
+- [ ] 9b.5 Las claves siguen en el baul que ya existe. `electron/ai/key-store.ts` cifra con
+  `safeStorage` de Electron —DPAPI en Windows—, la clave vive solo en el proceso principal y **nunca**
+  se expone por IPC. No hay un solo `process.env` en toda la capa de IA y es a proposito: **no se
+  agregan variables de entorno para claves.** Lo unico que hay que despegar es su tipo, hoy atado a
+  `AIPredictionProvider['id']` de `types/temporal-agent`.
+- [ ] 9b.6 Migrar los consumidores actuales —mensaje de commit y Cartografia— a la forma unica, uno
+  por vez, y **retirar la pila que queda sin consumidor**. Entregar la lista de lo retirado. La
+  unificacion vale si borra codigo, no si agrega una capa encima de las tres.
+- [ ] 9b.7 Cubrir con pruebas que las tres configuraciones se arman igual y que la clave no sale del
+  proceso principal en ninguna de ellas. Afirmar sobre el pedido armado, no sobre el valor devuelto.
+
+## 9c. La verificacion de version, con criterio
+
+- [ ] 9c.1 Que la comprobacion no se quede en «hay una nueva»: que traiga que cambio, con la fuente
+  citada, y si la fuente no esta disponible lo diga en vez de inventar una lista.
+- [ ] 9c.2 Que juzgue si esos cambios tocan lo que GitCron **consume** —la forma del JSON de `status`,
+  `instructions`, `validate`, `archive` y `sync`, y los workflows del perfil— y declare cada veredicto
+  con su evidencia.
+- [ ] 9c.3 Si algo rompe, **proponer la estrategia**: que habria que modificar, en que orden, y que se
+  puede hacer sin tocar nada. Es una propuesta para que Alejandro decida, no una accion automatica.
+- [ ] 9c.4 La explicacion en criollo se redacta con la capa unica de 9b, con modelo local por omision.
+  Sin 9b terminada esta tarea no arranca: construirla antes agrega una cuarta pila.
+- [ ] 9c.5 Lo que el modelo redacta se presenta **como redaccion**, separado de lo medido. Un veredicto
+  sobre si algo rompe sale de la comparacion, no del modelo. Es la misma regla que ya rige a
+  `PipelineArtifactGraph`, que declara no inventar estado derivandolo de otra cosa.
+- [ ] 9c.6 Subir `OPENSPEC_CYCLE_TARGET_VERSION` y `SUPPORTED_OPENSPEC_VERSIONS` de
+  `lib/openspec-version.ts` sigue siendo un acto deliberado con evidencia. **La decide Alejandro**,
+  sobre lo medido. La comprobacion informa; no mueve el rango sola.
 
 ## 10. Cierre y validación
 

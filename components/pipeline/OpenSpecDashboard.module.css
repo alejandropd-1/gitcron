@@ -2136,6 +2136,109 @@ summary.centerBlock {
 }
 
 /* ==========================================================================
+   DIAGNÓSTICOS DEL MOTOR CLI (openspec doctor & context) (3b.3)
+   ========================================================================== */
+.cliDiagnosticsSection {
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cliDiagnosticGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.cliDiagnosticHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+}
+
+.cliCommandProvenance {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-overlay);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.cliDiagnosticClean {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  padding: var(--space-1) 0;
+}
+
+.cliDiagnosticList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.cliDiagnosticItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-overlay);
+  font-size: var(--font-size-xs);
+}
+
+.cliDiagnosticItemRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cliSeverityBadge {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
+}
+
+.cliSeverityBadge[data-severity='error'] {
+  background: color-mix(in srgb, var(--color-error) 15%, transparent);
+  color: var(--color-error);
+}
+
+.cliSeverityBadge[data-severity='warning'],
+.cliSeverityBadge[data-severity='warn'] {
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
+}
+
+.cliSeverityBadge[data-severity='info'] {
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  color: var(--color-primary);
+}
+
+.cliDiagnosticFix {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  padding-left: var(--space-2);
+}
+
+.cliDiagnosticUnavailable {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* ==========================================================================
    REVISIÓN DE ACTUALIZACIÓN OPENSPEC (FASE 6)
    Vista central declarativa de sólo lectura, matriz y diagnóstico de convivencia.
    ========================================================================== */

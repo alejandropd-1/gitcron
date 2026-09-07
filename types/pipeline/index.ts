@@ -526,6 +526,86 @@ export interface OpenSpecDivergenceInfo {
 
 export type OpenSpecFreshnessState = 'cli-up-to-date' | 'cli-upgrade-available' | 'offline' | 'unknown';
 
+export type OpenSpecStoreDiagnosticSeverity = 'error' | 'warning' | 'info';
+
+export interface OpenSpecStoreDiagnostic {
+  severity: OpenSpecStoreDiagnosticSeverity;
+  code: string;
+  message: string;
+  target?: string;
+  fix?: string;
+}
+
+export interface OpenSpecDoctorRoot {
+  path: string;
+  source: string;
+  store_id?: string;
+  healthy: boolean;
+  status: OpenSpecStoreDiagnostic[];
+}
+
+export interface OpenSpecDoctorStore {
+  id: string;
+  metadata: {
+    present: boolean;
+    valid: boolean;
+    remote?: string;
+  };
+  origin_url?: string;
+  drift?: {
+    ahead: number;
+    behind: number;
+  };
+  status: OpenSpecStoreDiagnostic[];
+}
+
+export interface OpenSpecDoctorReference {
+  store_id: string;
+  root?: string;
+  status: OpenSpecStoreDiagnostic[];
+}
+
+export interface OpenSpecDoctorData {
+  root: OpenSpecDoctorRoot | null;
+  store: OpenSpecDoctorStore | null;
+  references: OpenSpecDoctorReference[];
+  status: OpenSpecStoreDiagnostic[];
+}
+
+export interface OpenSpecDoctorResult {
+  command: 'openspec doctor --json';
+  ok: boolean;
+  error?: string | null;
+  data: OpenSpecDoctorData | null;
+}
+
+export interface OpenSpecContextMember {
+  role: string;
+  id: string;
+  path?: string;
+  remote?: string;
+  fetch?: string;
+  status: OpenSpecStoreDiagnostic[];
+}
+
+export interface OpenSpecContextBriefData {
+  root: {
+    path: string;
+    source: string;
+    store_id?: string;
+    role: 'openspec_root';
+  } | null;
+  members: OpenSpecContextMember[];
+  status: OpenSpecStoreDiagnostic[];
+}
+
+export interface OpenSpecContextBriefResult {
+  command: 'openspec context --json';
+  ok: boolean;
+  error?: string | null;
+  data: OpenSpecContextBriefData | null;
+}
+
 export interface OpenSpecEngineStatus {
   cli: OpenSpecCliDiscovery;
   latestAvailable: OpenSpecRegistryCheck | null;
@@ -535,6 +615,8 @@ export interface OpenSpecEngineStatus {
   integrationState: 'up-to-date' | 'outdated' | 'custom' | 'conflicted' | 'unknown';
   freshnessState?: OpenSpecFreshnessState;
   divergence?: OpenSpecDivergenceInfo | null;
+  doctor?: OpenSpecDoctorResult | null;
+  contextBrief?: OpenSpecContextBriefResult | null;
 }
 
 export interface OpenSpecPreviewResult {

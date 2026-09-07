@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { OpenSpecEngineCard } from '../OpenSpecEngineCard';
 import type { OpenSpecEngineStatus } from '../../../types/pipeline';
+import { deriveUpdateMatrixAction } from '../../../lib/openspec-update-guide';
+import { hasOpenSpecEngineAttention } from '../pipeline-domain';
 
 describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
   afterEach(() => {
@@ -300,7 +302,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
     expect(screen.getByText(new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'))).toBeDefined();
   });
 
-  it('el estado resumido no dice «Al día» ni «Listo» si el detalle informa un target sin configurar (1.3)', () => {
+  it('el estado resumido no dice «Al día» ni «Listo» si el detalle informa un target sin configurar (1.3/1.4)', () => {
     const statusWithUnconfiguredTarget: OpenSpecEngineStatus = {
       cli: {
         installed: true,
@@ -333,7 +335,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
         conflicts: null,
       },
       repoState: 'initialized',
-      integrationState: 'up-to-date',
+      integrationState: 'outdated',
     };
 
     render(<OpenSpecEngineCard status={statusWithUnconfiguredTarget} compact={false} />);
@@ -350,7 +352,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
     expect(screen.getByText(/0 de 1 agentes configurados/i)).toBeDefined();
   });
 
-  it('en modo compacto no declara «Al día» si el detalle informa un target sin configurar (1.3)', () => {
+  it('en modo compacto no declara «Al día» si el detalle informa un target sin configurar (1.3/1.4)', () => {
     const statusWithUnconfiguredTarget: OpenSpecEngineStatus = {
       cli: {
         installed: true,
@@ -383,11 +385,285 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
         conflicts: null,
       },
       repoState: 'initialized',
-      integrationState: 'up-to-date',
+      integrationState: 'outdated',
     };
 
     render(<OpenSpecEngineCard status={statusWithUnconfiguredTarget} compact={true} />);
     expect(screen.queryByText(/Al día/i)).toBeNull();
     expect(screen.getByText(/Desactualizado/i)).toBeDefined();
+  });
+
+  /**
+   * Auditoría del 2026-09-07 (Tarea 1.4): Una sola autoridad sobre el estado de integración.
+   *
+   * Medición y causa del 2026-09-07:
+   * Al resolver 1.3 se agregó `deriveEffectiveIntegrationState` en OpenSpecEngineCard.tsx:
+   * una segunda derivación en el renderer que degradaba 'up-to-date' a 'outdated' ante targets
+   * sin configurar. Sin embargo, los otros dos consumidores del estado leían el valor crudo de main:
+   * - `deriveUpdateMatrixAction` devolvía 'none' (no ofreciendo actualizar).
+   * - `hasOpenSpecEngineAttention` no encendía el triángulo ámbar del inspector.
+   * Se cambió una contradicción por otra: la tarjeta decía «Desactualizado» mientras la app no ofrecía
+   * ninguna acción y el inspector no se enteraba.
+   *
+   * Al unificar la regla en `buildEngineStatusSnapshot` en el proceso principal, los tres consumidores
+   * leen exactamente el mismo valor de la única fuente de verdad:
+   * 1. La tarjeta muestra «Desactualizado» y «Necesita atención» (nunca «Al día» ni «Listo»).
+   * 2. `deriveUpdateMatrixAction(status)` devuelve 'update' (ofreciendo actualizar, nunca 'none').
+   * 3. `hasOpenSpecEngineAttention(status)` devuelve true (encendiendo la atención en el inspector).
+   */
+  it('prueba conjunta (1.4): tarjeta, matriz de actualización e inspector coinciden ante target sin configurar', () => {
+    const statusWithUnconfiguredTarget: OpenSpecEngineStatus = {
+      cli: {
+        installed: true,
+        runtimeVersion: '1.11.0',
+        provenance: 'global',
+        displayPath: 'C:\\global\\openspec.cmd',
+        supportedRange: { min: '1.5.0', max: '1.11.0' },
+        versionClass: 'supported',
+        evidenceStatus: 'confirmed',
+        diagnostics: [],
+      },
+      latestAvailable: null,
+      globalConfig: null,
+      installedIntegration: {
+        skills: [],
+        generatedBy: '1.11.0',
+        markersFound: [],
+        outputInventory: [],
+        evidenceStatus: 'confirmed',
+        tools: [],
+        targets: [],
+        configuredTools: [],
+        presentToolDirectories: ['agents'],
+        configuredAgentsCount: 0,
+        totalPresentAgentsCount: 1,
+        installedWorkflowsByTarget: {},
+        missing: null,
+        legacy: [],
+        customized: [],
+        conflicts: null,
+      },
+      repoState: 'initialized',
+      integrationState: 'outdated',
+    };
+
+    // 1. La tarjeta muestra «Desactualizado» y «Necesita atención» (y NO «Al día» ni «Listo»)
+    const { unmount } = render(<OpenSpecEngineCard status={statusWithUnconfiguredTarget} compact={false} />);
+    expect(screen.queryByText(/^Al día$/i)).toBeNull();
+    expect(screen.getByText(/Desactualizado/i)).toBeDefined();
+    expect(screen.queryByText(/Listo/i)).toBeNull();
+    expect(screen.getByText(/Necesita atención/i)).toBeDefined();
+    unmount();
+
+    // 2. deriveUpdateMatrixAction devuelve 'update' (y NO 'none')
+    const action = deriveUpdateMatrixAction(statusWithUnconfiguredTarget);
+    expect(action).toBe('update');
+    expect(action).not.toBe('none');
+
+    // 3. hasOpenSpecEngineAttention devuelve true
+    const attention = hasOpenSpecEngineAttention(statusWithUnconfiguredTarget);
+    expect(attention).toBe(true);
+  });
+
+  describe('Diagnósticos del Motor CLI (3b.3)', () => {
+    it('muestra diagnóstico limpio sin inventar advertencias con procedencia declarada', () => {
+      const statusClean: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: '1.11.0',
+          provenance: 'global',
+          displayPath: 'C:\\global\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.11.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: null,
+        globalConfig: null,
+        installedIntegration: null,
+        repoState: 'initialized',
+        integrationState: 'up-to-date',
+        doctor: {
+          command: 'openspec doctor --json',
+          ok: true,
+          error: null,
+          data: {
+            root: {
+              path: 'C:\\www\\gitCronos',
+              source: 'nearest',
+              healthy: true,
+              status: [],
+            },
+            store: null,
+            references: [],
+            status: [],
+          },
+        },
+        contextBrief: {
+          command: 'openspec context --json',
+          ok: true,
+          error: null,
+          data: {
+            root: {
+              path: 'C:\\www\\gitCronos',
+              source: 'nearest',
+              role: 'openspec_root',
+            },
+            members: [],
+            status: [],
+          },
+        },
+      };
+
+      const { container } = render(<OpenSpecEngineCard status={statusClean} compact={false} />);
+      fireEvent.click(screen.getByText(/Ver diagnóstico avanzado/i));
+
+      // Comprobar procedencia de comandos declarada
+      expect(screen.getByText('openspec doctor --json')).toBeDefined();
+      expect(screen.getByText('openspec context --json')).toBeDefined();
+
+      // Diagnóstico limpio: muestra texto limpio y NO inventa advertencias
+      const cleanTexts = screen.getAllByText(/Sin problemas reportados/i);
+      expect(cleanTexts.length).toBe(2);
+
+      // Ningún badge de gravedad error o warning inventado
+      expect(container.querySelector('[data-severity="error"]')).toBeNull();
+      expect(container.querySelector('[data-severity="warning"]')).toBeNull();
+    });
+
+    it('presenta condiciones reportadas por el CLI respetando exactamente su gravedad declarada', () => {
+      const statusWithIssues: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: '1.11.0',
+          provenance: 'global',
+          displayPath: 'C:\\global\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.11.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: null,
+        globalConfig: null,
+        installedIntegration: null,
+        repoState: 'initialized',
+        integrationState: 'outdated',
+        doctor: {
+          command: 'openspec doctor --json',
+          ok: true,
+          error: null,
+          data: {
+            root: {
+              path: 'C:\\www\\gitCronos',
+              source: 'nearest',
+              healthy: false,
+              status: [
+                {
+                  severity: 'error',
+                  code: 'store_corrupt',
+                  message: 'El almacén de configuración está corrupto',
+                  fix: 'Ejecutar openspec init --force',
+                },
+              ],
+            },
+            store: null,
+            references: [
+              {
+                store_id: 'ref-repo',
+                status: [
+                  {
+                    severity: 'warning',
+                    code: 'drift_detected',
+                    message: 'Deriva detectada en la referencia remota',
+                  },
+                ],
+              },
+            ],
+            status: [],
+          },
+        },
+        contextBrief: {
+          command: 'openspec context --json',
+          ok: true,
+          error: null,
+          data: {
+            root: {
+              path: 'C:\\www\\gitCronos',
+              source: 'nearest',
+              role: 'openspec_root',
+            },
+            members: [
+              {
+                id: 'aux-member',
+                role: 'referenced_store',
+                status: [
+                  {
+                    severity: 'info',
+                    code: 'member_offline',
+                    message: 'Miembro opcional offline',
+                  },
+                ],
+              },
+            ],
+            status: [],
+          },
+        },
+      };
+
+      const { container } = render(<OpenSpecEngineCard status={statusWithIssues} compact={false} />);
+      fireEvent.click(screen.getByText(/Ver diagnóstico avanzado/i));
+
+      // Verificación de mensajes literales
+      expect(screen.getByText('El almacén de configuración está corrupto')).toBeDefined();
+      expect(screen.getByText('Deriva detectada en la referencia remota')).toBeDefined();
+      expect(screen.getByText('Miembro opcional offline')).toBeDefined();
+      expect(screen.getByText(/Sugerencia: Ejecutar openspec init --force/i)).toBeDefined();
+
+      // Verificación de gravedad preservada exactamente sin alteración
+      const errorBadge = container.querySelector('[data-severity="error"]');
+      expect(errorBadge).not.toBeNull();
+      expect(errorBadge?.textContent).toBe('error');
+
+      const warningBadge = container.querySelector('[data-severity="warning"]');
+      expect(warningBadge).not.toBeNull();
+      expect(warningBadge?.textContent).toBe('warning');
+
+      const infoBadge = container.querySelector('[data-severity="info"]');
+      expect(infoBadge).not.toBeNull();
+      expect(infoBadge?.textContent).toBe('info');
+    });
+
+    it('declara explícitamente cuando el diagnóstico falló o no está disponible sin síntesis engañosa', () => {
+      const statusUnavailable: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: '1.11.0',
+          provenance: 'global',
+          displayPath: 'C:\\global\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.11.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: null,
+        globalConfig: null,
+        installedIntegration: null,
+        repoState: 'initialized',
+        integrationState: 'unknown',
+        doctor: {
+          command: 'openspec doctor --json',
+          ok: false,
+          error: 'openspec doctor fallo: timeout de 15000ms excedido',
+          data: null,
+        },
+        contextBrief: null,
+      };
+
+      render(<OpenSpecEngineCard status={statusUnavailable} compact={false} />);
+      fireEvent.click(screen.getByText(/Ver diagnóstico avanzado/i));
+
+      expect(screen.getByText('openspec doctor fallo: timeout de 15000ms excedido')).toBeDefined();
+      expect(screen.getByText(/Diagnóstico no disponible para este comando/i)).toBeDefined();
+    });
   });
 });

@@ -3,6 +3,10 @@ import type {
   OpenSpecArtifactState,
   OpenSpecArtifactStatus,
   OpenSpecChangeStatus,
+  OpenSpecContextBriefData,
+  OpenSpecContextBriefResult,
+  OpenSpecDoctorData,
+  OpenSpecDoctorResult,
   OpenSpecInstructionsPayload,
   OpenSpecRunUpdateResult,
   OpenSpecValidationStatus,
@@ -468,4 +472,126 @@ export interface ValidateArchivedResult {
   ok: boolean;
   error: string | null;
   output: string | null;
+}
+
+/**
+ * Consulta el diagnóstico de salud de relaciones que el motor entrega
+ * en formato legible por máquina (`openspec doctor --json`) (Tarea 3b.1).
+ * Transporta su resultado como datos estructurados sin recomponerlo en prosa.
+ */
+export async function doctorOpenSpecWithCli(
+  repoPath: string,
+  options?: CliExecutionOptions,
+): Promise<OpenSpecDoctorResult> {
+  const runtime = resolveRuntime(options, repoPath);
+  if (!runtime) {
+    return {
+      command: 'openspec doctor --json',
+      ok: false,
+      error: 'openspec-cli-not-found',
+      data: null,
+    };
+  }
+
+  try {
+    const { stdout } = await runAuthorizedOpenSpec(runtime, ['doctor', '--json'], {
+      cwd: repoPath,
+      timeout: 15_000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    const parsed = JSON.parse(stdout) as OpenSpecDoctorData;
+    return {
+      command: 'openspec doctor --json',
+      ok: true,
+      error: null,
+      data: parsed,
+    };
+  } catch (error) {
+    const detail = error as { stderr?: unknown; stdout?: unknown; message?: unknown };
+    if (typeof detail.stdout === 'string') {
+      try {
+        const parsed = JSON.parse(detail.stdout) as OpenSpecDoctorData;
+        if (parsed && typeof parsed === 'object') {
+          return {
+            command: 'openspec doctor --json',
+            ok: false,
+            error: null,
+            data: parsed,
+          };
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const reason = [detail.stderr, detail.stdout, detail.message]
+      .map((part) => (typeof part === 'string' ? part.trim() : ''))
+      .find((part) => part.length > 0) ?? 'doctor-command-failed';
+    return {
+      command: 'openspec doctor --json',
+      ok: false,
+      error: reason.slice(0, 4000),
+      data: null,
+    };
+  }
+}
+
+/**
+ * Consulta el contexto de trabajo resuelto que el motor produce para agentes
+ * (`openspec context --json`) (Tarea 3b.2).
+ * Transporta su resultado como datos estructurados sin recomponerlo en prosa.
+ */
+export async function contextOpenSpecWithCli(
+  repoPath: string,
+  options?: CliExecutionOptions,
+): Promise<OpenSpecContextBriefResult> {
+  const runtime = resolveRuntime(options, repoPath);
+  if (!runtime) {
+    return {
+      command: 'openspec context --json',
+      ok: false,
+      error: 'openspec-cli-not-found',
+      data: null,
+    };
+  }
+
+  try {
+    const { stdout } = await runAuthorizedOpenSpec(runtime, ['context', '--json'], {
+      cwd: repoPath,
+      timeout: 15_000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    const parsed = JSON.parse(stdout) as OpenSpecContextBriefData;
+    return {
+      command: 'openspec context --json',
+      ok: true,
+      error: null,
+      data: parsed,
+    };
+  } catch (error) {
+    const detail = error as { stderr?: unknown; stdout?: unknown; message?: unknown };
+    if (typeof detail.stdout === 'string') {
+      try {
+        const parsed = JSON.parse(detail.stdout) as OpenSpecContextBriefData;
+        if (parsed && typeof parsed === 'object') {
+          return {
+            command: 'openspec context --json',
+            ok: false,
+            error: null,
+            data: parsed,
+          };
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const reason = [detail.stderr, detail.stdout, detail.message]
+      .map((part) => (typeof part === 'string' ? part.trim() : ''))
+      .find((part) => part.length > 0) ?? 'context-command-failed';
+    return {
+      command: 'openspec context --json',
+      ok: false,
+      error: reason.slice(0, 4000),
+      data: null,
+    };
+  }
 }

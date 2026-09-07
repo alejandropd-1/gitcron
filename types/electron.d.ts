@@ -482,8 +482,8 @@ interface ElectronAPI {
   pipelineUnsubscribe: (repoPath: string) => Promise<GitResult>;
   /** Plan del archivado: el comando que se va a ejecutar. No ejecuta nada. */
   pipelineArchivePlan: (repoPath: string, changeId: string) => Promise<GitResult<import('./pipeline').ArchivePlan>>;
-  /** Archiva un change desde el proceso principal. No toca Git. */
-  pipelineArchiveChange: (repoPath: string, changeId: string) => Promise<GitResult>;
+  /** Archiva un change desde el proceso principal. No toca Git. Acepta motivo opcional. */
+  pipelineArchiveChange: (repoPath: string, changeId: string, reason?: string) => Promise<GitResult>;
   /** Cambia el estado de una tarea del change. `expectedText` verifica que sea la misma. */
   pipelineSetTaskChecked: (
     repoPath: string,

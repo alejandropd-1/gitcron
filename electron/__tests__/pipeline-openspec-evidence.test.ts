@@ -316,6 +316,8 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
           origin: 'cli',
           readAt: new Date().toISOString(),
         }),
+        runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+        runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
       });
 
       expect(snapshot.cli.runtimeVersion).toBe('1.5.0');
@@ -376,6 +378,8 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
           origin: 'cli',
           readAt: new Date().toISOString(),
         }),
+        runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+        runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
       });
 
       expect(snapshot.integrationState).not.toBe('up-to-date');
@@ -430,6 +434,8 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
           origin: 'cli',
           readAt: new Date().toISOString(),
         }),
+        runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+        runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
       });
 
       // La autoridad única en main deriva outdated porque .claude está presente pero sin configurar
@@ -477,6 +483,8 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
             origin: 'cli',
             readAt: new Date().toISOString(),
           }),
+          runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+          runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
         });
 
         // Target presente con 0 workflows oficiales NO puede ser convergent
@@ -546,6 +554,8 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
             origin: 'cli',
             readAt: new Date().toISOString(),
           }),
+          runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+          runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
         });
 
         // Todos los targets coinciden exactamente con la global
@@ -593,6 +603,8 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
           origin: 'cli',
           readAt: new Date().toISOString(),
         }),
+        runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+        runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
       });
 
       // Nunca puede declararse convergente si la evidencia no está confirmada

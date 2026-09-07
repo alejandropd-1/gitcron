@@ -154,28 +154,29 @@
 
 ## 4. Sincronización de specs
 
-- [ ] 4.1 En `electron/ipc/`, agregar el canal de vista previa de sincronización que informe qué capacidades y requisitos se incorporarían a `openspec/specs/`, sin escribir nada.
-- [ ] 4.2 Agregar el canal de ejecución de la sincronización, que sólo procede tras confirmación explícita y deja los specs modificados sin confirmar en Git.
-- [ ] 4.3 En `electron/__tests__/`, verificar que la vista previa no escribe ningún archivo y que la ejecución sin confirmación previa se rechaza.
-
-- [ ] 4.4 **Medicion del 2026-09-07, antes de construir nada de este grupo: `openspec sync` no
-  existe.** El grupo 4 esta escrito contra un comando que el motor no tiene.
-  Medido contra OpenSpec 1.11.0, listando los 22 comandos de `openspec --help` y los subcomandos de
-  `openspec change --help` y `openspec spec --help`: no hay `sync` en ninguno de los tres niveles.
-  Lo que si existe son dos cosas distintas:
-  - `openspec archive`, que segun su propia descripcion «archiva un cambio completado **y actualiza
-    las specs principales**». O sea que sincronizar ya ocurre, pero atado a archivar.
-  - El workflow `openspec-sync-specs`, que es lo que permite sincronizar **sin archivar**. Su propio
-    encabezado declara que es **una operacion de agente**: «you will read delta specs and directly
-    edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario
-    without copying the entire requirement)». No es una llamada al CLI: es un criterio aplicado
-    archivo por archivo.
-  Consecuencia: la «vista previa de que se fusionaria» que pide la tarea 4.1 no se puede sacar de un
-  comando. O la calcula GitCron —y entonces esta reimplementando el criterio de fusion, con el riesgo
-  de que diga una cosa y el agente haga otra— o se delega, y entonces la vista previa es la propuesta
-  del agente y necesita la revision por bloque de 8.5, igual que la tarea 3.5.
-  **Reescribir el grupo 4 sobre lo medido antes de implementarlo. La decide Alejandro** si se delega
-  o se calcula.
+- [ ] 4.1 **Medición y estado real: `openspec sync` no existe en OpenSpec 1.11.0.** El grupo 4 original se formuló asumiendo un comando CLI inexistente. Medido contra OpenSpec 1.11.0 (`openspec --help`, `openspec change --help`, `openspec spec --help`): no hay comando ni subcomando de sincronización independiente. En OpenSpec la sincronización de specs ocurre de dos únicas formas:
+  - Automática al archivar: `openspec archive <id>` archiva el cambio y fusiona las delta specs en `openspec/specs/`.
+  - Manual guiada por agente: a través del workflow `openspec-sync-specs`, diseñado para que un agente lea las delta specs y edite inteligentemente las specs principales sin archivar (ej. agregando escenarios o requisitos específicos sin sobrescribir el archivo completo).
+- [ ] 4.2 **Alternativa A — Cálculo y fusión propios en GitCron:**
+  - GitCron lee directamente las delta specs en `openspec/changes/<id>/specs/`, analiza las diferencias semánticas con `openspec/specs/` y genera una vista previa estructurada antes de aplicar cambios a disco sin confirmación previa.
+  - *Ventajas:* Totalmente autónomo (no depende de sesión de agente activa, no consume tokens ni API externa), determinista, integrable directamente en canales IPC síncronos/asíncronos con confirmación de usuario en el renderer.
+  - *Desventajas:* Reimplementa la lógica de fusión inteligente de OpenSpec (merge de bloques de requerimientos Markdown), con riesgo de divergencia respecto a futuras versiones del CLI o estándares de OpenSpec.
+- [ ] 4.3 **Alternativa B — Delegación en el workflow de agente (`openspec-sync-specs`):**
+  - GitCron invoca o delega la operación al workflow/skill `openspec-sync-specs` para el change seleccionado. El agente genera la propuesta de cambios sobre las specs principales y GitCron presenta la vista previa bloque a bloque mediante `DiffViewer` (con el mismo patrón de revisión granular de la tarea 8.5) antes de consolidar la escritura.
+  - *Ventajas:* Respeta la arquitectura nativa de OpenSpec para sync parcial guiado; gestiona colisiones complejas y resoluciones no triviales con criterio de lenguaje natural.
+  - *Desventajas:* No es determinista, requiere una sesión o entorno de agente disponible, mayor latencia y no puede resolverse puramente en background sin interacción del agente.
+- [ ] 4.4 **Resuelto el 2026-09-07 por Alejandro: va la Alternativa B, delegar en el workflow.**
+  Sus palabras: «quiero una herramienta que ande pipi cucu con OpenSpec en GitCron, sea actualizable
+  y **respete todas las features que ofrece OpenSpec**».
+  El motivo esta alineado con lo que este proyecto ya aprendio dos veces: el change archivado
+  `actualizar-ciclo-sdd-a-openspec-1-11` denuncio exactamente el vicio de la Alternativa A —«una
+  regla escrita en un lugar propio cuando la herramienta ya la entrega»— y su tesis fue «el ciclo
+  consume el canal en vez de dictarlo». Reimplementar el criterio de fusion es dictarlo.
+  Consecuencia aceptada: la Alternativa B depende de la revision por bloque de la tarea 8.5, que hay
+  que construir antes. Tambien la habilita para la tarea 3.5, que tenia la misma dependencia.
+  Lo que sigue siendo obligatorio pese a delegar: **nada se escribe sin confirmacion**, y la
+  propuesta del agente se ve como propuesta, nunca confundible con lo ya escrito.
+  (Texto anterior de esta tarea: decision de arquitectura pendiente por Alejandro.) Documentar las dos alternativas para que Alejandro decida si GitCron calcula la fusión propia o si se delega en el workflow del agente. Ninguna casilla del grupo 4 queda marcada (`- [ ]`), y la implementación de canales IPC y pruebas quedará sujeta a la alternativa elegida.
 
 ## 5. Motivo al archivar
 
@@ -227,6 +228,32 @@
   Comprobar después que un cambio en `electron/` sigue recompilando `dist/main.js`, porque si el
   vigilante queda mal acotado el síntoma es que la recompilación deja de dispararse, y eso ya costó
   media hora una vez.
+
+- [ ] 5.5 **Auditoria del 2026-09-07: el acotado del vigilante quedo declarado en dos lugares que
+  dicen cosas distintas, y gana el que deja fuera a `lib/`.**
+  La tanda resolvio 5.4 por dos caminos a la vez: `package.json` pasa `--watch electron` por linea de
+  comandos, y `tsup.config.ts` declara `watch: ['electron', 'types', 'lib']` en las dos entradas.
+  Medido el 2026-09-07 corriendo `pnpm exec tsup --watch electron` y leyendo su propia salida: tsup
+  imprime **`Watching for changes in "electron"`**, en singular. **El argumento de linea de comandos
+  gana y la lista del archivo de configuracion se ignora.**
+  Consecuencia medida: `lib/` no se vigila, y `lib/` **si se empaqueta** dentro de `dist/main.js`
+  —las dos entradas declaran `bundle: true` y `noExternal` de todo salvo `electron`—. O sea que
+  editar `lib/openspec-version.ts`, que es justo lo que va a tocar el grupo 9c, **no dispara
+  recompilacion** en desarrollo. Lo mismo con `types/`.
+  Es exactamente la trampa que la propia 5.4 advertia: «si el vigilante queda mal acotado el sintoma
+  es que la recompilacion deja de dispararse». La comprobacion de la tanda uso `electron/main.ts`,
+  que es la unica ruta en la que los dos declarantes coinciden, asi que no podia detectarlo.
+  Resolver dejando **una sola declaracion**, no dos. Y comprobar la recompilacion con un archivo de
+  `lib/` y otro de `types/`, no solo de `electron/`.
+
+- [ ] 5.6 **Auditoria del 2026-09-07: si el vigilante no se puede volver a tomar, nadie se entera.**
+  `withRepoWatcherPaused` en `electron/ipc/watchers.ts` restaura el vigilante en su `finally`, que es
+  lo correcto, pero envuelve la restauracion en un `catch` vacio. Si falla, la aplicacion se queda
+  **sin ver los cambios de ese repositorio** y no lo dice.
+  Es el sintoma que la propia 5.3 anticipa: «un vigilante que queda suelto deja la aplicacion sin ver
+  los cambios del repositorio y el sintoma aparece mucho despues». Un archivado que salio bien y dejo
+  la aplicacion ciega es peor que uno que fallo, porque no hay nada que mirar.
+  Informarlo cuando pasa. No hace falta bloquear nada: hace falta decirlo.
 
 ## 6. Instalación del motor
 

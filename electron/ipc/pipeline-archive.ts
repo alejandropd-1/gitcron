@@ -1,9 +1,11 @@
+import * as fs from 'node:fs/promises';
 import type { BrowserWindow } from 'electron';
 import { ipcMain } from 'electron';
 import { archiveOpenSpecChangeWithCli } from '../pipeline/openspec-cli';
-import { validateChangeDeltaRequirements, type DeltaValidationResult } from '../pipeline/openspec-delta-validator';
+import { validateChangeDeltaRequirements } from '../pipeline/openspec-delta-validator';
 import { PipelineService } from '../pipeline/pipeline-service';
-import { errMsg, validRepoPath } from './shared';
+import { errMsg, resolveInside, validRepoPath } from './shared';
+import { withRepoWatcherPaused } from './watchers';
 import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
 
 /**
@@ -21,6 +23,19 @@ import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
 
 import type { ArchivePlan } from '../../types/pipeline';
 export type { ArchivePlan };
+
+export type WriteArchiveReason = (repoPath: string, changeId: string, reason: string) => Promise<void>;
+export type PauseWatcherDuring = <T>(repoPath: string, fn: () => Promise<T>) => Promise<T>;
+
+const defaultWriteReason: WriteArchiveReason = async (repoPath, changeId, reason) => {
+  const resolved = resolveInside(repoPath, `openspec/changes/${changeId}/archive-reason.md`);
+  if (!resolved) throw new Error('Ruta de motivo fuera de límites');
+  await fs.writeFile(resolved, `# Motivo de archivado\n\n${reason.trim()}\n`, 'utf8');
+};
+
+const FOLDER_LOCK_PATTERN = /EPERM|operation not permitted|EBUSY|resource busy or locked/i;
+const FOLDER_LOCK_MESSAGE =
+  'No se pudo mover la carpeta del cambio porque otro proceso (un vigilante de archivos, indexador o antivirus) la mantiene abierta. El contenido del cambio es válido; lo que falló fue la mudanza a openspec/changes/archive.';
 
 function validChangeId(value: unknown): value is string {
   return isValidOpenSpecChangeSlug(value);
@@ -41,6 +56,8 @@ export function registerPipelineArchiveHandlers(
   archive = archiveOpenSpecChangeWithCli,
   service = new PipelineService(),
   validateDelta = validateChangeDeltaRequirements,
+  writeReason: WriteArchiveReason = defaultWriteReason,
+  pauseWatcher: PauseWatcherDuring = withRepoWatcherPaused,
 ): void {
   ipcMain.handle('pipeline:archive-plan', async (_event, repoPath: unknown, changeId: unknown) => {
     if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
@@ -63,7 +80,7 @@ export function registerPipelineArchiveHandlers(
     }
   });
 
-  ipcMain.handle('pipeline:archive-change', async (_event, repoPath: unknown, changeId: unknown) => {
+  ipcMain.handle('pipeline:archive-change', async (_event, repoPath: unknown, changeId: unknown, reason?: unknown) => {
     if (!validRepoPath(repoPath)) return { success: false, error: 'Ruta de repositorio inválida o no autorizada' };
     // El slug se valida acá además de en el wrapper: el renderer no puede
     // inyectar nada al proceso por este camino.
@@ -82,14 +99,30 @@ export function registerPipelineArchiveHandlers(
         return { success: false, error: deltaCheck.errors.join(' | '), stage: 'validation' };
       }
 
-      const result = await archive(canonicalPath, changeId);
+      // Si se provee motivo opcional, se conserva junto a los artefactos del change (Tarea 5.1)
+      if (typeof reason === 'string' && reason.trim().length > 0) {
+        await writeReason(canonicalPath, changeId, reason.trim());
+      }
+
+      // Soltar vigilante propio durante la mudanza de carpeta en Windows (Tarea 5.3)
+      const result = await pauseWatcher(canonicalPath, () => archive(canonicalPath, changeId));
+
       // El resultado se lee del CLI, no del hecho de que el proceso terminó.
-      if (!result.ok) return { success: false, error: result.error, stage: 'archive' };
+      if (!result.ok) {
+        if (result.error && FOLDER_LOCK_PATTERN.test(result.error)) {
+          return { success: false, error: FOLDER_LOCK_MESSAGE, stage: 'archive' };
+        }
+        return { success: false, error: result.error, stage: 'archive' };
+      }
 
       getMainWindow()?.webContents.send('repo:fs-change', { repoPath: canonicalPath });
       return { success: true };
     } catch (error) {
-      return { success: false, error: errMsg(error) };
+      const message = errMsg(error);
+      if (FOLDER_LOCK_PATTERN.test(message)) {
+        return { success: false, error: FOLDER_LOCK_MESSAGE, stage: 'archive' };
+      }
+      return { success: false, error: message };
     }
   });
 }

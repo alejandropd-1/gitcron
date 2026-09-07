@@ -36,12 +36,16 @@ describe('IPC de archivado de un change', () => {
   async function register(
     archive: (repoPath: string, changeId: string) => Promise<{ ok: boolean; error: string | null }>,
     validateDelta = vi.fn().mockResolvedValue({ valid: true, errors: [], requirementIssues: [], incompleteTasks: [], hasIncompleteTasks: false }),
+    writeReason = vi.fn().mockResolvedValue(undefined),
+    pauseWatcher = vi.fn(async (_repo: string, fn: () => Promise<any>) => fn()),
   ) {
     const { registerPipelineArchiveHandlers } = await import('../ipc/pipeline-archive');
-    registerPipelineArchiveHandlers(() => null, archive, binding as never, validateDelta as never);
+    registerPipelineArchiveHandlers(() => null, archive, binding as never, validateDelta as never, writeReason, pauseWatcher);
     return {
       plan: ipc.handlers.get('pipeline:archive-plan')!,
       run: ipc.handlers.get('pipeline:archive-change')!,
+      writeReason,
+      pauseWatcher,
     };
   }
 
@@ -129,5 +133,88 @@ describe('IPC de archivado de un change', () => {
 
     expect(result.data.archiveCommand).toBe('openspec archive mi-cambio --yes');
     expect(archive).not.toHaveBeenCalled();
+  });
+
+  describe('motivo opcional al archivar (Tareas 5.1 y 5.2)', () => {
+    it('archivar sin motivo sigue funcionando sin penalización y no escribe archivo de motivo', async () => {
+      const archive = vi.fn(ok);
+      const writeReason = vi.fn();
+      const { run } = await register(archive, undefined, writeReason);
+
+      const result = await run(null, 'C:/repo', 'mi-cambio') as { success: boolean };
+
+      expect(result.success).toBe(true);
+      expect(archive).toHaveBeenCalledWith('C:/repo-real', 'mi-cambio');
+      expect(writeReason).not.toHaveBeenCalled();
+    });
+
+    it('archivar con motivo escribe el motivo en el directorio del change antes de moverlo', async () => {
+      const callOrder: string[] = [];
+      const archive = vi.fn(async () => {
+        callOrder.push('archive');
+        return { ok: true, error: null };
+      });
+      const writeReason = vi.fn(async () => {
+        callOrder.push('writeReason');
+      });
+
+      const { run } = await register(archive, undefined, writeReason);
+
+      const result = await run(
+        null,
+        'C:/repo',
+        'mi-cambio',
+        'Se desestima por decisión de diseño tras medir viabilidad',
+      ) as { success: boolean };
+
+      expect(result.success).toBe(true);
+      expect(writeReason).toHaveBeenCalledWith(
+        'C:/repo-real',
+        'mi-cambio',
+        'Se desestima por decisión de diseño tras medir viabilidad',
+      );
+      expect(callOrder).toEqual(['writeReason', 'archive']);
+    });
+
+    it('ignora motivos vacíos o con solo espacios sin invocar escritura de motivo', async () => {
+      const archive = vi.fn(ok);
+      const writeReason = vi.fn();
+      const { run } = await register(archive, undefined, writeReason);
+
+      const result = await run(null, 'C:/repo', 'mi-cambio', '   ') as { success: boolean };
+
+      expect(result.success).toBe(true);
+      expect(writeReason).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('soltar vigilante propio y diagnóstico de EPERM (Tarea 5.3)', () => {
+    it('ejecuta el archivado pausando el vigilante propio', async () => {
+      const archive = vi.fn(ok);
+      const pauseWatcher = vi.fn(async (_repo: string, fn: () => Promise<any>) => fn());
+      const { run } = await register(archive, undefined, undefined, pauseWatcher);
+
+      const result = await run(null, 'C:/repo', 'mi-cambio') as { success: boolean };
+
+      expect(result.success).toBe(true);
+      expect(pauseWatcher).toHaveBeenCalledWith('C:/repo-real', expect.any(Function));
+      expect(archive).toHaveBeenCalledWith('C:/repo-real', 'mi-cambio');
+    });
+
+    it('reconoce el bloqueo EPERM por handle abierto de carpeta y lo informa sin culpar al cambio', async () => {
+      const archive = vi.fn(async () => ({
+        ok: false,
+        error: 'EPERM: operation not permitted, rename C:\\repo\\openspec\\changes\\mi-cambio -> C:\\repo\\openspec\\changes\\archive\\2026-09-07-mi-cambio',
+      }));
+
+      const { run } = await register(archive);
+
+      const result = await run(null, 'C:/repo', 'mi-cambio') as { success: boolean; error: string; stage: string };
+
+      expect(result.success).toBe(false);
+      expect(result.stage).toBe('archive');
+      expect(result.error).toContain('No se pudo mover la carpeta del cambio porque otro proceso');
+      expect(result.error).toContain('El contenido del cambio es válido; lo que falló fue la mudanza');
+    });
   });
 });

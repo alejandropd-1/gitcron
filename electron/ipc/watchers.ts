@@ -80,10 +80,83 @@ function enqueueWatcherOperation<T>(targetPath: string, operation: () => Promise
   return next;
 }
 
+let activeGetMainWindow: (() => BrowserWindow | null) | null = null;
+let activeOnRepoChanged: ((repoPath: string) => void) | undefined;
+
+function createWatcherInstance(targetPath: string): FSWatcher {
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const watcher = chokidar.watch(targetPath, {
+    ignored: createRepoIgnoreFilter(path.join(targetPath, '.git')),
+    ignoreInitial: true,
+    persistent: true,
+    awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
+  });
+  // Si algo de lo agrupado tocó `.git/`. El renderer lo necesita porque
+  // no relee lo mismo en los dos casos: un cambio del árbol se resuelve
+  // con `git status`, pero cambiar de rama, borrar una o confirmar desde
+  // afuera exige releer también las ramas y el log.
+  //
+  // Ale lo encontró validando: creó una rama desde la terminal y tardó en
+  // aparecer; al borrarla tuvo que refrescar a mano. El evento llegaba —la
+  // whitelist funciona— pero del otro lado sólo se releía el árbol.
+  let touchedGitDir = false;
+  const emit = (changedPath?: string) => {
+    if (typeof changedPath === 'string' && isGitPath(targetPath, changedPath)) {
+      touchedGitDir = true;
+    }
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      const gitState = touchedGitDir;
+      touchedGitDir = false;
+      activeGetMainWindow?.()?.webContents.send('repo:fs-change', { repoPath: targetPath, gitState });
+      activeOnRepoChanged?.(targetPath);
+    }, 250);
+  };
+  watcher.on('add', emit).on('change', emit).on('unlink', emit)
+         .on('addDir', emit).on('unlinkDir', emit);
+  return watcher;
+}
+
+/**
+ * Pausa el vigilante de un repositorio durante una acción crítica (ej. archivado de un cambio en Windows),
+ * soltando los handles de directorio de ReadDirectoryChangesW, y lo restaura incondicionalmente
+ * en el bloque finally, incluso si la acción falla (Tarea 5.3).
+ */
+export async function withRepoWatcherPaused<T>(
+  targetPath: string,
+  action: () => Promise<T>,
+): Promise<T> {
+  return enqueueWatcherOperation(targetPath, async () => {
+    const existing = repoWatchers.get(targetPath);
+    if (!existing) {
+      return await action();
+    }
+
+    await existing.close().catch(() => {});
+    repoWatchers.delete(targetPath);
+
+    try {
+      return await action();
+    } finally {
+      if (authorizedRepoStore.isAuthorized(targetPath)) {
+        try {
+          const rearmed = createWatcherInstance(targetPath);
+          repoWatchers.set(targetPath, rearmed);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  });
+}
+
 export function registerWatcherHandlers(
   getMainWindow: () => BrowserWindow | null,
   onRepoChanged?: (repoPath: string) => void,
 ): void {
+  activeGetMainWindow = getMainWindow;
+  activeOnRepoChanged = onRepoChanged;
+
   ipcMain.handle('repo:watch', (_event, targetPath: string) => (
     enqueueWatcherOperation(targetPath, () => {
       if (!targetPath || typeof targetPath !== 'string') {
@@ -94,36 +167,7 @@ export function registerWatcherHandlers(
       }
       if (repoWatchers.has(targetPath)) return { success: true };
       try {
-        let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-        const watcher = chokidar.watch(targetPath, {
-          ignored: createRepoIgnoreFilter(path.join(targetPath, '.git')),
-          ignoreInitial: true,
-          persistent: true,
-          awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
-        });
-        // Si algo de lo agrupado tocó `.git/`. El renderer lo necesita porque
-        // no relee lo mismo en los dos casos: un cambio del árbol se resuelve
-        // con `git status`, pero cambiar de rama, borrar una o confirmar desde
-        // afuera exige releer también las ramas y el log.
-        //
-        // Ale lo encontró validando: creó una rama desde la terminal y tardó en
-        // aparecer; al borrarla tuvo que refrescar a mano. El evento llegaba —la
-        // whitelist funciona— pero del otro lado sólo se releía el árbol.
-        let touchedGitDir = false;
-        const emit = (changedPath?: string) => {
-          if (typeof changedPath === 'string' && isGitPath(targetPath, changedPath)) {
-            touchedGitDir = true;
-          }
-          if (debounceTimer) clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
-            const gitState = touchedGitDir;
-            touchedGitDir = false;
-            getMainWindow()?.webContents.send('repo:fs-change', { repoPath: targetPath, gitState });
-            onRepoChanged?.(targetPath);
-          }, 250);
-        };
-        watcher.on('add', emit).on('change', emit).on('unlink', emit)
-               .on('addDir', emit).on('unlinkDir', emit);
+        const watcher = createWatcherInstance(targetPath);
         repoWatchers.set(targetPath, watcher);
         return { success: true };
       } catch (error: any) {

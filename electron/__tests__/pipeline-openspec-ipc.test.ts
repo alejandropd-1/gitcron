@@ -148,6 +148,8 @@ describe('Single Runtime Resolution (Audit Point 5)', () => {
       getUserDataDir: () => 'C:\\userData',
       resolveRuntime: mockResolve,
       readGlobalConfig: mockReadConfig,
+      runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+      runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
     });
 
     // resolveRuntime se invoca exactamente 1 sola vez en el snapshot completo
@@ -188,6 +190,8 @@ describe('Single Runtime Resolution (Audit Point 5)', () => {
         };
       },
       readGlobalConfig: async () => null,
+      runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+      runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
     });
 
     expect(snapshot.cli.provenance).toBe('local');
@@ -229,6 +233,8 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
         diagnostics: [],
       }),
       readGlobalConfig: async () => null,
+      runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+      runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
     });
 
     const statusHandler = map.get('pipeline:openspec:engine-status')!;
@@ -277,6 +283,8 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
         diagnostics: [],
       }),
       readGlobalConfig: async () => null,
+      runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+      runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
     });
 
     const updatePlanHandler = map.get('pipeline:openspec:update-plan')!;

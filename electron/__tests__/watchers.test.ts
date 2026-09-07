@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createRepoIgnoreFilter, isGitStateRel } from '../ipc/watchers';
+import { createRepoIgnoreFilter, isGitStateRel, withRepoWatcherPaused } from '../ipc/watchers';
 
 type IpcHandler = (_event: unknown, ...args: unknown[]) => Promise<unknown>;
 
@@ -85,6 +85,61 @@ describe('repository watcher lifecycle', () => {
     await closing;
     await reopening;
     expect(mocks.watch).toHaveBeenCalledTimes(2);
+  });
+
+  it('pausa y restaura el observador durante una acción crítica', async () => {
+    const { registerWatcherHandlers } = await import('../ipc/watchers');
+    const { authorizedRepoStore } = await import('../ipc/authorized-repos');
+    vi.spyOn(authorizedRepoStore, 'isAuthorized').mockReturnValue(true);
+    registerWatcherHandlers(() => null);
+    const watch = mocks.handlers.get('repo:watch');
+    if (!watch) throw new Error('watcher handler not registered');
+
+    const repoPath = 'C:/work/repo-paused';
+    await watch(null, repoPath);
+    expect(mocks.watch).toHaveBeenCalledTimes(1);
+    const firstWatcher = mocks.watchers[mocks.watchers.length - 1];
+
+    let actionExecuted = false;
+    const result = await withRepoWatcherPaused(repoPath, async () => {
+      expect(firstWatcher.close).toHaveBeenCalledTimes(1);
+      actionExecuted = true;
+      return 'ok';
+    });
+
+    expect(actionExecuted).toBe(true);
+    expect(result).toBe('ok');
+    expect(mocks.watch).toHaveBeenCalledTimes(2);
+  });
+
+  it('restaura el observador incondicionalmente incluso si la acción falla', async () => {
+    const { registerWatcherHandlers } = await import('../ipc/watchers');
+    const { authorizedRepoStore } = await import('../ipc/authorized-repos');
+    vi.spyOn(authorizedRepoStore, 'isAuthorized').mockReturnValue(true);
+    registerWatcherHandlers(() => null);
+    const watch = mocks.handlers.get('repo:watch');
+    if (!watch) throw new Error('watcher handler not registered');
+
+    const repoPath = 'C:/work/repo-error';
+    await watch(null, repoPath);
+    expect(mocks.watch).toHaveBeenCalledTimes(1);
+    const firstWatcher = mocks.watchers[mocks.watchers.length - 1];
+
+    await expect(
+      withRepoWatcherPaused(repoPath, async () => {
+        expect(firstWatcher.close).toHaveBeenCalledTimes(1);
+        throw new Error('acción fallida');
+      }),
+    ).rejects.toThrow('acción fallida');
+
+    expect(mocks.watch).toHaveBeenCalledTimes(2);
+  });
+
+  it('no afecta ni crea observadores si el repositorio no estaba siendo observado', async () => {
+    const repoPath = 'C:/work/repo-unobserved';
+    const result = await withRepoWatcherPaused(repoPath, async () => 'passthrough');
+    expect(result).toBe('passthrough');
+    expect(mocks.watch).not.toHaveBeenCalled();
   });
 });
 

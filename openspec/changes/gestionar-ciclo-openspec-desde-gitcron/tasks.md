@@ -108,6 +108,29 @@
 
 - [ ] 6.7 Ofrecer la actualización del motor con el mismo patrón con que GitCron se actualiza a sí mismo: un indicador junto a la versión, que al abrirse ofrece la acción y la ejecuta, sin que haya que ir a buscar nada. La maquinaria ya existe en `electron/ipc/app-window.ts`, que usa `electron-updater` con `autoDownload = false` y los eventos `update-available`, `download-progress` y `update-downloaded`. Las tareas 6.1 a 6.5 resuelven **cómo instalar**; ésta resuelve **cómo se ofrece**, que es lo que hoy no existe: un repositorio con el motor atrasado no tiene en pantalla ningún camino a actualizarlo.
 
+- [ ] 6.8 **Medir que trae OpenSpec 1.12.0 antes de decidir si se adopta.** Pregunta de Alejandro del
+  2026-09-07: el CLI publico la 1.12.0 y el sistema tiene la 1.11.0 instalada, medido con
+  `openspec --version` en cero.
+  El salto no es instalar un paquete. `lib/openspec-version.ts:17-22` declara
+  `OPENSPEC_CYCLE_TARGET_VERSION = '1.11.0'` y el rango soportado `{ min: '1.5.0', max: '1.11.0' }`,
+  y el encabezado de ese archivo explica por que: el JSON del CLI cambia entre minors —`status` gano
+  `requires` en 1.7 e `isPlanningComplete` en 1.8—, asi que «se ejecuta» no implica «se soporta».
+  Instalar 1.12.0 hoy, sin tocar nada mas, deja al motor **fuera del rango declarado** y la
+  aplicacion lo va a clasificar `too-new`, que es exactamente lo que esta escrita para detectar.
+  Medir, sin cambiar ninguna constante:
+  - Que agrega, cambia o retira 1.12.0 respecto de 1.11.0, con la fuente citada.
+  - Cuales de esos cambios tocan lo que GitCron **consume**: la forma del JSON de `status`,
+    `instructions`, `validate`, `archive` y `sync`, y los workflows del perfil.
+  - Que se rompe si el motor sube y la aplicacion no. En particular, la tarea 5.3 de este change esta
+    anclada a las entrañas de `dist/core/archive.js` **de la 1.11**: declarar si esa medicion sigue
+    valiendo en 1.12.
+  **La decision de adoptarla o no la toma Alejandro**, sobre lo medido. No se cambia
+  `OPENSPEC_CYCLE_TARGET_VERSION` ni `SUPPORTED_OPENSPEC_VERSIONS` en esta tarea.
+  Nota de oportunidad: mientras la 1.12.0 siga sin instalarse, este repositorio tiene **una
+  actualizacion real pendiente**, que es el caso de prueba vivo que la tarea 6.7 necesita para
+  comprobar que el camino a actualizar existe en pantalla. Actualizar a mano antes de construir 6.7
+  lo consume.
+
 ## 7. Perfil de workflows
 
 - [ ] 7.1 En `electron/pipeline/`, agregar la lectura de `openspec config list` devolviendo perfil y workflows habilitados como datos, sin enum cerrado en el código.

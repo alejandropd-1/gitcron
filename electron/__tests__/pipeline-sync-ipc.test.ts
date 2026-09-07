@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authorizedRepoStore } from '../ipc/authorized-repos';
+import { PipelineService } from '../pipeline/pipeline-service';
 import type { SyncDeps } from '../ipc/pipeline-sync';
 
 type Handler = (_event: unknown, ...args: unknown[]) => Promise<unknown>;
@@ -23,6 +24,7 @@ describe('IPC de sincronización de specs - Alternativa B (Grupo 4)', () => {
     ipc.handle.mockClear();
     vi.clearAllMocks();
     vi.spyOn(authorizedRepoStore, 'isAuthorized').mockImplementation((p) => p === 'C:/repo' || p === 'C:/repo-real');
+    vi.spyOn(PipelineService.prototype, 'resolveBinding').mockResolvedValue({ repoId: 'test-repo', canonicalPath: 'C:/repo-real' });
   });
 
   afterEach(() => {
@@ -70,6 +72,24 @@ describe('IPC de sincronización de specs - Alternativa B (Grupo 4)', () => {
       expect(res.error).toContain('Identificador de cambio inválido');
     });
 
+    it('ejercita el canal como lo registra main.ts sin inyectar nada (Tarea 4.5)', async () => {
+      const { registerPipelineSyncHandlers } = await import('../ipc/pipeline-sync');
+      // Registrado como en main.ts:322 sin ningún deps inyectado
+      registerPipelineSyncHandlers(() => null);
+      const previewHandler = ipc.handlers.get('pipeline:sync-preview')!;
+
+      const res = (await previewHandler(null, 'C:/repo', 'mi-cambio')) as {
+        success: boolean;
+        error: string;
+        reason?: string;
+      };
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe('no-agent');
+      expect(res.error).toContain('No hay ningún agente disponible para ejecutar el workflow openspec-sync-specs');
+      expect(res.error).toContain('archivar el cambio ("openspec archive"), que fusiona automáticamente');
+    });
+
     it('si no hay agente disponible, la sincronización se detiene sin caer en cálculo propio (Alternativa B)', async () => {
       const { preview, writeRepoFile } = await register({
         isAgentAvailable: vi.fn().mockResolvedValue(false),
@@ -84,12 +104,34 @@ describe('IPC de sincronización de specs - Alternativa B (Grupo 4)', () => {
       expect(res.success).toBe(false);
       expect(res.reason).toBe('no-agent');
       expect(res.error).toContain('No hay ningún agente disponible');
-      expect(res.error).toContain('GitCron no realiza fusión algorítmica propia de emergencia');
+      expect(res.error).toContain('archivar el cambio');
       expect(writeRepoFile).not.toHaveBeenCalled();
     });
 
-    it('la vista previa NO escribe ningún archivo en disco (Afirmación Tarea 4.3 / 4.7)', async () => {
+    it('si hay agente pero falta el ejecutor del workflow, se detiene y declara que archivar sí sincroniza (Tarea 4.5)', async () => {
       const { preview, writeRepoFile } = await register({
+        isAgentAvailable: vi.fn().mockResolvedValue(true),
+        // sin invokeSyncWorkflow
+      });
+
+      const res = (await preview(null, 'C:/repo', 'mi-cambio')) as {
+        success: boolean;
+        error: string;
+        reason?: string;
+      };
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe('no-workflow-runner');
+      expect(res.error).toContain('No hay un ejecutor configurado para el workflow openspec-sync-specs');
+      expect(res.error).toContain('archivar el cambio ("openspec archive") sí sincroniza');
+      expect(writeRepoFile).not.toHaveBeenCalled();
+    });
+
+    it('la vista previa con workflow NO escribe ningún archivo en disco (Afirmación Tarea 4.3 / 4.7)', async () => {
+      const { preview, writeRepoFile } = await register({
+        invokeSyncWorkflow: vi.fn(async (_path, _changeId, specs: Array<{ capability: string; mainContent: string }>) =>
+          specs.map((s) => ({ capability: s.capability, proposedContent: `${s.mainContent}\n### Requirement: Login\n` })),
+        ),
         readRepoFile: vi.fn(async (_repo, rel) => {
           if (rel.includes('changes')) {
             return '## ADDED Requirements\n### Requirement: Login\n';

@@ -114,7 +114,7 @@ export function registerPipelineSyncHandlers(
   deps: SyncDeps = {},
 ): void {
   const service = deps.service ?? new PipelineService();
-  const isAgentAvailable = deps.isAgentAvailable ?? (async () => true);
+  const isAgentAvailable = deps.isAgentAvailable ?? (async () => false);
   const listDeltaSpecs = deps.listDeltaSpecs ?? defaultListDeltaSpecs;
   const readRepoFile = deps.readRepoFile ?? defaultReadRepoFile;
   const writeRepoFile = deps.writeRepoFile ?? defaultWriteRepoFile;
@@ -137,8 +137,18 @@ export function registerPipelineSyncHandlers(
         return {
           success: false,
           error:
-            'No hay ningún agente disponible para ejecutar el workflow openspec-sync-specs. La sincronización de specs requiere un agente de IA para realizar la fusión semántica inteligente según la arquitectura oficial de OpenSpec. GitCron no realiza fusión algorítmica propia de emergencia.',
+            'No hay ningún agente disponible para ejecutar el workflow openspec-sync-specs. La sincronización sin archivar requiere un agente de IA y aún no está disponible. Para sincronizar las especificaciones ahora podés archivar el cambio ("openspec archive"), que fusiona automáticamente las delta specs en openspec/specs/.',
           reason: 'no-agent',
+        };
+      }
+
+      // Si no hay ejecutor configurado para el workflow del agente, el canal se detiene y lo declara
+      if (!deps.invokeSyncWorkflow) {
+        return {
+          success: false,
+          error:
+            'No hay un ejecutor configurado para el workflow openspec-sync-specs. La sincronización sin archivar aún no está disponible; archivar el cambio ("openspec archive") sí sincroniza y fusiona las delta specs en openspec/specs/.',
+          reason: 'no-workflow-runner',
         };
       }
 
@@ -160,17 +170,8 @@ export function registerPipelineSyncHandlers(
         deltaSpecsData.push({ capability: cap, deltaContent, mainContent });
       }
 
-      // Invocar el workflow del agente (o mock inyectado)
-      let workflowResults: Array<{ capability: string; proposedContent: string }>;
-      if (deps.invokeSyncWorkflow) {
-        workflowResults = await deps.invokeSyncWorkflow(canonicalPath, changeId, deltaSpecsData);
-      } else {
-        // En ausencia de runner externo configurado, simula el resultado del agente para capacidades
-        workflowResults = deltaSpecsData.map(({ capability, deltaContent, mainContent }) => ({
-          capability,
-          proposedContent: mainContent ? `${mainContent.trimEnd()}\n\n${deltaContent.trim()}\n` : deltaContent,
-        }));
-      }
+      // Invocar el workflow real del agente
+      const workflowResults = await deps.invokeSyncWorkflow(canonicalPath, changeId, deltaSpecsData);
 
       // Construir items de vista previa con diff unificado
       // IMPORTANTE: NO SE ESCRIBE NINGÚN ARCHIVO

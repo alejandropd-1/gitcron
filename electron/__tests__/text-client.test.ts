@@ -1,0 +1,253 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  buildChatCompletionsEndpoint,
+  buildHeaders,
+  completeText,
+  createLmStudioConfig,
+  createOpenRouterConfig,
+  createUnslothConfig,
+  streamText,
+  type TextClientConfig,
+} from '../ai/text-client';
+
+const ORIGINAL_FETCH = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = ORIGINAL_FETCH;
+  vi.restoreAllMocks();
+});
+
+describe('Cliente unificado de texto (Grupo 9b)', () => {
+  describe('normalización de endpoints', () => {
+    it('agrega /chat/completions a una base que termina en /v1', () => {
+      expect(buildChatCompletionsEndpoint('http://localhost:1234/v1')).toBe('http://localhost:1234/v1/chat/completions');
+      expect(buildChatCompletionsEndpoint('http://localhost:1234/v1/')).toBe('http://localhost:1234/v1/chat/completions');
+    });
+
+    it('agrega /v1/chat/completions si la base no tiene versión', () => {
+      expect(buildChatCompletionsEndpoint('http://localhost:1234')).toBe('http://localhost:1234/v1/chat/completions');
+    });
+
+    it('respeta un endpoint completo que ya incluye /chat/completions', () => {
+      expect(buildChatCompletionsEndpoint('https://openrouter.ai/api/v1/chat/completions')).toBe(
+        'https://openrouter.ai/api/v1/chat/completions',
+      );
+    });
+  });
+
+  describe('las tres configuraciones (Tarea 9b.3 y 9b.4)', () => {
+    it('LM Studio: petición local sin cabecera authorization', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: 'Respuesta local' }, finish_reason: 'stop' }],
+        }),
+      });
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
+
+      const config = createLmStudioConfig({ baseUrl: 'http://localhost:1234/v1' });
+      await completeText(config, {
+        model: 'local-model',
+        system: 'Eres un asistente',
+        user: 'Hola',
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [calledUrl, calledInit] = mockFetch.mock.calls[0];
+      expect(calledUrl).toBe('http://localhost:1234/v1/chat/completions');
+      expect(calledInit.headers['content-type']).toBe('application/json');
+      expect(calledInit.headers.authorization).toBeUndefined();
+
+      const body = JSON.parse(calledInit.body);
+      expect(body.model).toBe('local-model');
+      expect(body.messages).toEqual([
+        { role: 'system', content: 'Eres un asistente' },
+        { role: 'user', content: 'Hola' },
+      ]);
+    });
+
+    it('OpenRouter: petición online con Bearer token y cabeceras de atribución', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: 'Respuesta OpenRouter' }, finish_reason: 'stop' }],
+        }),
+      });
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
+
+      const config = createOpenRouterConfig({
+        apiKey: 'sk-or-v1-secret-token-12345',
+        appName: 'GitCron Test',
+      });
+
+      await completeText(config, {
+        model: 'anthropic/claude-sonnet-4.5',
+        system: 'System prompt',
+        user: 'User prompt',
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [calledUrl, calledInit] = mockFetch.mock.calls[0];
+      expect(calledUrl).toBe('https://openrouter.ai/api/v1/chat/completions');
+      expect(calledInit.headers['content-type']).toBe('application/json');
+      expect(calledInit.headers.authorization).toBe('Bearer sk-or-v1-secret-token-12345');
+      expect(calledInit.headers['http-referer']).toBe('https://github.com/alejandropd-1/gitcron');
+      expect(calledInit.headers['x-title']).toBe('GitCron Test');
+
+      const body = JSON.parse(calledInit.body);
+      expect(body.model).toBe('anthropic/claude-sonnet-4.5');
+    });
+
+    it('Unsloth Desktop: petición remota con token de autorización opcional (Tarea 9b.4)', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: 'Respuesta Unsloth' }, finish_reason: 'stop' }],
+        }),
+      });
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
+
+      const config = createUnslothConfig({
+        baseUrl: 'https://my-unsloth-desktop.cloudflare.com/v1',
+        apiKey: 'cf-tunnel-bearer-xyz',
+      });
+
+      await completeText(config, {
+        model: 'unsloth/gemma-3-12b',
+        system: 'System unsloth',
+        user: 'User unsloth',
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [calledUrl, calledInit] = mockFetch.mock.calls[0];
+      expect(calledUrl).toBe('https://my-unsloth-desktop.cloudflare.com/v1/chat/completions');
+      expect(calledInit.headers.authorization).toBe('Bearer cf-tunnel-bearer-xyz');
+    });
+  });
+
+  describe('seguridad de las claves (Tarea 9b.5 y 9b.7)', () => {
+    it('la clave NO sale del proceso ni se fuga en mensajes de error HTTP', async () => {
+      const SECRET_KEY = 'super-secret-key-that-must-never-leak';
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: { message: `Unauthorized: ${SECRET_KEY}` } }),
+      }) as unknown as typeof fetch;
+
+      const config = createOpenRouterConfig({ apiKey: SECRET_KEY });
+
+      await expect(
+        completeText(config, {
+          model: 'model',
+          system: 's',
+          user: 'u',
+        }),
+      ).rejects.toThrowError(/OpenRouter respondió 401/);
+
+      try {
+        await completeText(config, { model: 'm', system: 's', user: 'u' });
+      } catch (err) {
+        const errorMsg = String(err);
+        expect(errorMsg).not.toContain(SECRET_KEY);
+      }
+    });
+
+    it('la clave NO se filtra cuando falla la red', async () => {
+      const SECRET_KEY = 'another-sensitive-token';
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error(`fetch failed for token ${SECRET_KEY}`)) as unknown as typeof fetch;
+
+      const config = createOpenRouterConfig({ apiKey: SECRET_KEY });
+
+      try {
+        await completeText(config, { model: 'm', system: 's', user: 'u' });
+        expect.fail('Debería haber lanzado error');
+      } catch (err) {
+        const errorMsg = String(err);
+        expect(errorMsg).not.toContain(SECRET_KEY);
+        expect(errorMsg).toContain('No se pudo contactar a OpenRouter');
+      }
+    });
+  });
+
+  describe('modos duales: respuesta única y streaming SSE (Tarea 9b.3)', () => {
+    it('completeText devuelve el texto consolidado y finishReason', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: 'Texto completo y final' }, finish_reason: 'stop' }],
+        }),
+      }) as unknown as typeof fetch;
+
+      const config = createLmStudioConfig();
+      const res = await completeText(config, { model: 'm', system: 's', user: 'u' });
+
+      expect(res.text).toBe('Texto completo y final');
+      expect(res.finishReason).toBe('stop');
+    });
+
+    it('streamText procesa SSE acumulando chunks y emitiendo onChunk', async () => {
+      const sseStream = [
+        'data: {"choices":[{"delta":{"reasoning":"Pensando paso 1...\\n"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":"feat: asunto\\n\\n"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":"Cuerpo descriptivo."}}]}\n\n',
+        'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+        'data: [DONE]\n\n',
+      ];
+
+      const encoder = new TextEncoder();
+      let index = 0;
+      const customReadable = new ReadableStream({
+        pull(controller) {
+          if (index < sseStream.length) {
+            controller.enqueue(encoder.encode(sseStream[index++]));
+          } else {
+            controller.close();
+          }
+        },
+      });
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'text/event-stream' }),
+        body: customReadable,
+      }) as unknown as typeof fetch;
+
+      const receivedChunks: any[] = [];
+      const config = createLmStudioConfig();
+      const res = await streamText(config, {
+        model: 'm',
+        system: 's',
+        user: 'u',
+        onChunk: (chunks) => receivedChunks.push(...chunks),
+      });
+
+      expect(res.text).toBe('feat: asunto\n\nCuerpo descriptivo.');
+      expect(res.finishReason).toBe('stop');
+      expect(receivedChunks.length).toBeGreaterThan(0);
+      expect(receivedChunks.some((c) => c.kind === 'reasoning')).toBe(true);
+      expect(receivedChunks.some((c) => c.kind === 'content')).toBe(true);
+    });
+
+    it('streamText degrada limpiamente a respuesta única si el servidor responde con JSON plano', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({
+          choices: [{ message: { content: 'Fallback a JSON sin stream' }, finish_reason: 'stop' }],
+        }),
+      }) as unknown as typeof fetch;
+
+      const config = createLmStudioConfig();
+      const res = await streamText(config, { model: 'm', system: 's', user: 'u' });
+
+      expect(res.text).toBe('Fallback a JSON sin stream');
+      expect(res.finishReason).toBe('stop');
+    });
+  });
+});

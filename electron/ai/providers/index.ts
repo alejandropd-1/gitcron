@@ -17,29 +17,18 @@ import { createOpenRouterProvider } from './openrouter';
 
 export type ProviderId = AIPredictionProvider['id'];
 
-/** A uniform stub so unimplemented providers fail the same clear way. */
-function stub(id: ProviderId, label: string, kind: 'cloud' | 'local'): AIPredictionProvider {
-  return {
-    id,
-    label,
-    kind,
-    async predictTimelines(_prompts: AssembledPrompts): Promise<PredictionResult> {
-      throw new Error(`Provider "${id}" is not implemented yet`);
-    },
-  };
-}
-
-// OpenCode note: local/gateway. `kind: 'local'`. When implemented, it reads a
-// user-configured endpoint and treats auth as optional (may have no key).
+// Nota de unificación (Tarea 9b.6):
+// Se retiran los stubs que lanzaban "not implemented yet" (openai, gemini, opencode):
+// - opencode es un runtime de agente interactivo con herramientas y ACP (PipelineRuntime),
+//   no una llamada a modelo de texto.
+// - openai y gemini se consumen a través de OpenRouter (enrutador multi-modelo con una sola key),
+//   sin planes de implementar clientes REST nativos directos.
 /** Runtime options for building a provider (e.g. user-chosen model id). */
 export type ProviderOpts = { model?: string };
 
-const registry: Record<ProviderId, (opts?: ProviderOpts) => AIPredictionProvider> = {
+const registry: Partial<Record<ProviderId, (opts?: ProviderOpts) => AIPredictionProvider>> = {
   openrouter: (opts) => createOpenRouterProvider({ model: opts?.model }),
   claude: (opts) => createClaudeProvider({ model: opts?.model }),
-  openai: () => stub('openai', 'OpenAI', 'cloud'),
-  gemini: () => stub('gemini', 'Google Gemini', 'cloud'),
-  opencode: () => stub('opencode', 'OpenCode (local/gateway)', 'local'),
 };
 
 export function getProvider(id: ProviderId, opts?: ProviderOpts): AIPredictionProvider {

@@ -16,15 +16,14 @@ import type {
   CartoAIPanoramaContext,
 } from '../../../types/carto-ai';
 import type { CartoAIProvider } from './provider';
-import { chatComplete, toResponse } from './provider';
+import { toResponse } from './provider';
 import { buildExplainPrompts, buildAskPrompts, buildPanoramaPrompts } from './prompts';
 import { getKey, hasKey } from '../key-store';
+import { completeText, createOpenRouterConfig } from '../text-client';
 
-const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_MODEL = 'anthropic/claude-sonnet-4.5';
 const NO_KEY_ERROR =
   'No hay API key de OpenRouter cargada. Agregala en Ajustes → Temporal Agent para usar la IA online.';
-const CONN_ERROR = 'No se pudo contactar a OpenRouter. Revisá tu conexión a internet.';
 
 export function createCartoOpenRouterProvider(opts?: { model?: string }): CartoAIProvider {
   const model = opts?.model?.trim() || DEFAULT_MODEL;
@@ -33,19 +32,21 @@ export function createCartoOpenRouterProvider(opts?: { model?: string }): CartoA
   async function run(system: string, user: string): Promise<CartoAIResponse> {
     const key = getKey('openrouter');
     if (!key) throw new Error(NO_KEY_ERROR);
-    const text = await chatComplete({
-      endpoint: ENDPOINT,
-      headers: {
-        authorization: `Bearer ${key}`,
-        'http-referer': 'https://github.com/alejandropd-1/gitcron',
-        'x-title': 'GitCron Cartografía',
-      },
+    const config = createOpenRouterConfig({
+      apiKey: key,
+      appName: 'GitCron Cartografía',
+    });
+    const { text, finishReason } = await completeText(config, {
       model,
       system,
       user,
-      providerLabel: 'OpenRouter',
-      friendlyConnError: CONN_ERROR,
     });
+    if (!text) {
+      if (finishReason === 'length') {
+        throw new Error('OpenRouter: respuesta cortada (max_tokens muy bajo)');
+      }
+      throw new Error('OpenRouter: respuesta vacía del modelo');
+    }
     return toResponse(text, providerTag);
   }
 

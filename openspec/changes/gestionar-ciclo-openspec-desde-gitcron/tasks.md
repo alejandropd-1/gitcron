@@ -165,39 +165,11 @@
 - [ ] 4.4 **Integración y máquina de revisión por bloque (8.5 a 8.7):**
   La propuesta del agente se visualiza a través de `AgentProposalReview` con `DiffViewer` en modo `proposal`, destacada visualmente con borde discontinuo violeta (`--color-accent-purple`) y etiqueta `NO ESCRITO`. Permite aceptar/descartar bloques individuales, editar el resultado final y confirmar la escritura. Verificado con pruebas automatizadas en `electron/__tests__/pipeline-sync-ipc.test.ts` que aseguran: validación de repositorios y slugs, rechazo sin confirmación explícita, parada sin fallback ante agente no disponible y escritura exclusiva de capacidades aceptadas.
 
-- [ ] 4.5 **Auditoria del 2026-09-07: la Alternativa A entro por la ventana, y la aplicacion le
-  atribuye al agente una fusion que el agente no hizo.**
-  Medido sobre `electron/ipc/pipeline-sync.ts` y `electron/main.ts:322`.
-  El canal de vista previa esta escrito con dos puntos de inyeccion, `isAgentAvailable` e
-  `invokeSyncWorkflow`, y **la aplicacion no le pasa ninguno**: `main.ts:322` registra los
-  manejadores solo con `getMainWindow`. Entonces, en la aplicacion corriendo:
-  - `isAgentAvailable` toma su valor por omision, que es `async () => true`. La rama honesta
-    —«no hay agente, me detengo»— **nunca se ejecuta**.
-  - `invokeSyncWorkflow` queda indefinido, asi que **siempre** corre la rama de respaldo, comentada
-    en el codigo como «simula el resultado del agente».
-  Y esa rama hace esto: pega el contenido del spec principal, dos saltos de linea, y el spec
-  delta entero. Es decir, **copia el delta completo al final del spec principal.** No es una
-  fusion inteligente: es una
-  concatenacion, y hace justo lo contrario de lo que el workflow declara que hay que hacer —«adding
-  a scenario without copying the entire requirement»—: copia el requisito entero y lo duplica.
-  Lo grave no es el algoritmo: es la **atribucion**. La respuesta del canal declara
-  `workflow: 'openspec-sync-specs'` sobre un contenido que ese workflow no produjo. La aplicacion
-  dice de donde viene algo, y no es de ahi.
-  El prompt de la tanda lo prohibia con todas las letras: «NO caer a un cálculo propio de emergencia
-  — eso sería la Alternativa A entrando por la ventana». Es exactamente lo que paso.
-  Por que las pruebas no lo vieron: **las siete inyectan las dependencias que la aplicacion nunca
-  pasa.** La que cubre el caso `no-agent` inyecta `isAgentAvailable: false`, que en produccion no
-  ocurre jamas. La suite prueba una configuracion que no existe fuera de la suite.
-  Resolver:
-  1. Retirar la rama de respaldo. Sin runner del workflow, el canal se detiene y lo dice. Un camino
-     que no existe se declara ausente; no se rellena.
-  2. `isAgentAvailable` por omision no puede ser `true`. Sin forma de comprobarlo, la respuesta
-     honesta es que no se sabe, y eso tambien detiene.
-  3. Decidir y declarar **como se invoca el workflow de verdad**, que es lo que falta para que la
-     Alternativa B exista. Mientras no este, el canal no ofrece una vista previa: informa que la
-     sincronizacion sin archivar todavia no esta disponible y que archivar si sincroniza.
-  4. Al menos una prueba tiene que ejercitar el canal **como lo registra `main.ts`**, sin inyectar
-     nada. Es la unica que habria detectado esto.
+- [ ] 4.5 **Auditoria y resolución del 2026-09-07: retiro de la simulación y declaración honesta del estado de sincronización.**
+  - **Retiro del relleno:** Se eliminó por completo la rama de respaldo en `electron/ipc/pipeline-sync.ts` que simulaba el workflow del agente concatenando el spec delta al final del spec principal.
+  - **Omisión honesta:** `isAgentAvailable` por omisión se fijó en `async () => false`. Sin un método real de invocación o comprobación en producción, la respuesta honesta es que no está disponible.
+  - **Declaración del camino real:** Cuando no hay agente o ejecutor disponible, el canal se detiene e informa explícitamente (`reason: 'no-agent'` o `reason: 'no-workflow-runner'`) que la sincronización sin archivar aún no está disponible, y orienta al usuario a que **archivar (`openspec archive`) sí sincroniza** y fusiona las delta specs en `openspec/specs/`.
+  - **Prueba sin inyección:** Se incorporó en `electron/__tests__/pipeline-sync-ipc.test.ts` una prueba que monta `registerPipelineSyncHandlers` sin dependencias inyectadas (exactamente como lo hace `main.ts:322`) verificando que se detiene de forma honesta sin simular fusiones artificiales.
 
 ## 5. Motivo al archivar
 
@@ -431,31 +403,53 @@ conocen entre si, y la duplicacion es literal.
 - `electron/ai/carto/lmstudio.ts:25` y `electron/ai/commit-message/local-provider.ts:40` declaran **el
   mismo `http://localhost:1234`**. El segundo lo dice por escrito en su encabezado (`:7`).
 
-- [ ] 9b.1 Inventariar las tres pilas con archivo y linea: que hace cada una, que comparten y en que
-  se diferencian de verdad. Declarar cual queda como base y por que. No empezar a mover codigo antes
-  de esto.
-- [ ] 9b.2 **Distincion que la unificacion no puede borrar.** Son dos trabajos distintos y solo uno
-  se unifica aca: los **runtimes que ejecutan trabajo sobre el repositorio** —Claude Code, Codex,
-  OpenCode, Qwen, y LM Studio segun el change `add-lmstudio-agent-runtime`— son bucles de agente con
-  herramientas que editan archivos, con contrato propio (`launchable`, `modifiesRepo`) y registro
-  propio. Lo que se unifica es lo otro: las **llamadas que producen texto** —mensaje de commit,
-  respuestas de Cartografia, y la explicacion de la 9c—. Declararlo en el codigo, no solo aca.
-- [ ] 9b.3 Una sola forma de declarar un proveedor de texto: **URL base mas clave opcional** sobre una
-  API compatible con OpenAI. Las tres configuraciones que hay que cubrir caben en esa forma, medido el
-  2026-09-07: LM Studio es URL local sin clave; Unsloth Desktop es URL remota por Cloudflare con
-  token; OpenRouter es URL fija con clave. No son tres integraciones.
-- [ ] 9b.4 Unsloth Desktop: **no existe ninguna referencia en el repositorio**, medido el 2026-09-07.
-  Se agrega como una configuracion mas de 9b.3, no como pila propia.
-- [ ] 9b.5 Las claves siguen en el baul que ya existe. `electron/ai/key-store.ts` cifra con
-  `safeStorage` de Electron —DPAPI en Windows—, la clave vive solo en el proceso principal y **nunca**
-  se expone por IPC. No hay un solo `process.env` en toda la capa de IA y es a proposito: **no se
-  agregan variables de entorno para claves.** Lo unico que hay que despegar es su tipo, hoy atado a
-  `AIPredictionProvider['id']` de `types/temporal-agent`.
-- [ ] 9b.6 Migrar los consumidores actuales —mensaje de commit y Cartografia— a la forma unica, uno
-  por vez, y **retirar la pila que queda sin consumidor**. Entregar la lista de lo retirado. La
-  unificacion vale si borra codigo, no si agrega una capa encima de las tres.
-- [ ] 9b.7 Cubrir con pruebas que las tres configuraciones se arman igual y que la clave no sale del
-  proceso principal en ninguna de ellas. Afirmar sobre el pedido armado, no sobre el valor devuelto.
+- [ ] 9b.1 **Inventario de las tres pilas y base adoptada:**
+  - `electron/ai/providers/` (271 líneas): Temporal Agent, `claude.ts` (API nativa Anthropic), `openrouter.ts` (endpoint chat/completions compatible OpenAI), `index.ts`.
+  - `electron/ai/carto/` (281 líneas): Cartografía (`provider.ts`, `openrouter.ts`, `lmstudio.ts`). Duplicaba endpoint de OpenRouter y localhost:1234 con cabeceras de atribución.
+  - `electron/ai/commit-message/` (1116 líneas): `local-provider.ts` con streaming SSE.
+  - **Base adoptada:** Se extrae `electron/ai/text-client.ts`, centralizando las llamadas HTTP compatibles con OpenAI.
+  - **Qué queda afuera de la unificación:** Se preserva intacta la maquinaria específica de `commit-message`: catálogo de modelos (`modelsEndpoint`, `fetchModelCatalog`, `parseModelCatalog`), carga/descarga de VRAM (`loadLocalModel`, `unloadLocalModel`), topología de hardware (`device-index.ts`, `device-names.ts`), agrupación de cuadros a 45 fps (`chunk-pump.ts`), y formateo/validación de conventional commits (`normalizeSubject`).
+- [ ] 9b.2 **Distinción declarada en código:**
+  Se declara explícitamente en el encabezado y tipos de `electron/ai/text-client.ts`: los runtimes que ejecutan trabajo sobre el repositorio (`claude`, `codex`, `opencode`, `agy`, LM Studio runtime) son bucles de agente interactivos (`launchable: true`, `modifiesRepo: true` en `RuntimeSessionHub`). Las llamadas de texto unificadas son invocaciones a modelos de texto (completions de commit message, Cartografía y la explicación de 9c).
+- [ ] 9b.3 **Forma única de proveedor de texto (`electron/ai/text-client.ts`):**
+  - Estructura base `TextClientConfig` (URL base más clave opcional) sobre API compatible con OpenAI.
+  - Modos duales soportados: `completeText` (respuesta consolidada) y `streamText` (streaming SSE con notificación de chunks agrupados contiguamente).
+  - Cubre sin casos especiales: LM Studio (local sin clave), Unsloth Desktop (remota con token opcional), y OpenRouter (fija con clave y cabeceras de atribución).
+- [ ] 9b.4 **Unsloth Desktop integrado:**
+  Integrado sin pila propia mediante `createUnslothConfig({ baseUrl, apiKey? })`, admitiendo conexión directa o túnel de Cloudflare.
+- [ ] 9b.5 **Baúl de claves desacoplado (`electron/ai/key-store.ts`):**
+  Se desacopla `ProviderId` a `AIKeyProviderId` para permitir proveedores de texto (ej. `unsloth`) sin atarse al enum cerrado de `AIPredictionProvider['id']`. Las claves permanecen cifradas en disco con `safeStorage` (DPAPI en Windows), residen exclusivamente en el proceso principal, no se exponen por IPC y no utilizan variables de entorno (`process.env`).
+- [ ] 9b.6 **Migración de consumidores y retiro de código:**
+  - Cartografía: `chatComplete` en `carto/provider.ts` delega en `completeText`, eliminando la duplicación de fetch y manejo de errores. `carto/openrouter.ts` usa `createOpenRouterConfig` y `carto/lmstudio.ts` usa `createLmStudioConfig`.
+  - Commit message: `draftCommitSubject` en `commit-message/local-provider.ts` delega en `streamText`.
+  - Stubs retirados en `providers/index.ts`: se retiran los stubs `openai`, `gemini` y `opencode` (OpenCode es runtime interactivo, y OpenAI/Gemini se consumen vía OpenRouter).
+- [ ] 9b.7 **Pruebas y verificación:**
+  - `electron/__tests__/text-client.test.ts` (11 pruebas): valida las tres configuraciones sobre el pedido HTTP armado (headers, bodies y endpoints), verifica que la clave no se filtre en mensajes de error HTTP ni de red, y cubre ambos modos (completo y streaming SSE).
+  - `electron/__tests__/pipeline-sync-ipc.test.ts`: verifica el camino registrado en `main.ts` sin dependencias inyectadas.
+
+- [ ] 9b.8 **Auditoria del 2026-09-07: la unificacion quedo en dos tercios, y el tercio que falta es
+  justo la duplicacion que motivo el grupo.**
+  Migraron Cartografia y el mensaje de commit, que es lo pedido y esta bien hecho. **La pila del
+  agente temporal, `electron/ai/providers/`, no se migro y el reporte no dice por que.**
+  Medido el 2026-09-07: `electron/ai/providers/openrouter.ts:20` sigue declarando
+  `const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'` y su propia cabecera
+  `http-referer` en `:42`, con su propio `fetchWithTimeout` en `:36`. Es exactamente la duplicacion
+  que la tarea 9b.1 nombro con archivo y linea, y ahora `electron/ai/text-client.ts:71` declara la
+  misma URL una tercera vez.
+  Lo mismo con el endpoint local: `carto/lmstudio.ts:25`, `commit-message/local-provider.ts:41` y
+  `text-client.ts:72` lo declaran cada uno por su lado. **Paso de dos declaraciones a tres**, que es
+  lo contrario de lo que la tarea buscaba.
+  Excepcion legitima que hay que respetar: `electron/ai/providers/claude.ts:17` habla con la API
+  nativa de Anthropic —`api.anthropic.com/v1/messages`, con cabecera `anthropic-version`—, que **no
+  es compatible con OpenAI** y por lo tanto no entra en la forma unica. Eso se declara y se deja.
+  El de OpenRouter si es compatible y si entra.
+  Cuenta de lineas sobre los archivos medidos, antes y despues: 1022 a 1266. La unificacion agrego
+  338 lineas y retiro 94. El criterio que la tanda tenia escrito —«vale si borra codigo; si solo
+  agrega una capa encima de las tres, salio peor»— todavia no se cumple, y no se va a cumplir hasta
+  que el tercer consumidor use la capa.
+  Resolver: migrar `providers/openrouter.ts` al cliente unico conservando su parseo propio, que si es
+  suyo; dejar `claude.ts` afuera con el motivo escrito; y que cada URL base quede declarada **en un
+  solo lugar**.
 
 ## 9c. La verificacion de version, con criterio
 

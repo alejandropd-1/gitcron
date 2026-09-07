@@ -17,7 +17,21 @@ import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import type { AIPredictionProvider } from '../../types/temporal-agent';
 
-type ProviderId = AIPredictionProvider['id'];
+/**
+ * Identificadores de proveedores con claves en el baúl seguro.
+ * Desacoplado de AIPredictionProvider['id'] para admitir proveedores de texto
+ * (LM Studio/local, OpenRouter, Unsloth Desktop, etc.) sin refactorizar el almacenamiento.
+ */
+export type AIKeyProviderId =
+  | 'claude'
+  | 'openrouter'
+  | 'openai'
+  | 'gemini'
+  | 'opencode'
+  | 'unsloth'
+  | (string & {});
+
+type ProviderId = AIKeyProviderId;
 
 interface KeyFile {
   // provider id -> base64 of safeStorage-encrypted key bytes

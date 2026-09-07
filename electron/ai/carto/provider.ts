@@ -17,7 +17,7 @@ import type {
   CartoAIProviderId,
   CartoAIPanoramaContext,
 } from '../../../types/carto-ai';
-import { fetchWithTimeout } from '../provider-runtime';
+import { completeText, type TextClientConfig } from '../text-client';
 
 /** Contrato común que implementan el proveedor local y el online. */
 export interface CartoAIProvider {
@@ -37,20 +37,9 @@ export interface CartoAIProvider {
   probe(): Promise<void>;
 }
 
-/** Forma OpenAI de chat/completions, común a LM Studio y OpenRouter. */
-interface ChatChoice {
-  message?: { content?: string };
-  finish_reason?: string;
-}
-
 /**
- * Una llamada de chat-completions compatible OpenAI. Reutilizada por el adapter
- * local y el online (única diferencia: endpoint, headers y modelo). Reusa el
- * `fetchWithTimeout` de la infra del Temporal Agent (no se duplica).
- *
- * `friendlyConnError`: cuando el fetch falla por conexión (servidor local caído),
- * lo convertimos a un mensaje claro provisto por el adapter en vez de un stack
- * de red críptico — así la vista puede mostrar "servidor local no disponible".
+ * Llamada de chat-completions compatible OpenAI para Cartografía.
+ * Delega en el cliente unificado de texto (Grupo 9b).
  */
 export async function chatComplete(opts: {
   endpoint: string;
@@ -61,52 +50,32 @@ export async function chatComplete(opts: {
   providerLabel: string;
   friendlyConnError: string;
   maxTokens?: number;
-  /**
-   * Presupuesto de tiempo del request. Los modelos LOCALES (CPU/GPU modesta)
-   * pueden tardar mucho más que un proveedor online, así que el adapter local
-   * pasa una ventana generosa; sin esto, el default de 30s los cortaba siempre.
-   */
   timeoutMs?: number;
 }): Promise<string> {
-  let res: Response;
-  try {
-    res = await fetchWithTimeout(opts.endpoint, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', ...opts.headers },
-      body: JSON.stringify({
-        model: opts.model,
-        max_tokens: opts.maxTokens ?? 1024,
-        temperature: 0.4,
-        messages: [
-          { role: 'system', content: opts.system },
-          { role: 'user', content: opts.user },
-        ],
-      }),
-    }, opts.timeoutMs);
-  } catch (err) {
-    // Errores de conexión (ECONNREFUSED, DNS, host inalcanzable) → mensaje claro.
-    // Los timeouts/cancelaciones del propio fetchWithTimeout ya vienen con texto
-    // legible: los re-lanzamos tal cual.
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/tardó demasiado|cancelad/i.test(msg)) throw err;
-    throw new Error(opts.friendlyConnError);
-  }
+  const config: TextClientConfig = {
+    baseUrl: opts.endpoint,
+    headers: opts.headers,
+    providerLabel: opts.providerLabel,
+    friendlyConnError: opts.friendlyConnError,
+    defaultTimeoutMs: opts.timeoutMs,
+  };
 
-  if (!res.ok) {
-    // Sólo el status — nunca el cuerpo, que podría arrastrar la key en algún proveedor.
-    throw new Error(`${opts.providerLabel}: la petición falló (${res.status})`);
-  }
+  const res = await completeText(config, {
+    model: opts.model,
+    system: opts.system,
+    user: opts.user,
+    maxTokens: opts.maxTokens,
+    timeoutMs: opts.timeoutMs,
+  });
 
-  const data = (await res.json()) as { choices?: ChatChoice[] };
-  const choice = data.choices?.[0];
-  const text = (choice?.message?.content ?? '').trim();
-  if (!text) {
-    if (choice?.finish_reason === 'length') {
+  if (!res.text) {
+    if (res.finishReason === 'length') {
       throw new Error(`${opts.providerLabel}: respuesta cortada (max_tokens muy bajo)`);
     }
     throw new Error(`${opts.providerLabel}: respuesta vacía del modelo`);
   }
-  return text;
+
+  return res.text;
 }
 
 /** Helper: empaqueta texto del modelo en la respuesta serializable de la vista. */

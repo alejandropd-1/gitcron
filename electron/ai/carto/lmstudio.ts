@@ -17,12 +17,11 @@ import type {
   CartoAIPanoramaContext,
 } from '../../../types/carto-ai';
 import type { CartoAIProvider } from './provider';
-import { chatComplete, toResponse } from './provider';
+import { toResponse } from './provider';
 import { buildExplainPrompts, buildAskPrompts, buildPanoramaPrompts } from './prompts';
+import { completeText, createLmStudioConfig } from '../text-client';
 
-// Endpoint compatible OpenAI de LM Studio. Documentado en SECURITY.md (CSP en
-// lockstep): aunque la petición sale de main, el origen se declara igual.
-const ENDPOINT = 'http://localhost:1234/v1/chat/completions';
+// Endpoint de modelos para el sondeo de disponibilidad
 const MODELS_ENDPOINT = 'http://localhost:1234/v1/models';
 // LM Studio sirve el modelo que tengas cargado; un nombre vacío vale, pero
 // mandamos un placeholder estable cuando el usuario no fijó uno.
@@ -39,18 +38,21 @@ const CONN_ERROR =
 export function createLmStudioProvider(opts?: { model?: string }): CartoAIProvider {
   const model = opts?.model?.trim() || DEFAULT_MODEL;
   const providerTag = `lmstudio:${model}`;
+  const config = createLmStudioConfig({ timeoutMs: LOCAL_TIMEOUT_MS, providerLabel: 'LM Studio' });
 
   async function run(system: string, user: string): Promise<CartoAIResponse> {
-    const text = await chatComplete({
-      endpoint: ENDPOINT,
-      headers: {}, // sin auth
+    const { text, finishReason } = await completeText(config, {
       model,
       system,
       user,
-      providerLabel: 'LM Studio',
-      friendlyConnError: CONN_ERROR,
       timeoutMs: LOCAL_TIMEOUT_MS,
     });
+    if (!text) {
+      if (finishReason === 'length') {
+        throw new Error('LM Studio: respuesta cortada (max_tokens muy bajo)');
+      }
+      throw new Error('LM Studio: respuesta vacía del modelo');
+    }
     return toResponse(text, providerTag);
   }
 

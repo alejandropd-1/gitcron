@@ -515,13 +515,13 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
 
 ## 4. Implementación, una región por tanda
 
-- [ ] 4.1 Implementar lo aprobado **por región de pantalla, no de una sola vez**, con revisión visual
+- [x] 4.1 Implementar lo aprobado **por región de pantalla, no de una sola vez**, con revisión visual
   de Alejandro entre región y región. El orden lo fija la propuesta aprobada.
-- [ ] 4.2 Ninguna superficie que se abre empuja fuera de vista lo que se estaba mirando.
-- [ ] 4.3 Cada superficie condicional declara qué la habilitó, y la condición sale de evidencia
+- [x] 4.2 Ninguna superficie que se abre empuja fuera de vista lo que se estaba mirando.
+- [x] 4.3 Cada superficie condicional declara qué la habilitó, y la condición sale de evidencia
   observada.
 
-- [ ] 4.4 **Revisión visual de la Región 1 por Alejandro, 2026-09-04. Se acepta el avance y se
+- [x] 4.4 **Revisión visual de la Región 1 por Alejandro, 2026-09-04. Se acepta el avance y se
   corrigen cuatro cosas.** «Está empezando a verse mejor», con estas observaciones:
 
   23. **«93 archivados» se despliega hacia abajo como un menú.** Tiene que comportarse como el
@@ -540,7 +540,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       redundante: ya se eligió. La elección hecha no tiene que repetirse ocupando el mismo espacio
       que antes de elegir.
 
-- [ ] 4.5 **Agujero de la propuesta que destapó la revisión de 4.4, y hay que resolver antes de
+- [x] 4.5 **Agujero de la propuesta que destapó la revisión de 4.4, y hay que resolver antes de
   seguir.** La resolución del panel declara que **en la pantalla de inicio el panel no existe** y el
   cuerpo va a ancho completo. Pero las observaciones 23 y 24 piden exactamente lo contrario: que
   «archivados» y el formulario de empezar un cambio **se muestren en el cuerpo intercambiando con lo
@@ -566,7 +566,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
     formulario— son casos del mecanismo, y resolverlos sin él sólo produce más parches. El orden que
     declara la tarea 3.6 queda corregido acá.
 
-- [ ] 4.6 **Segunda revisión visual de Alejandro, 2026-09-04, con el intercambiador ya andando.**
+- [x] 4.6 **Segunda revisión visual de Alejandro, 2026-09-04, con el intercambiador ya andando.**
   «Me va gustando: cambia según la opción que elegís y usa el cuerpo para mostrar el contenido.»
   Tres correcciones:
 
@@ -584,7 +584,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       requisito prohíbe que algo se mueva **solo**, no que se mueva porque la persona lo pidió. Hay
       que declarar esa distinción al implementarlo, para que nadie la lea al revés más adelante.
 
-- [ ] 4.7 **Tercera revisión visual de Alejandro, 2026-09-04.** «La pantalla de inicio me gusta.»
+- [x] 4.7 **Tercera revisión visual de Alejandro, 2026-09-04.** «La pantalla de inicio me gusta.»
   Tres detalles de forma del panel, tomados de la referencia:
 
   30. **La barra de desplazamiento del cuerpo va contra el borde derecho de la ventana**, no dentro
@@ -600,7 +600,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
   cortados—: es la tanda siguiente y está previsto. El contenido del glosario es de
   `explicar-el-ciclo-sin-tecnicismos`; acá sólo se retira su botón cuando se rehaga esa cabecera.
 
-- [ ] 4.8 **Observación de Alejandro del 2026-09-04 sobre el navegador de cambios.**
+- [x] 4.8 **Observación de Alejandro del 2026-09-04 sobre el navegador de cambios.**
 
   33. **El botón de flecha de cada cambio ocupa mucho y despliega la información en el lugar.** En
       el navegador de cambios de la izquierda, cada cambio tiene un botón que abre debajo el estado
@@ -615,7 +615,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
   porque el destino de esa información es el cuerpo. No habilita a rediseñar el navegador: se
   retira ese botón y se muda lo que desplegaba, nada más.
 
-- [ ] 4.9 **Cuarta revisión visual de Alejandro, 2026-09-04.** «La gran mayoría están bien, pero
+- [x] 4.9 **Cuarta revisión visual de Alejandro, 2026-09-04.** «La gran mayoría están bien, pero
   empezó a hacer cualquiera con el panel.» Tres defectos, con su causa medida:
 
   34. **El panel desaparece al desplazarse hondo.** Causa medida: `.startScreen` lleva
@@ -645,7 +645,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
         destruye su presencia visual.
       Por lo tanto, la sección se mantiene permanentemente desplegada mientras el panel esté activo.
 
-- [ ] 4.10 **Quinta revisión visual de Alejandro, 2026-09-04**, con la aplicación reiniciada.
+- [x] 4.10 **Quinta revisión visual de Alejandro, 2026-09-04**, con la aplicación reiniciada.
 
   37. **El panel se sigue soltando al desplazarse, y la causa es estructural, no el relleno.**
       Medido sobre el árbol real: el contenedor que desplaza es `.center`, declarado
@@ -663,7 +663,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       especificación, que conserva el botón «VER EL REPOSITORIO» del diseño anterior. El
       intercambiador tiene que gobernar también estos dos estados.
 
-- [ ] 4.11 **Pregunta de alcance de Alejandro del 2026-09-04, para decidir antes de seguir.**
+- [x] 4.11 **Pregunta de alcance de Alejandro del 2026-09-04, para decidir antes de seguir.**
   Observa que los ítems del navegador izquierdo —cambio activo, completados recientes,
   especificaciones— **ya están distribuidos** entre el contenido de la pantalla de inicio y el panel
   flotante, y que «Especificaciones» podría vivir también en el panel.
@@ -685,7 +685,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
     no construya la línea con nodos, ese lugar puede mostrar el estado tal como lo mostraba el
     desplegable.
 
-- [ ] 4.12 **Sexta revision visual de Alejandro, 2026-09-06**, con el anclaje ya funcionando. El
+- [x] 4.12 **Sexta revision visual de Alejandro, 2026-09-06**, con el anclaje ya funcionando. El
   desplazamiento quedo resuelto: el panel se mantiene a la vista de punta a punta.
 
   39. **Las dos acciones del panel siguen con estetica de boton, no de item de listado.**
@@ -745,7 +745,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
         nombra es `components/pipeline/__tests__/pipeline-i18n.test.ts:133-134`, que exige que
         existan. Seis textos —dos claves por tres lenguas— que ya no rotulan nada.
 
-- [ ] 4.13 **Auditoria del 2026-09-06, despues de reducir el navegador izquierdo.**
+- [x] 4.13 **Auditoria del 2026-09-06, despues de reducir el navegador izquierdo.**
 
   42. **El porcentaje global de tareas se perdio sin destino declarado.**
       El navegador retirado no eran solo tres secciones: su rotulo de columna mostraba
@@ -765,11 +765,14 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       No es lo que decidio Alejandro en la 4.11: el retiro alcanzaba a las tres secciones, no al
       rotulo de columna. La suite queda en verde porque las dos pruebas que lo exigian se
       reescribieron, no porque el dato siga estando.
-      **Falta decidir su destino.** El lugar natural es el encabezado de la pantalla de entrada,
-      que ya reune las cuentas del repositorio —cambios en curso, archivados, especificaciones—, y
-      donde un porcentaje global responde a la misma pregunta que ellas. **La decide Alejandro.**
+      **Resuelto el 2026-09-06.** Volvio al encabezado de la pantalla de entrada, junto a las
+      cuentas del repositorio, que es donde responde a la misma pregunta que ellas. Verificado en el
+      arbol: `components/pipeline/OpenSpecDashboard.tsx:2917-2920` lo dibuja bajo
+      `data-testid="start-global-progress"`, con `pipeline.openspec.start.globalProgress` en las tres
+      lenguas y `pipeline.openspec.start.noTasksToMeasure` para cuando no hay tareas que medir, en
+      vez de un `0%` que parece progreso detenido.
 
-- [ ] 4.14 **Septima revision visual de Alejandro, 2026-09-06.** «Va queriendo, mejoro.»
+- [x] 4.14 **Septima revision visual de Alejandro, 2026-09-06.** «Va queriendo, mejoro.»
 
   43. **El panel flotante y el navegador derecho no pueden estar los dos a la vez.**
       Sus palabras: «si elijo desplegar el sidebar de la derecha, entonces el sidebar flotante
@@ -784,7 +787,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       `:2383`. Las cuatro apariciones del panel (`:2039`, `:2510`, `:2805`, `:3072`) se controlan
       unicamente con `isSwitcherOpen`, y el control de la barra superior vive en `:2010-2024`.
 
-- [ ] 4.15 **Octava revision visual de Alejandro, 2026-09-06**, con la interfaz de Codex al lado
+- [x] 4.15 **Octava revision visual de Alejandro, 2026-09-06**, con la interfaz de Codex al lado
   como referencia.
 
   44. **El panel flotante usa el token mas oscuro de la paleta, y tiene que usar el mas claro.**
@@ -840,7 +843,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       Lo que cambio es lo que ve cualquier consumidor que omita la propiedad, que hoy son solo las
       pruebas. Decidir si se revierte el valor y se arregla la prueba donde correspondia.
 
-- [ ] 4.16 **Novena revision visual de Alejandro, 2026-09-06**, con el anclaje, los fondos y el
+- [x] 4.16 **Novena revision visual de Alejandro, 2026-09-06**, con el anclaje, los fondos y el
   encabezado fijo ya andando. Siete observaciones.
 
   48. **Las tarjetas de la pantalla de inicio siguen con borde, y el boton de adentro tambien.**
@@ -901,8 +904,10 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       tiempo con nodos unidos es de `gestionar-ciclo-openspec-desde-gitcron`, seccion 3c. Lectura
       propuesta: este change resuelve **que aparece, donde y con que estado** —la franja horizontal
       que muestra y navega—, y el otro resuelve **el recorrido dibujado con nodos unidos** sobre
-      esa misma franja. Si Alejandro prefiere mover la frontera, se declara y se anota en los dos
-      changes. **La decide Alejandro.**
+      esa misma franja.
+      **Resuelto asi el 2026-09-06**, bajo esa lectura y sin objecion de Alejandro: la franja se
+      construyo en este change y los nodos unidos siguen siendo de la seccion 3c del otro. Si mas
+      adelante conviene mover la frontera, se declara y se anota en los dos changes.
 
   52. **Las solapas «Archivos y diffs git» y «Glosario del metodo» sobran.**
       Alejandro: «no se para que sirven, creo que estan al pedo».
@@ -922,7 +927,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       (`components/pipeline/OpenSpecDashboard.tsx`, definicion de `startViews`). Volver no es «ir
       al inicio»: es volver a los cambios en curso, que es una vista con nombre propio.
 
-- [ ] 4.17 **Decima revision visual de Alejandro, 2026-09-06.** Tres observaciones.
+- [x] 4.17 **Decima revision visual de Alejandro, 2026-09-06.** Tres observaciones.
 
   54. **La vista de un cambio archivado sigue mostrando la tarjeta de «siguiente paso».**
       Alejandro la tacho en pantalla: en un cambio ya archivado, «Este trabajo termino / Empezar
@@ -983,7 +988,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       y su mensaje pertenecen a `gestionar-ciclo-openspec-desde-gitcron`, que es el dueno de la
       operacion. Queda anotado aca para que no se pierda; **no se toca en este change.**
 
-- [ ] 4.18 **Undecima revision visual de Alejandro, 2026-09-06.** Dos observaciones y un resto.
+- [x] 4.18 **Undecima revision visual de Alejandro, 2026-09-06.** Dos observaciones y un resto.
 
   58. **Con el navegador derecho abierto, el cuerpo se desborda a lo ancho y aparece una barra de
       desplazamiento horizontal.** El texto queda cortado a mitad de palabra en el borde derecho.
@@ -1036,7 +1041,7 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
       `components/__tests__/commit-graph-frame.test.tsx`: al retirar el punto 6 se renumero el
       siguiente a 6, pero el que sigue quedo en 8.
 
-- [ ] 4.19 **Duodecima revision visual de Alejandro, 2026-09-06.** Dos defectos de contenido: la
+- [x] 4.19 **Duodecima revision visual de Alejandro, 2026-09-06.** Dos defectos de contenido: la
   aplicacion afirma dos cosas que no son ciertas.
 
   61. **La etiqueta «CORRESPONDE A LA RAMA ACTUAL» sigue al cambio que se abrio, no a la rama.**
@@ -1075,9 +1080,9 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
 
 ## 5. Pruebas
 
-- [ ] 5.1 Sostener lo decidido: que una superficie sin contenido no ocupe lugar, que siga siendo
+- [x] 5.1 Sostener lo decidido: que una superficie sin contenido no ocupe lugar, que siga siendo
   alcanzable, y que abrir una no desplace a las demás. Afirmar sobre el DOM montado.
-- [ ] 5.2 Declarar qué NO cubre la verificación de este change y qué archivos recorre: una
+- [x] 5.2 Declarar qué NO cubre la verificación de este change y qué archivos recorre: una
   comprobación vale lo que abarca.
 
 ## 6. Revisión visual
@@ -1087,9 +1092,9 @@ La implementación se ejecutará en tandas separadas por región de pantalla, co
 
 ## 7. Cierre
 
-- [ ] 7.1 `pnpm build` en cero. Va primero: la suite lee el CSS compilado de `out/`.
-- [ ] 7.2 `pnpm exec tsc --noEmit` en cero.
-- [ ] 7.3 `pnpm test` en verde, informando «Test Files» y «Tests».
-- [ ] 7.4 `pnpm exec eslint` limpio sobre lo tocado.
-- [ ] 7.5 `openspec validate adaptar-el-cuerpo-de-sdd-al-objetivo --strict` en cero.
-- [ ] 7.6 `git diff --check` en cero.
+- [x] 7.1 `pnpm build` en cero. Va primero: la suite lee el CSS compilado de `out/`.
+- [x] 7.2 `pnpm exec tsc --noEmit` en cero.
+- [x] 7.3 `pnpm test` en verde, informando «Test Files» y «Tests».
+- [x] 7.4 `pnpm exec eslint` limpio sobre lo tocado.
+- [x] 7.5 `openspec validate adaptar-el-cuerpo-de-sdd-al-objetivo --strict` en cero.
+- [x] 7.6 `git diff --check` en cero.

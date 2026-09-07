@@ -312,6 +312,24 @@ describe('Pipeline Tasks IPC — candado de autorización sobre pipeline:set-tas
     expect(readSpy).toHaveBeenCalled();
     expect(writeSpy).toHaveBeenCalled();
   });
+
+  it('rechaza una ruta no autorizada en pipeline:add-task, edit-task, move-task y remove-task', async () => {
+    const addRes = await get('pipeline:add-task')(null, repoDir, 'mi-cambio', '1.2 nueva');
+    expect(addRes).toEqual({ success: false, error: 'Ruta de repositorio inválida o no autorizada' });
+
+    const editRes = await get('pipeline:edit-task')(null, repoDir, 'mi-cambio', 3, '1.1 tarea de prueba', 'nueva');
+    expect(editRes).toEqual({ success: false, error: 'Ruta de repositorio inválida o no autorizada' });
+
+    const moveRes = await get('pipeline:move-task')(null, repoDir, 'mi-cambio', 3, 4, '1.1 tarea de prueba');
+    expect(moveRes).toEqual({ success: false, error: 'Ruta de repositorio inválida o no autorizada' });
+
+    const removeRes = await get('pipeline:remove-task')(null, repoDir, 'mi-cambio', 3, '1.1 tarea de prueba');
+    expect(removeRes).toEqual({ success: false, error: 'Ruta de repositorio inválida o no autorizada' });
+
+    expect(resolveBindingSpy).not.toHaveBeenCalled();
+    expect(readSpy).not.toHaveBeenCalled();
+    expect(writeSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe('Pipeline Runtime IPC — candado de autorización sobre pipeline:runtime:*', () => {

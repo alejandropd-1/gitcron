@@ -318,7 +318,7 @@ const pipelineRuntimeHub = new RuntimeSessionHub(
 );
 registerPipelineRuntimeHandlers(pipelineRuntimeHub); // pipeline:runtime:*
 registerPipelineArchiveHandlers(getMainWindow);  // pipeline:archive-change (escribe: fuera del módulo read-only)
-registerPipelineTaskHandlers();    // pipeline:set-task-checked (escribe: sólo el estado de una tarea)
+registerPipelineTaskHandlers();    // pipeline:set-task-checked, add-task, edit-task, move-task, remove-task (autoría y estado)
 registerPipelineSpecHandlers();    // pipeline:read-specification (sólo lee; fuera del snapshot por peso)
 registerOpenSpecIpcHandlers({ getUserDataDir: () => app.getPath('userData') }); // pipeline:openspec:* (sólo diagnóstico y lectura)
 registerWatcherHandlers(getMainWindow, notifyPipelineRepoChanged);          // repo:watch/unwatch

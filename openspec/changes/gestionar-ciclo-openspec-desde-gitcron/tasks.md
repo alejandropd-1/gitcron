@@ -82,6 +82,23 @@
   se leyo. Decidir si las funciones nuevas comparten esa tolerancia o exigen coincidencia exacta, y
   escribir el motivo al lado.
 
+- [ ] 2.7 **Auditoria del 2026-09-07: `toggleTaskCheckbox` cambio de comportamiento sin declararlo,
+  y sin prueba que lo cubra.**
+  Al escribir las cuatro funciones nuevas se agrego `detectEol` y se cambio el cierre de la funcion
+  que ya existia: antes unia las lineas con el salto de Unix fijo y ahora usa el que encontro en el
+  archivo (`electron/pipeline/task-checkbox.ts`). El reporte de la tanda no lo menciona.
+  **El cambio es correcto y arregla un defecto anterior**: la version vieja partia aceptando ambos
+  finales de linea y volvia a unir siempre con el de Unix, asi que tildar una sola casilla en un
+  `tasks.md` con finales de linea de Windows **reescribia el archivo entero**. Un clic producia un
+  diff de todas las lineas. Preservar el final de linea es lo que corresponde.
+  Lo que falta es lo otro: **ninguna prueba lo cubre.** Medido el 2026-09-07,
+  `electron/__tests__/pipeline-task-checkbox.test.ts` no tiene ni un caso con finales de linea de
+  Windows en la entrada. Las cinco funciones del modulo llaman a `detectEol` y nada comprueba que
+  preserven lo que encontraron.
+  Agregar la cobertura para las cinco: entrada con finales de linea de Windows, salida que los
+  conserva. Y declarar el arreglo donde se pueda leer: cambio lo que la aplicacion escribe en el
+  repositorio de la persona.
+
 ## 3. Escritura de artefactos en el proceso principal
 
 - [ ] 3.1 En `electron/pipeline/`, agregar la consulta de `openspec instructions <artefacto> --change <slug> --json` mediante `runAuthorizedOpenSpec`, devolviendo `resolvedOutputPath`, `instruction`, `template`, `rules`, `context` y `dependencies` sin interpretar su contenido.

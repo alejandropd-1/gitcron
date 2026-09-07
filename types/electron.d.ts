@@ -491,6 +491,41 @@ interface ElectronAPI {
     line: number,
     expectedText: string,
     completed: boolean,
+    actor?: 'persona' | 'agente',
+  ) => Promise<GitResult>;
+  /** Agrega una tarea al archivo tasks.md. */
+  pipelineAddTask: (
+    repoPath: string,
+    changeId: string,
+    text: string,
+    options?: { line?: number; position?: 'above' | 'below' | 'end'; expectedText?: string; actor?: 'persona' | 'agente' },
+    actor?: 'persona' | 'agente',
+  ) => Promise<GitResult>;
+  /** Edita el texto de una tarea. `expectedText` verifica coincidencia exacta previa. */
+  pipelineEditTask: (
+    repoPath: string,
+    changeId: string,
+    line: number,
+    expectedText: string,
+    newText: string,
+    actor?: 'persona' | 'agente',
+  ) => Promise<GitResult>;
+  /** Mueve una tarea entre líneas. `expectedText` verifica coincidencia exacta previa. */
+  pipelineMoveTask: (
+    repoPath: string,
+    changeId: string,
+    fromLine: number,
+    toLine: number,
+    expectedText: string,
+    actor?: 'persona' | 'agente',
+  ) => Promise<GitResult>;
+  /** Elimina una tarea. `expectedText` verifica coincidencia exacta previa. */
+  pipelineRemoveTask: (
+    repoPath: string,
+    changeId: string,
+    line: number,
+    expectedText: string,
+    actor?: 'persona' | 'agente',
   ) => Promise<GitResult>;
   /**
    * Contenido de una especificación consolidada, leído bajo demanda.

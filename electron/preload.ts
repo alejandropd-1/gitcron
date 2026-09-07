@@ -316,8 +316,48 @@ contextBridge.exposeInMainWorld('api', {
   /** Archiva un change: mueve el cambio y consolida specs. No toca Git. */
   pipelineArchiveChange: (repoPath: string, changeId: string) => ipcRenderer.invoke('pipeline:archive-change', repoPath, changeId),
   /** Cambia el estado de una tarea. `expectedText` verifica que sea la misma. */
-  pipelineSetTaskChecked: (repoPath: string, changeId: string, line: number, expectedText: string, completed: boolean) =>
-    ipcRenderer.invoke('pipeline:set-task-checked', repoPath, changeId, line, expectedText, completed),
+  pipelineSetTaskChecked: (
+    repoPath: string,
+    changeId: string,
+    line: number,
+    expectedText: string,
+    completed: boolean,
+    actor?: 'persona' | 'agente',
+  ) => ipcRenderer.invoke('pipeline:set-task-checked', repoPath, changeId, line, expectedText, completed, actor),
+  /** Agrega una tarea al archivo tasks.md. */
+  pipelineAddTask: (
+    repoPath: string,
+    changeId: string,
+    text: string,
+    options?: { line?: number; position?: 'above' | 'below' | 'end'; expectedText?: string; actor?: 'persona' | 'agente' },
+    actor?: 'persona' | 'agente',
+  ) => ipcRenderer.invoke('pipeline:add-task', repoPath, changeId, text, options, actor),
+  /** Edita el texto de una tarea. `expectedText` verifica coincidencia previa. */
+  pipelineEditTask: (
+    repoPath: string,
+    changeId: string,
+    line: number,
+    expectedText: string,
+    newText: string,
+    actor?: 'persona' | 'agente',
+  ) => ipcRenderer.invoke('pipeline:edit-task', repoPath, changeId, line, expectedText, newText, actor),
+  /** Mueve una tarea entre líneas sin alterar líneas ajenas. */
+  pipelineMoveTask: (
+    repoPath: string,
+    changeId: string,
+    fromLine: number,
+    toLine: number,
+    expectedText: string,
+    actor?: 'persona' | 'agente',
+  ) => ipcRenderer.invoke('pipeline:move-task', repoPath, changeId, fromLine, toLine, expectedText, actor),
+  /** Elimina una tarea de tasks.md. */
+  pipelineRemoveTask: (
+    repoPath: string,
+    changeId: string,
+    line: number,
+    expectedText: string,
+    actor?: 'persona' | 'agente',
+  ) => ipcRenderer.invoke('pipeline:remove-task', repoPath, changeId, line, expectedText, actor),
   /**
    * Contenido de una especificación consolidada, por su identificador.
    *

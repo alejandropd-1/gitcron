@@ -52,6 +52,36 @@
 - [ ] 2.4 En `electron/ipc/pipeline-tasks.ts`, registrar los canales de agregar, editar, mover y eliminar tarea, con la misma validación de ruta autorizada, slug y contención `resolveInside` que ya usa `pipeline:set-task-checked`, devolviendo códigos de error y nunca prosa.
 - [ ] 2.5 En `electron/__tests__/`, verificar que cada canal nuevo rechaza ruta no autorizada, slug inválido y cambio archivado, y que ante `mismatch` no escribe. Afirmar sobre el llamado a la escritura, no sólo sobre el valor devuelto.
 
+- [ ] 2.6 **Tres decisiones que hay que tomar antes de escribir las funciones de 2.1**, medidas el
+  2026-09-07 sobre `electron/pipeline/task-checkbox.ts` (72 lineas).
+
+  **a. La numeracion al mover y al agregar.** La expresion que reconoce una tarea es
+  `TASK_LINE = /^(\s*-\s*\[)([ xX])(\]\s*)(.*)$/` (`:12`): el numero —`4.12`— cae **adentro del
+  grupo del texto**, no es una posicion. Mover una linea mueve su numero con ella.
+  Lectura propuesta: **el numero es un identificador, no un lugar.** Este mismo archivo lo demuestra:
+  tiene grupos `3b`, `3c`, `9b` y `9c`, asi que la numeracion ya no describe el orden. Renumerar al
+  mover contradiria ademas la regla de la propia 2.1 —«sin alterar ninguna linea ajena a la
+  operacion»—, porque obligaria a reescribir todas las de abajo.
+  Consecuencia que hay que aceptar de frente: despues de arrastrar, la lista puede mostrar 8.9 arriba
+  de 8.8. Si eso no se acepta, la alternativa es renumerar y entonces 2.1 cambia de regla. **La decide
+  Alejandro.**
+  Lo mismo vale para `addTaskLine`: declarar que numero recibe una tarea nueva y por que, o si no
+  recibe ninguno.
+
+  **b. El encabezado del registro deja de ser cierto.** `LOG_HEADING = '# Registro de tildes'`
+  (`:64`) nombra un archivo que hasta hoy solo anotaba marcar y desmarcar. Con 2.2 va a anotar
+  tambien agregar, editar, mover y borrar. Un encabezado que dice «tildes» sobre un registro que ya no
+  es de tildes es la misma clase de mentira que este change vino a corregir en la tarjeta del motor.
+  Cambiarlo, y declarar que pasa con los registros ya escritos en repositorios existentes: no se
+  reescriben.
+
+  **c. La tolerancia del `expectedText`.** La comprobacion de `toggleTaskCheckbox` (`:44`) acepta la
+  linea no solo cuando el texto coincide, sino tambien cuando `expectedText` **empieza con** el texto
+  del archivo. Es una tolerancia a texto recortado, y para marcar una casilla no hace dano. Para
+  **editar** el texto de una tarea si: aceptaria escribir sobre una linea que no es exactamente la que
+  se leyo. Decidir si las funciones nuevas comparten esa tolerancia o exigen coincidencia exacta, y
+  escribir el motivo al lado.
+
 ## 3. Escritura de artefactos en el proceso principal
 
 - [ ] 3.1 En `electron/pipeline/`, agregar la consulta de `openspec instructions <artefacto> --change <slug> --json` mediante `runAuthorizedOpenSpec`, devolviendo `resolvedOutputPath`, `instruction`, `template`, `rules`, `context` y `dependencies` sin interpretar su contenido.

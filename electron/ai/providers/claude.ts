@@ -2,6 +2,15 @@
 // Claude provider adapter (cloud family). Runs in MAIN.
 // The request is built and fired here — never in the renderer — so the
 // renderer's CSP stays fully locked (see AI_PIPELINE.md, "CSP refinement").
+//
+// ── EXCEPCIÓN ARQUITECTÓNICA VÁLIDA (Tarea 9b.8) ──
+// Este adaptador NO se migra a `electron/ai/text-client.ts` porque se comunica
+// directamente con la API nativa de Anthropic (`https://api.anthropic.com/v1/messages`,
+// autenticación vía cabecera `x-api-key`, y control de versión con `anthropic-version`).
+// El protocolo nativo de Anthropic tiene un esquema de mensajes y cabeceras propio que
+// NO es compatible con OpenAI chat completions, por lo que queda como excepción
+// legítima documentada, mientras que todos los proveedores compatibles con OpenAI
+// (OpenRouter, LM Studio, Unsloth) convergen en la capa unificada de `text-client.ts`.
 
 import type {
   AIPredictionProvider,

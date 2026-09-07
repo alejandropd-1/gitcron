@@ -415,10 +415,17 @@ conocen entre si, y la duplicacion es literal.
   - Estructura base `TextClientConfig` (URL base más clave opcional) sobre API compatible con OpenAI.
   - Modos duales soportados: `completeText` (respuesta consolidada) y `streamText` (streaming SSE con notificación de chunks agrupados contiguamente).
   - Cubre sin casos especiales: LM Studio (local sin clave), Unsloth Desktop (remota con token opcional), y OpenRouter (fija con clave y cabeceras de atribución).
-- [ ] 9b.4 **Unsloth Desktop integrado:**
-  Integrado sin pila propia mediante `createUnslothConfig({ baseUrl, apiKey? })`, admitiendo conexión directa o túnel de Cloudflare.
+- [ ] 9b.4 **Unsloth Desktop integrado (corregido el 2026-09-07 con la configuración real de OpenCode de Alejandro):**
+  Integrado sin pila propia mediante `createUnslothConfig({ baseUrl, apiKey?, headers?, cfAccessClientId?, cfAccessClientSecret? })`.
+  Medido contra la configuración real que funciona hoy: un Unsloth detrás de Cloudflare Access requiere **tres credenciales**:
+  - `apiKey` (token del modelo -> cabecera `Authorization: Bearer`)
+  - `CF-Access-Client-Id` (cabecera de Cloudflare Access)
+  - `CF-Access-Client-Secret` (cabecera de Cloudflare Access)
+  `createUnslothConfig` propaga tanto cabeceras arbitrarias como las dos cabeceras específicas de Cloudflare Access.
+  El baúl de claves (`electron/ai/key-store.ts`) se amplió para soportar múltiples secretos nombrados por proveedor indexando por `${provider}:${secretName}` bajo el mismo mecanismo de `safeStorage` (cifrado en reposo, main-only, sin variables de entorno y sin filtraciones por IPC).
+  Medición de metadatos de modelo (`limit.context`, `limit.output`, `reasoning_effort`): son límites de cliente o banderas de modelos específicos que el cliente HTTP unificado no necesita enviar en el cuerpo de la petición hoy; se omiten para no romper esquemas estrictos de servidores OpenAI compatibles.
 - [ ] 9b.5 **Baúl de claves desacoplado (`electron/ai/key-store.ts`):**
-  Se desacopla `ProviderId` a `AIKeyProviderId` para permitir proveedores de texto (ej. `unsloth`) sin atarse al enum cerrado de `AIPredictionProvider['id']`. Las claves permanecen cifradas en disco con `safeStorage` (DPAPI en Windows), residen exclusivamente en el proceso principal, no se exponen por IPC y no utilizan variables de entorno (`process.env`).
+  Se desacopla `ProviderId` a `AIKeyProviderId` para permitir proveedores de texto (ej. `unsloth`) sin atarse al enum cerrado de `AIPredictionProvider['id']`. Las claves permanecen cifradas en disco con `safeStorage` (DPAPI en Windows), residen exclusivamente en el proceso principal, admiten secretos nombrados (`${provider}:${secretName}`), no se exponen por IPC y no utilizan variables de entorno (`process.env`).
 - [ ] 9b.6 **Migración de consumidores y retiro de código:**
   - Cartografía: `chatComplete` en `carto/provider.ts` delega en `completeText`, eliminando la duplicación de fetch y manejo de errores. `carto/openrouter.ts` usa `createOpenRouterConfig` y `carto/lmstudio.ts` usa `createLmStudioConfig`.
   - Commit message: `draftCommitSubject` en `commit-message/local-provider.ts` delega en `streamText`.
@@ -450,24 +457,81 @@ conocen entre si, y la duplicacion es literal.
   Resolver: migrar `providers/openrouter.ts` al cliente unico conservando su parseo propio, que si es
   suyo; dejar `claude.ts` afuera con el motivo escrito; y que cada URL base quede declarada **en un
   solo lugar**.
+  **Resolución y mediciones del 2026-09-07:**
+  - `providers/openrouter.ts` migrado a `text-client.ts`: consume `createOpenRouterConfig` y `completeText`. Se retiraron `ENDPOINT` duplicado y `fetchWithTimeout`. Se conservó su parseo propio `parseBranches`.
+  - `claude.ts`: documentada la excepción arquitectónica en su encabezado (API nativa de Anthropic, no compatible con OpenAI).
+  - URLs base centralizadas en `electron/ai/text-client.ts`: `DEFAULT_OPENROUTER_BASE_URL` ('https://openrouter.ai/api/v1'), `DEFAULT_LMSTUDIO_BASE_URL` ('http://localhost:1234/v1') y error común `DEFAULT_LMSTUDIO_CONN_ERROR`.
+  - `carto/lmstudio.ts:25`: `MODELS_ENDPOINT` se deriva como `${DEFAULT_LMSTUDIO_BASE_URL}/models` (en LM Studio, la API compatible con OpenAI expone `/v1/models`). Usa `DEFAULT_LMSTUDIO_CONN_ERROR`.
+  - `commit-message/local-provider.ts`: `DEFAULT_LOCAL_BASE_URL` se deriva de `DEFAULT_LMSTUDIO_BASE_URL.replace(/\/v1\/?$/, '')`. Actualizado el comentario en línea 7 que describía la duplicación vieja.
+  - Medición de líneas: `openrouter.ts` bajó de 107 a 90 líneas (retiradas 35 líneas frente al original de 125). El total de archivos de inferencia unificados se estabilizó en 1229 líneas incluyendo documentación arquitectónica.
+
+- [ ] 9b.10 **Auditoria del 2026-09-07: el baul de claves gano un parametro nuevo y quedo sin
+  validacion en el borde de IPC.**
+  La forma elegida para los secretos con nombre es correcta —compatible hacia atras, sin migracion,
+  sin variables de entorno, mismo `safeStorage`—. Lo que falta es la puerta.
+  Medido el 2026-09-07: `electron/ipc/ai.ts:137` declara
+  `ipcMain.handle('ai:set-key', async (_event, provider: ProviderId, key: string, secretName?: string))`.
+  Esos tipos son de compilacion: **en ejecucion el renderer puede mandar cualquier cadena** en
+  `provider` y en `secretName`, y ni el manejador ni `key-store.ts` los validan. `buildSecretKey`
+  (`:62-66`) solo hace `trim` y concatena con `:`.
+  Dos consecuencias:
+  1. **Colision.** `setKey('unsloth:cf-client-secret', x)` escribe **la misma ranura** que
+     `setKey('unsloth', x, 'cf-client-secret')`. Una llamada puede pisar el secreto de otro
+     proveedor sin que nada lo impida.
+  2. **Espacio de nombres sin limite.** Cualquier cadena se vuelve una ranura guardada, y el archivo
+     cifrado crece con lo que el renderer mande.
+  Contraste medido dentro del mismo proyecto: los canales de `pipeline:*` validan todo lo que entra
+  —`validateStrictPayloadKeys`, `validRepoPath`, `validChangeId`, `isValidOpenSpecChangeSlug`—. Los
+  de IA no. Y el encabezado de `key-store.ts` es explicito sobre su postura de seguridad: la clave
+  vive solo en el proceso principal y el renderer solo puede preguntar si existe. El parametro nuevo
+  entro sin ese rigor.
+  Resolver: validar `provider` contra la lista cerrada de proveedores conocidos y `secretName`
+  contra un formato acotado que **no admita el separador**, en el manejador de IPC y tambien en
+  `key-store.ts`, que es el que guarda. Rechazar con codigo, sin prosa y sin eco del valor.
+  Cubrirlo con una prueba que intente la colision y afirme que se rechaza.
 
 ## 9c. La verificacion de version, con criterio
 
 - [ ] 9c.1 Que la comprobacion no se quede en «hay una nueva»: que traiga que cambio, con la fuente
   citada, y si la fuente no esta disponible lo diga en vez de inventar una lista.
+  *Implementado en `electron/pipeline/openspec-version-analysis.ts:fetchOpenSpecChangelog`: consulta GitHub Releases con URL citada. Ante 404 o falla de red, retorna `'unavailable'` con el motivo real sin inventar cambios.*
 - [ ] 9c.2 Que juzgue si esos cambios tocan lo que GitCron **consume** —la forma del JSON de `status`,
   `instructions`, `validate`, `archive` y `sync`, y los workflows del perfil— y declare cada veredicto
   con su evidencia.
+  *Implementado en `evaluateConsumedSurfaces`: evalúa determinísticamente las 6 superficies contrastadas contra `SUPPORTED_OPENSPEC_VERSIONS` e `isInstalledAheadOfCycle`, detallando evidencia concreta para cada una.*
 - [ ] 9c.3 Si algo rompe, **proponer la estrategia**: que habria que modificar, en que orden, y que se
   puede hacer sin tocar nada. Es una propuesta para que Alejandro decida, no una accion automatica.
+  *Implementado en `buildStrategyProposal`: genera propuesta estructurada (qué modificar, orden de 4 pasos, qué funciona intacto) orientada a la decisión deliberada de Alejandro sin mutaciones automáticas.*
 - [ ] 9c.4 La explicacion en criollo se redacta con la capa unica de 9b, con modelo local por omision.
   Sin 9b terminada esta tarea no arranca: construirla antes agrega una cuarta pila.
+  *Implementado en `draftVersionRedaction`: invoca `completeText` con `createLmStudioConfig` (modelo local por omisión). Si LM Studio está apagado, degrada limpiamente a `status: 'offline'` sin lanzar excepciones.*
 - [ ] 9c.5 Lo que el modelo redacta se presenta **como redaccion**, separado de lo medido. Un veredicto
   sobre si algo rompe sale de la comparacion, no del modelo. Es la misma regla que ya rige a
   `PipelineArtifactGraph`, que declara no inventar estado derivandolo de otra cosa.
+  *Estructura desacoplada en `OpenSpecVersionAnalysisResult`: `measured` (hechos y veredictos por código) separado de `redaction` (texto del modelo).*
 - [ ] 9c.6 Subir `OPENSPEC_CYCLE_TARGET_VERSION` y `SUPPORTED_OPENSPEC_VERSIONS` de
   `lib/openspec-version.ts` sigue siendo un acto deliberado con evidencia. **La decide Alejandro**,
   sobre lo medido. La comprobacion informa; no mueve el rango sola.
+  *Inmutable: el código respeta los valores existentes ('1.11.0' y '1.5.0'-'1.11.0') sin alterarlos.*
+
+- [ ] 9c.7 **Auditoria del 2026-09-07: la consulta del changelog no tiene cache, y es la tercera vez
+  que aparece la misma asimetria.**
+  `electron/pipeline/openspec-version-analysis.ts:118` consulta
+  `https://api.github.com/repos/fission-ai/openspec/releases/tags/v<version>` **sin autenticar**. La
+  API publica de GitHub limita a 60 pedidos por hora **por direccion IP**, compartidos con cualquier
+  otra cosa que use esa red.
+  El modulo acepta una opcion `forceRefresh` (`:396`) que sugiere que hay algo que refrescar, pero
+  **no existe ninguna cache**: medido, no hay una sola aparicion de cache ni de tiempo de vida en
+  todo el archivo.
+  Es la misma asimetria que ya se anoto dos veces en esta rama: `checkLatestOpenSpecVersion`, en
+  `electron/pipeline/openspec-registry.ts`, hace una consulta equivalente y **si tiene cache** —se
+  ve en pantalla, «En cache (35581s)»—. Antes paso con `doctor` y `context`, que quedaron sin ella.
+  Seguir el patron del vecino, con el tiempo de vida declarado y `forceRefresh` haciendo lo que su
+  nombre dice.
+  Nota de lo que si quedo bien: el canal se registra en `electron/ipc/pipeline-openspec.ts:718` con
+  `deps.runVersionAnalysis ?? analyzeOpenSpecVersion`, o sea que **la aplicacion usa la funcion de
+  verdad** y no una inyeccion que solo existe en las pruebas. Es lo contrario de lo que habia pasado
+  con la sincronizacion, y corresponde decirlo.
 
 ## 10. Cierre y validación
 

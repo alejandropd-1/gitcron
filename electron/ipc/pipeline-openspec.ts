@@ -43,6 +43,10 @@ import { classifyOpenSpecProfile } from '../../lib/openspec-profile';
 import { compareSemver, parseSemver } from '../../lib/openspec-version';
 import { getRealGitInfo, type RealGitInfo } from '../pipeline/repo-evidence-reader';
 import { getToolDef } from '../pipeline/openspec-tooling';
+import {
+  analyzeOpenSpecVersion,
+  type OpenSpecVersionAnalysisResult,
+} from '../pipeline/openspec-version-analysis';
 import { authorizedRepoStore } from './authorized-repos';
 
 export interface OpenSpecIpcDeps {
@@ -59,6 +63,7 @@ export interface OpenSpecIpcDeps {
   getInstructions?: (repoPath: string, target: string, options?: InstructionsOpenSpecOptions) => Promise<InstructionsOpenSpecResult>;
   runDoctor?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecDoctorResult>;
   runContext?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecContextBriefResult>;
+  runVersionAnalysis?: (repoPath: string, options?: { forceRefresh?: boolean }) => Promise<OpenSpecVersionAnalysisResult>;
 }
 
 /**
@@ -704,6 +709,23 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
       const resolveRuntime = deps.resolveRuntime ?? resolveOpenSpecExecutable;
       const authorizedRuntime = resolveRuntime({ userDataDir, repoPath: validRepoPath });
       return contextFn(validRepoPath, { runtime: authorizedRuntime });
+    },
+  );
+
+  // 10. Version Analysis (Grupo 9c)
+  ipc.handle(
+    'pipeline:openspec:version-analysis',
+    async (_event, payload?: unknown): Promise<OpenSpecVersionAnalysisResult> => {
+      validateStrictPayloadKeys(payload, ['repoPath', 'forceRefresh']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+
+      const forceRefresh = Boolean((payload as any)?.forceRefresh);
+      const versionAnalysisFn = deps.runVersionAnalysis ?? analyzeOpenSpecVersion;
+      return versionAnalysisFn(validRepoPath, { forceRefresh });
     },
   );
 }

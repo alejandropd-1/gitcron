@@ -126,17 +126,17 @@ export function registerAiHandlers(): void {
     }
   });
 
-  ipcMain.handle('ai:has-key', async (_event, provider: ProviderId) => {
+  ipcMain.handle('ai:has-key', async (_event, provider: ProviderId, secretName?: string) => {
     try {
-      return { success: true, data: hasAiKey(provider) };
+      return { success: true, data: hasAiKey(provider, secretName) };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };
     }
   });
 
-  ipcMain.handle('ai:set-key', async (_event, provider: ProviderId, key: string) => {
+  ipcMain.handle('ai:set-key', async (_event, provider: ProviderId, key: string, secretName?: string) => {
     try {
-      setAiKey(provider, key);
+      setAiKey(provider, key, secretName);
       return { success: true };
     } catch (error: any) {
       // Never echo the key in the error.
@@ -144,19 +144,19 @@ export function registerAiHandlers(): void {
     }
   });
 
-  ipcMain.handle('ai:remove-key', async (_event, provider: ProviderId) => {
+  ipcMain.handle('ai:remove-key', async (_event, provider: ProviderId, secretName?: string) => {
     try {
-      removeAiKey(provider);
+      removeAiKey(provider, secretName);
       return { success: true };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };
     }
   });
 
-  ipcMain.handle('ai:key-fingerprint', async (_event, provider: ProviderId) => {
+  ipcMain.handle('ai:key-fingerprint', async (_event, provider: ProviderId, secretName?: string) => {
     try {
       // Returns a SHA-256-derived id (8 hex chars), never any part of the key.
-      return { success: true, data: getAiKeyFingerprint(provider) };
+      return { success: true, data: getAiKeyFingerprint(provider, secretName) };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };
     }

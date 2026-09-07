@@ -70,6 +70,8 @@ export interface TextGenerationResult {
 
 export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 export const DEFAULT_LMSTUDIO_BASE_URL = 'http://localhost:1234/v1';
+export const DEFAULT_LMSTUDIO_CONN_ERROR =
+  'Servidor de IA local no disponible. Abrí LM Studio, cargá un modelo y activá el servidor local (localhost:1234).';
 
 /**
  * Normaliza la URL del endpoint de chat completions.
@@ -292,8 +294,7 @@ export function createLmStudioConfig(opts?: {
     baseUrl: opts?.baseUrl ?? DEFAULT_LMSTUDIO_BASE_URL,
     providerLabel: opts?.providerLabel ?? 'El servidor local',
     defaultTimeoutMs: opts?.timeoutMs ?? 300_000,
-    friendlyConnError:
-      'Servidor de IA local no disponible. Abrí LM Studio, cargá un modelo y activá el servidor local (localhost:1234).',
+    friendlyConnError: DEFAULT_LMSTUDIO_CONN_ERROR,
   };
 }
 
@@ -319,17 +320,42 @@ export function createOpenRouterConfig(opts: {
 }
 
 /**
- * Configurador de Unsloth Desktop (Tarea 9b.4).
- * URL remota (túnel Cloudflare o servidor en LAN) con token opcional.
+ * Opciones para configurar Unsloth Desktop (Tarea 9b.4 corregida).
+ * Admite URL remota (ej. 'https://llm.aledesign.dev/v1'), token opcional del modelo (apiKey),
+ * cabeceras HTTP arbitrarias (headers) y credenciales específicas de Cloudflare Access
+ * (cfAccessClientId y cfAccessClientSecret).
  */
-export function createUnslothConfig(opts: {
+export interface UnslothConfigOptions {
   baseUrl: string;
   apiKey?: string;
+  headers?: Record<string, string>;
+  cfAccessClientId?: string;
+  cfAccessClientSecret?: string;
   timeoutMs?: number;
-}): TextClientConfig {
+}
+
+/**
+ * Configurador de Unsloth Desktop (Tarea 9b.4).
+ * URL remota (túnel Cloudflare o servidor en LAN) con token opcional y cabeceras
+ * de autenticación perimetral (CF-Access-Client-Id y CF-Access-Client-Secret).
+ */
+export function createUnslothConfig(opts: UnslothConfigOptions): TextClientConfig {
+  const headers: Record<string, string> = {
+    ...(opts.headers ?? {}),
+  };
+
+  if (opts.cfAccessClientId && opts.cfAccessClientId.trim().length > 0) {
+    headers['CF-Access-Client-Id'] = opts.cfAccessClientId.trim();
+  }
+
+  if (opts.cfAccessClientSecret && opts.cfAccessClientSecret.trim().length > 0) {
+    headers['CF-Access-Client-Secret'] = opts.cfAccessClientSecret.trim();
+  }
+
   return {
     baseUrl: opts.baseUrl,
     apiKey: opts.apiKey,
+    headers: Object.keys(headers).length > 0 ? headers : undefined,
     providerLabel: 'Unsloth Desktop',
     defaultTimeoutMs: opts.timeoutMs ?? 180_000,
     friendlyConnError:

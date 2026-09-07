@@ -34,8 +34,8 @@ export type AIKeyProviderId =
 type ProviderId = AIKeyProviderId;
 
 interface KeyFile {
-  // provider id -> base64 of safeStorage-encrypted key bytes
-  [providerId: string]: string;
+  // provider id or provider:secretName -> base64 of safeStorage-encrypted key bytes
+  [storageKey: string]: string;
 }
 
 function keyFilePath(): string {
@@ -54,20 +54,33 @@ function writeFile(data: KeyFile): void {
   fs.writeFileSync(keyFilePath(), JSON.stringify(data), { mode: 0o600 });
 }
 
-/** Store/replace a provider key (encrypted at rest). One-way from the renderer's view. */
-export function setKey(provider: ProviderId, key: string): void {
+/**
+ * Compone la clave de almacenamiento interna en el baúl.
+ * Si secretName está ausente o vacío, se indexa por provider directamente (compatibilidad hacia atrás).
+ * Si secretName está presente, se indexa como `${provider}:${secretName}`.
+ */
+export function buildSecretKey(provider: ProviderId, secretName?: string): string {
+  const p = provider.trim();
+  const s = secretName?.trim();
+  return s ? `${p}:${s}` : p;
+}
+
+/** Store/replace a provider key or named secret (encrypted at rest). One-way from the renderer's view. */
+export function setKey(provider: ProviderId, key: string, secretName?: string): void {
   if (!safeStorage.isEncryptionAvailable()) {
     throw new Error('OS encryption unavailable; refusing to store key in plaintext');
   }
   const data = readFile();
-  data[provider] = safeStorage.encryptString(key).toString('base64');
+  const targetKey = buildSecretKey(provider, secretName);
+  data[targetKey] = safeStorage.encryptString(key).toString('base64');
   writeFile(data);
 }
 
 /** INTERNAL ONLY — never expose over IPC. Used by adapters inside main. */
-export function getKey(provider: ProviderId): string | undefined {
+export function getKey(provider: ProviderId, secretName?: string): string | undefined {
   const data = readFile();
-  const enc = data[provider];
+  const targetKey = buildSecretKey(provider, secretName);
+  const enc = data[targetKey];
   if (!enc) return undefined;
   try {
     return safeStorage.decryptString(Buffer.from(enc, 'base64'));
@@ -77,25 +90,57 @@ export function getKey(provider: ProviderId): string | undefined {
 }
 
 /** Safe to expose: tells the renderer only whether a key exists. */
-export function hasKey(provider: ProviderId): boolean {
-  return Boolean(readFile()[provider]);
+export function hasKey(provider: ProviderId, secretName?: string): boolean {
+  const targetKey = buildSecretKey(provider, secretName);
+  return Boolean(readFile()[targetKey]);
 }
 
-export function removeKey(provider: ProviderId): void {
+/**
+ * Elimina una clave o secreto nombrado del baúl.
+ * Si se especifica secretName, elimina sólo ese secreto nombrado.
+ * Si no se especifica secretName, elimina la clave principal del proveedor y todos sus secretos nombrados (`${provider}:*`).
+ */
+export function removeKey(provider: ProviderId, secretName?: string): void {
   const data = readFile();
-  delete data[provider];
+  if (secretName && secretName.trim()) {
+    delete data[buildSecretKey(provider, secretName)];
+  } else {
+    const cleanProvider = provider.trim();
+    const prefix = `${cleanProvider}:`;
+    delete data[cleanProvider];
+    for (const k of Object.keys(data)) {
+      if (k.startsWith(prefix)) {
+        delete data[k];
+      }
+    }
+  }
   writeFile(data);
 }
 
 /**
  * Safe-to-expose stable identifier of WHICH key is stored — NOT any part of the
  * secret. We hash the full key with SHA-256 and return only the first 8 hex
- * chars. This lets the user recognize which key they loaded (the fingerprint is
- * deterministic per-key) while no byte of the real key ever leaves main.
- * Replaces the old getKeyPrefix(), which leaked the first 10 real characters.
+ * chars.
  */
-export function getKeyFingerprint(provider: ProviderId): string | null {
-  const key = getKey(provider);
+export function getKeyFingerprint(provider: ProviderId, secretName?: string): string | null {
+  const key = getKey(provider, secretName);
   if (!key) return null;
   return createHash('sha256').update(key).digest('hex').slice(0, 8);
+}
+
+/**
+ * Recupera las credenciales de Unsloth Desktop guardadas en el baúl seguro:
+ * token del modelo, ID de cliente de Cloudflare Access y secreto de cliente de Cloudflare Access.
+ */
+export function getUnslothCredentials(): {
+  apiKey?: string;
+  cfAccessClientId?: string;
+  cfAccessClientSecret?: string;
+} {
+  return {
+    apiKey: getKey('unsloth') ?? getKey('unsloth', 'apiKey') ?? getKey('unsloth', 'token'),
+    cfAccessClientId: getKey('unsloth', 'cf-client-id') ?? getKey('unsloth', 'cf-access-client-id'),
+    cfAccessClientSecret:
+      getKey('unsloth', 'cf-client-secret') ?? getKey('unsloth', 'cf-access-client-secret'),
+  };
 }

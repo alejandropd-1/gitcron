@@ -5,6 +5,7 @@
 // GPT, Gemini, Llama, etc. So this single adapter effectively covers the three
 // cloud providers. The user picks the underlying model via `model`.
 //
+// Migrado a la capa unificada de `text-client.ts` (Tarea 9b.8).
 // Request/response is the OpenAI chat-completions shape. Key from the main-only
 // vault; never logged, never sent to the renderer.
 
@@ -13,11 +14,11 @@ import type {
   PredictionResult,
   SpeculativeBranch,
 } from '../../../types/temporal-agent';
-import { fetchWithTimeout, type AssembledPrompts } from '../provider-runtime';
+import type { AssembledPrompts } from '../provider-runtime';
 import { cleanJsonString, extractJson, normalizeBranch } from '../provider-parsing';
 import { getKey } from '../key-store';
+import { completeText, createOpenRouterConfig } from '../text-client';
 
-const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 // Sensible default; the user can override in Settings. Any OpenRouter model id.
 const DEFAULT_MODEL = 'anthropic/claude-sonnet-4.5';
 
@@ -33,36 +34,17 @@ export function createOpenRouterProvider(opts?: { model?: string }): AIPredictio
       const key = getKey('openrouter');
       if (!key) throw new Error('No OpenRouter API key stored');
 
-      const res = await fetchWithTimeout(ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${key}`,
-          // Optional attribution headers OpenRouter recommends:
-          'http-referer': 'https://github.com/alejandropd-1/gitcron',
-          'x-title': 'GitCron Temporal Agent',
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: 4096,
-          messages: [
-            { role: 'system', content: prompts.systemPrompt },
-            { role: 'user', content: prompts.userPrompt },
-          ],
-        }),
+      const config = createOpenRouterConfig({
+        apiKey: key,
+        appName: 'GitCron Temporal Agent',
       });
 
-      if (!res.ok) {
-        // Status only — never echo the key or full error body that might carry it.
-        throw new Error(`OpenRouter request failed (${res.status})`);
-      }
-
-      const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
-      };
-      const choice = data.choices?.[0];
-      const text = choice?.message?.content ?? '';
-      const finishReason = choice?.finish_reason;
+      const { text, finishReason } = await completeText(config, {
+        model,
+        system: prompts.systemPrompt,
+        user: prompts.userPrompt,
+        maxTokens: 4096,
+      });
 
       if (!text && finishReason === 'length') {
         throw new Error('Model response truncated (max_tokens too low)');

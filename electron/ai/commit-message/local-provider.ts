@@ -1,21 +1,26 @@
 // electron/ai/commit-message/local-provider.ts
 //
 // Proveedor local para redactar el asunto de un commit. Hermano del de
-// Cartografía (`electron/ai/carto/lmstudio.ts`), con una diferencia deliberada:
-// el endpoint es configurable.
+// Cartografía (`electron/ai/carto/lmstudio.ts`), ambos unificados en la capa
+// `electron/ai/text-client.ts`, con una diferencia deliberada:
+// el endpoint es configurable por el usuario en Ajustes.
 //
-// El de Cartografía tiene `http://localhost:1234` escrito en el código. Alcanza
-// mientras el modelo corre en la misma máquina; no alcanza en el caso real de
-// Ale, que trabaja desde una notebook contra la PC donde está la placa. Depender
-// de un reenvío de puerto que no se declara en ningún lado es de las cosas que
-// después fallan sin explicación.
+// Ambos proveedores consumen `DEFAULT_LMSTUDIO_BASE_URL` centralizado en
+// `text-client.ts`. Permitir configurar la URL base alcanza tanto para el caso
+// común (modelo corriendo en la misma máquina en localhost:1234) como para el
+// caso real de Ale (notebook trabajando contra la PC donde está la GPU dedicada).
 //
 // Privacidad: acá viaja el **diff del repositorio**. Es más sensible que el
 // contexto que manda Cartografía, y es el argumento fuerte para que la opción
 // local sea la primera: el código no sale a ningún tercero.
 
 import type { CommitDraftResult, LoadOutcome, LocalModel } from '../../../types/commit-message-ai';
-import { createLmStudioConfig, streamText } from '../text-client';
+import {
+  createLmStudioConfig,
+  DEFAULT_LMSTUDIO_BASE_URL,
+  DEFAULT_LMSTUDIO_CONN_ERROR,
+  streamText,
+} from '../text-client';
 import { fetchDeviceIndex, mergeDeviceInfo } from './device-index';
 import type { DraftChunk } from './sse';
 
@@ -37,8 +42,8 @@ export function hasEnoughContext(model: LocalModel, minimum: number = MIN_CONTEX
   return model.loaded && (model.loadedContextLength ?? 0) >= minimum;
 }
 
-/** Servidor local por omisión. LM Studio escucha acá salvo que se lo cambie. */
-export const DEFAULT_LOCAL_BASE_URL = 'http://localhost:1234';
+/** Servidor local por omisión, derivado de la URL base centralizada en text-client. */
+export const DEFAULT_LOCAL_BASE_URL = DEFAULT_LMSTUDIO_BASE_URL.replace(/\/v1\/?$/, '');
 
 /**
  * Ventana generosa para redactar: medido, un 12B tarda 25–57 s y un 9B con
@@ -75,8 +80,7 @@ function withTimeout(timeoutMs: number, signal?: AbortSignal): AbortSignal {
   return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
 
-const CONN_ERROR =
-  'Servidor de IA local no disponible. Abrí LM Studio, cargá un modelo y activá el servidor local.';
+const CONN_ERROR = DEFAULT_LMSTUDIO_CONN_ERROR;
 
 /**
  * Catálogo de modelos, leído de la API **nativa** de LM Studio y no de la

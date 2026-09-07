@@ -10,6 +10,11 @@ import {
   type TextClientConfig,
 } from '../ai/text-client';
 
+vi.mock('../ai/key-store', () => ({
+  getKey: vi.fn((provider: string) => (provider === 'openrouter' ? 'sk-mock-key' : null)),
+  hasKey: vi.fn((provider: string) => provider === 'openrouter'),
+}));
+
 const ORIGINAL_FETCH = globalThis.fetch;
 
 afterEach(() => {
@@ -100,7 +105,7 @@ describe('Cliente unificado de texto (Grupo 9b)', () => {
       expect(body.model).toBe('anthropic/claude-sonnet-4.5');
     });
 
-    it('Unsloth Desktop: petición remota con token de autorización opcional (Tarea 9b.4)', async () => {
+    it('Unsloth Desktop: petición remota con TRES credenciales (modelo + Cloudflare Access) (Tarea 9b.4 corregida)', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
@@ -111,8 +116,10 @@ describe('Cliente unificado de texto (Grupo 9b)', () => {
       globalThis.fetch = mockFetch as unknown as typeof fetch;
 
       const config = createUnslothConfig({
-        baseUrl: 'https://my-unsloth-desktop.cloudflare.com/v1',
+        baseUrl: 'https://llm.aledesign.dev/v1',
         apiKey: 'cf-tunnel-bearer-xyz',
+        cfAccessClientId: 'cf-client-id-123.access',
+        cfAccessClientSecret: 'cf-client-secret-456.access',
       });
 
       await completeText(config, {
@@ -123,8 +130,11 @@ describe('Cliente unificado de texto (Grupo 9b)', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const [calledUrl, calledInit] = mockFetch.mock.calls[0];
-      expect(calledUrl).toBe('https://my-unsloth-desktop.cloudflare.com/v1/chat/completions');
+      expect(calledUrl).toBe('https://llm.aledesign.dev/v1/chat/completions');
+      expect(calledInit.headers['content-type']).toBe('application/json');
       expect(calledInit.headers.authorization).toBe('Bearer cf-tunnel-bearer-xyz');
+      expect(calledInit.headers['CF-Access-Client-Id']).toBe('cf-client-id-123.access');
+      expect(calledInit.headers['CF-Access-Client-Secret']).toBe('cf-client-secret-456.access');
     });
   });
 
@@ -168,6 +178,50 @@ describe('Cliente unificado de texto (Grupo 9b)', () => {
         const errorMsg = String(err);
         expect(errorMsg).not.toContain(SECRET_KEY);
         expect(errorMsg).toContain('No se pudo contactar a OpenRouter');
+      }
+    });
+
+    it('ninguna de las tres credenciales de Unsloth se filtra en mensajes de error de red o HTTP', async () => {
+      const MODEL_KEY = 'super-secret-model-token';
+      const CF_ID = 'cf-id-sensitive-123456';
+      const CF_SECRET = 'cf-secret-sensitive-789012';
+
+      // 1. Error HTTP 403 Forbidden
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: async () => ({ error: 'Forbidden' }),
+      }) as unknown as typeof fetch;
+
+      const config = createUnslothConfig({
+        baseUrl: 'https://llm.aledesign.dev/v1',
+        apiKey: MODEL_KEY,
+        cfAccessClientId: CF_ID,
+        cfAccessClientSecret: CF_SECRET,
+      });
+
+      try {
+        await completeText(config, { model: 'm', system: 's', user: 'u' });
+        expect.fail('Debería haber lanzado');
+      } catch (err) {
+        const msg = String(err);
+        expect(msg).toContain('Unsloth Desktop respondió 403');
+        expect(msg).not.toContain(MODEL_KEY);
+        expect(msg).not.toContain(CF_ID);
+        expect(msg).not.toContain(CF_SECRET);
+      }
+
+      // 2. Error de red (fetch failed)
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('fetch failed ECONNREFUSED')) as unknown as typeof fetch;
+      try {
+        await completeText(config, { model: 'm', system: 's', user: 'u' });
+        expect.fail('Debería haber lanzado');
+      } catch (err) {
+        const msg = String(err);
+        expect(msg).toContain('Servidor Unsloth Desktop no disponible');
+        expect(msg).not.toContain(MODEL_KEY);
+        expect(msg).not.toContain(CF_ID);
+        expect(msg).not.toContain(CF_SECRET);
       }
     });
   });
@@ -248,6 +302,65 @@ describe('Cliente unificado de texto (Grupo 9b)', () => {
 
       expect(res.text).toBe('Fallback a JSON sin stream');
       expect(res.finishReason).toBe('stop');
+    });
+  });
+
+  describe('centralización de endpoints y constantes (Tarea 9b.8)', () => {
+    it('declara DEFAULT_OPENROUTER_BASE_URL y DEFAULT_LMSTUDIO_BASE_URL en text-client', async () => {
+      const {
+        DEFAULT_OPENROUTER_BASE_URL,
+        DEFAULT_LMSTUDIO_BASE_URL,
+        DEFAULT_LMSTUDIO_CONN_ERROR,
+      } = await import('../ai/text-client');
+
+      expect(DEFAULT_OPENROUTER_BASE_URL).toBe('https://openrouter.ai/api/v1');
+      expect(DEFAULT_LMSTUDIO_BASE_URL).toBe('http://localhost:1234/v1');
+      expect(DEFAULT_LMSTUDIO_CONN_ERROR).toContain('Servidor de IA local no disponible');
+    });
+
+    it('providers/openrouter migró a text-client y genera branches con cabeceras de atribución', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  branches: [
+                    {
+                      title: 'Rama experimental',
+                      description: 'Descripción de prueba',
+                      suggestedCommands: ['git checkout -b exp'],
+                      confidence: 'high',
+                      source: 'heuristic',
+                    },
+                  ],
+                }),
+              },
+              finish_reason: 'stop',
+            },
+          ],
+        }),
+      });
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
+
+      const { createOpenRouterProvider } = await import('../ai/providers/openrouter');
+      const provider = createOpenRouterProvider();
+      const result = await provider.predictTimelines({
+        systemPrompt: 'System prompt',
+        userPrompt: 'User prompt',
+        input: {} as never,
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [calledUrl, calledInit] = mockFetch.mock.calls[0];
+      expect(calledUrl).toBe('https://openrouter.ai/api/v1/chat/completions');
+      expect(calledInit.headers['authorization']).toBe('Bearer sk-mock-key');
+      expect(calledInit.headers['http-referer']).toBe('https://github.com/alejandropd-1/gitcron');
+      expect(calledInit.headers['x-title']).toBe('GitCron Temporal Agent');
+      expect(result.branches.length).toBe(1);
+      expect(result.branches[0].message).toBe('Rama experimental');
     });
   });
 });

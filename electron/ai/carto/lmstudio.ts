@@ -19,10 +19,18 @@ import type {
 import type { CartoAIProvider } from './provider';
 import { toResponse } from './provider';
 import { buildExplainPrompts, buildAskPrompts, buildPanoramaPrompts } from './prompts';
-import { completeText, createLmStudioConfig } from '../text-client';
+import {
+  completeText,
+  createLmStudioConfig,
+  DEFAULT_LMSTUDIO_BASE_URL,
+  DEFAULT_LMSTUDIO_CONN_ERROR,
+} from '../text-client';
 
-// Endpoint de modelos para el sondeo de disponibilidad
-const MODELS_ENDPOINT = 'http://localhost:1234/v1/models';
+// Endpoint de modelos para el sondeo de disponibilidad.
+// Se deriva de DEFAULT_LMSTUDIO_BASE_URL ('http://localhost:1234/v1') agregando '/models'.
+// En la API compatible con OpenAI de LM Studio, /v1/models es el endpoint estándar para
+// listar modelos cargados o disponibles, a diferencia de la API nativa (/api/v1/models).
+const MODELS_ENDPOINT = `${DEFAULT_LMSTUDIO_BASE_URL}/models`;
 // LM Studio sirve el modelo que tengas cargado; un nombre vacío vale, pero
 // mandamos un placeholder estable cuando el usuario no fijó uno.
 const DEFAULT_MODEL = 'local-model';
@@ -32,8 +40,7 @@ const DEFAULT_MODEL = 'local-model';
 // cortaba siempre — ver el feedback de QA. 5 min es tope defensivo contra cuelgues.
 const LOCAL_TIMEOUT_MS = 300_000;
 
-const CONN_ERROR =
-  'Servidor de IA local no disponible. Abrí LM Studio, cargá un modelo y activá el servidor local (localhost:1234).';
+const CONN_ERROR = DEFAULT_LMSTUDIO_CONN_ERROR;
 
 export function createLmStudioProvider(opts?: { model?: string }): CartoAIProvider {
   const model = opts?.model?.trim() || DEFAULT_MODEL;

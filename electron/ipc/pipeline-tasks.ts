@@ -14,7 +14,7 @@ import {
   TaskActor,
   toggleTaskCheckbox,
 } from '../pipeline/task-checkbox';
-import { errMsg, validRepoPath } from './shared';
+import { errMsg, resolveInside, validRepoPath } from './shared';
 
 /**
  * Autoría y cambio de estado de tareas en `tasks.md` desde la aplicación.
@@ -39,11 +39,6 @@ function parseActor(value: unknown): TaskActor | undefined {
 /** Lectura y escritura contenidas al repositorio. Inyectables para pruebas. */
 export type ReadRepoFile = (repoPath: string, relative: string) => Promise<string | null>;
 export type WriteRepoFile = (repoPath: string, relative: string, content: string) => Promise<void>;
-
-function resolveInside(repoPath: string, relative: string): string | null {
-  const resolved = path.resolve(repoPath, relative);
-  return resolved === repoPath || resolved.startsWith(repoPath + path.sep) ? resolved : null;
-}
 
 const defaultRead: ReadRepoFile = async (repoPath, relative) => {
   const resolved = resolveInside(repoPath, relative);

@@ -138,6 +138,24 @@ export function resolveRepoRelativePath(repoRoot: string, relativeFilePath: stri
   return resolved;
 }
 
+/**
+ * Resuelve una ruta asegurando que esté estrictamente contenida dentro del directorio base.
+ * Previene escapes mediante secuencias `..` o rutas absolutas arbitrarias.
+ * Devuelve la ruta absoluta normalizada si está contenida, o `null` si escapa.
+ */
+export function resolveInside(baseDir: string, relativeOrAbsolute: string): string | null {
+  const normBase = path.resolve(baseDir);
+  const resolved = path.resolve(baseDir, relativeOrAbsolute);
+  const baseCompare = process.platform === 'win32' ? normBase.toLowerCase() : normBase;
+  const resolvedCompare = process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+  const baseWithSep = baseCompare.endsWith(path.sep) ? baseCompare : baseCompare + path.sep;
+
+  if (resolvedCompare === baseCompare || resolvedCompare.startsWith(baseWithSep)) {
+    return resolved;
+  }
+  return null;
+}
+
 export async function getGitHubOwnerRepoFromOrigin(targetPath: string): Promise<{ owner: string; repo: string } | null> {
   const g = simpleGit(targetPath);
   const remotes = await g.getRemotes(true);

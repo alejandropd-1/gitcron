@@ -101,12 +101,37 @@
 
 ## 3. Escritura de artefactos en el proceso principal
 
-- [ ] 3.1 En `electron/pipeline/`, agregar la consulta de `openspec instructions <artefacto> --change <slug> --json` mediante `runAuthorizedOpenSpec`, devolviendo `resolvedOutputPath`, `instruction`, `template`, `rules`, `context` y `dependencies` sin interpretar su contenido.
+- [ ] 3.1 En `electron/pipeline/`, agregar la consulta de `openspec instructions <artefacto> --change <slug> --json` mediante `runAuthorizedOpenSpec`, devolviendo `resolvedOutputPath`, `instruction`, `template`, `context`, `dependencies`, `unlocks` y `existingOutputPaths` sin interpretar su contenido. Medido el 2026-09-07: en OpenSpec 1.11.0 el campo `rules` no existe en la salida JSON del CLI; en su lugar expone `unlocks` y `existingOutputPaths`.
 - [ ] 3.2 En `electron/ipc/pipeline-specs.ts`, agregar el canal de escritura de un artefacto, contenido a las rutas que devuelve 3.1, rechazando cualquier destino fuera del directorio del change y todo cambio archivado.
 - [ ] 3.3 Agregar al registro del change las entradas de escritura de artefacto, con el mismo formato y origen declarado que 2.2.
 - [ ] 3.4 En `electron/__tests__/`, verificar que el canal de escritura rechaza una ruta fuera del change aunque venga de una respuesta del CLI manipulada, y que sobre un change archivado no escribe.
-- [ ] 3.5 Agregar la operación de revisión del alcance de un cambio en curso, delegándola al workflow que el motor exponga para ello. La revisión alcanza a todos los artefactos afectados y no sólo a `tasks.md`: el resultado se presenta como propuesta sobre cada uno, con la misma revisión por bloque que 8.5, y no se escribe nada sin confirmación. Fundamento medido: en `unificar-sistema-visual-gitcron` el alcance se revisó cinco veces editando sólo la lista de tareas, y `design.md` terminó describiendo una causa que la investigación posterior desmintió.
-- [ ] 3.6 Declarar cuándo la revisión cambia el propósito del trabajo en lugar de precisarlo, y en ese caso ofrecer abrir un cambio nuevo en vez de reescribir el vigente. Es el criterio que el propio motor documenta, y el que en esta sesión llevó a partir dos veces un change en lugar de ampliarlo.
+- [ ] 3.5 Agregar la operación de revisión del alcance de un cambio en curso, delegándola al workflow que el motor exponga para ello. Medido el 2026-09-07: el CLI 1.11.0 no cuenta con subcomando de revisión (falla con `change_error: Artifact 'update' not found in schema 'spec-driven'`); la revisión es un workflow de agente documentado en `.agents/skills/openspec-update-change/SKILL.md`. Depende de 8.5 para la presentación y revisión bloque por bloque mediante DiffViewer antes de confirmar cualquier escritura. Fundamento medido: en `unificar-sistema-visual-gitcron` el alcance se revisó cinco veces editando sólo la lista de tareas, y `design.md` terminó describiendo una causa que la investigación posterior desmintió.
+- [ ] 3.6 Declarar cuándo la revisión cambia el propósito del trabajo en lugar de precisarlo, y en ese caso ofrecer abrir un cambio nuevo en vez de reescribir el vigente. Heurística «Update vs. Start Fresh» documentada por el propio motor en `.agents/skills/openspec-update-change/SKILL.md:91`: «If the request changes the change's intent rather than refining it, first verify whether the optional $openspec-new-change (Codex) or /openspec-new-change (other agents) workflow is available. If it is, recommend starting fresh with $openspec-new-change [...] (the "Update vs. Start Fresh" heuristic). If it is unavailable, ask for a distinct unused change name and recommend openspec new change "<new-change-name>" instead.» Es el criterio que el propio motor documenta, y el que en esta sesión llevó a partir dos veces un change en lugar de ampliarlo.
+
+- [ ] 3.7 **Auditoria del 2026-09-07: la suite no esta en verde, y la causa es de la tanda de 3b.**
+  Medido dos veces sobre el arbol de la tanda: `pnpm test` completo devuelve exit **1**, con
+  1 archivo y 1 prueba en rojo sobre 180 y 1734. El reporte de la tanda declara 1734 en verde y
+  exit 0.
+  La que falla es
+  `electron/__tests__/pipeline-openspec-ipc.test.ts` > «update-execute detecta la invalidacion del
+  plan diagnostico frente a cambios en la evidencia viva».
+  **Corriendo ese archivo solo, pasa** (18 de 18, exit 0). Falla unicamente dentro de la suite
+  completa, o sea bajo carga.
+  Causa medida: en la tanda de 3b se agregaron a `buildEngineStatusSnapshot` dos consultas al CLI
+  —`doctor` y `context`— que lanzan procesos de verdad, sin cache. Esa prueba llama a
+  `update-execute`, que construye el snapshot **dos veces** —el del plan y el vivo—, y **no sustituye
+  `runDoctor` ni `runContext`**: desde esa tanda lanza hasta cuatro procesos reales de `openspec`
+  donde antes no lanzaba ninguno. En Windows, con antivirus y la suite en paralelo, alcanza para
+  pasarse del presupuesto.
+  Correccion de una lectura propia: al auditar la tanda de 3b se anoto ese costo y se lo califico de
+  poco preocupante porque no es un camino caliente. La suite dice otra cosa.
+  Dos cosas que resolver, y son distintas:
+  1. La prueba sustituye `runDoctor` y `runContext` como sustituye el resto. Una prueba de IPC no
+     tiene por que lanzar el CLI de verdad.
+  2. El costo en la aplicacion: `checkLatestOpenSpecVersion`, que vive en el mismo archivo y tambien
+     sale afuera, **tiene cache**; `doctor` y `context` no. Medir cuanto tardan y decidir con el
+     numero: o son lo bastante baratos y se declara por que no llevan cache, o siguen el patron del
+     vecino.
 
 ## 3b. Diagnóstico del motor
 
@@ -132,6 +157,25 @@
 - [ ] 4.1 En `electron/ipc/`, agregar el canal de vista previa de sincronización que informe qué capacidades y requisitos se incorporarían a `openspec/specs/`, sin escribir nada.
 - [ ] 4.2 Agregar el canal de ejecución de la sincronización, que sólo procede tras confirmación explícita y deja los specs modificados sin confirmar en Git.
 - [ ] 4.3 En `electron/__tests__/`, verificar que la vista previa no escribe ningún archivo y que la ejecución sin confirmación previa se rechaza.
+
+- [ ] 4.4 **Medicion del 2026-09-07, antes de construir nada de este grupo: `openspec sync` no
+  existe.** El grupo 4 esta escrito contra un comando que el motor no tiene.
+  Medido contra OpenSpec 1.11.0, listando los 22 comandos de `openspec --help` y los subcomandos de
+  `openspec change --help` y `openspec spec --help`: no hay `sync` en ninguno de los tres niveles.
+  Lo que si existe son dos cosas distintas:
+  - `openspec archive`, que segun su propia descripcion «archiva un cambio completado **y actualiza
+    las specs principales**». O sea que sincronizar ya ocurre, pero atado a archivar.
+  - El workflow `openspec-sync-specs`, que es lo que permite sincronizar **sin archivar**. Su propio
+    encabezado declara que es **una operacion de agente**: «you will read delta specs and directly
+    edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario
+    without copying the entire requirement)». No es una llamada al CLI: es un criterio aplicado
+    archivo por archivo.
+  Consecuencia: la «vista previa de que se fusionaria» que pide la tarea 4.1 no se puede sacar de un
+  comando. O la calcula GitCron —y entonces esta reimplementando el criterio de fusion, con el riesgo
+  de que diga una cosa y el agente haga otra— o se delega, y entonces la vista previa es la propuesta
+  del agente y necesita la revision por bloque de 8.5, igual que la tarea 3.5.
+  **Reescribir el grupo 4 sobre lo medido antes de implementarlo. La decide Alejandro** si se delega
+  o se calcula.
 
 ## 5. Motivo al archivar
 

@@ -527,6 +527,14 @@ interface ElectronAPI {
     expectedText: string,
     actor?: 'persona' | 'agente',
   ) => Promise<GitResult>;
+  /** Escribe el contenido de un artefacto del cambio validando contención en el proceso principal. */
+  pipelineWriteArtifact: (
+    repoPath: string,
+    changeId: string,
+    artifactId: string,
+    content: string,
+    options?: { overwrite?: boolean; actor?: 'persona' | 'agente'; targetFile?: string },
+  ) => Promise<{ success: boolean; error?: string; stage?: string }>;
   /**
    * Contenido de una especificación consolidada, leído bajo demanda.
    *

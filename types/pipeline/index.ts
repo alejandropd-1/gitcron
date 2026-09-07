@@ -675,8 +675,16 @@ export interface OpenSpecRunUpdateResult {
 
 export interface OpenSpecInstructionsPayload {
   changeName?: string;
-  changeDir?: string;
+  artifactId?: string;
   schemaName?: string;
+  changeDir?: string;
+  planningHome?: {
+    kind: string;
+    root: string;
+    changesDir: string;
+    defaultSchema: string;
+  };
+  description?: string;
   contextFiles?: Record<string, string[]>;
   progress?: { total: number; complete: number; remaining: number };
   tasks?: Array<{ id: string; description: string; done: boolean }>;

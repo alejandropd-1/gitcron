@@ -58,7 +58,8 @@ export type TaskOperationType =
   | 'agregada'
   | 'editada'
   | 'movida'
-  | 'eliminada';
+  | 'eliminada'
+  | 'escrita';
 
 export type TaskActor = 'persona' | 'agente';
 

@@ -465,3 +465,87 @@ describe('registro de cambios de estado y autoría (2.2 y 2.6.b)', () => {
     expect(log).toBe(`# Registro de tareas\n\n${first}\n${second}\n`);
   });
 });
+
+/**
+ * Tarea 2.7 — Cobertura de finales de línea Windows (CRLF) y preservación de EOL.
+ *
+ * Defecto histórico:
+ * La versión inicial de toggleTaskCheckbox separaba las líneas con split(/\r?\n/)
+ * pero las volvía a unir siempre con LF ('\n'). En repositorios con tasks.md en
+ * formato Windows (CRLF), marcar una sola casilla reescribía el archivo entero con LF,
+ * produciendo un diff masivo de cada línea del archivo en Git.
+ * detectEol fue agregado para detectar el salto de línea existente en el archivo
+ * y conservarlo al generar la salida.
+ */
+describe('preservación de finales de línea (Tarea 2.7 - CRLF y caso mixto)', () => {
+  const TASKS_CRLF = [
+    '## 1. Tanda',
+    '',
+    '- [ ] 1.1 primera tarea',
+    '- [x] 1.2 segunda tarea',
+    '- [ ] 1.3 tercera tarea',
+    '',
+  ].join('\r\n');
+
+  it('toggleTaskCheckbox conserva finales de línea CRLF sin introducir LF aislados', () => {
+    const result = toggleTaskCheckbox(TASKS_CRLF, 3, '1.1 primera tarea', true);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.content).toContain('\r\n');
+    expect(result.content.replace(/\r\n/g, '').includes('\n')).toBe(false);
+    expect(result.content.split('\r\n')[2]).toBe('- [x] 1.1 primera tarea');
+  });
+
+  it('addTaskLine conserva finales de línea CRLF sin introducir LF aislados', () => {
+    const result = addTaskLine(TASKS_CRLF, '1.4 cuarta tarea', { line: 3, position: 'below' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.content).toContain('\r\n');
+    expect(result.content.replace(/\r\n/g, '').includes('\n')).toBe(false);
+    expect(result.content.split('\r\n')[3]).toBe('- [ ] 1.4 cuarta tarea');
+  });
+
+  it('editTaskText conserva finales de línea CRLF sin introducir LF aislados', () => {
+    const result = editTaskText(TASKS_CRLF, 3, '1.1 primera tarea', '1.1 primera modificada');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.content).toContain('\r\n');
+    expect(result.content.replace(/\r\n/g, '').includes('\n')).toBe(false);
+    expect(result.content.split('\r\n')[2]).toBe('- [ ] 1.1 primera modificada');
+  });
+
+  it('moveTaskLine conserva finales de línea CRLF sin introducir LF aislados', () => {
+    const result = moveTaskLine(TASKS_CRLF, 3, 5, '1.1 primera tarea');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.content).toContain('\r\n');
+    expect(result.content.replace(/\r\n/g, '').includes('\n')).toBe(false);
+    const lines = result.content.split('\r\n');
+    expect(lines[2]).toBe('- [x] 1.2 segunda tarea');
+    expect(lines[4]).toBe('- [ ] 1.1 primera tarea');
+  });
+
+  it('removeTaskLine conserva finales de línea CRLF sin introducir LF aislados', () => {
+    const result = removeTaskLine(TASKS_CRLF, 3, '1.1 primera tarea');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.content).toContain('\r\n');
+    expect(result.content.replace(/\r\n/g, '').includes('\n')).toBe(false);
+    expect(result.content.split('\r\n')[2]).toBe('- [x] 1.2 segunda tarea');
+  });
+
+  it('caso mixto (CRLF y LF): detectEol prioriza CRLF y normaliza consistentemente a CRLF', () => {
+    const mixed = '## 1. Tanda\r\n- [ ] 1.1 tarea\n- [ ] 1.2 otra\r\n';
+    const result = toggleTaskCheckbox(mixed, 2, '1.1 tarea', true);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.content).toContain('\r\n');
+    expect(result.content.replace(/\r\n/g, '').includes('\n')).toBe(false);
+  });
+});

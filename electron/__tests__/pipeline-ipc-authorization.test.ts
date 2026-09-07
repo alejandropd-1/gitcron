@@ -185,7 +185,7 @@ describe('Pipeline Archive IPC — candado de autorización sobre pipeline:archi
   });
 });
 
-describe('Pipeline Specs IPC — candado de autorización sobre pipeline:init-openspec y pipeline:read-specification', () => {
+describe('Pipeline Specs IPC — candado de autorización sobre pipeline:init-openspec, pipeline:read-specification y pipeline:write-artifact', () => {
   let tempRoot: string;
   let repoDir: string;
   let resolveBindingSpy: ReturnType<typeof vi.fn>;
@@ -221,7 +221,7 @@ describe('Pipeline Specs IPC — candado de autorización sobre pipeline:init-op
     removeTempDir(tempRoot);
   });
 
-  it('rechaza una ruta no autorizada en pipeline:init-openspec y pipeline:read-specification sin invocar binding ni lectura', async () => {
+  it('rechaza una ruta no autorizada en pipeline:init-openspec, pipeline:read-specification y pipeline:write-artifact sin invocar binding ni lectura', async () => {
     const initRes = await get('pipeline:init-openspec')(null, repoDir, ['claude']);
     expect(initRes).toEqual({
       success: false,
@@ -234,6 +234,14 @@ describe('Pipeline Specs IPC — candado de autorización sobre pipeline:init-op
     expect(readRes).toEqual({
       success: false,
       error: 'invalid_repo_path',
+    });
+    expect(resolveBindingSpy).not.toHaveBeenCalled();
+
+    const writeRes = await get('pipeline:write-artifact')(null, repoDir, 'mi-cambio', 'proposal', '# Propuesta');
+    expect(writeRes).toEqual({
+      success: false,
+      error: 'Ruta de repositorio inválida o no autorizada',
+      stage: 'auth',
     });
     expect(resolveBindingSpy).not.toHaveBeenCalled();
   });

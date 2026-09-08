@@ -333,16 +333,42 @@
 }
 
 .taskList { display: flex; flex-direction: column; gap: var(--sp-1); margin: 0; padding: 0; list-style: none; }
-.taskList > li { display: grid; grid-template-columns: 2rem 2.75rem 3rem minmax(0, 1fr) auto; align-items: start; min-height: 3rem; padding: var(--space-2) 0; color: var(--color-text-primary); font-size: var(--font-size-xs); line-height: 1.5; font-family: var(--font-mono), ui-monospace, monospace; }
+.taskList > li {
+  display: grid;
+  grid-template-columns: 2rem 2.75rem 3rem minmax(0, 1fr) auto;
+  align-items: start;
+  min-height: 3rem;
+  padding: var(--space-2) 0;
+  margin-left: calc(-1 * var(--space-6));
+  width: calc(100% + var(--space-6));
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  cursor: default;
+  transition: background-color 150ms ease;
+}
+.taskList > li:hover {
+  background: color-mix(in srgb, var(--color-bg-overlay) 85%, var(--color-text-primary));
+}
 /* La etiqueta se muestra completa sin elipsis ni recortes destructivos. */
 .taskList > li > strong { color: var(--color-primary); overflow-wrap: anywhere; }
 .taskList > li[data-completed='true'] > strong { color: var(--color-text-secondary); }
-.taskList > li[data-current='true'] { border-left: 3px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-bg-overlay); }
+.taskList > li[data-current='true'] {
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-overlay);
+}
+.taskList > li[data-current='true']:hover {
+  background: color-mix(in srgb, var(--color-bg-overlay) 75%, var(--color-text-primary));
+}
 .taskList > li > span {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 .taskStatus {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -351,22 +377,42 @@
   padding: 0;
   margin: 0;
   border: 0;
-  border-radius: var(--radius-default);
+  border-radius: var(--radius-md);
   background: none;
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: color 120ms ease;
   font-size: var(--font-size-xs);
   line-height: 1.5;
 }
+.taskStatus::before {
+  content: '';
+  position: absolute;
+  top: calc((1.5 * var(--font-size-xs) - 1.75rem) / 2);
+  left: calc((2.75rem - 1.75rem) / 2);
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-md);
+  background: transparent;
+  transition: background 120ms ease;
+  pointer-events: none;
+}
 .taskStatus svg {
+  position: relative;
+  z-index: 1;
   margin-top: calc((1.5 * var(--font-size-xs) - 1rem) / 2);
 }
 .taskList > li[data-completed='true'] .taskStatus {
   color: var(--color-git-add);
 }
-.taskStatus:hover:not(:disabled) { background: color-mix(in srgb, var(--color-primary) 14%, transparent); color: var(--color-primary); }
-.taskStatus:focus-visible { outline: 1px solid var(--color-primary); outline-offset: 1px; }
+.taskStatus:hover:not(:disabled)::before {
+  background: color-mix(in srgb, var(--color-border-subtle) 50%, transparent);
+}
+.taskStatus:hover:not(:disabled) {
+  color: var(--color-text-primary);
+}
+.taskStatus:focus-visible { outline: none; }
+.taskStatus:focus-visible::before { outline: 2px solid var(--color-primary); outline-offset: 1px; }
 .taskStatus:disabled { cursor: not-allowed; opacity: 0.45; }
 .taskDetail { grid-column: 1 / -1; margin: var(--space-3) var(--space-1) 0 var(--space-8); }
 /* Una fila por dato, no dos columnas: los valores son rutas y frases, y
@@ -1403,6 +1449,16 @@
   border: 0;
   border-radius: var(--radius-lg);
   background: var(--color-bg-overlay);
+  cursor: pointer;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+  user-select: text;
+}
+.startList > li:hover {
+  background: color-mix(in srgb, var(--color-bg-overlay) 85%, var(--color-text-primary));
+}
+.startList > li:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
 }
 .startList > li[data-branch] {
   border-left: 3px solid var(--color-primary);
@@ -3145,8 +3201,8 @@ summary.centerBlock {
 .taskActions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-right: var(--space-3);
+  gap: var(--space-3);
+  margin-right: var(--space-4);
   opacity: 0;
   transition: opacity 120ms ease;
 }
@@ -3156,34 +3212,69 @@ summary.centerBlock {
   opacity: 1;
 }
 
-.taskActionBtn {
+/* Botón de icono unificado (Observación 8.16 Bloque A):
+   Una sola definición compartida para switcher toggle, tareas, markdown, fijado y sync. */
+.iconBtn,
+.taskActionBtn,
+.markdownActionBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.65rem;
-  height: 1.65rem;
+  width: 1.75rem;
+  height: 1.75rem;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+  flex-shrink: 0;
 }
 
-.taskActionBtn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+.iconBtn:hover:not(:disabled),
+.taskActionBtn:hover:not(:disabled),
+.markdownActionBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-border-subtle) 50%, transparent);
   color: var(--color-text-primary);
 }
 
-.taskActionBtn:disabled {
-  opacity: 0.25;
-  cursor: not-allowed;
+.iconBtn[data-active='true'],
+.iconBtn[aria-pressed='true'],
+.iconBtnActive,
+.taskActionBtn[data-active='true'],
+.taskActionBtn[aria-pressed='true'],
+.markdownActionBtn[data-active='true'],
+.markdownActionBtn[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  color: var(--color-primary);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-primary) 25%, transparent);
 }
 
+.iconBtn:disabled,
+.taskActionBtn:disabled,
+.markdownActionBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.iconBtn:focus-visible,
+.taskActionBtn:focus-visible,
+.markdownActionBtn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.iconBtnDanger:hover:not(:disabled),
 .taskActionBtnDanger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-error) 18%, transparent);
   color: var(--color-error);
+}
+
+.iconBtn[data-copied='true'],
+.markdownActionBtn[data-copied='true'] {
+  color: var(--color-git-add);
 }
 
 .taskDragHandle {
@@ -3216,34 +3307,26 @@ summary.centerBlock {
   box-shadow: 0 -2px 0 0 var(--color-primary);
 }
 
-.startPinnedBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-  color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-sm);
-}
-
-.startCardActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
+/* Control de fijado en tarjetas de inicio (Bloque D - Estrella):
+   Visible permanentemente cuando está fijada (estrella rellena con color de acento),
+   y sólo en contorno durante hover/focus cuando no lo está (como la estrella de Gmail). */
+.startCardPinBtn {
   margin-left: auto;
   opacity: 0;
-  transition: opacity 120ms ease;
 }
 
-.startList > li:hover .startCardActions,
-.startList > li:focus-within .startCardActions {
+.startCardPinBtnPinned {
   opacity: 1;
+  color: var(--color-primary);
 }
 
-.startCardActionBtnPinned {
-  color: var(--color-primary);
+.startCardPinBtnPinned svg {
+  fill: currentColor;
+}
+
+.startList > li:hover .startCardPinBtn,
+.startList > li:focus-within .startCardPinBtn {
+  opacity: 1;
 }
 
 .taskInlineEdit {
@@ -3395,51 +3478,34 @@ summary.centerBlock {
   border-color: var(--color-primary);
 }
 
-.markdownActionBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.65rem;
-  height: 1.65rem;
-  padding: 0;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-bg-overlay) 80%, transparent);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: all 120ms ease;
-}
-
-.markdownActionBtn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: var(--color-primary);
-}
-
-.markdownActionBtn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.markdownActionBtn[data-copied='true'] {
-  color: var(--color-git-add);
-}
-
 .markdownSaveBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.65rem;
-  height: 1.65rem;
+  width: 1.75rem;
+  height: 1.75rem;
   padding: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-primary);
   color: var(--color-bg-base);
   cursor: pointer;
   transition: opacity 120ms ease, background 120ms ease;
+  flex-shrink: 0;
+}
+
+.markdownSaveBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 85%, var(--color-text-primary));
+  color: var(--color-bg-base);
 }
 
 .markdownSaveBtn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.markdownSaveBtn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
 }
 
 .markdownCopyBtn {
@@ -3558,15 +3624,18 @@ summary.centerBlock {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  flex-shrink: 0;
 }
 
 .blockedReasonInline {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  color: var(--color-error);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   font-family: var(--font-mono), ui-monospace, monospace;
+  white-space: nowrap;
+  cursor: help;
 }
 
 .syncPreviewModal {

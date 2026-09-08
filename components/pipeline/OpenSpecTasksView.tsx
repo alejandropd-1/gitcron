@@ -532,20 +532,26 @@ export function OpenSpecTasksView({
             </button>
           </div>
 
-          {/* Sincronización de specs: sólo icono, al lado de las solapas, deshabilitado con motivo (Bloque C) */}
-          <div className={styles.syncBlockedInline}>
+          {/* Sincronización de specs: icono deshabilitado con rótulo corto inline y motivo completo en tooltip (Bloque A) */}
+          <div
+            className={styles.syncBlockedInline}
+            title={t('pipeline.openspec.sync.unavailableReason')}
+          >
             <button
               type="button"
               disabled
               className={styles.taskActionBtn}
-              title={t('pipeline.openspec.sync.action')}
-              aria-label={t('pipeline.openspec.sync.action')}
+              title={t('pipeline.openspec.sync.unavailableReason')}
+              aria-label={`${t('pipeline.openspec.sync.action')} — ${t('pipeline.openspec.sync.unavailable')}`}
             >
               <RefreshCw size={13} aria-hidden="true" />
             </button>
-            <span className={styles.blockedReasonInline}>
+            <span
+              className={styles.blockedReasonInline}
+              title={t('pipeline.openspec.sync.unavailableReason')}
+            >
               <AlertTriangle size={12} aria-hidden="true" />
-              <span>{t('pipeline.openspec.sync.unavailableReason')}</span>
+              <span>{t('pipeline.openspec.sync.unavailable')}</span>
             </span>
           </div>
         </div>

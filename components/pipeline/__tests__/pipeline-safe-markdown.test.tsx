@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import fs from 'node:fs';
+import path from 'node:path';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { MarkdownViewer } from '../MarkdownViewer';
@@ -122,5 +124,76 @@ Segundo párrafo independiente.`;
     expect(container.querySelector('script')).toBeNull();
     expect(container.querySelector('#pwn')).toBeNull();
     expect(container.textContent).toContain('<script>alert("xss")</script>');
+  });
+
+  it('Bloque B: apila sublistas anidadas y párrafos debajo del texto del ítem sin crear columnas', () => {
+    const nestedContent = `- [ ] 1. Tarea principal con texto descriptivo
+  - Subtarea anidada 1.1
+  - Subtarea anidada 1.2
+- [x] 2. Tarea con múltiples párrafos
+
+  Segundo párrafo explicativo debajo
+
+  \`\`\`ts
+  const variable = 42;
+  \`\`\`
+`;
+    const { container } = render(<MarkdownViewer content={nestedContent} />);
+
+    const taskItems = container.querySelectorAll('li.task-list-item');
+    expect(taskItems.length).toBeGreaterThanOrEqual(2);
+
+    const firstItem = taskItems[0];
+    const nestedUl = firstItem.querySelector('ul');
+    expect(nestedUl).toBeTruthy();
+    expect(nestedUl?.querySelectorAll('li').length).toBe(2);
+
+    const secondItem = taskItems[1];
+    const paragraphs = secondItem.querySelectorAll('p');
+    expect(paragraphs.length).toBe(2);
+    const pre = secondItem.querySelector('pre');
+    expect(pre).toBeTruthy();
+    expect(pre?.textContent).toContain('const variable = 42;');
+  });
+
+  it('Bloque B: renderiza listas numeradas con tag ol y tablas con contenedor responsivo', () => {
+    const complexContent = `
+1. Primer paso ordenado
+2. Segundo paso ordenado
+   - Sub-viñeta no ordenada dentro de lista numerada
+3. Tercer paso
+
+> Cita en bloque destacada
+
+| Col A | Col B |
+| :--- | :--- |
+| Val 1 | Val 2 |
+`;
+    const { container } = render(<MarkdownViewer content={complexContent} />);
+
+    const ol = container.querySelector('ol');
+    expect(ol).toBeTruthy();
+    expect(ol?.querySelectorAll('li').length).toBeGreaterThanOrEqual(3);
+
+    const nestedUl = ol?.querySelector('ul');
+    expect(nestedUl).toBeTruthy();
+
+    const tableWrap = container.querySelector('.pipeline-markdown__table-wrap');
+    expect(tableWrap).toBeTruthy();
+    expect(tableWrap?.querySelector('table')).toBeTruthy();
+
+    const blockquote = container.querySelector('blockquote');
+    expect(blockquote).toBeTruthy();
+    expect(blockquote?.textContent).toContain('Cita en bloque destacada');
+  });
+
+  it('Bloque B: renderiza el tasks.md real del change sin errores ni desbordes', () => {
+    const tasksFilePath = path.resolve(__dirname, '../../../openspec/changes/gestionar-ciclo-openspec-desde-gitcron/tasks.md');
+    const realTasksContent = fs.readFileSync(tasksFilePath, 'utf-8');
+    const { container } = render(<MarkdownViewer content={realTasksContent} />);
+
+    expect(container.querySelector('.pipeline-markdown')).toBeTruthy();
+    const taskItems = container.querySelectorAll('li.task-list-item');
+    expect(taskItems.length).toBeGreaterThanOrEqual(90);
   });
 });

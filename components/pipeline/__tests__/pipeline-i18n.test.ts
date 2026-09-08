@@ -406,6 +406,7 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.start.pinned',
   'pipeline.openspec.sync.title',
   'pipeline.openspec.sync.action',
+  'pipeline.openspec.sync.unavailable',
   'pipeline.openspec.sync.unavailableReason',
   'pipeline.openspec.archive.reasonLabel',
   'pipeline.openspec.archive.reasonPlaceholder',

@@ -179,7 +179,7 @@ describe('pantalla de entrada del repositorio', () => {
       activeChanges: [change('atrasado', 1, 10), change('avanzado', 9, 10)],
     }));
 
-    const ids = screen.getAllByRole('listitem').map((item) => item.querySelector('strong')?.textContent);
+    const ids = screen.getAllByRole('button', { name: /openspec\.start\.enter/ }).map((item) => item.querySelector('strong')?.textContent);
     expect(ids).toEqual(['avanzado', 'atrasado']);
   });
 
@@ -694,10 +694,8 @@ describe('pantalla de entrada del repositorio', () => {
       expect(otroItem?.getAttribute('data-branch')).toBeNull();
       expect(otroItem?.textContent).not.toContain('pipeline.openspec.start.branchMatch');
 
-      // Entramos al OTRO cambio
-      const enterOtroBtn = otroItem?.querySelector('button[class*="secondaryAction"]');
-      expect(enterOtroBtn).toBeTruthy();
-      fireEvent.click(enterOtroBtn!);
+      // Entramos al OTRO cambio (la tarjeta entera es pulsable)
+      fireEvent.click(otroItem!);
 
       // Ahora estamos dentro del cambio activo
       expect(screen.getByText(/pipeline\.openspec\.change\.active/)).toBeTruthy();
@@ -784,6 +782,135 @@ describe('pantalla de entrada del repositorio', () => {
         expect(item.getAttribute('data-branch')).toBeNull();
         expect(item.textContent).not.toContain('pipeline.openspec.start.branchMatch');
       }
+    });
+  });
+
+  describe('Obs 8.16: Tarjetas de inicio como contenedores pulsables y excepciones', () => {
+    it('clic en el cuerpo de la tarjeta de cambio activo abre el cambio', () => {
+      const onSelectChange = vi.fn();
+      renderDashboard(snapshot({ activeChanges: [change('cambio-a', 1, 3)] }), onSelectChange);
+
+      const card = screen.getByRole('button', { name: /cambio-a.*openspec\.start\.enter/ });
+      expect(card).toBeTruthy();
+      fireEvent.click(card);
+
+      expect(onSelectChange).toHaveBeenCalledWith('cambio-a');
+    });
+
+    it('clic en la chinche de fijado conmuta el fijado y NO abre la tarjeta (stopPropagation)', () => {
+      const onSelectChange = vi.fn();
+      renderDashboard(snapshot({ activeChanges: [change('cambio-a', 1, 3)] }), onSelectChange);
+
+      const pinBtn = screen.getByRole('button', { name: /openspec\.start\.pinAction/ });
+      expect(pinBtn).toBeTruthy();
+      fireEvent.click(pinBtn);
+
+      // Pin button conmuta estado pero no llama a onSelectChange
+      expect(onSelectChange).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: /openspec\.start\.unpinAction/ })).toBeTruthy();
+    });
+
+    it('clic en el toggle de tareas pendientes despliega la lista y NO abre la tarjeta (stopPropagation)', () => {
+      const onSelectChange = vi.fn();
+      renderDashboard(snapshot({ activeChanges: [change('cambio-a', 1, 3)] }), onSelectChange);
+
+      const pendingToggle = screen.getByRole('button', { name: /openspec\.start\.pending/ });
+      expect(pendingToggle).toBeTruthy();
+      fireEvent.click(pendingToggle);
+
+      // Despliega las tareas pendientes sin navegar
+      expect(onSelectChange).not.toHaveBeenCalled();
+      expect(screen.getByText('1.1 tarea')).toBeTruthy();
+      expect(screen.getByText('2.1 tarea')).toBeTruthy();
+    });
+
+    it('apertura por teclado en la tarjeta con tecla Enter', () => {
+      const onSelectChange = vi.fn();
+      renderDashboard(snapshot({ activeChanges: [change('cambio-teclado', 2, 4)] }), onSelectChange);
+
+      const card = screen.getByRole('button', { name: /cambio-teclado.*openspec\.start\.enter/ });
+      expect(card).toBeTruthy();
+
+      fireEvent.keyDown(card, { key: 'Enter' });
+      expect(onSelectChange).toHaveBeenCalledWith('cambio-teclado');
+    });
+
+    it('apertura por teclado en la tarjeta con tecla Espacio', () => {
+      const onSelectChange = vi.fn();
+      renderDashboard(snapshot({ activeChanges: [change('cambio-espacio', 1, 3)] }), onSelectChange);
+
+      const card = screen.getByRole('button', { name: /cambio-espacio.*openspec\.start\.enter/ });
+      expect(card).toBeTruthy();
+
+      fireEvent.keyDown(card, { key: ' ' });
+      expect(onSelectChange).toHaveBeenCalledWith('cambio-espacio');
+    });
+
+    it('pulsar tecla sobre un control interno (chinche) NO abre la tarjeta', () => {
+      const onSelectChange = vi.fn();
+      renderDashboard(snapshot({ activeChanges: [change('cambio-hijo', 1, 2)] }), onSelectChange);
+
+      const pinBtn = screen.getByRole('button', { name: /openspec\.start\.pinAction/ });
+      fireEvent.keyDown(pinBtn, { key: 'Enter' });
+
+      expect(onSelectChange).not.toHaveBeenCalled();
+    });
+
+    it('selección activa de texto con ratón no dispara la navegación al soltar el clic', () => {
+      const onSelectChange = vi.fn();
+      renderDashboard(snapshot({ activeChanges: [change('cambio-sel', 1, 2)] }), onSelectChange);
+
+      const card = screen.getByRole('button', { name: /cambio-sel.*openspec\.start\.enter/ });
+
+      // Simular selección activa de texto en window
+      const originalGetSelection = window.getSelection;
+      window.getSelection = vi.fn().mockReturnValue({
+        toString: () => 'texto seleccionado para copiar',
+      } as unknown as Selection);
+
+      try {
+        fireEvent.click(card);
+        expect(onSelectChange).not.toHaveBeenCalled();
+      } finally {
+        window.getSelection = originalGetSelection;
+      }
+    });
+
+    it('tarjeta archivada se abre al hacer clic directamente en cualquier parte de ella', () => {
+      const onSelectChange = vi.fn();
+      renderDashboard(snapshot({ archivedCount: 2 }), onSelectChange);
+
+      // Cambiar a vista de archivados
+      fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.archivedCount/ }));
+
+      const cardArchived = screen.getByRole('button', { name: /viejo-0.*openspec\.start\.enter/ });
+      expect(cardArchived).toBeTruthy();
+
+      fireEvent.click(cardArchived);
+      expect(onSelectChange).toHaveBeenCalledWith('viejo-0');
+    });
+
+    it('Obs 8.17 Bloque D: el botón de fijar utiliza la estrella (Star), y llena el ícono con color de acento cuando está fijado', () => {
+      const onSelectChange = vi.fn();
+      renderDashboard(snapshot({ activeChanges: [change('cambio-estrella', 1, 3)] }), onSelectChange);
+
+      const starBtn = screen.getByRole('button', { name: /openspec\.start\.pinAction/ });
+      expect(starBtn).toBeTruthy();
+      expect(starBtn.className).toContain('startCardPinBtn');
+      expect(starBtn.className).not.toContain('startCardPinBtnPinned');
+
+      const svg = starBtn.querySelector('svg');
+      expect(svg).toBeTruthy();
+
+      // Al fijar la tarjeta, adquiere clase de fijado con color de acento y relleno
+      fireEvent.click(starBtn);
+      const pinnedBtn = screen.getByRole('button', { name: /openspec\.start\.unpinAction/ });
+      expect(pinnedBtn.className).toContain('startCardPinBtnPinned');
+
+      // Verificación CSS de relleno
+      const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const css = fs.readFileSync(modulePath, 'utf-8');
+      expect(css).toMatch(/\.startCardPinBtnPinned\s+svg\s*\{[^}]*fill:\s*currentColor/);
     });
   });
 });

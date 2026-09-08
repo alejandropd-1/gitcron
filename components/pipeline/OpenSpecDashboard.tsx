@@ -24,9 +24,9 @@ import {
   MoreHorizontal,
   Package,
   Pencil,
-  Pin,
   Plus,
   PlusSquare,
+  Star,
   GitBranch,
   GitCommit,
   GitCompare,
@@ -1675,6 +1675,28 @@ export function OpenSpecDashboard({
     // tiene nada que ver con qué cambio se está mirando.
   };
 
+  const handleCardClick = (e: React.MouseEvent, changeId: string) => {
+    // Protección contra selección de texto (Observación 8.16 Bloque C):
+    // Si el usuario seleccionó texto con el ratón para copiarlo, ignorar el clic y no navegar.
+    const selection =
+      typeof window !== 'undefined' && typeof window.getSelection === 'function'
+        ? window.getSelection()
+        : null;
+    if (selection && selection.toString().trim().length > 0) {
+      return;
+    }
+    selectChange(changeId);
+  };
+
+  const handleCardKeyDown = (e: React.KeyboardEvent, changeId: string) => {
+    // Sólo responder si la tecla se pulsó sobre la tarjeta misma, no sobre sus controles hijos.
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      selectChange(changeId);
+    }
+  };
+
   /**
    * Traduce el intent ya resuelto por la derivación a un efecto de UI.
    *
@@ -2107,6 +2129,8 @@ export function OpenSpecDashboard({
           <div className="bg-bg-base/80 border border-border-subtle/30 rounded-lg flex items-center p-0.5 shadow-sm">
             <button
               type="button"
+              data-testid="pipeline.switcher.toggle"
+              data-active={isSwitcherOpen ? 'true' : undefined}
               aria-label={t('pipeline.switcher.toggle')}
               aria-expanded={isSwitcherVisible}
               aria-disabled={rightOpen}
@@ -2118,12 +2142,9 @@ export function OpenSpecDashboard({
                 }
               }}
               className={cn(
-                "h-7 px-2 py-1 rounded-md transition-all duration-150 flex items-center justify-center gap-1.5",
-                rightOpen
-                  ? "opacity-50 cursor-not-allowed text-text-secondary"
-                  : isSwitcherOpen
-                    ? "bg-secondary/15 text-secondary shadow-[0_0_6px_color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
-                    : "text-text-secondary hover:text-text-primary hover:bg-border-subtle/50"
+                styles.iconBtn,
+                isSwitcherOpen && styles.iconBtnActive,
+                rightOpen && "opacity-50 cursor-not-allowed"
               )}
             >
               <PanelRight size={13} className="shrink-0" />
@@ -2976,55 +2997,35 @@ export function OpenSpecDashboard({
                                   key={change.changeId}
                                   data-branch={change.changeId === branchChangeId || undefined}
                                   data-pinned={isPinned || undefined}
+                                  tabIndex={0}
+                                  role="button"
+                                  aria-label={`${change.changeId} ${t('pipeline.openspec.start.enter')}`}
+                                  onClick={(e) => handleCardClick(e, change.changeId)}
+                                  onKeyDown={(e) => handleCardKeyDown(e, change.changeId)}
                                 >
                                   <div className={styles.startItemHead}>
                                     <strong>{change.changeId}</strong>
-                                    {isPinned && (
-                                      <span className={styles.startPinnedBadge}>
-                                        <Pin size={10} aria-hidden="true" />
-                                        {t('pipeline.openspec.start.pinned')}
-                                      </span>
-                                    )}
                                     {/* La rama se señala, no navega: gastarla en saltar
                                         adentro la volvía invisible. */}
                                     {change.changeId === branchChangeId && (
                                       <em className={styles.branchPill}>{t('pipeline.openspec.start.branchMatch')}</em>
                                     )}
-                                    <div className={styles.startCardActions}>
-                                      <button
-                                        type="button"
-                                        className={cn(styles.taskActionBtn, isPinned && styles.startCardActionBtnPinned)}
-                                        title={isPinned ? t('pipeline.openspec.start.unpinAction') : t('pipeline.openspec.start.pinAction')}
-                                        aria-label={isPinned ? t('pipeline.openspec.start.unpinAction') : t('pipeline.openspec.start.pinAction')}
-                                        onClick={() => togglePinChange(change.changeId)}
-                                      >
-                                        <Pin size={13} aria-hidden="true" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className={styles.taskActionBtn}
-                                        title={t('pipeline.openspec.task.editAction')}
-                                        aria-label={t('pipeline.openspec.task.editAction')}
-                                        onClick={() => selectChange(change.changeId)}
-                                      >
-                                        <Pencil size={13} aria-hidden="true" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className={styles.taskActionBtn}
-                                        title={t('pipeline.openspec.task.moreActions')}
-                                        aria-label={t('pipeline.openspec.task.moreActions')}
-                                        onClick={() => selectChange(change.changeId)}
-                                      >
-                                        <MoreHorizontal size={13} aria-hidden="true" />
-                                      </button>
-                                    </div>
+                                    {/* Criterio de diseño (2026-09-08, Obs. 8.16 & 8.17): La tarjeta entera es pulsable para abrir el cambio.
+                                        El botón «Abrir» se retira. La estrella de fijado se ubica arriba a la derecha y detiene la propagación. */}
                                     <button
                                       type="button"
-                                      className={styles.secondaryAction}
-                                      onClick={() => selectChange(change.changeId)}
+                                      className={cn(styles.iconBtn, styles.startCardPinBtn, isPinned && styles.startCardPinBtnPinned)}
+                                      title={isPinned ? t('pipeline.openspec.start.unpinAction') : t('pipeline.openspec.start.pinAction')}
+                                      aria-label={isPinned ? `${t('pipeline.openspec.start.pinned')}: ${t('pipeline.openspec.start.unpinAction')}` : t('pipeline.openspec.start.pinAction')}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        togglePinChange(change.changeId);
+                                      }}
+                                      onKeyDown={(e) => {
+                                        e.stopPropagation();
+                                      }}
                                     >
-                                      {t('pipeline.openspec.start.enter')}
+                                      <Star size={13} aria-hidden="true" />
                                     </button>
                                   </div>
                                   <p title={change.intent ?? undefined}>{change.intent ?? t('pipeline.openspec.intentUnknown')}</p>
@@ -3048,10 +3049,16 @@ export function OpenSpecDashboard({
                                         type="button"
                                         className={styles.startPendingToggle}
                                         aria-expanded={expandedStart[change.changeId] ?? false}
-                                        onClick={() => setExpandedStart((current) => ({
-                                          ...current,
-                                          [change.changeId]: !(current[change.changeId] ?? false),
-                                        }))}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setExpandedStart((current) => ({
+                                            ...current,
+                                            [change.changeId]: !(current[change.changeId] ?? false),
+                                          }));
+                                        }}
+                                        onKeyDown={(e) => {
+                                          e.stopPropagation();
+                                        }}
                                       >
                                         <ChevronDown size={12} />
                                         {tCount('pipeline.openspec.start.pending', pendingOf(change).length)}
@@ -3096,40 +3103,19 @@ export function OpenSpecDashboard({
                         ) : (
                           <ul className={styles.startList}>
                             {archivedChanges.map((change) => (
-                              <li key={`${change.archivedAt}-${change.changeId}`}>
+                              <li
+                                key={`${change.archivedAt}-${change.changeId}`}
+                                tabIndex={0}
+                                role="button"
+                                aria-label={`${change.changeId} ${t('pipeline.openspec.start.enter')}`}
+                                onClick={(e) => handleCardClick(e, change.changeId)}
+                                onKeyDown={(e) => handleCardKeyDown(e, change.changeId)}
+                              >
                                 <div className={styles.startItemHead}>
                                   <div className={styles.startItemTitleWithIcon}>
                                     <CheckCircle2 size={13} className={styles.startArchivedIcon} />
                                     <strong>{change.changeId}</strong>
                                   </div>
-                                  <div className={styles.startCardActions}>
-                                    <button
-                                      type="button"
-                                      className={styles.taskActionBtn}
-                                      title={t('pipeline.openspec.task.editAction')}
-                                      aria-label={t('pipeline.openspec.task.editAction')}
-                                      onClick={() => selectChange(change.changeId)}
-                                    >
-                                      <Pencil size={13} aria-hidden="true" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className={styles.taskActionBtn}
-                                      title={t('pipeline.openspec.task.moreActions')}
-                                      aria-label={t('pipeline.openspec.task.moreActions')}
-                                      onClick={() => selectChange(change.changeId)}
-                                    >
-                                      <MoreHorizontal size={13} aria-hidden="true" />
-                                    </button>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    className={styles.secondaryAction}
-                                    aria-label={`${change.changeId} ${t('pipeline.openspec.start.enter')}`}
-                                    onClick={() => selectChange(change.changeId)}
-                                  >
-                                    {t('pipeline.openspec.start.enter')}
-                                  </button>
                                 </div>
                                 <p>{change.archivedAt ?? t('pipeline.openspec.dateUnknown')}</p>
                               </li>

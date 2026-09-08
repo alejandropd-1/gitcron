@@ -536,7 +536,7 @@
   Al extender `ContextMenuItem` en `components/ContextMenus.tsx` con soporte para `icon?: React.ReactNode` (con ancho reservado de 16px para alineación visual), se incorporaron iconos a las acciones de `TaskContextMenu` (`Pencil`, `ArrowUp`, `ArrowDown`, `Trash2`). Esto genera una asimetría visual con los menús contextuales preexistentes del grafo (`CommitContextMenu`, `BranchContextMenu`, etc.), que aún no poseen iconos en sus elementos. Queda documentada esta asimetría deliberada para resolver en una pasada dedicada de pulido y homogeneización de menús contextuales si se desea unificar el estilo de toda la aplicación, sin alterar el alcance de esta tanda.
 
 
-- [ ] 8.15 **Tercera revision visual de Alejandro, 2026-09-08.** Tres cosas, las tres medidas el
+- [x] 8.15 **Tercera revision visual de Alejandro, 2026-09-08.** Tres cosas, las tres medidas el
   mismo dia.
 
   1. **El aviso de sincronizacion rompe la maqueta del encabezado.**
@@ -573,6 +573,79 @@
      de fijado, visible siempre cuando esta fijado y al pasar el puntero cuando no, como la
      estrella de Gmail; y el menu solo sobrevive si le quedan dos acciones que no se alcancen de
      otro modo. **La aprueba Alejandro.**
+
+- [x] 8.16 **Cuarta revision visual de Alejandro, 2026-09-08.** Tres cosas.
+
+  1. **Los botones de icono no se parecen entre si, y el motivo es que no hay uno solo.**
+     Alejandro pide que los del markdown, los de cada tarea y el que muestra u oculta el panel
+     flotante se vean iguales.
+     Medido el 2026-09-08, son tres definiciones distintas para el mismo tipo de control:
+     - El de referencia, `pipeline.switcher.toggle` en
+       `components/pipeline/OpenSpecDashboard.tsx:2120-2126`, esta escrito con clases de Tailwind:
+       alto `h-7`, relleno `px-2 py-1`, radio `rounded-md`, y su estado activo con fondo de acento
+       y resplandor.
+     - `.markdownActionBtn` (`OpenSpecDashboard.module.css:3406-3421`): cuadrado de `1.65rem`,
+       radio `--radius-sm`, fondo propio y hover con `--color-primary` al 12%.
+     - `.taskActionBtn` (`:3159-3175`): cuadrado de `1.65rem`, radio `--radius-sm`, sin fondo y
+       hover con `--color-text-primary` al 12%.
+     Tres tamanos, dos radios y tres colores de hover para lo mismo. La causa de fondo: **no existe
+     un boton de icono compartido**, asi que cada superficie inventa el suyo, y uno esta en Tailwind
+     mientras los otros dos estan en el modulo de CSS.
+     Copiar los valores del de referencia a los otros dos arregla la foto de hoy y deja el problema
+     intacto. Lo que corresponde es **una sola definicion** que los tres consuman.
+
+  2. **Mas aire entre el lapiz y los tres puntos de cada tarea**, ademas de igualarlos.
+
+  3. **Las tarjetas de «En curso» se abren al hacer clic en cualquier parte.** Con dos excepciones
+     que tienen que seguir funcionando: la chinche —que pasa arriba a la derecha, con forma de
+     boton— y el desplegable «Ver las N que faltan».
+     Tres detalles que hay que resolver y que suelen romperse:
+     - Un `<button>` **no puede contener otros controles**. La tarjeta no puede ser un boton: tiene
+       que ser un contenedor con su manejador, y los controles de adentro detienen la propagacion.
+     - Con el teclado tiene que poder abrirse igual, y una sola vez: la tarjeta entera y el titulo
+       no pueden ser dos paradas distintas del recorrido.
+     - **Seleccionar texto con el mouse no puede abrir la tarjeta.** Al soltar el boton despues de
+       arrastrar sobre el texto, hoy se dispararia la navegacion. Hay que ignorar el clic cuando hay
+       una seleccion activa.
+     **Resuelto el 2026-09-08 por Alejandro: el boton «Abrir» se retira.** Con la tarjeta entera
+     pulsable queda repitiendo la misma accion, que es lo mismo que se corrigio en la observacion
+     8.15 punto 3. Lo que la reemplaza como senal de que la tarjeta se puede abrir es el cursor y
+     el cambio al pasar el puntero.
+
+- [ ] 8.17 **Quinta revision visual de Alejandro, 2026-09-08.** Cuatro ajustes.
+
+  1. **La casilla de la tarea tiene un hover mas grande que los botones de al lado.**
+     Medido: `.taskStatus` (`OpenSpecDashboard.module.css:349-350`) mide `2.75rem`, y la definicion
+     unificada `.iconBtn` (`:3171-3187`) mide `1.75rem`. Al pasar el puntero, el recuadro de la
+     casilla se ve casi el doble que el del lapiz o el de los tres puntos.
+     Los `2.75rem` vinieron de una instruccion mia en la observacion 8.14, para que la casilla se
+     pudiera pulsar comodo. **Se pueden tener las dos cosas**: que el recuadro visible del hover
+     mida lo mismo que los otros botones, y que el area que responde al clic siga siendo la de la
+     columna. Lo que se iguala es lo que se ve, no necesariamente lo que se pulsa.
+
+  2. **La canaleta del asa de arrastre deja un hueco que no se entiende.**
+     Medido: `.taskList > li` (`:336`) declara `grid-template-columns: 2rem 2.75rem 3rem minmax(0,
+     1fr) auto`. Esos `2rem` estan reservados siempre, asi que sin el puntero encima la fila parece
+     tener un relleno de mas sin motivo visible.
+     Que el asa no se vea en reposo esta bien y se conserva. Lo que hay que resolver es el hueco:
+     ensanchar la fila para que esa canaleta quede alineada con el icono de rama del encabezado
+     fijo de arriba de todo, de modo que el espacio se lea como margen de la pagina y no como un
+     hueco raro adentro de la fila. La otra salida que Alejandro nombro —retirar el asa— deja sin
+     arrastre, asi que se prefiere la primera.
+
+  3. **La fila de una tarea tiene que resaltar al pasar el puntero igual que las tarjetas de «En
+     curso».** Medido: esas tarjetas usan
+     `background: color-mix(in srgb, var(--color-bg-overlay) 85%, var(--color-text-primary))`
+     (`:1410-1411`). Las filas de tareas no tienen resalte propio.
+
+  4. **Un icono mejor para fijar.** Hoy es la chincheta, que a ese tamano se lee como una forma
+     diagonal poco reconocible. Medido lo que hay disponible en la libreria que el proyecto ya usa:
+     `pin`, `pin-off`, `bookmark` y sus variantes, `star`, `flag`, `paperclip`, `anchor`,
+     `arrow-up-to-line` y `chevrons-up`.
+     Propuesta: **la estrella.** Es el mismo gesto que ya se tomo como modelo para su comportamiento
+     —visible siempre cuando esta marcada, al pasar el puntero cuando no—, se reconoce sin
+     explicacion, y tiene un estado relleno natural para distinguir marcada de no marcada. La
+     segunda opcion seria el marcador de libro. **La decide Alejandro.**
 
 ## 9. Interfaz: motor, sync, archivado y jerarquía
 

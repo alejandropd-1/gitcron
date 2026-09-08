@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import fs from 'node:fs';
+import path from 'node:path';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenSpecTasksView } from '../OpenSpecTasksView';
@@ -548,6 +550,67 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8, 8.12)', () => {
       fireEvent.change(textarea, { target: { value: '## 1. Grupo\n- [] 1.1 Tarea rota editada' } });
       const saveBtn = screen.getByRole('button', { name: /Guardar archivo/i });
       expect((saveBtn as HTMLButtonElement).disabled).toBe(false);
+    });
+  });
+
+  // --- Observación 8.17: Ajustes visuales de tareas (Bloques A, B, C) ---
+  describe('Observación 8.17: Ajustes visuales de tareas (Bloques A, B, C)', () => {
+    it('Bloque A: el recuadro visible del hover de la casilla (.taskStatus) mide 1.75rem y coincide con .iconBtn', () => {
+      const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const css = fs.readFileSync(modulePath, 'utf-8');
+
+      // Objetivo de clic accesible conservado en 2.75rem
+      const statusMatch = css.match(/\.taskStatus\s*\{([^}]+)\}/);
+      expect(statusMatch).toBeTruthy();
+      expect(statusMatch![1]).toMatch(/min-width:\s*2\.75rem/);
+      expect(statusMatch![1]).toMatch(/min-height:\s*2\.75rem/);
+
+      // Recuadro visible de hover en ::before con 1.75rem y radio var(--radius-md)
+      const beforeMatch = css.match(/\.taskStatus::before\s*\{([^}]+)\}/);
+      expect(beforeMatch).toBeTruthy();
+      expect(beforeMatch![1]).toMatch(/width:\s*1\.75rem/);
+      expect(beforeMatch![1]).toMatch(/height:\s*1\.75rem/);
+      expect(beforeMatch![1]).toMatch(/border-radius:\s*var\(--radius-md\)/);
+
+      // Color de hover idéntico a .iconBtn
+      const hoverBeforeMatch = css.match(/\.taskStatus:hover:not\(:disabled\)::before\s*\{([^}]+)\}/);
+      expect(hoverBeforeMatch).toBeTruthy();
+      expect(hoverBeforeMatch![1]).toMatch(/background:\s*color-mix\(in srgb,\s*var\(--color-border-subtle\)\s+50%,\s*transparent\)/);
+
+      // Ícono alineado ópticamente con la primera línea de texto
+      const svgMatch = css.match(/\.taskStatus\s+svg\s*\{([^}]+)\}/);
+      expect(svgMatch).toBeTruthy();
+      expect(svgMatch![1]).toMatch(/margin-top:\s*calc\(\(1\.5\s*\*\s*var\(--font-size-xs\)\s*-\s*1rem\)\s*\/\s*2\)/);
+    });
+
+    it('Bloque B: la canaleta de arrastre de 2rem se desplaza al margen izquierdo mediante ensanchamiento de la fila', () => {
+      const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const css = fs.readFileSync(modulePath, 'utf-8');
+
+      const liMatch = css.match(/\.taskList\s*>\s*li\s*\{([^}]+)\}/);
+      expect(liMatch).toBeTruthy();
+      expect(liMatch![1]).toMatch(/grid-template-columns:\s*2rem\s+2\.75rem\s+3rem/);
+      expect(liMatch![1]).toMatch(/margin-left:\s*(?:-2rem|calc\(-1\s*\*\s*var\(--space-6\)\))/);
+      expect(liMatch![1]).toMatch(/width:\s*calc\(100%\s*\+\s*(?:2rem|var\(--space-6\)\))/);
+    });
+
+    it('Bloque C: la fila resalta al pasar el puntero y convive armónicamente con data-current', () => {
+      const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const css = fs.readFileSync(modulePath, 'utf-8');
+
+      // Resalte hover en .taskList > li
+      const hoverMatch = css.match(/\.taskList\s*>\s*li:hover\s*\{([^}]+)\}/);
+      expect(hoverMatch).toBeTruthy();
+      expect(hoverMatch![1]).toMatch(/background:\s*color-mix\(in srgb,\s*var\(--color-bg-overlay\)\s+85%,\s*var\(--color-text-primary\)\)/);
+
+      // Convivencia con la fila actual data-current
+      const currentMatch = css.match(/\.taskList\s*>\s*li\[data-current='true'\]\s*\{([^}]+)\}/);
+      expect(currentMatch).toBeTruthy();
+      expect(currentMatch![1]).toMatch(/border-left:\s*3px\s+solid\s+var\(--color-primary\)/);
+
+      const currentHoverMatch = css.match(/\.taskList\s*>\s*li\[data-current='true'\]:hover\s*\{([^}]+)\}/);
+      expect(currentHoverMatch).toBeTruthy();
+      expect(currentHoverMatch![1]).toMatch(/background:\s*color-mix\(in srgb,\s*var\(--color-bg-overlay\)\s+75%,\s*var\(--color-text-primary\)\)/);
     });
   });
 });

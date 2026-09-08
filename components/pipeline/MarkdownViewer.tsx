@@ -85,6 +85,11 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
               {children}
             </ol>
           ),
+          table: ({ children, ...props }) => (
+            <div className="pipeline-markdown__table-wrap">
+              <table {...props}>{children}</table>
+            </div>
+          ),
           strong: ({ children, ...props }) => (
             <strong className="pipeline-markdown__strong" {...props}>
               {children}

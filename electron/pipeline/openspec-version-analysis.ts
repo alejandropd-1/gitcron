@@ -96,26 +96,69 @@ export interface OpenSpecVersionAnalysisResult {
 }
 
 /**
+ * Tiempo de vida de la caché de notas de versión (changelog): 24 horas.
+ * Motivo: Las notas de versiones ya publicadas en GitHub Releases son fundamentalmente
+ * inmutables tras su lanzamiento. Se utiliza un TTL de 24 horas (alineado con STALE_CACHE_TTL_MS
+ * de npm registry en openspec-registry.ts) para evitar agotar la cuota pública de la API
+ * de GitHub (límite de 60 peticiones/hora por IP compartida sin token).
+ * Con `forceRefresh: true` se puentea la caché para obtener los cambios inmediatamente.
+ */
+export const OPENSPEC_CHANGELOG_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+export interface OpenSpecChangelogResult {
+  source: string;
+  sourceUrl: string | null;
+  fetched: boolean;
+  rawText: string | null;
+  error?: string | null;
+  fromCache?: boolean;
+  cacheAgeSeconds?: number | null;
+}
+
+interface ChangelogCacheEntry {
+  result: OpenSpecChangelogResult;
+  cachedAtMs: number;
+}
+
+const changelogMemoryCache = new Map<string, ChangelogCacheEntry>();
+
+export function clearOpenSpecChangelogCache(): void {
+  changelogMemoryCache.clear();
+}
+
+/**
  * Consulta las notas de cambios para una versión determinada citando la fuente exacta.
- * Si la fuente no responde o no está disponible, reporta honestamente 'unavailable' sin inventar.
+ * Aplica caché fechada con TTL de 24 horas y soporte de refresco forzado.
+ * Si la API de GitHub responde 403 por rate limit, informa con precisión en vez de enmascarar.
  */
 export async function fetchOpenSpecChangelog(
   version: string,
   deps?: {
     fetchFn?: typeof fetch;
     sourceUrlOverride?: string;
+    forceRefresh?: boolean;
+    now?: () => Date;
   },
-): Promise<{
-  source: string;
-  sourceUrl: string | null;
-  fetched: boolean;
-  rawText: string | null;
-  error?: string | null;
-}> {
+): Promise<OpenSpecChangelogResult> {
   const fetchFn = deps?.fetchFn ?? globalThis.fetch;
   const targetUrl =
     deps?.sourceUrlOverride ??
     `https://api.github.com/repos/fission-ai/openspec/releases/tags/v${version}`;
+  const nowMs = deps?.now ? deps.now().getTime() : Date.now();
+  const cacheKey = `v${version}`;
+
+  // 1. Revisar caché si no se solicita refresco forzado
+  if (!deps?.forceRefresh) {
+    const cached = changelogMemoryCache.get(cacheKey);
+    if (cached && nowMs - cached.cachedAtMs <= OPENSPEC_CHANGELOG_CACHE_TTL_MS) {
+      const ageSec = Math.max(0, Math.floor((nowMs - cached.cachedAtMs) / 1000));
+      return {
+        ...cached.result,
+        fromCache: true,
+        cacheAgeSeconds: ageSec,
+      };
+    }
+  }
 
   try {
     const res = await fetchFn(targetUrl, {
@@ -127,6 +170,38 @@ export async function fetchOpenSpecChangelog(
     });
 
     if (!res.ok) {
+      // Manejo específico de rate limit (HTTP 403 o cabeceras asociadas)
+      const remainingHeader = res.headers?.get('x-ratelimit-remaining');
+      const resetHeader = res.headers?.get('x-ratelimit-reset');
+      const isRateLimited =
+        res.status === 403 &&
+        (remainingHeader === '0' || resetHeader !== null || remainingHeader === null);
+
+      if (isRateLimited) {
+        let resetMsg = '';
+        if (resetHeader) {
+          const resetSec = parseInt(resetHeader, 10);
+          if (!Number.isNaN(resetSec) && resetSec > 0) {
+            const resetDate = new Date(resetSec * 1000);
+            const resetTimeStr = resetDate.toLocaleTimeString('es-AR', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false,
+            });
+            const secondsLeft = Math.max(0, Math.round((resetDate.getTime() - nowMs) / 1000));
+            resetMsg = ` Reintentá después de las ${resetTimeStr} UTC (reset en ${secondsLeft}s).`;
+          }
+        }
+        return {
+          source: 'rate_limited',
+          sourceUrl: targetUrl,
+          fetched: false,
+          rawText: null,
+          error: `Límite de peticiones a la API pública de GitHub alcanzado (HTTP 403 rate limit).${resetMsg}`,
+        };
+      }
+
       if (res.status === 404) {
         return {
           source: 'unavailable',
@@ -147,13 +222,25 @@ export async function fetchOpenSpecChangelog(
 
     const data = (await res.json()) as { body?: string; html_url?: string };
     const rawText = typeof data.body === 'string' ? data.body.trim() : null;
-    return {
+    const successResult: OpenSpecChangelogResult = {
       source: 'GitHub Releases (fission-ai/openspec)',
       sourceUrl: data.html_url ?? targetUrl,
       fetched: Boolean(rawText),
       rawText: rawText || null,
       error: rawText ? null : 'La versión existe pero el cuerpo de notas está vacío.',
+      fromCache: false,
+      cacheAgeSeconds: 0,
     };
+
+    // Almacenar en caché únicamente resultados exitosos
+    if (successResult.fetched) {
+      changelogMemoryCache.set(cacheKey, {
+        result: successResult,
+        cachedAtMs: nowMs,
+      });
+    }
+
+    return successResult;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return {
@@ -385,7 +472,7 @@ export async function analyzeOpenSpecVersion(
   deps?: {
     checkLatest?: () => Promise<OpenSpecRegistryCheck>;
     getInstalledVersion?: (repoPath: string) => Promise<string | null>;
-    fetchChangelog?: (version: string) => Promise<{
+    fetchChangelog?: (version: string, options?: { forceRefresh?: boolean }) => Promise<{
       source: string;
       sourceUrl: string | null;
       fetched: boolean;
@@ -394,9 +481,11 @@ export async function analyzeOpenSpecVersion(
     }>;
     completeTextFn?: typeof completeText;
     forceRefresh?: boolean;
+    userDataDir?: string | null;
   },
 ): Promise<OpenSpecVersionAnalysisResult> {
-  const checkLatestFn = deps?.checkLatest ?? (() => checkLatestOpenSpecVersion({}));
+  const checkLatestFn =
+    deps?.checkLatest ?? (() => checkLatestOpenSpecVersion({ userDataDir: deps?.userDataDir }));
   const registryCheck = await checkLatestFn();
   const availableVersion = registryCheck.latestVersion;
 
@@ -430,7 +519,7 @@ export async function analyzeOpenSpecVersion(
 
   if (availableVersion) {
     const fetchChangelogFn = deps?.fetchChangelog ?? fetchOpenSpecChangelog;
-    changelog = await fetchChangelogFn(availableVersion);
+    changelog = await fetchChangelogFn(availableVersion, { forceRefresh: deps?.forceRefresh });
   } else {
     changelog = {
       source: 'unavailable',

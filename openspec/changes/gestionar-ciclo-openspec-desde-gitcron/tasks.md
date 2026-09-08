@@ -489,6 +489,14 @@ conocen entre si, y la duplicacion es literal.
   contra un formato acotado que **no admita el separador**, en el manejador de IPC y tambien en
   `key-store.ts`, que es el que guarda. Rechazar con codigo, sin prosa y sin eco del valor.
   Cubrirlo con una prueba que intente la colision y afirme que se rechaza.
+  **Resolución y mediciones del 2026-09-07:**
+  - `KNOWN_AI_KEY_PROVIDERS` definido como tupla cerrada `['claude', 'openrouter', 'openai', 'gemini', 'opencode', 'unsloth']`.
+  - Validación de `provider`: `validateProviderId` rechaza proveedores desconocidos o que contengan el separador `:` con `INVALID_PROVIDER`.
+  - Validación de `secretName`: `validateSecretName` exige formato estricto `/^[a-zA-Z0-9_-]{1,64}$/`, rechazando el separador `:`, espacios o traversal con `INVALID_SECRET_NAME`.
+  - Validación de clave: `validateKeyString` rechaza cadenas vacías o longitudes anormales con `INVALID_KEY`.
+  - Prevención de colisión: `setKey('unsloth:cf-client-secret', x)` es rechazado como `INVALID_PROVIDER`, imposibilitando colisionar con `setKey('unsloth', x, 'cf-client-secret')`.
+  - Frontera IPC auditada y blindada en `electron/ipc/ai.ts`: `ai:set-key`, `ai:has-key`, `ai:remove-key`, `ai:key-fingerprint`, `ai:predict-timelines`, `ai:load-prediction` y `git:materialize-idea` validan argumentos rechazando con códigos sin prosa ni eco.
+  - Cobertura: agregadas pruebas unitarias en `electron/__tests__/key-store.test.ts` y pruebas de integración IPC en `electron/__tests__/ai-ipc.test.ts`.
 
 ## 9c. La verificacion de version, con criterio
 
@@ -532,6 +540,28 @@ conocen entre si, y la duplicacion es literal.
   `deps.runVersionAnalysis ?? analyzeOpenSpecVersion`, o sea que **la aplicacion usa la funcion de
   verdad** y no una inyeccion que solo existe en las pruebas. Es lo contrario de lo que habia pasado
   con la sincronizacion, y corresponde decirlo.
+  **Resolución y mediciones del 2026-09-07:**
+  - TTL declarado en `OPENSPEC_CHANGELOG_CACHE_TTL_MS = 24 * 60 * 60 * 1000` (24 horas), alineado con `STALE_CACHE_TTL_MS` del registro npm, dado que las notas de versiones publicadas son inmutables. Documentado el criterio en el código.
+  - Caché en memoria implementada en `fetchOpenSpecChangelog`: dos llamadas sucesivas para la misma versión realizan 1 solo fetch y devuelven `fromCache: true`.
+  - `forceRefresh: true` puentea la caché y ejecuta una nueva petición a la fuente, actualizando la caché tras una respuesta exitosa. Propagado desde `analyzeOpenSpecVersion` y el canal IPC `pipeline:openspec:version-analysis`.
+  - Manejo específico de rate limit (HTTP 403 / `x-ratelimit-remaining: 0`): devuelve `source: 'rate_limited'` con mensaje indicando hora de reseteo (`x-ratelimit-reset`) sin enmascarar como `unavailable`.
+  - Aislamiento de suite (Bloque A): aislada la prueba de integración IPC en `openspec-version-analysis.test.ts` mockeando `globalThis.fetch`, proveyendo caché local en `userDataDir` y aislando la invocación de `openspec-engine`, eliminando el timeout intermitente de 5000ms.
+
+- [ ] 9c.8 **Auditoria del 2026-09-07: la intermitencia bajo pero no se fue.**
+  El arreglo de la prueba de analisis de version es correcto y esta bien hecho: se sustituyo el
+  lanzador del CLI y la red, **sin inyectar** `runVersionAnalysis`, asi que la prueba sigue
+  ejercitando el cableado real de `registerOpenSpecIpcHandlers`. Es exactamente lo que habia que
+  conservar.
+  Pero la suite sigue siendo intermitente. Medido el 2026-09-07 sobre el arbol de esta tanda: **seis
+  corridas completas, una en rojo** —1 archivo y 2 pruebas sobre 187 y 1813— y cinco en verde. La
+  corrida roja fue la primera y no se capturo el nombre; las cinco siguientes salieron limpias.
+  Antes de esta tanda fallaba cerca de una de cada cuatro; ahora cerca de una de cada seis u ocho.
+  Mejoro, no se resolvio.
+  Lo que hay que hacer la proxima vez que aparezca: correr la suite guardando la salida COMPLETA de
+  cada corrida en un archivo desde el principio, no el resumen. Sin el nombre no hay diagnostico, y
+  el nombre solo aparece en la corrida que falla.
+  Nota de por que esto importa y no es una molestia menor: una suite que da verde cinco de cada seis
+  veces **deja pasar una regresion de verdad**, y en esta rama ya paso una vez.
 
 ## 10. Cierre y validación
 

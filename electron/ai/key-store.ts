@@ -17,21 +17,46 @@ import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import type { AIPredictionProvider } from '../../types/temporal-agent';
 
+export const KNOWN_AI_KEY_PROVIDERS = [
+  'claude',
+  'openrouter',
+  'openai',
+  'gemini',
+  'opencode',
+  'unsloth',
+] as const;
+
 /**
  * Identificadores de proveedores con claves en el baúl seguro.
  * Desacoplado de AIPredictionProvider['id'] para admitir proveedores de texto
  * (LM Studio/local, OpenRouter, Unsloth Desktop, etc.) sin refactorizar el almacenamiento.
  */
-export type AIKeyProviderId =
-  | 'claude'
-  | 'openrouter'
-  | 'openai'
-  | 'gemini'
-  | 'opencode'
-  | 'unsloth'
-  | (string & {});
+export type AIKeyProviderId = (typeof KNOWN_AI_KEY_PROVIDERS)[number];
 
 type ProviderId = AIKeyProviderId;
+
+const SECRET_NAME_REGEX = /^[a-zA-Z0-9_-]{1,64}$/;
+
+export function validateProviderId(provider: unknown): asserts provider is AIKeyProviderId {
+  if (typeof provider !== 'string' || !KNOWN_AI_KEY_PROVIDERS.includes(provider as any)) {
+    throw new Error('INVALID_PROVIDER');
+  }
+}
+
+export function validateSecretName(secretName: unknown): asserts secretName is string | undefined {
+  if (secretName === undefined || secretName === null) {
+    return;
+  }
+  if (typeof secretName !== 'string' || !SECRET_NAME_REGEX.test(secretName)) {
+    throw new Error('INVALID_SECRET_NAME');
+  }
+}
+
+export function validateKeyString(key: unknown): asserts key is string {
+  if (typeof key !== 'string' || key.length === 0 || key.length > 8192) {
+    throw new Error('INVALID_KEY');
+  }
+}
 
 interface KeyFile {
   // provider id or provider:secretName -> base64 of safeStorage-encrypted key bytes
@@ -56,10 +81,13 @@ function writeFile(data: KeyFile): void {
 
 /**
  * Compone la clave de almacenamiento interna en el baúl.
- * Si secretName está ausente o vacío, se indexa por provider directamente (compatibilidad hacia atrás).
+ * Valida provider y secretName estrictamente para evitar colisiones y nombres inválidos.
+ * Si secretName está ausente, se indexa por provider directamente (compatibilidad hacia atrás).
  * Si secretName está presente, se indexa como `${provider}:${secretName}`.
  */
 export function buildSecretKey(provider: ProviderId, secretName?: string): string {
+  validateProviderId(provider);
+  validateSecretName(secretName);
   const p = provider.trim();
   const s = secretName?.trim();
   return s ? `${p}:${s}` : p;
@@ -67,6 +95,9 @@ export function buildSecretKey(provider: ProviderId, secretName?: string): strin
 
 /** Store/replace a provider key or named secret (encrypted at rest). One-way from the renderer's view. */
 export function setKey(provider: ProviderId, key: string, secretName?: string): void {
+  validateProviderId(provider);
+  validateSecretName(secretName);
+  validateKeyString(key);
   if (!safeStorage.isEncryptionAvailable()) {
     throw new Error('OS encryption unavailable; refusing to store key in plaintext');
   }
@@ -101,6 +132,8 @@ export function hasKey(provider: ProviderId, secretName?: string): boolean {
  * Si no se especifica secretName, elimina la clave principal del proveedor y todos sus secretos nombrados (`${provider}:*`).
  */
 export function removeKey(provider: ProviderId, secretName?: string): void {
+  validateProviderId(provider);
+  validateSecretName(secretName);
   const data = readFile();
   if (secretName && secretName.trim()) {
     delete data[buildSecretKey(provider, secretName)];

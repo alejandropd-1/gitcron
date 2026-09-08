@@ -13,11 +13,19 @@ import { loadConfig as loadTemporalConfig, loadNotes as loadTemporalNotes, saveP
 import { runPredictionWithInput } from '../ai/predict';
 import { cancelActivePrediction } from '../ai/provider-runtime';
 import { persistPredictionRun } from '../ai/prediction-persistence';
-import { hasKey as hasAiKey, setKey as setAiKey, removeKey as removeAiKey, getKeyFingerprint as getAiKeyFingerprint } from '../ai/key-store';
+import {
+  hasKey as hasAiKey,
+  setKey as setAiKey,
+  removeKey as removeAiKey,
+  getKeyFingerprint as getAiKeyFingerprint,
+  validateProviderId,
+  validateSecretName,
+  validateKeyString,
+} from '../ai/key-store';
 import type { ProviderId } from '../ai/providers';
 import type { AIPredictionProvider, PredictionResult, SpeculativeBranch, MaterializeIdeaInput } from '../../types/temporal-agent';
 import { buildMaterializationPlan } from '../../lib/materialize-idea';
-import { errMsg, sanitizeForLog } from './shared';
+import { errMsg, sanitizeForLog, validRepoPath } from './shared';
 import { readEncryptedStorage } from './storage';
 
 const AI_PROVIDER_PREF_KEY = 'ai.activeProvider';
@@ -84,7 +92,15 @@ function mockProvider(id: ProviderId): AIPredictionProvider {
 export function registerAiHandlers(): void {
   ipcMain.handle('ai:predict-timelines', async (_event, repoPath: string, repoName: string, lang = 'es') => {
     try {
-      if (!repoPath) return { success: false, error: 'No repo path' };
+      if (!repoPath || typeof repoPath !== 'string' || !validRepoPath(repoPath)) {
+        return { success: false, error: 'INVALID_REPO_PATH' };
+      }
+      if (typeof repoName !== 'string' || repoName.length === 0 || repoName.length > 256) {
+        return { success: false, error: 'INVALID_REPO_NAME' };
+      }
+      if (typeof lang !== 'string' || !/^[a-zA-Z-]{2,10}$/.test(lang)) {
+        return { success: false, error: 'INVALID_LANG' };
+      }
       const providerId = activeProviderId();
       const config = await loadTemporalConfig(repoPath, repoName);
       const notes = await loadTemporalNotes(repoPath, repoName);
@@ -118,7 +134,9 @@ export function registerAiHandlers(): void {
   // Load the last persisted prediction for a repo (no network, no extra credits).
   ipcMain.handle('ai:load-prediction', async (_event, repoPath: string) => {
     try {
-      if (!repoPath) return { success: false, error: 'No repo path' };
+      if (!repoPath || typeof repoPath !== 'string' || !validRepoPath(repoPath)) {
+        return { success: false, error: 'INVALID_REPO_PATH' };
+      }
       const data = await loadPrediction(repoPath);
       return { success: true, data };
     } catch (error: any) {
@@ -128,6 +146,8 @@ export function registerAiHandlers(): void {
 
   ipcMain.handle('ai:has-key', async (_event, provider: ProviderId, secretName?: string) => {
     try {
+      validateProviderId(provider);
+      validateSecretName(secretName);
       return { success: true, data: hasAiKey(provider, secretName) };
     } catch (error: any) {
       return { success: false, error: errMsg(error) };
@@ -136,6 +156,9 @@ export function registerAiHandlers(): void {
 
   ipcMain.handle('ai:set-key', async (_event, provider: ProviderId, key: string, secretName?: string) => {
     try {
+      validateProviderId(provider);
+      validateSecretName(secretName);
+      validateKeyString(key);
       setAiKey(provider, key, secretName);
       return { success: true };
     } catch (error: any) {
@@ -146,6 +169,8 @@ export function registerAiHandlers(): void {
 
   ipcMain.handle('ai:remove-key', async (_event, provider: ProviderId, secretName?: string) => {
     try {
+      validateProviderId(provider);
+      validateSecretName(secretName);
       removeAiKey(provider, secretName);
       return { success: true };
     } catch (error: any) {
@@ -155,6 +180,8 @@ export function registerAiHandlers(): void {
 
   ipcMain.handle('ai:key-fingerprint', async (_event, provider: ProviderId, secretName?: string) => {
     try {
+      validateProviderId(provider);
+      validateSecretName(secretName);
       // Returns a SHA-256-derived id (8 hex chars), never any part of the key.
       return { success: true, data: getAiKeyFingerprint(provider, secretName) };
     } catch (error: any) {
@@ -189,8 +216,12 @@ export function registerAiHandlers(): void {
     let tmpIndex: string | null = null;
     let tmpFile: string | null = null;
     try {
-      if (!repoPath) return { success: false, error: 'No repo path' };
-      if (!idea || !idea.title) return { success: false, error: 'Invalid idea' };
+      if (!repoPath || typeof repoPath !== 'string' || !validRepoPath(repoPath)) {
+        return { success: false, error: 'INVALID_REPO_PATH' };
+      }
+      if (!idea || typeof idea !== 'object' || !idea.title || typeof idea.title !== 'string') {
+        return { success: false, error: 'INVALID_IDEA' };
+      }
 
       // Child env for git: inherit the process env but DROP the vars simple-git's
       // safety guard refuses (editor/ssh/askpass/diff hooks leaking from the

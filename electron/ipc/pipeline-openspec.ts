@@ -724,8 +724,13 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
       }
 
       const forceRefresh = Boolean((payload as any)?.forceRefresh);
+      const userDataDir = deps.getUserDataDir ? deps.getUserDataDir() : null;
       const versionAnalysisFn = deps.runVersionAnalysis ?? analyzeOpenSpecVersion;
-      return versionAnalysisFn(validRepoPath, { forceRefresh });
+      return versionAnalysisFn(validRepoPath, {
+        forceRefresh,
+        userDataDir,
+        checkLatest: deps.checkLatest,
+      });
     },
   );
 }

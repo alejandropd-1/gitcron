@@ -5,6 +5,7 @@ import * as os from 'node:os';
 import {
   analyzeOpenSpecVersion,
   buildStrategyProposal,
+  clearOpenSpecChangelogCache,
   evaluateConsumedSurfaces,
   fetchOpenSpecChangelog,
   type ConsumedSurfaceName,
@@ -15,16 +16,26 @@ import {
 } from '../../lib/openspec-version';
 import { authorizedRepoStore } from '../ipc/authorized-repos';
 
+vi.mock('../pipeline/openspec-engine', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../pipeline/openspec-engine')>();
+  return {
+    ...actual,
+    runAuthorizedOpenSpec: vi.fn().mockResolvedValue({ stdout: 'openspec 1.11.0', stderr: '' }),
+  };
+});
+
 describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => {
   const ORIGINAL_FETCH = globalThis.fetch;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    clearOpenSpecChangelogCache();
     authorizedRepoStore.clear();
   });
 
   afterEach(() => {
     globalThis.fetch = ORIGINAL_FETCH;
+    clearOpenSpecChangelogCache();
     vi.restoreAllMocks();
   });
 
@@ -227,6 +238,71 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
     });
   });
 
+  describe('9c.7: Caché de changelog y manejo de rate limit de GitHub', () => {
+    it('dos llamadas sucesivas para la misma versión hacen un solo fetch y devuelven fromCache en la segunda', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          body: '## Release 1.12.0\nNovedades',
+          html_url: 'https://github.com/fission-ai/openspec/releases/tag/v1.12.0',
+        }),
+      });
+
+      const res1 = await fetchOpenSpecChangelog('1.12.0', { fetchFn: mockFetch as unknown as typeof fetch });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(res1.fetched).toBe(true);
+      expect(res1.fromCache).toBe(false);
+
+      const res2 = await fetchOpenSpecChangelog('1.12.0', { fetchFn: mockFetch as unknown as typeof fetch });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(res2.fetched).toBe(true);
+      expect(res2.fromCache).toBe(true);
+      expect(res2.rawText).toBe('## Release 1.12.0\nNovedades');
+    });
+
+    it('con forceRefresh: true puentea la caché y realiza un segundo fetch', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          body: '## Release 1.12.0\nNovedades actualizadas',
+          html_url: 'https://github.com/fission-ai/openspec/releases/tag/v1.12.0',
+        }),
+      });
+
+      await fetchOpenSpecChangelog('1.12.0', { fetchFn: mockFetch as unknown as typeof fetch });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      const resForced = await fetchOpenSpecChangelog('1.12.0', {
+        fetchFn: mockFetch as unknown as typeof fetch,
+        forceRefresh: true,
+      });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(resForced.fromCache).toBe(false);
+      expect(resForced.rawText).toContain('actualizadas');
+    });
+
+    it('maneja rate limit (HTTP 403) con fuente "rate_limited" y mensaje con horario de reset', async () => {
+      const resetEpoch = Math.floor(Date.now() / 1000) + 1200; // 20 minutos en el futuro
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        headers: new Headers({
+          'x-ratelimit-remaining': '0',
+          'x-ratelimit-reset': String(resetEpoch),
+        }),
+      });
+
+      const res = await fetchOpenSpecChangelog('1.12.0', { fetchFn: mockFetch as unknown as typeof fetch });
+      expect(res.fetched).toBe(false);
+      expect(res.source).toBe('rate_limited');
+      expect(res.rawText).toBeNull();
+      expect(res.error).toContain('HTTP 403 rate limit');
+      expect(res.error).toMatch(/Reintentá después de las \d{2}:\d{2}:\d{2}/);
+    });
+  });
+
   describe('Integración IPC: canal pipeline:openspec:version-analysis tal como se registra en main', () => {
     it('registra el canal en ipcMain y rechaza repositorios no autorizados', async () => {
       const handlers = new Map<string, (_event: unknown, payload?: unknown) => Promise<unknown>>();
@@ -268,20 +344,64 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       const realRepo = fs.realpathSync(process.cwd());
       authorizedRepoStore.authorizeRepo(realRepo);
 
-      const { registerOpenSpecIpcHandlers } = await import('../ipc/pipeline-openspec');
-      registerOpenSpecIpcHandlers({
-        ipcMain: mockIpc as never,
-        getUserDataDir: () => os.tmpdir(),
+      // Directorio de userData aislado con caché de registry precalentada
+      const tmpUserDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-ver-analysis-ipc-'));
+      fs.writeFileSync(
+        path.join(tmpUserDir, 'openspec-registry-cache.json'),
+        JSON.stringify({
+          latestVersion: '1.11.0',
+          checkedAt: new Date().toISOString(),
+        }),
+        'utf8',
+      );
+
+      // Mock de fetch para aislar peticiones de changelog y modelo local
+      const mockFetch = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('chat/completions')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              choices: [{ message: { content: 'Ale, mirá: no hay cambios incompatibles' }, finish_reason: 'stop' }],
+            }),
+          });
+        }
+        if (url.includes('api.github.com')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              body: '## Release 1.11.0\nVersión oficial',
+              html_url: 'https://github.com/fission-ai/openspec/releases/tag/v1.11.0',
+            }),
+          });
+        }
+        return Promise.reject(new Error(`Fetch inesperado: ${url}`));
       });
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
 
-      const handler = handlers.get('pipeline:openspec:version-analysis')!;
-      const result = (await handler({}, { repoPath: realRepo })) as any;
+      try {
+        const { registerOpenSpecIpcHandlers } = await import('../ipc/pipeline-openspec');
+        registerOpenSpecIpcHandlers({
+          ipcMain: mockIpc as never,
+          getUserDataDir: () => tmpUserDir,
+        });
 
-      expect(result).toBeDefined();
-      expect(result.measured).toBeDefined();
-      expect(result.measured.supportedRange.max).toBe('1.11.0');
-      expect(result.measured.consumedSurfaces.length).toBe(6);
-      expect(result.redaction).toBeDefined();
+        const handler = handlers.get('pipeline:openspec:version-analysis')!;
+        const result = (await handler({}, { repoPath: realRepo })) as any;
+
+        expect(result).toBeDefined();
+        expect(result.measured).toBeDefined();
+        expect(result.measured.supportedRange.max).toBe('1.11.0');
+        expect(result.measured.consumedSurfaces.length).toBe(6);
+        expect(result.redaction).toBeDefined();
+      } finally {
+        try {
+          fs.rmSync(tmpUserDir, { recursive: true, force: true });
+        } catch {
+          /* ignore */
+        }
+      }
     });
   });
 });

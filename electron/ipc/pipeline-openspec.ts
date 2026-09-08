@@ -19,8 +19,10 @@ import type {
 import {
   discoverOpenSpecCli,
   resolveOpenSpecExecutable,
+  runAuthorizedOpenSpec,
   type AuthorizedOpenSpecRuntime,
 } from '../pipeline/openspec-engine';
+import { withRepoWatcherPaused } from './watchers';
 import {
   contextOpenSpecWithCli,
   doctorOpenSpecWithCli,
@@ -64,6 +66,8 @@ export interface OpenSpecIpcDeps {
   runDoctor?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecDoctorResult>;
   runContext?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecContextBriefResult>;
   runVersionAnalysis?: (repoPath: string, options?: { forceRefresh?: boolean }) => Promise<OpenSpecVersionAnalysisResult>;
+  runAuthorizedOpenSpec?: typeof runAuthorizedOpenSpec;
+  pauseWatcher?: typeof withRepoWatcherPaused;
 }
 
 /**
@@ -731,6 +735,86 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
         userDataDir,
         checkLatest: deps.checkLatest,
       });
+    },
+  );
+
+  // 11. Execute Command (Tarea 9.6: ejecución de comandos acotada a la lista permitida con pausa de vigilante)
+  ipc.handle(
+    'pipeline:openspec:execute-command',
+    async (
+      _event,
+      payload?: unknown,
+    ): Promise<{ success: boolean; stdout?: string; stderr?: string; error?: string }> => {
+      validateStrictPayloadKeys(payload, ['repoPath', 'command']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+
+      const rawCommand = typeof (payload as any)?.command === 'string' ? (payload as any).command.trim() : '';
+      if (!rawCommand) {
+        return { success: false, error: 'Comando vacío' };
+      }
+
+      // Prohibir caracteres de control o encadenamiento de shell
+      if (/[;&|><$`\r\n]/.test(rawCommand)) {
+        return { success: false, error: 'Comando no permitido: contiene caracteres de control de shell' };
+      }
+
+      // Tokenizar comando simple (separado por espacios)
+      const tokens = rawCommand.split(/\s+/).filter(Boolean);
+      if (tokens.length === 0) {
+        return { success: false, error: 'Comando inválido' };
+      }
+
+      // Validar prefijo permitido
+      let args: string[] = [];
+      if (tokens[0] === 'openspec') {
+        args = tokens.slice(1);
+      } else if (tokens[0] === 'npx' && (tokens[1] === '@fission-ai/openspec' || tokens[1] === 'openspec')) {
+        args = tokens.slice(2);
+      } else {
+        return {
+          success: false,
+          error: 'Comando no permitido: sólo se permite ejecutar comandos de openspec',
+        };
+      }
+
+      const subcommand = args[0]?.toLowerCase();
+      const ALLOWED_SUBCOMMANDS = ['archive', 'update', 'validate', 'status', 'sync', 'instructions', 'doctor', 'context'];
+      if (!subcommand || !ALLOWED_SUBCOMMANDS.includes(subcommand)) {
+        return {
+          success: false,
+          error: `Subcomando no permitido: "${subcommand}". Lista permitida: ${ALLOWED_SUBCOMMANDS.join(', ')}`,
+        };
+      }
+
+      const getUserDataDir = deps.getUserDataDir ?? (() => null);
+      const userDataDir = getUserDataDir();
+      const resolveRuntime = deps.resolveRuntime ?? resolveOpenSpecExecutable;
+      const authorizedRuntime = resolveRuntime({ userDataDir, repoPath: validRepoPath });
+
+      if (!authorizedRuntime) {
+        return { success: false, error: 'El ejecutable de OpenSpec no está disponible en este entorno' };
+      }
+
+      const runner = deps.runAuthorizedOpenSpec ?? runAuthorizedOpenSpec;
+      const pauseWatcher = deps.pauseWatcher ?? withRepoWatcherPaused;
+
+      try {
+        const result = await pauseWatcher(validRepoPath, async () => {
+          return runner(authorizedRuntime, args, { cwd: validRepoPath });
+        });
+        return { success: true, stdout: result.stdout, stderr: result.stderr };
+      } catch (err: any) {
+        return {
+          success: false,
+          error: err.message || 'Error al ejecutar comando openspec',
+          stdout: err.stdout?.toString(),
+          stderr: err.stderr?.toString(),
+        };
+      }
     },
   );
 }

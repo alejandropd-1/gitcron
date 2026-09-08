@@ -108,12 +108,13 @@ function renderDashboard(overrides: {
   projection?: RuntimeProjection | null;
   fixtureActive?: boolean;
   onRefresh?: () => void;
+  currentBranch?: string;
 } = {}) {
   return render(
     <OpenSpecDashboard
       snapshot={snapshot(overrides.validation ?? 'passed')}
       repoPath="C:/repo"
-      currentBranch="main"
+      currentBranch={overrides.currentBranch ?? 'change/demo-change'}
       workingTreeClean
       leftOpen={false}
       rightOpen={false}
@@ -313,5 +314,13 @@ describe('archivado explícito de un cambio', () => {
     expect(button.disabled).toBe(true);
     button.click();
     expect(pipelineArchiveChange).not.toHaveBeenCalled();
+  });
+
+  it('deshabilita el archivo cuando la rama actual es main', () => {
+    renderDashboard({ validation: 'passed', currentBranch: 'main' });
+    enterChange();
+    const button = screen.getByRole('button', { name: /openspec\.archive\.actionPending/ }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.title).toBe('pipeline.openspec.archive.blockedMainBranch:{"branch":"main"}');
   });
 });

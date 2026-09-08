@@ -404,4 +404,91 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
       );
     });
   });
+
+  describe('pipeline:openspec:execute-command (Tarea 9.6: Ejecución acotada con salvaguardas)', () => {
+    it('registra el canal en ipcMain', () => {
+      const map = new Map<string, Function>();
+      const ipcMain = { handle: (ch: string, fn: Function) => map.set(ch, fn) };
+      registerOpenSpecIpcHandlers({ ipcMain: ipcMain as any });
+      expect(map.has('pipeline:openspec:execute-command')).toBe(true);
+    });
+
+    it('rechaza comandos con caracteres de control de shell', async () => {
+      const map = new Map<string, Function>();
+      const ipcMain = { handle: (ch: string, fn: Function) => map.set(ch, fn) };
+      registerOpenSpecIpcHandlers({ ipcMain: ipcMain as any });
+      const handler = map.get('pipeline:openspec:execute-command')!;
+
+      const result = await handler({}, {
+        repoPath: process.cwd(),
+        command: 'openspec archive my-change; rm -rf /',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('caracteres de control');
+    });
+
+    it('rechaza comandos que no sean openspec', async () => {
+      const map = new Map<string, Function>();
+      const ipcMain = { handle: (ch: string, fn: Function) => map.set(ch, fn) };
+      registerOpenSpecIpcHandlers({ ipcMain: ipcMain as any });
+      const handler = map.get('pipeline:openspec:execute-command')!;
+
+      const result = await handler({}, {
+        repoPath: process.cwd(),
+        command: 'git status',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('sólo se permite ejecutar comandos de openspec');
+    });
+
+    it('rechaza subcomandos de openspec no permitidos', async () => {
+      const map = new Map<string, Function>();
+      const ipcMain = { handle: (ch: string, fn: Function) => map.set(ch, fn) };
+      registerOpenSpecIpcHandlers({ ipcMain: ipcMain as any });
+      const handler = map.get('pipeline:openspec:execute-command')!;
+
+      const result = await handler({}, {
+        repoPath: process.cwd(),
+        command: 'openspec malicious-subcmd foo',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Subcomando no permitido');
+    });
+
+    it('ejecuta subcomando permitido usando runner y pausa de vigilante', async () => {
+      const map = new Map<string, Function>();
+      const ipcMain = { handle: (ch: string, fn: Function) => map.set(ch, fn) };
+      const runMock = vi.fn().mockResolvedValue({ stdout: 'Archived change', stderr: '' });
+      const pauseMock = vi.fn().mockImplementation(async (_path: string, fn: () => Promise<any>) => fn());
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: ipcMain as any,
+        resolveRuntime: () => ({
+          command: 'openspec',
+          displayPath: 'C:\\fake\\openspec.exe',
+          executablePath: 'C:\\fake\\openspec.exe',
+          version: '1.11.0',
+          provenance: 'global' as any,
+          shell: false,
+        }),
+        runAuthorizedOpenSpec: runMock,
+        pauseWatcher: pauseMock as any,
+      });
+
+      const handler = map.get('pipeline:openspec:execute-command')!;
+      const result = await handler({}, {
+        repoPath: process.cwd(),
+        command: 'openspec archive my-feature --yes',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.stdout).toBe('Archived change');
+      expect(pauseMock).toHaveBeenCalledTimes(1);
+      expect(runMock).toHaveBeenCalledWith(
+        expect.objectContaining({ executablePath: 'C:\\fake\\openspec.exe' }),
+        ['archive', 'my-feature', '--yes'],
+        expect.objectContaining({ cwd: fs.realpathSync(process.cwd()) }),
+      );
+    });
+  });
 });

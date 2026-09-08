@@ -138,12 +138,89 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
       </header>
 
       <div className={styles.reviewBody}>
-        {/* AVISO DE SÓLO LECTURA Y SEGURIDAD */}
-        <div className={styles.reviewSafetyBanner}>
-          <Info size={16} aria-hidden="true" />
-          <div className={styles.reviewSafetyText}>
-            <strong>{t('pipeline.openspec.engine.review.safetyTitle')}</strong>
-            <p>{t('pipeline.openspec.engine.review.safetyHelp')}</p>
+        {/* RESUMEN EN UNA LÍNEA Y ACCIONES AL FRENTE (Tareas 9.1 y 9.5) */}
+        <div className={styles.reviewUpfrontHeader}>
+          <div className={styles.reviewUpfrontSummary}>
+            <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.matrix.actionLabel')}:</span>
+            <strong style={{ color: action === 'none' ? 'var(--color-git-add)' : action === 'blocked' ? 'var(--color-error)' : 'var(--color-warning)' }}>
+              {actionLabel}
+            </strong>
+            {cli?.runtimeVersion && (
+              <span className={styles.axisMeta}>· v{cli.runtimeVersion}</span>
+            )}
+            {cli && (
+              <span className={styles.axisMeta}>· {t(`pipeline.openspec.engine.provenance.${cli.provenance}`)}</span>
+            )}
+          </div>
+
+          <div className={styles.reviewUpfrontActions}>
+            {/* Botón principal de ejecución de actualización (Paso 2) */}
+            {!executionResult?.success && (
+              <div className={styles.reviewActionWithReason}>
+                <button
+                  type="button"
+                  className={styles.centerAttentionBtn}
+                  onClick={handleExecuteUpdate}
+                  disabled={!canExecute}
+                  title={
+                    isMainOrMaster
+                      ? t('pipeline.openspec.engine.review.blockedBranchMain', { branch: currentBranch ?? 'main' })
+                      : isDirty
+                      ? t('pipeline.openspec.engine.review.blockedDirty')
+                      : undefined
+                  }
+                >
+                  {isExecuting ? (
+                    <>
+                      <Loader2 size={13} className={styles.spin} aria-hidden="true" />
+                      <span>{t('pipeline.openspec.engine.review.updating')}</span>
+                    </>
+                  ) : forceConfirmed ? (
+                    t('pipeline.openspec.engine.review.forceButton')
+                  ) : (
+                    t('pipeline.openspec.engine.review.executeUpdate')
+                  )}
+                </button>
+                {isMainOrMaster && (
+                  <span className={styles.blockedReasonInline} role="alert">
+                    <AlertTriangle size={13} color="var(--color-error)" aria-hidden="true" style={{ flex: '0 0 auto', marginTop: 1 }} />
+                    {t('pipeline.openspec.engine.review.blockedBranchMain', { branch: currentBranch ?? 'main' })}
+                  </span>
+                )}
+                {!isMainOrMaster && isDirty && (
+                  <span className={styles.blockedReasonInline} role="alert">
+                    <AlertTriangle size={13} color="var(--color-error)" aria-hidden="true" style={{ flex: '0 0 auto', marginTop: 1 }} />
+                    {t('pipeline.openspec.engine.review.blockedDirty')}
+                  </span>
+                )}
+                {!isMainOrMaster && !isDirty && action === 'blocked' && (
+                  <span className={styles.blockedReasonInline} role="alert">
+                    {t('pipeline.openspec.engine.matrix.blockedReason', {
+                      reason: updatePlan?.reason ?? t('pipeline.openspec.engine.preview.blockedReason'),
+                    })}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Si ya concluyó con éxito, ofrecemos preparar commit */}
+            {executionResult?.success && onPrepareCommit && (
+              <button
+                type="button"
+                className={styles.centerAttentionBtn}
+                onClick={onPrepareCommit}
+              >
+                {t('pipeline.openspec.engine.review.prepareCommit')}
+              </button>
+            )}
+
+            <button
+              type="button"
+              className={styles.reviewPrimaryActionBtn}
+              onClick={onBack}
+            >
+              {t('pipeline.openspec.engine.review.close')}
+            </button>
           </div>
         </div>
 
@@ -204,17 +281,32 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           </div>
         )}
 
-        {/* DATOS DEL MOTOR Y PROCEDENCIA */}
-        <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.cardTitle')}>
-          <div className={styles.reviewFactsGrid}>
-            <div className={styles.reviewFactItem}>
-              <span className={styles.reviewFactLabel}>
-                {t('pipeline.openspec.engine.axis.engine')}
-              </span>
-              <span className={styles.reviewFactValue}>
-                {cli?.installed ? `v${cli.runtimeVersion ?? '?'}` : t('pipeline.openspec.engine.status.absent')}
-              </span>
+        {/* DIAGNÓSTICO COMPLETO CONTRAÍDO POR OMISIÓN (Tarea 9.1) */}
+        <details className={styles.reviewDiagnosticsDetails}>
+          <summary className={styles.reviewDiagnosticsSummary}>
+            <span>{t('pipeline.openspec.engine.cardTitle')} — {t('pipeline.openspec.engine.showAdvanced')}</span>
+          </summary>
+          <div className={styles.reviewDiagnosticsContent}>
+            {/* AVISO DE SÓLO LECTURA Y SEGURIDAD */}
+            <div className={styles.reviewSafetyBanner}>
+              <Info size={16} aria-hidden="true" />
+              <div className={styles.reviewSafetyText}>
+                <strong>{t('pipeline.openspec.engine.review.safetyTitle')}</strong>
+                <p>{t('pipeline.openspec.engine.review.safetyHelp')}</p>
+              </div>
             </div>
+
+            {/* DATOS DEL MOTOR Y PROCEDENCIA */}
+            <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.cardTitle')}>
+              <div className={styles.reviewFactsGrid}>
+                <div className={styles.reviewFactItem}>
+                  <span className={styles.reviewFactLabel}>
+                    {t('pipeline.openspec.engine.axis.engine')}
+                  </span>
+                  <span className={styles.reviewFactValue}>
+                    {cli?.installed ? `v${cli.runtimeVersion ?? '?'}` : t('pipeline.openspec.engine.status.absent')}
+                  </span>
+                </div>
 
             <div className={styles.reviewFactItem}>
               <span className={styles.reviewFactLabel}>
@@ -508,77 +600,8 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
             </div>
           </section>
         )}
-
-        {/* SALVAGUARDAS DE GIT Y ACCIONES EN EL PIE */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginTop: 'var(--space-2)' }}>
-          {isMainOrMaster && (
-            <div className={styles.reviewWarningAlert}>
-              <AlertTriangle size={14} color="var(--color-error)" aria-hidden="true" style={{ flex: '0 0 auto', marginTop: 1 }} />
-              <span style={{ color: 'var(--color-error)' }}>
-                {t('pipeline.openspec.engine.review.blockedBranchMain', { branch: currentBranch ?? 'main' })}
-              </span>
-            </div>
-          )}
-
-          {isDirty && (
-            <div className={styles.reviewWarningAlert}>
-              <AlertTriangle size={14} color="var(--color-error)" aria-hidden="true" style={{ flex: '0 0 auto', marginTop: 1 }} />
-              <span style={{ color: 'var(--color-error)' }}>
-                {t('pipeline.openspec.engine.review.blockedDirty')}
-              </span>
-            </div>
-          )}
-
-          <div className={styles.reviewFooterRow}>
-            {/* Si ya concluyó con éxito, ofrecemos preparar commit */}
-            {executionResult?.success && onPrepareCommit && (
-              <button
-                type="button"
-                className={styles.centerAttentionBtn}
-                onClick={onPrepareCommit}
-                style={{ marginRight: 'auto' }}
-              >
-                {t('pipeline.openspec.engine.review.prepareCommit')}
-              </button>
-            )}
-
-            {/* Botón principal de ejecución de actualización (Paso 2) */}
-            {!executionResult?.success && (
-              <button
-                type="button"
-                className={styles.centerAttentionBtn}
-                onClick={handleExecuteUpdate}
-                disabled={!canExecute}
-                title={
-                  isMainOrMaster
-                    ? t('pipeline.openspec.engine.review.blockedBranchMain', { branch: currentBranch ?? 'main' })
-                    : isDirty
-                    ? t('pipeline.openspec.engine.review.blockedDirty')
-                    : undefined
-                }
-              >
-                {isExecuting ? (
-                  <>
-                    <Loader2 size={13} className={styles.spin} aria-hidden="true" />
-                    <span>{t('pipeline.openspec.engine.review.updating')}</span>
-                  </>
-                ) : forceConfirmed ? (
-                  t('pipeline.openspec.engine.review.forceButton')
-                ) : (
-                  t('pipeline.openspec.engine.review.executeUpdate')
-                )}
-              </button>
-            )}
-
-            <button
-              type="button"
-              className={styles.reviewPrimaryActionBtn}
-              onClick={onBack}
-            >
-              {t('pipeline.openspec.engine.review.close')}
-            </button>
           </div>
-        </div>
+        </details>
       </div>
     </section>
   );

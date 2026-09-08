@@ -344,3 +344,87 @@ export function BranchContextMenuLayer({
     </>
   );
 }
+
+export function TaskContextMenu({
+  x,
+  y,
+  canMoveUp,
+  canMoveDown,
+  onEdit,
+  onMoveUp,
+  onMoveDown,
+  onDelete,
+  onClose,
+}: {
+  x: number;
+  y: number;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onEdit: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const { ref, coords, isMeasured } = useAdjustedPosition(x, y);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    const timer = setTimeout(() => {
+      window.addEventListener('click', handleClickOutside);
+      window.addEventListener('keydown', handleKeyDown);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose, ref]);
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: isMeasured ? 1 : 0 }}
+      className="fixed glass-overlay rounded-lg py-1 z-[100] w-48 shadow-lg"
+      style={{
+        left: coords.left,
+        top: coords.top,
+        visibility: isMeasured ? 'visible' : 'hidden',
+      }}
+    >
+      <ContextMenuItem
+        onClick={() => { onClose(); onEdit(); }}
+        text={t('pipeline.openspec.task.edit')}
+      />
+      <ContextMenuItem
+        onClick={() => { onClose(); onMoveUp(); }}
+        disabled={!canMoveUp}
+        text={t('pipeline.openspec.task.moveUp')}
+        textSecondary="Alt+↑"
+      />
+      <ContextMenuItem
+        onClick={() => { onClose(); onMoveDown(); }}
+        disabled={!canMoveDown}
+        text={t('pipeline.openspec.task.moveDown')}
+        textSecondary="Alt+↓"
+      />
+      <div className="h-px bg-border-subtle/15 my-1" />
+      <ContextMenuItem
+        onClick={() => { onClose(); onDelete(); }}
+        danger
+        text={t('pipeline.openspec.task.delete')}
+      />
+    </motion.div>
+  );
+}

@@ -1,34 +1,37 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   AlertCircle,
   AlertTriangle,
-  ArrowDown,
-  ArrowUp,
   Check,
   CheckCircle2,
   Circle,
-  Edit2,
+  Copy,
+  Eye,
   FileCode2,
   FileText,
   GitCompare,
   GripVertical,
   ListOrdered,
   Loader2,
+  MoreHorizontal,
+  MoreVertical,
   Pencil,
   Plus,
   RefreshCw,
-  Trash2,
+  Save,
   User,
   X,
 } from 'lucide-react';
+import { TaskContextMenu } from '@/components/ContextMenus';
 import { useT } from '@/hooks/use-translation';
 import { findMalformedTaskLines, type MalformedTaskLine } from '@/lib/malformed-tasks';
 import { resolveTaskErrorMessage, type TaskErrorMessage } from '@/lib/task-errors';
 import type { OpenSpecChangeEvidence, TaskEvidence } from '@/types/pipeline';
 import styles from './OpenSpecDashboard.module.css';
+import { SafeMarkdown } from './SafeMarkdown';
 import { TaskConfirmToast } from './TaskConfirmToast';
 
 export interface OpenSpecTasksViewProps {
@@ -47,12 +50,22 @@ export interface OpenSpecTasksViewProps {
   resolveTaskText?: (task: TaskEvidence) => string;
 }
 
-type ViewMode = 'list' | 'raw';
+export type ViewMode = 'list' | 'markdown';
+export type MarkdownMode = 'formatted' | 'raw';
+
+export type TaskBusyOp = 'add' | 'edit' | 'move' | 'delete' | 'check';
+
+export interface TaskBusyState {
+  op: TaskBusyOp;
+  taskId?: string;
+}
 
 type PendingConfirm =
   | { type: 'uncheck'; task: TaskEvidence }
   | { type: 'delete'; task: TaskEvidence }
-  | { type: 'switch-dirty'; targetMode: ViewMode };
+  | { type: 'switch-dirty'; targetMode: ViewMode; targetMarkdownMode?: MarkdownMode };
+
+const MARKDOWN_VIEW_PREF_KEY = 'gitcron:openspec:tasks-markdown-view-mode';
 
 export function OpenSpecTasksView({
   repoPath,
@@ -84,36 +97,57 @@ export function OpenSpecTasksView({
   };
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [markdownMode, setMarkdownMode] = useState<MarkdownMode>(() => {
+    try {
+      const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(MARKDOWN_VIEW_PREF_KEY) : null;
+      return saved === 'raw' ? 'raw' : 'formatted';
+    } catch {
+      return 'formatted';
+    }
+  });
   const [tasks, setTasks] = useState<TaskEvidence[]>(selectedChange.tasks ?? []);
   const [taskError, setTaskError] = useState<TaskErrorMessage | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
 
+  // Estado unificado de ocupado (Bloque B)
+  const [busyState, setBusyState] = useState<TaskBusyState | null>(null);
+  const isTaskBusy = (op?: TaskBusyOp, taskId?: string): boolean => {
+    if (!busyState) return false;
+    if (op && busyState.op !== op) return false;
+    if (taskId && busyState.taskId !== taskId) return false;
+    return true;
+  };
+  const isAnyBusy = busyState !== null;
+
   // Estados de adición
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [newTaskText, setNewTaskText] = useState('');
-  const [isAddBusy, setIsAddBusy] = useState(false);
 
-  // Estados de edición inline
+  // Estados de edición inline con textarea auto-expandible (Bloque A)
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
-  const [isEditBusy, setIsEditBusy] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Estados de arrastre (Drag & Drop)
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
-  const [isMoving, setIsMoving] = useState(false);
 
-  // Estados del editor Markdown crudo (Tarea 8.2)
+  // Menú contextual de fila (Bloque C)
+  const [openMenuTaskId, setOpenMenuTaskId] = useState<string | null>(null);
+  const [menuCoords, setMenuCoords] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Estados del editor Markdown (Tareas 8.2 y 8.12)
   const diskRawTasks = selectedChange.artifacts?.tasks ?? '';
   const [rawText, setRawText] = useState<string>(diskRawTasks);
   const [isRawDirty, setIsRawDirty] = useState(false);
   const [isRawSaving, setIsRawSaving] = useState(false);
+  const [copiedMarkdown, setCopiedMarkdown] = useState(false);
 
-  // Sincronizar tareas de disco cuando cambia selectedChange.tasks y no hay arrastre en curso
+  // Sincronizar tareas de disco cuando cambia selectedChange.tasks y no hay arrastre/movimiento en curso
   const [prevTasksProp, setPrevTasksProp] = useState(selectedChange.tasks);
   if (selectedChange.tasks !== prevTasksProp) {
     setPrevTasksProp(selectedChange.tasks);
-    if (!isMoving) {
+    if (!isTaskBusy('move')) {
       setTasks(selectedChange.tasks ?? []);
     }
   }
@@ -127,42 +161,93 @@ export function OpenSpecTasksView({
     }
   }
 
+  // Auto-ajustar alto de textarea al comenzar edición
+  useEffect(() => {
+    if (editingTaskId && editTextareaRef.current) {
+      const el = editTextareaRef.current;
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight}px`;
+      el.focus();
+      el.selectionStart = el.value.length;
+      el.selectionEnd = el.value.length;
+    }
+  }, [editingTaskId]);
+
   // Detección de tareas mal formadas (Tareas 8.3 y 8.4)
   const malformedLines: MalformedTaskLine[] = useMemo(() => {
-    const source = viewMode === 'raw' ? rawText : diskRawTasks;
+    const source = (viewMode === 'markdown' && markdownMode === 'raw') ? rawText : diskRawTasks;
     return findMalformedTaskLines(source);
-  }, [viewMode, rawText, diskRawTasks]);
+  }, [viewMode, markdownMode, rawText, diskRawTasks]);
 
-  // Control de cambio de modo con guardia de cambios sin guardar
+  // Copiar markdown (Bloque D)
+  const handleCopyMarkdown = async () => {
+    try {
+      await navigator.clipboard.writeText(rawText);
+      setCopiedMarkdown(true);
+      setTimeout(() => setCopiedMarkdown(false), 2000);
+    } catch {
+      // noop
+    }
+  };
+
+  // Control de cambio de solapa principal (Ajuste 3)
   const handleRequestSwitchMode = (next: ViewMode) => {
     if (next === viewMode) return;
-    if (viewMode === 'raw' && isRawDirty) {
+    if (viewMode === 'markdown' && markdownMode === 'raw' && isRawDirty && next === 'list') {
       setPendingConfirm({ type: 'switch-dirty', targetMode: next });
       return;
+    }
+    if (next === 'markdown') {
+      try {
+        localStorage.setItem(MARKDOWN_VIEW_PREF_KEY, markdownMode);
+      } catch {
+        // noop
+      }
     }
     setViewMode(next);
   };
 
+  // Conmutación entre formato y editor crudo dentro de la solapa Markdown
+  const handleSwitchMarkdownMode = (next: MarkdownMode) => {
+    if (next === markdownMode) return;
+    if (markdownMode === 'raw' && isRawDirty && next === 'formatted') {
+      setPendingConfirm({ type: 'switch-dirty', targetMode: 'markdown', targetMarkdownMode: 'formatted' });
+      return;
+    }
+    try {
+      localStorage.setItem(MARKDOWN_VIEW_PREF_KEY, next);
+    } catch {
+      // noop
+    }
+    setMarkdownMode(next);
+  };
+
+  const handleToggleMarkdownMode = () => {
+    handleSwitchMarkdownMode(markdownMode === 'formatted' ? 'raw' : 'formatted');
+  };
+
   // --- Operaciones de lista ---
 
-  /** Cambiar estado de casilla (Tarea 8.1) */
+  /** Cambiar estado de casilla (Tarea 8.1 y Bloque B) */
   const handleToggleTask = (task: TaskEvidence) => {
-    if (fixtureActive) return;
+    if (fixtureActive || isAnyBusy) return;
     setTaskError(null);
 
-    // Si ya está marcada, desmarcar exige confirmación
     if (task.completed) {
       setPendingConfirm({ type: 'uncheck', task });
       return;
     }
 
-    // Marcar como completada se ejecuta inmediatamente sin confirmación
     void executeSetChecked(task, true);
   };
 
   const executeSetChecked = async (task: TaskEvidence, completed: boolean) => {
+    if (isAnyBusy) return;
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!api?.pipelineSetTaskChecked) return;
+
+    setBusyState({ op: 'check', taskId: task.id });
+    setTaskError(null);
     try {
       const res = (await api.pipelineSetTaskChecked(
         repoPath,
@@ -180,19 +265,21 @@ export function OpenSpecTasksView({
       }
     } catch (err) {
       setTaskError(resolveTaskErrorMessage(err instanceof Error ? err.message : 'failed', t));
+    } finally {
+      setBusyState(null);
     }
   };
 
-  /** Agregar tarea (Tarea 8.1) */
+  /** Agregar tarea (Tarea 8.1 y Bloque B) */
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     const clean = newTaskText.trim();
-    if (!clean || isAddBusy || fixtureActive) return;
+    if (!clean || isAnyBusy || fixtureActive) return;
 
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!api?.pipelineAddTask) return;
 
-    setIsAddBusy(true);
+    setBusyState({ op: 'add' });
     setTaskError(null);
     try {
       const res = (await api.pipelineAddTask(
@@ -214,11 +301,11 @@ export function OpenSpecTasksView({
     } catch (err) {
       setTaskError(resolveTaskErrorMessage(err instanceof Error ? err.message : 'failed', t));
     } finally {
-      setIsAddBusy(false);
+      setBusyState(null);
     }
   };
 
-  /** Editar texto de tarea (Tarea 8.1) */
+  /** Editar texto de tarea (Tarea 8.1 y Bloques A y B) */
   const handleStartEdit = (task: TaskEvidence) => {
     setEditingTaskId(task.id);
     setEditText(resolveText(task));
@@ -227,12 +314,12 @@ export function OpenSpecTasksView({
 
   const handleSaveEdit = async (task: TaskEvidence) => {
     const clean = editText.trim();
-    if (!clean || isEditBusy || fixtureActive) return;
+    if (!clean || isAnyBusy || fixtureActive) return;
 
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!api?.pipelineEditTask) return;
 
-    setIsEditBusy(true);
+    setBusyState({ op: 'edit', taskId: task.id });
     setTaskError(null);
     try {
       const res = (await api.pipelineEditTask(
@@ -254,20 +341,22 @@ export function OpenSpecTasksView({
     } catch (err) {
       setTaskError(resolveTaskErrorMessage(err instanceof Error ? err.message : 'failed', t));
     } finally {
-      setIsEditBusy(false);
+      setBusyState(null);
     }
   };
 
-  /** Eliminar tarea (Tarea 8.1 - exige confirmación) */
+  /** Eliminar tarea (Tarea 8.1 y Bloque B - exige confirmación y bloquea concurrencia) */
   const handleDeleteTask = (task: TaskEvidence) => {
-    if (fixtureActive) return;
+    if (fixtureActive || isAnyBusy) return;
     setPendingConfirm({ type: 'delete', task });
   };
 
   const executeDeleteTask = async (task: TaskEvidence) => {
+    if (isAnyBusy) return;
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!api?.pipelineRemoveTask) return;
 
+    setBusyState({ op: 'delete', taskId: task.id });
     setTaskError(null);
     try {
       const res = (await api.pipelineRemoveTask(
@@ -285,28 +374,28 @@ export function OpenSpecTasksView({
       }
     } catch (err) {
       setTaskError(resolveTaskErrorMessage(err instanceof Error ? err.message : 'failed', t));
+    } finally {
+      setBusyState(null);
     }
   };
 
-  /** Mover tarea: por Drag & Drop o teclado (Tarea 8.8) */
+  /** Mover tarea: por Drag & Drop o teclado (Tarea 8.8 y Bloque B) */
   const executeMoveTask = async (sourceTask: TaskEvidence, targetTask: TaskEvidence) => {
-    if (sourceTask.id === targetTask.id) return;
+    if (isAnyBusy || sourceTask.id === targetTask.id) return;
 
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!api?.pipelineMoveTask) return;
 
-    // Guardar copia previa para rollback en caso de fallo
     const previousTasks = [...tasks];
     const sourceIdx = previousTasks.findIndex((t) => t.id === sourceTask.id);
     const targetIdx = previousTasks.findIndex((t) => t.id === targetTask.id);
     if (sourceIdx < 0 || targetIdx < 0) return;
 
-    // Reordenamiento optimista
     const updated = [...previousTasks];
     const [moved] = updated.splice(sourceIdx, 1);
     updated.splice(targetIdx, 0, moved);
 
-    setIsMoving(true);
+    setBusyState({ op: 'move', taskId: sourceTask.id });
     setTasks(updated);
     setTaskError(null);
 
@@ -323,7 +412,6 @@ export function OpenSpecTasksView({
       if (res?.success) {
         onRefresh?.();
       } else {
-        // Rollback al orden anterior
         setTasks(previousTasks);
         setTaskError(resolveTaskErrorMessage(res?.error, t));
       }
@@ -331,11 +419,12 @@ export function OpenSpecTasksView({
       setTasks(previousTasks);
       setTaskError(resolveTaskErrorMessage(err instanceof Error ? err.message : 'failed', t));
     } finally {
-      setIsMoving(false);
+      setBusyState(null);
     }
   };
 
   const handleKeyboardMove = (task: TaskEvidence, direction: 'up' | 'down') => {
+    if (isAnyBusy) return;
     const idx = tasks.findIndex((t) => t.id === task.id);
     if (idx < 0) return;
     const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
@@ -345,12 +434,17 @@ export function OpenSpecTasksView({
 
   // Drag handlers
   const handleDragStart = (e: React.DragEvent, task: TaskEvidence) => {
+    if (isAnyBusy) {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.setData('text/plain', task.id);
     e.dataTransfer.effectAllowed = 'move';
     setDraggingTaskId(task.id);
   };
 
   const handleDragOver = (e: React.DragEvent, task: TaskEvidence) => {
+    if (isAnyBusy) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (dragOverTaskId !== task.id) {
@@ -363,7 +457,7 @@ export function OpenSpecTasksView({
     const sourceId = e.dataTransfer.getData('text/plain') || draggingTaskId;
     setDraggingTaskId(null);
     setDragOverTaskId(null);
-    if (!sourceId) return;
+    if (isAnyBusy || !sourceId) return;
     const sourceTask = tasks.find((t) => t.id === sourceId);
     if (sourceTask) {
       void executeMoveTask(sourceTask, targetTask);
@@ -379,7 +473,7 @@ export function OpenSpecTasksView({
 
   const handleSaveRawContent = async (): Promise<boolean> => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
-    if (!api?.pipelineWriteArtifact || isRawSaving || fixtureActive) return false;
+    if (!api?.pipelineWriteArtifact || isRawSaving || isAnyBusy || fixtureActive) return false;
 
     setIsRawSaving(true);
     setTaskError(null);
@@ -412,25 +506,8 @@ export function OpenSpecTasksView({
 
   return (
     <div className={styles.centerBlock}>
-      {/* Barra superior de tareas: conteo, botón agregar y selector de vista */}
+      {/* Barra superior de tareas: solapas a la izquierda, conteo y agregar a la derecha (Bloque F) */}
       <div className={styles.tasksHeader}>
-        <div className={styles.tasksHeaderInfo}>
-          <span className={styles.tasksCountBadge}>
-            {completedCount} / {tasks.length} {t('pipeline.openspec.task.progress')}
-          </span>
-          {viewMode === 'list' && (
-            <button
-              type="button"
-              className={styles.addTaskToggleBtn}
-              onClick={() => setIsAddingTask((prev) => !prev)}
-              disabled={fixtureActive}
-            >
-              <Plus size={13} />
-              <span>{t('pipeline.openspec.task.add')}</span>
-            </button>
-          )}
-        </div>
-
         <div className={styles.tasksHeaderControls}>
           <div className={styles.viewModeToggle} role="group" aria-label={t('pipeline.openspec.tasks.title')}>
             <button
@@ -445,15 +522,32 @@ export function OpenSpecTasksView({
             </button>
             <button
               type="button"
-              aria-pressed={viewMode === 'raw'}
-              data-active={viewMode === 'raw'}
+              aria-pressed={viewMode === 'markdown'}
+              data-active={viewMode === 'markdown'}
               className={styles.viewModeBtn}
-              onClick={() => handleRequestSwitchMode('raw')}
+              onClick={() => handleRequestSwitchMode('markdown')}
             >
-              <FileCode2 size={13} />
-              <span>{t('pipeline.openspec.task.viewRaw')}</span>
+              <FileText size={13} />
+              <span>Markdown</span>
             </button>
           </div>
+        </div>
+
+        <div className={styles.tasksHeaderInfo}>
+          <span className={styles.tasksCountBadge}>
+            {completedCount} / {tasks.length} {t('pipeline.openspec.task.progress')}
+          </span>
+          {viewMode === 'list' && (
+            <button
+              type="button"
+              className={styles.addTaskToggleBtn}
+              onClick={() => setIsAddingTask((prev) => !prev)}
+              disabled={fixtureActive || isAnyBusy}
+            >
+              <Plus size={13} />
+              <span>{t('pipeline.openspec.task.add')}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -516,24 +610,24 @@ export function OpenSpecTasksView({
                   onChange={(e) => setNewTaskText(e.target.value)}
                   placeholder={t('pipeline.openspec.task.addPlaceholder')}
                   className={styles.taskInput}
-                  disabled={isAddBusy}
+                  disabled={isTaskBusy('add')}
                 />
               </div>
               <div className={styles.taskAddActions}>
                 <button
                   type="button"
                   onClick={() => setIsAddingTask(false)}
-                  disabled={isAddBusy}
+                  disabled={isTaskBusy('add')}
                   className={styles.secondaryAction}
                 >
                   {t('pipeline.openspec.task.addCancel')}
                 </button>
                 <button
                   type="submit"
-                  disabled={isAddBusy || !newTaskText.trim()}
+                  disabled={isTaskBusy('add') || !newTaskText.trim()}
                   className={styles.primaryAction}
                 >
-                  {isAddBusy ? <Loader2 size={13} className={styles.spin} /> : <Plus size={13} />}
+                  {isTaskBusy('add') ? <Loader2 size={13} className={styles.spin} /> : <Plus size={13} />}
                   <span>{t('pipeline.openspec.task.addSubmit')}</span>
                 </button>
               </div>
@@ -554,116 +648,148 @@ export function OpenSpecTasksView({
                   data-current={current}
                   data-dragging={isDragging || undefined}
                   data-drop-target={isDropTarget || undefined}
-                  draggable={!isEditing && !fixtureActive}
+                  draggable={!isEditing && !fixtureActive && !isAnyBusy}
                   onDragStart={(e) => handleDragStart(e, task)}
                   onDragOver={(e) => handleDragOver(e, task)}
                   onDrop={(e) => handleDrop(e, task)}
                   onDragEnd={handleDragEnd}
+                  onKeyDown={(e) => {
+                    if (e.altKey && e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      if (idx > 0 && !isAnyBusy && !fixtureActive) {
+                        handleKeyboardMove(task, 'up');
+                      }
+                    } else if (e.altKey && e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      if (idx < tasks.length - 1 && !isAnyBusy && !fixtureActive) {
+                        handleKeyboardMove(task, 'down');
+                      }
+                    }
+                  }}
                 >
-                  {/* Columna 1: Casilla (marcar / desmarcar) */}
+                  {/* Columna 1: Asa en canaleta propia alineada con icono de cabecera (Ajuste 1) */}
+                  <div
+                    className={styles.taskDragHandle}
+                    title={t('pipeline.openspec.task.dragHandle')}
+                    aria-label={t('pipeline.openspec.task.dragHandle')}
+                    tabIndex={0}
+                  >
+                    <GripVertical size={13} />
+                  </div>
+
+                  {/* Columna 2: Casilla a plomo con título y controles superiores (Ajuste 1) */}
                   <button
                     type="button"
                     className={styles.taskStatus}
-                    disabled={fixtureActive}
+                    disabled={fixtureActive || isAnyBusy}
                     aria-pressed={task.completed}
                     title={t(task.completed ? 'pipeline.openspec.task.uncheck' : 'pipeline.openspec.task.check')}
                     aria-label={t(task.completed ? 'pipeline.openspec.task.uncheck' : 'pipeline.openspec.task.check')}
                     onClick={() => handleToggleTask(task)}
                   >
-                    {task.completed ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                    {isTaskBusy('check', task.id) ? (
+                      <Loader2 size={16} className={styles.spin} />
+                    ) : task.completed ? (
+                      <CheckCircle2 size={16} />
+                    ) : (
+                      <Circle size={16} />
+                    )}
                   </button>
 
                   {/* Columna 2: Rótulo / identificador */}
                   <strong>{resolveLabel(task)}</strong>
 
-                  {/* Columna 3: Contenido o edición inline */}
+                  {/* Columna 3: Contenido o edición inline con textarea (Bloque A) */}
                   {isEditing ? (
                     <div className={styles.taskInlineEdit}>
-                      <input
-                        type="text"
+                      <textarea
+                        ref={editTextareaRef}
+                        rows={1}
                         autoFocus
                         value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') void handleSaveEdit(task);
-                          if (e.key === 'Escape') setEditingTaskId(null);
+                        onChange={(e) => {
+                          setEditText(e.target.value);
+                          e.target.style.height = 'auto';
+                          e.target.style.height = `${e.target.scrollHeight}px`;
                         }}
-                        disabled={isEditBusy}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault();
+                            void handleSaveEdit(task);
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setEditingTaskId(null);
+                          }
+                        }}
+                        disabled={isTaskBusy('edit', task.id)}
                       />
-                      <button
-                        type="button"
-                        className={styles.taskActionBtn}
-                        onClick={() => void handleSaveEdit(task)}
-                        disabled={isEditBusy || !editText.trim()}
-                        title={t('pipeline.openspec.task.editSave')}
-                        aria-label={t('pipeline.openspec.task.editSave')}
-                      >
-                        {isEditBusy ? <Loader2 size={13} className={styles.spin} /> : <Check size={13} />}
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.taskActionBtn}
-                        onClick={() => setEditingTaskId(null)}
-                        disabled={isEditBusy}
-                        title={t('pipeline.openspec.task.editCancel')}
-                        aria-label={t('pipeline.openspec.task.editCancel')}
-                      >
-                        <X size={13} />
-                      </button>
+                      <div className={styles.taskInlineEditFooter}>
+                        <span className={styles.taskEditHint}>
+                          {t('pipeline.openspec.task.editHint')}
+                        </span>
+                        <div className={styles.taskInlineEditButtons}>
+                          <button
+                            type="button"
+                            className={styles.taskActionBtn}
+                            onClick={() => void handleSaveEdit(task)}
+                            disabled={isTaskBusy('edit', task.id) || !editText.trim()}
+                            title={t('pipeline.openspec.task.editSave')}
+                            aria-label={t('pipeline.openspec.task.editSave')}
+                          >
+                            {isTaskBusy('edit', task.id) ? <Loader2 size={13} className={styles.spin} /> : <Check size={13} />}
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.taskActionBtn}
+                            onClick={() => setEditingTaskId(null)}
+                            disabled={isTaskBusy('edit', task.id)}
+                            title={t('pipeline.openspec.task.editCancel')}
+                            aria-label={t('pipeline.openspec.task.editCancel')}
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <span>{resolveText(task)}</span>
                   )}
 
-                  {/* Columna 4: Acciones (arrastrar, mover teclado, editar, eliminar) */}
+                  {/* Columna 5: Acciones con lápiz y tres puntos horizontales (Ajuste 2) */}
                   {!isEditing && (
                     <div className={styles.taskActions}>
-                      <div
-                        className={styles.taskDragHandle}
-                        title={t('pipeline.openspec.task.dragHandle')}
-                        aria-label={t('pipeline.openspec.task.dragHandle')}
-                      >
-                        <GripVertical size={13} />
-                      </div>
                       <button
                         type="button"
-                        disabled={idx === 0 || fixtureActive}
-                        onClick={() => handleKeyboardMove(task, 'up')}
-                        title={t('pipeline.openspec.task.moveUp')}
-                        aria-label={t('pipeline.openspec.task.moveUp')}
                         className={styles.taskActionBtn}
-                      >
-                        <ArrowUp size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={idx === tasks.length - 1 || fixtureActive}
-                        onClick={() => handleKeyboardMove(task, 'down')}
-                        title={t('pipeline.openspec.task.moveDown')}
-                        aria-label={t('pipeline.openspec.task.moveDown')}
-                        className={styles.taskActionBtn}
-                      >
-                        <ArrowDown size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={fixtureActive}
+                        disabled={fixtureActive || isAnyBusy}
                         onClick={() => handleStartEdit(task)}
                         title={t('pipeline.openspec.task.edit')}
                         aria-label={t('pipeline.openspec.task.edit')}
-                        className={styles.taskActionBtn}
                       >
-                        <Pencil size={13} />
+                        {isTaskBusy('edit', task.id) ? (
+                          <Loader2 size={13} className={styles.spin} />
+                        ) : (
+                          <Pencil size={13} />
+                        )}
                       </button>
                       <button
                         type="button"
-                        disabled={fixtureActive}
-                        onClick={() => handleDeleteTask(task)}
-                        title={t('pipeline.openspec.task.delete')}
-                        aria-label={t('pipeline.openspec.task.delete')}
-                        className={`${styles.taskActionBtn} ${styles.taskActionBtnDanger}`}
+                        className={styles.taskActionBtn}
+                        disabled={fixtureActive || isAnyBusy}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setMenuCoords({ x: rect.right, y: rect.bottom + 4 });
+                          setOpenMenuTaskId(openMenuTaskId === task.id ? null : task.id);
+                        }}
+                        title={t('pipeline.openspec.task.moreActions')}
+                        aria-label={t('pipeline.openspec.task.moreActions')}
                       >
-                        <Trash2 size={13} />
+                        {isTaskBusy('delete', task.id) || isTaskBusy('move', task.id) ? (
+                          <Loader2 size={13} className={styles.spin} />
+                        ) : (
+                          <MoreHorizontal size={14} />
+                        )}
                       </button>
                     </div>
                   )}
@@ -711,38 +837,116 @@ export function OpenSpecTasksView({
         </>
       )}
 
-      {/* VISTA 2: Editor Markdown crudo (Tarea 8.2) */}
-      {viewMode === 'raw' && (
-        <div className={styles.rawEditorContainer}>
-          <div className={styles.rawEditorHeader}>
+      {/* Capa de menú contextual de tarea (Bloque C) */}
+      {openMenuTaskId && (() => {
+        const task = tasks.find((t) => t.id === openMenuTaskId);
+        if (!task) return null;
+        const idx = tasks.findIndex((t) => t.id === task.id);
+        return (
+          <TaskContextMenu
+            x={menuCoords.x}
+            y={menuCoords.y}
+            canMoveUp={idx > 0}
+            canMoveDown={idx < tasks.length - 1}
+            onEdit={() => handleStartEdit(task)}
+            onMoveUp={() => handleKeyboardMove(task, 'up')}
+            onMoveDown={() => handleKeyboardMove(task, 'down')}
+            onDelete={() => handleDeleteTask(task)}
+            onClose={() => setOpenMenuTaskId(null)}
+          />
+        );
+      })()}
+
+      {/* VISTA 2: Vista Markdown unificada (Ajuste 3) */}
+      {viewMode === 'markdown' && (
+        <div className={markdownMode === 'formatted' ? styles.markdownFormattedContainer : styles.rawEditorContainer}>
+          <div className={markdownMode === 'formatted' ? styles.markdownFormattedHeader : styles.rawEditorHeader}>
             <div className="flex items-center gap-2">
               <span>{selectedChange.changeId}/tasks.md</span>
-              {isRawDirty && (
+              {markdownMode === 'raw' && isRawDirty && (
                 <span className={styles.rawDirtyBadge}>
                   {t('pipeline.openspec.task.rawDirtyWarning')}
                 </span>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => void handleSaveRawContent()}
-              disabled={isRawSaving || fixtureActive || !isRawDirty}
-              className={styles.primaryAction}
-            >
-              {isRawSaving ? <Loader2 size={13} className={styles.spin} /> : <Check size={13} />}
-              <span>{isRawSaving ? t('pipeline.openspec.task.rawSaving') : t('pipeline.openspec.task.rawSave')}</span>
-            </button>
+            <div className={styles.markdownFormattedActions}>
+              {/* 1. Alternar entre ver con formato y ver crudo */}
+              <button
+                type="button"
+                onClick={handleToggleMarkdownMode}
+                className={styles.markdownCopyBtn}
+                title={markdownMode === 'formatted' ? t('pipeline.openspec.task.viewRaw') : t('pipeline.openspec.task.viewFormatted')}
+                aria-label={markdownMode === 'formatted' ? t('pipeline.openspec.task.viewRaw') : t('pipeline.openspec.task.viewFormatted')}
+              >
+                {markdownMode === 'formatted' ? <FileCode2 size={13} /> : <Eye size={13} />}
+                <span>{markdownMode === 'formatted' ? t('pipeline.openspec.task.viewRaw') : t('pipeline.openspec.task.viewFormatted')}</span>
+              </button>
+
+              {/* 2. Guardar (visible y funcional en modo crudo / con cambios) */}
+              <button
+                type="button"
+                onClick={() => void handleSaveRawContent()}
+                disabled={isRawSaving || fixtureActive || !isRawDirty}
+                className={styles.primaryAction}
+                title={t('pipeline.openspec.task.rawSave')}
+                aria-label={t('pipeline.openspec.task.rawSave')}
+              >
+                {isRawSaving ? <Loader2 size={13} className={styles.spin} /> : <Check size={13} />}
+                <span>{isRawSaving ? t('pipeline.openspec.task.rawSaving') : t('pipeline.openspec.task.rawSave')}</span>
+              </button>
+
+              {/* 3. Copiar */}
+              <button
+                type="button"
+                onClick={handleCopyMarkdown}
+                className={styles.markdownCopyBtn}
+                data-copied={copiedMarkdown ? 'true' : undefined}
+                title={t('pipeline.openspec.task.copyMarkdown')}
+                aria-label={t('pipeline.openspec.task.copyMarkdown')}
+              >
+                {copiedMarkdown ? <Check size={12} /> : <Copy size={12} />}
+                <span>{copiedMarkdown ? t('pipeline.openspec.task.copiedMarkdown') : t('pipeline.openspec.task.copyMarkdown')}</span>
+              </button>
+
+              {/* 4. Editar (aparece sólo cuando se está viendo con formato) */}
+              {markdownMode === 'formatted' && (
+                <button
+                  type="button"
+                  onClick={() => handleSwitchMarkdownMode('raw')}
+                  className={styles.secondaryAction}
+                  title={t('pipeline.openspec.task.editInRaw')}
+                  aria-label={t('pipeline.openspec.task.editInRaw')}
+                >
+                  <Pencil size={12} />
+                  <span>{t('pipeline.openspec.task.editInRaw')}</span>
+                </button>
+              )}
+            </div>
           </div>
-          <textarea
-            value={rawText}
-            onChange={(e) => {
-              setRawText(e.target.value);
-              setIsRawDirty(e.target.value !== diskRawTasks);
-            }}
-            spellCheck={false}
-            className={styles.rawTextarea}
-            placeholder="## 1. Grupo\n\n- [ ] 1.1 Tarea..."
-          />
+
+          {markdownMode === 'formatted' ? (
+            <div className={styles.markdownFormattedBody}>
+              <SafeMarkdown content={rawText} />
+            </div>
+          ) : (
+            <textarea
+              value={rawText}
+              onChange={(e) => {
+                setRawText(e.target.value);
+                setIsRawDirty(e.target.value !== diskRawTasks);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  void handleSaveRawContent();
+                }
+              }}
+              spellCheck={false}
+              className={styles.rawTextarea}
+              placeholder="## 1. Grupo&#10;&#10;- [ ] 1.1 Tarea..."
+              aria-label={t('pipeline.openspec.task.viewRaw')}
+            />
+          )}
         </div>
       )}
 
@@ -754,15 +958,19 @@ export function OpenSpecTasksView({
           confirmLabel={t('pipeline.openspec.task.uncheckConfirm')}
           cancelLabel={t('pipeline.openspec.archive.cancel')}
           onConfirm={() => {
+            if (isAnyBusy) return;
             const task = pendingConfirm.task;
             setPendingConfirm(null);
             void executeSetChecked(task, false);
           }}
-          onCancel={() => setPendingConfirm(null)}
+          onCancel={() => {
+            if (isAnyBusy) return;
+            setPendingConfirm(null);
+          }}
         />
       )}
 
-      {/* Toast de confirmación de eliminación */}
+      {/* Toast de confirmación de eliminación (Bloque B: concurrencia bloqueada) */}
       {pendingConfirm?.type === 'delete' && (
         <TaskConfirmToast
           title={t('pipeline.openspec.task.deleteTitle', { task: resolveLabel(pendingConfirm.task) })}
@@ -770,11 +978,15 @@ export function OpenSpecTasksView({
           confirmLabel={t('pipeline.openspec.task.deleteConfirm')}
           cancelLabel={t('pipeline.openspec.archive.cancel')}
           onConfirm={() => {
+            if (isAnyBusy) return;
             const task = pendingConfirm.task;
             setPendingConfirm(null);
             void executeDeleteTask(task);
           }}
-          onCancel={() => setPendingConfirm(null)}
+          onCancel={() => {
+            if (isAnyBusy) return;
+            setPendingConfirm(null);
+          }}
         />
       )}
 
@@ -788,15 +1000,34 @@ export function OpenSpecTasksView({
           onConfirm={async () => {
             const ok = await handleSaveRawContent();
             if (ok) {
-              setViewMode(pendingConfirm.targetMode);
+              const target = pendingConfirm.targetMode;
+              const targetMd = pendingConfirm.targetMarkdownMode;
+              if (targetMd) {
+                try {
+                  localStorage.setItem(MARKDOWN_VIEW_PREF_KEY, targetMd);
+                } catch {
+                  // noop
+                }
+                setMarkdownMode(targetMd);
+              }
+              setViewMode(target);
               setPendingConfirm(null);
             }
           }}
           onCancel={() => {
-            // Descartar cambios: restablecer a la versión de disco y cambiar
+            const target = pendingConfirm.targetMode;
+            const targetMd = pendingConfirm.targetMarkdownMode;
             setRawText(diskRawTasks);
             setIsRawDirty(false);
-            setViewMode(pendingConfirm.targetMode);
+            if (targetMd) {
+              try {
+                localStorage.setItem(MARKDOWN_VIEW_PREF_KEY, targetMd);
+              } catch {
+                // noop
+              }
+              setMarkdownMode(targetMd);
+            }
+            setViewMode(target);
             setPendingConfirm(null);
           }}
         />

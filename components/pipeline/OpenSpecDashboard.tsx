@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Circle,
   Code2,
+  Copy,
   FileCode2,
   FileSearch,
   FileText,
@@ -20,7 +21,10 @@ import {
   ListChecks,
   ListTodo,
   MinusSquare,
+  MoreHorizontal,
   Package,
+  Pencil,
+  Pin,
   Plus,
   PlusSquare,
   GitBranch,
@@ -31,6 +35,7 @@ import {
   Monitor,
   Pause,
   Play,
+  RefreshCw,
   ShieldCheck,
   User,
   Wrench,
@@ -348,6 +353,10 @@ export function OpenSpecDashboard({
   const [archiveRequest, setArchiveRequest] = useState<{ changeId: string; command: string } | null>(null);
   const [archivePlanData, setArchivePlanData] = useState<ArchivePlan | null>(null);
   const [archiveBusy, setArchiveBusy] = useState(false);
+  const [archiveReason, setArchiveReason] = useState('');
+  const [copiedArchiveCmd, setCopiedArchiveCmd] = useState(false);
+  const [archiveCmdExecuting, setArchiveCmdExecuting] = useState(false);
+  const [syncPreviewOpen, setSyncPreviewOpen] = useState(false);
   /**
    * Archivos elegidos para preparar. Vacío por defecto y para todos los grupos:
    * sin un cambio de referencia no hay criterio para que ninguno entre solo, y
@@ -489,6 +498,46 @@ export function OpenSpecDashboard({
   const isSwitcherVisible = isSwitcherOpen && !rightOpen;
   const startScrollPositionsRef = useRef<Record<string, number>>({});
   const startBodyRef = useRef<HTMLDivElement>(null);
+  const changeHeaderRef = useRef<HTMLElement>(null);
+
+  const [pinnedChangeIds, setPinnedChangeIds] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(`gitcron:openspec:pinned-changes:${repoPath}`);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [prevRepoPath, setPrevRepoPath] = useState(repoPath);
+  if (prevRepoPath !== repoPath) {
+    setPrevRepoPath(repoPath);
+    let initialPinned: string[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem(`gitcron:openspec:pinned-changes:${repoPath}`);
+        initialPinned = raw ? JSON.parse(raw) : [];
+      } catch {
+        initialPinned = [];
+      }
+    }
+    setPinnedChangeIds(initialPinned);
+  }
+
+  const togglePinChange = (changeId: string) => {
+    setPinnedChangeIds((prev) => {
+      const next = prev.includes(changeId)
+        ? prev.filter((id) => id !== changeId)
+        : [...prev, changeId];
+      try {
+        localStorage.setItem(`gitcron:openspec:pinned-changes:${repoPath}`, JSON.stringify(next));
+      } catch {
+        // Ignorar fallos de cuota o privacidad
+      }
+      return next;
+    });
+  };
 
   const handleSwitchStartView = (nextView: StartView) => {
     if (startBodyRef.current) {
@@ -521,6 +570,7 @@ export function OpenSpecDashboard({
     ...activeChanges.map((change) => change.changeId),
     ...archivedChanges.map((change) => change.changeId),
   ]);
+
   /**
    * Sólo la elección explícita. Sin ella no hay cambio seleccionado y el panel
    * muestra el estado del repositorio.
@@ -537,6 +587,25 @@ export function OpenSpecDashboard({
   const selectedId = selection && selectableIds.has(selection) ? selection : null;
   const selectedChange = activeChanges.find((change) => change.changeId === selectedId) ?? null;
   const selectedArchive = archivedChanges.find((change) => change.changeId === selectedId) ?? null;
+
+  useEffect(() => {
+    const headerEl = changeHeaderRef.current;
+    const bodyEl = startBodyRef.current;
+    if (!headerEl || !bodyEl || typeof ResizeObserver === 'undefined') return;
+
+    const updateHeight = () => {
+      const height = headerEl.getBoundingClientRect().height;
+      if (height > 0) {
+        bodyEl.style.setProperty('--change-header-height', `${height}px`);
+      }
+    };
+
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(headerEl);
+    return () => observer.disconnect();
+  }, [selectedChange?.changeId]);
+
   /**
    * Identificador del cambio que la rama actual nombra, si la rama es
    * `change/<slug>`. Se deriva estrictamente de `currentBranch` con
@@ -546,14 +615,21 @@ export function OpenSpecDashboard({
    * correspondencia con la rama, no la selección.
    */
   const branchChangeId = changeIdFromBranch(currentBranch);
+  const isMainOrMaster = currentBranch === 'main' || currentBranch === 'master';
+
   /**
-   * Cambios de la pantalla de entrada, por avance descendente: adelante lo que
-   * está por cerrarse. Queda para validación visual si conviene este orden o el
-   * de última actividad.
+   * Cambios de la pantalla de entrada: primero las tarjetas fijadas por la persona,
+   * luego por avance descendente (adelante lo que está por cerrarse).
    */
   const startChanges = activeChanges
     .map((change) => ({ change, progress: taskProgress(change) }))
-    .sort((left, right) => right.progress.percent - left.progress.percent);
+    .sort((left, right) => {
+      const leftPinned = pinnedChangeIds.includes(left.change.changeId);
+      const rightPinned = pinnedChangeIds.includes(right.change.changeId);
+      if (leftPinned && !rightPinned) return -1;
+      if (!leftPinned && rightPinned) return 1;
+      return right.progress.percent - left.progress.percent;
+    });
 
   const totalGlobalTasks = activeChanges.reduce(
     (total, change) => total + (Array.isArray(change.tasks) ? change.tasks.length : 0),
@@ -1486,14 +1562,19 @@ export function OpenSpecDashboard({
    */
   const confirmArchive = () => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
-    if (!archiveRequest || archiveBusy || fixtureActive || !api?.pipelineArchiveChange) return;
+    if (!archiveRequest || archiveBusy || fixtureActive || !api?.pipelineArchiveChange || isMainOrMaster) return;
     setArchiveBusy(true);
     setArchiveError(null);
-    void api.pipelineArchiveChange(repoPath, archiveRequest.changeId)
+    const trimmedReason = archiveReason.trim();
+    const archivePromise = trimmedReason
+      ? api.pipelineArchiveChange(repoPath, archiveRequest.changeId, trimmedReason)
+      : api.pipelineArchiveChange(repoPath, archiveRequest.changeId);
+    void archivePromise
       .then((response) => {
         const result = response as { success?: boolean; error?: string } | null;
         if (result?.success) {
           setArchiveRequest(null);
+          setArchiveReason('');
           // Por la superficie de notificaciones de la aplicación, no por una
           // propia: el éxito de archivar no es una clase de aviso distinta de
           // las demás, y el toast ya resuelve autocierre y cierre manual.
@@ -1507,6 +1588,40 @@ export function OpenSpecDashboard({
       })
       .catch((error: unknown) => setArchiveError(error instanceof Error ? error.message : 'unknown'))
       .finally(() => setArchiveBusy(false));
+  };
+
+  const handleCopyArchiveCommand = async () => {
+    if (!archiveRequest?.command) return;
+    try {
+      await navigator.clipboard.writeText(archiveRequest.command);
+      setCopiedArchiveCmd(true);
+      setTimeout(() => setCopiedArchiveCmd(false), 2000);
+    } catch {
+      // Ignorar fallo de portapapeles
+    }
+  };
+
+  const handleExecuteArchiveCommand = async () => {
+    if (!archiveRequest?.command || archiveCmdExecuting || isMainOrMaster) return;
+    const api = typeof window !== 'undefined' ? window.api : undefined;
+    if (!api?.pipelineOpenSpec?.executeCommand) return;
+    setArchiveCmdExecuting(true);
+    setArchiveError(null);
+    try {
+      const res = await api.pipelineOpenSpec.executeCommand({ repoPath, command: archiveRequest.command });
+      if (res.success) {
+        setArchiveRequest(null);
+        setArchiveReason('');
+        setSuccess(t('pipeline.openspec.archive.done', { change: archiveRequest.changeId }));
+        onRefresh?.();
+      } else {
+        setArchiveError(res.error || res.stderr || res.stdout || 'Error al ejecutar comando');
+      }
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'unknown');
+    } finally {
+      setArchiveCmdExecuting(false);
+    }
   };
 
   /**
@@ -1731,8 +1846,8 @@ export function OpenSpecDashboard({
       <button
         type="button"
         className={styles.railActionItem}
-        disabled={!archive.available || fixtureActive}
-        title={archive.reasonKey ? t(archive.reasonKey) : t('pipeline.openspec.archive.help')}
+        disabled={!archive.available || fixtureActive || isMainOrMaster}
+        title={isMainOrMaster ? t('pipeline.openspec.archive.blockedMainBranch', { branch: currentBranch || 'main' }) : archive.reasonKey ? t(archive.reasonKey) : t('pipeline.openspec.archive.help')}
         onClick={() => handleIntent({ kind: 'start-archive', changeId: selectedChange.changeId })}
       >
         <span className={styles.railItemIcon} aria-hidden="true">
@@ -2520,6 +2635,7 @@ export function OpenSpecDashboard({
               <div className={styles.startBody} ref={startBodyRef}>
                 {/* Encabezado limpio: contenido dentro del cuerpo del medio */}
                 <header
+                  ref={changeHeaderRef}
                   className={styles.changeHeader}
                   data-revalidating={revalidating || undefined}
                   aria-busy={revalidating || undefined}
@@ -2535,7 +2651,41 @@ export function OpenSpecDashboard({
                       )}
                     </div>
                   </div>
+                  <div className={styles.changeHeaderActions}>
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      onClick={() => setSyncPreviewOpen(true)}
+                      title={t('pipeline.openspec.sync.action')}
+                    >
+                      <RefreshCw size={13} aria-hidden="true" />
+                      <span>{t('pipeline.openspec.sync.action')}</span>
+                    </button>
+                  </div>
                 </header>
+
+                {syncPreviewOpen && (
+                  <div className={styles.syncPreviewModal} role="dialog" aria-modal="true" aria-labelledby="sync-preview-title">
+                    <div className={styles.syncPreviewBox}>
+                      <div className={styles.archiveConfirmHead}>
+                        <RefreshCw size={16} aria-hidden="true" />
+                        <strong id="sync-preview-title">{t('pipeline.openspec.sync.title')}</strong>
+                      </div>
+                      <p className={styles.syncPreviewNotice}>
+                        {t('pipeline.openspec.sync.unavailableReason')}
+                      </p>
+                      <div className={styles.syncPreviewActions}>
+                        <button
+                          type="button"
+                          className={styles.secondaryAction}
+                          onClick={() => setSyncPreviewOpen(false)}
+                        >
+                          {t('pipeline.openspec.archive.cancel')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Pegada a la cabecera y en el cuerpo del medio */}
                 {archiveRequest && (
@@ -2544,7 +2694,46 @@ export function OpenSpecDashboard({
                       <strong>{t('pipeline.openspec.archive.confirmTitle')}</strong>
                       <span>{t('pipeline.openspec.archive.confirmHelp')}</span>
                     </div>
-                    <pre className={styles.archiveCommand}><code>{archiveRequest.command}</code></pre>
+                    <div className={styles.archiveCommandBox}>
+                      <pre className={styles.archiveCommand}><code>{archiveRequest.command}</code></pre>
+                      <div className={styles.archiveCommandActions}>
+                        <button
+                          type="button"
+                          className={styles.secondaryAction}
+                          onClick={handleCopyArchiveCommand}
+                          aria-label={copiedArchiveCmd ? t('pipeline.openspec.archive.copiedCommand') : t('pipeline.openspec.archive.copyCommand')}
+                        >
+                          {copiedArchiveCmd ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+                          <span>{copiedArchiveCmd ? t('pipeline.openspec.archive.copiedCommand') : t('pipeline.openspec.archive.copyCommand')}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.secondaryAction}
+                          disabled={archiveCmdExecuting || isMainOrMaster}
+                          onClick={handleExecuteArchiveCommand}
+                        >
+                          {archiveCmdExecuting ? <Loader2 size={13} className={styles.spin} aria-hidden="true" /> : <Play size={13} aria-hidden="true" />}
+                          <span>{archiveCmdExecuting ? t('pipeline.openspec.archive.commandRunning') : t('pipeline.openspec.archive.executeCommand')}</span>
+                        </button>
+                      </div>
+                    </div>
+                    {pendingOf(selectedChange).length > 0 && (
+                      <div className={styles.archivePendingWarning} role="status">
+                        <AlertTriangle size={13} aria-hidden="true" />
+                        <span>{t('pipeline.openspec.archive.reasonPendingWarning')}</span>
+                      </div>
+                    )}
+                    <div className={styles.archiveReasonField}>
+                      <label htmlFor="archive-reason-input">{t('pipeline.openspec.archive.reasonLabel')}</label>
+                      <input
+                        id="archive-reason-input"
+                        type="text"
+                        className={cn(styles.archiveReasonInput, pendingOf(selectedChange).length > 0 && styles.archiveReasonInputPending)}
+                        value={archiveReason}
+                        onChange={(e) => setArchiveReason(e.target.value)}
+                        placeholder={t('pipeline.openspec.archive.reasonPlaceholder')}
+                      />
+                    </div>
                     {archivePlanData?.errors && archivePlanData.errors.length > 0 && (
                       <div role="alert">
                         {archivePlanData.errors.map((err, idx) => (
@@ -2564,7 +2753,7 @@ export function OpenSpecDashboard({
                       <button
                         type="button"
                         className={styles.primaryAction}
-                        disabled={archiveBusy || fixtureActive || (archivePlanData?.canArchive === false)}
+                        disabled={archiveBusy || fixtureActive || (archivePlanData?.canArchive === false) || isMainOrMaster}
                         onClick={confirmArchive}
                       >
                         {archiveBusy
@@ -2574,11 +2763,16 @@ export function OpenSpecDashboard({
                           ? t('pipeline.openspec.archive.running')
                           : t('pipeline.openspec.archive.confirmAction')}
                       </button>
+                      {isMainOrMaster && (
+                        <span className={styles.blockedReasonInline} role="alert">
+                          {t('pipeline.openspec.archive.blockedMainBranch', { branch: currentBranch || 'main' })}
+                        </span>
+                      )}
                       <button
                         type="button"
                         className={styles.secondaryAction}
                         disabled={archiveBusy}
-                        onClick={() => { setArchiveRequest(null); setArchiveError(null); setArchivePlanData(null); }}
+                        onClick={() => { setArchiveRequest(null); setArchiveReason(''); setArchiveError(null); setArchivePlanData(null); }}
                       >
                         {t('pipeline.openspec.archive.cancel')}
                       </button>
@@ -2810,65 +3004,107 @@ export function OpenSpecDashboard({
                           <p className={styles.startNote}>{t('pipeline.openspec.start.noActive')}</p>
                         ) : (
                           <ul className={styles.startList}>
-                            {startChanges.map(({ change, progress }) => (
-                              <li key={change.changeId} data-branch={change.changeId === branchChangeId || undefined}>
-                                <div className={styles.startItemHead}>
-                                  <strong>{change.changeId}</strong>
-                                  {/* La rama se señala, no navega: gastarla en saltar
-                                      adentro la volvía invisible. */}
-                                  {change.changeId === branchChangeId && (
-                                    <em className={styles.branchPill}>{t('pipeline.openspec.start.branchMatch')}</em>
-                                  )}
-                                  <button
-                                    type="button"
-                                    className={styles.secondaryAction}
-                                    onClick={() => selectChange(change.changeId)}
-                                  >
-                                    {t('pipeline.openspec.start.enter')}
-                                  </button>
-                                </div>
-                                <p title={change.intent ?? undefined}>{change.intent ?? t('pipeline.openspec.intentUnknown')}</p>
-                                <div className={styles.startProgress}>
-                                  <span>
-                                    {progress.total === 0
-                                      ? t('pipeline.openspec.start.noTasks')
-                                      : t('pipeline.openspec.start.tasks', { done: progress.completed, total: progress.total })}
-                                  </span>
-                                  {progress.total > 0 && (
-                                    <span className={styles.startBar} aria-hidden="true">
-                                      <span style={{ width: `${progress.percent}%` }} />
-                                    </span>
-                                  )}
-                                  {/* Saber que van cinco de seis no dice cuál es la
-                                      sexta, que es con lo que se decide. Plegado por
-                                      defecto: con cuatro cambios de veintiocho tareas,
-                                      esta pantalla sería una lista de tareas. */}
-                                  {pendingOf(change).length > 0 && (
+                            {startChanges.map(({ change, progress }) => {
+                              const isPinned = pinnedChangeIds.includes(change.changeId);
+                              return (
+                                <li
+                                  key={change.changeId}
+                                  data-branch={change.changeId === branchChangeId || undefined}
+                                  data-pinned={isPinned || undefined}
+                                >
+                                  <div className={styles.startItemHead}>
+                                    <strong>{change.changeId}</strong>
+                                    {isPinned && (
+                                      <span className={styles.startPinnedBadge}>
+                                        <Pin size={10} aria-hidden="true" />
+                                        {t('pipeline.openspec.start.pinned')}
+                                      </span>
+                                    )}
+                                    {/* La rama se señala, no navega: gastarla en saltar
+                                        adentro la volvía invisible. */}
+                                    {change.changeId === branchChangeId && (
+                                      <em className={styles.branchPill}>{t('pipeline.openspec.start.branchMatch')}</em>
+                                    )}
+                                    <div className={styles.startCardActions}>
+                                      <button
+                                        type="button"
+                                        className={cn(styles.taskActionBtn, isPinned && styles.startCardActionBtnPinned)}
+                                        title={isPinned ? t('pipeline.openspec.start.unpinAction') : t('pipeline.openspec.start.pinAction')}
+                                        aria-label={isPinned ? t('pipeline.openspec.start.unpinAction') : t('pipeline.openspec.start.pinAction')}
+                                        onClick={() => togglePinChange(change.changeId)}
+                                      >
+                                        <Pin size={13} aria-hidden="true" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={styles.taskActionBtn}
+                                        title={t('pipeline.openspec.task.editAction')}
+                                        aria-label={t('pipeline.openspec.task.editAction')}
+                                        onClick={() => selectChange(change.changeId)}
+                                      >
+                                        <Pencil size={13} aria-hidden="true" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={styles.taskActionBtn}
+                                        title={t('pipeline.openspec.task.moreActions')}
+                                        aria-label={t('pipeline.openspec.task.moreActions')}
+                                        onClick={() => selectChange(change.changeId)}
+                                      >
+                                        <MoreHorizontal size={13} aria-hidden="true" />
+                                      </button>
+                                    </div>
                                     <button
                                       type="button"
-                                      className={styles.startPendingToggle}
-                                      aria-expanded={expandedStart[change.changeId] ?? false}
-                                      onClick={() => setExpandedStart((current) => ({
-                                        ...current,
-                                        [change.changeId]: !(current[change.changeId] ?? false),
-                                      }))}
+                                      className={styles.secondaryAction}
+                                      onClick={() => selectChange(change.changeId)}
                                     >
-                                      <ChevronDown size={12} />
-                                      {tCount('pipeline.openspec.start.pending', pendingOf(change).length)}
+                                      {t('pipeline.openspec.start.enter')}
                                     </button>
+                                  </div>
+                                  <p title={change.intent ?? undefined}>{change.intent ?? t('pipeline.openspec.intentUnknown')}</p>
+                                  <div className={styles.startProgress}>
+                                    <span>
+                                      {progress.total === 0
+                                        ? t('pipeline.openspec.start.noTasks')
+                                        : t('pipeline.openspec.start.tasks', { done: progress.completed, total: progress.total })}
+                                    </span>
+                                    {progress.total > 0 && (
+                                      <span className={styles.startBar} aria-hidden="true">
+                                        <span style={{ width: `${progress.percent}%` }} />
+                                      </span>
+                                    )}
+                                    {/* Saber que van cinco de seis no dice cuál es la
+                                        sexta, que es con lo que se decide. Plegado por
+                                        defecto: con cuatro cambios de veintiocho tareas,
+                                        esta pantalla sería una lista de tareas. */}
+                                    {pendingOf(change).length > 0 && (
+                                      <button
+                                        type="button"
+                                        className={styles.startPendingToggle}
+                                        aria-expanded={expandedStart[change.changeId] ?? false}
+                                        onClick={() => setExpandedStart((current) => ({
+                                          ...current,
+                                          [change.changeId]: !(current[change.changeId] ?? false),
+                                        }))}
+                                      >
+                                        <ChevronDown size={12} />
+                                        {tCount('pipeline.openspec.start.pending', pendingOf(change).length)}
+                                      </button>
+                                    )}
+                                  </div>
+                                  {(expandedStart[change.changeId] ?? false) && (
+                                    /* Sólo lo pendiente: el avance ya está en la barra y
+                                       en el conteo, y lo que falta es lo que sirve. */
+                                    <ul className={styles.startPending}>
+                                      {pendingOf(change).map((task) => (
+                                        <li key={task.id}><Circle size={9} /> {task.text}</li>
+                                      ))}
+                                    </ul>
                                   )}
-                                </div>
-                                {(expandedStart[change.changeId] ?? false) && (
-                                  /* Sólo lo pendiente: el avance ya está en la barra y
-                                     en el conteo, y lo que falta es lo que sirve. */
-                                  <ul className={styles.startPending}>
-                                    {pendingOf(change).map((task) => (
-                                      <li key={task.id}><Circle size={9} /> {task.text}</li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </li>
-                            ))}
+                                </li>
+                              );
+                            })}
                           </ul>
                         )}
                       </div>
@@ -2900,6 +3136,26 @@ export function OpenSpecDashboard({
                                   <div className={styles.startItemTitleWithIcon}>
                                     <CheckCircle2 size={13} className={styles.startArchivedIcon} />
                                     <strong>{change.changeId}</strong>
+                                  </div>
+                                  <div className={styles.startCardActions}>
+                                    <button
+                                      type="button"
+                                      className={styles.taskActionBtn}
+                                      title={t('pipeline.openspec.task.editAction')}
+                                      aria-label={t('pipeline.openspec.task.editAction')}
+                                      onClick={() => selectChange(change.changeId)}
+                                    >
+                                      <Pencil size={13} aria-hidden="true" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={styles.taskActionBtn}
+                                      title={t('pipeline.openspec.task.moreActions')}
+                                      aria-label={t('pipeline.openspec.task.moreActions')}
+                                      onClick={() => selectChange(change.changeId)}
+                                    >
+                                      <MoreHorizontal size={13} aria-hidden="true" />
+                                    </button>
                                   </div>
                                   <button
                                     type="button"

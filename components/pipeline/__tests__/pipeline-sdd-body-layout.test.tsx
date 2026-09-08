@@ -585,10 +585,10 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       expect(taskStatusMatch![1]).toMatch(/min-height:\s*2\.75rem/);
       expect(taskStatusMatch![1]).not.toMatch(/margin:\s*calc\(-1/);
 
-      // .taskList > li declara 2.75rem en la primera columna
+      // .taskList > li declara 2.75rem en la columna de estado (precedido por la canaleta de arrastre de 2rem en 8.14)
       const taskLiMatch = css.match(/\.taskList\s*>\s*li\s*\{([^}]+)\}/);
       expect(taskLiMatch).toBeTruthy();
-      expect(taskLiMatch![1]).toMatch(/grid-template-columns:\s*2\.75rem\s+3rem/);
+      expect(taskLiMatch![1]).toMatch(/grid-template-columns:\s*(?:2rem\s+)?2\.75rem\s+3rem/);
 
       // .taskList > li[data-completed='true'] .taskStatus define var(--color-git-add)
       const completedStatusMatch = css.match(/\.taskList\s*>\s*li\[data-completed='true'\]\s+\.taskStatus\s*\{([^}]+)\}/);

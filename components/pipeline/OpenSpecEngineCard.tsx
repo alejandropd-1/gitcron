@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useT } from '@/hooks/use-translation';
-import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, HelpCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, HelpCircle, Copy, Check } from 'lucide-react';
 import type {
   OpenSpecCliProvenance,
   OpenSpecDivergenceReason,
@@ -87,6 +87,10 @@ export interface OpenSpecEngineCardProps {
   onOpenToolsTab?: () => void;
   onOpenReview?: () => void;
   isReviewOpen?: boolean;
+  hasPackageJson?: boolean;
+  openRepoPaths?: string[];
+  nodePath?: string;
+  npmPath?: string;
 }
 
 export function formatDivergenceReason(
@@ -147,10 +151,15 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   onOpenToolsTab,
   onOpenReview,
   isReviewOpen = false,
+  hasPackageJson,
+  openRepoPaths,
+  nodePath,
+  npmPath,
 }) => {
   const t = useT();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showAbsentOutputs, setShowAbsentOutputs] = useState(false);
+  const [copiedGlobal, setCopiedGlobal] = useState(false);
 
   // 1. Modo compacto (Insignia para header / summaryBar)
   if (compact) {
@@ -307,6 +316,115 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
         </div>
       </header>
 
+      {/* Acciones upfront que preceden al diagnóstico (Tarea 9.1 & 9.5) */}
+      {onOpenReview && (
+        <div className={styles.engineActionsRow}>
+          <button
+            type="button"
+            className={styles.centerAttentionBtn}
+            onClick={onOpenReview}
+          >
+            {isReviewOpen
+              ? t('pipeline.openspec.engine.closeReviewAction')
+              : t('pipeline.openspec.engine.reviewAction')}
+          </button>
+        </div>
+      )}
+
+      {/* Surface de instalación honesta del motor cuando no está instalado (Tareas 9.2, 9.3, 9.5) */}
+      {!cli.installed && (
+        <div className={styles.engineInstallSection} aria-label={t('pipeline.openspec.engine.install.globalTitle')}>
+          {/* Instalación local deshabilitada con motivo al lado (9.2 y 9.5) */}
+          <div className={styles.engineInstallActionRow}>
+            <button
+              type="button"
+              className={styles.centerAttentionBtn}
+              disabled
+              title={
+                hasPackageJson === false
+                  ? t('pipeline.openspec.engine.install.localNoManifest')
+                  : t('pipeline.openspec.engine.install.localUnavailable')
+              }
+            >
+              {t('pipeline.openspec.engine.install.localTitle')}
+            </button>
+            <span className={styles.blockedReasonInline} role="alert">
+              {hasPackageJson === false
+                ? t('pipeline.openspec.engine.install.localNoManifest')
+                : t('pipeline.openspec.engine.install.localUnavailable')}
+            </span>
+          </div>
+
+          {/* Instalación global deshabilitada con motivo al lado (9.3 y 9.5) */}
+          <div className={styles.engineInstallActionRow}>
+            <button
+              type="button"
+              className={styles.centerAttentionBtn}
+              disabled
+              title={t('pipeline.openspec.engine.install.globalUnavailable')}
+            >
+              {t('pipeline.openspec.engine.install.globalTitle')}
+            </button>
+            <span className={styles.blockedReasonInline} role="alert">
+              {t('pipeline.openspec.engine.install.globalUnavailable')}
+            </span>
+          </div>
+
+          {/* Comando literal con botón de copiado y confirmación (9.3) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+            <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>
+              npm i -g @fission-ai/openspec@latest
+            </code>
+            <button
+              type="button"
+              className={styles.reviewCopyBtn}
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                  void navigator.clipboard.writeText('npm i -g @fission-ai/openspec@latest');
+                  setCopiedGlobal(true);
+                  setTimeout(() => setCopiedGlobal(false), 2000);
+                }
+              }}
+              title={t('pipeline.openspec.archive.copyCommand')}
+            >
+              {copiedGlobal ? (
+                <>
+                  <Check size={12} aria-hidden="true" />
+                  <span>{t('pipeline.openspec.archive.copiedCommand')}</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={12} aria-hidden="true" />
+                  <span>{t('pipeline.openspec.archive.copyCommand')}</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className={styles.engineInstallDetails}>
+            <p style={{ margin: 'var(--space-1) 0 0' }}>
+              {t('pipeline.openspec.engine.hostUpgrade.help')}
+            </p>
+            {nodePath && (
+              <p style={{ margin: 'var(--space-1) 0 0' }}>
+                <code>Node: {nodePath}</code>
+              </p>
+            )}
+            {npmPath && (
+              <p style={{ margin: 'var(--space-1) 0 0' }}>
+                <code>npm: {npmPath}</code>
+              </p>
+            )}
+            {openRepoPaths && openRepoPaths.length > 0 && (
+              <p style={{ margin: 'var(--space-1) 0 0' }}>
+                <span>Repositorios afectados ({openRepoPaths.length}): </span>
+                <code>{openRepoPaths.join(', ')}</code>
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className={styles.primarySummaryBox}>
         <div className={styles.summaryFactRow}>
           <span>{t('pipeline.openspec.engine.axis.engine')}:</span>
@@ -361,20 +479,6 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
         <div className={styles.summaryFactRow}>
           <span>{agentsText}</span>
         </div>
-
-        {onOpenReview && (
-          <div style={{ marginTop: 'var(--space-1)' }}>
-            <button
-              type="button"
-              className={styles.centerAttentionBtn}
-              onClick={onOpenReview}
-            >
-              {isReviewOpen
-                ? t('pipeline.openspec.engine.closeReviewAction')
-                : t('pipeline.openspec.engine.reviewAction')}
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Botón de Diagnóstico Avanzado */}

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenSpecTasksView } from '../OpenSpecTasksView';
 import type { OpenSpecChangeEvidence } from '@/types/pipeline';
 
-describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
+describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8, 8.12)', () => {
   const pipelineSetTaskChecked = vi.fn().mockResolvedValue({ success: true });
   const pipelineAddTask = vi.fn().mockResolvedValue({ success: true });
   const pipelineEditTask = vi.fn().mockResolvedValue({ success: true });
@@ -53,6 +53,13 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
         pipelineWriteArtifact,
       },
     });
+    // Mock navigator.clipboard
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -70,8 +77,14 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
     );
   }
 
-  // --- Tarea 8.1: Agregar, editar, eliminar y errores ---
-  describe('Operaciones de lista (Tarea 8.1)', () => {
+  // Helper para abrir el menú de 3 puntos de la tarea i-ésima (0-indexed)
+  function openTaskMenu(index = 0) {
+    const moreButtons = screen.getAllByRole('button', { name: /Más opciones/i });
+    fireEvent.click(moreButtons[index]);
+  }
+
+  // --- Tarea 8.1 y Bloque A: Agregar, editar con textarea multilínea y atajos ---
+  describe('Operaciones de lista (Tarea 8.1 y Bloque A)', () => {
     it('agrega una nueva tarea al final consumiendo pipelineAddTask', async () => {
       renderView();
 
@@ -93,14 +106,15 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
       expect(onRefresh).toHaveBeenCalled();
     });
 
-    it('edita el texto de una tarea consumiendo pipelineEditTask', async () => {
+    it('edita el texto de una tarea en textarea multilínea y guarda con botón', async () => {
       renderView();
 
-      const [firstEditBtn] = screen.getAllByRole('button', { name: /Editar tarea/i });
-      fireEvent.click(firstEditBtn);
+      const [editBtn] = screen.getAllByRole('button', { name: /^Editar tarea$/i });
+      fireEvent.click(editBtn);
 
-      const input = screen.getByDisplayValue('Primera tarea');
-      fireEvent.change(input, { target: { value: 'Primera tarea editada' } });
+      const textarea = screen.getByDisplayValue('Primera tarea');
+      expect(textarea.tagName.toLowerCase()).toBe('textarea');
+      fireEvent.change(textarea, { target: { value: 'Primera tarea editada\ncon párrafos' } });
 
       fireEvent.click(screen.getByRole('button', { name: /Guardar/i }));
 
@@ -110,22 +124,55 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
           'demo-change',
           3,
           '1.1 Primera tarea',
-          'Primera tarea editada',
+          'Primera tarea editada\ncon párrafos',
           'persona',
         );
       });
       expect(onRefresh).toHaveBeenCalled();
     });
 
+    it('guarda la edición con Ctrl+Enter y cancela con Escape (Bloque A)', async () => {
+      renderView();
+
+      const [editBtn] = screen.getAllByRole('button', { name: /^Editar tarea$/i });
+      fireEvent.click(editBtn);
+
+      const textarea = screen.getByDisplayValue('Primera tarea');
+      fireEvent.change(textarea, { target: { value: 'Texto modificado' } });
+
+      // Atajo Ctrl+Enter guarda
+      fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: true });
+
+      await waitFor(() => {
+        expect(pipelineEditTask).toHaveBeenCalledWith(
+          'C:/repo',
+          'demo-change',
+          3,
+          '1.1 Primera tarea',
+          'Texto modificado',
+          'persona',
+        );
+      });
+
+      // Abrir edición de nuevo y cancelar con Escape
+      const [editBtn2] = screen.getAllByRole('button', { name: /^Editar tarea$/i });
+      fireEvent.click(editBtn2);
+
+      const textarea2 = screen.getByDisplayValue('Primera tarea');
+      fireEvent.keyDown(textarea2, { key: 'Escape' });
+
+      expect(screen.queryByDisplayValue('Primera tarea')).toBeNull();
+    });
+
     it('eliminar una tarea exige confirmación y llama a pipelineRemoveTask tras confirmar', async () => {
       renderView();
 
-      const [firstDeleteBtn] = screen.getAllByRole('button', { name: /Eliminar tarea/i });
-      fireEvent.click(firstDeleteBtn);
+      openTaskMenu(0);
+      const deleteBtn = await screen.findByRole('button', { name: /^Eliminar tarea$/i });
+      fireEvent.click(deleteBtn);
 
       expect(pipelineRemoveTask).not.toHaveBeenCalled();
 
-      // Se muestra el diálogo de confirmación con botón Eliminar
       const confirmBtn = await screen.findByRole('button', { name: /^Eliminar$/i });
       fireEvent.click(confirmBtn);
 
@@ -144,8 +191,9 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
     it('cancelar la eliminación deja la tarea intacta', async () => {
       renderView();
 
-      const [firstDeleteBtn] = screen.getAllByRole('button', { name: /Eliminar tarea/i });
-      fireEvent.click(firstDeleteBtn);
+      openTaskMenu(0);
+      const deleteBtn = await screen.findByRole('button', { name: /^Eliminar tarea$/i });
+      fireEvent.click(deleteBtn);
 
       const cancelBtn = await screen.findByRole('button', { name: /Cancelar/i });
       fireEvent.click(cancelBtn);
@@ -174,8 +222,8 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
       pipelineEditTask.mockResolvedValueOnce({ success: false, error: 'archived' });
       renderView();
 
-      const [firstEditBtn] = screen.getAllByRole('button', { name: /Editar tarea/i });
-      fireEvent.click(firstEditBtn);
+      const [editBtn] = screen.getAllByRole('button', { name: /^Editar tarea$/i });
+      fireEvent.click(editBtn);
       fireEvent.click(screen.getByRole('button', { name: /Guardar/i }));
 
       expect(await screen.findByRole('alert')).toBeTruthy();
@@ -183,13 +231,38 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
     });
   });
 
-  // --- Tarea 8.8: Reordenar por teclado y Drag & Drop con rollback ---
-  describe('Reordenamiento de tareas (Tarea 8.8)', () => {
-    it('mueve una tarea hacia abajo usando el botón de teclado', async () => {
+  // --- Bloque B: Concurrencia y unificación de estado ocupado ---
+  describe('Unificación de estado ocupado y concurrencia (Bloque B)', () => {
+    it('dos clics rápidos en confirmar eliminación generan una sola llamada IPC', async () => {
+      let resolveIpc: (val: any) => void;
+      pipelineRemoveTask.mockImplementationOnce(
+        () => new Promise((resolve) => { resolveIpc = resolve; }),
+      );
+
       renderView();
 
-      const [firstDownBtn] = screen.getAllByRole('button', { name: /Bajar tarea/i });
-      fireEvent.click(firstDownBtn);
+      openTaskMenu(0);
+      const deleteBtn = await screen.findByRole('button', { name: /^Eliminar tarea$/i });
+      fireEvent.click(deleteBtn);
+
+      const confirmBtn = await screen.findByRole('button', { name: /^Eliminar$/i });
+      fireEvent.click(confirmBtn);
+      fireEvent.click(confirmBtn); // Segundo clic durante viaje
+
+      expect(pipelineRemoveTask).toHaveBeenCalledTimes(1);
+
+      resolveIpc!({ success: true });
+    });
+  });
+
+  // --- Tarea 8.8 y Bloque C: Reordenar por menú, atajos de teclado y Drag & Drop con asa a la izquierda ---
+  describe('Reordenamiento de tareas y controles de fila (Tarea 8.8 y Bloque C)', () => {
+    it('mueve una tarea hacia abajo usando el menú de 3 puntos', async () => {
+      renderView();
+
+      openTaskMenu(0);
+      const downBtn = await screen.findByRole('button', { name: /^Bajar tarea/i });
+      fireEvent.click(downBtn);
 
       await waitFor(() => {
         expect(pipelineMoveTask).toHaveBeenCalledWith(
@@ -204,12 +277,12 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
       expect(onRefresh).toHaveBeenCalled();
     });
 
-    it('mueve una tarea hacia arriba usando el botón de teclado', async () => {
+    it('mueve una tarea hacia arriba usando el menú de 3 puntos', async () => {
       renderView();
 
-      const upButtons = screen.getAllByRole('button', { name: /Subir tarea/i });
-      // El segundo botón Subir corresponde a la tarea 1.2
-      fireEvent.click(upButtons[1]);
+      openTaskMenu(1); // Tarea 1.2
+      const upBtn = await screen.findByRole('button', { name: /^Subir tarea/i });
+      fireEvent.click(upBtn);
 
       await waitFor(() => {
         expect(pipelineMoveTask).toHaveBeenCalledWith(
@@ -223,17 +296,60 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
       });
     });
 
+    it('soporta reordenar directamente con atajos Alt+ArrowUp y Alt+ArrowDown en la fila', async () => {
+      renderView();
+
+      const taskList = screen.getByRole('list');
+
+      // Tarea 1.1: Alt+ArrowDown
+      const firstItem = taskList.querySelectorAll('li')[0];
+      fireEvent.keyDown(firstItem, { key: 'ArrowDown', altKey: true });
+
+      await waitFor(() => {
+        expect(pipelineMoveTask).toHaveBeenCalledWith(
+          'C:/repo',
+          'demo-change',
+          3,
+          4,
+          '1.1 Primera tarea',
+          'persona',
+        );
+      });
+
+      // Tarea 1.3: Alt+ArrowUp
+      const lastItem = taskList.querySelectorAll('li')[2];
+      fireEvent.keyDown(lastItem, { key: 'ArrowUp', altKey: true });
+
+      await waitFor(() => {
+        expect(pipelineMoveTask).toHaveBeenCalledWith(
+          'C:/repo',
+          'demo-change',
+          5,
+          3,
+          '1.3 Tercera tarea',
+          'persona',
+        );
+      });
+    });
+
+    it('renderiza el asa de arrastre a la izquierda en la primera columna', () => {
+      renderView();
+
+      const taskList = screen.getByRole('list');
+      const firstItem = taskList.querySelectorAll('li')[0];
+      const dragHandle = firstItem.querySelector('[aria-label="Arrastrar para reordenar"]');
+      expect(dragHandle).toBeTruthy();
+      expect(firstItem.firstElementChild).toBe(dragHandle);
+    });
+
     it('soporta reordenar por Drag & Drop HTML5 sin layout shift', async () => {
       renderView();
 
-      const listItems = screen.getAllByRole('listitem');
-      // Los primeros 3 li en la lista corresponden a las tareas (si no hay warning)
       const taskList = screen.getByRole('list');
       const taskItems = taskList.querySelectorAll('li');
       const firstItem = taskItems[0];
       const secondItem = taskItems[1];
 
-      // Iniciar arrastre
       const dataTransfer = {
         setData: vi.fn(),
         getData: vi.fn(() => '1.1'),
@@ -243,10 +359,7 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
       fireEvent.dragStart(firstItem, { dataTransfer });
       expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', '1.1');
 
-      // Arrastrar sobre el segundo elemento
       fireEvent.dragOver(secondItem, { dataTransfer });
-
-      // Soltar
       fireEvent.drop(secondItem, { dataTransfer });
 
       await waitFor(() => {
@@ -265,8 +378,9 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
       pipelineMoveTask.mockResolvedValueOnce({ success: false, error: 'mismatch' });
       renderView();
 
-      const [firstDownBtn] = screen.getAllByRole('button', { name: /Bajar tarea/i });
-      fireEvent.click(firstDownBtn);
+      openTaskMenu(0);
+      const downBtn = await screen.findByRole('button', { name: /^Bajar tarea/i });
+      fireEvent.click(downBtn);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeTruthy();
@@ -275,15 +389,19 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
     });
   });
 
-  // --- Tarea 8.2: Vista de texto Markdown editable y guardia de cambios ---
-  describe('Vista de texto Markdown crudo (Tarea 8.2)', () => {
+  // --- Tarea 8.2, Bloque D y Bloque G: Editor Crudo, Copiar y Vista Formateada ---
+  describe('Editor crudo, botón copiar y vista formateada (Tareas 8.2, 8.12 D y G)', () => {
     it('permite cambiar a la vista de editor Markdown y guardar los cambios', async () => {
       renderView();
 
-      const rawTab = screen.getByRole('button', { name: /Editor Markdown/i });
-      fireEvent.click(rawTab);
+      const markdownTab = screen.getByRole('button', { name: /^Markdown$/i });
+      fireEvent.click(markdownTab);
 
-      const textarea = screen.getByRole('textbox');
+      // Conmutar a editor crudo usando el botón de editar
+      const editBtn = screen.getByRole('button', { name: /Editar Markdown/i });
+      fireEvent.click(editBtn);
+
+      const textarea = screen.getByPlaceholderText(/## 1\. Grupo/i);
       expect(textarea).toBeTruthy();
       expect((textarea as HTMLTextAreaElement).value).toContain('Primera tarea');
 
@@ -306,20 +424,48 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
       expect(onRefresh).toHaveBeenCalled();
     });
 
+    it('copia el contenido del Markdown al portapapeles y muestra indicador Copiado (Bloque D)', async () => {
+      renderView();
+
+      const markdownTab = screen.getByRole('button', { name: /^Markdown$/i });
+      fireEvent.click(markdownTab);
+
+      const copyBtn = screen.getByRole('button', { name: /Copiar Markdown/i });
+      fireEvent.click(copyBtn);
+
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(mockChange.artifacts!.tasks);
+      expect(await screen.findByText(/Copiado/i)).toBeTruthy();
+    });
+
+    it('permite cambiar a la vista con formato SafeMarkdown y persiste en localStorage (Bloque G y Ajuste 3)', () => {
+      renderView();
+
+      const markdownTab = screen.getByRole('button', { name: /^Markdown$/i });
+      fireEvent.click(markdownTab);
+
+      // SafeMarkdown renderiza el texto formateado
+      expect(screen.getByText('1. Grupo')).toBeTruthy();
+      expect(localStorage.getItem('gitcron:openspec:tasks-markdown-view-mode')).toBe('formatted');
+
+      // Botón Editar Markdown dentro de la vista formateada conmuta a raw
+      const editInRawBtn = screen.getByRole('button', { name: /Editar Markdown/i });
+      fireEvent.click(editInRawBtn);
+
+      expect(screen.getByPlaceholderText(/## 1\. Grupo/i)).toBeTruthy();
+      expect(localStorage.getItem('gitcron:openspec:tasks-markdown-view-mode')).toBe('raw');
+    });
+
     it('protege cambios sin guardar al intentar volver a la lista (guardar y cambiar)', async () => {
       renderView();
 
-      // Cambiar a raw
-      fireEvent.click(screen.getByRole('button', { name: /Editor Markdown/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^Markdown$/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Editar Markdown/i }));
 
-      // Modificar texto
-      const textarea = screen.getByRole('textbox');
+      const textarea = screen.getByPlaceholderText(/## 1\. Grupo/i);
       fireEvent.change(textarea, { target: { value: 'Texto no guardado' } });
 
-      // Intentar cambiar a lista
       fireEvent.click(screen.getByRole('button', { name: /Lista interactiva/i }));
 
-      // Diálogo de guardia
       const saveAndSwitchBtn = await screen.findByRole('button', {
         name: /Guardar y cambiar/i,
       });
@@ -335,9 +481,10 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
     it('protege cambios sin guardar al intentar volver a la lista (descartar cambios)', async () => {
       renderView();
 
-      fireEvent.click(screen.getByRole('button', { name: /Editor Markdown/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^Markdown$/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Editar Markdown/i }));
 
-      const textarea = screen.getByRole('textbox');
+      const textarea = screen.getByPlaceholderText(/## 1\. Grupo/i);
       fireEvent.change(textarea, { target: { value: 'Texto para descartar' } });
 
       fireEvent.click(screen.getByRole('button', { name: /Lista interactiva/i }));
@@ -348,7 +495,6 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
       fireEvent.click(discardBtn);
 
       expect(pipelineWriteArtifact).not.toHaveBeenCalled();
-      // Vuelve a la lista
       expect(screen.getByRole('list')).toBeTruthy();
     });
   });
@@ -377,7 +523,6 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
       expect(screen.getByText(/- \[\] 1\.2 Tarea rota/)).toBeTruthy();
       expect(screen.getByText(/-\[ \] 1\.3 Tarea rota/)).toBeTruthy();
 
-      // Las operaciones de lista siguen funcionando (no bloqueante)
       const [checkBtn] = screen.getAllByRole('button', { name: /Marcar esta tarea/i });
       expect((checkBtn as HTMLButtonElement).disabled).toBe(false);
     });
@@ -393,13 +538,13 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8)', () => {
 
       renderView(malformedChange);
 
-      fireEvent.click(screen.getByRole('button', { name: /Editor Markdown/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^Markdown$/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Editar Markdown/i }));
 
       expect(await screen.findByRole('status')).toBeTruthy();
       expect(screen.getByText(/Líneas de tarea mal formadas/i)).toBeTruthy();
 
-      // El botón de guardar NO se bloquea
-      const textarea = screen.getByRole('textbox');
+      const textarea = screen.getByPlaceholderText(/## 1\. Grupo/i);
       fireEvent.change(textarea, { target: { value: '## 1. Grupo\n- [] 1.1 Tarea rota editada' } });
       const saveBtn = screen.getByRole('button', { name: /Guardar archivo/i });
       expect((saveBtn as HTMLButtonElement).disabled).toBe(false);

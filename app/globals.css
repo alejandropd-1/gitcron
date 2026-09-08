@@ -79,6 +79,7 @@
   --spacing-container-padding: 1rem;
   --spacing-element-gap: 0.5rem;
   --spacing-list-item-y: 0.25rem;
+  --change-header-height: 3.25rem;
 
   /* Shared Border Radius (Affects: cards, buttons, modals, badges, based on DESIGN.MD) */
   --radius-sm: 0.125rem;

@@ -653,6 +653,10 @@ interface ElectronAPI {
       changeId?: string | null;
       schema?: string | null;
     }): Promise<import('./pipeline').InstructionsOpenSpecResult>;
+    executeCommand?: (options: {
+      repoPath: string;
+      command: string;
+    }) => Promise<{ success: boolean; stdout?: string; stderr?: string; error?: string }>;
   };
 }
 

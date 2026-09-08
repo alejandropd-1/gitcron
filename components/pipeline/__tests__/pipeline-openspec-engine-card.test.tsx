@@ -666,4 +666,131 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
       expect(screen.getByText(/Diagnóstico no disponible para este comando/i)).toBeDefined();
     });
   });
+
+  describe('Superficie de motor e instalación honesta (Grupo 9: 9.1, 9.2, 9.3, 9.5)', () => {
+    const absentCliStatus: OpenSpecEngineStatus = {
+      cli: {
+        installed: false,
+        runtimeVersion: null,
+        provenance: 'unknown',
+        displayPath: null,
+        supportedRange: { min: '1.5.0', max: '1.11.0' },
+        versionClass: 'unknown',
+        evidenceStatus: 'confirmed',
+        diagnostics: [],
+      },
+      latestAvailable: {
+        status: 'online',
+        latestVersion: '1.11.0',
+        checkedAt: 'now',
+        fromCache: false,
+        cacheAgeSeconds: 0,
+        freshness: 'fresh',
+        error: null,
+      },
+      globalConfig: null,
+      installedIntegration: null,
+      repoState: 'initialized',
+      integrationState: 'unknown',
+    };
+
+    it('9.1: las acciones preceden a la caja primaria de diagnóstico', () => {
+      const handleReview = vi.fn();
+      const dummyStatus: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: '1.11.0',
+          provenance: 'global',
+          displayPath: 'C:\\global\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.11.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: null,
+        globalConfig: null,
+        installedIntegration: null,
+        repoState: 'initialized',
+        integrationState: 'up-to-date',
+      };
+
+      const { container } = render(
+        <OpenSpecEngineCard
+          status={dummyStatus}
+          compact={false}
+          onOpenReview={handleReview}
+        />,
+      );
+
+      const actionBtn = screen.getByRole('button', { name: /Revisar actualización/i });
+      const summaryBox = container.querySelector('[class*="primarySummaryBox"]');
+      expect(actionBtn).toBeDefined();
+      expect(summaryBox).toBeDefined();
+      expect(actionBtn.compareDocumentPosition(summaryBox!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+
+    it('9.2: ofrece instalación local deshabilitada con motivo de ausencia de package.json cuando hasPackageJson=false', () => {
+      render(
+        <OpenSpecEngineCard
+          status={absentCliStatus}
+          compact={false}
+          hasPackageJson={false}
+        />,
+      );
+
+      const localBtn = screen.getByRole('button', { name: /Instalación local/i });
+      expect(localBtn.hasAttribute('disabled')).toBe(true);
+      expect(screen.getByText(/El repositorio no cuenta con un archivo package\.json para instalación local/i)).toBeDefined();
+    });
+
+    it('9.2: ofrece instalación local deshabilitada con gestor no disponible cuando hay package.json', () => {
+      render(
+        <OpenSpecEngineCard
+          status={absentCliStatus}
+          compact={false}
+          hasPackageJson={true}
+        />,
+      );
+
+      const localBtn = screen.getByRole('button', { name: /Instalación local/i });
+      expect(localBtn.hasAttribute('disabled')).toBe(true);
+      expect(screen.getByText(/Instalación local no disponible \(pendiente de implementación en backend\)/i)).toBeDefined();
+    });
+
+    it('9.3 y 9.5: ofrece instalación global deshabilitada con comando literal, copiado y confirmación de alcance', async () => {
+      const writeTextMock = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: writeTextMock,
+        },
+      });
+
+      render(
+        <OpenSpecEngineCard
+          status={absentCliStatus}
+          compact={false}
+          nodePath="C:\\Program Files\\nodejs\\node.exe"
+          npmPath="C:\\Program Files\\nodejs\\npm.cmd"
+          openRepoPaths={['C:\\repo1', 'C:\\repo2']}
+        />,
+      );
+
+      const globalBtn = screen.getByRole('button', { name: /Instalación global/i });
+      expect(globalBtn.hasAttribute('disabled')).toBe(true);
+      expect(screen.getByText(/Instalación global desde la interfaz pendiente de implementar en backend/i)).toBeDefined();
+
+      // Comando literal visible
+      expect(screen.getByText('npm i -g @fission-ai/openspec@latest')).toBeDefined();
+
+      // Copiado funcional
+      const copyBtn = screen.getByRole('button', { name: /Copiar comando/i });
+      fireEvent.click(copyBtn);
+      expect(writeTextMock).toHaveBeenCalledWith('npm i -g @fission-ai/openspec@latest');
+
+      // Rutas y repositorios afectados
+      expect(screen.getByText((content) => content.includes('Node:') && content.includes('node.exe'))).toBeDefined();
+      expect(screen.getByText((content) => content.includes('npm:') && content.includes('npm.cmd'))).toBeDefined();
+      expect(screen.getByText(/Repositorios afectados \(2\)/i)).toBeDefined();
+    });
+  });
 });

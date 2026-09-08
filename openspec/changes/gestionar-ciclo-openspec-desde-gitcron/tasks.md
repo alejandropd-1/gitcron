@@ -334,9 +334,26 @@
 ## 8. Interfaz: tareas y artefactos
 
 - [ ] 8.1 En `components/pipeline/`, construir la vista de lista de tareas con agregar, editar, reordenar, marcar y eliminar, consumiendo los canales de la sección 2, con confirmación al eliminar y al desmarcar.
+  *Resolución y mediciones del 2026-09-07:*
+  - Creado `components/pipeline/OpenSpecTasksView.tsx` e integrado en `OpenSpecDashboard.tsx`.
+  - Conecta con los canales IPC de la sección 2 (`pipelineAddTask`, `pipelineEditTask`, `pipelineMoveTask`, `pipelineRemoveTask`, `pipelineSetTaskChecked`) enviando el actor `'persona'` para trazabilidad en `task-log.md`.
+  - Mapeo de errores estricto en `lib/task-errors.ts`: traduce `mismatch`, `not-found`, `archived`, `not-a-task`, `empty-text`, `out-of-bounds`. Ante `mismatch`, explica que el archivo cambió en disco y ofrece recargar las tareas mediante botón dedicado.
+  - Regla de confirmación: marcar se ejecuta de inmediato sin diálogo; desmarcar y eliminar solicitan confirmación previa vía `TaskConfirmToast`.
+  - Pruebas en `components/pipeline/__tests__/pipeline-tasks-editor.test.tsx` y `pipeline-task-toggle.test.tsx`.
 - [ ] 8.2 Agregar la vista del texto del archivo de tareas, editable, que escribe sobre el mismo archivo y refleja lo hecho en la lista.
+  *Resolución y mediciones del 2026-09-07:*
+  - Vista de edición de texto crudo de `tasks.md` alternable mediante selector de modo ('list' | 'raw') con botones `aria-pressed`.
+  - Permite editar directamente el Markdown completo y guardarlo mediante `pipelineWriteArtifact` (`overwrite: true`, `actor: 'persona'`), refrescando la lista al confirmar.
+  - Guardia de cambios sin guardar (`isRawDirty`): si el usuario intenta conmutar a la lista con cambios pendientes, se presenta un diálogo de confirmación («Guardar y cambiar», «Descartar cambios», «Seguir editando»).
 - [ ] 8.3 Escribir en `lib/` una función pura que detecte líneas que aparentan una tarea mal formada —empiezan con guion o numeración y su casilla no cumple el formato— sin señalar encabezados, párrafos ni notas, y cubrirla con una tabla de casos que incluya `## 1. Grupo`, `- [ ] 1.1 ok`, `- [] 1.2 rota`, `-[ ] 1.3 rota`, `- [x] 1.4 ok` y una línea de prosa suelta.
+  *Resolución y mediciones del 2026-09-07:*
+  - Función pura `findMalformedTaskLines(content: string): MalformedTaskLine[]` implementada en `lib/malformed-tasks.ts`.
+  - Detecta casillas rotas: corchetes vacíos (`- []`), sin espacio tras guion (`-[ ]`), casillas numeradas (`1. []`, `1. [ ]`), casillas con asterisco (`* []`, `*[ ]`), ignorando encabezados (`## 1. Grupo`), listas comunes (`- elemento`), bloques de código con fences ```, blockquotes (`>`), notas y texto en prosa.
+  - Verificada en `lib/__tests__/malformed-tasks.test.ts` con tabla exhaustiva de casos, inyección de sabotaje y validada contra el archivo real `tasks.md` de este change: 0 falsos positivos sobre 573 líneas reales.
 - [ ] 8.4 Señalar en ambas vistas las líneas que devuelve 8.3, sin impedir guardar.
+  *Resolución y mediciones del 2026-09-07:*
+  - Banner de advertencia no bloqueante (`styles.malformedWarning`, `role="status"`) renderizado en la cabecera tanto en la vista de lista interactiva como en el editor crudo.
+  - Muestra la lista de líneas afectadas, el número de línea, el texto crudo y el motivo detallado sin bloquear la operación de guardado ni el marcado interactivo.
 - [ ] 8.5 Agregar a `components/DiffViewer.tsx` un modo de propuesta con acciones de aplicar y descartar por bloque, reutilizando `parseDiff` y la selección de líneas existentes, sin alterar el comportamiento de los modos `stage` y `unstage`.
 - [ ] 8.6 Construir la revisión de una propuesta de agente sobre 8.5: aceptar y rechazar por bloque, editar el resultado, y escribir sólo al confirmar. La propuesta debe distinguirse visualmente de lo ya escrito, sin inventar una paleta propia: lo especulativo jamás puede confundirse visualmente con lo real.
 - [ ] 8.7 Verificar con tests de componente que descartar una propuesta no invoca el canal de escritura, y que aceptar parcialmente escribe únicamente los bloques aceptados.
@@ -353,6 +370,12 @@
   Reglas que no se negocian: se puede reordenar con teclado, no solo con el mouse; mientras el
   arrastre esta en curso nada mas de la pantalla se mueve; y si la escritura falla, la lista vuelve a
   como estaba y lo dice, en vez de quedar mostrando un orden que el archivo no tiene.
+  *Resolución y mediciones del 2026-09-07:*
+  - Reordenamiento por arrastre con HTML5 nativo (`draggable`, `onDragStart`, `onDragOver`, `onDrop`), adaptando el patrón sin dependencias de `RepoSidebar.tsx`.
+  - Reordenamiento accesible por teclado mediante botones dedicados «Subir tarea» y «Bajar tarea» con desactivación en extremos.
+  - Cero desplazamiento de maqueta durante el arrastre: indicador visual de drop mediante `box-shadow` superior sin alterar el tamaño de fila ni desplazar elementos vecinos.
+  - Rollback optimista: si el canal IPC `pipelineMoveTask` falla o reporta `mismatch`, la lista revierte inmediatamente al orden previo y notifica el error al usuario.
+  - Los números de tarea permanecen inmutables como identificadores estables.
 
 - [ ] 8.9 **La conversacion que abre un cambio, con cara de aplicacion.** Pedido de Alejandro del
   2026-09-07, mostrando la rutina del CLI: `/opsx:explore` pregunta que se quiere explorar, mira el

@@ -125,60 +125,18 @@ function enterChange() {
 }
 
 describe('cambiar el estado de una tarea desde la guía', { timeout: 15_000 }, () => {
-  it('marcar pide confirmación y no escribe hasta obtenerla', async () => {
-    // Antes marcar no preguntaba, con el argumento de que sólo agrega una
-    // afirmación. Las dos direcciones escriben en el repositorio con un clic que
-    // se puede errar, y marcar la última casilla pendiente hace aparecer
-    // archivar: un clic accidental podía dejar el cambio ofreciendo cerrarse.
+  it('marcar escribe inmediatamente sin pedir confirmación', async () => {
     renderDashboard();
     enterChange();
 
     fireEvent.click(screen.getByRole('button', { name: /openspec\.task\.check$/ }));
-    expect(pipelineSetTaskChecked).not.toHaveBeenCalled();
 
-    fireEvent.click(await screen.findByRole('button', { name: /openspec\.task\.checkConfirm/ }));
     // Se envía la línea y el texto: el texto es lo que permite verificar que
     // sigue siendo la misma tarea.
     await vi.waitFor(() => expect(pipelineSetTaskChecked)
-      .toHaveBeenCalledWith('C:/repo', 'demo-change', 3, '1.1 pendiente', true));
+      .toHaveBeenCalledWith('C:/repo', 'demo-change', 3, '1.1 pendiente', true, 'persona'));
     // Y la lista se relee del disco, no se asume el resultado.
     await vi.waitFor(() => expect(onRefresh).toHaveBeenCalled());
-  });
-
-  it('cancelar el marcado deja la tarea sin marcar', async () => {
-    renderDashboard();
-    enterChange();
-
-    fireEvent.click(screen.getByRole('button', { name: /openspec\.task\.check$/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /openspec\.archive\.cancel/ }));
-
-    expect(pipelineSetTaskChecked).not.toHaveBeenCalled();
-  });
-
-  it('la confirmación va en una superficie fija, no en el encabezado del panel', async () => {
-    // La primera versión la mostraba arriba, junto a las pestañas, mientras que
-    // las casillas se tildan bajando por la lista: tildar una tarea del final
-    // obligaba a volver a subir hasta arriba de todo para responder.
-    renderDashboard();
-    enterChange();
-
-    fireEvent.click(screen.getByRole('button', { name: /openspec\.task\.check$/ }));
-
-    const dialog = await screen.findByRole('alertdialog');
-    expect(dialog.closest('.fixed')).not.toBeNull();
-  });
-
-  it('el aviso de marcado dice hasta cuándo se puede deshacer, sin llamarlo irreversible', async () => {
-    // Decir "irreversible" sería falso en el momento en que se muestra: esta
-    // misma pantalla ofrece desmarcar. Lo cierto —y lo útil— es que la marca se
-    // vuelve definitiva al archivar, no al hacer clic.
-    renderDashboard();
-    enterChange();
-
-    fireEvent.click(screen.getByRole('button', { name: /openspec\.task\.check$/ }));
-
-    expect(await screen.findByText(/openspec\.task\.checkHelp/)).toBeTruthy();
-    expect(screen.queryByText(/openspec\.task\.uncheckHelp/)).toBeNull();
   });
 
   it('desmarcar pide confirmación y no escribe hasta obtenerla', async () => {
@@ -190,7 +148,26 @@ describe('cambiar el estado de una tarea desde la guía', { timeout: 15_000 }, (
 
     fireEvent.click(await screen.findByRole('button', { name: /openspec\.task\.uncheckConfirm/ }));
     await vi.waitFor(() => expect(pipelineSetTaskChecked)
-      .toHaveBeenCalledWith('C:/repo', 'demo-change', 4, '1.2 ya hecha', false));
+      .toHaveBeenCalledWith('C:/repo', 'demo-change', 4, '1.2 ya hecha', false, 'persona'));
+  });
+
+  it('la confirmación va en una superficie fija, no en el encabezado del panel', async () => {
+    renderDashboard();
+    enterChange();
+
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.task\.uncheck$/ }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog.closest('.fixed')).not.toBeNull();
+  });
+
+  it('el aviso de desmarcado explica que borra la constancia', async () => {
+    renderDashboard();
+    enterChange();
+
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.task\.uncheck$/ }));
+
+    expect(await screen.findByText(/openspec\.task\.uncheckHelp/)).toBeTruthy();
   });
 
   it('cancelar la confirmación deja la tarea como estaba', async () => {
@@ -203,15 +180,26 @@ describe('cambiar el estado de una tarea desde la guía', { timeout: 15_000 }, (
     expect(pipelineSetTaskChecked).not.toHaveBeenCalled();
   });
 
-  it('un rechazo del IPC al marcar o desmarcar muestra el aviso de error al usuario y no deja rechazo sin manejar', async () => {
+  it('un rechazo del IPC al marcar muestra el aviso de error al usuario y no deja rechazo sin manejar', async () => {
     pipelineSetTaskChecked.mockRejectedValueOnce(new Error('Permiso denegado'));
     renderDashboard();
     enterChange();
 
     fireEvent.click(screen.getByRole('button', { name: /openspec\.task\.check$/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /openspec\.task\.checkConfirm/ }));
 
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.getByText('Permiso denegado')).toBeTruthy();
+  });
+
+  it('un rechazo del IPC al desmarcar muestra el aviso de error tras confirmar', async () => {
+    pipelineSetTaskChecked.mockRejectedValueOnce(new Error('Fallo en desmarcado'));
+    renderDashboard();
+    enterChange();
+
+    fireEvent.click(screen.getByRole('button', { name: /openspec\.task\.uncheck$/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /openspec\.task\.uncheckConfirm/ }));
+
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.getByText('Fallo en desmarcado')).toBeTruthy();
   });
 });

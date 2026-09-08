@@ -206,6 +206,16 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
       /\.startNewChangeModal/, // TARJETA / MODAL: contenedor de alta de nuevo cambio
       /pipeline-details/, // TARJETA / CONTROL: evidencia migrada de globals.css
       /pipeline-artifact-graph/, // DATO: grafo de artefactos migrado de globals.css
+      /\.viewModeToggle/, // CONTROL: selector de modo de vista
+      /\.viewModeBtn/, // RESET: botón de modo de vista
+      /\.addTaskToggleBtn/, // CONTROL: botón desplegar alta de tarea
+      /\.taskAddTaskBox/, // TARJETA: formulario de alta de tarea
+      /\.taskInput/, // CONTROL / FOCO: input de tarea
+      /\.taskActionBtn/, // RESET: botón de acción de tarea
+      /\.taskInlineEdit/, // CONTROL / FOCO: edición en línea de tarea
+      /\.malformedWarning/, // TARJETA / DATO: aviso de tarea mal formada
+      /\.taskErrorAlert/, // TARJETA / DATO: alerta de error en tarea
+      /\.rawTextarea/, // CONTROL / FOCO: editor crudo de tareas
       /:root/, // TOKENS (--os-border)
       /\.openspecScope/, // SCOPE
       /\.dashboard/, // ROOT

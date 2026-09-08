@@ -3005,3 +3005,322 @@ summary.centerBlock {
   box-shadow: none;
   background: transparent;
 }
+
+/* ==========================================================================
+   Gestión de tareas interactiva y editor crudo (Grupo 8)
+   ========================================================================== */
+
+.tasksHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.tasksHeaderInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.tasksCountBadge {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.tasksHeaderControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.viewModeToggle {
+  display: inline-flex;
+  background: color-mix(in srgb, var(--color-bg-overlay) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border-subtle) 40%, transparent);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1);
+  gap: var(--space-1);
+}
+
+.viewModeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.viewModeBtn:hover:not(:disabled) {
+  color: var(--color-text-primary);
+}
+
+.viewModeBtn[data-active='true'] {
+  background: var(--color-primary);
+  color: var(--color-bg-base);
+  font-weight: 600;
+}
+
+.addTaskToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 1px dashed color-mix(in srgb, var(--color-primary) 60%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.addTaskToggleBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  border-color: var(--color-primary);
+}
+
+.taskAddTaskBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 40%, transparent);
+  border-radius: var(--radius-default);
+  background: color-mix(in srgb, var(--color-bg-overlay) 60%, transparent);
+}
+
+.taskAddInputRow {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.taskInput {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: var(--font-size-xs);
+  outline: none;
+  transition: border-color 120ms ease;
+}
+
+.taskInput:focus {
+  border-color: var(--color-primary);
+}
+
+.taskAddActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.taskActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  opacity: 0.85;
+  transition: opacity 120ms ease;
+}
+
+.taskList > li:hover .taskActions {
+  opacity: 1;
+}
+
+.taskActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.taskActionBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  color: var(--color-text-primary);
+}
+
+.taskActionBtn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.taskActionBtnDanger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-error) 18%, transparent);
+  color: var(--color-error);
+}
+
+.taskDragHandle {
+  cursor: grab;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.65rem;
+  touch-action: none;
+}
+
+.taskDragHandle:active {
+  cursor: grabbing;
+}
+
+.taskList > li[data-dragging='true'] {
+  opacity: 0.45;
+}
+
+.taskList > li[data-drop-target='true'] {
+  box-shadow: 0 -2px 0 0 var(--color-primary);
+}
+
+.taskInlineEdit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.taskInlineEdit input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: var(--font-size-xs);
+  outline: none;
+}
+
+.malformedWarning {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 50%, transparent);
+  border-radius: var(--radius-default);
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+}
+
+.malformedHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  color: var(--color-warning);
+  margin-bottom: var(--space-1);
+}
+
+.malformedDesc {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.malformedList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+.malformedItem {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.taskErrorAlert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-error) 50%, transparent);
+  border-radius: var(--radius-default);
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+  color: var(--color-error);
+  font-size: var(--font-size-xs);
+}
+
+.rawEditorContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.rawEditorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.rawDirtyBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-warning) 20%, transparent);
+  color: var(--color-warning);
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+}
+
+.rawTextarea {
+  width: 100%;
+  min-height: 480px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-default);
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  tab-size: 2;
+  outline: none;
+  resize: vertical;
+  transition: border-color 120ms ease;
+}
+
+.rawTextarea:focus {
+  border-color: var(--color-primary);
+}

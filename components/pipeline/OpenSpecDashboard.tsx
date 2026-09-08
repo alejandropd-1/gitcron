@@ -65,6 +65,7 @@ import type { ArchivePlan, OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpec
 import { SpecificationViewer } from './SpecificationViewer';
 import { LazyDiffViewer } from './LazyDiffViewer';
 import { TaskConfirmToast } from './TaskConfirmToast';
+import { OpenSpecTasksView } from './OpenSpecTasksView';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
 import { ViewSwitcherRail, type ViewSwitcherItem } from './ViewSwitcherRail';
 import { useNewChangeDraft, useNewChangeDraftStore } from '@/lib/new-change-draft-store';
@@ -379,27 +380,7 @@ export function OpenSpecDashboard({
    * sostiene el resultado a la vista hasta que haya algo nuevo que preparar.
    */
   const [lastPreparedCount, setLastPreparedCount] = useState<number | null>(null);
-  /**
-   * Cambio de casilla pendiente de confirmación, en cualquiera de las dos
-   * direcciones.
-   *
-   * Antes sólo preguntaba el desmarcado, con el argumento de que marcar agrega
-   * una afirmación que su autor hace en ese momento mientras que desmarcar borra
-   * la constancia de algo que alguien afirmó antes. Eso distinguía bien el
-   * contenido de cada acción y dejaba fuera lo que comparten: las dos escriben
-   * en el repositorio con un clic que se puede errar, y marcar la última casilla
-   * pendiente hace aparecer archivar como acción principal. Un clic accidental
-   * podía dejar el cambio ofreciendo cerrarse.
-   *
-   * Los textos siguen siendo distintos: lo que cada dirección hace no es lo
-   * mismo, y el aviso tiene que decir cuál de las dos se está por hacer.
-   */
-  const [taskToggleRequest, setTaskToggleRequest] = useState<{
-    line: number;
-    text: string;
-    label: string;
-    completed: boolean;
-  } | null>(null);
+
   /**
    * Especificación abierta en el centro, si hay alguna.
    *
@@ -460,7 +441,7 @@ export function OpenSpecDashboard({
    * pasa por una hoja de estilos.
    */
   const reducedMotion = useReducedMotion();
-  const [taskError, setTaskError] = useState<string | null>(null);
+
   /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -1495,33 +1476,7 @@ export function OpenSpecDashboard({
     }
   };
 
-  /**
-   * Cambia el estado de una tarea.
-   *
-   * El texto viaja para que el proceso principal verifique que sigue siendo la
-   * misma tarea: con el watcher andando, el archivo puede haber cambiado entre
-   * que se dibujó esta lista y llegó el clic.
-   */
-  const setTaskChecked = async (line: number, text: string, completed: boolean) => {
-    const api = typeof window !== 'undefined' ? window.api : undefined;
-    if (!selectedChange || fixtureActive || !api?.pipelineSetTaskChecked) return;
-    setTaskError(null);
-    try {
-      const response = await api.pipelineSetTaskChecked(repoPath, selectedChange.changeId, line, text, completed);
-      const result = response as { success?: boolean; error?: string } | null;
-      if (result?.success) {
-        // La lista se relee del disco: la casilla cambia porque el archivo lo
-        // dice, no porque la llamada haya vuelto sin error.
-        onRefresh?.();
-        return;
-      }
-      setTaskError(result?.error === 'mismatch'
-        ? t('pipeline.openspec.task.mismatch')
-        : t('pipeline.openspec.task.failed'));
-    } catch (error: unknown) {
-      setTaskError(error instanceof Error ? error.message : t('pipeline.openspec.task.failed'));
-    }
-  };
+
 
   /**
    * Ejecuta el archivado ya confirmado.
@@ -2631,31 +2586,6 @@ export function OpenSpecDashboard({
                   </div>
                 )}
 
-                {taskToggleRequest && (
-                  <TaskConfirmToast
-                    title={t(taskToggleRequest.completed
-                      ? 'pipeline.openspec.task.checkTitle'
-                      : 'pipeline.openspec.task.uncheckTitle', { task: taskToggleRequest.label })}
-                    description={t(taskToggleRequest.completed
-                      ? 'pipeline.openspec.task.checkHelp'
-                      : 'pipeline.openspec.task.uncheckHelp')}
-                    confirmLabel={t(taskToggleRequest.completed
-                      ? 'pipeline.openspec.task.checkConfirm'
-                      : 'pipeline.openspec.task.uncheckConfirm')}
-                    cancelLabel={t('pipeline.openspec.archive.cancel')}
-                    onConfirm={() => {
-                      void setTaskChecked(taskToggleRequest.line, taskToggleRequest.text, taskToggleRequest.completed)
-                        .catch((error: unknown) => {
-                          setTaskError(error instanceof Error ? error.message : t('pipeline.openspec.task.failed'));
-                        });
-                      setTaskToggleRequest(null);
-                    }}
-                    onCancel={() => setTaskToggleRequest(null)}
-                  />
-                )}
-                {taskError && (
-                  <p className={styles.archiveError} role="alert">{taskError}</p>
-                )}
                   {/* Vista A: TAREAS (o pantalla dedicada de continuación) */}
                   {activeChangeView === 'tasks' && (
                     launchTarget ? (
@@ -2688,74 +2618,23 @@ export function OpenSpecDashboard({
                       </section>
                     ) : (
                       <section className={styles.startScreen} aria-label={t('pipeline.switcher.tasks')}>
-                        {/* Lista de tareas limpia: SIN título redundante */}
-                        <div className={styles.centerBlock}>
-                          <ol className={styles.taskList}>
-                          {selectedChange.tasks.map((task) => {
-                            const current = task.id === nextTask?.id;
-                            return (
-                              <li key={task.id} data-completed={task.completed} data-current={current}>
-                                <button
-                                  type="button"
-                                  className={styles.taskStatus}
-                                  disabled={fixtureActive}
-                                  aria-pressed={task.completed}
-                                  title={t(task.completed
-                                    ? 'pipeline.openspec.task.uncheck'
-                                    : 'pipeline.openspec.task.check')}
-                                  onClick={() => setTaskToggleRequest({
-                                    line: task.line,
-                                    text: task.text,
-                                    label: resolveTaskLabel(task),
-                                    completed: !task.completed,
-                                  })}
-                                >
-                                  {task.completed ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                                </button>
-                                <strong>{resolveTaskLabel(task)}</strong>
-                                <span>{resolveTaskText(task)}</span>
-                                {current && runtimeActive && <em>{t('pipeline.openspec.task.running')}</em>}
-                                {/* Enmienda: si la tarea actual no tiene sesión, no se dibuja ni ficha ni frase */}
-                                {current && changeSession && (
-                                  <div className={styles.taskDetail}>
-                                    <dl>
-                                      <div>
-                                        <span className={styles.taskDetailIcon} aria-hidden="true"><User size={13} /></span>
-                                        <dt>{t('pipeline.openspec.task.agent')}</dt>
-                                        <dd>{runningName}</dd>
-                                      </div>
-                                      <div>
-                                        <span className={styles.taskDetailIcon} aria-hidden="true"><FileText size={13} /></span>
-                                        <dt>{t('pipeline.openspec.task.source')}</dt>
-                                        <dd>{task.sourceRef}</dd>
-                                      </div>
-                                      <div>
-                                        <span className={styles.taskDetailIcon} aria-hidden="true"><GitCompare size={13} /></span>
-                                        <dt>{t('pipeline.openspec.task.workingTree')}</dt>
-                                        <dd>{gitDelta
-                                          ? t('pipeline.openspec.task.workingTreeValue', {
-                                            files: gitDelta.files,
-                                            additions: gitDelta.additions === 'unknown' ? '—' : gitDelta.additions,
-                                            deletions: gitDelta.deletions === 'unknown' ? '—' : gitDelta.deletions,
-                                          })
-                                          : t('pipeline.openspec.task.notReported')}</dd>
-                                      </div>
-                                      <div>
-                                        <span className={styles.taskDetailIcon} aria-hidden="true"><Activity size={13} /></span>
-                                        <dt>{t('pipeline.openspec.task.lastActivity')}</dt>
-                                        <dd>{lastObservedActivity ?? t('pipeline.openspec.task.notReported')}</dd>
-                                      </div>
-                                    </dl>
-                                  </div>
-                                )}
-                              </li>
-                            );
-                          })}
-                          {selectedChange.tasks.length === 0 && <li className={styles.taskEmpty}>{t('pipeline.openspec.tasks.empty')}</li>}
-                        </ol>
-                      </div>
-                    </section>
-                  ))}
+                        <OpenSpecTasksView
+                          repoPath={repoPath}
+                          selectedChange={selectedChange}
+                          fixtureActive={fixtureActive}
+                          runtimeActive={runtimeActive}
+                          runningName={runningName}
+                          nextTask={nextTask}
+                          changeSession={changeSession}
+                          gitDelta={gitDelta}
+                          lastObservedActivity={lastObservedActivity}
+                          onRefresh={onRefresh}
+                          setSuccess={setSuccess}
+                          resolveTaskLabel={resolveTaskLabel}
+                          resolveTaskText={resolveTaskText}
+                        />
+                      </section>
+                    ))}
 
                   {/* Vista B: ARTEFACTOS Y EVIDENCIA */}
                   {activeChangeView === 'artifacts' && (

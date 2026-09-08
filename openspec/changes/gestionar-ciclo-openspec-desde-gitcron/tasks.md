@@ -392,6 +392,69 @@
   Frontera: las palabras de cada paso las decide `explicar-el-ciclo-sin-tecnicismos`. Esta tarea
   decide el recorrido y su forma.
 
+- [ ] 8.10 **Observacion del 2026-09-07 sobre el escaner de bordes, que NO es un reproche a esta
+  tanda.** Al construir la vista de tareas se agregaron diez excepciones a la lista de
+  `components/__tests__/commit-graph-frame.test.tsx`. Revisadas una por una, **son legitimas**:
+  entradas, botones, tarjetas y avisos, o sea las mismas categorias que la lista ya declara
+  —CONTROL, TARJETA, DATO, RESET, FOCO—. No es el caso de una tanda anterior, donde se agregaron
+  excepciones para que pasaran tarjetas que una decision acababa de prohibir.
+  Lo que si corresponde anotar es el estado del escaner: su lista de excepciones **llego a 83 entradas**, y crece diez por cada pantalla nueva. Con esa proporcion, el criterio
+  efectivo dejo de ser «los bordes se justifican» y paso a ser «se permite lo que este anotado». Un
+  guardian cuya lista de excepciones crece con cada uso deja de detener nada: documenta.
+  No hay que arreglarlo en esta tanda. Hay que decidir, con calma, si el escaner sigue sirviendo
+  como esta, si el criterio se puede expresar de otra forma —por ejemplo, prohibiendo el borde solo
+  en los contenedores de maqueta en vez de permitirlo por lista—, o si se retira. **La decide
+  Alejandro.**
+
+- [ ] 8.11 **Registro del 2026-09-07, para que no se pierda lo que salio bien.** La prueba del
+  detector de tareas mal formadas, en `lib/__tests__/malformed-tasks.test.ts:121-129`, hace dos
+  cosas que valen: lee el `tasks.md` **real** de este change y afirma cero falsos positivos sobre
+  sus 573 lineas, y ademas **inyecta a proposito una tarea rota en ese mismo contenido real** y
+  afirma que la detecta.
+  Es la forma fuerte de esa prueba: una que solo mira casos inventados pasa aunque la funcion no
+  sirva sobre el archivo que de verdad hay que revisar, y una que solo mira el archivo real pasa
+  aunque la funcion no detecte nada. Las dos juntas cierran el hueco. Vale como modelo para el
+  resto de las comprobaciones de este change.
+
+- [ ] 8.12 **Primera revision visual de Alejandro sobre la vista de tareas, 2026-09-08.** Siete
+  observaciones, probadas por el en la aplicacion. Su propia prueba dejo rastro en
+  `openspec/changes/gestionar-ciclo-openspec-desde-gitcron/task-log.md`, que se usa como evidencia.
+
+  1. **Editar una tarea da un renglon donde el texto ocupa varios.** El control de edicion es un
+     `<input>` de una linea (`components/pipeline/OpenSpecTasksView.tsx:582`), y las tareas de este
+     repositorio miden parrafos. Tiene que ser un area de texto que tome el alto del contenido.
+  2. **Pidio borrar la misma tarea dos veces.** Medido: `isAddBusy` e `isEditBusy` existen y
+     deshabilitan sus controles mientras la escritura viaja (`:94`, `:99`, `:519-533`, `:591-607`),
+     pero **no hay equivalente para borrar ni para mover**: el boton de borrar solo lleva
+     `disabled={fixtureActive}` (`:650`) y los de mover, lo mismo (`:630`, `:640`).
+     El registro lo confirma: la tarea «10.11 Para borrar» aparece con dos `movida` en el mismo
+     minuto, y una sola `eliminada`. **No se borro dos veces** —el archivo quedo bien— pero el
+     primer clic no dio senal de nada y por eso volvio a pedirlo. Es un problema de respuesta, no de
+     datos. La tarea 1.1 tambien figura con cuatro `movida` seguidas a las 10:18.
+  3. **Los controles de cada fila estan del lado equivocado y son demasiados.** Pide: el asa de
+     arrastre —los seis puntos— **a la izquierda**, apareciendo al pasar el puntero por la fila,
+     como hace Gmail; repensar las flechas de subir y bajar, cuya idea le gusta pero no su lugar; y
+     que editar y borrar se junten detras de un icono de tres puntos que abra un menu.
+     Ese menu ya existe y no hay que inventarlo: `components/ContextMenus.tsx`, el mismo que sale al
+     hacer clic derecho sobre una rama en el navegador lateral.
+  4. **Al editor de markdown le falta copiar.** Arriba a la derecha del cuadro de texto. El patron ya
+     existe: `components/pipeline/CommitDraftLog.tsx:203-206`, con su cambio de icono al copiar y sus
+     rotulos traducidos.
+  5. **El encabezado del cuerpo se ancla solo a medias.** El titulo del cambio ya queda fijo; falta
+     que tambien lo haga la fila donde estan «Nueva tarea» y las dos solapas.
+  6. **Reordenar ese encabezado:** las solapas «Lista interactiva» y «Editor Markdown» a la
+     izquierda, «Nueva tarea» a la derecha, y sacarle el borde al contenedor de las solapas.
+  7. **Ver el markdown con formato, no solo crudo.** Pide lo que hace VS Code: poder elegir entre
+     vista cruda y vista con formato, y **que recuerde la eleccion**.
+     El que dibuja ya existe: `components/pipeline/SafeMarkdown.tsx`, que es el que muestra los
+     artefactos en la vista de evidencia.
+
+  **Sobre los bordes, y sin convertirlo en regla.** Alejandro pregunto si la costumbre de encerrar
+  todo en un borde estaba escrita como maxima. Medido el 2026-09-08: `DESIGN.MD:106` dice «bordes de
+  panel sutiles», que habla de los paneles y de que sean sutiles, no de encerrar cada cosa. La
+  costumbre no viene de ahi: viene de la lista de excepciones del escaner, que crecio hasta 83
+  entradas y volvio natural agregar una mas. Queda dicho como medicion, no como regla nueva.
+
 ## 9. Interfaz: motor, sync, archivado y jerarquía
 
 - [ ] 9.1 Reordenar `components/pipeline/OpenSpecUpdateReview.tsx` y `OpenSpecEngineCard.tsx` para que las acciones y el estado resumido en una línea precedan al diagnóstico, con el diagnóstico completo contraído por omisión y sin perder ninguna evidencia que hoy muestra.

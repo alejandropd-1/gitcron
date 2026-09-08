@@ -1,23 +1,22 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SafeMarkdown } from '../SafeMarkdown';
+import { MarkdownViewer } from '../MarkdownViewer';
 
 /**
- * El visor tiene que entender el markdown que OpenSpec escribe.
- *
- * El parser reconocía tres niveles de encabezado, y el que la metodología usa
- * para cada escenario es el cuarto —«los escenarios llevan exactamente cuatro
- * almohadillas»—. Ese nivel caía al `else` final y salía impreso con sus cuatro
- * almohadillas a la vista: el nivel más frecuente de una spec era el único que
- * el visor no entendía.
+ * El visor de Markdown (MarkdownViewer) utiliza react-markdown con remark-gfm.
+ * Debe satisfacer los comportamientos reales que OpenSpec exige:
+ * - Los escenarios (# a ######) mapean a la jerarquía de página (h3 a h6).
+ * - Acumula líneas consecutivas en un solo párrafo y resuelve negritas multilínea.
+ * - Soporta tablas, listas de verificación (checkboxes) y enlaces externos.
+ * - Escapa HTML crudo sin usar dangerouslySetInnerHTML.
  */
 
 afterEach(cleanup);
 
-describe('visor de artefactos', () => {
+describe('visor de artefactos (MarkdownViewer)', () => {
   it('renderiza el escenario de cuatro almohadillas como encabezado', () => {
-    render(<SafeMarkdown content={'#### Scenario: Path fuera del repo'} />);
+    render(<MarkdownViewer content={'#### Scenario: Path fuera del repo'} />);
 
     const heading = screen.getByRole('heading', { name: 'Scenario: Path fuera del repo' });
     expect(heading).toBeTruthy();
@@ -28,7 +27,7 @@ describe('visor de artefactos', () => {
   it('encaja los niveles del documento bajo los de la página, sin saltos', () => {
     // El panel usa `h2` para su marca y `h3` para sus secciones, así que el
     // documento arranca en `h3` y no introduce un segundo `h1`.
-    render(<SafeMarkdown content={'# Uno\n\n## Dos\n\n### Tres\n\n#### Cuatro'} />);
+    render(<MarkdownViewer content={'# Uno\n\n## Dos\n\n### Tres\n\n#### Cuatro'} />);
 
     expect(screen.getByRole('heading', { name: 'Uno', level: 3 })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Dos', level: 4 })).toBeTruthy();
@@ -37,14 +36,14 @@ describe('visor de artefactos', () => {
   });
 
   it('no inventa niveles más allá del último que existe', () => {
-    render(<SafeMarkdown content={'##### Cinco\n\n###### Seis'} />);
+    render(<MarkdownViewer content={'##### Cinco\n\n###### Seis'} />);
 
     expect(screen.getByRole('heading', { name: 'Cinco', level: 6 })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Seis', level: 6 })).toBeTruthy();
   });
 
   it('conserva los ítems de una lista', () => {
-    render(<SafeMarkdown content={'- **WHEN** el modelo pide algo\n- **THEN** el tool lo rechaza'} />);
+    render(<MarkdownViewer content={'- **WHEN** el modelo pide algo\n- **THEN** el tool lo rechaza'} />);
 
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(2);
@@ -54,7 +53,7 @@ describe('visor de artefactos', () => {
 
   it('una almohadilla sin espacio no es un encabezado', () => {
     // `#hashtag` es texto, no título: el nivel exige separador.
-    render(<SafeMarkdown content={'#sin-espacio'} />);
+    render(<MarkdownViewer content={'#sin-espacio'} />);
 
     expect(screen.queryByRole('heading')).toBeNull();
     expect(document.body.textContent).toContain('#sin-espacio');
@@ -67,7 +66,7 @@ rechazó**. No por mala ejecución: por la regla que ese change se puso a sí mi
 
 Segundo párrafo independiente.`;
 
-    const { container } = render(<SafeMarkdown content={multilineMd} />);
+    const { container } = render(<MarkdownViewer content={multilineMd} />);
 
     const paragraphs = container.querySelectorAll('p');
     expect(paragraphs).toHaveLength(2);
@@ -75,14 +74,14 @@ Segundo párrafo independiente.`;
     const firstP = paragraphs[0];
     const strong = firstP.querySelector('strong');
     expect(strong).toBeTruthy();
-    expect(strong?.textContent).toBe('su revisión visual se rechazó');
+    expect(strong?.textContent?.replace(/\s+/g, ' ')).toBe('su revisión visual se rechazó');
     expect(firstP.textContent).not.toContain('**');
-    expect(firstP.textContent).toContain('su revisión visual se rechazó. No por mala ejecución');
+    expect(firstP.textContent?.replace(/\s+/g, ' ')).toContain('su revisión visual se rechazó. No por mala ejecución');
   });
 
   it('Obs 56: admite asteriscos dentro de negrita (por ejemplo globs en bloques de código)', () => {
     const textWithGlobInBold = '**Las cadenas de `pipeline.openspec.prepare.*` hablan del cambio.**';
-    const { container } = render(<SafeMarkdown content={textWithGlobInBold} />);
+    const { container } = render(<MarkdownViewer content={textWithGlobInBold} />);
 
     const strong = container.querySelector('strong');
     expect(strong).toBeTruthy();
@@ -90,5 +89,38 @@ Segundo párrafo independiente.`;
     const code = strong?.querySelector('code');
     expect(code).toBeTruthy();
     expect(code?.textContent).toBe('pipeline.openspec.prepare.*');
+  });
+
+  it('renderiza tablas y casillas de verificación de GFM', () => {
+    const gfmContent = `
+| Tarea | Estado |
+| :--- | :--- |
+| Tarea 1 | Lista |
+
+- [ ] Tarea pendiente
+- [x] Tarea completada
+`;
+    const { container } = render(<MarkdownViewer content={gfmContent} />);
+
+    expect(container.querySelector('table')).toBeTruthy();
+    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+    expect(checkboxes.length).toBe(2);
+    expect((checkboxes[0] as HTMLInputElement).checked).toBe(false);
+    expect((checkboxes[1] as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('abre enlaces de forma externa y no interpreta HTML crudo peligroso', () => {
+    const unsafeContent = '[Documentación](https://example.com)\n\n<script>alert("xss")</script><div id="pwn">bad</div>';
+    const { container } = render(<MarkdownViewer content={unsafeContent} />);
+
+    const link = container.querySelector('a');
+    expect(link).toBeTruthy();
+    expect(link?.getAttribute('href')).toBe('https://example.com');
+    expect(link?.getAttribute('target')).toBe('_blank');
+
+    // No debe haber tags de script ni divs inyectados como DOM
+    expect(container.querySelector('script')).toBeNull();
+    expect(container.querySelector('#pwn')).toBeNull();
+    expect(container.textContent).toContain('<script>alert("xss")</script>');
   });
 });

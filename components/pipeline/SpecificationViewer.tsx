@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
-import { SafeMarkdown } from './SafeMarkdown';
+import { MarkdownViewer } from './MarkdownViewer';
 import styles from './OpenSpecDashboard.module.css';
 
 /**
@@ -98,7 +98,7 @@ export function SpecificationViewer({
           <p className={styles.archivedPending}>{t('pipeline.openspec.specifications.emptyFile')}</p>
         )}
         {state.kind === 'ready' && state.content.trim() !== '' && (
-          <SafeMarkdown content={state.content} />
+          <MarkdownViewer content={state.content} />
         )}
       </div>
     </section>

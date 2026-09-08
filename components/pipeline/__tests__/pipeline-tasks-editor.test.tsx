@@ -434,7 +434,7 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8, 8.12)', () => {
       fireEvent.click(copyBtn);
 
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(mockChange.artifacts!.tasks);
-      expect(await screen.findByText(/Copiado/i)).toBeTruthy();
+      expect(await screen.findByRole('button', { name: /Copiado/i })).toBeTruthy();
     });
 
     it('permite cambiar a la vista con formato SafeMarkdown y persiste en localStorage (Bloque G y Ajuste 3)', () => {

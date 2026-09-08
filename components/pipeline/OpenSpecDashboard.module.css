@@ -3145,7 +3145,8 @@ summary.centerBlock {
 .taskActions {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  margin-right: var(--space-3);
   opacity: 0;
   transition: opacity 120ms ease;
 }
@@ -3394,6 +3395,53 @@ summary.centerBlock {
   border-color: var(--color-primary);
 }
 
+.markdownActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-bg-overlay) 80%, transparent);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.markdownActionBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+}
+
+.markdownActionBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.markdownActionBtn[data-copied='true'] {
+  color: var(--color-git-add);
+}
+
+.markdownSaveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: var(--color-bg-base);
+  cursor: pointer;
+  transition: opacity 120ms ease, background 120ms ease;
+}
+
+.markdownSaveBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .markdownCopyBtn {
   display: inline-flex;
   align-items: center;
@@ -3502,6 +3550,12 @@ summary.centerBlock {
 
 .archiveCommandActions {
   display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.syncBlockedInline {
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
 }

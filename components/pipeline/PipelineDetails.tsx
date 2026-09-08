@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useT } from '@/hooks/use-translation';
 import type { OpenSpecChangeSummary, PipelineSnapshot } from './pipeline-view-state';
-import { SafeMarkdown } from './SafeMarkdown';
+import { MarkdownViewer } from './MarkdownViewer';
 import { PipelineArtifactGraph, type DetailTab } from './PipelineArtifactGraph';
 
 export type { DetailTab };
@@ -61,7 +61,7 @@ export function PipelineDetails({
   const markdownPanel = (id: 'proposal' | 'design' | 'tasks', content: string | null) => (
     <div role="tabpanel" id={`panel-${id}`} aria-labelledby={`tab-${id}`} className="pipeline-details__panel">
       {content
-        ? <SafeMarkdown content={content} />
+        ? <MarkdownViewer content={content} />
         : <div className="pipeline-details__empty">{t(EMPTY_KEYS[id])}</div>}
     </div>
   );
@@ -94,7 +94,7 @@ export function PipelineDetails({
                 <section key={spec.capability} className="pipeline-details__spec">
                   <h4 className="pipeline-details__spec-title">{spec.capability}</h4>
                   {spec.content
-                    ? <SafeMarkdown content={spec.content} />
+                    ? <MarkdownViewer content={spec.content} />
                     : <div className="pipeline-details__empty">{t('pipeline.details.noSpecFile', { file: spec.sourceRef })}</div>}
                 </section>
               ))

@@ -532,6 +532,48 @@
   - Ajuste 4 (radios de borde consistentes): `.viewModeToggle` usa `border-radius: var(--radius-md)`. La fila seleccionada `.taskList > li[data-current='true']` usa `border-radius: var(--radius-md)` y `overflow: hidden`, integrando la barra de acento izquierda sin esquinas cuadradas huérfanas. Cero excepciones nuevas al escáner de bordes.
   - Ajuste dinámico de cabecera: En `OpenSpecDashboard.tsx`, `header.changeHeader` mide su altura real mediante `ResizeObserver` y actualiza `--change-header-height` (declarada en `app/globals.css` con valor base `3.25rem`), eliminando el número mágico fijo.
 
+  **Observación sobre menús contextuales e iconos (2026-09-08):**
+  Al extender `ContextMenuItem` en `components/ContextMenus.tsx` con soporte para `icon?: React.ReactNode` (con ancho reservado de 16px para alineación visual), se incorporaron iconos a las acciones de `TaskContextMenu` (`Pencil`, `ArrowUp`, `ArrowDown`, `Trash2`). Esto genera una asimetría visual con los menús contextuales preexistentes del grafo (`CommitContextMenu`, `BranchContextMenu`, etc.), que aún no poseen iconos en sus elementos. Queda documentada esta asimetría deliberada para resolver en una pasada dedicada de pulido y homogeneización de menús contextuales si se desea unificar el estilo de toda la aplicación, sin alterar el alcance de esta tanda.
+
+
+- [ ] 8.15 **Tercera revision visual de Alejandro, 2026-09-08.** Tres cosas, las tres medidas el
+  mismo dia.
+
+  1. **El aviso de sincronizacion rompe la maqueta del encabezado.**
+     Causa medida: `components/pipeline/OpenSpecTasksView.tsx:546-549` dibuja el motivo completo
+     —una oracion de unos 200 caracteres— **de forma permanente** al lado de las solapas, con
+     `.blockedReasonInline` (`OpenSpecDashboard.module.css:3563-3570`) en `inline-flex` y sin tope
+     de ancho. Estira la fila y empuja todo lo demas.
+     El error no es el CSS: es que un parrafo explicativo se muestre como si fuera un rotulo. La
+     tarea 9.5 pide «el motivo al lado, sin depender del desplazamiento», y para una oracion larga
+     eso significa un rotulo corto o un globo al pasar el puntero, no un parrafo pegado a la barra.
+
+  2. **El markdown con formato se dibuja en columnas cuando la tarea tiene sublistas.**
+     Causa medida: `app/globals.css:2408-2411` declara
+     `.pipeline-markdown li.task-list-item { display: flex; align-items: baseline; gap: ... }`.
+     Se agrego para poner la casilla al lado de su texto, y para una linea suelta funciona. Pero
+     `remark-gfm` marca con esa clase **todos** los items que empiezan con `[ ]` o `[x]`, y este
+     `tasks.md` no tiene otra cosa. Sin `flex-direction`, el `li` acomoda en **fila** a sus tres
+     hijos —la casilla, el parrafo y la sublista anidada—, y por eso el texto queda a la izquierda
+     y los sub-items a la derecha, en columnas.
+     No aparecia antes porque el componente anterior no producia listas anidadas dentro de un item:
+     su tipo `list` era una lista plana de cadenas. Lo destapo el analizador nuevo, no lo causo.
+     La casilla tiene que alinearse con la **primera linea**, y el resto del item apilarse debajo.
+
+  3. **En la pantalla de inicio hay cuatro controles y tres hacen lo mismo.**
+     Medido en `components/pipeline/OpenSpecDashboard.tsx`: el lapiz (`:3017`), el menu (`:3025`) y
+     el boton «Abrir» (`:3128-3129`) llaman **los tres** a `selectChange(change.changeId)`. Es la
+     misma accion escrita tres veces.
+     Ademas el estado de fijado se muestra dos veces: la insignia «Fijado» y el icono de chinche.
+     Criterio propuesto, que es el que veniamos usando sin nombrarlo: **cada superficie ofrece las
+     acciones de su nivel.** La pantalla de inicio sirve para **elegir un cambio**; la vista del
+     cambio sirve para **editar sus tareas**. Editar no es una accion del nivel de la pantalla de
+     inicio, y por eso el lapiz sobra ahi aunque tenga sentido en la fila de una tarea.
+     De ahi se sigue: una sola accion principal —abrir—; la chinche como unico portador del estado
+     de fijado, visible siempre cuando esta fijado y al pasar el puntero cuando no, como la
+     estrella de Gmail; y el menu solo sobrevive si le quedan dos acciones que no se alcancen de
+     otro modo. **La aprueba Alejandro.**
+
 ## 9. Interfaz: motor, sync, archivado y jerarquía
 
 - [x] 9.1 Reordenar `components/pipeline/OpenSpecUpdateReview.tsx` y `OpenSpecEngineCard.tsx` para que las acciones y el estado resumido en una línea precedan al diagnóstico, con el diagnóstico completo contraído por omisión y sin perder ninguna evidencia que hoy muestra.

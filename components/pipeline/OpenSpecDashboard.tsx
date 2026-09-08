@@ -356,7 +356,6 @@ export function OpenSpecDashboard({
   const [archiveReason, setArchiveReason] = useState('');
   const [copiedArchiveCmd, setCopiedArchiveCmd] = useState(false);
   const [archiveCmdExecuting, setArchiveCmdExecuting] = useState(false);
-  const [syncPreviewOpen, setSyncPreviewOpen] = useState(false);
   /**
    * Archivos elegidos para preparar. Vacío por defecto y para todos los grupos:
    * sin un cambio de referencia no hay criterio para que ninguno entre solo, y
@@ -2651,41 +2650,7 @@ export function OpenSpecDashboard({
                       )}
                     </div>
                   </div>
-                  <div className={styles.changeHeaderActions}>
-                    <button
-                      type="button"
-                      className={styles.secondaryAction}
-                      onClick={() => setSyncPreviewOpen(true)}
-                      title={t('pipeline.openspec.sync.action')}
-                    >
-                      <RefreshCw size={13} aria-hidden="true" />
-                      <span>{t('pipeline.openspec.sync.action')}</span>
-                    </button>
-                  </div>
                 </header>
-
-                {syncPreviewOpen && (
-                  <div className={styles.syncPreviewModal} role="dialog" aria-modal="true" aria-labelledby="sync-preview-title">
-                    <div className={styles.syncPreviewBox}>
-                      <div className={styles.archiveConfirmHead}>
-                        <RefreshCw size={16} aria-hidden="true" />
-                        <strong id="sync-preview-title">{t('pipeline.openspec.sync.title')}</strong>
-                      </div>
-                      <p className={styles.syncPreviewNotice}>
-                        {t('pipeline.openspec.sync.unavailableReason')}
-                      </p>
-                      <div className={styles.syncPreviewActions}>
-                        <button
-                          type="button"
-                          className={styles.secondaryAction}
-                          onClick={() => setSyncPreviewOpen(false)}
-                        >
-                          {t('pipeline.openspec.archive.cancel')}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Pegada a la cabecera y en el cuerpo del medio */}
                 {archiveRequest && (

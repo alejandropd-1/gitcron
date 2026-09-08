@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { ArrowDown, ArrowUp, Pencil, Trash2 } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 import type { GitFile } from '@/lib/git-store';
@@ -44,7 +45,7 @@ function useAdjustedPosition(x: number, y: number) {
 }
 
 function ContextMenuItem({
-  onClick, text, textSecondary, disabled, title, danger,
+  onClick, text, textSecondary, disabled, title, danger, icon,
 }: {
   onClick: () => void;
   text: string;
@@ -52,6 +53,7 @@ function ContextMenuItem({
   disabled?: boolean;
   title?: string;
   danger?: boolean;
+  icon?: React.ReactNode;
 }) {
   return (
     <button
@@ -67,7 +69,14 @@ function ContextMenuItem({
             : 'text-text-primary hover:bg-secondary/20 hover:text-secondary',
       )}
     >
-      <span className="text-left">{text}</span>
+      <span className="flex items-center gap-2 text-left min-w-0">
+        {icon !== undefined ? (
+          <span className="w-4 shrink-0 flex items-center justify-center opacity-70" aria-hidden="true">
+            {icon}
+          </span>
+        ) : null}
+        <span>{text}</span>
+      </span>
       {textSecondary && <span className="text-[length:var(--font-size-2xs)] opacity-50 ml-4 shrink-0">{textSecondary}</span>}
     </button>
   );
@@ -396,7 +405,7 @@ export function TaskContextMenu({
       ref={ref}
       initial={{ opacity: 0 }}
       animate={{ opacity: isMeasured ? 1 : 0 }}
-      className="fixed glass-overlay rounded-lg py-1 z-[100] w-48 shadow-lg"
+      className="fixed glass-overlay rounded-lg py-1 z-[100] w-52 shadow-lg"
       style={{
         left: coords.left,
         top: coords.top,
@@ -405,17 +414,20 @@ export function TaskContextMenu({
     >
       <ContextMenuItem
         onClick={() => { onClose(); onEdit(); }}
+        icon={<Pencil size={13} />}
         text={t('pipeline.openspec.task.edit')}
       />
       <ContextMenuItem
         onClick={() => { onClose(); onMoveUp(); }}
         disabled={!canMoveUp}
+        icon={<ArrowUp size={13} />}
         text={t('pipeline.openspec.task.moveUp')}
         textSecondary="Alt+↑"
       />
       <ContextMenuItem
         onClick={() => { onClose(); onMoveDown(); }}
         disabled={!canMoveDown}
+        icon={<ArrowDown size={13} />}
         text={t('pipeline.openspec.task.moveDown')}
         textSecondary="Alt+↓"
       />
@@ -423,6 +435,7 @@ export function TaskContextMenu({
       <ContextMenuItem
         onClick={() => { onClose(); onDelete(); }}
         danger
+        icon={<Trash2 size={13} />}
         text={t('pipeline.openspec.task.delete')}
       />
     </motion.div>

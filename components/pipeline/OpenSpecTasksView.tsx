@@ -31,7 +31,7 @@ import { findMalformedTaskLines, type MalformedTaskLine } from '@/lib/malformed-
 import { resolveTaskErrorMessage, type TaskErrorMessage } from '@/lib/task-errors';
 import type { OpenSpecChangeEvidence, TaskEvidence } from '@/types/pipeline';
 import styles from './OpenSpecDashboard.module.css';
-import { SafeMarkdown } from './SafeMarkdown';
+import { MarkdownViewer } from './MarkdownViewer';
 import { TaskConfirmToast } from './TaskConfirmToast';
 
 export interface OpenSpecTasksViewProps {
@@ -528,8 +528,25 @@ export function OpenSpecTasksView({
               onClick={() => handleRequestSwitchMode('markdown')}
             >
               <FileText size={13} />
-              <span>Markdown</span>
+              <span>{t('pipeline.openspec.task.markdownTab')}</span>
             </button>
+          </div>
+
+          {/* Sincronización de specs: sólo icono, al lado de las solapas, deshabilitado con motivo (Bloque C) */}
+          <div className={styles.syncBlockedInline}>
+            <button
+              type="button"
+              disabled
+              className={styles.taskActionBtn}
+              title={t('pipeline.openspec.sync.action')}
+              aria-label={t('pipeline.openspec.sync.action')}
+            >
+              <RefreshCw size={13} aria-hidden="true" />
+            </button>
+            <span className={styles.blockedReasonInline}>
+              <AlertTriangle size={12} aria-hidden="true" />
+              <span>{t('pipeline.openspec.sync.unavailableReason')}</span>
+            </span>
           </div>
         </div>
 
@@ -870,63 +887,48 @@ export function OpenSpecTasksView({
               )}
             </div>
             <div className={styles.markdownFormattedActions}>
-              {/* 1. Alternar entre ver con formato y ver crudo */}
+              {/* 1. Uno que ALTERNA: ojo en crudo para ir a formato, código en formato para volver a crudo */}
               <button
                 type="button"
                 onClick={handleToggleMarkdownMode}
-                className={styles.markdownCopyBtn}
-                title={markdownMode === 'formatted' ? t('pipeline.openspec.task.viewRaw') : t('pipeline.openspec.task.viewFormatted')}
-                aria-label={markdownMode === 'formatted' ? t('pipeline.openspec.task.viewRaw') : t('pipeline.openspec.task.viewFormatted')}
+                className={styles.markdownActionBtn}
+                title={markdownMode === 'formatted' ? t('pipeline.openspec.task.editInRaw') : t('pipeline.openspec.task.viewFormatted')}
+                aria-label={markdownMode === 'formatted' ? t('pipeline.openspec.task.editInRaw') : t('pipeline.openspec.task.viewFormatted')}
               >
                 {markdownMode === 'formatted' ? <FileCode2 size={13} /> : <Eye size={13} />}
-                <span>{markdownMode === 'formatted' ? t('pipeline.openspec.task.viewRaw') : t('pipeline.openspec.task.viewFormatted')}</span>
               </button>
 
-              {/* 2. Guardar (visible y funcional en modo crudo / con cambios) */}
-              <button
-                type="button"
-                onClick={() => void handleSaveRawContent()}
-                disabled={isRawSaving || fixtureActive || !isRawDirty}
-                className={styles.primaryAction}
-                title={t('pipeline.openspec.task.rawSave')}
-                aria-label={t('pipeline.openspec.task.rawSave')}
-              >
-                {isRawSaving ? <Loader2 size={13} className={styles.spin} /> : <Check size={13} />}
-                <span>{isRawSaving ? t('pipeline.openspec.task.rawSaving') : t('pipeline.openspec.task.rawSave')}</span>
-              </button>
+              {/* 2. Guardar (visible sólo en modo crudo) */}
+              {markdownMode === 'raw' && (
+                <button
+                  type="button"
+                  onClick={() => void handleSaveRawContent()}
+                  disabled={isRawSaving || fixtureActive || !isRawDirty}
+                  className={styles.markdownSaveBtn}
+                  title={t('pipeline.openspec.task.rawSave')}
+                  aria-label={t('pipeline.openspec.task.rawSave')}
+                >
+                  {isRawSaving ? <Loader2 size={13} className={styles.spin} /> : <Save size={13} />}
+                </button>
+              )}
 
               {/* 3. Copiar */}
               <button
                 type="button"
                 onClick={handleCopyMarkdown}
-                className={styles.markdownCopyBtn}
+                className={styles.markdownActionBtn}
                 data-copied={copiedMarkdown ? 'true' : undefined}
-                title={t('pipeline.openspec.task.copyMarkdown')}
-                aria-label={t('pipeline.openspec.task.copyMarkdown')}
+                title={copiedMarkdown ? t('pipeline.openspec.task.copiedMarkdown') : t('pipeline.openspec.task.copyMarkdown')}
+                aria-label={copiedMarkdown ? t('pipeline.openspec.task.copiedMarkdown') : t('pipeline.openspec.task.copyMarkdown')}
               >
                 {copiedMarkdown ? <Check size={12} /> : <Copy size={12} />}
-                <span>{copiedMarkdown ? t('pipeline.openspec.task.copiedMarkdown') : t('pipeline.openspec.task.copyMarkdown')}</span>
               </button>
-
-              {/* 4. Editar (aparece sólo cuando se está viendo con formato) */}
-              {markdownMode === 'formatted' && (
-                <button
-                  type="button"
-                  onClick={() => handleSwitchMarkdownMode('raw')}
-                  className={styles.secondaryAction}
-                  title={t('pipeline.openspec.task.editInRaw')}
-                  aria-label={t('pipeline.openspec.task.editInRaw')}
-                >
-                  <Pencil size={12} />
-                  <span>{t('pipeline.openspec.task.editInRaw')}</span>
-                </button>
-              )}
             </div>
           </div>
 
           {markdownMode === 'formatted' ? (
             <div className={styles.markdownFormattedBody}>
-              <SafeMarkdown content={rawText} />
+              <MarkdownViewer content={rawText} />
             </div>
           ) : (
             <textarea

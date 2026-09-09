@@ -2203,9 +2203,10 @@ export function OpenSpecDashboard({
             />
           ) : prepareOpen ? (
             <section className={styles.prepareArea} aria-label={t('pipeline.openspec.prepare.title')}>
-              {/* Las acciones comparten fila con el título, arriba y a la
-                  derecha: al final de la lista quedaban fuera de vista con
-                  veinte archivos y había que bajar para encontrarlas. */}
+              {/* Las acciones se empujan a la derecha del encabezado con
+                  margin-left: auto en .prepareActions; comparten fila con el
+                  título arriba a la derecha: al final de la lista quedaban fuera
+                  de vista con veinte archivos y había que bajar para encontrarlas. */}
               <div className={styles.prepareHead}>
                 <div className={styles.archiveConfirmHead}>
                   <strong>{t('pipeline.openspec.prepare.title')}</strong>

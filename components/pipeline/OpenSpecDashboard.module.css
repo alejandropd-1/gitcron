@@ -494,7 +494,7 @@
   margin-block-end: var(--sp-4);
 }
 .prepareHead > div:first-child { flex: 1 1 100%; min-width: 0; }
-.prepareActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; }
+.prepareActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-left: auto; }
 
 /* Lista de archivos a preparar. Aireada a propósito: en filas apretadas la ruta
    y su checkbox se leían como un bloque y había que apuntar con el mouse. */

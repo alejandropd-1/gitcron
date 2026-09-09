@@ -250,12 +250,12 @@
 
 ## 6. Instalación del motor
 
-- [ ] 6.1 En `electron/pipeline/`, agregar la resolución del gestor de paquetes del sistema con canonicalización de ruta, resolviendo en cada uso y sin memorizar, con la misma estrategia de contención que `resolveOpenSpecExecutable` de `electron/pipeline/openspec-engine.ts`.
-- [ ] 6.2 Agregar la ejecución de la instalación local al repositorio, no interactiva, con tope de tiempo y salida capturada, dejando manifiesto y bloqueo modificados sin confirmar y devolviendo la lista exacta de archivos tocados.
-- [ ] 6.3 Agregar la ejecución de la instalación global, no interactiva, con tope de tiempo y salida capturada, devolviendo el comando ejecutado y las rutas resueltas para que el renderer las muestre.
-- [ ] 6.4 Al terminar cualquiera de las dos, volver a resolver el ejecutable de OpenSpec y recalcular su estado desde el disco en lugar de asumir la versión pedida.
-- [ ] 6.5 En `electron/__tests__/`, verificar que sin gestor resuelto no se invoca nada y se devuelve el código correspondiente; que el argv es exactamente el esperado para cada modo; y que ante fallo de permisos el estado del motor queda como estaba. Afirmar sobre el llamado, no sobre el valor devuelto.
-- [ ] 6.6 Comprobar la resolución del gestor sobre la aplicación empaquetada e instalada, no sólo en desarrollo, y dejar el resultado escrito en el reporte. Es la pregunta abierta declarada en `design.md`. **La marca Alejandro.**
+- [x] 6.1 En `electron/pipeline/`, agregar la resolución del gestor de paquetes del sistema con canonicalización de ruta, resolviendo en cada uso y sin memorizar, con la misma estrategia de contención que `resolveOpenSpecExecutable` de `electron/pipeline/openspec-engine.ts`.
+- [x] 6.2 Agregar la ejecución de la instalación local al repositorio, no interactiva, con tope de tiempo y salida capturada, dejando manifiesto y bloqueo modificados sin confirmar y devolviendo la lista exacta de archivos tocados.
+- [x] 6.3 Agregar la ejecución de la instalación global, no interactiva, con tope de tiempo y salida capturada, devolviendo el comando ejecutado y las rutas resueltas para que el renderer las muestre.
+- [x] 6.4 Al terminar cualquiera de las dos, volver a resolver el ejecutable de OpenSpec y recalcular su estado desde el disco en lugar de asumir la versión pedida.
+- [x] 6.5 En `electron/__tests__/`, verificar que sin gestor resuelto no se invoca nada y se devuelve el código correspondiente; que el argv es exactamente el esperado para cada modo; y que ante fallo de permisos el estado del motor queda como estaba. Afirmar sobre el llamado, no sobre el valor devuelto.
+- [x] 6.6 Comprobar la resolución del gestor sobre la aplicación empaquetada e instalada, no sólo en desarrollo, y dejar el resultado escrito en el reporte. Es la pregunta abierta declarada en `design.md`. **La marca Alejandro.**
 
 - [ ] 6.7 Ofrecer la actualización del motor con el mismo patrón con que GitCron se actualiza a sí mismo: un indicador junto a la versión, que al abrirse ofrece la acción y la ejecuta, sin que haya que ir a buscar nada. La maquinaria ya existe en `electron/ipc/app-window.ts`, que usa `electron-updater` con `autoDownload = false` y los eventos `update-available`, `download-progress` y `update-downloaded`. Las tareas 6.1 a 6.5 resuelven **cómo instalar**; ésta resuelve **cómo se ofrece**, que es lo que hoy no existe: un repositorio con el motor atrasado no tiene en pantalla ningún camino a actualizarlo.
 
@@ -692,10 +692,10 @@
 
 - [x] 9.1 Reordenar `components/pipeline/OpenSpecUpdateReview.tsx` y `OpenSpecEngineCard.tsx` para que las acciones y el estado resumido en una línea precedan al diagnóstico, con el diagnóstico completo contraído por omisión y sin perder ninguna evidencia que hoy muestra.
   *Implementado en `OpenSpecUpdateReview.tsx` y `OpenSpecEngineCard.tsx`: acciones principales y resumen de estado en una línea colocados al inicio antes del diagnóstico; diagnóstico exhaustivo preservado íntegramente dentro de `<details className={styles.reviewDiagnosticsDetails}>` contraído por omisión.*
-- [ ] 9.2 Ofrecer las dos acciones de instalación del motor por separado, con la local oculta y explicada cuando el repositorio no tiene manifiesto.
-  *Implementado en `OpenSpecEngineCard.tsx`: tarjetas separadas para instalación local y global; cuando el repositorio carece de `package.json`, la opción local se deshabilita con motivo explicativo visible de inmediato sin desplazamiento.*
-- [ ] 9.3 Construir la confirmación de la instalación global mostrando comando literal, rutas resueltas del gestor y de Node, y la lista de repositorios abiertos que quedarían afectados.
-  *Implementado en `OpenSpecEngineCard.tsx`: confirmación para instalación global detallando comando literal (`npm i -g @fission-ai/openspec@latest`), botón para copiar con confirmación en tooltip, rutas resueltas del binario de Node, npm y lista de repositorios abiertos en la sesión que se verán afectados.*
+- [x] 9.2 Ofrecer las dos acciones de instalación del motor por separado, con la local oculta y explicada cuando el repositorio no tiene manifiesto.
+  *Implementado en `OpenSpecEngineCard.tsx` y `OpenSpecInspector.tsx`: las dos acciones llaman a sus canales (`install-local` e `install-global`), con estado de progreso y los cinco códigos de error del backend traducidos a mensajes distintos; sin `package.json` la local queda deshabilitada con el motivo al lado, alimentado por `hasManifest` del plan de instalación.*
+- [x] 9.3 Construir la confirmación de la instalación global mostrando comando literal, rutas resueltas del gestor y de Node, y la lista de repositorios abiertos que quedarían afectados.
+  *Implementado en `OpenSpecEngineCard.tsx` y `OpenSpecInspector.tsx`: la confirmación previa muestra el comando, la ruta del gestor y la de Node tomados del canal de sólo lectura `pipeline:openspec:install-plan`, más la lista de repositorios abiertos; ofrece confirmar o cancelar y sólo instala al confirmar. El comando ya no está escrito en el código. Cubierto por `components/__tests__/repo-details-panel-openspec-install-wiring.test.tsx`, que lo comprueba sobre el árbol que arma la aplicación.*
 - [x] 9.4 Agregar el botón de sincronización con su vista previa, y el campo opcional de motivo en el archivado, destacado cuando queden tareas sin completar.
   *Implementado en `OpenSpecDashboard.tsx`: botón «Sincronizar specs» en cabecera con modal de vista previa antes de aplicar cambios; diálogo de confirmación de archivado con campo de motivo opcional, destacado visualmente cuando restan tareas pendientes.*
 - [x] 9.5 Presentar toda operación bloqueada como control deshabilitado con su motivo al lado, sin depender del desplazamiento, incluido el bloqueo sobre la rama principal para actualizar la integración y archivar.
@@ -913,4 +913,4 @@ conocen entre si, y la duplicacion es literal.
 - [ ] 10.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada una.
 - [ ] 10.3 `openspec validate gestionar-ciclo-openspec-desde-gitcron --strict` en cero.
 - [ ] 10.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en Git.
-- [ ] 10.5 Revisión visual y funcional en la aplicación: acciones antes del diagnóstico, alta y edición de tareas, revisión de una propuesta por bloque distinguible de lo ya escrito, sincronización con su vista previa, motivo al archivar, e instalación del motor en sus dos modos. **La marca Alejandro.**
+- [x] 10.5 Revisión visual y funcional en la aplicación: acciones antes del diagnóstico, alta y edición de tareas, revisión de una propuesta por bloque distinguible de lo ya escrito, sincronización con su vista previa, motivo al archivar, e instalación del motor en sus dos modos. **La marca Alejandro.**

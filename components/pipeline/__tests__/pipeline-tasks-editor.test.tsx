@@ -553,6 +553,18 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8, 8.12)', () => {
     });
   });
 
+  // --- Preparar commit: acciones empujadas a la derecha (Observación visual 2026-09-09) ---
+  describe('Preparar commit: .prepareActions empujada a la derecha', () => {
+    it('.prepareActions tiene margin-left: auto para alinear acciones en el borde derecho del contenedor flex', () => {
+      const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const css = fs.readFileSync(modulePath, 'utf-8');
+
+      const actionsMatch = css.match(/\.prepareActions\s*\{([^}]+)\}/);
+      expect(actionsMatch).toBeTruthy();
+      expect(actionsMatch![1]).toMatch(/margin-left:\s*auto/);
+    });
+  });
+
   // --- Observación 8.17: Ajustes visuales de tareas (Bloques A, B, C) ---
   describe('Observación 8.17: Ajustes visuales de tareas (Bloques A, B, C)', () => {
     it('Bloque A: el recuadro visible del hover de la casilla (.taskStatus) mide 1.75rem y coincide con .iconBtn', () => {

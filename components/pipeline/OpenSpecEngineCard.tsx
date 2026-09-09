@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useT } from '@/hooks/use-translation';
-import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, HelpCircle, Copy, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, HelpCircle, Copy, Check, Loader2 } from 'lucide-react';
 import type {
   OpenSpecCliProvenance,
   OpenSpecDivergenceReason,
   OpenSpecEngineStatus,
+  OpenSpecInstallResult,
   OpenSpecStoreDiagnostic,
   OpenSpecVersionClass,
 } from '../../types/pipeline';
@@ -15,6 +16,7 @@ import {
   isInstalledBehindCycle,
 } from '@/lib/openspec-version';
 import styles from './OpenSpecDashboard.module.css';
+import { useGitStore } from '@/lib/git-store';
 
 const VERSION_CLASS_KEY_MAP: Record<OpenSpecVersionClass, string> = {
   supported: 'pipeline.openspec.engine.versionClass.supported',
@@ -91,6 +93,30 @@ export interface OpenSpecEngineCardProps {
   openRepoPaths?: string[];
   nodePath?: string;
   npmPath?: string;
+  repoPath?: string;
+  commandExecuted?: string;
+  packageManagerPath?: string;
+  onInstalled?: (result: OpenSpecInstallResult) => void;
+}
+
+export function formatInstallErrorCode(
+  code: string | undefined,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  switch (code) {
+    case 'no-manifest':
+      return t('pipeline.openspec.engine.install.error.noManifest');
+    case 'package-manager-not-found':
+      return t('pipeline.openspec.engine.install.error.packageManagerNotFound');
+    case 'permission-denied':
+      return t('pipeline.openspec.engine.install.error.permissionDenied');
+    case 'invalid-target-version':
+      return t('pipeline.openspec.engine.install.error.invalidTargetVersion');
+    case 'install-failed':
+      return t('pipeline.openspec.engine.install.error.installFailed');
+    default:
+      return '';
+  }
 }
 
 export function formatDivergenceReason(
@@ -155,11 +181,25 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   openRepoPaths,
   nodePath,
   npmPath,
+  repoPath,
+  commandExecuted: propCommandExecuted,
+  packageManagerPath,
+  onInstalled,
 }) => {
   const t = useT();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showAbsentOutputs, setShowAbsentOutputs] = useState(false);
   const [copiedGlobal, setCopiedGlobal] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
+  const [installingMode, setInstallingMode] = useState<'local' | 'global' | null>(null);
+  const [isConfirmingGlobal, setIsConfirmingGlobal] = useState(false);
+  const [installResult, setInstallResult] = useState<OpenSpecInstallResult | null>(null);
+  const [installError, setInstallError] = useState<string | null>(null);
+
+  const gitStoreRepoPath = useGitStore((s) => s.repoPath);
+  const effectiveRepoPath = repoPath ?? gitStoreRepoPath ?? undefined;
+
+  const engineInstalled = status ? status.cli.installed : false;
 
   // 1. Modo compacto (Insignia para header / summaryBar)
   if (compact) {
@@ -171,7 +211,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
         </div>
       );
     }
-    if (!status || !status.cli.installed) {
+    if (!status || !engineInstalled) {
       return (
         <div
           className={styles.compactEngineBadge}
@@ -300,6 +340,80 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const allOutputs = installed?.outputInventory ?? [];
   const presentOutputs = allOutputs.filter((o) => o.presenceState !== 'absent');
   const absentOutputs = allOutputs.filter((o) => o.presenceState === 'absent');
+  const displayCommand = installResult?.commandExecuted || propCommandExecuted || null;
+  const resolvedNodePath = installResult?.nodePath ?? nodePath;
+  const resolvedPmPath = installResult?.packageManagerPath ?? packageManagerPath ?? npmPath;
+
+  const isLocalBlocked =
+    hasPackageJson === false ||
+    !effectiveRepoPath ||
+    (typeof window !== 'undefined' && !window.api?.pipelineOpenSpec?.installLocal);
+
+  let localBlockedReason: string | null = null;
+  if (hasPackageJson === false) {
+    localBlockedReason = t('pipeline.openspec.engine.install.localNoManifest');
+  } else if (!effectiveRepoPath || (typeof window !== 'undefined' && !window.api?.pipelineOpenSpec?.installLocal)) {
+    localBlockedReason = t('pipeline.openspec.engine.install.localUnavailable');
+  }
+
+  const handleInstallLocal = async () => {
+    if (isInstalling || isLocalBlocked || !effectiveRepoPath) return;
+    if (typeof window === 'undefined' || !window.api?.pipelineOpenSpec?.installLocal) return;
+
+    setIsInstalling(true);
+    setInstallingMode('local');
+    setInstallResult(null);
+    setInstallError(null);
+
+    try {
+      const result = await window.api.pipelineOpenSpec.installLocal({ repoPath: effectiveRepoPath });
+      setInstallResult(result);
+      if (result.success) {
+        onInstalled?.(result);
+      } else {
+        const errorMsg =
+          formatInstallErrorCode(result.code, t) ||
+          result.error ||
+          t('pipeline.openspec.engine.install.error.installFailed');
+        setInstallError(errorMsg);
+      }
+    } catch (err: unknown) {
+      setInstallError((err as Error)?.message || t('pipeline.openspec.engine.install.error.installFailed'));
+    } finally {
+      setIsInstalling(false);
+      setInstallingMode(null);
+    }
+  };
+
+  const handleConfirmInstallGlobal = async () => {
+    if (isInstalling) return;
+    if (typeof window === 'undefined' || !window.api?.pipelineOpenSpec?.installGlobal) return;
+
+    setIsInstalling(true);
+    setInstallingMode('global');
+    setInstallResult(null);
+    setInstallError(null);
+
+    try {
+      const result = await window.api.pipelineOpenSpec.installGlobal({ repoPath: effectiveRepoPath || undefined });
+      setInstallResult(result);
+      if (result.success) {
+        setIsConfirmingGlobal(false);
+        onInstalled?.(result);
+      } else {
+        const errorMsg =
+          formatInstallErrorCode(result.code, t) ||
+          result.error ||
+          t('pipeline.openspec.engine.install.error.installFailed');
+        setInstallError(errorMsg);
+      }
+    } catch (err: unknown) {
+      setInstallError((err as Error)?.message || t('pipeline.openspec.engine.install.error.installFailed'));
+    } finally {
+      setIsInstalling(false);
+      setInstallingMode(null);
+    }
+  };
 
   return (
     <section className={styles.engineCardSection} aria-label={t('pipeline.openspec.engine.cardTitle')}>
@@ -332,96 +446,236 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
       )}
 
       {/* Surface de instalación honesta del motor cuando no está instalado (Tareas 9.2, 9.3, 9.5) */}
-      {!cli.installed && (
+      {!engineInstalled && (
         <div className={styles.engineInstallSection} aria-label={t('pipeline.openspec.engine.install.globalTitle')}>
-          {/* Instalación local deshabilitada con motivo al lado (9.2 y 9.5) */}
+          {/* Instalación local: botón con estado de progreso y motivo inline si está bloqueada (9.2 y 9.5) */}
           <div className={styles.engineInstallActionRow}>
             <button
               type="button"
               className={styles.centerAttentionBtn}
-              disabled
-              title={
-                hasPackageJson === false
-                  ? t('pipeline.openspec.engine.install.localNoManifest')
-                  : t('pipeline.openspec.engine.install.localUnavailable')
-              }
+              onClick={handleInstallLocal}
+              disabled={isInstalling || isLocalBlocked}
+              title={localBlockedReason || undefined}
             >
-              {t('pipeline.openspec.engine.install.localTitle')}
-            </button>
-            <span className={styles.blockedReasonInline} role="alert">
-              {hasPackageJson === false
-                ? t('pipeline.openspec.engine.install.localNoManifest')
-                : t('pipeline.openspec.engine.install.localUnavailable')}
-            </span>
-          </div>
-
-          {/* Instalación global deshabilitada con motivo al lado (9.3 y 9.5) */}
-          <div className={styles.engineInstallActionRow}>
-            <button
-              type="button"
-              className={styles.centerAttentionBtn}
-              disabled
-              title={t('pipeline.openspec.engine.install.globalUnavailable')}
-            >
-              {t('pipeline.openspec.engine.install.globalTitle')}
-            </button>
-            <span className={styles.blockedReasonInline} role="alert">
-              {t('pipeline.openspec.engine.install.globalUnavailable')}
-            </span>
-          </div>
-
-          {/* Comando literal con botón de copiado y confirmación (9.3) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
-            <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>
-              npm i -g @fission-ai/openspec@latest
-            </code>
-            <button
-              type="button"
-              className={styles.reviewCopyBtn}
-              onClick={() => {
-                if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                  void navigator.clipboard.writeText('npm i -g @fission-ai/openspec@latest');
-                  setCopiedGlobal(true);
-                  setTimeout(() => setCopiedGlobal(false), 2000);
-                }
-              }}
-              title={t('pipeline.openspec.archive.copyCommand')}
-            >
-              {copiedGlobal ? (
+              {isInstalling && installingMode === 'local' ? (
                 <>
-                  <Check size={12} aria-hidden="true" />
-                  <span>{t('pipeline.openspec.archive.copiedCommand')}</span>
+                  <Loader2 size={12} className={styles.spin} aria-hidden="true" />
+                  <span>{t('pipeline.openspec.engine.install.installingLocal')}</span>
                 </>
               ) : (
-                <>
-                  <Copy size={12} aria-hidden="true" />
-                  <span>{t('pipeline.openspec.archive.copyCommand')}</span>
-                </>
+                t('pipeline.openspec.engine.install.localTitle')
               )}
             </button>
+            {localBlockedReason && (
+              <span className={styles.blockedReasonInline} role="alert">
+                {localBlockedReason}
+              </span>
+            )}
           </div>
 
-          <div className={styles.engineInstallDetails}>
-            <p style={{ margin: 'var(--space-1) 0 0' }}>
-              {t('pipeline.openspec.engine.hostUpgrade.help')}
-            </p>
-            {nodePath && (
-              <p style={{ margin: 'var(--space-1) 0 0' }}>
-                <code>Node: {nodePath}</code>
+          {/* Instalación global y confirmación previa (9.3 y 9.5) */}
+          {!isConfirmingGlobal ? (
+            <>
+              <div className={styles.engineInstallActionRow}>
+                <button
+                  type="button"
+                  className={styles.centerAttentionBtn}
+                  onClick={() => {
+                    setInstallError(null);
+                    setIsConfirmingGlobal(true);
+                  }}
+                  disabled={
+                    isInstalling ||
+                    (typeof window !== 'undefined' && !window.api?.pipelineOpenSpec?.installGlobal)
+                  }
+                  title={
+                    typeof window !== 'undefined' && !window.api?.pipelineOpenSpec?.installGlobal
+                      ? t('pipeline.openspec.engine.install.globalUnavailable')
+                      : undefined
+                  }
+                >
+                  {isInstalling && installingMode === 'global' ? (
+                    <>
+                      <Loader2 size={12} className={styles.spin} aria-hidden="true" />
+                      <span>{t('pipeline.openspec.engine.install.installingGlobal')}</span>
+                    </>
+                  ) : (
+                    t('pipeline.openspec.engine.install.globalTitle')
+                  )}
+                </button>
+                {typeof window !== 'undefined' && !window.api?.pipelineOpenSpec?.installGlobal && (
+                  <span className={styles.blockedReasonInline} role="alert">
+                    {t('pipeline.openspec.engine.install.globalUnavailable')}
+                  </span>
+                )}
+              </div>
+
+              {/* Comando literal dinámico con botón de copiado (9.3) */}
+              {displayCommand ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+                  <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>
+                    {displayCommand}
+                  </code>
+                  <button
+                    type="button"
+                    className={styles.reviewCopyBtn}
+                    onClick={() => {
+                      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                        void navigator.clipboard.writeText(displayCommand);
+                        setCopiedGlobal(true);
+                        setTimeout(() => setCopiedGlobal(false), 2000);
+                      }
+                    }}
+                    title={t('pipeline.openspec.archive.copyCommand')}
+                  >
+                    {copiedGlobal ? (
+                      <>
+                        <Check size={12} aria-hidden="true" />
+                        <span>{t('pipeline.openspec.archive.copiedCommand')}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={12} aria-hidden="true" />
+                        <span>{t('pipeline.openspec.archive.copyCommand')}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                  {t('pipeline.openspec.engine.install.commandPendingResolution')}
+                </p>
+              )}
+
+              <div className={styles.engineInstallDetails}>
+                <p style={{ margin: 'var(--space-1) 0 0' }}>
+                  {t('pipeline.openspec.engine.hostUpgrade.help')}
+                </p>
+                {resolvedNodePath && (
+                  <p style={{ margin: 'var(--space-1) 0 0' }}>
+                    <code>Node: {resolvedNodePath}</code>
+                  </p>
+                )}
+                {resolvedPmPath && (
+                  <p style={{ margin: 'var(--space-1) 0 0' }}>
+                    <code>npm: {resolvedPmPath}</code>
+                  </p>
+                )}
+                {openRepoPaths && openRepoPaths.length > 0 && (
+                  <p style={{ margin: 'var(--space-1) 0 0' }}>
+                    <span>{t('pipeline.openspec.engine.install.affectedRepos', { count: openRepoPaths.length })} </span>
+                    <code>{openRepoPaths.join(', ')}</code>
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className={styles.engineInstallConfirmBox} role="region" aria-label={t('pipeline.openspec.engine.install.confirmGlobalAction')}>
+              <p className={styles.engineInstallConfirmPrompt}>
+                {t('pipeline.openspec.engine.install.confirmGlobalPrompt')}
               </p>
-            )}
-            {npmPath && (
-              <p style={{ margin: 'var(--space-1) 0 0' }}>
-                <code>npm: {npmPath}</code>
-              </p>
-            )}
-            {openRepoPaths && openRepoPaths.length > 0 && (
-              <p style={{ margin: 'var(--space-1) 0 0' }}>
-                <span>Repositorios afectados ({openRepoPaths.length}): </span>
-                <code>{openRepoPaths.join(', ')}</code>
-              </p>
-            )}
-          </div>
+
+              {displayCommand ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+                  <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>
+                    {displayCommand}
+                  </code>
+                  <button
+                    type="button"
+                    className={styles.reviewCopyBtn}
+                    onClick={() => {
+                      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                        void navigator.clipboard.writeText(displayCommand);
+                        setCopiedGlobal(true);
+                        setTimeout(() => setCopiedGlobal(false), 2000);
+                      }
+                    }}
+                    title={t('pipeline.openspec.archive.copyCommand')}
+                  >
+                    {copiedGlobal ? (
+                      <>
+                        <Check size={12} aria-hidden="true" />
+                        <span>{t('pipeline.openspec.archive.copiedCommand')}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={12} aria-hidden="true" />
+                        <span>{t('pipeline.openspec.archive.copyCommand')}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                  {t('pipeline.openspec.engine.install.commandPendingResolution')}
+                </p>
+              )}
+
+              <div className={styles.engineInstallDetails}>
+                {resolvedNodePath && (
+                  <p style={{ margin: 'var(--space-1) 0 0' }}>
+                    <code>Node: {resolvedNodePath}</code>
+                  </p>
+                )}
+                {resolvedPmPath && (
+                  <p style={{ margin: 'var(--space-1) 0 0' }}>
+                    <code>npm: {resolvedPmPath}</code>
+                  </p>
+                )}
+                {openRepoPaths && openRepoPaths.length > 0 && (
+                  <p style={{ margin: 'var(--space-1) 0 0' }}>
+                    <span>{t('pipeline.openspec.engine.install.affectedRepos', { count: openRepoPaths.length })} </span>
+                    <code>{openRepoPaths.join(', ')}</code>
+                  </p>
+                )}
+              </div>
+
+              <div className={styles.engineInstallConfirmActions}>
+                <button
+                  type="button"
+                  className={styles.centerAttentionBtn}
+                  onClick={handleConfirmInstallGlobal}
+                  disabled={isInstalling}
+                >
+                  {isInstalling && installingMode === 'global' ? (
+                    <>
+                      <Loader2 size={12} className={styles.spin} aria-hidden="true" />
+                      <span>{t('pipeline.openspec.engine.install.installingGlobal')}</span>
+                    </>
+                  ) : (
+                    t('pipeline.openspec.engine.install.confirmGlobalAction')
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className={styles.reviewCopyBtn}
+                  onClick={() => setIsConfirmingGlobal(false)}
+                  disabled={isInstalling}
+                >
+                  {t('pipeline.openspec.engine.install.cancelGlobalAction')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Feedback de resultado de instalación (éxito o error) */}
+          {installResult?.success && (
+            <div className={`${styles.engineInstallFeedback} ${styles.engineInstallFeedbackSuccess}`} role="status">
+              <CheckCircle2 size={14} aria-hidden="true" />
+              <span>
+                {installResult.mode === 'local'
+                  ? t('pipeline.openspec.engine.install.successLocal')
+                  : t('pipeline.openspec.engine.install.successGlobal')}
+              </span>
+            </div>
+          )}
+
+          {installError && (
+            <div className={`${styles.engineInstallFeedback} ${styles.engineInstallFeedbackError}`} role="alert">
+              <AlertTriangle size={14} aria-hidden="true" />
+              <span>{installError}</span>
+            </div>
+          )}
         </div>
       )}
 

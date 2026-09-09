@@ -9,6 +9,7 @@ import type {
   OpenSpecEngineStatus,
   OpenSpecExecuteResult,
   OpenSpecFreshnessState,
+  OpenSpecInstallPlan,
   OpenSpecInstallResult,
   OpenSpecPreviewResult,
   OpenSpecRegistryCheck,
@@ -28,7 +29,7 @@ import {
   installOpenSpecGlobal,
   isValidTargetVersion,
 } from '../pipeline/openspec-install';
-import { resolvePackageManager } from '../pipeline/package-manager';
+import { resolvePackageManager, resolvePackageManagerInstallPlan } from '../pipeline/package-manager';
 import { withRepoWatcherPaused } from './watchers';
 import {
   contextOpenSpecWithCli,
@@ -921,6 +922,25 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
         engineDeps: deps,
         recalculateStatus: async (rp?: string) => buildEngineStatusSnapshot(rp ?? validRepoPath, deps),
       });
+    },
+  );
+
+  // 14. Install Plan Preview (Canal de solo lectura — no ejecuta instalación)
+  ipc.handle(
+    'pipeline:openspec:install-plan',
+    async (_event, payload?: unknown): Promise<OpenSpecInstallPlan> => {
+      validateStrictPayloadKeys(payload, ['repoPath']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      let validRepoPath: string | undefined = undefined;
+      if (rawRepoPath !== undefined && rawRepoPath !== null) {
+        const validated = validateRepo(rawRepoPath);
+        if (!validated) {
+          throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+        }
+        validRepoPath = validated;
+      }
+
+      return resolvePackageManagerInstallPlan(validRepoPath);
     },
   );
 }

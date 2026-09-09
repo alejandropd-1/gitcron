@@ -475,5 +475,7 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('pipeline:openspec:install-local', options),
     installGlobal: (options?: { repoPath?: string; targetVersion?: string }) =>
       ipcRenderer.invoke('pipeline:openspec:install-global', options),
+    getInstallPlan: (repoPath?: string) =>
+      ipcRenderer.invoke('pipeline:openspec:install-plan', { repoPath }),
   },
 });

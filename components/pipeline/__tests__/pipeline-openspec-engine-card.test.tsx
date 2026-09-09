@@ -2,7 +2,8 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { OpenSpecEngineCard } from '../OpenSpecEngineCard';
+import { OpenSpecEngineCard, formatInstallErrorCode } from '../OpenSpecEngineCard';
+import { translate } from '../../../lib/i18n';
 import type { OpenSpecEngineStatus } from '../../../types/pipeline';
 import { deriveUpdateMatrixAction } from '../../../lib/openspec-update-guide';
 import { hasOpenSpecEngineAttention } from '../pipeline-domain';
@@ -729,12 +730,35 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
       expect(actionBtn.compareDocumentPosition(summaryBox!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     });
 
+    const createPipelineOpenSpecMock = () => ({
+      getEngineStatus: vi.fn().mockResolvedValue(null),
+      checkLatestVersion: vi.fn().mockResolvedValue(null),
+      getUpdatePlan: vi.fn().mockResolvedValue(null),
+      executeUpdate: vi.fn().mockResolvedValue({ success: true }),
+      runUpdate: vi.fn().mockResolvedValue({ success: true }),
+      getPreview: vi.fn().mockResolvedValue(null),
+      getInstructions: vi.fn().mockResolvedValue(null),
+      executeCommand: vi.fn().mockResolvedValue({ exitCode: 0 }),
+      installLocal: vi.fn().mockResolvedValue({
+        success: true,
+        mode: 'local',
+        commandExecuted: 'pnpm add -D @fission-ai/openspec@latest',
+      }),
+      installGlobal: vi.fn().mockResolvedValue({
+        success: true,
+        mode: 'global',
+        commandExecuted: 'pnpm add -g @fission-ai/openspec@latest',
+      }),
+    });
+
     it('9.2: ofrece instalación local deshabilitada con motivo de ausencia de package.json cuando hasPackageJson=false', () => {
+      (window as any).api = { pipelineOpenSpec: createPipelineOpenSpecMock() };
       render(
         <OpenSpecEngineCard
           status={absentCliStatus}
           compact={false}
           hasPackageJson={false}
+          repoPath="C:\\repo"
         />,
       );
 
@@ -743,7 +767,8 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
       expect(screen.getByText(/El repositorio no cuenta con un archivo package\.json para instalación local/i)).toBeDefined();
     });
 
-    it('9.2: ofrece instalación local deshabilitada con gestor no disponible cuando hay package.json', () => {
+    it('9.2: ofrece instalación local deshabilitada cuando no se cuenta con repoPath o falta IPC', () => {
+      delete (window as any).api;
       render(
         <OpenSpecEngineCard
           status={absentCliStatus}
@@ -754,21 +779,127 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
 
       const localBtn = screen.getByRole('button', { name: /Instalación local/i });
       expect(localBtn.hasAttribute('disabled')).toBe(true);
-      expect(screen.getByText(/Instalación local no disponible \(pendiente de implementación en backend\)/i)).toBeDefined();
+      expect(screen.getByText(/Instalación local no disponible/i)).toBeDefined();
     });
 
-    it('9.3 y 9.5: ofrece instalación global deshabilitada con comando literal, copiado y confirmación de alcance', async () => {
-      const writeTextMock = vi.fn().mockResolvedValue(undefined);
-      Object.assign(navigator, {
-        clipboard: {
-          writeText: writeTextMock,
-        },
-      });
+    it('9.2: el clic en «Instalación local» llama a pipelineOpenSpec.installLocal con repoPath', async () => {
+      const mockApi = createPipelineOpenSpecMock();
+      (window as any).api = { pipelineOpenSpec: mockApi };
 
       render(
         <OpenSpecEngineCard
           status={absentCliStatus}
           compact={false}
+          hasPackageJson={true}
+          repoPath={'C:\\repo'}
+        />,
+      );
+
+      const localBtn = screen.getByRole('button', { name: /Instalación local/i });
+      expect(localBtn.hasAttribute('disabled')).toBe(false);
+
+      await fireEvent.click(localBtn);
+
+      expect(mockApi.installLocal).toHaveBeenCalledTimes(1);
+      expect(mockApi.installLocal).toHaveBeenCalledWith({ repoPath: 'C:\\repo' });
+      expect(await screen.findByText(/Instalación local completada con éxito/i)).toBeDefined();
+    });
+
+    it('9.2: muestra estado de ocupado y deshabilita ambos botones durante la instalación local', async () => {
+      let resolvePromise: (val: any) => void;
+      const pendingPromise = new Promise((resolve) => {
+        resolvePromise = resolve;
+      });
+
+      const mockApi = createPipelineOpenSpecMock();
+      mockApi.installLocal.mockReturnValue(pendingPromise);
+      (window as any).api = { pipelineOpenSpec: mockApi };
+
+      render(
+        <OpenSpecEngineCard
+          status={absentCliStatus}
+          compact={false}
+          hasPackageJson={true}
+          repoPath={'C:\\repo'}
+        />,
+      );
+
+      const localBtn = screen.getByRole('button', { name: /Instalación local/i });
+      const globalBtn = screen.getByRole('button', { name: /Instalación global/i });
+
+      fireEvent.click(localBtn);
+
+      // Mientras corre, el botón local muestra ocupado y ambos se deshabilitan
+      expect(await screen.findByText(/Instalando localmente…/i)).toBeDefined();
+      expect(localBtn.hasAttribute('disabled')).toBe(true);
+      expect(globalBtn.hasAttribute('disabled')).toBe(true);
+
+      // Al resolverse se reanuda
+      resolvePromise!({ success: true, mode: 'local' });
+      expect(await screen.findByText(/Instalación local completada con éxito/i)).toBeDefined();
+    });
+
+    it('9.2: traduce cada uno de los 5 códigos de error del backend a mensajes accionables distintos', async () => {
+      const errorCodes = [
+        'no-manifest',
+        'package-manager-not-found',
+        'permission-denied',
+        'invalid-target-version',
+        'install-failed',
+      ] as const;
+
+      const expectedMessages = [
+        'El repositorio no cuenta con un archivo package.json para instalación local',
+        'No se encontró un gestor de paquetes compatible (npm, pnpm, yarn, bun) en el sistema',
+        'Permiso denegado al instalar. Ejecute con privilegios elevados o verifique los permisos del directorio.',
+        'La versión o especificación del paquete OpenSpec solicitada no es válida',
+        'Falló el comando de instalación. Revise la salida de error para más detalles.',
+      ];
+
+      // Verificación directa de la función pura formatInstallErrorCode
+      errorCodes.forEach((code, idx) => {
+        const formatted = formatInstallErrorCode(code, (key) => translate(key as any, 'es'));
+        expect(formatted).toBe(expectedMessages[idx]);
+      });
+
+      // Verificación en componente para cada código
+      for (let i = 0; i < errorCodes.length; i++) {
+        cleanup();
+        const code = errorCodes[i];
+        const mockApi = createPipelineOpenSpecMock();
+        mockApi.installLocal.mockResolvedValue({
+          success: false,
+          mode: 'local',
+          code,
+          error: 'raw error detail',
+        });
+        (window as any).api = { pipelineOpenSpec: mockApi };
+
+        render(
+          <OpenSpecEngineCard
+            status={absentCliStatus}
+            compact={false}
+            hasPackageJson={true}
+            repoPath={'C:\\repo'}
+          />,
+        );
+
+        const localBtn = screen.getByRole('button', { name: /Instalación local/i });
+        await fireEvent.click(localBtn);
+
+        expect(await screen.findByText(expectedMessages[i])).toBeDefined();
+      }
+    });
+
+    it('9.3: el clic en «Instalación global» muestra la confirmación antes de llamar a pipelineOpenSpec.installGlobal', async () => {
+      const mockApi = createPipelineOpenSpecMock();
+      (window as any).api = { pipelineOpenSpec: mockApi };
+
+      render(
+        <OpenSpecEngineCard
+          status={absentCliStatus}
+          compact={false}
+          repoPath={'C:\\repo'}
           nodePath="C:\\Program Files\\nodejs\\node.exe"
           npmPath="C:\\Program Files\\nodejs\\npm.cmd"
           openRepoPaths={['C:\\repo1', 'C:\\repo2']}
@@ -776,21 +907,97 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
       );
 
       const globalBtn = screen.getByRole('button', { name: /Instalación global/i });
-      expect(globalBtn.hasAttribute('disabled')).toBe(true);
-      expect(screen.getByText(/Instalación global desde la interfaz pendiente de implementar en backend/i)).toBeDefined();
+      fireEvent.click(globalBtn);
 
-      // Comando literal visible
-      expect(screen.getByText('npm i -g @fission-ai/openspec@latest')).toBeDefined();
+      // No debe haberse llamado inmediatamente al backend
+      expect(mockApi.installGlobal).not.toHaveBeenCalled();
 
-      // Copiado funcional
-      const copyBtn = screen.getByRole('button', { name: /Copiar comando/i });
-      fireEvent.click(copyBtn);
-      expect(writeTextMock).toHaveBeenCalledWith('npm i -g @fission-ai/openspec@latest');
-
-      // Rutas y repositorios afectados
+      // Debe mostrarse la zona de confirmación con sus detalles
+      expect(screen.getByText(/La instalación global modificará el entorno de Node/i)).toBeDefined();
       expect(screen.getByText((content) => content.includes('Node:') && content.includes('node.exe'))).toBeDefined();
       expect(screen.getByText((content) => content.includes('npm:') && content.includes('npm.cmd'))).toBeDefined();
-      expect(screen.getByText(/Repositorios afectados \(2\)/i)).toBeDefined();
+      expect(screen.getByText(/Repositorios afectados \(2\):/i)).toBeDefined();
+      expect(screen.getByRole('button', { name: /Confirmar instalación global/i })).toBeDefined();
+      expect(screen.getByRole('button', { name: /Cancelar/i })).toBeDefined();
+    });
+
+    it('9.3: el botón «Cancelar» cierra la confirmación sin ejecutar la instalación global', async () => {
+      const mockApi = createPipelineOpenSpecMock();
+      (window as any).api = { pipelineOpenSpec: mockApi };
+
+      render(
+        <OpenSpecEngineCard
+          status={absentCliStatus}
+          compact={false}
+          repoPath={'C:\\repo'}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /Instalación global/i }));
+      expect(screen.getByRole('button', { name: /Confirmar instalación global/i })).toBeDefined();
+
+      fireEvent.click(screen.getByRole('button', { name: /Cancelar/i }));
+
+      expect(mockApi.installGlobal).not.toHaveBeenCalled();
+      expect(screen.queryByRole('button', { name: /Confirmar instalación global/i })).toBeNull();
+      expect(screen.getByRole('button', { name: /Instalación global/i })).toBeDefined();
+    });
+
+    it('9.3: al confirmar la instalación global, ejecuta pipelineOpenSpec.installGlobal y reporta resultado', async () => {
+      const mockApi = createPipelineOpenSpecMock();
+      (window as any).api = { pipelineOpenSpec: mockApi };
+
+      render(
+        <OpenSpecEngineCard
+          status={absentCliStatus}
+          compact={false}
+          repoPath={'C:\\repo'}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /Instalación global/i }));
+      const confirmBtn = screen.getByRole('button', { name: /Confirmar instalación global/i });
+
+      await fireEvent.click(confirmBtn);
+
+      expect(mockApi.installGlobal).toHaveBeenCalledTimes(1);
+      expect(mockApi.installGlobal).toHaveBeenCalledWith({ repoPath: 'C:\\repo' });
+      expect(await screen.findByText(/Instalación global completada con éxito/i)).toBeDefined();
+    });
+
+    it('9.3: el comando mostrado NO es una constante cableada y proviene de props o resultado', async () => {
+      const writeTextMock = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: writeTextMock,
+        },
+      });
+
+      const dynamicCommand = 'pnpm add -g @fission-ai/openspec@latest';
+
+      render(
+        <OpenSpecEngineCard
+          status={absentCliStatus}
+          compact={false}
+          commandExecuted={dynamicCommand}
+          nodePath="C:\\node.exe"
+          npmPath="C:\\pnpm.cmd"
+          openRepoPaths={['C:\\repo1']}
+        />,
+      );
+
+      // El comando dinámico se muestra fielmente
+      expect(screen.getByText(dynamicCommand)).toBeDefined();
+      // NO se muestra el viejo npm cableado a fuego
+      expect(screen.queryByText('npm i -g @fission-ai/openspec@latest')).toBeNull();
+
+      // Al copiar, copia el comando dinámico
+      const copyBtn = screen.getByRole('button', { name: /Copiar comando/i });
+      fireEvent.click(copyBtn);
+      expect(writeTextMock).toHaveBeenCalledWith(dynamicCommand);
+
+      // Comprobación de i18n en repositorios afectados
+      expect(screen.getByText(/Repositorios afectados \(1\):/i)).toBeDefined();
     });
   });
 });

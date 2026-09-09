@@ -247,6 +247,56 @@ export function getPackageManagerInstallArgs(
   }
 }
 
+export interface PackageManagerInstallPlan {
+  detectedManager: PackageManagerType | null;
+  packageManagerPath: string | null;
+  nodePath: string | null;
+  localCommand: string | null;
+  globalCommand: string | null;
+  hasManifest: boolean;
+}
+
+/**
+ * Resuelve el plan de instalación SIN ejecutar ninguna operación.
+ * Devuelve el gestor detectado, su ruta, la ruta de Node y los comandos
+ * previstos para cada modo (local / global). Es un canal de solo lectura.
+ */
+export function resolvePackageManagerInstallPlan(
+  repoPath?: string | null,
+  options?: { exists?: (p: string) => boolean },
+): PackageManagerInstallPlan {
+  const exists = options?.exists ?? existsSync;
+  const hasManifest = repoPath ? exists(path.join(repoPath, 'package.json')) : false;
+
+  const pm = resolvePackageManager({ repoPath });
+
+  if (!pm) {
+    return {
+      detectedManager: null,
+      packageManagerPath: null,
+      nodePath: null,
+      localCommand: null,
+      globalCommand: null,
+      hasManifest,
+    };
+  }
+
+  const localArgs = getPackageManagerInstallArgs(pm.name, 'local');
+  const globalArgs = getPackageManagerInstallArgs(pm.name, 'global');
+
+  const localCmd = `${pm.executablePath} ${localArgs.join(' ')}`;
+  const globalCmd = `${pm.executablePath} ${globalArgs.join(' ')}`;
+
+  return {
+    detectedManager: pm.name,
+    packageManagerPath: pm.executablePath,
+    nodePath: null,
+    localCommand: localCmd,
+    globalCommand: globalCmd,
+    hasManifest,
+  };
+}
+
 /**
  * Ejecutor no interactivo para el gestor de paquetes resuelto.
  * Aplica contención de ejecución en Windows, límites de buffer y tope de tiempo.

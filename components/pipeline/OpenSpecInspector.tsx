@@ -7,7 +7,7 @@ import { useGitStore } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { SidebarSection } from '@/components/RepoSidebarParts';
 import { DEFAULT_OPEN_RIGHT_PANEL, useSidebarSectionState, type SidebarSectionState } from '@/hooks/use-sidebar-section-state';
-import type { OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpecUpdatePlan, RuntimeProjection } from '@/types/pipeline';
+import type { OpenSpecEngineStatus, OpenSpecInstallPlan, OpenSpecRegistryCheck, OpenSpecUpdatePlan, RuntimeProjection } from '@/types/pipeline';
 import { DecisionInbox } from './DecisionInbox';
 import { OpenSpecEngineCard } from './OpenSpecEngineCard';
 import { OpenSpecToolList } from './OpenSpecReadiness';
@@ -90,11 +90,14 @@ export function OpenSpecInspector({
   const storeSelectedId = usePipelineStore((s) => s.selectedChangeId);
 
   const gitStoreRepoPath = useGitStore((s) => s.repoPath);
+  const gitStoreOpenRepos = useGitStore((s) => s.openRepos);
 
   const snapshot = propSnapshot ?? storeSnapshot;
   const repoPath = propRepoPath ?? gitStoreRepoPath;
   const projection = propProjection !== undefined ? propProjection : storeProjection;
   const runtimeHistory = propRuntimeHistory !== undefined ? propRuntimeHistory : storeHistory;
+
+  const openRepoPaths = useMemo(() => (gitStoreOpenRepos ?? []).map((r) => r.path).filter(Boolean), [gitStoreOpenRepos]);
 
   const localSectionState = useSidebarSectionState(repoPath, DEFAULT_OPEN_RIGHT_PANEL);
   const sectionState = propSectionState ?? localSectionState;
@@ -110,6 +113,24 @@ export function OpenSpecInspector({
   const [initBusy, setInitBusy] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [initNeedsTool, setInitNeedsTool] = useState(false);
+
+  // Install plan preview (canal de solo lectura — no ejecuta instalación)
+  const [installPlan, setInstallPlan] = useState<OpenSpecInstallPlan | null>(null);
+
+  useEffect(() => {
+    if (!repoPath || typeof window === 'undefined' || !window.api?.pipelineOpenSpec?.getInstallPlan) {
+      return;
+    }
+    let cancelled = false;
+    void window.api.pipelineOpenSpec.getInstallPlan(repoPath)
+      .then((plan) => {
+        if (!cancelled) setInstallPlan(plan);
+      })
+      .catch(() => {
+        if (!cancelled) setInstallPlan(null);
+      });
+    return () => { cancelled = true; };
+  }, [repoPath]);
 
   useEffect(() => {
     if (!repoPath || typeof window === 'undefined' || !window.api?.pipelineOpenSpec?.getEngineStatus) {
@@ -342,6 +363,12 @@ export function OpenSpecInspector({
               onOpenToolsTab={() => sectionState.open('details-tools')}
               onOpenReview={onOpenReview}
               isReviewOpen={isReviewOpen}
+              repoPath={repoPath ?? undefined}
+              openRepoPaths={openRepoPaths.length > 0 ? openRepoPaths : undefined}
+              commandExecuted={installPlan?.globalCommand ?? undefined}
+              packageManagerPath={installPlan?.packageManagerPath ?? undefined}
+              nodePath={installPlan?.nodePath ?? undefined}
+              hasPackageJson={installPlan?.hasManifest}
             />
             <OpenSpecToolList
               present={openSpecPresent}

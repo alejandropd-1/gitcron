@@ -752,5 +752,14 @@ export interface OpenSpecInstallResult {
   engineStatus?: OpenSpecEngineStatus | null;
 }
 
+export interface OpenSpecInstallPlan {
+  detectedManager: PackageManagerType | null;
+  packageManagerPath: string | null;
+  nodePath: string | null;
+  localCommand: string | null;
+  globalCommand: string | null;
+  hasManifest: boolean;
+}
+
 export * from './runtime';
 export * from './projection';

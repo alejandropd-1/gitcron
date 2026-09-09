@@ -3789,3 +3789,46 @@ summary.centerBlock {
   color: var(--color-text-secondary);
   margin-top: var(--space-1);
 }
+
+.engineInstallConfirmBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: color-mix(in srgb, var(--color-bg-overlay) 60%, transparent);
+  border-radius: var(--radius-sm);
+  margin-top: var(--space-2);
+}
+
+.engineInstallConfirmPrompt {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.engineInstallConfirmActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.engineInstallFeedback {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  margin-top: var(--space-2);
+}
+
+.engineInstallFeedbackSuccess {
+  background: color-mix(in srgb, var(--color-git-add) 10%, transparent);
+  color: var(--color-git-add);
+}
+
+.engineInstallFeedbackError {
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+  color: var(--color-error);
+}

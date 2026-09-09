@@ -9,6 +9,7 @@ import {
   resolveSystemExecutable,
   type ResolvedPackageManager,
 } from '../pipeline/package-manager';
+import * as packageManagerModule from '../pipeline/package-manager';
 import {
   installOpenSpecGlobal,
   installOpenSpecLocal,
@@ -677,5 +678,83 @@ describe('Instalación del Motor OpenSpec (Tareas 6.1 a 6.5)', () => {
       expect(result.packageManagerPath).toBe('/opt/homebrew/bin/npm');
       expect(result.nodePath).toBe('/opt/homebrew/bin/node');
     });
+  });
+
+  // =========================================================================
+  // Canal 14: Install Plan Preview — canal de solo lectura, nunca instala nada
+  // =========================================================================
+  describe('Canal 14: install-plan consulta el plan sin invocar al gestor de paquetes', () => {
+    it('consultar el plan NO invoca al gestor de paquetes (afirmación sobre EL LLAMADO)', async () => {
+      // El ejecutor real de paquetes simulado con una función espía
+      const runnerMock = vi.spyOn(packageManagerModule, 'runPackageManager');
+
+      const handlers = new Map<string, Function>();
+      const mockIpc = {
+        handle: (channel: string, listener: Function) => handlers.set(channel, listener),
+      };
+
+      // Registro idéntico al de electron/main.ts:325, SIN inyectar dependencias
+      registerOpenSpecIpcHandlers({
+        ipcMain: mockIpc as any,
+        getUserDataDir: () => null,
+      });
+
+      const planHandler = handlers.get('pipeline:openspec:install-plan');
+      expect(planHandler).toBeDefined();
+
+      // Autorizar el repositorio de prueba real en disco
+      authorizedRepoStore.authorizeRepo(tempDir);
+
+      // La consulta devuelve qué gestor existe y qué comando se usaría, sin ejecutar nada
+      const plan = await planHandler!({}, { repoPath: tempDir });
+
+      // Afirmación sobre EL LLAMADO: el ejecutor de paquetes no se invoca nunca
+      expect(runnerMock).not.toHaveBeenCalled();
+      // La consulta de solo lectura devolvió la forma del plan (gestor y comandos previstos)
+      expect(plan).toHaveProperty('detectedManager');
+      expect(plan).toHaveProperty('packageManagerPath');
+      expect(plan).toHaveProperty('localCommand');
+      expect(plan).toHaveProperty('globalCommand');
+    }, 30_000);
+
+    it('rechaza un repositorio no autorizado', async () => {
+      const handlers = new Map<string, Function>();
+      const mockIpc = {
+        handle: (channel: string, listener: Function) => handlers.set(channel, listener),
+      };
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: mockIpc as any,
+        getUserDataDir: () => null,
+      });
+
+      const planHandler = handlers.get('pipeline:openspec:install-plan');
+      expect(planHandler).toBeDefined();
+
+      // Valida que si se envía una ruta de repositorio no autorizada, falla la validación estricta
+      await expect(planHandler!({}, { repoPath: 'C:\\unauthorized\\repo' })).rejects.toThrow(
+        'IPC Security Error: Invalid or unauthorized repository path',
+      );
+    }, 30_000);
+
+    it('rechaza un payload con una clave desconocida', async () => {
+      const handlers = new Map<string, Function>();
+      const mockIpc = {
+        handle: (channel: string, listener: Function) => handlers.set(channel, listener),
+      };
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: mockIpc as any,
+        getUserDataDir: () => null,
+      });
+
+      const planHandler = handlers.get('pipeline:openspec:install-plan');
+      expect(planHandler).toBeDefined();
+
+      // Rechaza propiedades desconocidas en payload (seguridad IPC estricta)
+      await expect(planHandler!({}, { repoPath: tempDir, maliciousKey: 'foo' })).rejects.toThrow(
+        'IPC Security Error: Unknown payload property "maliciousKey"',
+      );
+    }, 30_000);
   });
 });

@@ -647,6 +647,47 @@
      explicacion, y tiene un estado relleno natural para distinguir marcada de no marcada. La
      segunda opcion seria el marcador de libro. **La decide Alejandro.**
 
+- [ ] 8.18 **Observacion visual de Alejandro, 2026-09-09: el boton «Cerrar» del panel de preparar
+  commit queda desubicado.** Lo vio despues de preparar nueve archivos: el panel mostraba el
+  titulo, el texto de ayuda y la pildora de rama, y debajo —solo, alineado a la izquierda— el
+  boton «Cerrar», con el resumen «9 archivos enviados a commit» mas abajo todavia.
+
+  Medido el 2026-09-09. El codigo declara por escrito una intencion que la hoja de estilos no
+  cumple. `components/pipeline/OpenSpecDashboard.tsx:2206-2208` comenta sobre `.prepareHead`:
+  «Las acciones comparten fila con el titulo, arriba y a la derecha: al final de la lista
+  quedaban fuera de vista con veinte archivos y habia que bajar para encontrarlas». Pero
+  `OpenSpecDashboard.module.css` declara `.prepareHead { display: flex; flex-wrap: wrap;
+  align-items: flex-start; justify-content: flex-start; gap: var(--sp-3); }`: con `flex-start`
+  las acciones nunca van a la derecha, se apoyan contra el titulo. `.archiveConfirmHead`, que es
+  el bloque del titulo, no declara `flex-grow` ni ancho, asi que mide lo que mide su contenido
+  —titulo, ayuda y pildora de rama—; cuando ese contenido y las acciones no entran juntos en una
+  linea, el `flex-wrap` del padre manda las acciones al renglon de abajo, pegadas a la izquierda.
+
+  Se nota mas en el estado que vio Alejandro porque ahi `nothingLeftToPrepare` es verdadero
+  (`OpenSpecDashboard.tsx:2225`) y desaparecen los otros tres controles —el contador,
+  «Seleccionar todo» y la accion principal—, dejando el «Cerrar» flotando solo en un renglon.
+
+  Lo que hay que lograr: que las acciones queden donde el propio codigo dice que tienen que
+  quedar, arriba y contra el borde derecho, y que se sostenga en los dos estados —con archivos
+  por preparar y sin nada por preparar— y en los dos anchos de ventana. Si al angostar la fila
+  tiene que envolver, que envuelva de forma legible: el criterio es que «Cerrar» no quede
+  leyendose como un control suelto sin relacion con nada.
+
+  Hay mas de una forma de resolverlo —repartir el espacio en el contenedor, que el bloque del
+  titulo crezca, o empujar las acciones con un margen automatico—: se elige una y se declara por
+  que, no se apilan las tres. Si la solucion cambia lo que afirma el comentario de `:2206-2208`,
+  se actualiza el comentario: un comentario que describe otra cosa que el codigo es lo que
+  origino este defecto. No cambian que controles existen, ni sus etiquetas, ni el orden en que
+  se leen, ni el `aria-disabled` de la accion principal, cuyo motivo esta explicado en `:2246-2251`.
+
+  `.archiveConfirmHead` la comparte el panel de confirmacion de archivado: mirar si ahi pasa lo
+  mismo y declararlo. Si necesita un cambio propio, **lo decide Alejandro**.
+
+  Nota de alcance: este panel no estaba contemplado en ninguna revision de maquetacion. La unica
+  mencion de «Preparar commit» en los changes activos es funcional
+  (`retirar-cambios-openspec-obsoletos`, tarea 7.4), y `remaquetar-cuerpo-de-sdd`, el change que
+  sonaba al caso, ya no existe en `openspec/changes/`.
+
 ## 9. Interfaz: motor, sync, archivado y jerarquía
 
 - [x] 9.1 Reordenar `components/pipeline/OpenSpecUpdateReview.tsx` y `OpenSpecEngineCard.tsx` para que las acciones y el estado resumido en una línea precedan al diagnóstico, con el diagnóstico completo contraído por omisión y sin perder ninguna evidencia que hoy muestra.

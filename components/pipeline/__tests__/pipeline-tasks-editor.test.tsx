@@ -590,8 +590,8 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8, 8.12)', () => {
       const liMatch = css.match(/\.taskList\s*>\s*li\s*\{([^}]+)\}/);
       expect(liMatch).toBeTruthy();
       expect(liMatch![1]).toMatch(/grid-template-columns:\s*2rem\s+2\.75rem\s+3rem/);
-      expect(liMatch![1]).toMatch(/margin-left:\s*(?:-2rem|calc\(-1\s*\*\s*var\(--space-6\)\))/);
-      expect(liMatch![1]).toMatch(/width:\s*calc\(100%\s*\+\s*(?:2rem|var\(--space-6\)\))/);
+      expect(liMatch![1]).toMatch(/margin-left:\s*(?:-1\.5rem|calc\(-1\s*\*\s*var\(--space-5\)\))/);
+      expect(liMatch![1]).toMatch(/width:\s*calc\(100%\s*\+\s*(?:1\.5rem|var\(--space-5\)\))/);
     });
 
     it('Bloque C: la fila resalta al pasar el puntero y convive armónicamente con data-current', () => {

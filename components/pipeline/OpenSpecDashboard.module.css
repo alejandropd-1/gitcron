@@ -339,8 +339,8 @@
   align-items: start;
   min-height: 3rem;
   padding: var(--space-2) 0;
-  margin-left: calc(-1 * var(--space-6));
-  width: calc(100% + var(--space-6));
+  margin-left: calc(-1 * var(--space-5));
+  width: calc(100% + var(--space-5));
   border-radius: var(--radius-md);
   color: var(--color-text-primary);
   font-size: var(--font-size-xs);
@@ -3083,6 +3083,25 @@ summary.centerBlock {
   flex-wrap: wrap;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
+}
+
+/* La fila de tarea se proyecta `--space-5` a la izquierda del cuerpo para anclar
+   la canaleta del asa de arrastre exacto en el borde del cuerpo (ver `.taskList > li`).
+   El encabezado fijo `.tasksHeader` pinta su fondo solo hasta el borde de su caja,
+   asi que esa canaleta quedaba destapada al scrollear tareas por debajo: al pasar
+   el cursor por una tarea scrolleada, su resalte se veia corriendo por detras.
+   El pseudo-elemento `.tasksHeader::before` extiende el fondo opaco `--space-5`
+   sobre la canaleta con el color base del cuerpo, haciendolo invisible en reposo
+   y tapando el resalte cuando las tareas pasan por debajo. */
+.tasksHeader::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 100%;
+  width: var(--space-5);
+  background: var(--color-bg-base);
+  pointer-events: none;
 }
 
 .tasksHeaderInfo {

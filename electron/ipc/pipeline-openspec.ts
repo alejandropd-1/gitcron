@@ -9,6 +9,7 @@ import type {
   OpenSpecEngineStatus,
   OpenSpecExecuteResult,
   OpenSpecFreshnessState,
+  OpenSpecInstallResult,
   OpenSpecPreviewResult,
   OpenSpecRegistryCheck,
   OpenSpecRunUpdateResult,
@@ -22,6 +23,12 @@ import {
   runAuthorizedOpenSpec,
   type AuthorizedOpenSpecRuntime,
 } from '../pipeline/openspec-engine';
+import {
+  installOpenSpecLocal,
+  installOpenSpecGlobal,
+  isValidTargetVersion,
+} from '../pipeline/openspec-install';
+import { resolvePackageManager } from '../pipeline/package-manager';
 import { withRepoWatcherPaused } from './watchers';
 import {
   contextOpenSpecWithCli,
@@ -68,6 +75,9 @@ export interface OpenSpecIpcDeps {
   runVersionAnalysis?: (repoPath: string, options?: { forceRefresh?: boolean }) => Promise<OpenSpecVersionAnalysisResult>;
   runAuthorizedOpenSpec?: typeof runAuthorizedOpenSpec;
   pauseWatcher?: typeof withRepoWatcherPaused;
+  installLocal?: typeof installOpenSpecLocal;
+  installGlobal?: typeof installOpenSpecGlobal;
+  resolvePackageManager?: typeof resolvePackageManager;
 }
 
 /**
@@ -815,6 +825,102 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
           stderr: err.stderr?.toString(),
         };
       }
+    },
+  );
+
+  // 12. Local Engine Installation (Tarea 6.2)
+  ipc.handle(
+    'pipeline:openspec:install-local',
+    async (_event, payload?: unknown): Promise<OpenSpecInstallResult> => {
+      validateStrictPayloadKeys(payload, ['repoPath', 'targetVersion']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+
+      const rawTargetVersion = (payload as any)?.targetVersion;
+      let targetVersion: string | undefined = undefined;
+      if (rawTargetVersion !== undefined && rawTargetVersion !== null) {
+        if (typeof rawTargetVersion !== 'string' || !isValidTargetVersion(rawTargetVersion)) {
+          const engineStatus = await buildEngineStatusSnapshot(validRepoPath, deps);
+          return {
+            success: false,
+            mode: 'local',
+            code: 'invalid-target-version',
+            commandExecuted: '',
+            nodePath: null,
+            filesUpdated: [],
+            stdout: '',
+            stderr: '',
+            error: `Versión de destino inválida: "${String(rawTargetVersion)}"`,
+            engineStatus,
+          };
+        }
+        targetVersion = rawTargetVersion.trim();
+      }
+
+      const installLocalFn = deps.installLocal ?? installOpenSpecLocal;
+      const targetPackage = targetVersion
+        ? `@fission-ai/openspec@${targetVersion}`
+        : '@fission-ai/openspec@latest';
+
+      return installLocalFn(validRepoPath, {
+        targetPackage,
+        resolvePackageManager: deps.resolvePackageManager,
+        engineDeps: deps,
+        recalculateStatus: async (rp?: string) => buildEngineStatusSnapshot(rp ?? validRepoPath, deps),
+      });
+    },
+  );
+
+  // 13. Global Engine Installation (Tarea 6.3)
+  ipc.handle(
+    'pipeline:openspec:install-global',
+    async (_event, payload?: unknown): Promise<OpenSpecInstallResult> => {
+      validateStrictPayloadKeys(payload, ['repoPath', 'targetVersion']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      let validRepoPath: string | undefined = undefined;
+      if (rawRepoPath !== undefined && rawRepoPath !== null) {
+        const validated = validateRepo(rawRepoPath);
+        if (!validated) {
+          throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+        }
+        validRepoPath = validated;
+      }
+
+      const rawTargetVersion = (payload as any)?.targetVersion;
+      let targetVersion: string | undefined = undefined;
+      if (rawTargetVersion !== undefined && rawTargetVersion !== null) {
+        if (typeof rawTargetVersion !== 'string' || !isValidTargetVersion(rawTargetVersion)) {
+          const engineStatus = await buildEngineStatusSnapshot(validRepoPath, deps);
+          return {
+            success: false,
+            mode: 'global',
+            code: 'invalid-target-version',
+            commandExecuted: '',
+            nodePath: null,
+            stdout: '',
+            stderr: '',
+            error: `Versión de destino inválida: "${String(rawTargetVersion)}"`,
+            engineStatus,
+          };
+        }
+        targetVersion = rawTargetVersion.trim();
+      }
+
+      const installGlobalFn = deps.installGlobal ?? installOpenSpecGlobal;
+      const targetPackage = targetVersion
+        ? `@fission-ai/openspec@${targetVersion}`
+        : '@fission-ai/openspec@latest';
+
+      return installGlobalFn({
+        repoPath: validRepoPath,
+        targetPackage,
+        resolvePackageManager: deps.resolvePackageManager,
+        engineDeps: deps,
+        recalculateStatus: async (rp?: string) => buildEngineStatusSnapshot(rp ?? validRepoPath, deps),
+      });
     },
   );
 }

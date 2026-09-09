@@ -471,5 +471,9 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('pipeline:openspec:instructions', options),
     executeCommand: (options: { repoPath: string; command: string }) =>
       ipcRenderer.invoke('pipeline:openspec:execute-command', options),
+    installLocal: (options: { repoPath: string; targetVersion?: string }) =>
+      ipcRenderer.invoke('pipeline:openspec:install-local', options),
+    installGlobal: (options?: { repoPath?: string; targetVersion?: string }) =>
+      ipcRenderer.invoke('pipeline:openspec:install-global', options),
   },
 });

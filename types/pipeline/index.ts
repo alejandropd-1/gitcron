@@ -735,5 +735,22 @@ export interface ArchivePlan {
   incompleteTasks?: IncompleteTaskIssue[];
 }
 
+export type PackageManagerType = 'pnpm' | 'npm' | 'yarn' | 'bun';
+
+export interface OpenSpecInstallResult {
+  success: boolean;
+  mode: 'local' | 'global';
+  code?: string;
+  commandExecuted?: string;
+  packageManager?: PackageManagerType;
+  packageManagerPath?: string;
+  nodePath?: string | null;
+  filesUpdated?: string[];
+  stdout?: string;
+  stderr?: string;
+  error?: string;
+  engineStatus?: OpenSpecEngineStatus | null;
+}
+
 export * from './runtime';
 export * from './projection';

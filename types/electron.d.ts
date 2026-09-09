@@ -657,6 +657,8 @@ interface ElectronAPI {
       repoPath: string;
       command: string;
     }) => Promise<{ success: boolean; stdout?: string; stderr?: string; error?: string }>;
+    installLocal: (options: { repoPath: string; targetVersion?: string }) => Promise<import('./pipeline').OpenSpecInstallResult>;
+    installGlobal: (options?: { repoPath?: string; targetVersion?: string }) => Promise<import('./pipeline').OpenSpecInstallResult>;
   };
 }
 

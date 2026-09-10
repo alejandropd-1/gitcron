@@ -64,13 +64,26 @@ describe('IPC de autoría y estado de tareas', () => {
     it('marks the task and appends the log entry', async () => {
       const { run, written } = await register({ [TASKS_REF]: TASKS });
 
-      const result = await run(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo', true);
+      const result = await run(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo', true, 'persona');
 
       expect(result).toEqual({ success: true });
       expect(written[0].relative).toBe(TASKS_REF);
       expect(written[0].content).toContain('- [x] 1.1 hacer algo');
       expect(written[1].relative).toBe(LOG_REF);
-      expect(written[1].content).toContain('2026-08-04 10:42 — marcada — "1.1 hacer algo"');
+      expect(written[1].content).toContain('2026-08-04 10:42 — persona — marcada — "1.1 hacer algo"');
+    });
+
+    it('rechaza sin escribir ni resolver binding si falta el actor o es inválido', async () => {
+      const { run, written } = await register({ [TASKS_REF]: TASKS });
+
+      const resMissing = await run(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo', true);
+      expect(resMissing).toEqual({ success: false, error: "Actor inválido: se esperaba 'persona' o 'agente', recibido undefined" });
+
+      const resInvalid = await run(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo', true, 'robot');
+      expect(resInvalid).toEqual({ success: false, error: "Actor inválido: se esperaba 'persona' o 'agente', recibido \"robot\"" });
+
+      expect(written).toHaveLength(0);
+      expect(binding.resolveBinding).not.toHaveBeenCalled();
     });
 
     it('registra el actor si se provee explícitamente', async () => {
@@ -85,7 +98,7 @@ describe('IPC de autoría y estado de tareas', () => {
     it('refuses to edit an archived change', async () => {
       const { run, written } = await register({});
 
-      expect(await run(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo', true))
+      expect(await run(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo', true, 'persona'))
         .toMatchObject({ success: false, error: 'archived', stage: 'read' });
       expect(written).toHaveLength(0);
     });
@@ -93,7 +106,7 @@ describe('IPC de autoría y estado de tareas', () => {
     it('writes nothing when the task text no longer matches', async () => {
       const { run, written } = await register({ [TASKS_REF]: TASKS });
 
-      expect(await run(null, 'C:/repo', 'mi-cambio', 3, '1.1 otra cosa', true))
+      expect(await run(null, 'C:/repo', 'mi-cambio', 3, '1.1 otra cosa', true, 'persona'))
         .toMatchObject({ success: false, error: 'mismatch', stage: 'toggle' });
       expect(written).toHaveLength(0);
     });
@@ -114,7 +127,7 @@ describe('IPC de autoría y estado de tareas', () => {
       const ref200 = `openspec/changes/${slug200}/tasks.md`;
       const { run, written } = await register({ [ref200]: TASKS });
 
-      const res200 = await run(null, 'C:/repo', slug200, 3, '1.1 hacer algo', true) as { success: boolean };
+      const res200 = await run(null, 'C:/repo', slug200, 3, '1.1 hacer algo', true, 'persona') as { success: boolean };
       expect(res200.success).toBe(true);
       expect(written).not.toHaveLength(0);
 
@@ -166,7 +179,7 @@ describe('IPC de autoría y estado de tareas', () => {
     it('rechaza cambio archivado con stage read y sin escribir', async () => {
       const { addTask, written } = await register({});
 
-      const res = await addTask(null, 'C:/repo', 'mi-cambio', '1.3 nueva');
+      const res = await addTask(null, 'C:/repo', 'mi-cambio', '1.3 nueva', undefined, 'persona');
       expect(res).toEqual({ success: false, error: 'archived', stage: 'read' });
       expect(written).toHaveLength(0);
     });
@@ -177,10 +190,26 @@ describe('IPC de autoría y estado de tareas', () => {
       const res = await addTask(null, 'C:/repo', 'mi-cambio', '1.3 nueva', {
         line: 3,
         expectedText: '1.1 texto que no coincide',
-      });
+      }, 'persona');
 
       expect(res).toEqual({ success: false, error: 'mismatch', stage: 'add' });
       expect(written).toHaveLength(0);
+    });
+
+    it('rechaza sin escribir ni resolver binding si falta el actor o es inválido', async () => {
+      const { addTask, written } = await register({ [TASKS_REF]: TASKS });
+
+      const resMissing = await addTask(null, 'C:/repo', 'mi-cambio', '1.3 nueva');
+      expect(resMissing).toEqual({ success: false, error: "Actor inválido: se esperaba 'persona' o 'agente', recibido undefined" });
+
+      const resInvalid = await addTask(null, 'C:/repo', 'mi-cambio', '1.3 nueva', undefined, 'robot');
+      expect(resInvalid).toEqual({ success: false, error: "Actor inválido: se esperaba 'persona' o 'agente', recibido \"robot\"" });
+
+      const resInvalidInOptions = await addTask(null, 'C:/repo', 'mi-cambio', '1.3 nueva', { actor: 'robot' });
+      expect(resInvalidInOptions).toEqual({ success: false, error: "Actor inválido: se esperaba 'persona' o 'agente', recibido \"robot\"" });
+
+      expect(written).toHaveLength(0);
+      expect(binding.resolveBinding).not.toHaveBeenCalled();
     });
   });
 
@@ -218,7 +247,7 @@ describe('IPC de autoría y estado de tareas', () => {
     it('rechaza cambio archivado con stage read y sin escribir', async () => {
       const { editTask, written } = await register({});
 
-      const res = await editTask(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo', 'nuevo');
+      const res = await editTask(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo', 'nuevo', 'persona');
       expect(res).toEqual({ success: false, error: 'archived', stage: 'read' });
       expect(written).toHaveLength(0);
     });
@@ -226,10 +255,23 @@ describe('IPC de autoría y estado de tareas', () => {
     it('ante mismatch NO ESCRIBE en ningún archivo', async () => {
       const { editTask, written } = await register({ [TASKS_REF]: TASKS });
 
-      const res = await editTask(null, 'C:/repo', 'mi-cambio', 3, '1.1 texto viejo incorrecto', 'nuevo');
+      const res = await editTask(null, 'C:/repo', 'mi-cambio', 3, '1.1 texto viejo incorrecto', 'nuevo', 'persona');
 
       expect(res).toEqual({ success: false, error: 'mismatch', stage: 'edit' });
       expect(written).toHaveLength(0);
+    });
+
+    it('rechaza sin escribir ni resolver binding si falta el actor o es inválido', async () => {
+      const { editTask, written } = await register({ [TASKS_REF]: TASKS });
+
+      const resMissing = await editTask(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo', 'nuevo');
+      expect(resMissing).toEqual({ success: false, error: "Actor inválido: se esperaba 'persona' o 'agente', recibido undefined" });
+
+      const resInvalid = await editTask(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo', 'nuevo', 'robot');
+      expect(resInvalid).toEqual({ success: false, error: "Actor inválido: se esperaba 'persona' o 'agente', recibido \"robot\"" });
+
+      expect(written).toHaveLength(0);
+      expect(binding.resolveBinding).not.toHaveBeenCalled();
     });
   });
 
@@ -265,7 +307,7 @@ describe('IPC de autoría y estado de tareas', () => {
     it('rechaza cambio archivado con stage read y sin escribir', async () => {
       const { moveTask, written } = await register({});
 
-      const res = await moveTask(null, 'C:/repo', 'mi-cambio', 3, 4, '1.1 hacer algo');
+      const res = await moveTask(null, 'C:/repo', 'mi-cambio', 3, 4, '1.1 hacer algo', 'persona');
       expect(res).toEqual({ success: false, error: 'archived', stage: 'read' });
       expect(written).toHaveLength(0);
     });
@@ -273,10 +315,23 @@ describe('IPC de autoría y estado de tareas', () => {
     it('ante mismatch NO ESCRIBE en ningún archivo', async () => {
       const { moveTask, written } = await register({ [TASKS_REF]: TASKS });
 
-      const res = await moveTask(null, 'C:/repo', 'mi-cambio', 3, 4, '1.1 discrepancia');
+      const res = await moveTask(null, 'C:/repo', 'mi-cambio', 3, 4, '1.1 discrepancia', 'persona');
 
       expect(res).toEqual({ success: false, error: 'mismatch', stage: 'move' });
       expect(written).toHaveLength(0);
+    });
+
+    it('rechaza sin escribir ni resolver binding si falta el actor o es inválido', async () => {
+      const { moveTask, written } = await register({ [TASKS_REF]: TASKS });
+
+      const resMissing = await moveTask(null, 'C:/repo', 'mi-cambio', 3, 4, '1.1 hacer algo');
+      expect(resMissing).toEqual({ success: false, error: "Actor inválido: se esperaba 'persona' o 'agente', recibido undefined" });
+
+      const resInvalid = await moveTask(null, 'C:/repo', 'mi-cambio', 3, 4, '1.1 hacer algo', 'robot');
+      expect(resInvalid).toEqual({ success: false, error: "Actor inválido: se esperaba 'persona' o 'agente', recibido \"robot\"" });
+
+      expect(written).toHaveLength(0);
+      expect(binding.resolveBinding).not.toHaveBeenCalled();
     });
   });
 
@@ -313,7 +368,7 @@ describe('IPC de autoría y estado de tareas', () => {
     it('rechaza cambio archivado con stage read y sin escribir', async () => {
       const { removeTask, written } = await register({});
 
-      const res = await removeTask(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo');
+      const res = await removeTask(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo', 'persona');
       expect(res).toEqual({ success: false, error: 'archived', stage: 'read' });
       expect(written).toHaveLength(0);
     });
@@ -321,10 +376,23 @@ describe('IPC de autoría y estado de tareas', () => {
     it('ante mismatch NO ESCRIBE en ningún archivo', async () => {
       const { removeTask, written } = await register({ [TASKS_REF]: TASKS });
 
-      const res = await removeTask(null, 'C:/repo', 'mi-cambio', 3, '1.1 discrepancia');
+      const res = await removeTask(null, 'C:/repo', 'mi-cambio', 3, '1.1 discrepancia', 'persona');
 
       expect(res).toEqual({ success: false, error: 'mismatch', stage: 'remove' });
       expect(written).toHaveLength(0);
+    });
+
+    it('rechaza sin escribir ni resolver binding si falta el actor o es inválido', async () => {
+      const { removeTask, written } = await register({ [TASKS_REF]: TASKS });
+
+      const resMissing = await removeTask(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo');
+      expect(resMissing).toEqual({ success: false, error: "Actor inválido: se esperaba 'persona' o 'agente', recibido undefined" });
+
+      const resInvalid = await removeTask(null, 'C:/repo', 'mi-cambio', 3, '1.1 hacer algo', 'robot');
+      expect(resInvalid).toEqual({ success: false, error: "Actor inválido: se esperaba 'persona' o 'agente', recibido \"robot\"" });
+
+      expect(written).toHaveLength(0);
+      expect(binding.resolveBinding).not.toHaveBeenCalled();
     });
   });
 });

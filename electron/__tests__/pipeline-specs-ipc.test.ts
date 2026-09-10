@@ -177,7 +177,7 @@ describe('IPC de escritura de artefactos (pipeline:write-artifact)', () => {
         files: {}, // Ningún archivo activo para este cambio
       });
 
-      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Propuesta');
+      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Propuesta', { actor: 'persona' });
 
       expect(result).toMatchObject({
         success: false,
@@ -203,7 +203,7 @@ describe('IPC de escritura de artefactos (pipeline:write-artifact)', () => {
         },
       });
 
-      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Malicioso');
+      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Malicioso', { actor: 'persona' });
 
       expect(result).toMatchObject({
         success: false,
@@ -227,7 +227,7 @@ describe('IPC de escritura de artefactos (pipeline:write-artifact)', () => {
         },
       });
 
-      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '{ "malicious": true }');
+      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '{ "malicious": true }', { actor: 'persona' });
 
       expect(result).toMatchObject({
         success: false,
@@ -251,7 +251,7 @@ describe('IPC de escritura de artefactos (pipeline:write-artifact)', () => {
         },
       });
 
-      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Alterar otro');
+      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Alterar otro', { actor: 'persona' });
 
       expect(result).toMatchObject({
         success: false,
@@ -271,7 +271,7 @@ describe('IPC de escritura de artefactos (pipeline:write-artifact)', () => {
         },
       });
 
-      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Nuevo contenido');
+      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Nuevo contenido', { actor: 'persona' });
 
       expect(result).toMatchObject({
         success: false,
@@ -295,7 +295,7 @@ describe('IPC de escritura de artefactos (pipeline:write-artifact)', () => {
         },
       });
 
-      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Nuevo contenido');
+      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Nuevo contenido', { actor: 'persona' });
 
       expect(result).toMatchObject({
         success: false,
@@ -315,13 +315,14 @@ describe('IPC de escritura de artefactos (pipeline:write-artifact)', () => {
 
       const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Propuesta nueva', {
         overwrite: true,
+        actor: 'persona',
       });
 
       expect(result).toEqual({ success: true });
       expect(written[0].relative).toBe('openspec/changes/mi-cambio/proposal.md');
       expect(written[0].content).toBe('# Propuesta nueva');
       expect(written[1].relative).toBe(LOG_REF);
-      expect(written[1].content).toContain('2026-08-04 10:42 — escrita — "proposal"');
+      expect(written[1].content).toContain('2026-08-04 10:42 — persona — escrita — "proposal"');
     });
   });
 
@@ -348,17 +349,29 @@ describe('IPC de escritura de artefactos (pipeline:write-artifact)', () => {
       expect(written[1].content).toContain('- 2026-08-04 10:42 — persona — escrita — "proposal"');
     });
 
-    it('registra la auditoría sin actor si no se proveyó en las opciones', async () => {
-      const { writeArtifact, written } = await register({
+    it('rechaza sin escribir si falta el actor o es inválido, nombrando el valor recibido', async () => {
+      const { writeArtifact, written, getInstructions } = await register({
         files: { [TASKS_REF]: '- [ ] 1.1 tarea\n' },
       });
 
-      const result = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Propuesta sin autor');
+      const resMissing = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Propuesta sin autor');
+      expect(resMissing).toMatchObject({
+        success: false,
+        error: "Actor inválido: se esperaba 'persona' o 'agente', recibido undefined",
+        stage: 'validate',
+      });
 
-      expect(result).toEqual({ success: true });
-      expect(written[1].content).toContain('- 2026-08-04 10:42 — escrita — "proposal"');
-      expect(written[1].content).not.toContain('persona');
-      expect(written[1].content).not.toContain('agente');
+      const resInvalid = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'proposal', '# Propuesta sin autor', {
+        actor: 'robot',
+      });
+      expect(resInvalid).toMatchObject({
+        success: false,
+        error: "Actor inválido: se esperaba 'persona' o 'agente', recibido \"robot\"",
+        stage: 'validate',
+      });
+
+      expect(written).toHaveLength(0);
+      expect(getInstructions).not.toHaveBeenCalled();
     });
 
     it('maneja artefactos con patrón comodín requiriendo targetFile', async () => {
@@ -376,7 +389,7 @@ describe('IPC de escritura de artefactos (pipeline:write-artifact)', () => {
       });
 
       // Sin targetFile debe rechazar
-      const failRes = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'specs', '# Delta spec');
+      const failRes = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'specs', '# Delta spec', { actor: 'persona' });
       expect(failRes).toMatchObject({
         success: false,
         error: 'target-path-contains-wildcard',
@@ -387,12 +400,13 @@ describe('IPC de escritura de artefactos (pipeline:write-artifact)', () => {
       // Con targetFile válido debe escribir dentro del change
       const okRes = await writeArtifact(null, 'C:/repo', 'mi-cambio', 'specs', '# Delta spec', {
         targetFile: 'specs/mi-capacidad/spec.md',
+        actor: 'persona',
       });
       expect(okRes).toEqual({ success: true });
       expect(written[0].relative).toBe('openspec/changes/mi-cambio/specs/mi-capacidad/spec.md');
       expect(written[0].content).toBe('# Delta spec');
       expect(written[1].relative).toBe(LOG_REF);
-      expect(written[1].content).toContain('- 2026-08-04 10:42 — escrita — "specs"');
+      expect(written[1].content).toContain('- 2026-08-04 10:42 — persona — escrita — "specs"');
     });
   });
 });

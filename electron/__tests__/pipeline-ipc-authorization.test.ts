@@ -314,7 +314,7 @@ describe('Pipeline Tasks IPC — candado de autorización sobre pipeline:set-tas
   it('la ruta autorizada pasa y escribe el cambio de estado de la tarea', async () => {
     authorizedRepoStore.authorizeRepo(repoDir);
 
-    const res = await get('pipeline:set-task-checked')(null, repoDir, 'mi-cambio', 3, '1.1 tarea de prueba', true);
+    const res = await get('pipeline:set-task-checked')(null, repoDir, 'mi-cambio', 3, '1.1 tarea de prueba', true, 'persona');
     expect(res).toEqual({ success: true });
     expect(resolveBindingSpy).toHaveBeenCalledWith(repoDir);
     expect(readSpy).toHaveBeenCalled();

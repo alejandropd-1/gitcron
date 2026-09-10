@@ -7,6 +7,7 @@ import {
   moveTaskLine,
   removeTaskLine,
   toggleTaskCheckbox,
+  type TaskActor,
 } from '../pipeline/task-checkbox';
 
 const TASKS = [
@@ -432,13 +433,11 @@ describe('registro de cambios de estado y autoría (2.2 y 2.6.b)', () => {
     ).toBe('- 2026-08-04 10:46 — persona — eliminada — "3.3 Tarea descartada"');
   });
 
-  it('conserva compatibilidad sin actor sin inventar procedencia', () => {
-    expect(composeTaskLogEntry('2026-08-04T10:42:00.000Z', '6.5 Ale valida el panel', true))
-      .toBe('- 2026-08-04 10:42 — marcada — "6.5 Ale valida el panel"');
-    expect(composeTaskLogEntry('2026-08-04T10:45:00.000Z', '6.3 pnpm test verde', false))
-      .toBe('- 2026-08-04 10:45 — desmarcada — "6.3 pnpm test verde"');
-    expect(composeTaskLogEntry('2026-08-04T10:48:00.000Z', '2.1 tarea sin actor', 'agregada'))
-      .toBe('- 2026-08-04 10:48 — agregada — "2.1 tarea sin actor"');
+  it('lanza si el actor falta o es inválido, nombrando el valor recibido', () => {
+    expect(() => composeTaskLogEntry('2026-08-04T10:42:00.000Z', '6.5 Ale valida el panel', true, undefined as unknown as TaskActor))
+      .toThrow("Actor inválido: se esperaba 'persona' o 'agente', recibido undefined");
+    expect(() => composeTaskLogEntry('2026-08-04T10:45:00.000Z', '6.3 pnpm test verde', false, 'robot' as unknown as TaskActor))
+      .toThrow("Actor inválido: se esperaba 'persona' o 'agente', recibido \"robot\"");
   });
 
   it('crea el registro con su nuevo encabezado # Registro de tareas la primera vez (2.6.b)', () => {

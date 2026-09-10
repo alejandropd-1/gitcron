@@ -22,8 +22,8 @@
  * Medición de actor (Tarea 2.2):
  * Ni Electron ni el renderer conocen intrínsecamente si una acción provino de
  * una persona o un agente; para no inventar un valor por omisión que mienta,
- * el actor es explícito y opcional (`'persona' | 'agente'`). Si no se provee,
- * se anota la operación sin fingir procedencia.
+ * el actor es explícito y obligatorio (`'persona' | 'agente'`). Si falta o es
+ * inválido, `composeTaskLogEntry` lanza nombrando el valor recibido.
  */
 
 /** Casilla de tarea: sangría, estado, numeración opcional y texto. */
@@ -291,24 +291,27 @@ export function removeTaskLine(
  * Línea del registro de cambios sobre tareas.
  *
  * Pensada para leerse sin herramientas: una línea por cambio, con fecha,
- * actor (opcional), operación y texto de la tarea.
+ * actor (obligatorio), operación y texto de la tarea. Lanza si el actor no es
+ * `'persona'` ni `'agente'`, nombrando el valor recibido.
  */
 export function composeTaskLogEntry(
   at: string,
   text: string,
   operation: TaskOperationType | boolean,
-  actor?: TaskActor,
+  actor: TaskActor,
 ): string {
+  if (actor !== 'persona' && actor !== 'agente') {
+    const received = typeof actor === 'string' ? `"${actor}"` : String(actor);
+    throw new Error(`Actor inválido: se esperaba 'persona' o 'agente', recibido ${received}`);
+  }
+
   const stamp = at.replace('T', ' ').slice(0, 16);
   const op: TaskOperationType =
     typeof operation === 'boolean'
       ? (operation ? 'marcada' : 'desmarcada')
       : operation;
 
-  if (actor) {
-    return `- ${stamp} — ${actor} — ${op} — "${text}"`;
-  }
-  return `- ${stamp} — ${op} — "${text}"`;
+  return `- ${stamp} — ${actor} — ${op} — "${text}"`;
 }
 
 const LOG_HEADING = '# Registro de tareas';

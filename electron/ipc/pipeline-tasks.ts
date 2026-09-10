@@ -32,8 +32,10 @@ function validChangeId(value: unknown): value is string {
   return isValidOpenSpecChangeSlug(value);
 }
 
-function parseActor(value: unknown): TaskActor | undefined {
-  return value === 'persona' || value === 'agente' ? value : undefined;
+function parseActor(value: unknown): TaskActor {
+  if (value === 'persona' || value === 'agente') return value;
+  const received = typeof value === 'string' ? `"${value}"` : String(value);
+  throw new Error(`Actor inválido: se esperaba 'persona' o 'agente', recibido ${received}`);
 }
 
 /** Lectura y escritura contenidas al repositorio. Inyectables para pruebas. */
@@ -83,6 +85,7 @@ export function registerPipelineTaskHandlers(
       }
 
       try {
+        const actorValue = parseActor(actor);
         const { canonicalPath } = await service.resolveBinding(repoPath);
         const tasksRef = `openspec/changes/${changeId}/tasks.md`;
         const tasksRaw = await read(canonicalPath, tasksRef);
@@ -100,7 +103,7 @@ export function registerPipelineTaskHandlers(
         await write(
           canonicalPath,
           logRef,
-          appendTaskLogEntry(logRaw, composeTaskLogEntry(now(), result.text, completed, parseActor(actor))),
+          appendTaskLogEntry(logRaw, composeTaskLogEntry(now(), result.text, completed, actorValue)),
         );
 
         return { success: true };
@@ -147,9 +150,8 @@ export function registerPipelineTaskHandlers(
         optActor = opt.actor;
       }
 
-      const resolvedActor = parseActor(actor) ?? parseActor(optActor);
-
       try {
+        const resolvedActor = parseActor(actor !== undefined ? actor : optActor);
         const { canonicalPath } = await service.resolveBinding(repoPath);
         const tasksRef = `openspec/changes/${changeId}/tasks.md`;
         const tasksRaw = await read(canonicalPath, tasksRef);
@@ -196,6 +198,7 @@ export function registerPipelineTaskHandlers(
       }
 
       try {
+        const actorValue = parseActor(actor);
         const { canonicalPath } = await service.resolveBinding(repoPath);
         const tasksRef = `openspec/changes/${changeId}/tasks.md`;
         const tasksRaw = await read(canonicalPath, tasksRef);
@@ -211,7 +214,7 @@ export function registerPipelineTaskHandlers(
         await write(
           canonicalPath,
           logRef,
-          appendTaskLogEntry(logRaw, composeTaskLogEntry(now(), result.text, 'editada', parseActor(actor))),
+          appendTaskLogEntry(logRaw, composeTaskLogEntry(now(), result.text, 'editada', actorValue)),
         );
 
         return { success: true };
@@ -245,6 +248,7 @@ export function registerPipelineTaskHandlers(
       }
 
       try {
+        const actorValue = parseActor(actor);
         const { canonicalPath } = await service.resolveBinding(repoPath);
         const tasksRef = `openspec/changes/${changeId}/tasks.md`;
         const tasksRaw = await read(canonicalPath, tasksRef);
@@ -260,7 +264,7 @@ export function registerPipelineTaskHandlers(
         await write(
           canonicalPath,
           logRef,
-          appendTaskLogEntry(logRaw, composeTaskLogEntry(now(), result.text, 'movida', parseActor(actor))),
+          appendTaskLogEntry(logRaw, composeTaskLogEntry(now(), result.text, 'movida', actorValue)),
         );
 
         return { success: true };
@@ -290,6 +294,7 @@ export function registerPipelineTaskHandlers(
       }
 
       try {
+        const actorValue = parseActor(actor);
         const { canonicalPath } = await service.resolveBinding(repoPath);
         const tasksRef = `openspec/changes/${changeId}/tasks.md`;
         const tasksRaw = await read(canonicalPath, tasksRef);
@@ -305,7 +310,7 @@ export function registerPipelineTaskHandlers(
         await write(
           canonicalPath,
           logRef,
-          appendTaskLogEntry(logRaw, composeTaskLogEntry(now(), result.text, 'eliminada', parseActor(actor))),
+          appendTaskLogEntry(logRaw, composeTaskLogEntry(now(), result.text, 'eliminada', actorValue)),
         );
 
         return { success: true };

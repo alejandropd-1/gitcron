@@ -381,8 +381,16 @@ export interface OpenSpecGlobalConfig {
   profileState: 'read' | 'failed' | 'unread';
   delivery: string | null;
   deliveryState: 'read' | 'failed' | 'unread';
+  /** Workflows tal como están escritos en el archivo de configuración global (`config get workflows`). */
   configuredWorkflows: string[] | null;
   workflowsState: 'read' | 'failed' | 'unread';
+  /**
+   * Workflows que el perfil vigente RESUELVE (bloque "Profile settings" de
+   * `config list`): lo que el motor realmente habilita. Puede diferir de
+   * `configuredWorkflows`; son datos distintos con causas distintas.
+   */
+  resolvedWorkflows: string[] | null;
+  resolvedWorkflowsState: 'read' | 'failed' | 'unread';
   /** `cli` cuando al menos una clave produjo evidencia válida; `unknown` si todas fallaron. */
   origin: 'cli' | 'unknown';
   /** ISO-8601 del momento de lectura. */

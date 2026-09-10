@@ -176,7 +176,9 @@ export interface WriteArtifactDependencies {
  *    ruta fuera del cambio (otra unidad, repo root, escape .. u otro change),
  *    se rechaza inmediatamente con `out-of-bounds` y no se escribe nada en disco.
  * 5. Previene sobrescritura accidental si el archivo ya existe y no se pasó `overwrite: true`.
- * 6. Registra la operación en `task-log.md` como `'escrita'` preservando formato y actor.
+ * 6. El actor es obligatorio (`'persona' | 'agente'`): si falta o es inválido se
+ *    rechaza en `validate` nombrando el valor recibido, sin tocar disco.
+ * 7. Registra la operación en `task-log.md` como `'escrita'` preservando formato y actor.
  */
 export async function writeArtifact(
   repoPath: unknown,
@@ -200,13 +202,20 @@ export async function writeArtifact(
   }
 
   let parsedOptions: WriteArtifactOptions | undefined;
+  let rawActor: unknown;
   if (options && typeof options === 'object') {
     const opt = options as Record<string, unknown>;
+    rawActor = opt.actor;
     parsedOptions = {
       overwrite: opt.overwrite === true,
       actor: opt.actor === 'persona' || opt.actor === 'agente' ? opt.actor : undefined,
       targetFile: typeof opt.targetFile === 'string' ? opt.targetFile : undefined,
     };
+  }
+
+  if (rawActor !== 'persona' && rawActor !== 'agente') {
+    const received = typeof rawActor === 'string' ? `"${rawActor}"` : String(rawActor);
+    return { success: false, error: `Actor inválido: se esperaba 'persona' o 'agente', recibido ${received}`, stage: 'validate' };
   }
 
   const resolveBinding = deps?.resolveBinding ?? (async (p) => ({ canonicalPath: p }));
@@ -268,7 +277,7 @@ export async function writeArtifact(
 
     const logRef = `openspec/changes/${changeId}/task-log.md`;
     const logRaw = await read(canonicalPath, logRef);
-    const entry = composeTaskLogEntry(now(), artifactId, 'escrita', parsedOptions?.actor);
+    const entry = composeTaskLogEntry(now(), artifactId, 'escrita', rawActor);
     await write(canonicalPath, logRef, appendTaskLogEntry(logRaw, entry));
 
     return { success: true };

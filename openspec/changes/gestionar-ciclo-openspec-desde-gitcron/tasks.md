@@ -647,7 +647,7 @@
      explicacion, y tiene un estado relleno natural para distinguir marcada de no marcada. La
      segunda opcion seria el marcador de libro. **La decide Alejandro.**
 
-- [ ] 8.18 **Observacion visual de Alejandro, 2026-09-09: el boton «Cerrar» del panel de preparar
+- [x] 8.18 **Observacion visual de Alejandro, 2026-09-09: el boton «Cerrar» del panel de preparar
   commit queda desubicado.** Lo vio despues de preparar nueve archivos: el panel mostraba el
   titulo, el texto de ayuda y la pildora de rama, y debajo —solo, alineado a la izquierda— el
   boton «Cerrar», con el resumen «9 archivos enviados a commit» mas abajo todavia.

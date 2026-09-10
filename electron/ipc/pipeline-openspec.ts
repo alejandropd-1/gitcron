@@ -287,9 +287,16 @@ export async function buildEngineStatusSnapshot(
   }
 
   // 7. Calcular perfiles global y repo y evaluar convergencia por target
+  const resolvedWfs = globalConfig?.resolvedWorkflows;
+  const configuredWfs = globalConfig?.configuredWorkflows;
+  const effectiveGlobalWorkflows =
+    (globalConfig?.resolvedWorkflowsState === 'read' && Array.isArray(resolvedWfs))
+      ? resolvedWfs
+      : configuredWfs;
+
   const globalProfileRes = classifyOpenSpecProfile({
     rawProfile: globalConfig?.rawProfile,
-    workflows: globalConfig?.configuredWorkflows,
+    workflows: effectiveGlobalWorkflows,
     source: 'global-config',
   });
 
@@ -306,8 +313,8 @@ export async function buildEngineStatusSnapshot(
   let hasTargetDivergence = false;
   const targetDivergenceReasons: OpenSpecTargetDivergenceDetail[] = [];
 
-  const globalWorkflows = globalConfig?.configuredWorkflows
-    ? [...globalConfig.configuredWorkflows].sort()
+  const globalWorkflows = effectiveGlobalWorkflows
+    ? [...effectiveGlobalWorkflows].sort()
     : null;
   const globalWorkflowsStr = globalWorkflows ? globalWorkflows.join(',') : '';
 

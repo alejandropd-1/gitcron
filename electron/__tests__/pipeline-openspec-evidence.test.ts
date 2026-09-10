@@ -611,6 +611,151 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
       expect(snapshot.divergence?.overallStatus).toBe('unknown');
       expect(snapshot.divergence?.isDivergent).toBe(false);
     });
+
+    describe('7.4a: clasificación y convergencia contra los workflows RESUELTOS del perfil', () => {
+      const fiveSkills = [
+        'openspec-propose',
+        'openspec-explore',
+        'openspec-apply-change',
+        'openspec-sync-specs',
+        'openspec-archive-change',
+      ];
+
+      function makeRepoWithAgentsSkills(tempDir: string, skills: string[]): void {
+        fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
+        fs.writeFileSync(path.join(tempDir, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+        fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+        fs.writeFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
+        for (const sk of skills) {
+          const skDir = path.join(tempDir, '.agents', 'skills', sk);
+          fs.mkdirSync(skDir, { recursive: true });
+          fs.writeFileSync(path.join(skDir, 'SKILL.md'), '---\ngeneratedBy: "1.8.0"\n---\nOfficial skill\n');
+        }
+      }
+
+      const cliDouble = () => async () => ({
+        installed: true,
+        runtimeVersion: '1.8.0',
+        provenance: 'global',
+        displayPath: 'C:\\global\\openspec.cmd',
+        supportedRange: { min: '1.5.0', max: '1.8.0' },
+        versionClass: 'supported',
+        evidenceStatus: 'confirmed',
+        diagnostics: [],
+      });
+
+      it('caso A: configured=5 (sin update) y resolved=6 (con update) -> globalProfileClass core y target agents con 5 queda divergente', async () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-74a-case-a-'));
+        try {
+          makeRepoWithAgentsSkills(tempDir, fiveSkills);
+
+          authorizedRepoStore.clear();
+          authorizedRepoStore.authorizeRepo(tempDir);
+
+          const snapshot = await buildEngineStatusSnapshot(tempDir, {
+            discoverCli: cliDouble(),
+            readGlobalConfig: async () => ({
+              rawProfile: 'core',
+              configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+              resolvedWorkflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+              resolvedWorkflowsState: 'read',
+              origin: 'cli',
+              readAt: new Date().toISOString(),
+            }),
+            runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+            runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
+          });
+
+          expect(snapshot.divergence?.globalProfileClass).toBe('core');
+          expect(snapshot.divergence?.targetConvergences?.['agents']?.status).toBe('divergent');
+          // La divergencia se mide contra lo RESUELTO (6), no contra lo escrito (5)
+          expect(snapshot.divergence?.reason).toEqual({
+            kind: 'target-workflows-mismatch',
+            toolId: 'agents',
+            label: 'Agents Multi-Agent',
+            targetCount: 5,
+            targetWorkflows: ['apply', 'archive', 'explore', 'propose', 'sync'],
+            globalCount: 6,
+            globalWorkflows: ['apply', 'archive', 'explore', 'propose', 'sync', 'update'],
+          });
+        } finally {
+          try {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+          } catch {
+            // ignore
+          }
+        }
+      });
+
+      it('caso B: mismo perfil resuelto a 6 y target agents con los 6 workflows -> convergent', async () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-74a-case-b-'));
+        try {
+          makeRepoWithAgentsSkills(tempDir, [...fiveSkills, 'openspec-update-plan']);
+
+          authorizedRepoStore.clear();
+          authorizedRepoStore.authorizeRepo(tempDir);
+
+          const snapshot = await buildEngineStatusSnapshot(tempDir, {
+            discoverCli: cliDouble(),
+            readGlobalConfig: async () => ({
+              rawProfile: 'core',
+              configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+              resolvedWorkflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+              resolvedWorkflowsState: 'read',
+              origin: 'cli',
+              readAt: new Date().toISOString(),
+            }),
+            runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+            runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
+          });
+
+          expect(snapshot.divergence?.globalProfileClass).toBe('core');
+          expect(snapshot.divergence?.targetConvergences?.['agents']?.status).toBe('convergent');
+          expect(snapshot.divergence?.isDivergent).toBe(false);
+          expect(snapshot.divergence?.overallStatus).toBe('convergent');
+        } finally {
+          try {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+          } catch {
+            // ignore
+          }
+        }
+      });
+
+      it('caso C (fallback): resolvedWorkflows=null y state failed -> clasifica igual que hoy usando configured', async () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-74a-case-c-'));
+        try {
+          makeRepoWithAgentsSkills(tempDir, fiveSkills);
+
+          authorizedRepoStore.clear();
+          authorizedRepoStore.authorizeRepo(tempDir);
+
+          const snapshot = await buildEngineStatusSnapshot(tempDir, {
+            discoverCli: cliDouble(),
+            readGlobalConfig: async () => ({
+              rawProfile: 'core',
+              configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+              resolvedWorkflows: null,
+              resolvedWorkflowsState: 'failed',
+              origin: 'cli',
+              readAt: new Date().toISOString(),
+            }),
+            runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+            runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
+          });
+
+          // Comportamiento actual: 5 workflows escritos -> custom, y target idéntico converge
+          expect(snapshot.divergence?.globalProfileClass).toBe('custom');
+          expect(snapshot.divergence?.targetConvergences?.['agents']?.status).toBe('convergent');
+        } finally {
+          try {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+          } catch {
+            // ignore
+          }
+        }
+      });
+    });
   });
 });
 

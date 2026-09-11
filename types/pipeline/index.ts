@@ -398,6 +398,22 @@ export interface OpenSpecGlobalConfig {
 }
 
 /**
+ * Resultado de alternar (activar/desactivar) UN workflow en la configuración
+ * global de OpenSpec (`config set workflows`).
+ *
+ * `config` es el estado RE-LEÍDO tras la operación (o el último estado conocido
+ * si la operación falló). `appliedWorkflows` es la lista confirmada por esa
+ * re-lectura; `null` cuando no se pudo confirmar. El nombre del workflow no se
+ * valida contra ningún conjunto: lo alterable es lo que el CLI ya informó.
+ */
+export interface SetOpenSpecWorkflowResult {
+  ok: boolean;
+  appliedWorkflows: string[] | null;
+  config: OpenSpecGlobalConfig | null;
+  error?: string;
+}
+
+/**
  * Estado instalado en el repositorio (segunda fuente, independiente de la
  * configuración global). Declara explícitamente los campos tipados del contrato.
  */

@@ -104,3 +104,60 @@ export function classifyOpenSpecProfile(
 
   return { profileClass: 'custom', source, rawProfile };
 }
+
+export interface ProfileWorkflowRow {
+  /** Nombre del workflow tal como lo informó el CLI (sin validar contra ningún conjunto). */
+  workflow: string;
+  /** `true` cuando el perfil vigente RESUELVE ese workflow (lo que el motor habilita). */
+  enabled: boolean;
+  /** `true` cuando el workflow está escrito en el archivo de configuración global. */
+  configured: boolean;
+}
+
+function toNameList(list: string[] | null): string[] {
+  if (!Array.isArray(list)) return [];
+  return list.filter((name): name is string => typeof name === 'string' && name.length > 0);
+}
+
+/**
+ * Deriva las filas del panel de perfil de workflows a partir de las dos fuentes
+ * independientes que ya llegan al renderer:
+ *
+ * - `configured`: lo escrito en el archivo de configuración global.
+ * - `resolved`: lo que el perfil vigente RESUELVE (lo que el motor habilita).
+ *
+ * El universo es la unión ordenada: se preserva el orden de `configured` y se
+ * anexa al final cualquier workflow presente en `resolved` pero ausente de
+ * `configured`. Un nombre que este código no conoce aparece igual como fila
+ * válida: NO se valida ni filtra contra ningún conjunto. Si ambas listas son
+ * null (o vacías) se devuelve un array vacío: el panel mostrará «sin datos».
+ */
+export function deriveProfileWorkflowRows(
+  configured: string[] | null,
+  resolved: string[] | null,
+): ProfileWorkflowRow[] {
+  const configuredList = toNameList(configured);
+  const resolvedList = toNameList(resolved);
+
+  if (configuredList.length === 0 && resolvedList.length === 0) {
+    return [];
+  }
+
+  const configuredSet = new Set(configuredList);
+  const resolvedSet = new Set(resolvedList);
+
+  const universe: string[] = [];
+  const seen = new Set<string>();
+  for (const name of [...configuredList, ...resolvedList]) {
+    if (!seen.has(name)) {
+      seen.add(name);
+      universe.push(name);
+    }
+  }
+
+  return universe.map((workflow) => ({
+    workflow,
+    enabled: resolvedSet.has(workflow),
+    configured: configuredSet.has(workflow),
+  }));
+}

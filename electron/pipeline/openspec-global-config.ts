@@ -1,4 +1,4 @@
-import type { OpenSpecGlobalConfig } from '../../types/pipeline';
+import type { OpenSpecGlobalConfig, SetOpenSpecWorkflowResult } from '../../types/pipeline';
 import {
   resolveOpenSpecExecutable,
   runAuthorizedOpenSpec,
@@ -196,6 +196,130 @@ export async function readOpenSpecGlobalConfig(
     origin: hasAnySuccess ? 'cli' : 'unknown',
     readAt,
   };
+}
+
+async function defaultRunSet(args: string[], runtime: AuthorizedOpenSpecRuntime): Promise<string> {
+  const { stdout } = await runAuthorizedOpenSpec(runtime, args, {
+    timeout: 10_000,
+    maxBuffer: 16 * 1024,
+  });
+  return stdout;
+}
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+export interface SetOpenSpecWorkflowOptions {
+  /** Nombre del workflow a alternar (no se valida contra ningún conjunto cerrado). */
+  workflow: string;
+  /** `true` para habilitarlo, `false` para deshabilitarlo. */
+  enabled: boolean;
+  /** Runtime inyectable autorizado. */
+  runtime?: AuthorizedOpenSpecRuntime | null;
+  /** Resolvedor inyectable para tests (default: `resolveOpenSpecExecutable`). */
+  resolve?: () => AuthorizedOpenSpecRuntime | null;
+  /**
+   * Setter inyectable para tests: ejecuta el `config set` con los args exactos y
+   * devuelve el stdout. El valor SIEMPRE se pasa como `JSON.stringify(lista)`;
+   * nunca como string con comas (ver `coerceValue` del CLI 1.12.0).
+   */
+  runSet?: (args: string[], runtime: AuthorizedOpenSpecRuntime) => Promise<string>;
+  /** Lector inyectable para tests (default: `readOpenSpecGlobalConfig`). */
+  read?: (options?: ReadOpenSpecGlobalConfigOptions) => Promise<OpenSpecGlobalConfig>;
+}
+
+/**
+ * Alterna UN workflow en la configuración global de OpenSpec (`config set workflows`).
+ *
+ * No hardcodea ningún nombre válido: solo agrega o quita el string recibido dentro
+ * de la lista YA LEÍDA del CLI. El conjunto válido sale del motor, no del código.
+ *
+ * Flujo: leer estado actual → calcular nueva lista → (si hay cambio) escribir con
+ * `JSON.stringify` → re-leer y devolver el estado fresco. Si la lista no se pudo
+ * leer, NO escribe nada y devuelve fallo explícito (no adivina la lista).
+ *
+ * Elección documentada para el caso sin cambio (ya en el estado pedido): se OMITE
+ * la escritura (no toca disco) pero SÍ se re-lee para confirmar y devolver el
+ * estado fresco.
+ */
+export async function setOpenSpecWorkflow(
+  options: SetOpenSpecWorkflowOptions,
+): Promise<SetOpenSpecWorkflowResult> {
+  const workflow = typeof options.workflow === 'string' ? options.workflow.trim() : '';
+  if (!workflow) {
+    return { ok: false, appliedWorkflows: null, config: null, error: 'workflow-required' };
+  }
+
+  const runtime = options.runtime !== undefined
+    ? options.runtime
+    : (options.resolve ?? resolveOpenSpecExecutable)();
+
+  if (!runtime) {
+    return { ok: false, appliedWorkflows: null, config: null, error: 'no-authorized-runtime' };
+  }
+
+  const read = options.read ?? ((opts?: ReadOpenSpecGlobalConfigOptions) => readOpenSpecGlobalConfig(opts ?? {}));
+  const runSet = options.runSet ?? ((args: string[], rt: AuthorizedOpenSpecRuntime) => defaultRunSet(args, rt));
+
+  // Paso 1: leer el estado actual.
+  let current: OpenSpecGlobalConfig;
+  try {
+    current = await read({ runtime });
+  } catch (err) {
+    return { ok: false, appliedWorkflows: null, config: null, error: toErrorMessage(err) };
+  }
+
+  if (current.configuredWorkflows === null || current.workflowsState !== 'read') {
+    return {
+      ok: false,
+      appliedWorkflows: null,
+      config: current,
+      error: 'configured-workflows-unread',
+    };
+  }
+
+  // Paso 2: calcular la nueva lista desde la leída.
+  const base = current.configuredWorkflows;
+  const present = base.includes(workflow);
+  let nextList: string[];
+  let changed: boolean;
+  if (options.enabled) {
+    if (present) {
+      nextList = base; // ya habilitado: sin cambio
+      changed = false;
+    } else {
+      nextList = [...base, workflow]; // agrega al final, conserva orden existente
+      changed = true;
+    }
+  } else {
+    if (present) {
+      nextList = base.filter((w) => w !== workflow); // lo quita
+      changed = true;
+    } else {
+      nextList = base; // ya deshabilitado: sin cambio
+      changed = false;
+    }
+  }
+
+  // Paso 3: escribir SOLO si hubo cambio. El valor SIEMPRE viaja como JSON array.
+  if (changed) {
+    try {
+      await runSet(['config', 'set', 'workflows', JSON.stringify(nextList)], runtime);
+    } catch (err) {
+      return { ok: false, appliedWorkflows: null, config: current, error: toErrorMessage(err) };
+    }
+  }
+
+  // Paso 4: re-leer para confirmar y devolver el estado fresco.
+  let fresh: OpenSpecGlobalConfig;
+  try {
+    fresh = await read({ runtime });
+  } catch (err) {
+    return { ok: false, appliedWorkflows: null, config: current, error: toErrorMessage(err) };
+  }
+
+  return { ok: true, appliedWorkflows: fresh.configuredWorkflows, config: fresh };
 }
 
 export const __parsers = { parseProfile, parseDelivery, parseWorkflows, parseResolvedWorkflows };

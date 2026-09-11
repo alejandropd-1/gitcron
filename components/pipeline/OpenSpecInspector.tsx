@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, AlertTriangle, BrainCircuit, CheckCircle2, FileCode2, MessageSquareText, Wrench } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { useGitStore } from '@/lib/git-store';
@@ -132,7 +132,9 @@ export function OpenSpecInspector({
     return () => { cancelled = true; };
   }, [repoPath]);
 
-  useEffect(() => {
+  // Mismo camino de fetch que se reutiliza al re-leer el estado tras una
+  // escritura de perfil (onChanged de la tarjeta): no hay un segundo fetch.
+  const refetchEngineStatus = useCallback(() => {
     if (!repoPath || typeof window === 'undefined' || !window.api?.pipelineOpenSpec?.getEngineStatus) {
       setEngineStatus(null);
       return;
@@ -151,6 +153,8 @@ export function OpenSpecInspector({
       });
     return () => { cancelled = true; };
   }, [repoPath]);
+
+  useEffect(() => refetchEngineStatus(), [refetchEngineStatus]);
 
   const effectiveEngineStatus = useMemo<OpenSpecEngineStatus | null>(() => {
     if (!engineStatus) return null;
@@ -369,6 +373,7 @@ export function OpenSpecInspector({
               packageManagerPath={installPlan?.packageManagerPath ?? undefined}
               nodePath={installPlan?.nodePath ?? undefined}
               hasPackageJson={installPlan?.hasManifest}
+              onChanged={() => refetchEngineStatus()}
             />
             <OpenSpecToolList
               present={openSpecPresent}

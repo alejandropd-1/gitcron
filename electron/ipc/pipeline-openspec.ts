@@ -17,6 +17,7 @@ import type {
   OpenSpecTargetConvergence,
   OpenSpecTargetDivergenceDetail,
   OpenSpecUpdatePlan,
+  SetOpenSpecWorkflowResult,
 } from '../../types/pipeline';
 import {
   discoverOpenSpecCli,
@@ -40,7 +41,7 @@ import {
   type InstructionsOpenSpecOptions,
   type RunOpenSpecUpdateOptions,
 } from '../pipeline/openspec-cli';
-import { readOpenSpecGlobalConfig } from '../pipeline/openspec-global-config';
+import { readOpenSpecGlobalConfig, setOpenSpecWorkflow } from '../pipeline/openspec-global-config';
 import { inspectInstalledEvidence } from '../pipeline/openspec-evidence';
 import { checkLatestOpenSpecVersion, getLocalCacheRegistryStatus } from '../pipeline/openspec-registry';
 import {
@@ -79,6 +80,7 @@ export interface OpenSpecIpcDeps {
   installLocal?: typeof installOpenSpecLocal;
   installGlobal?: typeof installOpenSpecGlobal;
   resolvePackageManager?: typeof resolvePackageManager;
+  setWorkflow?: typeof setOpenSpecWorkflow;
 }
 
 /**
@@ -948,6 +950,30 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
       }
 
       return resolvePackageManagerInstallPlan(validRepoPath);
+    },
+  );
+
+  // 15. Set Workflow (Tanda 7.2a: alternar UN workflow del perfil global; muta el config del CLI)
+  ipc.handle(
+    'pipeline:openspec:set-workflow',
+    async (_event, payload?: unknown): Promise<SetOpenSpecWorkflowResult> => {
+      validateStrictPayloadKeys(payload, ['workflow', 'enabled']);
+      const rawWorkflow = (payload as any)?.workflow;
+      if (typeof rawWorkflow !== 'string' || !rawWorkflow.trim()) {
+        return { ok: false, appliedWorkflows: null, config: null, error: 'workflow-required' };
+      }
+      const enabled = (payload as any)?.enabled;
+      if (typeof enabled !== 'boolean') {
+        return { ok: false, appliedWorkflows: null, config: null, error: 'enabled-must-be-boolean' };
+      }
+
+      const getUserDataDir = deps.getUserDataDir ?? (() => null);
+      const userDataDir = getUserDataDir();
+      const resolveRuntime = deps.resolveRuntime ?? resolveOpenSpecExecutable;
+      const authorizedRuntime = resolveRuntime({ userDataDir });
+
+      const setWorkflowFn = deps.setWorkflow ?? setOpenSpecWorkflow;
+      return setWorkflowFn({ workflow: rawWorkflow, enabled, runtime: authorizedRuntime });
     },
   );
 }

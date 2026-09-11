@@ -15,6 +15,7 @@ import {
   isInstalledAheadOfCycle,
   isInstalledBehindCycle,
 } from '@/lib/openspec-version';
+import { deriveProfileWorkflowRows } from '@/lib/openspec-profile';
 import styles from './OpenSpecDashboard.module.css';
 import { useGitStore } from '@/lib/git-store';
 
@@ -97,6 +98,8 @@ export interface OpenSpecEngineCardProps {
   commandExecuted?: string;
   packageManagerPath?: string;
   onInstalled?: (result: OpenSpecInstallResult) => void;
+  /** Se invoca cuando una escritura de perfil (toggle de workflow) termina con éxito, para que el padre re-fetchee el estado. La tarjeta no muta su propio `status`. */
+  onChanged?: () => void;
 }
 
 export function formatInstallErrorCode(
@@ -185,6 +188,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   commandExecuted: propCommandExecuted,
   packageManagerPath,
   onInstalled,
+  onChanged,
 }) => {
   const t = useT();
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -195,6 +199,8 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const [isConfirmingGlobal, setIsConfirmingGlobal] = useState(false);
   const [installResult, setInstallResult] = useState<OpenSpecInstallResult | null>(null);
   const [installError, setInstallError] = useState<string | null>(null);
+  const [pendingWorkflow, setPendingWorkflow] = useState<string | null>(null);
+  const [profileWriteError, setProfileWriteError] = useState<string | null>(null);
 
   const gitStoreRepoPath = useGitStore((s) => s.repoPath);
   const effectiveRepoPath = repoPath ?? gitStoreRepoPath ?? undefined;
@@ -340,6 +346,55 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const allOutputs = installed?.outputInventory ?? [];
   const presentOutputs = allOutputs.filter((o) => o.presenceState !== 'absent');
   const absentOutputs = allOutputs.filter((o) => o.presenceState === 'absent');
+
+  // Perfil de workflows global (Tanda 7.2b). Las filas salen 100% de los datos
+  // que ya llegan por `status.globalConfig`; no se hardcodea ningún nombre.
+  // Los toggles solo se ofrecen cuando AMBAS fuentes están leídas ('read'):
+  // con una fuente fallida, «deshabilitado» sería una afirmación falsa.
+  const globalConfig = status.globalConfig;
+  const profileDataReady =
+    !!globalConfig &&
+    globalConfig.workflowsState === 'read' &&
+    globalConfig.resolvedWorkflowsState === 'read';
+  const profileRows = deriveProfileWorkflowRows(
+    globalConfig?.configuredWorkflows ?? null,
+    globalConfig?.resolvedWorkflows ?? null,
+  );
+  const profileRowsVisible = profileDataReady && profileRows.length > 0;
+
+  const hasProfileWriteChannel =
+    typeof window !== 'undefined' && !!window.api?.pipelineOpenSpec?.setWorkflow;
+
+  let profileBlockedReason: string | null = null;
+  if (profileRowsVisible) {
+    if (!hasProfileWriteChannel) {
+      profileBlockedReason = t('pipeline.openspec.engine.profile.channelUnavailable');
+    } else if (!effectiveRepoPath) {
+      profileBlockedReason = t('pipeline.openspec.engine.profile.noRepo');
+    }
+  }
+
+  const handleToggleWorkflow = async (workflow: string, enabled: boolean) => {
+    if (pendingWorkflow !== null || !effectiveRepoPath) return;
+    if (typeof window === 'undefined' || !window.api?.pipelineOpenSpec?.setWorkflow) return;
+
+    setPendingWorkflow(workflow);
+    setProfileWriteError(null);
+
+    try {
+      const result = await window.api.pipelineOpenSpec.setWorkflow({ workflow, enabled });
+      if (result.ok) {
+        onChanged?.();
+      } else {
+        setProfileWriteError(result.error || t('pipeline.openspec.engine.profile.error'));
+      }
+    } catch (err: unknown) {
+      setProfileWriteError((err as Error)?.message || t('pipeline.openspec.engine.profile.error'));
+    } finally {
+      setPendingWorkflow(null);
+    }
+  };
+
   const displayCommand = installResult?.commandExecuted || propCommandExecuted || null;
   const resolvedNodePath = installResult?.nodePath ?? nodePath;
   const resolvedPmPath = installResult?.packageManagerPath ?? packageManagerPath ?? npmPath;
@@ -789,6 +844,78 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                 </small>
               )}
             </div>
+          </div>
+
+          {/* Perfil de workflows global (Tanda 7.2b): cada fila sale de
+              configuredWorkflows/resolvedWorkflows; el toggle escribe vía el
+              canal 7.2a y, con éxito, pide al padre re-leer el estado. */}
+          <div className={styles.profileWorkflowSection}>
+            <div className={styles.profileWorkflowHeader}>
+              <span className={styles.inventoryTitle}>{t('pipeline.openspec.engine.profile.title')}</span>
+              {profileBlockedReason && (
+                <span className={styles.blockedReasonInline} role="alert">
+                  {profileBlockedReason}
+                </span>
+              )}
+            </div>
+            <p className={styles.inventoryHelp}>
+              {t('pipeline.openspec.engine.profile.help')}
+            </p>
+
+            {!profileRowsVisible ? (
+              <p className={styles.cliDiagnosticUnavailable}>
+                {t('pipeline.openspec.engine.profile.noData')}
+              </p>
+            ) : (
+              <ul className={styles.profileWorkflowList}>
+                {profileRows.map((row) => (
+                  <li
+                    key={row.workflow}
+                    className={styles.profileWorkflowRow}
+                    data-state={row.enabled ? 'enabled' : 'disabled'}
+                  >
+                    <code className={styles.profileWorkflowName}>{row.workflow}</code>
+                    <span
+                      className={styles.profileWorkflowState}
+                      data-state={row.enabled ? 'enabled' : 'disabled'}
+                    >
+                      {t(row.enabled
+                        ? 'pipeline.openspec.engine.profile.enabled'
+                        : 'pipeline.openspec.engine.profile.disabledByProfile')}
+                    </span>
+                    {pendingWorkflow === row.workflow ? (
+                      <span className={styles.profileSaving} role="status">
+                        <Loader2 size={12} className={styles.spin} aria-hidden="true" />
+                        {t('pipeline.openspec.engine.profile.saving')}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={row.enabled}
+                        aria-label={t(row.enabled
+                          ? 'pipeline.openspec.engine.profile.toggleOff'
+                          : 'pipeline.openspec.engine.profile.toggleOn', { workflow: row.workflow })}
+                        className={styles.profileSwitch}
+                        data-state={row.enabled ? 'on' : 'off'}
+                        disabled={pendingWorkflow !== null || profileBlockedReason !== null}
+                        title={profileBlockedReason ?? undefined}
+                        onClick={() => void handleToggleWorkflow(row.workflow, !row.enabled)}
+                      >
+                        <span className={styles.profileSwitchThumb} aria-hidden="true" />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {profileWriteError && (
+              <div className={`${styles.engineInstallFeedback} ${styles.engineInstallFeedbackError}`} role="alert">
+                <AlertTriangle size={14} aria-hidden="true" />
+                <span>{profileWriteError}</span>
+              </div>
+            )}
           </div>
 
           {/* Declaración de divergencia o convergencia. La convergencia va en

@@ -437,6 +437,18 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.engine.install.error.installFailed',
   'pipeline.openspec.engine.review.summaryLine',
   'pipeline.openspec.engine.review.toggleDetails',
+  // Panel de perfil de workflows global (Tanda 7.2b)
+  'pipeline.openspec.engine.profile.title',
+  'pipeline.openspec.engine.profile.help',
+  'pipeline.openspec.engine.profile.enabled',
+  'pipeline.openspec.engine.profile.disabledByProfile',
+  'pipeline.openspec.engine.profile.toggleOn',
+  'pipeline.openspec.engine.profile.toggleOff',
+  'pipeline.openspec.engine.profile.noData',
+  'pipeline.openspec.engine.profile.saving',
+  'pipeline.openspec.engine.profile.channelUnavailable',
+  'pipeline.openspec.engine.profile.noRepo',
+  'pipeline.openspec.engine.profile.error',
 ] as const;
 
 describe('Pipeline i18n', () => {

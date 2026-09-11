@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { readOpenSpecGlobalConfig, __parsers } from '../pipeline/openspec-global-config';
+import {
+  readOpenSpecGlobalConfig,
+  setOpenSpecWorkflow,
+  __parsers,
+  type ReadOpenSpecGlobalConfigOptions,
+} from '../pipeline/openspec-global-config';
 import type { AuthorizedOpenSpecRuntime } from '../pipeline/openspec-engine';
+import type { OpenSpecGlobalConfig } from '../../types/pipeline';
 
 const runtime: AuthorizedOpenSpecRuntime = {
   executablePath: 'C:\\nvm4w\\nodejs\\openspec.cmd',
@@ -401,5 +407,212 @@ describe('readOpenSpecGlobalConfig (minimizado, sin datos sensibles)', () => {
     expect(result.resolvedWorkflows).toBeNull();
     expect(result.resolvedWorkflowsState).toBe('failed');
     expect(result.origin).toBe('cli');
+  });
+});
+
+describe('setOpenSpecWorkflow (Tanda 7.2a: alternar UN workflow del perfil global)', () => {
+  // Runtime falso dedicado a estos tests: el runner inyectado captura los args
+  // y afirma la llamada EXACTA que llegaría al CLI.
+  const setRuntime: AuthorizedOpenSpecRuntime = {
+    executablePath: 'C:\\fake\\openspec.cmd',
+    command: 'openspec.cmd',
+    shell: true,
+    displayPath: 'C:\\fake\\openspec.cmd',
+    provenance: 'global',
+  };
+
+  function baseConfig(overrides: Partial<OpenSpecGlobalConfig> = {}): OpenSpecGlobalConfig {
+    return {
+      rawProfile: 'core',
+      profileState: 'read',
+      delivery: 'both',
+      deliveryState: 'read',
+      configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+      workflowsState: 'read',
+      resolvedWorkflows: null,
+      resolvedWorkflowsState: 'failed',
+      origin: 'cli',
+      readAt: '2026-09-10T12:00:00.000Z',
+      ...overrides,
+    };
+  }
+
+  /** Lector con dos estados: la 1ª llamada devuelve `pre`, las siguientes `post`. */
+  function makeRead(pre: OpenSpecGlobalConfig, post: OpenSpecGlobalConfig) {
+    let calls = 0;
+    const fn = async (_opts?: ReadOpenSpecGlobalConfigOptions): Promise<OpenSpecGlobalConfig> => {
+      calls += 1;
+      return calls === 1 ? pre : post;
+    };
+    return { fn, count: () => calls };
+  }
+
+  /** Runner falso que captura los args exactos de cada `config set`. */
+  function makeCapturingRunSet() {
+    const calls: Array<{ args: string[]; runtime: AuthorizedOpenSpecRuntime }> = [];
+    const fn = async (args: string[], rt: AuthorizedOpenSpecRuntime): Promise<string> => {
+      calls.push({ args, runtime: rt });
+      return '';
+    };
+    return { fn, calls };
+  }
+
+  it('agregar: base sin el workflow, enabled:true → set EXACTO con JSON.stringify, lo agrega al final y re-lee', async () => {
+    const pre = baseConfig(); // 5 workflows medidos, SIN 'update'
+    const post = baseConfig({ configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive', 'update'] });
+    const reader = makeRead(pre, post);
+    const setter = makeCapturingRunSet();
+
+    const result = await setOpenSpecWorkflow({
+      workflow: 'update',
+      enabled: true,
+      runtime: setRuntime,
+      runSet: setter.fn,
+      read: reader.fn,
+    });
+
+    expect(setter.calls).toHaveLength(1);
+    // La llamada EXACTA al CLI: valor SIEMPRE como JSON array, nunca string con comas.
+    expect(setter.calls[0].args).toEqual([
+      'config',
+      'set',
+      'workflows',
+      JSON.stringify(['propose', 'explore', 'apply', 'sync', 'archive', 'update']),
+    ]);
+    expect(setter.calls[0].args[3]).toBe('["propose","explore","apply","sync","archive","update"]');
+    // El runtime inyectado es el que se usa, exactamente.
+    expect(setter.calls[0].runtime).toBe(setRuntime);
+
+    expect(result.ok).toBe(true);
+    expect(result.appliedWorkflows).toEqual(['propose', 'explore', 'apply', 'sync', 'archive', 'update']);
+    // Devuelve el estado RE-LEÍDO, no el calculado en memoria.
+    expect(result.config).toBe(post);
+  });
+
+  it('quitar: base con el workflow, enabled:false → set EXACTO con la lista sin él', async () => {
+    const pre = baseConfig({ configuredWorkflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'] });
+    const post = baseConfig(); // 5 workflows, SIN 'update'
+    const reader = makeRead(pre, post);
+    const setter = makeCapturingRunSet();
+
+    const result = await setOpenSpecWorkflow({
+      workflow: 'update',
+      enabled: false,
+      runtime: setRuntime,
+      runSet: setter.fn,
+      read: reader.fn,
+    });
+
+    expect(setter.calls).toHaveLength(1);
+    expect(setter.calls[0].args).toEqual([
+      'config',
+      'set',
+      'workflows',
+      JSON.stringify(['propose', 'explore', 'apply', 'sync', 'archive']),
+    ]);
+    expect(result.ok).toBe(true);
+    expect(result.appliedWorkflows).toEqual(['propose', 'explore', 'apply', 'sync', 'archive']);
+    expect(result.config).toBe(post);
+  });
+
+  it('no-op: ya en el estado pedido → OMITE la escritura (decisión documentada) pero re-lee para confirmar', async () => {
+    const pre = baseConfig(); // ya contiene 'propose'
+    const post = baseConfig({ readAt: '2026-09-10T12:00:01.000Z' });
+    const reader = makeRead(pre, post);
+    const setter = makeCapturingRunSet();
+
+    const result = await setOpenSpecWorkflow({
+      workflow: 'propose',
+      enabled: true,
+      runtime: setRuntime,
+      runSet: setter.fn,
+      read: reader.fn,
+    });
+
+    // Decisión documentada: sin cambio no se toca disco.
+    expect(setter.calls).toHaveLength(0);
+    // Pero SÍ re-lee para confirmar (lectura inicial + re-lectura).
+    expect(reader.count()).toBe(2);
+    expect(result.ok).toBe(true);
+    expect(result.appliedWorkflows).toEqual(['propose', 'explore', 'apply', 'sync', 'archive']);
+    expect(result.config).toBe(post);
+  });
+
+  it('fallo de lectura: configuredWorkflows null / state no-read → NO llama runSet, ok:false con motivo', async () => {
+    const unread = baseConfig({ configuredWorkflows: null, workflowsState: 'failed' });
+    const reader = makeRead(unread, unread);
+    const setter = makeCapturingRunSet();
+
+    const result = await setOpenSpecWorkflow({
+      workflow: 'update',
+      enabled: true,
+      runtime: setRuntime,
+      runSet: setter.fn,
+      read: reader.fn,
+    });
+
+    expect(setter.calls).toHaveLength(0); // no adivina la lista
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('configured-workflows-unread');
+    expect(result.appliedWorkflows).toBeNull();
+    expect(result.config).toBe(unread);
+
+    // Variante: lista presente pero state no-read también bloquea.
+    const stale = baseConfig({ configuredWorkflows: ['propose'], workflowsState: 'unread' });
+    const reader2 = makeRead(stale, stale);
+    const setter2 = makeCapturingRunSet();
+    const result2 = await setOpenSpecWorkflow({
+      workflow: 'update',
+      enabled: true,
+      runtime: setRuntime,
+      runSet: setter2.fn,
+      read: reader2.fn,
+    });
+    expect(setter2.calls).toHaveLength(0);
+    expect(result2.ok).toBe(false);
+    expect(result2.error).toBe('configured-workflows-unread');
+  });
+
+  it('fallo del set (runner lanza) → ok:false con el error, sin tirar', async () => {
+    const pre = baseConfig();
+    const reader = makeRead(pre, pre);
+    let runSetCalls = 0;
+    const failingRunSet = async (_args: string[], _rt: AuthorizedOpenSpecRuntime): Promise<string> => {
+      runSetCalls += 1;
+      throw new Error('openspec config set exited with code 1');
+    };
+
+    const result = await setOpenSpecWorkflow({
+      workflow: 'update',
+      enabled: true,
+      runtime: setRuntime,
+      runSet: failingRunSet,
+      read: reader.fn,
+    });
+
+    expect(runSetCalls).toBe(1);
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('openspec config set exited with code 1');
+    expect(result.appliedWorkflows).toBeNull();
+    // Último estado conocido (el de la lectura previa a la escritura).
+    expect(result.config).toBe(pre);
+  });
+
+  it('workflow vacío → ok:false sin leer ni escribir', async () => {
+    const reader = makeRead(baseConfig(), baseConfig());
+    const setter = makeCapturingRunSet();
+
+    const result = await setOpenSpecWorkflow({
+      workflow: '   ',
+      enabled: true,
+      runtime: setRuntime,
+      runSet: setter.fn,
+      read: reader.fn,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('workflow-required');
+    expect(reader.count()).toBe(0);
+    expect(setter.calls).toHaveLength(0);
   });
 });

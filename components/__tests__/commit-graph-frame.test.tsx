@@ -216,6 +216,7 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
       /\.malformedWarning/, // TARJETA / DATO: aviso de tarea mal formada
       /\.taskErrorAlert/, // TARJETA / DATO: alerta de error en tarea
       /\.rawTextarea/, // CONTROL / FOCO: editor crudo de tareas
+      /\.profileSwitch/, // CONTROL: switch de activación/desactivación de workflow del perfil
       /:root/, // TOKENS (--os-border)
       /\.openspecScope/, // SCOPE
       /\.dashboard/, // ROOT

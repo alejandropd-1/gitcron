@@ -477,5 +477,7 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('pipeline:openspec:install-global', options),
     getInstallPlan: (repoPath?: string) =>
       ipcRenderer.invoke('pipeline:openspec:install-plan', { repoPath }),
+    setWorkflow: (options: { workflow: string; enabled: boolean }) =>
+      ipcRenderer.invoke('pipeline:openspec:set-workflow', options),
   },
 });

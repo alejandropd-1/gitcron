@@ -88,6 +88,7 @@ export function OpenSpecInspector({
   const storeProjection = usePipelineStore((s) => s.projection);
   const storeHistory = usePipelineStore((s) => s.runtimeHistory);
   const storeSelectedId = usePipelineStore((s) => s.selectedChangeId);
+  const engineChangeToken = usePipelineStore((s) => s.engineChangeToken);
 
   const gitStoreRepoPath = useGitStore((s) => s.repoPath);
   const gitStoreOpenRepos = useGitStore((s) => s.openRepos);
@@ -154,7 +155,7 @@ export function OpenSpecInspector({
     return () => { cancelled = true; };
   }, [repoPath]);
 
-  useEffect(() => refetchEngineStatus(), [refetchEngineStatus]);
+  useEffect(() => refetchEngineStatus(), [refetchEngineStatus, engineChangeToken]);
 
   const effectiveEngineStatus = useMemo<OpenSpecEngineStatus | null>(() => {
     if (!engineStatus) return null;

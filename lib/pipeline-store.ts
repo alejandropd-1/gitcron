@@ -13,6 +13,7 @@ export type PipelineStoreState = {
   reviewOpen: boolean;
   lastPreparedCount: number | null;
   aiNotice: string | null;
+  engineChangeToken: number;
 
   setSnapshot: (snapshot: PipelineSnapshot | null) => void;
   setProjection: (projection: RuntimeProjection | null) => void;
@@ -26,6 +27,7 @@ export type PipelineStoreState = {
   toggleReviewOpen: () => void;
   setLastPreparedCount: (count: number | null) => void;
   setAiNotice: (notice: string | null) => void;
+  notifyEngineChanged: () => void;
   reset: () => void;
 };
 
@@ -40,6 +42,7 @@ export const usePipelineStore = create<PipelineStoreState>((set) => ({
   reviewOpen: false,
   lastPreparedCount: null,
   aiNotice: null,
+  engineChangeToken: 0,
 
   setSnapshot: (snapshot) => set({ snapshot }),
   setProjection: (projection) => set({ projection }),
@@ -59,6 +62,7 @@ export const usePipelineStore = create<PipelineStoreState>((set) => ({
   toggleReviewOpen: () => set((state) => ({ reviewOpen: !state.reviewOpen })),
   setLastPreparedCount: (lastPreparedCount) => set({ lastPreparedCount }),
   setAiNotice: (aiNotice) => set({ aiNotice }),
+  notifyEngineChanged: () => set((state) => ({ engineChangeToken: state.engineChangeToken + 1 })),
   reset: () =>
     set({
       snapshot: null,
@@ -71,5 +75,6 @@ export const usePipelineStore = create<PipelineStoreState>((set) => ({
       reviewOpen: false,
       lastPreparedCount: null,
       aiNotice: null,
+      engineChangeToken: 0,
     }),
 }));

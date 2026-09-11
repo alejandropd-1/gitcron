@@ -2064,6 +2064,63 @@ summary.centerBlock {
   font-weight: 600;
   white-space: pre-line;
 }
+.divergenceResolution {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.divergenceResolutionTitle {
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-primary);
+}
+.divergenceActionRow {
+  display: flex;
+  align-items: center;
+}
+.divergenceUpdateBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: var(--color-bg-base);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.divergenceUpdateBtn:hover {
+  opacity: 0.9;
+}
+.divergenceManualRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.divergenceManualText {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+.divergenceCommandRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.divergenceCommandCode {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-bg-base) 60%, transparent);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
 .convergentText {
   font-weight: 500;
 }

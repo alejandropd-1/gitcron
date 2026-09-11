@@ -176,3 +176,9 @@ export function deriveProfileWorkflowRows(
     configured: configuredSet.has(workflow),
   }));
 }
+
+/**
+ * Comando documentado por `openspec update --help`:
+ * «Update OpenSpec instruction files» (en la carpeta del repositorio).
+ */
+export const OPENSPEC_UPDATE_COMMAND = 'openspec update';

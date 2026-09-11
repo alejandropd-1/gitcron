@@ -15,7 +15,7 @@ import {
   isInstalledAheadOfCycle,
   isInstalledBehindCycle,
 } from '@/lib/openspec-version';
-import { deriveProfileWorkflowRows } from '@/lib/openspec-profile';
+import { deriveProfileWorkflowRows, OPENSPEC_UPDATE_COMMAND } from '@/lib/openspec-profile';
 import styles from './OpenSpecDashboard.module.css';
 import { useGitStore } from '@/lib/git-store';
 
@@ -284,6 +284,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const [pendingWorkflow, setPendingWorkflow] = useState<string | null>(null);
   const [profileWriteError, setProfileWriteError] = useState<string | null>(null);
   const [isSwitchingProfile, setIsSwitchingProfile] = useState(false);
+  const [copiedDivergenceCmd, setCopiedDivergenceCmd] = useState(false);
 
   const gitStoreRepoPath = useGitStore((s) => s.repoPath);
   const effectiveRepoPath = repoPath ?? gitStoreRepoPath ?? undefined;
@@ -1072,11 +1073,61 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                 : divergence.overallStatus === 'convergent' ? 'convergent' : 'unknown'}
             >
               {divergence.isDivergent ? (
-                <span className={styles.divergentText}>
-                  {t('pipeline.openspec.engine.advanced.divergentNotice', {
-                    reason: formatDivergenceReason(divergence.reason, t),
-                  })}
-                </span>
+                <>
+                  <span className={styles.divergentText}>
+                    {t('pipeline.openspec.engine.advanced.divergentNotice', {
+                      reason: formatDivergenceReason(divergence.reason, t),
+                    })}
+                  </span>
+                  <div className={styles.divergenceResolution}>
+                    <span className={styles.divergenceResolutionTitle}>
+                      {t('pipeline.openspec.engine.divergence.resolutionTitle')}
+                    </span>
+                    {onOpenReview && (
+                      <div className={styles.divergenceActionRow}>
+                        <button
+                          type="button"
+                          className={styles.divergenceUpdateBtn}
+                          onClick={onOpenReview}
+                        >
+                          {t('pipeline.openspec.engine.divergence.updateAction')}
+                        </button>
+                      </div>
+                    )}
+                    <div className={styles.divergenceManualRow}>
+                      <span className={styles.divergenceManualText}>
+                        {t('pipeline.openspec.engine.divergence.manualPath')}
+                      </span>
+                      <div className={styles.divergenceCommandRow}>
+                        <code className={styles.divergenceCommandCode}>{OPENSPEC_UPDATE_COMMAND}</code>
+                        <button
+                          type="button"
+                          className={styles.reviewCopyBtn}
+                          onClick={() => {
+                            if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                              void navigator.clipboard.writeText(OPENSPEC_UPDATE_COMMAND);
+                              setCopiedDivergenceCmd(true);
+                              setTimeout(() => setCopiedDivergenceCmd(false), 2000);
+                            }
+                          }}
+                          title={t('pipeline.openspec.archive.copyCommand')}
+                        >
+                          {copiedDivergenceCmd ? (
+                            <>
+                              <Check size={12} aria-hidden="true" />
+                              <span>{t('pipeline.openspec.archive.copiedCommand')}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={12} aria-hidden="true" />
+                              <span>{t('pipeline.openspec.archive.copyCommand')}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
               ) : divergence.overallStatus === 'convergent' ? (
                 <span className={styles.convergentText}>
                   {t('pipeline.openspec.engine.advanced.convergentNotice', { profile: divergence.repoProfileClass })}

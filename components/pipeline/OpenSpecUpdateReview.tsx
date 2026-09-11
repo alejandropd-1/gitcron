@@ -21,6 +21,7 @@ import {
   deriveOfficialCommand,
   deriveUpdateMatrixAction,
 } from '@/lib/openspec-update-guide';
+import { usePipelineStore } from '@/lib/pipeline-store';
 import styles from './OpenSpecDashboard.module.css';
 
 export interface OpenSpecUpdateReviewProps {
@@ -109,6 +110,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
       if (result) {
         setExecutionResult(result);
         if (result.success) {
+          usePipelineStore.getState().notifyEngineChanged();
           onUpdateCompleted?.(result);
         }
       }

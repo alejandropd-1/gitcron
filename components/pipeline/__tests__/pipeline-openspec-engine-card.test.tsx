@@ -6,6 +6,7 @@ import { OpenSpecEngineCard, formatInstallErrorCode, formatDivergenceReason } fr
 import { translate } from '../../../lib/i18n';
 import type { OpenSpecEngineStatus, OpenSpecDivergenceReason } from '../../../types/pipeline';
 import { deriveUpdateMatrixAction } from '../../../lib/openspec-update-guide';
+import { OPENSPEC_UPDATE_COMMAND } from '../../../lib/openspec-profile';
 import { hasOpenSpecEngineAttention } from '../pipeline-domain';
 
 describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
@@ -1306,5 +1307,128 @@ describe('OpenSpecEngineCard (Perfil de workflows y cambio a custom - Tarea 7.6)
     // NO muestra el botón «Cambiar a custom» ni candado
     expect(screen.queryByRole('button', { name: /Cambiar a custom/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /core/i })).toBeNull();
+  });
+});
+
+describe('OpenSpecEngineCard (Resolución de divergencia en el banner)', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  const baseDivergentStatus: OpenSpecEngineStatus = {
+    cli: {
+      installed: true,
+      runtimeVersion: '1.12.0',
+      displayPath: 'C:\\fake\\openspec.cmd',
+      provenance: 'global',
+      versionClass: 'supported',
+      evidenceStatus: 'confirmed',
+      supportedRange: { min: '1.5.0', max: '1.12.0' },
+      diagnostics: [],
+    },
+    latestAvailable: null,
+    globalConfig: null,
+    installedIntegration: null,
+    repoState: 'initialized',
+    integrationState: 'outdated',
+    divergence: {
+      isDivergent: true,
+      overallStatus: 'divergent',
+      reason: {
+        kind: 'profile-mismatch',
+        globalProfileClass: 'core',
+        repoProfileClass: 'custom',
+      },
+      globalProfileClass: 'core',
+      repoProfileClass: 'custom',
+    },
+  };
+
+  const convergentStatus: OpenSpecEngineStatus = {
+    ...baseDivergentStatus,
+    divergence: {
+      isDivergent: false,
+      overallStatus: 'convergent',
+      reason: null,
+      globalProfileClass: 'core',
+      repoProfileClass: 'core',
+    },
+  };
+
+  it('con divergencia y onOpenReview: existe el botón «Actualizar la integración», el clic llama a onOpenReview UNA vez, y se ve el comando con su botón de copiar', async () => {
+    const onOpenReview = vi.fn();
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    });
+
+    render(
+      <OpenSpecEngineCard
+        status={baseDivergentStatus}
+        compact={false}
+        onOpenReview={onOpenReview}
+      />,
+    );
+
+    // Desplegar diagnóstico avanzado
+    fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
+
+    // Existe el botón «Actualizar la integración»
+    const updateBtn = screen.getByRole('button', { name: /Actualizar la integración/i });
+    expect(updateBtn).toBeDefined();
+
+    // Clic llama a onOpenReview UNA vez
+    fireEvent.click(updateBtn);
+    expect(onOpenReview).toHaveBeenCalledTimes(1);
+
+    // Se ve el comando documentado por openspec update --help
+    const codeElement = screen.getByText(OPENSPEC_UPDATE_COMMAND);
+    expect(codeElement).toBeDefined();
+
+    // Botón de copiar copia exactamente ese texto
+    const commandRow = codeElement.closest('div');
+    expect(commandRow).not.toBeNull();
+    const copyBtn = commandRow!.querySelector('button');
+    expect(copyBtn).not.toBeNull();
+    await fireEvent.click(copyBtn!);
+    expect(writeTextMock).toHaveBeenCalledTimes(1);
+    expect(writeTextMock).toHaveBeenCalledWith(OPENSPEC_UPDATE_COMMAND);
+  });
+
+  it('con divergencia y SIN onOpenReview: el botón NO existe, el comando manual SÍ', () => {
+    render(
+      <OpenSpecEngineCard
+        status={baseDivergentStatus}
+        compact={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
+
+    // El botón NO existe
+    expect(screen.queryByRole('button', { name: /Actualizar la integración/i })).toBeNull();
+
+    // El comando manual SÍ se renderiza
+    expect(screen.getByText(OPENSPEC_UPDATE_COMMAND)).toBeDefined();
+    expect(screen.getByText(/O desde la terminal, en la carpeta del repositorio:/i)).toBeDefined();
+  });
+
+  it('sin divergencia: nada de esto se renderiza', () => {
+    render(
+      <OpenSpecEngineCard
+        status={convergentStatus}
+        compact={false}
+        onOpenReview={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
+
+    // Nada de la resolución se renderiza
+    expect(screen.queryByRole('button', { name: /Actualizar la integración/i })).toBeNull();
+    expect(screen.queryByText(OPENSPEC_UPDATE_COMMAND)).toBeNull();
+    expect(screen.queryByText(/O desde la terminal, en la carpeta del repositorio:/i)).toBeNull();
   });
 });

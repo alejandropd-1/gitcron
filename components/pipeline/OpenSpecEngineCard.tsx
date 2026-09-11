@@ -122,6 +122,24 @@ export function formatInstallErrorCode(
   }
 }
 
+function formatAgentList(
+  agents: string[],
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  if (agents.length === 0) return '';
+  if (agents.length === 1) return agents[0];
+  const lang = t('pipeline.openspec.engine.divergence.lang') || 'es';
+  if (lang === 'zh') {
+    return agents.slice(0, -1).join('、') + ' 和 ' + agents[agents.length - 1];
+  }
+  try {
+    return new Intl.ListFormat(lang, { style: 'long', type: 'conjunction' }).format(agents);
+  } catch {
+    const conj = lang === 'en' ? ' and ' : ' y ';
+    return agents.slice(0, -1).join(', ') + conj + agents[agents.length - 1];
+  }
+}
+
 export function formatDivergenceReason(
   reason: OpenSpecDivergenceReason | string | null | undefined,
   t: (key: string, params?: Record<string, string | number>) => string,
@@ -151,24 +169,88 @@ export function formatDivergenceReason(
     });
   }
   if (reason.kind === 'multiple-target-divergences') {
-    const noneText = t('pipeline.openspec.engine.divergence.none');
-    return reason.targets
-      .map((target) => {
-        const targetWf = target.targetWorkflows.length > 0
-          ? target.targetWorkflows.join(', ')
-          : noneText;
-        const globalWf = target.globalWorkflows.length > 0
-          ? target.globalWorkflows.join(', ')
-          : noneText;
-        return t('pipeline.openspec.engine.divergence.targetWorkflows', {
-          target: target.label,
-          targetCount: target.targetCount,
-          targetWorkflows: targetWf,
-          globalCount: target.globalCount,
-          globalWorkflows: globalWf,
-        });
-      })
-      .join('; ');
+    const recommendation = t('pipeline.openspec.engine.divergence.recommendation');
+    const targetDiffs = reason.targets.map((target) => {
+      const missing = target.globalWorkflows
+        .filter((w) => !target.targetWorkflows.includes(w))
+        .sort();
+      const extra = target.targetWorkflows
+        .filter((w) => !target.globalWorkflows.includes(w))
+        .sort();
+      return {
+        target,
+        missing,
+        extra,
+      };
+    });
+
+    const firstMissingKey = targetDiffs[0]?.missing.join(',') ?? '';
+    const allSameMissing =
+      targetDiffs.length > 0 &&
+      targetDiffs[0].missing.length > 0 &&
+      targetDiffs.every((d) => d.missing.join(',') === firstMissingKey);
+    const anyHasExtra = targetDiffs.some((d) => d.extra.length > 0);
+
+    // Si a TODOS los agentes les falta lo mismo (y ninguno tiene de más):
+    if (allSameMissing && !anyHasExtra) {
+      const agents = formatAgentList(
+        targetDiffs.map((d) => d.target.label),
+        t,
+      );
+      const missingWfs = targetDiffs[0].missing.join(', ');
+      return t('pipeline.openspec.engine.divergence.allMissing', {
+        agents,
+        missing: missingWfs,
+        recommendation,
+      });
+    }
+
+    // Si a todos les falta lo mismo pero alguno tiene de más:
+    if (allSameMissing && anyHasExtra) {
+      const agents = formatAgentList(
+        targetDiffs.map((d) => d.target.label),
+        t,
+      );
+      const missingWfs = targetDiffs[0].missing.join(', ');
+      const mainSentence = t('pipeline.openspec.engine.divergence.allMissing', {
+        agents,
+        missing: missingWfs,
+        recommendation: '',
+      }).trimEnd();
+      const extraLines = targetDiffs
+        .filter((d) => d.extra.length > 0)
+        .map((d) =>
+          t('pipeline.openspec.engine.divergence.targetExtra', {
+            target: d.target.label,
+            extra: d.extra.join(', '),
+          }),
+        );
+      return [mainSentence, ...extraLines, recommendation].join('\n');
+    }
+
+    // Si NO les falta lo mismo: una línea corta por agente con sólo lo que le falta
+    // (y si alguno tiene de más, también, en una línea aparte), y la recomendación UNA vez al final.
+    const lines: string[] = [];
+    for (const d of targetDiffs) {
+      if (d.missing.length > 0) {
+        lines.push(
+          t('pipeline.openspec.engine.divergence.targetMissing', {
+            target: d.target.label,
+            missing: d.missing.join(', '),
+          }),
+        );
+      }
+      if (d.extra.length > 0) {
+        lines.push(
+          t('pipeline.openspec.engine.divergence.targetExtra', {
+            target: d.target.label,
+            extra: d.extra.join(', '),
+          }),
+        );
+      }
+    }
+    lines.push(recommendation);
+    return lines.join('\n');
   }
   return '';
 }

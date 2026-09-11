@@ -2,9 +2,9 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { OpenSpecEngineCard, formatInstallErrorCode } from '../OpenSpecEngineCard';
+import { OpenSpecEngineCard, formatInstallErrorCode, formatDivergenceReason } from '../OpenSpecEngineCard';
 import { translate } from '../../../lib/i18n';
-import type { OpenSpecEngineStatus } from '../../../types/pipeline';
+import type { OpenSpecEngineStatus, OpenSpecDivergenceReason } from '../../../types/pipeline';
 import { deriveUpdateMatrixAction } from '../../../lib/openspec-update-guide';
 import { hasOpenSpecEngineAttention } from '../pipeline-domain';
 
@@ -999,5 +999,102 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
       // Comprobación de i18n en repositorios afectados
       expect(screen.getByText(/Repositorios afectados \(1\):/i)).toBeDefined();
     });
+  });
+});
+
+describe('formatDivergenceReason (multiple-target-divergences)', () => {
+  const createTranslator = (lang: 'es' | 'en' | 'zh' = 'es') => {
+    return (key: string, params?: Record<string, string | number>) => translate(key, lang, params);
+  };
+
+  it('3b: unifica en una sola frase cuando a todos los agentes les falta lo mismo', () => {
+    const t = createTranslator('es');
+    const reason: OpenSpecDivergenceReason = {
+      kind: 'multiple-target-divergences',
+      targets: [
+        {
+          kind: 'target-workflows-mismatch',
+          toolId: 'agents',
+          label: 'Agents Multi-Agent',
+          targetCount: 5,
+          targetWorkflows: ['apply', 'archive', 'explore', 'propose', 'sync'],
+          globalCount: 6,
+          globalWorkflows: ['apply', 'archive', 'explore', 'propose', 'sync', 'update'],
+        },
+        {
+          kind: 'target-workflows-mismatch',
+          toolId: 'claude',
+          label: 'Claude Code',
+          targetCount: 5,
+          targetWorkflows: ['apply', 'archive', 'explore', 'propose', 'sync'],
+          globalCount: 6,
+          globalWorkflows: ['apply', 'archive', 'explore', 'propose', 'sync', 'update'],
+        },
+        {
+          kind: 'target-workflows-mismatch',
+          toolId: 'opencode',
+          label: 'OpenCode',
+          targetCount: 5,
+          targetWorkflows: ['apply', 'archive', 'explore', 'propose', 'sync'],
+          globalCount: 6,
+          globalWorkflows: ['apply', 'archive', 'explore', 'propose', 'sync', 'update'],
+        },
+      ],
+    };
+
+    const formatted = formatDivergenceReason(reason, t);
+
+    // Nombra a los tres con la conjunción correcta
+    expect(formatted).toContain('Agents Multi-Agent, Claude Code y OpenCode');
+    // Menciona 'update' UNA sola vez
+    const updateMatches = formatted.match(/update/g) || [];
+    expect(updateMatches).toHaveLength(1);
+    // Menciona la recomendación UNA sola vez
+    const recommendationText = t('pipeline.openspec.engine.divergence.recommendation');
+    const recCount = formatted.split(recommendationText).length - 1;
+    expect(recCount).toBe(1);
+    // NO repite la frase larga (debe ser el texto unificado exacto)
+    expect(formatted).toBe(
+      'Agents Multi-Agent, Claude Code y OpenCode tienen la integración desactualizada: les falta «update». Actualizá la integración para que operen con los comandos vigentes.',
+    );
+  });
+
+  it('3c: emite una línea por agente cuando les faltan flujos distintos y la recomendación una sola vez al final', () => {
+    const t = createTranslator('es');
+    const reason: OpenSpecDivergenceReason = {
+      kind: 'multiple-target-divergences',
+      targets: [
+        {
+          kind: 'target-workflows-mismatch',
+          toolId: 'agents',
+          label: 'Agents Multi-Agent',
+          targetCount: 5,
+          targetWorkflows: ['apply', 'archive', 'explore', 'propose', 'sync'],
+          globalCount: 6,
+          globalWorkflows: ['apply', 'archive', 'explore', 'propose', 'sync', 'update'],
+        },
+        {
+          kind: 'target-workflows-mismatch',
+          toolId: 'claude',
+          label: 'Claude Code',
+          targetCount: 5,
+          targetWorkflows: ['apply', 'archive', 'explore', 'propose', 'update'],
+          globalCount: 6,
+          globalWorkflows: ['apply', 'archive', 'explore', 'propose', 'sync', 'update'],
+        },
+      ],
+    };
+
+    const formatted = formatDivergenceReason(reason, t);
+    const lines = formatted.split('\n');
+
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toBe('Agents Multi-Agent: le falta «update».');
+    expect(lines[1]).toBe('Claude Code: le falta «sync».');
+    expect(lines[2]).toBe('Actualizá la integración para que operen con los comandos vigentes.');
+
+    const recommendationText = t('pipeline.openspec.engine.divergence.recommendation');
+    const recCount = formatted.split(recommendationText).length - 1;
+    expect(recCount).toBe(1);
   });
 });

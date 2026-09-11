@@ -2062,6 +2062,7 @@ summary.centerBlock {
 }
 .divergentText {
   font-weight: 600;
+  white-space: pre-line;
 }
 .convergentText {
   font-weight: 500;

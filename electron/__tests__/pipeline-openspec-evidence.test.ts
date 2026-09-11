@@ -755,6 +755,51 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
           }
         }
       });
+
+      it('caso con dos agentes divergentes -> produce reason con kind multiple-target-divergences', async () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-multiple-target-div-'));
+        try {
+          makeRepoWithAgentsSkills(tempDir, fiveSkills);
+          for (const sk of fiveSkills) {
+            const skDir = path.join(tempDir, '.claude', 'skills', sk);
+            fs.mkdirSync(skDir, { recursive: true });
+            fs.writeFileSync(path.join(skDir, 'SKILL.md'), '---\ngeneratedBy: "1.8.0"\n---\nOfficial skill\n');
+          }
+
+          authorizedRepoStore.clear();
+          authorizedRepoStore.authorizeRepo(tempDir);
+
+          const snapshot = await buildEngineStatusSnapshot(tempDir, {
+            discoverCli: cliDouble(),
+            readGlobalConfig: async () => ({
+              rawProfile: 'core',
+              configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+              resolvedWorkflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+              resolvedWorkflowsState: 'read',
+              origin: 'cli',
+              readAt: new Date().toISOString(),
+            }),
+            runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+            runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
+          });
+
+          expect(snapshot.divergence?.isDivergent).toBe(true);
+          expect(snapshot.divergence?.overallStatus).toBe('divergent');
+          expect(snapshot.divergence?.targetConvergences?.['agents']?.status).toBe('divergent');
+          expect(snapshot.divergence?.targetConvergences?.['claude']?.status).toBe('divergent');
+          expect(snapshot.divergence?.reason?.kind).toBe('multiple-target-divergences');
+          if (snapshot.divergence?.reason?.kind === 'multiple-target-divergences') {
+            expect(snapshot.divergence.reason.targets).toHaveLength(2);
+            expect(snapshot.divergence.reason.targets.map((t) => t.toolId).sort()).toEqual(['agents', 'claude']);
+          }
+        } finally {
+          try {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+          } catch {
+            // ignore
+          }
+        }
+      });
     });
   });
 });

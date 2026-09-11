@@ -3,7 +3,7 @@ import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import type { PackageManagerType } from '../../types/pipeline';
-import type { PathStateResult } from './openspec-engine';
+import { quoteWindowsCmdArg, type PathStateResult } from './openspec-engine';
 
 const execFileAsync = promisify(execFile);
 
@@ -307,13 +307,15 @@ export async function runPackageManager(
   options?: RunPackageManagerOptions,
 ): Promise<{ stdout: string; stderr: string }> {
   const fileToExec = manager.shell ? '"%PM_EXEC_TARGET%"' : manager.executablePath;
+  const finalArgs = manager.shell ? args.map(quoteWindowsCmdArg) : args;
 
-  const { stdout, stderr } = await execFileAsync(fileToExec, args, {
+  const { stdout, stderr } = await execFileAsync(fileToExec, finalArgs, {
     cwd: options?.cwd,
     timeout: options?.timeout ?? 120_000,
     maxBuffer: options?.maxBuffer ?? 4 * 1024 * 1024,
     windowsHide: true,
     shell: manager.shell,
+    windowsVerbatimArguments: manager.shell ? true : undefined,
     env: {
       ...process.env,
       ...options?.env,

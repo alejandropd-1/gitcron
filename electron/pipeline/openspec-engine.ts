@@ -51,6 +51,22 @@ export interface RunAuthorizedOpenSpecOptions {
  * Esto evita que `cmd.exe` realice expansión prematura de `%VARIABLE%`, divida la ruta
  * en espacios o interprete metacaracteres (`&`, `!`, `^`) al procesar la línea de comandos inicial.
  */
+/**
+ * Cita un argumento para cmd.exe en Windows cuando se utiliza `shell: true`
+ * y `windowsVerbatimArguments: true`.
+ *
+ * Si el argumento contiene espacio, comilla doble o alguno de los metacaracteres
+ * de cmd (& | < > ^ %), lo envuelve en comillas dobles escapando las comillas
+ * internas como \" (una barra invertida antes de cada comilla). Si no contiene
+ * ninguno de ellos, lo deja tal cual.
+ */
+export function quoteWindowsCmdArg(arg: string): string {
+  if (/[ "&|<>\^%]/.test(arg)) {
+    return `"${arg.replace(/"/g, '\\"')}"`;
+  }
+  return arg;
+}
+
 export async function runAuthorizedOpenSpec(
   runtime: AuthorizedOpenSpecRuntime,
   args: string[],
@@ -60,12 +76,15 @@ export async function runAuthorizedOpenSpec(
     ? '"%OPENSPEC_EXEC_TARGET%"'
     : runtime.executablePath;
 
-  const { stdout, stderr } = await execFileAsync(fileToExec, args, {
+  const finalArgs = runtime.shell ? args.map(quoteWindowsCmdArg) : args;
+
+  const { stdout, stderr } = await execFileAsync(fileToExec, finalArgs, {
     cwd: options?.cwd,
     timeout: options?.timeout ?? 15_000,
     maxBuffer: options?.maxBuffer ?? 4 * 1024 * 1024,
     windowsHide: true,
     shell: runtime.shell,
+    windowsVerbatimArguments: runtime.shell ? true : undefined,
     env: {
       ...process.env,
       ...options?.env,

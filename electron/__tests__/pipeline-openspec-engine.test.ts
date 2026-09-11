@@ -7,6 +7,7 @@ import {
   defaultProbePathState,
   discoverOpenSpecCli,
   parseOpenSpecVersionOutput,
+  quoteWindowsCmdArg,
   readOpenSpecChangeMetadata,
   resolveOpenSpecExecutable,
   runAuthorizedOpenSpec,
@@ -114,6 +115,78 @@ describe('runAuthorizedOpenSpec (Prueba de integración REAL en Windows)', () =>
       }
     }
   });
+});
+
+describe('quoteWindowsCmdArg', () => {
+  it('un argumento simple queda igual', () => {
+    expect(quoteWindowsCmdArg('workflows')).toBe('workflows');
+    expect(quoteWindowsCmdArg('config')).toBe('config');
+    expect(quoteWindowsCmdArg('set')).toBe('set');
+  });
+
+  it('un argumento con espacio se envuelve en comillas dobles', () => {
+    expect(quoteWindowsCmdArg('foo bar')).toBe('"foo bar"');
+  });
+
+  it('un argumento con comillas internas se envuelve y las escapa como \\"', () => {
+    expect(quoteWindowsCmdArg('say "hello"')).toBe('"say \\"hello\\""');
+  });
+
+  it('el JSON ["propose","apply"] produce exactamente "[\"propose\",\"apply\"]"', () => {
+    const jsonInput = '["propose","apply"]';
+    const expected = '"[\\"propose\\",\\"apply\\"]"';
+    expect(quoteWindowsCmdArg(jsonInput)).toBe(expected);
+  });
+
+  it('argumentos con metacaracteres de cmd (&, |, <, >, ^, %) se envuelven en comillas', () => {
+    expect(quoteWindowsCmdArg('foo&bar')).toBe('"foo&bar"');
+    expect(quoteWindowsCmdArg('foo|bar')).toBe('"foo|bar"');
+    expect(quoteWindowsCmdArg('foo<bar')).toBe('"foo<bar"');
+    expect(quoteWindowsCmdArg('foo>bar')).toBe('"foo>bar"');
+    expect(quoteWindowsCmdArg('foo^bar')).toBe('"foo^bar"');
+    expect(quoteWindowsCmdArg('foo%bar')).toBe('"foo%bar"');
+  });
+});
+
+describe('runAuthorizedOpenSpec (camino real con sonda.cmd en Windows)', () => {
+  it.skipIf(process.platform !== 'win32')(
+    'preserva comillas de JSON y argumentos con espacios pasando por cmd.exe con shell: true',
+    async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-sonda-cmd-'));
+      const cmdPath = path.join(tmpDir, 'sonda.cmd');
+      const cmdContent = '@echo off\r\nnode -e "console.log(JSON.stringify(process.argv.slice(1)))" %*\r\n';
+      fs.writeFileSync(cmdPath, cmdContent);
+
+      try {
+        const runtime: AuthorizedOpenSpecRuntime = {
+          executablePath: cmdPath,
+          command: 'sonda.cmd',
+          shell: true,
+          displayPath: cmdPath,
+          provenance: 'local',
+        };
+
+        const args = ['config', 'set', 'workflows', '["propose","apply"]'];
+        const result = await runAuthorizedOpenSpec(runtime, args);
+        const parsed = JSON.parse(result.stdout.trim());
+
+        expect(parsed).toEqual(['config', 'set', 'workflows', '["propose","apply"]']);
+
+        // Segundo caso: argumento que tenga un espacio llega como UN solo argumento
+        const spaceArgs = ['custom command', 'argument with spaces', 'simple'];
+        const spaceResult = await runAuthorizedOpenSpec(runtime, spaceArgs);
+        const spaceParsed = JSON.parse(spaceResult.stdout.trim());
+
+        expect(spaceParsed).toEqual(['custom command', 'argument with spaces', 'simple']);
+      } finally {
+        try {
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+        } catch {
+          // ignore
+        }
+      }
+    },
+  );
 });
 
 describe('resolveOpenSpecExecutable', () => {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useT } from '@/hooks/use-translation';
-import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, HelpCircle, Copy, Check, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, HelpCircle, Copy, Check, Loader2, Lock, LockOpen } from 'lucide-react';
 import type {
   OpenSpecCliProvenance,
   OpenSpecDivergenceReason,
@@ -439,11 +439,13 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const isCustomProfile = rawProfile === 'custom';
   const profileDataReady =
     !!globalConfig &&
+    globalConfig.profileState === 'read' &&
     globalConfig.workflowsState === 'read' &&
     globalConfig.resolvedWorkflowsState === 'read';
   const profileRows = deriveProfileWorkflowRows(
     globalConfig?.configuredWorkflows ?? null,
     globalConfig?.resolvedWorkflows ?? null,
+    status.installedIntegration?.installedWorkflowsByTarget,
   );
   const profileRowsVisible = profileDataReady && profileRows.length > 0;
 
@@ -454,7 +456,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   if (profileRowsVisible) {
     if (!isCustomProfile) {
       profileBlockedReason = t('pipeline.openspec.engine.profile.notCustomReason', {
-        profile: rawProfile || 'core',
+        profile: rawProfile ?? '',
       });
     } else if (!hasProfileWriteChannel) {
       profileBlockedReason = t('pipeline.openspec.engine.profile.channelUnavailable');
@@ -463,15 +465,17 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     }
   }
 
-  const handleSwitchProfileToCustom = async () => {
+  const handleToggleProfile = async () => {
     if (isSwitchingProfile || pendingWorkflow !== null) return;
-    if (typeof window === 'undefined' || !window.api?.pipelineOpenSpec?.switchProfileToCustom) return;
+    if (typeof window === 'undefined' || !window.api?.pipelineOpenSpec?.setProfile) return;
+
+    const targetProfile = isCustomProfile ? 'core' : 'custom';
 
     setIsSwitchingProfile(true);
     setProfileWriteError(null);
 
     try {
-      const result = await window.api.pipelineOpenSpec.switchProfileToCustom();
+      const result = await window.api.pipelineOpenSpec.setProfile({ profile: targetProfile });
       if (result.ok) {
         onChanged?.();
       } else {
@@ -961,9 +965,36 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
               canal 7.2a y, con éxito, pide al padre re-leer el estado. */}
           <div className={styles.profileWorkflowSection}>
             <div className={styles.profileWorkflowHeader}>
-              <span className={styles.inventoryTitle}>{t('pipeline.openspec.engine.profile.title')}</span>
+              <div className={styles.profileWorkflowTitleRow}>
+                <span className={styles.inventoryTitle}>{t('pipeline.openspec.engine.profile.title')}</span>
+                {profileRowsVisible && (
+                  <button
+                    type="button"
+                    role="button"
+                    aria-pressed={isCustomProfile}
+                    className={styles.profileLockBtn}
+                    data-state={isCustomProfile ? 'custom' : 'preset'}
+                    disabled={isSwitchingProfile || pendingWorkflow !== null}
+                    title={
+                      isCustomProfile
+                        ? t('pipeline.openspec.engine.profile.lockOpenTitle')
+                        : (profileBlockedReason ?? t('pipeline.openspec.engine.profile.notCustomReason', { profile: rawProfile ?? 'core' }))
+                    }
+                    onClick={() => void handleToggleProfile()}
+                  >
+                    {isSwitchingProfile ? (
+                      <Loader2 size={13} className={styles.spin} aria-hidden="true" />
+                    ) : isCustomProfile ? (
+                      <LockOpen size={13} aria-hidden="true" />
+                    ) : (
+                      <Lock size={13} aria-hidden="true" />
+                    )}
+                    <span className={styles.profileLockName}>{rawProfile ?? (isCustomProfile ? 'custom' : 'core')}</span>
+                  </button>
+                )}
+              </div>
               {profileBlockedReason && (
-                <span className={styles.blockedReasonInline} role="alert">
+                <span className={`${styles.blockedReasonInline} ${styles.profileBlockedReason}`} role="alert">
                   {profileBlockedReason}
                 </span>
               )}
@@ -1018,24 +1049,6 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                   </li>
                 ))}
               </ul>
-            )}
-
-            {!isCustomProfile && profileRowsVisible && (
-              <div className={styles.profileCustomActionRow}>
-                <button
-                  type="button"
-                  className={styles.profileCustomBtn}
-                  disabled={isSwitchingProfile || pendingWorkflow !== null}
-                  onClick={handleSwitchProfileToCustom}
-                >
-                  {isSwitchingProfile && <Loader2 size={12} className={styles.spin} aria-hidden="true" />}
-                  <span>
-                    {t(isSwitchingProfile
-                      ? 'pipeline.openspec.engine.profile.switchingToCustom'
-                      : 'pipeline.openspec.engine.profile.switchToCustom')}
-                  </span>
-                </button>
-              </div>
             )}
 
             {profileWriteError && (

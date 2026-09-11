@@ -18,7 +18,7 @@ import type {
   OpenSpecTargetDivergenceDetail,
   OpenSpecUpdatePlan,
   SetOpenSpecWorkflowResult,
-  SwitchOpenSpecProfileResult,
+  SetOpenSpecProfileResult,
 } from '../../types/pipeline';
 import {
   discoverOpenSpecCli,
@@ -45,7 +45,7 @@ import {
 import {
   readOpenSpecGlobalConfig,
   setOpenSpecWorkflow,
-  switchOpenSpecProfileToCustom,
+  setOpenSpecProfile,
 } from '../pipeline/openspec-global-config';
 import { inspectInstalledEvidence } from '../pipeline/openspec-evidence';
 import { checkLatestOpenSpecVersion, getLocalCacheRegistryStatus } from '../pipeline/openspec-registry';
@@ -86,7 +86,7 @@ export interface OpenSpecIpcDeps {
   installGlobal?: typeof installOpenSpecGlobal;
   resolvePackageManager?: typeof resolvePackageManager;
   setWorkflow?: typeof setOpenSpecWorkflow;
-  switchProfileToCustom?: typeof switchOpenSpecProfileToCustom;
+  setProfile?: typeof setOpenSpecProfile;
 }
 
 /**
@@ -983,19 +983,24 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
     },
   );
 
-  // 16. Switch Profile To Custom (Tanda 7.6: cambiar perfil a custom preservando resolvedWorkflows)
+  // 16. Set Profile (alternar perfil global core/custom)
   ipc.handle(
-    'pipeline:openspec:switch-profile-to-custom',
-    async (_event, payload?: unknown): Promise<SwitchOpenSpecProfileResult> => {
-      validateStrictPayloadKeys(payload, []);
+    'pipeline:openspec:set-profile',
+    async (_event, payload?: unknown): Promise<SetOpenSpecProfileResult> => {
+      validateStrictPayloadKeys(payload, ['profile']);
+
+      const rawProfile = (payload as Record<string, unknown> | undefined)?.profile;
+      if (typeof rawProfile !== 'string' || (rawProfile !== 'core' && rawProfile !== 'custom')) {
+        throw new Error(`pipeline:openspec:set-profile requires profile to be 'core' or 'custom', received: ${String(rawProfile)}`);
+      }
 
       const getUserDataDir = deps.getUserDataDir ?? (() => null);
       const userDataDir = getUserDataDir();
       const resolveRuntime = deps.resolveRuntime ?? resolveOpenSpecExecutable;
       const authorizedRuntime = resolveRuntime({ userDataDir });
 
-      const switchFn = deps.switchProfileToCustom ?? switchOpenSpecProfileToCustom;
-      return switchFn({ runtime: authorizedRuntime });
+      const setProfileFn = deps.setProfile ?? setOpenSpecProfile;
+      return setProfileFn({ profile: rawProfile, runtime: authorizedRuntime });
     },
   );
 }

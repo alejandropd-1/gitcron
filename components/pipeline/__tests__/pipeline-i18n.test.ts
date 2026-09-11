@@ -458,6 +458,9 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.engine.profile.switchToCustom',
   'pipeline.openspec.engine.profile.switchingToCustom',
   'pipeline.openspec.engine.profile.switchError',
+  'pipeline.openspec.engine.profile.lockClosed',
+  'pipeline.openspec.engine.profile.lockOpen',
+  'pipeline.openspec.engine.profile.lockOpenTitle',
 ] as const;
 
 describe('Pipeline i18n', () => {

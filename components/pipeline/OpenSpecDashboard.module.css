@@ -3941,34 +3941,54 @@ summary.centerBlock {
   transform: translateX(14px);
 }
 
-.profileCustomActionRow {
-  margin-top: var(--space-2);
-  display: flex;
+.profileWorkflowTitleRow {
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
 }
 
-.profileCustomBtn {
+.profileLockBtn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   border: none;
   border-radius: var(--radius-sm);
   background: var(--color-bg-overlay);
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.profileCustomBtn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-primary) 15%, var(--color-bg-overlay));
-  color: var(--color-primary);
+.profileLockBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-overlay));
+  color: var(--color-text-primary);
 }
 
-.profileCustomBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.profileLockBtn:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.profileLockName {
+  font-family: var(--font-mono);
+}
+
+.profileBlockedReason,
+.profileWorkflowHeader .blockedReasonInline {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-family: inherit;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  cursor: default;
 }

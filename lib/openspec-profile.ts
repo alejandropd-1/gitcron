@@ -128,18 +128,33 @@ function toNameList(list: string[] | null): string[] {
  *
  * El universo es la unión ordenada: se preserva el orden de `configured` y se
  * anexa al final cualquier workflow presente en `resolved` pero ausente de
- * `configured`. Un nombre que este código no conoce aparece igual como fila
- * válida: NO se valida ni filtra contra ningún conjunto. Si ambas listas son
+ * `configured`, y finalmente los workflows instalados en cualquier agente que falten.
+ * Un nombre que este código no conoce aparece igual como fila
+ * válida: NO se valida ni filtra contra ningún conjunto. Si todas las fuentes son
  * null (o vacías) se devuelve un array vacío: el panel mostrará «sin datos».
  */
 export function deriveProfileWorkflowRows(
   configured: string[] | null,
   resolved: string[] | null,
+  installedByTarget?: Record<string, string[]> | null,
 ): ProfileWorkflowRow[] {
   const configuredList = toNameList(configured);
   const resolvedList = toNameList(resolved);
 
-  if (configuredList.length === 0 && resolvedList.length === 0) {
+  const installedList: string[] = [];
+  if (installedByTarget && typeof installedByTarget === 'object') {
+    for (const list of Object.values(installedByTarget)) {
+      if (Array.isArray(list)) {
+        for (const name of list) {
+          if (typeof name === 'string' && name.length > 0) {
+            installedList.push(name);
+          }
+        }
+      }
+    }
+  }
+
+  if (configuredList.length === 0 && resolvedList.length === 0 && installedList.length === 0) {
     return [];
   }
 
@@ -148,7 +163,7 @@ export function deriveProfileWorkflowRows(
 
   const universe: string[] = [];
   const seen = new Set<string>();
-  for (const name of [...configuredList, ...resolvedList]) {
+  for (const name of [...configuredList, ...resolvedList, ...installedList]) {
     if (!seen.has(name)) {
       seen.add(name);
       universe.push(name);

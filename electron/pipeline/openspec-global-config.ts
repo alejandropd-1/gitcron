@@ -1,7 +1,7 @@
 import type {
   OpenSpecGlobalConfig,
   SetOpenSpecWorkflowResult,
-  SwitchOpenSpecProfileResult,
+  SetOpenSpecProfileResult,
 } from '../../types/pipeline';
 import {
   resolveOpenSpecExecutable,
@@ -326,7 +326,11 @@ export async function setOpenSpecWorkflow(
   return { ok: true, appliedWorkflows: fresh.configuredWorkflows, config: fresh };
 }
 
-export interface SwitchOpenSpecProfileToCustomOptions {
+export type OpenSpecProfileTarget = 'core' | 'custom';
+
+export interface SetOpenSpecProfileOptions {
+  /** Perfil destino: estrictamente 'core' o 'custom' (según dist/core/profiles.js de @fission-ai/openspec). */
+  profile: OpenSpecProfileTarget | string;
   /** Runtime inyectable autorizado. */
   runtime?: AuthorizedOpenSpecRuntime | null;
   /** Resolvedor inyectable para tests (default: `resolveOpenSpecExecutable`). */
@@ -338,18 +342,38 @@ export interface SwitchOpenSpecProfileToCustomOptions {
 }
 
 /**
- * Cambia el perfil global a 'custom' preservando los workflows resueltos hasta el momento.
+ * Cambia el perfil global a 'core' o 'custom'.
  *
- * Flujo de seguridad (Tarea 7.6):
- * a) Leer el estado actual. Si el perfil ya es 'custom', no escribe nada y devuelve ok.
- * b) Si resolvedWorkflows no está en estado 'read', no escribe nada y devuelve fallo explícito.
- * c) PRIMERO escribe workflows = resolvedWorkflows (JSON.stringify), DESPUÉS profile = custom.
- *    En ese orden, para no dejar al usuario con una lista vacía. Si el primer set falla, NO ejecuta el segundo.
- * d) Releer y devolver el estado fresco.
+ * El motor OpenSpec tiene exactamente DOS perfiles en su implementación oficial
+ * (`node_modules/@fission-ai/openspec/dist/core/profiles.js`):
+ * - 'core': getProfileWorkflows devuelve los 6 CORE_WORKFLOWS estándar para cualquier
+ *   perfil que no sea 'custom'.
+ * - 'custom': getProfileWorkflows devuelve lo configurado explícitamente en el archivo.
+ *
+ * Cualquier otro valor se rechaza sin escribir nada (`invalid-profile`).
+ *
+ * Comportamiento por perfil destino:
+ * - 'custom':
+ *   a) Si ya es 'custom', no escribe nada y devuelve ok.
+ *   b) Si configuredWorkflows tiene al menos un elemento, se respeta la memoria de selección
+ *      del usuario y NO se tocan workflows; solo se escribe `config set profile custom`.
+ *   c) Si configuredWorkflows es null o vacía ([]), primero se inicializa workflows con
+ *      JSON.stringify(resolvedWorkflows) y luego profile = custom. Si resolvedWorkflows
+ *      no está en estado 'read', falla sin escribir ('resolved-workflows-unread').
+ * - 'core':
+ *   a) Si ya es 'core', no escribe nada y devuelve ok.
+ *   b) Escribe únicamente `config set profile core`. NO toca workflows (preserva la memoria).
+ *
+ * Tras escribir, relee y devuelve el estado fresco.
  */
-export async function switchOpenSpecProfileToCustom(
-  options: SwitchOpenSpecProfileToCustomOptions = {},
-): Promise<SwitchOpenSpecProfileResult> {
+export async function setOpenSpecProfile(
+  options: SetOpenSpecProfileOptions,
+): Promise<SetOpenSpecProfileResult> {
+  const targetProfile = options.profile;
+  if (targetProfile !== 'core' && targetProfile !== 'custom') {
+    return { ok: false, config: null, error: `invalid-profile: ${String(targetProfile)}` };
+  }
+
   const runtime = options.runtime !== undefined
     ? options.runtime
     : (options.resolve ?? resolveOpenSpecExecutable)();
@@ -361,7 +385,7 @@ export async function switchOpenSpecProfileToCustom(
   const read = options.read ?? ((opts?: ReadOpenSpecGlobalConfigOptions) => readOpenSpecGlobalConfig(opts ?? {}));
   const runSet = options.runSet ?? ((args: string[], rt: AuthorizedOpenSpecRuntime) => defaultRunSet(args, rt));
 
-  // a) Leer el estado.
+  // a) Leer el estado actual.
   let current: OpenSpecGlobalConfig;
   try {
     current = await read({ runtime });
@@ -369,37 +393,53 @@ export async function switchOpenSpecProfileToCustom(
     return { ok: false, config: null, error: toErrorMessage(err) };
   }
 
-  // Si el perfil ya es 'custom', no escribir nada y devolver ok con el estado leído.
-  if (current.rawProfile === 'custom') {
-    return { ok: true, config: current };
+  if (targetProfile === 'custom') {
+    // a) Si el perfil ya es 'custom', no escribir nada y devolver ok con el estado leído.
+    if (current.rawProfile === 'custom') {
+      return { ok: true, config: current };
+    }
+
+    const hasConfigured = Array.isArray(current.configuredWorkflows) && current.configuredWorkflows.length > 0;
+
+    if (!hasConfigured) {
+      // c) Si configuredWorkflows es null o vacía ([]), requiere resolvedWorkflows leído
+      if (current.resolvedWorkflows === null || current.resolvedWorkflowsState !== 'read') {
+        return {
+          ok: false,
+          config: current,
+          error: 'resolved-workflows-unread',
+        };
+      }
+
+      try {
+        await runSet(['config', 'set', 'workflows', JSON.stringify(current.resolvedWorkflows)], runtime);
+      } catch (err) {
+        return { ok: false, config: current, error: toErrorMessage(err) };
+      }
+    }
+
+    // b & c) Escribir profile custom
+    try {
+      await runSet(['config', 'set', 'profile', 'custom'], runtime);
+    } catch (err) {
+      return { ok: false, config: current, error: toErrorMessage(err) };
+    }
+  } else {
+    // targetProfile === 'core'
+    // a) Si el perfil ya es 'core', no escribir nada y devolver ok con el estado leído.
+    if (current.rawProfile === 'core') {
+      return { ok: true, config: current };
+    }
+
+    // b) Escribir sólo profile core. NO tocar workflows: es la memoria.
+    try {
+      await runSet(['config', 'set', 'profile', 'core'], runtime);
+    } catch (err) {
+      return { ok: false, config: current, error: toErrorMessage(err) };
+    }
   }
 
-  // b) Si resolvedWorkflows no está en estado 'read', no escribir nada y devolver fallo con motivo:
-  // no se cambia de perfil sin saber qué resolvía.
-  if (current.resolvedWorkflows === null || current.resolvedWorkflowsState !== 'read') {
-    return {
-      ok: false,
-      config: current,
-      error: 'resolved-workflows-unread',
-    };
-  }
-
-  // c) PRIMERO escribir workflows = resolvedWorkflows (JSON.stringify), DESPUÉS escribir profile = custom.
-  // En ese orden, para que el cambio no deje al usuario con una lista vacía.
-  // Si el primer set falla, NO ejecutar el segundo.
-  try {
-    await runSet(['config', 'set', 'workflows', JSON.stringify(current.resolvedWorkflows)], runtime);
-  } catch (err) {
-    return { ok: false, config: current, error: toErrorMessage(err) };
-  }
-
-  try {
-    await runSet(['config', 'set', 'profile', 'custom'], runtime);
-  } catch (err) {
-    return { ok: false, config: current, error: toErrorMessage(err) };
-  }
-
-  // d) Releer y devolver el estado fresco.
+  // Releer y devolver el estado fresco.
   let fresh: OpenSpecGlobalConfig;
   try {
     fresh = await read({ runtime });

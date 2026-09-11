@@ -17,6 +17,7 @@ import {
 } from '../pipeline/openspec-install';
 import { registerOpenSpecIpcHandlers } from '../ipc/pipeline-openspec';
 import { authorizedRepoStore } from '../ipc/authorized-repos';
+import type { AuthorizedOpenSpecRuntime } from '../pipeline/openspec-engine';
 import type { OpenSpecEngineStatus } from '../../types/pipeline';
 
 describe('Instalación del Motor OpenSpec (Tareas 6.1 a 6.5)', () => {
@@ -756,5 +757,75 @@ describe('Instalación del Motor OpenSpec (Tareas 6.1 a 6.5)', () => {
         'IPC Security Error: Unknown payload property "maliciousKey"',
       );
     }, 30_000);
+  });
+
+  describe('pipeline:openspec:set-profile (IPC Channel)', () => {
+    it('payload { profile: \'core\' } aceptado y llama a setProfile con runtime autorizado', async () => {
+      const handlers = new Map<string, Function>();
+      const mockIpc = {
+        handle: (channel: string, listener: Function) => handlers.set(channel, listener),
+      };
+      const setProfileMock = vi.fn().mockResolvedValue({ ok: true, config: null });
+      const fakeRuntime: AuthorizedOpenSpecRuntime = {
+        executablePath: 'C:\\fake\\openspec.cmd',
+        command: 'openspec.cmd',
+        shell: true,
+        displayPath: 'C:\\fake\\openspec.cmd',
+        provenance: 'global',
+      };
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: mockIpc as any,
+        getUserDataDir: () => null,
+        resolveRuntime: () => fakeRuntime,
+        setProfile: setProfileMock,
+      });
+
+      const setProfileHandler = handlers.get('pipeline:openspec:set-profile');
+      expect(setProfileHandler).toBeDefined();
+
+      const res = await setProfileHandler!({}, { profile: 'core' });
+      expect(res).toEqual({ ok: true, config: null });
+      expect(setProfileMock).toHaveBeenCalledTimes(1);
+      expect(setProfileMock).toHaveBeenCalledWith({ profile: 'core', runtime: fakeRuntime });
+    });
+
+    it('payload { profile: \'full\' } rechazado por validación estricta', async () => {
+      const handlers = new Map<string, Function>();
+      const mockIpc = {
+        handle: (channel: string, listener: Function) => handlers.set(channel, listener),
+      };
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: mockIpc as any,
+        getUserDataDir: () => null,
+      });
+
+      const setProfileHandler = handlers.get('pipeline:openspec:set-profile');
+      expect(setProfileHandler).toBeDefined();
+
+      await expect(setProfileHandler!({}, { profile: 'full' })).rejects.toThrow(
+        "pipeline:openspec:set-profile requires profile to be 'core' or 'custom', received: full",
+      );
+    });
+
+    it('clave desconocida rechazada por validateStrictPayloadKeys', async () => {
+      const handlers = new Map<string, Function>();
+      const mockIpc = {
+        handle: (channel: string, listener: Function) => handlers.set(channel, listener),
+      };
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: mockIpc as any,
+        getUserDataDir: () => null,
+      });
+
+      const setProfileHandler = handlers.get('pipeline:openspec:set-profile');
+      expect(setProfileHandler).toBeDefined();
+
+      await expect(setProfileHandler!({}, { profile: 'custom', extraKey: 'bad' })).rejects.toThrow(
+        'IPC Security Error: Unknown payload property "extraKey"',
+      );
+    });
   });
 });

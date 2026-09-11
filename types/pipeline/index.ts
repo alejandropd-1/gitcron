@@ -414,9 +414,9 @@ export interface SetOpenSpecWorkflowResult {
 }
 
 /**
- * Resultado de cambiar el perfil global a 'custom' preservando los workflows resueltos.
+ * Resultado de cambiar el perfil global a 'core' o 'custom'.
  */
-export interface SwitchOpenSpecProfileResult {
+export interface SetOpenSpecProfileResult {
   ok: boolean;
   config: OpenSpecGlobalConfig | null;
   error?: string;

@@ -134,4 +134,37 @@ describe('deriveProfileWorkflowRows (panel de perfil 7.2b)', () => {
     const rows = deriveProfileWorkflowRows(['propose', 'propose'], ['propose']);
     expect(rows).toEqual([{ workflow: 'propose', enabled: true, configured: true }]);
   });
+
+  it('incluye workflows instalados por agente cuando configured y resolved los omiten', () => {
+    const rows = deriveProfileWorkflowRows(
+      ['a', 'b'],
+      ['a', 'b'],
+      { agents: ['a', 'b', 'c'], claude: ['a', 'c', 'd'] },
+    );
+    expect(rows).toEqual([
+      { workflow: 'a', enabled: true, configured: true },
+      { workflow: 'b', enabled: true, configured: true },
+      { workflow: 'c', enabled: false, configured: false },
+      { workflow: 'd', enabled: false, configured: false },
+    ]);
+  });
+
+  it('installed null devuelve el mismo resultado que cuando se omite el argumento', () => {
+    const withUndefined = deriveProfileWorkflowRows(['a', 'b'], ['b']);
+    const withNull = deriveProfileWorkflowRows(['a', 'b'], ['b'], null);
+    expect(withNull).toEqual(withUndefined);
+  });
+
+  it('un nombre presente sólo en installed y desconocido para el código aparece como fila válida', () => {
+    const rows = deriveProfileWorkflowRows(
+      ['apply'],
+      ['apply'],
+      { opencode: ['apply', 'workflow-desconocido-custom'] },
+    );
+    expect(rows).toContainEqual({
+      workflow: 'workflow-desconocido-custom',
+      enabled: false,
+      configured: false,
+    });
+  });
 });

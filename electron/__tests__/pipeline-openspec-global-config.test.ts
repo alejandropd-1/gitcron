@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   readOpenSpecGlobalConfig,
   setOpenSpecWorkflow,
-  switchOpenSpecProfileToCustom,
+  setOpenSpecProfile,
   __parsers,
   type ReadOpenSpecGlobalConfigOptions,
 } from '../pipeline/openspec-global-config';
@@ -618,7 +618,7 @@ describe('setOpenSpecWorkflow (Tanda 7.2a: alternar UN workflow del perfil globa
   });
 });
 
-describe('switchOpenSpecProfileToCustom (Tarea 7.6)', () => {
+describe('setOpenSpecProfile (candado de perfil con dos estados)', () => {
   const setRuntime: AuthorizedOpenSpecRuntime = {
     executablePath: 'C:\\fake\\openspec.cmd',
     command: 'openspec.cmd',
@@ -661,45 +661,37 @@ describe('switchOpenSpecProfileToCustom (Tarea 7.6)', () => {
     return { fn, calls };
   }
 
-  it('perfil ya custom → runSet NO se llama', async () => {
-    const pre = baseConfig({ rawProfile: 'custom' });
-    const reader = makeRead(pre, pre);
+  it('custom con lista escrita [a,b] → runSet se llama UNA vez: [\'config\',\'set\',\'profile\',\'custom\']', async () => {
+    const pre = baseConfig({
+      rawProfile: 'core',
+      configuredWorkflows: ['a', 'b'],
+      resolvedWorkflows: ['a', 'b', 'c'],
+    });
+    const post = baseConfig({
+      rawProfile: 'custom',
+      configuredWorkflows: ['a', 'b'],
+      resolvedWorkflows: ['a', 'b'],
+    });
+    const reader = makeRead(pre, post);
     const setter = makeCapturingRunSet();
 
-    const result = await switchOpenSpecProfileToCustom({
+    const result = await setOpenSpecProfile({
+      profile: 'custom',
       runtime: setRuntime,
       runSet: setter.fn,
       read: reader.fn,
     });
 
-    expect(setter.calls).toHaveLength(0);
+    expect(setter.calls).toHaveLength(1);
+    expect(setter.calls[0].args).toEqual(['config', 'set', 'profile', 'custom']);
     expect(result.ok).toBe(true);
-    expect(result.config).toBe(pre);
+    expect(result.config).toBe(post);
   });
 
-  it('resolvedWorkflows no leído → runSet NO se llama, ok:false con motivo', async () => {
+  it('custom con lista escrita vacía y resueltos [a,b,c] → DOS llamados en orden: workflows \'["a","b","c"]\' y después profile custom', async () => {
     const pre = baseConfig({
       rawProfile: 'core',
-      resolvedWorkflows: null,
-      resolvedWorkflowsState: 'unread',
-    });
-    const reader = makeRead(pre, pre);
-    const setter = makeCapturingRunSet();
-
-    const result = await switchOpenSpecProfileToCustom({
-      runtime: setRuntime,
-      runSet: setter.fn,
-      read: reader.fn,
-    });
-
-    expect(setter.calls).toHaveLength(0);
-    expect(result.ok).toBe(false);
-    expect(result.error).toBe('resolved-workflows-unread');
-  });
-
-  it('perfil core con resueltos [a,b,c] → runSet se llama DOS veces, en este orden exacto', async () => {
-    const pre = baseConfig({
-      rawProfile: 'core',
+      configuredWorkflows: [],
       resolvedWorkflows: ['a', 'b', 'c'],
       resolvedWorkflowsState: 'read',
     });
@@ -712,7 +704,8 @@ describe('switchOpenSpecProfileToCustom (Tarea 7.6)', () => {
     const reader = makeRead(pre, post);
     const setter = makeCapturingRunSet();
 
-    const result = await switchOpenSpecProfileToCustom({
+    const result = await setOpenSpecProfile({
+      profile: 'custom',
       runtime: setRuntime,
       runSet: setter.fn,
       read: reader.fn,
@@ -725,9 +718,49 @@ describe('switchOpenSpecProfileToCustom (Tarea 7.6)', () => {
     expect(result.config).toBe(post);
   });
 
-  it('el primer set falla → el segundo NO se ejecuta, ok:false con el error', async () => {
+  it('perfil ya custom → runSet NO se llama (0 llamados), ok: true', async () => {
+    const pre = baseConfig({ rawProfile: 'custom' });
+    const reader = makeRead(pre, pre);
+    const setter = makeCapturingRunSet();
+
+    const result = await setOpenSpecProfile({
+      profile: 'custom',
+      runtime: setRuntime,
+      runSet: setter.fn,
+      read: reader.fn,
+    });
+
+    expect(setter.calls).toHaveLength(0);
+    expect(result.ok).toBe(true);
+    expect(result.config).toBe(pre);
+  });
+
+  it('custom con resolvedWorkflows no leído y lista escrita vacía → runSet NO se llama, ok: false con motivo \'resolved-workflows-unread\'', async () => {
     const pre = baseConfig({
       rawProfile: 'core',
+      configuredWorkflows: [],
+      resolvedWorkflows: null,
+      resolvedWorkflowsState: 'unread',
+    });
+    const reader = makeRead(pre, pre);
+    const setter = makeCapturingRunSet();
+
+    const result = await setOpenSpecProfile({
+      profile: 'custom',
+      runtime: setRuntime,
+      runSet: setter.fn,
+      read: reader.fn,
+    });
+
+    expect(setter.calls).toHaveLength(0);
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('resolved-workflows-unread');
+  });
+
+  it('el primer set falla en custom con lista vacía → el segundo NO se ejecuta, ok: false con error', async () => {
+    const pre = baseConfig({
+      rawProfile: 'core',
+      configuredWorkflows: [],
       resolvedWorkflows: ['a', 'b', 'c'],
       resolvedWorkflowsState: 'read',
     });
@@ -738,7 +771,8 @@ describe('switchOpenSpecProfileToCustom (Tarea 7.6)', () => {
       throw new Error('failed to set workflows');
     };
 
-    const result = await switchOpenSpecProfileToCustom({
+    const result = await setOpenSpecProfile({
+      profile: 'custom',
       runtime: setRuntime,
       runSet: failingRunSet,
       read: reader.fn,
@@ -748,5 +782,65 @@ describe('switchOpenSpecProfileToCustom (Tarea 7.6)', () => {
     expect(calls[0]).toEqual(['config', 'set', 'workflows', '["a","b","c"]']);
     expect(result.ok).toBe(false);
     expect(result.error).toBe('failed to set workflows');
+  });
+
+  it('core desde custom → UNA vez: [\'config\',\'set\',\'profile\',\'core\']; workflows NO se toca', async () => {
+    const pre = baseConfig({
+      rawProfile: 'custom',
+      configuredWorkflows: ['a', 'b'],
+    });
+    const post = baseConfig({
+      rawProfile: 'core',
+      configuredWorkflows: ['a', 'b'],
+      resolvedWorkflows: ['a', 'b', 'c', 'd', 'e', 'f'],
+    });
+    const reader = makeRead(pre, post);
+    const setter = makeCapturingRunSet();
+
+    const result = await setOpenSpecProfile({
+      profile: 'core',
+      runtime: setRuntime,
+      runSet: setter.fn,
+      read: reader.fn,
+    });
+
+    expect(setter.calls).toHaveLength(1);
+    expect(setter.calls[0].args).toEqual(['config', 'set', 'profile', 'core']);
+    expect(result.ok).toBe(true);
+    expect(result.config).toBe(post);
+  });
+
+  it('core cuando ya es core → cero llamados, ok: true', async () => {
+    const pre = baseConfig({ rawProfile: 'core', configuredWorkflows: ['a', 'b'] });
+    const reader = makeRead(pre, pre);
+    const setter = makeCapturingRunSet();
+
+    const result = await setOpenSpecProfile({
+      profile: 'core',
+      runtime: setRuntime,
+      runSet: setter.fn,
+      read: reader.fn,
+    });
+
+    expect(setter.calls).toHaveLength(0);
+    expect(result.ok).toBe(true);
+    expect(result.config).toBe(pre);
+  });
+
+  it('profile \'minimal\' → cero llamados, ok: false', async () => {
+    const pre = baseConfig({ rawProfile: 'core' });
+    const reader = makeRead(pre, pre);
+    const setter = makeCapturingRunSet();
+
+    const result = await setOpenSpecProfile({
+      profile: 'minimal',
+      runtime: setRuntime,
+      runSet: setter.fn,
+      read: reader.fn,
+    });
+
+    expect(setter.calls).toHaveLength(0);
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('invalid-profile');
   });
 });

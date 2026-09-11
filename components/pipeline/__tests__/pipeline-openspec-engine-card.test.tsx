@@ -1134,10 +1134,10 @@ describe('OpenSpecEngineCard (Perfil de workflows y cambio a custom - Tarea 7.6)
     integrationState: 'up-to-date',
   });
 
-  it('perfil core → los switches tienen disabled, el motivo nombra «core», y el botón existe', () => {
+  it('perfil core → el candado está cerrado (aria-pressed false), muestra «core», los switches tienen disabled, y NO existe ningún botón «Cambiar a custom»', () => {
     const mockApi = {
       setWorkflow: vi.fn(),
-      switchProfileToCustom: vi.fn(),
+      setProfile: vi.fn(),
     };
     (window as any).api = { pipelineOpenSpec: mockApi };
 
@@ -1152,6 +1152,12 @@ describe('OpenSpecEngineCard (Perfil de workflows y cambio a custom - Tarea 7.6)
     // Desplegar diagnóstico avanzado para ver la sección de workflows
     fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
 
+    // El candado está cerrado (aria-pressed false), muestra «core» y está habilitado
+    const lockBtn = screen.getByRole('button', { name: /core/i });
+    expect(lockBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(lockBtn.textContent).toContain('core');
+    expect(lockBtn.hasAttribute('disabled')).toBe(false);
+
     // Los switches tienen disabled
     const switches = screen.getAllByRole('switch');
     expect(switches.length).toBeGreaterThan(0);
@@ -1162,17 +1168,16 @@ describe('OpenSpecEngineCard (Perfil de workflows y cambio a custom - Tarea 7.6)
     // El motivo nombra «core»
     expect(screen.getByText(/El perfil «core» fija los workflows/i)).toBeDefined();
 
-    // El botón «Cambiar a custom» existe
-    const switchBtn = screen.getByRole('button', { name: /Cambiar a custom/i });
-    expect(switchBtn).toBeDefined();
+    // NO existe ningún botón «Cambiar a custom»
+    expect(screen.queryByRole('button', { name: /Cambiar a custom/i })).toBeNull();
   });
 
-  it('clic en el botón → llama al canal UNA vez y después a onChanged', async () => {
-    const switchMock = vi.fn().mockResolvedValue({ ok: true });
+  it('clic en el candado cerrado → llama al canal UNA vez con { profile: \'custom\' } y después a onChanged', async () => {
+    const setProfileMock = vi.fn().mockResolvedValue({ ok: true });
     (window as any).api = {
       pipelineOpenSpec: {
         setWorkflow: vi.fn(),
-        switchProfileToCustom: switchMock,
+        setProfile: setProfileMock,
       },
     };
     const onChanged = vi.fn();
@@ -1188,17 +1193,18 @@ describe('OpenSpecEngineCard (Perfil de workflows y cambio a custom - Tarea 7.6)
 
     fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
 
-    const switchBtn = screen.getByRole('button', { name: /Cambiar a custom/i });
-    await fireEvent.click(switchBtn);
+    const lockBtn = screen.getByRole('button', { name: /core/i });
+    await fireEvent.click(lockBtn);
 
-    expect(switchMock).toHaveBeenCalledTimes(1);
+    expect(setProfileMock).toHaveBeenCalledTimes(1);
+    expect(setProfileMock).toHaveBeenCalledWith({ profile: 'custom' });
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
-  it('perfil custom → los switches NO tienen disabled y el botón NO existe', () => {
+  it('perfil custom → candado abierto (aria-pressed true), muestra «custom», switches sin disabled, y candado habilitado', () => {
     const mockApi = {
       setWorkflow: vi.fn(),
-      switchProfileToCustom: vi.fn(),
+      setProfile: vi.fn(),
     };
     (window as any).api = { pipelineOpenSpec: mockApi };
 
@@ -1212,6 +1218,12 @@ describe('OpenSpecEngineCard (Perfil de workflows y cambio a custom - Tarea 7.6)
 
     fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
 
+    // Candado abierto (aria-pressed true), muestra «custom» y está habilitado
+    const lockBtn = screen.getByRole('button', { name: /custom/i });
+    expect(lockBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(lockBtn.textContent).toContain('custom');
+    expect(lockBtn.hasAttribute('disabled')).toBe(false);
+
     // Los switches NO tienen disabled
     const switches = screen.getAllByRole('switch');
     expect(switches.length).toBeGreaterThan(0);
@@ -1219,7 +1231,80 @@ describe('OpenSpecEngineCard (Perfil de workflows y cambio a custom - Tarea 7.6)
       expect(s.hasAttribute('disabled')).toBe(false);
     });
 
-    // El botón NO existe
+    // NO existe ningún botón «Cambiar a custom»
     expect(screen.queryByRole('button', { name: /Cambiar a custom/i })).toBeNull();
+  });
+
+  it('clic en el candado abierto → llama al canal UNA vez con { profile: \'core\' } y después a onChanged', async () => {
+    const setProfileMock = vi.fn().mockResolvedValue({ ok: true });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        setWorkflow: vi.fn(),
+        setProfile: setProfileMock,
+      },
+    };
+    const onChanged = vi.fn();
+
+    render(
+      <OpenSpecEngineCard
+        status={baseStatusWithProfile('custom')}
+        compact={false}
+        repoPath={'C:\\repo'}
+        onChanged={onChanged}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
+
+    const lockBtn = screen.getByRole('button', { name: /custom/i });
+    await fireEvent.click(lockBtn);
+
+    expect(setProfileMock).toHaveBeenCalledTimes(1);
+    expect(setProfileMock).toHaveBeenCalledWith({ profile: 'core' });
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('perfil no leído (profileState failed) → muestra sin datos de perfil, no muestra motivo con core ni botón custom', () => {
+    const mockApi = {
+      setWorkflow: vi.fn(),
+      setProfile: vi.fn(),
+    };
+    (window as any).api = { pipelineOpenSpec: mockApi };
+
+    const statusFailedProfile: OpenSpecEngineStatus = {
+      ...baseStatusWithProfile('core'),
+      globalConfig: {
+        rawProfile: null,
+        profileState: 'failed',
+        delivery: 'both',
+        deliveryState: 'read',
+        configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        workflowsState: 'read',
+        resolvedWorkflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+        resolvedWorkflowsState: 'read',
+        origin: 'cli',
+        readAt: '2026-09-11T12:00:00.000Z',
+      },
+    };
+
+    render(
+      <OpenSpecEngineCard
+        status={statusFailedProfile}
+        compact={false}
+        repoPath={'C:\\repo'}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
+
+    // Muestra sin datos de perfil
+    expect(screen.getByText(/Sin datos de perfil/i)).toBeDefined();
+
+    // NO muestra el motivo con «core»
+    expect(screen.queryByText(/El perfil «core» fija los workflows/i)).toBeNull();
+
+    // NO muestra el botón «Cambiar a custom» ni candado
+    expect(screen.queryByRole('button', { name: /Cambiar a custom/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /core/i })).toBeNull();
   });
 });

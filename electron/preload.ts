@@ -479,7 +479,7 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('pipeline:openspec:install-plan', { repoPath }),
     setWorkflow: (options: { workflow: string; enabled: boolean }) =>
       ipcRenderer.invoke('pipeline:openspec:set-workflow', options),
-    switchProfileToCustom: () =>
-      ipcRenderer.invoke('pipeline:openspec:switch-profile-to-custom'),
+    setProfile: (payload: { profile: string }) =>
+      ipcRenderer.invoke('pipeline:openspec:set-profile', payload),
   },
 });

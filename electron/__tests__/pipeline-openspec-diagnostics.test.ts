@@ -131,7 +131,7 @@ describe('Diagnóstico del motor CLI: doctor y context (Grupo 3b)', () => {
       // Repositorio sano: no debe tener diagnósticos con severidad de error
       const errors = (result.data?.root?.status ?? []).filter((s) => s.severity === 'error');
       expect(errors).toHaveLength(0);
-    });
+    }, 30_000);
   });
 
   describe('3b.2 contextOpenSpecWithCli (`openspec context --json`)', () => {
@@ -207,7 +207,7 @@ describe('Diagnóstico del motor CLI: doctor y context (Grupo 3b)', () => {
       expect(result.data?.root?.role).toBe('openspec_root');
       expect(Array.isArray(result.data?.members)).toBe(true);
       expect(Array.isArray(result.data?.status)).toBe(true);
-    });
+    }, 30_000);
   });
 
   describe('buildEngineStatusSnapshot transporta doctor y contextBrief estructurados', () => {

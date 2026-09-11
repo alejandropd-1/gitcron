@@ -241,10 +241,10 @@ describe('Diagnóstico del motor CLI: doctor y context (Grupo 3b)', () => {
       const snapshot = await buildEngineStatusSnapshot(currentRepo, {
         discoverCli: async () => ({
           installed: true,
-          runtimeVersion: '1.11.0',
+          runtimeVersion: '1.12.0',
           provenance: 'global',
           displayPath: 'C:\\global\\openspec.cmd',
-          supportedRange: { min: '1.5.0', max: '1.11.0' },
+          supportedRange: { min: '1.5.0', max: '1.12.0' },
           versionClass: 'supported',
           evidenceStatus: 'confirmed',
           diagnostics: [],

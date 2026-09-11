@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyCoexistenceSkills,
   deriveOfficialCommand,
+  deriveUpdateBlockReason,
   deriveUpdateMatrixAction,
 } from '../openspec-update-guide';
 import type { OpenSpecEngineStatus, OpenSpecInstalledEvidence } from '@/types/pipeline';
@@ -150,6 +151,63 @@ describe('openspec-update-guide (Fase 6: Matriz declarada y Convivencia)', () =>
       const action = deriveUpdateMatrixAction(status190);
       expect(action).toBe('update');
       expect(deriveOfficialCommand(action, status190)).toBe('openspec update');
+    });
+
+    it('resuelve update (no blocked) con motor too-new e integración desactualizada (outdated)', () => {
+      const action = deriveUpdateMatrixAction({
+        versionClass: 'too-new',
+        integrationState: 'outdated',
+        repoState: 'initialized',
+      });
+      expect(action).toBe('update');
+    });
+  });
+
+  describe('deriveUpdateBlockReason', () => {
+    it('devuelve cli-not-installed cuando el CLI no está instalado en un repo inicializado', () => {
+      const reason = deriveUpdateBlockReason({
+        cli: {
+          installed: false,
+          runtimeVersion: null,
+          provenance: 'unknown',
+          displayPath: null,
+          supportedRange: { min: '1.5.0', max: '1.12.0' },
+          versionClass: 'unknown',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        repoState: 'initialized',
+        integrationState: 'outdated',
+        latestAvailable: null,
+        globalConfig: null,
+        installedIntegration: null,
+      });
+      expect(reason).toBe('cli-not-installed');
+    });
+
+    it('devuelve version-unknown cuando la versión no se puede determinar', () => {
+      const reason = deriveUpdateBlockReason({
+        versionClass: 'unknown',
+        repoState: 'initialized',
+      });
+      expect(reason).toBe('version-unknown');
+    });
+
+    it('devuelve null cuando la operación no está bloqueada por estas causas', () => {
+      expect(
+        deriveUpdateBlockReason({
+          versionClass: 'supported',
+          integrationState: 'outdated',
+          repoState: 'initialized',
+        }),
+      ).toBeNull();
+      expect(
+        deriveUpdateBlockReason({
+          versionClass: 'too-new',
+          integrationState: 'outdated',
+          repoState: 'initialized',
+        }),
+      ).toBeNull();
     });
   });
 

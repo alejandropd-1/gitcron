@@ -13,12 +13,14 @@ import {
 import { useT } from '@/hooks/use-translation';
 import type {
   OpenSpecEngineStatus,
+  OpenSpecInstallPlan,
   OpenSpecRunUpdateResult,
   OpenSpecUpdatePlan,
 } from '@/types/pipeline';
 import {
   classifyCoexistenceSkills,
   deriveOfficialCommand,
+  deriveUpdateBlockReason,
   deriveUpdateMatrixAction,
 } from '@/lib/openspec-update-guide';
 import { usePipelineStore } from '@/lib/pipeline-store';
@@ -28,6 +30,7 @@ export interface OpenSpecUpdateReviewProps {
   repoPath: string;
   status: OpenSpecEngineStatus | null;
   updatePlan?: OpenSpecUpdatePlan | null;
+  installPlan?: OpenSpecInstallPlan | null;
   currentBranch?: string | null;
   isClean?: boolean;
   onBack: () => void;
@@ -39,6 +42,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   repoPath,
   status,
   updatePlan,
+  installPlan,
   currentBranch,
   isClean = true,
   onBack,
@@ -88,14 +92,33 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     }
   };
 
+  const hostCommand = installPlan?.globalCommand ?? null;
+
   const handleCopyHostCommand = async () => {
+    if (!hostCommand) return;
     try {
-      await navigator.clipboard.writeText('npm i -g @fission-ai/openspec@latest');
-      setCopiedHostCmd(true);
-      setTimeout(() => setCopiedHostCmd(false), 2000);
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(hostCommand);
+        setCopiedHostCmd(true);
+        setTimeout(() => setCopiedHostCmd(false), 2000);
+      }
     } catch {
       // Ignorar fallo de clipboard
     }
+  };
+
+  const resolveBlockReasonText = (): string => {
+    if (updatePlan?.reason) {
+      return updatePlan.reason;
+    }
+    const blockReason = deriveUpdateBlockReason(status);
+    if (blockReason === 'cli-not-installed') {
+      return t('pipeline.openspec.engine.matrix.blockedCliNotInstalled');
+    }
+    if (blockReason === 'version-unknown') {
+      return t('pipeline.openspec.engine.matrix.blockedVersionUnknown');
+    }
+    return t('pipeline.openspec.engine.matrix.blocked');
   };
 
   const handleExecuteUpdate = async () => {
@@ -198,7 +221,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                 {!isMainOrMaster && !isDirty && action === 'blocked' && (
                   <span className={styles.blockedReasonInline} role="alert">
                     {t('pipeline.openspec.engine.matrix.blockedReason', {
-                      reason: updatePlan?.reason ?? t('pipeline.openspec.engine.preview.blockedReason'),
+                      reason: resolveBlockReasonText(),
                     })}
                   </span>
                 )}
@@ -353,18 +376,24 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
             <p style={{ margin: '0 0 var(--space-1)', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
               {t('pipeline.openspec.engine.hostUpgrade.help')}
             </p>
-            <div className={styles.reviewCommandPre}>
-              <code>npm i -g @fission-ai/openspec@latest</code>
-              <button
-                type="button"
-                className={styles.reviewCopyBtn}
-                onClick={handleCopyHostCommand}
-                aria-label={copiedHostCmd ? t('pipeline.openspec.engine.hostUpgrade.copied') : t('pipeline.openspec.engine.hostUpgrade.copy')}
-              >
-                {copiedHostCmd ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
-                <span>{copiedHostCmd ? t('pipeline.openspec.engine.hostUpgrade.copied') : t('pipeline.openspec.engine.hostUpgrade.copy')}</span>
-              </button>
-            </div>
+            {hostCommand ? (
+              <div className={styles.reviewCommandPre}>
+                <code>{hostCommand}</code>
+                <button
+                  type="button"
+                  className={styles.reviewCopyBtn}
+                  onClick={handleCopyHostCommand}
+                  aria-label={copiedHostCmd ? t('pipeline.openspec.engine.hostUpgrade.copied') : t('pipeline.openspec.engine.hostUpgrade.copy')}
+                >
+                  {copiedHostCmd ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
+                  <span>{copiedHostCmd ? t('pipeline.openspec.engine.hostUpgrade.copied') : t('pipeline.openspec.engine.hostUpgrade.copy')}</span>
+                </button>
+              </div>
+            ) : (
+              <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                {t('pipeline.openspec.engine.install.commandPendingResolution')}
+              </p>
+            )}
           </section>
         )}
 
@@ -381,7 +410,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           {action === 'blocked' && (
             <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>
               {t('pipeline.openspec.engine.matrix.blockedReason', {
-                reason: updatePlan?.reason ?? t('pipeline.openspec.engine.preview.blockedReason'),
+                reason: resolveBlockReasonText(),
               })}
             </p>
           )}

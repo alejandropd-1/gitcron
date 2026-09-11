@@ -3706,13 +3706,18 @@ summary.centerBlock {
 
 .blockedReasonInline {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-1);
+  max-width: 100%;
+  box-sizing: border-box;
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
-  font-family: var(--font-mono), ui-monospace, monospace;
-  white-space: nowrap;
-  cursor: help;
+  font-family: inherit;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  cursor: default;
 }
 
 .syncPreviewModal {
@@ -4031,21 +4036,4 @@ summary.centerBlock {
 
 .profileLockName {
   font-family: var(--font-mono);
-}
-
-.profileBlockedReason,
-.profileWorkflowHeader .blockedReasonInline {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  margin: 0;
-  font-size: var(--font-size-xs);
-  font-family: inherit;
-  line-height: 1.4;
-  color: var(--color-text-secondary);
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: break-word;
-  cursor: default;
 }

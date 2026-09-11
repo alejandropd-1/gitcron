@@ -14,12 +14,12 @@ export interface OpenSpecVersionRange {
 }
 
 /** Versión de OpenSpec contra la que está diseñado y escrito el ciclo SDD de GitCron. */
-export const OPENSPEC_CYCLE_TARGET_VERSION = '1.11.0';
+export const OPENSPEC_CYCLE_TARGET_VERSION = '1.12.0';
 
 /** Rango soportado por esta versión de GitCron, inclusivo en ambos extremos. */
 export const SUPPORTED_OPENSPEC_VERSIONS: Readonly<OpenSpecVersionRange> = {
   min: '1.5.0',
-  max: '1.11.0',
+  max: '1.12.0',
 };
 
 export type OpenSpecVersionClass = 'supported' | 'too-old' | 'too-new' | 'unknown';

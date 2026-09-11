@@ -105,8 +105,8 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       });
     });
 
-    it('identifica riesgo potencial ante versión superior al rango soportado (1.12.0)', () => {
-      const { surfaces, breakingChangesDetected } = evaluateConsumedSurfaces('1.11.0', '1.12.0', null);
+    it('identifica riesgo potencial ante versión superior al rango soportado (1.13.0)', () => {
+      const { surfaces, breakingChangesDetected } = evaluateConsumedSurfaces('1.12.0', '1.13.0', null);
       expect(breakingChangesDetected).toBe(true);
 
       const statusSurface = surfaces.find((s) => s.surface === 'status');
@@ -157,10 +157,10 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       });
 
       const res = await analyzeOpenSpecVersion(process.cwd(), {
-        getInstalledVersion: async () => '1.11.0',
+        getInstalledVersion: async () => '1.12.0',
         checkLatest: async () => ({
           status: 'online',
-          latestVersion: '1.12.0',
+          latestVersion: '1.13.0',
           checkedAt: new Date().toISOString(),
           fromCache: false,
           cacheAgeSeconds: 0,
@@ -169,7 +169,7 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
         }),
         fetchChangelog: async () => ({
           source: 'GitHub Releases (fission-ai/openspec)',
-          sourceUrl: 'https://github.com/fission-ai/openspec/releases/tag/v1.12.0',
+          sourceUrl: 'https://github.com/fission-ai/openspec/releases/tag/v1.13.0',
           fetched: true,
           rawText: '- Modificaciones en CLI',
           error: null,
@@ -182,8 +182,8 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       expect(res.redaction).toBeDefined();
 
       // Hechos medidos determinados por código
-      expect(res.measured.installedVersion).toBe('1.11.0');
-      expect(res.measured.availableVersion).toBe('1.12.0');
+      expect(res.measured.installedVersion).toBe('1.12.0');
+      expect(res.measured.availableVersion).toBe('1.13.0');
       expect(res.measured.versionClass).toBe('too-new');
       expect(res.measured.breakingChangesDetected).toBe(true);
       expect(res.measured.consumedSurfaces.length).toBe(6);
@@ -197,10 +197,10 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       const mockComplete = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'));
 
       const res = await analyzeOpenSpecVersion(process.cwd(), {
-        getInstalledVersion: async () => '1.11.0',
+        getInstalledVersion: async () => '1.12.0',
         checkLatest: async () => ({
           status: 'online',
-          latestVersion: '1.12.0',
+          latestVersion: '1.13.0',
           checkedAt: new Date().toISOString(),
           fromCache: false,
           cacheAgeSeconds: 0,
@@ -218,8 +218,8 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       });
 
       // Hechos medidos intactos y completos
-      expect(res.measured.installedVersion).toBe('1.11.0');
-      expect(res.measured.availableVersion).toBe('1.12.0');
+      expect(res.measured.installedVersion).toBe('1.12.0');
+      expect(res.measured.availableVersion).toBe('1.13.0');
       expect(res.measured.breakingChangesDetected).toBe(true);
       expect(res.measured.consumedSurfaces.length).toBe(6);
 
@@ -232,9 +232,9 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
 
   describe('9c.6: Rangos y versión objetivo no se modifican automáticamente', () => {
     it('SUPPORTED_OPENSPEC_VERSIONS y OPENSPEC_CYCLE_TARGET_VERSION permanecen inmutables', () => {
-      expect(OPENSPEC_CYCLE_TARGET_VERSION).toBe('1.11.0');
+      expect(OPENSPEC_CYCLE_TARGET_VERSION).toBe('1.12.0');
       expect(SUPPORTED_OPENSPEC_VERSIONS.min).toBe('1.5.0');
-      expect(SUPPORTED_OPENSPEC_VERSIONS.max).toBe('1.11.0');
+      expect(SUPPORTED_OPENSPEC_VERSIONS.max).toBe('1.12.0');
     });
   });
 
@@ -392,7 +392,7 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
 
         expect(result).toBeDefined();
         expect(result.measured).toBeDefined();
-        expect(result.measured.supportedRange.max).toBe('1.11.0');
+        expect(result.measured.supportedRange.max).toBe('1.12.0');
         expect(result.measured.consumedSurfaces.length).toBe(6);
         expect(result.redaction).toBeDefined();
       } finally {

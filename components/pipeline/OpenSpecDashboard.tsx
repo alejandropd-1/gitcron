@@ -66,7 +66,7 @@ import { useReducedMotion } from 'motion/react';
 import { ChangeBranchNotice } from './ChangeBranchNotice';
 import { ChangeTimestampLabel } from './ChangeTimestampLabel';
 import { OpenSpecUpdateReview } from './OpenSpecUpdateReview';
-import type { ArchivePlan, OpenSpecEngineStatus, OpenSpecRegistryCheck, OpenSpecUpdatePlan } from '@/types/pipeline';
+import type { ArchivePlan, OpenSpecEngineStatus, OpenSpecInstallPlan, OpenSpecRegistryCheck, OpenSpecUpdatePlan } from '@/types/pipeline';
 import { SpecificationViewer } from './SpecificationViewer';
 import { LazyDiffViewer } from './LazyDiffViewer';
 import { TaskConfirmToast } from './TaskConfirmToast';
@@ -1027,11 +1027,13 @@ export function OpenSpecDashboard({
   const [engineSnapshot, setEngineSnapshot] = useState<OpenSpecEngineStatus | null>(null);
   const [latestRegistryCheck, setLatestRegistryCheck] = useState<OpenSpecRegistryCheck | null>(null);
   const [engineLoading, setEngineLoading] = useState<boolean>(true);
+  const [installPlan, setInstallPlan] = useState<OpenSpecInstallPlan | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     setEngineSnapshot(null);
     setLatestRegistryCheck(null);
+    setInstallPlan(null);
     setEngineLoading(true);
 
     if (typeof window !== 'undefined' && window.api?.pipelineOpenSpec) {
@@ -1040,6 +1042,9 @@ export function OpenSpecDashboard({
         : Promise.resolve(null);
       const getCheck = window.api.pipelineOpenSpec.checkLatestVersion
         ? window.api.pipelineOpenSpec.checkLatestVersion()
+        : Promise.resolve(null);
+      const getPlan = window.api.pipelineOpenSpec.getInstallPlan
+        ? window.api.pipelineOpenSpec.getInstallPlan(repoPath)
         : Promise.resolve(null);
 
       getStatus
@@ -1060,6 +1065,14 @@ export function OpenSpecDashboard({
         .then((check) => {
           if (isMounted && check) {
             setLatestRegistryCheck(check);
+          }
+        })
+        .catch(() => {});
+
+      getPlan
+        .then((plan) => {
+          if (isMounted && plan) {
+            setInstallPlan(plan);
           }
         })
         .catch(() => {});
@@ -2190,6 +2203,7 @@ export function OpenSpecDashboard({
               repoPath={repoPath}
               status={effectiveEngineStatus}
               updatePlan={updatePlan}
+              installPlan={installPlan}
               currentBranch={currentBranch}
               isClean={workingTreeClean}
               onBack={() => setReviewOpen(false)}

@@ -246,10 +246,19 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
       },
     });
 
+    const pnpmCommand = 'pnpm add -g @fission-ai/openspec@latest';
     render(
       <OpenSpecUpdateReview
         repoPath="C:\\repo"
         status={statusWithOlderEngine}
+        installPlan={{
+          globalCommand: pnpmCommand,
+          localCommand: null,
+          hasManifest: false,
+          nodePath: 'C:\\node.exe',
+          packageManagerPath: 'C:\\pnpm.cmd',
+          detectedManager: 'pnpm',
+        }}
         currentBranch="change/test"
         isClean={true}
         onBack={vi.fn()}
@@ -257,12 +266,41 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     );
 
     expect(screen.getByText('Actualización del motor en el sistema host')).toBeTruthy();
-    expect(screen.getByText('npm i -g @fission-ai/openspec@latest')).toBeTruthy();
+    expect(screen.getByText(pnpmCommand)).toBeTruthy();
 
     const copyButtons = screen.getAllByRole('button', { name: /Copiar comando/i });
     expect(copyButtons.length).toBeGreaterThanOrEqual(1);
     fireEvent.click(copyButtons[0]);
-    expect(writeTextMock).toHaveBeenCalled();
+    expect(writeTextMock).toHaveBeenCalledWith(pnpmCommand);
+  });
+
+  it('con CLI no instalado, el motivo de bloqueo explica la causa real y no contiene POC', () => {
+    const statusNoCli: OpenSpecEngineStatus = {
+      ...mockStatus,
+      cli: {
+        installed: false,
+        runtimeVersion: null,
+        provenance: 'unknown',
+        displayPath: null,
+        supportedRange: { min: '1.5.0', max: '1.12.0' },
+        versionClass: 'unknown',
+        evidenceStatus: 'confirmed',
+        diagnostics: [],
+      },
+      repoState: 'initialized',
+      integrationState: 'outdated',
+    };
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:\\repo"
+        status={statusNoCli}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText(/El CLI de OpenSpec no está instalado en el sistema/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/POC/i)).toBeNull();
   });
 
   it('ejecuta la actualización end-to-end con estado de carga, reporte de archivos y botón de preparar commit (Hallazgo 5)', async () => {

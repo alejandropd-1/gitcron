@@ -69,10 +69,10 @@ describe('OpenSpec Groups 4 y 5 — Formulario transparente y declaración de ve
     const baseStatus: OpenSpecEngineStatus = {
       cli: {
         installed: true,
-        runtimeVersion: '1.11.0',
+        runtimeVersion: '1.12.0',
         provenance: 'global',
         versionClass: 'supported',
-        supportedRange: { min: '1.5.0', max: '1.11.0' },
+        supportedRange: { min: '1.5.0', max: '1.12.0' },
         displayPath: '/usr/local/bin/openspec',
         evidenceStatus: 'confirmed',
         diagnostics: [],
@@ -88,7 +88,7 @@ describe('OpenSpec Groups 4 y 5 — Formulario transparente y declaración de ve
 
     it('declara la versión objetivo del ciclo en la tarjeta del motor (5.1)', () => {
       render(<OpenSpecEngineCard status={baseStatus} />);
-      expect(screen.getByText('pipeline.openspec.engine.cycleVersion:{"version":"1.11.0"}')).toBeTruthy();
+      expect(screen.getByText('pipeline.openspec.engine.cycleVersion:{"version":"1.12.0"}')).toBeTruthy();
     });
 
     it('informa cuando la versión instalada supera a la versión declarada del ciclo (5.2)', () => {
@@ -96,13 +96,13 @@ describe('OpenSpec Groups 4 y 5 — Formulario transparente y declaración de ve
         ...baseStatus,
         cli: {
           ...baseStatus.cli,
-          runtimeVersion: '1.12.0',
+          runtimeVersion: '1.13.0',
         },
       };
 
       render(<OpenSpecEngineCard status={aheadStatus} />);
       expect(
-        screen.getByText('pipeline.openspec.engine.versionAheadOfCycle:{"installed":"1.12.0","cycle":"1.11.0"}'),
+        screen.getByText('pipeline.openspec.engine.versionAheadOfCycle:{"installed":"1.13.0","cycle":"1.12.0"}'),
       ).toBeTruthy();
     });
 
@@ -117,7 +117,7 @@ describe('OpenSpec Groups 4 y 5 — Formulario transparente y declaración de ve
 
       render(<OpenSpecEngineCard status={behindStatus} />);
       expect(
-        screen.getByText('pipeline.openspec.engine.versionBehindCycle:{"installed":"1.5.0","cycle":"1.11.0"}'),
+        screen.getByText('pipeline.openspec.engine.versionBehindCycle:{"installed":"1.5.0","cycle":"1.12.0"}'),
       ).toBeTruthy();
     });
 

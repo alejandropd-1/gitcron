@@ -23,17 +23,17 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
     const dummyStatus: OpenSpecEngineStatus = {
       cli: {
         installed: true,
-        runtimeVersion: '1.11.0',
+        runtimeVersion: '1.12.0',
         provenance: 'global',
         displayPath: 'C:\\global\\openspec.cmd',
-        supportedRange: { min: '1.5.0', max: '1.11.0' },
+        supportedRange: { min: '1.5.0', max: '1.12.0' },
         versionClass: 'supported',
         evidenceStatus: 'confirmed',
         diagnostics: [],
       },
       latestAvailable: {
         status: 'online',
-        latestVersion: '1.11.0',
+        latestVersion: '1.12.0',
         checkedAt: 'now',
         fromCache: false,
         cacheAgeSeconds: 0,
@@ -43,7 +43,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
       globalConfig: null,
       installedIntegration: {
         skills: [],
-        generatedBy: '1.11.0',
+        generatedBy: '1.12.0',
         markersFound: [],
         outputInventory: [],
         evidenceStatus: 'confirmed',
@@ -218,14 +218,14 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
     expect(screen.getByText(/Versión 1.9.0 disponible en npm/i)).toBeDefined();
   });
 
-  it('con motor 1.11.0 alineado al ciclo y todo lo demás sano, la insignia general sigue diciendo «Listo»', () => {
-    const status111Healthy: OpenSpecEngineStatus = {
+  it('con motor 1.12.0 alineado al ciclo y todo lo demás sano, la insignia general sigue diciendo «Listo»', () => {
+    const status112Healthy: OpenSpecEngineStatus = {
       cli: {
         installed: true,
-        runtimeVersion: '1.11.0',
+        runtimeVersion: '1.12.0',
         provenance: 'global',
         displayPath: 'C:\\global\\openspec.cmd',
-        supportedRange: { min: '1.5.0', max: '1.11.0' },
+        supportedRange: { min: '1.5.0', max: '1.12.0' },
         versionClass: 'supported',
         evidenceStatus: 'confirmed',
         diagnostics: [],
@@ -234,7 +234,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
       globalConfig: null,
       installedIntegration: {
         skills: [],
-        generatedBy: '1.11.0',
+        generatedBy: '1.12.0',
         markersFound: [],
         outputInventory: [],
         evidenceStatus: 'confirmed',
@@ -251,7 +251,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
       freshnessState: 'cli-up-to-date',
     };
 
-    render(<OpenSpecEngineCard status={status111Healthy} compact={false} />);
+    render(<OpenSpecEngineCard status={status112Healthy} compact={false} />);
     expect(screen.getByText(/Listo/i)).toBeDefined();
     expect(screen.queryByText(/Requiere atención/i)).toBeNull();
     expect(screen.queryByText(/anterior al ciclo declarado/i)).toBeNull();
@@ -311,7 +311,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
         runtimeVersion: '1.11.0',
         provenance: 'global',
         displayPath: 'C:\\global\\openspec.cmd',
-        supportedRange: { min: '1.5.0', max: '1.11.0' },
+        supportedRange: { min: '1.5.0', max: '1.12.0' },
         versionClass: 'supported',
         evidenceStatus: 'confirmed',
         diagnostics: [],
@@ -361,7 +361,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
         runtimeVersion: '1.11.0',
         provenance: 'global',
         displayPath: 'C:\\global\\openspec.cmd',
-        supportedRange: { min: '1.5.0', max: '1.11.0' },
+        supportedRange: { min: '1.5.0', max: '1.12.0' },
         versionClass: 'supported',
         evidenceStatus: 'confirmed',
         diagnostics: [],
@@ -420,7 +420,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
         runtimeVersion: '1.11.0',
         provenance: 'global',
         displayPath: 'C:\\global\\openspec.cmd',
-        supportedRange: { min: '1.5.0', max: '1.11.0' },
+        supportedRange: { min: '1.5.0', max: '1.12.0' },
         versionClass: 'supported',
         evidenceStatus: 'confirmed',
         diagnostics: [],
@@ -475,7 +475,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
           runtimeVersion: '1.11.0',
           provenance: 'global',
           displayPath: 'C:\\global\\openspec.cmd',
-          supportedRange: { min: '1.5.0', max: '1.11.0' },
+          supportedRange: { min: '1.5.0', max: '1.12.0' },
           versionClass: 'supported',
           evidenceStatus: 'confirmed',
           diagnostics: [],
@@ -540,7 +540,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
           runtimeVersion: '1.11.0',
           provenance: 'global',
           displayPath: 'C:\\global\\openspec.cmd',
-          supportedRange: { min: '1.5.0', max: '1.11.0' },
+          supportedRange: { min: '1.5.0', max: '1.12.0' },
           versionClass: 'supported',
           evidenceStatus: 'confirmed',
           diagnostics: [],
@@ -642,7 +642,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
           runtimeVersion: '1.11.0',
           provenance: 'global',
           displayPath: 'C:\\global\\openspec.cmd',
-          supportedRange: { min: '1.5.0', max: '1.11.0' },
+          supportedRange: { min: '1.5.0', max: '1.12.0' },
           versionClass: 'supported',
           evidenceStatus: 'confirmed',
           diagnostics: [],
@@ -676,7 +676,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
         runtimeVersion: null,
         provenance: 'unknown',
         displayPath: null,
-        supportedRange: { min: '1.5.0', max: '1.11.0' },
+        supportedRange: { min: '1.5.0', max: '1.12.0' },
         versionClass: 'unknown',
         evidenceStatus: 'confirmed',
         diagnostics: [],
@@ -704,7 +704,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
           runtimeVersion: '1.11.0',
           provenance: 'global',
           displayPath: 'C:\\global\\openspec.cmd',
-          supportedRange: { min: '1.5.0', max: '1.11.0' },
+          supportedRange: { min: '1.5.0', max: '1.12.0' },
           versionClass: 'supported',
           evidenceStatus: 'confirmed',
           diagnostics: [],
@@ -990,7 +990,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
       // El comando dinámico se muestra fielmente
       expect(screen.getByText(dynamicCommand)).toBeDefined();
       // NO se muestra el viejo npm cableado a fuego
-      expect(screen.queryByText('npm i -g @fission-ai/openspec@latest')).toBeNull();
+      expect(screen.queryByText(/npm\s+i\s+-g/)).toBeNull();
 
       // Al copiar, copia el comando dinámico
       const copyBtn = screen.getByRole('button', { name: /Copiar comando/i });

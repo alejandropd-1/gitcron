@@ -38,10 +38,10 @@ describe('compareSemver', () => {
   });
 });
 
-describe('classifyOpenSpecVersion (rango 1.5.0–1.11.0)', () => {
+describe('classifyOpenSpecVersion (rango 1.5.0–1.12.0)', () => {
   it('declara la versión objetivo del ciclo y el rango soportado del proyecto', () => {
-    expect(OPENSPEC_CYCLE_TARGET_VERSION).toBe('1.11.0');
-    expect(SUPPORTED_OPENSPEC_VERSIONS).toEqual({ min: '1.5.0', max: '1.11.0' });
+    expect(OPENSPEC_CYCLE_TARGET_VERSION).toBe('1.12.0');
+    expect(SUPPORTED_OPENSPEC_VERSIONS).toEqual({ min: '1.5.0', max: '1.12.0' });
   });
 
   it('clasifica supported dentro del rango', () => {
@@ -50,6 +50,7 @@ describe('classifyOpenSpecVersion (rango 1.5.0–1.11.0)', () => {
     expect(classifyOpenSpecVersion('1.8.0')).toBe('supported');
     expect(classifyOpenSpecVersion('1.9.0')).toBe('supported');
     expect(classifyOpenSpecVersion('1.11.0')).toBe('supported');
+    expect(classifyOpenSpecVersion('1.12.0')).toBe('supported');
   });
 
   it('clasifica too-old por debajo del mínimo', () => {
@@ -58,7 +59,7 @@ describe('classifyOpenSpecVersion (rango 1.5.0–1.11.0)', () => {
   });
 
   it('clasifica too-new por encima del máximo', () => {
-    expect(classifyOpenSpecVersion('1.11.1')).toBe('too-new');
+    expect(classifyOpenSpecVersion('1.12.1')).toBe('too-new');
     expect(classifyOpenSpecVersion('2.0.0')).toBe('too-new');
   });
 
@@ -76,10 +77,10 @@ describe('classifyOpenSpecVersion (rango 1.5.0–1.11.0)', () => {
 
 describe('isInstalledAheadOfCycle', () => {
   it('detecta correctamente si la versión instalada supera a la versión del ciclo declarada', () => {
+    expect(isInstalledAheadOfCycle('1.12.0')).toBe(false);
     expect(isInstalledAheadOfCycle('1.11.0')).toBe(false);
-    expect(isInstalledAheadOfCycle('1.10.0')).toBe(false);
-    expect(isInstalledAheadOfCycle('1.11.1')).toBe(true);
-    expect(isInstalledAheadOfCycle('1.12.0')).toBe(true);
+    expect(isInstalledAheadOfCycle('1.12.1')).toBe(true);
+    expect(isInstalledAheadOfCycle('1.13.0')).toBe(true);
     expect(isInstalledAheadOfCycle('2.0.0')).toBe(true);
     expect(isInstalledAheadOfCycle(null)).toBe(false);
   });
@@ -87,15 +88,15 @@ describe('isInstalledAheadOfCycle', () => {
 
 describe('isInstalledBehindCycle', () => {
   it('detecta correctamente si la versión instalada está por debajo de la versión del ciclo declarada', () => {
-    // Caso borde: 1.5.0 contra ciclo 1.11.0 (seis minors de distancia, dentro de rango soportado)
+    // Caso borde: 1.5.0 contra ciclo 1.12.0 (siete minors de distancia, dentro de rango soportado)
     expect(isInstalledBehindCycle('1.5.0')).toBe(true);
-    expect(isInstalledBehindCycle('1.10.0')).toBe(true);
-    expect(isInstalledBehindCycle('1.10.9')).toBe(true);
-    // Caso igual a igual: 1.11.0 contra 1.11.0 no debe avisar nada
-    expect(isInstalledBehindCycle('1.11.0')).toBe(false);
-    // Casos posteriores no avisan en esta función
-    expect(isInstalledBehindCycle('1.11.1')).toBe(false);
+    expect(isInstalledBehindCycle('1.11.0')).toBe(true);
+    expect(isInstalledBehindCycle('1.11.9')).toBe(true);
+    // Caso igual a igual: 1.12.0 contra 1.12.0 no debe avisar nada
     expect(isInstalledBehindCycle('1.12.0')).toBe(false);
+    // Casos posteriores no avisan en esta función
+    expect(isInstalledBehindCycle('1.12.1')).toBe(false);
+    expect(isInstalledBehindCycle('1.13.0')).toBe(false);
     expect(isInstalledBehindCycle(null)).toBe(false);
     expect(isInstalledBehindCycle(undefined)).toBe(false);
   });

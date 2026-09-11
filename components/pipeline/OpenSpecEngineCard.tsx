@@ -995,7 +995,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                 )}
               </div>
               {profileBlockedReason && (
-                <span className={`${styles.blockedReasonInline} ${styles.profileBlockedReason}`} role="alert">
+                <span className={styles.blockedReasonInline} role="alert">
                   {profileBlockedReason}
                 </span>
               )}

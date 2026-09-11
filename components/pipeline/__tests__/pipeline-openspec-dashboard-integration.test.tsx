@@ -92,10 +92,10 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
 
   const dummyCliHealthy: OpenSpecEngineStatus['cli'] = {
     installed: true,
-    runtimeVersion: '1.11.0',
+    runtimeVersion: '1.12.0',
     provenance: 'global',
     displayPath: 'C:\\global\\openspec.cmd',
-    supportedRange: { min: '1.5.0', max: '1.11.0' },
+    supportedRange: { min: '1.5.0', max: '1.12.0' },
     versionClass: 'supported',
     evidenceStatus: 'confirmed',
     diagnostics: [],
@@ -775,7 +775,7 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
       />,
     );
 
-    const chipClean = await screen.findByRole('status', { name: /OpenSpec v1\.11\.0/i });
+    const chipClean = await screen.findByRole('status', { name: /OpenSpec v1\.12\.0/i });
     expect(chipClean.className).not.toMatch(/text-warning/);
     unmount4();
 

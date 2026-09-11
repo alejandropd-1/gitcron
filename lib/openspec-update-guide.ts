@@ -100,7 +100,7 @@ export interface UpdateMatrixInputs {
  * - Novedad en npm ('cli-upgrade-available') informa al usuario pero NO fuerza 'update' sobre el repositorio.
  * - Si el motor es compatible ('supported') y la integración está al día ('up-to-date'), la acción es 'none'.
  * - Si el motor es 'too-old', se requiere 'upgrade-init' o 'upgrade-update'.
- * - Si el motor es 'too-new', ausente o desconocido, se bloquea ('blocked').
+ * - Si el motor es ausente o desconocido, se bloquea ('blocked'). Si es 'too-new' opera normalmente según el estado de la integración (informativo, no bloqueante).
  * - Si el repo no está inicializado ('not-initialized'), la acción es 'init' (o 'upgrade-init').
  * - Si la integración está desactualizada ('outdated'), la acción es 'update'.
  * - Si la integración tiene conflictos ('conflicted') o es personalizada ('custom'), se bloquea ('blocked').
@@ -115,7 +115,7 @@ export function deriveUpdateMatrixAction(
   const repoState = inputs.repoState;
   const isCliInstalled = ('cli' in inputs && inputs.cli) ? inputs.cli.installed : true;
 
-  if (!isCliInstalled || !versionClass || versionClass === 'too-new' || versionClass === 'unknown') {
+  if (!isCliInstalled || !versionClass || versionClass === 'unknown') {
     return repoState === 'not-initialized' && !isCliInstalled ? 'init' : 'blocked';
   }
 
@@ -136,6 +136,31 @@ export function deriveUpdateMatrixAction(
   }
 
   return 'blocked';
+}
+
+/**
+ * Deriva el motivo del bloqueo cuando la acción de actualización es 'blocked'.
+ * Devuelve 'cli-not-installed', 'version-unknown' o null cuando no corresponde a estas causas.
+ */
+export function deriveUpdateBlockReason(
+  inputs: UpdateMatrixInputs | OpenSpecEngineStatus | null | undefined,
+): 'cli-not-installed' | 'version-unknown' | null {
+  if (!inputs) return 'cli-not-installed';
+
+  const isCliInstalled = ('cli' in inputs && inputs.cli) ? inputs.cli.installed : true;
+  const repoState = inputs.repoState;
+
+  if (!isCliInstalled) {
+    return repoState === 'not-initialized' ? null : 'cli-not-installed';
+  }
+
+  const versionClass = ('cli' in inputs && inputs.cli) ? inputs.cli.versionClass : (inputs as UpdateMatrixInputs).versionClass;
+
+  if (!versionClass || versionClass === 'unknown') {
+    return 'version-unknown';
+  }
+
+  return null;
 }
 
 /**

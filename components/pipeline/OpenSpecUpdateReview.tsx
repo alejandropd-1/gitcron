@@ -312,15 +312,6 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
             <span>{t('pipeline.openspec.engine.cardTitle')} — {t('pipeline.openspec.engine.showAdvanced')}</span>
           </summary>
           <div className={styles.reviewDiagnosticsContent}>
-            {/* AVISO DE SÓLO LECTURA Y SEGURIDAD */}
-            <div className={styles.reviewSafetyBanner}>
-              <Info size={16} aria-hidden="true" />
-              <div className={styles.reviewSafetyText}>
-                <strong>{t('pipeline.openspec.engine.review.safetyTitle')}</strong>
-                <p>{t('pipeline.openspec.engine.review.safetyHelp')}</p>
-              </div>
-            </div>
-
             {/* DATOS DEL MOTOR Y PROCEDENCIA */}
             <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.cardTitle')}>
               <div className={styles.reviewFactsGrid}>

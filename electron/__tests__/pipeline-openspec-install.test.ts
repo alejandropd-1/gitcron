@@ -716,6 +716,9 @@ describe('Instalación del Motor OpenSpec (Tareas 6.1 a 6.5)', () => {
       expect(plan).toHaveProperty('packageManagerPath');
       expect(plan).toHaveProperty('localCommand');
       expect(plan).toHaveProperty('globalCommand');
+      expect(plan.detectedManager).toBeTruthy();
+      expect(plan.globalCommand).toMatch(new RegExp(`^${plan.detectedManager}\\s+`));
+      expect(plan.globalCommand).not.toContain(plan.packageManagerPath);
     }, 30_000);
 
     it('rechaza un repositorio no autorizado', async () => {

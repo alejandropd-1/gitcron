@@ -83,7 +83,7 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     cleanup();
   });
 
-  it('renderiza la revisión en la columna central con el banner de sólo lectura y hechos', () => {
+  it('renderiza la revisión en la columna central con hechos del motor', () => {
     render(
       <OpenSpecUpdateReview
         repoPath="C:\\repo"
@@ -92,9 +92,8 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
       />,
     );
 
-    // Banner de seguridad
-    expect(screen.getByText('Revisión declarativa de sólo lectura')).toBeTruthy();
-    expect(screen.getAllByText(/Esta revisión no modifica ningún archivo/).length).toBeGreaterThanOrEqual(1);
+    // Banner de seguridad retirado
+    expect(screen.queryByText(/Revisión declarativa de sólo lectura/i)).toBeNull();
 
     // Hechos del motor
     expect(screen.getAllByText('v1.8.0').length).toBeGreaterThanOrEqual(1);

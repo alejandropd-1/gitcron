@@ -284,8 +284,8 @@ export function resolvePackageManagerInstallPlan(
   const localArgs = getPackageManagerInstallArgs(pm.name, 'local');
   const globalArgs = getPackageManagerInstallArgs(pm.name, 'global');
 
-  const localCmd = `${pm.executablePath} ${localArgs.join(' ')}`;
-  const globalCmd = `${pm.executablePath} ${globalArgs.join(' ')}`;
+  const localCmd = `${pm.name} ${localArgs.join(' ')}`;
+  const globalCmd = `${pm.name} ${globalArgs.join(' ')}`;
 
   return {
     detectedManager: pm.name,

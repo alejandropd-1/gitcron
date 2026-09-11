@@ -281,8 +281,6 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.engine.closeReviewAction',
   'pipeline.openspec.engine.review.title',
   'pipeline.openspec.engine.review.close',
-  'pipeline.openspec.engine.review.safetyTitle',
-  'pipeline.openspec.engine.review.safetyHelp',
   'pipeline.openspec.engine.matrix.title',
   'pipeline.openspec.engine.matrix.actionLabel',
   'pipeline.openspec.engine.matrix.init',

@@ -325,9 +325,9 @@
 
 ## 7. Perfil de workflows
 
-- [ ] 7.1 En `electron/pipeline/`, agregar la lectura de `openspec config list` devolviendo perfil y workflows habilitados como datos, sin enum cerrado en el código.
-- [ ] 7.2 Agregar el canal de activación y desactivación de un workflow, y recalcular las acciones ofrecidas desde la configuración resultante.
-- [ ] 7.3 En `electron/__tests__/`, verificar que un workflow ausente de la configuración no habilita su acción, usando una configuración con un nombre de workflow que el código no conoce.
+- [x] 7.1 En `electron/pipeline/`, agregar la lectura de `openspec config list` devolviendo perfil y workflows habilitados como datos, sin enum cerrado en el código.
+- [x] 7.2 Agregar el canal de activación y desactivación de un workflow, y recalcular las acciones ofrecidas desde la configuración resultante.
+- [x] 7.3 En `electron/__tests__/`, verificar que un workflow ausente de la configuración no habilita su acción, usando una configuración con un nombre de workflow que el código no conoce.
 - [ ] 7.4 Distinguir el workflow que el perfil no habilita del que el motor instalado no tiene. Son dos causas distintas con soluciones distintas: la primera se resuelve activándolo desde el panel de perfil, la segunda actualizando el motor. Caso comprobado el 2026-08-19: el motor 1.5.0 no expone `update`, que sí integra el conjunto básico de la 1.9.0, de modo que cambiar el perfil a `core` no lo habilita.
 - [ ] 7.5 Cuando una operación no esté disponible por versión del motor, declarar cuál la habilitaría, apoyándose en el eje de novedad en npm que la tarjeta ya expone. No deducir la versión mínima de una tabla propia en el código: derivarla de lo que el motor y el registro informan.
 

@@ -216,7 +216,6 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
       /\.malformedWarning/, // TARJETA / DATO: aviso de tarea mal formada
       /\.taskErrorAlert/, // TARJETA / DATO: alerta de error en tarea
       /\.rawTextarea/, // CONTROL / FOCO: editor crudo de tareas
-      /\.profileSwitch/, // CONTROL: switch de activación/desactivación de workflow del perfil
       /:root/, // TOKENS (--os-border)
       /\.openspecScope/, // SCOPE
       /\.dashboard/, // ROOT
@@ -234,7 +233,8 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
           (s) =>
             s &&
             /^(border|border-top|border-bottom|border-left|border-right|border-color|border-block|border-inline)/i.test(s) &&
-            !s.startsWith('border-radius')
+            !s.startsWith('border-radius') &&
+            !/:\s*(none|0(?:px)?)\s*$/i.test(s)
         );
 
       if (borderProps.length > 0) {

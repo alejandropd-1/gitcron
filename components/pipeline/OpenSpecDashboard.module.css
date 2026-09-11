@@ -3906,8 +3906,8 @@ summary.centerBlock {
 .profileSwitch {
   position: relative;
   flex-shrink: 0;
-  width: 32px;
-  height: 18px;
+  width: 2rem;
+  height: 1.125rem;
   padding: 0;
   border: none;
   border-radius: var(--radius-full);

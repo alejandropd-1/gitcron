@@ -283,6 +283,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const [installError, setInstallError] = useState<string | null>(null);
   const [pendingWorkflow, setPendingWorkflow] = useState<string | null>(null);
   const [profileWriteError, setProfileWriteError] = useState<string | null>(null);
+  const [isSwitchingProfile, setIsSwitchingProfile] = useState(false);
 
   const gitStoreRepoPath = useGitStore((s) => s.repoPath);
   const effectiveRepoPath = repoPath ?? gitStoreRepoPath ?? undefined;
@@ -434,6 +435,8 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   // Los toggles solo se ofrecen cuando AMBAS fuentes están leídas ('read'):
   // con una fuente fallida, «deshabilitado» sería una afirmación falsa.
   const globalConfig = status.globalConfig;
+  const rawProfile = globalConfig?.rawProfile ?? null;
+  const isCustomProfile = rawProfile === 'custom';
   const profileDataReady =
     !!globalConfig &&
     globalConfig.workflowsState === 'read' &&
@@ -449,12 +452,37 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
 
   let profileBlockedReason: string | null = null;
   if (profileRowsVisible) {
-    if (!hasProfileWriteChannel) {
+    if (!isCustomProfile) {
+      profileBlockedReason = t('pipeline.openspec.engine.profile.notCustomReason', {
+        profile: rawProfile || 'core',
+      });
+    } else if (!hasProfileWriteChannel) {
       profileBlockedReason = t('pipeline.openspec.engine.profile.channelUnavailable');
     } else if (!effectiveRepoPath) {
       profileBlockedReason = t('pipeline.openspec.engine.profile.noRepo');
     }
   }
+
+  const handleSwitchProfileToCustom = async () => {
+    if (isSwitchingProfile || pendingWorkflow !== null) return;
+    if (typeof window === 'undefined' || !window.api?.pipelineOpenSpec?.switchProfileToCustom) return;
+
+    setIsSwitchingProfile(true);
+    setProfileWriteError(null);
+
+    try {
+      const result = await window.api.pipelineOpenSpec.switchProfileToCustom();
+      if (result.ok) {
+        onChanged?.();
+      } else {
+        setProfileWriteError(result.error || t('pipeline.openspec.engine.profile.switchError'));
+      }
+    } catch (err: unknown) {
+      setProfileWriteError((err as Error)?.message || t('pipeline.openspec.engine.profile.switchError'));
+    } finally {
+      setIsSwitchingProfile(false);
+    }
+  };
 
   const handleToggleWorkflow = async (workflow: string, enabled: boolean) => {
     if (pendingWorkflow !== null || !effectiveRepoPath) return;
@@ -980,7 +1008,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                           : 'pipeline.openspec.engine.profile.toggleOn', { workflow: row.workflow })}
                         className={styles.profileSwitch}
                         data-state={row.enabled ? 'on' : 'off'}
-                        disabled={pendingWorkflow !== null || profileBlockedReason !== null}
+                        disabled={pendingWorkflow !== null || profileBlockedReason !== null || isSwitchingProfile || !isCustomProfile}
                         title={profileBlockedReason ?? undefined}
                         onClick={() => void handleToggleWorkflow(row.workflow, !row.enabled)}
                       >
@@ -990,6 +1018,24 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                   </li>
                 ))}
               </ul>
+            )}
+
+            {!isCustomProfile && profileRowsVisible && (
+              <div className={styles.profileCustomActionRow}>
+                <button
+                  type="button"
+                  className={styles.profileCustomBtn}
+                  disabled={isSwitchingProfile || pendingWorkflow !== null}
+                  onClick={handleSwitchProfileToCustom}
+                >
+                  {isSwitchingProfile && <Loader2 size={12} className={styles.spin} aria-hidden="true" />}
+                  <span>
+                    {t(isSwitchingProfile
+                      ? 'pipeline.openspec.engine.profile.switchingToCustom'
+                      : 'pipeline.openspec.engine.profile.switchToCustom')}
+                  </span>
+                </button>
+              </div>
             )}
 
             {profileWriteError && (

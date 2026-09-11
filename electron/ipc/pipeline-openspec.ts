@@ -18,6 +18,7 @@ import type {
   OpenSpecTargetDivergenceDetail,
   OpenSpecUpdatePlan,
   SetOpenSpecWorkflowResult,
+  SwitchOpenSpecProfileResult,
 } from '../../types/pipeline';
 import {
   discoverOpenSpecCli,
@@ -41,7 +42,11 @@ import {
   type InstructionsOpenSpecOptions,
   type RunOpenSpecUpdateOptions,
 } from '../pipeline/openspec-cli';
-import { readOpenSpecGlobalConfig, setOpenSpecWorkflow } from '../pipeline/openspec-global-config';
+import {
+  readOpenSpecGlobalConfig,
+  setOpenSpecWorkflow,
+  switchOpenSpecProfileToCustom,
+} from '../pipeline/openspec-global-config';
 import { inspectInstalledEvidence } from '../pipeline/openspec-evidence';
 import { checkLatestOpenSpecVersion, getLocalCacheRegistryStatus } from '../pipeline/openspec-registry';
 import {
@@ -81,6 +86,7 @@ export interface OpenSpecIpcDeps {
   installGlobal?: typeof installOpenSpecGlobal;
   resolvePackageManager?: typeof resolvePackageManager;
   setWorkflow?: typeof setOpenSpecWorkflow;
+  switchProfileToCustom?: typeof switchOpenSpecProfileToCustom;
 }
 
 /**
@@ -974,6 +980,22 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
 
       const setWorkflowFn = deps.setWorkflow ?? setOpenSpecWorkflow;
       return setWorkflowFn({ workflow: rawWorkflow, enabled, runtime: authorizedRuntime });
+    },
+  );
+
+  // 16. Switch Profile To Custom (Tanda 7.6: cambiar perfil a custom preservando resolvedWorkflows)
+  ipc.handle(
+    'pipeline:openspec:switch-profile-to-custom',
+    async (_event, payload?: unknown): Promise<SwitchOpenSpecProfileResult> => {
+      validateStrictPayloadKeys(payload, []);
+
+      const getUserDataDir = deps.getUserDataDir ?? (() => null);
+      const userDataDir = getUserDataDir();
+      const resolveRuntime = deps.resolveRuntime ?? resolveOpenSpecExecutable;
+      const authorizedRuntime = resolveRuntime({ userDataDir });
+
+      const switchFn = deps.switchProfileToCustom ?? switchOpenSpecProfileToCustom;
+      return switchFn({ runtime: authorizedRuntime });
     },
   );
 }

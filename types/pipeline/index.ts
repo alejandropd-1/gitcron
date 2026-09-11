@@ -414,6 +414,15 @@ export interface SetOpenSpecWorkflowResult {
 }
 
 /**
+ * Resultado de cambiar el perfil global a 'custom' preservando los workflows resueltos.
+ */
+export interface SwitchOpenSpecProfileResult {
+  ok: boolean;
+  config: OpenSpecGlobalConfig | null;
+  error?: string;
+}
+
+/**
  * Estado instalado en el repositorio (segunda fuente, independiente de la
  * configuración global). Declara explícitamente los campos tipados del contrato.
  */

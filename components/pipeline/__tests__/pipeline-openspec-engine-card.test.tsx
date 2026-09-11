@@ -1098,3 +1098,128 @@ describe('formatDivergenceReason (multiple-target-divergences)', () => {
     expect(recCount).toBe(1);
   });
 });
+
+describe('OpenSpecEngineCard (Perfil de workflows y cambio a custom - Tarea 7.6)', () => {
+  afterEach(() => {
+    cleanup();
+    delete (window as any).api;
+  });
+
+  const baseStatusWithProfile = (profile: string): OpenSpecEngineStatus => ({
+    cli: {
+      installed: true,
+      runtimeVersion: '1.12.0',
+      provenance: 'global',
+      displayPath: 'C:\\global\\openspec.cmd',
+      supportedRange: { min: '1.5.0', max: '1.12.0' },
+      versionClass: 'supported',
+      evidenceStatus: 'confirmed',
+      diagnostics: [],
+    },
+    latestAvailable: null,
+    globalConfig: {
+      rawProfile: profile,
+      profileState: 'read',
+      delivery: 'both',
+      deliveryState: 'read',
+      configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+      workflowsState: 'read',
+      resolvedWorkflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+      resolvedWorkflowsState: 'read',
+      origin: 'cli',
+      readAt: '2026-09-11T12:00:00.000Z',
+    },
+    installedIntegration: null,
+    repoState: 'initialized',
+    integrationState: 'up-to-date',
+  });
+
+  it('perfil core → los switches tienen disabled, el motivo nombra «core», y el botón existe', () => {
+    const mockApi = {
+      setWorkflow: vi.fn(),
+      switchProfileToCustom: vi.fn(),
+    };
+    (window as any).api = { pipelineOpenSpec: mockApi };
+
+    render(
+      <OpenSpecEngineCard
+        status={baseStatusWithProfile('core')}
+        compact={false}
+        repoPath={'C:\\repo'}
+      />,
+    );
+
+    // Desplegar diagnóstico avanzado para ver la sección de workflows
+    fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
+
+    // Los switches tienen disabled
+    const switches = screen.getAllByRole('switch');
+    expect(switches.length).toBeGreaterThan(0);
+    switches.forEach((s) => {
+      expect(s.hasAttribute('disabled')).toBe(true);
+    });
+
+    // El motivo nombra «core»
+    expect(screen.getByText(/El perfil «core» fija los workflows/i)).toBeDefined();
+
+    // El botón «Cambiar a custom» existe
+    const switchBtn = screen.getByRole('button', { name: /Cambiar a custom/i });
+    expect(switchBtn).toBeDefined();
+  });
+
+  it('clic en el botón → llama al canal UNA vez y después a onChanged', async () => {
+    const switchMock = vi.fn().mockResolvedValue({ ok: true });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        setWorkflow: vi.fn(),
+        switchProfileToCustom: switchMock,
+      },
+    };
+    const onChanged = vi.fn();
+
+    render(
+      <OpenSpecEngineCard
+        status={baseStatusWithProfile('core')}
+        compact={false}
+        repoPath={'C:\\repo'}
+        onChanged={onChanged}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
+
+    const switchBtn = screen.getByRole('button', { name: /Cambiar a custom/i });
+    await fireEvent.click(switchBtn);
+
+    expect(switchMock).toHaveBeenCalledTimes(1);
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('perfil custom → los switches NO tienen disabled y el botón NO existe', () => {
+    const mockApi = {
+      setWorkflow: vi.fn(),
+      switchProfileToCustom: vi.fn(),
+    };
+    (window as any).api = { pipelineOpenSpec: mockApi };
+
+    render(
+      <OpenSpecEngineCard
+        status={baseStatusWithProfile('custom')}
+        compact={false}
+        repoPath={'C:\\repo'}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
+
+    // Los switches NO tienen disabled
+    const switches = screen.getAllByRole('switch');
+    expect(switches.length).toBeGreaterThan(0);
+    switches.forEach((s) => {
+      expect(s.hasAttribute('disabled')).toBe(false);
+    });
+
+    // El botón NO existe
+    expect(screen.queryByRole('button', { name: /Cambiar a custom/i })).toBeNull();
+  });
+});

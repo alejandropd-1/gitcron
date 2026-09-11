@@ -454,6 +454,10 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.engine.profile.channelUnavailable',
   'pipeline.openspec.engine.profile.noRepo',
   'pipeline.openspec.engine.profile.error',
+  'pipeline.openspec.engine.profile.notCustomReason',
+  'pipeline.openspec.engine.profile.switchToCustom',
+  'pipeline.openspec.engine.profile.switchingToCustom',
+  'pipeline.openspec.engine.profile.switchError',
 ] as const;
 
 describe('Pipeline i18n', () => {

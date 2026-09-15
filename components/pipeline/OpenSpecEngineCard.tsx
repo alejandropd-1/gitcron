@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useT } from '@/hooks/use-translation';
-import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, HelpCircle, Copy, Check, Loader2, Lock, LockOpen } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, HelpCircle, Copy, Check, Loader2, Lock, LockOpen, RefreshCw } from 'lucide-react';
 import type {
   OpenSpecCliProvenance,
   OpenSpecDivergenceReason,
@@ -12,17 +12,18 @@ import type {
 import {
   OPENSPEC_CYCLE_TARGET_VERSION,
   SUPPORTED_OPENSPEC_VERSIONS,
-  isInstalledAheadOfCycle,
   isInstalledBehindCycle,
 } from '@/lib/openspec-version';
-import { deriveProfileWorkflowRows, OPENSPEC_UPDATE_COMMAND } from '@/lib/openspec-profile';
+import { deriveProfileWorkflowRows } from '@/lib/openspec-profile';
 import styles from './OpenSpecDashboard.module.css';
 import { useGitStore } from '@/lib/git-store';
+import { usePipelineStore } from '@/lib/pipeline-store';
+import { OpenSpecGlobalInstallConfirm, formatInstallErrorCode } from './OpenSpecGlobalInstallConfirm';
+import { isOpenSpecEngineStatusIncomplete } from './pipeline-domain';
 
 const VERSION_CLASS_KEY_MAP: Record<OpenSpecVersionClass, string> = {
   supported: 'pipeline.openspec.engine.versionClass.supported',
   'too-old': 'pipeline.openspec.engine.versionClass.tooOld',
-  'too-new': 'pipeline.openspec.engine.versionClass.tooNew',
   unknown: 'pipeline.openspec.engine.versionClass.unknown',
 };
 
@@ -60,28 +61,6 @@ const PRESENCE_KEY_MAP: Record<string, string> = {
   blocked: 'pipeline.openspec.engine.presence.blocked',
 };
 
-/**
- * Evalúa si la versión del motor presenta desfase respecto a la versión
- * objetivo del ciclo (sea por superarla o por ser anterior).
- *
- * Decisión de ubicación y motivo:
- * Esta comprobación vive aquí como función exportada para que la tarjeta de diagnóstico
- * y cualquier consumidor compartan exactamente la misma regla de desfase de ciclo.
- * Se apoya de forma directa en las funciones simétricas `isInstalledAheadOfCycle`
- * e `isInstalledBehindCycle` de `lib/openspec-version.ts`, las mismas que alimentan
- * la franja superior de OpenSpecDashboard.tsx (`hasOpenSpecEngineAttention || isAhead || isBehind`).
- * Al calcularse el desfase con esta función única, la insignia general de la tarjeta
- * y el chip de la franja superior quedan acoplados al mismo hecho objetivo y no pueden divergir.
- */
-export function hasOpenSpecCycleMismatch(
-  runtimeVersion: string | null | undefined,
-  cycleVersion: string = OPENSPEC_CYCLE_TARGET_VERSION,
-): boolean {
-  return (
-    isInstalledAheadOfCycle(runtimeVersion, cycleVersion) ||
-    isInstalledBehindCycle(runtimeVersion, cycleVersion)
-  );
-}
 
 export interface OpenSpecEngineCardProps {
   status: OpenSpecEngineStatus | null;
@@ -97,30 +76,13 @@ export interface OpenSpecEngineCardProps {
   repoPath?: string;
   commandExecuted?: string;
   packageManagerPath?: string;
+  packageManagerName?: string | null;
   onInstalled?: (result: OpenSpecInstallResult) => void;
   /** Se invoca cuando una escritura de perfil (toggle de workflow) termina con éxito, para que el padre re-fetchee el estado. La tarjeta no muta su propio `status`. */
   onChanged?: () => void;
 }
 
-export function formatInstallErrorCode(
-  code: string | undefined,
-  t: (key: string, params?: Record<string, string | number>) => string,
-): string {
-  switch (code) {
-    case 'no-manifest':
-      return t('pipeline.openspec.engine.install.error.noManifest');
-    case 'package-manager-not-found':
-      return t('pipeline.openspec.engine.install.error.packageManagerNotFound');
-    case 'permission-denied':
-      return t('pipeline.openspec.engine.install.error.permissionDenied');
-    case 'invalid-target-version':
-      return t('pipeline.openspec.engine.install.error.invalidTargetVersion');
-    case 'install-failed':
-      return t('pipeline.openspec.engine.install.error.installFailed');
-    default:
-      return '';
-  }
-}
+export { formatInstallErrorCode } from './OpenSpecGlobalInstallConfirm';
 
 function formatAgentList(
   agents: string[],
@@ -269,6 +231,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   repoPath,
   commandExecuted: propCommandExecuted,
   packageManagerPath,
+  packageManagerName,
   onInstalled,
   onChanged,
 }) => {
@@ -284,7 +247,6 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const [pendingWorkflow, setPendingWorkflow] = useState<string | null>(null);
   const [profileWriteError, setProfileWriteError] = useState<string | null>(null);
   const [isSwitchingProfile, setIsSwitchingProfile] = useState(false);
-  const [copiedDivergenceCmd, setCopiedDivergenceCmd] = useState(false);
 
   const gitStoreRepoPath = useGitStore((s) => s.repoPath);
   const effectiveRepoPath = repoPath ?? gitStoreRepoPath ?? undefined;
@@ -392,9 +354,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const totalCount = installed?.totalPresentAgentsCount ?? installed?.totalPresentCount ?? configuredCount;
 
   // Determinar estado general: ready | needs-attention | unknown
-  const isAhead = isInstalledAheadOfCycle(cli.runtimeVersion);
   const isBehind = isInstalledBehindCycle(cli.runtimeVersion);
-  const isCycleMismatch = hasOpenSpecCycleMismatch(cli.runtimeVersion);
 
   let generalStatus: 'ready' | 'needs-attention' | 'unknown' = 'ready';
   if (status.integrationState === 'unknown' || status.repoState === 'unknown') {
@@ -402,12 +362,11 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   } else if (
     !cli.installed ||
     cli.versionClass === 'too-old' ||
-    cli.versionClass === 'too-new' ||
     status.integrationState === 'outdated' ||
     status.integrationState === 'conflicted' ||
     status.repoState === 'not-initialized' ||
     status.divergence?.isDivergent ||
-    isCycleMismatch
+    isBehind
   ) {
     generalStatus = 'needs-attention';
   }
@@ -417,7 +376,6 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const versionClassKey = cli.versionClass ? (VERSION_CLASS_KEY_MAP[cli.versionClass] ?? 'pipeline.openspec.engine.versionClass.unknown') : 'pipeline.openspec.engine.versionClass.unknown';
   const versionClassText = t(versionClassKey, {
     min: cli.supportedRange?.min ?? SUPPORTED_OPENSPEC_VERSIONS.min,
-    max: cli.supportedRange?.max ?? SUPPORTED_OPENSPEC_VERSIONS.max,
   });
   const versionStr = cli.runtimeVersion ? `v${cli.runtimeVersion}` : '';
   const engineText = versionStr ? `${versionStr} · ${versionClassText}` : versionClassText;
@@ -478,6 +436,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     try {
       const result = await window.api.pipelineOpenSpec.setProfile({ profile: targetProfile });
       if (result.ok) {
+        usePipelineStore.getState().notifyEngineChanged();
         onChanged?.();
       } else {
         setProfileWriteError(result.error || t('pipeline.openspec.engine.profile.switchError'));
@@ -499,6 +458,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     try {
       const result = await window.api.pipelineOpenSpec.setWorkflow({ workflow, enabled });
       if (result.ok) {
+        usePipelineStore.getState().notifyEngineChanged();
         onChanged?.();
       } else {
         setProfileWriteError(result.error || t('pipeline.openspec.engine.profile.error'));
@@ -555,36 +515,6 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     }
   };
 
-  const handleConfirmInstallGlobal = async () => {
-    if (isInstalling) return;
-    if (typeof window === 'undefined' || !window.api?.pipelineOpenSpec?.installGlobal) return;
-
-    setIsInstalling(true);
-    setInstallingMode('global');
-    setInstallResult(null);
-    setInstallError(null);
-
-    try {
-      const result = await window.api.pipelineOpenSpec.installGlobal({ repoPath: effectiveRepoPath || undefined });
-      setInstallResult(result);
-      if (result.success) {
-        setIsConfirmingGlobal(false);
-        onInstalled?.(result);
-      } else {
-        const errorMsg =
-          formatInstallErrorCode(result.code, t) ||
-          result.error ||
-          t('pipeline.openspec.engine.install.error.installFailed');
-        setInstallError(errorMsg);
-      }
-    } catch (err: unknown) {
-      setInstallError((err as Error)?.message || t('pipeline.openspec.engine.install.error.installFailed'));
-    } finally {
-      setIsInstalling(false);
-      setInstallingMode(null);
-    }
-  };
-
   return (
     <section className={styles.engineCardSection} aria-label={t('pipeline.openspec.engine.cardTitle')}>
       {/* VISTA PRIMARIA: Información comprensible y accionable */}
@@ -597,20 +527,36 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
             {generalStatus === 'unknown' && <HelpCircle size={13} aria-hidden="true" />}
             {t(generalStatusKey)}
           </span>
+          <button
+            type="button"
+            className={styles.iconBtn}
+            aria-label={t('pipeline.openspec.engine.reread')}
+            title={t('pipeline.openspec.engine.reread')}
+            onClick={() => {
+              usePipelineStore.getState().notifyEngineChanged();
+              onChanged?.();
+            }}
+          >
+            <RefreshCw size={13} aria-hidden="true" />
+          </button>
         </div>
       </header>
 
+      {isOpenSpecEngineStatusIncomplete(status) && (
+        <p className={styles.blockedReasonInline} role="alert">
+          {t('pipeline.openspec.engine.incompleteRead')}
+        </p>
+      )}
+
       {/* Acciones upfront que preceden al diagnóstico (Tarea 9.1 & 9.5) */}
-      {onOpenReview && (
+      {onOpenReview && !isReviewOpen && (
         <div className={styles.engineActionsRow}>
           <button
             type="button"
-            className={styles.centerAttentionBtn}
+            className={styles.primaryAction}
             onClick={onOpenReview}
           >
-            {isReviewOpen
-              ? t('pipeline.openspec.engine.closeReviewAction')
-              : t('pipeline.openspec.engine.reviewAction')}
+            {t('pipeline.openspec.engine.reviewAction')}
           </button>
         </div>
       )}
@@ -622,7 +568,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
           <div className={styles.engineInstallActionRow}>
             <button
               type="button"
-              className={styles.centerAttentionBtn}
+              className={styles.primaryAction}
               onClick={handleInstallLocal}
               disabled={isInstalling || isLocalBlocked}
               title={localBlockedReason || undefined}
@@ -649,7 +595,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
               <div className={styles.engineInstallActionRow}>
                 <button
                   type="button"
-                  className={styles.centerAttentionBtn}
+                  className={styles.primaryAction}
                   onClick={() => {
                     setInstallError(null);
                     setIsConfirmingGlobal(true);
@@ -728,7 +674,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                 )}
                 {resolvedPmPath && (
                   <p style={{ margin: 'var(--space-1) 0 0' }}>
-                    <code>npm: {resolvedPmPath}</code>
+                    <code>{`${packageManagerName ?? 'npm'}: ${resolvedPmPath}`}</code>
                   </p>
                 )}
                 {openRepoPaths && openRepoPaths.length > 0 && (
@@ -740,112 +686,42 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
               </div>
             </>
           ) : (
-            <div className={styles.engineInstallConfirmBox} role="region" aria-label={t('pipeline.openspec.engine.install.confirmGlobalAction')}>
-              <p className={styles.engineInstallConfirmPrompt}>
-                {t('pipeline.openspec.engine.install.confirmGlobalPrompt')}
-              </p>
-
-              {displayCommand ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
-                  <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>
-                    {displayCommand}
-                  </code>
-                  <button
-                    type="button"
-                    className={styles.reviewCopyBtn}
-                    onClick={() => {
-                      if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                        void navigator.clipboard.writeText(displayCommand);
-                        setCopiedGlobal(true);
-                        setTimeout(() => setCopiedGlobal(false), 2000);
-                      }
-                    }}
-                    title={t('pipeline.openspec.archive.copyCommand')}
-                  >
-                    {copiedGlobal ? (
-                      <>
-                        <Check size={12} aria-hidden="true" />
-                        <span>{t('pipeline.openspec.archive.copiedCommand')}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={12} aria-hidden="true" />
-                        <span>{t('pipeline.openspec.archive.copyCommand')}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                  {t('pipeline.openspec.engine.install.commandPendingResolution')}
-                </p>
-              )}
-
-              <div className={styles.engineInstallDetails}>
-                {resolvedNodePath && (
-                  <p style={{ margin: 'var(--space-1) 0 0' }}>
-                    <code>Node: {resolvedNodePath}</code>
-                  </p>
-                )}
-                {resolvedPmPath && (
-                  <p style={{ margin: 'var(--space-1) 0 0' }}>
-                    <code>npm: {resolvedPmPath}</code>
-                  </p>
-                )}
-                {openRepoPaths && openRepoPaths.length > 0 && (
-                  <p style={{ margin: 'var(--space-1) 0 0' }}>
-                    <span>{t('pipeline.openspec.engine.install.affectedRepos', { count: openRepoPaths.length })} </span>
-                    <code>{openRepoPaths.join(', ')}</code>
-                  </p>
-                )}
-              </div>
-
-              <div className={styles.engineInstallConfirmActions}>
-                <button
-                  type="button"
-                  className={styles.centerAttentionBtn}
-                  onClick={handleConfirmInstallGlobal}
-                  disabled={isInstalling}
-                >
-                  {isInstalling && installingMode === 'global' ? (
-                    <>
-                      <Loader2 size={12} className={styles.spin} aria-hidden="true" />
-                      <span>{t('pipeline.openspec.engine.install.installingGlobal')}</span>
-                    </>
-                  ) : (
-                    t('pipeline.openspec.engine.install.confirmGlobalAction')
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className={styles.reviewCopyBtn}
-                  onClick={() => setIsConfirmingGlobal(false)}
-                  disabled={isInstalling}
-                >
-                  {t('pipeline.openspec.engine.install.cancelGlobalAction')}
-                </button>
-              </div>
-            </div>
+            <OpenSpecGlobalInstallConfirm
+              command={displayCommand}
+              nodePath={resolvedNodePath}
+              packageManagerPath={resolvedPmPath}
+              packageManagerName={packageManagerName}
+              openRepoPaths={openRepoPaths}
+              repoPath={effectiveRepoPath}
+              installedVersion={cli.runtimeVersion}
+              isBusy={isInstalling}
+              onCancel={() => setIsConfirmingGlobal(false)}
+              onInstalled={(result) => {
+                setInstallResult(result);
+                onInstalled?.(result);
+              }}
+            />
           )}
 
-          {/* Feedback de resultado de instalación (éxito o error) */}
-          {installResult?.success && (
-            <div className={`${styles.engineInstallFeedback} ${styles.engineInstallFeedbackSuccess}`} role="status">
-              <CheckCircle2 size={14} aria-hidden="true" />
-              <span>
-                {installResult.mode === 'local'
-                  ? t('pipeline.openspec.engine.install.successLocal')
-                  : t('pipeline.openspec.engine.install.successGlobal')}
-              </span>
-            </div>
-          )}
+        </div>
+      )}
 
-          {installError && (
-            <div className={`${styles.engineInstallFeedback} ${styles.engineInstallFeedbackError}`} role="alert">
-              <AlertTriangle size={14} aria-hidden="true" />
-              <span>{installError}</span>
-            </div>
-          )}
+      {/* Feedback de resultado de instalación (éxito o error) */}
+      {installResult?.success && (
+        <div className={`${styles.engineInstallFeedback} ${styles.engineInstallFeedbackSuccess}`} role="status">
+          <CheckCircle2 size={14} aria-hidden="true" />
+          <span>
+            {installResult.mode === 'local'
+              ? t('pipeline.openspec.engine.install.successLocal')
+              : t('pipeline.openspec.engine.install.successGlobal')}
+          </span>
+        </div>
+      )}
+
+      {installError && (
+        <div className={`${styles.engineInstallFeedback} ${styles.engineInstallFeedbackError}`} role="alert">
+          <AlertTriangle size={14} aria-hidden="true" />
+          <span>{installError}</span>
         </div>
       )}
 
@@ -861,18 +737,6 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
         <div className={styles.summaryFactRow}>
           <span>{t('pipeline.openspec.engine.cycleVersion', { version: OPENSPEC_CYCLE_TARGET_VERSION })}</span>
         </div>
-
-        {isAhead && (
-          <div className={styles.summaryFactRow} role="status">
-            <span style={{ color: 'var(--color-warning)' }}>
-              <AlertTriangle size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 'var(--space-1)' }} />
-              {t('pipeline.openspec.engine.versionAheadOfCycle', {
-                installed: cli.runtimeVersion ?? '?',
-                cycle: OPENSPEC_CYCLE_TARGET_VERSION,
-              })}
-            </span>
-          </div>
-        )}
 
         {isBehind && (
           <div className={styles.summaryFactRow} role="status">
@@ -1073,61 +937,11 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                 : divergence.overallStatus === 'convergent' ? 'convergent' : 'unknown'}
             >
               {divergence.isDivergent ? (
-                <>
-                  <span className={styles.divergentText}>
-                    {t('pipeline.openspec.engine.advanced.divergentNotice', {
-                      reason: formatDivergenceReason(divergence.reason, t),
-                    })}
-                  </span>
-                  <div className={styles.divergenceResolution}>
-                    <span className={styles.divergenceResolutionTitle}>
-                      {t('pipeline.openspec.engine.divergence.resolutionTitle')}
-                    </span>
-                    {onOpenReview && (
-                      <div className={styles.divergenceActionRow}>
-                        <button
-                          type="button"
-                          className={styles.divergenceUpdateBtn}
-                          onClick={onOpenReview}
-                        >
-                          {t('pipeline.openspec.engine.divergence.updateAction')}
-                        </button>
-                      </div>
-                    )}
-                    <div className={styles.divergenceManualRow}>
-                      <span className={styles.divergenceManualText}>
-                        {t('pipeline.openspec.engine.divergence.manualPath')}
-                      </span>
-                      <div className={styles.divergenceCommandRow}>
-                        <code className={styles.divergenceCommandCode}>{OPENSPEC_UPDATE_COMMAND}</code>
-                        <button
-                          type="button"
-                          className={styles.reviewCopyBtn}
-                          onClick={() => {
-                            if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                              void navigator.clipboard.writeText(OPENSPEC_UPDATE_COMMAND);
-                              setCopiedDivergenceCmd(true);
-                              setTimeout(() => setCopiedDivergenceCmd(false), 2000);
-                            }
-                          }}
-                          title={t('pipeline.openspec.archive.copyCommand')}
-                        >
-                          {copiedDivergenceCmd ? (
-                            <>
-                              <Check size={12} aria-hidden="true" />
-                              <span>{t('pipeline.openspec.archive.copiedCommand')}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy size={12} aria-hidden="true" />
-                              <span>{t('pipeline.openspec.archive.copyCommand')}</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </>
+                <span className={styles.divergentText}>
+                  {t('pipeline.openspec.engine.advanced.divergentNotice', {
+                    reason: formatDivergenceReason(divergence.reason, t),
+                  })}
+                </span>
               ) : divergence.overallStatus === 'convergent' ? (
                 <span className={styles.convergentText}>
                   {t('pipeline.openspec.engine.advanced.convergentNotice', { profile: divergence.repoProfileClass })}

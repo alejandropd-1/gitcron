@@ -304,12 +304,17 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
   });
 
   describe('pipeline:openspec:run-update (Salvaguardas de Git y Ejecución Controlada)', () => {
-    it('bloquea incondicionalmente la ejecución si el repositorio está en main o master', async () => {
+    it('permite la ejecución cuando el repositorio está en main o master (aviso informativo, sin bloqueo duro)', async () => {
       const { map, ipcMain } = createMockIpc();
       authorizedRepoStore.clear();
       authorizedRepoStore.authorizeRepo(process.cwd());
 
-      const runUpdateMock = vi.fn();
+      const runUpdateMock = vi.fn().mockResolvedValue({
+        success: true,
+        status: 'completed',
+        filesUpdated: ['.agents/skills/openspec-propose/SKILL.md'],
+        errors: [],
+      });
 
       registerOpenSpecIpcHandlers({
         ipcMain: ipcMain as any,
@@ -321,10 +326,9 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
       const runUpdateHandler = map.get('pipeline:openspec:run-update')!;
 
       const result = await runUpdateHandler({}, { repoPath: process.cwd() });
-      expect(result.success).toBe(false);
-      expect(result.status).toBe('blocked');
-      expect(result.errors).toContain('branch-protected-main');
-      expect(runUpdateMock).not.toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.status).toBe('completed');
+      expect(runUpdateMock).toHaveBeenCalledTimes(1);
     });
 
     it('bloquea incondicionalmente la ejecución si la rama es null o HEAD desacoplado (detached HEAD)', async () => {
@@ -350,12 +354,40 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
       expect(runUpdateMock).not.toHaveBeenCalled();
     });
 
-    it('bloquea la ejecución si el working tree contiene cambios no confirmados (dirty)', async () => {
+    it('bloquea la ejecución si la rama es explícitamente HEAD (detached HEAD)', async () => {
       const { map, ipcMain } = createMockIpc();
       authorizedRepoStore.clear();
       authorizedRepoStore.authorizeRepo(process.cwd());
 
       const runUpdateMock = vi.fn();
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: ipcMain as any,
+        getUserDataDir: () => 'C:\\userData',
+        getGitInfo: async () => ({ branch: 'HEAD', headCommit: 'abc1234', isClean: true, workingTreeFingerprint: 'clean:0:abc' }),
+        runUpdate: runUpdateMock,
+      });
+
+      const runUpdateHandler = map.get('pipeline:openspec:run-update')!;
+
+      const result = await runUpdateHandler({}, { repoPath: process.cwd() });
+      expect(result.success).toBe(false);
+      expect(result.status).toBe('blocked');
+      expect(result.errors).toContain('branch-detached');
+      expect(runUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it('permite la ejecución si el working tree contiene cambios no confirmados (dirty) (aviso informativo, sin bloqueo duro)', async () => {
+      const { map, ipcMain } = createMockIpc();
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(process.cwd());
+
+      const runUpdateMock = vi.fn().mockResolvedValue({
+        success: true,
+        status: 'completed',
+        filesUpdated: ['.agents/skills/openspec-propose/SKILL.md'],
+        errors: [],
+      });
 
       registerOpenSpecIpcHandlers({
         ipcMain: ipcMain as any,
@@ -367,10 +399,9 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
       const runUpdateHandler = map.get('pipeline:openspec:run-update')!;
 
       const result = await runUpdateHandler({}, { repoPath: process.cwd() });
-      expect(result.success).toBe(false);
-      expect(result.status).toBe('blocked');
-      expect(result.errors).toContain('working-tree-dirty');
-      expect(runUpdateMock).not.toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.status).toBe('completed');
+      expect(runUpdateMock).toHaveBeenCalledTimes(1);
     });
 
     it('ejecuta openspec update en rama de trabajo limpia y propaga opciones force', async () => {

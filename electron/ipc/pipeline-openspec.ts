@@ -614,25 +614,14 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
 
       const gitInfo = await getGitInfo(validRepoPath);
 
-      // Salvaguarda 1: Bloqueo incondicional en main / master o detached HEAD (Decisión 1 y Hallazgo 7)
+      // Salvaguarda: Bloqueo incondicional en detached HEAD (sin rama no hay dónde dejar el commit después)
       const branch = gitInfo.branch ? gitInfo.branch.trim() : '';
-      if (!branch || branch === 'main' || branch === 'master' || branch === 'HEAD') {
-        const isMain = branch === 'main' || branch === 'master';
+      if (!branch || branch === 'HEAD') {
         return {
           success: false,
           status: 'blocked',
           filesUpdated: [],
-          errors: [isMain ? 'branch-protected-main' : 'branch-detached'],
-        };
-      }
-
-      // Salvaguarda 2: Bloqueo con working tree sucio
-      if (!gitInfo.isClean) {
-        return {
-          success: false,
-          status: 'blocked',
-          filesUpdated: [],
-          errors: ['working-tree-dirty'],
+          errors: ['branch-detached'],
         };
       }
 

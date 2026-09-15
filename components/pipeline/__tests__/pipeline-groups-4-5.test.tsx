@@ -91,7 +91,7 @@ describe('OpenSpec Groups 4 y 5 — Formulario transparente y declaración de ve
       expect(screen.getByText('pipeline.openspec.engine.cycleVersion:{"version":"1.12.0"}')).toBeTruthy();
     });
 
-    it('informa cuando la versión instalada supera a la versión declarada del ciclo (5.2)', () => {
+    it('no avisa cuando la versión instalada es posterior a la del ciclo (decisión 2026-09-14)', () => {
       const aheadStatus: OpenSpecEngineStatus = {
         ...baseStatus,
         cli: {
@@ -101,9 +101,9 @@ describe('OpenSpec Groups 4 y 5 — Formulario transparente y declaración de ve
       };
 
       render(<OpenSpecEngineCard status={aheadStatus} />);
-      expect(
-        screen.getByText('pipeline.openspec.engine.versionAheadOfCycle:{"installed":"1.13.0","cycle":"1.12.0"}'),
-      ).toBeTruthy();
+      expect(screen.queryByText(/versionAheadOfCycle/)).toBeNull();
+      expect(screen.queryByText(/versionBehindCycle/)).toBeNull();
+      expect(screen.queryByText('pipeline.openspec.engine.generalStatus.needsAttention')).toBeNull();
     });
 
     it('informa cuando la versión instalada es anterior a la versión declarada del ciclo (5.2)', () => {

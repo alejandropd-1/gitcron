@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { PipelineWorkspace } from '../PipelineWorkspace';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
 import { OpenSpecInspector } from '../OpenSpecInspector';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import type { OpenSpecEngineStatus } from '../../../types/pipeline';
 import type { PipelineSnapshot } from '../pipeline-view-state';
+import { OPENSPEC_CYCLE_TARGET_VERSION } from '@/lib/openspec-version';
+import { _resetDefaultEngineStatusReader } from '@/lib/engine-status-reader';
 
 vi.mock('@/lib/git-store', () => ({
   useGitStore: (selector: any) =>
@@ -39,7 +41,8 @@ vi.mock('@/lib/new-change-draft-store', () => ({
 describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cableado Productivo)', () => {
   afterEach(() => {
     cleanup();
-    usePipelineStore.setState({ selectedChangeId: null, openSpecificationId: null });
+    _resetDefaultEngineStatusReader();
+    usePipelineStore.setState({ selectedChangeId: null, openSpecificationId: null, reviewOpen: false });
   });
 
   const dummySnapshot: PipelineSnapshot = {
@@ -111,7 +114,7 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     divergence: { isDivergent: false, reason: null, overallStatus: 'convergent', globalProfileClass: 'core', repoProfileClass: 'core' },
   };
 
-  it('propaga onEnsureRightOpen a través de PipelineWorkspace cuando se interactúa con el botón central y la insignia compacta', async () => {
+  it('el clic en la píldora de versión abre la revisión en el centro y NO llama a onEnsureRightOpen', async () => {
     const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusOutdated);
     const checkLatestVersionMock = vi.fn().mockResolvedValue(null);
     const onEnsureRightOpenMock = vi.fn();
@@ -127,7 +130,7 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
 
     const mockLoader = vi.fn().mockResolvedValue(dummySnapshot);
 
-    render(
+    const { container } = render(
       <PipelineWorkspace
         repoPath="C:\\repo"
         currentBranch="main"
@@ -141,10 +144,16 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
       />,
     );
 
-    // Clic en insignia de motor en franja de identidad abre el panel derecho si está cerrado
+    // Clic en insignia de motor en franja de identidad abre la revisión en el centro
     const compactBadge = await screen.findByTitle(/OpenSpec v1.8.0/i);
     fireEvent.click(compactBadge);
-    expect(onEnsureRightOpenMock).toHaveBeenCalledTimes(1);
+
+    expect(onEnsureRightOpenMock).not.toHaveBeenCalled();
+    const heading = await screen.findByRole('heading', { name: /Revisión de Actualización de OpenSpec/i });
+    expect(heading).toBeDefined();
+    const mainSection = container.querySelector('main');
+    expect(mainSection).not.toBeNull();
+    expect(mainSection!.contains(heading)).toBe(true);
 
     vi.unstubAllGlobals();
   });
@@ -401,12 +410,10 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     expect(mainSection).not.toBeNull();
     expect(mainSection!.textContent).toContain('Revisión de Actualización de OpenSpec');
 
-    // 2. El botón de la tarjeta del motor ahora alterna a "Cerrar revisión"
-    const toggleCloseBtn = screen.getByRole('button', { name: /Cerrar revisión/i });
-    expect(toggleCloseBtn).toBeTruthy();
-
-    // Al presionarlo, se cierra la revisión y se restaura la vista anterior
-    fireEvent.click(toggleCloseBtn);
+    // 2. Con la revisión abierta, no existe «Cerrar revisión» en la tarjeta; sólo el botón «Cerrar» de la revisión
+    expect(screen.queryByRole('button', { name: /Cerrar revisión/i })).toBeNull();
+    const closeBtn = screen.getByRole('button', { name: /^Cerrar$/i });
+    fireEvent.click(closeBtn);
     expect(screen.queryByRole('heading', { name: /Revisión de Actualización de OpenSpec/i })).toBeNull();
 
     // 3. Al volver a entrar, el botón del pie "Cerrar" también la cierra y restaura la vista
@@ -821,6 +828,88 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     vi.unstubAllGlobals();
   });
 
+  it('cuando el motor está instalado pero runtimeVersion es null, la píldora dice «OpenSpec: sin detectar» con color de aviso y no contiene la versión objetivo (Corrección 1)', async () => {
+    const statusNullRuntime: OpenSpecEngineStatus = {
+      ...dummyStatusOutdated,
+      cli: {
+        ...dummyStatusOutdated.cli!,
+        installed: true,
+        runtimeVersion: null,
+      },
+    };
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: vi.fn().mockResolvedValue(statusNullRuntime),
+          checkLatestVersion: vi.fn().mockResolvedValue(null),
+        },
+      },
+    });
+
+    render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    const chipNotDetected = await screen.findByRole('status', { name: /OpenSpec:\s*sin detectar/i });
+    expect(chipNotDetected).toBeTruthy();
+    expect(chipNotDetected.className).toMatch(/text-warning/);
+    expect(chipNotDetected.textContent).not.toContain(OPENSPEC_CYCLE_TARGET_VERSION);
+    expect(chipNotDetected.getAttribute('title') ?? '').not.toContain(OPENSPEC_CYCLE_TARGET_VERSION);
+
+    vi.unstubAllGlobals();
+  });
+
+  it('cuando el motor no está instalado (cli.installed false), la píldora dice «Ausente» y no contiene la versión objetivo (Corrección 1)', async () => {
+    const statusAbsent: OpenSpecEngineStatus = {
+      ...dummyStatusOutdated,
+      cli: {
+        ...dummyStatusOutdated.cli!,
+        installed: false,
+        runtimeVersion: null,
+      },
+    };
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: vi.fn().mockResolvedValue(statusAbsent),
+          checkLatestVersion: vi.fn().mockResolvedValue(null),
+        },
+      },
+    });
+
+    render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    const chipAbsent = await screen.findByRole('status', { name: /Ausente/i });
+    expect(chipAbsent).toBeTruthy();
+    expect(chipAbsent.className).toMatch(/text-warning/);
+    expect(chipAbsent.textContent).not.toContain(OPENSPEC_CYCLE_TARGET_VERSION);
+    expect(chipAbsent.getAttribute('title') ?? '').not.toContain(OPENSPEC_CYCLE_TARGET_VERSION);
+
+    vi.unstubAllGlobals();
+  });
+
   it('con divergencia y sin nada más, el centro NO avisa Y la sección enciende el triángulo (7.13, 7.16)', async () => {
     const divergenceStatus: OpenSpecEngineStatus = {
       ...dummyStatusOutdated,
@@ -1021,6 +1110,250 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     expect(warningIcon).toBeNull();
 
     unmountSection();
+    vi.unstubAllGlobals();
+  });
+
+  it('dos Inspectors montados con repos distintos: un setProfile exitoso en uno provoca que los dos refetcheen (Parte 5)', async () => {
+    const getEngineStatusMock = vi.fn().mockImplementation((repo: string) => {
+      return Promise.resolve({
+        ...dummyStatusHealthy,
+        repoState: 'initialized',
+        globalConfig: {
+          rawProfile: 'core',
+          profileState: 'read',
+          delivery: 'both',
+          deliveryState: 'read',
+          configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+          workflowsState: 'read',
+          resolvedWorkflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+          resolvedWorkflowsState: 'read',
+          origin: 'cli',
+          readAt: '2026-09-11T12:00:00.000Z',
+          divergence: { isDivergent: false, reason: null, overallStatus: 'convergent', globalProfileClass: 'core', repoProfileClass: 'core' },
+        },
+      });
+    });
+
+    const setProfileMock = vi.fn().mockResolvedValue({ ok: true });
+
+    (window as any).api = {
+      pipelineOpenSpec: {
+        getEngineStatus: getEngineStatusMock,
+        checkLatestVersion: vi.fn().mockResolvedValue(null),
+        setProfile: setProfileMock,
+        setWorkflow: vi.fn().mockResolvedValue({ ok: true }),
+      },
+    };
+
+    window.localStorage.setItem('gitcron:sidebarSections:C:\\repo1', JSON.stringify({ 'details-tools': true }));
+    window.localStorage.setItem('gitcron:sidebarSections:C:\\repo2', JSON.stringify({ 'details-tools': true }));
+
+    const { unmount } = render(
+      <div>
+        <div data-testid="inspector-1">
+          <OpenSpecInspector repoPath="C:\\repo1" snapshot={dummySnapshot} />
+        </div>
+        <div data-testid="inspector-2">
+          <OpenSpecInspector repoPath="C:\\repo2" snapshot={dummySnapshot} />
+        </div>
+      </div>,
+    );
+
+    expect(await screen.findAllByRole('button', { name: /Herramientas|tools/i })).toBeDefined();
+    expect(getEngineStatusMock).toHaveBeenCalledWith(expect.stringContaining('repo1'));
+    expect(getEngineStatusMock).toHaveBeenCalledWith(expect.stringContaining('repo2'));
+    const callsBefore = getEngineStatusMock.mock.calls.length;
+
+    const inspector1 = screen.getByTestId('inspector-1');
+    const toolsBtn = await within(inspector1).findByRole('button', { name: /Herramientas/i });
+    fireEvent.click(toolsBtn);
+
+    const advBtn = await within(inspector1).findByRole('button', { name: /Ver diagnóstico avanzado/i });
+    fireEvent.click(advBtn);
+
+    const lockBtn = await within(inspector1).findByRole('button', { name: /core/i });
+    await fireEvent.click(lockBtn);
+
+    expect(setProfileMock).toHaveBeenCalledTimes(1);
+
+    expect(getEngineStatusMock.mock.calls.length).toBeGreaterThan(callsBefore);
+    const callsAfter = getEngineStatusMock.mock.calls.slice(callsBefore);
+    expect(callsAfter.some(([repo]) => repo && repo.includes('repo1'))).toBe(true);
+    expect(callsAfter.some(([repo]) => repo && repo.includes('repo2'))).toBe(true);
+
+    unmount();
+    vi.unstubAllGlobals();
+  });
+
+  it('motor 1.12.0 sano y latest 1.13.0: la píldora avisa con punto, texto en title y clase text-warning (6.7-B + decisión 2026-09-14)', async () => {
+    const status112Healthy: OpenSpecEngineStatus = {
+      ...dummyStatusHealthy,
+      cli: {
+        ...dummyStatusHealthy.cli,
+        runtimeVersion: '1.12.0',
+      },
+    };
+
+    const getEngineStatusMock = vi.fn().mockResolvedValue(status112Healthy);
+    const checkLatestVersionMock = vi.fn().mockResolvedValue({
+      status: 'online',
+      latestVersion: '1.13.0',
+      checkedAt: 'now',
+      fromCache: false,
+      cacheAgeSeconds: 0,
+      freshness: 'fresh',
+      error: null,
+    });
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: getEngineStatusMock,
+          checkLatestVersion: checkLatestVersionMock,
+        },
+      },
+    });
+
+    render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        leftOpen={true}
+        rightOpen={false}
+        leftWidth={340}
+        rightWidth={340}
+        onResizeLeft={vi.fn()}
+        onResizeRight={vi.fn()}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    // La píldora se encuentra por título que contiene «v1.13.0 disponible en npm»
+    const pill = await screen.findByTitle(/v1\.13\.0 disponible en npm/i);
+    expect(pill).toBeDefined();
+
+    // Existe un elemento con aria-label igual a ese texto
+    const dot = screen.getByLabelText('v1.13.0 disponible en npm');
+    expect(dot).toBeDefined();
+    expect(dot.getAttribute('data-upgrade')).toBe('available');
+
+    // versión nueva → ámbar, decisión de Alejandro 2026-09-14
+    expect(pill.className).toContain('text-warning');
+
+    vi.unstubAllGlobals();
+  });
+
+  it('motor 1.13.0 y latest 1.12.0 (instalada más nueva que npm): el título NO contiene disponible en npm y no hay data-upgrade (Tarea 6.7-B)', async () => {
+    const status113: OpenSpecEngineStatus = {
+      ...dummyStatusHealthy,
+      cli: {
+        ...dummyStatusHealthy.cli,
+        runtimeVersion: '1.13.0',
+      },
+    };
+
+    const getEngineStatusMock = vi.fn().mockResolvedValue(status113);
+    const checkLatestVersionMock = vi.fn().mockResolvedValue({
+      status: 'online',
+      latestVersion: '1.12.0',
+      checkedAt: 'now',
+      fromCache: false,
+      cacheAgeSeconds: 0,
+      freshness: 'fresh',
+      error: null,
+    });
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: getEngineStatusMock,
+          checkLatestVersion: checkLatestVersionMock,
+        },
+      },
+    });
+
+    render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo"
+        currentBranch="main"
+        workingTreeClean={true}
+        leftOpen={true}
+        rightOpen={false}
+        leftWidth={340}
+        rightWidth={340}
+        onResizeLeft={vi.fn()}
+        onResizeRight={vi.fn()}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    // Esperar a que la píldora se monte con OpenSpec v1.13.0
+    const pill = await screen.findByTitle(/OpenSpec v1\.13\.0/i);
+    expect(pill).toBeDefined();
+
+    // El título NO contiene «disponible en npm»
+    expect(pill.getAttribute('title')).not.toContain('disponible en npm');
+
+    // No existe ningún elemento con data-upgrade
+    expect(document.querySelector('[data-upgrade]')).toBeNull();
+
+    vi.unstubAllGlobals();
+  });
+
+  it('con getEngineStatus simulado, al llamar a notifyEngineChanged() dentro de act(), getEngineStatus se llama una segunda vez con el mismo repoPath (Tarea 6.11)', async () => {
+    const getEngineStatusMock = vi.fn().mockResolvedValue(dummyStatusHealthy);
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: getEngineStatusMock,
+          checkLatestVersion: vi.fn().mockResolvedValue(null),
+          getInstallPlan: vi.fn().mockResolvedValue(null),
+        },
+      },
+    });
+
+    render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath={'C:\\repo-notify'}
+        currentBranch="main"
+        workingTreeClean={true}
+        leftOpen={true}
+        rightOpen={false}
+        leftWidth={340}
+        rightWidth={340}
+        onResizeLeft={vi.fn()}
+        onResizeRight={vi.fn()}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    await screen.findByTitle(/OpenSpec v1\.12\.0/i);
+    expect(getEngineStatusMock).toHaveBeenCalledTimes(1);
+    expect(getEngineStatusMock).toHaveBeenCalledWith('C:\\repo-notify');
+
+    act(() => {
+      usePipelineStore.getState().notifyEngineChanged();
+    });
+
+    await vi.waitFor(() => {
+      expect(getEngineStatusMock).toHaveBeenCalledTimes(2);
+    });
+    expect(getEngineStatusMock).toHaveBeenNthCalledWith(2, 'C:\\repo-notify');
+
     vi.unstubAllGlobals();
   });
 });

@@ -323,6 +323,98 @@
   **Que decide Alejandro:** si se abre el change de unificacion antes de esta tarea, y con que
   alcance. Mientras no exista, 6.8 se queda en medir y reportar, sin explicacion asistida.
 
+- [ ] 6.10 **Decision de Alejandro, 2026-09-14, al ver el punto de la 6.7 en pantalla:** «no me
+  importa que avise que se paso del rango desde-hasta; me tiene que decir que hay una version nueva
+  y chau, actualiza y punto». Deprecada con causa la regla de «maximo probado»: el rango pasa a
+  tener **solo minimo**. Aclaracion del mismo dia, textual: «no estoy diciendo que es una regla
+  inquebrantable lo de la version; no se para que sirve que me diga desde-hasta. Me tiene que decir
+  si hay una actualizacion nueva, de que version a que version pasaria. El aviso visual de color,
+  que te dice que ya la version es vieja, esta perfecto. El aviso tiene que saltar porque hay una
+  version nueva, como hace GitCron cuando actualizamos la version.» **Regla resultante:** el aviso
+  (punto + pildora ambar + titulo «de vX a vY») se dispara unicamente por `installed < latest`
+  (`getOpenSpecEngineUpgrade`, `pipeline-domain.ts`), nunca por rango. La 6.7-B habia dejado el
+  punto sin ambar; se corrige aqui: `engineAttention` incluye `upgrade !== null`. Medido: las reglas
+  de rango que existian no eran de Alejandro —nacieron en el commit 4f64caa9 (16/08/26) y en el
+  change actualizar-integracion-openspec-1-8— y estaban en la spec consolidada
+  (`openspec/specs/pipeline-openspec-engine/spec.md:41-61`), en el delta de este change, en
+  `lib/openspec-version.ts` y en la memoria del auditor. `too-new` desaparece de `OpenSpecVersionClass` (`lib/openspec-version.ts:25`
+  y `:70`), y con el se van `isInstalledAheadOfCycle` (`:78`), `hasOpenSpecCycleMismatch`
+  (`OpenSpecEngineCard.tsx:79`), el aviso `versionAheadOfCycle` de la pildora
+  (`OpenSpecDashboard.tsx:2040-2044`) y de la tarjeta (`OpenSpecEngineCard.tsx:850-859`), el
+  `needs-attention` por `too-new` (`:391`), el texto `hostUpgrade.beyondTested` de la 6.7-A
+  (`:588-594`, y `beyondTested` en `pipeline-domain.ts:305-323`), y en
+  `electron/pipeline/openspec-version-analysis.ts` el `isTooNew` que contaba como «rompe» (`:272`) y
+  el `aheadOfCycle` (`:369`, `:548`). `too-old` y `isInstalledBehindCycle` se quedan: un motor
+  viejo no tiene los comandos. Delta MODIFIED de `pipeline-openspec-engine` reescrito: minimo 1.5.0,
+  clases `supported | too-old | unknown`, sin escenario «mas nuevo».
+  **Lo que Alejandro delega, textual:** «te estoy delegando la responsabilidad de saber si cuando se
+  actualiza, rompe todo o no. O se hace el programa a prueba de fallos, o se agrega una IA que este
+  mirando que pasa si se actualiza». Medido el 2026-09-14: la IA que mira **ya existe** —es el grupo
+  9c, `pipeline:openspec:version-analysis` (`electron/ipc/pipeline-openspec.ts:736`): trae el
+  changelog de GitHub Releases con la fuente citada, juzga las seis superficies que GitCron consume
+  y redacta la explicacion con LM Studio— pero **nunca llego a la pantalla**: no tiene binding en
+  `electron/preload.ts` y ningun componente lo llama. Y su veredicto «rompe» hoy sale del numero de
+  version (salto de major o `too-new`), no de lo que la version cambia. A prueba de fallos, en dos
+  partes que se pueden hacer por separado:
+  (a) **Vuelta atras.** Antes de instalar se recuerda la version instalada; despues, el estado se
+  relee solo (6.4 ya lo hace). Si el motor dejo de responder como se espera —version ilegible,
+  `doctor --json` que no parsea, `config list` fallido— la tarjeta lo dice y ofrece «Volver a
+  vX.Y.Z», que reinstala esa version por el canal `install-global` con `targetVersion` (ya valida
+  semver estricto). Toda actualizacion tiene camino de vuelta.
+  (b) **Lo que trae la version nueva, antes de confirmar.** La confirmacion de «Actualizar el
+  motor» muestra el resultado de 9c —changelog con su fuente, veredictos medidos, y la redaccion
+  del modelo local si esta encendido— como informacion, nunca como bloqueo. Cablear el canal al
+  preload y a `OpenSpecGlobalInstallConfirm`. Pendiente aparte: que el veredicto de 9c compare
+  salidas reales (`status --json`, `doctor --json`) de la version nueva y no solo el numero.
+  **Pedido de Alejandro del 2026-09-14 para la redaccion:** usar Unsloth Desktop —«va a buscar las
+  IA que tengo en casa instaladas, con Cloudflare, como esta andando fehacientemente OpenCode»— en
+  vez de LM Studio. Medido: la capa 9b ya lo contempla (`electron/ai/text-client.ts:29`
+  «Unsloth Desktop: baseUrl remota, apiKey opcional»; `createUnslothConfig` en `:342`;
+  `getUnslothCredentials` en `electron/ai/key-store.ts:168`). Lo que falta es que
+  `draftVersionRedaction` (`openspec-version-analysis.ts:383`) deje de fijar `createLmStudioConfig`
+  y elija: Unsloth si hay credenciales guardadas, LM Studio si no, y que lo diga en `redaction`.
+  **Ampliado el 2026-09-14 con la configuracion de OpenCode que mostro Alejandro
+  (`~/.config/opencode/opencode.json`):** dos proveedores con la misma forma —`unslothpc`
+  (`https://llm.aledesign.dev/v1`, por tunel Cloudflare, con `apiKey` y cabeceras
+  `CF-Access-Client-Id`/`CF-Access-Client-Secret`) y `unslothpclocal`
+  (`http://192.168.0.12:8888/v1`, misma clave y cabeceras)—, y la regla: «si estoy en la notebook,
+  acceder remotamente a mi PC, como hace OpenCode; si estoy en la PC, los modelos locales». Medido
+  lo que falta para eso, y es mas que cambiar una linea: (1) `createUnslothConfig` ya arma las
+  cabeceras CF pero **nadie la llama**; (2) no existe ningun lugar donde guardar las dos URL (el
+  key-store solo guarda apiKey y los dos secretos CF); (3) el preload no deja guardar secretos con
+  nombre: `setKey: (provider, key)` (`electron/preload.ts:437`) descarta el tercer argumento que
+  `ai:set-key` si acepta (`electron/ipc/ai.ts:157`); (4) no hay pantalla de ajustes para
+  Unsloth (la unica de proveedores es `CartoAISettings.tsx`, solo OpenRouter). Diseno: un unico
+  `resolveTextProvider()` en `electron/ai/` que sondea primero la URL local (`GET /models`, tope
+  1,5 s), si responde la usa, si no la del tunel, y si tampoco, LM Studio; devuelve la config y una
+  etiqueta («Unsloth local», «Unsloth remoto», «LM Studio») que la redaccion declara. Lo consumen
+  los tres usos de modelo de la app (cartografia, mensaje de commit, verificacion de version). Es
+  el change de unificacion que la 6.8 dejo pendiente de decision. **Decidido por Alejandro el
+  2026-09-14: change aparte** (`modelos-en-casa`), fuera de este. Mientras tanto, 6.10 (b) cablea
+  9c a la confirmacion con el changelog y los veredictos medidos, y la redaccion sale por la capa
+  actual (LM Studio); cuando exista `resolveTextProvider()`, la usa sin tocar 9c.
+  *Progreso 2026-09-14 (partes 1 y 2, auditadas):* `too-new`, el maximo del rango,
+  `isInstalledAheadOfCycle`, `hasOpenSpecCycleMismatch` y los avisos «supera el ciclo» eliminados de
+  codigo, i18n y pruebas; pildora ambar + punto con version nueva; delta en forma valida (REMOVED del
+  requisito viejo + ADDED «GitCron declara una version minima soportada de OpenSpec»). Suite: 1997.
+  Faltan (a) vuelta atras y (b) lo que trae la version nueva, con Unsloth.
+
+- [ ] 6.11 **Defecto vivo medido el 2026-09-14 en la captura de Alejandro:** el panel derecho decia
+  «Motor OpenSpec: Version no clasificada», «Global: unknown», «Sin datos de perfil (configuracion
+  global no leida)», mientras la pildora del encabezado decia «OpenSpec v1.12.0» con el punto de la
+  6.7. Por eso la tarjeta no mostraba la oferta «Actualizar el motor» de la 6.7-A: su `status` tenia
+  `runtimeVersion: null`. Causa: el encabezado (`OpenSpecDashboard.tsx:1042`) y el panel derecho
+  (`OpenSpecInspector.tsx:145`) piden `getEngineStatus(repoPath)` **cada uno por su cuenta**; cada
+  pedido lanza siete procesos del CLI (`--version`, cuatro lecturas de config, `doctor`, `context`;
+  `pipeline-openspec.ts:180-260`, `openspec-global-config.ts:173`) con timeouts de 10 s. Con seis
+  pestanas abiertas al arrancar, el pedido del panel derecho vencio, quedo con la version en null y
+  **nadie lo reintenta**: solo se relee tras un cambio (`engineChangeToken`). Que hacer: una sola
+  lectura por repositorio compartida entre los dos consumidores (dedupe del pedido en vuelo en
+  `lib/pipeline-store.ts`, donde ya vive `notifyEngineChanged`), reintento automatico cuando el
+  snapshot trae `cli.installed && runtimeVersion === null` o `profileState !== 'read'`, y un boton
+  «Releer estado» visible en la tarjeta (ya existe `onChanged` → `refetchEngineStatus`, solo falta
+  el boton). Mientras tanto, cerrar y abrir la pestana fuerza la relectura.
+
 ## 7. Perfil de workflows
 
 - [x] 7.1 En `electron/pipeline/`, agregar la lectura de `openspec config list` devolviendo perfil y workflows habilitados como datos, sin enum cerrado en el código.
@@ -331,6 +423,7 @@
 - [ ] 7.4 Distinguir en pantalla, para cada workflow que un agente no tiene, cual de las dos causas que hoy se pueden medir aplica: **el perfil global no lo habilita** (esta fuera de `resolvedWorkflows`; se resuelve activandolo desde el panel de perfil) o **la integracion de ese agente esta desactualizada** (el perfil lo habilita pero el agente no lo tiene instalado; se resuelve con `openspec update`). Cada causa con su accion al lado, no una recomendacion generica. **Medido el 2026-09-11:** la tercera causa —que el motor instalado no traiga ese workflow— no se puede distinguir porque el CLI 1.12.0 no expone de forma no interactiva la lista de workflows disponibles; la constante existe (`ALL_WORKFLOWS`, doce nombres, en `dist/commands/config.js` del paquete) pero solo se muestra en el menu interactivo de `config profile`, y por script falla a proposito. Se pidio a OpenSpec via feedback. No se lee del codigo compilado del paquete: ese anclaje ya costo en la 5.3. Caso comprobado el 2026-08-19 que motivo esta tarea: el motor 1.5.0 no expone `update`, que si integra el conjunto basico de la 1.9.0, de modo que cambiar el perfil a `core` no lo habilita.
 - [x] 7.5 Cuando la causa sea «la integracion esta desactualizada», declarar que `openspec update` la resuelve y ofrecerlo desde ahi. La version del motor que habilitaria un workflow ausente queda **pendiente de que el CLI exponga la lista de workflows disponibles** (feedback enviado el 2026-09-11); cuando exista, derivarla de lo que el motor y el registro de npm informan, no de una tabla propia en el codigo. La tarjeta ya expone la version instalada, la objetivo y la ultima en npm (`OpenSpecEngineCard.tsx:279, 287, 338`).
 - [ ] 7.6 **Medido el 2026-09-11 con el switch ya funcionando:** bajo el perfil `core` —el de esta maquina— el toggle escribe `workflows` en el archivo global (comprobado: `config.json` cambio a las 09:13 con un array valido) pero **no tiene efecto visible**, porque el motor solo usa la lista escrita cuando el perfil es `custom` (`dist/core/profiles.js:35-37` del paquete: `getProfileWorkflows(profile, customWorkflows)` devuelve el preset fijo salvo que `profile === 'custom'`). El panel muestra lo resuelto, asi que todo sigue «Habilitado». Que hacer: cuando el perfil no sea `custom`, los switches se muestran deshabilitados con el motivo al lado —el perfil fija los workflows— y se ofrece cambiar a `custom` desde ahi. Al cambiar, primero se escribe `workflows` con la lista que el perfil resolvia hasta ese momento, y recien despues `profile`, para que el cambio no deje al usuario con una lista vacia. Nada de esto se adivina: la lista sale de `resolvedWorkflows` ya leida.
+  *Resolucion medida el 2026-09-14, decidida por Alejandro:* la pantalla esta como se pidio (`OpenSpecEngineCard.tsx:440-451` bloquea los switches con el motivo; el candado `profileLockBtn` cambia el perfil). La escritura se aparta del texto de arriba a proposito: `setOpenSpecProfile` (`electron/pipeline/openspec-global-config.ts:396-426`) escribe `workflows` con la lista resuelta **solo si la lista escrita esta vacia**; si ya hay una, la respeta como memoria de `custom`, y al volver a `core` no la toca. Asi abrir y cerrar el candado no pierde lo elegido (el tooltip `lockOpenTitle` lo declara). Riesgo aceptado: una memoria vieja sin `update` deja ese workflow «Deshabilitado por el perfil» al abrir; visible, no silencioso. Pruebas en `electron/__tests__/pipeline-openspec-global-config.test.ts` (custom con lista escrita → un solo `config set profile custom`; con lista vacia → dos escrituras en orden).
 
 ## 8. Interfaz: tareas y artefactos
 
@@ -688,6 +781,136 @@
   mencion de «Preparar commit» en los changes activos es funcional
   (`retirar-cambios-openspec-obsoletos`, tarea 7.4), y `remaquetar-cuerpo-de-sdd`, el change que
   sonaba al caso, ya no existe en `openspec/changes/`.
+
+- [ ] 8.19 **Observacion visual de Alejandro, 2026-09-14: el pie del panel derecho («269 requisitos ·
+  0 reportes») se dibuja encima del texto de ayuda del perfil de workflows al scrollear.** Medido: el
+  panel es `.activityRail` (`OpenSpecDashboard.module.css:1073-1081`), columna flex con
+  `overflow-y: auto`, o sea que el que scrollea es el panel entero. Adentro, `.railSections`
+  (`:4054-4060`) declara `min-height: 0`: como item flex puede encogerse por debajo de su contenido,
+  asi que las secciones se achican al alto visible, el contenido desborda (overflow visible por
+  omision) y se pinta sobre el `<footer className={styles.railMeta}>`
+  (`OpenSpecInspector.tsx:393-396`), que no es sticky ni tiene fondo (`:1327`). El pie queda a la
+  altura del borde inferior visible del panel y al scrollear sube con el contenido. Arreglo mas
+  quirurgico: en `.railSections` reemplazar `min-height: 0` por `flex: 0 0 auto`, para que las
+  secciones midan lo que miden, el panel scrollee todo y el pie quede al final. No hace falta
+  fondo ni sticky.
+
+- [ ] 8.20 **Pedido de Alejandro, 2026-09-14: la pestaña SDD tarda en cargar y muestra «Cargando…».**
+  Textual: «cuando inicio GitCron va directo a Graph, pero cuando elijo SDD tarda y aparece un aviso
+  de cargando. ¿No hay forma de acelerar eso, con un precacheo o algo anterior? Y si es inevitable
+  que tarde, que aparezca como se hace hoy en dia: figuras de la maqueta que aparecen y desaparecen
+  en transicion hasta que se vea la vista final.» Medido:
+  - La lectura de SDD arranca recien cuando la pestana se monta: `RepoMainView.tsx:276-292` solo
+    renderiza `PipelineWorkspace` con la pestana Pipeline activa, y el `useEffect` de
+    `PipelineWorkspace.tsx:110-127` dispara `pipelineGetSnapshot` al montar. En Graph no se lee
+    nada de SDD.
+  - Esa lectura «cuesta segundos» por diseno declarado (`electron/ipc/pipeline.ts:32-36`): el
+    proceso principal dedupe lecturas en vuelo por repo y seleccion, pero **no guarda el ultimo
+    snapshot**: cada montaje paga la lectura entera (`PipelineService.refresh`,
+    `pipeline-service.ts:42-49`). Ya existe el canal de empuje `pipeline:snapshot-updated`
+    (`electron/preload.ts:403`) que serviria para revalidar de fondo.
+  - Al montar, ademas, el Dashboard y el Inspector piden el estado del motor (siete procesos del
+    CLI; desde la 6.11 una sola vez por repositorio), la ultima version de npm y el plan de
+    instalacion.
+  - El aviso es un solo parrafo: `PipelineEmptyState.tsx:21-27` renderiza `<p>{t('pipeline.loading')}</p>`
+    («Cargando evidencia de SDD…», `lib/i18n.ts:779`). No hay esqueleto; la app ya usa la utilidad
+    `animate-pulse` de Tailwind en otros lados (`app/page.tsx:1453`, `RepoSidebarParts.tsx:152`).
+  Que hacer, en dos partes:
+  (a) **Precalentar.** Al abrir un repositorio (no al elegir la pestana), pedir de fondo el snapshot
+  de SDD y el estado del motor. El proceso principal conserva el ultimo snapshot por repo y
+  seleccion y lo devuelve de inmediato mientras revalida (stale-while-revalidate), empujando el
+  nuevo por `pipeline:snapshot-updated`; el lector del motor de la 6.11 ya dedupe, le falta un
+  «resultado reciente» que el segundo consumidor pueda reutilizar sin volver a lanzar procesos.
+  Medir antes: cuanto tarda hoy `pipelineGetSnapshot` en este repositorio, en frio y en caliente.
+  (b) **Esqueleto.** Mientras no hay snapshot, `PipelineEmptyState` dibuja la silueta de la vista
+  final —franja de encabezado, dos o tres tarjetas de «En curso», el panel derecho— con
+  `animate-pulse`, y el contenido real la reemplaza sin salto de layout. Sin texto «Cargando».
+
+- [ ] 8.21 **Observacion visual de Alejandro, 2026-09-14, con la revision y la tarjeta abiertas a la
+  vez:** «¿son 4 botones para hacer que? Es una mala UX. Ademas no se si respetan la estetica que
+  veniamos manejando, son grandes o me parece a mi.» Medido sobre sus capturas:
+  - **Seis botones para dos acciones y un cierre.** Con la revision abierta en el centro y la tarjeta
+    en el panel derecho se ven a la vez: en la revision «Actualizar integracion del repositorio»
+    (`OpenSpecUpdateReview.tsx:255`), «Cerrar» (`:286`) y «Actualizar el motor» (`:416`); en la
+    tarjeta «Cerrar revision» (`OpenSpecEngineCard.tsx:559`), «Actualizar el motor» (bloque de la
+    6.7-A, `:567`) y, en el aviso de divergencia, «Actualizar la integracion» (`:1042-1050`), que
+    abre la revision **que ya esta abierta**. Las mismas dos acciones, dos veces cada una.
+    Que hacer: una accion, un lugar. Con la revision abierta (`isReviewOpen`), la tarjeta no ofrece
+    acciones: oculta el bloque «Actualizar el motor» y el bloque «Como resolverlo» de la divergencia
+    (titulo, boton y comando), y deja solo el diagnostico y el conmutador «Cerrar revision». Con la
+    revision cerrada, la tarjeta ofrece las dos acciones (es el camino pildora → tarjeta → accion de
+    la 6.7). **Decision de Alejandro, 2026-09-14: un solo «Cerrar».** Queda el de la revision
+    (`OpenSpecUpdateReview.tsx:286`): se cierra donde uno esta, y sigue disponible con el panel
+    derecho colapsado. El conmutador de la tarjeta (`OpenSpecEngineCard.tsx:552-563`) solo ofrece
+    «Revisar actualizacion» con la revision cerrada; con la revision abierta no se muestra. La clave
+    `engine.closeReviewAction` queda sin uso y se retira.
+    *Hecho el 2026-09-14/15 (auditado):* dedupe de acciones, escala de botones a 1.75rem y cierre
+    unico (el de la revision). Superada por la 8.22 en lo que toca a la tarjeta.
+
+- [ ] 8.22 **Decision de Alejandro, 2026-09-15: la actualizacion de OpenSpec se hace como la de
+  GitCron.** Textual: «Cuando actualizo GitCron me avisa abajo a la izquierda en el numero de
+  version que hay una nueva. Solo le doy a actualizar y se actualiza. Tiene que ser lo mismo aca:
+  si hay una version nueva, que me avise como hace ahora, y luego si hago click que en el
+  contenedor del medio aparezcan datos relevantes a la actualizacion. No necesito saber que cosas
+  se tocan ni que archivos se modifican. Esta bien que me detalle si quiero usar linea de comandos,
+  pero hay demasiada informacion desperdigada por el sidebar y luego el contenido del medio. Todo
+  lo que concierne a la instalacion tiene que pasar al medio, mas resumido, con datos certeros y
+  menos redundancia. Es actualizar: tengo que actualizar y seguir trabajando, sin que se rompa nada
+  obvio.» Medido sobre sus capturas del 2026-09-15:
+  - Con la revision abierta hay siete secciones en el centro (encabezado con «Actualizar
+    integracion del repositorio», tarjeta de diagnostico, «Actualizacion del motor en el sistema
+    host», matriz, guia, convivencia, outputs; `OpenSpecUpdateReview.tsx:173-695`) y ninguna dice
+    que trae la version nueva. El panel derecho repite «Actualizar el motor» (bloque 6.7-A) y
+    «Actualizar la integracion» (aviso de divergencia).
+  - La confirmacion de instalacion global no entra en los 340 px del panel derecho: la ruta del
+    gestor y la lista de siete repositorios se cortan (captura).
+  - El rotulo «npm:» esta cableado (`OpenSpecGlobalInstallConfirm.tsx:262`,
+    `OpenSpecEngineCard.tsx:767`) aunque el gestor detectado es pnpm (`package-manager.ts:171`,
+    preferencia `pnpm, npm, yarn, bun`; el comando mostrado ya dice `pnpm add -g`).
+  - La pildora del encabezado abre la seccion Herramientas del panel derecho
+    (`OpenSpecDashboard.tsx:2062-2064`), no el centro.
+  Que hacer, en tres tandas:
+  (a) **La pildora abre el centro y el panel deja de ofrecer acciones.** Clic en la pildora →
+  `setReviewOpen(true)` del store (ya existe, `lib/pipeline-store.ts:61`). La tarjeta del panel
+  pierde para siempre el bloque «Actualizar el motor» y el bloque «Como resolverlo» de la
+  divergencia (quedan el diagnostico, el texto de divergencia y «Revisar actualizacion»). El rotulo
+  del gestor muestra el nombre detectado. Con eso se va tambien el texto roto.
+  (b) **El centro se resume.** Arriba, un solo bloque «Actualizacion de OpenSpec» con dos hechos
+  —motor: «v1.12.0 → v1.13.0 disponible» o «al dia»; integracion de este repositorio:
+  «desactualizada» o «al dia»— y un solo boton «Actualizar» que ejecuta en orden lo que
+  corresponda: primero el motor (si hay version nueva; instalacion global, con el aviso de que
+  afecta a toda la maquina), despues `openspec update` en este repositorio (si la integracion esta
+  desactualizada; con los avisos inline de arbol sucio y rama main que ya existen). Progreso por
+  paso, resultado final («Listo: motor v1.13.0 · integracion al dia») y la vuelta atras de la
+  6.10 (a) si el motor no responde. Si no hay nada que hacer, el boton dice «Todo al dia» y esta
+  deshabilitado. «Desde la terminal» plegado con los dos comandos. Todas las demas secciones
+  (diagnostico, matriz, guia, convivencia, outputs, opcion de fuerza) van dentro de un plegable
+  «Detalle tecnico», cerrado por omision. Cuando el motor no esta instalado, el mismo bloque ofrece
+  «Instalar» (la instalacion local y global de la tarjeta, 9.2/9.3, se mudan al centro).
+  (c) **Que trae la version nueva** = 6.10 (b): debajo de los dos hechos, tres o cuatro lineas del
+  changelog con su fuente (9c ya lo baja de GitHub Releases) y los veredictos medidos; nunca un
+  bloqueo.
+  *Progreso, auditado:* (a) hecha el 2026-09-15 (pildora → centro; tarjeta sin acciones; rotulo
+  del gestor). (b1) hecha el 2026-09-15: bloque superior con los dos hechos y las acciones,
+  «Desde la terminal» y «Detalle tecnico» plegados y cerrados por omision; la seccion «Actualizacion
+  del motor en el sistema host» desaparecio como seccion. Suite 2033. Falta (b2): el boton unico
+  «Actualizar» que encadena motor → integracion con progreso, resultado y vuelta atras, en dos
+  mitades: el ejecutor de pasos como componente propio con sus pruebas, y despues su cableado en la
+  revision reemplazando los dos botones y el reporte de archivos (la lista de archivos va a
+  «Detalle tecnico»).
+  - **Si, son grandes, y esta medido.** `.primaryAction, .secondaryAction`
+    (`OpenSpecDashboard.module.css:442-458`) miden `min-height: 2.65rem` (42 px) con relleno
+    `--space-3 --space-4` y peso 700; `.headerActions .primaryAction` (`:278`) 2.5rem;
+    `.reviewPrimaryActionBtn` (`:2637-2642`) relleno `--sp-1 --sp-4` y peso 650. La referencia de
+    la app es el boton «Preparar commit» del encabezado (`OpenSpecDashboard.tsx:2142`): `h-7`
+    (1.75rem = 28 px), relleno 10 px, peso 600, `rounded-md`; y los botones de icono del mismo
+    modulo, `.iconBtn` (`:3294`), tambien 1.75rem. Los 42 px vienen del token `--control-min:
+    2.75rem` (`:66-69`), pensado para las filas de tareas por WCAG 2.2, que pide 24 px de objetivo:
+    28 px lo cumple. Que hacer: las tres reglas de botones de accion pasan a `min-height: 1.75rem`,
+    relleno `var(--space-1) var(--space-3)`, peso 600 y `border-radius: var(--radius-md)`; el
+    relleno del boton primario lleno se conserva en color. `--control-min` y las filas
+    (`.taskStatus`, `.artifactRow`, `.groupToggle`, `.tabsRow`) no se tocan: son controles de fila,
+    no botones.
 
 ## 9. Interfaz: motor, sync, archivado y jerarquía
 

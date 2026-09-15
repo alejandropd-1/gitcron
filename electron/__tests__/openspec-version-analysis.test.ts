@@ -105,21 +105,21 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       });
     });
 
-    it('identifica riesgo potencial ante versión superior al rango soportado (1.13.0)', () => {
+    it('declara compatible ante versión minor posterior (1.13.0) sin salto mayor', () => {
       const { surfaces, breakingChangesDetected } = evaluateConsumedSurfaces('1.12.0', '1.13.0', null);
-      expect(breakingChangesDetected).toBe(true);
+      expect(breakingChangesDetected).toBe(false);
 
       const statusSurface = surfaces.find((s) => s.surface === 'status');
-      expect(statusSurface?.verdict).toBe('potential-break');
-      expect(statusSurface?.evidence).toContain('isPlanningComplete');
+      expect(statusSurface?.verdict).toBe('compatible');
+      expect(statusSurface?.evidence).toContain('Compatible con el mínimo soportado');
 
       const instructionsSurface = surfaces.find((s) => s.surface === 'instructions');
-      expect(instructionsSurface?.verdict).toBe('potential-break');
-      expect(instructionsSurface?.evidence).toContain('resolvedOutputPath');
+      expect(instructionsSurface?.verdict).toBe('compatible');
+      expect(instructionsSurface?.evidence).toContain('Estructura de instrucción y contexto verificada');
 
       const validateSurface = surfaces.find((s) => s.surface === 'validate');
-      expect(validateSurface?.verdict).toBe('potential-break');
-      expect(validateSurface?.evidence).toContain('--strict --json');
+      expect(validateSurface?.verdict).toBe('compatible');
+      expect(validateSurface?.evidence).toContain('Validación estricta compatible');
     });
 
     it('identifica rotura ante salto de versión mayor (2.0.0)', () => {
@@ -184,8 +184,8 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       // Hechos medidos determinados por código
       expect(res.measured.installedVersion).toBe('1.12.0');
       expect(res.measured.availableVersion).toBe('1.13.0');
-      expect(res.measured.versionClass).toBe('too-new');
-      expect(res.measured.breakingChangesDetected).toBe(true);
+      expect(res.measured.versionClass).toBe('supported');
+      expect(res.measured.breakingChangesDetected).toBe(false);
       expect(res.measured.consumedSurfaces.length).toBe(6);
 
       // Redacción del modelo
@@ -220,7 +220,7 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       // Hechos medidos intactos y completos
       expect(res.measured.installedVersion).toBe('1.12.0');
       expect(res.measured.availableVersion).toBe('1.13.0');
-      expect(res.measured.breakingChangesDetected).toBe(true);
+      expect(res.measured.breakingChangesDetected).toBe(false);
       expect(res.measured.consumedSurfaces.length).toBe(6);
 
       // Redacción informa degradación
@@ -234,7 +234,7 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
     it('SUPPORTED_OPENSPEC_VERSIONS y OPENSPEC_CYCLE_TARGET_VERSION permanecen inmutables', () => {
       expect(OPENSPEC_CYCLE_TARGET_VERSION).toBe('1.12.0');
       expect(SUPPORTED_OPENSPEC_VERSIONS.min).toBe('1.5.0');
-      expect(SUPPORTED_OPENSPEC_VERSIONS.max).toBe('1.12.0');
+      expect(SUPPORTED_OPENSPEC_VERSIONS.max).toBeUndefined();
     });
   });
 
@@ -392,7 +392,7 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
 
         expect(result).toBeDefined();
         expect(result.measured).toBeDefined();
-        expect(result.measured.supportedRange.max).toBe('1.12.0');
+        expect(result.measured.supportedRange.max).toBeUndefined();
         expect(result.measured.consumedSurfaces.length).toBe(6);
         expect(result.redaction).toBeDefined();
       } finally {

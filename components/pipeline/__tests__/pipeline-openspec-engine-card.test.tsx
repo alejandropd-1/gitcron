@@ -8,6 +8,7 @@ import type { OpenSpecEngineStatus, OpenSpecDivergenceReason } from '../../../ty
 import { deriveUpdateMatrixAction } from '../../../lib/openspec-update-guide';
 import { OPENSPEC_UPDATE_COMMAND } from '../../../lib/openspec-profile';
 import { hasOpenSpecEngineAttention } from '../pipeline-domain';
+import { usePipelineStore } from '../../../lib/pipeline-store';
 
 describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
   afterEach(() => {
@@ -108,7 +109,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
     expect(screen.getByText(/El perfil global \(core\) difiere/i)).toBeDefined();
   });
 
-  it('alterna el texto del botón entre Revisar actualización y Cerrar revisión según isReviewOpen', () => {
+  it('con isReviewOpen el conmutador NO se muestra; con la revisión cerrada ofrece «Revisar actualización» y el clic llama a onOpenReview una vez', () => {
     const dummyStatus: OpenSpecEngineStatus = {
       cli: {
         installed: true,
@@ -129,8 +130,20 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
 
     const handleReview = vi.fn();
 
-    // 1. Con isReviewOpen=false
+    // 1. Con isReviewOpen=true -> el conmutador no se muestra
     const { rerender } = render(
+      <OpenSpecEngineCard
+        status={dummyStatus}
+        compact={false}
+        onOpenReview={handleReview}
+        isReviewOpen={true}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /Revisar actualización|Cerrar revisión/i })).toBeNull();
+
+    // 2. Con isReviewOpen=false -> ofrece «Revisar actualización» y llama a onOpenReview
+    rerender(
       <OpenSpecEngineCard
         status={dummyStatus}
         compact={false}
@@ -143,21 +156,6 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
     expect(openBtn).toBeDefined();
     fireEvent.click(openBtn);
     expect(handleReview).toHaveBeenCalledTimes(1);
-
-    // 2. Con isReviewOpen=true
-    rerender(
-      <OpenSpecEngineCard
-        status={dummyStatus}
-        compact={false}
-        onOpenReview={handleReview}
-        isReviewOpen={true}
-      />,
-    );
-
-    const closeBtn = screen.getByRole('button', { name: /Cerrar revisión/i });
-    expect(closeBtn).toBeDefined();
-    fireEvent.click(closeBtn);
-    expect(handleReview).toHaveBeenCalledTimes(2);
   });
 
   it('con motor 1.5.0 atrasado y todo lo demás sano, la insignia general pasa a «Requiere atención» y avisa del desfase', () => {
@@ -268,21 +266,22 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
       expectedText: 'Motor obsoleto (requiere ≥ 1.5.0)',
     },
     {
-      versionClass: 'too-new' as const,
-      expectedText: 'Motor no probado (superior a 1.9.0)',
+      versionClass: 'supported' as const,
+      runtimeVersion: '2.0.0',
+      expectedText: 'Motor compatible',
     },
     {
       versionClass: 'unknown' as const,
       expectedText: 'Versión no clasificada',
     },
-  ])('renderiza versionClass: $versionClass traduciendo sin literales "pipeline." (Hallazgo B)', ({ versionClass, expectedText }) => {
+  ])('renderiza versionClass: $versionClass traduciendo sin literales "pipeline." (Hallazgo B)', ({ versionClass, runtimeVersion, expectedText }) => {
     const testStatus: OpenSpecEngineStatus = {
       cli: {
         installed: true,
-        runtimeVersion: '1.5.0',
+        runtimeVersion: runtimeVersion ?? '1.5.0',
         provenance: 'global',
         displayPath: 'C:\\global\\openspec.cmd',
-        supportedRange: { min: '1.5.0', max: '1.9.0' },
+        supportedRange: { min: '1.5.0' },
         versionClass,
         evidenceStatus: 'confirmed',
         diagnostics: [],
@@ -1355,15 +1354,8 @@ describe('OpenSpecEngineCard (Resolución de divergencia en el banner)', () => {
     },
   };
 
-  it('con divergencia y onOpenReview: existe el botón «Actualizar la integración», el clic llama a onOpenReview UNA vez, y se ve el comando con su botón de copiar', async () => {
+  it('con divergencia: se ve el texto de divergencia, y NO existe ningún botón «Actualizar la integración» ni el título «Cómo resolverlo» (las acciones viven en la revisión)', () => {
     const onOpenReview = vi.fn();
-    const writeTextMock = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: writeTextMock,
-      },
-    });
-
     render(
       <OpenSpecEngineCard
         status={baseDivergentStatus}
@@ -1375,29 +1367,18 @@ describe('OpenSpecEngineCard (Resolución de divergencia en el banner)', () => {
     // Desplegar diagnóstico avanzado
     fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
 
-    // Existe el botón «Actualizar la integración»
-    const updateBtn = screen.getByRole('button', { name: /Actualizar la integración/i });
-    expect(updateBtn).toBeDefined();
+    // Se ve el texto de advertencia de divergencia
+    expect(screen.getByText(/⚠️/i)).toBeDefined();
 
-    // Clic llama a onOpenReview UNA vez
-    fireEvent.click(updateBtn);
-    expect(onOpenReview).toHaveBeenCalledTimes(1);
+    // NO existe ningún botón «Actualizar la integración» ni el título «Cómo resolverlo»
+    expect(screen.queryByRole('button', { name: /Actualizar la integración/i })).toBeNull();
+    expect(screen.queryByText(/Cómo resolverlo/i)).toBeNull();
 
-    // Se ve el comando documentado por openspec update --help
-    const codeElement = screen.getByText(OPENSPEC_UPDATE_COMMAND);
-    expect(codeElement).toBeDefined();
-
-    // Botón de copiar copia exactamente ese texto
-    const commandRow = codeElement.closest('div');
-    expect(commandRow).not.toBeNull();
-    const copyBtn = commandRow!.querySelector('button');
-    expect(copyBtn).not.toBeNull();
-    await fireEvent.click(copyBtn!);
-    expect(writeTextMock).toHaveBeenCalledTimes(1);
-    expect(writeTextMock).toHaveBeenCalledWith(OPENSPEC_UPDATE_COMMAND);
+    // onOpenReview sigue pasándose y NO se llama
+    expect(onOpenReview).not.toHaveBeenCalled();
   });
 
-  it('con divergencia y SIN onOpenReview: el botón NO existe, el comando manual SÍ', () => {
+  it('con divergencia y SIN onOpenReview: el botón NO existe, ni el comando manual', () => {
     render(
       <OpenSpecEngineCard
         status={baseDivergentStatus}
@@ -1410,9 +1391,9 @@ describe('OpenSpecEngineCard (Resolución de divergencia en el banner)', () => {
     // El botón NO existe
     expect(screen.queryByRole('button', { name: /Actualizar la integración/i })).toBeNull();
 
-    // El comando manual SÍ se renderiza
-    expect(screen.getByText(OPENSPEC_UPDATE_COMMAND)).toBeDefined();
-    expect(screen.getByText(/O desde la terminal, en la carpeta del repositorio:/i)).toBeDefined();
+    // El comando manual tampoco se renderiza
+    expect(screen.queryByText(OPENSPEC_UPDATE_COMMAND)).toBeNull();
+    expect(screen.queryByText(/O desde la terminal, en la carpeta del repositorio:/i)).toBeNull();
   });
 
   it('sin divergencia: nada de esto se renderiza', () => {
@@ -1430,5 +1411,269 @@ describe('OpenSpecEngineCard (Resolución de divergencia en el banner)', () => {
     expect(screen.queryByRole('button', { name: /Actualizar la integración/i })).toBeNull();
     expect(screen.queryByText(OPENSPEC_UPDATE_COMMAND)).toBeNull();
     expect(screen.queryByText(/O desde la terminal, en la carpeta del repositorio:/i)).toBeNull();
+  });
+});
+
+describe('OpenSpecEngineCard - La tarjeta no ofrece la actualización del motor (8.22)', () => {
+  afterEach(() => {
+    cleanup();
+    delete (window as any).api;
+  });
+
+  const status112With113Npm: OpenSpecEngineStatus = {
+    cli: {
+      installed: true,
+      runtimeVersion: '1.12.0',
+      provenance: 'global',
+      displayPath: 'C:\\global\\openspec.cmd',
+      supportedRange: { min: '1.5.0', max: '1.12.0' },
+      versionClass: 'supported',
+      evidenceStatus: 'confirmed',
+      diagnostics: [],
+    },
+    latestAvailable: {
+      status: 'online',
+      latestVersion: '1.13.0',
+      checkedAt: 'now',
+      fromCache: false,
+      cacheAgeSeconds: 0,
+      freshness: 'fresh',
+      error: null,
+    },
+    globalConfig: null,
+    installedIntegration: {
+      skills: [],
+      generatedBy: '1.12.0',
+      markersFound: [],
+      outputInventory: [],
+      evidenceStatus: 'confirmed',
+      tools: ['agents'],
+      targets: ['agents'],
+      installedWorkflowsByTarget: {},
+      missing: null,
+      legacy: [],
+      customized: [],
+      conflicts: null,
+    },
+    repoState: 'initialized',
+    integrationState: 'up-to-date',
+    freshnessState: 'cli-upgrade-available',
+  };
+
+  it('con motor 1.12.0 y latest 1.13.0, NO existe «Actualizar el motor» ni «Motor v1.12.0 instalado»; pipelineOpenSpec.installGlobal NO se llama', async () => {
+    const installGlobalMock = vi.fn().mockResolvedValue({
+      success: true,
+      mode: 'global',
+      commandExecuted: 'npm i -g @fission-ai/openspec@latest',
+    });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installGlobal: installGlobalMock,
+      },
+    };
+
+    const onChangedMock = vi.fn();
+
+    render(
+      <OpenSpecEngineCard
+        status={status112With113Npm}
+        compact={false}
+        repoPath={'C:\\repo'}
+        onChanged={onChangedMock}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /Actualizar el motor/i })).toBeNull();
+    expect(screen.queryByText(/Motor v1\.12\.0 instalado/i)).toBeNull();
+    expect(installGlobalMock).not.toHaveBeenCalled();
+  });
+
+  it('con motor 1.13.0 y latest 1.12.0, el botón NO existe', () => {
+    const status113With112Npm: OpenSpecEngineStatus = {
+      ...status112With113Npm,
+      cli: {
+        ...status112With113Npm.cli,
+        installed: true,
+        runtimeVersion: '1.13.0',
+      },
+      latestAvailable: {
+        ...status112With113Npm.latestAvailable!,
+        latestVersion: '1.12.0',
+      },
+    };
+
+    render(
+      <OpenSpecEngineCard
+        status={status113With112Npm}
+        compact={false}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /Actualizar el motor/i })).toBeNull();
+    expect(screen.queryByLabelText('Actualización del motor en el sistema host')).toBeNull();
+  });
+
+  describe('Releer estado y lectura incompleta (Tarea 6.11)', () => {
+    it('con status incompleto se ve el texto de lectura incompleta y el botón «Releer estado»; el clic incrementa engineChangeToken y llama a onChanged', () => {
+      const incompleteStatus: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: null,
+          provenance: 'global',
+          displayPath: 'C:\\global\\openspec.cmd',
+          supportedRange: { min: '1.5.0' },
+          versionClass: 'unknown',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: null,
+        globalConfig: null,
+        installedIntegration: null,
+        repoState: 'initialized',
+        integrationState: 'up-to-date',
+      };
+
+      const onChangedMock = vi.fn();
+      const initialToken = usePipelineStore.getState().engineChangeToken;
+
+      render(
+        <OpenSpecEngineCard
+          status={incompleteStatus}
+          compact={false}
+          onChanged={onChangedMock}
+        />,
+      );
+
+      expect(screen.getByText(/La lectura del motor quedó incompleta/i)).toBeDefined();
+      const rereadBtn = screen.getByRole('button', { name: /Releer estado/i });
+      expect(rereadBtn).toBeDefined();
+
+      fireEvent.click(rereadBtn);
+
+      expect(usePipelineStore.getState().engineChangeToken).toBe(initialToken + 1);
+      expect(onChangedMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('con status completo el texto de lectura incompleta NO aparece pero el botón SÍ', () => {
+      const completeStatus: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: '1.12.0',
+          provenance: 'global',
+          displayPath: 'C:\\global\\openspec.cmd',
+          supportedRange: { min: '1.5.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: null,
+        globalConfig: {
+          rawProfile: 'core',
+          profileState: 'read',
+          delivery: 'both',
+          deliveryState: 'read',
+          configuredWorkflows: ['propose', 'apply'],
+          workflowsState: 'read',
+          resolvedWorkflows: ['propose', 'apply'],
+          resolvedWorkflowsState: 'read',
+          origin: 'cli',
+          readAt: 'now',
+        },
+        installedIntegration: null,
+        repoState: 'initialized',
+        integrationState: 'up-to-date',
+      };
+
+      render(
+        <OpenSpecEngineCard
+          status={completeStatus}
+          compact={false}
+        />,
+      );
+
+      expect(screen.queryByText(/La lectura del motor quedó incompleta/i)).toBeNull();
+      expect(screen.getByRole('button', { name: /Releer estado/i })).toBeDefined();
+    });
+  });
+
+  describe('Tarea 8.21: deduplicación de acciones cuando la revisión está abierta', () => {
+    const combinedDivergentUpgradeStatus: OpenSpecEngineStatus = {
+      cli: {
+        installed: true,
+        runtimeVersion: '1.12.0',
+        displayPath: 'C:\\fake\\openspec.cmd',
+        provenance: 'global',
+        versionClass: 'supported',
+        evidenceStatus: 'confirmed',
+        supportedRange: { min: '1.5.0' },
+        diagnostics: [],
+      },
+      latestAvailable: {
+        status: 'online',
+        latestVersion: '1.13.0',
+        checkedAt: 'now',
+        fromCache: false,
+        cacheAgeSeconds: 0,
+        freshness: 'fresh',
+        error: null,
+      },
+      globalConfig: null,
+      installedIntegration: null,
+      repoState: 'initialized',
+      integrationState: 'outdated',
+      divergence: {
+        isDivergent: true,
+        overallStatus: 'divergent',
+        reason: {
+          kind: 'profile-mismatch',
+          globalProfileClass: 'core',
+          repoProfileClass: 'custom',
+        },
+        globalProfileClass: 'core',
+        repoProfileClass: 'custom',
+      },
+    };
+
+    it('con isReviewOpen true y con isReviewOpen false: en ambos casos NO existen «Actualizar la integración», «Cómo resolverlo» ni «Actualizar el motor»; con false existe «Revisar actualización», con true no', () => {
+      // 1. Con isReviewOpen={false}
+      const { rerender } = render(
+        <OpenSpecEngineCard
+          status={combinedDivergentUpgradeStatus}
+          compact={false}
+          onOpenReview={vi.fn()}
+          isReviewOpen={false}
+        />,
+      );
+
+      // Existe «Revisar actualización»
+      expect(screen.getByRole('button', { name: /Revisar actualización/i })).toBeDefined();
+      // NO existe «Actualizar el motor»
+      expect(screen.queryByRole('button', { name: /Actualizar el motor/i })).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i }));
+
+      // NO existen «Actualizar la integración» ni «Cómo resolverlo»
+      expect(screen.queryByRole('button', { name: /Actualizar la integración/i })).toBeNull();
+      expect(screen.queryByText(/Cómo resolverlo/i)).toBeNull();
+
+      // 2. Con isReviewOpen={true}
+      rerender(
+        <OpenSpecEngineCard
+          status={combinedDivergentUpgradeStatus}
+          compact={false}
+          onOpenReview={vi.fn()}
+          isReviewOpen={true}
+        />,
+      );
+
+      // NO existe «Revisar actualización»
+      expect(screen.queryByRole('button', { name: /Revisar actualización|Cerrar revisión/i })).toBeNull();
+      // NO existe «Actualizar el motor»
+      expect(screen.queryByRole('button', { name: /Actualizar el motor/i })).toBeNull();
+      // NO existen «Actualizar la integración» ni «Cómo resolverlo»
+      expect(screen.queryByRole('button', { name: /Actualizar la integración/i })).toBeNull();
+      expect(screen.queryByText(/Cómo resolverlo/i)).toBeNull();
+      expect(screen.getByText(/⚠️/i)).toBeDefined();
+    });
   });
 });

@@ -5,8 +5,9 @@ import {
   AlertTriangle,
   Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Copy,
-  Info,
   Loader2,
   ShieldCheck,
 } from 'lucide-react';
@@ -24,6 +25,8 @@ import {
   deriveUpdateMatrixAction,
 } from '@/lib/openspec-update-guide';
 import { usePipelineStore } from '@/lib/pipeline-store';
+import { OpenSpecGlobalInstallConfirm } from './OpenSpecGlobalInstallConfirm';
+import { getOpenSpecEngineUpgrade } from './pipeline-domain';
 import styles from './OpenSpecDashboard.module.css';
 
 export interface OpenSpecUpdateReviewProps {
@@ -33,6 +36,7 @@ export interface OpenSpecUpdateReviewProps {
   installPlan?: OpenSpecInstallPlan | null;
   currentBranch?: string | null;
   isClean?: boolean;
+  uncommittedCount?: number;
   onBack: () => void;
   onPrepareCommit?: () => void;
   onUpdateCompleted?: (result: OpenSpecRunUpdateResult) => void;
@@ -45,6 +49,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   installPlan,
   currentBranch,
   isClean = true,
+  uncommittedCount,
   onBack,
   onPrepareCommit,
   onUpdateCompleted,
@@ -55,10 +60,15 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResult, setExecutionResult] = useState<OpenSpecRunUpdateResult | null>(null);
   const [forceConfirmed, setForceConfirmed] = useState(false);
+  const [showWarningConfirm, setShowWarningConfirm] = useState(false);
+  const [isConfirmingGlobal, setIsConfirmingGlobal] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
 
   const cli = status?.cli;
   const latest = status?.latestAvailable;
   const installed = status?.installedIntegration;
+  const upgrade = getOpenSpecEngineUpgrade(status);
 
   // Derivar operación oficial y comando literal
   const action = updatePlan?.requiredAction ?? deriveUpdateMatrixAction(status);
@@ -79,7 +89,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   // Salvaguardas de Git
   const isMainOrMaster = currentBranch === 'main' || currentBranch === 'master';
   const isDirty = isClean === false;
-  const canExecute = !isMainOrMaster && !isDirty && !isExecuting && action !== 'blocked' && !executionResult?.success;
+  const canExecute = !isExecuting && action !== 'blocked' && !executionResult?.success;
 
   const handleCopyCommand = async () => {
     if (!officialCommand) return;
@@ -121,6 +131,15 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     return t('pipeline.openspec.engine.matrix.blocked');
   };
 
+  const handlePrimaryClick = () => {
+    if (!canExecute) return;
+    if ((isMainOrMaster || isDirty) && !showWarningConfirm) {
+      setShowWarningConfirm(true);
+      return;
+    }
+    void handleExecuteUpdate();
+  };
+
   const handleExecuteUpdate = async () => {
     if (!canExecute) return;
     setIsExecuting(true);
@@ -133,6 +152,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
       if (result) {
         setExecutionResult(result);
         if (result.success) {
+          setShowWarningConfirm(false);
           usePipelineStore.getState().notifyEngineChanged();
           onUpdateCompleted?.(result);
         }
@@ -163,90 +183,143 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
       </header>
 
       <div className={styles.reviewBody}>
-        {/* RESUMEN EN UNA LÍNEA Y ACCIONES AL FRENTE (Tareas 9.1 y 9.5) */}
+        {/* RESUMEN DE HECHOS Y ACCIONES AL FRENTE (Decisión 8.22) */}
         <div className={styles.reviewUpfrontHeader}>
           <div className={styles.reviewUpfrontSummary}>
-            <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.matrix.actionLabel')}:</span>
-            <strong style={{ color: action === 'none' ? 'var(--color-git-add)' : action === 'blocked' ? 'var(--color-error)' : 'var(--color-warning)' }}>
-              {actionLabel}
-            </strong>
-            {cli?.runtimeVersion && (
-              <span className={styles.axisMeta}>· v{cli.runtimeVersion}</span>
-            )}
-            {cli && (
-              <span className={styles.axisMeta}>· {t(`pipeline.openspec.engine.provenance.${cli.provenance}`)}</span>
-            )}
+            <div className={styles.reviewFactItem}>
+              <span>
+                {!cli?.installed
+                  ? t('pipeline.openspec.engine.status.absent')
+                  : upgrade !== null
+                  ? t('pipeline.openspec.engine.hostUpgrade.offer', { installed: upgrade.installed, latest: upgrade.latest })
+                  : t('pipeline.openspec.engine.summary.engineUpToDate', { version: cli?.runtimeVersion ?? '?' })}
+              </span>
+            </div>
+            <div className={styles.reviewFactItem}>
+              <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.summary.integrationLabel')}: </span>
+              <strong style={{ color: action === 'none' ? 'var(--color-git-add)' : action === 'blocked' ? 'var(--color-error)' : 'var(--color-warning)' }}>
+                {actionLabel}
+              </strong>
+            </div>
           </div>
 
-          <div className={styles.reviewUpfrontActions}>
-            {/* Botón principal de ejecución de actualización (Paso 2) */}
-            {!executionResult?.success && (
-              <div className={styles.reviewActionWithReason}>
+          {isConfirmingGlobal ? (
+            <OpenSpecGlobalInstallConfirm
+              command={hostCommand}
+              nodePath={installPlan?.nodePath}
+              packageManagerPath={installPlan?.packageManagerPath}
+              packageManagerName={installPlan?.detectedManager}
+              repoPath={repoPath}
+              installedVersion={cli?.runtimeVersion ?? null}
+              onCancel={() => setIsConfirmingGlobal(false)}
+              onInstalled={() => {}}
+            />
+          ) : (
+            <div className={styles.reviewUpfrontActions}>
+              {/* Botón para actualizar el motor host cuando hay versión más nueva */}
+              {upgrade !== null && (
                 <button
                   type="button"
-                  className={styles.centerAttentionBtn}
-                  onClick={handleExecuteUpdate}
-                  disabled={!canExecute}
-                  title={
-                    isMainOrMaster
-                      ? t('pipeline.openspec.engine.review.blockedBranchMain', { branch: currentBranch ?? 'main' })
-                      : isDirty
-                      ? t('pipeline.openspec.engine.review.blockedDirty')
-                      : undefined
-                  }
+                  className={styles.primaryAction}
+                  onClick={() => setIsConfirmingGlobal(true)}
+                  disabled={typeof window !== 'undefined' && !window.api?.pipelineOpenSpec?.installGlobal}
                 >
-                  {isExecuting ? (
-                    <>
-                      <Loader2 size={13} className={styles.spin} aria-hidden="true" />
-                      <span>{t('pipeline.openspec.engine.review.updating')}</span>
-                    </>
-                  ) : forceConfirmed ? (
-                    t('pipeline.openspec.engine.review.forceButton')
-                  ) : (
-                    t('pipeline.openspec.engine.review.executeUpdate')
-                  )}
+                  {t('pipeline.openspec.engine.hostUpgrade.upgradeAction')}
                 </button>
-                {isMainOrMaster && (
-                  <span className={styles.blockedReasonInline} role="alert">
-                    <AlertTriangle size={13} color="var(--color-error)" aria-hidden="true" style={{ flex: '0 0 auto', marginTop: 1 }} />
-                    {t('pipeline.openspec.engine.review.blockedBranchMain', { branch: currentBranch ?? 'main' })}
-                  </span>
-                )}
-                {!isMainOrMaster && isDirty && (
-                  <span className={styles.blockedReasonInline} role="alert">
-                    <AlertTriangle size={13} color="var(--color-error)" aria-hidden="true" style={{ flex: '0 0 auto', marginTop: 1 }} />
-                    {t('pipeline.openspec.engine.review.blockedDirty')}
-                  </span>
-                )}
-                {!isMainOrMaster && !isDirty && action === 'blocked' && (
-                  <span className={styles.blockedReasonInline} role="alert">
-                    {t('pipeline.openspec.engine.matrix.blockedReason', {
-                      reason: resolveBlockReasonText(),
-                    })}
-                  </span>
-                )}
-              </div>
-            )}
+              )}
 
-            {/* Si ya concluyó con éxito, ofrecemos preparar commit */}
-            {executionResult?.success && onPrepareCommit && (
+              {/* Botón principal de ejecución de actualización (Paso 2) */}
+              {!executionResult?.success && (
+                <div className={styles.reviewActionWithReason}>
+                  {showWarningConfirm ? (
+                    <div className={styles.reviewWarningConfirmBox} role="region" aria-label={t('pipeline.openspec.engine.review.title')}>
+                      {isMainOrMaster && (
+                        <p className={styles.reviewWarningConfirmText}>
+                          {t('pipeline.openspec.engine.review.confirmMain', { branch: currentBranch ?? 'main' })}
+                        </p>
+                      )}
+                      {isDirty && (
+                        <p className={styles.reviewWarningConfirmText}>
+                          {t('pipeline.openspec.engine.review.confirmDirty', { count: uncommittedCount ?? 1 })}
+                        </p>
+                      )}
+                      <div className={styles.reviewWarningConfirmActions}>
+                        <button
+                          type="button"
+                          className={styles.primaryAction}
+                          onClick={handleExecuteUpdate}
+                          disabled={isExecuting}
+                        >
+                          {isExecuting ? (
+                            <>
+                              <Loader2 size={13} className={styles.spin} aria-hidden="true" />
+                              <span>{t('pipeline.openspec.engine.review.updating')}</span>
+                            </>
+                          ) : (
+                            t('pipeline.openspec.engine.review.updateAnyway')
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.reviewCopyBtn}
+                          onClick={() => setShowWarningConfirm(false)}
+                          disabled={isExecuting}
+                        >
+                          {t('pipeline.openspec.engine.review.cancel')}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className={styles.primaryAction}
+                        onClick={handlePrimaryClick}
+                        disabled={!canExecute}
+                      >
+                        {isExecuting ? (
+                          <>
+                            <Loader2 size={13} className={styles.spin} aria-hidden="true" />
+                            <span>{t('pipeline.openspec.engine.review.updating')}</span>
+                          </>
+                        ) : forceConfirmed ? (
+                          t('pipeline.openspec.engine.review.forceButton')
+                        ) : (
+                          t('pipeline.openspec.engine.review.executeUpdate')
+                        )}
+                      </button>
+                      {action === 'blocked' && (
+                        <span className={styles.blockedReasonInline} role="alert">
+                          {t('pipeline.openspec.engine.matrix.blockedReason', {
+                            reason: resolveBlockReasonText(),
+                          })}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Si ya concluyó con éxito, ofrecemos preparar commit */}
+              {executionResult?.success && onPrepareCommit && (
+                <button
+                  type="button"
+                  className={styles.primaryAction}
+                  onClick={onPrepareCommit}
+                >
+                  {t('pipeline.openspec.engine.review.prepareCommit')}
+                </button>
+              )}
+
               <button
                 type="button"
-                className={styles.centerAttentionBtn}
-                onClick={onPrepareCommit}
+                className={styles.reviewPrimaryActionBtn}
+                onClick={onBack}
               >
-                {t('pipeline.openspec.engine.review.prepareCommit')}
+                {t('pipeline.openspec.engine.review.close')}
               </button>
-            )}
-
-            <button
-              type="button"
-              className={styles.reviewPrimaryActionBtn}
-              onClick={onBack}
-            >
-              {t('pipeline.openspec.engine.review.close')}
-            </button>
-          </div>
+            </div>
+          )}
         </div>
 
         {/* REPORTE DE RESULTADO DE EJECUCIÓN (Si ya se ejecutó) */}
@@ -306,255 +379,6 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           </div>
         )}
 
-        {/* DIAGNÓSTICO COMPLETO CONTRAÍDO POR OMISIÓN (Tarea 9.1) */}
-        <details className={styles.reviewDiagnosticsDetails}>
-          <summary className={styles.reviewDiagnosticsSummary}>
-            <span>{t('pipeline.openspec.engine.cardTitle')} — {t('pipeline.openspec.engine.showAdvanced')}</span>
-          </summary>
-          <div className={styles.reviewDiagnosticsContent}>
-            {/* DATOS DEL MOTOR Y PROCEDENCIA */}
-            <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.cardTitle')}>
-              <div className={styles.reviewFactsGrid}>
-                <div className={styles.reviewFactItem}>
-                  <span className={styles.reviewFactLabel}>
-                    {t('pipeline.openspec.engine.axis.engine')}
-                  </span>
-                  <span className={styles.reviewFactValue}>
-                    {cli?.installed ? `v${cli.runtimeVersion ?? '?'}` : t('pipeline.openspec.engine.status.absent')}
-                  </span>
-                </div>
-
-            <div className={styles.reviewFactItem}>
-              <span className={styles.reviewFactLabel}>
-                {t('pipeline.openspec.engine.latestAvailable', { version: '' }).replace(/:\s*$/, '')}
-              </span>
-              <span className={styles.reviewFactValue}>
-                {latest?.latestVersion ? `v${latest.latestVersion}` : '—'}
-              </span>
-            </div>
-
-            <div className={styles.reviewFactItem}>
-              <span className={styles.reviewFactLabel}>
-                {t('pipeline.openspec.engine.advanced.routeAndProvenance')}
-              </span>
-              <span className={styles.reviewFactValue}>
-                {cli ? t(`pipeline.openspec.engine.provenance.${cli.provenance}`) : '—'}
-              </span>
-            </div>
-
-            <div className={styles.reviewFactItem}>
-              <span className={styles.reviewFactLabel}>
-                {t('pipeline.openspec.engine.axis.repo')}
-              </span>
-              <span className={styles.reviewFactValue}>
-                {status?.repoState ? t(`pipeline.openspec.engine.repoState.${status.repoState}`) : '—'}
-              </span>
-            </div>
-          </div>
-
-          {cli?.displayPath && (
-            <div style={{ marginTop: 'var(--space-1)' }}>
-              <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.advanced.routeAndProvenance')}: </span>
-              <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>{cli.displayPath}</code>
-            </div>
-          )}
-        </section>
-
-        {/* GUÍA DE ACTUALIZACIÓN DEL MOTOR HOST (DECISIÓN 2: Sólo Guía / Copiado) */}
-        {latest?.latestVersion && cli?.runtimeVersion && latest.latestVersion !== cli.runtimeVersion && (
-          <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.hostUpgrade.title')}>
-            <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.hostUpgrade.title')}</h3>
-            <p style={{ margin: '0 0 var(--space-1)', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
-              {t('pipeline.openspec.engine.hostUpgrade.help')}
-            </p>
-            {hostCommand ? (
-              <div className={styles.reviewCommandPre}>
-                <code>{hostCommand}</code>
-                <button
-                  type="button"
-                  className={styles.reviewCopyBtn}
-                  onClick={handleCopyHostCommand}
-                  aria-label={copiedHostCmd ? t('pipeline.openspec.engine.hostUpgrade.copied') : t('pipeline.openspec.engine.hostUpgrade.copy')}
-                >
-                  {copiedHostCmd ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
-                  <span>{copiedHostCmd ? t('pipeline.openspec.engine.hostUpgrade.copied') : t('pipeline.openspec.engine.hostUpgrade.copy')}</span>
-                </button>
-              </div>
-            ) : (
-              <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                {t('pipeline.openspec.engine.install.commandPendingResolution')}
-              </p>
-            )}
-          </section>
-        )}
-
-        {/* MATRIZ DECLARADA Y COMANDO OFICIAL SUGERIDO */}
-        <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.matrix.title')}>
-          <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.matrix.title')}</h3>
-          <div className={styles.reviewFactItem}>
-            <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.matrix.actionLabel')}:</span>
-            <strong style={{ color: action === 'none' ? 'var(--color-git-add)' : action === 'blocked' ? 'var(--color-error)' : 'var(--color-warning)' }}>
-              {actionLabel}
-            </strong>
-          </div>
-
-          {action === 'blocked' && (
-            <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>
-              {t('pipeline.openspec.engine.matrix.blockedReason', {
-                reason: resolveBlockReasonText(),
-              })}
-            </p>
-          )}
-
-          {officialCommand && (
-            <div className={styles.reviewCommandBox}>
-              <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
-                {t('pipeline.openspec.engine.matrix.commandHelp')}
-              </p>
-              <div className={styles.reviewCommandPre}>
-                <code>{officialCommand}</code>
-                <button
-                  type="button"
-                  className={styles.reviewCopyBtn}
-                  onClick={handleCopyCommand}
-                  aria-label={copiedCommand ? t('pipeline.openspec.engine.matrix.commandCopied') : t('pipeline.openspec.engine.matrix.copyCommand')}
-                >
-                  {copiedCommand ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
-                  <span>{copiedCommand ? t('pipeline.openspec.engine.matrix.commandCopied') : t('pipeline.openspec.engine.matrix.copyCommand')}</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* GUÍA NO INTERACTIVA PARA INIT */}
-        {(action === 'init' || action === 'upgrade-init' || !status?.repoState || status.repoState === 'not-initialized') && (
-          <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.guide.title')}>
-            <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.guide.title')}</h3>
-            <ul className={styles.reviewGuideList}>
-              <li className={styles.reviewGuideItem}>
-                <code>--tools &lt;lista&gt;</code>: {t('pipeline.openspec.engine.guide.toolsArg').replace(/^--tools <lista>:\s*/, '')}
-              </li>
-              <li className={styles.reviewGuideItem}>
-                <code>--profile core|custom</code>: {t('pipeline.openspec.engine.guide.profileArg').replace(/^--profile core\|custom:\s*/, '')}
-              </li>
-              <li className={styles.reviewGuideItem}>
-                <code>--no-animation</code>: {t('pipeline.openspec.engine.guide.noAnimationArg').replace(/^--no-animation:\s*/, '')}
-              </li>
-              <li className={styles.reviewGuideItem}>
-                <code>--copilot-cloud / --no-copilot-cloud</code>: {t('pipeline.openspec.engine.guide.copilotArg').replace(/^--copilot-cloud \/ --no-copilot-cloud:\s*/, '')}
-              </li>
-            </ul>
-
-            <div className={styles.reviewWarningAlert}>
-              <AlertTriangle size={15} aria-hidden="true" style={{ flex: '0 0 auto', marginTop: 1 }} />
-              <span>{t('pipeline.openspec.engine.guide.forceWarning')}</span>
-            </div>
-          </section>
-        )}
-
-        {/* DIAGNÓSTICO DE CONVIVENCIA .codex ↔ .agents */}
-        <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.coexistence.title')}>
-          <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.coexistence.title')}</h3>
-
-          <div className={styles.reviewCoexistenceGrid}>
-            {/* Skills legacy */}
-            <div className={styles.reviewCoexistenceCol}>
-              <span className={styles.reviewCoexistenceColTitle}>
-                {t('pipeline.openspec.engine.coexistence.legacyTitle')} ({coexistence.legacySkills.length})
-              </span>
-              {coexistence.legacySkills.length === 0 ? (
-                <span className={styles.reviewEmptyNotice}>{t('pipeline.openspec.engine.coexistence.noLegacy')}</span>
-              ) : (
-                <ul className={styles.reviewSkillsList}>
-                  {coexistence.legacySkills.map((s) => (
-                    <li key={s.path}>
-                      <span className={styles.reviewSkillTag} data-kind="legacy">{s.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Skills oficiales en .agents */}
-            <div className={styles.reviewCoexistenceCol}>
-              <span className={styles.reviewCoexistenceColTitle}>
-                {t('pipeline.openspec.engine.coexistence.newTitle')} ({coexistence.newAgentsSkills.length})
-              </span>
-              {coexistence.newAgentsSkills.length === 0 ? (
-                <span className={styles.reviewEmptyNotice}>{t('pipeline.openspec.engine.coexistence.noNew')}</span>
-              ) : (
-                <ul className={styles.reviewSkillsList}>
-                  {coexistence.newAgentsSkills.map((s) => (
-                    <li key={s.path}>
-                      <span className={styles.reviewSkillTag} data-kind="official">{s.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Skills oficiales en otras herramientas (.claude, .opencode, etc.) */}
-            <div className={styles.reviewCoexistenceCol}>
-              <span className={styles.reviewCoexistenceColTitle}>
-                {t('pipeline.openspec.engine.coexistence.officialOtherTitle')} ({coexistence.officialOtherSkills.length})
-              </span>
-              {coexistence.officialOtherSkills.length === 0 ? (
-                <span className={styles.reviewEmptyNotice}>{t('pipeline.openspec.engine.coexistence.noOfficialOther')}</span>
-              ) : (
-                <ul className={styles.reviewSkillsList}>
-                  {coexistence.officialOtherSkills.map((s) => (
-                    <li key={s.path}>
-                      <span className={styles.reviewSkillTag} data-kind="official">{s.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Personalizados preexistentes en .agents (A CONSERVAR) */}
-            <div className={styles.reviewCoexistenceCol}>
-              <span className={styles.reviewCoexistenceColTitle}>
-                {t('pipeline.openspec.engine.coexistence.customTitle')} ({coexistence.customPreexistingSkills.length})
-              </span>
-              {coexistence.customPreexistingSkills.length === 0 ? (
-                <span className={styles.reviewEmptyNotice}>{t('pipeline.openspec.engine.coexistence.noCustom')}</span>
-              ) : (
-                <ul className={styles.reviewSkillsList}>
-                  {coexistence.customPreexistingSkills.map((s) => (
-                    <li key={s.path}>
-                      <span className={styles.reviewSkillTag} data-kind="custom" title={t('pipeline.openspec.engine.coexistence.customHelp')}>
-                        {s.name}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          {/* Colisiones o conflictos */}
-          <div style={{ marginTop: 'var(--space-2)' }}>
-            <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.coexistence.collisionsTitle')}: </span>
-            {coexistence.nameCollisions.length === 0 && coexistence.conflicts.length === 0 ? (
-              <span style={{ color: 'var(--color-git-add)', fontSize: 'var(--font-size-xs)' }}>{t('pipeline.openspec.engine.coexistence.noCollisions')}</span>
-            ) : (
-              <div style={{ marginTop: 'var(--space-1)', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-                {coexistence.nameCollisions.map((col) => (
-                  <span key={col} style={{ color: 'var(--color-warning)', fontSize: 'var(--font-size-xs)' }}>
-                    ⚠️ Colisión de nombre: <code>{col}</code> existe en configuración legacy y nueva.
-                  </span>
-                ))}
-                {coexistence.conflicts.map((conf, idx) => (
-                  <span key={idx} style={{ color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>
-                    ⚠️ Conflicto: {conf}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
         {/* OFRECIMIENTO CONDICIONAL DE --force (DECISIÓN 3: Sólo si hay residuo legacy concreto) */}
         {hasLegacyResidue && (
           <section
@@ -587,43 +411,310 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           </section>
         )}
 
-        {/* INVENTARIO DIAGNÓSTICO DE OUTPUTS */}
-        {presentOutputs.length > 0 && (
-          <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.outputsTitle')}>
-            <h3 className={styles.reviewSectionTitle}>
-              {t('pipeline.openspec.engine.outputsTitle')} ({presentOutputs.length})
-            </h3>
-            <p style={{ margin: '0 0 var(--space-1)', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
-              {t('pipeline.openspec.engine.outputsHelp')}
-            </p>
-            <div className={styles.outputListScrollContainer}>
-              <ul className={styles.outputList}>
-                {presentOutputs.map((out) => (
-                  <li key={out.id} className={styles.outputListItem} data-kind={out.kind}>
-                    <span className={styles.outputKindBadge} data-kind={out.kind}>
-                      {out.kind === 'repo-local'
-                        ? t('pipeline.openspec.engine.output.repoLocal')
-                        : t('pipeline.openspec.engine.output.externalGlobal')}
-                    </span>
-                    <code className={styles.outputPath}>{out.displayPath}</code>
-                    {out.presenceState && (
-                      <span className={styles.presenceBadge} data-presence={out.presenceState}>
-                        {t(`pipeline.openspec.engine.presence.${out.presenceState}`)}
-                      </span>
-                    )}
-                    {out.blocked && (
-                      <span className={styles.blockedTag} aria-label={t('pipeline.openspec.engine.output.blockedBadge')}>
-                        {t('pipeline.openspec.engine.output.blockedBadge')}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+        {/* DESDE LA TERMINAL (Plegado por omisión) */}
+        <div className={styles.reviewSection}>
+          <button
+            type="button"
+            className={styles.toggleAbsentBtn}
+            onClick={() => setShowTerminal((prev) => !prev)}
+            aria-expanded={showTerminal}
+          >
+            <span>{t('pipeline.openspec.engine.summary.terminalToggle')}</span>
+            {showTerminal ? <ChevronUp size={12} aria-hidden="true" /> : <ChevronDown size={12} aria-hidden="true" />}
+          </button>
+
+          {showTerminal && (
+            <div style={{ marginTop: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              {hostCommand && (
+                <div className={styles.reviewCommandBox}>
+                  <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
+                    {t('pipeline.openspec.engine.hostUpgrade.help')}
+                  </p>
+                  <div className={styles.reviewCommandPre}>
+                    <code>{hostCommand}</code>
+                    <button
+                      type="button"
+                      className={styles.reviewCopyBtn}
+                      onClick={handleCopyHostCommand}
+                      aria-label={copiedHostCmd ? t('pipeline.openspec.engine.hostUpgrade.copied') : t('pipeline.openspec.engine.hostUpgrade.copy')}
+                    >
+                      {copiedHostCmd ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
+                      <span>{copiedHostCmd ? t('pipeline.openspec.engine.hostUpgrade.copied') : t('pipeline.openspec.engine.hostUpgrade.copy')}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {officialCommand && (
+                <div className={styles.reviewCommandBox}>
+                  <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
+                    {t('pipeline.openspec.engine.matrix.commandHelp')}
+                  </p>
+                  <div className={styles.reviewCommandPre}>
+                    <code>{officialCommand}</code>
+                    <button
+                      type="button"
+                      className={styles.reviewCopyBtn}
+                      onClick={handleCopyCommand}
+                      aria-label={copiedCommand ? t('pipeline.openspec.engine.matrix.commandCopied') : t('pipeline.openspec.engine.matrix.copyCommand')}
+                    >
+                      {copiedCommand ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
+                      <span>{copiedCommand ? t('pipeline.openspec.engine.matrix.commandCopied') : t('pipeline.openspec.engine.matrix.copyCommand')}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          </section>
-        )}
-          </div>
-        </details>
+          )}
+        </div>
+
+        {/* DETALLE TÉCNICO (Plegado por omisión) */}
+        <div className={styles.reviewSection}>
+          <button
+            type="button"
+            className={styles.toggleAbsentBtn}
+            onClick={() => setShowTechnicalDetails((prev) => !prev)}
+            aria-expanded={showTechnicalDetails}
+          >
+            <span>{t('pipeline.openspec.engine.summary.technicalToggle')}</span>
+            {showTechnicalDetails ? <ChevronUp size={12} aria-hidden="true" /> : <ChevronDown size={12} aria-hidden="true" />}
+          </button>
+
+          {showTechnicalDetails && (
+            <div style={{ marginTop: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              {/* 1. DATOS DEL MOTOR Y PROCEDENCIA */}
+              <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.cardTitle')}>
+                <div className={styles.reviewFactsGrid}>
+                  <div className={styles.reviewFactItem}>
+                    <span className={styles.reviewFactLabel}>
+                      {t('pipeline.openspec.engine.axis.engine')}
+                    </span>
+                    <span className={styles.reviewFactValue}>
+                      {cli?.installed ? `v${cli.runtimeVersion ?? '?'}` : t('pipeline.openspec.engine.status.absent')}
+                    </span>
+                  </div>
+
+                  <div className={styles.reviewFactItem}>
+                    <span className={styles.reviewFactLabel}>
+                      {t('pipeline.openspec.engine.latestAvailable', { version: '' }).replace(/:\s*$/, '')}
+                    </span>
+                    <span className={styles.reviewFactValue}>
+                      {latest?.latestVersion ? `v${latest.latestVersion}` : '—'}
+                    </span>
+                  </div>
+
+                  <div className={styles.reviewFactItem}>
+                    <span className={styles.reviewFactLabel}>
+                      {t('pipeline.openspec.engine.advanced.routeAndProvenance')}
+                    </span>
+                    <span className={styles.reviewFactValue}>
+                      {cli ? t(`pipeline.openspec.engine.provenance.${cli.provenance}`) : '—'}
+                    </span>
+                  </div>
+
+                  <div className={styles.reviewFactItem}>
+                    <span className={styles.reviewFactLabel}>
+                      {t('pipeline.openspec.engine.axis.repo')}
+                    </span>
+                    <span className={styles.reviewFactValue}>
+                      {status?.repoState ? t(`pipeline.openspec.engine.repoState.${status.repoState}`) : '—'}
+                    </span>
+                  </div>
+                </div>
+
+                {cli?.displayPath && (
+                  <div style={{ marginTop: 'var(--space-1)' }}>
+                    <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.advanced.routeAndProvenance')}: </span>
+                    <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>{cli.displayPath}</code>
+                  </div>
+                )}
+              </section>
+
+              {/* 2. MATRIZ DECLARADA */}
+              <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.matrix.title')}>
+                <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.matrix.title')}</h3>
+                <div className={styles.reviewFactItem}>
+                  <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.matrix.actionLabel')}:</span>
+                  <strong style={{ color: action === 'none' ? 'var(--color-git-add)' : action === 'blocked' ? 'var(--color-error)' : 'var(--color-warning)' }}>
+                    {actionLabel}
+                  </strong>
+                </div>
+
+                {action === 'blocked' && (
+                  <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>
+                    {t('pipeline.openspec.engine.matrix.blockedReason', {
+                      reason: resolveBlockReasonText(),
+                    })}
+                  </p>
+                )}
+              </section>
+
+              {/* 3. GUÍA NO INTERACTIVA PARA INIT */}
+              {(action === 'init' || action === 'upgrade-init' || !status?.repoState || status.repoState === 'not-initialized') && (
+                <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.guide.title')}>
+                  <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.guide.title')}</h3>
+                  <ul className={styles.reviewGuideList}>
+                    <li className={styles.reviewGuideItem}>
+                      <code>--tools &lt;lista&gt;</code>: {t('pipeline.openspec.engine.guide.toolsArg').replace(/^--tools <lista>:\s*/, '')}
+                    </li>
+                    <li className={styles.reviewGuideItem}>
+                      <code>--profile core|custom</code>: {t('pipeline.openspec.engine.guide.profileArg').replace(/^--profile core\|custom:\s*/, '')}
+                    </li>
+                    <li className={styles.reviewGuideItem}>
+                      <code>--no-animation</code>: {t('pipeline.openspec.engine.guide.noAnimationArg').replace(/^--no-animation:\s*/, '')}
+                    </li>
+                    <li className={styles.reviewGuideItem}>
+                      <code>--copilot-cloud / --no-copilot-cloud</code>: {t('pipeline.openspec.engine.guide.copilotArg').replace(/^--copilot-cloud \/ --no-copilot-cloud:\s*/, '')}
+                    </li>
+                  </ul>
+
+                  <div className={styles.reviewWarningAlert}>
+                    <AlertTriangle size={15} aria-hidden="true" style={{ flex: '0 0 auto', marginTop: 1 }} />
+                    <span>{t('pipeline.openspec.engine.guide.forceWarning')}</span>
+                  </div>
+                </section>
+              )}
+
+              {/* 4. DIAGNÓSTICO DE CONVIVENCIA .codex ↔ .agents */}
+              <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.coexistence.title')}>
+                <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.coexistence.title')}</h3>
+
+                <div className={styles.reviewCoexistenceGrid}>
+                  {/* Skills legacy */}
+                  <div className={styles.reviewCoexistenceCol}>
+                    <span className={styles.reviewCoexistenceColTitle}>
+                      {t('pipeline.openspec.engine.coexistence.legacyTitle')} ({coexistence.legacySkills.length})
+                    </span>
+                    {coexistence.legacySkills.length === 0 ? (
+                      <span className={styles.reviewEmptyNotice}>{t('pipeline.openspec.engine.coexistence.noLegacy')}</span>
+                    ) : (
+                      <ul className={styles.reviewSkillsList}>
+                        {coexistence.legacySkills.map((s) => (
+                          <li key={s.path}>
+                            <span className={styles.reviewSkillTag} data-kind="legacy">{s.name}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Skills oficiales en .agents */}
+                  <div className={styles.reviewCoexistenceCol}>
+                    <span className={styles.reviewCoexistenceColTitle}>
+                      {t('pipeline.openspec.engine.coexistence.newTitle')} ({coexistence.newAgentsSkills.length})
+                    </span>
+                    {coexistence.newAgentsSkills.length === 0 ? (
+                      <span className={styles.reviewEmptyNotice}>{t('pipeline.openspec.engine.coexistence.noNew')}</span>
+                    ) : (
+                      <ul className={styles.reviewSkillsList}>
+                        {coexistence.newAgentsSkills.map((s) => (
+                          <li key={s.path}>
+                            <span className={styles.reviewSkillTag} data-kind="official">{s.name}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Skills oficiales en otras herramientas (.claude, .opencode, etc.) */}
+                  <div className={styles.reviewCoexistenceCol}>
+                    <span className={styles.reviewCoexistenceColTitle}>
+                      {t('pipeline.openspec.engine.coexistence.officialOtherTitle')} ({coexistence.officialOtherSkills.length})
+                    </span>
+                    {coexistence.officialOtherSkills.length === 0 ? (
+                      <span className={styles.reviewEmptyNotice}>{t('pipeline.openspec.engine.coexistence.noOfficialOther')}</span>
+                    ) : (
+                      <ul className={styles.reviewSkillsList}>
+                        {coexistence.officialOtherSkills.map((s) => (
+                          <li key={s.path}>
+                            <span className={styles.reviewSkillTag} data-kind="official">{s.name}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Personalizados preexistentes en .agents (A CONSERVAR) */}
+                  <div className={styles.reviewCoexistenceCol}>
+                    <span className={styles.reviewCoexistenceColTitle}>
+                      {t('pipeline.openspec.engine.coexistence.customTitle')} ({coexistence.customPreexistingSkills.length})
+                    </span>
+                    {coexistence.customPreexistingSkills.length === 0 ? (
+                      <span className={styles.reviewEmptyNotice}>{t('pipeline.openspec.engine.coexistence.noCustom')}</span>
+                    ) : (
+                      <ul className={styles.reviewSkillsList}>
+                        {coexistence.customPreexistingSkills.map((s) => (
+                          <li key={s.path}>
+                            <span className={styles.reviewSkillTag} data-kind="custom" title={t('pipeline.openspec.engine.coexistence.customHelp')}>
+                              {s.name}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+
+                {/* Colisiones o conflictos */}
+                <div style={{ marginTop: 'var(--space-2)' }}>
+                  <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.coexistence.collisionsTitle')}: </span>
+                  {coexistence.nameCollisions.length === 0 && coexistence.conflicts.length === 0 ? (
+                    <span style={{ color: 'var(--color-git-add)', fontSize: 'var(--font-size-xs)' }}>{t('pipeline.openspec.engine.coexistence.noCollisions')}</span>
+                  ) : (
+                    <div style={{ marginTop: 'var(--space-1)', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+                      {coexistence.nameCollisions.map((col) => (
+                        <span key={col} style={{ color: 'var(--color-warning)', fontSize: 'var(--font-size-xs)' }}>
+                          ⚠️ Colisión de nombre: <code>{col}</code> existe en configuración legacy y nueva.
+                        </span>
+                      ))}
+                      {coexistence.conflicts.map((conf, idx) => (
+                        <span key={idx} style={{ color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>
+                          ⚠️ Conflicto: {conf}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* 5. INVENTARIO DIAGNÓSTICO DE OUTPUTS */}
+              {presentOutputs.length > 0 && (
+                <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.outputsTitle')}>
+                  <h3 className={styles.reviewSectionTitle}>
+                    {t('pipeline.openspec.engine.outputsTitle')} ({presentOutputs.length})
+                  </h3>
+                  <p style={{ margin: '0 0 var(--space-1)', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
+                    {t('pipeline.openspec.engine.outputsHelp')}
+                  </p>
+                  <div className={styles.outputListScrollContainer}>
+                    <ul className={styles.outputList}>
+                      {presentOutputs.map((out) => (
+                        <li key={out.id} className={styles.outputListItem} data-kind={out.kind}>
+                          <span className={styles.outputKindBadge} data-kind={out.kind}>
+                            {out.kind === 'repo-local'
+                              ? t('pipeline.openspec.engine.output.repoLocal')
+                              : t('pipeline.openspec.engine.output.externalGlobal')}
+                          </span>
+                          <code className={styles.outputPath}>{out.displayPath}</code>
+                          {out.presenceState && (
+                            <span className={styles.presenceBadge} data-presence={out.presenceState}>
+                              {t(`pipeline.openspec.engine.presence.${out.presenceState}`)}
+                            </span>
+                          )}
+                          {out.blocked && (
+                            <span className={styles.blockedTag} aria-label={t('pipeline.openspec.engine.output.blockedBadge')}>
+                              {t('pipeline.openspec.engine.output.blockedBadge')}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );

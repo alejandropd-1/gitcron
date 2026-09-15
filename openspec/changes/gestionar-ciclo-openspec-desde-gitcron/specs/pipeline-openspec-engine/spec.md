@@ -1,5 +1,25 @@
 ## ADDED Requirements
 
+### Requirement: GitCron declara una versión mínima soportada de OpenSpec
+
+GitCron SHALL declarar una versión mínima soportada de OpenSpec (1.5.0) y SHALL clasificar la versión detectada como `supported`, `too-old` o `unknown`. No existe máximo: una versión más nueva que la última probada SHALL clasificarse `supported` y SHALL NOT generar aviso alguno. El aviso de actualización del motor SHALL dispararse únicamente cuando la versión instalada es menor que la última publicada en npm, y SHALL indicar de qué versión a qué versión se pasaría. La clasificación es informativa y SHALL NOT bloquear operaciones; ante `too-old` GitCron SHALL ofrecer actualizar el motor.
+
+#### Scenario: Versión igual o superior al mínimo
+- **WHEN** la versión detectada es mayor o igual a 1.5.0, incluida cualquiera superior a la última probada
+- **THEN** el estado la declara `supported`, sin aviso de rango
+
+#### Scenario: Hay una versión más nueva en npm
+- **WHEN** la versión instalada es menor que la última publicada en npm
+- **THEN** se avisa con la versión instalada y la disponible y se ofrece actualizar el motor
+
+#### Scenario: CLI más viejo que el soportado
+- **WHEN** la versión es inferior a 1.5.0
+- **THEN** el estado la declara `too-old` con el mínimo 1.5.0 y se ofrece actualizar el motor
+
+#### Scenario: Versión ilegible
+- **WHEN** la versión no se puede interpretar
+- **THEN** el estado la declara `unknown`
+
 ### Requirement: El estado de la integración SHALL derivarse de los targets instalados y no del recuento de skills
 
 GitCron SHALL determinar la vigencia de la integración a partir de qué targets tienen instalados sus
@@ -35,32 +55,11 @@ falla al apretarlo, y esconder una habilitada obliga a salir de la aplicación p
 - **WHEN** se habilita o deshabilita un workflow desde la aplicación
 - **THEN** la configuración del CLI queda modificada y las acciones ofrecidas se recalculan desde ella
 
-## MODIFIED Requirements
+## REMOVED Requirements
 
 ### Requirement: GitCron declara un rango de versiones soportadas de OpenSpec
 
-GitCron SHALL declarar un rango de versiones soportadas que abarca desde 1.5.0 hasta 1.12.0 inclusive, y
-SHALL clasificar la versión detectada como `supported`, `too-old` o `too-new`. El rango SHALL viajar con
-el estado del motor. La clasificación de versión es informativa y SHALL NOT bloquear operaciones de
-actualización ni inicialización; ante una versión `too-old` GitCron SHALL ofrecer actualizar el motor.
-
-#### Scenario: Versión dentro del rango 1.5.0 a 1.12.0
-- **WHEN** la versión detectada está entre 1.5.0 y 1.12.0 inclusive
-- **THEN** el estado la declara `supported`
-
-#### Scenario: Versión dentro del rango 1.5.0 a 1.9.0
-- **WHEN** la versión detectada está entre 1.5.0 y 1.9.0 inclusive
-- **THEN** el estado la declara `supported`
-
-#### Scenario: CLI más viejo que el soportado
-- **WHEN** la versión es inferior a 1.5.0
-- **THEN** el estado la declara `too-old` con el mínimo requerido 1.5.0 y se ofrece actualizar el motor
-
-#### Scenario: CLI más nuevo que el soportado
-- **WHEN** la versión es superior a 1.12.0
-- **THEN** el estado la declara `too-new` indicando que supera el rango probado, se informa al usuario y las operaciones de actualización e integración continúan disponibles
-
-## REMOVED Requirements
+**Reason**: Decisión de Alejandro del 2026-09-14: el máximo del rango no tiene uso. El aviso de actualización del motor se dispara porque hay una versión más nueva en npm, nunca porque la instalada se salió de un rango. Lo reemplaza el requisito «GitCron declara una versión mínima soportada de OpenSpec».
 
 ### Requirement: GitCron no muta paquetes del sistema operativo y expone comandos de actualización del motor en modo de sólo lectura
 

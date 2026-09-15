@@ -51,7 +51,6 @@ import { useGitStore, type GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
 import { archivedChangeId, deriveRepoCommitScope, fileKind, soleChangeId, suggestCommitMessage, type ChangeAttribution, type CommitFileOrigin } from '@/lib/change-commit-scope';
 import { changeIdFromBranch } from '@/lib/change-branch';
-import { openSidebarSection } from '@/hooks/use-sidebar-section-state';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { AiElapsed } from './AiElapsed';
 import { appendDraftChunks, clearDraftLog, finishDraftLog, startDraftLog } from '@/lib/commit-draft-log';
@@ -85,6 +84,7 @@ import {
   type PipelineActionIntent,
 } from './pipeline-next-action';
 import {
+  getOpenSpecEngineUpgrade,
   groupActivity,
   hasOpenSpecEngineAttention,
   runtimeDisplayName,
@@ -93,9 +93,9 @@ import {
 import type { OpenSpecChangeSummary, PipelineSnapshot } from './pipeline-view-state';
 import {
   OPENSPEC_CYCLE_TARGET_VERSION,
-  isInstalledAheadOfCycle,
   isInstalledBehindCycle,
 } from '@/lib/openspec-version';
+import { readEngineStatus } from '@/lib/engine-status-reader';
 import styles from './OpenSpecDashboard.module.css';
 
 const INTEGRATION_STATE_KEY_MAP: Record<string, string> = {
@@ -416,6 +416,7 @@ export function OpenSpecDashboard({
 
   const reviewOpen = usePipelineStore((state) => state.reviewOpen);
   const setReviewOpen = usePipelineStore((state) => state.setReviewOpen);
+  const engineChangeToken = usePipelineStore((state) => state.engineChangeToken);
   const [updatePlan, setUpdatePlan] = useState<OpenSpecUpdatePlan | null>(null);
 
   useEffect(() => {
@@ -1037,29 +1038,23 @@ export function OpenSpecDashboard({
     setEngineLoading(true);
 
     if (typeof window !== 'undefined' && window.api?.pipelineOpenSpec) {
-      const getStatus = window.api.pipelineOpenSpec.getEngineStatus
-        ? window.api.pipelineOpenSpec.getEngineStatus(repoPath)
-        : Promise.resolve(null);
+      readEngineStatus(repoPath, (snapshot) => {
+        if (isMounted) {
+          setEngineSnapshot(snapshot);
+          setEngineLoading(false);
+        }
+      }).catch(() => {
+        if (isMounted) {
+          setEngineSnapshot(null);
+          setEngineLoading(false);
+        }
+      });
       const getCheck = window.api.pipelineOpenSpec.checkLatestVersion
         ? window.api.pipelineOpenSpec.checkLatestVersion()
         : Promise.resolve(null);
       const getPlan = window.api.pipelineOpenSpec.getInstallPlan
         ? window.api.pipelineOpenSpec.getInstallPlan(repoPath)
         : Promise.resolve(null);
-
-      getStatus
-        .then((snapshot) => {
-          if (isMounted) {
-            setEngineSnapshot(snapshot);
-            setEngineLoading(false);
-          }
-        })
-        .catch(() => {
-          if (isMounted) {
-            setEngineSnapshot(null);
-            setEngineLoading(false);
-          }
-        });
 
       getCheck
         .then((check) => {
@@ -1083,7 +1078,7 @@ export function OpenSpecDashboard({
     return () => {
       isMounted = false;
     };
-  }, [repoPath]);
+  }, [repoPath, engineChangeToken]);
 
   const effectiveEngineStatus = useMemo<OpenSpecEngineStatus | null>(() => {
     if (!engineSnapshot) return null;
@@ -2020,53 +2015,68 @@ export function OpenSpecDashboard({
 
             {/* OpenSpec Engine version */}
             {(() => {
-              const cliInstalled = effectiveEngineStatus?.cli?.installed;
+              const cliInstalled = effectiveEngineStatus?.cli?.installed ?? false;
               const runtimeVer = effectiveEngineStatus?.cli?.runtimeVersion ?? null;
-              const isAhead = isInstalledAheadOfCycle(runtimeVer);
+              const isAbsent = !cliInstalled;
+              const notDetected = cliInstalled && runtimeVer === null;
               const isBehind = isInstalledBehindCycle(runtimeVer);
-              const versionStr = cliInstalled
-                ? `OpenSpec v${runtimeVer ?? '?'}`
-                : t('pipeline.openspec.engine.status.absent');
+              const versionStr = isAbsent
+                ? t('pipeline.openspec.engine.status.absent')
+                : notDetected
+                  ? t('pipeline.openspec.engine.pill.notDetected')
+                  : `OpenSpec v${runtimeVer}`;
               const stateKey = effectiveEngineStatus?.integrationState
                 ? (INTEGRATION_STATE_KEY_MAP[effectiveEngineStatus.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown')
                 : null;
               const stateStr = stateKey ? t(stateKey) : null;
-              const engineAttention = hasOpenSpecEngineAttention(effectiveEngineStatus) || isAhead || isBehind;
-              const cycleNotice = isAhead
-                ? t('pipeline.openspec.engine.versionAheadOfCycle', { installed: runtimeVer ?? '?', cycle: OPENSPEC_CYCLE_TARGET_VERSION })
-                : isBehind
-                  ? t('pipeline.openspec.engine.versionBehindCycle', { installed: runtimeVer ?? '?', cycle: OPENSPEC_CYCLE_TARGET_VERSION })
-                  : null;
-              const engineTitle = cliInstalled
+              const upgrade = getOpenSpecEngineUpgrade(effectiveEngineStatus);
+              const engineAttention = isAbsent || notDetected || hasOpenSpecEngineAttention(effectiveEngineStatus) || isBehind || upgrade !== null;
+              const cycleNotice = isBehind
+                ? t('pipeline.openspec.engine.versionBehindCycle', { installed: runtimeVer ?? '?', cycle: OPENSPEC_CYCLE_TARGET_VERSION })
+                : null;
+              const engineTitle = (isAbsent || notDetected)
                 ? [
                     versionStr,
-                    t('pipeline.openspec.engine.cycleVersion', { version: OPENSPEC_CYCLE_TARGET_VERSION }),
                     stateStr,
-                    cycleNotice,
                     engineAttention && attentionReasons.length > 0 ? attentionReasons.join(attentionReasonSeparator) : null,
                   ]
                     .filter(Boolean)
                     .join(' · ')
-                : versionStr;
+                : [
+                    versionStr,
+                    t('pipeline.openspec.engine.cycleVersion', { version: OPENSPEC_CYCLE_TARGET_VERSION }),
+                    stateStr,
+                    cycleNotice,
+                    upgrade ? t('pipeline.openspec.engine.pill.upgradeAvailable', { latest: upgrade.latest }) : null,
+                    engineAttention && attentionReasons.length > 0 ? attentionReasons.join(attentionReasonSeparator) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ');
 
               return (
                 <div
                   role="status"
                   title={engineTitle}
                   onClick={() => {
-                    openSidebarSection(repoPath, 'details-tools');
-                    onEnsureRightOpen?.();
+                    setReviewOpen(true);
                   }}
                   className={cn(
-                    'flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0 font-mono',
+                    'relative flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0 font-mono',
                     engineAttention
                       ? 'bg-warning/15 text-warning'
                       : 'bg-text-primary/[0.035] text-text-secondary/80',
-                    onEnsureRightOpen && 'cursor-pointer hover:bg-text-primary/[0.07]',
+                    'cursor-pointer hover:bg-text-primary/[0.07]',
                   )}
                 >
                   <Package size={11} className="shrink-0" />
                   <span>{versionStr}</span>
+                  {upgrade && (
+                    <span
+                      className="absolute -right-1 -top-1 w-2 h-2 rounded-full bg-git-mod ring-2 ring-bg-base/70 shadow-[0_0_8px_var(--color-git-mod)]"
+                      aria-label={t('pipeline.openspec.engine.pill.upgradeAvailable', { latest: upgrade.latest })}
+                      data-upgrade="available"
+                    />
+                  )}
                 </div>
               );
             })()}
@@ -2206,6 +2216,7 @@ export function OpenSpecDashboard({
               installPlan={installPlan}
               currentBranch={currentBranch}
               isClean={workingTreeClean}
+              uncommittedCount={modifiedFiles.length}
               onBack={() => setReviewOpen(false)}
               onPrepareCommit={() => {
                 setReviewOpen(false);

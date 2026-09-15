@@ -153,9 +153,9 @@ describe('openspec-update-guide (Fase 6: Matriz declarada y Convivencia)', () =>
       expect(deriveOfficialCommand(action, status190)).toBe('openspec update');
     });
 
-    it('resuelve update (no blocked) con motor too-new e integración desactualizada (outdated)', () => {
+    it('resuelve update (no blocked) con motor supported e integración desactualizada (outdated)', () => {
       const action = deriveUpdateMatrixAction({
-        versionClass: 'too-new',
+        versionClass: 'supported',
         integrationState: 'outdated',
         repoState: 'initialized',
       });
@@ -203,7 +203,7 @@ describe('openspec-update-guide (Fase 6: Matriz declarada y Convivencia)', () =>
       ).toBeNull();
       expect(
         deriveUpdateBlockReason({
-          versionClass: 'too-new',
+          versionClass: 'supported',
           integrationState: 'outdated',
           repoState: 'initialized',
         }),

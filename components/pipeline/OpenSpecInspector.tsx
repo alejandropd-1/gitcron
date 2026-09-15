@@ -19,6 +19,7 @@ import {
   type ActivityChannel,
 } from './pipeline-domain';
 import type { PipelineSnapshot } from './pipeline-view-state';
+import { readEngineStatus } from '@/lib/engine-status-reader';
 import styles from './OpenSpecDashboard.module.css';
 
 const ACTIVITY_ICONS: Record<ActivityChannel, React.ComponentType<{ size?: number }>> = {
@@ -142,16 +143,17 @@ export function OpenSpecInspector({
     }
     let cancelled = false;
     setEngineLoading(true);
-    window.api.pipelineOpenSpec.getEngineStatus(repoPath)
-      .then((status) => {
-        if (!cancelled) setEngineStatus(status);
-      })
-      .catch(() => {
-        if (!cancelled) setEngineStatus(null);
-      })
-      .finally(() => {
-        if (!cancelled) setEngineLoading(false);
-      });
+    readEngineStatus(repoPath, (status) => {
+      if (!cancelled) {
+        setEngineStatus(status);
+        setEngineLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setEngineStatus(null);
+        setEngineLoading(false);
+      }
+    });
     return () => { cancelled = true; };
   }, [repoPath]);
 
@@ -372,6 +374,7 @@ export function OpenSpecInspector({
               openRepoPaths={openRepoPaths.length > 0 ? openRepoPaths : undefined}
               commandExecuted={installPlan?.globalCommand ?? undefined}
               packageManagerPath={installPlan?.packageManagerPath ?? undefined}
+              packageManagerName={installPlan?.detectedManager ?? undefined}
               nodePath={installPlan?.nodePath ?? undefined}
               hasPackageJson={installPlan?.hasManifest}
               onChanged={() => refetchEngineStatus()}

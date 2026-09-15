@@ -27,12 +27,12 @@
 import {
   classifyOpenSpecVersion,
   compareSemver,
-  isInstalledAheadOfCycle,
   isInstalledBehindCycle,
   OPENSPEC_CYCLE_TARGET_VERSION,
   SUPPORTED_OPENSPEC_VERSIONS,
   parseSemver,
   type OpenSpecVersionClass,
+  type OpenSpecVersionRange,
 } from '../../lib/openspec-version';
 import { completeText, createLmStudioConfig } from '../ai/text-client';
 import { checkLatestOpenSpecVersion } from './openspec-registry';
@@ -67,10 +67,9 @@ export interface VersionAnalysisMeasured {
   availableVersion: string | null;
   isUpgradeAvailable: boolean;
   versionClass: OpenSpecVersionClass;
-  aheadOfCycle: boolean;
   behindCycle: boolean;
   targetVersion: string;
-  supportedRange: { min: string; max: string };
+  supportedRange: OpenSpecVersionRange;
   changelog: {
     source: string;
     sourceUrl: string | null;
@@ -269,52 +268,33 @@ export function evaluateConsumedSurfaces(
 
   const isMajorBump =
     Boolean(installedParsed && availableParsed && availableParsed.major > installedParsed.major);
-  const isTooNew = classifyOpenSpecVersion(availableVersion) === 'too-new';
 
-  const breaking = Boolean(isMajorBump || isTooNew);
+  const breaking = isMajorBump;
 
   const surfaces: ConsumedSurfaceAnalysis[] = [
     {
       surface: 'status',
       description: 'openspec status --json (propiedades changes, schema, isPlanningComplete, requires)',
-      verdict: isMajorBump
-        ? 'breaking'
-        : isTooNew
-          ? 'potential-break'
-          : 'compatible',
+      verdict: isMajorBump ? 'breaking' : 'compatible',
       evidence: isMajorBump
         ? `Salto mayor a v${availableVersion}: incompatibilidad esperada en el esquema JSON de status.`
-        : isTooNew
-          ? `La versión disponible v${availableVersion} supera el rango soportado (máx ${SUPPORTED_OPENSPEC_VERSIONS.max}). Requiere verificar que 'isPlanningComplete' y 'changes' mantengan sus tipos.`
-          : `Totalmente compatible dentro del rango soportado (${SUPPORTED_OPENSPEC_VERSIONS.min} a ${SUPPORTED_OPENSPEC_VERSIONS.max}).`,
+        : `Compatible con el mínimo soportado (${SUPPORTED_OPENSPEC_VERSIONS.min}).`,
     },
     {
       surface: 'instructions',
       description: 'openspec instructions <target> --json (campos instruction, context, resolvedOutputPath, diff)',
-      verdict: isMajorBump
-        ? 'breaking'
-        : isTooNew
-          ? 'potential-break'
-          : 'compatible',
+      verdict: isMajorBump ? 'breaking' : 'compatible',
       evidence: isMajorBump
         ? `Salto mayor a v${availableVersion}: argumentos CLI o estructura del payload de instrucciones pueden haber cambiado.`
-        : isTooNew
-          ? `GitCron consume 'resolvedOutputPath' y 'diff' incorporados en 1.11.0. Se debe verificar que v${availableVersion} conserve estas claves sin degradar la instrucción.`
-          : `Estructura de instrucción y contexto verificada contra el ciclo vigente (1.11.0).`,
+        : `Estructura de instrucción y contexto verificada contra el ciclo vigente (1.11.0).`,
     },
     {
       surface: 'validate',
       description: 'openspec validate <id> --strict --json (banderas --strict, reporte tipado de errores)',
-      verdict: isMajorBump
-        ? 'breaking'
-        : isTooNew
-          ? 'potential-break'
-          : 'compatible',
+      verdict: isMajorBump ? 'breaking' : 'compatible',
       evidence: isMajorBump
         ? `Salto mayor a v${availableVersion}: las reglas o códigos de salida de validación estricta pueden diferir.`
-        : isTooNew
-          ? `Verificar que '--strict --json' siga disponible y retorne la colección estructurada de errores sin lanzar excepciones no capturadas.`
-          : `Validación estricta compatible con el formato de esquemas 1.11.0.`,
+        : `Validación estricta compatible con el formato de esquemas 1.11.0.`,
     },
     {
       surface: 'archive',
@@ -327,30 +307,18 @@ export function evaluateConsumedSurfaces(
     {
       surface: 'sync',
       description: 'openspec-sync-specs profile workflow (fusión de especificaciones delta a principales)',
-      verdict: isMajorBump
-        ? 'breaking'
-        : isTooNew
-          ? 'potential-break'
-          : 'compatible',
+      verdict: isMajorBump ? 'breaking' : 'compatible',
       evidence: isMajorBump
         ? `Salto mayor a v${availableVersion}: el perfil del workflow o la sintaxis de sync puede diferir.`
-        : isTooNew
-          ? `La sincronización se ejecuta mediante agente sin relleno sintético. Confirmar si v${availableVersion} actualiza el perfil openspec-sync-specs.`
-          : `Workflow de sincronización alineado con la especificación vigente.`,
+        : `Workflow de sincronización alineado con la especificación vigente.`,
     },
     {
       surface: 'profiles',
       description: 'Topología de skills del perfil (.agents/skills/* conforme a OpenSpec 1.11.0)',
-      verdict: isMajorBump
-        ? 'breaking'
-        : isTooNew
-          ? 'potential-break'
-          : 'compatible',
+      verdict: isMajorBump ? 'breaking' : 'compatible',
       evidence: isMajorBump
         ? `Salto mayor a v${availableVersion}: posible reestructuración de la topología de skills y agentes.`
-        : isTooNew
-          ? `Verificar si v${availableVersion} introduce nuevas rutas estándar o depreca directorios en .agents/.`
-          : `Topología de skills .agents/skills/ plenamente soportada por el motor de convivencia.`,
+        : `Topología de skills .agents/skills/ plenamente soportada por el motor de convivencia.`,
     },
   ];
 
@@ -366,9 +334,7 @@ export function buildStrategyProposal(
   availableVersion: string | null,
   breaking: boolean,
 ): VersionStrategyProposal | null {
-  if (!breaking && !isInstalledAheadOfCycle(availableVersion)) {
-    return null;
-  }
+  if (!breaking) return null;
 
   const avail = availableVersion ?? 'desconocida';
 
@@ -545,7 +511,6 @@ export async function analyzeOpenSpecVersion(
   );
 
   const versionClass = classifyOpenSpecVersion(availableVersion);
-  const aheadOfCycle = isInstalledAheadOfCycle(availableVersion);
   const behindCycle = isInstalledBehindCycle(installedVersion);
 
   const isUpgradeAvailable =
@@ -561,12 +526,10 @@ export async function analyzeOpenSpecVersion(
     availableVersion,
     isUpgradeAvailable,
     versionClass,
-    aheadOfCycle,
     behindCycle,
     targetVersion: OPENSPEC_CYCLE_TARGET_VERSION,
     supportedRange: {
       min: SUPPORTED_OPENSPEC_VERSIONS.min,
-      max: SUPPORTED_OPENSPEC_VERSIONS.max,
     },
     changelog,
     consumedSurfaces: surfaces,

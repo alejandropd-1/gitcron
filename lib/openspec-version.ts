@@ -10,19 +10,18 @@
 
 export interface OpenSpecVersionRange {
   min: string;
-  max: string;
+  max?: string;
 }
 
 /** Versión de OpenSpec contra la que está diseñado y escrito el ciclo SDD de GitCron. */
 export const OPENSPEC_CYCLE_TARGET_VERSION = '1.12.0';
 
-/** Rango soportado por esta versión de GitCron, inclusivo en ambos extremos. */
+/** Sólo mínimo. Por decisión de Alejandro del 2026-09-14 una versión más nueva no se marca: el aviso de actualización sale de comparar la instalada con la última de npm, no de un rango. */
 export const SUPPORTED_OPENSPEC_VERSIONS: Readonly<OpenSpecVersionRange> = {
   min: '1.5.0',
-  max: '1.12.0',
 };
 
-export type OpenSpecVersionClass = 'supported' | 'too-old' | 'too-new' | 'unknown';
+export type OpenSpecVersionClass = 'supported' | 'too-old' | 'unknown';
 
 interface Semver {
   major: number;
@@ -65,31 +64,16 @@ export function classifyOpenSpecVersion(
   const parsed = parseSemver(version);
   if (!parsed) return 'unknown';
   const min = parseSemver(range.min);
-  const max = parseSemver(range.max);
   if (min && compareSemver(parsed, min) < 0) return 'too-old';
-  if (max && compareSemver(parsed, max) > 0) return 'too-new';
   return 'supported';
 }
 
-/**
- * Comprueba si una versión instalada de OpenSpec es posterior a la versión
- * contra la que está diseñado el ciclo de la aplicación (1.11.0).
- */
-export function isInstalledAheadOfCycle(
-  installedVersion: string | null | undefined,
-  cycleVersion: string = OPENSPEC_CYCLE_TARGET_VERSION,
-): boolean {
-  const installed = parseSemver(installedVersion);
-  const cycle = parseSemver(cycleVersion);
-  if (!installed || !cycle) return false;
-  return compareSemver(installed, cycle) > 0;
-}
 
 /**
  * Comprueba si una versión instalada de OpenSpec es anterior a la versión
- * contra la que está diseñado el ciclo de la aplicación (1.11.0).
+ * contra la que está diseñado el ciclo de la aplicación (OPENSPEC_CYCLE_TARGET_VERSION).
  *
- * Este caso importa porque el ciclo está escrito contra 1.11.0 y consume
+ * Este caso importa porque el ciclo está escrito contra OPENSPEC_CYCLE_TARGET_VERSION y consume
  * campos estructurados del JSON (como `instruction`, `context`,
  * `resolvedOutputPath`, `diff`) que las versiones anteriores pueden no
  * devolver o devolver incompletos, provocando que la instrucción llegue

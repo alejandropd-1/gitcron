@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyOpenSpecVersion,
   compareSemver,
-  isInstalledAheadOfCycle,
   isInstalledBehindCycle,
   OPENSPEC_CYCLE_TARGET_VERSION,
   parseSemver,
@@ -38,10 +37,10 @@ describe('compareSemver', () => {
   });
 });
 
-describe('classifyOpenSpecVersion (rango 1.5.0–1.12.0)', () => {
+describe('classifyOpenSpecVersion (rango ≥ 1.5.0)', () => {
   it('declara la versión objetivo del ciclo y el rango soportado del proyecto', () => {
     expect(OPENSPEC_CYCLE_TARGET_VERSION).toBe('1.12.0');
-    expect(SUPPORTED_OPENSPEC_VERSIONS).toEqual({ min: '1.5.0', max: '1.12.0' });
+    expect(SUPPORTED_OPENSPEC_VERSIONS).toEqual({ min: '1.5.0' });
   });
 
   it('clasifica supported dentro del rango', () => {
@@ -58,9 +57,9 @@ describe('classifyOpenSpecVersion (rango 1.5.0–1.12.0)', () => {
     expect(classifyOpenSpecVersion('0.17.2')).toBe('too-old');
   });
 
-  it('clasifica too-new por encima del máximo', () => {
-    expect(classifyOpenSpecVersion('1.12.1')).toBe('too-new');
-    expect(classifyOpenSpecVersion('2.0.0')).toBe('too-new');
+  it('clasifica supported por encima del mínimo sin límite superior', () => {
+    expect(classifyOpenSpecVersion('1.12.1')).toBe('supported');
+    expect(classifyOpenSpecVersion('2.0.0')).toBe('supported');
   });
 
   it('clasifica unknown cuando no puede interpretar la versión', () => {
@@ -75,16 +74,6 @@ describe('classifyOpenSpecVersion (rango 1.5.0–1.12.0)', () => {
   });
 });
 
-describe('isInstalledAheadOfCycle', () => {
-  it('detecta correctamente si la versión instalada supera a la versión del ciclo declarada', () => {
-    expect(isInstalledAheadOfCycle('1.12.0')).toBe(false);
-    expect(isInstalledAheadOfCycle('1.11.0')).toBe(false);
-    expect(isInstalledAheadOfCycle('1.12.1')).toBe(true);
-    expect(isInstalledAheadOfCycle('1.13.0')).toBe(true);
-    expect(isInstalledAheadOfCycle('2.0.0')).toBe(true);
-    expect(isInstalledAheadOfCycle(null)).toBe(false);
-  });
-});
 
 describe('isInstalledBehindCycle', () => {
   it('detecta correctamente si la versión instalada está por debajo de la versión del ciclo declarada', () => {

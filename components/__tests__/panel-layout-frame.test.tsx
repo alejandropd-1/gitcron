@@ -1978,9 +1978,10 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
     expect(sectionHoverClasses).toContain('hover:text-text-primary');
   });
 
-  it('11. Que apretar el botón central «Abrir herramientas» despliega la sección details-tools en el inspector (Prueba de 4.10)', async () => {
+  it('11. Que apretar la insignia del motor abre la revisión en el centro y NO despliega el panel derecho (decisión 8.22)', async () => {
     const repo = 'C:/center-tools-btn-repo';
     window.localStorage.removeItem(`gitcron:sidebarSections:${repo}`);
+    usePipelineStore.getState().reset();
 
     (window as any).api = {
       ...((window as any).api || {}),
@@ -2060,16 +2061,17 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
     expect(toolsSectionBtn.getAttribute('aria-expanded')).toBe('false');
 
     // 2. Se encuentra la insignia en la franja
-    const engineChip = screen.getByTitle(/pipeline\.openspec\.engine\.status/i);
+    const engineChip = await screen.findByTitle(/OpenSpec v1\.8\.0/i);
     // 3. Se hace clic en la insignia
     fireEvent.click(engineChip);
-    expect(onEnsureRightOpenMock).toHaveBeenCalledTimes(1);
-
-    // 4. Que apretar la insignia deja la sección «Herramientas» desplegada en el DOM
-    expect(toolsSectionBtn.getAttribute('aria-expanded')).toBe('true');
+    expect(onEnsureRightOpenMock).not.toHaveBeenCalled();
+    expect(toolsSectionBtn.getAttribute('aria-expanded')).toBe('false');
+    expect(usePipelineStore.getState().reviewOpen).toBe(true);
+    expect(await screen.findByRole('heading', { name: /pipeline\.openspec\.engine\.review\.title/ })).toBeTruthy();
 
     // 5. El centro NO monta el botón huérfano
     expect(screen.queryByRole('button', { name: /openToolsTab/i })).toBeNull();
+    usePipelineStore.getState().reset();
   });
 
   it('12. Que con pendingToolCount en cero la sección Herramientas NO presenta número ni advertencia, y con uno o más presenta la advertencia con nombre accesible y ningún número (4.20)', async () => {

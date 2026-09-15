@@ -4,6 +4,10 @@ import type {
   PipelineDataProvenance,
   PipelineEvidenceStatus,
 } from '@/types/pipeline';
+import {
+  parseSemver,
+  compareSemver,
+} from '@/lib/openspec-version';
 
 
 export type DecisionOption = {
@@ -290,6 +294,75 @@ export function hasOpenSpecEngineAttention(engineStatus: OpenSpecEngineStatus | 
       engineStatus.divergence?.isDivergent ||
       (engineStatus.cli?.diagnostics?.length ?? 0) > 0,
   );
+}
+
+/**
+ * Evalúa si hay una actualización disponible del motor en npm con semver.
+ * Devuelve null si no hay status, si cli.installed es false, si runtimeVersion o
+ * latestAvailable?.latestVersion no parsean con parseSemver, o si latest <= installed.
+ */
+export function getOpenSpecEngineUpgrade(
+  status: OpenSpecEngineStatus | null | undefined,
+): { installed: string; latest: string } | null {
+  if (!status || !status.cli?.installed) return null;
+  const installedStr = status.cli.runtimeVersion;
+  const latestStr = status.latestAvailable?.latestVersion;
+  if (!installedStr || !latestStr) return null;
+  const installedSemver = parseSemver(installedStr);
+  const latestSemver = parseSemver(latestStr);
+  if (!installedSemver || !latestSemver) return null;
+  if (compareSemver(latestSemver, installedSemver) <= 0) return null;
+  return {
+    installed: installedStr,
+    latest: latestStr,
+  };
+}
+
+/**
+ * Evalúa si la lectura del estado del motor OpenSpec quedó incompleta
+ * (un proceso del CLI venció: versión ausente con CLI instalado, o configuración global no leída).
+ */
+export function isOpenSpecEngineStatusIncomplete(
+  status: OpenSpecEngineStatus | null | undefined,
+): boolean {
+  if (!status) return false;
+  if (status.cli?.installed && status.cli.runtimeVersion === null) return true;
+  if (status.globalConfig && status.globalConfig.profileState !== 'read') return true;
+  return false;
+}
+
+/**
+ * Evalúa el estado del motor OpenSpec tras una instalación o actualización.
+ * Devuelve verdict 'ok' si responde como se espera, 'broken' con las claves de motivo
+ * si no responde o falló la verificación, o 'unverified' si status es nulo o indefinido.
+ */
+export function assessOpenSpecEngineAfterInstall(
+  status: OpenSpecEngineStatus | null | undefined,
+): { verdict: 'ok' | 'broken' | 'unverified'; reasonKeys: string[] } {
+  if (!status) {
+    return { verdict: 'unverified', reasonKeys: [] };
+  }
+
+  const reasonKeys: string[] = [];
+
+  if (!status.cli?.installed) {
+    reasonKeys.push('pipeline.openspec.engine.afterInstall.notFound');
+  }
+  if (status.cli?.installed && status.cli.runtimeVersion === null) {
+    reasonKeys.push('pipeline.openspec.engine.afterInstall.versionUnreadable');
+  }
+  if (status.doctor && status.doctor.data === null) {
+    reasonKeys.push('pipeline.openspec.engine.afterInstall.doctorUnparsable');
+  }
+  if (status.globalConfig && status.globalConfig.profileState === 'failed') {
+    reasonKeys.push('pipeline.openspec.engine.afterInstall.configUnreadable');
+  }
+
+  if (reasonKeys.length > 0) {
+    return { verdict: 'broken', reasonKeys };
+  }
+
+  return { verdict: 'ok', reasonKeys: [] };
 }
 
 /**

@@ -100,7 +100,7 @@ export interface UpdateMatrixInputs {
  * - Novedad en npm ('cli-upgrade-available') informa al usuario pero NO fuerza 'update' sobre el repositorio.
  * - Si el motor es compatible ('supported') y la integración está al día ('up-to-date'), la acción es 'none'.
  * - Si el motor es 'too-old', se requiere 'upgrade-init' o 'upgrade-update'.
- * - Si el motor es ausente o desconocido, se bloquea ('blocked'). Si es 'too-new' opera normalmente según el estado de la integración (informativo, no bloqueante).
+ * - Si el motor es ausente o desconocido, se bloquea ('blocked').
  * - Si el repo no está inicializado ('not-initialized'), la acción es 'init' (o 'upgrade-init').
  * - Si la integración está desactualizada ('outdated'), la acción es 'update'.
  * - Si la integración tiene conflictos ('conflicted') o es personalizada ('custom'), se bloquea ('blocked').

@@ -853,7 +853,7 @@ describe('discoverOpenSpecCli', () => {
     expect(result.evidenceStatus).toBe('confirmed');
   });
 
-  it('declara supported para 1.12.0 y too-new para 1.12.1', async () => {
+  it('declara supported tanto para 1.12.0 como para 1.12.1', async () => {
     const runtime: AuthorizedOpenSpecRuntime = {
       executablePath: '/usr/local/bin/openspec',
       command: 'openspec',
@@ -875,7 +875,7 @@ describe('discoverOpenSpecCli', () => {
       probePathState: () => 'exists',
       runVersion: async () => ({ stdout: '1.12.1', stderr: '' }),
     });
-    expect(result1121.versionClass).toBe('too-new');
+    expect(result1121.versionClass).toBe('supported');
   });
 
   it('declara el motor ausente cuando no resuelve ejecutable', async () => {

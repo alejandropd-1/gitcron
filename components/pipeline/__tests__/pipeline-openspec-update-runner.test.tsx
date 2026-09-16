@@ -4,10 +4,12 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenSpecUpdateRunner } from '../OpenSpecUpdateRunner';
 import { usePipelineStore } from '@/lib/pipeline-store';
+import { useGitStore } from '@/lib/git-store';
 
 describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
   beforeEach(() => {
     usePipelineStore.getState().reset();
+    useGitStore.getState().setSuccess(null);
   });
 
   afterEach(() => {
@@ -85,7 +87,8 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     expect(installGlobalMock).toHaveBeenCalledTimes(1);
     expect(installGlobalMock).toHaveBeenCalledWith({ repoPath: '/mock/repo' });
     expect(runUpdateMock).toHaveBeenCalledTimes(1);
-    expect(runUpdateMock).toHaveBeenCalledWith('/mock/repo', mockPlan, false);
+    expect(runUpdateMock).toHaveBeenCalledWith('/mock/repo', undefined, false);
+    expect(useGitStore.getState().success).toContain('OpenSpec actualizado');
 
     expect(installGlobalMock.mock.invocationCallOrder[0]).toBeLessThan(
       runUpdateMock.mock.invocationCallOrder[0]
@@ -326,5 +329,106 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
       screen.getByText('La actualización no terminó bien; mirá el paso marcado')
     ).toBeTruthy();
     expect(usePipelineStore.getState().engineChangeToken).toBe(beforeToken + 1);
+  });
+
+  it('10) (a) tras una corrida exitosa, volver a renderizar con engine={null} e integration={false} (rerender) mantiene el banner «Listo» y NO muestra «Todo al día»', async () => {
+    const installGlobalMock = vi.fn().mockResolvedValue({
+      success: true,
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.0' },
+        doctor: { data: {} },
+        globalConfig: { profileState: 'ready' },
+      },
+    });
+    const runUpdateMock = vi.fn().mockResolvedValue({
+      success: true,
+      filesUpdated: ['package.json'],
+    });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installGlobal: installGlobalMock,
+        runUpdate: runUpdateMock,
+      },
+    };
+
+    const { rerender } = render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.12.0', latest: '1.13.0' }}
+        integration={true}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    await screen.findByText('Listo: motor v1.13.0 · integración al día');
+
+    // Rerender con engine={null} e integration={false}
+    rerender(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={null}
+        integration={false}
+      />
+    );
+
+    expect(screen.getByText('Listo: motor v1.13.0 · integración al día')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Todo al día' })).toBeNull();
+  });
+
+  it('11) (c) runUpdate con errors ["global-config-changed"] muestra «El plan de actualización quedó viejo» conservando el código entre paréntesis (8.22 e)', async () => {
+    const runUpdateMock = vi.fn().mockResolvedValue({
+      success: false,
+      errors: ['global-config-changed'],
+    });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        runUpdate: runUpdateMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={null}
+        integration={true}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    const staleMsg = await screen.findByText(/El plan de actualización quedó viejo/i);
+    expect(staleMsg.textContent).toContain('global-config-changed');
+  });
+
+  it('12) sólo integración: runUpdate se llama SIEMPRE con undefined como plan (8.22 e) y toastDone se emite con el resumen correspondiente', async () => {
+    const runUpdateMock = vi.fn().mockResolvedValue({
+      success: true,
+      filesUpdated: ['spec.md'],
+    });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        runUpdate: runUpdateMock,
+      },
+    };
+    const mockPlan = { files: ['spec.md'] } as any;
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={null}
+        integration={true}
+        updatePlan={mockPlan}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    await screen.findByText('Listo: integración al día');
+    expect(runUpdateMock).toHaveBeenCalledWith('/mock/repo', undefined, false);
+    expect(useGitStore.getState().success).toBe('OpenSpec actualizado: integración al día');
   });
 });

@@ -81,7 +81,23 @@ export function generateDiagnosticPreview(
     ? `Vista previa diagnóstica parcial para versión objetivo ${targetVersion}. Runtime administrado ejecutable no disponible (Fase 2).`
     : `Vista previa no disponible: falta diagnóstico indispensable del motor u hoja de evidencia del repositorio.`;
 
-  const globalConfigFingerprint = computeFingerprint(options.engineStatus.globalConfig);
+  // readAt cambia en cada lectura; hashearlo invalidaba todo plan (8.22 e)
+  const globalCfg = options.engineStatus.globalConfig;
+  const globalConfigFingerprint = computeFingerprint(
+    globalCfg
+      ? {
+          rawProfile: globalCfg.rawProfile,
+          profileState: globalCfg.profileState,
+          delivery: globalCfg.delivery,
+          deliveryState: globalCfg.deliveryState,
+          configuredWorkflows: globalCfg.configuredWorkflows,
+          workflowsState: globalCfg.workflowsState,
+          resolvedWorkflows: globalCfg.resolvedWorkflows,
+          resolvedWorkflowsState: globalCfg.resolvedWorkflowsState,
+          origin: globalCfg.origin,
+        }
+      : null,
+  );
   const installedEvidenceFingerprint = computeFingerprint(options.engineStatus.installedIntegration);
   const outputInventoryFingerprint = computeFingerprint(
     options.engineStatus.installedIntegration?.outputInventory ?? [],

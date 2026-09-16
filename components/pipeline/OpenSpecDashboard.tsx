@@ -430,7 +430,7 @@ export function OpenSpecDashboard({
         });
       }
     }
-  }, [reviewOpen, repoPath]);
+  }, [reviewOpen, repoPath, engineChangeToken]);
   const [initBusy, setInitBusy] = useState(false);
   /** Motivo real informado por el CLI. No se normaliza a un mensaje propio. */
   const [initError, setInitError] = useState<string | null>(null);
@@ -2209,23 +2209,48 @@ export function OpenSpecDashboard({
               </div>
             </div>
           ) : !prepareOpen && reviewOpen ? (
-            <OpenSpecUpdateReview
-              repoPath={repoPath}
-              status={effectiveEngineStatus}
-              updatePlan={updatePlan}
-              installPlan={installPlan}
-              currentBranch={currentBranch}
-              isClean={workingTreeClean}
-              uncommittedCount={modifiedFiles.length}
-              onBack={() => setReviewOpen(false)}
-              onPrepareCommit={() => {
-                setReviewOpen(false);
-                setPrepareOpen(true);
-              }}
-              onUpdateCompleted={() => {
-                onRefresh?.();
-              }}
-            />
+            <div className={styles.startScreenWrapper}>
+              {isSwitcherVisible && (
+                <ViewSwitcherRail
+                  views={selectedChange ? changeViews : startViews}
+                  activeViewId="review"
+                  onSwitchView={(viewId) => {
+                    setReviewOpen(false);
+                    if (selectedChange) {
+                      setLaunchTarget(null);
+                      if (viewId === 'start') {
+                        setSelection(null);
+                        setActiveStartView('in-progress');
+                        setActiveChangeView('tasks');
+                      } else {
+                        setActiveChangeView(viewId as ActiveChangeView);
+                      }
+                    } else {
+                      handleSwitchStartView(viewId as StartView);
+                    }
+                  }}
+                  environmentSlot={changeEnvironmentSlot}
+                  ariaLabel={t('pipeline.switcher.views')}
+                />
+              )}
+              <OpenSpecUpdateReview
+                repoPath={repoPath}
+                status={effectiveEngineStatus}
+                updatePlan={updatePlan}
+                installPlan={installPlan}
+                currentBranch={currentBranch}
+                isClean={workingTreeClean}
+                uncommittedCount={modifiedFiles.length}
+                onBack={() => setReviewOpen(false)}
+                onPrepareCommit={() => {
+                  setReviewOpen(false);
+                  setPrepareOpen(true);
+                }}
+                onUpdateCompleted={() => {
+                  onRefresh?.();
+                }}
+              />
+            </div>
           ) : prepareOpen ? (
             <section className={styles.prepareArea} aria-label={t('pipeline.openspec.prepare.title')}>
               {/* Las acciones se empujan a la derecha del encabezado con

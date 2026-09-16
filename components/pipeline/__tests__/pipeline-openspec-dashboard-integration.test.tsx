@@ -1356,4 +1356,53 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
 
     vi.unstubAllGlobals();
   });
+
+  it('con reviewOpen true y rightOpen false, se ve el riel de vistas junto con la revisión, y al cambiar de vista se cierra la revisión (Tarea 8.22 d)', async () => {
+    usePipelineStore.setState({ reviewOpen: true });
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: vi.fn().mockResolvedValue(dummyStatusHealthy),
+          checkLatestVersion: vi.fn().mockResolvedValue(null),
+          getUpdatePlan: vi.fn().mockResolvedValue(null),
+        },
+      },
+    });
+
+    render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo-review-rail"
+        currentBranch="main"
+        workingTreeClean={true}
+        leftOpen={true}
+        rightOpen={false}
+        leftWidth={340}
+        rightWidth={340}
+        onResizeLeft={vi.fn()}
+        onResizeRight={vi.fn()}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    // Se ve el encabezado de la revisión
+    expect(await screen.findByRole('heading', { level: 3, name: /Revisión de actualización/i })).toBeTruthy();
+
+    // Se ve el riel de vistas
+    const railNav = screen.getByRole('navigation', { name: /pipeline\.switcher\.views|Vistas/i });
+    expect(railNav).toBeTruthy();
+
+    // Al pulsar una vista del riel, reviewOpen pasa a false
+    const viewButtons = within(railNav).getAllByRole('button');
+    expect(viewButtons.length).toBeGreaterThan(0);
+    fireEvent.click(viewButtons[0]);
+
+    expect(usePipelineStore.getState().reviewOpen).toBe(false);
+
+    vi.unstubAllGlobals();
+  });
 });

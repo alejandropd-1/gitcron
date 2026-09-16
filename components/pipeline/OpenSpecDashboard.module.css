@@ -2355,7 +2355,8 @@ summary.centerBlock {
 
 .reviewView {
   display: flex;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-width: 0;
   flex-direction: column;
   padding: var(--sp-4) var(--sp-5);
   color: var(--color-text-primary);
@@ -3767,16 +3768,23 @@ summary.centerBlock {
 
 .reviewUpfrontSummary {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+.reviewFactLine {
+  display: flex;
+  align-items: baseline;
   gap: var(--space-2);
   font-size: var(--font-size-sm);
 }
 
 .reviewUpfrontActions {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
 }
 
 .reviewActionWithReason {

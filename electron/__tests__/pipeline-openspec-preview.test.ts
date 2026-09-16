@@ -9,7 +9,7 @@ import {
   readRepoSchemaConfig,
   validatePlanIntegrity,
 } from '../pipeline/openspec-preview';
-import type { OpenSpecEngineStatus } from '../../types/pipeline';
+import type { OpenSpecEngineStatus, OpenSpecGlobalConfig } from '../../types/pipeline';
 
 describe('generateDiagnosticPreview & validatePlanIntegrity (Tasks 2.11 & 2.12)', () => {
   const dummyStatus: OpenSpecEngineStatus = {
@@ -181,5 +181,89 @@ describe('generateDiagnosticPreview & validatePlanIntegrity (Tasks 2.11 & 2.12)'
 
     expect(preview.outputInventory).toEqual(inventory);
     expect(preview.invalidationParams.outputInventoryFingerprint).toBe(computeFingerprint(inventory));
+  });
+
+  it('validatePlanIntegrity no se invalida por el cambio de timestamp readAt en globalConfig (8.22 e)', () => {
+    const baseGlobalConfig: OpenSpecGlobalConfig = {
+      rawProfile: 'default',
+      profileState: 'read',
+      delivery: 'local',
+      deliveryState: 'read',
+      configuredWorkflows: ['lint', 'test'],
+      workflowsState: 'read',
+      resolvedWorkflows: ['lint', 'test'],
+      resolvedWorkflowsState: 'read',
+      origin: 'cli',
+      readAt: '2026-09-16T10:00:00.000Z',
+    };
+
+    const status1: OpenSpecEngineStatus = {
+      ...dummyStatus,
+      globalConfig: baseGlobalConfig,
+    };
+
+    const status2: OpenSpecEngineStatus = {
+      ...dummyStatus,
+      globalConfig: {
+        ...baseGlobalConfig,
+        readAt: '2026-09-16T10:00:05.000Z',
+      },
+    };
+
+    const plan1 = generateUpdatePlan({
+      repoPath: 'C:\\repo',
+      engineStatus: status1,
+      gitInfo: { branch: 'main', headCommit: 'abc1234', workingTreeFingerprint: 'clean:0' },
+    });
+
+    const preview2 = generateDiagnosticPreview({
+      repoPath: 'C:\\repo',
+      engineStatus: status2,
+      gitInfo: { branch: 'main', headCommit: 'abc1234', workingTreeFingerprint: 'clean:0' },
+    });
+
+    expect(validatePlanIntegrity(plan1, preview2.invalidationParams)).toBeNull();
+  });
+
+  it('validatePlanIntegrity invalida con global-config-changed si cambian los workflows resueltos en globalConfig (8.22 e)', () => {
+    const baseGlobalConfig: OpenSpecGlobalConfig = {
+      rawProfile: 'default',
+      profileState: 'read',
+      delivery: 'local',
+      deliveryState: 'read',
+      configuredWorkflows: ['lint', 'test'],
+      workflowsState: 'read',
+      resolvedWorkflows: ['lint', 'test'],
+      resolvedWorkflowsState: 'read',
+      origin: 'cli',
+      readAt: '2026-09-16T10:00:00.000Z',
+    };
+
+    const status1: OpenSpecEngineStatus = {
+      ...dummyStatus,
+      globalConfig: baseGlobalConfig,
+    };
+
+    const status2: OpenSpecEngineStatus = {
+      ...dummyStatus,
+      globalConfig: {
+        ...baseGlobalConfig,
+        resolvedWorkflows: ['lint', 'test', 'build'],
+      },
+    };
+
+    const plan1 = generateUpdatePlan({
+      repoPath: 'C:\\repo',
+      engineStatus: status1,
+      gitInfo: { branch: 'main', headCommit: 'abc1234', workingTreeFingerprint: 'clean:0' },
+    });
+
+    const preview2 = generateDiagnosticPreview({
+      repoPath: 'C:\\repo',
+      engineStatus: status2,
+      gitInfo: { branch: 'main', headCommit: 'abc1234', workingTreeFingerprint: 'clean:0' },
+    });
+
+    expect(validatePlanIntegrity(plan1, preview2.invalidationParams)).toBe('global-config-changed');
   });
 });

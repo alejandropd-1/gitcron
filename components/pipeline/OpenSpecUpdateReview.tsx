@@ -135,9 +135,18 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   return (
     <section className={styles.reviewView} aria-label={t('pipeline.openspec.engine.review.title')}>
       <header className={styles.reviewHead}>
-        <div className={styles.reviewTitleRow}>
-          <ShieldCheck size={20} color="var(--color-primary)" aria-hidden="true" />
-          <h3>{t('pipeline.openspec.engine.review.title')}</h3>
+        <div className={styles.reviewHeadTopRow}>
+          <div className={styles.reviewTitleRow}>
+            <ShieldCheck size={20} color="var(--color-primary)" aria-hidden="true" />
+            <h3>{t('pipeline.openspec.engine.review.title')}</h3>
+          </div>
+          <button
+            type="button"
+            className={styles.reviewPrimaryActionBtn}
+            onClick={onBack}
+          >
+            {t('pipeline.openspec.engine.review.close')}
+          </button>
         </div>
       </header>
 
@@ -145,8 +154,9 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
         {/* RESUMEN DE HECHOS Y ACCIONES AL FRENTE (Decisión 8.22) */}
         <div className={styles.reviewUpfrontHeader}>
           <div className={styles.reviewUpfrontSummary}>
-            <div className={styles.reviewFactItem}>
-              <span>
+            <div className={styles.reviewFactLine}>
+              <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.summary.engineLabel')}</span>
+              <span className={styles.reviewFactValue}>
                 {!cli?.installed
                   ? t('pipeline.openspec.engine.status.absent')
                   : upgrade !== null
@@ -154,11 +164,13 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                   : t('pipeline.openspec.engine.summary.engineUpToDate', { version: cli?.runtimeVersion ?? '?' })}
               </span>
             </div>
-            <div className={styles.reviewFactItem}>
-              <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.summary.integrationLabel')}: </span>
-              <strong style={{ color: action === 'none' ? 'var(--color-git-add)' : action === 'blocked' ? 'var(--color-error)' : 'var(--color-warning)' }}>
-                {actionLabel}
-              </strong>
+            <div className={styles.reviewFactLine}>
+              <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.summary.integrationLabel')}</span>
+              <span className={styles.reviewFactValue}>
+                <strong style={{ color: action === 'none' ? 'var(--color-git-add)' : action === 'blocked' ? 'var(--color-error)' : 'var(--color-warning)' }}>
+                  {actionLabel}
+                </strong>
+              </span>
             </div>
           </div>
 
@@ -190,14 +202,6 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                 {t('pipeline.openspec.engine.review.prepareCommit')}
               </button>
             )}
-
-            <button
-              type="button"
-              className={styles.reviewPrimaryActionBtn}
-              onClick={onBack}
-            >
-              {t('pipeline.openspec.engine.review.close')}
-            </button>
           </div>
         </div>
 

@@ -13,6 +13,7 @@ import type {
   OpenSpecRunUpdateResult,
   OpenSpecUpdatePlan,
 } from '@/types/pipeline';
+import { useGitStore } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { assessOpenSpecEngineAfterInstall } from './pipeline-domain';
 import styles from './OpenSpecDashboard.module.css';
@@ -62,6 +63,11 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [showWarningConfirm, setShowWarningConfirm] = useState(false);
   const [hasRun, setHasRun] = useState(false);
+  const [ranEngine, setRanEngine] = useState<{ installed: string | null; latest: string } | null>(null);
+  const [ranIntegration, setRanIntegration] = useState(false);
+
+  const effectiveEngine = engine ?? ranEngine;
+  const effectiveIntegration = integration || ranIntegration;
 
   const [engineStep, setEngineStep] = useState<EngineStepState>({
     status: 'pending',
@@ -74,8 +80,8 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   const hasDirtyWarning = typeof warnings?.dirtyCount === 'number' && warnings.dirtyCount > 0;
   const hasWarnings = integration && (hasMainWarning || hasDirtyWarning);
 
-  // a) Si !engine && !integration && !disabledReason
-  if (!engine && !integration && !disabledReason) {
+  // a) Si !hasRun && !engine && !integration && !disabledReason
+  if (!hasRun && !engine && !integration && !disabledReason) {
     return (
       <div className={styles.reviewActionWithReason}>
         <button
@@ -108,9 +114,13 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   const executeSequentialUpdate = async () => {
     setIsRunning(true);
     setHasRun(true);
+    setRanEngine(engine);
+    setRanIntegration(integration);
 
     let engineSuccess = true;
+    let engineRanAndDone = false;
     let engineResVersion: string | null = null;
+    let integrationRanAndDone = false;
 
     if (engine) {
       setEngineStep({ status: 'running' });
@@ -143,6 +153,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
         engineResVersion = runtimeVer ?? engine.latest;
 
         if (assessment.verdict === 'ok') {
+          engineRanAndDone = true;
           setEngineStep({
             status: 'done',
             installedVersion: engineResVersion,
@@ -205,17 +216,21 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
       try {
         const updateResult = await window.api.pipelineOpenSpec.runUpdate(
           repoPath,
-          updatePlan ?? undefined,
+          undefined,
           force ?? false
         );
         if (updateResult.success) {
+          integrationRanAndDone = true;
           onIntegrationUpdated?.(updateResult);
           setIntegrationStep({
             status: 'done',
             filesCount: updateResult.filesUpdated?.length ?? 0,
           });
         } else {
-          const errMsg = updateResult.errors && updateResult.errors.length > 0
+          const staleCodes = updateResult.errors?.filter((e) => e.endsWith('-changed')) ?? [];
+          const errMsg = staleCodes.length > 0
+            ? `${t('pipeline.openspec.engine.summary.planStale')} (${staleCodes.join(', ')})`
+            : updateResult.errors && updateResult.errors.length > 0
             ? updateResult.errors.join(' · ')
             : (updateResult.message || t('pipeline.openspec.engine.review.errorGeneric'));
           setIntegrationStep({
@@ -232,6 +247,31 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
     }
 
     setIsRunning(false);
+
+    // Toast global si todos los pasos que corrieron terminaron 'done'
+    const allDone =
+      (!engine || engineRanAndDone) &&
+      (!integration || integrationRanAndDone);
+    if (allDone && (engineRanAndDone || integrationRanAndDone)) {
+      const doneParts: string[] = [];
+      if (engine && engineRanAndDone) {
+        doneParts.push(
+          t('pipeline.openspec.engine.summary.doneEngine', {
+            version: engineResVersion ?? engine.latest,
+          })
+        );
+      }
+      if (integration && integrationRanAndDone) {
+        doneParts.push(t('pipeline.openspec.engine.summary.doneIntegration'));
+      }
+      if (doneParts.length > 0) {
+        const summary = doneParts.join(' · ');
+        useGitStore.getState().setSuccess(
+          t('pipeline.openspec.engine.summary.toastDone', { summary })
+        );
+      }
+    }
+
     usePipelineStore.getState().notifyEngineChanged();
   };
 
@@ -250,15 +290,15 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   };
 
   const handleRollback = async () => {
-    if (!engine?.installed || isRollingBack) return;
+    if (!effectiveEngine?.installed || isRollingBack) return;
     setIsRollingBack(true);
     try {
       const rollbackResult = await window.api.pipelineOpenSpec.installGlobal({
         repoPath,
-        targetVersion: engine.installed,
+        targetVersion: effectiveEngine.installed,
       });
       if (rollbackResult.success) {
-        const rollbackVer = rollbackResult.engineStatus?.cli?.runtimeVersion ?? engine.installed;
+        const rollbackVer = rollbackResult.engineStatus?.cli?.runtimeVersion ?? effectiveEngine.installed;
         setEngineStep({
           status: 'done',
           installedVersion: rollbackVer,
@@ -299,8 +339,8 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
     if (!hasRun || isRunning) return null;
 
     const anyFailed =
-      (engine && engineStep.status === 'failed') ||
-      (integration && integrationStep.status === 'failed');
+      (effectiveEngine && engineStep.status === 'failed') ||
+      (effectiveIntegration && integrationStep.status === 'failed');
 
     if (anyFailed) {
       return (
@@ -312,19 +352,19 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
     }
 
     const allDone =
-      (!engine || engineStep.status === 'done') &&
-      (!integration || integrationStep.status === 'done');
+      (!effectiveEngine || engineStep.status === 'done') &&
+      (!effectiveIntegration || integrationStep.status === 'done');
 
     if (allDone) {
       const doneParts: string[] = [];
-      if (engine && engineStep.status === 'done') {
+      if (effectiveEngine && engineStep.status === 'done') {
         doneParts.push(
           t('pipeline.openspec.engine.summary.doneEngine', {
-            version: engineStep.installedVersion ?? engine.latest,
+            version: engineStep.installedVersion ?? effectiveEngine.latest,
           })
         );
       }
-      if (integration && integrationStep.status === 'done') {
+      if (effectiveIntegration && integrationStep.status === 'done') {
         doneParts.push(t('pipeline.openspec.engine.summary.doneIntegration'));
       }
       return (
@@ -425,14 +465,14 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
             gap: 'var(--space-2)',
           }}
         >
-          {engine && (
+          {effectiveEngine && (
             <li style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                 {renderStepIcon(engineStep.status)}
                 <span className={styles.reviewFactValue}>
                   {t('pipeline.openspec.engine.summary.rowEngine', {
-                    installed: engine.installed ?? '?',
-                    latest: engine.latest,
+                    installed: effectiveEngine.installed ?? '?',
+                    latest: effectiveEngine.latest,
                   })}
                 </span>
               </div>
@@ -444,7 +484,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
                   <CheckCircle2 size={14} aria-hidden="true" />
                   <span>
                     {t('pipeline.openspec.engine.afterInstall.ok', {
-                      version: engineStep.installedVersion ?? engine.latest,
+                      version: engineStep.installedVersion ?? effectiveEngine.latest,
                     })}
                   </span>
                 </div>
@@ -459,7 +499,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
                       <AlertTriangle size={14} aria-hidden="true" />
                       <span>
                         {t('pipeline.openspec.engine.afterInstall.broken', {
-                          version: engineStep.installedVersion ?? engine.latest,
+                          version: engineStep.installedVersion ?? effectiveEngine.latest,
                           reasons: engineStep.reasons.join(' · '),
                         })}
                       </span>
@@ -475,7 +515,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
                       </span>
                     </div>
                   )}
-                  {engineStep.canRollback && engine.installed && (
+                  {engineStep.canRollback && effectiveEngine.installed && (
                     <div className={styles.engineInstallConfirmActions}>
                       <button
                         type="button"
@@ -488,13 +528,13 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
                             <Loader2 size={12} className={styles.spin} aria-hidden="true" />
                             <span>
                               {t('pipeline.openspec.engine.afterInstall.rollingBack', {
-                                version: engine.installed,
+                                version: effectiveEngine.installed,
                               })}
                             </span>
                           </>
                         ) : (
                           t('pipeline.openspec.engine.afterInstall.rollback', {
-                            version: engine.installed,
+                            version: effectiveEngine.installed,
                           })
                         )}
                       </button>
@@ -505,7 +545,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
             </li>
           )}
 
-          {integration && (
+          {effectiveIntegration && (
             <li style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                 {renderStepIcon(integrationStep.status)}

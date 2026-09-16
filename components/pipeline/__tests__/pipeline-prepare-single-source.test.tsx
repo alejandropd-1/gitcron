@@ -159,6 +159,10 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
           getEngineStatus: vi.fn().mockResolvedValue(mockEngineStatus),
           checkLatestVersion: vi.fn().mockResolvedValue(null),
           getUpdatePlan: vi.fn().mockResolvedValue(mockUpdatePlan),
+          installGlobal: vi.fn().mockResolvedValue({
+            success: true,
+            engineStatus: mockEngineStatus,
+          }),
           runUpdate: vi.fn().mockResolvedValue({
             success: true,
             status: 'completed',
@@ -175,6 +179,7 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
     });
     usePipelineStore.setState({
       prepareOpen: false,
+      reviewOpen: false,
       aiNotice: null,
       snapshot: makeSnapshot(),
       projection: null,
@@ -245,7 +250,7 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
     fireEvent.click(reviewButton);
 
     // Ejecutar actualización para habilitar la preparación
-    const executeBtn = await screen.findByText('pipeline.openspec.engine.review.executeUpdate');
+    const executeBtn = await screen.findByText('pipeline.openspec.engine.summary.updateAll');
     fireEvent.click(executeBtn);
 
     // Click en botón de preparar commit dentro de la revisión (onPrepareCommit / línea 1631)
@@ -282,7 +287,7 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
     fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
     const reviewButton = await screen.findByText('pipeline.openspec.engine.reviewAction');
     fireEvent.click(reviewButton);
-    const executeBtn = await screen.findByText('pipeline.openspec.engine.review.executeUpdate');
+    const executeBtn = await screen.findByText('pipeline.openspec.engine.summary.updateAll');
     fireEvent.click(executeBtn);
     const prepareCommitBtn = await screen.findByText('pipeline.openspec.engine.review.prepareCommit');
     fireEvent.click(prepareCommitBtn);

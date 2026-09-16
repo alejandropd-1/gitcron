@@ -897,7 +897,14 @@
   «Actualizar» que encadena motor → integracion con progreso, resultado y vuelta atras, en dos
   mitades: el ejecutor de pasos como componente propio con sus pruebas, y despues su cableado en la
   revision reemplazando los dos botones y el reporte de archivos (la lista de archivos va a
-  «Detalle tecnico»).
+  «Detalle tecnico»). *(b2, primera mitad) hecha el 2026-09-15 y auditada:*
+  `components/pipeline/OpenSpecUpdateRunner.tsx` (556 lineas, 9 pruebas propias: orden motor →
+  integracion comprobado, avisos solo para la integracion, motor roto detiene la integracion y
+  ofrece la vuelta atras, notifyEngineChanged una sola vez al final). *(b2, segunda mitad) hecha
+  el 2026-09-16 y auditada:* la revision monta el ejecutor; desaparecen «Actualizar el motor» y
+  «Actualizar integracion del repositorio» y el reporte de archivos (la lista va a «Detalle
+  tecnico» como «Archivos tocados por la ultima actualizacion»); la revision baja de 721 a 560
+  lineas. Suite 2043. Falta (c). Pendiente de que Alejandro pruebe el circuito en vivo.
   - **Si, son grandes, y esta medido.** `.primaryAction, .secondaryAction`
     (`OpenSpecDashboard.module.css:442-458`) miden `min-height: 2.65rem` (42 px) con relleno
     `--space-3 --space-4` y peso 700; `.headerActions .primaryAction` (`:278`) 2.5rem;

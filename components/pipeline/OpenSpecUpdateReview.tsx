@@ -4,11 +4,9 @@ import React, { useState } from 'react';
 import {
   AlertTriangle,
   Check,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Copy,
-  Loader2,
   ShieldCheck,
 } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
@@ -24,8 +22,7 @@ import {
   deriveUpdateBlockReason,
   deriveUpdateMatrixAction,
 } from '@/lib/openspec-update-guide';
-import { usePipelineStore } from '@/lib/pipeline-store';
-import { OpenSpecGlobalInstallConfirm } from './OpenSpecGlobalInstallConfirm';
+import { OpenSpecUpdateRunner } from './OpenSpecUpdateRunner';
 import { getOpenSpecEngineUpgrade } from './pipeline-domain';
 import styles from './OpenSpecDashboard.module.css';
 
@@ -57,13 +54,10 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   const t = useT();
   const [copiedCommand, setCopiedCommand] = useState(false);
   const [copiedHostCmd, setCopiedHostCmd] = useState(false);
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [executionResult, setExecutionResult] = useState<OpenSpecRunUpdateResult | null>(null);
   const [forceConfirmed, setForceConfirmed] = useState(false);
-  const [showWarningConfirm, setShowWarningConfirm] = useState(false);
-  const [isConfirmingGlobal, setIsConfirmingGlobal] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+  const [lastIntegration, setLastIntegration] = useState<OpenSpecRunUpdateResult | null>(null);
 
   const cli = status?.cli;
   const latest = status?.latestAvailable;
@@ -89,7 +83,6 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   // Salvaguardas de Git
   const isMainOrMaster = currentBranch === 'main' || currentBranch === 'master';
   const isDirty = isClean === false;
-  const canExecute = !isExecuting && action !== 'blocked' && !executionResult?.success;
 
   const handleCopyCommand = async () => {
     if (!officialCommand) return;
@@ -131,43 +124,9 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     return t('pipeline.openspec.engine.matrix.blocked');
   };
 
-  const handlePrimaryClick = () => {
-    if (!canExecute) return;
-    if ((isMainOrMaster || isDirty) && !showWarningConfirm) {
-      setShowWarningConfirm(true);
-      return;
-    }
-    void handleExecuteUpdate();
-  };
-
-  const handleExecuteUpdate = async () => {
-    if (!canExecute) return;
-    setIsExecuting(true);
-    try {
-      const result = await window.api?.pipelineOpenSpec?.runUpdate?.(
-        repoPath,
-        updatePlan ?? undefined,
-        forceConfirmed,
-      );
-      if (result) {
-        setExecutionResult(result);
-        if (result.success) {
-          setShowWarningConfirm(false);
-          usePipelineStore.getState().notifyEngineChanged();
-          onUpdateCompleted?.(result);
-        }
-      }
-    } catch (err) {
-      setExecutionResult({
-        success: false,
-        status: 'error',
-        filesUpdated: [],
-        errors: [(err as Error).message],
-      });
-    } finally {
-      setIsExecuting(false);
-    }
-  };
+  const engineStep = upgrade ? { installed: cli?.runtimeVersion ?? null, latest: upgrade.latest } : null;
+  const integrationStep = action !== 'none' && action !== 'blocked';
+  const runnerDisabledReason = action === 'blocked' ? t('pipeline.openspec.engine.matrix.blockedReason', { reason: resolveBlockReasonText() }) : null;
 
   const presentOutputs = (installed?.outputInventory ?? []).filter(
     (o) => o.presenceState !== 'absent',
@@ -203,181 +162,44 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
             </div>
           </div>
 
-          {isConfirmingGlobal ? (
-            <OpenSpecGlobalInstallConfirm
-              command={hostCommand}
-              nodePath={installPlan?.nodePath}
-              packageManagerPath={installPlan?.packageManagerPath}
-              packageManagerName={installPlan?.detectedManager}
+          <div className={styles.reviewUpfrontActions}>
+            <OpenSpecUpdateRunner
               repoPath={repoPath}
-              installedVersion={cli?.runtimeVersion ?? null}
-              onCancel={() => setIsConfirmingGlobal(false)}
-              onInstalled={() => {}}
+              engine={engineStep}
+              integration={integrationStep}
+              updatePlan={updatePlan}
+              force={forceConfirmed}
+              warnings={{
+                mainBranch: isMainOrMaster ? (currentBranch ?? 'main') : null,
+                dirtyCount: isDirty ? (uncommittedCount ?? 1) : null,
+              }}
+              disabledReason={runnerDisabledReason}
+              onIntegrationUpdated={(result) => {
+                setLastIntegration(result);
+                onUpdateCompleted?.(result);
+              }}
             />
-          ) : (
-            <div className={styles.reviewUpfrontActions}>
-              {/* Botón para actualizar el motor host cuando hay versión más nueva */}
-              {upgrade !== null && (
-                <button
-                  type="button"
-                  className={styles.primaryAction}
-                  onClick={() => setIsConfirmingGlobal(true)}
-                  disabled={typeof window !== 'undefined' && !window.api?.pipelineOpenSpec?.installGlobal}
-                >
-                  {t('pipeline.openspec.engine.hostUpgrade.upgradeAction')}
-                </button>
-              )}
 
-              {/* Botón principal de ejecución de actualización (Paso 2) */}
-              {!executionResult?.success && (
-                <div className={styles.reviewActionWithReason}>
-                  {showWarningConfirm ? (
-                    <div className={styles.reviewWarningConfirmBox} role="region" aria-label={t('pipeline.openspec.engine.review.title')}>
-                      {isMainOrMaster && (
-                        <p className={styles.reviewWarningConfirmText}>
-                          {t('pipeline.openspec.engine.review.confirmMain', { branch: currentBranch ?? 'main' })}
-                        </p>
-                      )}
-                      {isDirty && (
-                        <p className={styles.reviewWarningConfirmText}>
-                          {t('pipeline.openspec.engine.review.confirmDirty', { count: uncommittedCount ?? 1 })}
-                        </p>
-                      )}
-                      <div className={styles.reviewWarningConfirmActions}>
-                        <button
-                          type="button"
-                          className={styles.primaryAction}
-                          onClick={handleExecuteUpdate}
-                          disabled={isExecuting}
-                        >
-                          {isExecuting ? (
-                            <>
-                              <Loader2 size={13} className={styles.spin} aria-hidden="true" />
-                              <span>{t('pipeline.openspec.engine.review.updating')}</span>
-                            </>
-                          ) : (
-                            t('pipeline.openspec.engine.review.updateAnyway')
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.reviewCopyBtn}
-                          onClick={() => setShowWarningConfirm(false)}
-                          disabled={isExecuting}
-                        >
-                          {t('pipeline.openspec.engine.review.cancel')}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className={styles.primaryAction}
-                        onClick={handlePrimaryClick}
-                        disabled={!canExecute}
-                      >
-                        {isExecuting ? (
-                          <>
-                            <Loader2 size={13} className={styles.spin} aria-hidden="true" />
-                            <span>{t('pipeline.openspec.engine.review.updating')}</span>
-                          </>
-                        ) : forceConfirmed ? (
-                          t('pipeline.openspec.engine.review.forceButton')
-                        ) : (
-                          t('pipeline.openspec.engine.review.executeUpdate')
-                        )}
-                      </button>
-                      {action === 'blocked' && (
-                        <span className={styles.blockedReasonInline} role="alert">
-                          {t('pipeline.openspec.engine.matrix.blockedReason', {
-                            reason: resolveBlockReasonText(),
-                          })}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Si ya concluyó con éxito, ofrecemos preparar commit */}
-              {executionResult?.success && onPrepareCommit && (
-                <button
-                  type="button"
-                  className={styles.primaryAction}
-                  onClick={onPrepareCommit}
-                >
-                  {t('pipeline.openspec.engine.review.prepareCommit')}
-                </button>
-              )}
-
+            {/* Si ya concluyó con éxito, ofrecemos preparar commit */}
+            {lastIntegration?.success && onPrepareCommit && (
               <button
                 type="button"
-                className={styles.reviewPrimaryActionBtn}
-                onClick={onBack}
+                className={styles.primaryAction}
+                onClick={onPrepareCommit}
               >
-                {t('pipeline.openspec.engine.review.close')}
+                {t('pipeline.openspec.engine.review.prepareCommit')}
               </button>
-            </div>
-          )}
-        </div>
-
-        {/* REPORTE DE RESULTADO DE EJECUCIÓN (Si ya se ejecutó) */}
-        {executionResult && (
-          <div
-            className={styles.reviewSafetyBanner}
-            style={{
-              borderColor: executionResult.success ? 'color-mix(in srgb, var(--color-git-add) 40%, transparent)' : 'color-mix(in srgb, var(--color-error) 40%, transparent)',
-              background: executionResult.success ? 'color-mix(in srgb, var(--color-git-add) 8%, transparent)' : 'color-mix(in srgb, var(--color-error) 8%, transparent)',
-            }}
-          >
-            {executionResult.success ? (
-              <CheckCircle2 size={18} color="var(--color-git-add)" aria-hidden="true" />
-            ) : (
-              <AlertTriangle size={18} color="var(--color-error)" aria-hidden="true" />
             )}
-            <div className={styles.reviewSafetyText}>
-              <strong>
-                {executionResult.success
-                  ? t('pipeline.openspec.engine.review.completedTitle')
-                  : executionResult.status === 'update-incomplete'
-                  ? t('pipeline.openspec.engine.review.incompleteTitle')
-                  : t('pipeline.openspec.engine.review.errorTitle')}
-              </strong>
-              <p>
-                {executionResult.success
-                  ? t('pipeline.openspec.engine.review.filesUpdatedSummary', {
-                      count: executionResult.filesUpdated.length,
-                    })
-                  : executionResult.status === 'update-incomplete'
-                  ? t('pipeline.openspec.engine.review.incompleteHelp')
-                  : (() => {
-                      const errorKeyMap: Record<string, string> = {
-                        'branch-protected-main': 'pipeline.openspec.engine.review.blockedBranchMain',
-                        'branch-detached': 'pipeline.openspec.engine.review.errorBranchDetached',
-                        'working-tree-dirty': 'pipeline.openspec.engine.review.blockedDirty',
-                        'openspec-cli-not-found': 'pipeline.openspec.engine.review.errorCliNotFound',
-                      };
-                      const firstError = executionResult.errors[0];
-                      if (firstError && errorKeyMap[firstError]) {
-                        return t(errorKeyMap[firstError], { branch: currentBranch ?? '' });
-                      }
-                      if (firstError) {
-                        return `${t('pipeline.openspec.engine.review.errorGeneric')}: ${firstError}`;
-                      }
-                      return t('pipeline.openspec.engine.review.errorGeneric');
-                    })()}
-              </p>
-              {executionResult.filesUpdated.length > 0 && (
-                <ul style={{ margin: 'var(--space-1) 0 0', paddingLeft: 'var(--space-4)', fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>
-                  {executionResult.filesUpdated.map((f) => (
-                    <li key={f}><code>{f}</code></li>
-                  ))}
-                </ul>
-              )}
-            </div>
+
+            <button
+              type="button"
+              className={styles.reviewPrimaryActionBtn}
+              onClick={onBack}
+            >
+              {t('pipeline.openspec.engine.review.close')}
+            </button>
           </div>
-        )}
+        </div>
 
         {/* OFRECIMIENTO CONDICIONAL DE --force (DECISIÓN 3: Sólo si hay residuo legacy concreto) */}
         {hasLegacyResidue && (
@@ -710,6 +532,23 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                       ))}
                     </ul>
                   </div>
+                </section>
+              )}
+
+              {/* 6. ARCHIVOS TOCADOS POR LA ÚLTIMA ACTUALIZACIÓN */}
+              {lastIntegration && lastIntegration.filesUpdated && lastIntegration.filesUpdated.length > 0 && (
+                <section
+                  className={styles.reviewSection}
+                  aria-label={t('pipeline.openspec.engine.summary.filesTouched')}
+                >
+                  <h3 className={styles.reviewSectionTitle}>
+                    {t('pipeline.openspec.engine.summary.filesTouched')}
+                  </h3>
+                  <ul style={{ margin: 'var(--space-1) 0 0', paddingLeft: 'var(--space-4)', fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>
+                    {lastIntegration.filesUpdated.map((f) => (
+                      <li key={f}><code>{f}</code></li>
+                    ))}
+                  </ul>
                 </section>
               )}
             </div>

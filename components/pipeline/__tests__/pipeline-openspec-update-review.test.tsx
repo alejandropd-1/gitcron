@@ -203,7 +203,7 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
       />,
     );
 
-    const updateBtn = screen.getByRole('button', { name: /Actualizar integración/i });
+    const updateBtn = screen.getByRole('button', { name: /^Actualizar$/i });
     expect(updateBtn.hasAttribute('disabled')).toBe(false);
 
     // Al hacer clic, aparece el aviso en el mismo lugar
@@ -221,7 +221,7 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     expect(screen.queryByText(/Estás en «main»/)).toBeNull();
 
     // Clic de nuevo y confirmar con Actualizar igual
-    const updateBtnAgain = screen.getByRole('button', { name: /Actualizar integración/i });
+    const updateBtnAgain = screen.getByRole('button', { name: /^Actualizar$/i });
     fireEvent.click(updateBtnAgain);
     const confirmBtnAgain = screen.getByRole('button', { name: /Actualizar igual/i });
     fireEvent.click(confirmBtnAgain);
@@ -247,7 +247,7 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
       />,
     );
 
-    const updateBtn = screen.getByRole('button', { name: /Actualizar integración/i });
+    const updateBtn = screen.getByRole('button', { name: /^Actualizar$/i });
     expect(updateBtn.hasAttribute('disabled')).toBe(false);
 
     // Al hacer clic, aparece el aviso con la cantidad de archivos
@@ -259,7 +259,7 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     expect(runUpdateMock).not.toHaveBeenCalled();
 
     // Confirmar ejecuta
-    fireEvent.click(screen.getByRole('button', { name: /Actualizar integración/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Actualizar$/i }));
     fireEvent.click(screen.getByRole('button', { name: /Actualizar igual/i }));
     expect(runUpdateMock).toHaveBeenCalledTimes(1);
   });
@@ -296,21 +296,13 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     },
   };
 
-  it('ofrece botón Actualizar el motor y alternativa de terminal con comando exacto y copiado', async () => {
-
+  it('ofrece botón Actualizar, la línea de plan menciona actualizar el motor a v1.9.0 y el comando está dentro de «Desde la terminal»', async () => {
     const writeTextMock = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, {
       clipboard: {
         writeText: writeTextMock,
       },
     });
-
-    const installGlobalMock = vi.fn().mockResolvedValue({ success: true });
-    (window as any).api = {
-      pipelineOpenSpec: {
-        installGlobal: installGlobalMock,
-      },
-    };
 
     const pnpmCommand = 'pnpm add -g @fission-ai/openspec@latest';
     render(
@@ -334,9 +326,12 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     // Hecho superior con la oferta de actualización del motor host
     expect(screen.getByText(/Motor v1\.5\.0 instalado · v1\.9\.0 disponible en npm/)).toBeTruthy();
 
-    // Botón Actualizar el motor presente arriba en la fila de acciones
-    const upgradeEngineBtn = screen.getByRole('button', { name: /Actualizar el motor/i });
-    expect(upgradeEngineBtn).toBeTruthy();
+    // Botón Actualizar presente
+    const updateBtn = screen.getByRole('button', { name: /^Actualizar$/i });
+    expect(updateBtn).toBeTruthy();
+
+    // La línea de plan menciona actualizar el motor a v1.9.0
+    expect(screen.getByText(/actualizar el motor en toda la máquina a v1\.9\.0/i)).toBeTruthy();
 
     // Abrir comando desde la terminal
     const termToggle = screen.getByRole('button', { name: /Desde la terminal/i });
@@ -349,20 +344,25 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     expect(copyButtons.length).toBeGreaterThanOrEqual(1);
     fireEvent.click(copyButtons[0]);
     expect(writeTextMock).toHaveBeenCalledWith(pnpmCommand);
-
-    // Clic en Actualizar el motor despliega confirmación
-    fireEvent.click(upgradeEngineBtn);
-    expect(screen.getByText(/La instalación global modificará el entorno de Node/i)).toBeTruthy();
-
-    const confirmGlobalBtn = screen.getByRole('button', { name: /Confirmar instalación global/i });
-    fireEvent.click(confirmGlobalBtn);
-    expect(installGlobalMock).toHaveBeenCalledTimes(1);
   });
 
-  it('la revisión renderiza OpenSpecGlobalInstallConfirm al apretar «Actualizar el motor» (Corrección 3)', () => {
+  it('al apretar «Actualizar» con motor desactualizado se llama a installGlobal y la fila del motor queda en listo', async () => {
+    const installGlobalMock = vi.fn().mockResolvedValue({
+      success: true,
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.9.0' },
+        doctor: { data: {} },
+        globalConfig: { profileState: 'ready' },
+      },
+    });
+    const runUpdateMock = vi.fn().mockResolvedValue({
+      success: true,
+      filesUpdated: [],
+    });
     (window as any).api = {
       pipelineOpenSpec: {
-        installGlobal: vi.fn(),
+        installGlobal: installGlobalMock,
+        runUpdate: runUpdateMock,
       },
     };
 
@@ -384,14 +384,11 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
       />,
     );
 
-    expect(screen.queryByRole('region', { name: /Confirmar instalación global/i })).toBeNull();
-    const upgradeEngineBtn = screen.getByRole('button', { name: /Actualizar el motor/i });
-    fireEvent.click(upgradeEngineBtn);
+    const updateBtn = screen.getByRole('button', { name: /^Actualizar$/i });
+    fireEvent.click(updateBtn);
 
-    const confirmRegion = screen.getByRole('region', { name: /Confirmar instalación global/i });
-    expect(confirmRegion).toBeDefined();
-    expect(within(confirmRegion).getByRole('button', { name: /Confirmar instalación global/i })).toBeDefined();
-    expect(within(confirmRegion).getByRole('button', { name: /Cancelar/i })).toBeDefined();
+    await screen.findByText(/Motor v1\.9\.0 instalado y respondiendo\./i);
+    expect(installGlobalMock).toHaveBeenCalledTimes(1);
   });
 
   it('con CLI no instalado, el motivo de bloqueo explica la causa real y no contiene POC', () => {
@@ -451,8 +448,8 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
       />,
     );
 
-    // 1. Botón ejecutar actualización está habilitado
-    const updateBtn = screen.getByRole('button', { name: /Actualizar integración del repositorio/i });
+    // 1. Botón Actualizar está habilitado
+    const updateBtn = screen.getByRole('button', { name: /^Actualizar$/i });
     expect(updateBtn.hasAttribute('disabled')).toBe(false);
 
     // 2. Hacer clic en ejecutar
@@ -468,18 +465,17 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
         success: true,
         status: 'completed',
         filesUpdated: [
-          '.agents/skills/openspec-propose/SKILL.md',
-          '.agents/skills/openspec-apply-change/SKILL.md',
+          'a.md',
+          'b.md',
         ],
         errors: [],
       });
     });
 
     // 5. Render de la lista de archivos actualizados y título de éxito
-    expect(screen.getByText('Integración actualizada')).toBeTruthy();
-    expect(screen.getByText('2 archivos actualizados')).toBeTruthy();
-    expect(screen.getByText('.agents/skills/openspec-propose/SKILL.md')).toBeTruthy();
-    expect(screen.getByText('.agents/skills/openspec-apply-change/SKILL.md')).toBeTruthy();
+    expect(await screen.findByText(/Integración actualizada/i)).toBeTruthy();
+    expect(screen.getByText(/2 archivos actualizados/i)).toBeTruthy();
+    expect(screen.getByText(/Listo: integración al día/i)).toBeTruthy();
     expect(handleUpdateCompleted).toHaveBeenCalled();
 
     // 6. Botón «Preparar commit» presente y funcional
@@ -487,32 +483,42 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     expect(prepareBtn).toBeTruthy();
     fireEvent.click(prepareBtn);
     expect(handlePrepareCommit).toHaveBeenCalledTimes(1);
+
+    // 7. Al abrir «Detalle técnico» se ven a.md y b.md bajo «Archivos tocados por la última actualización»
+    const techToggle = screen.getByRole('button', { name: /Detalle técnico/i });
+    fireEvent.click(techToggle);
+    expect(screen.getByText('Archivos tocados por la última actualización')).toBeTruthy();
+    expect(screen.getByText('a.md')).toBeTruthy();
+    expect(screen.getByText('b.md')).toBeTruthy();
   });
 
-  it('con instalada 1.13.0 y latest 1.12.0 el botón «Actualizar el motor» NO se renderiza y muestra motor al día', () => {
-    const statusNewerThanCache: OpenSpecEngineStatus = {
+  it('con motor al día e integración al día ("none") el botón dice «Todo al día» y está deshabilitado', () => {
+    const statusUpToDate: OpenSpecEngineStatus = {
       ...mockStatus,
-      cli: {
-        ...mockStatus.cli,
-        installed: true,
-        runtimeVersion: '1.13.0',
-      },
-      latestAvailable: {
-        ...mockStatus.latestAvailable!,
-        latestVersion: '1.12.0',
+      installedIntegration: {
+        ...mockStatus.installedIntegration!,
+        skills: [
+          { name: 'openspec-propose', path: 'C:/repo/.codex/skills/openspec-propose', origin: 'legacy-codex', isOfficial: true },
+          { name: 'openspec-apply-change', path: 'C:/repo/.codex/skills/openspec-apply-change', origin: 'legacy-codex', isOfficial: true },
+        ],
+        generatedBy: '1.8.0',
+        markersFound: [],
+        outputInventory: [],
       },
     };
 
     render(
       <OpenSpecUpdateReview
         repoPath="C:/repo"
-        status={statusNewerThanCache}
+        status={statusUpToDate}
+        updatePlan={{ requiredAction: 'none', reason: null, items: [], blockers: [] } as any}
         onBack={vi.fn()}
       />,
     );
 
-    expect(screen.queryByRole('button', { name: /Actualizar el motor/i })).toBeNull();
-    expect(screen.getByText(/Motor v1\.13\.0 · al día/)).toBeTruthy();
+    const btn = screen.getByRole('button', { name: 'Todo al día' });
+    expect(btn.hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText(/Motor v1\.8\.0 · al día/)).toBeTruthy();
   });
 
   it('por omisión los plegables «Desde la terminal» y «Detalle técnico» están cerrados y la matriz/convivencia no se muestran', () => {
@@ -539,7 +545,7 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     expect(screen.getByText(/Integración de este repositorio/)).toBeTruthy();
   });
 
-  it('con motor desactualizado e integración desactualizada muestra ambos hechos arriba en el resumen', () => {
+  it('con motor desactualizado e integración desactualizada muestra ambos hechos arriba en el resumen y la línea de plan', () => {
     render(
       <OpenSpecUpdateReview
         repoPath="C:/repo"
@@ -555,8 +561,30 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     expect(screen.getByText(/Integración de este repositorio/)).toBeTruthy();
     expect(screen.getByText('Actualización de flujos instalados')).toBeTruthy();
 
-    // Acción de actualizar motor presente
-    expect(screen.getByRole('button', { name: /Actualizar el motor/i })).toBeTruthy();
+    // Línea de plan
+    expect(
+      screen.getByText(/Va a: .*actualizar el motor en toda la máquina a v1\.9\.0.*actualizar la integración de este repositorio/i)
+    ).toBeTruthy();
+  });
+
+  it('con action "blocked" el botón «Actualizar» está deshabilitado y se ve el motivo', () => {
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:/repo"
+        status={mockStatus}
+        updatePlan={{
+          requiredAction: 'blocked',
+          reason: 'Bloqueado por conflicto grave',
+          items: [],
+          blockers: ['conflict'],
+        } as any}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const updateBtn = screen.getByRole('button', { name: /^Actualizar$/i });
+    expect(updateBtn.hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText(/Bloqueado por conflicto grave/i)).toBeTruthy();
   });
 
   it('alterna el plegable «Desde la terminal» actualizando aria-expanded', () => {

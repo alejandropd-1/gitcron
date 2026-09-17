@@ -203,9 +203,9 @@ Actualizaciones importantes en el motor.
         strategyProposal: null,
       },
       redaction: {
-        provider: 'lmstudio:local-model',
+        provider: 'LM Studio (modelo local)',
         status: 'generated',
-        text: 'Resumen sintético generado localmente.',
+        text: `## Qué hay de nuevo\nNotas del release.\n\n## Qué hace de hecho\nComportamiento medido.\n\n## Cómo afecta a GitCron\nNo rompe nada.\n\n## Cómo encararlo\nActualización sugerida.`,
       },
     };
 
@@ -218,8 +218,11 @@ Actualizaciones importantes en el motor.
       />
     );
 
-    expect(screen.getByText('Resumen sintético generado localmente.')).toBeTruthy();
-    expect(screen.getByText('Explicación redactada por lmstudio:local-model')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Qué hay de nuevo/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Qué hace de hecho/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Cómo afecta a GitCron/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Cómo encararlo/i })).toBeTruthy();
+    expect(screen.getByText('Explicación redactada por LM Studio (modelo local)')).toBeTruthy();
   });
 
   it('no muestra atribución de redacción cuando status es offline', () => {
@@ -244,7 +247,7 @@ Actualizaciones importantes en el motor.
         strategyProposal: null,
       },
       redaction: {
-        provider: 'lmstudio:local-model',
+        provider: 'LM Studio (modelo local)',
         status: 'offline',
         text: '',
       },
@@ -260,5 +263,47 @@ Actualizaciones importantes en el motor.
     );
 
     expect(screen.queryByText(/redactada/i)).toBeNull();
+  });
+
+  it('muestra mensaje declarando que el informe no está disponible cuando el estado es offline', () => {
+    const analysis: OpenSpecVersionAnalysisResult = {
+      measured: {
+        installedVersion: '1.11.0',
+        availableVersion: '1.13.0',
+        isUpgradeAvailable: true,
+        versionClass: 'supported',
+        behindCycle: false,
+        targetVersion: '1.13.0',
+        supportedRange: { min: '1.5.0' },
+        changelog: {
+          source: 'GitHub Releases (fission-ai/openspec)',
+          sourceUrl: null,
+          fetched: true,
+          rawText: `## v1.13.0\n\nNotas.`,
+          error: null,
+        },
+        consumedSurfaces: [],
+        breakingChangesDetected: false,
+        strategyProposal: null,
+      },
+      redaction: {
+        provider: 'LM Studio (modelo local)',
+        status: 'offline',
+        text: '',
+      },
+    };
+
+    render(
+      <OpenSpecReleaseNotes
+        latest="1.13.0"
+        analysis={analysis}
+        loading={false}
+        error={null}
+      />
+    );
+
+    expect(
+      screen.getByText('Informe asistido no disponible: el modelo local está apagado o no respondió.')
+    ).toBeTruthy();
   });
 });

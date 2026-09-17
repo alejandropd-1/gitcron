@@ -1037,6 +1037,51 @@
   *Modo de trabajo desde el 2026-09-17 (pedido de Alejandro por falta de ventana):* los prompts de
   7.4 y 8.20 se entregan juntos y se ejecutan en serie; la auditoria se hace sobre el arbol final
   con la suite completa.
+  (e) **Cuatro observaciones de Alejandro en vivo, 2026-09-17, con (b), (c) y 7.4 puestas.**
+  Medidas:
+  1. *«Me avisa que tengo que instalar algo en Perfil de Workflows Global»* — la fila `update` dice
+     «Falta en los cuatro agentes: la integracion esta desactualizada» y el aviso rojo de
+     divergencia dice «les falta update», mientras Actualizacion dice «Al dia». Es un defecto viejo
+     que la 7.4 hizo visible: `OFFICIAL_WORKFLOW_MAP` (`electron/pipeline/openspec-tooling.ts:36-58`)
+     mapea `openspec-update-plan` y `openspec-update` pero **no `openspec-update-change`**, que es el
+     nombre real del skill que genera OpenSpec ≥ 1.9 (esta en `.agents/skills/`, `.claude/skills/`,
+     `.opencode/skills/`). Consecuencias medidas: el scanner nunca cuenta `update` como instalado
+     en ningun agente (`installedWorkflowsByTarget` queda con 5), la divergencia siempre acusa,
+     el skill se clasifica como «personalizado preexistente» en la convivencia, y el perfil del repo
+     sale «custom» en vez de «core». `integrationState` sale «al dia» porque se calcula por otro
+     camino (targets configurados y generatedBy). Arreglo: agregar la entrada al mapa, con prueba
+     que use los seis nombres reales de disco y exija 6 workflows y clase `core`.
+  2. *«Lo de a dos columnas no se a que te referis»* — no se ve porque la regla `@container
+     (min-width: 640px)` quedo en la linea 1829 y la regla base de `.advancedDiagnosticsContainer`
+     (una columna) en la 2202: misma especificidad, gana la ultima en el archivo. Arreglo: mover el
+     bloque `@container` despues de la regla base.
+  3. *«Mas espacio arriba y abajo del boton Ver las notas completas»* — el boton va pegado al
+     ultimo parrafo y a la fuente (`OpenSpecReleaseNotes.tsx:60-76`). Arreglo: fila propia con
+     `margin: var(--space-3) 0 var(--space-2)`. Y las vinetas del resumen salen sin marca de lista;
+     que se vean como lista.
+  4. *«Donde dice No toca lo que GitCron usa, quiero un informe de IA: que es lo nuevo, como afecta
+     a GitCron, que hace de hecho, y si afecta como encararlo»* — eso es la redaccion 9c.4
+     (`draftVersionRedaction`, `openspec-version-analysis.ts:340-390`), que hoy: pide un texto libre,
+     manda solo 1000 caracteres de las notas, 500 tokens, 15 s, y la vista la oculta si el modelo
+     local esta apagado. Arreglo: el prompt pide un informe con cuatro encabezados fijos («Que hay
+     de nuevo», «Que hace de hecho», «Como afecta a GitCron», «Como encararlo») y recibe las notas
+     completas mas la lista de lo que GitCron consume con su veredicto medido; 900 tokens y 45 s
+     (un modelo local de 27B tarda); la vista lo renderiza con `MarkdownViewer` y, si el modelo
+     esta apagado, lo dice en una linea en vez de callar. El proveedor sigue siendo LM Studio hasta
+     `modelos-en-casa`; el cambio de proveedor no toca nada de esto.
+  *Auditoria de (e), 2026-09-17, sobre el arbol final:* los cuatro puntos entraron como se
+  pidieron (`OFFICIAL_WORKFLOW_MAP` con `openspec-update-change`, `@container` despues de la regla
+  base, `.releaseNotesList`/`.releaseNotesActions`, informe de cuatro encabezados con 4000 chars,
+  900 tokens, 45 s y `MarkdownViewer`). Dos correcciones antes de confirmar, las dos halladas por
+  la suite completa y no por la lista corta del ejecutor: (1) el ejecutor agrego por su cuenta
+  `.releaseNotesReport` con `border-top` para separar el informe del resumen; el escaner de bordes
+  (`components/__tests__/commit-graph-frame.test.tsx:248`) lo rechazo porque una raya de
+  separacion no es tarjeta, dato ni control; se saco la raya y quedo solo `margin-top`, sin
+  agregar excepciones al escaner. (2) linea en blanco extra al final de
+  `pipeline-openspec-evidence.test.ts` (`git diff --check`). Medido al cierre: `tsc` 0, `pnpm
+  build` 0 (`/` 419 kB, primera carga 522 kB), `pnpm test` 0 dos veces (200 archivos, 2095
+  pruebas; antes 2091), `openspec validate --strict` 0, `git diff --check` 0, eslint 3
+  preexistentes. Pendiente de confirmar por Alejandro.
   - **Si, son grandes, y esta medido.** `.primaryAction, .secondaryAction`
     (`OpenSpecDashboard.module.css:442-458`) miden `min-height: 2.65rem` (42 px) con relleno
     `--space-3 --space-4` y peso 700; `.headerActions .primaryAction` (`:278`) 2.5rem;

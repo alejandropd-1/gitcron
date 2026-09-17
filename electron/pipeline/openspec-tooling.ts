@@ -39,6 +39,7 @@ export const OFFICIAL_WORKFLOW_MAP: Readonly<Record<string, string>> = {
   'openspec-apply-change': 'apply',
   'openspec-apply': 'apply',
   'openspec-update-plan': 'update',
+  'openspec-update-change': 'update',
   'openspec-update': 'update',
   'openspec-sync-specs': 'sync',
   'openspec-sync': 'sync',

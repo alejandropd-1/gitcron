@@ -190,7 +190,49 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
 
       // Redacción del modelo
       expect(res.redaction.status).toBe('generated');
+      expect(res.redaction.provider).toBe('LM Studio (modelo local)');
       expect(res.redaction.text).toContain('Ale, mirá');
+    });
+
+    it('construye el prompt del modelo con superficies consumidas, notas ampliadas y estructura de informe de 4 partes', async () => {
+      const longNotes = 'A'.repeat(2500);
+      const mockComplete = vi.fn().mockResolvedValue({
+        text: '## Qué hay de nuevo\nNotas.\n## Qué hace de hecho\nHechos.\n## Cómo afecta a GitCron\nSin impacto.\n## Cómo encararlo\nSin cambios.',
+        finishReason: 'stop',
+      });
+
+      const res = await analyzeOpenSpecVersion(process.cwd(), {
+        getInstalledVersion: async () => '1.12.0',
+        checkLatest: async () => ({
+          status: 'online',
+          latestVersion: '1.13.0',
+          checkedAt: new Date().toISOString(),
+          fromCache: false,
+          cacheAgeSeconds: 0,
+          freshness: 'fresh',
+          error: null,
+        }),
+        fetchChangelog: async () => ({
+          source: 'GitHub Releases (fission-ai/openspec)',
+          sourceUrl: 'https://github.com/fission-ai/openspec/releases/tag/v1.13.0',
+          fetched: true,
+          rawText: longNotes,
+          error: null,
+        }),
+        completeTextFn: mockComplete as never,
+      });
+
+      expect(mockComplete).toHaveBeenCalledTimes(1);
+      const [, payload] = mockComplete.mock.calls[0];
+      expect(payload.system).toContain('## Qué hay de nuevo');
+      expect(payload.system).toContain('## Qué hace de hecho');
+      expect(payload.system).toContain('## Cómo afecta a GitCron');
+      expect(payload.system).toContain('## Cómo encararlo');
+      expect(payload.user).toContain('Superficie que GitCron consume: status');
+      expect(payload.user).toContain('A'.repeat(2000));
+      expect(payload.maxTokens).toBe(900);
+      expect(res.redaction.provider).toBe('LM Studio (modelo local)');
+      expect(res.redaction.status).toBe('generated');
     });
 
     it('degrada limpiamente sin voltear los hechos medidos si el modelo local está apagado', async () => {
@@ -225,6 +267,7 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
 
       // Redacción informa degradación
       expect(res.redaction.status).toBe('offline');
+      expect(res.redaction.provider).toBe('LM Studio (modelo local)');
       expect(res.redaction.text).toContain('Servidor local de IA no disponible');
       expect(res.redaction.error).toContain('ECONNREFUSED');
     });

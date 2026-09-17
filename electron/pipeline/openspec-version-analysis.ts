@@ -339,7 +339,7 @@ export async function draftVersionRedaction(
 ): Promise<VersionAnalysisRedaction> {
   const completeFn = deps?.completeTextFn ?? completeText;
   const config = createLmStudioConfig({
-    timeoutMs: 15_000,
+    timeoutMs: 45_000,
     providerLabel: 'LM Studio (redacción)',
   });
 
@@ -349,9 +349,12 @@ export async function draftVersionRedaction(
     `Clase de versión: ${measured.versionClass}`,
     `Fuente de notas: ${measured.changelog.source} (${measured.changelog.fetched ? 'obtenida' : 'no disponible'})`,
     measured.changelog.rawText
-      ? `Notas de cambios:\n${measured.changelog.rawText.slice(0, 1000)}`
+      ? `Notas de cambios:\n${measured.changelog.rawText.slice(0, 4000)}`
       : 'Notas no disponibles.',
     `Veredicto sobre contratos: ${measured.breakingChangesDetected ? 'Riesgo de incompatibilidad detectado' : 'Compatible'}`,
+    ...(measured.consumedSurfaces?.map(
+      (s) => `Superficie que GitCron consume: ${s.surface} — ${s.description} — veredicto medido: ${s.verdict}`
+    ) ?? []),
     measured.strategyProposal
       ? `Estrategia propuesta: modificar ${measured.strategyProposal.whatToModify.length} puntos. Lo que sigue funcionando intacto: ${measured.strategyProposal.whatWorksUntouched.join(', ')}.`
       : 'No se requieren adaptaciones.',
@@ -361,14 +364,14 @@ export async function draftVersionRedaction(
     const res = await completeFn(config, {
       model: deps?.model ?? 'local-model',
       system:
-        'Sos el asistente de GitCron. Tu rol es redactar una explicación en criollo argentino, clara, técnica y concisa para Alejandro. Explicá qué versión hay, si conviene o no actualizar, qué cosas de GitCron se tocan y qué sigue funcionando intacto. Aclarale que la decisión final es de él y que nada se actualiza automáticamente. No inventes cambios que no figuren en la evidencia.',
+        'Sos el asistente de GitCron. Escribí en criollo argentino, claro y concreto, un informe para Alejandro con exactamente estos cuatro encabezados markdown, en este orden: `## Qué hay de nuevo`, `## Qué hace de hecho`, `## Cómo afecta a GitCron`, `## Cómo encararlo`. Basate sólo en las notas y en las superficies medidas que te doy; si algo no figura, decí que no figura. En «Cómo afecta a GitCron» nombrá cada superficie que se toque y cuál no; en «Cómo encararlo» proponé pasos concretos si algo se toca, y si nada se toca decilo en una línea. Nada se actualiza solo: la decisión es de él.',
       user: promptSummary,
-      maxTokens: 500,
+      maxTokens: 900,
     });
 
     if (res.text && res.text.trim().length > 0) {
       return {
-        provider: 'lmstudio:local-model',
+        provider: 'LM Studio (modelo local)',
         status: 'generated',
         text: res.text.trim(),
         error: null,
@@ -376,7 +379,7 @@ export async function draftVersionRedaction(
     }
 
     return {
-      provider: 'lmstudio:local-model',
+      provider: 'LM Studio (modelo local)',
       status: 'offline',
       text: 'El servidor local de IA devolvió una respuesta vacía. Los hechos medidos y veredictos se presentan arriba directamente a partir del análisis determinístico de código.',
       error: 'Respuesta vacía del modelo local',
@@ -384,7 +387,7 @@ export async function draftVersionRedaction(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return {
-      provider: 'lmstudio:local-model',
+      provider: 'LM Studio (modelo local)',
       status: 'offline',
       text: 'Servidor local de IA no disponible (LM Studio apagado en localhost:1234). Los hechos medidos y veredictos se presentan arriba directamente a partir del análisis determinístico de código.',
       error: msg,

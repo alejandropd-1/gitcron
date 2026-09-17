@@ -508,6 +508,7 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.releaseNotes.compatible',
   'pipeline.openspec.releaseNotes.redactedBy',
   'pipeline.openspec.releaseNotes.error',
+  'pipeline.openspec.releaseNotes.reportUnavailable',
 ] as const;
 
 describe('Pipeline i18n', () => {

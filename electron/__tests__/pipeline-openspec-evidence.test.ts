@@ -11,6 +11,7 @@ import {
 } from '../pipeline/openspec-evidence';
 import { buildEngineStatusSnapshot } from '../ipc/pipeline-openspec';
 import { authorizedRepoStore } from '../ipc/authorized-repos';
+import { classifyOpenSpecProfile } from '../../lib/openspec-profile';
 
 /**
  * Doble de disco anclado a rutas EXACTAS (invariante 19): `readdir` sólo
@@ -53,6 +54,7 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
     expect(skillToWorkflowName('openspec-sync-specs')).toBe('sync');
     expect(skillToWorkflowName('openspec-archive-change')).toBe('archive');
     expect(skillToWorkflowName('openspec-update-plan')).toBe('update');
+    expect(skillToWorkflowName('openspec-update-change')).toBe('update');
     expect(skillToWorkflowName('openspec-new-change')).toBe('new');
     expect(skillToWorkflowName('openspec-continue-change')).toBe('continue');
     expect(skillToWorkflowName('openspec-ff-change')).toBe('ff');
@@ -969,5 +971,63 @@ describe('computeDirContentHash — recorrido acotado (invariante 19)', () => {
     expect(customAgents.map((s) => s.name).sort()).toEqual(['accessibility', 'dex', 'seo']);
     expect(customAgents.every((s) => !s.isOfficial)).toBe(true);
     expect(customAgents.some((s) => s.name.startsWith('openspec-'))).toBe(false);
+  });
+
+  it('reconoce openspec-update-change en target .agents y clasifica el perfil como core cuando tiene los 6 skills', () => {
+    const repo = 'C:\\repo';
+    const disk = exactDiskDouble({
+      dirs: {
+        [repo]: ['.agents'],
+        [`${repo}\\.agents`]: ['skills'],
+        [`${repo}\\.agents\\skills`]: [
+          'openspec-apply-change',
+          'openspec-archive-change',
+          'openspec-explore',
+          'openspec-propose',
+          'openspec-sync-specs',
+          'openspec-update-change',
+        ],
+      },
+    });
+
+    const evidence = inspectInstalledEvidence(repo, {
+      realpath: (p) => p,
+      ...disk,
+      readFile: () => '',
+    });
+
+    expect(evidence.installedWorkflowsByTarget.agents).toEqual(
+      expect.arrayContaining(['apply', 'archive', 'explore', 'propose', 'sync', 'update'])
+    );
+    expect(evidence.installedWorkflowsByTarget.agents).toHaveLength(6);
+    const profile = classifyOpenSpecProfile({
+      workflows: evidence.installedWorkflowsByTarget.agents,
+      source: 'installed-integration',
+    });
+    expect(profile.profileClass).toBe('core');
+  });
+
+  it('detecta que a un agente con sólo openspec-update-change le falta el resto de core pero tiene update', () => {
+    const repo = 'C:\\repo';
+    const disk = exactDiskDouble({
+      dirs: {
+        [repo]: ['.agents'],
+        [`${repo}\\.agents`]: ['skills'],
+        [`${repo}\\.agents\\skills`]: ['openspec-update-change'],
+      },
+    });
+
+    const evidence = inspectInstalledEvidence(repo, {
+      realpath: (p) => p,
+      ...disk,
+      readFile: () => '',
+    });
+
+    expect(evidence.installedWorkflowsByTarget.agents).toEqual(['update']);
+    const profile = classifyOpenSpecProfile({
+      workflows: evidence.installedWorkflowsByTarget.agents,
+      source: 'installed-integration',
+    });
+    expect(profile.profileClass).toBe('custom');
   });
 });

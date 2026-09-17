@@ -5,6 +5,7 @@ import { ExternalLink } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { summarizeReleaseNotes } from '@/lib/release-notes-summary';
 import type { OpenSpecVersionAnalysisResult } from '@/types/pipeline';
+import { MarkdownViewer } from './MarkdownViewer';
 import styles from './OpenSpecDashboard.module.css';
 
 export interface OpenSpecReleaseNotesProps {
@@ -53,21 +54,23 @@ export function OpenSpecReleaseNotes({
                 <>
                   {summaryData.summary && <p>{summaryData.summary}</p>}
                   {summaryData.bullets.length > 0 && (
-                    <ul>
+                    <ul className={styles.releaseNotesList}>
                       {summaryData.bullets.map((bullet, idx) => (
                         <li key={`${idx}-${bullet.slice(0, 10)}`}>{bullet}</li>
                       ))}
                     </ul>
                   )}
                   {analysis.measured.changelog.sourceUrl && (
-                    <button
-                      type="button"
-                      className={styles.reviewCopyBtn}
-                      onClick={() => handleOpenUrl(analysis.measured.changelog.sourceUrl!)}
-                    >
-                      <ExternalLink size={13} aria-hidden="true" />
-                      {t('pipeline.openspec.releaseNotes.viewFull')}
-                    </button>
+                    <div className={styles.releaseNotesActions}>
+                      <button
+                        type="button"
+                        className={styles.reviewCopyBtn}
+                        onClick={() => handleOpenUrl(analysis.measured.changelog.sourceUrl!)}
+                      >
+                        <ExternalLink size={13} aria-hidden="true" />
+                        {t('pipeline.openspec.releaseNotes.viewFull')}
+                      </button>
+                    </div>
                   )}
                   {analysis.measured.changelog.source && (
                     <div className={styles.axisMeta}>
@@ -87,14 +90,16 @@ export function OpenSpecReleaseNotes({
                 })}
               </div>
               {analysis.measured.changelog.sourceUrl && (
-                <button
-                  type="button"
-                  className={styles.reviewCopyBtn}
-                  onClick={() => handleOpenUrl(analysis.measured.changelog.sourceUrl!)}
-                >
-                  <ExternalLink size={13} aria-hidden="true" />
-                  {t('pipeline.openspec.releaseNotes.viewFull')}
-                </button>
+                <div className={styles.releaseNotesActions}>
+                  <button
+                    type="button"
+                    className={styles.reviewCopyBtn}
+                    onClick={() => handleOpenUrl(analysis.measured.changelog.sourceUrl!)}
+                  >
+                    <ExternalLink size={13} aria-hidden="true" />
+                    {t('pipeline.openspec.releaseNotes.viewFull')}
+                  </button>
+                </div>
               )}
             </>
           )}
@@ -113,13 +118,19 @@ export function OpenSpecReleaseNotes({
           )}
 
           {analysis.redaction.status === 'generated' && analysis.redaction.text?.trim() ? (
-            <div>
-              <p>{analysis.redaction.text}</p>
+            <div className={styles.releaseNotesReport}>
+              <MarkdownViewer content={analysis.redaction.text} />
               <div className={styles.axisMeta}>
                 {t('pipeline.openspec.releaseNotes.redactedBy', {
                   provider: analysis.redaction.provider,
                 })}
               </div>
+            </div>
+          ) : null}
+
+          {(analysis.redaction.status === 'offline' || analysis.redaction.status === 'error') ? (
+            <div className={styles.axisMeta}>
+              {t('pipeline.openspec.releaseNotes.reportUnavailable')}
             </div>
           ) : null}
         </>

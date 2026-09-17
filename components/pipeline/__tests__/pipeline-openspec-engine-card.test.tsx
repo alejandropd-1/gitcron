@@ -1676,4 +1676,244 @@ describe('OpenSpecEngineCard - La tarjeta no ofrece la actualización del motor 
       expect(screen.getByText(/⚠️/i)).toBeDefined();
     });
   });
+
+  describe('defaultAdvancedOpen (Tanda 8.23 b)', () => {
+    it('con defaultAdvancedOpen el bloque «Perfil de Workflows Global» se ve sin pulsar el botón de alternancia', () => {
+      const dummyStatus: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: '1.8.0',
+          provenance: 'global',
+          displayPath: 'C:\\global\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.8.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: null,
+        globalConfig: null,
+        installedIntegration: null,
+        repoState: 'initialized',
+        integrationState: 'up-to-date',
+        divergence: null,
+      };
+
+      render(<OpenSpecEngineCard status={dummyStatus} defaultAdvancedOpen={true} />);
+
+      expect(screen.getByText('Perfil de Workflows Global')).toBeDefined();
+    });
+  });
+
+  describe('OpenSpecEngineCard (Causas missingByIntegration y missingByProfile - Tarea 7.4)', () => {
+    afterEach(() => {
+      cleanup();
+      delete (window as any).api;
+    });
+
+    const baseStatusWithProfile = (profile: string): OpenSpecEngineStatus => ({
+      cli: {
+        installed: true,
+        runtimeVersion: '1.12.0',
+        provenance: 'global',
+        displayPath: 'C:\\global\\openspec.cmd',
+        supportedRange: { min: '1.5.0', max: '1.12.0' },
+        versionClass: 'supported',
+        evidenceStatus: 'confirmed',
+        diagnostics: [],
+      },
+      latestAvailable: null,
+      globalConfig: {
+        rawProfile: profile,
+        profileState: 'read',
+        delivery: 'both',
+        deliveryState: 'read',
+        configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        workflowsState: 'read',
+        resolvedWorkflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+        resolvedWorkflowsState: 'read',
+        origin: 'cli',
+        readAt: '2026-09-11T12:00:00.000Z',
+      },
+      installedIntegration: null,
+      repoState: 'initialized',
+      integrationState: 'up-to-date',
+    });
+
+    it('con targetConvergences desactualizado y onRequestUpdate: muestra causa integración y botón Actualizar lo llama', async () => {
+      const onRequestUpdate = vi.fn();
+      const status: OpenSpecEngineStatus = {
+        ...baseStatusWithProfile('core'),
+        divergence: {
+          isDivergent: true,
+          reason: null,
+          overallStatus: 'divergent',
+          globalProfileClass: 'core',
+          repoProfileClass: 'custom',
+          targetConvergences: {
+            claude: {
+              toolId: 'claude',
+              label: 'Claude Code',
+              status: 'divergent',
+              targetProfileClass: 'custom',
+              installedWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+            },
+          },
+        },
+      };
+
+      render(
+        <OpenSpecEngineCard
+          status={status}
+          compact={false}
+          defaultAdvancedOpen={true}
+          onRequestUpdate={onRequestUpdate}
+        />,
+      );
+
+      expect(
+        screen.getByText('Falta en Claude Code: la integración está desactualizada.'),
+      ).toBeDefined();
+
+      const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+      fireEvent.click(updateBtn);
+      expect(onRequestUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('con perfil core y configured con verify: muestra causa perfil y Cambiar a custom llama a setProfile', async () => {
+      const setProfileMock = vi.fn().mockResolvedValue({ ok: true });
+      (window as any).api = {
+        pipelineOpenSpec: {
+          setWorkflow: vi.fn(),
+          setProfile: setProfileMock,
+        },
+      };
+
+      const base = baseStatusWithProfile('core');
+      const status: OpenSpecEngineStatus = {
+        ...base,
+        globalConfig: {
+          ...base.globalConfig!,
+          configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive', 'verify'],
+        },
+        divergence: {
+          isDivergent: true,
+          reason: null,
+          overallStatus: 'divergent',
+          globalProfileClass: 'core',
+          repoProfileClass: 'custom',
+          targetConvergences: {
+            claude: {
+              toolId: 'claude',
+              label: 'Claude Code',
+              status: 'divergent',
+              targetProfileClass: 'custom',
+              installedWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+            },
+          },
+        },
+      };
+
+      render(
+        <OpenSpecEngineCard
+          status={status}
+          compact={false}
+          defaultAdvancedOpen={true}
+          repoPath="C:\\repo"
+        />,
+      );
+
+      expect(
+        screen.getByText(/el perfil no lo habilita\./i),
+      ).toBeDefined();
+
+      const switchBtn = screen.getByRole('button', { name: 'Cambiar a custom' });
+      fireEvent.click(switchBtn);
+
+      expect(setProfileMock).toHaveBeenCalledTimes(1);
+      expect(setProfileMock).toHaveBeenCalledWith({ profile: 'custom' });
+    });
+
+    it('con perfil custom y configured con verify: botón dice Activar verify y llama a setWorkflow', async () => {
+      const setWorkflowMock = vi.fn().mockResolvedValue({ ok: true });
+      (window as any).api = {
+        pipelineOpenSpec: {
+          setWorkflow: setWorkflowMock,
+          setProfile: vi.fn(),
+        },
+      };
+
+      const base = baseStatusWithProfile('custom');
+      const status: OpenSpecEngineStatus = {
+        ...base,
+        globalConfig: {
+          ...base.globalConfig!,
+          rawProfile: 'custom',
+          configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive', 'verify'],
+        },
+        divergence: {
+          isDivergent: true,
+          reason: null,
+          overallStatus: 'divergent',
+          globalProfileClass: 'custom',
+          repoProfileClass: 'custom',
+          targetConvergences: {
+            claude: {
+              toolId: 'claude',
+              label: 'Claude Code',
+              status: 'divergent',
+              targetProfileClass: 'custom',
+              installedWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+            },
+          },
+        },
+      };
+
+      render(
+        <OpenSpecEngineCard
+          status={status}
+          compact={false}
+          defaultAdvancedOpen={true}
+          repoPath="C:\\repo"
+        />,
+      );
+
+      const toggleBtn = screen.getByRole('button', { name: 'Activar verify' });
+      fireEvent.click(toggleBtn);
+
+      expect(setWorkflowMock).toHaveBeenCalledTimes(1);
+      expect(setWorkflowMock).toHaveBeenCalledWith({ workflow: 'verify', enabled: true });
+    });
+
+    it('con targetConvergences donde claude tiene los seis: no existe ningún elemento con data-cause', () => {
+      const status: OpenSpecEngineStatus = {
+        ...baseStatusWithProfile('core'),
+        divergence: {
+          isDivergent: false,
+          reason: null,
+          overallStatus: 'convergent',
+          globalProfileClass: 'core',
+          repoProfileClass: 'core',
+          targetConvergences: {
+            claude: {
+              toolId: 'claude',
+              label: 'Claude Code',
+              status: 'convergent',
+              targetProfileClass: 'core',
+              installedWorkflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+            },
+          },
+        },
+      };
+
+      const { container } = render(
+        <OpenSpecEngineCard
+          status={status}
+          compact={false}
+          defaultAdvancedOpen={true}
+        />,
+      );
+
+      expect(container.querySelectorAll('[data-cause]').length).toBe(0);
+    });
+  });
 });

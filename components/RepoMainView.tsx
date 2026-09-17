@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { AlertCircle, Check, FolderOpen, GitBranch, GitMerge, Loader2, Monitor, Rows3, Waypoints } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import type { MouseEvent } from 'react';
+import { useEffect, type MouseEvent } from 'react';
 import { CommitGraph, type CommitSelectOptions } from '@/components/CommitGraph';
 import { GraphColumnHandle, DeferredPanelLoading } from '@/components/PageWidgets';
 import {
@@ -172,6 +172,12 @@ export function RepoMainView({
   graphView,
   interactiveRebase,
 }: RepoMainViewProps) {
+  useEffect(() => {
+    const repoPath = tabViews.repoPath;
+    if (!repoPath) return;
+    void window.api?.pipelinePrewarm?.(repoPath);
+  }, [tabViews.repoPath]);
+
   const pipelineFixturePreview = process.env.NODE_ENV === 'development'
     && typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).has('pipelineFixture');

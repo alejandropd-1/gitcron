@@ -112,6 +112,10 @@ export interface ProfileWorkflowRow {
   enabled: boolean;
   /** `true` cuando el workflow está escrito en el archivo de configuración global. */
   configured: boolean;
+  /** ToolIds que NO tienen el workflow instalado aunque `resolved` sí lo incluye. */
+  missingByIntegration: string[];
+  /** ToolIds que NO tienen el workflow instalado y `resolved` no lo incluye. */
+  missingByProfile: string[];
 }
 
 function toNameList(list: string[] | null): string[] {
@@ -142,14 +146,18 @@ export function deriveProfileWorkflowRows(
   const resolvedList = toNameList(resolved);
 
   const installedList: string[] = [];
+  const targetEntries: [string, Set<string>][] = [];
   if (installedByTarget && typeof installedByTarget === 'object') {
-    for (const list of Object.values(installedByTarget)) {
+    for (const [toolId, list] of Object.entries(installedByTarget)) {
       if (Array.isArray(list)) {
+        targetEntries.push([toolId, new Set(list)]);
         for (const name of list) {
           if (typeof name === 'string' && name.length > 0) {
             installedList.push(name);
           }
         }
+      } else {
+        targetEntries.push([toolId, new Set()]);
       }
     }
   }
@@ -170,11 +178,31 @@ export function deriveProfileWorkflowRows(
     }
   }
 
-  return universe.map((workflow) => ({
-    workflow,
-    enabled: resolvedSet.has(workflow),
-    configured: configuredSet.has(workflow),
-  }));
+  return universe.map((workflow) => {
+    const isResolved = resolvedSet.has(workflow);
+    const missingByIntegration: string[] = [];
+    const missingByProfile: string[] = [];
+
+    if (targetEntries.length > 0) {
+      for (const [toolId, targetWfs] of targetEntries) {
+        if (!targetWfs.has(workflow)) {
+          if (isResolved) {
+            missingByIntegration.push(toolId);
+          } else {
+            missingByProfile.push(toolId);
+          }
+        }
+      }
+    }
+
+    return {
+      workflow,
+      enabled: isResolved,
+      configured: configuredSet.has(workflow),
+      missingByIntegration,
+      missingByProfile,
+    };
+  });
 }
 
 /**

@@ -794,5 +794,60 @@ export interface OpenSpecInstallPlan {
   hasManifest: boolean;
 }
 
+export type ConsumedSurfaceName =
+  | 'status'
+  | 'instructions'
+  | 'validate'
+  | 'archive'
+  | 'sync'
+  | 'profiles';
+
+export interface ConsumedSurfaceAnalysis {
+  surface: ConsumedSurfaceName;
+  description: string;
+  verdict: 'compatible' | 'breaking' | 'potential-break' | 'unchanged';
+  evidence: string;
+}
+
+export interface VersionStrategyProposal {
+  summary: string;
+  whatToModify: string[];
+  orderOfOperations: string[];
+  whatWorksUntouched: string[];
+  recommendation: string;
+}
+
+export interface VersionAnalysisMeasured {
+  installedVersion: string | null;
+  availableVersion: string | null;
+  isUpgradeAvailable: boolean;
+  versionClass: OpenSpecVersionClass;
+  behindCycle: boolean;
+  targetVersion: string;
+  supportedRange: OpenSpecVersionRange;
+  changelog: {
+    source: string;
+    sourceUrl: string | null;
+    fetched: boolean;
+    rawText: string | null;
+    error?: string | null;
+  };
+  consumedSurfaces: ConsumedSurfaceAnalysis[];
+  breakingChangesDetected: boolean;
+  strategyProposal: VersionStrategyProposal | null;
+}
+
+export interface VersionAnalysisRedaction {
+  provider: string;
+  status: 'generated' | 'offline' | 'error';
+  text: string;
+  error?: string | null;
+}
+
+export interface OpenSpecVersionAnalysisResult {
+  measured: VersionAnalysisMeasured;
+  redaction: VersionAnalysisRedaction;
+}
+
 export * from './runtime';
 export * from './projection';

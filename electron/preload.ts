@@ -308,6 +308,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('repo:fs-change', handler);
     return () => ipcRenderer.removeListener('repo:fs-change', handler);
   },
+  pipelinePrewarm: (repoPath: string) => ipcRenderer.invoke('pipeline:prewarm', repoPath),
   pipelineGetSnapshot: (repoPath: string, selectedChangeId?: string | null) => ipcRenderer.invoke('pipeline:get-snapshot', repoPath, selectedChangeId ?? null),
   pipelineSubscribe: (repoPath: string, selectedChangeId?: string | null) => ipcRenderer.invoke('pipeline:subscribe', repoPath, selectedChangeId ?? null),
   pipelineUnsubscribe: (repoPath: string) => ipcRenderer.invoke('pipeline:unsubscribe', repoPath),
@@ -481,5 +482,7 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('pipeline:openspec:set-workflow', options),
     setProfile: (payload: { profile: string }) =>
       ipcRenderer.invoke('pipeline:openspec:set-profile', payload),
+    versionAnalysis: (repoPath: string, forceRefresh?: boolean) =>
+      ipcRenderer.invoke('pipeline:openspec:version-analysis', { repoPath, ...(forceRefresh ? { forceRefresh } : {}) }),
   },
 });

@@ -477,6 +477,7 @@ interface ElectronAPI {
   repoUnwatch: (targetPath: string) => Promise<GitResult>;
   onRepoFsChange: (cb: (repoPath: string, gitState?: boolean) => void) => () => void;
   onRepoCommitsChanged: (cb: (repoPath: string) => void) => () => void;
+  pipelinePrewarm?: (repoPath: string) => Promise<{ success: boolean }>;
   pipelineGetSnapshot: (repoPath: string, selectedChangeId?: string | null) => Promise<GitResult<PipelineState>>;
   pipelineSubscribe: (repoPath: string, selectedChangeId?: string | null) => Promise<GitResult<PipelineState>>;
   pipelineUnsubscribe: (repoPath: string) => Promise<GitResult>;
@@ -664,6 +665,7 @@ interface ElectronAPI {
     setWorkflow?: (options: { workflow: string; enabled: boolean }) => Promise<import('./pipeline').SetOpenSpecWorkflowResult>;
     /** Canal de escritura: cambia el perfil global a 'core' o 'custom'. */
     setProfile?: (payload: { profile: string }) => Promise<import('./pipeline').SetOpenSpecProfileResult>;
+    versionAnalysis?: (repoPath: string, forceRefresh?: boolean) => Promise<import('./pipeline').OpenSpecVersionAnalysisResult>;
   };
 }
 

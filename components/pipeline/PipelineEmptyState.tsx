@@ -20,8 +20,24 @@ export function PipelineEmptyState({ state, onRetry }: PipelineEmptyStateProps) 
 
   if (state.kind === 'loading') {
     return (
-      <div className="pipeline-empty" data-estado="loading" aria-busy="true">
-        <p>{t('pipeline.loading')}</p>
+      <div
+        className="animate-pulse flex flex-col gap-4 w-full"
+        aria-busy="true"
+        aria-label={t('pipeline.loading')}
+        data-estado="loading"
+      >
+        <div className="h-11 rounded bg-text-primary/[0.06]" />
+        <div className="grid gap-4 md:grid-cols-[1fr_280px]">
+          <div className="flex flex-col gap-3">
+            <div className="h-24 rounded-lg bg-text-primary/[0.04]" />
+            <div className="h-24 rounded-lg bg-text-primary/[0.04]" />
+            <div className="h-24 rounded-lg bg-text-primary/[0.04]" />
+          </div>
+          <div className="flex flex-col gap-3">
+            <div className="h-40 rounded-lg bg-text-primary/[0.04]" />
+            <div className="h-24 rounded-lg bg-text-primary/[0.04]" />
+          </div>
+        </div>
       </div>
     );
   }

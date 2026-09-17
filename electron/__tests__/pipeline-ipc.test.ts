@@ -32,7 +32,7 @@ describe('Pipeline read-only IPC', () => {
     const send = vi.fn();
     const { registerPipelineHandlers } = await import('../ipc/pipeline');
     registerPipelineHandlers(() => ({ webContents: { send } }) as never, { refresh } as never);
-    expect([...ipc.handlers.keys()]).toEqual(['pipeline:get-snapshot', 'pipeline:subscribe', 'pipeline:unsubscribe']);
+    expect([...ipc.handlers.keys()]).toEqual(['pipeline:get-snapshot', 'pipeline:subscribe', 'pipeline:unsubscribe', 'pipeline:prewarm']);
     await expect(ipc.handlers.get('pipeline:get-snapshot')?.(null, '')).resolves.toMatchObject({ success: false });
     expect(refresh).not.toHaveBeenCalled();
     await expect(ipc.handlers.get('pipeline:get-snapshot')?.(null, 'C:/repo')).resolves.toEqual({ success: true, data: snapshot });
@@ -176,5 +176,111 @@ describe('Pipeline read-only IPC', () => {
     refresh.mockClear();
     notify('C:/repo');
     await vi.waitFor(() => expect(refresh).toHaveBeenCalledWith('C:/repo', null));
+  });
+
+  it('get-snapshot dos veces seguidas con la misma clave devuelve el dato en caché de inmediato y revalida de fondo', async () => {
+    const refresh = vi.fn(async () => snapshot);
+    const { registerPipelineHandlers } = await import('../ipc/pipeline');
+    registerPipelineHandlers(() => ({ webContents: { send: vi.fn() } }) as never, { refresh } as never);
+
+    const first = await ipc.handlers.get('pipeline:get-snapshot')?.(null, 'C:/repo', 'change-a');
+    expect(first).toEqual({ success: true, data: snapshot });
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    const second = await ipc.handlers.get('pipeline:get-snapshot')?.(null, 'C:/repo', 'change-a');
+    expect(second).toEqual({ success: true, data: snapshot });
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+  });
+
+  it('tras FRESH_MS get-snapshot vuelve a esperar la lectura en vez de responder de caché', async () => {
+    vi.useFakeTimers();
+    try {
+      let release: (() => void) | undefined;
+      const refresh = vi.fn(async () => {
+        if (release) await new Promise<void>((r) => { release = r; });
+        return snapshot;
+      });
+      const { registerPipelineHandlers, FRESH_MS } = await import('../ipc/pipeline');
+      registerPipelineHandlers(() => ({ webContents: { send: vi.fn() } }) as never, { refresh } as never);
+
+      const first = await ipc.handlers.get('pipeline:get-snapshot')?.(null, 'C:/repo');
+      expect(first).toEqual({ success: true, data: snapshot });
+      expect(refresh).toHaveBeenCalledTimes(1);
+
+      // Avanzar el reloj más allá de FRESH_MS
+      vi.advanceTimersByTime(FRESH_MS + 1);
+
+      let finished = false;
+      let releaseGate: (() => void) | undefined;
+      const gate = new Promise<void>((r) => { releaseGate = r; });
+      refresh.mockImplementationOnce(async () => {
+        await gate;
+        finished = true;
+        return snapshot;
+      });
+
+      const secondPromise = ipc.handlers.get('pipeline:get-snapshot')?.(null, 'C:/repo') as Promise<unknown>;
+      // Como expiró FRESH_MS, debe estar esperando a que termine refresh, no responder de caché
+      expect(finished).toBe(false);
+      releaseGate?.();
+      const second = await secondPromise;
+      expect(second).toEqual({ success: true, data: snapshot });
+      expect(finished).toBe(true);
+      expect(refresh).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('pipeline:prewarm llama a refresh y llena la caché para que get-snapshot responda de inmediato', async () => {
+    const refresh = vi.fn(async () => snapshot);
+    const { registerPipelineHandlers } = await import('../ipc/pipeline');
+    registerPipelineHandlers(() => ({ webContents: { send: vi.fn() } }) as never, { refresh } as never);
+
+    await expect(ipc.handlers.get('pipeline:prewarm')?.(null, '')).resolves.toMatchObject({ success: false });
+
+    const prewarmRes = await ipc.handlers.get('pipeline:prewarm')?.(null, 'C:/repo');
+    expect(prewarmRes).toEqual({ success: true });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledWith('C:/repo', null);
+
+    refresh.mockClear();
+    const snapRes = await ipc.handlers.get('pipeline:get-snapshot')?.(null, 'C:/repo');
+    expect(snapRes).toEqual({ success: true, data: snapshot });
+    // Responde al instante desde la caché poblada por prewarm y revalida de fondo
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+  });
+
+  it('el fondo empuja pipeline:snapshot-updated sólo si el dato cambió', async () => {
+    let currentData = snapshot;
+    const refresh = vi.fn(async () => currentData);
+    const send = vi.fn();
+    const { registerPipelineHandlers } = await import('../ipc/pipeline');
+    registerPipelineHandlers(() => ({ webContents: { send } }) as never, { refresh } as never);
+
+    // Suscribir para tener un observador activo en el repo
+    const event = { sender: { id: 1, once: vi.fn() } };
+    await ipc.handlers.get('pipeline:subscribe')?.(event, 'C:/repo');
+    send.mockClear();
+    refresh.mockClear();
+
+    // Caso A: get-snapshot desde caché con fondo idéntico -> NO emite snapshot-updated
+    await ipc.handlers.get('pipeline:get-snapshot')?.(null, 'C:/repo');
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    expect(send).not.toHaveBeenCalled();
+
+    // Caso B: get-snapshot desde caché pero el fondo obtiene datos modificados -> SÍ emite snapshot-updated
+    const updatedSnapshot: PipelineState = { ...snapshot, revision: 2 };
+    currentData = updatedSnapshot;
+    refresh.mockClear();
+    send.mockClear();
+
+    await ipc.handlers.get('pipeline:get-snapshot')?.(null, 'C:/repo');
+    await vi.waitFor(() => {
+      expect(send).toHaveBeenCalledWith('pipeline:snapshot-updated', {
+        repoPath: 'C:/repo',
+        snapshot: updatedSnapshot,
+      });
+    });
   });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
@@ -25,9 +25,11 @@ import {
 import { OpenSpecEngineCard } from './OpenSpecEngineCard';
 import { OpenSpecToolList } from './OpenSpecReadiness';
 import { OpenSpecUpdateRunner } from './OpenSpecUpdateRunner';
+import { OpenSpecReleaseNotes } from './OpenSpecReleaseNotes';
 import { getOpenSpecEngineUpgrade } from './pipeline-domain';
 import type { PipelineSnapshot } from './pipeline-view-state';
 import { useOpenSpecInit } from '@/hooks/use-openspec-init';
+import { useOpenSpecVersionAnalysis } from '@/hooks/use-openspec-version-analysis';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import styles from './OpenSpecDashboard.module.css';
 
@@ -61,6 +63,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   onUpdateCompleted,
 }) => {
   const t = useT();
+  const updateBlockRef = useRef<HTMLDivElement | null>(null);
   const { runOpenSpecInit, initBusy, initError, initNeedsTool } = useOpenSpecInit(repoPath);
   const openSpecTools = snapshot?.openSpec?.openSpecTools ?? [];
   const openSpecPresent = snapshot?.openSpec?.openSpecPresent ?? (status?.repoState === 'initialized');
@@ -75,6 +78,10 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   const latest = status?.latestAvailable;
   const installed = status?.installedIntegration;
   const upgrade = getOpenSpecEngineUpgrade(status);
+  const { analysis, loading: notesLoading, error: notesError } = useOpenSpecVersionAnalysis(
+    repoPath,
+    upgrade !== null,
+  );
 
   // Derivar operación oficial y comando literal
   const action = updatePlan?.requiredAction ?? deriveUpdateMatrixAction(status);
@@ -164,7 +171,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
 
       <div className={styles.reviewBody}>
         {/* RESUMEN DE HECHOS Y ACCIONES AL FRENTE (Decisión 8.22) */}
-        <div className={styles.reviewUpfrontHeader}>
+        <div ref={updateBlockRef} className={styles.reviewUpfrontHeader}>
           <div className={styles.reviewUpfrontSummary}>
             <div className={styles.reviewFactLine}>
               <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.summary.engineLabel')}</span>
@@ -215,6 +222,15 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
               </button>
             )}
           </div>
+
+          {upgrade && (
+            <OpenSpecReleaseNotes
+              latest={upgrade.latest}
+              analysis={analysis}
+              loading={notesLoading}
+              error={notesError}
+            />
+          )}
         </div>
 
         {/* OFRECIMIENTO CONDICIONAL DE --force (DECISIÓN 3: Sólo si hay residuo legacy concreto) */}
@@ -314,6 +330,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
               status={status}
               isLoading={false}
               compact={false}
+              defaultAdvancedOpen={true}
               isReviewOpen={true}
               repoPath={repoPath}
               openRepoPaths={openRepoPaths}
@@ -322,6 +339,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
               packageManagerName={installPlan?.detectedManager ?? undefined}
               nodePath={installPlan?.nodePath ?? undefined}
               hasPackageJson={installPlan?.hasManifest}
+              onRequestUpdate={() => updateBlockRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               onChanged={() => usePipelineStore.getState().notifyEngineChanged()}
             />
             <OpenSpecToolList

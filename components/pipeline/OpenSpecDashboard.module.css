@@ -1826,6 +1826,10 @@ summary.centerBlock {
   .taskDetail dl { grid-template-columns: minmax(0, 1fr); }
 }
 
+@container (min-width: 640px) {
+  .advancedDiagnosticsContainer { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .activeChange,
   .progressTrack > span,
@@ -2121,6 +2125,7 @@ summary.centerBlock {
   font-weight: 500;
 }
 .engineCardSection {
+  container-type: inline-size;
   padding: var(--space-3);
   background: color-mix(in srgb, var(--color-bg-overlay) 65%, transparent);
   border: 1px solid var(--color-border-subtle);
@@ -2195,8 +2200,18 @@ summary.centerBlock {
   background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 .advancedDiagnosticsContainer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
   margin-top: var(--space-3);
   padding-top: var(--space-1);
+}
+.advancedColumnMain,
+.advancedColumnSide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
 }
 .outputListScrollContainer {
   max-height: 180px;
@@ -3930,6 +3945,7 @@ summary.centerBlock {
 
 .profileWorkflowRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-2);
@@ -3937,6 +3953,41 @@ summary.centerBlock {
   background: var(--color-bg-overlay);
   font-size: var(--font-size-xs);
 }
+
+.profileWorkflowCause {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-secondary);
+}
+
+.profileCauseAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.75rem;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: var(--color-bg-base);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.profileCauseAction:hover {
+  opacity: 0.9;
+}
+
+.profileCauseAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 
 .profileWorkflowName {
   flex: 1;

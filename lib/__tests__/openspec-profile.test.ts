@@ -87,24 +87,24 @@ describe('deriveProfileWorkflowRows (panel de perfil 7.2b)', () => {
   it('deriva filas desde configured+resolved preservando el orden de configured', () => {
     const rows = deriveProfileWorkflowRows(['propose', 'explore', 'apply'], ['apply', 'archive']);
     expect(rows).toEqual([
-      { workflow: 'propose', enabled: false, configured: true },
-      { workflow: 'explore', enabled: false, configured: true },
-      { workflow: 'apply', enabled: true, configured: true },
-      { workflow: 'archive', enabled: true, configured: false },
+      { workflow: 'propose', enabled: false, configured: true, missingByIntegration: [], missingByProfile: [] },
+      { workflow: 'explore', enabled: false, configured: true, missingByIntegration: [], missingByProfile: [] },
+      { workflow: 'apply', enabled: true, configured: true, missingByIntegration: [], missingByProfile: [] },
+      { workflow: 'archive', enabled: true, configured: false, missingByIntegration: [], missingByProfile: [] },
     ]);
   });
 
   it('anexa al final los workflows que están en resolved pero no en configured', () => {
     const rows = deriveProfileWorkflowRows(['sync'], ['propose', 'sync']);
     expect(rows.map((row) => row.workflow)).toEqual(['sync', 'propose']);
-    expect(rows[1]).toEqual({ workflow: 'propose', enabled: true, configured: false });
+    expect(rows[1]).toEqual({ workflow: 'propose', enabled: true, configured: false, missingByIntegration: [], missingByProfile: [] });
   });
 
   it('un nombre desconocido por el código aparece igual como fila válida sin romper [7.3]', () => {
     const rows = deriveProfileWorkflowRows(['mi-flujo-propio'], ['mi-flujo-propio', 'otro-desconocido']);
     expect(rows).toEqual([
-      { workflow: 'mi-flujo-propio', enabled: true, configured: true },
-      { workflow: 'otro-desconocido', enabled: true, configured: false },
+      { workflow: 'mi-flujo-propio', enabled: true, configured: true, missingByIntegration: [], missingByProfile: [] },
+      { workflow: 'otro-desconocido', enabled: true, configured: false, missingByIntegration: [], missingByProfile: [] },
     ]);
   });
 
@@ -117,22 +117,22 @@ describe('deriveProfileWorkflowRows (panel de perfil 7.2b)', () => {
   it('resolved null marca enabled=false aunque configured tenga workflows', () => {
     const rows = deriveProfileWorkflowRows(['propose', 'explore'], null);
     expect(rows).toEqual([
-      { workflow: 'propose', enabled: false, configured: true },
-      { workflow: 'explore', enabled: false, configured: true },
+      { workflow: 'propose', enabled: false, configured: true, missingByIntegration: [], missingByProfile: [] },
+      { workflow: 'explore', enabled: false, configured: true, missingByIntegration: [], missingByProfile: [] },
     ]);
   });
 
   it('configured null toma el universo completo desde resolved con configured=false', () => {
     const rows = deriveProfileWorkflowRows(null, ['archive', 'verify']);
     expect(rows).toEqual([
-      { workflow: 'archive', enabled: true, configured: false },
-      { workflow: 'verify', enabled: true, configured: false },
+      { workflow: 'archive', enabled: true, configured: false, missingByIntegration: [], missingByProfile: [] },
+      { workflow: 'verify', enabled: true, configured: false, missingByIntegration: [], missingByProfile: [] },
     ]);
   });
 
   it('deduplica nombres repetidos dentro de cada lista', () => {
     const rows = deriveProfileWorkflowRows(['propose', 'propose'], ['propose']);
-    expect(rows).toEqual([{ workflow: 'propose', enabled: true, configured: true }]);
+    expect(rows).toEqual([{ workflow: 'propose', enabled: true, configured: true, missingByIntegration: [], missingByProfile: [] }]);
   });
 
   it('incluye workflows instalados por agente cuando configured y resolved los omiten', () => {
@@ -142,10 +142,10 @@ describe('deriveProfileWorkflowRows (panel de perfil 7.2b)', () => {
       { agents: ['a', 'b', 'c'], claude: ['a', 'c', 'd'] },
     );
     expect(rows).toEqual([
-      { workflow: 'a', enabled: true, configured: true },
-      { workflow: 'b', enabled: true, configured: true },
-      { workflow: 'c', enabled: false, configured: false },
-      { workflow: 'd', enabled: false, configured: false },
+      { workflow: 'a', enabled: true, configured: true, missingByIntegration: [], missingByProfile: [] },
+      { workflow: 'b', enabled: true, configured: true, missingByIntegration: ['claude'], missingByProfile: [] },
+      { workflow: 'c', enabled: false, configured: false, missingByIntegration: [], missingByProfile: [] },
+      { workflow: 'd', enabled: false, configured: false, missingByIntegration: [], missingByProfile: ['agents'] },
     ]);
   });
 
@@ -165,6 +165,48 @@ describe('deriveProfileWorkflowRows (panel de perfil 7.2b)', () => {
       workflow: 'workflow-desconocido-custom',
       enabled: false,
       configured: false,
+      missingByIntegration: [],
+      missingByProfile: [],
     });
+  });
+});
+
+describe('deriveProfileWorkflowRows (causas missingByIntegration y missingByProfile - Tarea 7.4)', () => {
+  it('resolved [propose, update], installedByTarget { claude: [propose], codex: [] } → fila update: missingByIntegration [claude, codex] y missingByProfile []', () => {
+    const rows = deriveProfileWorkflowRows(
+      ['propose', 'update'],
+      ['propose', 'update'],
+      { claude: ['propose'], codex: [] },
+    );
+    const updateRow = rows.find((r) => r.workflow === 'update');
+    expect(updateRow).toBeDefined();
+    expect(updateRow?.missingByIntegration).toEqual(['claude', 'codex']);
+    expect(updateRow?.missingByProfile).toEqual([]);
+  });
+
+  it('resolved [propose] y configured [propose, verify] con installedByTarget { claude: [propose] } → fila verify: missingByProfile [claude] y missingByIntegration []', () => {
+    const rows = deriveProfileWorkflowRows(
+      ['propose', 'verify'],
+      ['propose'],
+      { claude: ['propose'] },
+    );
+    const verifyRow = rows.find((r) => r.workflow === 'verify');
+    expect(verifyRow).toBeDefined();
+    expect(verifyRow?.missingByProfile).toEqual(['claude']);
+    expect(verifyRow?.missingByIntegration).toEqual([]);
+  });
+
+  it('installedByTarget undefined → listas vacías', () => {
+    const rows = deriveProfileWorkflowRows(['propose', 'update'], ['propose', 'update'], undefined);
+    expect(rows.every((r) => r.missingByIntegration.length === 0 && r.missingByProfile.length === 0)).toBe(true);
+  });
+
+  it('un agente con todo → no aparece en ninguna lista', () => {
+    const rows = deriveProfileWorkflowRows(
+      ['propose', 'update'],
+      ['propose', 'update'],
+      { claude: ['propose', 'update'] },
+    );
+    expect(rows.every((r) => r.missingByIntegration.length === 0 && r.missingByProfile.length === 0)).toBe(true);
   });
 });

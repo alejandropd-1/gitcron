@@ -81,6 +81,7 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
 
   afterEach(() => {
     cleanup();
+    delete (window as any).api;
   });
 
   it('renderiza la revisión en la columna central con hechos del motor', () => {
@@ -98,9 +99,8 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     // Hechos del motor (al día)
     expect(screen.getByText(/Motor v1\.8\.0 · al día/i)).toBeTruthy();
 
-    // Abrir diagnóstico avanzado en la tarjeta del motor para ver procedencia y detalles
-    const advBtn = screen.getByRole('button', { name: /Ver diagnóstico avanzado/i });
-    fireEvent.click(advBtn);
+    // Diagnóstico avanzado abierto por omisión en la revisión (Tanda 8.23 b)
+    expect(screen.getByRole('button', { name: /Ocultar diagnóstico avanzado/i })).toBeTruthy();
     expect(screen.getByText('Global (PATH)')).toBeTruthy();
   });
 
@@ -656,5 +656,163 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     // El aria-label de la tarjeta del motor aparece una sola vez en todo el documento
     const cardRegions = screen.getAllByRole('region', { name: /Tarjeta de Diagnóstico del Motor OpenSpec/i });
     expect(cardRegions).toHaveLength(1);
+  });
+
+  it('(a) con motor 1.12.0 y latest 1.13.0 y versionAnalysis simulado con notas reales, muestra encabezado «Qué trae la v1.13.0», resumen y veredicto', async () => {
+    const rawText = `## What's New in v1.13.0
+
+Archive and the delta parser stop quietly changing or dropping what you wrote, and apply now tells you when a change has no specs.
+
+### New
+
+- **Apply flags a change with no delta specs** - \`openspec instructions apply\` used to report a change as ready whenever its tasks existed, even with no spec deltas at all, which is the state \`openspec validate\` rejects. It now warns in both text and \`--json\`, and names both ways out: write the specs, or declare \`skip_specs: true\`.
+
+### Improved
+
+- **Explore finds your existing specs** - Generated guidance never named \`openspec list --specs\`, so an agent asked to read the current specs enumerated in-flight changes instead and reported the step done against the wrong thing. Explore now lists the spec inventory beside the change list, and reads a capability with the store-aware command.
+- **Init and update name the workflows your profile left out** - A \`/opsx:\` command that was never installed used to read as a broken setup. Both commands now say which workflows are missing and how to add them.
+- **Propose reads project context before planning** - Context is loaded from the selected project or store root before any planning decision. In a directory with no OpenSpec root, propose stops without writing and offers to initialize rather than creating one silently.
+
+**Full Changelog**: https://github.com/Fission-AI/OpenSpec/compare/v1.12.0...v1.13.0`;
+
+    const versionAnalysisMock = vi.fn().mockResolvedValue({
+      measured: {
+        installedVersion: '1.12.0',
+        availableVersion: '1.13.0',
+        isUpgradeAvailable: true,
+        versionClass: 'supported',
+        behindCycle: false,
+        targetVersion: '1.13.0',
+        supportedRange: { min: '1.5.0' },
+        changelog: {
+          source: 'GitHub Releases (fission-ai/openspec)',
+          sourceUrl: 'https://github.com/Fission-AI/OpenSpec/releases/tag/v1.13.0',
+          fetched: true,
+          rawText,
+          error: null,
+        },
+        consumedSurfaces: [
+          { surface: 'status', description: 'Status checks', verdict: 'compatible', evidence: 'sin cambios' },
+        ],
+        breakingChangesDetected: false,
+        strategyProposal: null,
+      },
+      redaction: {
+        provider: 'lmstudio:local-model',
+        status: 'offline',
+        text: '',
+        error: null,
+      },
+    });
+
+    (window as any).api = {
+      ...((window as any).api ?? {}),
+      pipelineOpenSpec: {
+        ...((window as any).api?.pipelineOpenSpec ?? {}),
+        versionAnalysis: versionAnalysisMock,
+      },
+    };
+
+    const upgradeStatus: OpenSpecEngineStatus = {
+      ...mockStatus,
+      cli: {
+        ...mockStatus.cli!,
+        runtimeVersion: '1.12.0',
+      },
+      latestAvailable: {
+        ...mockStatus.latestAvailable!,
+        latestVersion: '1.13.0',
+      },
+    };
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath={'C:\\repo'}
+        status={upgradeStatus}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(versionAnalysisMock).toHaveBeenCalledTimes(1);
+    expect(versionAnalysisMock).toHaveBeenCalledWith('C:\\repo');
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Qué trae la v1.13.0' })).toBeTruthy();
+    expect(screen.getByText(/Archive and the delta parser stop quietly/i)).toBeTruthy();
+    expect(screen.getByText('No toca lo que GitCron usa')).toBeTruthy();
+  });
+
+  it('(b) con motor al día (sin upgrade), versionAnalysis NO se llama y NO existe «Qué trae la v»', () => {
+    const versionAnalysisMock = vi.fn();
+    (window as any).api = {
+      ...((window as any).api ?? {}),
+      pipelineOpenSpec: {
+        ...((window as any).api?.pipelineOpenSpec ?? {}),
+        versionAnalysis: versionAnalysisMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:\\repo"
+        status={mockStatus}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(versionAnalysisMock).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Qué trae la v/i)).toBeNull();
+  });
+
+  it('(c) mientras la promesa de versionAnalysis no resuelve, el botón «Actualizar» existe y está habilitado', () => {
+    const pendingPromise = new Promise(() => {});
+    const versionAnalysisMock = vi.fn().mockReturnValue(pendingPromise);
+
+    (window as any).api = {
+      ...((window as any).api ?? {}),
+      pipelineOpenSpec: {
+        ...((window as any).api?.pipelineOpenSpec ?? {}),
+        versionAnalysis: versionAnalysisMock,
+      },
+    };
+
+    const upgradeStatus: OpenSpecEngineStatus = {
+      ...mockStatus,
+      cli: {
+        ...mockStatus.cli!,
+        runtimeVersion: '1.12.0',
+      },
+      latestAvailable: {
+        ...mockStatus.latestAvailable!,
+        latestVersion: '1.13.0',
+      },
+    };
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:\\repo"
+        status={upgradeStatus}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    expect(updateBtn).toBeTruthy();
+    expect(updateBtn.hasAttribute('disabled')).toBe(false);
+
+    expect(screen.getByText('Buscando las notas de la versión…')).toBeTruthy();
+  });
+
+  it('la sección «Motor y agentes» muestra «Perfil de Workflows Global» sin pulsar nada (defaultAdvancedOpen activo)', () => {
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:/repo"
+        status={mockStatus}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const engineSection = screen.getByRole('region', { name: /Motor y agentes/i });
+    expect(engineSection).toBeTruthy();
+    expect(within(engineSection).getByText('Perfil de Workflows Global')).toBeTruthy();
   });
 });

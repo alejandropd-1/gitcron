@@ -37,62 +37,24 @@ import {
 import { completeText, createLmStudioConfig } from '../ai/text-client';
 import { checkLatestOpenSpecVersion } from './openspec-registry';
 import { resolveOpenSpecExecutable, runAuthorizedOpenSpec } from './openspec-engine';
-import type { OpenSpecRegistryCheck } from '../../types/pipeline';
+import type {
+  OpenSpecRegistryCheck,
+  ConsumedSurfaceName,
+  ConsumedSurfaceAnalysis,
+  VersionStrategyProposal,
+  VersionAnalysisMeasured,
+  VersionAnalysisRedaction,
+  OpenSpecVersionAnalysisResult,
+} from '../../types/pipeline';
 
-export type ConsumedSurfaceName =
-  | 'status'
-  | 'instructions'
-  | 'validate'
-  | 'archive'
-  | 'sync'
-  | 'profiles';
-
-export interface ConsumedSurfaceAnalysis {
-  surface: ConsumedSurfaceName;
-  description: string;
-  verdict: 'compatible' | 'breaking' | 'potential-break' | 'unchanged';
-  evidence: string;
-}
-
-export interface VersionStrategyProposal {
-  summary: string;
-  whatToModify: string[];
-  orderOfOperations: string[];
-  whatWorksUntouched: string[];
-  recommendation: string;
-}
-
-export interface VersionAnalysisMeasured {
-  installedVersion: string | null;
-  availableVersion: string | null;
-  isUpgradeAvailable: boolean;
-  versionClass: OpenSpecVersionClass;
-  behindCycle: boolean;
-  targetVersion: string;
-  supportedRange: OpenSpecVersionRange;
-  changelog: {
-    source: string;
-    sourceUrl: string | null;
-    fetched: boolean;
-    rawText: string | null;
-    error?: string | null;
-  };
-  consumedSurfaces: ConsumedSurfaceAnalysis[];
-  breakingChangesDetected: boolean;
-  strategyProposal: VersionStrategyProposal | null;
-}
-
-export interface VersionAnalysisRedaction {
-  provider: string;
-  status: 'generated' | 'offline' | 'error';
-  text: string;
-  error?: string | null;
-}
-
-export interface OpenSpecVersionAnalysisResult {
-  measured: VersionAnalysisMeasured;
-  redaction: VersionAnalysisRedaction;
-}
+export type {
+  ConsumedSurfaceName,
+  ConsumedSurfaceAnalysis,
+  VersionStrategyProposal,
+  VersionAnalysisMeasured,
+  VersionAnalysisRedaction,
+  OpenSpecVersionAnalysisResult,
+} from '../../types/pipeline';
 
 /**
  * Tiempo de vida de la caché de notas de versión (changelog): 24 horas.

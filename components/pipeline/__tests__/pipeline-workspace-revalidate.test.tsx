@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PipelineWorkspace, type PipelineSnapshotLoader } from '../PipelineWorkspace';
+import { PipelineEmptyState } from '../PipelineEmptyState';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 
 /**
@@ -75,12 +76,27 @@ describe('revalidación del workspace', { timeout: 15_000 }, () => {
     render(<PipelineWorkspace repoPath="C:/repo" loadSnapshot={loadSnapshot} rightOpen={false} />);
 
     // Primera carga: no hay nada vigente que conservar, así que sí corresponde.
-    expect(document.querySelector('[data-estado="loading"]')).toBeTruthy();
+    const loadingEl = document.querySelector('[data-estado="loading"]');
+    expect(loadingEl).toBeTruthy();
+    expect(loadingEl?.getAttribute('aria-label')).toBe('pipeline.loading');
+    expect(loadingEl?.getAttribute('aria-busy')).toBe('true');
+    expect(screen.queryByText(/Cargando/i)).toBeNull();
+    expect(screen.queryByText('pipeline.loading')).toBeNull();
     expect(screen.queryByRole('progressbar')).toBeNull();
 
     resolveLoad?.(snapshot());
     await vi.waitFor(() => expect(screen.getAllByText('demo-change').length).toBeGreaterThan(0));
     expect(document.querySelector('[data-estado="loading"]')).toBeNull();
+  });
+
+  it('con state loading en PipelineEmptyState, existe un elemento con aria-label, aria-busy true, y NO hay texto visible «Cargando»', () => {
+    render(<PipelineEmptyState state={{ kind: 'loading' }} onRetry={() => {}} />);
+    const loadingEl = screen.getByLabelText('pipeline.loading');
+    expect(loadingEl).toBeTruthy();
+    expect(loadingEl.getAttribute('aria-busy')).toBe('true');
+    expect(loadingEl.getAttribute('data-estado')).toBe('loading');
+    expect(screen.queryByText(/Cargando/i)).toBeNull();
+    expect(screen.queryByText('pipeline.loading')).toBeNull();
   });
 
   it('conserva el contenido vigente mientras revalida, en vez de blanquear', async () => {

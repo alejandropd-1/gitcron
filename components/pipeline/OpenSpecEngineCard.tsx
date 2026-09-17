@@ -66,6 +66,7 @@ export interface OpenSpecEngineCardProps {
   status: OpenSpecEngineStatus | null;
   isLoading?: boolean;
   compact?: boolean;
+  defaultAdvancedOpen?: boolean;
   onOpenToolsTab?: () => void;
   onOpenReview?: () => void;
   isReviewOpen?: boolean;
@@ -78,6 +79,7 @@ export interface OpenSpecEngineCardProps {
   packageManagerPath?: string;
   packageManagerName?: string | null;
   onInstalled?: (result: OpenSpecInstallResult) => void;
+  onRequestUpdate?: () => void;
   /** Se invoca cuando una escritura de perfil (toggle de workflow) termina con éxito, para que el padre re-fetchee el estado. La tarjeta no muta su propio `status`. */
   onChanged?: () => void;
 }
@@ -221,6 +223,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   status,
   isLoading = false,
   compact = false,
+  defaultAdvancedOpen = false,
   onOpenToolsTab,
   onOpenReview,
   isReviewOpen = false,
@@ -233,10 +236,11 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   packageManagerPath,
   packageManagerName,
   onInstalled,
+  onRequestUpdate,
   onChanged,
 }) => {
   const t = useT();
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(Boolean(defaultAdvancedOpen));
   const [showAbsentOutputs, setShowAbsentOutputs] = useState(false);
   const [copiedGlobal, setCopiedGlobal] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
@@ -401,10 +405,17 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     globalConfig.profileState === 'read' &&
     globalConfig.workflowsState === 'read' &&
     globalConfig.resolvedWorkflowsState === 'read';
+  const targetConvergences = status.divergence?.targetConvergences ?? null;
+  const installedByTarget = targetConvergences
+    ? Object.fromEntries(
+        Object.entries(targetConvergences).map(([id, c]) => [id, c.installedWorkflows]),
+      )
+    : (status.installedIntegration?.installedWorkflowsByTarget ?? null);
+  const agentLabel = (id: string) => targetConvergences?.[id]?.label ?? id;
   const profileRows = deriveProfileWorkflowRows(
     globalConfig?.configuredWorkflows ?? null,
     globalConfig?.resolvedWorkflows ?? null,
-    status.installedIntegration?.installedWorkflowsByTarget,
+    installedByTarget,
   );
   const profileRowsVisible = profileDataReady && profileRows.length > 0;
 
@@ -787,7 +798,8 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
       {/* VISTA AVANZADA DESPLEGABLE (Accordion con Scroll Interno Propio) */}
       {showAdvanced && (
         <div className={styles.advancedDiagnosticsContainer}>
-          <div className={styles.engineAxesGrid}>
+          <div className={styles.advancedColumnMain}>
+            <div className={styles.engineAxesGrid}>
             {/* Ruta y Procedencia del Ejecutable */}
             <div className={styles.engineAxisItem} tabIndex={0}>
               <span className={styles.axisLabel}>{t('pipeline.openspec.engine.advanced.routeAndProvenance')}</span>
@@ -911,6 +923,52 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                         <span className={styles.profileSwitchThumb} aria-hidden="true" />
                       </button>
                     )}
+                    {row.missingByIntegration.length > 0 && (
+                      <div className={styles.profileWorkflowCause} data-cause="integration">
+                        <span>
+                          {t('pipeline.openspec.engine.profile.missingIntegration', {
+                            agents: formatAgentList(row.missingByIntegration.map(agentLabel), t),
+                          })}
+                        </span>
+                        {onRequestUpdate && (
+                          <button
+                            type="button"
+                            className={styles.profileCauseAction}
+                            onClick={onRequestUpdate}
+                          >
+                            {t('pipeline.openspec.engine.summary.updateAll')}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {row.missingByProfile.length > 0 && (
+                      <div className={styles.profileWorkflowCause} data-cause="profile">
+                        <span>
+                          {t('pipeline.openspec.engine.profile.missingProfile', {
+                            agents: formatAgentList(row.missingByProfile.map(agentLabel), t),
+                          })}
+                        </span>
+                        {isCustomProfile ? (
+                          <button
+                            type="button"
+                            className={styles.profileCauseAction}
+                            disabled={pendingWorkflow !== null || profileBlockedReason !== null || isSwitchingProfile || !isCustomProfile}
+                            onClick={() => void handleToggleWorkflow(row.workflow, true)}
+                          >
+                            {t('pipeline.openspec.engine.profile.toggleOn', { workflow: row.workflow })}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.profileCauseAction}
+                            disabled={isSwitchingProfile}
+                            onClick={() => void handleToggleProfile()}
+                          >
+                            {t('pipeline.openspec.engine.profile.switchToCustom')}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -923,7 +981,9 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
               </div>
             )}
           </div>
+        </div>
 
+        <div className={styles.advancedColumnSide}>
           {/* Declaración de divergencia o convergencia. La convergencia va en
               tono neutro a propósito: es un hecho sobre UN eje, no un «está
               todo bien» — el veredicto lo da la insignia general de la
@@ -1146,7 +1206,8 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
             </div>
           </div>
         </div>
-      )}
-    </section>
-  );
+      </div>
+    )}
+  </section>
+);
 };

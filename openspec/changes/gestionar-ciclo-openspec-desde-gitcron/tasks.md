@@ -421,6 +421,7 @@
 - [x] 7.2 Agregar el canal de activación y desactivación de un workflow, y recalcular las acciones ofrecidas desde la configuración resultante.
 - [x] 7.3 En `electron/__tests__/`, verificar que un workflow ausente de la configuración no habilita su acción, usando una configuración con un nombre de workflow que el código no conoce.
 - [ ] 7.4 Distinguir en pantalla, para cada workflow que un agente no tiene, cual de las dos causas que hoy se pueden medir aplica: **el perfil global no lo habilita** (esta fuera de `resolvedWorkflows`; se resuelve activandolo desde el panel de perfil) o **la integracion de ese agente esta desactualizada** (el perfil lo habilita pero el agente no lo tiene instalado; se resuelve con `openspec update`). Cada causa con su accion al lado, no una recomendacion generica. **Medido el 2026-09-11:** la tercera causa —que el motor instalado no traiga ese workflow— no se puede distinguir porque el CLI 1.12.0 no expone de forma no interactiva la lista de workflows disponibles; la constante existe (`ALL_WORKFLOWS`, doce nombres, en `dist/commands/config.js` del paquete) pero solo se muestra en el menu interactivo de `config profile`, y por script falla a proposito. Se pidio a OpenSpec via feedback. No se lee del codigo compilado del paquete: ese anclaje ya costo en la 5.3. Caso comprobado el 2026-08-19 que motivo esta tarea: el motor 1.5.0 no expone `update`, que si integra el conjunto basico de la 1.9.0, de modo que cambiar el perfil a `core` no lo habilita.
+  *Hecha el 2026-09-17 y auditada:* `ProfileWorkflowRow` gana `missingByIntegration` y `missingByProfile`; la tarjeta arma el mapa desde `targetConvergences` (incluye agentes presentes sin workflows) y muestra por fila la causa con su accion («Actualizar» lleva a la seccion Actualizacion; «Activar X» o «Cambiar a custom» segun el perfil). Pruebas: perfil 23, tarjeta 46. Pendiente de que Alejandro lo tilde.
 - [x] 7.5 Cuando la causa sea «la integracion esta desactualizada», declarar que `openspec update` la resuelve y ofrecerlo desde ahi. La version del motor que habilitaria un workflow ausente queda **pendiente de que el CLI exponga la lista de workflows disponibles** (feedback enviado el 2026-09-11); cuando exista, derivarla de lo que el motor y el registro de npm informan, no de una tabla propia en el codigo. La tarjeta ya expone la version instalada, la objetivo y la ultima en npm (`OpenSpecEngineCard.tsx:279, 287, 338`).
 - [x] 7.6 **Medido el 2026-09-11 con el switch ya funcionando:** bajo el perfil `core` —el de esta maquina— el toggle escribe `workflows` en el archivo global (comprobado: `config.json` cambio a las 09:13 con un array valido) pero **no tiene efecto visible**, porque el motor solo usa la lista escrita cuando el perfil es `custom` (`dist/core/profiles.js:35-37` del paquete: `getProfileWorkflows(profile, customWorkflows)` devuelve el preset fijo salvo que `profile === 'custom'`). El panel muestra lo resuelto, asi que todo sigue «Habilitado». Que hacer: cuando el perfil no sea `custom`, los switches se muestran deshabilitados con el motivo al lado —el perfil fija los workflows— y se ofrece cambiar a `custom` desde ahi. Al cambiar, primero se escribe `workflows` con la lista que el perfil resolvia hasta ese momento, y recien despues `profile`, para que el cambio no deje al usuario con una lista vacia. Nada de esto se adivina: la lista sale de `resolvedWorkflows` ya leida.
   *Resolucion medida el 2026-09-14, decidida por Alejandro:* la pantalla esta como se pidio (`OpenSpecEngineCard.tsx:440-451` bloquea los switches con el motivo; el candado `profileLockBtn` cambia el perfil). La escritura se aparta del texto de arriba a proposito: `setOpenSpecProfile` (`electron/pipeline/openspec-global-config.ts:396-426`) escribe `workflows` con la lista resuelta **solo si la lista escrita esta vacia**; si ya hay una, la respeta como memoria de `custom`, y al volver a `core` no la toca. Asi abrir y cerrar el candado no pierde lo elegido (el tooltip `lockOpenTitle` lo declara). Riesgo aceptado: una memoria vieja sin `update` deja ese workflow «Deshabilitado por el perfil» al abrir; visible, no silencioso. Pruebas en `electron/__tests__/pipeline-openspec-global-config.test.ts` (custom con lista escrita → un solo `config set profile custom`; con lista vacia → dos escrituras en orden).
@@ -796,6 +797,7 @@
   fondo ni sticky.
 
 - [ ] 8.20 **Pedido de Alejandro, 2026-09-14: la pestaña SDD tarda en cargar y muestra «Cargando…».**
+  *Hecha el 2026-09-17 y auditada:* (a) `electron/ipc/pipeline.ts` conserva el ultimo snapshot por clave 15 s y lo devuelve al instante mientras revalida de fondo (empuja `pipeline:snapshot-updated` solo si cambio); canal `pipeline:prewarm` que `RepoMainView` llama al montar cada repositorio. (b) `PipelineEmptyState` dibuja la silueta con `animate-pulse` y `aria-label`, sin texto visible. Pruebas: ipc 13 (+4), workspace 3 (+1). Vigilar: con muchas pestanas el precalentado lanza una lectura por repo al arrancar. Pendiente de que Alejandro lo tilde.
   Textual: «cuando inicio GitCron va directo a Graph, pero cuando elijo SDD tarda y aparece un aviso
   de cargando. ¿No hay forma de acelerar eso, con un precacheo o algo anterior? Y si es inevitable
   que tarde, que aparezca como se hace hoy en dia: figuras de la maqueta que aparecen y desaparecen
@@ -1005,6 +1007,36 @@
   «OpenSpec → Configuracion» en los cinco contextos; la prueba «del arbol real» de la instalacion
   (9.3) se convirtio al arbol nuevo (renderiza el Dashboard con la vista abierta). Suite 2058.
   Faltan (b) reflujo de la tarjeta a dos columnas y (c).
+  *Decision de Alejandro, 2026-09-17:* de acuerdo con el orden (c) → (b) → 7.4 → 8.20 → 3c →
+  decisiones 8.9/8.10 → grupo 10, y delega las decisiones de diseno al auditor con el criterio
+  ya fijado: escalable y mantenible, sin hacer y deshacer.
+  *Diseno de (c), medido:* el canal `pipeline:openspec:version-analysis` ya devuelve
+  `measured.changelog` ({ source, sourceUrl, fetched, rawText }), `consumedSurfaces`,
+  `breakingChangesDetected` y `redaction` ({ provider, status, text }); le falta el puente al
+  renderer (`electron/preload.ts:482-484`, `types/electron.d.ts:666`). El bloque «Que trae la
+  vX» es un componente propio (`OpenSpecReleaseNotes`) alimentado por un hook
+  (`useOpenSpecVersionAnalysis`) y un resumidor puro del markdown de GitHub Releases
+  (`lib/release-notes-summary.ts`: titulo, primer parrafo, hasta cuatro vinetas sin marcas), asi
+  la vista no crece y el resumen se prueba solo. Nunca bloquea el boton «Actualizar».
+  *(c1) hecha el 2026-09-17 y auditada:* tipos del analisis mudados a `types/pipeline`, puente
+  `versionAnalysis` en preload y d.ts, resumidor + hook + componente con 15 pruebas propias.
+  Suite 2073 en 200 archivos. *(c2) hecha el 2026-09-17 y auditada:* montado en Actualizacion solo
+  con version nueva; tres pruebas de integracion (con notas reales, sin upgrade no se pide, y el
+  boton no se bloquea mientras carga); fixture del resumidor con el texto real. Suite 2076. Con
+  esto 6.10 (b) queda cumplida. Caso vivo: aparece cuando npm tenga algo mas nuevo que lo
+  instalado (o bajando el motor a 1.12.0 a proposito).
+  *Diseno de (b), medido:* la tarjeta se maqueta sola por el ancho de su contenedor (el modulo ya
+  usa `container-type: inline-size` y `@container`), sin prop de layout ni duplicar markup: el
+  area avanzada pasa a dos columnas por container query (izquierda: ejes y perfil de workflows;
+  derecha: divergencia, outputs, doctor y contexto) envolviendo los bloques en dos columnas del
+  DOM; en 340 px sigue en una. En el centro el area avanzada arranca abierta (prop
+  `defaultAdvancedOpen`), porque ahi es la configuracion, no un detalle.
+  *(b) hecha el 2026-09-17 y auditada:* dos columnas por container query (≥ 640 px) con dos
+  envoltorios en el DOM, `container-type` en la tarjeta, abierta de entrada en el centro. Suite
+  2078. Pendiente de que Alejandro la vea en pantalla.
+  *Modo de trabajo desde el 2026-09-17 (pedido de Alejandro por falta de ventana):* los prompts de
+  7.4 y 8.20 se entregan juntos y se ejecutan en serie; la auditoria se hace sobre el arbol final
+  con la suite completa.
   - **Si, son grandes, y esta medido.** `.primaryAction, .secondaryAction`
     (`OpenSpecDashboard.module.css:442-458`) miden `min-height: 2.65rem` (42 px) con relleno
     `--space-3 --space-4` y peso 700; `.headerActions .primaryAction` (`:278`) 2.5rem;

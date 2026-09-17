@@ -496,6 +496,18 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.engine.profile.lockClosed',
   'pipeline.openspec.engine.profile.lockOpen',
   'pipeline.openspec.engine.profile.lockOpenTitle',
+  'pipeline.openspec.engine.profile.missingIntegration',
+  'pipeline.openspec.engine.profile.missingProfile',
+  // Notas de versión de OpenSpec (Tanda 8.23 c1)
+  'pipeline.openspec.releaseNotes.title',
+  'pipeline.openspec.releaseNotes.loading',
+  'pipeline.openspec.releaseNotes.viewFull',
+  'pipeline.openspec.releaseNotes.source',
+  'pipeline.openspec.releaseNotes.unavailable',
+  'pipeline.openspec.releaseNotes.mayAffect',
+  'pipeline.openspec.releaseNotes.compatible',
+  'pipeline.openspec.releaseNotes.redactedBy',
+  'pipeline.openspec.releaseNotes.error',
 ] as const;
 
 describe('Pipeline i18n', () => {

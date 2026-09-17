@@ -257,7 +257,7 @@
 - [x] 6.5 En `electron/__tests__/`, verificar que sin gestor resuelto no se invoca nada y se devuelve el código correspondiente; que el argv es exactamente el esperado para cada modo; y que ante fallo de permisos el estado del motor queda como estaba. Afirmar sobre el llamado, no sobre el valor devuelto.
 - [x] 6.6 Comprobar la resolución del gestor sobre la aplicación empaquetada e instalada, no sólo en desarrollo, y dejar el resultado escrito en el reporte. Es la pregunta abierta declarada en `design.md`. **La marca Alejandro.**
 
-- [ ] 6.7 Ofrecer la actualización del motor con el mismo patrón con que GitCron se actualiza a sí mismo: un indicador junto a la versión, que al abrirse ofrece la acción y la ejecuta, sin que haya que ir a buscar nada. La maquinaria ya existe en `electron/ipc/app-window.ts`, que usa `electron-updater` con `autoDownload = false` y los eventos `update-available`, `download-progress` y `update-downloaded`. Las tareas 6.1 a 6.5 resuelven **cómo instalar**; ésta resuelve **cómo se ofrece**, que es lo que hoy no existe: un repositorio con el motor atrasado no tiene en pantalla ningún camino a actualizarlo.
+- [x] 6.7 Ofrecer la actualización del motor con el mismo patrón con que GitCron se actualiza a sí mismo: un indicador junto a la versión, que al abrirse ofrece la acción y la ejecuta, sin que haya que ir a buscar nada. La maquinaria ya existe en `electron/ipc/app-window.ts`, que usa `electron-updater` con `autoDownload = false` y los eventos `update-available`, `download-progress` y `update-downloaded`. Las tareas 6.1 a 6.5 resuelven **cómo instalar**; ésta resuelve **cómo se ofrece**, que es lo que hoy no existe: un repositorio con el motor atrasado no tiene en pantalla ningún camino a actualizarlo.
 
 - [x] 6.8 **Medir que trae OpenSpec 1.12.0 antes de decidir si se adopta.** Pregunta de Alejandro del
   2026-09-07: el CLI publico la 1.12.0 y el sistema tiene la 1.11.0 instalada, medido con
@@ -323,7 +323,7 @@
   **Que decide Alejandro:** si se abre el change de unificacion antes de esta tarea, y con que
   alcance. Mientras no exista, 6.8 se queda en medir y reportar, sin explicacion asistida.
 
-- [ ] 6.10 **Decision de Alejandro, 2026-09-14, al ver el punto de la 6.7 en pantalla:** «no me
+- [x] 6.10 **Decision de Alejandro, 2026-09-14, al ver el punto de la 6.7 en pantalla:** «no me
   importa que avise que se paso del rango desde-hasta; me tiene que decir que hay una version nueva
   y chau, actualiza y punto». Deprecada con causa la regla de «maximo probado»: el rango pasa a
   tener **solo minimo**. Aclaracion del mismo dia, textual: «no estoy diciendo que es una regla
@@ -399,7 +399,7 @@
   requisito viejo + ADDED «GitCron declara una version minima soportada de OpenSpec»). Suite: 1997.
   Faltan (a) vuelta atras y (b) lo que trae la version nueva, con Unsloth.
 
-- [ ] 6.11 **Defecto vivo medido el 2026-09-14 en la captura de Alejandro:** el panel derecho decia
+- [x] 6.11 **Defecto vivo medido el 2026-09-14 en la captura de Alejandro:** el panel derecho decia
   «Motor OpenSpec: Version no clasificada», «Global: unknown», «Sin datos de perfil (configuracion
   global no leida)», mientras la pildora del encabezado decia «OpenSpec v1.12.0» con el punto de la
   6.7. Por eso la tarjeta no mostraba la oferta «Actualizar el motor» de la 6.7-A: su `status` tenia
@@ -422,7 +422,7 @@
 - [x] 7.3 En `electron/__tests__/`, verificar que un workflow ausente de la configuración no habilita su acción, usando una configuración con un nombre de workflow que el código no conoce.
 - [ ] 7.4 Distinguir en pantalla, para cada workflow que un agente no tiene, cual de las dos causas que hoy se pueden medir aplica: **el perfil global no lo habilita** (esta fuera de `resolvedWorkflows`; se resuelve activandolo desde el panel de perfil) o **la integracion de ese agente esta desactualizada** (el perfil lo habilita pero el agente no lo tiene instalado; se resuelve con `openspec update`). Cada causa con su accion al lado, no una recomendacion generica. **Medido el 2026-09-11:** la tercera causa —que el motor instalado no traiga ese workflow— no se puede distinguir porque el CLI 1.12.0 no expone de forma no interactiva la lista de workflows disponibles; la constante existe (`ALL_WORKFLOWS`, doce nombres, en `dist/commands/config.js` del paquete) pero solo se muestra en el menu interactivo de `config profile`, y por script falla a proposito. Se pidio a OpenSpec via feedback. No se lee del codigo compilado del paquete: ese anclaje ya costo en la 5.3. Caso comprobado el 2026-08-19 que motivo esta tarea: el motor 1.5.0 no expone `update`, que si integra el conjunto basico de la 1.9.0, de modo que cambiar el perfil a `core` no lo habilita.
 - [x] 7.5 Cuando la causa sea «la integracion esta desactualizada», declarar que `openspec update` la resuelve y ofrecerlo desde ahi. La version del motor que habilitaria un workflow ausente queda **pendiente de que el CLI exponga la lista de workflows disponibles** (feedback enviado el 2026-09-11); cuando exista, derivarla de lo que el motor y el registro de npm informan, no de una tabla propia en el codigo. La tarjeta ya expone la version instalada, la objetivo y la ultima en npm (`OpenSpecEngineCard.tsx:279, 287, 338`).
-- [ ] 7.6 **Medido el 2026-09-11 con el switch ya funcionando:** bajo el perfil `core` —el de esta maquina— el toggle escribe `workflows` en el archivo global (comprobado: `config.json` cambio a las 09:13 con un array valido) pero **no tiene efecto visible**, porque el motor solo usa la lista escrita cuando el perfil es `custom` (`dist/core/profiles.js:35-37` del paquete: `getProfileWorkflows(profile, customWorkflows)` devuelve el preset fijo salvo que `profile === 'custom'`). El panel muestra lo resuelto, asi que todo sigue «Habilitado». Que hacer: cuando el perfil no sea `custom`, los switches se muestran deshabilitados con el motivo al lado —el perfil fija los workflows— y se ofrece cambiar a `custom` desde ahi. Al cambiar, primero se escribe `workflows` con la lista que el perfil resolvia hasta ese momento, y recien despues `profile`, para que el cambio no deje al usuario con una lista vacia. Nada de esto se adivina: la lista sale de `resolvedWorkflows` ya leida.
+- [x] 7.6 **Medido el 2026-09-11 con el switch ya funcionando:** bajo el perfil `core` —el de esta maquina— el toggle escribe `workflows` en el archivo global (comprobado: `config.json` cambio a las 09:13 con un array valido) pero **no tiene efecto visible**, porque el motor solo usa la lista escrita cuando el perfil es `custom` (`dist/core/profiles.js:35-37` del paquete: `getProfileWorkflows(profile, customWorkflows)` devuelve el preset fijo salvo que `profile === 'custom'`). El panel muestra lo resuelto, asi que todo sigue «Habilitado». Que hacer: cuando el perfil no sea `custom`, los switches se muestran deshabilitados con el motivo al lado —el perfil fija los workflows— y se ofrece cambiar a `custom` desde ahi. Al cambiar, primero se escribe `workflows` con la lista que el perfil resolvia hasta ese momento, y recien despues `profile`, para que el cambio no deje al usuario con una lista vacia. Nada de esto se adivina: la lista sale de `resolvedWorkflows` ya leida.
   *Resolucion medida el 2026-09-14, decidida por Alejandro:* la pantalla esta como se pidio (`OpenSpecEngineCard.tsx:440-451` bloquea los switches con el motivo; el candado `profileLockBtn` cambia el perfil). La escritura se aparta del texto de arriba a proposito: `setOpenSpecProfile` (`electron/pipeline/openspec-global-config.ts:396-426`) escribe `workflows` con la lista resuelta **solo si la lista escrita esta vacia**; si ya hay una, la respeta como memoria de `custom`, y al volver a `core` no la toca. Asi abrir y cerrar el candado no pierde lo elegido (el tooltip `lockOpenTitle` lo declara). Riesgo aceptado: una memoria vieja sin `update` deja ese workflow «Deshabilitado por el perfil» al abrir; visible, no silencioso. Pruebas en `electron/__tests__/pipeline-openspec-global-config.test.ts` (custom con lista escrita → un solo `config set profile custom`; con lista vacia → dos escrituras en orden).
 
 ## 8. Interfaz: tareas y artefactos
@@ -706,7 +706,7 @@
      8.15 punto 3. Lo que la reemplaza como senal de que la tarjeta se puede abrir es el cursor y
      el cambio al pasar el puntero.
 
-- [ ] 8.17 **Quinta revision visual de Alejandro, 2026-09-08.** Cuatro ajustes.
+- [x] 8.17 **Quinta revision visual de Alejandro, 2026-09-08.** Cuatro ajustes.
 
   1. **La casilla de la tarea tiene un hover mas grande que los botones de al lado.**
      Medido: `.taskStatus` (`OpenSpecDashboard.module.css:349-350`) mide `2.75rem`, y la definicion
@@ -782,7 +782,7 @@
   (`retirar-cambios-openspec-obsoletos`, tarea 7.4), y `remaquetar-cuerpo-de-sdd`, el change que
   sonaba al caso, ya no existe en `openspec/changes/`.
 
-- [ ] 8.19 **Observacion visual de Alejandro, 2026-09-14: el pie del panel derecho («269 requisitos ·
+- [x] 8.19 **Observacion visual de Alejandro, 2026-09-14: el pie del panel derecho («269 requisitos ·
   0 reportes») se dibuja encima del texto de ayuda del perfil de workflows al scrollear.** Medido: el
   panel es `.activityRail` (`OpenSpecDashboard.module.css:1073-1081`), columna flex con
   `overflow-y: auto`, o sea que el que scrollea es el panel entero. Adentro, `.railSections`
@@ -826,7 +826,7 @@
   final —franja de encabezado, dos o tres tarjetas de «En curso», el panel derecho— con
   `animate-pulse`, y el contenido real la reemplaza sin salto de layout. Sin texto «Cargando».
 
-- [ ] 8.21 **Observacion visual de Alejandro, 2026-09-14, con la revision y la tarjeta abiertas a la
+- [x] 8.21 **Observacion visual de Alejandro, 2026-09-14, con la revision y la tarjeta abiertas a la
   vez:** «¿son 4 botones para hacer que? Es una mala UX. Ademas no se si respetan la estetica que
   veniamos manejando, son grandes o me parece a mi.» Medido sobre sus capturas:
   - **Seis botones para dos acciones y un cierre.** Con la revision abierta en el centro y la tarjeta
@@ -847,7 +847,7 @@
     *Hecho el 2026-09-14/15 (auditado):* dedupe de acciones, escala de botones a 1.75rem y cierre
     unico (el de la revision). Superada por la 8.22 en lo que toca a la tarjeta.
 
-- [ ] 8.22 **Decision de Alejandro, 2026-09-15: la actualizacion de OpenSpec se hace como la de
+- [x] 8.22 **Decision de Alejandro, 2026-09-15: la actualizacion de OpenSpec se hace como la de
   GitCron.** Textual: «Cuando actualizo GitCron me avisa abajo a la izquierda en el numero de
   version que hay una nueva. Solo le doy a actualizar y se actualiza. Tiene que ser lo mismo aca:
   si hay una version nueva, que me avise como hace ahora, y luego si hago click que en el
@@ -1205,7 +1205,7 @@ conocen entre si, y la duplicacion es literal.
   - Manejo específico de rate limit (HTTP 403 / `x-ratelimit-remaining: 0`): devuelve `source: 'rate_limited'` con mensaje indicando hora de reseteo (`x-ratelimit-reset`) sin enmascarar como `unavailable`.
   - Aislamiento de suite (Bloque A): aislada la prueba de integración IPC en `openspec-version-analysis.test.ts` mockeando `globalThis.fetch`, proveyendo caché local en `userDataDir` y aislando la invocación de `openspec-engine`, eliminando el timeout intermitente de 5000ms.
 
-- [ ] 9c.8 **Auditoria del 2026-09-07: la intermitencia bajo pero no se fue.**
+- [x] 9c.8 **Auditoria del 2026-09-07: la intermitencia bajo pero no se fue.**
   El arreglo de la prueba de analisis de version es correcto y esta bien hecho: se sustituyo el
   lanzador del CLI y la red, **sin inyectar** `runVersionAnalysis`, asi que la prueba sigue
   ejercitando el cableado real de `registerOpenSpecIpcHandlers`. Es exactamente lo que habia que

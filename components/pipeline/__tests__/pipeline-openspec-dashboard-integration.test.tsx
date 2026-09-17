@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { PipelineWorkspace } from '../PipelineWorkspace';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
 import { OpenSpecInspector } from '../OpenSpecInspector';
+import { OpenSpecEngineCard } from '../OpenSpecEngineCard';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import type { OpenSpecEngineStatus } from '../../../types/pipeline';
 import type { PipelineSnapshot } from '../pipeline-view-state';
@@ -149,7 +150,7 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     fireEvent.click(compactBadge);
 
     expect(onEnsureRightOpenMock).not.toHaveBeenCalled();
-    const heading = await screen.findByRole('heading', { name: /Revisión de Actualización de OpenSpec/i });
+    const heading = await screen.findByRole('heading', { name: /Configuración de OpenSpec/i });
     expect(heading).toBeDefined();
     const mainSection = container.querySelector('main');
     expect(mainSection).not.toBeNull();
@@ -395,35 +396,35 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
 
     const { container } = render(<TestComponent />);
 
-    // Esperar a que cargue el estado y se muestre el botón en la tarjeta del motor en el inspector
-    const reviewBtn = await screen.findByRole('button', { name: /Revisar actualización/i });
+    // Esperar a que cargue el estado y se muestre el botón en la sección de herramientas en el inspector
+    const reviewBtn = await screen.findByRole('button', { name: /Abrir configuración de OpenSpec|Revisar actualización/i });
     expect(reviewBtn).toBeTruthy();
 
-    // 1. Al presionar "Revisar actualización", la columna central muestra la sección de revisión
+    // 1. Al presionar "Abrir configuración de OpenSpec", la columna central muestra la sección de revisión
     fireEvent.click(reviewBtn);
 
-    const reviewHeading = await screen.findByRole('heading', { name: /Revisión de Actualización de OpenSpec/i });
+    const reviewHeading = await screen.findByRole('heading', { name: /Configuración de OpenSpec/i });
     expect(reviewHeading).toBeTruthy();
 
     // La revisión está dentro de la columna central (main)
     const mainSection = container.querySelector('main');
     expect(mainSection).not.toBeNull();
-    expect(mainSection!.textContent).toContain('Revisión de Actualización de OpenSpec');
+    expect(mainSection!.textContent).toContain('Configuración de OpenSpec');
 
     // 2. Con la revisión abierta, no existe «Cerrar revisión» en la tarjeta; sólo el botón «Cerrar» de la revisión
     expect(screen.queryByRole('button', { name: /Cerrar revisión/i })).toBeNull();
     const closeBtn = screen.getByRole('button', { name: /^Cerrar$/i });
     fireEvent.click(closeBtn);
-    expect(screen.queryByRole('heading', { name: /Revisión de Actualización de OpenSpec/i })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /Configuración de OpenSpec/i })).toBeNull();
 
     // 3. Al volver a entrar, el botón del pie "Cerrar" también la cierra y restaura la vista
-    const reOpenBtn = screen.getByRole('button', { name: /Revisar actualización/i });
+    const reOpenBtn = screen.getByRole('button', { name: /Abrir configuración de OpenSpec|Revisar actualización/i });
     fireEvent.click(reOpenBtn);
-    expect(await screen.findByRole('heading', { name: /Revisión de Actualización de OpenSpec/i })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: /Configuración de OpenSpec/i })).toBeTruthy();
 
     const footerCloseBtn = screen.getByRole('button', { name: /^Cerrar$/i });
     fireEvent.click(footerCloseBtn);
-    expect(screen.queryByRole('heading', { name: /Revisión de Actualización de OpenSpec/i })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /Configuración de OpenSpec/i })).toBeNull();
 
     delete (window as any).api;
   });
@@ -1114,24 +1115,26 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
   });
 
   it('dos Inspectors montados con repos distintos: un setProfile exitoso en uno provoca que los dos refetcheen (Parte 5)', async () => {
+    const statusWithGlobalConfig = {
+      ...dummyStatusHealthy,
+      repoState: 'initialized' as const,
+      globalConfig: {
+        rawProfile: 'core',
+        profileState: 'read' as const,
+        delivery: 'both' as const,
+        deliveryState: 'read' as const,
+        configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        workflowsState: 'read' as const,
+        resolvedWorkflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+        resolvedWorkflowsState: 'read' as const,
+        origin: 'cli' as const,
+        readAt: '2026-09-11T12:00:00.000Z',
+        divergence: { isDivergent: false, reason: null, overallStatus: 'convergent' as const, globalProfileClass: 'core' as const, repoProfileClass: 'core' as const },
+      },
+    };
+
     const getEngineStatusMock = vi.fn().mockImplementation((repo: string) => {
-      return Promise.resolve({
-        ...dummyStatusHealthy,
-        repoState: 'initialized',
-        globalConfig: {
-          rawProfile: 'core',
-          profileState: 'read',
-          delivery: 'both',
-          deliveryState: 'read',
-          configuredWorkflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
-          workflowsState: 'read',
-          resolvedWorkflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
-          resolvedWorkflowsState: 'read',
-          origin: 'cli',
-          readAt: '2026-09-11T12:00:00.000Z',
-          divergence: { isDivergent: false, reason: null, overallStatus: 'convergent', globalProfileClass: 'core', repoProfileClass: 'core' },
-        },
-      });
+      return Promise.resolve(statusWithGlobalConfig);
     });
 
     const setProfileMock = vi.fn().mockResolvedValue({ ok: true });
@@ -1152,6 +1155,11 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
       <div>
         <div data-testid="inspector-1">
           <OpenSpecInspector repoPath="C:\\repo1" snapshot={dummySnapshot} />
+          <OpenSpecEngineCard
+            repoPath="C:\\repo1"
+            status={statusWithGlobalConfig}
+            onChanged={() => usePipelineStore.getState().notifyEngineChanged()}
+          />
         </div>
         <div data-testid="inspector-2">
           <OpenSpecInspector repoPath="C:\\repo2" snapshot={dummySnapshot} />
@@ -1390,7 +1398,7 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     );
 
     // Se ve el encabezado de la revisión
-    expect(await screen.findByRole('heading', { level: 3, name: /Revisión de actualización/i })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 3, name: /Configuración de OpenSpec/i })).toBeTruthy();
 
     // Se ve el riel de vistas
     const railNav = screen.getByRole('navigation', { name: /pipeline\.switcher\.views|Vistas/i });
@@ -1402,6 +1410,49 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     fireEvent.click(viewButtons[0]);
 
     expect(usePipelineStore.getState().reviewOpen).toBe(false);
+
+    vi.unstubAllGlobals();
+  });
+
+  it('con reviewOpen true, el riel muestra «Configuración» con aria-pressed="true" (8.23-a2)', async () => {
+    usePipelineStore.setState({ reviewOpen: true });
+
+    vi.stubGlobal('window', {
+      api: {
+        pipelineOpenSpec: {
+          getEngineStatus: vi.fn().mockResolvedValue(dummyStatusHealthy),
+          checkLatestVersion: vi.fn().mockResolvedValue(null),
+          getUpdatePlan: vi.fn().mockResolvedValue(null),
+        },
+      },
+    });
+
+    render(
+      <OpenSpecDashboard
+        snapshot={dummySnapshot}
+        repoPath="C:\\repo-review-pressed"
+        currentBranch="main"
+        workingTreeClean={true}
+        leftOpen={true}
+        rightOpen={false}
+        leftWidth={340}
+        rightWidth={340}
+        onResizeLeft={vi.fn()}
+        onResizeRight={vi.fn()}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />,
+    );
+
+    const railNav = screen.getByRole('navigation', { name: /pipeline\.switcher\.views|Vistas/i });
+    expect(railNav).toBeTruthy();
+
+    const configBtn = within(railNav).getByRole('button', { name: /Configuración|pipeline\.openspec\.config\.railEntry/i });
+    expect(configBtn).toBeTruthy();
+    expect(configBtn.getAttribute('data-view-id')).toBe('openspec-config');
+    expect(configBtn.getAttribute('aria-pressed')).toBe('true');
 
     vi.unstubAllGlobals();
   });

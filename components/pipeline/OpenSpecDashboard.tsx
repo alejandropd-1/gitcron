@@ -306,6 +306,8 @@ export function OpenSpecDashboard({
   const branchTracking = useGitStore((state) => state.branchTracking);
   const commitMessage = useGitStore((state) => state.commitMessage);
   const setCommitMessage = useGitStore((state) => state.setCommitMessage);
+  const openRepos = useGitStore((state) => state.openRepos);
+  const openRepoPaths = useMemo(() => (openRepos ?? []).map((r) => r.path).filter(Boolean), [openRepos]);
   const { stageFiles } = useGitActions();
   const openSpec = snapshot.openSpec;
   const [selection, setSelectionState] = useState<string | null>(null);
@@ -1917,6 +1919,24 @@ export function OpenSpecDashboard({
     );
   })();
 
+  const openSpecRailSlot = (
+    <>
+      <div className={styles.railSectionHeader}>
+        <span className={styles.railSectionTitle}>{t('pipeline.openspec.config.railTitle')}</span>
+      </div>
+      <button
+        type="button"
+        className={styles.railActionItem}
+        data-view-id="openspec-config"
+        aria-pressed={reviewOpen}
+        onClick={() => setReviewOpen(true)}
+      >
+        <span className={styles.railItemIcon} aria-hidden="true"><Wrench size={13} /></span>
+        <span className={styles.railItemLabel}>{t('pipeline.openspec.config.railEntry')}</span>
+      </button>
+    </>
+  );
+
   return (
     <div className={`${styles.dashboard} ${styles.openspecScope}`}>
       <ContentHeader className="h-11 border-b border-border-subtle/15 flex items-center justify-between gap-3 normal-case font-normal shrink-0">
@@ -2195,6 +2215,7 @@ export function OpenSpecDashboard({
                       setOpenSpecificationId(null);
                     }
                   }}
+                  openSpecSlot={openSpecRailSlot}
                   ariaLabel={t('pipeline.switcher.views')}
                 />
               )}
@@ -2230,6 +2251,7 @@ export function OpenSpecDashboard({
                     }
                   }}
                   environmentSlot={changeEnvironmentSlot}
+                  openSpecSlot={openSpecRailSlot}
                   ariaLabel={t('pipeline.switcher.views')}
                 />
               )}
@@ -2238,6 +2260,8 @@ export function OpenSpecDashboard({
                 status={effectiveEngineStatus}
                 updatePlan={updatePlan}
                 installPlan={installPlan}
+                snapshot={snapshot}
+                openRepoPaths={openRepoPaths}
                 currentBranch={currentBranch}
                 isClean={workingTreeClean}
                 uncommittedCount={modifiedFiles.length}
@@ -2700,6 +2724,7 @@ export function OpenSpecDashboard({
                     }
                   }}
                   environmentSlot={changeEnvironmentSlot}
+                  openSpecSlot={openSpecRailSlot}
                   ariaLabel={t('pipeline.switcher.views')}
                 />
               )}
@@ -2922,6 +2947,7 @@ export function OpenSpecDashboard({
                       handleSwitchStartView('new-change');
                     }
                   }}
+                  openSpecSlot={openSpecRailSlot}
                   ariaLabel={t('pipeline.switcher.views')}
                 />
               )}
@@ -3219,6 +3245,7 @@ export function OpenSpecDashboard({
                   views={startViews}
                   activeViewId={activeStartView}
                   onSwitchView={(viewId) => handleSwitchStartView(viewId as StartView)}
+                  openSpecSlot={openSpecRailSlot}
                   ariaLabel={t('pipeline.switcher.views')}
                 />
               )}

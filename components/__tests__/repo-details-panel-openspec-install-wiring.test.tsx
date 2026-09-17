@@ -9,10 +9,23 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RepoDetailsPanel } from '../RepoDetailsPanel';
+import { OpenSpecDashboard } from '../pipeline/OpenSpecDashboard';
+import type { PipelineSnapshot } from '../pipeline/pipeline-view-state';
 import { useGitStore, type RepoState } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import type { OpenSpecEngineStatus, OpenSpecInstallPlan } from '@/types/pipeline';
+
+vi.mock('@/lib/new-change-draft-store', () => ({
+  useNewChangeDraft: () => ({ open: false, mode: null }),
+  useNewChangeDraftStore: ((selector?: any) => {
+    const state = {
+      drafts: {},
+      patchDraft: vi.fn(),
+      clearDraft: vi.fn(),
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  }) as any,
+}));
 
 vi.mock('@/hooks/use-git-actions', () => ({
   useGitActions: () => ({
@@ -31,6 +44,36 @@ vi.mock('@/hooks/use-translation', () => ({
   tNow: (key: string, params?: Record<string, string | number>) =>
     params ? `${key}:${JSON.stringify(params)}` : key,
 }));
+
+const dummySnapshot: PipelineSnapshot = {
+  schemaVersion: '1.0',
+  repoId: 'repo-1',
+  availableSources: ['git', 'openspec'],
+  hasPipelineActivity: false,
+  decisions: [],
+  agents: [],
+  activity: [],
+  economy: {
+    tokens: { input: 0, output: 0, reasoning: null, cacheRead: null },
+    costUsd: null,
+    costBasis: 'unknown',
+    costCoverage: { withCost: 0, total: 0 },
+    contextMaxTokens: null,
+    contextCurrentTokens: null,
+    compactionCount: null,
+    reasoningAvailable: null,
+  },
+  openSpec: {
+    selectedChangeId: null,
+    activeChanges: [],
+    archivedChanges: [],
+    specifications: [],
+    reports: [],
+    diagnostics: [],
+    observedAt: null,
+    latestGate: null,
+  },
+};
 
 const REPO_PATH = 'C:/test-repo';
 const OTHER_REPO_PATH = 'C:/otro-repo';
@@ -124,29 +167,23 @@ function stubPreloadBridge(plan: OpenSpecInstallPlan) {
   return { getInstallPlan, getEngineStatus };
 }
 
-function renderPanel() {
+function renderDashboard() {
+  usePipelineStore.setState({ reviewOpen: true });
   return render(
-    <RepoDetailsPanel
-      activeTab="Pipeline"
-      graphMode="chronometric"
-      detailsW={320}
-      visible={true}
-      isDragging={false}
-      onResizeStart={vi.fn()}
-      onOpenStashModal={vi.fn()}
-      onOpenCommitFile={vi.fn()}
-      onSelectFile={vi.fn()}
-      onDiscardRequest={vi.fn()}
-      onRequestAmend={vi.fn()}
-      onRequestSquash={vi.fn()}
-      onFileContextMenu={vi.fn()}
-      onRequestResetAll={vi.fn()}
-      onRequestCleanUntracked={vi.fn()}
+    <OpenSpecDashboard
+      snapshot={dummySnapshot}
+      repoPath={REPO_PATH}
+      currentBranch="change/gestionar-ciclo-openspec-desde-gitcron"
+      workingTreeClean={true}
+      projection={null}
+      runtimeHistory={[]}
+      onPauseAfterTask={vi.fn()}
+      onRespondDecision={vi.fn()}
     />
   );
 }
 
-describe('RepoDetailsPanel — cableado real del plan de instalación (sin props a la tarjeta)', () => {
+describe('Vista Configuración de OpenSpec: cableado real de la instalación (antes: panel de detalles)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
@@ -181,6 +218,7 @@ describe('RepoDetailsPanel — cableado real del plan de instalación (sin props
 
   afterEach(() => {
     cleanup();
+    usePipelineStore.setState({ reviewOpen: false });
     window.localStorage.clear();
     if (ORIGINAL_API === undefined) {
       delete (window as { api?: unknown }).api;
@@ -191,9 +229,9 @@ describe('RepoDetailsPanel — cableado real del plan de instalación (sin props
 
   it('1. La confirmación de instalación global muestra comando, gestor, Node y repositorios afectados desde el árbol real', async () => {
     const { getInstallPlan } = stubPreloadBridge(planWith({ hasManifest: true }));
-    renderPanel();
+    renderDashboard();
 
-    // El Inspector consultó el canal del plan con la ruta del repo activo: esa
+    // El Dashboard consultó el canal del plan con la ruta del repo activo: esa
     // es la entrada del cableado que las pruebas viejas saltaban.
     expect(getInstallPlan).toHaveBeenCalledWith(REPO_PATH);
 
@@ -220,7 +258,7 @@ describe('RepoDetailsPanel — cableado real del plan de instalación (sin props
 
   it('2. Sin manifiesto, «Instalación local» queda deshabilitada y su motivo se lee al lado', async () => {
     stubPreloadBridge(planWith({ hasManifest: false }));
-    renderPanel();
+    renderDashboard();
 
     const localButton = await screen.findByRole('button', { name: 'pipeline.openspec.engine.install.localTitle' });
     expect(localButton.hasAttribute('disabled')).toBe(true);

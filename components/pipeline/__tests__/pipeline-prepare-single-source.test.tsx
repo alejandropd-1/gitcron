@@ -246,7 +246,7 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
 
     // Abrir sección herramientas en el inspector y luego abrir revisión
     fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
-    const reviewButton = await screen.findByText('pipeline.openspec.engine.reviewAction');
+    const reviewButton = await screen.findByText('pipeline.openspec.config.open');
     fireEvent.click(reviewButton);
 
     // Ejecutar actualización para habilitar la preparación
@@ -285,7 +285,7 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
     // Camino B: Abrir desde cuerpo (revisión), cerrar desde franja
     render(<IntegratedPipelineView />);
     fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
-    const reviewButton = await screen.findByText('pipeline.openspec.engine.reviewAction');
+    const reviewButton = await screen.findByText('pipeline.openspec.config.open');
     fireEvent.click(reviewButton);
     const executeBtn = await screen.findByText('pipeline.openspec.engine.summary.updateAll');
     fireEvent.click(executeBtn);

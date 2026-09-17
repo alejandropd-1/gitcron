@@ -7,10 +7,9 @@ import { useGitStore } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { SidebarSection } from '@/components/RepoSidebarParts';
 import { DEFAULT_OPEN_RIGHT_PANEL, useSidebarSectionState, type SidebarSectionState } from '@/hooks/use-sidebar-section-state';
-import type { OpenSpecEngineStatus, OpenSpecInstallPlan, OpenSpecRegistryCheck, OpenSpecUpdatePlan, RuntimeProjection } from '@/types/pipeline';
+import type { OpenSpecEngineStatus, OpenSpecRegistryCheck, RuntimeProjection } from '@/types/pipeline';
 import { DecisionInbox } from './DecisionInbox';
-import { OpenSpecEngineCard } from './OpenSpecEngineCard';
-import { OpenSpecToolList } from './OpenSpecReadiness';
+import { INTEGRATION_STATE_KEY_MAP } from './OpenSpecEngineCard';
 import {
   groupActivity,
   hasOpenSpecAttention,
@@ -79,8 +78,8 @@ export function OpenSpecInspector({
   runtimeHistory: propRuntimeHistory,
   onPauseAfterTask = () => undefined,
   onRespondDecision = () => undefined,
-  onOpenReview,
-  isReviewOpen = false,
+  onOpenReview: _onOpenReview,
+  isReviewOpen: _isReviewOpen = false,
   sectionState: propSectionState,
   children,
 }: OpenSpecInspectorProps) {
@@ -92,14 +91,11 @@ export function OpenSpecInspector({
   const engineChangeToken = usePipelineStore((s) => s.engineChangeToken);
 
   const gitStoreRepoPath = useGitStore((s) => s.repoPath);
-  const gitStoreOpenRepos = useGitStore((s) => s.openRepos);
 
   const snapshot = propSnapshot ?? storeSnapshot;
   const repoPath = propRepoPath ?? gitStoreRepoPath;
   const projection = propProjection !== undefined ? propProjection : storeProjection;
   const runtimeHistory = propRuntimeHistory !== undefined ? propRuntimeHistory : storeHistory;
-
-  const openRepoPaths = useMemo(() => (gitStoreOpenRepos ?? []).map((r) => r.path).filter(Boolean), [gitStoreOpenRepos]);
 
   const localSectionState = useSidebarSectionState(repoPath, DEFAULT_OPEN_RIGHT_PANEL);
   const sectionState = propSectionState ?? localSectionState;
@@ -110,29 +106,7 @@ export function OpenSpecInspector({
 
   // OpenSpec engine and tools state
   const [engineStatus, setEngineStatus] = useState<OpenSpecEngineStatus | null>(null);
-  const [engineLoading, setEngineLoading] = useState(false);
   const [registryCheck, setRegistryCheck] = useState<OpenSpecRegistryCheck | null>(null);
-  const [initBusy, setInitBusy] = useState(false);
-  const [initError, setInitError] = useState<string | null>(null);
-  const [initNeedsTool, setInitNeedsTool] = useState(false);
-
-  // Install plan preview (canal de solo lectura — no ejecuta instalación)
-  const [installPlan, setInstallPlan] = useState<OpenSpecInstallPlan | null>(null);
-
-  useEffect(() => {
-    if (!repoPath || typeof window === 'undefined' || !window.api?.pipelineOpenSpec?.getInstallPlan) {
-      return;
-    }
-    let cancelled = false;
-    void window.api.pipelineOpenSpec.getInstallPlan(repoPath)
-      .then((plan) => {
-        if (!cancelled) setInstallPlan(plan);
-      })
-      .catch(() => {
-        if (!cancelled) setInstallPlan(null);
-      });
-    return () => { cancelled = true; };
-  }, [repoPath]);
 
   // Mismo camino de fetch que se reutiliza al re-leer el estado tras una
   // escritura de perfil (onChanged de la tarjeta): no hay un segundo fetch.
@@ -142,16 +116,13 @@ export function OpenSpecInspector({
       return;
     }
     let cancelled = false;
-    setEngineLoading(true);
     readEngineStatus(repoPath, (status) => {
       if (!cancelled) {
         setEngineStatus(status);
-        setEngineLoading(false);
       }
     }).catch(() => {
       if (!cancelled) {
         setEngineStatus(null);
-        setEngineLoading(false);
       }
     });
     return () => { cancelled = true; };
@@ -175,6 +146,26 @@ export function OpenSpecInspector({
     openSpecTools,
     openSpecPresent,
   });
+
+  const installed = effectiveEngineStatus?.installedIntegration;
+  const configuredAgentsCount =
+    installed?.configuredAgentsCount ??
+    installed?.configuredCount ??
+    (installed?.tools?.length ?? 0);
+  const integrationKey =
+    INTEGRATION_STATE_KEY_MAP[effectiveEngineStatus?.integrationState ?? 'unknown'] ??
+    'pipeline.openspec.engine.integrationState.unknown';
+  const isEngineInstalled = Boolean(effectiveEngineStatus?.cli?.installed);
+  const rawStatusLine = t('pipeline.openspec.config.statusLine', {
+    version: effectiveEngineStatus?.cli?.runtimeVersion ?? '?',
+    integration: t(integrationKey),
+    agents: configuredAgentsCount,
+  });
+  const statusLine = isEngineInstalled
+    ? rawStatusLine
+    : rawStatusLine.includes('·')
+    ? `${t('pipeline.openspec.engine.status.absent')} · ${rawStatusLine.split('·').slice(1).map((s) => s.trim()).join(' · ')}`
+    : rawStatusLine;
 
   const runtimeSessions = useMemo(() => {
     const combined = [...(runtimeHistory ?? [])];
@@ -223,31 +214,6 @@ export function OpenSpecInspector({
     : (filteredSessions[0] ? (filteredSessions[0].active ? 'running' : filteredSessions[0].outcome) : 'idle');
   const totalRequirements = openSpec?.specifications?.reduce((acc, spec) => acc + (typeof spec.requirements === 'number' ? spec.requirements : 0), 0) ?? 0;
 
-  const runOpenSpecInit = (toolIds?: string[]) => {
-    const api = typeof window !== 'undefined' ? (window as any).api : null;
-    if (!api?.pipelineInitOpenSpec || !repoPath) return;
-    setInitBusy(true);
-    setInitError(null);
-    const selectedToolIds = toolIds && toolIds.length > 0 ? toolIds : undefined;
-    void api.pipelineInitOpenSpec(repoPath, selectedToolIds)
-      .then((result: any) => {
-        if (result?.success) {
-          setInitNeedsTool(false);
-          return;
-        }
-        if (result?.needsTool) {
-          setInitNeedsTool(true);
-          return;
-        }
-        setInitError(result?.error ?? 'Error desconocido al inicializar OpenSpec');
-      })
-      .catch((err: any) => {
-        setInitError(err?.message ?? 'Error desconocido al inicializar OpenSpec');
-      })
-      .finally(() => {
-        setInitBusy(false);
-      });
-  };
 
   return (
     <aside className={`${styles.activityRail} ${styles.openspecScope}`} aria-label={t('pipeline.openspec.activity.title')}>
@@ -364,30 +330,14 @@ export function OpenSpecInspector({
           onToggle={() => sectionState.toggle('details-tools')}
         >
           <div className={styles.toolsRailContent}>
-            <OpenSpecEngineCard
-              status={effectiveEngineStatus}
-              isLoading={engineLoading}
-              onOpenToolsTab={() => sectionState.open('details-tools')}
-              onOpenReview={onOpenReview}
-              isReviewOpen={isReviewOpen}
-              repoPath={repoPath ?? undefined}
-              openRepoPaths={openRepoPaths.length > 0 ? openRepoPaths : undefined}
-              commandExecuted={installPlan?.globalCommand ?? undefined}
-              packageManagerPath={installPlan?.packageManagerPath ?? undefined}
-              packageManagerName={installPlan?.detectedManager ?? undefined}
-              nodePath={installPlan?.nodePath ?? undefined}
-              hasPackageJson={installPlan?.hasManifest}
-              onChanged={() => refetchEngineStatus()}
-            />
-            <OpenSpecToolList
-              present={openSpecPresent}
-              tools={openSpecTools}
-              busy={initBusy}
-              error={initError}
-              needsTool={initNeedsTool}
-              onInitialize={() => runOpenSpecInit()}
-              onInitializeWith={(toolIds) => runOpenSpecInit(toolIds)}
-            />
+            <p className={styles.toolsStatusLine}>{statusLine}</p>
+            <button
+              type="button"
+              className={styles.primaryAction}
+              onClick={() => usePipelineStore.getState().setReviewOpen(true)}
+            >
+              {t('pipeline.openspec.config.open')}
+            </button>
           </div>
         </SidebarSection>
         {children}

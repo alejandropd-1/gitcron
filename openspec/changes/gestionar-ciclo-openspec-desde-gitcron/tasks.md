@@ -904,7 +904,107 @@
   el 2026-09-16 y auditada:* la revision monta el ejecutor; desaparecen «Actualizar el motor» y
   «Actualizar integracion del repositorio» y el reporte de archivos (la lista va a «Detalle
   tecnico» como «Archivos tocados por la ultima actualizacion»); la revision baja de 721 a 560
-  lineas. Suite 2043. Falta (c). Pendiente de que Alejandro pruebe el circuito en vivo.
+  lineas. Suite 2043.
+  (d) **Prueba en vivo de Alejandro, 2026-09-16: actualizo el motor a 1.13.0 con el boton y
+  encontro cuatro cosas.** Medidas:
+  1. *«Los textos estan como vienen, sin maquetacion; los botones dispersos, sin contenedor».*
+     `.reviewUpfrontSummary` (`OpenSpecDashboard.module.css:3768`) es una fila flex: los dos hechos
+     quedan lado a lado, el primero sin rotulo y el segundo con rotulo en mayusculas
+     (`.reviewFactItem`, `:2460`, pensado para la grilla de diagnostico). `.reviewUpfrontActions`
+     (`:3775`) es una fila con wrap: el ejecutor (boton + linea de plan) y «Cerrar» comparten fila
+     y «Cerrar» flota a mitad de altura. Que hacer: «Cerrar» va al encabezado de la revision
+     (`.reviewHead` ya es `space-between`, `:2365`); los dos hechos son dos lineas iguales, rotulo +
+     valor («Motor» / «Integracion de este repositorio»); las acciones en columna, el ejecutor a
+     todo el ancho.
+  2. *«Al hacer clic en la pildora se cierra el sidebar flotante y queda activado su boton».* El
+     «sidebar flotante» es el `ViewSwitcherRail` del centro, visible cuando el panel derecho esta
+     cerrado (`isSwitcherVisible = isSwitcherOpen && !rightOpen`, `OpenSpecDashboard.tsx:498`). Se
+     renderiza en las ramas de especificacion, change, archivo e inicio (`:2189`, `:2663`,
+     `:2887`, `:3192`) pero **no en la rama de la revision** (`:2211-2228`), asi que al abrirse la
+     revision el riel desaparece mientras su boton sigue marcado. Que hacer: la rama de la revision
+     tambien monta el riel, con las vistas del contexto de fondo (changeViews si hay change
+     elegido, startViews si no), sin vista activa, y elegir una vista cierra la revision y aplica
+     el cambio de vista.
+  3. *«No hubo toast ni resumen de lo que se actualizo».* El resumen existia y se borro solo: al
+     terminar, `notifyEngineChanged()` hace releer el motor, `engine` pasa a null e `integration`
+     a false, y el ejecutor entra en la rama «Todo al dia» (`OpenSpecUpdateRunner.tsx:78-90`), que
+     tapa el progreso y el banner «Listo». Que hacer: esa rama solo antes de la primera corrida
+     (`!hasRun`). Y un toast al terminar bien, por el mismo canal que usan las operaciones de Git
+     (`useGitStore.getState().setSuccess(...)`, `lib/git-store.ts:142`, lo muestra `PageToasts`).
+  4. *«Al darle otra vez, error rojo raro: global-config-changed».* Es la salvaguarda de
+     integridad del plan (`openspec-preview.ts:171`, `validatePlanIntegrity`): el plan se pide una
+     sola vez al abrir la revision (`OpenSpecDashboard.tsx:422-433`, dependencias `[reviewOpen,
+     repoPath]`); tras cambiar el motor, la huella de la configuracion global ya no coincide y el
+     proceso principal se niega, con razon, a ejecutar un plan viejo. Que hacer: el plan se vuelve
+     a pedir tambien cuando cambia `engineChangeToken`; el ejecutor no pasa plan a la integracion
+     si en la misma corrida acaba de cambiar el motor (el proceso principal lo calcula al momento);
+     y si igual llega un codigo de integridad, se muestra en criollo («el plan quedo viejo, volve
+     a pulsar Actualizar»), nunca el codigo pelado.
+  Ademas, sigue faltando (c): el changelog oficial.
+  (e) **Segunda prueba en vivo, 2026-09-16, con (d) aplicada: «sigue sin andar» y «la maqueta
+  queda angosta y al actualizar se estira».** Causa de fondo del fallo, medida: la huella de la
+  configuracion global del plan se calcula sobre el objeto entero
+  (`electron/pipeline/openspec-preview.ts:84`, `computeFingerprint(engineStatus.globalConfig)`) y
+  ese objeto lleva `readAt = new Date().toISOString()` (`openspec-global-config.ts:150`), asi
+  que dos lecturas nunca coinciden y **todo plan falla `validatePlanIntegrity`** con
+  `global-config-changed` (ayer asomo el codigo; hoy lo tapo el mensaje en criollo). La prueba
+  existente (`electron/__tests__/pipeline-openspec-preview.test.ts:73`) compara un plan consigo
+  mismo y no lo detecta. Que hacer: la huella se calcula sobre los campos con significado
+  (rawProfile, delivery, configuredWorkflows, resolvedWorkflows y sus estados), nunca sobre
+  marcas de tiempo, con una prueba que genere dos previews de dos lecturas distintas en el tiempo
+  y exija que el plan valide; el ejecutor de pasos no envia plan a `runUpdate` (el proceso
+  principal lo calcula al momento; el plan es diagnostico); y el mensaje en criollo conserva el
+  codigo entre parentesis, porque taparlo costo una vuelta. Maqueta: `.reviewView` tiene
+  `flex: 0 0 auto` (`OpenSpecDashboard.module.css:2358`): ni llena el centro ni cede ante un
+  texto largo; pasa a `flex: 1 1 auto; min-width: 0` como `.startScreen`. «Cerrar» quedo debajo
+  del titulo porque `.reviewHead` no es fila; el boton va dentro de `.reviewHeadTopRow` (`:2370`),
+  que si lo es. *(d) y (e) hechas y auditadas el 2026-09-16, confirmadas en e887d65; probadas en
+  vivo por Alejandro: la integracion de gitCronos paso a «Al dia» con el boton. Suite 2049.*
+
+- [ ] 8.23 **Decision de Alejandro, 2026-09-16: la configuracion de OpenSpec es una vista del
+  centro, y esta en el riel.** Textual: «Lo que te recuadre en rojo [la lista de agentes del panel
+  derecho], que pase al cuerpo de actualizacion, pero en realidad va a pasar a ser configuracion
+  de OpenSpec: todo lo que te muestro en captura [tarjeta del motor, perfil y workflows, outputs,
+  doctor, contexto, agentes] que pase al cuerpo; se van a ver todas las features de OpenSpec, entre
+  ellas la actualizacion. Esta nueva feature de ver y configurar SDD tiene que aparecer en el
+  sidebar flotante tambien: el sidebar se va haciendo contextual.» Medido:
+  - Hoy en el panel derecho, seccion «Herramientas» (`OpenSpecInspector.tsx:352-395`):
+    `OpenSpecEngineCard` (estado, «Ver diagnostico avanzado» con ruta, perfil y workflows con
+    switches y candado, aviso de divergencia, outputs, doctor, contexto) y `OpenSpecToolList`
+    (agentes configurados e `init`; `OpenSpecReadiness.tsx:50`). En el centro, la revision
+    (`OpenSpecUpdateReview.tsx`) ya tiene el bloque de actualizacion, «Desde la terminal» y
+    «Detalle tecnico» (que repite la tarjeta de diagnostico, la matriz, la guia, la convivencia y
+    los outputs). Es decir: la misma informacion vive dos veces, una angosta y otra plegada.
+  - El riel (`ViewSwitcherRail.tsx`) tiene cinco ranuras de vistas (`VIEW_SWITCHER_SLOTS`, `:5`) y
+    un bloque «Acciones» (`environmentSlot`) que hoy solo llevan las vistas de change
+    (`OpenSpecDashboard.tsx:1817`, `:2232`, `:2702`).
+  Que hacer, en tandas:
+  (a) **La vista «Configuracion de OpenSpec».** La revision se convierte en esa vista: mismo
+  estado del store (`reviewOpen`), titulo nuevo, y secciones en este orden: 1. Actualizacion (lo
+  que ya esta: dos hechos, «Actualizar», «Desde la terminal»); 2. Motor y agentes (la tarjeta del
+  motor completa, `compact={false}`, mas la lista de agentes con `init`, ambas movidas del panel);
+  3. «Detalle tecnico» plegado (lo que ya esta, sin repetir la tarjeta que ahora esta en 2). El
+  panel derecho conserva la seccion «Herramientas» con una sola linea de estado («Motor v1.13.0 ·
+  integracion al dia · 4 agentes», con su icono de atencion) y un boton «Abrir configuracion de
+  OpenSpec» que abre la vista; nada mas. La pildora del encabezado sigue abriendo la vista. En el
+  riel, un bloque «OpenSpec» siempre presente (por `environmentSlot`, en todos los contextos: inicio,
+  change, especificacion, archivo y la propia vista) con la entrada «Configuracion»; en el contexto
+  de change se suma a las acciones que ya hay.
+  (b) **Reflujo de la tarjeta para el centro.** La tarjeta esta maquetada para 340 px (columna
+  unica); en el centro va en rejilla de dos columnas (estado y perfil a la izquierda, outputs y
+  diagnostico a la derecha) sin cambiar su contenido ni sus pruebas de conducta.
+  (c) **Que trae la version nueva** (= 6.10 b) dentro de la seccion 1, y **7.4** (causa por
+  workflow y por agente) dentro de la seccion 2, ya sobre la vista nueva.
+  Deprecacion con causa: 9.1 y 9.5 pedian «acciones al frente en la tarjeta del panel»; desde la
+  8.22 las acciones viven en el centro y la tarjeta solo informa. Queda registrado aqui.
+  *Decision de Alejandro, 2026-09-16:* el bloque «OpenSpec → Configuracion» del riel va **siempre**,
+  en todos los contextos. *(a1) hecha el 2026-09-17 y auditada:* vista con las tres secciones, hook
+  `useOpenSpecInit` compartido, «Detalle tecnico» sin la tarjeta repetida. Suite 2056.
+  *(a2) hecha el 2026-09-17 y auditada:* el panel derecho quedo con una linea de estado
+  («Motor vX · Integracion: … · N agentes») y «Abrir configuracion de OpenSpec»; el riel muestra
+  «OpenSpec → Configuracion» en los cinco contextos; la prueba «del arbol real» de la instalacion
+  (9.3) se convirtio al arbol nuevo (renderiza el Dashboard con la vista abierta). Suite 2058.
+  Faltan (b) reflujo de la tarjeta a dos columnas y (c).
   - **Si, son grandes, y esta medido.** `.primaryAction, .secondaryAction`
     (`OpenSpecDashboard.module.css:442-458`) miden `min-height: 2.65rem` (42 px) con relleno
     `--space-3 --space-4` y peso 700; `.headerActions .primaryAction` (`:278`) 2.5rem;

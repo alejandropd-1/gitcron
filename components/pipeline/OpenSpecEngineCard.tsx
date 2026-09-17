@@ -33,7 +33,7 @@ const REPO_STATE_KEY_MAP: Record<string, string> = {
   unknown: 'pipeline.openspec.engine.repoState.unknown',
 };
 
-const INTEGRATION_STATE_KEY_MAP: Record<string, string> = {
+export const INTEGRATION_STATE_KEY_MAP: Record<string, string> = {
   'up-to-date': 'pipeline.openspec.engine.integrationState.upToDate',
   outdated: 'pipeline.openspec.engine.integrationState.outdated',
   conflicted: 'pipeline.openspec.engine.integrationState.conflicted',

@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNewChangeDraftStore } from '@/lib/new-change-draft-store';
+import { usePipelineStore } from '@/lib/pipeline-store';
 import type { PipelineSnapshot } from '../pipeline-view-state';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
 import { OpenSpecInspector } from '../OpenSpecInspector';
@@ -25,6 +26,7 @@ afterEach(() => {
   cleanup();
   window.localStorage.clear();
   delete (window as any).api;
+  usePipelineStore.setState({ reviewOpen: false });
 });
 
 function snapshot(openSpecPresent: boolean): PipelineSnapshot {
@@ -119,6 +121,7 @@ function renderDashboard(present = false) {
 let initOpenSpec: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+  usePipelineStore.setState({ reviewOpen: false });
   // El borrador del flujo vive en un store global desde que sobrevive al
   // desmontaje: sin resetearlo, lo escrito en una prueba aparece en la siguiente.
   useNewChangeDraftStore.setState({ drafts: {} });
@@ -131,12 +134,14 @@ describe('empezar un cambio sin OpenSpec inicializado', () => {
     renderDashboard();
     fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.newChange/ }));
 
-    // Desplegar sección de herramientas en el inspector
-    fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
-    expect(screen.getAllByText(/readiness\.missingTitle/).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /rail\.init$/ })).toBeTruthy();
     // No bloquea: el formulario está y se puede llegar a lanzarlo.
     expect(screen.getByRole('button', { name: /newChange\.propose\.(createBranchAndReview|review)/ })).toBeTruthy();
+
+    // Desplegar sección de herramientas en el inspector y abrir configuración en el centro
+    fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.config\.open/ }));
+    expect(screen.getAllByText(/readiness\.missingTitle/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /rail\.init$/ })).toBeTruthy();
   });
 
   it('inicializar desde el aviso conserva el objetivo y el slug', async () => {
@@ -150,10 +155,14 @@ describe('empezar un cambio sin OpenSpec inicializado', () => {
       target: { value: 'ordenar-rail' },
     });
 
-    // Desplegar herramientas e inicializar
+    // Desplegar herramientas, abrir configuración e inicializar
     fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.config\.open/ }));
     fireEvent.click(screen.getByRole('button', { name: /rail\.init$/ }));
     await waitFor(() => expect(initOpenSpec).toHaveBeenCalledWith('C:/repo', undefined));
+
+    // Cerrar la configuración para volver a la vista del formulario
+    usePipelineStore.setState({ reviewOpen: false });
 
     // Llega el snapshot nuevo: ya hay OpenSpec, y el formulario sigue como estaba.
     refreshWith(true);
@@ -167,6 +176,7 @@ describe('empezar un cambio sin OpenSpec inicializado', () => {
     renderDashboard();
     fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.newChange/ }));
     fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.config\.open/ }));
 
     // Ver el estado no escribe: hasta acá sólo se leyó y se navegó.
     expect(initOpenSpec).not.toHaveBeenCalled();
@@ -179,10 +189,12 @@ describe('resultado de inicializar', () => {
     renderDashboard();
 
     fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.config\.open/ }));
     fireEvent.click(screen.getByRole('button', { name: /rail\.init$/ }));
 
-    const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('EACCES: permission denied');
+    const alert = await screen.findByText('EACCES: permission denied');
+    expect(alert).toBeTruthy();
+    expect(alert.getAttribute('role')).toBe('alert');
   });
 
   it('cuando el CLI no detecta ninguna herramienta, pide elegir', async () => {
@@ -190,11 +202,12 @@ describe('resultado de inicializar', () => {
     renderDashboard();
 
     fireEvent.click(screen.getByRole('button', { name: /rail\.tools/ }));
+    fireEvent.click(screen.getByRole('button', { name: /pipeline\.openspec\.config\.open/ }));
     fireEvent.click(screen.getByRole('button', { name: /rail\.init$/ }));
 
     const claude = await screen.findByRole('checkbox', { name: /Claude Code/ });
     // Es una pregunta, no un fallo: el mensaje crudo del CLI no se muestra como error.
-    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText('No tools detected')).toBeNull();
 
     // Sin elegir no se puede confirmar: esto escribe en el repositorio.
     const confirm = screen.getByRole('button', { name: /rail\.chooseToolConfirm/ }) as HTMLButtonElement;

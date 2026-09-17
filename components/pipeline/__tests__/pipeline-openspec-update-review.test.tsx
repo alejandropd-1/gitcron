@@ -98,9 +98,9 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     // Hechos del motor (al día)
     expect(screen.getByText(/Motor v1\.8\.0 · al día/i)).toBeTruthy();
 
-    // Abrir detalle técnico para ver procedencia y detalles
-    const techBtn = screen.getByRole('button', { name: /Detalle técnico/i });
-    fireEvent.click(techBtn);
+    // Abrir diagnóstico avanzado en la tarjeta del motor para ver procedencia y detalles
+    const advBtn = screen.getByRole('button', { name: /Ver diagnóstico avanzado/i });
+    fireEvent.click(advBtn);
     expect(screen.getByText('Global (PATH)')).toBeTruthy();
   });
 
@@ -607,5 +607,54 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     fireEvent.click(terminalBtn);
     expect(terminalBtn.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByText('openspec update')).toBeNull();
+  });
+
+  it('con status sano y snapshot con herramientas, la sección «Motor y agentes» muestra la tarjeta y la lista de herramientas', () => {
+    const mockSnapshot = {
+      openSpec: {
+        openSpecPresent: true,
+        openSpecTools: [
+          { toolId: 'claude', label: 'Claude Code', directory: '.claude', configured: true },
+          { toolId: 'cursor', label: 'Cursor IDE', directory: '.cursor', configured: false },
+        ],
+      },
+    } as any;
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:/repo"
+        status={mockStatus}
+        snapshot={mockSnapshot}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const engineSection = screen.getByRole('region', { name: /Motor y agentes/i });
+    expect(engineSection).toBeTruthy();
+    // Contiene la tarjeta del motor
+    expect(within(engineSection).getByRole('heading', { level: 3, name: /Tarjeta de Diagnóstico del Motor OpenSpec/i })).toBeTruthy();
+
+    // Contiene la lista de herramientas
+    expect(within(engineSection).getByText('Claude Code')).toBeTruthy();
+    expect(within(engineSection).getByText('Cursor IDE')).toBeTruthy();
+  });
+
+  it('«Detalle técnico» desplegado NO contiene una segunda tarjeta (el aria-label de la tarjeta aparece una sola vez)', () => {
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:/repo"
+        status={mockStatus}
+        onBack={vi.fn()}
+      />,
+    );
+
+    // Abrir Detalle técnico
+    const techBtn = screen.getByRole('button', { name: /Detalle técnico/i });
+    fireEvent.click(techBtn);
+    expect(techBtn.getAttribute('aria-expanded')).toBe('true');
+
+    // El aria-label de la tarjeta del motor aparece una sola vez en todo el documento
+    const cardRegions = screen.getAllByRole('region', { name: /Tarjeta de Diagnóstico del Motor OpenSpec/i });
+    expect(cardRegions).toHaveLength(1);
   });
 });

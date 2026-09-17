@@ -20,6 +20,7 @@ export type ViewSwitcherRailProps = {
   activeViewId: string;
   onSwitchView: (viewId: string) => void;
   environmentSlot?: React.ReactNode;
+  openSpecSlot?: React.ReactNode;
   ariaLabel?: string;
   className?: string;
   style?: React.CSSProperties;
@@ -38,7 +39,7 @@ export type ViewSwitcherRailProps = {
  *   alternancia de visibilidad se delega al control general del panel en la barra superior).
  * - Al pulsar cualquier entrada del riel, pasa al cuerpo central y la vista
  *   que estaba en el cuerpo pasa al riel.
- * - Si sólo hay una vista disponible y no hay señales de entorno, el riel no
+ * - Si sólo hay una vista disponible y no hay señales de entorno ni slot OpenSpec, el riel no
  *   se monta en el DOM (retorna null), cediendo el 100% del ancho al cuerpo.
  */
 export function ViewSwitcherRail({
@@ -46,14 +47,15 @@ export function ViewSwitcherRail({
   activeViewId,
   onSwitchView,
   environmentSlot,
+  openSpecSlot,
   ariaLabel = 'Vistas',
   className,
   style,
 }: ViewSwitcherRailProps) {
   const availableViews = views.filter((v) => v.id !== activeViewId);
 
-  // Auto-hide: si no hay vistas alternativas ni señales de entorno, el riel no existe.
-  if (availableViews.length === 0 && !environmentSlot) {
+  // Auto-hide: si no hay vistas alternativas, señales de entorno ni slot OpenSpec, el riel no existe.
+  if (availableViews.length === 0 && !environmentSlot && !openSpecSlot) {
     return null;
   }
 
@@ -111,6 +113,12 @@ export function ViewSwitcherRail({
       {environmentSlot && (
         <div className={styles.railEnvironment} data-slot="environment">
           {environmentSlot}
+        </div>
+      )}
+
+      {openSpecSlot && (
+        <div className={styles.railSection} data-slot="openspec">
+          {openSpecSlot}
         </div>
       )}
     </nav>

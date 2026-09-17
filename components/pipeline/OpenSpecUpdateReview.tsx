@@ -22,8 +22,13 @@ import {
   deriveUpdateBlockReason,
   deriveUpdateMatrixAction,
 } from '@/lib/openspec-update-guide';
+import { OpenSpecEngineCard } from './OpenSpecEngineCard';
+import { OpenSpecToolList } from './OpenSpecReadiness';
 import { OpenSpecUpdateRunner } from './OpenSpecUpdateRunner';
 import { getOpenSpecEngineUpgrade } from './pipeline-domain';
+import type { PipelineSnapshot } from './pipeline-view-state';
+import { useOpenSpecInit } from '@/hooks/use-openspec-init';
+import { usePipelineStore } from '@/lib/pipeline-store';
 import styles from './OpenSpecDashboard.module.css';
 
 export interface OpenSpecUpdateReviewProps {
@@ -31,6 +36,8 @@ export interface OpenSpecUpdateReviewProps {
   status: OpenSpecEngineStatus | null;
   updatePlan?: OpenSpecUpdatePlan | null;
   installPlan?: OpenSpecInstallPlan | null;
+  snapshot?: PipelineSnapshot | null;
+  openRepoPaths?: string[];
   currentBranch?: string | null;
   isClean?: boolean;
   uncommittedCount?: number;
@@ -44,6 +51,8 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   status,
   updatePlan,
   installPlan,
+  snapshot,
+  openRepoPaths,
   currentBranch,
   isClean = true,
   uncommittedCount,
@@ -52,6 +61,9 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   onUpdateCompleted,
 }) => {
   const t = useT();
+  const { runOpenSpecInit, initBusy, initError, initNeedsTool } = useOpenSpecInit(repoPath);
+  const openSpecTools = snapshot?.openSpec?.openSpecTools ?? [];
+  const openSpecPresent = snapshot?.openSpec?.openSpecPresent ?? (status?.repoState === 'initialized');
   const [copiedCommand, setCopiedCommand] = useState(false);
   const [copiedHostCmd, setCopiedHostCmd] = useState(false);
   const [forceConfirmed, setForceConfirmed] = useState(false);
@@ -294,6 +306,36 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           )}
         </div>
 
+        {/* SECCIÓN 2: MOTOR Y AGENTES */}
+        <section className={styles.reviewSection} aria-label={t('pipeline.openspec.config.engineSection')}>
+          <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.config.engineSection')}</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <OpenSpecEngineCard
+              status={status}
+              isLoading={false}
+              compact={false}
+              isReviewOpen={true}
+              repoPath={repoPath}
+              openRepoPaths={openRepoPaths}
+              commandExecuted={installPlan?.globalCommand ?? undefined}
+              packageManagerPath={installPlan?.packageManagerPath ?? undefined}
+              packageManagerName={installPlan?.detectedManager ?? undefined}
+              nodePath={installPlan?.nodePath ?? undefined}
+              hasPackageJson={installPlan?.hasManifest}
+              onChanged={() => usePipelineStore.getState().notifyEngineChanged()}
+            />
+            <OpenSpecToolList
+              present={openSpecPresent}
+              tools={openSpecTools}
+              busy={initBusy}
+              error={initError}
+              needsTool={initNeedsTool}
+              onInitialize={() => runOpenSpecInit()}
+              onInitializeWith={(ids) => runOpenSpecInit(ids)}
+            />
+          </div>
+        </section>
+
         {/* DETALLE TÉCNICO (Plegado por omisión) */}
         <div className={styles.reviewSection}>
           <button
@@ -308,54 +350,6 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
 
           {showTechnicalDetails && (
             <div style={{ marginTop: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              {/* 1. DATOS DEL MOTOR Y PROCEDENCIA */}
-              <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.cardTitle')}>
-                <div className={styles.reviewFactsGrid}>
-                  <div className={styles.reviewFactItem}>
-                    <span className={styles.reviewFactLabel}>
-                      {t('pipeline.openspec.engine.axis.engine')}
-                    </span>
-                    <span className={styles.reviewFactValue}>
-                      {cli?.installed ? `v${cli.runtimeVersion ?? '?'}` : t('pipeline.openspec.engine.status.absent')}
-                    </span>
-                  </div>
-
-                  <div className={styles.reviewFactItem}>
-                    <span className={styles.reviewFactLabel}>
-                      {t('pipeline.openspec.engine.latestAvailable', { version: '' }).replace(/:\s*$/, '')}
-                    </span>
-                    <span className={styles.reviewFactValue}>
-                      {latest?.latestVersion ? `v${latest.latestVersion}` : '—'}
-                    </span>
-                  </div>
-
-                  <div className={styles.reviewFactItem}>
-                    <span className={styles.reviewFactLabel}>
-                      {t('pipeline.openspec.engine.advanced.routeAndProvenance')}
-                    </span>
-                    <span className={styles.reviewFactValue}>
-                      {cli ? t(`pipeline.openspec.engine.provenance.${cli.provenance}`) : '—'}
-                    </span>
-                  </div>
-
-                  <div className={styles.reviewFactItem}>
-                    <span className={styles.reviewFactLabel}>
-                      {t('pipeline.openspec.engine.axis.repo')}
-                    </span>
-                    <span className={styles.reviewFactValue}>
-                      {status?.repoState ? t(`pipeline.openspec.engine.repoState.${status.repoState}`) : '—'}
-                    </span>
-                  </div>
-                </div>
-
-                {cli?.displayPath && (
-                  <div style={{ marginTop: 'var(--space-1)' }}>
-                    <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.advanced.routeAndProvenance')}: </span>
-                    <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>{cli.displayPath}</code>
-                  </div>
-                )}
-              </section>
-
               {/* 2. MATRIZ DECLARADA */}
               <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.matrix.title')}>
                 <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.matrix.title')}</h3>

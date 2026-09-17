@@ -1628,6 +1628,8 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
 
     rerender(<OpenSpecInspector repoPath={repo} />);
     expect(toolsBtn.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: 'pipeline.openspec.config.open' })).toBeDefined();
+    expect(screen.getByText('pipeline.openspec.config.statusLine')).toBeDefined();
 
     // El primer clic en el encabezado DEBE cerrarla inmediatamente (sin estado paralelo)
     fireEvent.click(toolsBtn);
@@ -2158,5 +2160,36 @@ describe('Fase 4 · Rediseño del panel derecho como lista de secciones plegable
     const warningIconWithPending = await within(toolsSectionHeaderWithPending).findByRole('img', { name: 'pipeline.openspec.engine.generalStatus.needsAttention' });
     expect(warningIconWithPending).not.toBeNull();
     expect(warningIconWithPending.getAttribute('aria-hidden')).toBeNull();
+  });
+
+  it('13. Que el riel de inicio muestra el bloque OpenSpec con la entrada Configuración y al pulsarlo abre la revisión (8.23-a2)', () => {
+    const repo = 'C:/test-rail-entry';
+    usePipelineStore.getState().reset();
+
+    render(
+      <OpenSpecDashboard
+        repoPath={repo}
+        snapshot={dummySnapshot}
+        currentBranch="main"
+        workingTreeClean={true}
+        projection={null}
+        runtimeHistory={[]}
+        onPauseAfterTask={vi.fn()}
+        onRespondDecision={vi.fn()}
+      />
+    );
+
+    // El riel de vistas presenta el encabezado OpenSpec y el botón Configuración
+    expect(screen.getByText('pipeline.openspec.config.railTitle')).toBeDefined();
+    const configBtn = screen.getByRole('button', { name: /pipeline\.openspec\.config\.railEntry/ });
+    expect(configBtn).toBeDefined();
+    expect(configBtn.getAttribute('data-view-id')).toBe('openspec-config');
+    expect(configBtn.getAttribute('aria-pressed')).toBe('false');
+
+    // Al pulsar Configuración, se abre la revisión en el store
+    fireEvent.click(configBtn);
+    expect(usePipelineStore.getState().reviewOpen).toBe(true);
+
+    usePipelineStore.getState().reset();
   });
 });

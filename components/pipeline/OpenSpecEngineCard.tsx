@@ -20,7 +20,6 @@ import { useGitStore } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { OpenSpecGlobalInstallConfirm, formatInstallErrorCode } from './OpenSpecGlobalInstallConfirm';
 import { isOpenSpecEngineStatusIncomplete } from './pipeline-domain';
-import { OpenSpecOutputsList } from './OpenSpecOutputsList';
 
 const VERSION_CLASS_KEY_MAP: Record<OpenSpecVersionClass, string> = {
   supported: 'pipeline.openspec.engine.versionClass.supported',
@@ -84,6 +83,7 @@ export interface OpenSpecEngineCardProps {
   /** Se invoca cuando una escritura de perfil (toggle de workflow) termina con éxito, para que el padre re-fetchee el estado. La tarjeta no muta su propio `status`. */
   onChanged?: () => void;
   title?: string;
+  section?: 'all' | 'motor' | 'profile';
 }
 
 export { formatInstallErrorCode } from './OpenSpecGlobalInstallConfirm';
@@ -241,10 +241,10 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   onRequestUpdate,
   onChanged,
   title,
+  section = 'all',
 }) => {
   const t = useT();
   const [showAdvanced, setShowAdvanced] = useState(Boolean(defaultAdvancedOpen));
-  const [showAbsentOutputs, setShowAbsentOutputs] = useState(false);
   const [copiedGlobal, setCopiedGlobal] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [installingMode, setInstallingMode] = useState<'local' | 'global' | null>(null);
@@ -299,6 +299,11 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
         <em className={styles.compactMeta}>({stateStr})</em>
       </div>
     );
+  }
+
+  // Si solo se pide el bloque de perfil y no hay status, no hay perfil que mostrar
+  if (section === 'profile' && (!status || (isLoading && !status))) {
+    return null;
   }
 
   // 2. Estado de Carga
@@ -357,8 +362,6 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   }
 
   const installed = status.installedIntegration;
-  const configuredCount = installed?.configuredAgentsCount ?? installed?.configuredCount ?? (installed?.tools?.length ?? 0);
-  const totalCount = installed?.totalPresentAgentsCount ?? installed?.totalPresentCount ?? configuredCount;
 
   // Determinar estado general: ready | needs-attention | unknown
   const isBehind = isInstalledBehindCycle(cli.runtimeVersion);
@@ -387,14 +390,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const versionStr = cli.runtimeVersion ? `v${cli.runtimeVersion}` : '';
   const engineText = versionStr ? `${versionStr} · ${versionClassText}` : versionClassText;
 
-  const agentsText = totalCount > 0 && totalCount !== configuredCount
-    ? t('pipeline.openspec.engine.agentsConfiguredRatio', { configured: configuredCount, total: totalCount })
-    : t('pipeline.openspec.engine.agentsConfigured', { count: configuredCount });
-
   const divergence = status.divergence;
-  const allOutputs = installed?.outputInventory ?? [];
-  const presentOutputs = allOutputs.filter((o) => o.presenceState !== 'absent');
-  const absentOutputs = allOutputs.filter((o) => o.presenceState === 'absent');
 
   // Perfil de workflows global (Tanda 7.2b). Las filas salen 100% de los datos
   // que ya llegan por `status.globalConfig`; no se hardcodea ningún nombre.
@@ -529,15 +525,16 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     }
   };
 
-  return (
-    <section className={styles.engineCardSection} aria-label={title ? undefined : t('pipeline.openspec.engine.cardTitle')}>
-      {/* VISTA PRIMARIA: Información comprensible y accionable */}
-      <header className={styles.engineCardHeader}>
-        <div className={styles.engineTitleRow}>
-          <div className={styles.engineTitleLeft}>
-            <h3 className={title ? styles.reviewSectionTitle : undefined}>
-              {title ?? t('pipeline.openspec.engine.cardTitle')}
-            </h3>
+  // 1. MOTOR
+  const motorBlock = (
+    <section className={styles.reviewBlock} aria-label={title ?? t('pipeline.openspec.config.engineBlock')}>
+        {/* VISTA PRIMARIA: Información comprensible y accionable */}
+        <header className={styles.engineCardHeader}>
+          <div className={styles.engineTitleRow}>
+            <div className={styles.engineTitleLeft}>
+              <h3 className={styles.reviewSectionTitle}>
+                {title ?? t('pipeline.openspec.config.engineBlock')}
+              </h3>
             <span className={styles.generalStatusBadge} data-status={generalStatus}>
               {generalStatus === 'ready' && <CheckCircle2 size={13} aria-hidden="true" />}
               {generalStatus === 'needs-attention' && <AlertTriangle size={13} aria-hidden="true" />}
@@ -781,10 +778,6 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
             {t(INTEGRATION_STATE_KEY_MAP[status.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown')}
           </strong>
         </div>
-
-        <div className={styles.summaryFactRow}>
-          <span>{agentsText}</span>
-        </div>
       </div>
 
       {/* Botón de Diagnóstico Avanzado */}
@@ -822,14 +815,6 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
               )}
             </div>
 
-            {/* Perfil y Workflows */}
-            <div className={styles.engineAxisItem} tabIndex={0}>
-              <span className={styles.axisLabel}>{t('pipeline.openspec.engine.advanced.profileAndWorkflows')}</span>
-              <strong className={styles.axisValue}>
-                {t('pipeline.openspec.engine.advanced.globalLabel')}: {divergence?.globalProfileClass ?? 'unknown'} | {t('pipeline.openspec.engine.advanced.repoLabel')}: {divergence?.repoProfileClass ?? 'unknown'}
-              </strong>
-            </div>
-
             {/* Evidencia del Repositorio */}
             <div className={styles.engineAxisItem} tabIndex={0}>
               <span className={styles.axisLabel}>{t('pipeline.openspec.engine.advanced.repoEvidence')}</span>
@@ -843,221 +828,9 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
               )}
             </div>
           </div>
-
-          {/* Perfil de workflows global (Tanda 7.2b): cada fila sale de
-              configuredWorkflows/resolvedWorkflows; el toggle escribe vía el
-              canal 7.2a y, con éxito, pide al padre re-leer el estado. */}
-          <div className={styles.profileWorkflowSection}>
-            <div className={styles.profileWorkflowHeader}>
-              <div className={styles.profileWorkflowTitleRow}>
-                <span className={styles.inventoryTitle}>{t('pipeline.openspec.engine.profile.title')}</span>
-                {profileRowsVisible && (
-                  <button
-                    type="button"
-                    role="button"
-                    aria-pressed={isCustomProfile}
-                    className={styles.profileLockBtn}
-                    data-state={isCustomProfile ? 'custom' : 'preset'}
-                    disabled={isSwitchingProfile || pendingWorkflow !== null}
-                    title={
-                      isCustomProfile
-                        ? t('pipeline.openspec.engine.profile.lockOpenTitle')
-                        : (profileBlockedReason ?? t('pipeline.openspec.engine.profile.notCustomReason', { profile: rawProfile ?? 'core' }))
-                    }
-                    onClick={() => void handleToggleProfile()}
-                  >
-                    {isSwitchingProfile ? (
-                      <Loader2 size={13} className={styles.spin} aria-hidden="true" />
-                    ) : isCustomProfile ? (
-                      <LockOpen size={13} aria-hidden="true" />
-                    ) : (
-                      <Lock size={13} aria-hidden="true" />
-                    )}
-                    <span className={styles.profileLockName}>{rawProfile ?? (isCustomProfile ? 'custom' : 'core')}</span>
-                  </button>
-                )}
-              </div>
-              {profileBlockedReason && (
-                <span className={styles.blockedReasonInline} role="alert">
-                  {profileBlockedReason}
-                </span>
-              )}
-            </div>
-            <p className={styles.inventoryHelp}>
-              {t('pipeline.openspec.engine.profile.help')}
-            </p>
-
-            {!profileRowsVisible ? (
-              <p className={styles.cliDiagnosticUnavailable}>
-                {t('pipeline.openspec.engine.profile.noData')}
-              </p>
-            ) : (
-              <ul className={styles.profileWorkflowList}>
-                {profileRows.map((row) => (
-                  <li
-                    key={row.workflow}
-                    className={styles.profileWorkflowRow}
-                    data-state={row.enabled ? 'enabled' : 'disabled'}
-                  >
-                    <code className={styles.profileWorkflowName}>{row.workflow}</code>
-                    <span
-                      className={styles.profileWorkflowState}
-                      data-state={row.enabled ? 'enabled' : 'disabled'}
-                    >
-                      {t(row.enabled
-                        ? 'pipeline.openspec.engine.profile.enabled'
-                        : 'pipeline.openspec.engine.profile.disabledByProfile')}
-                    </span>
-                    {pendingWorkflow === row.workflow ? (
-                      <span className={styles.profileSaving} role="status">
-                        <Loader2 size={12} className={styles.spin} aria-hidden="true" />
-                        {t('pipeline.openspec.engine.profile.saving')}
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={row.enabled}
-                        aria-label={t(row.enabled
-                          ? 'pipeline.openspec.engine.profile.toggleOff'
-                          : 'pipeline.openspec.engine.profile.toggleOn', { workflow: row.workflow })}
-                        className={styles.profileSwitch}
-                        data-state={row.enabled ? 'on' : 'off'}
-                        disabled={pendingWorkflow !== null || profileBlockedReason !== null || isSwitchingProfile || !isCustomProfile}
-                        title={profileBlockedReason ?? undefined}
-                        onClick={() => void handleToggleWorkflow(row.workflow, !row.enabled)}
-                      >
-                        <span className={styles.profileSwitchThumb} aria-hidden="true" />
-                      </button>
-                    )}
-                    {row.missingByIntegration.length > 0 && (
-                      <div className={styles.profileWorkflowCause} data-cause="integration">
-                        <span>
-                          {t('pipeline.openspec.engine.profile.missingIntegration', {
-                            agents: formatAgentList(row.missingByIntegration.map(agentLabel), t),
-                          })}
-                        </span>
-                        {onRequestUpdate && (
-                          <button
-                            type="button"
-                            className={styles.profileCauseAction}
-                            onClick={onRequestUpdate}
-                          >
-                            {t('pipeline.openspec.engine.summary.updateAll')}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {row.missingByProfile.length > 0 && (
-                      <div className={styles.profileWorkflowCause} data-cause="profile">
-                        <span>
-                          {t('pipeline.openspec.engine.profile.missingProfile', {
-                            agents: formatAgentList(row.missingByProfile.map(agentLabel), t),
-                          })}
-                        </span>
-                        {isCustomProfile ? (
-                          <button
-                            type="button"
-                            className={styles.profileCauseAction}
-                            disabled={pendingWorkflow !== null || profileBlockedReason !== null || isSwitchingProfile || !isCustomProfile}
-                            onClick={() => void handleToggleWorkflow(row.workflow, true)}
-                          >
-                            {t('pipeline.openspec.engine.profile.toggleOn', { workflow: row.workflow })}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className={styles.profileCauseAction}
-                            disabled={isSwitchingProfile}
-                            onClick={() => void handleToggleProfile()}
-                          >
-                            {t('pipeline.openspec.engine.profile.switchToCustom')}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {profileWriteError && (
-              <div className={`${styles.engineInstallFeedback} ${styles.engineInstallFeedbackError}`} role="alert">
-                <AlertTriangle size={14} aria-hidden="true" />
-                <span>{profileWriteError}</span>
-              </div>
-            )}
-          </div>
         </div>
 
         <div className={styles.advancedColumnSide}>
-          {/* Declaración de divergencia o convergencia. La convergencia va en
-              tono neutro a propósito: es un hecho sobre UN eje, no un «está
-              todo bien» — el veredicto lo da la insignia general de la
-              tarjeta, y un tilde verde tranquilizador dentro de una tarjeta
-              que declara «necesita atención» se leía como contradicción. */}
-          {divergence && (
-            <div
-              className={styles.divergenceNotice}
-              data-status={divergence.isDivergent
-                ? 'divergent'
-                : divergence.overallStatus === 'convergent' ? 'convergent' : 'unknown'}
-            >
-              {divergence.isDivergent ? (
-                <span className={styles.divergentText}>
-                  {t('pipeline.openspec.engine.advanced.divergentNotice', {
-                    reason: formatDivergenceReason(divergence.reason, t),
-                  })}
-                </span>
-              ) : divergence.overallStatus === 'convergent' ? (
-                <span className={styles.convergentText}>
-                  {t('pipeline.openspec.engine.advanced.convergentNotice', { profile: divergence.repoProfileClass })}
-                </span>
-              ) : (
-                <span className={styles.axisMeta}>
-                  {t('pipeline.openspec.engine.advanced.undeterminedNotice')}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Lista de Outputs Presentes / Relevantes con Scroll Interno Propio */}
-          {presentOutputs.length > 0 && (
-            <OpenSpecOutputsList
-              items={presentOutputs}
-              titleKey="pipeline.openspec.engine.outputsTitle"
-              helpKey="pipeline.openspec.engine.outputsHelp"
-              count={presentOutputs.length}
-            />
-          )}
-
-          {/* Outputs Ausentes Colapsables */}
-          {absentOutputs.length > 0 && (
-            <div className={styles.absentOutputsSection}>
-              <button
-                type="button"
-                className={styles.toggleAbsentBtn}
-                onClick={() => setShowAbsentOutputs((prev) => !prev)}
-                aria-expanded={showAbsentOutputs}
-              >
-                <span>
-                  {showAbsentOutputs
-                    ? t('pipeline.openspec.engine.advanced.hideAbsentOutputs')
-                    : t('pipeline.openspec.engine.advanced.showAbsentOutputs', { count: absentOutputs.length })}
-                </span>
-                {showAbsentOutputs ? <ChevronUp size={12} aria-hidden="true" /> : <ChevronDown size={12} aria-hidden="true" />}
-              </button>
-
-              {showAbsentOutputs && (
-                <OpenSpecOutputsList
-                  items={absentOutputs}
-                  helpKey="pipeline.openspec.engine.absentOutputsHelp"
-                  isAbsent={true}
-                />
-              )}
-            </div>
-          )}
-
           {/* Diagnósticos del Motor CLI (openspec doctor & context) (Grupo 3b) */}
           <div className={styles.cliDiagnosticsSection}>
             {/* 1. openspec doctor --json */}
@@ -1172,5 +945,198 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
       </div>
     )}
   </section>
-);
+  );
+
+  // 2. PERFIL DE WORKFLOWS
+  const profileBlock = (
+    <section className={styles.reviewBlock} aria-label={t('pipeline.openspec.config.profileBlock')}>
+    <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.config.profileBlock')}</h3>
+    <div className={styles.summaryFactRow}>
+      <span>
+        {t('pipeline.openspec.engine.advanced.globalLabel')}: <strong>{divergence?.globalProfileClass ?? 'unknown'}</strong> | {t('pipeline.openspec.engine.advanced.repoLabel')}: <strong>{divergence?.repoProfileClass ?? 'unknown'}</strong>
+      </span>
+    </div>
+
+    <div className={styles.profileWorkflowSection}>
+      <div className={styles.profileWorkflowHeader}>
+        <div className={styles.profileWorkflowTitleRow}>
+          <span className={styles.inventoryTitle}>{t('pipeline.openspec.engine.profile.title')}</span>
+          {profileRowsVisible && (
+            <button
+              type="button"
+              role="button"
+              aria-pressed={isCustomProfile}
+              className={styles.profileLockBtn}
+              data-state={isCustomProfile ? 'custom' : 'preset'}
+              disabled={isSwitchingProfile || pendingWorkflow !== null}
+              title={
+                isCustomProfile
+                  ? t('pipeline.openspec.engine.profile.lockOpenTitle')
+                  : (profileBlockedReason ?? t('pipeline.openspec.engine.profile.notCustomReason', { profile: rawProfile ?? 'core' }))
+              }
+              onClick={() => void handleToggleProfile()}
+            >
+              {isSwitchingProfile ? (
+                <Loader2 size={13} className={styles.spin} aria-hidden="true" />
+              ) : isCustomProfile ? (
+                <LockOpen size={13} aria-hidden="true" />
+              ) : (
+                <Lock size={13} aria-hidden="true" />
+              )}
+              <span className={styles.profileLockName}>{rawProfile ?? (isCustomProfile ? 'custom' : 'core')}</span>
+            </button>
+          )}
+        </div>
+        {profileBlockedReason && (
+          <span className={styles.blockedReasonInline} role="alert">
+            {profileBlockedReason}
+          </span>
+        )}
+      </div>
+      <p className={styles.inventoryHelp}>
+        {t('pipeline.openspec.engine.profile.help')}
+      </p>
+
+      {!profileRowsVisible ? (
+        <p className={styles.cliDiagnosticUnavailable}>
+          {t('pipeline.openspec.engine.profile.noData')}
+        </p>
+      ) : (
+        <ul className={styles.profileWorkflowList}>
+          {profileRows.map((row) => (
+            <li
+              key={row.workflow}
+              className={styles.profileWorkflowRow}
+              data-state={row.enabled ? 'enabled' : 'disabled'}
+            >
+              <code className={styles.profileWorkflowName}>{row.workflow}</code>
+              <span
+                className={styles.profileWorkflowState}
+                data-state={row.enabled ? 'enabled' : 'disabled'}
+              >
+                {t(row.enabled
+                  ? 'pipeline.openspec.engine.profile.enabled'
+                  : 'pipeline.openspec.engine.profile.disabledByProfile')}
+              </span>
+              {pendingWorkflow === row.workflow ? (
+                <span className={styles.profileSaving} role="status">
+                  <Loader2 size={12} className={styles.spin} aria-hidden="true" />
+                  {t('pipeline.openspec.engine.profile.saving')}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={row.enabled}
+                  aria-label={t(row.enabled
+                    ? 'pipeline.openspec.engine.profile.toggleOff'
+                    : 'pipeline.openspec.engine.profile.toggleOn', { workflow: row.workflow })}
+                  className={styles.profileSwitch}
+                  data-state={row.enabled ? 'on' : 'off'}
+                  disabled={pendingWorkflow !== null || profileBlockedReason !== null || isSwitchingProfile || !isCustomProfile}
+                  title={profileBlockedReason ?? undefined}
+                  onClick={() => void handleToggleWorkflow(row.workflow, !row.enabled)}
+                >
+                  <span className={styles.profileSwitchThumb} aria-hidden="true" />
+                </button>
+              )}
+              {row.missingByIntegration.length > 0 && (
+                <div className={styles.profileWorkflowCause} data-cause="integration">
+                  <span>
+                    {t('pipeline.openspec.engine.profile.missingIntegration', {
+                      agents: formatAgentList(row.missingByIntegration.map(agentLabel), t),
+                    })}
+                  </span>
+                  {onRequestUpdate && (
+                    <button
+                      type="button"
+                      className={styles.profileCauseAction}
+                      onClick={onRequestUpdate}
+                    >
+                      {t('pipeline.openspec.engine.summary.updateAll')}
+                    </button>
+                  )}
+                </div>
+              )}
+              {row.missingByProfile.length > 0 && (
+                <div className={styles.profileWorkflowCause} data-cause="profile">
+                  <span>
+                    {t('pipeline.openspec.engine.profile.missingProfile', {
+                      agents: formatAgentList(row.missingByProfile.map(agentLabel), t),
+                    })}
+                  </span>
+                  {isCustomProfile ? (
+                    <button
+                      type="button"
+                      className={styles.profileCauseAction}
+                      disabled={pendingWorkflow !== null || profileBlockedReason !== null || isSwitchingProfile || !isCustomProfile}
+                      onClick={() => void handleToggleWorkflow(row.workflow, true)}
+                    >
+                      {t('pipeline.openspec.engine.profile.toggleOn', { workflow: row.workflow })}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.profileCauseAction}
+                      disabled={isSwitchingProfile}
+                      onClick={() => void handleToggleProfile()}
+                    >
+                      {t('pipeline.openspec.engine.profile.switchToCustom')}
+                    </button>
+                  )}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {profileWriteError && (
+        <div className={`${styles.engineInstallFeedback} ${styles.engineInstallFeedbackError}`} role="alert">
+          <AlertTriangle size={14} aria-hidden="true" />
+          <span>{profileWriteError}</span>
+        </div>
+      )}
+    </div>
+
+    {/* Declaración de divergencia o convergencia */}
+    {divergence && (
+      <div
+        className={styles.divergenceNotice}
+        data-status={divergence.isDivergent
+          ? 'divergent'
+          : divergence.overallStatus === 'convergent' ? 'convergent' : 'unknown'}
+      >
+        {divergence.isDivergent ? (
+          <span className={styles.divergentText}>
+            {t('pipeline.openspec.engine.advanced.divergentNotice', {
+              reason: formatDivergenceReason(divergence.reason, t),
+            })}
+          </span>
+        ) : divergence.overallStatus === 'convergent' ? (
+          <span className={styles.convergentText}>
+            {t('pipeline.openspec.engine.advanced.convergentNotice', { profile: divergence.repoProfileClass })}
+          </span>
+        ) : (
+          <span className={styles.axisMeta}>
+            {t('pipeline.openspec.engine.advanced.undeterminedNotice')}
+          </span>
+        )}
+      </div>
+    )}
+  </section>
+  );
+
+  if (section === 'motor') {
+    return motorBlock;
+  }
+  if (section === 'profile') {
+    return profileBlock;
+  }
+  return (
+    <>
+      {motorBlock}
+      {profileBlock}
+    </>
+  );
 };

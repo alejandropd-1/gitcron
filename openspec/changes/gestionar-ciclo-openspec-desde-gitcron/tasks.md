@@ -1276,6 +1276,55 @@
   llena aparezca en su lugar (el informe en «Que trae», el asunto en el commit). Respuesta: se
   puede; `AiModelControls` ya es el componente y solo cambia de lugar; va como primer bloque del
   change `modelos-en-casa` junto con la sesion de IA compartida y el proveedor Unsloth.
+  *Auditoria de (j), 2026-09-18, tanda H3:* los cinco bloques `.reviewBlock` entraron (receta de
+  `.reviewUpfrontHeader`, sin borde), la copia de outputs del detalle tecnico se fue y la
+  reescritura entera de `OpenSpecUpdateReview.tsx` por script quedo limpia (diff contra HEAD solo
+  con lo pedido). Pero la suite completa cae en 4 pruebas de
+  `pipeline-openspec-init-flow.test.tsx` (en HEAD pasan 5/5; medido con stash temporal): la lista
+  de agentes paso a `agentsSlot` de la tarjeta del motor, y la tarjeta solo dibuja ese slot en su
+  rama principal (`OpenSpecEngineCard.tsx:307-330` devuelve antes si el motor no se leyo o el repo
+  no esta inicializado), asi que el aviso «OpenSpec no inicializado» con su boton de inicializar
+  desaparece justo cuando mas hace falta. Regla que sale de aca: **el bloque AGENTES no depende del
+  estado del motor**; lo dibuja la revision. Se corrige en (k).
+  (k) **Observacion de Alejandro, 2026-09-18, mirando (j):** «va quedando; el diagnostico de
+  convivencia quedo medio suelto, habria que hacer una tabla». Medido: son cuatro columnas de
+  chips (`OpenSpecUpdateReview.tsx:428-510`, `.reviewCoexistenceGrid` / `.reviewSkillTag`), con los
+  seis skills oficiales repetidos una vez por herramienta (12 chips). Cada skill trae `name`,
+  `path` y `origin` (`OpenSpecInstalledSkill`, `types/pipeline/index.ts`): alcanza para una tabla
+  con una fila por skill y una columna por carpeta de herramienta. Decision: tabla.
+  *Auditoria de (k), 2026-09-18, tanda H4:* `OpenSpecAgentsBlock` lo dibuja la revision siempre,
+  entre MOTOR y PERFIL, sin mirar el estado del motor (`pipeline-openspec-init-flow` vuelve a
+  5/5); la tarjeta recibe `section` («motor» / «profile») para intercalarse; la convivencia es una
+  `<table>` con caption, `scope="col"`, una fila por skill y una columna por carpeta, marcas
+  coloreadas por origen y columna «Tipo»; los chips y su clase `.reviewSkillTag` desaparecen (y
+  salen del escaner). Medido sobre H3 + H4: `tsc` 0, eslint 3 preexistentes y 0 avisos, `build` 0
+  (424 kB / 527 kB), `pnpm test` 0 dos veces (200 archivos, 2130 pruebas), `validate --strict` 0,
+  `git diff --check` 0. Pendiente de confirmar por Alejandro.
+  (l) **Alejandro actualizo el motor desde la app, 2026-09-18 (1.13.0 → 1.13.1), y pregunto
+  «¿esta bien?».** Medido en la captura y en el codigo: el motor quedo en 1.13.1 y respondiendo
+  (dos tildes), pero el paso «actualizar la integracion de este repositorio» quedo pendiente y la
+  pantalla volvio a ofrecer «Actualizar» con «Actualizacion de flujos instalados». Causa: la
+  revision calcula el plan ANTES de actualizar (`OpenSpecUpdateReview.tsx:165-166`:
+  `integrationStep = action !== 'none' && action !== 'blocked'`); con el motor viejo la
+  integracion estaba «al dia», asi que el runner corrio solo el motor (`OpenSpecUpdateRunner.tsx:214`,
+  `if (integration && engineSuccess)`). Despues de actualizar el motor la integracion queda
+  desactualizada por definicion (la genero la version anterior). Contra la regla de Alejandro
+  («Actualizar y seguir trabajando»): un solo clic tiene que hacer los dos pasos. Decision: tras un
+  motor actualizado con exito, el runner corre la integracion si el repo esta inicializado, sin
+  mirar el plan previo, y el plan lo anuncia desde el principio. Los «9 cambios» que aparecieron
+  en el repo son para mirar en la app (que archivos); el instalador global no usa el repo como
+  directorio de trabajo (`openspec-install.ts:191` es del modo local).
+  *Auditoria de (l), 2026-09-18, tanda 8.22 (c):* el runner recibe `repoInitialized` y, con motor
+  nuevo y repo inicializado, anuncia los dos pasos antes del clic y corre `runUpdate` solo despues
+  del exito de `installGlobal`; sin repo inicializado no hay paso de integracion; bloqueado, no
+  corre y dice el motivo. Verificado en pantalla por Alejandro con el segundo clic: «Integracion
+  actualizada · 13 archivos», «Listo: integracion al dia», MOTOR en LISTO, generado por 1.13.1. La
+  regeneracion dejo 24 archivos tocados en `.opencode/` y `.qwen/` (los de `.agents/` y `.claude/`
+  ya estaban al dia): van en un commit aparte de las tandas. El ejecutor escribio en este archivo
+  una «auditoria» propia: se quito; la auditoria la escribe el orquestador con lo que mide.
+  Medido sobre el arbol H3 + H4 + H5 + regeneracion: `tsc` 0, eslint 3 preexistentes y 0 avisos,
+  `build` 0 (424 kB / 527 kB), `pnpm test` 0 dos veces (200 archivos, 2135 pruebas),
+  `validate --strict` 0, `git diff --check` 0. Pruebas: runner 12 → 15, revision 27 → 29.
   - **Si, son grandes, y esta medido.** `.primaryAction, .secondaryAction`
     (`OpenSpecDashboard.module.css:442-458`) miden `min-height: 2.65rem` (42 px) con relleno
     `--space-3 --space-4` y peso 700; `.headerActions .primaryAction` (`:278`) 2.5rem;

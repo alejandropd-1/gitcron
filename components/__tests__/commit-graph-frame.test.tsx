@@ -195,7 +195,6 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
       /\.reviewCommandPre/, // TARJETA: bloque de código
       /\.reviewCopyBtn/, // CONTROL: botón de copiado
       /\.reviewWarningAlert/, // TARJETA / DATO: alerta de advertencia
-      /\.reviewSkillTag/, // DATO: chip de skill
       /\.reviewPrimaryActionBtn/, // CONTROL: acción de revisión
       /\.branchNoticeBadge/, // DATO: badge compacto de discrepancia de rama
       /\.glossaryToggleBtn/, // CONTROL: botón de acceso a glosario

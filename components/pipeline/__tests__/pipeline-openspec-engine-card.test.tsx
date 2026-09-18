@@ -3,6 +3,7 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { OpenSpecEngineCard, formatInstallErrorCode, formatDivergenceReason } from '../OpenSpecEngineCard';
+import { OpenSpecAgentsBlock } from '../OpenSpecAgentsBlock';
 import { translate } from '../../../lib/i18n';
 import type { OpenSpecEngineStatus, OpenSpecDivergenceReason } from '../../../types/pipeline';
 import { deriveUpdateMatrixAction } from '../../../lib/openspec-update-guide';
@@ -60,7 +61,12 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
       integrationState: 'up-to-date',
     };
 
-    render(<OpenSpecEngineCard status={dummyStatus} compact={false} />);
+    render(
+      <>
+        <OpenSpecEngineCard status={dummyStatus} compact={false} />
+        <OpenSpecAgentsBlock configuredCount={2} />
+      </>,
+    );
     expect(screen.getByText(/Listo/i)).toBeDefined();
     expect(screen.getByText(/2 agentes configurados/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /Ver diagnóstico avanzado/i })).toBeDefined();
@@ -339,7 +345,15 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
       integrationState: 'outdated',
     };
 
-    render(<OpenSpecEngineCard status={statusWithUnconfiguredTarget} compact={false} />);
+    render(
+      <>
+        <OpenSpecEngineCard status={statusWithUnconfiguredTarget} compact={false} />
+        <OpenSpecAgentsBlock
+          configuredCount={statusWithUnconfiguredTarget.installedIntegration!.configuredAgentsCount}
+          totalCount={statusWithUnconfiguredTarget.installedIntegration!.totalPresentAgentsCount}
+        />
+      </>,
+    );
 
     // 1. El estado resumido de la integración NO puede decir «Al día»
     expect(screen.queryByText(/^Al día$/i)).toBeNull();
@@ -1970,10 +1984,8 @@ describe('OpenSpecEngineCard - La tarjeta no ofrece la actualización del motor 
       };
 
       render(
-        <OpenSpecEngineCard
-          status={status}
-          compact={false}
-          defaultAdvancedOpen={true}
+        <OpenSpecAgentsBlock
+          outputInventory={status.installedIntegration!.outputInventory}
         />,
       );
 
@@ -2132,11 +2144,16 @@ describe('OpenSpecEngineCard - La tarjeta no ofrece la actualización del motor 
       };
 
       render(
-        <OpenSpecEngineCard
-          status={status}
-          compact={false}
-          defaultAdvancedOpen={true}
-        />,
+        <>
+          <OpenSpecEngineCard
+            status={status}
+            compact={false}
+            defaultAdvancedOpen={true}
+          />
+          <OpenSpecAgentsBlock
+            outputInventory={status.installedIntegration!.outputInventory}
+          />
+        </>,
       );
 
       // Los encabezados de doctor y context usan h3 con reviewSectionTitle

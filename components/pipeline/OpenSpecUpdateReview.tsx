@@ -23,10 +23,11 @@ import {
   deriveUpdateMatrixAction,
 } from '@/lib/openspec-update-guide';
 import { OpenSpecEngineCard } from './OpenSpecEngineCard';
+import { OpenSpecAgentsBlock } from './OpenSpecAgentsBlock';
+import { OpenSpecCoexistenceTable } from './OpenSpecCoexistenceTable';
 import { OpenSpecToolList } from './OpenSpecReadiness';
 import { OpenSpecUpdateRunner } from './OpenSpecUpdateRunner';
 import { OpenSpecReleaseNotes } from './OpenSpecReleaseNotes';
-import { OpenSpecOutputsList } from './OpenSpecOutputsList';
 import { getOpenSpecEngineUpgrade } from './pipeline-domain';
 import type { PipelineSnapshot } from './pipeline-view-state';
 import { useOpenSpecInit } from '@/hooks/use-openspec-init';
@@ -109,6 +110,14 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   const coexistence = classifyCoexistenceSkills(installed);
   const hasLegacyResidue = coexistence.legacySkills.length > 0;
 
+  // Contadores de agentes para el bloque AGENTES
+  const configuredCount = installed?.configuredAgentsCount ?? installed?.configuredCount ?? (
+    openSpecTools.length > 0 ? openSpecTools.filter((t) => t.configured).length : (installed?.tools?.length ?? 0)
+  );
+  const totalCount = installed?.totalPresentAgentsCount ?? installed?.totalPresentCount ?? (
+    openSpecTools.length > 0 ? openSpecTools.length : configuredCount
+  );
+
   // Salvaguardas de Git
   const isMainOrMaster = currentBranch === 'main' || currentBranch === 'master';
   const isDirty = isClean === false;
@@ -153,13 +162,12 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     return t('pipeline.openspec.engine.matrix.blocked');
   };
 
+  const isRepoInitialized = status?.repoState === 'initialized';
   const engineStep = upgrade ? { installed: cli?.runtimeVersion ?? null, latest: upgrade.latest } : null;
-  const integrationStep = action !== 'none' && action !== 'blocked';
-  const runnerDisabledReason = action === 'blocked' ? t('pipeline.openspec.engine.matrix.blockedReason', { reason: resolveBlockReasonText() }) : null;
-
-  const presentOutputs = (installed?.outputInventory ?? []).filter(
-    (o) => o.presenceState !== 'absent',
+  const integrationStep = action !== 'blocked' && (
+    action !== 'none' || (Boolean(upgrade) && isRepoInitialized)
   );
+  const runnerDisabledReason = action === 'blocked' ? t('pipeline.openspec.engine.matrix.blockedReason', { reason: resolveBlockReasonText() }) : null;
 
   return (
     <section className={styles.reviewView} aria-label={t('pipeline.openspec.engine.review.title')}>
@@ -208,6 +216,8 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
               repoPath={repoPath}
               engine={engineStep}
               integration={integrationStep}
+              repoInitialized={isRepoInitialized}
+              repoState={status?.repoState}
               updatePlan={updatePlan}
               force={forceConfirmed}
               warnings={{
@@ -281,8 +291,59 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           </section>
         )}
 
-        {/* DESDE LA TERMINAL (Plegado por omisión) */}
-        <div className={styles.reviewSection}>
+        {/* BLOQUE 2: MOTOR */}
+        <OpenSpecEngineCard
+          status={status}
+          section="motor"
+          isLoading={false}
+          compact={false}
+          defaultAdvancedOpen={true}
+          isReviewOpen={true}
+          repoPath={repoPath}
+          openRepoPaths={openRepoPaths}
+          commandExecuted={installPlan?.globalCommand ?? undefined}
+          packageManagerPath={installPlan?.packageManagerPath ?? undefined}
+          packageManagerName={installPlan?.detectedManager ?? undefined}
+          nodePath={installPlan?.nodePath ?? undefined}
+          hasPackageJson={installPlan?.hasManifest}
+          onRequestUpdate={() => updateBlockRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          onChanged={() => usePipelineStore.getState().notifyEngineChanged()}
+        />
+
+        {/* BLOQUE 3: AGENTES (Se renderiza SIEMPRE, con o sin motor leído) */}
+        <OpenSpecAgentsBlock
+          configuredCount={configuredCount}
+          totalCount={totalCount}
+          outputInventory={installed?.outputInventory}
+        >
+          <OpenSpecToolList
+            present={openSpecPresent}
+            tools={openSpecTools}
+            busy={initBusy}
+            error={initError}
+            needsTool={initNeedsTool}
+            onInitialize={() => runOpenSpecInit()}
+            onInitializeWith={(ids) => runOpenSpecInit(ids)}
+          />
+        </OpenSpecAgentsBlock>
+
+        {/* BLOQUE 4: PERFIL DE WORKFLOWS (Solo disponible cuando el motor fue leído) */}
+        {status && (
+          <OpenSpecEngineCard
+            status={status}
+            section="profile"
+            isLoading={false}
+            compact={false}
+            isReviewOpen={true}
+            repoPath={repoPath}
+            openRepoPaths={openRepoPaths}
+            onRequestUpdate={() => updateBlockRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            onChanged={() => usePipelineStore.getState().notifyEngineChanged()}
+          />
+        )}
+
+        {/* BLOQUE 5: DESDE LA TERMINAL (Plegado por omisión) */}
+        <section className={styles.reviewBlock} aria-label={t('pipeline.openspec.engine.matrix.commandTitle')}>
           <button
             type="button"
             className={styles.toggleAbsentBtn}
@@ -336,42 +397,10 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
               )}
             </div>
           )}
-        </div>
-
-        {/* SECCIÓN 2: MOTOR Y AGENTES */}
-        <section className={styles.reviewSection} aria-label={t('pipeline.openspec.config.engineSection')}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <OpenSpecEngineCard
-              title={t('pipeline.openspec.config.engineSection')}
-              status={status}
-              isLoading={false}
-              compact={false}
-              defaultAdvancedOpen={true}
-              isReviewOpen={true}
-              repoPath={repoPath}
-              openRepoPaths={openRepoPaths}
-              commandExecuted={installPlan?.globalCommand ?? undefined}
-              packageManagerPath={installPlan?.packageManagerPath ?? undefined}
-              packageManagerName={installPlan?.detectedManager ?? undefined}
-              nodePath={installPlan?.nodePath ?? undefined}
-              hasPackageJson={installPlan?.hasManifest}
-              onRequestUpdate={() => updateBlockRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              onChanged={() => usePipelineStore.getState().notifyEngineChanged()}
-            />
-            <OpenSpecToolList
-              present={openSpecPresent}
-              tools={openSpecTools}
-              busy={initBusy}
-              error={initError}
-              needsTool={initNeedsTool}
-              onInitialize={() => runOpenSpecInit()}
-              onInitializeWith={(ids) => runOpenSpecInit(ids)}
-            />
-          </div>
         </section>
 
-        {/* DETALLE TÉCNICO (Plegado por omisión) */}
-        <div className={styles.reviewSection}>
+        {/* BLOQUE 6: DETALLE TÉCNICO (Plegado por omisión) */}
+        <section className={styles.reviewBlock} aria-label={t('pipeline.openspec.engine.summary.technicalToggle')}>
           <button
             type="button"
             className={styles.toggleAbsentBtn}
@@ -384,8 +413,8 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
 
           {showTechnicalDetails && (
             <div style={{ marginTop: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              {/* 2. MATRIZ DECLARADA */}
-              <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.matrix.title')}>
+              {/* 1. MATRIZ DECLARADA */}
+              <div>
                 <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.matrix.title')}</h3>
                 <div className={styles.reviewFactItem}>
                   <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.matrix.actionLabel')}:</span>
@@ -401,11 +430,11 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                     })}
                   </p>
                 )}
-              </section>
+              </div>
 
-              {/* 3. GUÍA NO INTERACTIVA PARA INIT */}
+              {/* 2. GUÍA NO INTERACTIVA PARA INIT */}
               {(action === 'init' || action === 'upgrade-init' || !status?.repoState || status.repoState === 'not-initialized') && (
-                <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.guide.title')}>
+                <div>
                   <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.guide.title')}</h3>
                   <ul className={styles.reviewGuideList}>
                     <li className={styles.reviewGuideItem}>
@@ -426,129 +455,18 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                     <AlertTriangle size={15} aria-hidden="true" style={{ flex: '0 0 auto', marginTop: 1 }} />
                     <span>{t('pipeline.openspec.engine.guide.forceWarning')}</span>
                   </div>
-                </section>
+                </div>
               )}
 
-              {/* 4. DIAGNÓSTICO DE CONVIVENCIA .codex ↔ .agents */}
-              <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.coexistence.title')}>
+              {/* 3. DIAGNÓSTICO DE CONVIVENCIA .codex ↔ .agents */}
+              <div>
                 <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.engine.coexistence.title')}</h3>
+                <OpenSpecCoexistenceTable coexistence={coexistence} />
+              </div>
 
-                <div className={styles.reviewCoexistenceGrid}>
-                  {/* Skills legacy */}
-                  <div className={styles.reviewCoexistenceCol}>
-                    <span className={styles.reviewCoexistenceColTitle}>
-                      {t('pipeline.openspec.engine.coexistence.legacyTitle')} ({coexistence.legacySkills.length})
-                    </span>
-                    {coexistence.legacySkills.length === 0 ? (
-                      <span className={styles.reviewEmptyNotice}>{t('pipeline.openspec.engine.coexistence.noLegacy')}</span>
-                    ) : (
-                      <ul className={styles.reviewSkillsList}>
-                        {coexistence.legacySkills.map((s) => (
-                          <li key={s.path}>
-                            <span className={styles.reviewSkillTag} data-kind="legacy">{s.name}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  {/* Skills oficiales en .agents */}
-                  <div className={styles.reviewCoexistenceCol}>
-                    <span className={styles.reviewCoexistenceColTitle}>
-                      {t('pipeline.openspec.engine.coexistence.newTitle')} ({coexistence.newAgentsSkills.length})
-                    </span>
-                    {coexistence.newAgentsSkills.length === 0 ? (
-                      <span className={styles.reviewEmptyNotice}>{t('pipeline.openspec.engine.coexistence.noNew')}</span>
-                    ) : (
-                      <ul className={styles.reviewSkillsList}>
-                        {coexistence.newAgentsSkills.map((s) => (
-                          <li key={s.path}>
-                            <span className={styles.reviewSkillTag} data-kind="official">{s.name}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  {/* Skills oficiales en otras herramientas (.claude, .opencode, etc.) */}
-                  <div className={styles.reviewCoexistenceCol}>
-                    <span className={styles.reviewCoexistenceColTitle}>
-                      {t('pipeline.openspec.engine.coexistence.officialOtherTitle')} ({coexistence.officialOtherSkills.length})
-                    </span>
-                    {coexistence.officialOtherSkills.length === 0 ? (
-                      <span className={styles.reviewEmptyNotice}>{t('pipeline.openspec.engine.coexistence.noOfficialOther')}</span>
-                    ) : (
-                      <ul className={styles.reviewSkillsList}>
-                        {coexistence.officialOtherSkills.map((s) => (
-                          <li key={s.path}>
-                            <span className={styles.reviewSkillTag} data-kind="official">{s.name}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  {/* Personalizados preexistentes en .agents (A CONSERVAR) */}
-                  <div className={styles.reviewCoexistenceCol}>
-                    <span className={styles.reviewCoexistenceColTitle}>
-                      {t('pipeline.openspec.engine.coexistence.customTitle')} ({coexistence.customPreexistingSkills.length})
-                    </span>
-                    {coexistence.customPreexistingSkills.length === 0 ? (
-                      <span className={styles.reviewEmptyNotice}>{t('pipeline.openspec.engine.coexistence.noCustom')}</span>
-                    ) : (
-                      <ul className={styles.reviewSkillsList}>
-                        {coexistence.customPreexistingSkills.map((s) => (
-                          <li key={s.path}>
-                            <span className={styles.reviewSkillTag} data-kind="custom" title={t('pipeline.openspec.engine.coexistence.customHelp')}>
-                              {s.name}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-
-                {/* Colisiones o conflictos */}
-                <div style={{ marginTop: 'var(--space-2)' }}>
-                  <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.coexistence.collisionsTitle')}: </span>
-                  {coexistence.nameCollisions.length === 0 && coexistence.conflicts.length === 0 ? (
-                    <span style={{ color: 'var(--color-git-add)', fontSize: 'var(--font-size-xs)' }}>{t('pipeline.openspec.engine.coexistence.noCollisions')}</span>
-                  ) : (
-                    <div style={{ marginTop: 'var(--space-1)', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-                      {coexistence.nameCollisions.map((col) => (
-                        <span key={col} style={{ color: 'var(--color-warning)', fontSize: 'var(--font-size-xs)' }}>
-                          ⚠️ Colisión de nombre: <code>{col}</code> existe en configuración legacy y nueva.
-                        </span>
-                      ))}
-                      {coexistence.conflicts.map((conf, idx) => (
-                        <span key={idx} style={{ color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>
-                          ⚠️ Conflicto: {conf}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* 5. INVENTARIO DIAGNÓSTICO DE OUTPUTS */}
-              {presentOutputs.length > 0 && (
-                <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.outputsTitle')}>
-                  <OpenSpecOutputsList
-                    items={presentOutputs}
-                    titleKey="pipeline.openspec.engine.outputsTitle"
-                    helpKey="pipeline.openspec.engine.outputsHelp"
-                    count={presentOutputs.length}
-                  />
-                </section>
-              )}
-
-              {/* 6. ARCHIVOS TOCADOS POR LA ÚLTIMA ACTUALIZACIÓN */}
+              {/* 4. ARCHIVOS TOCADOS POR LA ÚLTIMA ACTUALIZACIÓN */}
               {lastIntegration && lastIntegration.filesUpdated && lastIntegration.filesUpdated.length > 0 && (
-                <section
-                  className={styles.reviewSection}
-                  aria-label={t('pipeline.openspec.engine.summary.filesTouched')}
-                >
+                <div>
                   <h3 className={styles.reviewSectionTitle}>
                     {t('pipeline.openspec.engine.summary.filesTouched')}
                   </h3>
@@ -557,11 +475,11 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                       <li key={f}><code>{f}</code></li>
                     ))}
                   </ul>
-                </section>
+                </div>
               )}
             </div>
           )}
-        </div>
+        </section>
       </div>
     </section>
   );

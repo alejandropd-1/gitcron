@@ -138,7 +138,7 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     expect(handleBack).toHaveBeenCalledTimes(1);
   });
 
-  it('renderiza las cuatro categorías de convivencia (legacy, new, official other, custom)', () => {
+  it('renderiza la matriz de convivencia como tabla semántica con tipos y marcas por carpeta', () => {
     render(
       <OpenSpecUpdateReview
         repoPath="C:\\repo"
@@ -150,14 +150,104 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     const techToggle = screen.getByRole('button', { name: /Detalle técnico/i });
     fireEvent.click(techToggle);
 
-    expect(screen.getByText(/Skills legacy \(\.codex \/ \.agent\)/)).toBeTruthy();
-    expect(screen.getByText(/Skills oficiales en \.agents/)).toBeTruthy();
-    expect(screen.getByText(/Skills oficiales en otras herramientas/)).toBeTruthy();
-    expect(screen.getByText(/Personalizados preexistentes en \.agents/)).toBeTruthy();
+    expect(screen.getByText('Matriz de convivencia de skills')).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: /^Skill$/i })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: /^Tipo$/i })).toBeTruthy();
 
     expect(screen.getByText('openspec-propose')).toBeTruthy();
     expect(screen.getByText('openspec-apply-change')).toBeTruthy();
     expect(screen.getByText('accessibility')).toBeTruthy();
+
+    expect(screen.getByText('Legacy')).toBeTruthy();
+    expect(screen.getByText('Oficial')).toBeTruthy();
+    expect(screen.getByText('Personalizado')).toBeTruthy();
+  });
+
+  it('con status null, el bloque AGENTES existe y muestra el aviso de readiness y la lista de herramientas', () => {
+    const snapshotWithTools = {
+      openSpec: {
+        openSpecPresent: false,
+        openSpecTools: [
+          { toolId: 'claude', label: 'Claude Code', directory: '.claude', configured: true },
+        ],
+      },
+    } as any;
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:/repo"
+        status={null}
+        snapshot={snapshotWithTools}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const agentsRegion = screen.getByRole('region', { name: /^Agentes$/i });
+    expect(agentsRegion).toBeTruthy();
+    expect(within(agentsRegion).getByText(/Este repositorio no usa OpenSpec/i)).toBeTruthy();
+    expect(within(agentsRegion).getByRole('button', { name: /Inicializar OpenSpec/i })).toBeTruthy();
+  });
+
+  it('la tabla de convivencia tiene una fila por skill y una columna por carpeta, y un skill oficial en .agents y .claude aparece UNA sola vez con dos marcas', () => {
+    const statusWithMultiSkills: OpenSpecEngineStatus = {
+      ...mockStatus,
+      installedIntegration: {
+        ...mockStatus.installedIntegration!,
+        skills: [
+          {
+            name: 'openspec-explore',
+            path: 'C:\\repo\\.agents\\skills\\openspec-explore',
+            origin: 'new-agents',
+            isOfficial: true,
+          },
+          {
+            name: 'openspec-explore',
+            path: 'C:\\repo\\.claude\\skills\\openspec-explore',
+            origin: 'official-other',
+            isOfficial: true,
+          },
+          {
+            name: 'custom-skill',
+            path: 'C:\\repo\\.agents\\skills\\custom-skill',
+            origin: 'custom-agents',
+            isOfficial: false,
+          },
+        ],
+      },
+    };
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:/repo"
+        status={statusWithMultiSkills}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const techToggle = screen.getByRole('button', { name: /Detalle técnico/i });
+    fireEvent.click(techToggle);
+
+    // Tabla con caption semántico
+    expect(screen.getByText('Matriz de convivencia de skills')).toBeTruthy();
+
+    // Columnas detectadas: Skill, .agents, .claude, Tipo (.agents primero)
+    expect(screen.getByRole('columnheader', { name: /^Skill$/i })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: /^\.agents$/i })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: /^\.claude$/i })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: /^Tipo$/i })).toBeTruthy();
+
+    // openspec-explore aparece UNA SOLA VEZ en la tabla (una fila por skill)
+    const exploreCells = screen.getAllByText('openspec-explore');
+    expect(exploreCells).toHaveLength(1);
+
+    // La fila de openspec-explore contiene dos marcas de verificación (✓)
+    const exploreRow = exploreCells[0].closest('tr');
+    expect(exploreRow).toBeTruthy();
+    if (exploreRow) {
+      const marks = within(exploreRow).getAllByText('✓');
+      expect(marks).toHaveLength(2);
+      expect(within(exploreRow).getByText('Oficial')).toBeTruthy();
+    }
   });
 
   it('copia el comando oficial al portapapeles al hacer clic', async () => {
@@ -609,7 +699,7 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     expect(screen.queryByText('openspec update')).toBeNull();
   });
 
-  it('con status sano y snapshot con herramientas, la sección «Motor y agentes» muestra la tarjeta y la lista de herramientas', () => {
+  it('con status sano y snapshot con herramientas, los bloques «Motor» y «Agentes» muestran el estado y la lista de herramientas', () => {
     const mockSnapshot = {
       openSpec: {
         openSpecPresent: true,
@@ -629,18 +719,20 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
       />,
     );
 
-    const engineSection = screen.getByRole('region', { name: /Motor y agentes/i });
-    expect(engineSection).toBeTruthy();
-    // Contiene el título único de la sección
-    expect(within(engineSection).getByRole('heading', { level: 3, name: /Motor y agentes/i })).toBeTruthy();
-    expect(within(engineSection).queryByRole('heading', { level: 3, name: /Tarjeta de Diagnóstico del Motor OpenSpec/i })).toBeNull();
+    const motorSection = screen.getByRole('region', { name: /^Motor$/i });
+    expect(motorSection).toBeTruthy();
+    expect(within(motorSection).getByRole('heading', { level: 3, name: /^Motor$/i })).toBeTruthy();
+    expect(within(motorSection).queryByRole('heading', { level: 3, name: /Tarjeta de Diagnóstico del Motor OpenSpec/i })).toBeNull();
 
-    // Contiene la lista de herramientas
-    expect(within(engineSection).getByText('Claude Code')).toBeTruthy();
-    expect(within(engineSection).getByText('Cursor IDE')).toBeTruthy();
+    const agentesSection = screen.getByRole('region', { name: /^Agentes$/i });
+    expect(agentesSection).toBeTruthy();
+    expect(within(agentesSection).getByRole('heading', { level: 3, name: /^Agentes$/i })).toBeTruthy();
+    // Contiene la lista de herramientas vía agentsSlot
+    expect(within(agentesSection).getByText('Claude Code')).toBeTruthy();
+    expect(within(agentesSection).getByText('Cursor IDE')).toBeTruthy();
   });
 
-  it('«Detalle técnico» desplegado NO contiene una segunda tarjeta (el aria-label de la tarjeta aparece una sola vez)', () => {
+  it('«Detalle técnico» desplegado NO contiene una segunda tarjeta (los bloques de motor y agentes aparecen una sola vez)', () => {
     render(
       <OpenSpecUpdateReview
         repoPath="C:/repo"
@@ -654,9 +746,11 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     fireEvent.click(techBtn);
     expect(techBtn.getAttribute('aria-expanded')).toBe('true');
 
-    // La sección de motor aparece una sola vez en todo el documento
-    const cardRegions = screen.getAllByRole('region', { name: /Motor y agentes/i });
-    expect(cardRegions).toHaveLength(1);
+    // Las secciones de motor y agentes aparecen una sola vez en todo el documento
+    const motorRegions = screen.getAllByRole('region', { name: /^Motor$/i });
+    expect(motorRegions).toHaveLength(1);
+    const agentesRegions = screen.getAllByRole('region', { name: /^Agentes$/i });
+    expect(agentesRegions).toHaveLength(1);
   });
 
   it('(a) con motor 1.12.0 y latest 1.13.0 y versionAnalysis simulado con notas reales, muestra encabezado «Qué trae la v1.13.0», resumen y veredicto', async () => {
@@ -803,7 +897,7 @@ Archive and the delta parser stop quietly changing or dropping what you wrote, a
     expect(screen.getByText('Buscando las notas de la versión…')).toBeTruthy();
   });
 
-  it('la sección «Motor y agentes» muestra «Perfil de Workflows Global» sin pulsar nada (defaultAdvancedOpen activo)', () => {
+  it('el bloque «Perfil de workflows» muestra «Perfil de Workflows Global» sin pulsar nada', () => {
     render(
       <OpenSpecUpdateReview
         repoPath="C:/repo"
@@ -812,12 +906,12 @@ Archive and the delta parser stop quietly changing or dropping what you wrote, a
       />,
     );
 
-    const engineSection = screen.getByRole('region', { name: /Motor y agentes/i });
-    expect(engineSection).toBeTruthy();
-    expect(within(engineSection).getByText('Perfil de Workflows Global')).toBeTruthy();
+    const profileSection = screen.getByRole('region', { name: /Perfil de workflows/i });
+    expect(profileSection).toBeTruthy();
+    expect(within(profileSection).getByText('Perfil de Workflows Global')).toBeTruthy();
   });
 
-  it('renderiza el inventario de outputs usando OpenSpecOutputsList con path en code y badges en una sola línea', () => {
+  it('renderiza el inventario de outputs usando OpenSpecOutputsList en el bloque AGENTES, sin duplicarlo en Detalle técnico', () => {
     const statusWithOutputs: OpenSpecEngineStatus = {
       ...mockStatus,
       installedIntegration: {
@@ -844,22 +938,29 @@ Archive and the delta parser stop quietly changing or dropping what you wrote, a
       />,
     );
 
-    const techBtn = screen.getByRole('button', { name: /Detalle técnico/i });
-    fireEvent.click(techBtn);
+    const agentesSection = screen.getByRole('region', { name: /^Agentes$/i });
+    expect(agentesSection).toBeTruthy();
 
-    const titles = screen.getAllByText(/Outputs Administrables/i);
+    const titles = within(agentesSection).getAllByText(/Outputs Administrables/i);
     expect(titles.length).toBeGreaterThanOrEqual(1);
     expect(titles[0].tagName.toLowerCase()).toBe('h3');
 
-    const codePaths = screen.getAllByText('.cursor/rules/openspec-*');
+    const codePaths = within(agentesSection).getAllByText('.cursor/rules/openspec-*');
     expect(codePaths.length).toBeGreaterThanOrEqual(1);
     expect(codePaths[0].tagName.toLowerCase()).toBe('code');
 
-    expect(screen.getAllByText(/Local del repo/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/Presente/i).length).toBeGreaterThanOrEqual(1);
+    expect(within(agentesSection).getAllByText(/Local del repo/i).length).toBeGreaterThanOrEqual(1);
+    expect(within(agentesSection).getAllByText(/Presente/i).length).toBeGreaterThanOrEqual(1);
+
+    // Al abrir Detalle técnico, NO hay lista duplicada de outputs
+    const techBtn = screen.getByRole('button', { name: /Detalle técnico/i });
+    fireEvent.click(techBtn);
+
+    const allTitles = screen.getAllByText(/Outputs Administrables/i);
+    expect(allTitles).toHaveLength(1);
   });
 
-  it('renderiza título único de sección MOTOR Y AGENTES con badge y botón de refrescar en la misma fila, sin duplicar Motor OpenSpec', () => {
+  it('renderiza título del bloque MOTOR con badge y botón de refrescar en la misma fila, sin duplicar Motor OpenSpec', () => {
     const readyStatus: OpenSpecEngineStatus = {
       ...mockStatus,
       cli: {
@@ -878,11 +979,11 @@ Archive and the delta parser stop quietly changing or dropping what you wrote, a
       />,
     );
 
-    // 1. Título único de la sección "Motor y agentes" como h3
-    const sectionHeadings = screen.getAllByRole('heading', { level: 3, name: /motor y agentes/i });
+    // 1. Título del bloque "Motor" como h3
+    const sectionHeadings = screen.getAllByRole('heading', { level: 3, name: /^motor$/i });
     expect(sectionHeadings.length).toBe(1);
 
-    // 2. NO existe encabezado "Motor OpenSpec"
+    // 2. NO existe encabezado "Motor OpenSpec" ni "Motor y agentes"
     const duplicateCardTitle = screen.queryByRole('heading', { level: 3, name: /motor openspec/i });
     expect(duplicateCardTitle).toBeNull();
 
@@ -896,5 +997,73 @@ Archive and the delta parser stop quietly changing or dropping what you wrote, a
       expect(within(titleContainer).getByText(/listo/i)).toBeTruthy();
       expect(within(titleContainer).getByRole('button', { name: /releer estado/i })).toBe(refreshBtn);
     }
+  });
+
+  it('el plan anuncia los dos pasos (motor → integración) cuando hay motor nuevo y repo inicializado (8.22 c)', () => {
+    const upgradeStatus: OpenSpecEngineStatus = {
+      ...mockStatus,
+      cli: {
+        ...mockStatus.cli!,
+        runtimeVersion: '1.13.0',
+      },
+      latestAvailable: {
+        ...mockStatus.latestAvailable!,
+        latestVersion: '1.13.1',
+      },
+      installedIntegration: {
+        ...mockStatus.installedIntegration!,
+        generatedBy: '1.13.0',
+      },
+      repoState: 'initialized',
+      integrationState: 'up-to-date',
+    };
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:/repo"
+        status={upgradeStatus}
+        onBack={vi.fn()}
+      />,
+    );
+
+    // La línea «Va a: …» anuncia los dos pasos antes del clic
+    expect(
+      screen.getByText('Va a: actualizar el motor en toda la máquina a v1.13.1 · actualizar la integración de este repositorio')
+    ).toBeTruthy();
+
+    const updateBtn = screen.getByRole('button', { name: /^Actualizar$/i });
+    expect(updateBtn).toBeTruthy();
+    expect(updateBtn.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('con motor nuevo pero repo no inicializado, el plan sólo anuncia el paso del motor (8.22 c)', () => {
+    const uninitUpgradeStatus: OpenSpecEngineStatus = {
+      ...mockStatus,
+      cli: {
+        ...mockStatus.cli!,
+        runtimeVersion: '1.13.0',
+      },
+      latestAvailable: {
+        ...mockStatus.latestAvailable!,
+        latestVersion: '1.13.1',
+      },
+      repoState: 'not-initialized',
+      integrationState: 'unknown',
+    };
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:/repo"
+        status={uninitUpgradeStatus}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText('Va a: actualizar el motor en toda la máquina a v1.13.1')
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(/actualizar la integración de este repositorio/i)
+    ).toBeNull();
   });
 });

@@ -431,4 +431,140 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     expect(runUpdateMock).toHaveBeenCalledWith('/mock/repo', undefined, false);
     expect(useGitStore.getState().success).toBe('OpenSpec actualizado: integración al día');
   });
+
+  it('13) con motor nuevo, repo inicializado e integration=false: el plan anuncia ambos pasos, tras el éxito del motor se llama runUpdate y el paso de integración pasa a done (8.22 c)', async () => {
+    const installGlobalMock = vi.fn().mockResolvedValue({
+      success: true,
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.1' },
+        doctor: { data: {} },
+        globalConfig: { profileState: 'ready' },
+      },
+    });
+    const runUpdateMock = vi.fn().mockResolvedValue({
+      success: true,
+      filesUpdated: ['package.json'],
+    });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installGlobal: installGlobalMock,
+        runUpdate: runUpdateMock,
+      },
+    };
+
+    const onEngineInstalled = vi.fn();
+    const onIntegrationUpdated = vi.fn();
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.13.0', latest: '1.13.1' }}
+        repoInitialized={true}
+        integration={false}
+        onEngineInstalled={onEngineInstalled}
+        onIntegrationUpdated={onIntegrationUpdated}
+      />
+    );
+
+    // Antes del clic, la línea «Va a: …» anuncia los dos pasos
+    expect(
+      screen.getByText('Va a: actualizar el motor en toda la máquina a v1.13.1 · actualizar la integración de este repositorio')
+    ).toBeTruthy();
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    await screen.findByText('Listo: motor v1.13.1 · integración al día');
+
+    expect(installGlobalMock).toHaveBeenCalledTimes(1);
+    expect(installGlobalMock).toHaveBeenCalledWith({ repoPath: '/mock/repo' });
+    expect(runUpdateMock).toHaveBeenCalledTimes(1);
+    expect(runUpdateMock).toHaveBeenCalledWith('/mock/repo', undefined, false);
+
+    expect(installGlobalMock.mock.invocationCallOrder[0]).toBeLessThan(
+      runUpdateMock.mock.invocationCallOrder[0]
+    );
+
+    expect(onEngineInstalled).toHaveBeenCalledTimes(1);
+    expect(onIntegrationUpdated).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Motor v1\.13\.1 instalado y respondiendo\./i)).toBeTruthy();
+    expect(screen.getByText(/Integración actualizada · 1 archivos actualizados/i)).toBeTruthy();
+  });
+
+  it('14) con motor nuevo y repo no inicializado: no se llama runUpdate y no se muestra el paso de integración (8.22 c)', async () => {
+    const installGlobalMock = vi.fn().mockResolvedValue({
+      success: true,
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.1' },
+        doctor: { data: {} },
+        globalConfig: { profileState: 'ready' },
+      },
+    });
+    const runUpdateMock = vi.fn();
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installGlobal: installGlobalMock,
+        runUpdate: runUpdateMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.13.0', latest: '1.13.1' }}
+        repoInitialized={false}
+        integration={false}
+      />
+    );
+
+    // Antes del clic, la línea sólo anuncia el motor
+    expect(
+      screen.getByText('Va a: actualizar el motor en toda la máquina a v1.13.1')
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(/Actualizar la integración de este repositorio/i)
+    ).toBeNull();
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    await screen.findByText(/Motor v1\.13\.1 instalado y respondiendo\./i);
+
+    expect(installGlobalMock).toHaveBeenCalledTimes(1);
+    expect(runUpdateMock).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(/Actualizar la integración de este repositorio/i)
+    ).toBeNull();
+  });
+
+  it('15) con blocked: no se llama a runUpdate ni installGlobal y se muestra el motivo (8.22 c)', () => {
+    const installGlobalMock = vi.fn();
+    const runUpdateMock = vi.fn();
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installGlobal: installGlobalMock,
+        runUpdate: runUpdateMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.13.0', latest: '1.13.1' }}
+        repoInitialized={true}
+        integration={false}
+        disabledReason="Bloqueado por repositorio sucio"
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    expect(updateBtn.hasAttribute('disabled')).toBe(true);
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('Bloqueado por repositorio sucio');
+
+    fireEvent.click(updateBtn);
+    expect(installGlobalMock).not.toHaveBeenCalled();
+    expect(runUpdateMock).not.toHaveBeenCalled();
+  });
 });

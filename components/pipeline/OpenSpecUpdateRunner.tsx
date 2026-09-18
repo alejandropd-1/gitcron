@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import type {
+  OpenSpecEngineStatus,
   OpenSpecInstallResult,
   OpenSpecRunUpdateResult,
   OpenSpecUpdatePlan,
@@ -22,6 +23,8 @@ export interface OpenSpecUpdateRunnerProps {
   repoPath: string;
   engine: { installed: string | null; latest: string } | null;
   integration: boolean;
+  repoInitialized?: boolean;
+  repoState?: OpenSpecEngineStatus['repoState'] | null;
   updatePlan?: OpenSpecUpdatePlan | null;
   force?: boolean;
   warnings?: { mainBranch?: string | null; dirtyCount?: number | null };
@@ -51,6 +54,8 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   repoPath,
   engine,
   integration,
+  repoInitialized,
+  repoState,
   updatePlan,
   force,
   warnings,
@@ -66,8 +71,20 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   const [ranEngine, setRanEngine] = useState<{ installed: string | null; latest: string } | null>(null);
   const [ranIntegration, setRanIntegration] = useState(false);
 
+  const isRepoInitialized = typeof repoInitialized === 'boolean'
+    ? repoInitialized
+    : repoState
+    ? repoState === 'initialized'
+    : undefined;
+
+  const plannedIntegration = isRepoInitialized === false
+    ? false
+    : (engine && isRepoInitialized === true)
+    ? true
+    : integration;
+
   const effectiveEngine = engine ?? ranEngine;
-  const effectiveIntegration = integration || ranIntegration;
+  const effectiveIntegration = plannedIntegration || ranIntegration;
 
   const [engineStep, setEngineStep] = useState<EngineStepState>({
     status: 'pending',
@@ -78,10 +95,10 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
 
   const hasMainWarning = Boolean(warnings?.mainBranch);
   const hasDirtyWarning = typeof warnings?.dirtyCount === 'number' && warnings.dirtyCount > 0;
-  const hasWarnings = integration && (hasMainWarning || hasDirtyWarning);
+  const hasWarnings = plannedIntegration && (hasMainWarning || hasDirtyWarning);
 
-  // a) Si !hasRun && !engine && !integration && !disabledReason
-  if (!hasRun && !engine && !integration && !disabledReason) {
+  // a) Si !hasRun && !engine && !plannedIntegration && !disabledReason
+  if (!hasRun && !engine && !plannedIntegration && !disabledReason) {
     return (
       <div className={styles.reviewActionWithReason}>
         <button
@@ -102,7 +119,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
       t('pipeline.openspec.engine.summary.stepEngine', { latest: engine.latest })
     );
   }
-  if (integration) {
+  if (plannedIntegration) {
     stepDescriptions.push(
       t('pipeline.openspec.engine.summary.stepIntegration')
     );
@@ -112,10 +129,11 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
     : null;
 
   const executeSequentialUpdate = async () => {
+    if (disabledReason) return;
     setIsRunning(true);
     setHasRun(true);
     setRanEngine(engine);
-    setRanIntegration(integration);
+    setRanIntegration(plannedIntegration);
 
     let engineSuccess = true;
     let engineRanAndDone = false;
@@ -124,7 +142,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
 
     if (engine) {
       setEngineStep({ status: 'running' });
-      if (integration) {
+      if (plannedIntegration) {
         setIntegrationStep({ status: 'pending' });
       }
 
@@ -136,7 +154,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
             error: installResult.error || t('pipeline.openspec.engine.install.error.installFailed'),
             canRollback: false,
           });
-          if (integration) {
+          if (plannedIntegration) {
             setIntegrationStep({
               status: 'failed',
               stoppedAfterEngine: true,
@@ -167,7 +185,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
             installedVersion: engineResVersion,
             canRollback: engine.installed !== null,
           });
-          if (integration) {
+          if (plannedIntegration) {
             setIntegrationStep({
               status: 'failed',
               stoppedAfterEngine: true,
@@ -184,7 +202,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
             installedVersion: engineResVersion,
             canRollback: engine.installed !== null,
           });
-          if (integration) {
+          if (plannedIntegration) {
             setIntegrationStep({
               status: 'failed',
               stoppedAfterEngine: true,
@@ -200,7 +218,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
           error: (err as Error)?.message || t('pipeline.openspec.engine.install.error.installFailed'),
           canRollback: false,
         });
-        if (integration) {
+        if (plannedIntegration) {
           setIntegrationStep({
             status: 'failed',
             stoppedAfterEngine: true,
@@ -211,7 +229,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
       }
     }
 
-    if (integration && engineSuccess) {
+    if (plannedIntegration && engineSuccess) {
       setIntegrationStep({ status: 'running' });
       try {
         const updateResult = await window.api.pipelineOpenSpec.runUpdate(
@@ -251,7 +269,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
     // Toast global si todos los pasos que corrieron terminaron 'done'
     const allDone =
       (!engine || engineRanAndDone) &&
-      (!integration || integrationRanAndDone);
+      (!plannedIntegration || integrationRanAndDone);
     if (allDone && (engineRanAndDone || integrationRanAndDone)) {
       const doneParts: string[] = [];
       if (engine && engineRanAndDone) {
@@ -261,7 +279,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
           })
         );
       }
-      if (integration && integrationRanAndDone) {
+      if (plannedIntegration && integrationRanAndDone) {
         doneParts.push(t('pipeline.openspec.engine.summary.doneIntegration'));
       }
       if (doneParts.length > 0) {

@@ -18,6 +18,10 @@ proponer.
 - **WHEN** se archiva un cambio con motivo escrito
 - **THEN** el motivo queda junto a los artefactos del cambio archivado, legible sin la aplicación
 
+#### Scenario: La carpeta está vigilada por otro proceso
+- **WHEN** el motor no puede mover la carpeta del cambio porque otro proceso la mantiene abierta
+- **THEN** GitCron archiva igual, por copia verificada y borrado del original, con las specs principales fusionadas por el propio motor, y lo declara en el resultado; no se pide cerrar ningún programa
+
 ### Requirement: La sincronización de specs SHALL mostrar qué fusionaría antes de ejecutarse
 
 La aplicación SHALL ofrecer la sincronización de specs con una vista previa de qué capacidades y

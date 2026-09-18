@@ -48,3 +48,5 @@
 - 2026-09-18 19:15 — marcada — "4.4 **Integración y máquina de revisión por bloque (8.5 a 8.7):**"
 - 2026-09-18 19:15 — marcada — "8.9 **La conversacion que abre un cambio, con cara de aplicacion.** Pedido de Alejandro del"
 - 2026-09-18 19:15 — marcada — "8.10 **Observacion del 2026-09-07 sobre el escaner de bordes, que NO es un reproche a esta"
+- 2026-09-18 23:55 — marcada — "5.7 **Archivar no puede depender de renombrar la carpeta (Alejandro, 2026-09-18: «no es"
+- 2026-09-18 23:55 — marcada — "5.8 **GitCron no debe trabar a los demas: un solo vigilante recursivo en la raiz del repo.**"

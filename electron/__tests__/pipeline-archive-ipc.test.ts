@@ -34,13 +34,13 @@ describe('IPC de archivado de un change', () => {
   });
 
   async function register(
-    archive: (repoPath: string, changeId: string) => Promise<{ ok: boolean; error: string | null }>,
+    archive: (repoPath: string, changeId: string) => Promise<{ ok: boolean; error: string | null; archivedDir?: string | null; specsChanged?: string[]; specsRemoved?: string[] }>,
     validateDelta = vi.fn().mockResolvedValue({ valid: true, errors: [], requirementIssues: [], incompleteTasks: [], hasIncompleteTasks: false }),
     writeReason = vi.fn().mockResolvedValue(undefined),
     pauseWatcher = vi.fn(async (_repo: string, fn: () => Promise<any>) => fn()),
   ) {
     const { registerPipelineArchiveHandlers } = await import('../ipc/pipeline-archive');
-    registerPipelineArchiveHandlers(() => null, archive, binding as never, validateDelta as never, writeReason, pauseWatcher);
+    registerPipelineArchiveHandlers(() => null, archive as never, binding as never, validateDelta as never, writeReason, pauseWatcher);
     return {
       plan: ipc.handlers.get('pipeline:archive-plan')!,
       run: ipc.handlers.get('pipeline:archive-change')!,
@@ -49,7 +49,7 @@ describe('IPC de archivado de un change', () => {
     };
   }
 
-  const ok = async () => ({ ok: true, error: null });
+  const ok = async () => ({ ok: true, error: null, archivedDir: '2026-09-18-mi-cambio', specsChanged: [], specsRemoved: [] });
 
   it('rejects a change id that is not a valid slug before touching a process', async () => {
     const archive = vi.fn(ok);
@@ -201,10 +201,11 @@ describe('IPC de archivado de un change', () => {
       expect(archive).toHaveBeenCalledWith('C:/repo-real', 'mi-cambio');
     });
 
-    it('reconoce el bloqueo EPERM por handle abierto de carpeta y lo informa sin culpar al cambio', async () => {
+    it('transporta el error del CLI tal cual sin transformarlo en FOLDER_LOCK_MESSAGE', async () => {
+      const cliError = 'EPERM: operation not permitted, unlink C:\\repo\\openspec\\changes\\mi-cambio\\proposal.md';
       const archive = vi.fn(async () => ({
         ok: false,
-        error: 'EPERM: operation not permitted, rename C:\\repo\\openspec\\changes\\mi-cambio -> C:\\repo\\openspec\\changes\\archive\\2026-09-07-mi-cambio',
+        error: cliError,
       }));
 
       const { run } = await register(archive);
@@ -213,8 +214,49 @@ describe('IPC de archivado de un change', () => {
 
       expect(result.success).toBe(false);
       expect(result.stage).toBe('archive');
-      expect(result.error).toContain('No se pudo mover la carpeta del cambio porque otro proceso');
-      expect(result.error).toContain('El contenido del cambio es válido; lo que falló fue la mudanza');
+      expect(result.error).toBe(cliError);
+      expect(result.error).not.toContain('No se pudo mover la carpeta del cambio porque otro proceso');
+    });
+
+    it('preserva el error original de verificación o fallo del pipeline sin pedir cerrar programas', async () => {
+      const archive = vi.fn(async () => ({
+        ok: false,
+        error: 'Verificación fallida: el contenido del archivo proposal.md difiere en la carpeta archivada',
+      }));
+
+      const { run } = await register(archive);
+
+      const result = await run(null, 'C:/repo', 'mi-cambio') as { success: boolean; error: string; stage: string };
+
+      expect(result.success).toBe(false);
+      expect(result.stage).toBe('archive');
+      expect(result.error).toBe('Verificación fallida: el contenido del archivo proposal.md difiere en la carpeta archivada');
+    });
+
+    it('combina el error real del archivado con advertencia del watcher si este también falla', async () => {
+      const archive = vi.fn(async () => ({
+        ok: false,
+        error: 'Error real del ejecutable OpenSpec',
+      }));
+      const pauseWatcher = vi.fn(async (_repo: string, fn: () => Promise<any>, onRestoreError?: (error: unknown) => void) => {
+        const res = await fn();
+        onRestoreError?.(new Error('EBUSY: watcher could not be resumed'));
+        return res;
+      });
+
+      const { run } = await register(archive, undefined, undefined, pauseWatcher);
+
+      const result = await run(null, 'C:/repo', 'mi-cambio') as {
+        success: boolean;
+        error: string;
+        stage: string;
+        watcherWarning?: string;
+      };
+
+      expect(result.success).toBe(false);
+      expect(result.stage).toBe('archive');
+      expect(result.error).toBe('Error real del ejecutable OpenSpec');
+      expect(result.watcherWarning).toContain('No se pudo restaurar el vigilante del repositorio');
     });
 
     it('informa en el resultado si la restauración del vigilante falla tras archivar (Tarea 5.6)', async () => {

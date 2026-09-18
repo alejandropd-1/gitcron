@@ -89,59 +89,6 @@ export async function initOpenSpecWithCli(
   }
 }
 
-export interface ArchiveOpenSpecChangeResult {
-  ok: boolean;
-  /** Motivo real informado por el CLI. `null` sólo cuando archivó bien. */
-  error: string | null;
-}
-
-/**
- * Archiva un change invocando el CLI desde el proceso principal.
- */
-export async function archiveOpenSpecChangeWithCli(
-  repoPath: string,
-  changeId: string,
-  options?: CliExecutionOptions,
-): Promise<ArchiveOpenSpecChangeResult> {
-  if (!isValidChangeId(changeId)) return { ok: false, error: 'invalid-change-id' };
-
-  const runtime = resolveRuntime(options, repoPath);
-  if (!runtime) return { ok: false, error: 'openspec-cli-not-found' };
-
-  const maxAttempts = 3;
-  let lastError: string = 'archive-failed';
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      await runAuthorizedOpenSpec(runtime, ['archive', changeId, '--yes'], {
-        cwd: repoPath,
-        timeout: 120_000,
-        maxBuffer: 4 * 1024 * 1024,
-      });
-      return { ok: true, error: null };
-    } catch (error) {
-      const detail = error as { stderr?: unknown; stdout?: unknown; message?: unknown };
-      const reason = [detail.stderr, detail.stdout, detail.message]
-        .map((value) => (typeof value === 'string' ? value.trim() : ''))
-        .find((value) => value.length > 0) ?? 'archive-failed';
-      lastError = reason.slice(0, 4000);
-
-      // En Windows, tras editar o marcar tareas en tasks.md, los observadores de archivos (watchers),
-      // antivirus o indexadores retienen brevemente un handle del directorio, causando que
-      // fs.rename en OpenSpec CLI falle transitoriamente con EPERM / ERROR_ACCESS_DENIED.
-      // Reintentamos con un breve retardo para que la operación sea transparente y resiliente.
-      const isTransientLock = /EPERM|operation not permitted|EBUSY|resource busy or locked/i.test(lastError);
-      if (isTransientLock && attempt < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, attempt * 400));
-        continue;
-      }
-      return { ok: false, error: lastError };
-    }
-  }
-
-  return { ok: false, error: lastError };
-}
-
 /**
  * Valida un change con `--strict`.
  */

@@ -256,6 +256,44 @@
   la aplicacion ciega es peor que uno que fallo, porque no hay nada que mirar.
   Informarlo cuando pasa. No hace falta bloquear nada: hace falta decirlo.
 
+- [x] 5.7 **Archivar no puede depender de renombrar la carpeta (Alejandro, 2026-09-18: «no es
+  posible que tenga que estar apagando programas»).** Medido: el archivado falla en dev y en prod
+  con «otro proceso la mantiene abierta»; desde fuera de GitCron, renombrar CUALQUIER carpeta de
+  `openspec/changes` falla (acceso denegado) mientras renombrar archivos de adentro anda: un
+  vigilante recursivo de carpetas de otro programa (no GitCron, que cierra el suyo al archivar
+  con `withRepoWatcherPaused`; tampoco los MCP del orquestador, apagados y reprobado). Sonda del
+  2026-09-18: una carpeta nueva dentro de `openspec/changes` queda agarrada a los 3 segundos;
+  `rename` falla; **copiar y borrar funciona** y la carpeta desaparece al instante. OpenSpec 1.13
+  cambio su mudanza (`dist/core/archive.js:379-430`, `moveDirectory`): ante EPERM intenta
+  renombrar a una carpeta hermana y, si eso falla, se niega a copiar («No fallback copy was
+  attempted»); el CLI escribe las specs antes de mover y las restaura si la mudanza falla (por eso
+  todo queda intacto). En 1.11/1.12 copiaba: por eso «antes andaba». Decision: cuando el CLI
+  informe la traba, GitCron archiva por copia verificada usando al propio CLI para la fusion de
+  specs en una raiz temporal (copiar `openspec/` minimo a un directorio temporal, correr
+  `openspec archive <id> --yes` alli, traer de vuelta las specs cambiadas y la carpeta archivada,
+  borrar el original con huella verificada). Sin `rename`, sin apagar nada.
+  *Auditoria de 5.7, 2026-09-18:* `electron/pipeline/openspec-archive.ts` (raiz temporal minima,
+  CLI real con `cwd` temporal, huellas sha256 antes y despues, specs traidas y retiradas, carpeta
+  archivada verificada, borrado con reintentos, temporal limpiado en `finally`); el canal usa la
+  funcion nueva dentro de `pauseWatcher`; `archiveOpenSpecChangeWithCli` y sus reintentos se
+  fueron con sus dos pruebas. Medido: `tsc` 0, eslint 3 preexistentes y 0 avisos, `build` 0,
+  `pnpm test` 0 dos veces (201 archivos, 2142 pruebas; antes 2135), `validate --strict` 0.
+  **Prueba real** en este repo con el CLI 1.13.1 y OpenCode abierto: un change de sonda se
+  archivo por copia en 6 s (`ok: true`, carpeta `2026-09-18-sonda-archivado-0918`, spec
+  principal creada, original borrado); la sonda se limpio sin rastro. Pendiente de confirmar.
+- [x] 5.8 **GitCron no debe trabar a los demas: un solo vigilante recursivo en la raiz del repo.**
+  Pregunta de Alejandro (2026-09-18): «¿como hace VS Code?». Medido: VS Code vigila con un unico
+  handle recursivo en la raiz (`ReadDirectoryChangesW`), asi que nunca traba renombres ajenos; y
+  cuando otro proceso tiene la carpeta agarrada, VS Code tambien falla (EPERM), no copia. GitCron
+  usa `chokidar 4.0.3` (`electron/ipc/watchers.ts:88`), que en Windows abre un `fs.watch` por
+  cada carpeta sin `recursive` (`chokidar/handler.js:120-130`): miles de handles, y mientras el
+  vigilante esta activo nadie puede renombrar carpetas del repo (ni `openspec archive` desde una
+  terminal, ni VS Code, ni un `git checkout` que mueva directorios). Node 22 / Electron 42 ya
+  soporta `fs.watch(root, { recursive: true })` en Windows (probado en esta maquina). Decision:
+  reemplazar el vigilante por uno de un solo handle recursivo en la raiz, conservando el filtro
+  de ignorados (`createRepoIgnoreFilter`), el `awaitWriteFinish` (estabilizacion de 200 ms) y la
+  cadencia adaptativa de git-ops (`electron/ipc/git-ops.ts:270`); sin dependencias nuevas.
+  Tanda aparte, despues de 5.7, con sus pruebas: las de `watchers` y las que consumen eventos.
 ## 6. Instalación del motor
 
 - [x] 6.1 En `electron/pipeline/`, agregar la resolución del gestor de paquetes del sistema con canonicalización de ruta, resolviendo en cada uso y sin memorizar, con la misma estrategia de contención que `resolveOpenSpecExecutable` de `electron/pipeline/openspec-engine.ts`.

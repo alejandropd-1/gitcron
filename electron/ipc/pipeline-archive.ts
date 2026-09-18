@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import type { BrowserWindow } from 'electron';
 import { ipcMain } from 'electron';
-import { archiveOpenSpecChangeWithCli } from '../pipeline/openspec-cli';
+import { archiveOpenSpecChange } from '../pipeline/openspec-archive';
 import { validateChangeDeltaRequirements } from '../pipeline/openspec-delta-validator';
 import { PipelineService } from '../pipeline/pipeline-service';
 import { errMsg, resolveInside, validRepoPath } from './shared';
@@ -22,7 +22,24 @@ import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
  */
 
 import type { ArchivePlan } from '../../types/pipeline';
+import type { ArchiveOpenSpecChangeDeps } from '../pipeline/openspec-archive';
+import type { AuthorizedOpenSpecRuntime } from '../pipeline/openspec-engine';
 export type { ArchivePlan };
+
+export interface ArchiveChangeOutcome {
+  ok: boolean;
+  error: string | null;
+  archivedDir?: string | null;
+  specsChanged?: string[];
+  specsRemoved?: string[];
+}
+
+export type ArchiveChangeFn = (
+  repoPath: string,
+  changeId: string,
+  runtime?: AuthorizedOpenSpecRuntime | null,
+  deps?: ArchiveOpenSpecChangeDeps,
+) => Promise<ArchiveChangeOutcome>;
 
 export type WriteArchiveReason = (repoPath: string, changeId: string, reason: string) => Promise<void>;
 export type PauseWatcherDuring = <T>(repoPath: string, fn: () => Promise<T>, onRestoreError?: (error: unknown) => void) => Promise<T>;
@@ -32,10 +49,6 @@ const defaultWriteReason: WriteArchiveReason = async (repoPath, changeId, reason
   if (!resolved) throw new Error('Ruta de motivo fuera de límites');
   await fs.writeFile(resolved, `# Motivo de archivado\n\n${reason.trim()}\n`, 'utf8');
 };
-
-const FOLDER_LOCK_PATTERN = /EPERM|operation not permitted|EBUSY|resource busy or locked/i;
-const FOLDER_LOCK_MESSAGE =
-  'No se pudo mover la carpeta del cambio porque otro proceso (un vigilante de archivos, indexador o antivirus) la mantiene abierta. El contenido del cambio es válido; lo que falló fue la mudanza a openspec/changes/archive.';
 
 function validChangeId(value: unknown): value is string {
   return isValidOpenSpecChangeSlug(value);
@@ -53,7 +66,7 @@ export function registerPipelineArchiveHandlers(
    * suficiente ahora que el archivado no produce commits.
    */
   getMainWindow: () => BrowserWindow | null = () => null,
-  archive = archiveOpenSpecChangeWithCli,
+  archive: ArchiveChangeFn = archiveOpenSpecChange,
   service = new PipelineService(),
   validateDelta = validateChangeDeltaRequirements,
   writeReason: WriteArchiveReason = defaultWriteReason,
@@ -118,16 +131,8 @@ export function registerPipelineArchiveHandlers(
         ? `No se pudo restaurar el vigilante del repositorio tras archivar: ${watcherError}`
         : undefined;
 
-      // El resultado se lee del CLI, no del hecho de que el proceso terminó.
+      // El resultado se lee del proceso de archivado, no del hecho de que el proceso terminó.
       if (!result.ok) {
-        if (result.error && FOLDER_LOCK_PATTERN.test(result.error)) {
-          return {
-            success: false,
-            error: FOLDER_LOCK_MESSAGE,
-            stage: 'archive',
-            ...(watcherWarning ? { watcherWarning } : {}),
-          };
-        }
         return {
           success: false,
           error: result.error,
@@ -139,11 +144,7 @@ export function registerPipelineArchiveHandlers(
       getMainWindow()?.webContents.send('repo:fs-change', { repoPath: canonicalPath });
       return { success: true, ...(watcherWarning ? { watcherWarning } : {}) };
     } catch (error) {
-      const message = errMsg(error);
-      if (FOLDER_LOCK_PATTERN.test(message)) {
-        return { success: false, error: FOLDER_LOCK_MESSAGE, stage: 'archive' };
-      }
-      return { success: false, error: message };
+      return { success: false, error: errMsg(error) };
     }
   });
 }

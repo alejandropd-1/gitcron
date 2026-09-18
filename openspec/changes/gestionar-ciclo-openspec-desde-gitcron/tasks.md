@@ -1170,6 +1170,112 @@
   final: `tsc` 0, `build` 0 (422 kB / 525 kB), `pnpm test` 0 dos veces (200 archivos, 2117
   pruebas; antes 2095), `validate --strict` 0, `git diff --check` 0, eslint 3 preexistentes y 0
   avisos. Pendiente de confirmar por Alejandro en un solo commit (A a F).
+  (h) **Observaciones de Alejandro, 2026-09-18, con (g) confirmado en `4a9046f`.** Medidas:
+  1. *«Anda la IA; hizo un punteado, tendria que ser mas coloquial; que entienda el contexto de lo
+     que tenemos instalado; que me deje elegir contexto y tiempo levantado como en el commit y me
+     muestre abajo el resumen de lo que elegi.»* — El prompt (`openspec-version-analysis.ts:381`)
+     pide criollo pero no pide explicar los terminos; recibe las seis superficies que GitCron
+     consume (`consumedSurfaces`, :235-285, que ES la «fuente de resumen» que pide, en codigo y
+     medida contra cada version) pero NO recibe lo instalado: version del motor, agentes
+     configurados, perfil y workflows (todo esta en `OpenSpecEngineStatus`, `types/pipeline`;
+     `buildEngineStatusSnapshot`, `electron/ipc/pipeline-openspec.ts:191`). Los controles de
+     contexto (65_536) y TTL (30 min) y la lista de hechos del modelo viven solo en el panel de
+     commit (`OpenSpecDashboard.tsx:1052-1053`, inputs :2524-2560, hechos `.aiFacts` :2605-2640).
+     Decision: un solo componente de controles de modelo (desplegable + contexto + TTL + cargar /
+     expulsar + hechos) usado por el commit y por el informe, con contexto y TTL recordados por
+     repo en `lib/ai-model-memory.ts`; el prompt recibe «lo que tenes instalado» y pide explicar
+     cada termino la primera vez. Solo LM Studio: Unsloth es `modelos-en-casa`, como esta decidido.
+  2. *«Los titulos de abajo se ven en blanco y mayuscula; quiero como los de arriba, violeta y mas
+     chicos; si hay una estructura normalizada, usemos esa.»* — La normalizada es
+     `.reviewSectionTitle` (violeta, xs, `OpenSpecDashboard.module.css:2474`), la que usan
+     «Que trae», «Motor» y el «Detalle tecnico» de la configuracion. La tanda D uso `.blockHeader`
+     (blanco, md, `:1582`) en las secciones del diagnostico avanzado de `OpenSpecEngineCard.tsx`
+     (:1020, :1112, :1167).
+  3. *«Tag, texto y tag en una sola linea.»* — Hay DOS copias de la lista de outputs:
+     `OpenSpecEngineCard.tsx:1019-1100` y `OpenSpecUpdateReview.tsx:535-560` (Detalle tecnico);
+     la segunda quedo en tres lineas (tag / path / tag) porque `.outputListItem` paso a
+     `flex-direction: column` en D y esa copia no se toco. Decision: un solo componente
+     `OpenSpecOutputsList` para las dos vistas, fila en una linea con salto de linea del path si
+     no entra.
+  4. *Pregunta de Alejandro, para `modelos-en-casa`:* «que posibilidad hay de tener un modelo ya
+     levantado para que responda mas rapido; lo pienso para usar la IA en todo GitCron». Respuesta
+     dada: lo lento es cargar (segundos a un minuto, 7 GB a VRAM); cargado, LM Studio lo sostiene
+     el TTL elegido y responde al instante; un modelo cargado y quieto ocupa memoria, no computo.
+     Lo que «detona la maquina» es pensar, y eso lo acorta un modelo mas chico. Para el largo
+     plazo: una sesion de IA compartida por toda la app (cargar una vez, TTL largo mientras GitCron
+     este abierto, descargar al cerrar) y dos tamaños (chico para tareas rapidas, grande para
+     razonar). Va como decision de diseño de `modelos-en-casa`.
+  *Auditoria de (h), 2026-09-18, tanda G:* entro lo pedido (`OpenSpecOutputsList`,
+  `AiModelControls`, contexto y TTL recordados por repo, `installedContext` en el prompt, titulos
+  con `.reviewSectionTitle`). Medido: `tsc` 0, eslint 3 preexistentes y 0 avisos, 12 archivos y
+  200 pruebas en verde sueltos, `build` 0 (423 kB / 526 kB). Pero la suite completa cae en DOS
+  pruebas nuevas por timeout de 5 s (2,8 s y 2,2 s sueltas): el handler arma la foto completa del
+  motor con `buildEngineStatusSnapshot` (huella del arbol de trabajo del repo real incluida) solo
+  para sacar version, agentes, perfil y workflows. Defecto de diseño de G: el contexto instalado
+  tiene que salir de las piezas baratas (evidencia en disco + configuracion global + la version que
+  el analisis ya midio), inyectable en pruebas. Se corrige en (i).
+  (i) **Observaciones de Alejandro, 2026-09-18, mirando (h) en pantalla.** Medidas:
+  1. *«Esos bordes y contenedores hacen padding y desalinean todo; hay que sacarlos para que
+     titulos y parrafos se alineen al comienzo.»* — En la configuracion hay tres tarjetas anidadas:
+     `.reviewSection` (borde + relleno + fondo, modulo :2467; 9 usos en `OpenSpecUpdateReview.tsx`
+     y 1 en `OpenSpecReleaseNotes.tsx`), `.engineCard` (borde + relleno, :1917; la tarjeta del
+     motor se usa solo en la configuracion, `OpenSpecUpdateReview.tsx:345`, y trae su propia
+     cabecera «Tarjeta de Diagnostico del Motor OpenSpec» + LISTO + refrescar, redundante con
+     «MOTOR Y AGENTES»), y `.reviewCoexistenceCol` (borde, :2619). Decision: configuracion plana:
+     secciones separadas por espacio vertical, sin marco, todo alineado al mismo borde izquierdo;
+     la insignia LISTO y el boton de refrescar pasan a la fila del titulo «MOTOR Y AGENTES». El
+     sector de IA (`.aiPanel`) conserva su fondo y borde porque agrupa controles y Alejandro lo
+     pidio asi en el panel de commit; si tambien molesta, se saca despues.
+  2. *«El informe empuja todo para abajo mientras escribe; que sea un area de altura fija: 3
+     lineas mientras escribe, flechita para expandir hasta 10, y scroll si es mas largo.»* — Hoy
+     `.releaseNotesReport` solo tiene `margin-top` y el `MarkdownViewer` crece libre
+     (`OpenSpecReleaseNotes.tsx:269-280`). Decision: caja de 3 lineas mientras redacta (mostrando
+     lo ultimo que llega), plegada a 3 lineas al terminar con «Ver mas», expandida a 10 lineas con
+     scroll interno y «Ver menos».
+  3. *«Sigue el salto horizontal al abrir el sidebar derecho.»* — Causa medida: `.switcherRailFolded`
+     pone `max-width: 0` pero `max-width` no esta en la lista de `transition` de `.switcherRail`
+     (`width, flex-basis, margin, padding, opacity`, modulo :2994): el tope se aplica al instante y
+     el riel colapsa de golpe; los 300 ms corren sobre un ancho ya nulo. Windows de Alejandro tiene
+     las animaciones encendidas (`MinAnimate=1`), asi que no es «reducir movimiento». Ademas el
+     camino inverso (cerrar el panel) monta el riel de golpe a 240 px. Decision: sacar `max-width: 0`
+     y montar plegado + desplegar en el cuadro siguiente al cerrar el panel.
+  *Auditoria de (i1), 2026-09-18:* `readInstalledContext` (evidencia en disco + configuracion
+  global + version ya medida; inyectable en `OpenSpecIpcDeps`) reemplaza a la foto completa; la
+  prueba del canal con `model` baja de 2,2 s a 11 ms; la prueba que corre el CLI real a proposito
+  lleva `timeout: 15_000` documentado. `.switcherRailFolded` sin `max-width: 0`; camino inverso
+  montado plegado y desplegado en el cuadro siguiente. Decision de Alejandro: el cuadro del
+  desplegable de modelo (`.aiPanel`) queda como esta, «y vemos como queda». Medido sobre el arbol
+  G + H1: `tsc` 0, eslint 3 preexistentes y 0 avisos, `build` 0 (423 kB / 526 kB), `pnpm test` 0
+  dos veces (200 archivos, 2124 pruebas; antes 2117), `validate --strict` 0, `git diff --check` 0.
+  Pendiente de confirmar por Alejandro; (i).1 y (i).2 van en la tanda siguiente.
+  *Auditoria de (i2), 2026-09-18:* configuracion plana (sin marco en `.reviewSection`, `.engineCard`,
+  `.engineCardSection`, `.reviewCoexistenceCol`; los tres patrones fuera del escaner), fila unica
+  «MOTOR Y AGENTES · LISTO · refrescar», caja del informe con `data-state` streaming / collapsed /
+  expanded (3 y 10 lineas) y «Ver mas» / «Ver menos». Medido sobre G + H1 + H2: `tsc` 0, eslint 3
+  preexistentes y 0 avisos, `build` 0 (424 kB / 526 kB), `pnpm test` 0 dos veces (200 archivos,
+  2128 pruebas), `validate --strict` 0, `git diff --check` 0.
+  (j) **Aclaracion de Alejandro, 2026-09-18, mirando (i2):** «volaste todos los contenedores; yo
+  decia solo el que esta por dentro, no el contenedor principal de cada tipo de muestra o
+  configuracion; la primera imagen (Actualizacion) esta bien. Y aprovechemos: un contenedor al
+  contenido que corresponda, que se condiga con lo que muestra; asi suelto parece una mescolanza;
+  reordena todo si hace falta para que cada contenido este bajo su titulo.» Medido: el contenedor
+  que le gusta es `.reviewUpfrontHeader` (modulo :3866: relleno + fondo `color-mix` 50 % + radio,
+  sin borde). Hoy el bloque «Motor y agentes» mezcla: resumen del motor en una caja interna
+  (`.primarySummaryBox`), toggle «diagnostico avanzado» que abre Ruta, Perfil, Evidencia, toggles
+  de workflows, convergencia, outputs, doctor y contexto, y recien despues la lista de agentes
+  (`OpenSpecToolList`, `OpenSpecUpdateReview.tsx:361`); y «Detalle tecnico» repite la lista de
+  outputs (:536). Decision: cinco bloques con contenedor y titulo, contenido adentro plano:
+  ACTUALIZACION (como esta), MOTOR (fila de titulo con LISTO y refrescar; hechos del motor; ruta y
+  evidencia, doctor y contexto bajo el toggle avanzado), AGENTES (lista de agentes + outputs
+  presentes y ausentes), PERFIL DE WORKFLOWS (global/repo, perfil, toggles, convergencia), DESDE LA
+  TERMINAL y DETALLE TECNICO (matriz, guia, convivencia; sin la copia de outputs). El cuadro del
+  sector de IA (`.aiPanel`) queda como esta.
+  *Idea de Alejandro para mas adelante:* un widget de IA propio, separado del panel derecho y del
+  riel flotante («debajo, otro sidebar»), que acompañe a las pantallas con los controles del modelo
+  uno debajo del otro (desplegable, contexto, TTL, cargar/expulsar, hechos), y que lo que la IA
+  llena aparezca en su lugar (el informe en «Que trae», el asunto en el commit). Respuesta: se
+  puede; `AiModelControls` ya es el componente y solo cambia de lugar; va como primer bloque del
+  change `modelos-en-casa` junto con la sesion de IA compartida y el proveedor Unsloth.
   - **Si, son grandes, y esta medido.** `.primaryAction, .secondaryAction`
     (`OpenSpecDashboard.module.css:442-458`) miden `min-height: 2.65rem` (42 px) con relleno
     `--space-3 --space-4` y peso 700; `.headerActions .primaryAction` (`:278`) 2.5rem;

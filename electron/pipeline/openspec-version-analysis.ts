@@ -37,9 +37,19 @@ import {
 import { completeText, streamText, createLmStudioConfig, DEFAULT_LMSTUDIO_CONN_ERROR } from '../ai/text-client';
 import type { DraftChunk } from '../ai/commit-message/sse';
 import { checkLatestOpenSpecVersion } from './openspec-registry';
-import { resolveOpenSpecExecutable, runAuthorizedOpenSpec } from './openspec-engine';
+import {
+  resolveOpenSpecExecutable,
+  runAuthorizedOpenSpec,
+  type AuthorizedOpenSpecRuntime,
+} from './openspec-engine';
+import {
+  inspectInstalledEvidence,
+  type InspectInstalledEvidenceDeps,
+} from './openspec-evidence';
+import { readOpenSpecGlobalConfig } from './openspec-global-config';
 import type {
   OpenSpecRegistryCheck,
+  OpenSpecGlobalConfig,
   ConsumedSurfaceName,
   ConsumedSurfaceAnalysis,
   VersionStrategyProposal,
@@ -56,6 +66,127 @@ export type {
   VersionAnalysisRedaction,
   OpenSpecVersionAnalysisResult,
 } from '../../types/pipeline';
+
+export interface OpenSpecInstalledAgentContext {
+  name: string;
+  workflows: string[];
+}
+
+export interface OpenSpecInstalledContext {
+  engineVersion?: string | null;
+  integrationState?: string | null;
+  agents?: OpenSpecInstalledAgentContext[];
+  globalProfile?: string | null;
+  globalWorkflows?: string[];
+}
+
+export interface ReadInstalledContextDeps {
+  inspectEvidence?: typeof inspectInstalledEvidence;
+  readGlobalConfig?: (options?: { runtime?: AuthorizedOpenSpecRuntime | null }) => Promise<OpenSpecGlobalConfig | null>;
+  engineVersion?: string | null;
+  runtime?: AuthorizedOpenSpecRuntime | null;
+  resolveRuntime?: (options?: { userDataDir?: string | null; repoPath?: string | null }) => AuthorizedOpenSpecRuntime | null;
+  getUserDataDir?: () => string | null;
+  inspectDeps?: InspectInstalledEvidenceDeps;
+  discoverCli?: (options?: { runtime?: AuthorizedOpenSpecRuntime | null }) => Promise<any>;
+}
+
+/**
+ * Lee el contexto instalado de forma barata y determinística a partir de metadatos estáticos.
+ * CERO buildEngineStatusSnapshot, CERO huella de árbol de trabajo, CERO doctor/context.
+ */
+export async function readInstalledContext(
+  repoPath: string,
+  deps?: ReadInstalledContextDeps,
+): Promise<OpenSpecInstalledContext> {
+  const inspectEvidenceFn = deps?.inspectEvidence ?? inspectInstalledEvidence;
+  const inspectDeps: InspectInstalledEvidenceDeps = deps?.inspectDeps ?? (deps as unknown as InspectInstalledEvidenceDeps);
+  const evidence = inspectEvidenceFn(repoPath, inspectDeps);
+
+  const userDataDir = deps?.getUserDataDir ? deps.getUserDataDir() : null;
+  const runtime =
+    deps?.runtime !== undefined
+      ? deps.runtime
+      : deps?.resolveRuntime
+        ? deps.resolveRuntime({ userDataDir, repoPath })
+        : resolveOpenSpecExecutable({ userDataDir, repoPath });
+
+  let engineVersion = deps?.engineVersion ?? null;
+  if (!engineVersion && deps?.discoverCli) {
+    try {
+      const cli = await deps.discoverCli({ runtime });
+      engineVersion = cli?.runtimeVersion ?? cli?.version ?? null;
+    } catch {
+      engineVersion = null;
+    }
+  }
+
+  const readConfigFn = deps?.readGlobalConfig ?? readOpenSpecGlobalConfig;
+  let globalConfig: OpenSpecGlobalConfig | null = null;
+  try {
+    globalConfig = await readConfigFn({ runtime });
+  } catch {
+    globalConfig = null;
+  }
+
+  const rawStatus = (evidence as any).status;
+  const rawSummary = (evidence as any).summary;
+  const genBy = rawSummary?.generatedBy ?? evidence.generatedBy ?? null;
+
+  let integrationState: string = 'unknown';
+
+  if (rawStatus === 'conflicts' || (evidence.conflicts && evidence.conflicts.length > 0)) {
+    integrationState = 'conflicted';
+  } else if (
+    rawStatus === 'legacy' ||
+    (evidence.legacy && evidence.legacy.length > 0 && (!evidence.tools || evidence.tools.length === 0))
+  ) {
+    integrationState = 'custom';
+  } else if (rawStatus === 'valid' || evidence.evidenceStatus === 'confirmed') {
+    const hasModifiedOfficialSkills =
+      evidence.skills &&
+      evidence.skills.some((s) => s.isOfficial && s.origin === 'custom-agents');
+    if (hasModifiedOfficialSkills) {
+      integrationState = 'custom';
+    } else if (genBy && engineVersion && genBy === engineVersion) {
+      integrationState = 'up-to-date';
+    } else if (genBy && engineVersion && genBy !== engineVersion) {
+      integrationState = 'outdated';
+    } else if (!engineVersion || !genBy) {
+      integrationState = 'outdated';
+    } else {
+      integrationState = 'up-to-date';
+    }
+  } else if (evidence.evidenceStatus === 'unknown') {
+    integrationState = 'unknown';
+  } else {
+    integrationState = 'outdated';
+  }
+
+  const agents: OpenSpecInstalledAgentContext[] = [];
+  if (Array.isArray((evidence as any).agents)) {
+    agents.push(...(evidence as any).agents);
+  } else if (evidence.installedWorkflowsByTarget && Object.keys(evidence.installedWorkflowsByTarget).length > 0) {
+    for (const [name, workflows] of Object.entries(evidence.installedWorkflowsByTarget)) {
+      agents.push({ name, workflows });
+    }
+  } else if (evidence.targets && evidence.targets.length > 0) {
+    for (const name of evidence.targets) {
+      agents.push({ name, workflows: [] });
+    }
+  }
+
+  return {
+    engineVersion,
+    integrationState,
+    agents,
+    globalProfile: globalConfig?.rawProfile ?? (globalConfig as any)?.profile ?? null,
+    globalWorkflows:
+      globalConfig?.configuredWorkflows ??
+      globalConfig?.resolvedWorkflows ??
+      [],
+  };
+}
 
 /**
  * Tiempo de vida de la caché de notas de versión (changelog): 24 horas.
@@ -327,6 +458,9 @@ export function buildStrategyProposal(
   };
 }
 
+export const VERSION_ANALYSIS_SYSTEM_PROMPT =
+  'Sos el asistente de GitCron. Escribí en criollo argentino, claro y concreto, un informe para Alejandro con exactamente estos cuatro encabezados markdown, en este orden: `## Qué hay de nuevo`, `## Qué hace de hecho`, `## Cómo afecta a GitCron`, `## Cómo encararlo`. Escribí para alguien que usa la herramienta pero no programa en este ecosistema: cada término técnico (skill, workflow, profile, changelog, spec, target, hardening, etc.) se explica la primera vez en una frase corta entre paréntesis. Frases cortas; nada de listas de más de cinco puntos; en «Cómo afecta a GitCron» partir de lo que Alejandro tiene instalado y decir, por cada cosa instalada, si esta versión la toca o no. Basate sólo en las notas y en las superficies medidas que te doy; si algo no figura, decí que no figura. En «Cómo afecta a GitCron» nombrá cada superficie que se toque y cuál no; en «Cómo encararlo» proponé pasos concretos si algo se toca, y si nada se toca decilo en una línea. Nada se actualiza solo: la decisión es de él.';
+
 /**
  * Redacta la explicación en criollo mediante la capa única de texto (Tarea 9c.4 y 9c.5).
  * Se etiqueta claramente como redacción separada de lo medido.
@@ -339,6 +473,7 @@ export async function draftVersionRedaction(
     model?: string;
     signal?: AbortSignal;
     onChunk?: (chunks: DraftChunk[]) => void;
+    installedContext?: OpenSpecInstalledContext | null;
   },
 ): Promise<VersionAnalysisRedaction> {
   const model = deps?.model?.trim();
@@ -356,10 +491,37 @@ export async function draftVersionRedaction(
     providerLabel: 'LM Studio (redacción)',
   });
 
+  const installedContextSummary: string[] = [];
+  if (deps?.installedContext) {
+    const ctx = deps.installedContext;
+    installedContextSummary.push('Lo que Alejandro tiene instalado:');
+    installedContextSummary.push(
+      `- Motor: ${ctx.engineVersion ?? 'ninguno'} (estado: ${ctx.integrationState ?? 'desconocido'})`,
+    );
+    installedContextSummary.push(
+      `- Configuración global: perfil ${ctx.globalProfile ?? 'ninguno'}, workflows: ${
+        ctx.globalWorkflows && ctx.globalWorkflows.length > 0
+          ? ctx.globalWorkflows.join(', ')
+          : 'ninguno'
+      }`,
+    );
+    const agentsText =
+      ctx.agents && ctx.agents.length > 0
+        ? ctx.agents
+            .map(
+              (a) =>
+                `${a.name} (${a.workflows && a.workflows.length > 0 ? a.workflows.join(', ') : 'sin workflows'})`,
+            )
+            .join('; ')
+        : 'ninguno';
+    installedContextSummary.push(`- Agentes: ${agentsText}`);
+  }
+
   const promptSummary = [
     `Versión instalada: ${measured.installedVersion ?? 'ninguna'}`,
     `Versión disponible: ${measured.availableVersion ?? 'desconocida'}`,
     `Clase de versión: ${measured.versionClass}`,
+    ...(installedContextSummary.length > 0 ? [installedContextSummary.join('\n')] : []),
     `Fuente de notas: ${measured.changelog.source} (${measured.changelog.fetched ? 'obtenida' : 'no disponible'})`,
     measured.changelog.rawText
       ? `Notas de cambios:\n${measured.changelog.rawText.slice(0, 4000)}`
@@ -378,8 +540,7 @@ export async function draftVersionRedaction(
     if (deps?.streamTextFn) {
       const res = await deps.streamTextFn(config, {
         model,
-        system:
-          'Sos el asistente de GitCron. Escribí en criollo argentino, claro y concreto, un informe para Alejandro con exactamente estos cuatro encabezados markdown, en este orden: `## Qué hay de nuevo`, `## Qué hace de hecho`, `## Cómo afecta a GitCron`, `## Cómo encararlo`. Basate sólo en las notas y en las superficies medidas que te doy; si algo no figura, decí que no figura. En «Cómo afecta a GitCron» nombrá cada superficie que se toque y cuál no; en «Cómo encararlo» proponé pasos concretos si algo se toca, y si nada se toca decilo en una línea. Nada se actualiza solo: la decisión es de él.',
+        system: VERSION_ANALYSIS_SYSTEM_PROMPT,
         user: promptSummary,
         maxTokens: 900,
         signal: deps?.signal,
@@ -389,8 +550,7 @@ export async function draftVersionRedaction(
     } else if (deps?.completeTextFn) {
       const res = await deps.completeTextFn(config, {
         model,
-        system:
-          'Sos el asistente de GitCron. Escribí en criollo argentino, claro y concreto, un informe para Alejandro con exactamente estos cuatro encabezados markdown, en este orden: `## Qué hay de nuevo`, `## Qué hace de hecho`, `## Cómo afecta a GitCron`, `## Cómo encararlo`. Basate sólo en las notas y en las superficies medidas que te doy; si algo no figura, decí que no figura. En «Cómo afecta a GitCron» nombrá cada superficie que se toque y cuál no; en «Cómo encararlo» proponé pasos concretos si algo se toca, y si nada se toca decilo en una línea. Nada se actualiza solo: la decisión es de él.',
+        system: VERSION_ANALYSIS_SYSTEM_PROMPT,
         user: promptSummary,
         maxTokens: 900,
         signal: deps?.signal,
@@ -399,8 +559,7 @@ export async function draftVersionRedaction(
     } else {
       const res = await streamText(config, {
         model,
-        system:
-          'Sos el asistente de GitCron. Escribí en criollo argentino, claro y concreto, un informe para Alejandro con exactamente estos cuatro encabezados markdown, en este orden: `## Qué hay de nuevo`, `## Qué hace de hecho`, `## Cómo afecta a GitCron`, `## Cómo encararlo`. Basate sólo en las notas y en las superficies medidas que te doy; si algo no figura, decí que no figura. En «Cómo afecta a GitCron» nombrá cada superficie que se toque y cuál no; en «Cómo encararlo» proponé pasos concretos si algo se toca, y si nada se toca decilo en una línea. Nada se actualiza solo: la decisión es de él.',
+        system: VERSION_ANALYSIS_SYSTEM_PROMPT,
         user: promptSummary,
         maxTokens: 900,
         signal: deps?.signal,
@@ -479,6 +638,14 @@ export async function analyzeOpenSpecVersion(
     model?: string;
     signal?: AbortSignal;
     onChunk?: (chunks: DraftChunk[]) => void;
+    installedContext?:
+      | OpenSpecInstalledContext
+      | Promise<OpenSpecInstalledContext | null>
+      | null;
+    readInstalledContext?: typeof readInstalledContext;
+    inspectEvidence?: typeof inspectInstalledEvidence;
+    readGlobalConfig?: (options?: { runtime?: AuthorizedOpenSpecRuntime | null }) => Promise<OpenSpecGlobalConfig | null>;
+    resolveRuntime?: (options?: { userDataDir?: string | null; repoPath?: string | null }) => AuthorizedOpenSpecRuntime | null;
   },
 ): Promise<OpenSpecVersionAnalysisResult> {
   const checkLatestFn =
@@ -568,6 +735,20 @@ export async function analyzeOpenSpecVersion(
     strategyProposal,
   };
 
+  let resolvedInstalledContext: OpenSpecInstalledContext | null = null;
+  if (deps?.installedContext !== undefined) {
+    resolvedInstalledContext = deps.installedContext ? await deps.installedContext : null;
+    if (resolvedInstalledContext && measured.installedVersion) {
+      resolvedInstalledContext.engineVersion = measured.installedVersion;
+    }
+  } else if (deps?.model && deps.model.trim().length > 0) {
+    const readCtxFn = deps.readInstalledContext ?? readInstalledContext;
+    resolvedInstalledContext = await readCtxFn(repoPath, {
+      ...deps,
+      engineVersion: measured.installedVersion,
+    }).catch(() => null);
+  }
+
   // 9c.4 & 9c.5: Redacción con capa única 9b y modelo local, estrictamente separada.
   // Sin modelo no redacta: sólo mide (idle) para no gastar GPU automáticamente.
   const redaction: VersionAnalysisRedaction =
@@ -578,6 +759,7 @@ export async function analyzeOpenSpecVersion(
           model: deps.model.trim(),
           signal: deps?.signal,
           onChunk: deps?.onChunk,
+          installedContext: resolvedInstalledContext,
         })
       : {
           provider: '',

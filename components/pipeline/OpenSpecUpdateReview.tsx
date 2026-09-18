@@ -26,6 +26,7 @@ import { OpenSpecEngineCard } from './OpenSpecEngineCard';
 import { OpenSpecToolList } from './OpenSpecReadiness';
 import { OpenSpecUpdateRunner } from './OpenSpecUpdateRunner';
 import { OpenSpecReleaseNotes } from './OpenSpecReleaseNotes';
+import { OpenSpecOutputsList } from './OpenSpecOutputsList';
 import { getOpenSpecEngineUpgrade } from './pipeline-domain';
 import type { PipelineSnapshot } from './pipeline-view-state';
 import { useOpenSpecInit } from '@/hooks/use-openspec-init';
@@ -339,9 +340,9 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
 
         {/* SECCIÓN 2: MOTOR Y AGENTES */}
         <section className={styles.reviewSection} aria-label={t('pipeline.openspec.config.engineSection')}>
-          <h3 className={styles.reviewSectionTitle}>{t('pipeline.openspec.config.engineSection')}</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             <OpenSpecEngineCard
+              title={t('pipeline.openspec.config.engineSection')}
               status={status}
               isLoading={false}
               compact={false}
@@ -533,36 +534,12 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
               {/* 5. INVENTARIO DIAGNÓSTICO DE OUTPUTS */}
               {presentOutputs.length > 0 && (
                 <section className={styles.reviewSection} aria-label={t('pipeline.openspec.engine.outputsTitle')}>
-                  <h3 className={styles.reviewSectionTitle}>
-                    {t('pipeline.openspec.engine.outputsTitle')} ({presentOutputs.length})
-                  </h3>
-                  <p style={{ margin: '0 0 var(--space-1)', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
-                    {t('pipeline.openspec.engine.outputsHelp')}
-                  </p>
-                  <div className={styles.outputListScrollContainer}>
-                    <ul className={styles.outputList}>
-                      {presentOutputs.map((out) => (
-                        <li key={out.id} className={styles.outputListItem} data-kind={out.kind}>
-                          <span className={styles.outputKindBadge} data-kind={out.kind}>
-                            {out.kind === 'repo-local'
-                              ? t('pipeline.openspec.engine.output.repoLocal')
-                              : t('pipeline.openspec.engine.output.externalGlobal')}
-                          </span>
-                          <code className={styles.outputPath}>{out.displayPath}</code>
-                          {out.presenceState && (
-                            <span className={styles.presenceBadge} data-presence={out.presenceState}>
-                              {t(`pipeline.openspec.engine.presence.${out.presenceState}`)}
-                            </span>
-                          )}
-                          {out.blocked && (
-                            <span className={styles.blockedTag} aria-label={t('pipeline.openspec.engine.output.blockedBadge')}>
-                              {t('pipeline.openspec.engine.output.blockedBadge')}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <OpenSpecOutputsList
+                    items={presentOutputs}
+                    titleKey="pipeline.openspec.engine.outputsTitle"
+                    helpKey="pipeline.openspec.engine.outputsHelp"
+                    count={presentOutputs.length}
+                  />
                 </section>
               )}
 

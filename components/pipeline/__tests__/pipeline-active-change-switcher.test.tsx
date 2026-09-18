@@ -989,6 +989,62 @@ describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
       expect(container.querySelector('nav[class*="switcherRail"]')).toBeTruthy();
       expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
     });
+
+    it('al pasar rightOpen de true a false, el riel arranca con data-folded="true" y luego pasa a desplegado', async () => {
+      const snap = mockSnapshot();
+      const { container, rerender } = render(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={true}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      // Con rightOpen=true e isSwitcherOpen=true, el riel está desmontado
+      expect(container.querySelector('nav[class*="switcherRail"]')).toBeNull();
+
+      // Al cerrar el panel derecho (rightOpen pasa de true a false), el riel se monta plegado suavemente
+      rerender(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      const rail = container.querySelector('nav[class*="switcherRail"]');
+      expect(rail).toBeTruthy();
+      expect(rail?.getAttribute('data-folded')).toBe('true');
+
+      // En el siguiente tick de render / raf, pasa a desplegado (sin data-folded)
+      await vi.waitFor(() => {
+        expect(rail?.getAttribute('data-folded')).toBeNull();
+      });
+    });
   });
 
   describe('4.15 / Observación 46: Encabezado sticky (.changeHeader) con scroll en el cuerpo', () => {

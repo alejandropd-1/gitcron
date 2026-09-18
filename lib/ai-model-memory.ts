@@ -10,19 +10,59 @@
 
 import { useSyncExternalStore } from 'react';
 
-const lastAiModelByRepo = new Map<string, string>();
+export interface AiRememberedSettings {
+  model: string;
+  contextLength: number;
+  ttlMinutes: number;
+}
+
+const DEFAULT_AI_CONTEXT_LENGTH = 65_536;
+const DEFAULT_AI_TTL_MINUTES = 30;
+
+const defaultSettings: AiRememberedSettings = Object.freeze({
+  model: '',
+  contextLength: DEFAULT_AI_CONTEXT_LENGTH,
+  ttlMinutes: DEFAULT_AI_TTL_MINUTES,
+});
+
+const aiSettingsByRepo = new Map<string, AiRememberedSettings>();
 const listeners = new Set<() => void>();
 
+export function getRememberedAiSettings(repoPath: string | null | undefined): AiRememberedSettings {
+  if (!repoPath) return defaultSettings;
+  return aiSettingsByRepo.get(repoPath) ?? defaultSettings;
+}
+
+export function rememberAiSettings(
+  repoPath: string | null | undefined,
+  partial: Partial<AiRememberedSettings>,
+): void {
+  if (!repoPath) return;
+  const current = getRememberedAiSettings(repoPath);
+  const next: AiRememberedSettings = Object.freeze({
+    model: partial.model !== undefined ? partial.model : current.model,
+    contextLength: partial.contextLength !== undefined ? partial.contextLength : current.contextLength,
+    ttlMinutes: partial.ttlMinutes !== undefined ? partial.ttlMinutes : current.ttlMinutes,
+  });
+
+  if (
+    next.model === current.model &&
+    next.contextLength === current.contextLength &&
+    next.ttlMinutes === current.ttlMinutes
+  ) {
+    return;
+  }
+
+  aiSettingsByRepo.set(repoPath, next);
+  listeners.forEach((listener) => listener());
+}
+
 export function getRememberedAiModel(repoPath: string | null | undefined): string {
-  if (!repoPath) return '';
-  return lastAiModelByRepo.get(repoPath) ?? '';
+  return getRememberedAiSettings(repoPath).model;
 }
 
 export function rememberAiModel(repoPath: string | null | undefined, modelId: string): void {
-  if (!repoPath) return;
-  if (lastAiModelByRepo.get(repoPath) === modelId) return;
-  lastAiModelByRepo.set(repoPath, modelId);
-  listeners.forEach((listener) => listener());
+  rememberAiSettings(repoPath, { model: modelId });
 }
 
 export function subscribeAiModelMemory(listener: () => void): () => void {
@@ -32,12 +72,16 @@ export function subscribeAiModelMemory(listener: () => void): () => void {
   };
 }
 
-export function useRememberedAiModel(repoPath: string | null | undefined): string {
+export function useRememberedAiSettings(repoPath: string | null | undefined): AiRememberedSettings {
   return useSyncExternalStore(
     subscribeAiModelMemory,
-    () => getRememberedAiModel(repoPath),
-    () => '',
+    () => getRememberedAiSettings(repoPath),
+    () => defaultSettings,
   );
+}
+
+export function useRememberedAiModel(repoPath: string | null | undefined): string {
+  return useRememberedAiSettings(repoPath).model;
 }
 
 /**

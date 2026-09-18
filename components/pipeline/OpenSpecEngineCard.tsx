@@ -20,6 +20,7 @@ import { useGitStore } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { OpenSpecGlobalInstallConfirm, formatInstallErrorCode } from './OpenSpecGlobalInstallConfirm';
 import { isOpenSpecEngineStatusIncomplete } from './pipeline-domain';
+import { OpenSpecOutputsList } from './OpenSpecOutputsList';
 
 const VERSION_CLASS_KEY_MAP: Record<OpenSpecVersionClass, string> = {
   supported: 'pipeline.openspec.engine.versionClass.supported',
@@ -82,6 +83,7 @@ export interface OpenSpecEngineCardProps {
   onRequestUpdate?: () => void;
   /** Se invoca cuando una escritura de perfil (toggle de workflow) termina con éxito, para que el padre re-fetchee el estado. La tarjeta no muta su propio `status`. */
   onChanged?: () => void;
+  title?: string;
 }
 
 export { formatInstallErrorCode } from './OpenSpecGlobalInstallConfirm';
@@ -238,6 +240,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   onInstalled,
   onRequestUpdate,
   onChanged,
+  title,
 }) => {
   const t = useT();
   const [showAdvanced, setShowAdvanced] = useState(Boolean(defaultAdvancedOpen));
@@ -301,9 +304,9 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   // 2. Estado de Carga
   if (isLoading && !status) {
     return (
-      <section className={styles.engineCardSection} aria-label={t('pipeline.openspec.engine.cardTitle')}>
+      <section className={styles.engineCardSection} aria-label={title ? undefined : t('pipeline.openspec.engine.cardTitle')}>
         <header className={styles.engineCardHeader}>
-          <h3>{t('pipeline.openspec.engine.cardTitle')}</h3>
+          <h3 className={title ? styles.reviewSectionTitle : undefined}>{title ?? t('pipeline.openspec.engine.cardTitle')}</h3>
         </header>
         <p className={styles.engineLoading}>{t('pipeline.launcher.discovering')}</p>
       </section>
@@ -313,9 +316,9 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   // 3. Estado Desconocido / Ausente
   if (!status) {
     return (
-      <section className={styles.engineCardSection} aria-label={t('pipeline.openspec.engine.cardTitle')}>
+      <section className={styles.engineCardSection} aria-label={title ? undefined : t('pipeline.openspec.engine.cardTitle')}>
         <header className={styles.engineCardHeader}>
-          <h3>{t('pipeline.openspec.engine.cardTitle')}</h3>
+          <h3 className={title ? styles.reviewSectionTitle : undefined}>{title ?? t('pipeline.openspec.engine.cardTitle')}</h3>
           <span className={styles.generalStatusBadge} data-status="unknown">
             <HelpCircle size={12} aria-hidden="true" />
             {t(GENERAL_STATUS_KEY_MAP.unknown)}
@@ -527,17 +530,21 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   };
 
   return (
-    <section className={styles.engineCardSection} aria-label={t('pipeline.openspec.engine.cardTitle')}>
+    <section className={styles.engineCardSection} aria-label={title ? undefined : t('pipeline.openspec.engine.cardTitle')}>
       {/* VISTA PRIMARIA: Información comprensible y accionable */}
       <header className={styles.engineCardHeader}>
         <div className={styles.engineTitleRow}>
-          <h3>{t('pipeline.openspec.engine.cardTitle')}</h3>
-          <span className={styles.generalStatusBadge} data-status={generalStatus}>
-            {generalStatus === 'ready' && <CheckCircle2 size={13} aria-hidden="true" />}
-            {generalStatus === 'needs-attention' && <AlertTriangle size={13} aria-hidden="true" />}
-            {generalStatus === 'unknown' && <HelpCircle size={13} aria-hidden="true" />}
-            {t(generalStatusKey)}
-          </span>
+          <div className={styles.engineTitleLeft}>
+            <h3 className={title ? styles.reviewSectionTitle : undefined}>
+              {title ?? t('pipeline.openspec.engine.cardTitle')}
+            </h3>
+            <span className={styles.generalStatusBadge} data-status={generalStatus}>
+              {generalStatus === 'ready' && <CheckCircle2 size={13} aria-hidden="true" />}
+              {generalStatus === 'needs-attention' && <AlertTriangle size={13} aria-hidden="true" />}
+              {generalStatus === 'unknown' && <HelpCircle size={13} aria-hidden="true" />}
+              {t(generalStatusKey)}
+            </span>
+          </div>
           <button
             type="button"
             className={styles.iconBtn}
@@ -1016,49 +1023,12 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
 
           {/* Lista de Outputs Presentes / Relevantes con Scroll Interno Propio */}
           {presentOutputs.length > 0 && (
-            <div className={styles.outputInventorySection}>
-              <h4 className={styles.blockHeader}>
-                {t('pipeline.openspec.engine.outputsTitle')} ({presentOutputs.length})
-              </h4>
-              <p className={styles.inventoryHelp}>
-                {t('pipeline.openspec.engine.outputsHelp')}
-              </p>
-              <div className={styles.outputListScrollContainer}>
-                <ul className={styles.outputList}>
-                  {presentOutputs.map((out) => {
-                    const presenceKey = out.presenceState
-                      ? PRESENCE_KEY_MAP[out.presenceState] ?? 'pipeline.openspec.engine.presence.present'
-                      : 'pipeline.openspec.engine.presence.present';
-                    return (
-                      <li key={out.id} className={styles.outputListItem} data-kind={out.kind}>
-                        <code className={styles.outputPath}>{out.displayPath}</code>
-                        <div className={styles.outputBadgesRow}>
-                          <span className={styles.outputKindBadge} data-kind={out.kind}>
-                            {out.kind === 'repo-local'
-                              ? t('pipeline.openspec.engine.output.repoLocal')
-                              : t('pipeline.openspec.engine.output.externalGlobal')}
-                          </span>
-                          {out.presenceState && (
-                            <span className={styles.presenceBadge} data-presence={out.presenceState}>
-                              {t(presenceKey)}
-                            </span>
-                          )}
-                          {out.blocked && (
-                            <span
-                              className={styles.blockedTag}
-                              title={t(out.descriptionKey)}
-                              aria-label={t('pipeline.openspec.engine.output.blockedBadge')}
-                            >
-                              {t('pipeline.openspec.engine.output.blockedBadge')}
-                            </span>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            </div>
+            <OpenSpecOutputsList
+              items={presentOutputs}
+              titleKey="pipeline.openspec.engine.outputsTitle"
+              helpKey="pipeline.openspec.engine.outputsHelp"
+              count={presentOutputs.length}
+            />
           )}
 
           {/* Outputs Ausentes Colapsables */}
@@ -1079,28 +1049,11 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
               </button>
 
               {showAbsentOutputs && (
-                <div className={styles.outputListScrollContainer}>
-                  <p className={styles.inventoryHelp}>
-                    {t('pipeline.openspec.engine.absentOutputsHelp')}
-                  </p>
-                  <ul className={styles.outputList}>
-                    {absentOutputs.map((out) => (
-                      <li key={out.id} className={styles.outputListItem} data-kind={out.kind} data-absent="true">
-                        <code className={styles.outputPath}>{out.displayPath}</code>
-                        <div className={styles.outputBadgesRow}>
-                          <span className={styles.outputKindBadge} data-kind={out.kind}>
-                            {out.kind === 'repo-local'
-                              ? t('pipeline.openspec.engine.output.repoLocal')
-                              : t('pipeline.openspec.engine.output.externalGlobal')}
-                          </span>
-                          <span className={styles.presenceBadge} data-presence="absent">
-                            {t('pipeline.openspec.engine.presence.absent')}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <OpenSpecOutputsList
+                  items={absentOutputs}
+                  helpKey="pipeline.openspec.engine.absentOutputsHelp"
+                  isAbsent={true}
+                />
               )}
             </div>
           )}
@@ -1109,9 +1062,9 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
           <div className={styles.cliDiagnosticsSection}>
             {/* 1. openspec doctor --json */}
             <div className={styles.cliDiagnosticGroup} data-testid="openspec-doctor-section">
-              <h4 className={styles.blockHeader}>
+              <h3 className={styles.reviewSectionTitle}>
                 {t('pipeline.openspec.engine.advanced.doctorTitle')}
-              </h4>
+              </h3>
               <p className={styles.inventoryHelp}>
                 {t('pipeline.openspec.engine.advanced.doctorHelp')}
               </p>
@@ -1164,9 +1117,9 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
 
             {/* 2. openspec context --json */}
             <div className={styles.cliDiagnosticGroup} data-testid="openspec-context-section">
-              <h4 className={styles.blockHeader}>
+              <h3 className={styles.reviewSectionTitle}>
                 {t('pipeline.openspec.engine.advanced.contextTitle')}
-              </h4>
+              </h3>
               <p className={styles.inventoryHelp}>
                 {t('pipeline.openspec.engine.advanced.contextHelp')}
               </p>

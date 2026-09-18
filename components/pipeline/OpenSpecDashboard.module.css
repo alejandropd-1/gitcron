@@ -1915,11 +1915,7 @@ summary.centerBlock {
 
 /* OpenSpec Engine Card */
 .engineCard {
-  background: var(--color-bg-overlay);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 .engineCardHeader {
   display: flex;
@@ -1927,7 +1923,7 @@ summary.centerBlock {
   align-items: center;
   margin-bottom: var(--space-3);
 }
-.engineCardHeader h3 {
+.engineCardHeader h3:not(.reviewSectionTitle) {
   margin: 0;
   font-size: var(--font-size-base);
   color: var(--color-text-primary);
@@ -2000,9 +1996,9 @@ summary.centerBlock {
 }
 .outputListItem {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-1);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
   font-size: var(--font-size-xs);
   margin-bottom: var(--space-2);
 }
@@ -2141,11 +2137,7 @@ summary.centerBlock {
 }
 .engineCardSection {
   container-type: inline-size;
-  padding: var(--space-3);
-  background: color-mix(in srgb, var(--color-bg-overlay) 65%, transparent);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-5);
 }
 .engineTitleRow {
   display: flex;
@@ -2153,6 +2145,15 @@ summary.centerBlock {
   justify-content: space-between;
   gap: var(--space-2);
   width: 100%;
+}
+.engineTitleLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.engineTitleLeft h3 {
+  margin: 0;
 }
 .generalStatusBadge {
   display: inline-flex;
@@ -2465,10 +2466,7 @@ summary.centerBlock {
 }
 
 .reviewSection {
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-bg-overlay) 60%, transparent);
-  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--space-5);
 }
 
 .reviewSectionTitle {
@@ -2595,6 +2593,44 @@ summary.centerBlock {
   margin-top: var(--space-3);
 }
 
+.releaseNotesReportBox {
+  --report-lines: 3;
+  --line-height-report: 20px;
+  line-height: var(--line-height-report);
+  max-height: calc(var(--report-lines) * var(--line-height-report));
+  transition: max-height 200ms ease;
+  overflow: hidden;
+}
+
+.releaseNotesReportBox[data-state='streaming'],
+.releaseNotesReportBox[data-state='collapsed'] {
+  --report-lines: 3;
+  overflow: hidden;
+}
+
+.releaseNotesReportBox[data-state='expanded'] {
+  --report-lines: 10;
+  overflow-y: auto;
+}
+
+.releaseNotesToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  margin-top: var(--space-1);
+  color: var(--color-accent-purple);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.releaseNotesToggleBtn:hover {
+  text-decoration: underline;
+}
+
 .reviewWarningAlert {
   display: flex;
   align-items: flex-start;
@@ -2620,10 +2656,6 @@ summary.centerBlock {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
-  padding: var(--sp-2);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-default);
-  background: color-mix(in srgb, var(--color-bg-base) 40%, transparent);
 }
 
 .reviewCoexistenceColTitle {
@@ -2999,7 +3031,6 @@ summary.centerBlock {
 
 .switcherRailFolded {
   width: 0;
-  max-width: 0;
   flex: 0 0 0;
   flex-basis: 0;
   margin: 0;

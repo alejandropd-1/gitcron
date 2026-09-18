@@ -959,6 +959,8 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
           onRespondDecision={() => undefined}
         />,
       );
+      rail = container.querySelector('nav[class*="switcherRail"]');
+      if (rail) fireEvent.transitionEnd(rail);
       const backToStartBtn = screen.getByRole('button', { name: /pipeline\.openspec\.start\.inProgress/i });
       fireEvent.click(backToStartBtn);
 

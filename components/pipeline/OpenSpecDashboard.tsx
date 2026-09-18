@@ -56,7 +56,7 @@ import { AiElapsed } from './AiElapsed';
 import { appendDraftChunks, clearDraftLog, finishDraftLog, startDraftLog } from '@/lib/commit-draft-log';
 import { adviceKeyForStreamError } from '@/lib/stream-error-advice';
 import { MIN_CONTEXT_LENGTH, filterDraftableModels, type LocalModel } from '@/types/commit-message-ai';
-import { useRememberedAiModel, rememberAiModel as rememberAiModelGlobally, getRememberedAiModel, formatAiDeviceLabel } from '@/lib/ai-model-memory';
+import { useRememberedAiModel, useRememberedAiSettings, rememberAiSettings, rememberAiModel as rememberAiModelGlobally, getRememberedAiModel, formatAiDeviceLabel } from '@/lib/ai-model-memory';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
@@ -73,6 +73,7 @@ import { TaskConfirmToast } from './TaskConfirmToast';
 import { OpenSpecTasksView } from './OpenSpecTasksView';
 import { PipelineNewChangeFlow, type PipelineNewChangeMode } from './PipelineNewChangeFlow';
 import { ViewSwitcherRail, type ViewSwitcherItem } from './ViewSwitcherRail';
+import { AiModelControls } from './AiModelControls';
 import { useNewChangeDraft, useNewChangeDraftStore } from '@/lib/new-change-draft-store';
 import {
   composeArchiveInstruction,
@@ -246,22 +247,6 @@ function formatSessionOption(session: RuntimeProjection): string {
  * volvería a emitir la marca de una corrida que puede seguir en vuelo.
  */
 let draftRunCounter = 0;
-
-/**
- * El símbolo de expulsar, el mismo que usa LM Studio para soltar un modelo.
- *
- * Dibujado a mano porque `lucide-react` no trae ninguno: se buscó y no existe
- * `Eject` ni equivalente. Son cuatro líneas de SVG y evita sumar una dependencia
- * por un ícono. Ale lo pidió señalando el botón de LM Studio.
- */
-function EjectIcon({ size = 13 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true">
-      <path d="M12 4.5 3.5 15.5h17z" />
-      <rect x="3.5" y="17.5" width="17" height="2.5" rx="0.6" />
-    </svg>
-  );
-}
 
 export function OpenSpecDashboard({
   snapshot,
@@ -500,13 +485,24 @@ export function OpenSpecDashboard({
   // se mantiene montado durante el cierre y se pliega animado (300ms, idéntico al panel)
   // hasta desmontarse en transitionend. Al abrirse, lo inverso.
   const [isClosingByRightOpen, setIsClosingByRightOpen] = useState(false);
+  const [isEnteringFromRightClose, setIsEnteringFromRightClose] = useState(false);
   const [prevRightOpen, setPrevRightOpen] = useState(rightOpen);
   if (prevRightOpen !== rightOpen) {
     setPrevRightOpen(rightOpen);
     const prefersReducedMotion = typeof window !== 'undefined' &&
       Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
-    if (rightOpen && isSwitcherOpen && !prefersReducedMotion) setIsClosingByRightOpen(true);
-    if (!rightOpen) setIsClosingByRightOpen(false);
+    if (rightOpen && isSwitcherOpen && !prefersReducedMotion) {
+      setIsClosingByRightOpen(true);
+      setIsEnteringFromRightClose(false);
+    }
+    if (!rightOpen) {
+      setIsClosingByRightOpen(false);
+      if (isSwitcherOpen && !prefersReducedMotion) {
+        setIsEnteringFromRightClose(true);
+      } else {
+        setIsEnteringFromRightClose(false);
+      }
+    }
   }
 
   useEffect(() => {
@@ -517,14 +513,49 @@ export function OpenSpecDashboard({
     return () => clearTimeout(timer);
   }, [isClosingByRightOpen]);
 
+  useEffect(() => {
+    if (!isEnteringFromRightClose) return;
+    let raf1: number | null = null;
+    let raf2: number | null = null;
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      raf1 = window.requestAnimationFrame(() => {
+        raf2 = window.requestAnimationFrame(() => {
+          setIsEnteringFromRightClose(false);
+        });
+      });
+    } else {
+      const fallbackTimer = setTimeout(() => {
+        setIsEnteringFromRightClose(false);
+      }, 16);
+      return () => clearTimeout(fallbackTimer);
+    }
+    const timer = setTimeout(() => {
+      setIsEnteringFromRightClose(false);
+    }, 400);
+    return () => {
+      if (raf1 !== null && typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
+        window.cancelAnimationFrame(raf1);
+      }
+      if (raf2 !== null && typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
+        window.cancelAnimationFrame(raf2);
+      }
+      clearTimeout(timer);
+    };
+  }, [isEnteringFromRightClose]);
+
   const handleSwitcherTransitionEnd = (e: React.TransitionEvent<HTMLElement>) => {
-    if (e.target === e.currentTarget && isClosingByRightOpen) {
-      setIsClosingByRightOpen(false);
+    if (e.target === e.currentTarget) {
+      if (isClosingByRightOpen) {
+        setIsClosingByRightOpen(false);
+      }
+      if (isEnteringFromRightClose) {
+        setIsEnteringFromRightClose(false);
+      }
     }
   };
 
   const isSwitcherMounted = isSwitcherOpen && (!rightOpen || isClosingByRightOpen);
-  const isSwitcherFolded = isClosingByRightOpen;
+  const isSwitcherFolded = isClosingByRightOpen || isEnteringFromRightClose;
   const startScrollPositionsRef = useRef<Record<string, number>>({});
   const startBodyRef = useRef<HTMLDivElement>(null);
   const changeHeaderRef = useRef<HTMLElement>(null);
@@ -1049,8 +1080,9 @@ export function OpenSpecDashboard({
   const rememberAiModel = (id: string) => {
     rememberAiModelGlobally(repoPath, id);
   };
-  const [aiContext, setAiContext] = useState(65_536);
-  const [aiTtlMinutes, setAiTtlMinutes] = useState(30);
+  const aiSettings = useRememberedAiSettings(repoPath);
+  const aiContext = aiSettings.contextLength;
+  const aiTtlMinutes = aiSettings.ttlMinutes;
   const aiAbort = useRef<AbortController | null>(null);
 
   const [engineSnapshot, setEngineSnapshot] = useState<OpenSpecEngineStatus | null>(null);
@@ -2425,241 +2457,39 @@ export function OpenSpecDashboard({
                       cuáles iban juntos. Ale lo pidió señalando el sector
                       entero. El fondo distingue el sector de un vistazo, que es
                       lo que una línea no hace. */}
-                  <section className={styles.aiPanel}>
-                  {/* Redactar con un modelo local. Nunca se dispara solo: medido,
-                      tarda entre 25 y 98 segundos y ocupa GPU. Un refresco del
-                      panel no puede costar eso. */}
-                  <div className={styles.aiRow}>
-                    <select
-                      value={aiModel}
-                      disabled={aiBusy || aiModels.length === 0}
-                      aria-label={t('pipeline.openspec.prepare.aiModel')}
-                      onChange={(event) => rememberAiModel(event.target.value)}
-                    >
-                      {/* La opción vacía se queda siempre: es la que hace que el
-                          desplegable arranque sin nada elegido. */}
-                      <option value="">
-                        {aiModels.length === 0
-                          ? t('pipeline.openspec.prepare.aiNoModels')
-                          : t('pipeline.openspec.prepare.aiChoose')}
-                      </option>
-                      {aiModels.map((model) => (
-                        <option key={model.id} value={model.id}>
-                          {/* Estado y contexto real a la vista: elegir uno en
-                              disco significa esperar la carga, y el contexto con
-                              el que quedó cargado no es su máximo teórico. */}
-                          {model.loaded
-                            ? `${model.id} · ${model.loadedContextLength ?? '?'}`
-                            : `${model.id} · ${t('pipeline.openspec.prepare.aiNotLoaded')}`}
-                          {/* En qué máquina vive. Con LM Link la inferencia
-                              puede correr en otra computadora sin que nada lo
-                              diga, y eso cambia cuál conviene elegir. */}
-                          {aiDeviceLabel(model.devices) && ` · ${aiDeviceLabel(model.devices)}`}
-                        </option>
-                      ))}
-                    </select>
-                    {/* Un modelo en disco no puede redactar: primero se carga.
-                        Ofrecerlo acá evita el callejón sin salida de declarar
-                        que falta contexto y no dar la salida. */}
-                    {/* Contexto y TTL se eligen ANTES de cargar, porque los dos
-                        se fijan en la carga y no se pueden cambiar después. El
-                        TTL es lo que hace que el modelo se cierre solo. */}
-                    {/* Se muestran siempre, y quedan inertes con el modelo ya
-                        cargado: los dos se fijan **en la carga** y no se pueden
-                        cambiar después. Esconderlos era peor —Ale los vio
-                        desaparecer sin explicación—, y dejarlos editables sería
-                        mentir. Para cambiarlos hay que sacar el modelo, y ese
-                        botón está al lado. */}
-                    {/* La acción va PRIMERO, pegada al selector, y los dos
-                        números debajo. Ale lo pidió viendo el contexto arriba a
-                        la derecha, lejos del TTL y del botón: los tres son de la
-                        misma operación —se fijan en la carga— y estaban partidos
-                        en dos filas por el acomodo, no por criterio. */}
-                    {aiNeedsLoad ? (
-                      <button
-                        type="button"
-                        className={styles.secondaryAction}
-                        // Sin `disabled` cuando lo que falta es un valor: el
-                        // botón queda apretable y explica qué corregir. Apagarlo
-                        // en silencio es lo que dejó a Ale sin saber por qué no
-                        // podía cargar con 16.328. `confirmAiLoad` corta solo.
-                        disabled={aiBusy || !aiModel}
-                        aria-disabled={aiLoadBlocker !== null}
-                        title={aiLoadBlocker ?? undefined}
-                        onClick={confirmAiLoad}
-                      >
-                        {aiPhase === 'loading' ? t('pipeline.openspec.prepare.aiLoading') : t('pipeline.openspec.prepare.aiLoad')}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className={styles.secondaryAction}
-                        disabled={aiBusy || chosen.length === 0 || !aiModel}
-                        onClick={draftWithAi}
-                      >
-                        {aiPhase === 'drafting' ? t('pipeline.openspec.prepare.aiBusy') : t('pipeline.openspec.prepare.aiDraft')}
-                      </button>
-                    )}
-                    {aiBusy && (
-                      <button type="button" className={styles.secondaryAction} onClick={cancelAiDraft}>
-                        {t('pipeline.openspec.prepare.aiCancel')}
-                      </button>
-                    )}
-                    {/* Expulsar el modelo: sólo el ícono, del ancho de su propia
-                        altura. Con el rótulo entero competía en peso con la
-                        acción principal, siendo que es la salida y no lo que se
-                        viene a hacer. El símbolo y el nombre son los de LM
-                        Studio, que es de donde viene el gesto — Ale lo pidió
-                        señalando ese botón. El nombre queda en `aria-label` y en
-                        el tooltip: un botón de sólo ícono sin nombre accesible no
-                        existe para quien usa lector de pantalla. */}
-                    {!aiNeedsLoad && aiChosenModel?.loaded && (
-                      <button
-                        type="button"
-                        className={styles.aiIconAction}
-                        disabled={aiBusy}
-                        aria-label={t('pipeline.openspec.prepare.aiEject')}
-                        title={t('pipeline.openspec.prepare.aiEject')}
-                        onClick={unloadAiModel}
-                      >
-                        <EjectIcon />
-                      </button>
-                    )}
-                    {/* Los dos números juntos y después de la acción. Se muestran
-                        siempre, e inertes con el modelo ya cargado: los dos se
-                        fijan **en la carga** y no se pueden cambiar después.
-                        Esconderlos era peor —Ale los vio desaparecer sin
-                        explicación—, y dejarlos editables sería mentir. */}
-                    <label className={styles.aiNumber} title={aiNeedsLoad ? undefined : t('pipeline.openspec.prepare.aiFixedAtLoad')}>
-                      <span>{t('pipeline.openspec.prepare.aiContextLabel')}</span>
-                      <input
-                        type="number"
-                        min={MIN_CONTEXT_LENGTH}
-                        step={8192}
-                        value={aiChosenModel?.loaded ? (aiChosenModel.loadedContextLength ?? aiContext) : aiContext}
-                        disabled={aiBusy || !aiNeedsLoad}
-                        onChange={(event) => setAiContext(Number(event.target.value) || 0)}
-                      />
-                    </label>
-                    <label className={styles.aiNumber} title={aiNeedsLoad ? undefined : t('pipeline.openspec.prepare.aiFixedAtLoad')}>
-                      <span>{t('pipeline.openspec.prepare.aiTtlLabel')}</span>
-                      <input
-                        type="number"
-                        min={1}
-                        step={1}
-                        value={aiTtlMinutes}
-                        disabled={aiBusy || !aiNeedsLoad}
-                        onChange={(event) => setAiTtlMinutes(Number(event.target.value) || 0)}
-                      />
-                    </label>
-                    {/* El contador y la barra van en el hueco que dejan los dos
-                        números, y no en una línea propia arriba: ahí aparecían de
-                        golpe y empujaban todo el panel hacia abajo justo al
-                        apretar el botón. Acá la fila ya tiene su altura, así que
-                        aparecer no mueve nada. Ale lo pidió señalando el hueco.
-                        Las frases que rotan se quedan en el rail; esto es lo
-                        único que informa con la columna derecha cerrada.
-                        La marca de arranque como clave: cada corrida remonta el
-                        contador, así no arrastra los segundos de la anterior. */}
-                    {/* En qué está el modelo, en el mismo lugar donde después
-                        aparece el contador. Ese hueco quedaba vacío en reposo, y
-                        el estado sólo se leía en la lista de abajo, con la misma
-                        paleta que todo lo demás: Ale marcó que se perdía de
-                        vista si el modelo elegido ya estaba cargado o no.
-                        Va por color y por punto, no sólo por texto —verde para
-                        cargado, apagado para en disco—, que es lo que permite
-                        distinguirlo sin leer. Desaparece mientras carga: ahí el
-                        contador dice algo más preciso que «cargado» o no. */}
-                    {aiChosenModel && aiPhase === 'idle' && (
-                      <span
-                        className={styles.aiModelState}
-                        data-loaded={aiChosenModel.loaded}
-                      >
-                        {aiChosenModel.loaded
-                          ? t('pipeline.openspec.prepare.aiStateLoaded')
-                          : t('pipeline.openspec.prepare.aiStateOnDisk')}
-                      </span>
-                    )}
-                    <AiElapsed key={aiStartedAt ?? 'idle'} phase={aiPhase} startedAt={aiStartedAt} kind={aiOpKind} />
-                  </div>
-                  {/* Qué le falta para poder cargar. Va acá abajo y no sólo en el
-                      tooltip: un aviso que exige pasar el mouse por encima no
-                      existe para quien no sabe que tiene que pasarlo. */}
-                  {aiNeedsLoad && aiLoadBlocker && (
-                    <p className={styles.aiBlocker}>{aiLoadBlocker}</p>
-                  )}
-                  {/* El aviso vive en el rail, que es donde ya se cuenta lo que
-                      pasó con la redacción: acá decía lo mismo a dos columnas de
-                      distancia y Ale lo marcó viendo el error repetido.
-                      Con la columna derecha CERRADA vuelve acá, y no es un
-                      adorno: «Lo escribió tal modelo, no la aplicación» es la
-                      rotulación de autoría, y no puede desaparecer porque
-                      alguien haya plegado un panel. */}
-                  {!rightOpen && aiNotice && <p className={styles.aiNotice}>{aiNotice}</p>}
-                  {/* Las características del modelo elegido, una por línea.
-                      Un párrafo con seis datos adentro no se lee: lo que hay que
-                      poder hacer acá es comparar de un vistazo, sobre todo el
-                      contexto y si razona —que es lo que decide si va a
-                      contestar—. */}
-                  {aiChosenModel && (
-                    <ul className={styles.aiFacts}>
-                      <li>
-                        <span>{t('pipeline.openspec.prepare.aiFactState')}</span>
-                        <strong>
-                          {aiChosenModel.loaded
-                            ? t('pipeline.openspec.prepare.aiFactLoaded', { context: aiChosenModel.loadedContextLength ?? '?' })
-                            // Los valores ELEGIDOS, no números escritos a mano.
-                            // Decía «se va a cargar con 65536» mientras el campo
-                            // de al lado mostraba otra cosa, y «tras media hora
-                            // sin uso» con el TTL puesto en 5 minutos. Ale vio
-                            // las dos: esta frase promete lo que va a hacer, así
-                            // que tiene que leer de donde salen los valores.
-                            : t('pipeline.openspec.prepare.aiFactOnDisk', {
-                              context: aiContext,
-                              minutes: aiTtlMinutes,
-                            })}
-                        </strong>
-                      </li>
-                      {aiDeviceLabel(aiChosenModel.devices) && (
-                        <li>
-                          <span>{t('pipeline.openspec.prepare.aiFactDevice')}</span>
-                          <strong>{aiDeviceLabel(aiChosenModel.devices)}</strong>
-                        </li>
-                      )}
-                      {aiChosenModel.sizeBytes !== null && (
-                        <li>
-                          <span>{t('pipeline.openspec.prepare.aiFactSize')}</span>
-                          <strong>{(aiChosenModel.sizeBytes / 1024 ** 3).toFixed(2)} GiB</strong>
-                        </li>
-                      )}
-                      {aiChosenModel.params && (
-                        <li>
-                          <span>{t('pipeline.openspec.prepare.aiFactParams')}</span>
-                          <strong>{aiChosenModel.params}{aiChosenModel.quantization ? ` · ${aiChosenModel.quantization}` : ''}</strong>
-                        </li>
-                      )}
-                      {aiChosenModel.maxContextLength !== null && (
-                        <li>
-                          <span>{t('pipeline.openspec.prepare.aiFactMaxContext')}</span>
-                          <strong>{aiChosenModel.maxContextLength}</strong>
-                        </li>
-                      )}
-                      {/* Que razone es la explicación del modo de fallo más caro
-                          que se midió: gasta el presupuesto pensando y devuelve
-                          vacío. Decirlo acá evita que parezca roto. */}
-                      {aiChosenModel.reasoningDefault && (
-                        <li>
-                          <span>{t('pipeline.openspec.prepare.aiFactReasoning')}</span>
-                          <strong>
-                            {aiChosenModel.reasoningDefault === 'on'
-                              ? t('pipeline.openspec.prepare.aiFactReasons')
-                              : t('pipeline.openspec.prepare.aiFactNoReasons')}
-                          </strong>
-                        </li>
-                      )}
-                    </ul>
-                  )}
-                  </section>
+                  <AiModelControls
+                    repoPath={repoPath}
+                    models={aiModels}
+                    deviceNames={aiDeviceNames}
+                    onModelsChange={setAiModels}
+                    busy={aiBusy}
+                    phase={aiPhase}
+                    startedAt={aiStartedAt}
+                    opKind={aiOpKind}
+                    notice={!rightOpen ? aiNotice : null}
+                    onNoticeChange={setAiNotice}
+                    onLoad={confirmAiLoad}
+                    onUnload={unloadAiModel}
+                    actions={
+                      <>
+                        {!aiNeedsLoad && (
+                          <button
+                            type="button"
+                            className={styles.secondaryAction}
+                            disabled={aiBusy || chosen.length === 0 || !aiModel}
+                            onClick={draftWithAi}
+                          >
+                            {aiPhase === 'drafting' ? t('pipeline.openspec.prepare.aiBusy') : t('pipeline.openspec.prepare.aiDraft')}
+                          </button>
+                        )}
+                        {aiBusy && (
+                          <button type="button" className={styles.secondaryAction} onClick={cancelAiDraft}>
+                            {t('pipeline.openspec.prepare.aiCancel')}
+                          </button>
+                        )}
+                      </>
+                    }
+                  />
                   {/* Cada grupo declara de dónde viene lo que contiene. Ninguno
                       entra preseleccionado: sin un cambio de referencia,
                       privilegiar uno produciría un commit distinto según dónde

@@ -371,6 +371,8 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.engine.review.forceConfirmLabel',
   'pipeline.openspec.engine.review.forceWarning',
   'pipeline.openspec.engine.review.forceFilesToClean',
+  'pipeline.openspec.releaseNotes.showMore',
+  'pipeline.openspec.releaseNotes.showLess',
   'toolbar.actionsMenu',
   'toolbar.toolsMenu',
   'toolbar.branchFilter',

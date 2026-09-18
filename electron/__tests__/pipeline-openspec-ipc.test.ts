@@ -557,6 +557,94 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
       expect(result.redaction.status).toBe('generated');
     });
 
+    it('construye installedContext compacto y lo pasa a versionAnalysisFn cuando hay model; sin model no lo construye', async () => {
+      const map = new Map<string, Function>();
+      const ipcMain = { handle: (ch: string, fn: Function) => map.set(ch, fn) };
+      let capturedOptsWithModel: any;
+      let capturedOptsWithoutModel: any;
+
+      const runVersionAnalysisMock = vi.fn().mockImplementation(async (_path, opts) => {
+        if (opts.model) {
+          capturedOptsWithModel = opts;
+        } else {
+          capturedOptsWithoutModel = opts;
+        }
+        return {
+          measured: {} as any,
+          redaction: { provider: '', status: 'idle', text: '' },
+        };
+      });
+
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(process.cwd());
+
+      const mockReadInstalledContext = vi.fn().mockResolvedValue({
+        engineVersion: '1.12.0',
+        integrationState: 'up-to-date',
+        agents: [{ name: 'agents', workflows: ['commit', 'pr'] }],
+        globalProfile: 'core',
+        globalWorkflows: ['commit', 'pr'],
+      });
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: ipcMain as any,
+        runVersionAnalysis: runVersionAnalysisMock,
+        readInstalledContext: mockReadInstalledContext,
+        discoverCli: vi.fn().mockResolvedValue({
+          installed: true,
+          runtimeVersion: '1.12.0',
+          provenance: 'global',
+          supportedRange: { min: '1.5.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        }),
+        readGlobalConfig: vi.fn().mockResolvedValue({
+          rawProfile: 'core',
+          profileState: 'read',
+          delivery: null,
+          deliveryState: 'read',
+          configuredWorkflows: ['commit', 'pr'],
+          workflowsState: 'read',
+          resolvedWorkflows: ['commit', 'pr'],
+          resolvedWorkflowsState: 'read',
+          origin: 'cli',
+          readAt: new Date().toISOString(),
+        }),
+      });
+
+      const handler = map.get('pipeline:openspec:version-analysis')!;
+
+      const startTime = Date.now();
+      // Con model: construye installedContext
+      await handler({}, {
+        repoPath: process.cwd(),
+        model: 'qwen2.5-coder-7b',
+      });
+      const duration = Date.now() - startTime;
+      expect(duration).toBeLessThan(500);
+
+      expect(mockReadInstalledContext).toHaveBeenCalledWith(
+        fs.realpathSync(process.cwd()),
+        expect.anything(),
+      );
+      expect(capturedOptsWithModel).toBeDefined();
+      expect(capturedOptsWithModel.installedContext).toBeDefined();
+      const resolvedCtx = await capturedOptsWithModel.installedContext;
+      expect(resolvedCtx).toBeDefined();
+      expect(resolvedCtx.engineVersion).toBe('1.12.0');
+      expect(resolvedCtx.globalProfile).toBe('core');
+      expect(resolvedCtx.globalWorkflows).toEqual(['commit', 'pr']);
+
+      // Sin model: NO construye installedContext
+      await handler({}, {
+        repoPath: process.cwd(),
+      });
+
+      expect(capturedOptsWithoutModel).toBeDefined();
+      expect(capturedOptsWithoutModel.installedContext).toBeUndefined();
+    });
+
     it('rechaza claves no autorizadas en el payload de version-analysis', async () => {
       const map = new Map<string, Function>();
       const ipcMain = { handle: (ch: string, fn: Function) => map.set(ch, fn) };

@@ -631,8 +631,9 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
 
     const engineSection = screen.getByRole('region', { name: /Motor y agentes/i });
     expect(engineSection).toBeTruthy();
-    // Contiene la tarjeta del motor
-    expect(within(engineSection).getByRole('heading', { level: 3, name: /Tarjeta de Diagnóstico del Motor OpenSpec/i })).toBeTruthy();
+    // Contiene el título único de la sección
+    expect(within(engineSection).getByRole('heading', { level: 3, name: /Motor y agentes/i })).toBeTruthy();
+    expect(within(engineSection).queryByRole('heading', { level: 3, name: /Tarjeta de Diagnóstico del Motor OpenSpec/i })).toBeNull();
 
     // Contiene la lista de herramientas
     expect(within(engineSection).getByText('Claude Code')).toBeTruthy();
@@ -653,8 +654,8 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     fireEvent.click(techBtn);
     expect(techBtn.getAttribute('aria-expanded')).toBe('true');
 
-    // El aria-label de la tarjeta del motor aparece una sola vez en todo el documento
-    const cardRegions = screen.getAllByRole('region', { name: /Tarjeta de Diagnóstico del Motor OpenSpec/i });
+    // La sección de motor aparece una sola vez en todo el documento
+    const cardRegions = screen.getAllByRole('region', { name: /Motor y agentes/i });
     expect(cardRegions).toHaveLength(1);
   });
 
@@ -814,5 +815,86 @@ Archive and the delta parser stop quietly changing or dropping what you wrote, a
     const engineSection = screen.getByRole('region', { name: /Motor y agentes/i });
     expect(engineSection).toBeTruthy();
     expect(within(engineSection).getByText('Perfil de Workflows Global')).toBeTruthy();
+  });
+
+  it('renderiza el inventario de outputs usando OpenSpecOutputsList con path en code y badges en una sola línea', () => {
+    const statusWithOutputs: OpenSpecEngineStatus = {
+      ...mockStatus,
+      installedIntegration: {
+        ...mockStatus.installedIntegration!,
+        outputInventory: [
+          {
+            id: 'output-1',
+            targetName: 'Cursor Rules',
+            kind: 'repo-local',
+            displayPath: '.cursor/rules/openspec-*',
+            descriptionKey: 'pipeline.openspec.engine.output.cursorRulesDesc',
+            blocked: false,
+            presenceState: 'present',
+          },
+        ],
+      },
+    };
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:/repo"
+        status={statusWithOutputs}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const techBtn = screen.getByRole('button', { name: /Detalle técnico/i });
+    fireEvent.click(techBtn);
+
+    const titles = screen.getAllByText(/Outputs Administrables/i);
+    expect(titles.length).toBeGreaterThanOrEqual(1);
+    expect(titles[0].tagName.toLowerCase()).toBe('h3');
+
+    const codePaths = screen.getAllByText('.cursor/rules/openspec-*');
+    expect(codePaths.length).toBeGreaterThanOrEqual(1);
+    expect(codePaths[0].tagName.toLowerCase()).toBe('code');
+
+    expect(screen.getAllByText(/Local del repo/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Presente/i).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renderiza título único de sección MOTOR Y AGENTES con badge y botón de refrescar en la misma fila, sin duplicar Motor OpenSpec', () => {
+    const readyStatus: OpenSpecEngineStatus = {
+      ...mockStatus,
+      cli: {
+        ...mockStatus.cli,
+        runtimeVersion: '1.12.0',
+      },
+      repoState: 'initialized',
+      integrationState: 'up-to-date',
+    };
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:/repo"
+        status={readyStatus}
+        onBack={vi.fn()}
+      />,
+    );
+
+    // 1. Título único de la sección "Motor y agentes" como h3
+    const sectionHeadings = screen.getAllByRole('heading', { level: 3, name: /motor y agentes/i });
+    expect(sectionHeadings.length).toBe(1);
+
+    // 2. NO existe encabezado "Motor OpenSpec"
+    const duplicateCardTitle = screen.queryByRole('heading', { level: 3, name: /motor openspec/i });
+    expect(duplicateCardTitle).toBeNull();
+
+    // 3. Fila del título contiene el badge de estado y el botón de refrescar
+    const refreshBtn = screen.getByRole('button', { name: /releer estado/i });
+    expect(refreshBtn).toBeTruthy();
+
+    const titleContainer = sectionHeadings[0].closest('header');
+    expect(titleContainer).toBeTruthy();
+    if (titleContainer) {
+      expect(within(titleContainer).getByText(/listo/i)).toBeTruthy();
+      expect(within(titleContainer).getByRole('button', { name: /releer estado/i })).toBe(refreshBtn);
+    }
   });
 });

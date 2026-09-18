@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenSpecReleaseNotes } from '../OpenSpecReleaseNotes';
 import type { OpenSpecVersionAnalysisResult } from '@/types/pipeline';
 import { useGitStore } from '@/lib/git-store';
-import { rememberAiModel } from '@/lib/ai-model-memory';
+import { rememberAiModel, rememberAiSettings } from '@/lib/ai-model-memory';
+import styles from '../OpenSpecDashboard.module.css';
 
 describe('OpenSpecReleaseNotes', () => {
   let mockShellOpenExternal: ReturnType<typeof vi.fn>;
@@ -543,5 +544,234 @@ Actualizaciones importantes en el motor.
     );
 
     expect(await screen.findByRole('heading', { name: 'Avance del informe en tiempo real' })).toBeTruthy();
+  });
+
+  it('integra AiModelControls mostrando inputs de contexto y ttl, deshabilitados con modelo cargado, y lista de hechos aiFacts', async () => {
+    const analysis: OpenSpecVersionAnalysisResult = {
+      measured: {
+        installedVersion: '1.11.0',
+        availableVersion: '1.13.0',
+        isUpgradeAvailable: true,
+        versionClass: 'supported',
+        behindCycle: false,
+        targetVersion: '1.13.0',
+        supportedRange: { min: '1.5.0' },
+        changelog: {
+          source: 'unavailable',
+          sourceUrl: null,
+          fetched: false,
+          rawText: null,
+          error: null,
+        },
+        consumedSurfaces: [],
+        breakingChangesDetected: false,
+        strategyProposal: null,
+      },
+      redaction: {
+        provider: 'LM Studio · loaded-model',
+        status: 'idle',
+        text: '',
+      },
+    };
+
+    (window as unknown as { api: unknown }).api = {
+      ...((window as unknown as { api: unknown }).api as any),
+      commitAi: {
+        catalog: vi.fn().mockResolvedValue({
+          data: [
+            {
+              id: 'loaded-model',
+              name: 'Loaded Model',
+              kind: 'llm',
+              loaded: true,
+              loadedContextLength: 65536,
+              devices: [],
+            },
+          ],
+        }),
+      },
+    };
+
+    rememberAiSettings('/test/repo-controls', { model: 'loaded-model' });
+
+    render(
+      <OpenSpecReleaseNotes
+        latest="1.13.0"
+        analysis={analysis}
+        loading={false}
+        error={null}
+        repoPath="/test/repo-controls"
+      />
+    );
+
+    const contextInput = (await screen.findByLabelText(/contexto/i)) as HTMLInputElement;
+    const ttlInput = screen.getByLabelText(/se cierra a los/i) as HTMLInputElement;
+
+    expect(contextInput).toBeTruthy();
+    expect(ttlInput).toBeTruthy();
+    expect(contextInput.disabled).toBe(true);
+    expect(ttlInput.disabled).toBe(true);
+
+    // Renderiza aiFacts y estado del modelo
+    expect(screen.getByText('modelo cargado')).toBeTruthy();
+    expect(screen.getByText('cargado, 65536 de contexto')).toBeTruthy();
+
+    // Botón expulsar presente
+    expect(screen.getByRole('button', { name: 'Eject' })).toBeTruthy();
+  });
+
+  it('envuelve el borrador streaming en releaseNotesReportBox con data-state="streaming"', () => {
+    const analysis: OpenSpecVersionAnalysisResult = {
+      measured: {
+        installedVersion: '1.11.0',
+        availableVersion: '1.13.0',
+        isUpgradeAvailable: true,
+        versionClass: 'supported',
+        behindCycle: false,
+        targetVersion: '1.13.0',
+        supportedRange: { min: '1.5.0' },
+        changelog: {
+          source: 'GitHub Releases',
+          sourceUrl: null,
+          fetched: true,
+          rawText: '## v1.13.0',
+          error: null,
+        },
+        consumedSurfaces: [],
+        breakingChangesDetected: false,
+        strategyProposal: null,
+      },
+      redaction: {
+        provider: 'lmstudio:test-model',
+        status: 'idle',
+        text: '',
+      },
+    };
+
+    const { container } = render(
+      <OpenSpecReleaseNotes
+        latest="1.13.0"
+        analysis={analysis}
+        loading={false}
+        error={null}
+        redacting={true}
+        partialText="Redactando la primera línea del informe..."
+      />
+    );
+
+    const reportBox = container.querySelector('[data-state="streaming"]');
+    expect(reportBox).toBeTruthy();
+    expect(screen.getByText('Redactando la primera línea del informe...')).toBeTruthy();
+  });
+
+  it('permite desplegar y colapsar informe largo generado con botón Ver más / Ver menos', () => {
+    const longReport = [
+      'Línea 1: Se actualizó el CLI con mejoras sustanciales.',
+      'Línea 2: Se verificaron las superficies de integración y compatibilidad.',
+      'Línea 3: Los diagnósticos de doctor y context ahora operan en formato JSON estructurado.',
+      'Línea 4: No se detectaron breaking changes que afecten el flujo de trabajo.',
+    ].join('\n');
+
+    const analysis: OpenSpecVersionAnalysisResult = {
+      measured: {
+        installedVersion: '1.11.0',
+        availableVersion: '1.13.0',
+        isUpgradeAvailable: true,
+        versionClass: 'supported',
+        behindCycle: false,
+        targetVersion: '1.13.0',
+        supportedRange: { min: '1.5.0' },
+        changelog: {
+          source: 'GitHub Releases',
+          sourceUrl: null,
+          fetched: true,
+          rawText: '## v1.13.0',
+          error: null,
+        },
+        consumedSurfaces: [],
+        breakingChangesDetected: false,
+        strategyProposal: null,
+      },
+      redaction: {
+        provider: 'lmstudio:test-model',
+        status: 'generated',
+        text: longReport,
+      },
+    };
+
+    const { container } = render(
+      <OpenSpecReleaseNotes
+        latest="1.13.0"
+        analysis={analysis}
+        loading={false}
+        error={null}
+      />
+    );
+
+    const reportBox = container.querySelector(`.${styles.releaseNotesReportBox}`);
+    expect(reportBox).toBeTruthy();
+    expect(reportBox?.getAttribute('data-state')).toBe('collapsed');
+
+    const toggleBtn = screen.getByRole('button', { name: /ver más/i });
+    expect(toggleBtn).toBeTruthy();
+    expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
+
+    // Click para desplegar
+    fireEvent.click(toggleBtn);
+    expect(reportBox?.getAttribute('data-state')).toBe('expanded');
+    expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: /ver menos/i })).toBeTruthy();
+
+    // Click para colapsar
+    fireEvent.click(screen.getByRole('button', { name: /ver menos/i }));
+    expect(reportBox?.getAttribute('data-state')).toBe('collapsed');
+    expect(screen.getByRole('button', { name: /ver más/i })).toBeTruthy();
+  });
+
+  it('no muestra el botón de alternar cuando el informe generado es corto', () => {
+    const shortReport = 'Breve resumen de una línea.';
+
+    const analysis: OpenSpecVersionAnalysisResult = {
+      measured: {
+        installedVersion: '1.11.0',
+        availableVersion: '1.13.0',
+        isUpgradeAvailable: true,
+        versionClass: 'supported',
+        behindCycle: false,
+        targetVersion: '1.13.0',
+        supportedRange: { min: '1.5.0' },
+        changelog: {
+          source: 'GitHub Releases',
+          sourceUrl: null,
+          fetched: true,
+          rawText: '## v1.13.0',
+          error: null,
+        },
+        consumedSurfaces: [],
+        breakingChangesDetected: false,
+        strategyProposal: null,
+      },
+      redaction: {
+        provider: 'lmstudio:test-model',
+        status: 'generated',
+        text: shortReport,
+      },
+    };
+
+    const { container } = render(
+      <OpenSpecReleaseNotes
+        latest="1.13.0"
+        analysis={analysis}
+        loading={false}
+        error={null}
+      />
+    );
+
+    const reportBox = container.querySelector(`.${styles.releaseNotesReportBox}`);
+    expect(reportBox).toBeTruthy();
+    expect(reportBox?.getAttribute('data-state')).toBe('collapsed');
+
+    expect(screen.queryByRole('button', { name: /ver más/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /ver menos/i })).toBeNull();
   });
 });

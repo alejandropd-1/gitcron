@@ -4,6 +4,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import {
   analyzeOpenSpecVersion,
+  readInstalledContext,
   buildStrategyProposal,
   clearOpenSpecChangelogCache,
   evaluateConsumedSurfaces,
@@ -262,11 +263,60 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       expect(payload.system).toContain('## Qué hace de hecho');
       expect(payload.system).toContain('## Cómo afecta a GitCron');
       expect(payload.system).toContain('## Cómo encararlo');
+      expect(payload.system).toContain('Escribí para alguien que usa la herramienta pero no programa en este ecosistema');
+      expect(payload.system).toContain('cada término técnico');
+      expect(payload.system).toContain('partir de lo que Alejandro tiene instalado');
       expect(payload.user).toContain('Superficie que GitCron consume: status');
       expect(payload.user).toContain('A'.repeat(2000));
       expect(payload.maxTokens).toBe(900);
       expect(res.redaction.provider).toBe('LM Studio · deepseek-r1');
       expect(res.redaction.status).toBe('generated');
+    });
+
+    it('incorpora lo que Alejandro tiene instalado en el prompt bajo «Lo que Alejandro tiene instalado:» cuando se provee installedContext', async () => {
+      const mockComplete = vi.fn().mockResolvedValue({
+        text: '## Qué hay de nuevo\nNotas.\n## Qué hace de hecho\nHechos.\n## Cómo afecta a GitCron\nSin impacto.\n## Cómo encararlo\nSin cambios.',
+        finishReason: 'stop',
+      });
+
+      await analyzeOpenSpecVersion(process.cwd(), {
+        model: 'deepseek-r1',
+        getInstalledVersion: async () => '1.12.0',
+        checkLatest: async () => ({
+          status: 'online',
+          latestVersion: '1.13.0',
+          checkedAt: new Date().toISOString(),
+          fromCache: false,
+          cacheAgeSeconds: 0,
+          freshness: 'fresh',
+          error: null,
+        }),
+        fetchChangelog: async () => ({
+          source: 'GitHub Releases',
+          sourceUrl: null,
+          fetched: true,
+          rawText: 'Notas',
+          error: null,
+        }),
+        installedContext: {
+          engineVersion: '1.12.0',
+          integrationState: 'up-to-date',
+          globalProfile: 'core',
+          globalWorkflows: ['commit', 'pr'],
+          agents: [
+            { name: 'claude', workflows: ['commit', 'pr'] },
+            { name: 'cursor', workflows: [] },
+          ],
+        },
+        completeTextFn: mockComplete as never,
+      });
+
+      expect(mockComplete).toHaveBeenCalledTimes(1);
+      const [, payload] = mockComplete.mock.calls[0];
+      expect(payload.user).toContain('Lo que Alejandro tiene instalado:');
+      expect(payload.user).toContain('- Motor: 1.12.0 (estado: up-to-date)');
+      expect(payload.user).toContain('- Configuración global: perfil core, workflows: commit, pr');
+      expect(payload.user).toContain('- Agentes: claude (commit, pr); cursor (sin workflows)');
     });
 
     it('degrada a status offline sin voltear los hechos medidos ante rechazo de conexión', async () => {
@@ -522,80 +572,156 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       ).rejects.toThrow(/IPC Security Error: Unknown payload property/);
     });
 
-    it('ejecuta el análisis a través del canal IPC autorizado sin inyectar dependencias falsas', async () => {
-      const handlers = new Map<string, (_event: unknown, payload?: unknown) => Promise<unknown>>();
-      const mockIpc = {
-        handle: vi.fn((channel: string, handler: any) => {
-          handlers.set(channel, handler);
-        }),
-      };
+    // Suelta tarda ~2.8s pero bajo carga de suite excede los 5s por invocar el binario real de openspec
+    it(
+      'ejecuta el análisis a través del canal IPC autorizado sin inyectar dependencias falsas',
+      { timeout: 15_000 },
+      async () => {
+        const handlers = new Map<string, (_event: unknown, payload?: unknown) => Promise<unknown>>();
+        const mockIpc = {
+          handle: vi.fn((channel: string, handler: any) => {
+            handlers.set(channel, handler);
+          }),
+        };
 
-      const realRepo = fs.realpathSync(process.cwd());
-      authorizedRepoStore.authorizeRepo(realRepo);
+        const realRepo = fs.realpathSync(process.cwd());
+        authorizedRepoStore.authorizeRepo(realRepo);
 
-      // Directorio de userData aislado con caché de registry precalentada
-      const tmpUserDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-ver-analysis-ipc-'));
-      fs.writeFileSync(
-        path.join(tmpUserDir, 'openspec-registry-cache.json'),
-        JSON.stringify({
-          latestVersion: '1.11.0',
-          checkedAt: new Date().toISOString(),
-        }),
-        'utf8',
-      );
+        // Directorio de userData aislado con caché de registry precalentada
+        const tmpUserDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-ver-analysis-ipc-'));
+        fs.writeFileSync(
+          path.join(tmpUserDir, 'openspec-registry-cache.json'),
+          JSON.stringify({
+            latestVersion: '1.11.0',
+            checkedAt: new Date().toISOString(),
+          }),
+          'utf8',
+        );
 
-      // Mock de fetch para aislar peticiones de changelog y modelo local
-      const mockFetch = vi.fn().mockImplementation((url: string) => {
-        if (url.includes('chat/completions')) {
-          return Promise.resolve({
-            ok: true,
-            status: 200,
-            json: async () => ({
-              choices: [{ message: { content: 'Ale, mirá: no hay cambios incompatibles' }, finish_reason: 'stop' }],
-            }),
-          });
-        }
-        if (url.includes('api.github.com')) {
-          return Promise.resolve({
-            ok: true,
-            status: 200,
-            json: async () => ({
-              body: '## Release 1.11.0\nVersión oficial',
-              html_url: 'https://github.com/fission-ai/openspec/releases/tag/v1.11.0',
-            }),
-          });
-        }
-        return Promise.reject(new Error(`Fetch inesperado: ${url}`));
-      });
-      globalThis.fetch = mockFetch as unknown as typeof fetch;
-
-      try {
-        const { registerOpenSpecIpcHandlers } = await import('../ipc/pipeline-openspec');
-        registerOpenSpecIpcHandlers({
-          ipcMain: mockIpc as never,
-          getUserDataDir: () => tmpUserDir,
+        // Mock de fetch para aislar peticiones de changelog y modelo local
+        const mockFetch = vi.fn().mockImplementation((url: string) => {
+          if (url.includes('chat/completions')) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: async () => ({
+                choices: [{ message: { content: 'Ale, mirá: no hay cambios incompatibles' }, finish_reason: 'stop' }],
+              }),
+            });
+          }
+          if (url.includes('api.github.com')) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: async () => ({
+                body: '## Release 1.11.0\nVersión oficial',
+                html_url: 'https://github.com/fission-ai/openspec/releases/tag/v1.11.0',
+              }),
+            });
+          }
+          return Promise.reject(new Error(`Fetch inesperado: ${url}`));
         });
+        globalThis.fetch = mockFetch as unknown as typeof fetch;
 
-        const handler = handlers.get('pipeline:openspec:version-analysis')!;
-        const result = (await handler({}, { repoPath: realRepo })) as any;
-
-        expect(result).toBeDefined();
-        expect(result.measured).toBeDefined();
-        expect(result.measured.supportedRange.max).toBeUndefined();
-        expect(result.measured.consumedSurfaces.length).toBe(6);
-        expect(result.redaction).toBeDefined();
-        expect(result.redaction.status).toBe('idle');
-
-        const resultWithModel = (await handler({}, { repoPath: realRepo, model: 'local-model' })) as any;
-        expect(resultWithModel.redaction.status).toBe('generated');
-        expect(resultWithModel.redaction.provider).toBe('LM Studio · local-model');
-      } finally {
         try {
-          fs.rmSync(tmpUserDir, { recursive: true, force: true });
-        } catch {
-          /* ignore */
+          const { registerOpenSpecIpcHandlers } = await import('../ipc/pipeline-openspec');
+          registerOpenSpecIpcHandlers({
+            ipcMain: mockIpc as never,
+            getUserDataDir: () => tmpUserDir,
+          });
+
+          const handler = handlers.get('pipeline:openspec:version-analysis')!;
+          const result = (await handler({}, { repoPath: realRepo })) as any;
+
+          expect(result).toBeDefined();
+          expect(result.measured).toBeDefined();
+          expect(result.measured.supportedRange.max).toBeUndefined();
+          expect(result.measured.consumedSurfaces.length).toBe(6);
+          expect(result.redaction).toBeDefined();
+          expect(result.redaction.status).toBe('idle');
+
+          const resultWithModel = (await handler({}, { repoPath: realRepo, model: 'local-model' })) as any;
+          expect(resultWithModel.redaction.status).toBe('generated');
+          expect(resultWithModel.redaction.provider).toBe('LM Studio · local-model');
+        } finally {
+          try {
+            fs.rmSync(tmpUserDir, { recursive: true, force: true });
+          } catch {
+            /* ignore */
+          }
         }
+      },
+    );
+  });
+
+  describe('readInstalledContext (contexto instalado barato e inyectable)', () => {
+    function exactDiskDouble(spec: { dirs?: Record<string, string[]>; files?: string[] }) {
+      const dirs = spec.dirs ?? {};
+      const files = new Set(spec.files ?? []);
+      const dirPaths = new Set(Object.keys(dirs));
+      return {
+        readdir: (p: string): string[] => (dirs[p] ? [...dirs[p]] : []),
+        lstat: (p: string): any => {
+          if (dirPaths.has(p) || files.has(p)) {
+            return {
+              isDirectory: () => dirPaths.has(p),
+              isFile: () => files.has(p),
+              isSymbolicLink: () => false,
+            };
+          }
+          return null;
+        },
+      };
+    }
+
+    it('extrae agentes y workflows correctos a partir de la evidencia real en < 100 ms', async () => {
+      const repo = 'C:\\repo';
+      const skills = [
+        'openspec-apply-change',
+        'openspec-explore',
+        'openspec-propose',
+        'openspec-sync-specs',
+        'openspec-archive-change',
+        'openspec-update-change',
+      ];
+      const dirs: Record<string, string[]> = {
+        [repo]: ['.agents'],
+        [`${repo}\\.agents`]: ['skills'],
+        [`${repo}\\.agents\\skills`]: skills,
+      };
+      const files: string[] = [];
+      for (const skill of skills) {
+        dirs[`${repo}\\.agents\\skills\\${skill}`] = ['SKILL.md'];
+        files.push(`${repo}\\.agents\\skills\\${skill}\\SKILL.md`);
       }
+      const disk = exactDiskDouble({ dirs, files });
+
+      const start = Date.now();
+      const ctx = await readInstalledContext(repo, {
+        inspectDeps: {
+          ...disk,
+          realpath: (p) => p,
+          readFile: () => 'generatedBy: "1.8.0"',
+        },
+        engineVersion: '1.8.0',
+        readGlobalConfig: vi.fn().mockResolvedValue({
+          rawProfile: 'core',
+          configuredWorkflows: ['commit', 'pr'],
+        }),
+      });
+      const elapsed = Date.now() - start;
+
+      expect(elapsed).toBeLessThan(100);
+      expect(ctx.engineVersion).toBe('1.8.0');
+      expect(ctx.integrationState).toBe('up-to-date');
+      expect(ctx.globalProfile).toBe('core');
+      expect(ctx.globalWorkflows).toEqual(['commit', 'pr']);
+      expect(ctx.agents).toHaveLength(1);
+      expect(ctx.agents![0].name).toBe('agents');
+      expect(ctx.agents![0].workflows).toEqual(
+        expect.arrayContaining(['apply', 'explore', 'propose', 'sync', 'archive', 'update']),
+      );
+      expect(ctx.agents![0].workflows).toHaveLength(6);
     });
   });
 });

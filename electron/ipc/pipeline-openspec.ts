@@ -61,7 +61,9 @@ import { getRealGitInfo, type RealGitInfo } from '../pipeline/repo-evidence-read
 import { getToolDef } from '../pipeline/openspec-tooling';
 import {
   analyzeOpenSpecVersion,
+  readInstalledContext,
   type OpenSpecVersionAnalysisResult,
+  type OpenSpecInstalledContext,
 } from '../pipeline/openspec-version-analysis';
 import { createChunkPump } from '../ai/commit-message/chunk-pump';
 import { authorizedRepoStore } from './authorized-repos';
@@ -89,8 +91,13 @@ export interface OpenSpecIpcDeps {
       model?: string;
       signal?: AbortSignal;
       onChunk?: (chunks: any[]) => void;
+      installedContext?:
+        | OpenSpecInstalledContext
+        | Promise<OpenSpecInstalledContext | null>
+        | null;
     },
   ) => Promise<OpenSpecVersionAnalysisResult>;
+  readInstalledContext?: typeof readInstalledContext;
   runAuthorizedOpenSpec?: typeof runAuthorizedOpenSpec;
   pauseWatcher?: typeof withRepoWatcherPaused;
   installLocal?: typeof installOpenSpecLocal;
@@ -769,6 +776,9 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
           _event?.sender?.send?.('pipeline:openspec:redaction-chunk', { chunks });
         });
 
+        const readCtxFn = deps.readInstalledContext ?? readInstalledContext;
+        const installedContextPromise = readCtxFn(validRepoPath, deps).catch(() => null);
+
         try {
           return await versionAnalysisFn(validRepoPath, {
             forceRefresh,
@@ -777,6 +787,7 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
             model: model.trim(),
             signal: controller.signal,
             onChunk: (chunks) => pump.push(chunks),
+            installedContext: installedContextPromise,
           });
         } finally {
           pump.flush();

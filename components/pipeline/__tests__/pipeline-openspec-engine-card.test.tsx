@@ -2058,5 +2058,108 @@ describe('OpenSpecEngineCard - La tarjeta no ofrece la actualización del motor 
       const contextSection = screen.getByTestId('openspec-context-section');
       expect(contextSection.querySelector('code')?.textContent).toBe('openspec context --json');
     });
+
+    it('las secciones de diagnóstico avanzado (outputs, doctor, context) usan encabezados h3 con reviewSectionTitle y outputs en OpenSpecOutputsList', () => {
+      const status: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: '1.12.0',
+          provenance: 'global',
+          displayPath: 'C:\\global\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.12.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: null,
+        globalConfig: null,
+        installedIntegration: {
+          skills: [],
+          generatedBy: '1.12.0',
+          markersFound: [],
+          outputInventory: [
+            {
+              id: 'output-present-1',
+              targetName: 'Gemini Skills',
+              kind: 'external-global',
+              displayPath: 'C:\\Users\\test\\.gemini\\antigravity\\skills\\openspec-explore',
+              descriptionKey: 'pipeline.openspec.engine.output.geminiSkillsDesc',
+              blocked: false,
+              presenceState: 'present',
+            },
+            {
+              id: 'output-absent-1',
+              targetName: 'GitHub Workflows',
+              kind: 'repo-local',
+              displayPath: '.github/workflows/openspec.yml',
+              descriptionKey: 'pipeline.openspec.engine.output.githubWorkflowsDesc',
+              blocked: false,
+              presenceState: 'absent',
+            },
+          ],
+          evidenceStatus: 'confirmed',
+          tools: ['agents'],
+          targets: ['agents'],
+          installedWorkflowsByTarget: {},
+          missing: null,
+          legacy: [],
+          customized: [],
+          conflicts: null,
+        },
+        repoState: 'initialized',
+        integrationState: 'up-to-date',
+        doctor: {
+          command: 'openspec doctor --json',
+          ok: true,
+          error: null,
+          data: {
+            root: null,
+            store: null,
+            references: [],
+            status: [],
+          },
+        },
+        contextBrief: {
+          command: 'openspec context --json',
+          ok: true,
+          error: null,
+          data: {
+            root: null,
+            members: [],
+            status: [],
+          },
+        },
+      };
+
+      render(
+        <OpenSpecEngineCard
+          status={status}
+          compact={false}
+          defaultAdvancedOpen={true}
+        />,
+      );
+
+      // Los encabezados de doctor y context usan h3 con reviewSectionTitle
+      const doctorSection = screen.getByTestId('openspec-doctor-section');
+      const doctorH3 = doctorSection.querySelector('h3');
+      expect(doctorH3).toBeTruthy();
+      expect(doctorH3?.className).toContain('reviewSectionTitle');
+
+      const contextSection = screen.getByTestId('openspec-context-section');
+      const contextH3 = contextSection.querySelector('h3');
+      expect(contextH3).toBeTruthy();
+      expect(contextH3?.className).toContain('reviewSectionTitle');
+
+      // Outputs presentes renderizan en OpenSpecOutputsList con h3 reviewSectionTitle
+      const outputsTitle = screen.getByText(/Outputs Administrables/i);
+      expect(outputsTitle.tagName.toLowerCase()).toBe('h3');
+      expect(outputsTitle.className).toContain('reviewSectionTitle');
+
+      // Fila en una línea con kind, code path y presence
+      const codePresent = screen.getByText('C:\\Users\\test\\.gemini\\antigravity\\skills\\openspec-explore');
+      expect(codePresent.tagName.toLowerCase()).toBe('code');
+      expect(screen.getByText(/Global externo/i)).toBeTruthy();
+      expect(screen.getByText(/Presente/i)).toBeTruthy();
+    });
   });
 });

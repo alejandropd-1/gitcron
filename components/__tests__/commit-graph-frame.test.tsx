@@ -185,7 +185,6 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
       /\.flowNature/, // DATO: acento de naturaleza del flujo
       /\.intentOption/, // CONTROL / DATO: opciones de intención
       /\.flowField/, // CONTROL / DATO: inputs de formulario
-      /\.engineCard/, // TARJETA: tarjeta de integración del motor
       /\.compactEngineBadge/, // DATO: badge de motor
       /\.divergenceNotice/, // DATO: indicador de divergencia
       /\.generalStatusBadge/, // DATO: insignia de estado
@@ -193,11 +192,9 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
       /\.centerAttention/, // TARJETA / DATO / CONTROL: aviso central
       /\.toggleAbsentBtn/, // RESET
       /\.reviewSafetyBanner/, // TARJETA / DATO: banner de seguridad
-      /\.reviewSection/, // TARJETA: sección de revisión
       /\.reviewCommandPre/, // TARJETA: bloque de código
       /\.reviewCopyBtn/, // CONTROL: botón de copiado
       /\.reviewWarningAlert/, // TARJETA / DATO: alerta de advertencia
-      /\.reviewCoexistenceCol/, // TARJETA: columna de convivencia
       /\.reviewSkillTag/, // DATO: chip de skill
       /\.reviewPrimaryActionBtn/, // CONTROL: acción de revisión
       /\.branchNoticeBadge/, // DATO: badge compacto de discrepancia de rama
@@ -264,13 +261,10 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
     // 5. DATO: Advertencia sobre rama base lleva acento ámbar
     expect(cssContent).toMatch(/\.branchBase\s*\{[^}]*border-left:\s*2px\s+solid\s+var\(--color-warning\)/);
 
-    // 6. TARJETA: Tarjeta del motor OpenSpec
-    expect(cssContent).toMatch(/\.engineCard\s*\{[^}]*border:\s*1px\s+solid\s+var\(--color-border-subtle\)/);
-
-    // 7. DATO: Divergencia en rojo
+    // 6. DATO: Divergencia en rojo
     expect(cssContent).toMatch(/\.divergenceNotice\[data-status='divergent'\]\s*\{[^}]*border:\s*1px\s+solid\s+color-mix\(in srgb,\s*var\(--color-error\)/);
 
-    // 8. TARJETA / DATO: Banner de seguridad en revisión
+    // 7. TARJETA / DATO: Banner de seguridad en revisión
     expect(cssContent).toMatch(/\.reviewSafetyBanner\s*\{[^}]*border-left:\s*3px\s+solid\s+var\(--color-primary\)/);
   });
 });

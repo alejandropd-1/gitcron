@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import { summarizeReleaseNotes } from '@/lib/release-notes-summary';
 import type { OpenSpecVersionAnalysisResult } from '@/types/pipeline';
 import { filterDraftableModels, type LocalModel } from '@/types/commit-message-ai';
-import { useRememberedAiModel, rememberAiModel, getRememberedAiModel, formatAiDeviceLabel } from '@/lib/ai-model-memory';
+import { useRememberedAiModel, rememberAiModel, getRememberedAiModel, getRememberedAiSettings, formatAiDeviceLabel } from '@/lib/ai-model-memory';
 import { MarkdownViewer } from './MarkdownViewer';
 import { AiElapsed } from './AiElapsed';
+import { AiModelControls } from './AiModelControls';
 import styles from './OpenSpecDashboard.module.css';
 
 export interface OpenSpecReleaseNotesProps {
@@ -44,6 +45,28 @@ export function OpenSpecReleaseNotes({
   const [loadingModel, setLoadingModel] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [localStartedAt, setLocalStartedAt] = useState<number | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const reportBoxRef = useRef<HTMLDivElement>(null);
+
+  const [prevRedacting, setPrevRedacting] = useState(redacting);
+  if (prevRedacting !== redacting) {
+    setPrevRedacting(redacting);
+    if (redacting) {
+      setIsExpanded(false);
+    }
+  }
+
+  useEffect(() => {
+    if (redacting && reportBoxRef.current) {
+      reportBoxRef.current.scrollTop = reportBoxRef.current.scrollHeight;
+    }
+  }, [redacting, partialText]);
+
+  useEffect(() => {
+    if (!isExpanded && reportBoxRef.current && !redacting) {
+      reportBoxRef.current.scrollTop = 0;
+    }
+  }, [isExpanded, redacting]);
 
   const effectiveStartedAt = startedAt ?? localStartedAt;
 
@@ -100,7 +123,13 @@ export function OpenSpecReleaseNotes({
       setLoadingModel(true);
       try {
         if (typeof window !== 'undefined' && window.api?.commitAi?.load) {
-          const loadRes = await window.api.commitAi.load(aiModel, undefined, 65_536, 1800);
+          const settings = getRememberedAiSettings(repoPath);
+          const loadRes = await window.api.commitAi.load(
+            aiModel,
+            undefined,
+            settings.contextLength,
+            settings.ttlMinutes * 60,
+          );
           if (loadRes && !loadRes.success) {
             setLoadError(loadRes.error || 'Error al cargar el modelo');
             return;
@@ -140,6 +169,11 @@ export function OpenSpecReleaseNotes({
   }
 
   const buttonTitle = !aiModel ? t('pipeline.openspec.releaseNotes.chooseModelReason') : undefined;
+
+  const reportText = (!redacting && analysis?.redaction?.status === 'generated') ? (analysis.redaction.text || '') : '';
+  const reportLines = reportText.split('\n').length;
+  const isReportLong = reportLines > 3 || reportText.length > 180;
+  const showToggle = !redacting && analysis?.redaction?.status === 'generated' && Boolean(reportText.trim()) && isReportLong;
 
   return (
     <section className={styles.reviewSection} aria-label={titleText}>
@@ -225,43 +259,33 @@ export function OpenSpecReleaseNotes({
             <p>{t('pipeline.openspec.releaseNotes.compatible')}</p>
           )}
 
-          <div className={styles.releaseNotesAiRow}>
-            <select
-              value={aiModel}
-              disabled={isBusy || aiModels.length === 0}
-              aria-label={t('pipeline.openspec.prepare.aiModel')}
-              onChange={(e) => rememberAiModel(repoPath, e.target.value)}
-            >
-              <option value="">
-                {aiModels.length === 0
-                  ? t('pipeline.openspec.prepare.aiNoModels')
-                  : t('pipeline.openspec.prepare.aiChoose')}
-              </option>
-              {aiModels.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.loaded
-                    ? `${model.id} · ${model.loadedContextLength ?? '?'}`
-                    : `${model.id} · ${t('pipeline.openspec.prepare.aiNotLoaded')}`}
-                  {formatAiDeviceLabel(model.devices, aiDeviceNames, t) &&
-                    ` · ${formatAiDeviceLabel(model.devices, aiDeviceNames, t)}`}
-                </option>
-              ))}
-            </select>
-
-            <button
-              type="button"
-              className={styles.reviewCopyBtn}
-              disabled={redacting ? false : (!aiModel || isBusy)}
-              title={redacting ? undefined : buttonTitle}
-              onClick={handleDraftClick}
-            >
-              {redacting ? t('pipeline.openspec.releaseNotes.cancelDraft') : buttonLabel}
-            </button>
-
-            {redacting && (
-              <AiElapsed key={effectiveStartedAt ?? 'drafting'} phase="drafting" startedAt={effectiveStartedAt} />
-            )}
-          </div>
+          <AiModelControls
+            repoPath={repoPath}
+            models={aiModels}
+            deviceNames={aiDeviceNames}
+            onModelsChange={setAiModels}
+            busy={isBusy}
+            phase={redacting ? 'drafting' : loadingModel ? 'loading' : 'idle'}
+            startedAt={effectiveStartedAt}
+            opKind="draft"
+            showLoadButton={false}
+            actions={
+              <button
+                type="button"
+                className={styles.reviewCopyBtn}
+                disabled={redacting ? false : (!aiModel || isBusy)}
+                title={redacting ? undefined : buttonTitle}
+                onClick={handleDraftClick}
+              >
+                {redacting ? t('pipeline.openspec.releaseNotes.cancelDraft') : buttonLabel}
+              </button>
+            }
+            elapsedNode={
+              redacting ? (
+                <AiElapsed key={effectiveStartedAt ?? 'drafting'} phase="drafting" startedAt={effectiveStartedAt} />
+              ) : undefined
+            }
+          />
 
           {loadError && (
             <div role="alert" className={styles.blockedReasonInline}>
@@ -271,13 +295,44 @@ export function OpenSpecReleaseNotes({
 
           {redacting && partialText?.trim() ? (
             <div className={styles.releaseNotesReport}>
-              <MarkdownViewer content={partialText} />
+              <div
+                ref={reportBoxRef}
+                className={styles.releaseNotesReportBox}
+                data-state="streaming"
+              >
+                <MarkdownViewer content={partialText} />
+              </div>
             </div>
           ) : null}
 
           {!redacting && analysis.redaction.status === 'generated' && analysis.redaction.text?.trim() ? (
             <div className={styles.releaseNotesReport}>
-              <MarkdownViewer content={analysis.redaction.text} />
+              <div
+                ref={reportBoxRef}
+                className={styles.releaseNotesReportBox}
+                data-state={isExpanded ? 'expanded' : 'collapsed'}
+              >
+                <MarkdownViewer content={analysis.redaction.text} />
+              </div>
+              {showToggle && (
+                <button
+                  type="button"
+                  className={styles.releaseNotesToggleBtn}
+                  aria-expanded={isExpanded}
+                  onClick={() => setIsExpanded((prev) => !prev)}
+                >
+                  <span>
+                    {isExpanded
+                      ? t('pipeline.openspec.releaseNotes.showLess')
+                      : t('pipeline.openspec.releaseNotes.showMore')}
+                  </span>
+                  {isExpanded ? (
+                    <ChevronUp size={13} aria-hidden="true" />
+                  ) : (
+                    <ChevronDown size={13} aria-hidden="true" />
+                  )}
+                </button>
+              )}
               <div className={styles.axisMeta}>
                 {t('pipeline.openspec.releaseNotes.redactedBy', {
                   provider: analysis.redaction.provider,

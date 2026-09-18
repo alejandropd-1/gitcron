@@ -665,7 +665,14 @@ interface ElectronAPI {
     setWorkflow?: (options: { workflow: string; enabled: boolean }) => Promise<import('./pipeline').SetOpenSpecWorkflowResult>;
     /** Canal de escritura: cambia el perfil global a 'core' o 'custom'. */
     setProfile?: (payload: { profile: string }) => Promise<import('./pipeline').SetOpenSpecProfileResult>;
-    versionAnalysis?: (repoPath: string, forceRefresh?: boolean) => Promise<import('./pipeline').OpenSpecVersionAnalysisResult>;
+    versionAnalysis?: (
+      repoPath: string,
+      optionsOrForceRefresh?: boolean | { forceRefresh?: boolean; model?: string },
+    ) => Promise<import('./pipeline').OpenSpecVersionAnalysisResult>;
+    versionRedactionCancel?: () => Promise<{ cancelled: boolean }>;
+    onRedactionChunk?: (
+      cb: (event: { chunks: import('./commit-message-ai').DraftChunk[] }) => void,
+    ) => () => void;
   };
 }
 

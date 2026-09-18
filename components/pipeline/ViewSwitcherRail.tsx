@@ -24,6 +24,8 @@ export type ViewSwitcherRailProps = {
   ariaLabel?: string;
   className?: string;
   style?: React.CSSProperties;
+  isFolded?: boolean;
+  onTransitionEnd?: (e: React.TransitionEvent<HTMLElement>) => void;
 };
 
 /**
@@ -51,6 +53,8 @@ export function ViewSwitcherRail({
   ariaLabel = 'Vistas',
   className,
   style,
+  isFolded,
+  onTransitionEnd,
 }: ViewSwitcherRailProps) {
   const availableViews = views.filter((v) => v.id !== activeViewId);
 
@@ -61,9 +65,12 @@ export function ViewSwitcherRail({
 
   return (
     <nav
-      className={cn(styles.switcherRail, className)}
+      className={cn(styles.switcherRail, isFolded && styles.switcherRailFolded, className)}
       style={style}
       aria-label={ariaLabel}
+      onTransitionEnd={onTransitionEnd}
+      data-folded={isFolded ? 'true' : undefined}
+      aria-hidden={isFolded ? 'true' : undefined}
     >
       {availableViews.length > 0 && (
         <div className={styles.railSection}>

@@ -828,6 +828,74 @@ describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
       expect(btnRestored.getAttribute('title')).toBe('pipeline.switcher.toggle');
     });
 
+    it('al pasar rightOpen a verdadero, el riel sigue en el DOM en estado de plegado hasta transitionend', () => {
+      const snap = mockSnapshot();
+      if (snap.openSpec) {
+        snap.openSpec.selectedChangeId = null;
+      }
+      act(() => {
+        usePipelineStore.setState({
+          selectedChangeId: null,
+          openSpecificationId: null,
+        });
+      });
+
+      const { container, rerender } = render(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      // Con rightOpen=false: el riel está montado y visible (no plegado)
+      const rail = container.querySelector('nav[class*="switcherRail"]');
+      expect(rail).not.toBeNull();
+      expect(rail?.getAttribute('data-folded')).toBeNull();
+
+      // Al pasar rightOpen a true: el riel sigue montado pero en estado de plegado
+      rerender(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={true}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      // Sigue en el DOM durante la animación con data-folded="true"
+      const closingRail = container.querySelector('nav[class*="switcherRail"]');
+      expect(closingRail).not.toBeNull();
+      expect(closingRail?.getAttribute('data-folded')).toBe('true');
+
+      // Al dispararse transitionend en el riel, se desmonta
+      fireEvent.transitionEnd(closingRail!);
+      expect(container.querySelector('nav[class*="switcherRail"]')).toBeNull();
+    });
+
     it('si el usuario cerró voluntariamente el panel con rightOpen=false, abrir y cerrar el navegador derecho respeta su decisión manteniéndolo cerrado', () => {
       const snap = mockSnapshot();
       if (snap.openSpec) {

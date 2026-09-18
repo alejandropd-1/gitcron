@@ -140,4 +140,50 @@ describe('revalidación del workspace', { timeout: 15_000 }, () => {
     // En reposo no queda ninguna señal de actividad.
     expect(document.querySelector('[data-revalidating]')).toBeNull();
   });
+
+  it('con loading y rightOpen false, existen las tres zonas data-skeleton: header, center y rail', () => {
+    render(
+      <PipelineEmptyState
+        state={{ kind: 'loading' }}
+        onRetry={() => {}}
+        rightOpen={false}
+      />
+    );
+    expect(document.querySelector('[data-skeleton="header"]')).toBeTruthy();
+    expect(document.querySelector('[data-skeleton="center"]')).toBeTruthy();
+    const rail = document.querySelector('[data-skeleton="rail"]');
+    expect(rail).toBeTruthy();
+    expect(rail?.getAttribute('data-skeleton')).toBe('rail');
+  });
+
+  it('con loading y rightOpen true, existen header y center pero NO existe rail', () => {
+    render(
+      <PipelineEmptyState
+        state={{ kind: 'loading' }}
+        onRetry={() => {}}
+        rightOpen={true}
+      />
+    );
+    expect(document.querySelector('[data-skeleton="header"]')).toBeTruthy();
+    expect(document.querySelector('[data-skeleton="center"]')).toBeTruthy();
+    expect(document.querySelector('[data-skeleton="rail"]')).toBeNull();
+  });
+
+  it('la geometría del esqueleto calca el dashboard: header con altura de barra y riel con tres secciones', () => {
+    render(
+      <PipelineEmptyState
+        state={{ kind: 'loading' }}
+        onRetry={() => {}}
+        rightOpen={false}
+      />
+    );
+    const header = document.querySelector('[data-skeleton="header"]');
+    expect(header?.className).toContain('skeletonHeader');
+    const center = document.querySelector('[data-skeleton="center"]');
+    expect(center?.className).toContain('skeletonCenter');
+    const rail = document.querySelector('[data-skeleton="rail"]');
+    expect(rail?.className).toContain('skeletonRail');
+    // Las tres secciones internas del riel existen
+    expect(rail?.querySelectorAll('div[class*="skeletonRailSection"]').length).toBe(3);
+  });
 });

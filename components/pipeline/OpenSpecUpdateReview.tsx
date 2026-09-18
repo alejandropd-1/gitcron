@@ -78,7 +78,16 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   const latest = status?.latestAvailable;
   const installed = status?.installedIntegration;
   const upgrade = getOpenSpecEngineUpgrade(status);
-  const { analysis, loading: notesLoading, error: notesError } = useOpenSpecVersionAnalysis(
+  const {
+    analysis,
+    loading: notesLoading,
+    error: notesError,
+    redacting: notesRedacting,
+    startedAt: notesStartedAt,
+    partialText: notesPartialText,
+    cancelRedaction: handleCancelRedactNotes,
+    redact: handleRedactNotes,
+  } = useOpenSpecVersionAnalysis(
     repoPath,
     upgrade !== null,
   );
@@ -229,6 +238,12 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
               analysis={analysis}
               loading={notesLoading}
               error={notesError}
+              repoPath={repoPath}
+              redacting={notesRedacting}
+              startedAt={notesStartedAt}
+              partialText={notesPartialText}
+              onCancelRedact={handleCancelRedactNotes}
+              onRedact={handleRedactNotes}
             />
           )}
         </div>

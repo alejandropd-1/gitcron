@@ -482,7 +482,27 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('pipeline:openspec:set-workflow', options),
     setProfile: (payload: { profile: string }) =>
       ipcRenderer.invoke('pipeline:openspec:set-profile', payload),
-    versionAnalysis: (repoPath: string, forceRefresh?: boolean) =>
-      ipcRenderer.invoke('pipeline:openspec:version-analysis', { repoPath, ...(forceRefresh ? { forceRefresh } : {}) }),
+    versionAnalysis: (
+      repoPath: string,
+      optionsOrForceRefresh?: boolean | { forceRefresh?: boolean; model?: string },
+    ) => {
+      const opts =
+        typeof optionsOrForceRefresh === 'boolean'
+          ? { forceRefresh: optionsOrForceRefresh }
+          : (optionsOrForceRefresh ?? {});
+      return ipcRenderer.invoke('pipeline:openspec:version-analysis', {
+        repoPath,
+        ...(opts.forceRefresh ? { forceRefresh: true } : {}),
+        ...(opts.model ? { model: opts.model } : {}),
+      });
+    },
+    versionRedactionCancel: () => ipcRenderer.invoke('pipeline:openspec:version-redaction-cancel'),
+    onRedactionChunk: (cb: (event: { chunks: unknown[] }) => void) => {
+      const handler = (_e: unknown, payload: { chunks: unknown[] }) => cb(payload);
+      ipcRenderer.on('pipeline:openspec:redaction-chunk', handler);
+      return () => {
+        ipcRenderer.removeListener('pipeline:openspec:redaction-chunk', handler);
+      };
+    },
   },
 });

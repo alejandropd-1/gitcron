@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenSpecReleaseNotes } from '../OpenSpecReleaseNotes';
 import type { OpenSpecVersionAnalysisResult } from '@/types/pipeline';
 import { useGitStore } from '@/lib/git-store';
+import { rememberAiModel } from '@/lib/ai-model-memory';
 
 describe('OpenSpecReleaseNotes', () => {
   let mockShellOpenExternal: ReturnType<typeof vi.fn>;
@@ -203,9 +204,9 @@ Actualizaciones importantes en el motor.
         strategyProposal: null,
       },
       redaction: {
-        provider: 'LM Studio (modelo local)',
+        provider: 'LM Studio · qwen2.5-coder-7b',
         status: 'generated',
-        text: `## Qué hay de nuevo\nNotas del release.\n\n## Qué hace de hecho\nComportamiento medido.\n\n## Cómo afecta a GitCron\nNo rompe nada.\n\n## Cómo encararlo\nActualización sugerida.`,
+        text: `## Qué hay de nuevo\nNotas del release.\n\n## Qué hace de hecho\nComportamiento medido.\n\n## Cómo afecta a GitCron\nSin impacto.\n\n## Cómo encararlo\nActualización sugerida.`,
       },
     };
 
@@ -222,7 +223,7 @@ Actualizaciones importantes en el motor.
     expect(screen.getByRole('heading', { name: /Qué hace de hecho/i })).toBeTruthy();
     expect(screen.getByRole('heading', { name: /Cómo afecta a GitCron/i })).toBeTruthy();
     expect(screen.getByRole('heading', { name: /Cómo encararlo/i })).toBeTruthy();
-    expect(screen.getByText('Explicación redactada por LM Studio (modelo local)')).toBeTruthy();
+    expect(screen.getByText('Explicación redactada por LM Studio · qwen2.5-coder-7b')).toBeTruthy();
   });
 
   it('no muestra atribución de redacción cuando status es offline', () => {
@@ -247,7 +248,7 @@ Actualizaciones importantes en el motor.
         strategyProposal: null,
       },
       redaction: {
-        provider: 'LM Studio (modelo local)',
+        provider: 'LM Studio · qwen2.5-coder-7b',
         status: 'offline',
         text: '',
       },
@@ -287,7 +288,7 @@ Actualizaciones importantes en el motor.
         strategyProposal: null,
       },
       redaction: {
-        provider: 'LM Studio (modelo local)',
+        provider: 'LM Studio · qwen2.5-coder-7b',
         status: 'offline',
         text: '',
       },
@@ -305,5 +306,242 @@ Actualizaciones importantes en el motor.
     expect(
       screen.getByText('Informe asistido no disponible: el modelo local está apagado o no respondió.')
     ).toBeTruthy();
+  });
+
+  it('deshabilita el botón con motivo «Elegí un modelo» cuando no hay modelo elegido', () => {
+    const analysis: OpenSpecVersionAnalysisResult = {
+      measured: {
+        installedVersion: '1.11.0',
+        availableVersion: '1.13.0',
+        isUpgradeAvailable: true,
+        versionClass: 'supported',
+        behindCycle: false,
+        targetVersion: '1.13.0',
+        supportedRange: { min: '1.5.0' },
+        changelog: {
+          source: 'unavailable',
+          sourceUrl: null,
+          fetched: false,
+          rawText: null,
+          error: null,
+        },
+        consumedSurfaces: [],
+        breakingChangesDetected: false,
+        strategyProposal: null,
+      },
+      redaction: {
+        provider: '',
+        status: 'idle',
+        text: '',
+      },
+    };
+
+    render(
+      <OpenSpecReleaseNotes
+        latest="1.13.0"
+        analysis={analysis}
+        loading={false}
+        error={null}
+        repoPath="/test/repo-no-model"
+      />
+    );
+
+    const btn = screen.getByRole('button', { name: 'Redactar informe' });
+    expect(btn).toBeTruthy();
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+    expect(btn.getAttribute('title')).toBe('Elegí un modelo');
+  });
+
+  it('muestra el mensaje del servidor cuando status es error', () => {
+    const serverError = '400 {"error":{"message":"No models loaded in LM Studio"}}';
+    const analysis: OpenSpecVersionAnalysisResult = {
+      measured: {
+        installedVersion: '1.11.0',
+        availableVersion: '1.13.0',
+        isUpgradeAvailable: true,
+        versionClass: 'supported',
+        behindCycle: false,
+        targetVersion: '1.13.0',
+        supportedRange: { min: '1.5.0' },
+        changelog: {
+          source: 'unavailable',
+          sourceUrl: null,
+          fetched: false,
+          rawText: null,
+          error: null,
+        },
+        consumedSurfaces: [],
+        breakingChangesDetected: false,
+        strategyProposal: null,
+      },
+      redaction: {
+        provider: 'LM Studio · qwen2.5-coder-7b',
+        status: 'error',
+        text: '',
+        error: serverError,
+      },
+    };
+
+    render(
+      <OpenSpecReleaseNotes
+        latest="1.13.0"
+        analysis={analysis}
+        loading={false}
+        error={null}
+      />
+    );
+
+    expect(screen.getByText(serverError)).toBeTruthy();
+  });
+
+  it('con modelo cargado permite redactar llamando a onRedact', async () => {
+    const onRedact = vi.fn().mockResolvedValue(undefined);
+    (window as any).api.commitAi = {
+      catalog: vi.fn().mockResolvedValue({
+        data: [{ id: 'qwen2.5-coder-7b', kind: 'llm', loaded: true, loadedContextLength: 32768 }],
+      }),
+      deviceNames: vi.fn().mockResolvedValue({ data: {} }),
+      load: vi.fn().mockResolvedValue({ success: true }),
+    };
+
+    rememberAiModel('/test/repo-loaded', 'qwen2.5-coder-7b');
+
+    const analysis: OpenSpecVersionAnalysisResult = {
+      measured: {
+        installedVersion: '1.11.0',
+        availableVersion: '1.13.0',
+        isUpgradeAvailable: true,
+        versionClass: 'supported',
+        behindCycle: false,
+        targetVersion: '1.13.0',
+        supportedRange: { min: '1.5.0' },
+        changelog: {
+          source: 'unavailable',
+          sourceUrl: null,
+          fetched: false,
+          rawText: null,
+          error: null,
+        },
+        consumedSurfaces: [],
+        breakingChangesDetected: false,
+        strategyProposal: null,
+      },
+      redaction: {
+        provider: '',
+        status: 'idle',
+        text: '',
+      },
+    };
+
+    render(
+      <OpenSpecReleaseNotes
+        latest="1.13.0"
+        analysis={analysis}
+        loading={false}
+        error={null}
+        repoPath="/test/repo-loaded"
+        onRedact={onRedact}
+      />
+    );
+
+    const btn = await screen.findByRole('button', { name: 'Redactar informe' });
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(btn);
+    expect(onRedact).toHaveBeenCalledWith('qwen2.5-coder-7b');
+  });
+
+  it('muestra botón Cancelar habilitado y AiElapsed cuando redacting es true, y llama a onCancelRedact al click', async () => {
+    const onCancelRedact = vi.fn();
+    const analysis: OpenSpecVersionAnalysisResult = {
+      measured: {
+        installedVersion: '1.11.0',
+        availableVersion: '1.13.0',
+        isUpgradeAvailable: true,
+        versionClass: 'supported',
+        behindCycle: false,
+        targetVersion: '1.13.0',
+        supportedRange: { min: '1.5.0' },
+        changelog: {
+          source: 'unavailable',
+          sourceUrl: null,
+          fetched: false,
+          rawText: null,
+          error: null,
+        },
+        consumedSurfaces: [],
+        breakingChangesDetected: false,
+        strategyProposal: null,
+      },
+      redaction: {
+        provider: 'LM Studio · qwen2.5-coder-7b',
+        status: 'idle',
+        text: '',
+      },
+    };
+
+    render(
+      <OpenSpecReleaseNotes
+        latest="1.13.0"
+        analysis={analysis}
+        loading={false}
+        error={null}
+        repoPath="/test/repo-loaded"
+        redacting={true}
+        startedAt={Date.now() - 2000}
+        onCancelRedact={onCancelRedact}
+      />
+    );
+
+    const cancelBtn = await screen.findByRole('button', { name: 'Cancelar' });
+    expect((cancelBtn as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(cancelBtn);
+    expect(onCancelRedact).toHaveBeenCalledTimes(1);
+
+    // AiElapsed se dibuja con contador de redacción
+    expect(screen.getByText(/Redactando/)).toBeTruthy();
+  });
+
+  it('renderiza MarkdownViewer con el texto parcial mientras redacting es true', async () => {
+    const analysis: OpenSpecVersionAnalysisResult = {
+      measured: {
+        installedVersion: '1.11.0',
+        availableVersion: '1.13.0',
+        isUpgradeAvailable: true,
+        versionClass: 'supported',
+        behindCycle: false,
+        targetVersion: '1.13.0',
+        supportedRange: { min: '1.5.0' },
+        changelog: {
+          source: 'unavailable',
+          sourceUrl: null,
+          fetched: false,
+          rawText: null,
+          error: null,
+        },
+        consumedSurfaces: [],
+        breakingChangesDetected: false,
+        strategyProposal: null,
+      },
+      redaction: {
+        provider: 'LM Studio · qwen2.5-coder-7b',
+        status: 'idle',
+        text: '',
+      },
+    };
+
+    render(
+      <OpenSpecReleaseNotes
+        latest="1.13.0"
+        analysis={analysis}
+        loading={false}
+        error={null}
+        repoPath="/test/repo-loaded"
+        redacting={true}
+        startedAt={Date.now()}
+        partialText="## Avance del informe en tiempo real"
+      />
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Avance del informe en tiempo real' })).toBeTruthy();
   });
 });

@@ -258,7 +258,9 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.engine.advanced.divergentNotice',
   'pipeline.openspec.engine.advanced.undeterminedNotice',
   'pipeline.openspec.engine.advanced.doctorTitle',
+  'pipeline.openspec.engine.advanced.doctorHelp',
   'pipeline.openspec.engine.advanced.contextTitle',
+  'pipeline.openspec.engine.advanced.contextHelp',
   'pipeline.openspec.engine.advanced.cliClean',
   'pipeline.openspec.engine.advanced.cliUnavailable',
   'pipeline.openspec.engine.advanced.fixLabel',
@@ -509,6 +511,12 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.releaseNotes.redactedBy',
   'pipeline.openspec.releaseNotes.error',
   'pipeline.openspec.releaseNotes.reportUnavailable',
+  'pipeline.openspec.releaseNotes.draftReport',
+  'pipeline.openspec.releaseNotes.loadAndDraft',
+  'pipeline.openspec.releaseNotes.chooseModelReason',
+  'pipeline.openspec.releaseNotes.redactingWith',
+  'pipeline.openspec.releaseNotes.loadingAndRedactingWith',
+  'pipeline.openspec.releaseNotes.cancelDraft',
 ] as const;
 
 describe('Pipeline i18n', () => {

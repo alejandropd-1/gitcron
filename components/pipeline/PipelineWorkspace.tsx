@@ -277,8 +277,15 @@ export function PipelineWorkspace({
           onSelectChange={setManualSelection}
         />
       ) : nonReadyState ? (
-        <div className="pipeline-workspace__empty">
-          <PipelineEmptyState state={nonReadyState} onRetry={handleRetry} />
+        <div
+          className={`pipeline-workspace__empty ${nonReadyState.kind === 'loading' ? 'pipeline-workspace__empty--loading' : ''}`.trim()}
+        >
+          <PipelineEmptyState
+            state={nonReadyState}
+            onRetry={handleRetry}
+            rightOpen={rightOpen}
+            rightWidth={rightWidth}
+          />
         </div>
       ) : null}
     </section>

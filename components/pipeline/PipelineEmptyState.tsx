@@ -2,10 +2,13 @@
 
 import { useT } from '@/hooks/use-translation';
 import type { PipelineViewState } from './pipeline-view-state';
+import styles from './OpenSpecDashboard.module.css';
 
 export type PipelineEmptyStateProps = {
   state: Exclude<PipelineViewState, { kind: 'ready' }>;
   onRetry: () => void;
+  rightOpen?: boolean;
+  rightWidth?: number;
 };
 
 /**
@@ -15,28 +18,90 @@ export type PipelineEmptyStateProps = {
  * actividad de OpenSpec o con una versión de snapshot desconocida son
  * situaciones normales, y se explican como tales en vez de mostrarse como falla.
  */
-export function PipelineEmptyState({ state, onRetry }: PipelineEmptyStateProps) {
+export function PipelineEmptyState({
+  state,
+  onRetry,
+  rightOpen = false,
+  rightWidth: _rightWidth,
+}: PipelineEmptyStateProps) {
   const t = useT();
 
   if (state.kind === 'loading') {
     return (
       <div
-        className="animate-pulse flex flex-col gap-4 w-full"
+        className={styles.skeletonRoot}
         aria-busy="true"
         aria-label={t('pipeline.loading')}
         data-estado="loading"
       >
-        <div className="h-11 rounded bg-text-primary/[0.06]" />
-        <div className="grid gap-4 md:grid-cols-[1fr_280px]">
-          <div className="flex flex-col gap-3">
-            <div className="h-24 rounded-lg bg-text-primary/[0.04]" />
-            <div className="h-24 rounded-lg bg-text-primary/[0.04]" />
-            <div className="h-24 rounded-lg bg-text-primary/[0.04]" />
+        <header className={styles.skeletonHeader} data-skeleton="header">
+          <div className={styles.skeletonHeaderLeft}>
+            <div className={styles.skeletonBranchPill} />
+            <div className={styles.skeletonBadge} />
+            <div className={styles.skeletonBadge} />
+            <div className={styles.skeletonBadge} />
+            <div className={styles.skeletonBadge} />
           </div>
-          <div className="flex flex-col gap-3">
-            <div className="h-40 rounded-lg bg-text-primary/[0.04]" />
-            <div className="h-24 rounded-lg bg-text-primary/[0.04]" />
-          </div>
+          <div className={styles.skeletonButton} />
+        </header>
+
+        <div className={styles.skeletonBody}>
+          <main className={styles.skeletonCenter} data-skeleton="center">
+            <section className={styles.skeletonBlock}>
+              <div className={styles.skeletonBlockTitle} />
+              <div className={styles.skeletonCard}>
+                <div className={styles.skeletonLine} style={{ width: '90%' }} />
+                <div className={styles.skeletonLine} style={{ width: '70%' }} />
+                <div className={styles.skeletonLine} style={{ width: '82%' }} />
+                <div className={styles.skeletonLine} style={{ width: '55%' }} />
+              </div>
+            </section>
+
+            <section className={styles.skeletonBlock}>
+              <div className={styles.skeletonBlockTitle} />
+              <div className={styles.skeletonCard}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className={styles.skeletonWorkflowRow}>
+                    <div className={styles.skeletonWorkflowLabel} />
+                    <div className={styles.skeletonWorkflowPill} />
+                    <div className={styles.skeletonWorkflowToggle} />
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className={styles.skeletonBlock}>
+              <div className={styles.skeletonBlockTitle} />
+              <div className={styles.skeletonCard}>
+                <div className={styles.skeletonLine} style={{ width: '85%' }} />
+                <div className={styles.skeletonLine} style={{ width: '65%' }} />
+                <div className={styles.skeletonLine} style={{ width: '75%' }} />
+              </div>
+            </section>
+          </main>
+
+          {!rightOpen && (
+            <aside
+              className={styles.skeletonRail}
+              data-skeleton="rail"
+            >
+              <div className={styles.skeletonRailSection}>
+                <div className={styles.skeletonRailTitle} />
+                <div className={styles.skeletonRailRow} />
+                <div className={styles.skeletonRailRow} />
+                <div className={styles.skeletonRailRow} />
+              </div>
+              <div className={styles.skeletonRailSection}>
+                <div className={styles.skeletonRailTitle} />
+                <div className={styles.skeletonRailRow} />
+                <div className={styles.skeletonRailRow} />
+              </div>
+              <div className={styles.skeletonRailSection}>
+                <div className={styles.skeletonRailTitle} />
+                <div className={styles.skeletonRailRow} />
+              </div>
+            </aside>
+          )}
         </div>
       </div>
     );

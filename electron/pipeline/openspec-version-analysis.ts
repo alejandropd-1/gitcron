@@ -34,7 +34,8 @@ import {
   type OpenSpecVersionClass,
   type OpenSpecVersionRange,
 } from '../../lib/openspec-version';
-import { completeText, createLmStudioConfig } from '../ai/text-client';
+import { completeText, streamText, createLmStudioConfig, DEFAULT_LMSTUDIO_CONN_ERROR } from '../ai/text-client';
+import type { DraftChunk } from '../ai/commit-message/sse';
 import { checkLatestOpenSpecVersion } from './openspec-registry';
 import { resolveOpenSpecExecutable, runAuthorizedOpenSpec } from './openspec-engine';
 import type {
@@ -334,12 +335,24 @@ export async function draftVersionRedaction(
   measured: VersionAnalysisMeasured,
   deps?: {
     completeTextFn?: typeof completeText;
+    streamTextFn?: typeof streamText;
     model?: string;
+    signal?: AbortSignal;
+    onChunk?: (chunks: DraftChunk[]) => void;
   },
 ): Promise<VersionAnalysisRedaction> {
-  const completeFn = deps?.completeTextFn ?? completeText;
+  const model = deps?.model?.trim();
+  if (!model) {
+    return {
+      provider: '',
+      status: 'no-model',
+      text: '',
+      error: null,
+    };
+  }
+
+  const provider = `LM Studio · ${model}`;
   const config = createLmStudioConfig({
-    timeoutMs: 45_000,
     providerLabel: 'LM Studio (redacción)',
   });
 
@@ -361,35 +374,84 @@ export async function draftVersionRedaction(
   ].join('\n');
 
   try {
-    const res = await completeFn(config, {
-      model: deps?.model ?? 'local-model',
-      system:
-        'Sos el asistente de GitCron. Escribí en criollo argentino, claro y concreto, un informe para Alejandro con exactamente estos cuatro encabezados markdown, en este orden: `## Qué hay de nuevo`, `## Qué hace de hecho`, `## Cómo afecta a GitCron`, `## Cómo encararlo`. Basate sólo en las notas y en las superficies medidas que te doy; si algo no figura, decí que no figura. En «Cómo afecta a GitCron» nombrá cada superficie que se toque y cuál no; en «Cómo encararlo» proponé pasos concretos si algo se toca, y si nada se toca decilo en una línea. Nada se actualiza solo: la decisión es de él.',
-      user: promptSummary,
-      maxTokens: 900,
-    });
+    let text = '';
+    if (deps?.streamTextFn) {
+      const res = await deps.streamTextFn(config, {
+        model,
+        system:
+          'Sos el asistente de GitCron. Escribí en criollo argentino, claro y concreto, un informe para Alejandro con exactamente estos cuatro encabezados markdown, en este orden: `## Qué hay de nuevo`, `## Qué hace de hecho`, `## Cómo afecta a GitCron`, `## Cómo encararlo`. Basate sólo en las notas y en las superficies medidas que te doy; si algo no figura, decí que no figura. En «Cómo afecta a GitCron» nombrá cada superficie que se toque y cuál no; en «Cómo encararlo» proponé pasos concretos si algo se toca, y si nada se toca decilo en una línea. Nada se actualiza solo: la decisión es de él.',
+        user: promptSummary,
+        maxTokens: 900,
+        signal: deps?.signal,
+        onChunk: deps?.onChunk,
+      });
+      text = res.text;
+    } else if (deps?.completeTextFn) {
+      const res = await deps.completeTextFn(config, {
+        model,
+        system:
+          'Sos el asistente de GitCron. Escribí en criollo argentino, claro y concreto, un informe para Alejandro con exactamente estos cuatro encabezados markdown, en este orden: `## Qué hay de nuevo`, `## Qué hace de hecho`, `## Cómo afecta a GitCron`, `## Cómo encararlo`. Basate sólo en las notas y en las superficies medidas que te doy; si algo no figura, decí que no figura. En «Cómo afecta a GitCron» nombrá cada superficie que se toque y cuál no; en «Cómo encararlo» proponé pasos concretos si algo se toca, y si nada se toca decilo en una línea. Nada se actualiza solo: la decisión es de él.',
+        user: promptSummary,
+        maxTokens: 900,
+        signal: deps?.signal,
+      });
+      text = res.text;
+    } else {
+      const res = await streamText(config, {
+        model,
+        system:
+          'Sos el asistente de GitCron. Escribí en criollo argentino, claro y concreto, un informe para Alejandro con exactamente estos cuatro encabezados markdown, en este orden: `## Qué hay de nuevo`, `## Qué hace de hecho`, `## Cómo afecta a GitCron`, `## Cómo encararlo`. Basate sólo en las notas y en las superficies medidas que te doy; si algo no figura, decí que no figura. En «Cómo afecta a GitCron» nombrá cada superficie que se toque y cuál no; en «Cómo encararlo» proponé pasos concretos si algo se toca, y si nada se toca decilo en una línea. Nada se actualiza solo: la decisión es de él.',
+        user: promptSummary,
+        maxTokens: 900,
+        signal: deps?.signal,
+        onChunk: deps?.onChunk,
+      });
+      text = res.text;
+    }
 
-    if (res.text && res.text.trim().length > 0) {
+    if (text && text.trim().length > 0) {
       return {
-        provider: 'LM Studio (modelo local)',
+        provider,
         status: 'generated',
-        text: res.text.trim(),
+        text: text.trim(),
         error: null,
       };
     }
 
     return {
-      provider: 'LM Studio (modelo local)',
-      status: 'offline',
-      text: 'El servidor local de IA devolvió una respuesta vacía. Los hechos medidos y veredictos se presentan arriba directamente a partir del análisis determinístico de código.',
-      error: 'Respuesta vacía del modelo local',
+      provider,
+      status: 'error',
+      text: '',
+      error: 'El servidor local de IA devolvió una respuesta vacía.',
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    if (deps?.signal?.aborted || /cancelad/i.test(msg)) {
+      return {
+        provider,
+        status: 'error',
+        text: '',
+        error: msg,
+      };
+    }
+
+    const isConnError =
+      msg.includes(DEFAULT_LMSTUDIO_CONN_ERROR) ||
+      /ECONNREFUSED|fetch failed|getaddrinfo|ENOTFOUND/i.test(msg);
+
+    if (isConnError) {
+      return {
+        provider,
+        status: 'offline',
+        text: '',
+        error: null,
+      };
+    }
+
     return {
-      provider: 'LM Studio (modelo local)',
-      status: 'offline',
-      text: 'Servidor local de IA no disponible (LM Studio apagado en localhost:1234). Los hechos medidos y veredictos se presentan arriba directamente a partir del análisis determinístico de código.',
+      provider,
+      status: 'error',
+      text: '',
       error: msg,
     };
   }
@@ -411,8 +473,12 @@ export async function analyzeOpenSpecVersion(
       error?: string | null;
     }>;
     completeTextFn?: typeof completeText;
+    streamTextFn?: typeof streamText;
     forceRefresh?: boolean;
     userDataDir?: string | null;
+    model?: string;
+    signal?: AbortSignal;
+    onChunk?: (chunks: DraftChunk[]) => void;
   },
 ): Promise<OpenSpecVersionAnalysisResult> {
   const checkLatestFn =
@@ -502,10 +568,23 @@ export async function analyzeOpenSpecVersion(
     strategyProposal,
   };
 
-  // 9c.4 & 9c.5: Redacción con capa única 9b y modelo local, estrictamente separada
-  const redaction = await draftVersionRedaction(measured, {
-    completeTextFn: deps?.completeTextFn,
-  });
+  // 9c.4 & 9c.5: Redacción con capa única 9b y modelo local, estrictamente separada.
+  // Sin modelo no redacta: sólo mide (idle) para no gastar GPU automáticamente.
+  const redaction: VersionAnalysisRedaction =
+    deps?.model && deps.model.trim().length > 0
+      ? await draftVersionRedaction(measured, {
+          completeTextFn: deps?.completeTextFn,
+          streamTextFn: deps?.streamTextFn,
+          model: deps.model.trim(),
+          signal: deps?.signal,
+          onChunk: deps?.onChunk,
+        })
+      : {
+          provider: '',
+          status: 'idle',
+          text: '',
+          error: null,
+        };
 
   return {
     measured,

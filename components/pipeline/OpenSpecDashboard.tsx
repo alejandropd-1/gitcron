@@ -56,6 +56,7 @@ import { AiElapsed } from './AiElapsed';
 import { appendDraftChunks, clearDraftLog, finishDraftLog, startDraftLog } from '@/lib/commit-draft-log';
 import { adviceKeyForStreamError } from '@/lib/stream-error-advice';
 import { MIN_CONTEXT_LENGTH, filterDraftableModels, type LocalModel } from '@/types/commit-message-ai';
+import { useRememberedAiModel, rememberAiModel as rememberAiModelGlobally, getRememberedAiModel, formatAiDeviceLabel } from '@/lib/ai-model-memory';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { ActivityFeed } from './ActivityFeed';
@@ -232,13 +233,9 @@ function formatSessionOption(session: RuntimeProjection): string {
 }
 
 /**
- * El último modelo que la persona eligió, por repositorio.
- *
- * Fuera del componente a propósito: el panel se desmonta al cerrarlo y al
- * cambiar de solapa, y con el estado adentro la elección se perdía en cada
- * vuelta. En memoria y por repositorio, como el borrador del cambio nuevo.
+ * La memoria del último modelo elegido por repositorio se gestiona en
+ * lib/ai-model-memory.ts para sincronizarse con OpenSpecReleaseNotes.
  */
-const lastAiModelByRepo = new Map<string, string>();
 
 /**
  * Con qué marca se rotula cada redacción.
@@ -498,6 +495,36 @@ export function OpenSpecDashboard({
    */
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(true);
   const isSwitcherVisible = isSwitcherOpen && !rightOpen;
+
+  // El switcher no se desmonta de golpe al abrirse el panel derecho de la app (rightOpen):
+  // se mantiene montado durante el cierre y se pliega animado (300ms, idéntico al panel)
+  // hasta desmontarse en transitionend. Al abrirse, lo inverso.
+  const [isClosingByRightOpen, setIsClosingByRightOpen] = useState(false);
+  const [prevRightOpen, setPrevRightOpen] = useState(rightOpen);
+  if (prevRightOpen !== rightOpen) {
+    setPrevRightOpen(rightOpen);
+    const prefersReducedMotion = typeof window !== 'undefined' &&
+      Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+    if (rightOpen && isSwitcherOpen && !prefersReducedMotion) setIsClosingByRightOpen(true);
+    if (!rightOpen) setIsClosingByRightOpen(false);
+  }
+
+  useEffect(() => {
+    if (!isClosingByRightOpen) return;
+    const timer = setTimeout(() => {
+      setIsClosingByRightOpen(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [isClosingByRightOpen]);
+
+  const handleSwitcherTransitionEnd = (e: React.TransitionEvent<HTMLElement>) => {
+    if (e.target === e.currentTarget && isClosingByRightOpen) {
+      setIsClosingByRightOpen(false);
+    }
+  };
+
+  const isSwitcherMounted = isSwitcherOpen && (!rightOpen || isClosingByRightOpen);
+  const isSwitcherFolded = isClosingByRightOpen;
   const startScrollPositionsRef = useRef<Record<string, number>>({});
   const startBodyRef = useRef<HTMLDivElement>(null);
   const changeHeaderRef = useRef<HTMLElement>(null);
@@ -964,7 +991,7 @@ export function OpenSpecDashboard({
   // espera cambien junto con el resto del panel.
   const uiLanguage = useGitStore((state) => state.language);
   const [aiModels, setAiModels] = useState<LocalModel[]>([]);
-  const [aiModel, setAiModel] = useState(() => (repoPath ? lastAiModelByRepo.get(repoPath) ?? '' : ''));
+  const aiModel = useRememberedAiModel(repoPath);
   /**
    * En qué está la IA: quieta, cargando un modelo, o redactando.
    *
@@ -1020,8 +1047,7 @@ export function OpenSpecDashboard({
    * Por repositorio y en memoria, como el borrador del cambio nuevo.
    */
   const rememberAiModel = (id: string) => {
-    if (repoPath) lastAiModelByRepo.set(repoPath, id);
-    setAiModel(id);
+    rememberAiModelGlobally(repoPath, id);
   };
   const [aiContext, setAiContext] = useState(65_536);
   const [aiTtlMinutes, setAiTtlMinutes] = useState(30);
@@ -1231,7 +1257,10 @@ export function OpenSpecDashboard({
       // Lo que se eligió antes sigue elegido, salvo que ya no esté en el
       // catálogo: sostener una elección que el servidor ya no ofrece dejaría el
       // botón encendido sobre un modelo que no existe.
-      setAiModel((actual) => (disponibles.some((model) => model.id === actual) ? actual : ''));
+      const currentModel = getRememberedAiModel(repoPath);
+      if (currentModel && !disponibles.some((model) => model.id === currentModel)) {
+        rememberAiModelGlobally(repoPath, '');
+      }
     }).catch(() => { if (alive) setAiModels([]); });
     // Los nombres de las máquinas, aparte y después: cuestan un proceso y el
     // catálogo no puede esperarlos. Si no llegan, el desplegable muestra el
@@ -1303,27 +1332,7 @@ export function OpenSpecDashboard({
    * saber que no.
    */
   const aiDeviceLabel = (devices: string[] | undefined): string | null => {
-    // Ausente y vacío son lo mismo acá: no se sabe. Un catálogo leído por una
-    // versión anterior no trae el campo, y eso no puede romper el desplegable.
-    if (!devices || devices.length === 0) return null;
-    /**
-     * El nombre si se conoce; si no, seis caracteres del identificador.
-     *
-     * El nombre lo da el CLI y llega por su propio canal, más lento y aparte:
-     * mezclarlo con el catálogo haría que abrir el panel pague un proceso. Hasta
-     * que llegue se muestra el identificador, que se lee peor pero es cierto.
-     */
-    const nombre = (id: string) => aiDeviceNames[id]
-      ?? t('pipeline.openspec.prepare.aiDeviceOther', { id: id.slice(0, 6) });
-    const aqui = devices.includes('');
-    const otras = devices.filter((id) => id !== '');
-    if (aqui && otras.length > 0) {
-      return aiDeviceNames[''] && aiDeviceNames[otras[0]]
-        ? `${aiDeviceNames['']} + ${aiDeviceNames[otras[0]]}`
-        : t('pipeline.openspec.prepare.aiDeviceBoth');
-    }
-    if (aqui) return aiDeviceNames[''] ?? t('pipeline.openspec.prepare.aiDeviceHere');
-    return nombre(otras[0]);
+    return formatAiDeviceLabel(devices, aiDeviceNames, t);
   };
   const aiNeedsLoad = Boolean(aiChosenModel)
     && !(aiChosenModel!.loaded && (aiChosenModel!.loadedContextLength ?? 0) >= MIN_CONTEXT_LENGTH);
@@ -2206,7 +2215,7 @@ export function OpenSpecDashboard({
               tapada por lo que se esté leyendo. */}
           {!prepareOpen && openSpecification ? (
             <div className={styles.startScreenWrapper}>
-              {isSwitcherVisible && (
+              {isSwitcherMounted && (
                 <ViewSwitcherRail
                   views={specViews}
                   activeViewId="spec"
@@ -2217,6 +2226,8 @@ export function OpenSpecDashboard({
                   }}
                   openSpecSlot={openSpecRailSlot}
                   ariaLabel={t('pipeline.switcher.views')}
+                  isFolded={isSwitcherFolded}
+                  onTransitionEnd={handleSwitcherTransitionEnd}
                 />
               )}
               <div className={styles.startBody} ref={startBodyRef}>
@@ -2231,7 +2242,7 @@ export function OpenSpecDashboard({
             </div>
           ) : !prepareOpen && reviewOpen ? (
             <div className={styles.startScreenWrapper}>
-              {isSwitcherVisible && (
+              {isSwitcherMounted && (
                 <ViewSwitcherRail
                   views={selectedChange ? changeViews : startViews}
                   activeViewId="review"
@@ -2253,6 +2264,8 @@ export function OpenSpecDashboard({
                   environmentSlot={changeEnvironmentSlot}
                   openSpecSlot={openSpecRailSlot}
                   ariaLabel={t('pipeline.switcher.views')}
+                  isFolded={isSwitcherFolded}
+                  onTransitionEnd={handleSwitcherTransitionEnd}
                 />
               )}
               <OpenSpecUpdateReview
@@ -2709,7 +2722,7 @@ export function OpenSpecDashboard({
             </section>
           ) : selectedChange ? (
             <div className={styles.startScreenWrapper}>
-              {isSwitcherVisible && (
+              {isSwitcherMounted && (
                 <ViewSwitcherRail
                   views={changeViews}
                   activeViewId={launchTarget ? 'launch' : activeChangeView}
@@ -2726,6 +2739,8 @@ export function OpenSpecDashboard({
                   environmentSlot={changeEnvironmentSlot}
                   openSpecSlot={openSpecRailSlot}
                   ariaLabel={t('pipeline.switcher.views')}
+                  isFolded={isSwitcherFolded}
+                  onTransitionEnd={handleSwitcherTransitionEnd}
                 />
               )}
               <div className={styles.startBody} ref={startBodyRef}>
@@ -2934,7 +2949,7 @@ export function OpenSpecDashboard({
               </div>
           ) : selectedArchive ? (
             <div className={styles.startScreenWrapper}>
-              {isSwitcherVisible && (
+              {isSwitcherMounted && (
                 <ViewSwitcherRail
                   views={archiveViews}
                   activeViewId="archive"
@@ -2949,6 +2964,8 @@ export function OpenSpecDashboard({
                   }}
                   openSpecSlot={openSpecRailSlot}
                   ariaLabel={t('pipeline.switcher.views')}
+                  isFolded={isSwitcherFolded}
+                  onTransitionEnd={handleSwitcherTransitionEnd}
                 />
               )}
               <div className={styles.startBody} ref={startBodyRef}>
@@ -3240,13 +3257,15 @@ export function OpenSpecDashboard({
                 )}
               </div>
 
-              {isSwitcherVisible && (
+              {isSwitcherMounted && (
                 <ViewSwitcherRail
                   views={startViews}
                   activeViewId={activeStartView}
                   onSwitchView={(viewId) => handleSwitchStartView(viewId as StartView)}
                   openSpecSlot={openSpecRailSlot}
                   ariaLabel={t('pipeline.switcher.views')}
+                  isFolded={isSwitcherFolded}
+                  onTransitionEnd={handleSwitcherTransitionEnd}
                 />
               )}
             </div>

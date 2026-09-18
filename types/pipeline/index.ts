@@ -839,7 +839,7 @@ export interface VersionAnalysisMeasured {
 
 export interface VersionAnalysisRedaction {
   provider: string;
-  status: 'generated' | 'offline' | 'error';
+  status: 'idle' | 'no-model' | 'generated' | 'offline' | 'error';
   text: string;
   error?: string | null;
 }

@@ -363,4 +363,46 @@ describe('Cliente unificado de texto (Grupo 9b)', () => {
       expect(result.branches[0].message).toBe('Rama experimental');
     });
   });
+
+  describe('manejo de TimeoutError y cancelación (Tanda 9c.4 c)', () => {
+    it('completeText transforma TimeoutError en mensaje de timeout amigable', async () => {
+      const timeoutErr = new Error('The operation was aborted due to timeout');
+      timeoutErr.name = 'TimeoutError';
+      globalThis.fetch = vi.fn().mockRejectedValue(timeoutErr) as unknown as typeof fetch;
+
+      const config = createLmStudioConfig({ providerLabel: 'LM Studio' });
+      await expect(
+        completeText(config, { model: 'm', system: 's', user: 'u', timeoutMs: 5000 }),
+      ).rejects.toThrow(/LM Studio: la petición tardó demasiado \(5s\) y se canceló\./);
+    });
+
+    it('streamText transforma TimeoutError en mensaje de timeout amigable', async () => {
+      const timeoutErr = new Error('The operation was aborted due to timeout');
+      timeoutErr.name = 'TimeoutError';
+      globalThis.fetch = vi.fn().mockRejectedValue(timeoutErr) as unknown as typeof fetch;
+
+      const config = createLmStudioConfig({ providerLabel: 'LM Studio' });
+      await expect(
+        streamText(config, { model: 'm', system: 's', user: 'u', timeoutMs: 10000 }),
+      ).rejects.toThrow(/LM Studio: la petición tardó demasiado \(10s\) y se canceló\./);
+    });
+
+    it('completeText y streamText distinguen cancelación explícita del usuario cuando signal está abortado', async () => {
+      const abortErr = new Error('The user aborted a request.');
+      abortErr.name = 'AbortError';
+      globalThis.fetch = vi.fn().mockRejectedValue(abortErr) as unknown as typeof fetch;
+
+      const controller = new AbortController();
+      controller.abort();
+
+      const config = createLmStudioConfig({ providerLabel: 'LM Studio' });
+      await expect(
+        completeText(config, { model: 'm', system: 's', user: 'u', signal: controller.signal }),
+      ).rejects.toThrow(/LM Studio: operación cancelada por el usuario\./);
+
+      await expect(
+        streamText(config, { model: 'm', system: 's', user: 'u', signal: controller.signal }),
+      ).rejects.toThrow(/LM Studio: operación cancelada por el usuario\./);
+    });
+  });
 });

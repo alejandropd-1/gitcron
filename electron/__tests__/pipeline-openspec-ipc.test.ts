@@ -522,4 +522,143 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
       );
     });
   });
+
+  describe('Canal pipeline:openspec:version-analysis (Grupo 9c)', () => {
+    it('acepta la clave model y la pasa a la función de análisis', async () => {
+      const map = new Map<string, Function>();
+      const ipcMain = { handle: (ch: string, fn: Function) => map.set(ch, fn) };
+      const runVersionAnalysisMock = vi.fn().mockResolvedValue({
+        measured: {} as any,
+        redaction: { provider: 'LM Studio · qwen', status: 'generated', text: 'Informe' },
+      });
+
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(process.cwd());
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: ipcMain as any,
+        runVersionAnalysis: runVersionAnalysisMock,
+      });
+
+      const handler = map.get('pipeline:openspec:version-analysis')!;
+      const result = (await handler({}, {
+        repoPath: process.cwd(),
+        forceRefresh: true,
+        model: 'qwen2.5-coder-7b',
+      })) as any;
+
+      expect(runVersionAnalysisMock).toHaveBeenCalledWith(
+        fs.realpathSync(process.cwd()),
+        expect.objectContaining({
+          forceRefresh: true,
+          model: 'qwen2.5-coder-7b',
+        }),
+      );
+      expect(result.redaction.status).toBe('generated');
+    });
+
+    it('rechaza claves no autorizadas en el payload de version-analysis', async () => {
+      const map = new Map<string, Function>();
+      const ipcMain = { handle: (ch: string, fn: Function) => map.set(ch, fn) };
+
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(process.cwd());
+
+      registerOpenSpecIpcHandlers({ ipcMain: ipcMain as any });
+
+      const handler = map.get('pipeline:openspec:version-analysis')!;
+      await expect(
+        handler({}, {
+          repoPath: process.cwd(),
+          model: 'qwen2.5-coder-7b',
+          maliciousKey: 'malicious',
+        }),
+      ).rejects.toThrow(/IPC Security Error: Unknown payload property/);
+    });
+
+    it('emite fragmentos de redacción a través de pipeline:openspec:redaction-chunk agrupados por pump', async () => {
+      const map = new Map<string, Function>();
+      const ipcMain = { handle: (ch: string, fn: Function) => map.set(ch, fn) };
+      const senderSendMock = vi.fn();
+      const mockEvent = {
+        sender: {
+          isDestroyed: () => false,
+          send: senderSendMock,
+        },
+      };
+
+      const runVersionAnalysisMock = vi.fn().mockImplementation(async (_path, opts) => {
+        opts.onChunk([{ kind: 'content', text: 'Chunk emitido' }]);
+        return {
+          measured: {} as any,
+          redaction: { provider: 'LM Studio · qwen', status: 'generated', text: 'Informe' },
+        };
+      });
+
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(process.cwd());
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: ipcMain as any,
+        runVersionAnalysis: runVersionAnalysisMock,
+      });
+
+      const handler = map.get('pipeline:openspec:version-analysis')!;
+      await handler(mockEvent, {
+        repoPath: process.cwd(),
+        model: 'qwen2.5-coder-7b',
+      });
+
+      expect(senderSendMock).toHaveBeenCalledWith(
+        'pipeline:openspec:redaction-chunk',
+        expect.objectContaining({
+          chunks: [{ kind: 'content', text: 'Chunk emitido' }],
+        }),
+      );
+    });
+
+    it('pipeline:openspec:version-redaction-cancel aborta el controller en vuelo y devuelve estado de cancelación', async () => {
+      const map = new Map<string, Function>();
+      const ipcMain = { handle: (ch: string, fn: Function) => map.set(ch, fn) };
+
+      let capturedSignal: AbortSignal | undefined;
+      const runVersionAnalysisMock = vi.fn().mockImplementation(async (_path, opts) => {
+        capturedSignal = opts.signal;
+        // Espera simulación de llamada en vuelo
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return {
+          measured: {} as any,
+          redaction: { provider: 'LM Studio · qwen', status: 'generated', text: 'Informe' },
+        };
+      });
+
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(process.cwd());
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: ipcMain as any,
+        runVersionAnalysis: runVersionAnalysisMock,
+      });
+
+      const analysisHandler = map.get('pipeline:openspec:version-analysis')!;
+      const cancelHandler = map.get('pipeline:openspec:version-redaction-cancel')!;
+
+      // Inicia análisis con modelo
+      const analysisPromise = analysisHandler({}, {
+        repoPath: process.cwd(),
+        model: 'qwen2.5-coder-7b',
+      });
+
+      // Cancela en vuelo
+      const cancelResult = await cancelHandler({}, {});
+      expect(cancelResult).toEqual({ cancelled: true });
+      expect(capturedSignal?.aborted).toBe(true);
+
+      await analysisPromise;
+
+      // Cancelar cuando ya no hay nada en vuelo
+      const cancelAgain = await cancelHandler({}, {});
+      expect(cancelAgain).toEqual({ cancelled: false });
+    });
+  });
 });

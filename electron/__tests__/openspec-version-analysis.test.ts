@@ -150,13 +150,45 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
   });
 
   describe('9c.4 & 9c.5: Redacción en criollo y separación estricta de redacción vs hechos medidos', () => {
-    it('redacta con modelo local cuando está disponible', async () => {
+    it('sin model devuelve status idle y NO llama a completeTextFn', async () => {
+      const mockComplete = vi.fn();
+
+      const res = await analyzeOpenSpecVersion(process.cwd(), {
+        getInstalledVersion: async () => '1.12.0',
+        checkLatest: async () => ({
+          status: 'online',
+          latestVersion: '1.13.0',
+          checkedAt: new Date().toISOString(),
+          fromCache: false,
+          cacheAgeSeconds: 0,
+          freshness: 'fresh',
+          error: null,
+        }),
+        fetchChangelog: async () => ({
+          source: 'GitHub Releases (fission-ai/openspec)',
+          sourceUrl: 'https://github.com/fission-ai/openspec/releases/tag/v1.13.0',
+          fetched: true,
+          rawText: '- Modificaciones en CLI',
+          error: null,
+        }),
+        completeTextFn: mockComplete as never,
+      });
+
+      expect(mockComplete).not.toHaveBeenCalled();
+      expect(res.measured).toBeDefined();
+      expect(res.redaction.status).toBe('idle');
+      expect(res.redaction.text).toBe('');
+      expect(res.redaction.provider).toBe('');
+    });
+
+    it('redacta con el modelo elegido cuando se provee model', async () => {
       const mockComplete = vi.fn().mockResolvedValue({
         text: 'Ale, mirá: salió la versión 1.12.0. Todavía no la subas porque GitCron consume el JSON de status e instructions...',
         finishReason: 'stop',
       });
 
       const res = await analyzeOpenSpecVersion(process.cwd(), {
+        model: 'qwen2.5-coder-7b',
         getInstalledVersion: async () => '1.12.0',
         checkLatest: async () => ({
           status: 'online',
@@ -190,11 +222,11 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
 
       // Redacción del modelo
       expect(res.redaction.status).toBe('generated');
-      expect(res.redaction.provider).toBe('LM Studio (modelo local)');
+      expect(res.redaction.provider).toBe('LM Studio · qwen2.5-coder-7b');
       expect(res.redaction.text).toContain('Ale, mirá');
     });
 
-    it('construye el prompt del modelo con superficies consumidas, notas ampliadas y estructura de informe de 4 partes', async () => {
+    it('construye el prompt del modelo con superficies consumidas, notas ampliadas y estructura de informe de 4 partes llevando el modelo elegido', async () => {
       const longNotes = 'A'.repeat(2500);
       const mockComplete = vi.fn().mockResolvedValue({
         text: '## Qué hay de nuevo\nNotas.\n## Qué hace de hecho\nHechos.\n## Cómo afecta a GitCron\nSin impacto.\n## Cómo encararlo\nSin cambios.',
@@ -202,6 +234,7 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       });
 
       const res = await analyzeOpenSpecVersion(process.cwd(), {
+        model: 'deepseek-r1',
         getInstalledVersion: async () => '1.12.0',
         checkLatest: async () => ({
           status: 'online',
@@ -224,6 +257,7 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
 
       expect(mockComplete).toHaveBeenCalledTimes(1);
       const [, payload] = mockComplete.mock.calls[0];
+      expect(payload.model).toBe('deepseek-r1');
       expect(payload.system).toContain('## Qué hay de nuevo');
       expect(payload.system).toContain('## Qué hace de hecho');
       expect(payload.system).toContain('## Cómo afecta a GitCron');
@@ -231,14 +265,15 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       expect(payload.user).toContain('Superficie que GitCron consume: status');
       expect(payload.user).toContain('A'.repeat(2000));
       expect(payload.maxTokens).toBe(900);
-      expect(res.redaction.provider).toBe('LM Studio (modelo local)');
+      expect(res.redaction.provider).toBe('LM Studio · deepseek-r1');
       expect(res.redaction.status).toBe('generated');
     });
 
-    it('degrada limpiamente sin voltear los hechos medidos si el modelo local está apagado', async () => {
+    it('degrada a status offline sin voltear los hechos medidos ante rechazo de conexión', async () => {
       const mockComplete = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'));
 
       const res = await analyzeOpenSpecVersion(process.cwd(), {
+        model: 'qwen2.5-coder-7b',
         getInstalledVersion: async () => '1.12.0',
         checkLatest: async () => ({
           status: 'online',
@@ -265,11 +300,122 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
       expect(res.measured.breakingChangesDetected).toBe(false);
       expect(res.measured.consumedSurfaces.length).toBe(6);
 
-      // Redacción informa degradación
+      // Redacción informa offline
       expect(res.redaction.status).toBe('offline');
-      expect(res.redaction.provider).toBe('LM Studio (modelo local)');
-      expect(res.redaction.text).toContain('Servidor local de IA no disponible');
-      expect(res.redaction.error).toContain('ECONNREFUSED');
+      expect(res.redaction.provider).toBe('LM Studio · qwen2.5-coder-7b');
+      expect(res.redaction.error).toBeNull();
+    });
+
+    it('respuesta 400 del servidor devuelve status error con el mensaje real del servidor', async () => {
+      const serverMsg = '400 {"error":{"message":"No models loaded in LM Studio"}}';
+      const mockComplete = vi.fn().mockRejectedValue(new Error(serverMsg));
+
+      const res = await analyzeOpenSpecVersion(process.cwd(), {
+        model: 'qwen2.5-coder-7b',
+        getInstalledVersion: async () => '1.12.0',
+        checkLatest: async () => ({
+          status: 'online',
+          latestVersion: '1.13.0',
+          checkedAt: new Date().toISOString(),
+          fromCache: false,
+          cacheAgeSeconds: 0,
+          freshness: 'fresh',
+          error: null,
+        }),
+        fetchChangelog: async () => ({
+          source: 'GitHub Releases (fission-ai/openspec)',
+          sourceUrl: null,
+          fetched: true,
+          rawText: 'Notes',
+          error: null,
+        }),
+        completeTextFn: mockComplete as never,
+      });
+
+      expect(res.redaction.status).toBe('error');
+      expect(res.redaction.provider).toBe('LM Studio · qwen2.5-coder-7b');
+      expect(res.redaction.error).toContain('No models loaded in LM Studio');
+    });
+
+    it('usa streamText con configuración sin timeoutMs acotado (defaults a 300s) y propaga signal y onChunk', async () => {
+      const mockStream = vi.fn().mockImplementation(async (_config, opts) => {
+        opts.onChunk?.([{ kind: 'content', text: 'Informe parcial' }]);
+        return { text: 'Informe completo', finishReason: 'stop' };
+      });
+      const chunksReceived: any[] = [];
+      const abortController = new AbortController();
+
+      const res = await analyzeOpenSpecVersion(process.cwd(), {
+        model: 'qwen2.5-coder-7b',
+        signal: abortController.signal,
+        onChunk: (chunks) => chunksReceived.push(...chunks),
+        getInstalledVersion: async () => '1.12.0',
+        checkLatest: async () => ({
+          status: 'online',
+          latestVersion: '1.13.0',
+          checkedAt: new Date().toISOString(),
+          fromCache: false,
+          cacheAgeSeconds: 0,
+          freshness: 'fresh',
+          error: null,
+        }),
+        fetchChangelog: async () => ({
+          source: 'GitHub Releases',
+          sourceUrl: null,
+          fetched: true,
+          rawText: 'Notes',
+          error: null,
+        }),
+        streamTextFn: mockStream as never,
+      });
+
+      expect(mockStream).toHaveBeenCalledTimes(1);
+      const [config, payload] = mockStream.mock.calls[0];
+      // Misma configuración que el commit: sin timeoutMs explícito (default 300_000 en text-client)
+      expect(config.timeoutMs).toBeUndefined();
+      expect(config.providerLabel).toBe('LM Studio (redacción)');
+      expect(payload.signal).toBe(abortController.signal);
+      expect(typeof payload.onChunk).toBe('function');
+      expect(chunksReceived).toEqual([{ kind: 'content', text: 'Informe parcial' }]);
+      expect(res.redaction.status).toBe('generated');
+      expect(res.redaction.text).toBe('Informe completo');
+    });
+
+    it('devuelve status error con mensaje de cancelación cuando la redacción es abortada por el usuario (no offline)', async () => {
+      const abortController = new AbortController();
+      abortController.abort();
+
+      const mockStream = vi.fn().mockRejectedValue(
+        new Error('LM Studio (redacción): operación cancelada por el usuario.'),
+      );
+
+      const res = await analyzeOpenSpecVersion(process.cwd(), {
+        model: 'qwen2.5-coder-7b',
+        signal: abortController.signal,
+        getInstalledVersion: async () => '1.12.0',
+        checkLatest: async () => ({
+          status: 'online',
+          latestVersion: '1.13.0',
+          checkedAt: new Date().toISOString(),
+          fromCache: false,
+          cacheAgeSeconds: 0,
+          freshness: 'fresh',
+          error: null,
+        }),
+        fetchChangelog: async () => ({
+          source: 'GitHub Releases',
+          sourceUrl: null,
+          fetched: true,
+          rawText: 'Notes',
+          error: null,
+        }),
+        streamTextFn: mockStream as never,
+      });
+
+      // Debe ser error, no offline
+      expect(res.redaction.status).toBe('error');
+      expect(res.redaction.provider).toBe('LM Studio · qwen2.5-coder-7b');
+      expect(res.redaction.error).toContain('operación cancelada por el usuario');
     });
   });
 
@@ -438,6 +584,11 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
         expect(result.measured.supportedRange.max).toBeUndefined();
         expect(result.measured.consumedSurfaces.length).toBe(6);
         expect(result.redaction).toBeDefined();
+        expect(result.redaction.status).toBe('idle');
+
+        const resultWithModel = (await handler({}, { repoPath: realRepo, model: 'local-model' })) as any;
+        expect(resultWithModel.redaction.status).toBe('generated');
+        expect(resultWithModel.redaction.provider).toBe('LM Studio · local-model');
       } finally {
         try {
           fs.rmSync(tmpUserDir, { recursive: true, force: true });

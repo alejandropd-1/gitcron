@@ -1916,4 +1916,147 @@ describe('OpenSpecEngineCard - La tarjeta no ofrece la actualización del motor 
       expect(container.querySelectorAll('[data-cause]').length).toBe(0);
     });
   });
+
+  describe('Diagnóstico avanzado en una sola columna y explicaciones', () => {
+    it('muestra encabezados, explicaciones y paths completos para outputs presentes y ausentes', () => {
+      const status: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: '1.12.0',
+          provenance: 'global',
+          displayPath: 'C:\\global\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.12.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: null,
+        globalConfig: null,
+        installedIntegration: {
+          skills: [],
+          generatedBy: '1.12.0',
+          markersFound: [],
+          outputInventory: [
+            {
+              id: 'present-1',
+              targetName: 'minimax',
+              kind: 'external-global',
+              displayPath: 'C:\\Users\\test\\.gemini\\antigravity\\skills\\openspec-explore',
+              presenceState: 'present',
+              blocked: false,
+              descriptionKey: 'pipeline.openspec.engine.output.minimaxDesc',
+            },
+            {
+              id: 'absent-1',
+              targetName: 'github',
+              kind: 'repo-local',
+              displayPath: '.github/workflows/openspec.yml',
+              presenceState: 'absent',
+              blocked: false,
+              descriptionKey: 'pipeline.openspec.engine.output.githubDesc',
+            },
+          ],
+          evidenceStatus: 'confirmed',
+          tools: [],
+          targets: [],
+          installedWorkflowsByTarget: {},
+          missing: null,
+          legacy: [],
+          customized: [],
+          conflicts: null,
+        },
+        repoState: 'initialized',
+        integrationState: 'up-to-date',
+      };
+
+      render(
+        <OpenSpecEngineCard
+          status={status}
+          compact={false}
+          defaultAdvancedOpen={true}
+        />,
+      );
+
+      // Outputs presentes: título con h4, explicación de una frase, y path en <code>
+      expect(screen.getByText('Archivos y carpetas que OpenSpec genera para cada agente; si están, ese agente tiene la integración instalada.')).toBeDefined();
+      const codePresent = screen.getByText('C:\\Users\\test\\.gemini\\antigravity\\skills\\openspec-explore');
+      expect(codePresent.tagName.toLowerCase()).toBe('code');
+
+      // Outputs ausentes: expandir y verificar explicación y path en <code>
+      const toggleAbsentBtn = screen.getByRole('button', { name: /Ver outputs ausentes/i });
+      fireEvent.click(toggleAbsentBtn);
+
+      expect(screen.getByText('Destinos que OpenSpec puede generar y este repositorio no usa; es normal.')).toBeDefined();
+      const codeAbsent = screen.getByText('.github/workflows/openspec.yml');
+      expect(codeAbsent.tagName.toLowerCase()).toBe('code');
+    });
+
+    it('muestra explicaciones y comandos en línea propia para openspec doctor y openspec context', () => {
+      const status: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: '1.12.0',
+          provenance: 'global',
+          displayPath: 'C:\\global\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.12.0' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: null,
+        globalConfig: null,
+        installedIntegration: null,
+        repoState: 'initialized',
+        integrationState: 'up-to-date',
+        doctor: {
+          command: 'openspec doctor --json',
+          ok: true,
+          error: null,
+          data: {
+            root: {
+              path: 'C:\\www\\gitCronos',
+              source: 'nearest',
+              healthy: true,
+              status: [],
+            },
+            store: null,
+            references: [],
+            status: [],
+          },
+        },
+        contextBrief: {
+          command: 'openspec context --json',
+          ok: true,
+          error: null,
+          data: {
+            root: {
+              path: 'C:\\www\\gitCronos',
+              source: 'nearest',
+              role: 'openspec_root',
+            },
+            status: [],
+            members: [],
+          },
+        },
+      };
+
+      render(
+        <OpenSpecEngineCard
+          status={status}
+          compact={false}
+          defaultAdvancedOpen={true}
+        />,
+      );
+
+      // Doctor: encabezado, explicación y comando
+      expect(screen.getByText('openspec doctor revisa que specs, changes y archivos generados se correspondan entre sí; si reporta algo, la integración está rota en ese punto.')).toBeDefined();
+      const doctorSection = screen.getByTestId('openspec-doctor-section');
+      expect(doctorSection.querySelector('code')?.textContent).toBe('openspec doctor --json');
+
+      // Context: encabezado, explicación y comando
+      expect(screen.getByText('openspec context resuelve con qué configuración y perfil trabaja el motor en este repositorio; sirve para confirmar que GitCron y el CLI ven lo mismo.')).toBeDefined();
+      const contextSection = screen.getByTestId('openspec-context-section');
+      expect(contextSection.querySelector('code')?.textContent).toBe('openspec context --json');
+    });
+  });
 });

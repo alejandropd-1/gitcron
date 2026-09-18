@@ -63,6 +63,7 @@ import {
   analyzeOpenSpecVersion,
   type OpenSpecVersionAnalysisResult,
 } from '../pipeline/openspec-version-analysis';
+import { createChunkPump } from '../ai/commit-message/chunk-pump';
 import { authorizedRepoStore } from './authorized-repos';
 
 export interface OpenSpecIpcDeps {
@@ -79,7 +80,17 @@ export interface OpenSpecIpcDeps {
   getInstructions?: (repoPath: string, target: string, options?: InstructionsOpenSpecOptions) => Promise<InstructionsOpenSpecResult>;
   runDoctor?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecDoctorResult>;
   runContext?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecContextBriefResult>;
-  runVersionAnalysis?: (repoPath: string, options?: { forceRefresh?: boolean }) => Promise<OpenSpecVersionAnalysisResult>;
+  runVersionAnalysis?: (
+    repoPath: string,
+    options?: {
+      forceRefresh?: boolean;
+      userDataDir?: string | null;
+      checkLatest?: () => Promise<OpenSpecRegistryCheck>;
+      model?: string;
+      signal?: AbortSignal;
+      onChunk?: (chunks: any[]) => void;
+    },
+  ) => Promise<OpenSpecVersionAnalysisResult>;
   runAuthorizedOpenSpec?: typeof runAuthorizedOpenSpec;
   pauseWatcher?: typeof withRepoWatcherPaused;
   installLocal?: typeof installOpenSpecLocal;
@@ -484,6 +495,7 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
   const authorizedRoots = deps.getAuthorizedRepoRoots ? deps.getAuthorizedRepoRoots() : undefined;
   const validateRepo = deps.validateRepoPath ?? ((p) => validateStrictRepoPath(p, authorizedRoots));
   const getGitInfo = deps.getGitInfo ?? getRealGitInfo;
+  let inFlightRedaction: AbortController | null = null;
 
   // 1. Engine Status Snapshot
   ipc.handle(
@@ -735,7 +747,7 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
   ipc.handle(
     'pipeline:openspec:version-analysis',
     async (_event, payload?: unknown): Promise<OpenSpecVersionAnalysisResult> => {
-      validateStrictPayloadKeys(payload, ['repoPath', 'forceRefresh']);
+      validateStrictPayloadKeys(payload, ['repoPath', 'forceRefresh', 'model']);
       const rawRepoPath = (payload as any)?.repoPath;
       const validRepoPath = validateRepo(rawRepoPath);
       if (!validRepoPath) {
@@ -743,13 +755,55 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
       }
 
       const forceRefresh = Boolean((payload as any)?.forceRefresh);
+      const model = typeof (payload as any)?.model === 'string' ? (payload as any).model : undefined;
       const userDataDir = deps.getUserDataDir ? deps.getUserDataDir() : null;
       const versionAnalysisFn = deps.runVersionAnalysis ?? analyzeOpenSpecVersion;
+
+      if (model && model.trim().length > 0) {
+        inFlightRedaction?.abort();
+        const controller = new AbortController();
+        inFlightRedaction = controller;
+
+        const pump = createChunkPump((chunks) => {
+          if (_event?.sender?.isDestroyed?.()) return;
+          _event?.sender?.send?.('pipeline:openspec:redaction-chunk', { chunks });
+        });
+
+        try {
+          return await versionAnalysisFn(validRepoPath, {
+            forceRefresh,
+            userDataDir,
+            checkLatest: deps.checkLatest,
+            model: model.trim(),
+            signal: controller.signal,
+            onChunk: (chunks) => pump.push(chunks),
+          });
+        } finally {
+          pump.flush();
+          if (inFlightRedaction === controller) {
+            inFlightRedaction = null;
+          }
+        }
+      }
+
       return versionAnalysisFn(validRepoPath, {
         forceRefresh,
         userDataDir,
         checkLatest: deps.checkLatest,
+        model,
       });
+    },
+  );
+
+  // 10b. Version Redaction Cancel (Tanda 9c.4 c)
+  ipc.handle(
+    'pipeline:openspec:version-redaction-cancel',
+    async (_event, payload?: unknown): Promise<{ cancelled: boolean }> => {
+      validateStrictPayloadKeys(payload, []);
+      const had = inFlightRedaction !== null;
+      inFlightRedaction?.abort();
+      inFlightRedaction = null;
+      return { cancelled: had };
     },
   );
 

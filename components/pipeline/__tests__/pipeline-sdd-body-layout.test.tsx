@@ -444,6 +444,11 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
           onRespondDecision={() => undefined}
         />,
       );
+      const rail51 = container.querySelector('nav[class*="switcherRail"]');
+      expect(rail51).toBeTruthy();
+      expect(rail51?.getAttribute('data-folded')).toBe('true');
+      expect(rail51?.getAttribute('aria-hidden')).toBe('true');
+      fireEvent.transitionEnd(rail51!);
       expect(container.querySelector('nav[class*="switcherRail"]')).toBeNull();
     });
 
@@ -866,7 +871,11 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       rail = wrapper?.querySelector('nav[class*="switcherRail"]');
       expect(wrapper).toBeTruthy();
       expect(body).toBeTruthy();
-      expect(rail).toBeNull();
+      expect(rail).toBeTruthy();
+      expect(rail?.getAttribute('data-folded')).toBe('true');
+      expect(rail?.getAttribute('aria-hidden')).toBe('true');
+      fireEvent.transitionEnd(rail!);
+      expect(wrapper?.querySelector('nav[class*="switcherRail"]')).toBeNull();
 
       // 2. Pantalla de cambio activo (entrar a 'cambio-ejemplo')
       rerender(
@@ -923,7 +932,11 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       rail = wrapper?.querySelector('nav[class*="switcherRail"]');
       expect(wrapper).toBeTruthy();
       expect(body).toBeTruthy();
-      expect(rail).toBeNull();
+      expect(rail).toBeTruthy();
+      expect(rail?.getAttribute('data-folded')).toBe('true');
+      expect(rail?.getAttribute('aria-hidden')).toBe('true');
+      fireEvent.transitionEnd(rail!);
+      expect(wrapper?.querySelector('nav[class*="switcherRail"]')).toBeNull();
 
       // 3. Pantalla de cambio archivado
       // Volver a inicio desde el riel
@@ -989,7 +1002,11 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       rail = wrapper?.querySelector('nav[class*="switcherRail"]');
       expect(wrapper).toBeTruthy();
       expect(body).toBeTruthy();
-      expect(rail).toBeNull();
+      expect(rail).toBeTruthy();
+      expect(rail?.getAttribute('data-folded')).toBe('true');
+      expect(rail?.getAttribute('aria-hidden')).toBe('true');
+      fireEvent.transitionEnd(rail!);
+      expect(wrapper?.querySelector('nav[class*="switcherRail"]')).toBeNull();
     });
   });
 });

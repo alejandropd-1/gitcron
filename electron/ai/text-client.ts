@@ -144,7 +144,7 @@ export async function completeText(
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (err instanceof Error && err.name === 'AbortError') {
+    if (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')) {
       if (opts.signal?.aborted) {
         throw new Error(`${providerLabel}: operación cancelada por el usuario.`);
       }
@@ -209,7 +209,7 @@ export async function streamText(
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (err instanceof Error && err.name === 'AbortError') {
+    if (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')) {
       if (opts.signal?.aborted) {
         throw new Error(`${providerLabel}: operación cancelada por el usuario.`);
       }

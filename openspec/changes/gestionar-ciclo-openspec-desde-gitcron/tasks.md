@@ -420,7 +420,7 @@
 - [x] 7.1 En `electron/pipeline/`, agregar la lectura de `openspec config list` devolviendo perfil y workflows habilitados como datos, sin enum cerrado en el código.
 - [x] 7.2 Agregar el canal de activación y desactivación de un workflow, y recalcular las acciones ofrecidas desde la configuración resultante.
 - [x] 7.3 En `electron/__tests__/`, verificar que un workflow ausente de la configuración no habilita su acción, usando una configuración con un nombre de workflow que el código no conoce.
-- [ ] 7.4 Distinguir en pantalla, para cada workflow que un agente no tiene, cual de las dos causas que hoy se pueden medir aplica: **el perfil global no lo habilita** (esta fuera de `resolvedWorkflows`; se resuelve activandolo desde el panel de perfil) o **la integracion de ese agente esta desactualizada** (el perfil lo habilita pero el agente no lo tiene instalado; se resuelve con `openspec update`). Cada causa con su accion al lado, no una recomendacion generica. **Medido el 2026-09-11:** la tercera causa —que el motor instalado no traiga ese workflow— no se puede distinguir porque el CLI 1.12.0 no expone de forma no interactiva la lista de workflows disponibles; la constante existe (`ALL_WORKFLOWS`, doce nombres, en `dist/commands/config.js` del paquete) pero solo se muestra en el menu interactivo de `config profile`, y por script falla a proposito. Se pidio a OpenSpec via feedback. No se lee del codigo compilado del paquete: ese anclaje ya costo en la 5.3. Caso comprobado el 2026-08-19 que motivo esta tarea: el motor 1.5.0 no expone `update`, que si integra el conjunto basico de la 1.9.0, de modo que cambiar el perfil a `core` no lo habilita.
+- [x] 7.4 Distinguir en pantalla, para cada workflow que un agente no tiene, cual de las dos causas que hoy se pueden medir aplica: **el perfil global no lo habilita** (esta fuera de `resolvedWorkflows`; se resuelve activandolo desde el panel de perfil) o **la integracion de ese agente esta desactualizada** (el perfil lo habilita pero el agente no lo tiene instalado; se resuelve con `openspec update`). Cada causa con su accion al lado, no una recomendacion generica. **Medido el 2026-09-11:** la tercera causa —que el motor instalado no traiga ese workflow— no se puede distinguir porque el CLI 1.12.0 no expone de forma no interactiva la lista de workflows disponibles; la constante existe (`ALL_WORKFLOWS`, doce nombres, en `dist/commands/config.js` del paquete) pero solo se muestra en el menu interactivo de `config profile`, y por script falla a proposito. Se pidio a OpenSpec via feedback. No se lee del codigo compilado del paquete: ese anclaje ya costo en la 5.3. Caso comprobado el 2026-08-19 que motivo esta tarea: el motor 1.5.0 no expone `update`, que si integra el conjunto basico de la 1.9.0, de modo que cambiar el perfil a `core` no lo habilita.
   *Hecha el 2026-09-17 y auditada:* `ProfileWorkflowRow` gana `missingByIntegration` y `missingByProfile`; la tarjeta arma el mapa desde `targetConvergences` (incluye agentes presentes sin workflows) y muestra por fila la causa con su accion («Actualizar» lleva a la seccion Actualizacion; «Activar X» o «Cambiar a custom» segun el perfil). Pruebas: perfil 23, tarjeta 46. Pendiente de que Alejandro lo tilde.
 - [x] 7.5 Cuando la causa sea «la integracion esta desactualizada», declarar que `openspec update` la resuelve y ofrecerlo desde ahi. La version del motor que habilitaria un workflow ausente queda **pendiente de que el CLI exponga la lista de workflows disponibles** (feedback enviado el 2026-09-11); cuando exista, derivarla de lo que el motor y el registro de npm informan, no de una tabla propia en el codigo. La tarjeta ya expone la version instalada, la objetivo y la ultima en npm (`OpenSpecEngineCard.tsx:279, 287, 338`).
 - [x] 7.6 **Medido el 2026-09-11 con el switch ya funcionando:** bajo el perfil `core` —el de esta maquina— el toggle escribe `workflows` en el archivo global (comprobado: `config.json` cambio a las 09:13 con un array valido) pero **no tiene efecto visible**, porque el motor solo usa la lista escrita cuando el perfil es `custom` (`dist/core/profiles.js:35-37` del paquete: `getProfileWorkflows(profile, customWorkflows)` devuelve el preset fijo salvo que `profile === 'custom'`). El panel muestra lo resuelto, asi que todo sigue «Habilitado». Que hacer: cuando el perfil no sea `custom`, los switches se muestran deshabilitados con el motivo al lado —el perfil fija los workflows— y se ofrece cambiar a `custom` desde ahi. Al cambiar, primero se escribe `workflows` con la lista que el perfil resolvia hasta ese momento, y recien despues `profile`, para que el cambio no deje al usuario con una lista vacia. Nada de esto se adivina: la lista sale de `resolvedWorkflows` ya leida.
@@ -796,7 +796,7 @@
   secciones midan lo que miden, el panel scrollee todo y el pie quede al final. No hace falta
   fondo ni sticky.
 
-- [ ] 8.20 **Pedido de Alejandro, 2026-09-14: la pestaña SDD tarda en cargar y muestra «Cargando…».**
+- [x] 8.20 **Pedido de Alejandro, 2026-09-14: la pestaña SDD tarda en cargar y muestra «Cargando…».**
   *Hecha el 2026-09-17 y auditada:* (a) `electron/ipc/pipeline.ts` conserva el ultimo snapshot por clave 15 s y lo devuelve al instante mientras revalida de fondo (empuja `pipeline:snapshot-updated` solo si cambio); canal `pipeline:prewarm` que `RepoMainView` llama al montar cada repositorio. (b) `PipelineEmptyState` dibuja la silueta con `animate-pulse` y `aria-label`, sin texto visible. Pruebas: ipc 13 (+4), workspace 3 (+1). Vigilar: con muchas pestanas el precalentado lanza una lectura por repo al arrancar. Pendiente de que Alejandro lo tilde.
   Textual: «cuando inicio GitCron va directo a Graph, pero cuando elijo SDD tarda y aparece un aviso
   de cargando. ¿No hay forma de acelerar eso, con un precacheo o algo anterior? Y si es inevitable
@@ -963,7 +963,7 @@
   que si lo es. *(d) y (e) hechas y auditadas el 2026-09-16, confirmadas en e887d65; probadas en
   vivo por Alejandro: la integracion de gitCronos paso a «Al dia» con el boton. Suite 2049.*
 
-- [ ] 8.23 **Decision de Alejandro, 2026-09-16: la configuracion de OpenSpec es una vista del
+- [x] 8.23 **Decision de Alejandro, 2026-09-16: la configuracion de OpenSpec es una vista del
   centro, y esta en el riel.** Textual: «Lo que te recuadre en rojo [la lista de agentes del panel
   derecho], que pase al cuerpo de actualizacion, pero en realidad va a pasar a ser configuracion
   de OpenSpec: todo lo que te muestro en captura [tarjeta del motor, perfil y workflows, outputs,
@@ -1082,6 +1082,94 @@
   build` 0 (`/` 419 kB, primera carga 522 kB), `pnpm test` 0 dos veces (200 archivos, 2095
   pruebas; antes 2091), `openspec validate --strict` 0, `git diff --check` 0, eslint 3
   preexistentes. Pendiente de confirmar por Alejandro.
+  (f) **Observaciones de Alejandro, 2026-09-17, mirando (e) en pantalla.** Confirmado: sin aviso
+  rojo, perfil «core | core», `update` habilitado; el boton de notas completas mejoro. Dos cosas
+  nuevas, medidas:
+  1. *«Ese placeholder mientras carga: que tenga que ver con la info real, mas actitud, que no vaya
+     de punta a punta, mas cuerpo; parece flotando en la nada.»* — El esqueleto de 8.20
+     (`PipelineEmptyState.tsx:20-40`) son cinco rectangulos planos a `w-full` en una grilla
+     `1fr 280px`, y su contenedor `.pipeline-workspace__empty` (`OpenSpecDashboard.module.css:41-46`)
+     es `display: grid; place-items: center`: por eso flota centrado en el vacio y ocupa todo el
+     ancho. La pantalla real que reemplaza tiene barra superior (rama + insignias + «Preparar
+     commit»), columna central de `max-width: 820px; margin: 0 auto` (`:218-226`, `:1376-1384`) con
+     bloques titulados (`.blockHeader`, `:1573`) y riel derecho `.activityRail` (`:1069`) del ancho
+     `rightWidth` que recibe el dashboard (`PipelineWorkspace.tsx:63`, 320 por defecto; `:266`).
+     Arreglo: el esqueleto calca esa anatomia (barra, columna acotada con bloques de varias lineas
+     y la lista de seis toggles, riel del ancho real con sus tres secciones), anclado arriba.
+  2. *«Se ve que no ve a LM Studio; estaba encendido. Quiero elegir el modelo, o al menos que me
+     diga cual usa, porque cuando piensan detonan la maquina.»* — Medido en vivo: LM Studio
+     responde en `localhost:1234/v1/models` con cuatro modelos, ninguno cargado. El informe pide
+     el modelo `'local-model'` a mano (`openspec-version-analysis.ts:365`), que no existe; LM Studio
+     contesta `400 «No models loaded»`, y el `catch` (`:388-395`) convierte cualquier error en
+     «LM Studio apagado». Ademas `analyzeOpenSpecVersion` (`:506`) redacta siempre y el hook
+     (`hooks/use-openspec-version-analysis.ts:37-70`) dispara al abrir la configuracion: trabajo de
+     GPU automatico, contra la regla propia del panel de commit («nunca se dispara solo», medido 25
+     a 98 s; `OpenSpecDashboard.tsx:2416-2418`). La app ya tiene la maquinaria de modelos para
+     el commit: catalogo, cargar, expulsar, eleccion recordada por repo (`lastAiModelByRepo`,
+     `OpenSpecDashboard.tsx:241`, en memoria y privada del componente). Decision: el informe se
+     pide con un boton, con el mismo catalogo y la misma eleccion de modelo que el commit (la
+     memoria de la eleccion pasa a un modulo compartido), muestra que modelo redacto y el error
+     real si falla; `'local-model'` desaparece. El proveedor Unsloth (unslothpc / unslothpclocal)
+     queda para `modelos-en-casa`, como esta decidido.
+  *Auditoria de (f), 2026-09-17, tandas A (esqueleto) y B (informe a pedido):* entraron como se
+  pidieron; `lib/ai-model-memory.ts` comparte la eleccion de modelo entre commit e informe;
+  `'local-model'` no existe mas. Medido: `tsc` 0, `build` 0 (421 kB / 524 kB), `pnpm test` 0 dos
+  veces (200 archivos, 2104 pruebas; antes 2095), `validate --strict` 0, `diff --check` 0. Dos
+  avisos nuevos de eslint `exhaustive-deps` (`OpenSpecDashboard.tsx:1255`, `OpenSpecReleaseNotes.tsx:68`):
+  los dos leen `aiModel` desde el cierre dentro del callback del catalogo; se corrigen en (g).
+  (g) **Observaciones de Alejandro, 2026-09-17, mirando (f) en pantalla.** Medidas:
+  1. *«No pudo hacer andar LM Studio por timeout; tendria que tener la misma configuracion que el
+     commit.»* — El informe usa `completeText` con `timeoutMs: 45_000`
+     (`openspec-version-analysis.ts:353`), sin cancelar y sin mostrar avance; el commit usa
+     `streamText` con la config por defecto de LM Studio (300 s, `text-client.ts:296`), senal
+     cancelable (`commit-ai:cancel`) y los pedazos al riel por `createChunkPump`
+     (`electron/ipc/commit-message-ai.ts:346-372`). Ademas el texto crudo «The operation was
+     aborted due to timeout» sale porque `AbortSignal.timeout` tira `TimeoutError` y
+     `text-client.ts:146` (y el equivalente de `streamText`) solo reconoce `AbortError`. Decision:
+     el informe usa `streamText` con la misma config que el commit, boton «Cancelar» (todo camino
+     tiene vuelta), avance visible (texto parcial + tiempo transcurrido), y `text-client` trata
+     `TimeoutError` como timeout con mensaje propio.
+  2. *«Ordenar la columna derecha del diagnostico: paths largos truncados con un tag antes y otro
+     despues, no se entiende; una explicacion de que es todo eso; de dos columnas a una, una cosa
+     debajo de la otra; titulos bien diferenciados; formato code, colores.»* — Decision de
+     Alejandro que deshace el punto (e).2 con causa (lo vio y no le sirve): una sola columna.
+     Medido: `.advancedColumnSide` (`OpenSpecEngineCard.tsx:986-1170`), filas `.outputListItem`
+     como flex de tres piezas (`OpenSpecDashboard.module.css:1999-2005`), jaula de scroll de 180 px
+     (`:2223-2228`), `@container` de dos columnas (`:2216-2218`), textos de ayuda solo para outputs
+     (`i18n.ts:311-312`), ninguno para doctor/context.
+  3. *«Todos los textos tienen que poder seleccionarse y copiarse.»* — Causa: `app/page.tsx:1460`
+     pone `select-none` en la raiz de toda la app; el modulo lo reabre a mano en cuatro lugares
+     (`:513`, `:545`, `:1457`, `:2524`). Decision: la raiz del cuerpo SDD (`.dashboard`) pasa a
+     `user-select: text`, y solo los controles conservan `none`. El resto de la app (grafo, sidebar,
+     que dependen de `select-none` para arrastrar) es un change aparte; queda registrado.
+  4. *«La precarga fiel a lo que va a cargar; si el sidebar derecho esta cerrado, el dummy carga en
+     el medio y al aparecer el contenido real con el sidebar flotante todo salta a un costado; y al
+     abrir el sidebar derecho el flotante desaparece de golpe, el centro salta y despues se
+     desliza.»* — Error del orquestador en el prompt de A: el riel se modelo al reves. Medido: el
+     dashboard NO usa `rightWidth` para su layout (lo recibe en `:274` y no lo usa); con
+     `rightOpen` falso dibuja el `ViewSwitcherRail` (`.switcherRail`, 240 px, `order: 2`, sticky,
+     `OpenSpecDashboard.module.css:2977-2992`; `OpenSpecDashboard.tsx:497`, `:2187`, `:2212`,
+     `:2690`) en flujo al lado de la columna de 820 px; con `rightOpen` verdadero el switcher se
+     desmonta de golpe y el panel derecho de la app (fuera del workspace) toma el lugar. El
+     esqueleto de A dibuja un riel de 320 px cuando `rightOpen` es verdadero y ninguno cuando es
+     falso: al reves en los dos casos, y por eso salta. El salto al abrir el panel es el desmontaje
+     instantaneo del switcher (`:497`) mientras el panel se anima aparte; la transicion de
+     `.switcherRail` (`:2989`) nunca corre porque el elemento ya no esta. Decision: el esqueleto
+     calca la geometria real (switcher de 240 cuando `rightOpen` es falso; nada cuando es
+     verdadero), y el switcher se pliega animado con la misma duracion que el panel en vez de
+     desmontarse.
+  *Auditoria de (g), 2026-09-18, tandas C (informe como el commit), D (una columna, seleccionable),
+  E (esqueleto fiel y riel plegado) y F (correcciones):* la suite completa encontro, otra vez fuera
+  de la lista corta del ejecutor, tres fallas y un error de eslint, todos de E: dos pruebas de
+  `pipeline-sdd-body-layout.test.tsx` exigian que el riel flotante desapareciera al instante (ahora
+  queda plegado hasta `transitionend`, y la prueba dispara ese evento antes de exigir que no este);
+  cinco `0 !important` en `.switcherRailFolded` que el escaner de escala visual rechaza y que
+  sobraban (gana por orden); y un `setState` sincronico en un `useEffect` para detectar el cambio
+  de `rightOpen` (se derivo en el render, patron de `use-openspec-version-analysis.ts:28-36`, mas un
+  plazo de respaldo de 400 ms por si `transitionend` no llega). Medido al cierre sobre el arbol
+  final: `tsc` 0, `build` 0 (422 kB / 525 kB), `pnpm test` 0 dos veces (200 archivos, 2117
+  pruebas; antes 2095), `validate --strict` 0, `git diff --check` 0, eslint 3 preexistentes y 0
+  avisos. Pendiente de confirmar por Alejandro en un solo commit (A a F).
   - **Si, son grandes, y esta medido.** `.primaryAction, .secondaryAction`
     (`OpenSpecDashboard.module.css:442-458`) miden `min-height: 2.65rem` (42 px) con relleno
     `--space-3 --space-4` y peso 700; `.headerActions .primaryAction` (`:278`) 2.5rem;
@@ -1317,8 +1405,8 @@ conocen entre si, y la duplicacion es literal.
 
 ## 10. Cierre y validación
 
-- [ ] 10.1 `pnpm exec tsc --noEmit` sin errores de tipado.
-- [ ] 10.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada una.
-- [ ] 10.3 `openspec validate gestionar-ciclo-openspec-desde-gitcron --strict` en cero.
-- [ ] 10.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en Git.
+- [x] 10.1 `pnpm exec tsc --noEmit` sin errores de tipado.
+- [x] 10.2 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada una.
+- [x] 10.3 `openspec validate gestionar-ciclo-openspec-desde-gitcron --strict` en cero.
+- [x] 10.4 `git diff --check` en cero y `git status --short --branch` informado, sin confirmar nada en Git.
 - [x] 10.5 Revisión visual y funcional en la aplicación: acciones antes del diagnóstico, alta y edición de tareas, revisión de una propuesta por bloque distinguible de lo ya escrito, sincronización con su vista previa, motivo al archivar, e instalación del motor en sus dos modos. **La marca Alejandro.**

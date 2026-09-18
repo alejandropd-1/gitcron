@@ -1017,9 +1017,9 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
           {/* Lista de Outputs Presentes / Relevantes con Scroll Interno Propio */}
           {presentOutputs.length > 0 && (
             <div className={styles.outputInventorySection}>
-              <span className={styles.inventoryTitle}>
+              <h4 className={styles.blockHeader}>
                 {t('pipeline.openspec.engine.outputsTitle')} ({presentOutputs.length})
-              </span>
+              </h4>
               <p className={styles.inventoryHelp}>
                 {t('pipeline.openspec.engine.outputsHelp')}
               </p>
@@ -1031,26 +1031,28 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                       : 'pipeline.openspec.engine.presence.present';
                     return (
                       <li key={out.id} className={styles.outputListItem} data-kind={out.kind}>
-                        <span className={styles.outputKindBadge} data-kind={out.kind}>
-                          {out.kind === 'repo-local'
-                            ? t('pipeline.openspec.engine.output.repoLocal')
-                            : t('pipeline.openspec.engine.output.externalGlobal')}
-                        </span>
                         <code className={styles.outputPath}>{out.displayPath}</code>
-                        {out.presenceState && (
-                          <span className={styles.presenceBadge} data-presence={out.presenceState}>
-                            {t(presenceKey)}
+                        <div className={styles.outputBadgesRow}>
+                          <span className={styles.outputKindBadge} data-kind={out.kind}>
+                            {out.kind === 'repo-local'
+                              ? t('pipeline.openspec.engine.output.repoLocal')
+                              : t('pipeline.openspec.engine.output.externalGlobal')}
                           </span>
-                        )}
-                        {out.blocked && (
-                          <span
-                            className={styles.blockedTag}
-                            title={t(out.descriptionKey)}
-                            aria-label={t('pipeline.openspec.engine.output.blockedBadge')}
-                          >
-                            {t('pipeline.openspec.engine.output.blockedBadge')}
-                          </span>
-                        )}
+                          {out.presenceState && (
+                            <span className={styles.presenceBadge} data-presence={out.presenceState}>
+                              {t(presenceKey)}
+                            </span>
+                          )}
+                          {out.blocked && (
+                            <span
+                              className={styles.blockedTag}
+                              title={t(out.descriptionKey)}
+                              aria-label={t('pipeline.openspec.engine.output.blockedBadge')}
+                            >
+                              {t('pipeline.openspec.engine.output.blockedBadge')}
+                            </span>
+                          )}
+                        </div>
                       </li>
                     );
                   })}
@@ -1084,15 +1086,17 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                   <ul className={styles.outputList}>
                     {absentOutputs.map((out) => (
                       <li key={out.id} className={styles.outputListItem} data-kind={out.kind} data-absent="true">
-                        <span className={styles.outputKindBadge} data-kind={out.kind}>
-                          {out.kind === 'repo-local'
-                            ? t('pipeline.openspec.engine.output.repoLocal')
-                            : t('pipeline.openspec.engine.output.externalGlobal')}
-                        </span>
                         <code className={styles.outputPath}>{out.displayPath}</code>
-                        <span className={styles.presenceBadge} data-presence="absent">
-                          {t('pipeline.openspec.engine.presence.absent')}
-                        </span>
+                        <div className={styles.outputBadgesRow}>
+                          <span className={styles.outputKindBadge} data-kind={out.kind}>
+                            {out.kind === 'repo-local'
+                              ? t('pipeline.openspec.engine.output.repoLocal')
+                              : t('pipeline.openspec.engine.output.externalGlobal')}
+                          </span>
+                          <span className={styles.presenceBadge} data-presence="absent">
+                            {t('pipeline.openspec.engine.presence.absent')}
+                          </span>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -1105,10 +1109,13 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
           <div className={styles.cliDiagnosticsSection}>
             {/* 1. openspec doctor --json */}
             <div className={styles.cliDiagnosticGroup} data-testid="openspec-doctor-section">
-              <div className={styles.cliDiagnosticHeader}>
-                <strong>{t('pipeline.openspec.engine.advanced.doctorTitle')}</strong>
-                <code className={styles.cliCommandProvenance}>openspec doctor --json</code>
-              </div>
+              <h4 className={styles.blockHeader}>
+                {t('pipeline.openspec.engine.advanced.doctorTitle')}
+              </h4>
+              <p className={styles.inventoryHelp}>
+                {t('pipeline.openspec.engine.advanced.doctorHelp')}
+              </p>
+              <code className={styles.cliCommandProvenance}>openspec doctor --json</code>
               {!status.doctor ? (
                 <p className={styles.cliDiagnosticUnavailable}>
                   {t('pipeline.openspec.engine.advanced.cliUnavailable')}
@@ -1157,10 +1164,13 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
 
             {/* 2. openspec context --json */}
             <div className={styles.cliDiagnosticGroup} data-testid="openspec-context-section">
-              <div className={styles.cliDiagnosticHeader}>
-                <strong>{t('pipeline.openspec.engine.advanced.contextTitle')}</strong>
-                <code className={styles.cliCommandProvenance}>openspec context --json</code>
-              </div>
+              <h4 className={styles.blockHeader}>
+                {t('pipeline.openspec.engine.advanced.contextTitle')}
+              </h4>
+              <p className={styles.inventoryHelp}>
+                {t('pipeline.openspec.engine.advanced.contextHelp')}
+              </p>
+              <code className={styles.cliCommandProvenance}>openspec context --json</code>
               {!status.contextBrief ? (
                 <p className={styles.cliDiagnosticUnavailable}>
                   {t('pipeline.openspec.engine.advanced.cliUnavailable')}

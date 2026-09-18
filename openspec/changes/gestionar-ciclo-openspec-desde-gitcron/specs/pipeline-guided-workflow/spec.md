@@ -33,6 +33,10 @@ verdad del proyecto, y revisar después es revisar algo que ya ocurrió.
 - **WHEN** se confirma la sincronización
 - **THEN** los specs principales quedan modificados en el árbol de trabajo, sin confirmarse en Git
 
+#### Scenario: Sin agente disponible
+- **WHEN** se pide sincronizar y GitCron no cuenta con un agente o ejecutor de workflows que produzca la propuesta de fusión
+- **THEN** la sincronización no se ejecuta, se declara el motivo junto al control, y se indica que archivar el cambio sí sincroniza los specs
+
 ### Requirement: Las acciones disponibles SHALL preceder al diagnóstico, que SHALL presentarse contraído
 
 El panel SHALL presentar primero las acciones que se pueden ejecutar y el estado resumido en una

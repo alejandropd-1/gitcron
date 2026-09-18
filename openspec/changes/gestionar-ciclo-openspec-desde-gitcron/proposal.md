@@ -27,10 +27,10 @@ y se nota.
 - **Edición de artefactos.** `proposal.md`, `design.md`, los specs y `tasks.md` se editan a mano o se
   le encargan a la IA. Lo que la IA propone nunca se escribe directo: se presenta como diff donde
   cada bloque se acepta o se rechaza por separado y el resultado se puede corregir antes de guardar.
-- **Revisión del alcance en curso.** Cuando el trabajo obliga a corregir lo planificado, la revisión
-  alcanza a todos los artefactos afectados y no sólo a la lista de tareas. Se delega al workflow que
-  el motor provee para eso, y se declara cuándo la revisión cambia el propósito en lugar de
-  precisarlo, caso en que corresponde un cambio nuevo.
+- **Revisión del alcance en curso: fuera de este cambio (cierre del 2026-09-18).** El motor la
+  ofrece sólo como workflow de agente (`openspec-update-change`), no como subcomando del CLI, y
+  GitCron todavía no invoca agentes. Queda para el cambio que incorpore un ejecutor de workflows,
+  junto con el recorrido de artefactos (`recorrido-de-artefactos-openspec`).
 - **Diagnóstico del motor a la vista.** La salud de las relaciones del repositorio y el contexto de
   trabajo resuelto —que el motor ya entrega en formato legible por máquina— se presentan en la
   aplicación en lugar de obligar a una terminal.

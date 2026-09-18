@@ -105,8 +105,10 @@
 - [x] 3.2 En `electron/ipc/pipeline-specs.ts`, agregar el canal de escritura de un artefacto, contenido a las rutas que devuelve 3.1, rechazando cualquier destino fuera del directorio del change y todo cambio archivado.
 - [x] 3.3 Agregar al registro del change las entradas de escritura de artefacto, con el mismo formato y origen declarado que 2.2.
 - [x] 3.4 En `electron/__tests__/`, verificar que el canal de escritura rechaza una ruta fuera del change aunque venga de una respuesta del CLI manipulada, y que sobre un change archivado no escribe.
-- [ ] 3.5 Agregar la operación de revisión del alcance de un cambio en curso, delegándola al workflow que el motor exponga para ello. Medido el 2026-09-07: el CLI 1.11.0 no cuenta con subcomando de revisión (falla con `change_error: Artifact 'update' not found in schema 'spec-driven'`); la revisión es un workflow de agente documentado en `.agents/skills/openspec-update-change/SKILL.md`. Depende de 8.5 para la presentación y revisión bloque por bloque mediante DiffViewer antes de confirmar cualquier escritura. Fundamento medido: en `unificar-sistema-visual-gitcron` el alcance se revisó cinco veces editando sólo la lista de tareas, y `design.md` terminó describiendo una causa que la investigación posterior desmintió.
-- [ ] 3.6 Declarar cuándo la revisión cambia el propósito del trabajo en lugar de precisarlo, y en ese caso ofrecer abrir un cambio nuevo en vez de reescribir el vigente. Heurística «Update vs. Start Fresh» documentada por el propio motor en `.agents/skills/openspec-update-change/SKILL.md:91`: «If the request changes the change's intent rather than refining it, first verify whether the optional $openspec-new-change (Codex) or /openspec-new-change (other agents) workflow is available. If it is, recommend starting fresh with $openspec-new-change [...] (the "Update vs. Start Fresh" heuristic). If it is unavailable, ask for a distinct unused change name and recommend openspec new change "<new-change-name>" instead.» Es el criterio que el propio motor documenta, y el que en esta sesión llevó a partir dos veces un change en lugar de ampliarlo.
+- [x] 3.5 Agregar la operación de revisión del alcance de un cambio en curso, delegándola al workflow que el motor exponga para ello. Medido el 2026-09-07: el CLI 1.11.0 no cuenta con subcomando de revisión (falla con `change_error: Artifact 'update' not found in schema 'spec-driven'`); la revisión es un workflow de agente documentado en `.agents/skills/openspec-update-change/SKILL.md`. Depende de 8.5 para la presentación y revisión bloque por bloque mediante DiffViewer antes de confirmar cualquier escritura. Fundamento medido: en `unificar-sistema-visual-gitcron` el alcance se revisó cinco veces editando sólo la lista de tareas, y `design.md` terminó describiendo una causa que la investigación posterior desmintió.
+  *Cierre 2026-09-18, sin caso (decision de Alejandro del 09-17):* la revision del alcance es un workflow de agente (`openspec-update-change`), no un subcomando del CLI; GitCron no invoca agentes. El requisito «Revisar el alcance de un cambio SHALL mantener coherentes todos sus artefactos» se retira del delta de `openspec-artifact-authoring` y queda anotado para el change que incorpore un ejecutor de workflows.
+- [x] 3.6 Declarar cuándo la revisión cambia el propósito del trabajo en lugar de precisarlo, y en ese caso ofrecer abrir un cambio nuevo en vez de reescribir el vigente. Heurística «Update vs. Start Fresh» documentada por el propio motor en `.agents/skills/openspec-update-change/SKILL.md:91`: «If the request changes the change's intent rather than refining it, first verify whether the optional $openspec-new-change (Codex) or /openspec-new-change (other agents) workflow is available. If it is, recommend starting fresh with $openspec-new-change [...] (the "Update vs. Start Fresh" heuristic). If it is unavailable, ask for a distinct unused change name and recommend openspec new change "<new-change-name>" instead.» Es el criterio que el propio motor documenta, y el que en esta sesión llevó a partir dos veces un change en lugar de ampliarlo.
+  *Cierre 2026-09-18, sin caso:* depende de 3.5 (misma causa: workflow de agente). La heuristica «Update vs. Start Fresh» sigue documentada por el motor en la skill.
 
 - [x] 3.7 **Auditoria del 2026-09-07: la suite no esta en verde, y la causa es de la tanda de 3b.**
   Medido dos veces sobre el arbol de la tanda: `pnpm test` completo devuelve exit **1**, con
@@ -142,15 +144,19 @@
 
 ## 3c. El recorrido de artefactos, tal como lo da el motor
 
-- [ ] 3c.1 Presentar el grafo de artefactos de un change tal como lo devuelve `openspec instructions <artefacto> --change <id> --json`: para cada artefacto, su estado, su `description`, de qué `dependencies` depende, qué `unlocks` habilita al completarse, y en qué `resolvedOutputPath` va a escribir. Hoy la aplicación muestra sólo estado binario por artefacto —una fila de píldoras HECHO— que no dice qué corresponde hacer ahora ni por qué. Ningún texto de esta vista se escribe a mano: todo sale del JSON del motor, y un campo que no viene no se inventa.
-- [ ] 3c.2 Elegir un artefacto habilitado y disparar su operación desde ahí, con `existingOutputPaths` a la vista para que sobrescribir nunca sea silencioso. No hay orden obligatorio: OpenSpec abandonó el modelo de fases, así que la vista ofrece lo que el motor declara habilitado y no una secuencia numerada.
-- [ ] 3c.3 Pruebas: la vista refleja el grafo que devolvió el motor y no uno derivado; un artefacto bloqueado no ofrece acción y muestra qué lo bloquea; un motor que falla no dibuja un grafo vacío que se lea como «no falta nada».
-- [ ] 3c.4 La forma del recorrido. Alejandro la pidió el 2026-09-04, mirando el intento que rechazó en
+- [x] 3c.1 Presentar el grafo de artefactos de un change tal como lo devuelve `openspec instructions <artefacto> --change <id> --json`: para cada artefacto, su estado, su `description`, de qué `dependencies` depende, qué `unlocks` habilita al completarse, y en qué `resolvedOutputPath` va a escribir. Hoy la aplicación muestra sólo estado binario por artefacto —una fila de píldoras HECHO— que no dice qué corresponde hacer ahora ni por qué. Ningún texto de esta vista se escribe a mano: todo sale del JSON del motor, y un campo que no viene no se inventa.
+  *Trasladada el 2026-09-18 al change `recorrido-de-artefactos-openspec` (decision de Alejandro del 09-17).*
+- [x] 3c.2 Elegir un artefacto habilitado y disparar su operación desde ahí, con `existingOutputPaths` a la vista para que sobrescribir nunca sea silencioso. No hay orden obligatorio: OpenSpec abandonó el modelo de fases, así que la vista ofrece lo que el motor declara habilitado y no una secuencia numerada.
+  *Trasladada el 2026-09-18 al change `recorrido-de-artefactos-openspec`.*
+- [x] 3c.3 Pruebas: la vista refleja el grafo que devolvió el motor y no uno derivado; un artefacto bloqueado no ofrece acción y muestra qué lo bloquea; un motor que falla no dibuja un grafo vacío que se lea como «no falta nada».
+  *Trasladada el 2026-09-18 al change `recorrido-de-artefactos-openspec`.*
+- [x] 3c.4 La forma del recorrido. Alejandro la pidió el 2026-09-04, mirando el intento que rechazó en
   `remaquetar-cuerpo-de-sdd`: **una línea temporal con nodos unidos por una línea**, como la de
   Cronometric, y no una fila de fichas. La forma no es decorativa acá: el grafo tiene dependencias y
   desbloqueos, y una línea con nodos los puede mostrar mientras que una fila de fichas los esconde.
   Ese intento anterior está en el commit `2218586` de la rama `change/remaquetar-cuerpo-de-sdd`, para
   mirarlo antes de rehacerlo. **La aprueba Alejandro.**
+  *Trasladada el 2026-09-18 al change `recorrido-de-artefactos-openspec`.*
 
 ## 4. Sincronización de specs
 
@@ -159,11 +165,13 @@
   - Manual guiada por agente: a través del workflow/skill `openspec-sync-specs` (`.agents/skills/openspec-sync-specs/SKILL.md`), diseñado para que un agente lea las delta specs y edite inteligentemente las specs principales sin archivar (ej. agregando escenarios o requisitos específicos sin sobrescribir el archivo completo).
 - [x] 4.2 **Alternativa B adoptada por decisión de Alejandro: delegación en el workflow nativo `openspec-sync-specs`.**
   Rechaza la Alternativa A (cálculo algorítmico y fusión propia en GitCron) para no dictar el criterio del canal ni duplicar lógica de OpenSpec. Si no hay agente disponible para ejecutar el workflow, la sincronización se detiene informando explícitamente el motivo (`reason: 'no-agent'`), sin caer en un cálculo de emergencia propio.
-- [ ] 4.3 **Canales IPC de sincronización (`electron/ipc/pipeline-sync.ts`):**
+- [x] 4.3 **Canales IPC de sincronización (`electron/ipc/pipeline-sync.ts`):**
   - `pipeline:sync-preview`: Estrictamente de sólo lectura. Lee las delta specs del cambio y las main specs correspondientes, computa la propuesta del agente y devuelve un diff unificado por capacidad mediante `generateUnifiedDiff`. Garantiza cero escrituras en disco.
   - `pipeline:sync-execute`: Exige confirmación previa explícita (`options.confirmed === true`). Escribe únicamente las capacidades aceptadas por el usuario bajo `openspec/specs/<cap>/spec.md` sanitizando rutas dentro del repositorio. Las especificaciones quedan sin confirmar en el árbol de Git (GitCron no realiza commit automático).
-- [ ] 4.4 **Integración y máquina de revisión por bloque (8.5 a 8.7):**
+  *Cierre 2026-09-18, hecha hasta donde el motor permite:* los dos canales existen (`electron/ipc/pipeline-sync.ts:123` y `:209`) y 4.5 dejo el corte honesto sin agente (`no-agent` / `no-workflow-runner`). La propuesta fusionada por agente no tiene caso hasta que GitCron invoque workflows; el requisito de sincronizacion lleva desde hoy el escenario «Sin agente disponible».
+- [x] 4.4 **Integración y máquina de revisión por bloque (8.5 a 8.7):**
   La propuesta del agente se visualiza a través de `AgentProposalReview` con `DiffViewer` en modo `proposal`, destacada visualmente con borde discontinuo violeta (`--color-accent-purple`) y etiqueta `NO ESCRITO`. Permite aceptar/descartar bloques individuales, editar el resultado final y confirmar la escritura. Verificado con pruebas automatizadas en `electron/__tests__/pipeline-sync-ipc.test.ts` que aseguran: validación de repositorios y slugs, rechazo sin confirmación explícita, parada sin fallback ante agente no disponible y escritura exclusiva de capacidades aceptadas.
+  *Cierre 2026-09-18, hecha hasta donde el motor permite:* `AgentProposalReview` con `DiffViewer` en modo `proposal` existe y esta verificado en pantalla (10.5); sin agente no hay propuesta que revisar. Misma causa que 4.3.
 
 - [x] 4.5 **Auditoria y resolución del 2026-09-07: retiro de la simulación y declaración honesta del estado de sincronización.**
   - **Retiro del relleno:** Se eliminó por completo la rama de respaldo en `electron/ipc/pipeline-sync.ts` que simulaba el workflow del agente concatenando el spec delta al final del spec principal.
@@ -472,7 +480,7 @@
   - Rollback optimista: si el canal IPC `pipelineMoveTask` falla o reporta `mismatch`, la lista revierte inmediatamente al orden previo y notifica el error al usuario.
   - Los números de tarea permanecen inmutables como identificadores estables.
 
-- [ ] 8.9 **La conversacion que abre un cambio, con cara de aplicacion.** Pedido de Alejandro del
+- [x] 8.9 **La conversacion que abre un cambio, con cara de aplicacion.** Pedido de Alejandro del
   2026-09-07, mostrando la rutina del CLI: `/opsx:explore` pregunta que se quiere explorar, mira el
   proyecto, propone un camino y pregunta si se acota; `/opsx:propose` crea el cambio y declara que
   artefacto escribio y para que sirve cada uno; `/opsx:apply` va tildando; `/opsx:archive` cierra y
@@ -486,8 +494,9 @@
   inventar pasos que el motor no tiene ni prometer que hara algo que no hace.
   Frontera: las palabras de cada paso las decide `explicar-el-ciclo-sin-tecnicismos`. Esta tarea
   decide el recorrido y su forma.
+  *Trasladada el 2026-09-18 al change `recorrido-de-artefactos-openspec` (decision de Alejandro del 09-17).*
 
-- [ ] 8.10 **Observacion del 2026-09-07 sobre el escaner de bordes, que NO es un reproche a esta
+- [x] 8.10 **Observacion del 2026-09-07 sobre el escaner de bordes, que NO es un reproche a esta
   tanda.** Al construir la vista de tareas se agregaron diez excepciones a la lista de
   `components/__tests__/commit-graph-frame.test.tsx`. Revisadas una por una, **son legitimas**:
   entradas, botones, tarjetas y avisos, o sea las mismas categorias que la lista ya declara
@@ -500,6 +509,7 @@
   como esta, si el criterio se puede expresar de otra forma —por ejemplo, prohibiendo el borde solo
   en los contenedores de maqueta en vez de permitirlo por lista—, o si se retira. **La decide
   Alejandro.**
+  *Trasladada el 2026-09-18 al change `recorrido-de-artefactos-openspec`: la decision sobre el escaner de bordes se toma alli.*
 
 - [x] 8.11 **Registro del 2026-09-07, para que no se pierda lo que salio bien.** La prueba del
   detector de tareas mal formadas, en `lib/__tests__/malformed-tasks.test.ts:121-129`, hace dos

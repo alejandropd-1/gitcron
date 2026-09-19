@@ -43,13 +43,19 @@ causas, sólo decisiones de forma.
 
 ## Decisions
 
-**Un ancho, una variable.** El cuerpo declara `--sdd-body-width` en la raíz del dashboard y todos
-los bloques (encabezado, cuerpo, paneles, esqueleto) la consumen. Valor base 820 px; por container
-query hacia arriba (`@container (min-width: 1400px)`) sube a un valor mayor decidido en pantalla con
-Alejandro (punto de partida: 1100 px), siempre con relleno lateral propio (`var(--space-5)` mínimo)
-para que el contenido no toque nunca los bordes del contenedor. Alternativa descartada: ancho
-fluido al 100 %; las líneas de texto largas se leen peor, y Alejandro pidió «adaptarse mejor», no
-«ocupar todo».
+**Un ancho, una variable, sin umbral.** El cuerpo declara `--sdd-body-width: 1100px` en la raíz del
+dashboard y todos los bloques (encabezado, cuerpo, paneles, esqueleto) la consumen con `width: 100%`
+y relleno lateral propio (`--sdd-body-gutter`, `var(--space-5)`): en contenedores anchos el cuerpo
+mide 1100 px; en angostos ocupa lo que hay, con su relleno, sin saltar nunca entre dos números.
+Alejandro fijó el 1100 mirando en el monitor de 32" y descartó el umbral por container query
+(2026-09-19): con el panel derecho abierto el contenedor bajaba del umbral y el cuerpo se achicaba de
+golpe. Alternativa descartada: ancho fluido al 100 % sin tope; las líneas largas se leen peor.
+
+**El riel flotante y el panel derecho se reemplazan sin mover el centro.** El riel mide lo mismo
+que el panel (`rightWidth`, que el dashboard recibe y publica como `--right-panel-width`), y los dos
+animan con el mismo token de movimiento (`--panel-motion: 300ms cubic-bezier(0.4, 0, 0.2, 1)`,
+declarado una sola vez en `app/globals.css`). Con el mismo ancho y la misma curva, cuando uno se
+pliega y el otro aparece, la columna central conserva su posición.
 
 **El encabezado pegajoso cubre el cuerpo.** El encabezado sigue pegajoso, pero su fondo opaco
 ocupa el ancho del cuerpo (la misma variable) y ningún panel del cuerpo se dibuja más ancho que el
@@ -57,8 +63,8 @@ cuerpo. Con eso el panel de archivado deja de asomar. Alternativa descartada: ha
 el encabezado es la referencia de dónde se está parado al scrollear una lista larga de tareas.
 
 **El riel se despega.** `.switcherRail` recibe un `top` que suma la altura del encabezado más un
-espacio (`var(--space-4)`), y el mismo espacio como margen superior cuando no está pegado. Sin
-tocar su ancho de 240 px ni su plegado animado.
+espacio (`var(--space-4)`), y el mismo espacio como margen superior cuando no está pegado. Su
+ancho pasa a ser el del panel derecho (decisión anterior); su plegado animado no se toca.
 
 **Un solo handle recursivo.** `createWatcherInstance` deja chokidar y usa
 `fs.watch(root, { recursive: true, persistent: true })` (Node 22 / Electron 42 en Windows, probado).

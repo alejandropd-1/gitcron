@@ -10,11 +10,11 @@
 
 import path from 'node:path';
 import { BrowserWindow, ipcMain } from 'electron';
-import chokidar, { FSWatcher } from 'chokidar';
 import { errMsg } from './shared';
 import { authorizedRepoStore } from './authorized-repos';
+import { createRepoWatcher, type RepoWatcher } from './repo-watch';
 
-const repoWatchers = new Map<string, FSWatcher>();
+const repoWatchers = new Map<string, RepoWatcher>();
 const watcherOperations = new Map<string, Promise<void>>();
 
 // Directorios del árbol de trabajo que no declaran nada que la app muestre.
@@ -83,22 +83,12 @@ function enqueueWatcherOperation<T>(targetPath: string, operation: () => Promise
 let activeGetMainWindow: (() => BrowserWindow | null) | null = null;
 let activeOnRepoChanged: ((repoPath: string) => void) | undefined;
 
-function createWatcherInstance(targetPath: string): FSWatcher {
+function createWatcherInstance(targetPath: string): RepoWatcher {
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  const watcher = chokidar.watch(targetPath, {
+  const watcher = createRepoWatcher(targetPath, {
     ignored: createRepoIgnoreFilter(path.join(targetPath, '.git')),
-    ignoreInitial: true,
-    persistent: true,
-    awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
+    stabilityThreshold: 200,
   });
-  // Si algo de lo agrupado tocó `.git/`. El renderer lo necesita porque
-  // no relee lo mismo en los dos casos: un cambio del árbol se resuelve
-  // con `git status`, pero cambiar de rama, borrar una o confirmar desde
-  // afuera exige releer también las ramas y el log.
-  //
-  // Ale lo encontró validando: creó una rama desde la terminal y tardó en
-  // aparecer; al borrarla tuvo que refrescar a mano. El evento llegaba —la
-  // whitelist funciona— pero del otro lado sólo se releía el árbol.
   let touchedGitDir = false;
   const emit = (changedPath?: string) => {
     if (typeof changedPath === 'string' && isGitPath(targetPath, changedPath)) {

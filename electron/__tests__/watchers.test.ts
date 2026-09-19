@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
     close: ReturnType<typeof vi.fn>;
     on: ReturnType<typeof vi.fn>;
   }>,
-  watch: vi.fn(),
+  createRepoWatcher: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
@@ -18,15 +18,15 @@ vi.mock('electron', () => ({
   },
 }));
 
-vi.mock('chokidar', () => ({
-  default: { watch: mocks.watch },
+vi.mock('../ipc/repo-watch', () => ({
+  createRepoWatcher: mocks.createRepoWatcher,
 }));
 
 describe('repository watcher lifecycle', () => {
   beforeEach(() => {
     mocks.handlers.clear();
-    mocks.watch.mockReset();
-    mocks.watch.mockImplementation(() => {
+    mocks.createRepoWatcher.mockReset();
+    mocks.createRepoWatcher.mockImplementation(() => {
       const watcher = {
         close: vi.fn(async () => undefined),
         on: vi.fn(),
@@ -54,7 +54,7 @@ describe('repository watcher lifecycle', () => {
     const result = (await watch(null, 'C:/unauthorized/repo')) as any;
     expect(result.success).toBe(false);
     expect(result.error).toContain('no autorizado');
-    expect(mocks.watch).not.toHaveBeenCalled();
+    expect(mocks.createRepoWatcher).not.toHaveBeenCalled();
   });
 
   it('serializes unwatch and a quick re-watch of the same repository', async () => {
@@ -68,7 +68,7 @@ describe('repository watcher lifecycle', () => {
 
     const repoPath = 'C:/work/repo';
     await watch(null, repoPath);
-    expect(mocks.watch).toHaveBeenCalledTimes(1);
+    expect(mocks.createRepoWatcher).toHaveBeenCalledTimes(1);
 
     let finishClose: () => void = () => undefined;
     const closeGate = new Promise<void>((resolve) => {
@@ -79,12 +79,12 @@ describe('repository watcher lifecycle', () => {
     const closing = unwatch(null, repoPath);
     const reopening = watch(null, repoPath);
     await Promise.resolve();
-    expect(mocks.watch).toHaveBeenCalledTimes(1);
+    expect(mocks.createRepoWatcher).toHaveBeenCalledTimes(1);
 
     finishClose();
     await closing;
     await reopening;
-    expect(mocks.watch).toHaveBeenCalledTimes(2);
+    expect(mocks.createRepoWatcher).toHaveBeenCalledTimes(2);
   });
 
   it('pausa y restaura el observador durante una acción crítica', async () => {
@@ -97,7 +97,7 @@ describe('repository watcher lifecycle', () => {
 
     const repoPath = 'C:/work/repo-paused';
     await watch(null, repoPath);
-    expect(mocks.watch).toHaveBeenCalledTimes(1);
+    expect(mocks.createRepoWatcher).toHaveBeenCalledTimes(1);
     const firstWatcher = mocks.watchers[mocks.watchers.length - 1];
 
     let actionExecuted = false;
@@ -109,7 +109,7 @@ describe('repository watcher lifecycle', () => {
 
     expect(actionExecuted).toBe(true);
     expect(result).toBe('ok');
-    expect(mocks.watch).toHaveBeenCalledTimes(2);
+    expect(mocks.createRepoWatcher).toHaveBeenCalledTimes(2);
   });
 
   it('restaura el observador incondicionalmente incluso si la acción falla', async () => {
@@ -122,7 +122,7 @@ describe('repository watcher lifecycle', () => {
 
     const repoPath = 'C:/work/repo-error';
     await watch(null, repoPath);
-    expect(mocks.watch).toHaveBeenCalledTimes(1);
+    expect(mocks.createRepoWatcher).toHaveBeenCalledTimes(1);
     const firstWatcher = mocks.watchers[mocks.watchers.length - 1];
 
     await expect(
@@ -132,14 +132,14 @@ describe('repository watcher lifecycle', () => {
       }),
     ).rejects.toThrow('acción fallida');
 
-    expect(mocks.watch).toHaveBeenCalledTimes(2);
+    expect(mocks.createRepoWatcher).toHaveBeenCalledTimes(2);
   });
 
   it('no afecta ni crea observadores si el repositorio no estaba siendo observado', async () => {
     const repoPath = 'C:/work/repo-unobserved';
     const result = await withRepoWatcherPaused(repoPath, async () => 'passthrough');
     expect(result).toBe('passthrough');
-    expect(mocks.watch).not.toHaveBeenCalled();
+    expect(mocks.createRepoWatcher).not.toHaveBeenCalled();
   });
 
   it('notifica onRestoreError cuando la re-creación del vigilante falla (Tarea 5.6)', async () => {
@@ -152,9 +152,9 @@ describe('repository watcher lifecycle', () => {
 
     const repoPath = 'C:/work/repo-restore-fail';
     await watch(null, repoPath);
-    expect(mocks.watch).toHaveBeenCalledTimes(1);
+    expect(mocks.createRepoWatcher).toHaveBeenCalledTimes(1);
 
-    mocks.watch.mockImplementationOnce(() => {
+    mocks.createRepoWatcher.mockImplementationOnce(() => {
       throw new Error('EPERM: cannot watch directory');
     });
 

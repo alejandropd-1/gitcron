@@ -118,8 +118,8 @@ describe('findMalformedTaskLines (Tarea 8.3)', () => {
     expect(malformed).toEqual([]);
   });
 
-  it('devuelve cero falsos positivos contra el tasks.md real de este cambio', () => {
-    const tasksPath = path.resolve(__dirname, '../../openspec/changes/gestionar-ciclo-openspec-desde-gitcron/tasks.md');
+  it('devuelve cero falsos positivos contra el tasks.md real del change archivado', () => {
+    const tasksPath = path.resolve(__dirname, '../../openspec/changes/archive/2026-09-18-gestionar-ciclo-openspec-desde-gitcron/tasks.md');
     const content = fs.readFileSync(tasksPath, 'utf8');
 
     const malformed = findMalformedTaskLines(content);

@@ -512,7 +512,7 @@ describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
 
     // 2. El panel está configurado con anclaje sticky superior
     expect(cssContent).toMatch(/\.switcherRail\s*\{[^}]*position:\s*sticky/);
-    expect(cssContent).toMatch(/\.switcherRail\s*\{[^}]*top:\s*var\(--space-5\)/);
+    expect(cssContent).toMatch(/\.switcherRail\s*\{[^}]*top:\s*calc\(var\(--change-header-height/);
 
     // 3. Montado en el DOM, el panel permanece visible en el contenedor al simular scroll profundo
     const { container } = renderActiveChange();

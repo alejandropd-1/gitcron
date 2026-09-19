@@ -187,8 +187,8 @@ Segundo párrafo independiente.`;
     expect(blockquote?.textContent).toContain('Cita en bloque destacada');
   });
 
-  it('Bloque B: renderiza el tasks.md real del change sin errores ni desbordes', () => {
-    const tasksFilePath = path.resolve(__dirname, '../../../openspec/changes/gestionar-ciclo-openspec-desde-gitcron/tasks.md');
+  it('Bloque B: renderiza el tasks.md real del change archivado sin errores ni desbordes', () => {
+    const tasksFilePath = path.resolve(__dirname, '../../../openspec/changes/archive/2026-09-18-gestionar-ciclo-openspec-desde-gitcron/tasks.md');
     const realTasksContent = fs.readFileSync(tasksFilePath, 'utf-8');
     const { container } = render(<MarkdownViewer content={realTasksContent} />);
 

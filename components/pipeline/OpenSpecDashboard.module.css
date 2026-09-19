@@ -77,6 +77,8 @@
 }
 
 .dashboard {
+  --sdd-body-width: 820px;
+  --sdd-body-gutter: var(--space-5);
   display: flex;
   min-height: 0;
   height: 100%;
@@ -231,9 +233,9 @@
   gap: var(--space-4);
   flex: 0 0 auto;
   width: 100%;
-  max-width: 820px;
+  max-width: var(--sdd-body-width);
   margin: 0 auto;
-  padding: var(--space-4) var(--space-5) var(--space-2);
+  padding: var(--space-4) var(--sdd-body-gutter) var(--space-2);
   background: var(--color-bg-base);
   flex-wrap: wrap;
 }
@@ -1025,7 +1027,10 @@
      acotado: el centro entero se desplaza como una sola pieza, así que el panel
      puede crecer lo que necesite y lo que sigue baja con él. */
   flex: 0 0 auto;
-  padding: var(--space-4) var(--space-5);
+  width: 100%;
+  max-width: var(--sdd-body-width);
+  margin: 0 auto;
+  padding: var(--space-4) var(--sdd-body-gutter);
   background: color-mix(in srgb, var(--color-bg-overlay) 90%, transparent);
 }
 .archiveConfirm .actions { padding-top: var(--space-2); }
@@ -1385,9 +1390,9 @@
   flex: 1 1 auto;
   flex-direction: column;
   gap: var(--space-5);
-  padding: var(--space-4) var(--space-5) var(--space-8);
+  padding: var(--space-4) var(--sdd-body-gutter) var(--space-8);
   width: 100%;
-  max-width: 820px;
+  max-width: var(--sdd-body-width);
   margin: 0 auto;
 }
 
@@ -1825,8 +1830,15 @@ summary.centerBlock {
 .flowError { color: var(--color-error); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; font-style: normal; }
 .flowHint { color: var(--color-text-secondary); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; font-style: normal; }
 
+@container (min-width: 1400px) {
+  .body,
+  .skeletonBody {
+    --sdd-body-width: 1100px;
+  }
+}
+
 @container (max-width: 1180px) {
-  .changeHeader { grid-template-columns: minmax(12rem, 0.8fr) minmax(23rem, 1.2fr); padding-inline: var(--space-5); }
+  .changeHeader { grid-template-columns: minmax(12rem, 0.8fr) minmax(23rem, 1.2fr); padding-inline: var(--sdd-body-gutter); }
 }
 
 @container (max-width: 860px) {
@@ -2383,8 +2395,11 @@ summary.centerBlock {
   display: flex;
   flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
+  max-width: var(--sdd-body-width);
+  margin: 0 auto;
   flex-direction: column;
-  padding: var(--sp-4) var(--sp-5);
+  padding: var(--sp-4) var(--sdd-body-gutter);
   color: var(--color-text-primary);
   font-size: var(--font-size-xs); line-height: 1.5; font-family: var(--font-mono), ui-monospace, monospace;
 }
@@ -3052,7 +3067,7 @@ summary.centerBlock {
   align-self: flex-start;
   height: auto;
   position: sticky;
-  top: var(--space-5);
+  top: calc(var(--change-header-height, 3.25rem) + var(--space-4));
   z-index: 5;
   padding: var(--space-2);
   border-radius: var(--radius-md);
@@ -4282,6 +4297,7 @@ summary.centerBlock {
   flex: 1 1 auto;
   overflow: hidden;
   animation: skeletonPulse 1.8s ease-in-out infinite;
+  container-type: inline-size;
 }
 
 @keyframes skeletonPulse {
@@ -4341,9 +4357,9 @@ summary.centerBlock {
   flex: 1 1 auto;
   min-width: 0;
   overflow-y: auto;
-  padding: var(--space-4) var(--space-5) var(--space-8);
+  padding: var(--space-4) var(--sdd-body-gutter) var(--space-8);
   width: 100%;
-  max-width: 820px;
+  max-width: var(--sdd-body-width);
   margin: 0 auto;
   display: flex;
   flex-direction: column;

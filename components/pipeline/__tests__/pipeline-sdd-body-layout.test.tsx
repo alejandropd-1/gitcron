@@ -1011,4 +1011,124 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       expect(wrapper?.querySelector('nav[class*="switcherRail"]')).toBeNull();
     });
   });
+
+  describe('Tanda 1: Un solo ancho para el cuerpo SDD, encabezado que cubre y riel despegado (Tareas 1.1 a 1.4)', () => {
+    const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+    const css = fs.readFileSync(modulePath, 'utf-8');
+
+    it('(a) encabezado, cuerpo, panel de archivado, esqueleto y vista de configuración consumen --sdd-body-width y --sdd-body-gutter', () => {
+      // 1. .dashboard declara la variable base y el relleno mínimo
+      const dashboardMatch = css.match(/\.dashboard\s*\{([^}]+)\}/);
+      expect(dashboardMatch).toBeTruthy();
+      const dashboardRules = dashboardMatch![1];
+      expect(dashboardRules).toMatch(/--sdd-body-width:\s*820px/);
+      expect(dashboardRules).toMatch(/--sdd-body-gutter:\s*var\(--space-5\)/);
+
+      // 2. .changeHeader consume --sdd-body-width y --sdd-body-gutter
+      const headerMatch = css.match(/\.changeHeader\s*\{([^}]+)\}/);
+      expect(headerMatch).toBeTruthy();
+      const headerRules = headerMatch![1];
+      expect(headerRules).toMatch(/max-width:\s*var\(--sdd-body-width\)/);
+      expect(headerRules).toMatch(/padding:[^;]*var\(--sdd-body-gutter\)/);
+
+      // 3. .startScreen consume --sdd-body-width y --sdd-body-gutter
+      const screenMatch = css.match(/\.startScreen\s*\{([^}]+)\}/);
+      expect(screenMatch).toBeTruthy();
+      const screenRules = screenMatch![1];
+      expect(screenRules).toMatch(/max-width:\s*var\(--sdd-body-width\)/);
+      expect(screenRules).toMatch(/padding:[^;]*var\(--sdd-body-gutter\)/);
+
+      // 4. .archiveConfirm consume --sdd-body-width, --sdd-body-gutter y está centrado
+      const archiveMatch = css.match(/\.archiveConfirm\s*\{([^}]+)\}/);
+      expect(archiveMatch).toBeTruthy();
+      const archiveRules = archiveMatch![1];
+      expect(archiveRules).toMatch(/max-width:\s*var\(--sdd-body-width\)/);
+      expect(archiveRules).toMatch(/margin:\s*0\s+auto/);
+      expect(archiveRules).toMatch(/padding:[^;]*var\(--sdd-body-gutter\)/);
+
+      // 5. .skeletonCenter consume --sdd-body-width, --sdd-body-gutter y está centrado
+      const skeletonMatch = css.match(/\.skeletonCenter\s*\{([^}]+)\}/);
+      expect(skeletonMatch).toBeTruthy();
+      const skeletonRules = skeletonMatch![1];
+      expect(skeletonRules).toMatch(/max-width:\s*var\(--sdd-body-width\)/);
+      expect(skeletonRules).toMatch(/margin:\s*0\s+auto/);
+      expect(skeletonRules).toMatch(/padding:[^;]*var\(--sdd-body-gutter\)/);
+
+      // 6. .reviewView consume --sdd-body-width, --sdd-body-gutter y está centrado
+      const reviewMatch = css.match(/\.reviewView\s*\{([^}]+)\}/);
+      expect(reviewMatch).toBeTruthy();
+      const reviewRules = reviewMatch![1];
+      expect(reviewRules).toMatch(/max-width:\s*var\(--sdd-body-width\)/);
+      expect(reviewRules).toMatch(/margin:\s*0\s+auto/);
+      expect(reviewRules).toMatch(/padding:[^;]*var\(--sdd-body-gutter\)/);
+    });
+
+    it('(b) con el contenedor a 1400 px o más, el ancho del cuerpo es mayor que el valor base de 820px', () => {
+      // Container query min-width: 1400px define un ancho mayor que 820px
+      const containerQueryMatch = css.match(/@container\s*\(min-width:\s*1400px\)\s*\{([\s\S]*?)\}/);
+      expect(containerQueryMatch).toBeTruthy();
+      const queryContent = containerQueryMatch![1];
+      const widthMatch = queryContent.match(/--sdd-body-width:\s*(\d+)px/);
+      expect(widthMatch).toBeTruthy();
+      const wideWidth = Number.parseInt(widthMatch![1], 10);
+      expect(wideWidth).toBeGreaterThan(820);
+      expect(wideWidth).toBe(1100);
+    });
+
+    it('(c) el riel flotante tiene top derivado de --change-header-height más var(--space-4) y margen superior en reposo de var(--space-4)', () => {
+      const railMatch = css.match(/\.switcherRail\s*\{([^}]+)\}/);
+      expect(railMatch).toBeTruthy();
+      const railRules = railMatch![1];
+      expect(railRules).toMatch(/top:\s*calc\(var\(--change-header-height[^)]*\)\s*\+\s*var\(--space-4\)\)/);
+      expect(railRules).toMatch(/margin:\s*var\(--space-4\)/);
+    });
+
+    it('(c-runtime) ResizeObserver sobre changeHeader publica --change-header-height en el cuerpo', () => {
+      let observedElement: HTMLElement | null = null;
+      let observerCallback: ((entries: any[], observer: any) => void) | null = null;
+
+      class MockRO {
+        constructor(cb: (entries: any[], observer: any) => void) {
+          observerCallback = cb;
+        }
+        observe(el: HTMLElement) {
+          observedElement = el;
+        }
+        disconnect() {}
+      }
+
+      vi.stubGlobal('ResizeObserver', MockRO);
+
+      try {
+        const { container } = renderSdd();
+        const header = container.querySelector('[class*="changeHeader"]') as HTMLElement;
+        expect(header).toBeTruthy();
+        expect(observedElement).toBe(header);
+
+        // Simular que el encabezado mide 64px
+        vi.spyOn(header, 'getBoundingClientRect').mockReturnValue({
+          height: 64,
+          width: 820,
+          top: 0,
+          bottom: 64,
+          left: 0,
+          right: 820,
+          x: 0,
+          y: 0,
+          toJSON: () => {},
+        });
+
+        // Disparar la medición
+        if (observerCallback) {
+          (observerCallback as (entries: any[], observer: any) => void)([{ target: header }], {});
+        }
+
+        const body = container.querySelector('[class*="startBody"]') as HTMLElement;
+        expect(body).toBeTruthy();
+        expect(body.style.getPropertyValue('--change-header-height')).toBe('64px');
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+  });
 });

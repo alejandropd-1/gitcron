@@ -38,28 +38,6 @@ confinamiento de paths del repo ya blinda: el dato es para mostrar, no para ejec
 - **WHEN** el renderer recibe el `displayPath`
 - **THEN** no existe camino de IPC que lo acepte como ejecutable ni como ruta de operación
 
-### Requirement: GitCron declara un rango de versiones soportadas de OpenSpec
-GitCron SHALL declarar un rango de versiones soportadas que abarca desde 1.5.0 hasta 1.9.0 inclusive, y
-SHALL clasificar la versión detectada como `supported`, `too-old` o `too-new`. El rango SHALL viajar con
-el estado del motor.
-
-El fundamento es que OpenSpec 1.9.0 conserva total retrocompatibilidad con las estructuras y esquemas de
-1.8.0 requeridos por GitCron (`spec-driven`, JSON de `status`, comandos de `update` y `validate`), por lo
-que ampliar el soporte a 1.9.0 garantiza el funcionamiento con la versión oficial vigente sin riesgos de
-incompatibilidad.
-
-#### Scenario: Versión dentro del rango 1.5.0 a 1.9.0
-- **WHEN** la versión detectada está entre 1.5.0 y 1.9.0 inclusive
-- **THEN** el estado la declara `supported`
-
-#### Scenario: CLI más viejo que el soportado
-- **WHEN** la versión es inferior a 1.5.0
-- **THEN** el estado la declara `too-old` con el mínimo requerido 1.5.0
-
-#### Scenario: CLI más nuevo que el soportado
-- **WHEN** la versión es superior a 1.9.0
-- **THEN** el estado la declara `too-new` indicando que supera el rango probado
-
 ### Requirement: La consulta de versión disponible tiene timeout, caché y degradación offline
 GitCron SHALL consultar la última versión estable de `@fission-ai/openspec` desde el proceso principal,
 contra una fuente fija y controlada, con timeout, y SHALL guardarla en caché con su fecha. Sin conexión
@@ -479,19 +457,6 @@ repositorio. Tratarlo como un error o una desactualización crítica sólo porqu
 - **WHEN** el CLI resuelto tiene versión 1.4.9 (menor al mínimo 1.5.0)
 - **THEN** el motor se clasifica como `too-old` y la matriz requiere actualización del motor antes de operar
 
-### Requirement: GitCron no muta paquetes del sistema operativo y expone comandos de actualización del motor en modo de sólo lectura
-GitCron SHALL NOT ejecutar comandos de instalación global de paquetes (`npm install -g`, `pnpm add -g`,
-`brew`, etc.) en el sistema operativo del usuario. GitCron SHALL exponer el comando exacto no traducido
-en la tarjeta del motor y en la revisión de actualización con un botón de copiado al portapapeles.
-
-El fundamento es que el entorno de Electron empaqueta Node.js pero no npm, y ejecutar gestores globales
-requiere privilegios elevados en el host que escapan a la autoridad del repositorio. Guiar al usuario con
-el comando exacto previene fallos de permisos y corrupción de entornos de Node.
-
-#### Scenario: Exposición del comando oficial de actualización del CLI
-- **WHEN** el usuario consulta cómo actualizar el motor OpenSpec en su sistema
-- **THEN** GitCron muestra `npm i -g @fission-ai/openspec@latest` con un botón de copiado al portapapeles y no ejecuta llamadas a gestores de paquetes
-
 ### Requirement: La instrucción SHALL venir del motor y no componerse a mano
 
 Cuando GitCron entregue una instrucción a un ejecutor, SHALL usar la que el motor devuelve para esa
@@ -569,3 +534,58 @@ siguieron funcionando: nada falló, y lo que se perdió fue todo lo agregado en 
 #### Scenario: La versión instalada supera a la declarada
 - **WHEN** el repositorio tiene una versión de OpenSpec posterior a la que declara el ciclo
 - **THEN** la aplicación lo informa, para que el desfase se vea en vez de descubrirse después
+
+### Requirement: GitCron declara una versión mínima soportada de OpenSpec
+
+GitCron SHALL declarar una versión mínima soportada de OpenSpec (1.5.0) y SHALL clasificar la versión detectada como `supported`, `too-old` o `unknown`. No existe máximo: una versión más nueva que la última probada SHALL clasificarse `supported` y SHALL NOT generar aviso alguno. El aviso de actualización del motor SHALL dispararse únicamente cuando la versión instalada es menor que la última publicada en npm, y SHALL indicar de qué versión a qué versión se pasaría. La clasificación es informativa y SHALL NOT bloquear operaciones; ante `too-old` GitCron SHALL ofrecer actualizar el motor.
+
+#### Scenario: Versión igual o superior al mínimo
+- **WHEN** la versión detectada es mayor o igual a 1.5.0, incluida cualquiera superior a la última probada
+- **THEN** el estado la declara `supported`, sin aviso de rango
+
+#### Scenario: Hay una versión más nueva en npm
+- **WHEN** la versión instalada es menor que la última publicada en npm
+- **THEN** se avisa con la versión instalada y la disponible y se ofrece actualizar el motor
+
+#### Scenario: CLI más viejo que el soportado
+- **WHEN** la versión es inferior a 1.5.0
+- **THEN** el estado la declara `too-old` con el mínimo 1.5.0 y se ofrece actualizar el motor
+
+#### Scenario: Versión ilegible
+- **WHEN** la versión no se puede interpretar
+- **THEN** el estado la declara `unknown`
+
+### Requirement: El estado de la integración SHALL derivarse de los targets instalados y no del recuento de skills
+
+GitCron SHALL determinar la vigencia de la integración a partir de qué targets tienen instalados sus
+workflows —la evidencia `installedWorkflowsByTarget` y `targets` que la inspección ya produce— y no
+MUST declararla al día por el solo hecho de que existan skills. La derivación actual cuenta skills
+sin mirar dónde están, y eso produce una afirmación falsa comprobada en la aplicación: con diez
+skills en el esquema anterior, ninguno en el target oficial vigente, y el propio panel informando
+«Agents Multi-Agent sin configurar», la tarjeta declara la integración al día. Una tarjeta que
+afirma lo contrario de lo que muestra debajo deja de ser evidencia.
+
+#### Scenario: Skills sólo en targets del esquema anterior
+- **WHEN** los workflows están instalados únicamente en targets del esquema anterior y ninguno en el vigente
+- **THEN** la integración se declara desactualizada, no al día
+
+#### Scenario: Coherencia entre el estado y el detalle
+- **WHEN** el detalle de convivencia informa que un target quedó sin configurar
+- **THEN** el estado resumido de la integración no se declara al día
+
+### Requirement: El perfil de workflows SHALL leerse del CLI y poder editarse desde la aplicación
+
+GitCron SHALL obtener del CLI el perfil vigente y el conjunto de workflows habilitados, SHALL ofrecer
+únicamente acciones correspondientes a los habilitados, y SHALL permitir activarlos o desactivarlos
+sin recurrir a la terminal. El fundamento es que OpenSpec dejó de imponer un flujo único y pasó a
+admitir configuraciones por organización, de modo que el conjunto disponible es un dato del entorno y
+no una constante del programa. Ofrecer una acción que el perfil no habilita produce un botón que
+falla al apretarlo, y esconder una habilitada obliga a salir de la aplicación para usarla.
+
+#### Scenario: Acción no habilitada por el perfil
+- **WHEN** el perfil vigente no incluye un workflow
+- **THEN** su acción no se ofrece, y se puede consultar que está deshabilitada
+
+#### Scenario: Cambio del perfil desde la aplicación
+- **WHEN** se habilita o deshabilita un workflow desde la aplicación
+- **THEN** la configuración del CLI queda modificada y las acciones ofrecidas se recalculan desde ella

@@ -294,6 +294,7 @@
   de ignorados (`createRepoIgnoreFilter`), el `awaitWriteFinish` (estabilizacion de 200 ms) y la
   cadencia adaptativa de git-ops (`electron/ipc/git-ops.ts:270`); sin dependencias nuevas.
   Tanda aparte, despues de 5.7, con sus pruebas: las de `watchers` y las que consumen eventos.
+  *Trasladada el 2026-09-18 al change siguiente (decision de Alejandro: archivar hoy; 5.7 ya cubre el archivado). Queda tildada como registrada, no como hecha.*
 ## 6. Instalación del motor
 
 - [x] 6.1 En `electron/pipeline/`, agregar la resolución del gestor de paquetes del sistema con canonicalización de ruta, resolviendo en cada uso y sin memorizar, con la misma estrategia de contención que `resolveOpenSpecExecutable` de `electron/pipeline/openspec-engine.ts`.

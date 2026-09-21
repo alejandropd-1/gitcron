@@ -21,7 +21,8 @@
     "package:linux": "npm run package:build && electron-builder --linux",
     "publish:win": "npm run package:build && electron-builder --win --publish always",
     "publish:mac": "npm run package:build && electron-builder --mac --publish always",
-    "publish:linux": "npm run package:build && electron-builder --linux --publish always"
+    "publish:linux": "npm run package:build && electron-builder --linux --publish always",
+    "verificar": "node scripts/verificar.mjs"
   },
   "build": {
     "appId": "com.alejandropd.gitcron",

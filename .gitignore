@@ -61,3 +61,6 @@ docs/ai/logs/
 
 # Scripts
 scripts/*.json
+
+# Salida de scripts/verificar.mjs y reportes del ejecutor
+tmp/

@@ -234,6 +234,9 @@ describe('grafo de artefactos de OpenSpec', () => {
       />,
     );
 
+    // Selecciona el nodo bloqueado primero
+    fireEvent.click(screen.getByRole('tab', { name: /tasks/i }));
+
     // No ofrece botón de acción
     expect(screen.queryByText('pipeline.openspec.graph.generateWithAgent')).toBeNull();
     // Muestra qué lo bloquea
@@ -306,6 +309,9 @@ describe('grafo de artefactos de OpenSpec', () => {
       />,
     );
 
+    // Selecciona el nodo primero
+    fireEvent.click(screen.getByRole('tab', { name: /proposal/i }));
+
     // El lanzador NO está montado
     expect(screen.queryByTestId('pipeline-runtime-launcher')).toBeNull();
 
@@ -350,6 +356,9 @@ describe('grafo de artefactos de OpenSpec', () => {
       />,
     );
 
+    // Selecciona el nodo primero
+    fireEvent.click(screen.getByRole('tab', { name: /specs/i }));
+
     const generateBtn = screen.getByText('pipeline.openspec.graph.generateWithAgent');
     fireEvent.click(generateBtn);
 
@@ -358,5 +367,29 @@ describe('grafo de artefactos de OpenSpec', () => {
     expect(launcher).toBeTruthy();
     expect(launcher.getAttribute('data-instruction')).toBe('Instrucción exacta generada por el CLI para specs');
     expect(launcher.getAttribute('data-change-id')).toBe('cambio-test');
+  });
+
+  it('renderiza exactamente una ficha debajo de la fila y conmuta al seleccionar otro nodo', () => {
+    const { container } = render(
+      <PipelineArtifactGraph
+        initialGraph={{
+          ok: true,
+          artifacts: [
+            { id: 'proposal', status: 'done', requires: [], description: 'Descripción de proposal' },
+            { id: 'design', status: 'ready', requires: [], description: 'Descripción de design' },
+          ],
+        }}
+      />,
+    );
+
+    expect(container.querySelectorAll('[class*="timelineCard"]').length).toBe(1);
+    expect(screen.getByText('Descripción de proposal')).toBeTruthy();
+    expect(screen.queryByText('Descripción de design')).toBeNull();
+
+    fireEvent.click(screen.getByRole('tab', { name: /design/i }));
+
+    expect(container.querySelectorAll('[class*="timelineCard"]').length).toBe(1);
+    expect(screen.getByText('Descripción de design')).toBeTruthy();
+    expect(screen.queryByText('Descripción de proposal')).toBeNull();
   });
 });

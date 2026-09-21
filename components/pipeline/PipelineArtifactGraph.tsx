@@ -120,6 +120,7 @@ export function PipelineArtifactGraph({
 
   const [confirmingArtifactId, setConfirmingArtifactId] = useState<string | null>(null);
   const [launchingArtifactId, setLaunchingArtifactId] = useState<string | null>(null);
+  const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
 
   const legacyGraph = useMemo<OpenSpecArtifactGraphResult | null>(() => {
     if (status && status.available && status.artifacts.length > 0) {
@@ -194,6 +195,27 @@ export function PipelineArtifactGraph({
     return [];
   }, [graphResult, onSelectTab]);
 
+  const selectedId = useMemo(() => {
+    if (onSelectTab) {
+      const match = sortedArtifacts.find((a) => a.id === activeTab);
+      return match ? match.id : sortedArtifacts[0]?.id;
+    }
+    const match = sortedArtifacts.find((a) => a.id === internalSelectedId);
+    return match ? match.id : sortedArtifacts[0]?.id;
+  }, [onSelectTab, activeTab, internalSelectedId, sortedArtifacts]);
+
+  const selectedArtifact = useMemo(() => {
+    return sortedArtifacts.find((a) => a.id === selectedId) ?? sortedArtifacts[0];
+  }, [sortedArtifacts, selectedId]);
+
+  const handleSelectNode = (artifactId: string) => {
+    if (onSelectTab) {
+      onSelectTab(artifactId as DetailTab);
+    } else {
+      setInternalSelectedId(artifactId);
+    }
+  };
+
   if (!loading && !error && !hasCliState && !onSelectTab) {
     return null;
   }
@@ -204,15 +226,13 @@ export function PipelineArtifactGraph({
         <div className={styles.timelineList}>
           {[1, 2, 3, 4].map((n) => (
             <div key={n} className={styles.timelineSkeletonNode}>
-              <div className={styles.timelineTrack}>
-                <div className={styles.timelineSkeletonCircle} />
-                {n < 4 && <div className={styles.timelineConnector} />}
-              </div>
-              <div className={styles.timelineSkeletonCard}>
-                <div className={styles.timelineSkeletonBar} />
-              </div>
+              <div className={styles.timelineSkeletonCircle} />
+              {n < 4 && <div className={styles.timelineConnector} />}
             </div>
           ))}
+        </div>
+        <div className={styles.timelineSkeletonCard}>
+          <div className={styles.timelineSkeletonBar} />
         </div>
       </div>
     );
@@ -254,9 +274,22 @@ export function PipelineArtifactGraph({
     }
   };
 
+  let missingDeps: string[] = [];
+  if (selectedArtifact && selectedArtifact.status === 'blocked') {
+    if (selectedArtifact.dependencies && selectedArtifact.dependencies.length > 0) {
+      missingDeps = selectedArtifact.dependencies.filter((d) => !d.done).map((d) => d.id);
+    }
+    if (missingDeps.length === 0 && selectedArtifact.requires && selectedArtifact.requires.length > 0) {
+      missingDeps = selectedArtifact.requires;
+    }
+  }
+
+  const isConfirming = confirmingArtifactId === selectedArtifact?.id;
+  const isLaunching = launchingArtifactId === selectedArtifact?.id;
+
   return (
     <div
-      className={`${styles.timelineRoot} ${onSelectTab ? 'pipeline-details__tabs' : ''}`}
+      className={styles.timelineRoot}
       role={onSelectTab ? 'tablist' : undefined}
       aria-label={onSelectTab ? t('pipeline.details.title') : (hasCliState ? t('pipeline.openspec.graph.label') : undefined)}
     >
@@ -270,27 +303,7 @@ export function PipelineArtifactGraph({
           const stateKey = STATE_LABEL_KEY[artifact.status] ?? 'pipeline.openspec.graph.state.unknown';
           const stateText = hasCliState ? t(stateKey) : null;
           const isLast = index === sortedArtifacts.length - 1;
-
-          // Dependencias faltantes si está bloqueado
-          let missingDeps: string[] = [];
-          if (artifact.status === 'blocked') {
-            if (artifact.dependencies && artifact.dependencies.length > 0) {
-              missingDeps = artifact.dependencies.filter((d) => !d.done).map((d) => d.id);
-            }
-            if (missingDeps.length === 0 && artifact.requires.length > 0) {
-              missingDeps = artifact.requires;
-            }
-          }
-
-          const isConfirming = confirmingArtifactId === artifact.id;
-          const isLaunching = launchingArtifactId === artifact.id;
-          const isInteractiveTab =
-            onSelectTab &&
-            (artifact.id === 'proposal' ||
-              artifact.id === 'design' ||
-              artifact.id === 'specs' ||
-              artifact.id === 'tasks');
-          const isSelected = activeTab === artifact.id;
+          const isSelected = selectedId === artifact.id;
 
           return (
             <li
@@ -299,10 +312,18 @@ export function PipelineArtifactGraph({
               data-state={hasCliState ? artifact.status : undefined}
               data-selected={isSelected ? 'true' : undefined}
             >
-              <div className={styles.timelineTrack}>
+              <button
+                type="button"
+                role="tab"
+                id={`tab-${artifact.id}`}
+                aria-controls={`panel-${artifact.id}`}
+                aria-selected={isSelected}
+                data-selected={isSelected ? 'true' : undefined}
+                className={styles.timelineNodeBtn}
+                onClick={() => handleSelectNode(artifact.id)}
+              >
                 <div
                   className={styles.timelineCircle}
-                  data-state={hasCliState ? artifact.status : undefined}
                   aria-hidden="true"
                 >
                   {hasCliState && artifact.status === 'done' ? (
@@ -315,150 +336,112 @@ export function PipelineArtifactGraph({
                     <Circle size={10} />
                   )}
                 </div>
-                {!isLast && <div className={styles.timelineConnector} />}
-              </div>
-
-              <div
-                className={styles.timelineCard}
-                onClick={() => {
-                  if (isInteractiveTab) {
-                    onSelectTab(artifact.id as DetailTab);
-                  }
-                }}
-              >
-                {isInteractiveTab ? (
-                  <button
-                    type="button"
-                    role="tab"
-                    id={`tab-${artifact.id}`}
-                    aria-controls={`panel-${artifact.id}`}
-                    aria-selected={isSelected}
-                    className={`pipeline-details__tab ${isSelected ? 'pipeline-details__tab--active' : ''} ${styles.timelineTabBtn}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectTab(artifact.id as DetailTab);
-                    }}
+                <span className={`${styles.timelineTitle} pipeline-artifact-graph__id`}>
+                  {artifactLabel}
+                </span>
+                {stateText && (
+                  <span
+                    className={`${styles.timelineState} pipeline-artifact-graph__state`}
+                    title={stateText}
                   >
-                    <span className={`${styles.timelineTitle} pipeline-artifact-graph__id`}>
-                      {artifactLabel}
-                    </span>
-                    {stateText && (
-                      <span
-                        className={`${styles.timelineState} pipeline-artifact-graph__state`}
-                        title={stateText}
-                      >
-                        {stateText}
-                      </span>
-                    )}
-                  </button>
-                ) : (
-                  <div className={styles.timelineCardHeader}>
-                    <h4 className={`${styles.timelineTitle} pipeline-artifact-graph__id`}>
-                      {artifactLabel}
-                    </h4>
-                    {stateText && (
-                      <span
-                        className={`${styles.timelineState} pipeline-artifact-graph__state`}
-                        title={stateText}
-                      >
-                        {stateText}
-                      </span>
-                    )}
-                  </div>
+                    {stateText}
+                  </span>
                 )}
-
-                {typeof artifact.description === 'string' && artifact.description.length > 0 && (
-                  <p className={styles.timelineDesc}>{artifact.description}</p>
-                )}
-
-                {typeof artifact.outputPath === 'string' && artifact.outputPath.length > 0 && (
-                  <p className={styles.timelinePath}>{artifact.outputPath}</p>
-                )}
-
-                {hasCliState && artifact.status === 'blocked' && missingDeps.length > 0 && (
-                  <p className={`${styles.timelineDeps} pipeline-artifact-graph__deps`}>
-                    {t('pipeline.openspec.graph.missingDeps', { deps: missingDeps.join(', ') })}
-                  </p>
-                )}
-
-                {hasCliState && artifact.status === 'ready' && !isConfirming && !isLaunching && (
-                  <button
-                    type="button"
-                    className={styles.timelineActionBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleStartGenerate(artifact);
-                    }}
-                  >
-                    <Play size={12} aria-hidden="true" />
-                    <span>{t('pipeline.openspec.graph.generateWithAgent')}</span>
-                  </button>
-                )}
-
-                {isConfirming && (
-                  <div
-                    className={styles.timelineConfirmBox}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <p className={styles.timelineConfirmText}>
-                      {t('pipeline.openspec.graph.confirmOverwrite')}
-                    </p>
-                    {artifact.existingOutputPaths && (
-                      <ul className={styles.timelineConfirmPaths}>
-                        {artifact.existingOutputPaths.map((p) => (
-                          <li key={p}>{p}</li>
-                        ))}
-                      </ul>
-                    )}
-                    <div className={styles.timelineConfirmActions}>
-                      <button
-                        type="button"
-                        className={styles.timelineConfirmBtn}
-                        onClick={() => handleConfirmGenerate(artifact)}
-                      >
-                        {t('pipeline.openspec.graph.confirmAndLaunch')}
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.timelineCancelBtn}
-                        onClick={() => setConfirmingArtifactId(null)}
-                      >
-                        {t('common.cancel')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {isLaunching && (
-                  <div
-                    className={styles.timelineLauncher}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className={styles.timelineLauncherHeader}>
-                      <button
-                        type="button"
-                        className={styles.timelineCancelBtn}
-                        onClick={() => setLaunchingArtifactId(null)}
-                        aria-label={t('common.cancel')}
-                      >
-                        <X size={14} aria-hidden="true" />
-                        <span>{t('common.cancel')}</span>
-                      </button>
-                    </div>
-                    <PipelineRuntimeLauncher
-                      repoPath={repoPath ?? ''}
-                      projection={null}
-                      initialInstruction={artifact.instruction}
-                      changeId={changeId}
-                      onStarted={() => setLaunchingArtifactId(null)}
-                    />
-                  </div>
-                )}
-              </div>
+              </button>
+              {!isLast && <div className={styles.timelineConnector} aria-hidden="true" />}
             </li>
           );
         })}
       </ul>
+
+      {selectedArtifact && (
+        <div className={styles.timelineCard}>
+          {typeof selectedArtifact.description === 'string' && selectedArtifact.description.length > 0 && (
+            <p className={styles.timelineDesc}>{selectedArtifact.description}</p>
+          )}
+
+          {typeof selectedArtifact.outputPath === 'string' && selectedArtifact.outputPath.length > 0 && (
+            <p className={styles.timelinePath}>{selectedArtifact.outputPath}</p>
+          )}
+
+          {hasCliState && selectedArtifact.status === 'blocked' && missingDeps.length > 0 && (
+            <p className={`${styles.timelineDeps} pipeline-artifact-graph__deps`}>
+              {t('pipeline.openspec.graph.missingDeps', { deps: missingDeps.join(', ') })}
+            </p>
+          )}
+
+          {hasCliState && selectedArtifact.status === 'ready' && !isConfirming && !isLaunching && (
+            <button
+              type="button"
+              className={styles.timelineActionBtn}
+              onClick={() => handleStartGenerate(selectedArtifact)}
+            >
+              <Play size={12} aria-hidden="true" />
+              <span>{t('pipeline.openspec.graph.generateWithAgent')}</span>
+            </button>
+          )}
+
+          {isConfirming && (
+            <div
+              className={styles.timelineConfirmBox}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className={styles.timelineConfirmText}>
+                {t('pipeline.openspec.graph.confirmOverwrite')}
+              </p>
+              {selectedArtifact.existingOutputPaths && (
+                <ul className={styles.timelineConfirmPaths}>
+                  {selectedArtifact.existingOutputPaths.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              )}
+              <div className={styles.timelineConfirmActions}>
+                <button
+                  type="button"
+                  className={styles.timelineConfirmBtn}
+                  onClick={() => handleConfirmGenerate(selectedArtifact)}
+                >
+                  {t('pipeline.openspec.graph.confirmAndLaunch')}
+                </button>
+                <button
+                  type="button"
+                  className={styles.timelineCancelBtn}
+                  onClick={() => setConfirmingArtifactId(null)}
+                >
+                  {t('common.cancel')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isLaunching && (
+            <div
+              className={styles.timelineLauncher}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.timelineLauncherHeader}>
+                <button
+                  type="button"
+                  className={styles.timelineCancelBtn}
+                  onClick={() => setLaunchingArtifactId(null)}
+                  aria-label={t('common.cancel')}
+                >
+                  <X size={14} aria-hidden="true" />
+                  <span>{t('common.cancel')}</span>
+                </button>
+              </div>
+              <PipelineRuntimeLauncher
+                repoPath={repoPath ?? ''}
+                projection={null}
+                initialInstruction={selectedArtifact.instruction}
+                changeId={changeId}
+                onStarted={() => setLaunchingArtifactId(null)}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

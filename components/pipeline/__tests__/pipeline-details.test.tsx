@@ -35,25 +35,6 @@ describe('Pipeline details', () => {
     expect(withoutAgent?.taskId).toBeNull();
   });
 
-  it('la pestaña activa de detalles se aloja en OpenSpecDashboard.module.css y no en globals.css', () => {
-    const fs = require('node:fs');
-    const path = require('node:path');
-    const globalsPath = path.resolve(process.cwd(), 'app/globals.css');
-    const globalsContent = fs.readFileSync(globalsPath, 'utf-8');
-    const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
-    const moduleContent = fs.readFileSync(modulePath, 'utf-8');
-
-    // Comprueba que ya no esté en globals.css (mudado a la hoja de la vista)
-    expect(globalsContent).not.toMatch(/\.pipeline-details__tab--active\s*\{/);
-
-    // Comprueba que en el module CSS esté declarado exactamente una vez (usando :global para encapsulación)
-    const matches = moduleContent.match(/(?::global\()?\s*\.pipeline-details__tab--active\s*\)?\s*\{/g);
-    expect(matches?.length).toBe(1);
-
-    // Comprueba que no tenga la regla contradictoria agresiva con fondo cian pleno
-    expect(moduleContent).not.toMatch(/\.pipeline-details__tab--active[^{]*\{[^}]*background-color:\s*var\(--color-primary\)/);
-  });
-
   it('Obs 62: en el DOM montado, «Propuesta» y «Especificaciones» muestran contenidos DISTINTOS y Especificaciones no reproduce la propuesta', () => {
     const testChange = {
       changeId: 'cambio-prueba',

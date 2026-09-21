@@ -18,7 +18,10 @@ vi.mock('@/hooks/use-translation', () => ({
   },
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  delete (window as any).api;
+});
 
 function mockSnapshot(): PipelineSnapshot {
   return {
@@ -283,7 +286,61 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       // La primera solapa (propuesta) arranca activa
       const activeTab = tabs.find((t) => t.getAttribute('aria-selected') === 'true');
       expect(activeTab?.textContent).toMatch(/proposal/i);
-      expect(activeTab?.className).toContain('pipeline-details__tab--active');
+      expect(activeTab?.getAttribute('data-selected')).toBe('true');
+    });
+
+    it('el nodo seleccionado declara data-selected="true" y aria-selected="true" correspondiente a activeTab', () => {
+      renderSdd();
+      fireEvent.click(screen.getByRole('button', { name: /pipeline\.switcher\.artifacts/i }));
+
+      const proposalTab = screen.getByRole('tab', { name: /proposal/i });
+      expect(proposalTab.getAttribute('aria-selected')).toBe('true');
+      expect(proposalTab.getAttribute('data-selected')).toBe('true');
+      expect(proposalTab.closest('li')?.getAttribute('data-selected')).toBe('true');
+
+      const designTab = screen.getByRole('tab', { name: /design/i });
+      expect(designTab.getAttribute('aria-selected')).toBe('false');
+      expect(designTab.getAttribute('data-selected')).toBeNull();
+
+      fireEvent.click(designTab);
+      expect(designTab.getAttribute('aria-selected')).toBe('true');
+      expect(designTab.getAttribute('data-selected')).toBe('true');
+      expect(designTab.closest('li')?.getAttribute('data-selected')).toBe('true');
+      expect(proposalTab.getAttribute('aria-selected')).toBe('false');
+    });
+
+    it('exactamente una .timelineCard en el DOM mostrando la descripción del nodo seleccionado y conmuta al pulsar otro nodo', async () => {
+      (window as any).api = {
+        pipelineOpenSpec: {
+          getArtifactGraph: vi.fn().mockResolvedValue({
+            ok: true,
+            artifacts: [
+              { id: 'proposal', status: 'done', requires: [], description: 'Descripción de proposal' },
+              { id: 'design', status: 'done', requires: ['proposal'], description: 'Descripción de design' },
+              { id: 'specs', status: 'done', requires: ['proposal'], description: 'Descripción de specs' },
+              { id: 'tasks', status: 'ready', requires: ['specs', 'design'], description: 'Descripción de tasks' },
+            ],
+          }),
+        },
+      };
+
+      const { container } = renderSdd();
+      fireEvent.click(screen.getByRole('button', { name: /pipeline\.switcher\.artifacts/i }));
+
+      expect(await screen.findByText('Descripción de proposal')).toBeTruthy();
+
+      const cards = container.querySelectorAll('[class*="timelineCard"]');
+      expect(cards.length).toBe(1);
+      expect(screen.queryByText('Descripción de design')).toBeNull();
+
+      // Al conmutar de nodo, cambia la tarjeta y sigue habiendo exactamente una
+      const designTab = screen.getByRole('tab', { name: /design/i });
+      fireEvent.click(designTab);
+
+      expect(await screen.findByText('Descripción de design')).toBeTruthy();
+      const cardsAfter = container.querySelectorAll('[class*="timelineCard"]');
+      expect(cardsAfter.length).toBe(1);
+      expect(screen.queryByText('Descripción de proposal')).toBeNull();
     });
   });
 
@@ -318,7 +375,7 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       expect(screen.queryByText(/pipeline\.openspec\.task\.noSession/i)).toBeNull();
     });
 
-    it('el grafo de artefactos no repite la palabra HECHO cuatro veces y usa íconos semánticos', () => {
+    it('cada nodo de la línea temporal lleva un ícono', () => {
       renderSdd();
       fireEvent.click(screen.getByRole('button', { name: /pipeline\.switcher\.artifacts/i }));
 
@@ -340,13 +397,13 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       expect(content).not.toMatch(/\.pipeline-card\[data-scrolls\]\s*\{/);
     });
 
-    it('OpenSpecDashboard.module.css aloja los estilos de .pipeline-details con sub-borde sin fondo cian pleno', () => {
+    it('OpenSpecDashboard.module.css no contiene .timelineCircle[data-state ni .pipeline-details__tab', () => {
       const modulePath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
       const content = fs.readFileSync(modulePath, 'utf-8');
 
-      expect(content).toMatch(/\.pipeline-details__tab--active/);
-      expect(content).toMatch(/border-bottom:\s*2px solid var\(--color-primary\)/);
-      expect(content).not.toMatch(/\.pipeline-details__tab--active[^{]*\{[^}]*background-color:\s*var\(--color-primary\)/);
+      expect(content).not.toMatch(/\.timelineCircle\[data-state/);
+      expect(content).not.toMatch(/\.pipeline-details__tab/);
+      expect(content).not.toMatch(/\.pipeline-artifact-graph/);
     });
   });
 

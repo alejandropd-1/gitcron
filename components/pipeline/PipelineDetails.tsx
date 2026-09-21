@@ -80,7 +80,6 @@ export function PipelineDetails({
           activeTab={activeTab}
           onSelectTab={setActiveTab}
         />
-
       </div>
 
       <div className="pipeline-details__body">

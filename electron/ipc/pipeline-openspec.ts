@@ -762,7 +762,6 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
     },
   );
 
-
   // 8. Doctor command (Tarea 3b.1)
   ipc.handle(
     'pipeline:openspec:doctor',

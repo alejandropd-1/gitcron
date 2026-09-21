@@ -34,7 +34,7 @@ export type PipelineRuntimeLauncherProps = {
    */
   startLabelKey?: string;
   /** Se avisa después de un arranque exitoso, para que el compositor reaccione. */
-  onStarted?: () => void;
+  onStarted?: (sessionId: string) => void;
 };
 
 /**
@@ -125,8 +125,8 @@ export function PipelineRuntimeLauncher({
     setBusy(false);
     // El error llega como código estable desde Main; se muestra crudo en vez de
     // traducirse a una frase amable que oculte la causa.
-    if (!result?.success) setError(result?.error ?? 'start_failed');
-    else onStarted?.();
+    if (!result?.success || !result.data?.sessionId) setError(result?.error ?? 'start_failed');
+    else onStarted?.(result.data.sessionId);
   }, [canStart, repoPath, runtime, instruction, changeId, taskId, onStarted]);
 
   const handleStop = useCallback(async () => {

@@ -1,16 +1,22 @@
 'use client';
 
-import { useId, useRef, useState } from 'react';
-import { BookOpen, FileText } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Check } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
-import { useNewChangeDraft, useNewChangeDraftStore } from '@/lib/new-change-draft-store';
+import {
+  useNewChangeDraft,
+  useNewChangeDraftStore,
+  type NewChangeDraftStep,
+} from '@/lib/new-change-draft-store';
 import type { BranchDivergence, RuntimeProjection } from '@/types/pipeline';
+import { ActivityFeed } from './ActivityFeed';
 import { BranchBaseNotice } from './ChangeBranchNotice';
 import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
 import { validateExploreForm, validateProposeForm } from './pipeline-guided-forms';
 import styles from './OpenSpecDashboard.module.css';
 
 export type PipelineNewChangeMode = 'propose' | 'explore';
+export type PipelineNewChangeStep = NewChangeDraftStep;
 
 export type PipelineNewChangeFlowProps = {
   repoPath: string;
@@ -40,17 +46,36 @@ export type PipelineNewChangeFlowProps = {
   onRefresh?: () => void;
 };
 
+const JOURNEY_STEPS: { id: NewChangeDraftStep; labelKey: string }[] = [
+  { id: 'explore', labelKey: 'pipeline.journey.step.explore' },
+  { id: 'propose', labelKey: 'pipeline.journey.step.propose' },
+  { id: 'apply', labelKey: 'pipeline.journey.step.apply' },
+  { id: 'archive', labelKey: 'pipeline.journey.step.archive' },
+];
+
 /**
- * Flujo breve para empezar un trabajo nuevo.
+ * Recorrido guiado para abrir un cambio nuevo.
  *
- * Reemplaza el salto directo de "Nuevo cambio" a un textarea con `/opsx:propose`
- * pelado. La instrucción se compone a partir de campos con nombre, y sólo se
- * muestra completa bajo divulgación progresiva: el comando es un detalle de
- * implementación, no lo que la persona vino a escribir.
+ * Reemplaza el selector de modo por un recorrido de cuatro pasos (explorar,
+ * proponer, aplicar, archivar). Cada paso dice dónde está la persona, qué
+ * contestó el motor y qué sigue.
  *
  * No arranca nada por sí solo. Cuando el formulario es válido entrega la
  * instrucción al lanzador existente, que sigue siendo el único que abre procesos.
  */
+function deriveReasoningAvailable(
+  session: { reasoningVisibility?: string | null } | null,
+): boolean | null {
+  if (!session) return null;
+  if (session.reasoningVisibility === 'emitted' || session.reasoningVisibility === 'summary') {
+    return true;
+  }
+  if (session.reasoningVisibility === 'unavailable') {
+    return false;
+  }
+  return null;
+}
+
 export function PipelineNewChangeFlow({
   repoPath,
   projection,
@@ -73,15 +98,23 @@ export function PipelineNewChangeFlow({
    */
   const draft = useNewChangeDraft(repoPath);
   const patchDraft = useNewChangeDraftStore((state) => state.patchDraft);
-  const clearDraft = useNewChangeDraftStore((state) => state.clearDraft);
-  const { mode, objective, slug, constraints, description } = draft;
-  const setMode = (next: PipelineNewChangeMode) => patchDraft(repoPath, { mode: next });
+  const { step, objective, slug, constraints, description } = draft;
+
+  const setStep = (next: NewChangeDraftStep) => {
+    patchDraft(repoPath, { step: next });
+    setErrors({});
+    setBranchError(null);
+    setDirtyBlocked(false);
+    setInstruction(null);
+  };
+
   const setObjective = (next: string) => patchDraft(repoPath, { objective: next });
   const setSlug = (next: string) => patchDraft(repoPath, { slug: next });
   const setConstraints = (next: string) => patchDraft(repoPath, { constraints: next });
   const setDescription = (next: string) => patchDraft(repoPath, { description: next });
   const [errors, setErrors] = useState<{ objective?: string; slug?: string; description?: string }>({});
   const [instruction, setInstruction] = useState<string | null>(null);
+
   /**
    * Trabajar el cambio en su propia rama. Marcado por defecto: desmarcado
    * dejaría la función invisible y el trabajo seguiría en `main` por inercia.
@@ -103,17 +136,80 @@ export function PipelineNewChangeFlow({
   /** Se pidió crear la rama con trabajo sin confirmar. Se declara, no se hace. */
   const [dirtyBlocked, setDirtyBlocked] = useState(false);
 
+  const [historyList, setHistoryList] = useState<RuntimeProjection[]>([]);
+  useEffect(() => {
+    const api = typeof window !== 'undefined' ? window.api : undefined;
+    if (!api?.pipelineRuntime?.history || !repoPath) return;
+    let cancelled = false;
+    void api.pipelineRuntime.history(repoPath).then((result) => {
+      if (!cancelled && result?.success && Array.isArray(result.data)) {
+        setHistoryList(result.data);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [repoPath, projection?.active, draft.sessions.explore, draft.sessions.propose]);
+
+  // Derivar proyecciones en render (sin setState en useEffect)
+  const exploreSessionId = draft.sessions.explore;
+  const exploreProj = exploreSessionId
+    ? (projection && projection.sessionId === exploreSessionId
+        ? projection
+        : historyList.find((entry) => entry.sessionId === exploreSessionId) ?? null)
+    : null;
+  const isExploreDone = exploreProj?.outcome === 'completed';
+  const exploreState: 'current' | 'done' | 'pending' | 'declared' =
+    isExploreDone
+      ? 'done'
+      : step === 'explore'
+        ? 'current'
+        : 'pending';
+
+  const proposeSessionId = draft.sessions.propose;
+  const proposeProj = proposeSessionId
+    ? (projection && projection.sessionId === proposeSessionId
+        ? projection
+        : historyList.find((entry) => entry.sessionId === proposeSessionId) ?? null)
+    : null;
+
+  const [artifactState, setArtifactState] = useState<{
+    changeId: string | null;
+    loaded: boolean;
+    error: string | null;
+  }>({ changeId: null, loaded: false, error: null });
+
+  const proposeArtifactsLoaded =
+    artifactState.changeId === draft.proposedChangeId && artifactState.loaded;
+  const proposeGraphError =
+    artifactState.changeId === draft.proposedChangeId ? artifactState.error : null;
+
+  useEffect(() => {
+    const changeId = draft.proposedChangeId;
+    const api = typeof window !== 'undefined' ? window.api : undefined;
+    if (!changeId || !api?.pipelineOpenSpec?.getArtifactGraph) return;
+    if (proposeProj?.active) return;
+
+    let cancelled = false;
+    void api.pipelineOpenSpec.getArtifactGraph({ repoPath, changeId }).then((result) => {
+      if (cancelled) return;
+      if (result?.ok && Array.isArray(result.artifacts) && result.artifacts.length > 0) {
+        setArtifactState({ changeId, loaded: true, error: null });
+      } else if (result && !result.ok) {
+        setArtifactState({ changeId, loaded: false, error: result.error ?? 'error' });
+      }
+    });
+    return () => { cancelled = true; };
+  }, [repoPath, draft.proposedChangeId, proposeProj?.active, proposeProj?.outcome]);
+
+  const proposeState: 'current' | 'done' | 'pending' | 'declared' =
+    proposeArtifactsLoaded
+      ? 'done'
+      : step === 'propose'
+        ? 'current'
+        : 'pending';
+
   const objectiveRef = useRef<HTMLTextAreaElement>(null);
   const slugRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
-
-  const switchMode = (next: PipelineNewChangeMode) => {
-    setMode(next);
-    setErrors({});
-    setBranchError(null);
-    setDirtyBlocked(false);
-    setInstruction(null);
-  };
 
   /**
    * Valida y, si corresponde, deja el repositorio parado en la rama del cambio
@@ -205,40 +301,146 @@ export function PipelineNewChangeFlow({
 
   return (
     <section className={styles.newChangeFlow} aria-label={t('pipeline.newChange.title')}>
-      {/* La salida no vive acá: va en la fila de la guía, junto a las dos
-          acciones que abren este formulario. Puesta adentro competía con el
-          selector de modo en vez de leerse como su contraria. */}
-      {/* Selector de modo compacto (Obs. 26): no se repiten las fichas grandes explicativas ya elegidas. */}
-      <div className={styles.intentSwitch} role="group" aria-label={t('pipeline.newChange.intent.question')}>
-        <button
-          type="button"
-          className={styles.intentOption}
-          data-selected={mode === 'propose'}
-          aria-pressed={mode === 'propose'}
-          onClick={() => switchMode('propose')}
-        >
-          <FileText size={13} aria-hidden="true" />
-          <span>{t('pipeline.newChange.intent.propose')}</span>
-        </button>
-        <button
-          type="button"
-          className={styles.intentOption}
-          data-selected={mode === 'explore'}
-          aria-pressed={mode === 'explore'}
-          onClick={() => switchMode('explore')}
-        >
-          <BookOpen size={13} aria-hidden="true" />
-          <span>{t('pipeline.newChange.intent.explore')}</span>
-        </button>
-      </div>
+      {/* Riel de pasos del recorrido de apertura */}
+      <ol className={styles.timelineList}>
+        {JOURNEY_STEPS.map((s, index) => {
+          const isCurrent = step === s.id;
+          const isLast = index === JOURNEY_STEPS.length - 1;
+          const stepState: 'current' | 'done' | 'pending' | 'declared' =
+            s.id === 'explore'
+              ? exploreState
+              : s.id === 'propose'
+                ? proposeState
+                : 'declared';
 
-      {mode === 'propose' ? (
+          return (
+            <li
+              key={s.id}
+              className={styles.timelineNode}
+              data-state={stepState}
+              data-selected={isCurrent ? 'true' : undefined}
+              aria-current={isCurrent ? 'step' : undefined}
+            >
+              <button
+                type="button"
+                className={styles.timelineNodeBtn}
+                aria-current={isCurrent ? 'step' : undefined}
+                onClick={() => setStep(s.id)}
+              >
+                <div className={styles.timelineCircle} aria-hidden="true">
+                  {stepState === 'done' ? <Check size={13} /> : index + 1}
+                </div>
+                <span className={styles.timelineTitle}>{t(s.labelKey)}</span>
+              </button>
+              {!isLast && <div className={styles.timelineConnector} aria-hidden="true" />}
+            </li>
+          );
+        })}
+      </ol>
+
+      {step === 'explore' && (
         <div className={styles.flowFields}>
-          {/* Nada de lo que se completa se guarda en un archivo: los campos
-              componen un texto que un ejecutor recibe, y es él quien escribe la
-              propuesta, el diseño y las tareas. La instrucción entera se ve
-              recién en el paso siguiente, dentro del lanzador, así que hasta acá
-              no había forma de saber qué se estaba armando. */}
+          <p className={styles.journeyNotice}>{t('pipeline.journey.explore.notExposed')}</p>
+
+          <button
+            type="button"
+            className={styles.secondaryAction}
+            onClick={() => setStep('propose')}
+          >
+            {t('pipeline.journey.explore.skip')}
+          </button>
+
+          <label className={styles.flowField} htmlFor={`${fieldId}-description`}>
+            <span>{t('pipeline.newChange.explore.description')}</span>
+            <textarea
+              id={`${fieldId}-description`}
+              ref={descriptionRef}
+              rows={3}
+              value={description}
+              aria-invalid={errors.description ? true : undefined}
+              aria-describedby={errors.description ? `${fieldId}-description-error` : `${fieldId}-description-help`}
+              onChange={(event) => setDescription(event.target.value)}
+            />
+            {errors.description ? (
+              <em id={`${fieldId}-description-error`} className={styles.flowError} role="alert">
+                {t(errors.description)}
+              </em>
+            ) : (
+              <em id={`${fieldId}-description-help`} className={styles.flowHint}>
+                {t('pipeline.newChange.explore.descriptionHelp')}
+              </em>
+            )}
+          </label>
+
+          <button type="button" className={styles.primaryAction} onClick={submitExplore}>
+            {t('pipeline.newChange.explore.review')}
+          </button>
+
+          {instruction && (
+            <div className={styles.launcherPanel}>
+              <PipelineRuntimeLauncher
+                key={`explore:${instruction}`}
+                repoPath={repoPath}
+                projection={projection}
+                initialInstruction={instruction}
+                changeId={null}
+                taskId={null}
+                blockedByFixture={blockedByFixture}
+                startLabelKey="pipeline.newChange.explore.start"
+                onStarted={(sessionId) => {
+                  patchDraft(repoPath, {
+                    sessions: {
+                      ...draft.sessions,
+                      explore: sessionId,
+                    },
+                  });
+                  onStarted?.();
+                }}
+              />
+            </div>
+          )}
+
+          {draft.sessions.explore && (
+            <div className={styles.journeyAnswer}>
+              {exploreProj ? (
+                <>
+                  {exploreProj.activity && exploreProj.activity.length > 0 ? (
+                    <ActivityFeed
+                      entries={exploreProj.activity}
+                      reasoningAvailable={deriveReasoningAvailable(exploreProj)}
+                      runtimeAttached={exploreProj.active}
+                    />
+                  ) : (
+                    <p className={styles.flowHint}>{t('pipeline.journey.noAnswer')}</p>
+                  )}
+                  {(exploreProj.outcome === 'failed' || exploreProj.outcome === 'interrupted') && (
+                    <p className={styles.flowError} role="alert">
+                      {exploreProj.outcome}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className={styles.flowHint}>{t('pipeline.journey.noAnswer')}</p>
+              )}
+            </div>
+          )}
+
+          {isExploreDone && (
+            <div className={styles.journeyNext}>
+              <button
+                type="button"
+                className={styles.primaryAction}
+                onClick={() => setStep('propose')}
+              >
+                {t('pipeline.journey.explore.next')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {step === 'propose' && (
+        <div className={styles.flowFields}>
           <p className={styles.flowNature}>{t('pipeline.newChange.propose.nature')}</p>
 
           <label className={styles.flowField} htmlFor={`${fieldId}-objective`}>
@@ -297,8 +499,6 @@ export function PipelineNewChangeFlow({
             <em className={styles.flowHint}>{t('pipeline.newChange.propose.constraintsHelp')}</em>
           </label>
 
-          {/* Se declara antes de ocurrir: es una escritura de Git, y en este
-              proyecto las escrituras nuevas se autorizan explícitamente. */}
           <label className={styles.flowCheck}>
             <input
               type="checkbox"
@@ -310,8 +510,7 @@ export function PipelineNewChangeFlow({
               <em>{t('pipeline.newChange.propose.branchHelp')}</em>
             </span>
           </label>
-          {/* De dónde sale la rama. `git checkout -b` no lo dice, y una base de
-              meses atrás no se nota hasta mucho después. */}
+
           {withBranch && (
             <>
               <BranchBaseNotice divergence={divergence} branch={currentBranch} />
@@ -331,8 +530,6 @@ export function PipelineNewChangeFlow({
             </>
           )}
 
-          {/* El árbol sucio se declara donde se crea la rama, no al lado del
-              botón: es el motivo por el que no se creó, no un error de Git. */}
           {dirtyBlocked && (
             <p className={styles.flowError} role="alert">
               {t('pipeline.newChange.propose.branchDirty')}
@@ -343,70 +540,82 @@ export function PipelineNewChangeFlow({
               {t('pipeline.newChange.propose.branchFailed')} {branchError}
             </p>
           )}
-          {/* Decisión de 4.2: se corrige el rótulo del botón para nombrar explícitamente la
-              creación de la rama en Git («Crear rama y elegir runtime» cuando withBranch está
-              marcado, y «Elegir runtime» cuando no).
-              - No se pide confirmación modal: la casilla `withBranch` ya es la decisión explícita
-                de la persona en el formulario; un diálogo extra añadiría fricción innecesaria.
-              - No se mueve la creación al lanzamiento: al pasar a la pantalla del lanzador,
-                el repositorio ya debe estar parado en la rama correspondiente para que la vista
-                previa de la instrucción y el entorno de trabajo sean coherentes con el cambio. */}
+
           <button type="button" className={styles.primaryAction} onClick={() => void submitPropose()}>
             {withBranch
               ? t('pipeline.newChange.propose.createBranchAndReview')
               : t('pipeline.newChange.propose.review')}
           </button>
-        </div>
-      ) : (
-        <div className={styles.flowFields}>
-          <label className={styles.flowField} htmlFor={`${fieldId}-description`}>
-            <span>{t('pipeline.newChange.explore.description')}</span>
-            <textarea
-              id={`${fieldId}-description`}
-              ref={descriptionRef}
-              rows={3}
-              value={description}
-              aria-invalid={errors.description ? true : undefined}
-              aria-describedby={errors.description ? `${fieldId}-description-error` : `${fieldId}-description-help`}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-            {errors.description ? (
-              <em id={`${fieldId}-description-error`} className={styles.flowError} role="alert">
-                {t(errors.description)}
-              </em>
-            ) : (
-              <em id={`${fieldId}-description-help`} className={styles.flowHint}>
-                {t('pipeline.newChange.explore.descriptionHelp')}
-              </em>
-            )}
-          </label>
 
-          <button type="button" className={styles.primaryAction} onClick={submitExplore}>
-            {t('pipeline.newChange.explore.review')}
-          </button>
+          {instruction && (
+            <div className={styles.launcherPanel}>
+              <PipelineRuntimeLauncher
+                key={`propose:${instruction}`}
+                repoPath={repoPath}
+                projection={projection}
+                initialInstruction={instruction}
+                changeId={null}
+                taskId={null}
+                blockedByFixture={blockedByFixture}
+                startLabelKey="pipeline.newChange.propose.start"
+                onStarted={(sessionId) => {
+                  patchDraft(repoPath, {
+                    sessions: {
+                      ...draft.sessions,
+                      propose: sessionId,
+                    },
+                    proposedChangeId: slug.trim(),
+                  });
+                  onStarted?.();
+                }}
+              />
+            </div>
+          )}
+
+          {draft.sessions.propose && (
+            <div className={styles.journeyAnswer}>
+              {proposeProj ? (
+                <>
+                  {proposeProj.activity && proposeProj.activity.length > 0 ? (
+                    <ActivityFeed
+                      entries={proposeProj.activity}
+                      reasoningAvailable={deriveReasoningAvailable(proposeProj)}
+                      runtimeAttached={proposeProj.active}
+                    />
+                  ) : (
+                    <p className={styles.flowHint}>{t('pipeline.journey.noAnswer')}</p>
+                  )}
+                  {(proposeProj.outcome === 'failed' || proposeProj.outcome === 'interrupted') && (
+                    <p className={styles.flowError} role="alert">
+                      {proposeProj.outcome}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className={styles.flowHint}>{t('pipeline.journey.noAnswer')}</p>
+              )}
+            </div>
+          )}
+
+          {proposeGraphError && (
+            <p className={styles.flowError} role="alert">
+              {proposeGraphError}
+            </p>
+          )}
+
+          <div className={styles.journeyNext}>
+            <p className={styles.journeyNotice}>
+              {t('pipeline.journey.continuesInChange')}
+            </p>
+          </div>
         </div>
       )}
 
-      {instruction && (
-        <div className={styles.launcherPanel}>
-          <PipelineRuntimeLauncher
-            key={`${mode}:${instruction}`}
-            repoPath={repoPath}
-            projection={projection}
-            initialInstruction={instruction}
-            // Explore no crea un cambio, así que la sesión no puede atribuirse a
-            // ninguno: queda `null` en vez de inventar un identificador.
-            changeId={null}
-            taskId={null}
-            blockedByFixture={blockedByFixture}
-            startLabelKey={mode === 'propose' ? 'pipeline.newChange.propose.start' : 'pipeline.newChange.explore.start'}
-            // Arrancar la sesión es uno de los dos momentos en que el borrador
-            // deja de serlo: lo que se escribió ya está en manos del ejecutor.
-            onStarted={() => {
-              clearDraft(repoPath);
-              onStarted?.();
-            }}
-          />
+      {(step === 'apply' || step === 'archive') && (
+        <div className={styles.flowFields}>
+          <p className={styles.journeyNotice}>
+            {t('pipeline.journey.continuesInChange')}
+          </p>
         </div>
       )}
     </section>

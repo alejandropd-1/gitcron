@@ -327,19 +327,19 @@ describe('pantalla de entrada del repositorio', () => {
     expect(screen.getByText('pipeline.openspec.start.specificationsCount:{"count":3}')).toBeTruthy();
   });
 
-  it('el selector de modo en el formulario nuevo cambio presenta las dos intenciones sin redundancia', () => {
+  it('el riel de pasos en el recorrido de nuevo cambio presenta las etapas de apertura', () => {
     const { container } = renderDashboard();
 
     // Abrimos el formulario desde el panel
     const rail = container.querySelector('nav[class*="switcherRail"]');
     fireEvent.click(rail!.querySelector('button[data-view-id="new-change"]')!);
 
-    const proposeBtn = screen.getByRole('button', { name: /pipeline\.newChange\.intent\.propose/ });
-    const exploreBtn = screen.getByRole('button', { name: /pipeline\.newChange\.intent\.explore/ });
+    const proposeBtn = screen.getByRole('button', { name: /pipeline\.journey\.step\.propose/ });
+    const exploreBtn = screen.getByRole('button', { name: /pipeline\.journey\.step\.explore/ });
 
     expect(proposeBtn).toBeTruthy();
     expect(exploreBtn).toBeTruthy();
-    expect(proposeBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(proposeBtn.getAttribute('aria-current')).toBe('step');
   });
 
   it('el formulario de nuevo cambio se renderiza soberano en el cuerpo y no como modal o diálogo flotante', () => {

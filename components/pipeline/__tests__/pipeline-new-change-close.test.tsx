@@ -108,7 +108,7 @@ describe('cerrar el flujo de cambio nuevo', () => {
     renderDashboard();
 
     fireEvent.click(screen.getByRole('button', { name: /openspec\.start\.newChange/ }));
-    fireEvent.click(screen.getByRole('button', { name: /newChange\.intent\.explore/ }));
+    fireEvent.click(screen.getByRole('button', { name: /journey\.step\.explore/ }));
     fireEvent.click(screen.getByRole('button', { name: /newChange\.close/ }));
 
     expect(screen.queryByRole('button', { name: /newChange\.close/ })).toBeNull();

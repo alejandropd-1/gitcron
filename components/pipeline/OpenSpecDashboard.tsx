@@ -1851,7 +1851,7 @@ export function OpenSpecDashboard({
       // como estaba en vez de adivinar.
       if (added.length === 1 && flowMode) {
         setSelection(added[0]);
-        closeFlow();
+        clearDraft(repoPath);
         setLaunchTarget(null);
       }
     }

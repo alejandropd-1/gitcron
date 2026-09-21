@@ -58,7 +58,7 @@ describe('OpenSpec Groups 4 y 5 — Formulario transparente y declaración de ve
       );
 
       // Cambiar a explorar
-      const exploreBtn = screen.getByRole('button', { name: /pipeline\.newChange\.intent\.explore/ });
+      const exploreBtn = screen.getByRole('button', { name: /pipeline\.journey\.step\.explore/ });
       fireEvent.click(exploreBtn);
 
       expect(screen.getByText('pipeline.newChange.explore.descriptionHelp')).toBeTruthy();

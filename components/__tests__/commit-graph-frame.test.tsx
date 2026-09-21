@@ -183,7 +183,6 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
       /\.disclosureToggle/, // RESET
       /\.instructionPreview/, // TARJETA: vista previa de instrucción
       /\.flowNature/, // DATO: acento de naturaleza del flujo
-      /\.intentOption/, // CONTROL / DATO: opciones de intención
       /\.flowField/, // CONTROL / DATO: inputs de formulario
       /\.compactEngineBadge/, // DATO: badge de motor
       /\.divergenceNotice/, // DATO: indicador de divergencia

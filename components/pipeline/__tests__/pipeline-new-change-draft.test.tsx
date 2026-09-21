@@ -5,7 +5,10 @@ import {
   EMPTY_NEW_CHANGE_DRAFT,
   useNewChangeDraftStore,
 } from '@/lib/new-change-draft-store';
+import { usePipelineStore } from '@/lib/pipeline-store';
 import { PipelineNewChangeFlow } from '../PipelineNewChangeFlow';
+import { OpenSpecDashboard } from '../OpenSpecDashboard';
+import type { PipelineSnapshot } from '../pipeline-view-state';
 
 /**
  * Lo escrito sobrevive a salir del panel y volver.
@@ -23,8 +26,8 @@ vi.mock('@/hooks/use-translation', () => ({
 }));
 
 vi.mock('../PipelineRuntimeLauncher', () => ({
-  PipelineRuntimeLauncher: ({ onStarted }: { onStarted?: () => void }) => (
-    <button type="button" data-testid="launcher" onClick={() => onStarted?.()}>arrancar</button>
+  PipelineRuntimeLauncher: ({ onStarted }: { onStarted?: (sessionId: string) => void }) => (
+    <button type="button" data-testid="launcher" onClick={() => onStarted?.('sess-test')}>arrancar</button>
   ),
 }));
 
@@ -32,6 +35,11 @@ const gitCreateBranch = vi.fn();
 const ORIGINAL_API = (globalThis as { window?: { api?: unknown } }).window?.api;
 
 beforeEach(() => {
+  usePipelineStore.setState({
+    selectedChangeId: null,
+    openSpecificationId: null,
+    prepareOpen: false,
+  });
   useNewChangeDraftStore.setState({ drafts: {} });
   gitCreateBranch.mockReset().mockResolvedValue({ success: true });
   Object.defineProperty(window, 'api', { configurable: true, value: { gitCreateBranch } });
@@ -42,6 +50,79 @@ afterEach(() => {
   if (ORIGINAL_API === undefined) delete (window as { api?: unknown }).api;
   else Object.defineProperty(window, 'api', { configurable: true, value: ORIGINAL_API });
 });
+
+function change(changeId: string, done = 1, total = 2) {
+  return {
+    changeId,
+    intent: `intención de ${changeId}`,
+    tasks: Array.from({ length: total }, (_unused, index) => ({
+      id: `${changeId}-${index}`,
+      text: `${index}.1 tarea`,
+      completed: index < done,
+      line: index + 1,
+      sourceRef: `tasks.md:${index + 1}`,
+    })),
+    proposalExists: true,
+    designExists: true,
+    specsCount: 1,
+    validation: 'unknown' as const,
+    artifacts: null,
+  };
+}
+
+function makeSnapshot(activeChanges: ReturnType<typeof change>[]): PipelineSnapshot {
+  return {
+    schemaVersion: '1.0',
+    repoId: 'repo-1',
+    availableSources: ['git'],
+    hermesConnected: false,
+    hasPipelineActivity: true,
+    now: {
+      headlineKey: 'x', runtime: null, role: null, taskLabel: null,
+      tasksDone: null, tasksTotal: null, elapsedMs: null,
+      costUsd: null, costBasis: 'unknown', needsHuman: false,
+    },
+    stations: [],
+    decisions: [],
+    agents: [],
+    activity: [],
+    economy: { reasoningAvailable: null } as PipelineSnapshot['economy'],
+    diffs: [],
+    openSpec: {
+      selectedChangeId: null,
+      activeChanges,
+      archivedChanges: [],
+      specifications: [],
+      reports: [],
+      diagnostics: [],
+      observedAt: null,
+      latestGate: null,
+    },
+  } as PipelineSnapshot;
+}
+
+function renderDashboard(snap: PipelineSnapshot, repoPath = 'C:/repo') {
+  return render(
+    <OpenSpecDashboard
+      snapshot={snap}
+      repoPath={repoPath}
+      currentBranch="main"
+      workingTreeClean
+      leftOpen={false}
+      rightOpen={false}
+      leftWidth={320}
+      rightWidth={320}
+      onResizeLeft={() => undefined}
+      onResizeRight={() => undefined}
+      projection={null}
+      runtimeHistory={[]}
+      onRefresh={() => undefined}
+      onSelectChange={() => undefined}
+      onPauseAfterTask={() => undefined}
+      onRespondDecision={() => undefined}
+    />,
+  );
+}
 
 function renderFlow(repoPath = 'C:/repo') {
   return render(
@@ -103,7 +184,7 @@ describe('salir del panel y volver', () => {
 
   it('el modo elegido también sobrevive', () => {
     const { unmount } = renderFlow();
-    fireEvent.click(screen.getByRole('button', { name: /intent\.explore/ }));
+    fireEvent.click(screen.getByRole('button', { name: /journey\.step\.explore/ }));
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'una idea a medio pensar' } });
 
     unmount();
@@ -126,7 +207,7 @@ describe('salir del panel y volver', () => {
 });
 
 describe('cuándo se descarta', () => {
-  it('arrancar la sesión lo descarta', async () => {
+  it('arrancar la sesión registra la sesión y el cambio en el borrador', async () => {
     renderFlow();
     const [objective, slugField] = screen.getAllByRole('textbox');
     fireEvent.change(objective, { target: { value: 'un objetivo suficientemente claro' } });
@@ -135,7 +216,51 @@ describe('cuándo se descarta', () => {
 
     fireEvent.click(await screen.findByTestId('launcher'));
 
-    // Lo escrito ya está en manos del ejecutor: dejó de ser un borrador.
-    expect(useNewChangeDraftStore.getState().drafts['C:/repo']).toBeUndefined();
+    const saved = useNewChangeDraftStore.getState().drafts['C:/repo'];
+    expect(saved.sessions.propose).toBe('sess-test');
+    expect(saved.proposedChangeId).toBe('mi-cambio');
+  });
+
+  it('con el flujo abierto y sessions.propose guardada, al releerse el snapshot con el cambio propuesto se descarta el borrador y el tablero selecciona el cambio', () => {
+    const repoPath = 'C:/repo';
+    const proposedChangeId = 'mi-nuevo-cambio';
+
+    useNewChangeDraftStore.getState().patchDraft(repoPath, {
+      open: true,
+      step: 'propose',
+      proposedChangeId,
+      sessions: { explore: null, propose: 'sess-test' },
+    });
+
+    const initialSnapshot = makeSnapshot([change('otro-cambio')]);
+    const { rerender } = renderDashboard(initialSnapshot, repoPath);
+
+    expect(useNewChangeDraftStore.getState().drafts[repoPath]).toBeDefined();
+    expect(usePipelineStore.getState().selectedChangeId).toBeNull();
+
+    const updatedSnapshot = makeSnapshot([change('otro-cambio'), change(proposedChangeId)]);
+    rerender(
+      <OpenSpecDashboard
+        snapshot={updatedSnapshot}
+        repoPath={repoPath}
+        currentBranch="main"
+        workingTreeClean
+        leftOpen={false}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onSelectChange={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+
+    expect(useNewChangeDraftStore.getState().drafts[repoPath]).toBeUndefined();
+    expect(usePipelineStore.getState().selectedChangeId).toBe(proposedChangeId);
   });
 });

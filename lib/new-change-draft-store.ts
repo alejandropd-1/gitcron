@@ -19,10 +19,13 @@ import { create } from 'zustand';
  */
 
 export type NewChangeDraftMode = 'propose' | 'explore';
+export type NewChangeDraftStep = 'explore' | 'propose' | 'apply' | 'archive';
 
 export type NewChangeDraft = {
   /** Si el flujo está a la vista. Vivía en `flowMode`, arriba del formulario. */
   open: boolean;
+  step: NewChangeDraftStep;
+  /** Alias de lectura para no romper consumidores preexistentes de OpenSpecDashboard. */
   mode: NewChangeDraftMode;
   objective: string;
   slug: string;
@@ -31,6 +34,11 @@ export type NewChangeDraft = {
   description: string;
   withBranch: boolean;
   fromMain: boolean;
+  sessions: {
+    explore: string | null;
+    propose: string | null;
+  };
+  proposedChangeId: string | null;
 };
 
 /**
@@ -43,6 +51,7 @@ export type NewChangeDraft = {
  */
 export const EMPTY_NEW_CHANGE_DRAFT: NewChangeDraft = {
   open: false,
+  step: 'propose',
   mode: 'propose',
   objective: '',
   slug: '',
@@ -50,23 +59,44 @@ export const EMPTY_NEW_CHANGE_DRAFT: NewChangeDraft = {
   description: '',
   withBranch: true,
   fromMain: false,
+  sessions: {
+    explore: null,
+    propose: null,
+  },
+  proposedChangeId: null,
+};
+
+export type NewChangeDraftPatch = Partial<Omit<NewChangeDraft, 'mode' | 'sessions'>> & {
+  mode?: NewChangeDraftMode;
+  sessions?: Partial<NewChangeDraft['sessions']>;
 };
 
 type NewChangeDraftStore = {
   /** Por ruta de repositorio: el borrador de uno no aparece en otro. */
   drafts: Record<string, NewChangeDraft>;
-  patchDraft(repoPath: string, patch: Partial<NewChangeDraft>): void;
+  patchDraft(repoPath: string, patch: NewChangeDraftPatch): void;
   clearDraft(repoPath: string): void;
 };
 
 export const useNewChangeDraftStore = create<NewChangeDraftStore>((set) => ({
   drafts: {},
-  patchDraft: (repoPath, patch) => set((state) => ({
-    drafts: {
-      ...state.drafts,
-      [repoPath]: { ...(state.drafts[repoPath] ?? EMPTY_NEW_CHANGE_DRAFT), ...patch },
-    },
-  })),
+  patchDraft: (repoPath, patch) => set((state) => {
+    const prev = state.drafts[repoPath] ?? EMPTY_NEW_CHANGE_DRAFT;
+    const nextStep: NewChangeDraftStep = patch.step ?? (patch.mode ? (patch.mode as NewChangeDraftStep) : prev.step);
+    const updated: NewChangeDraft = {
+      ...prev,
+      ...patch,
+      step: nextStep,
+      mode: nextStep === 'explore' ? 'explore' : 'propose',
+      sessions: patch.sessions ? { ...prev.sessions, ...patch.sessions } : prev.sessions,
+    };
+    return {
+      drafts: {
+        ...state.drafts,
+        [repoPath]: updated,
+      },
+    };
+  }),
   clearDraft: (repoPath) => set((state) => {
     if (!(repoPath in state.drafts)) return state;
     const drafts = { ...state.drafts };

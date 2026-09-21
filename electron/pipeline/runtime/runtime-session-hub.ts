@@ -307,6 +307,10 @@ export class RuntimeSessionHub {
         // el desenlace afirmara lo contrario, para la misma sesión.
         if (event.kind === 'runtime.process.failed') outcome = 'failed';
         if (event.kind === 'run.completed' && asRecord(event.payload)?.success === false) outcome = 'failed';
+        if (event.kind === 'runtime.process.completed') {
+          const payload = asRecord(event.payload);
+          if (payload && payload.exitCode !== 0 && payload.aborted !== true) outcome = 'failed';
+        }
         this.notify(record.repoPath);
       }
     } catch (error) {

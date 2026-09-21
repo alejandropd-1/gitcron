@@ -137,7 +137,7 @@ describe('CodexStreamNormalizer', () => {
 
     expect(events).toEqual(expect.arrayContaining([
       expect.objectContaining({ kind: 'tool.completed', payload: expect.objectContaining({ status: 'failed', exitCode: -1 }) }),
-      expect.objectContaining({ kind: 'runtime.error' }),
+      expect.objectContaining({ kind: 'runtime.error', payload: expect.objectContaining({ message: '<redacted-content>' }) }),
       expect.objectContaining({ kind: 'run.completed' }),
     ]));
     expect(new Set(events.map(({ eventId }) => eventId)).size).toBe(events.length);

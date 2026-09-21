@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useT } from '@/hooks/use-translation';
+import styles from './OpenSpecDashboard.module.css';
 import {
   groupActivity,
   runtimeDisplayName,
@@ -78,7 +79,7 @@ export function ActivityFeed({
       {/* Sin una sola entrada no hay nada que filtrar: la fila de controles
           sería ruido y, peor, sugeriría que algo quedó oculto por el filtro. */}
       {entries.length > 0 && (
-      <div className="pipeline-filters" role="group" aria-label={t('pipeline.activity.filters')}>
+      <div className={styles.viewModeToggle} role="group" aria-label={t('pipeline.activity.filters')}>
         {CHANNELS.map((channel) => {
           const disabled = channel === 'reasoning' && reasoningAvailable !== true;
           const pressed = active.has(channel) && !disabled;
@@ -87,8 +88,9 @@ export function ActivityFeed({
             <button
               key={channel}
               type="button"
-              className="pipeline-filter"
+              className={styles.viewModeBtn}
               data-channel={channel}
+              data-active={pressed ? 'true' : 'false'}
               aria-pressed={pressed}
               disabled={disabled}
               onClick={() => toggle(channel)}

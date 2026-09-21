@@ -266,6 +266,44 @@ describe('RuntimeSessionHub', () => {
     ]));
   });
 
+  it('marks outcome failed when runtime.process.completed has non-zero exitCode and not aborted', async () => {
+    // 1. run.completed success:true seguido de runtime.process.completed exitCode:1 termina en failed
+    const { hub: hub1 } = makeHub(new FakeAdapter({
+      events: [
+        envelope('run.completed', { success: true }),
+        envelope('runtime.process.completed', { exitCode: 1, aborted: false }),
+      ],
+    }));
+    await hub1.start(START);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const [saved1] = hub1.history('repo-1');
+    expect(saved1.outcome).toBe('failed');
+
+    // 2. con exitCode:0, completed
+    const { hub: hub2 } = makeHub(new FakeAdapter({
+      events: [
+        envelope('run.completed', { success: true }),
+        envelope('runtime.process.completed', { exitCode: 0, aborted: false }),
+      ],
+    }));
+    await hub2.start(START);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const [saved2] = hub2.history('repo-1');
+    expect(saved2.outcome).toBe('completed');
+
+    // 3. con aborted:true, no cambia el desenlace
+    const { hub: hub3 } = makeHub(new FakeAdapter({
+      events: [
+        envelope('run.completed', { success: true }),
+        envelope('runtime.process.completed', { exitCode: 1, aborted: true }),
+      ],
+    }));
+    await hub3.start(START);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const [saved3] = hub3.history('repo-1');
+    expect(saved3.outcome).toBe('completed');
+  });
+
   it('launches an installed runtime even when its version has no verified reference', async () => {
     // El gate de versión se retiró: un runtime instalado es lanzable aunque su
     // evidencia sea `pending_fixture`. La verificación es informativa, no

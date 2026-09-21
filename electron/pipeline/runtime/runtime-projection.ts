@@ -153,6 +153,10 @@ function textForEvent(kind: string, payload: unknown): string | null {
     }
     case 'runtime.process.failed':
       return `process.failed · ${str(data.reason) ?? 'unknown'}`;
+    case 'runtime.error': {
+      const message = str(data.message);
+      return message ? `runtime.error · ${message}` : 'runtime.error';
+    }
     case 'runtime.rate_limit':
       return 'rate_limit';
     default:
@@ -382,6 +386,10 @@ export class RuntimeProjectionBuilder {
       if (event.kind === 'agent.started' || event.kind === 'session.started') return 'running';
       if (event.kind === 'agent.completed') return 'done';
       if (event.kind === 'runtime.process.failed') return 'failed';
+      if (event.kind === 'runtime.process.completed') {
+        const payload = asRecord(event.payload);
+        if (payload.exitCode !== 0 && payload.aborted !== true) return 'failed';
+      }
       if (event.kind === 'run.completed') {
         const success = asRecord(event.payload).success;
         if (success === false) return 'failed';

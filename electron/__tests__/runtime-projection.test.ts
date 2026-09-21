@@ -178,6 +178,44 @@ describe('RuntimeProjectionBuilder', () => {
     expect(projection.snapshot().agents[0].state).toBe('done');
   });
 
+  it('marks agent state failed when runtime.process.completed has non-zero exitCode and not aborted', () => {
+    // 1. exitCode: 1 y aborted: false -> failed
+    const proj1 = builder();
+    proj1.ingest(event('agent.started'));
+    proj1.ingest(event('run.completed', { success: true }));
+    expect(proj1.snapshot().agents[0].state).toBe('done');
+    proj1.ingest(event('runtime.process.completed', { exitCode: 1, aborted: false }));
+    expect(proj1.snapshot().agents[0].state).toBe('failed');
+
+    // 2. exitCode: 0 -> done
+    const proj2 = builder();
+    proj2.ingest(event('agent.started'));
+    proj2.ingest(event('run.completed', { success: true }));
+    proj2.ingest(event('runtime.process.completed', { exitCode: 0, aborted: false }));
+    expect(proj2.snapshot().agents[0].state).toBe('done');
+
+    // 3. aborted: true -> no cambia el desenlace (permanece done)
+    const proj3 = builder();
+    proj3.ingest(event('agent.started'));
+    proj3.ingest(event('run.completed', { success: true }));
+    proj3.ingest(event('runtime.process.completed', { exitCode: 1, aborted: true }));
+    expect(proj3.snapshot().agents[0].state).toBe('done');
+  });
+
+  it('formats runtime.error with message when present, or bare kind when absent', () => {
+    const proj1 = builder();
+    proj1.ingest(event('runtime.error', { message: 'token revocado' }));
+    expect(proj1.snapshot().activity[0].text).toBe('runtime.error · token revocado');
+
+    const proj2 = builder();
+    proj2.ingest(event('runtime.error', { message: '' }));
+    expect(proj2.snapshot().activity[0].text).toBe('runtime.error');
+
+    const proj3 = builder();
+    proj3.ingest(event('runtime.error', {}));
+    expect(proj3.snapshot().activity[0].text).toBe('runtime.error');
+  });
+
   it('counts what the bounded buffer dropped instead of truncating silently', () => {
     const projection = builder();
     for (let index = 0; index < 2_050; index += 1) {

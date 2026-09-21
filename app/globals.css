@@ -895,63 +895,6 @@ body, .font-sans {
 @media (prefers-reduced-motion: reduce) {
   .pipeline-card__chevron { transition: none; }
 }
-
-/* Filtros: control terciario. Se leen como chips, no como acciones — nunca
-   compiten con el botón de decisión. 24px de alto mínimo (WCAG 2.5.8). */
-.pipeline-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  margin-bottom: var(--space-2);
-}
-
-/* Cápsula, igual que los controles, pero rellena en gris: mismo lenguaje, otro
-   peso. Un filtro nunca debe leerse como una acción. */
-.pipeline-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 1.9rem;
-  padding: var(--space-1) var(--space-3);
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-default);
-  background-color: transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: border-color 0.14s ease, background-color 0.14s ease, color 0.14s ease;
-}
-
-.pipeline-filter:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--color-primary) 48%, transparent);
-  color: var(--color-text-primary);
-}
-
-.pipeline-filter:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-/* Encendido: relleno + borde. `aria-pressed` es lo que lo comunica de verdad;
-   esto es su reflejo visual, no su único canal. */
-.pipeline-filter[aria-pressed="true"] {
-  border-color: var(--color-primary);
-  background-color: color-mix(in srgb, var(--color-primary) 14%, transparent);
-  color: var(--color-primary);
-}
-
-/* Apagado: relleno hueco y punteado. No depende del color para leerse. */
-.pipeline-filter:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background-color: transparent;
-  outline: 1px dashed var(--color-border-subtle);
-  outline-offset: -1px;
-}
-
 /* Stat tiles: la forma correcta para cifras que suelen faltar. */
 .pipeline-stats {
   display: grid;
@@ -1838,9 +1781,6 @@ body, .font-sans {
    Riel temporal con un nodo por entrada. Mismo vocabulario que la vía del
    change y el árbol de agentes: la forma y el relleno del nodo dicen de qué
    canal viene, sin depender sólo del color. */
-
-/* Los filtros de la bitácora usan ahora `.pipeline-filter`, compartido con el
-   resto del tablero: un solo control terciario en vez de uno por sección. */
 
 .pipeline-activity__no-reasoning {
   font-size: var(--font-size-xs);
@@ -3544,7 +3484,6 @@ body, .font-sans {
 }
 
 .pipeline-control-bar__btn,
-.pipeline-filter,
 .pipeline-decision__option-button {
   min-height: 26px;
   border-radius: var(--radius-sm) var(--radius-full) var(--radius-full) var(--radius-sm);
@@ -3555,7 +3494,6 @@ body, .font-sans {
 }
 
 .pipeline-control-bar__btn:hover:not(:disabled),
-.pipeline-filter:hover:not(:disabled),
 .pipeline-decision__option-button:not([disabled]):hover {
   transform: translateX(2px);
 }
@@ -3717,14 +3655,6 @@ body, .font-sans {
 .pipeline-meter__track,
 .pipeline-meter__fill {
   border-radius: 0;
-}
-
-/* Activity is the tallest narrative region. Rows lose their box treatment and
-   read as a continuous instrument log aligned to one temporal rail. */
-.pipeline-filters {
-  gap: var(--space-1);
-  padding-bottom: var(--space-2);
-  border-bottom: 2px solid var(--color-border-subtle);
 }
 
 .pipeline-activity__entry {

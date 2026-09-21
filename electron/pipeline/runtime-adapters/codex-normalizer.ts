@@ -40,7 +40,8 @@ export class CodexStreamNormalizer implements RuntimeStreamNormalizer {
         return [envelope(scopedContext, 'agent.message', { text: stringValue(item.text) })];
       }
       if (itemType === 'error') {
-        return [envelope(scopedContext, 'runtime.error', { message: '[REDACTED]' })];
+        const message = stringValue(item.message) ?? stringValue(item.text);
+        return [envelope(scopedContext, 'runtime.error', { message })];
       }
       return [envelope(scopedContext, 'runtime.item', { itemType, status: stringValue(item.status) }, 'inferred')];
     }

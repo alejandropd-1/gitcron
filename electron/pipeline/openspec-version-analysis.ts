@@ -368,7 +368,7 @@ export function evaluateConsumedSurfaces(
   const surfaces: ConsumedSurfaceAnalysis[] = [
     {
       surface: 'status',
-      description: 'openspec status --json (propiedades changes, schema, isPlanningComplete, requires)',
+      description: 'openspec status --json (propiedades changes, schema, isPlanningComplete, isComplete, applyRequires, nextSteps, artifacts [id, status, requires, outputPath])',
       verdict: isMajorBump ? 'breaking' : 'compatible',
       evidence: isMajorBump
         ? `Salto mayor a v${availableVersion}: incompatibilidad esperada en el esquema JSON de status.`
@@ -376,7 +376,7 @@ export function evaluateConsumedSurfaces(
     },
     {
       surface: 'instructions',
-      description: 'openspec instructions <target> --json (campos instruction, context, resolvedOutputPath, diff)',
+      description: 'openspec instructions <target> --json (campos description, instruction, context, dependencies, unlocks, outputPath, resolvedOutputPath, existingOutputPaths, diff)',
       verdict: isMajorBump ? 'breaking' : 'compatible',
       evidence: isMajorBump
         ? `Salto mayor a v${availableVersion}: argumentos CLI o estructura del payload de instrucciones pueden haber cambiado.`

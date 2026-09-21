@@ -80,6 +80,7 @@
   --spacing-element-gap: 0.5rem;
   --spacing-list-item-y: 0.25rem;
   --change-header-height: 3.25rem;
+  --panel-motion: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Shared Border Radius (Affects: cards, buttons, modals, badges, based on DESIGN.MD) */
   --radius-sm: 0.125rem;
@@ -3894,6 +3895,10 @@ body, .font-sans {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --panel-motion: 0s;
+  }
+
   .pipeline-grid__hud,
   .pipeline-grid > .pipeline-card,
   .pipeline-path__station[data-estado="current"] .pipeline-path__number {

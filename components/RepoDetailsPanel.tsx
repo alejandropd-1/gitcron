@@ -203,13 +203,13 @@ export function RepoDetailsPanel({
     <aside
       data-testid="repo-details-panel"
       className={cn(
-        "flex flex-col overflow-hidden z-30 relative bg-bg-surface shrink-0",
-        !isDragging && "transition-all duration-300"
+        "flex flex-col overflow-hidden z-30 relative bg-bg-surface shrink-0"
       )}
       style={{
         width: visible ? detailsW : 0,
         opacity: visible ? 1 : 0,
         visibility: visible ? 'visible' : 'hidden',
+        transition: !isDragging ? 'all var(--panel-motion)' : undefined,
       }}
     >
       {/* Left-edge resize handle */}

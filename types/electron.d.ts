@@ -654,6 +654,10 @@ interface ElectronAPI {
       changeId?: string | null;
       schema?: string | null;
     }): Promise<import('./pipeline').InstructionsOpenSpecResult>;
+    getArtifactGraph(options: {
+      repoPath: string;
+      changeId: string;
+    }): Promise<import('./pipeline').OpenSpecArtifactGraphResult>;
     executeCommand?: (options: {
       repoPath: string;
       command: string;

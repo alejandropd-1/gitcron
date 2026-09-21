@@ -1086,4 +1086,39 @@ describe('Intercambiador de vistas en la pantalla del cambio activo', () => {
       expect(header?.textContent).toContain('pipeline.openspec.change.active');
     });
   });
+
+  describe('Tanda 1c: El riel flotante mide y anima igual que el panel derecho', () => {
+    it('el riel toma su ancho de --right-panel-width y con rightWidth={400} la variable vale 400px', () => {
+      const snap = mockSnapshot();
+      const { container } = render(
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath="C:/repo"
+          currentBranch="main"
+          workingTreeClean={true}
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={400}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />,
+      );
+
+      const dashboard = container.querySelector('[class*="dashboard"]') as HTMLElement;
+      expect(dashboard).toBeTruthy();
+      expect(dashboard.style.getPropertyValue('--right-panel-width')).toBe('400px');
+
+      const cssPath = path.resolve(process.cwd(), 'components/pipeline/OpenSpecDashboard.module.css');
+      const cssContent = fs.readFileSync(cssPath, 'utf-8');
+      const railMatch = cssContent.match(/\.switcherRail\s*\{([^}]+)\}/);
+      expect(railMatch).toBeTruthy();
+      expect(railMatch![1]).toMatch(/var\(--right-panel-width,\s*320px\)/);
+    });
+  });
 });

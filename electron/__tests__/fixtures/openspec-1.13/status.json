@@ -1,0 +1,107 @@
+{
+  "changeName": "recorrido-de-artefactos-openspec",
+  "schemaName": "spec-driven",
+  "planningHome": {
+    "kind": "repo",
+    "root": "<repo>",
+    "changesDir": "<repo>\\openspec\\changes",
+    "defaultSchema": "spec-driven"
+  },
+  "changeRoot": "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec",
+  "artifactPaths": {
+    "proposal": {
+      "outputPath": "proposal.md",
+      "resolvedOutputPath": "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\proposal.md",
+      "existingOutputPaths": [
+        "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\proposal.md"
+      ]
+    },
+    "specs": {
+      "outputPath": "specs/**/*.md",
+      "resolvedOutputPath": "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\specs\\**\\*.md",
+      "existingOutputPaths": [
+        "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\specs\\change-opening-journey\\spec.md",
+        "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\specs\\openspec-artifact-graph\\spec.md",
+        "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\specs\\repo-watch-lifecycle\\spec.md",
+        "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\specs\\sdd-body-layout\\spec.md"
+      ]
+    },
+    "design": {
+      "outputPath": "design.md",
+      "resolvedOutputPath": "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\design.md",
+      "existingOutputPaths": [
+        "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\design.md"
+      ]
+    },
+    "tasks": {
+      "outputPath": "tasks.md",
+      "resolvedOutputPath": "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\tasks.md",
+      "existingOutputPaths": [
+        "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\tasks.md"
+      ]
+    }
+  },
+  "isPlanningComplete": true,
+  "isComplete": true,
+  "applyRequires": [
+    "tasks"
+  ],
+  "nextSteps": [
+    "All planning artifacts are complete. Run openspec instructions apply --change \"recorrido-de-artefactos-openspec\" --json to inspect implementation progress."
+  ],
+  "actionContext": {
+    "mode": "repo-local",
+    "sourceOfTruth": "repo",
+    "planningArtifacts": [
+      "proposal",
+      "specs",
+      "design",
+      "tasks"
+    ],
+    "linkedContext": [],
+    "allowedEditRoots": [
+      "<repo>"
+    ],
+    "requiresAffectedAreaSelection": false,
+    "constraints": [
+      "Repo-local change artifacts and implementation edits are scoped to this project."
+    ]
+  },
+  "artifacts": [
+    {
+      "id": "proposal",
+      "outputPath": "proposal.md",
+      "status": "done",
+      "requires": []
+    },
+    {
+      "id": "specs",
+      "outputPath": "specs/**/*.md",
+      "status": "done",
+      "requires": [
+        "proposal"
+      ]
+    },
+    {
+      "id": "design",
+      "outputPath": "design.md",
+      "status": "done",
+      "requires": [
+        "proposal"
+      ]
+    },
+    {
+      "id": "tasks",
+      "outputPath": "tasks.md",
+      "status": "done",
+      "requires": [
+        "specs",
+        "design"
+      ]
+    }
+  ],
+  "root": {
+    "path": "<repo>",
+    "source": "nearest"
+  }
+}

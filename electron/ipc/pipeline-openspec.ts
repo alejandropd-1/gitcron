@@ -19,6 +19,7 @@ import type {
   OpenSpecUpdatePlan,
   SetOpenSpecWorkflowResult,
   SetOpenSpecProfileResult,
+  OpenSpecArtifactGraphResult,
 } from '../../types/pipeline';
 import {
   discoverOpenSpecCli,
@@ -34,6 +35,7 @@ import {
 import { resolvePackageManager, resolvePackageManagerInstallPlan } from '../pipeline/package-manager';
 import { withRepoWatcherPaused } from './watchers';
 import {
+  artifactGraphOpenSpecWithCli,
   contextOpenSpecWithCli,
   doctorOpenSpecWithCli,
   instructionsOpenSpecWithCli,
@@ -82,6 +84,7 @@ export interface OpenSpecIpcDeps {
   getInstructions?: (repoPath: string, target: string, options?: InstructionsOpenSpecOptions) => Promise<InstructionsOpenSpecResult>;
   runDoctor?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecDoctorResult>;
   runContext?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecContextBriefResult>;
+  getArtifactGraph?: (repoPath: string, changeId: string, options?: CliExecutionOptions) => Promise<OpenSpecArtifactGraphResult>;
   runVersionAnalysis?: (
     repoPath: string,
     options?: {
@@ -711,6 +714,54 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
       });
     },
   );
+
+  // 7b. Artifact Graph (Tarea 3.1)
+  const inFlightArtifactGraph = new Map<string, Promise<OpenSpecArtifactGraphResult>>();
+
+  ipc.handle(
+    'pipeline:openspec:artifact-graph',
+    async (_event, payload?: unknown): Promise<OpenSpecArtifactGraphResult> => {
+      validateStrictPayloadKeys(payload, ['repoPath', 'changeId']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+
+      const rawChangeId = (payload as any)?.changeId;
+      const changeId = typeof rawChangeId === 'string' ? rawChangeId.trim() : '';
+      if (!changeId) {
+        return { ok: false, error: 'changeId-required' };
+      }
+
+      const dedupeKey = `${validRepoPath}::${changeId}`;
+      const existing = inFlightArtifactGraph.get(dedupeKey);
+      if (existing) {
+        return existing;
+      }
+
+      const getUserDataDir = deps.getUserDataDir ?? (() => null);
+      const userDataDir = getUserDataDir();
+      const resolveRuntime = deps.resolveRuntime ?? resolveOpenSpecExecutable;
+      const authorizedRuntime = resolveRuntime({ userDataDir, repoPath: validRepoPath });
+
+      const getArtifactGraph = deps.getArtifactGraph ?? artifactGraphOpenSpecWithCli;
+
+      const promise = (async () => {
+        try {
+          return await getArtifactGraph(validRepoPath, changeId, {
+            runtime: authorizedRuntime,
+          });
+        } finally {
+          inFlightArtifactGraph.delete(dedupeKey);
+        }
+      })();
+
+      inFlightArtifactGraph.set(dedupeKey, promise);
+      return promise;
+    },
+  );
+
 
   // 8. Doctor command (Tarea 3b.1)
   ipc.handle(

@@ -1979,7 +1979,12 @@ export function OpenSpecDashboard({
   );
 
   return (
-    <div className={`${styles.dashboard} ${styles.openspecScope}`}>
+    <div
+      className={`${styles.dashboard} ${styles.openspecScope}`}
+      style={{
+        ['--right-panel-width' as string]: typeof rightWidth === 'number' ? `${rightWidth}px` : undefined,
+      } as React.CSSProperties}
+    >
       <ContentHeader className="h-11 border-b border-border-subtle/15 flex items-center justify-between gap-3 normal-case font-normal shrink-0">
         {/* Left: Branch name and repo status indicators */}
         <div className="flex items-center gap-3 min-w-0 flex-1">

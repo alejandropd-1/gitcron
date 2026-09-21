@@ -1021,8 +1021,9 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       const dashboardMatch = css.match(/\.dashboard\s*\{([^}]+)\}/);
       expect(dashboardMatch).toBeTruthy();
       const dashboardRules = dashboardMatch![1];
-      expect(dashboardRules).toMatch(/--sdd-body-width:\s*820px/);
+      expect(dashboardRules).toMatch(/--sdd-body-width:\s*1100px/);
       expect(dashboardRules).toMatch(/--sdd-body-gutter:\s*var\(--space-5\)/);
+      expect(dashboardRules).toMatch(/--right-panel-width:\s*320px/);
 
       // 2. .changeHeader consume --sdd-body-width y --sdd-body-gutter
       const headerMatch = css.match(/\.changeHeader\s*\{([^}]+)\}/);
@@ -1063,24 +1064,38 @@ describe('Maquetación del cuerpo de SDD (Tareas 2.2 a 2.6 y Grupo 3)', () => {
       expect(reviewRules).toMatch(/padding:[^;]*var\(--sdd-body-gutter\)/);
     });
 
-    it('(b) con el contenedor a 1400 px o más, el ancho del cuerpo es mayor que el valor base de 820px', () => {
-      // Container query min-width: 1400px define un ancho mayor que 820px
-      const containerQueryMatch = css.match(/@container\s*\(min-width:\s*1400px\)\s*\{([\s\S]*?)\}/);
-      expect(containerQueryMatch).toBeTruthy();
-      const queryContent = containerQueryMatch![1];
-      const widthMatch = queryContent.match(/--sdd-body-width:\s*(\d+)px/);
-      expect(widthMatch).toBeTruthy();
-      const wideWidth = Number.parseInt(widthMatch![1], 10);
-      expect(wideWidth).toBeGreaterThan(820);
-      expect(wideWidth).toBe(1100);
+    it('(b) sin umbral por container query: --sdd-body-width es 1100px y los bloques usan width: 100%', () => {
+      expect(css).not.toMatch(/@container\s*\([^)]*min-width/);
+      expect(css).toMatch(/--sdd-body-width:\s*1100px/);
+      for (const selector of ['.changeHeader', '.startScreen', '.archiveConfirm', '.skeletonCenter']) {
+        const blockMatch = css.match(new RegExp(`\\${selector}\\s*\\{([^}]+)\\}`));
+        expect(blockMatch).toBeTruthy();
+        expect(blockMatch![1]).toMatch(/width:\s*100%/);
+        expect(blockMatch![1]).toMatch(/max-width:\s*var\(--sdd-body-width\)/);
+      }
     });
 
-    it('(c) el riel flotante tiene top derivado de --change-header-height más var(--space-4) y margen superior en reposo de var(--space-4)', () => {
+    it('(c) el riel flotante tiene top derivado de --change-header-height más var(--space-4), margen superior en reposo de var(--space-4) y animación con var(--panel-motion)', () => {
       const railMatch = css.match(/\.switcherRail\s*\{([^}]+)\}/);
       expect(railMatch).toBeTruthy();
       const railRules = railMatch![1];
       expect(railRules).toMatch(/top:\s*calc\(var\(--change-header-height[^)]*\)\s*\+\s*var\(--space-4\)\)/);
       expect(railRules).toMatch(/margin:\s*var\(--space-4\)/);
+      expect(railRules).toMatch(/transition:[^;]*var\(--panel-motion\)/);
+    });
+
+    it('(d) el riel flotante y el esqueleto consumen --right-panel-width y retiran max-width rígido de 260px', () => {
+      const railMatch = css.match(/\.switcherRail\s*\{([^}]+)\}/);
+      expect(railMatch).toBeTruthy();
+      expect(railMatch![1]).toMatch(/flex:\s*0\s+0\s+var\(--right-panel-width,\s*320px\)/);
+      expect(railMatch![1]).toMatch(/width:\s*var\(--right-panel-width,\s*320px\)/);
+      expect(railMatch![1]).not.toMatch(/max-width:\s*260px/);
+
+      const skeletonMatch = css.match(/\.skeletonRail\s*\{([^}]+)\}/);
+      expect(skeletonMatch).toBeTruthy();
+      expect(skeletonMatch![1]).toMatch(/flex:\s*0\s+0\s+var\(--right-panel-width,\s*320px\)/);
+      expect(skeletonMatch![1]).toMatch(/width:\s*var\(--right-panel-width,\s*320px\)/);
+      expect(skeletonMatch![1]).not.toMatch(/max-width:\s*260px/);
     });
 
     it('(c-runtime) ResizeObserver sobre changeHeader publica --change-header-height en el cuerpo', () => {

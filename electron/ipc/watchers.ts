@@ -44,10 +44,10 @@ export function isGitStateRel(rel: string): boolean {
 }
 
 /**
- * Filtro `ignored` de chokidar para un repositorio: observa el árbol de trabajo
- * (salvo los directorios ignorados) y, dentro de `.git/`, sólo los caminos de
- * estado. Exportado para que pruebas y el observador usen exactamente la misma
- * regla.
+ * Filtro de ignorados para el vigilante de un repositorio (fs.watch recursivo en la raíz,
+ * electron/ipc/repo-watch.ts): observa el árbol de trabajo (salvo los directorios
+ * ignorados) y, dentro de `.git/`, sólo los caminos de estado. Exportado para que
+ * pruebas y el observador usen exactamente la misma regla.
  */
 /** Si un camino observado cae dentro del `.git/` de ese repositorio. */
 export function isGitPath(repoPath: string, testPath: string): boolean {

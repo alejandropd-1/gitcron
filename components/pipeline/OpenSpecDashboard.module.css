@@ -77,8 +77,9 @@
 }
 
 .dashboard {
-  --sdd-body-width: 820px;
+  --sdd-body-width: 1100px;
   --sdd-body-gutter: var(--space-5);
+  --right-panel-width: 320px;
   display: flex;
   min-height: 0;
   height: 100%;
@@ -1830,12 +1831,7 @@ summary.centerBlock {
 .flowError { color: var(--color-error); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; font-style: normal; }
 .flowHint { color: var(--color-text-secondary); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; font-style: normal; }
 
-@container (min-width: 1400px) {
-  .body,
-  .skeletonBody {
-    --sdd-body-width: 1100px;
-  }
-}
+
 
 @container (max-width: 1180px) {
   .changeHeader { grid-template-columns: minmax(12rem, 0.8fr) minmax(23rem, 1.2fr); padding-inline: var(--sdd-body-gutter); }
@@ -1852,7 +1848,8 @@ summary.centerBlock {
   .progressTrack > span,
   .primaryAction,
   .secondaryAction { transition: none; }
-  .skeletonRoot { animation: none; opacity: 0.65; }
+  .skeletonRoot {
+  --right-panel-width: 320px; animation: none; opacity: 0.65; }
 }
 
 /* Alcance del archivado: mensajes, lo que entra y lo que queda fuera. Lo último
@@ -3061,9 +3058,8 @@ summary.centerBlock {
    3. Las secciones internas del riel no se pliegan independientemente (Obs. 36): sus encabezados
       son rótulos fijos y la visibilidad general se delega al control del panel en la barra superior. */
 .switcherRail {
-  flex: 0 0 240px;
-  width: 240px;
-  max-width: 260px;
+  flex: 0 0 var(--right-panel-width, 320px);
+  width: var(--right-panel-width, 320px);
   align-self: flex-start;
   height: auto;
   position: sticky;
@@ -3073,7 +3069,7 @@ summary.centerBlock {
   border-radius: var(--radius-md);
   box-shadow: 0 4px 18px color-mix(in srgb, var(--color-bg-base) 85%, transparent), 0 1px 3px color-mix(in srgb, var(--color-bg-base) 60%, transparent);
   background: var(--color-bg-overlay);
-  transition: width 300ms ease, flex-basis 300ms ease, margin 300ms ease, padding 300ms ease, opacity 300ms ease;
+  transition: width var(--panel-motion), flex-basis var(--panel-motion), margin var(--panel-motion), padding var(--panel-motion), opacity var(--panel-motion);
   margin: var(--space-4) var(--space-5) var(--space-5) 0;
   order: 2;
   opacity: 1;
@@ -4426,9 +4422,8 @@ summary.centerBlock {
 
 .skeletonRail {
   order: 2;
-  flex: 0 0 240px;
-  width: 240px;
-  max-width: 260px;
+  flex: 0 0 var(--right-panel-width, 320px);
+  width: var(--right-panel-width, 320px);
   align-self: flex-start;
   height: auto;
   position: sticky;
@@ -4462,4 +4457,268 @@ summary.centerBlock {
   height: 2rem;
   border-radius: var(--radius-default);
   background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+}
+/* ==========================================================================
+   Grafo de artefactos / Línea temporal (Tanda 3)
+   ========================================================================== */
+
+.timelineRoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  width: 100%;
+}
+
+.timelineList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  position: relative;
+}
+
+.timelineNode {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.timelineTrack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  align-self: stretch;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.timelineCircle {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-bg-overlay) 50%, transparent);
+  border: 2px solid var(--color-border-subtle);
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.timelineCircle[data-state='done'] {
+  border-color: var(--color-git-add);
+  color: var(--color-git-add);
+}
+
+.timelineCircle[data-state='ready'] {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.timelineCircle[data-state='blocked'] {
+  border-color: var(--color-border-subtle);
+  color: var(--color-text-secondary);
+}
+
+.timelineConnector {
+  position: absolute;
+  top: 1.5rem;
+  bottom: calc(-1 * var(--space-4));
+  width: 2px;
+  background: var(--color-border-subtle);
+}
+
+.timelineCard {
+  flex: 1 1 auto;
+  background: color-mix(in srgb, var(--color-bg-overlay) 50%, transparent);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.timelineCardHeader,
+.timelineTabBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.timelineTabBtn {
+  width: 100%;
+  padding: 0;
+  min-height: unset;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+}
+
+.timelineTitle {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.timelineState {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.timelineDesc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.timelinePath {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-family: monospace;
+  word-break: break-all;
+  margin: 0;
+}
+
+.timelineDeps {
+  font-size: var(--font-size-xs);
+  color: var(--color-warning);
+  margin: 0;
+}
+
+.timelineActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background: var(--color-bg-overlay);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.timelineActionBtn:hover {
+  background: color-mix(in srgb, var(--color-bg-overlay) 80%, var(--color-text-primary));
+}
+
+.timelineConfirmBox {
+  background: var(--color-bg-overlay);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.timelineConfirmText {
+  font-size: var(--font-size-sm);
+  color: var(--color-warning);
+  margin: 0;
+}
+
+.timelineConfirmPaths {
+  list-style: disc;
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--font-size-xs);
+  font-family: monospace;
+  color: var(--color-text-secondary);
+}
+
+.timelineConfirmActions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.timelineConfirmBtn {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.timelineCancelBtn {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.timelineLauncher {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.timelineLauncherHeader {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-2);
+}
+
+.timelineError {
+  padding: var(--space-3) var(--space-4);
+  background: color-mix(in srgb, var(--color-bg-overlay) 50%, transparent);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  color: var(--color-error);
+  font-size: var(--font-size-sm);
+}
+
+.timelineSkeletonNode {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.timelineSkeletonCircle {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+  flex-shrink: 0;
+}
+
+.timelineSkeletonCard {
+  flex: 1 1 auto;
+  background: color-mix(in srgb, var(--color-bg-overlay) 50%, transparent);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 4.5rem;
+}
+
+.timelineSkeletonBar {
+  height: 1rem;
+  width: 40%;
+  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+  border-radius: var(--radius-sm);
 }

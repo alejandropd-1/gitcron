@@ -1,5 +1,6 @@
 import type {
   InstructionsOpenSpecResult,
+  OpenSpecArtifactGraphResult,
   OpenSpecArtifactState,
   OpenSpecArtifactStatus,
   OpenSpecChangeStatus,
@@ -7,6 +8,7 @@ import type {
   OpenSpecContextBriefResult,
   OpenSpecDoctorData,
   OpenSpecDoctorResult,
+  OpenSpecGraphArtifact,
   OpenSpecInstructionsPayload,
   OpenSpecRunUpdateResult,
   OpenSpecValidationStatus,
@@ -541,4 +543,103 @@ export async function contextOpenSpecWithCli(
       data: null,
     };
   }
+}
+
+/**
+ * Obtiene el grafo de artefactos de un cambio mediante status e instructions del CLI.
+ */
+export async function artifactGraphOpenSpecWithCli(
+  repoPath: string,
+  changeId: string,
+  options?: CliExecutionOptions,
+): Promise<OpenSpecArtifactGraphResult> {
+  if (!isValidChangeId(changeId)) {
+    return { ok: false, error: 'invalid-change-id' };
+  }
+
+  const runtime = resolveRuntime(options, repoPath);
+  if (!runtime) {
+    return { ok: false, error: 'openspec-cli-not-found' };
+  }
+
+  let parsedStatus: any;
+  try {
+    const { stdout } = await runAuthorizedOpenSpec(runtime, ['status', '--change', changeId, '--json'], {
+      cwd: repoPath,
+      timeout: 15_000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    parsedStatus = JSON.parse(stdout);
+  } catch (error) {
+    const detail = error as { stderr?: unknown; stdout?: unknown; message?: unknown };
+    const reason = [detail.stderr, detail.stdout, detail.message]
+      .map((part) => (typeof part === 'string' ? part.trim() : ''))
+      .find((part) => part.length > 0) ?? 'status-failed';
+    return { ok: false, error: reason.slice(0, 4000) };
+  }
+
+  if (!parsedStatus || !Array.isArray(parsedStatus.artifacts)) {
+    return { ok: false, error: 'invalid-status-output' };
+  }
+
+  const rawArtifacts = parsedStatus.artifacts.filter(
+    (art: any) => art && typeof art === 'object' && typeof art.id === 'string' && art.id.length > 0,
+  );
+
+  const instructionResults = await Promise.all(
+    rawArtifacts.map(async (art: any) => {
+      const res = await instructionsOpenSpecWithCli(repoPath, art.id, {
+        changeId,
+        runtime,
+      });
+      return { art, res };
+    }),
+  );
+
+  const firstError = instructionResults.find(({ res }) => !res.ok);
+  if (firstError) {
+    return { ok: false, error: firstError.res.error ?? 'instructions-failed' };
+  }
+
+  const artifacts: OpenSpecGraphArtifact[] = instructionResults.map(({ art, res }) => {
+    const data = res.data;
+    const item: OpenSpecGraphArtifact = {
+      id: art.id,
+      status: typeof art.status === 'string' ? art.status : 'unknown',
+      requires: Array.isArray(art.requires)
+        ? art.requires.filter((r: any): r is string => typeof r === 'string')
+        : [],
+    };
+
+    const outPath =
+      typeof data?.outputPath === 'string'
+        ? data.outputPath
+        : typeof art.outputPath === 'string'
+          ? art.outputPath
+          : undefined;
+    if (outPath) item.outputPath = outPath;
+    if (typeof data?.resolvedOutputPath === 'string') item.resolvedOutputPath = data.resolvedOutputPath;
+    if (Array.isArray(data?.existingOutputPaths)) {
+      item.existingOutputPaths = data.existingOutputPaths.filter((p: any): p is string => typeof p === 'string');
+    }
+    if (typeof data?.description === 'string') item.description = data.description;
+    if (Array.isArray(data?.dependencies)) item.dependencies = data.dependencies;
+    if (Array.isArray(data?.unlocks)) {
+      item.unlocks = data.unlocks.filter((u: any): u is string => typeof u === 'string');
+    }
+    if (typeof data?.instruction === 'string') item.instruction = data.instruction;
+
+    return item;
+  });
+
+  return {
+    ok: true,
+    artifacts,
+    nextSteps: Array.isArray(parsedStatus.nextSteps)
+      ? parsedStatus.nextSteps.filter((s: any): s is string => typeof s === 'string')
+      : undefined,
+    applyRequires: Array.isArray(parsedStatus.applyRequires)
+      ? parsedStatus.applyRequires.filter((r: any): r is string => typeof r === 'string')
+      : undefined,
+  };
 }

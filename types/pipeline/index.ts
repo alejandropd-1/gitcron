@@ -849,5 +849,26 @@ export interface OpenSpecVersionAnalysisResult {
   redaction: VersionAnalysisRedaction;
 }
 
+export interface OpenSpecGraphArtifact {
+  id: string;
+  status: string;
+  requires: string[];
+  outputPath?: string;
+  resolvedOutputPath?: string;
+  existingOutputPaths?: string[];
+  description?: string;
+  dependencies?: Array<{ id: string; done: boolean; path: string; description: string }>;
+  unlocks?: string[];
+  instruction?: string;
+}
+
+export interface OpenSpecArtifactGraphResult {
+  ok: boolean;
+  artifacts?: OpenSpecGraphArtifact[];
+  nextSteps?: string[];
+  applyRequires?: string[];
+  error?: string | null;
+}
+
 export * from './runtime';
 export * from './projection';

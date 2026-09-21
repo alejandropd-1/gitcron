@@ -202,6 +202,15 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
       /\.startNewChangeModal/, // TARJETA / MODAL: contenedor de alta de nuevo cambio
       /pipeline-details/, // TARJETA / CONTROL: evidencia migrada de globals.css
       /pipeline-artifact-graph/, // DATO: grafo de artefactos migrado de globals.css
+      /\.timelineCircle/, // DATO: nodo del grafo de artefactos en la línea temporal
+      /\.timelineCard/, // TARJETA: contenedor de información del nodo de artefacto en la línea temporal
+      /\.timelineActionBtn/, // CONTROL: acción de generación con agente en el grafo de artefactos
+      /\.timelineConfirmBox/, // TARJETA / DATO: confirmación de sobrescritura de archivos existentes en el grafo de artefactos
+      /\.timelineConfirmBtn/, // CONTROL: confirmación de lanzamiento en el grafo de artefactos
+      /\.timelineCancelBtn/, // CONTROL: cancelación de lanzamiento en el grafo de artefactos
+      /\.timelineLauncher/, // TARJETA: contenedor de lanzador embebido en el nodo de artefacto
+      /\.timelineError/, // TARJETA / DATO: alerta de error del canal de artefactos
+      /\.timelineSkeletonCard/, // TARJETA: esqueleto de tarjeta de artefacto
       /\.viewModeToggle/, // CONTROL: selector de modo de vista
       /\.viewModeBtn/, // RESET: botón de modo de vista
       /\.addTaskToggleBtn/, // CONTROL: botón desplegar alta de tarea

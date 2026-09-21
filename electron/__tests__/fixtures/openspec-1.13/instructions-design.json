@@ -1,0 +1,36 @@
+{
+  "changeName": "recorrido-de-artefactos-openspec",
+  "artifactId": "design",
+  "schemaName": "spec-driven",
+  "changeDir": "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec",
+  "planningHome": {
+    "kind": "repo",
+    "root": "<repo>",
+    "changesDir": "<repo>\\openspec\\changes",
+    "defaultSchema": "spec-driven"
+  },
+  "outputPath": "design.md",
+  "resolvedOutputPath": "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\design.md",
+  "existingOutputPaths": [
+    "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\design.md"
+  ],
+  "description": "Technical design document with implementation details",
+  "instruction": "Create the design document that explains HOW to implement the change.\n\nWhen to include design.md (create only if any apply):\n- Cross-cutting change (multiple services/modules) or new architectural pattern\n- New external dependency or significant data model changes\n- Security, performance, or migration complexity\n- Ambiguity that benefits from technical decisions before coding\n\nSections:\n- **Context**: Only the current state and constraints needed to explain the approach. Reference the proposal for motivation instead of restating it (e.g., \"See proposal.md - Why\").\n- **Goals / Non-Goals**: What this design achieves and explicitly excludes. Don't restate the proposal's scope - add only design-level boundaries.\n- **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered for each decision.\n- **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation\n- **Migration Plan**: Steps to deploy, rollback strategy (if applicable)\n- **Open Questions**: Unknowns that can safely be answered later without\n  changing the specs, the approach, or the task breakdown. Omit if none.\n\nOpen questions are for genuinely deferrable unknowns, not decisions you\nskipped. If a question would change the specs, the chosen approach, or\nthe task breakdown, resolve it now - ask the user instead of guessing.\n\nFocus on architecture and approach, not line-by-line implementation.\nThe proposal covers why and what; design covers how. Reference the\nproposal for motivation and, once written, the specs for requirements -\nif a section would only restate them, point to them instead.\n\nGood design docs explain the \"why\" behind technical decisions.\n",
+  "context": "Language: es\nAll artifacts must be written in es.\nKeep OpenSpec structural headings and SHALL/MUST keywords in English.\n\nGitCron es un cliente Git de escritorio. Renderer en Next.js 15 con `output: 'export'`\n—estático, sin servidor— sobre React 19 y Tailwind 4; proceso principal en Electron 42;\nTypeScript 5.9 en todo. Estado con Zustand, Git con simple-git, GitHub con @octokit/rest,\ny persistencia con `node:sqlite`, el módulo nativo de Node, sin dependencia externa.\nBuild: `next build` para el renderer y tsup para el main, empaquetado con electron-builder.\nPruebas con Vitest.\n\nUna regla vive en un solo lugar. Si está en este archivo, no se repite en un prompt, en un\nspec ni en un tasks.md. Cuando la misma regla existe en dos lados, tarde o temprano dicen\ncosas distintas y nadie sabe cuál manda. El 2026-09-01 el cierre de una tanda estaba escrito\nacá, en un documento de invariantes y en cada prompt: las tres versiones diferían, y la del\ndocumento omitía el paso que hacía fallar la suite.\n\nNada se cita por número. Se escribe lo que la regla dice, o no se escribe. Una referencia\ncomo «conforme al invariante 12» deja de significar algo en el momento en que ese documento\nse mueve o se borra, y no hay forma de darse cuenta: nada falla. El mismo día se encontraron\ncatorce citas así apuntando al vacío, en changes y en specs consolidadas.\n\nRama por cambio. Lo primero al empezar un cambio, antes de escribir ningún artefacto, es\ncrear la rama y pararse en ella: `git checkout -b change/<slug>`, con el mismo slug del\ncambio. Si ya existe la rama de este mismo cambio, pararse en ella: es trabajo propio que se\nretoma. Si la que existe es la de otro cambio, informarlo y parar —cambiarse arrastra sus\ncommits y eso lo decide una persona—. Crear la rama es parte de abrir el cambio y no algo\nque haya que pedir: es local, reversible y no publica nada. Lo que sí se informa es que se\ncreó y con qué nombre. Vale igual si el cambio se crea desde la terminal con `openspec new\nchange`: la convención no depende de haber pasado por ninguna pantalla. GitCron lo automatiza\nal proponer un cambio, y si la rama falla no lanza la sesión, porque arrancar en otra sería\ndivergencia entre lo declarado y lo ejecutado. Fusionar a `main` y borrar la rama son\nacciones humanas: el ejecutor no fusiona, no borra la rama y no vuelve a `main` por su cuenta.\n\nEsto NO aplica al trabajo normal: implementar, corregir, refactorizar y revisar no\nrequieren consultar nada. Aplica sólo cuando se va a proponer o construir una pieza\nde metodología —un generador de tandas, un auditor, un formato de tareas, un canal\npara pasarle reglas a un ejecutor—. Ahí, antes de escribirla, mirar si OpenSpec ya\nla trae: `openspec --help` y el `--help` del subcomando que corresponda lo dicen en\nun segundo, y responden por la versión instalada en esta máquina. La documentación\nweb sólo si el CLI no alcanza. El 2026-09-01 se escribió un change entero para\nconstruir tres piezas que OpenSpec ya tenía.",
+  "template": "# Design\n\n## Context\n\n<!-- Current state and constraints that shape the approach. See proposal.md for motivation - don't restate it -->\n\n## Goals / Non-Goals\n\n**Goals:**\n<!-- What this design aims to achieve -->\n\n**Non-Goals:**\n<!-- What is explicitly out of scope -->\n\n## Decisions\n\n<!-- Key design decisions with rationale and alternatives considered -->\n\n## Risks / Trade-offs\n\n<!-- Known risks and trade-offs -->\n",
+  "dependencies": [
+    {
+      "id": "proposal",
+      "done": true,
+      "path": "proposal.md",
+      "description": "Initial proposal document outlining the change"
+    }
+  ],
+  "unlocks": [
+    "tasks"
+  ],
+  "root": {
+    "path": "<repo>",
+    "source": "nearest"
+  }
+}

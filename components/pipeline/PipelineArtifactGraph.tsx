@@ -1,31 +1,28 @@
 'use client';
 
-import React from 'react';
-import { Check, Circle, Lock, Play } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Check, Circle, Lock, Play, X } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
-import type { OpenSpecArtifactState, OpenSpecChangeStatus } from '@/types/pipeline';
+import type {
+  OpenSpecArtifactGraphResult,
+  OpenSpecArtifactState,
+  OpenSpecChangeStatus,
+  OpenSpecGraphArtifact,
+} from '@/types/pipeline';
+import { PipelineRuntimeLauncher } from './PipelineRuntimeLauncher';
+import styles from './OpenSpecDashboard.module.css';
 
 export type DetailTab = 'proposal' | 'design' | 'specs' | 'tasks';
 
-/**
- * Estado textual de un artefacto del grafo de OpenSpec.
- *
- * El grafo es el que devuelve `openspec status --json`, leído del campo
- * `status` del cambio seleccionado. Cada artefacto llega con su `state` y, si
- * está `blocked`, la lista de dependencias que le faltan. Acá sólo se declara
- * lo que el CLI sabe: no se inventa estado derivando de tareas o validación,
- * que es justo el modelo propio que este cambio deja de usar para esta
- * superficie.
- *
- * Cuando el grafo no existe —`status` ausente o `available: false` porque el
- * CLI no pudo correr— el componente no se renderiza. No hay grafo, no hay
- * superficie; no se muestra un sustituto.
- */
-export function shouldShowArtifactGraph(status: OpenSpecChangeStatus | null | undefined): status is OpenSpecChangeStatus {
+const CANONICAL_ARTIFACTS: DetailTab[] = ['proposal', 'design', 'specs', 'tasks'];
+
+export function shouldShowArtifactGraph(
+  status: OpenSpecChangeStatus | null | undefined,
+): status is OpenSpecChangeStatus {
   return Boolean(status && status.available && status.artifacts.length > 0);
 }
 
-const STATE_LABEL_KEY: Record<OpenSpecArtifactState, string> = {
+const STATE_LABEL_KEY: Record<string, string> = {
   done: 'pipeline.openspec.graph.state.done',
   ready: 'pipeline.openspec.graph.state.ready',
   blocked: 'pipeline.openspec.graph.state.blocked',
@@ -40,110 +37,428 @@ const ARTIFACT_LABEL_KEY: Record<string, string> = {
   tasks: 'pipeline.openspec.graph.artifact.tasks',
 };
 
-const CANONICAL_ARTIFACTS: DetailTab[] = ['proposal', 'design', 'specs', 'tasks'];
+/**
+ * Ordena los artefactos topológicamente por `requires`
+ * (un nodo después de los que lo desbloquean; con el mismo nivel, en el orden del motor).
+ */
+export function sortArtifactsTopologically(artifacts: OpenSpecGraphArtifact[]): OpenSpecGraphArtifact[] {
+  const indexMap = new Map<string, number>();
+  artifacts.forEach((a, i) => indexMap.set(a.id, i));
+
+  const depthCache = new Map<string, number>();
+  const visiting = new Set<string>();
+
+  function getDepth(id: string): number {
+    if (depthCache.has(id)) return depthCache.get(id)!;
+    if (visiting.has(id)) return 0; // fallback para dependencias circulares
+
+    visiting.add(id);
+    const art = artifacts.find((a) => a.id === id);
+    if (!art || !art.requires || art.requires.length === 0) {
+      visiting.delete(id);
+      depthCache.set(id, 0);
+      return 0;
+    }
+
+    let maxReqDepth = 0;
+    for (const req of art.requires) {
+      maxReqDepth = Math.max(maxReqDepth, 1 + getDepth(req));
+    }
+
+    visiting.delete(id);
+    depthCache.set(id, maxReqDepth);
+    return maxReqDepth;
+  }
+
+  const depths = new Map<string, number>();
+  for (const a of artifacts) {
+    depths.set(a.id, getDepth(a.id));
+  }
+
+  return [...artifacts].sort((a, b) => {
+    const da = depths.get(a.id) ?? 0;
+    const db = depths.get(b.id) ?? 0;
+    if (da !== db) {
+      return da - db;
+    }
+    return (indexMap.get(a.id) ?? 0) - (indexMap.get(b.id) ?? 0);
+  });
+}
 
 export interface PipelineArtifactGraphProps {
+  repoPath?: string;
+  changeId?: string;
   status?: OpenSpecChangeStatus | null;
+  initialGraph?: OpenSpecArtifactGraphResult | null;
   activeTab?: DetailTab;
   onSelectTab?: (tab: DetailTab) => void;
+  onLaunch?: (instruction: string, changeId: string) => void;
 }
 
 export function PipelineArtifactGraph({
+  repoPath,
+  changeId,
   status,
+  initialGraph,
   activeTab,
   onSelectTab,
+  onLaunch,
 }: PipelineArtifactGraphProps) {
   const t = useT();
-  const hasCliState = shouldShowArtifactGraph(status);
 
-  if (!hasCliState && !onSelectTab) {
+  const shouldFetch =
+    !initialGraph &&
+    Boolean(
+      repoPath &&
+        changeId &&
+        typeof window !== 'undefined' &&
+        window.api?.pipelineOpenSpec?.getArtifactGraph,
+    );
+  const [fetchedGraph, setFetchedGraph] = useState<OpenSpecArtifactGraphResult | null>(null);
+  const [loading, setLoading] = useState<boolean>(shouldFetch);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const [confirmingArtifactId, setConfirmingArtifactId] = useState<string | null>(null);
+  const [launchingArtifactId, setLaunchingArtifactId] = useState<string | null>(null);
+
+  const legacyGraph = useMemo<OpenSpecArtifactGraphResult | null>(() => {
+    if (status && status.available && status.artifacts.length > 0) {
+      return {
+        ok: true,
+        artifacts: status.artifacts.map((a) => ({
+          id: a.id,
+          status: a.state,
+          requires: a.requires ?? a.missingDeps ?? [],
+          dependencies: a.missingDeps?.map((d) => ({
+            id: d,
+            done: false,
+            path: '',
+            description: '',
+          })),
+        })),
+      };
+    }
+    return null;
+  }, [status]);
+
+  const graphResult = initialGraph ?? fetchedGraph ?? legacyGraph;
+  const error = initialGraph && !initialGraph.ok ? (initialGraph.error ?? 'error') : fetchError;
+
+  useEffect(() => {
+    if (!shouldFetch || !repoPath || !changeId) {
+      return;
+    }
+
+    let isMounted = true;
+    window.api!.pipelineOpenSpec
+      .getArtifactGraph({ repoPath, changeId })
+      .then((res) => {
+        if (!isMounted) return;
+        setLoading(false);
+        if (res.ok) {
+          setFetchedGraph(res);
+          setFetchError(null);
+        } else {
+          setFetchError(res.error ?? 'error');
+          setFetchedGraph(null);
+        }
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        setLoading(false);
+        setFetchError(err?.message ?? 'error');
+        setFetchedGraph(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [shouldFetch, repoPath, changeId]);
+
+  const hasCliState = Boolean(
+    (graphResult && graphResult.ok && graphResult.artifacts && graphResult.artifacts.length > 0) ||
+      shouldShowArtifactGraph(status),
+  );
+
+  const sortedArtifacts = useMemo<OpenSpecGraphArtifact[]>(() => {
+    if (graphResult?.artifacts && graphResult.artifacts.length > 0) {
+      return sortArtifactsTopologically(graphResult.artifacts);
+    }
+    if (onSelectTab) {
+      return CANONICAL_ARTIFACTS.map((id) => ({
+        id,
+        status: 'unknown' as OpenSpecArtifactState,
+        requires: [],
+      }));
+    }
+    return [];
+  }, [graphResult, onSelectTab]);
+
+  if (!loading && !error && !hasCliState && !onSelectTab) {
     return null;
   }
 
-  const artifacts: Array<{ id: string; state: OpenSpecArtifactState; missingDeps: string[] }> = hasCliState
-    ? status.artifacts
-    : CANONICAL_ARTIFACTS.map((id) => ({ id, state: 'unknown' as OpenSpecArtifactState, missingDeps: [] }));
-
-  if (onSelectTab) {
+  if (loading) {
     return (
-      <div className="pipeline-details__tabs" role="tablist" aria-label={t('pipeline.details.title')}>
-        <ul className="pipeline-artifact-graph" aria-label={hasCliState ? t('pipeline.openspec.graph.label') : undefined}>
-          {artifacts.map((artifact) => {
-            const labelKey = ARTIFACT_LABEL_KEY[artifact.id];
-            const artifactLabel = labelKey ? t(labelKey) : artifact.id;
-            const stateText = hasCliState
-              ? t(STATE_LABEL_KEY[artifact.state] ?? 'pipeline.openspec.graph.state.unknown')
-              : null;
-            const isSelected = activeTab === artifact.id;
-            return (
-              <li key={artifact.id} data-state={hasCliState ? artifact.state : undefined}>
-                <button
-                  type="button"
-                  role="tab"
-                  id={`tab-${artifact.id}`}
-                  aria-controls={`panel-${artifact.id}`}
-                  aria-selected={isSelected}
-                  className={`pipeline-details__tab ${isSelected ? 'pipeline-details__tab--active' : ''}`}
-                  onClick={() => onSelectTab(artifact.id as DetailTab)}
-                >
-                  <span className="pipeline-artifact-graph__id">{artifactLabel}</span>
-                  {hasCliState && stateText && (
-                    <span className="pipeline-artifact-graph__state" title={stateText}>
-                      <span className="pipeline-artifact-graph__sr-text">{stateText}</span>
-                      {artifact.state === 'done' ? (
-                        <Check size={13} aria-hidden="true" />
-                      ) : artifact.state === 'ready' ? (
-                        <Play size={11} aria-hidden="true" />
-                      ) : artifact.state === 'blocked' ? (
-                        <Lock size={12} aria-hidden="true" />
-                      ) : (
-                        <Circle size={10} aria-hidden="true" />
-                      )}
-                    </span>
-                  )}
-                  {hasCliState && artifact.state === 'blocked' && artifact.missingDeps.length > 0 && (
-                    <span className="pipeline-artifact-graph__deps">
-                      {t('pipeline.openspec.graph.missingDeps', { deps: artifact.missingDeps.join(', ') })}
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+      <div className={styles.timelineRoot} aria-busy="true" aria-label={t('pipeline.openspec.graph.loading')}>
+        <div className={styles.timelineList}>
+          {[1, 2, 3, 4].map((n) => (
+            <div key={n} className={styles.timelineSkeletonNode}>
+              <div className={styles.timelineTrack}>
+                <div className={styles.timelineSkeletonCircle} />
+                {n < 4 && <div className={styles.timelineConnector} />}
+              </div>
+              <div className={styles.timelineSkeletonCard}>
+                <div className={styles.timelineSkeletonBar} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className={styles.timelineRoot} role="alert" aria-label={t('pipeline.openspec.graph.label')}>
+        <div className={styles.timelineError}>
+          {t('pipeline.openspec.graph.error')}: {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (sortedArtifacts.length === 0) {
+    return null;
+  }
+
+  const handleStartGenerate = (artifact: OpenSpecGraphArtifact) => {
+    if (artifact.existingOutputPaths && artifact.existingOutputPaths.length > 0) {
+      setConfirmingArtifactId(artifact.id);
+    } else {
+      setConfirmingArtifactId(null);
+      if (onLaunch && artifact.instruction && changeId) {
+        onLaunch(artifact.instruction, changeId);
+      } else {
+        setLaunchingArtifactId(artifact.id);
+      }
+    }
+  };
+
+  const handleConfirmGenerate = (artifact: OpenSpecGraphArtifact) => {
+    setConfirmingArtifactId(null);
+    if (onLaunch && artifact.instruction && changeId) {
+      onLaunch(artifact.instruction, changeId);
+    } else {
+      setLaunchingArtifactId(artifact.id);
+    }
+  };
+
   return (
-    <ul className="pipeline-artifact-graph" aria-label={t('pipeline.openspec.graph.label')}>
-      {status!.artifacts.map((artifact) => {
-        const labelKey = ARTIFACT_LABEL_KEY[artifact.id];
-        const artifactLabel = labelKey ? t(labelKey) : artifact.id;
-        const stateText = t(STATE_LABEL_KEY[artifact.state] ?? 'pipeline.openspec.graph.state.unknown');
-        return (
-          <li key={artifact.id} data-state={artifact.state}>
-            <span className="pipeline-artifact-graph__id">{artifactLabel}</span>
-            <span className="pipeline-artifact-graph__state" title={stateText}>
-              <span className="pipeline-artifact-graph__sr-text">{stateText}</span>
-              {artifact.state === 'done' ? (
-                <Check size={13} aria-hidden="true" />
-              ) : artifact.state === 'ready' ? (
-                <Play size={11} aria-hidden="true" />
-              ) : artifact.state === 'blocked' ? (
-                <Lock size={12} aria-hidden="true" />
-              ) : (
-                <Circle size={10} aria-hidden="true" />
-              )}
-            </span>
-            {artifact.state === 'blocked' && artifact.missingDeps.length > 0 && (
-              <span className="pipeline-artifact-graph__deps">
-                {t('pipeline.openspec.graph.missingDeps', { deps: artifact.missingDeps.join(', ') })}
-              </span>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <div
+      className={`${styles.timelineRoot} ${onSelectTab ? 'pipeline-details__tabs' : ''}`}
+      role={onSelectTab ? 'tablist' : undefined}
+      aria-label={onSelectTab ? t('pipeline.details.title') : (hasCliState ? t('pipeline.openspec.graph.label') : undefined)}
+    >
+      <ul
+        className={`${styles.timelineList} pipeline-artifact-graph`}
+        aria-label={hasCliState && !onSelectTab ? t('pipeline.openspec.graph.label') : undefined}
+      >
+        {sortedArtifacts.map((artifact, index) => {
+          const labelKey = ARTIFACT_LABEL_KEY[artifact.id];
+          const artifactLabel = labelKey ? t(labelKey) : artifact.id;
+          const stateKey = STATE_LABEL_KEY[artifact.status] ?? 'pipeline.openspec.graph.state.unknown';
+          const stateText = hasCliState ? t(stateKey) : null;
+          const isLast = index === sortedArtifacts.length - 1;
+
+          // Dependencias faltantes si está bloqueado
+          let missingDeps: string[] = [];
+          if (artifact.status === 'blocked') {
+            if (artifact.dependencies && artifact.dependencies.length > 0) {
+              missingDeps = artifact.dependencies.filter((d) => !d.done).map((d) => d.id);
+            }
+            if (missingDeps.length === 0 && artifact.requires.length > 0) {
+              missingDeps = artifact.requires;
+            }
+          }
+
+          const isConfirming = confirmingArtifactId === artifact.id;
+          const isLaunching = launchingArtifactId === artifact.id;
+          const isInteractiveTab =
+            onSelectTab &&
+            (artifact.id === 'proposal' ||
+              artifact.id === 'design' ||
+              artifact.id === 'specs' ||
+              artifact.id === 'tasks');
+          const isSelected = activeTab === artifact.id;
+
+          return (
+            <li
+              key={artifact.id}
+              className={styles.timelineNode}
+              data-state={hasCliState ? artifact.status : undefined}
+              data-selected={isSelected ? 'true' : undefined}
+            >
+              <div className={styles.timelineTrack}>
+                <div
+                  className={styles.timelineCircle}
+                  data-state={hasCliState ? artifact.status : undefined}
+                  aria-hidden="true"
+                >
+                  {hasCliState && artifact.status === 'done' ? (
+                    <Check size={13} />
+                  ) : hasCliState && artifact.status === 'ready' ? (
+                    <Play size={11} />
+                  ) : hasCliState && artifact.status === 'blocked' ? (
+                    <Lock size={12} />
+                  ) : (
+                    <Circle size={10} />
+                  )}
+                </div>
+                {!isLast && <div className={styles.timelineConnector} />}
+              </div>
+
+              <div
+                className={styles.timelineCard}
+                onClick={() => {
+                  if (isInteractiveTab) {
+                    onSelectTab(artifact.id as DetailTab);
+                  }
+                }}
+              >
+                {isInteractiveTab ? (
+                  <button
+                    type="button"
+                    role="tab"
+                    id={`tab-${artifact.id}`}
+                    aria-controls={`panel-${artifact.id}`}
+                    aria-selected={isSelected}
+                    className={`pipeline-details__tab ${isSelected ? 'pipeline-details__tab--active' : ''} ${styles.timelineTabBtn}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectTab(artifact.id as DetailTab);
+                    }}
+                  >
+                    <span className={`${styles.timelineTitle} pipeline-artifact-graph__id`}>
+                      {artifactLabel}
+                    </span>
+                    {stateText && (
+                      <span
+                        className={`${styles.timelineState} pipeline-artifact-graph__state`}
+                        title={stateText}
+                      >
+                        {stateText}
+                      </span>
+                    )}
+                  </button>
+                ) : (
+                  <div className={styles.timelineCardHeader}>
+                    <h4 className={`${styles.timelineTitle} pipeline-artifact-graph__id`}>
+                      {artifactLabel}
+                    </h4>
+                    {stateText && (
+                      <span
+                        className={`${styles.timelineState} pipeline-artifact-graph__state`}
+                        title={stateText}
+                      >
+                        {stateText}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {typeof artifact.description === 'string' && artifact.description.length > 0 && (
+                  <p className={styles.timelineDesc}>{artifact.description}</p>
+                )}
+
+                {typeof artifact.outputPath === 'string' && artifact.outputPath.length > 0 && (
+                  <p className={styles.timelinePath}>{artifact.outputPath}</p>
+                )}
+
+                {hasCliState && artifact.status === 'blocked' && missingDeps.length > 0 && (
+                  <p className={`${styles.timelineDeps} pipeline-artifact-graph__deps`}>
+                    {t('pipeline.openspec.graph.missingDeps', { deps: missingDeps.join(', ') })}
+                  </p>
+                )}
+
+                {hasCliState && artifact.status === 'ready' && !isConfirming && !isLaunching && (
+                  <button
+                    type="button"
+                    className={styles.timelineActionBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartGenerate(artifact);
+                    }}
+                  >
+                    <Play size={12} aria-hidden="true" />
+                    <span>{t('pipeline.openspec.graph.generateWithAgent')}</span>
+                  </button>
+                )}
+
+                {isConfirming && (
+                  <div
+                    className={styles.timelineConfirmBox}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <p className={styles.timelineConfirmText}>
+                      {t('pipeline.openspec.graph.confirmOverwrite')}
+                    </p>
+                    {artifact.existingOutputPaths && (
+                      <ul className={styles.timelineConfirmPaths}>
+                        {artifact.existingOutputPaths.map((p) => (
+                          <li key={p}>{p}</li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className={styles.timelineConfirmActions}>
+                      <button
+                        type="button"
+                        className={styles.timelineConfirmBtn}
+                        onClick={() => handleConfirmGenerate(artifact)}
+                      >
+                        {t('pipeline.openspec.graph.confirmAndLaunch')}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.timelineCancelBtn}
+                        onClick={() => setConfirmingArtifactId(null)}
+                      >
+                        {t('common.cancel')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {isLaunching && (
+                  <div
+                    className={styles.timelineLauncher}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className={styles.timelineLauncherHeader}>
+                      <button
+                        type="button"
+                        className={styles.timelineCancelBtn}
+                        onClick={() => setLaunchingArtifactId(null)}
+                        aria-label={t('common.cancel')}
+                      >
+                        <X size={14} aria-hidden="true" />
+                        <span>{t('common.cancel')}</span>
+                      </button>
+                    </div>
+                    <PipelineRuntimeLauncher
+                      repoPath={repoPath ?? ''}
+                      projection={null}
+                      initialInstruction={artifact.instruction}
+                      changeId={changeId}
+                      onStarted={() => setLaunchingArtifactId(null)}
+                    />
+                  </div>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

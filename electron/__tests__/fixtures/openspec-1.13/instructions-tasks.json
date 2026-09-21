@@ -1,0 +1,40 @@
+{
+  "changeName": "recorrido-de-artefactos-openspec",
+  "artifactId": "tasks",
+  "schemaName": "spec-driven",
+  "changeDir": "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec",
+  "planningHome": {
+    "kind": "repo",
+    "root": "<repo>",
+    "changesDir": "<repo>\\openspec\\changes",
+    "defaultSchema": "spec-driven"
+  },
+  "outputPath": "tasks.md",
+  "resolvedOutputPath": "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\tasks.md",
+  "existingOutputPaths": [
+    "<repo>\\openspec\\changes\\recorrido-de-artefactos-openspec\\tasks.md"
+  ],
+  "description": "Implementation checklist with trackable tasks",
+  "instruction": "Create the task list that breaks down the implementation work.\n\nBefore writing tasks, check design.md for Open Questions. If any of them\nwould change what gets built, resolve them with the user first - do not\nbake an unstated assumption into the task list.\n\n**IMPORTANT: Follow the template below exactly.** The apply phase parses\ncheckbox format to track progress. A box holding only `x` counts as done,\nupper or lower case and with any spacing, so `- [ x]` is done too. Every\nother marker, including `- [~]`, `- [-]` and an empty `- []`, reads as\nunfinished. A line with no checkbox is not tracked at all.\n\nGuidelines:\n- Group related tasks under ## numbered headings\n- Each task MUST be a checkbox: `- [ ] X.Y Task description`\n- Tasks should be small enough to complete in one session\n- Order tasks by dependency (what must be done first?)\n- Each task MUST state how to verify completion (a test, command,\n  observable behavior, or delivered artifact). Put the verification in\n  that task's checkbox description. Use a separate verification task only\n  when it checks broader integration or system behavior that spans\n  multiple implementation tasks.\n\nExample:\n```\n# Tasks\n\n## 1. Setup\n\n- [ ] 1.1 Create new module structure and verify expected files are present\n- [ ] 1.2 Add dependencies to package.json and verify package installation succeeds\n\n## 2. Core Implementation\n\n- [ ] 2.1 Implement data export function and verify the export test passes\n- [ ] 2.2 Add CSV formatting utilities and verify unit tests cover quoting and delimiters\n```\n\nReference specs for what needs to be built, design for how to build it.\n",
+  "context": "Language: es\nAll artifacts must be written in es.\nKeep OpenSpec structural headings and SHALL/MUST keywords in English.\n\nGitCron es un cliente Git de escritorio. Renderer en Next.js 15 con `output: 'export'`\n—estático, sin servidor— sobre React 19 y Tailwind 4; proceso principal en Electron 42;\nTypeScript 5.9 en todo. Estado con Zustand, Git con simple-git, GitHub con @octokit/rest,\ny persistencia con `node:sqlite`, el módulo nativo de Node, sin dependencia externa.\nBuild: `next build` para el renderer y tsup para el main, empaquetado con electron-builder.\nPruebas con Vitest.\n\nUna regla vive en un solo lugar. Si está en este archivo, no se repite en un prompt, en un\nspec ni en un tasks.md. Cuando la misma regla existe en dos lados, tarde o temprano dicen\ncosas distintas y nadie sabe cuál manda. El 2026-09-01 el cierre de una tanda estaba escrito\nacá, en un documento de invariantes y en cada prompt: las tres versiones diferían, y la del\ndocumento omitía el paso que hacía fallar la suite.\n\nNada se cita por número. Se escribe lo que la regla dice, o no se escribe. Una referencia\ncomo «conforme al invariante 12» deja de significar algo en el momento en que ese documento\nse mueve o se borra, y no hay forma de darse cuenta: nada falla. El mismo día se encontraron\ncatorce citas así apuntando al vacío, en changes y en specs consolidadas.\n\nRama por cambio. Lo primero al empezar un cambio, antes de escribir ningún artefacto, es\ncrear la rama y pararse en ella: `git checkout -b change/<slug>`, con el mismo slug del\ncambio. Si ya existe la rama de este mismo cambio, pararse en ella: es trabajo propio que se\nretoma. Si la que existe es la de otro cambio, informarlo y parar —cambiarse arrastra sus\ncommits y eso lo decide una persona—. Crear la rama es parte de abrir el cambio y no algo\nque haya que pedir: es local, reversible y no publica nada. Lo que sí se informa es que se\ncreó y con qué nombre. Vale igual si el cambio se crea desde la terminal con `openspec new\nchange`: la convención no depende de haber pasado por ninguna pantalla. GitCron lo automatiza\nal proponer un cambio, y si la rama falla no lanza la sesión, porque arrancar en otra sería\ndivergencia entre lo declarado y lo ejecutado. Fusionar a `main` y borrar la rama son\nacciones humanas: el ejecutor no fusiona, no borra la rama y no vuelve a `main` por su cuenta.\n\nEsto NO aplica al trabajo normal: implementar, corregir, refactorizar y revisar no\nrequieren consultar nada. Aplica sólo cuando se va a proponer o construir una pieza\nde metodología —un generador de tandas, un auditor, un formato de tareas, un canal\npara pasarle reglas a un ejecutor—. Ahí, antes de escribirla, mirar si OpenSpec ya\nla trae: `openspec --help` y el `--help` del subcomando que corresponda lo dicen en\nun segundo, y responden por la versión instalada en esta máquina. La documentación\nweb sólo si el CLI no alcanza. El 2026-09-01 se escribió un change entero para\nconstruir tres piezas que OpenSpec ya tenía.",
+  "template": "# Tasks\n\n## 1. <!-- Task Group Name -->\n\n- [ ] 1.1 <!-- Task description -->\n- [ ] 1.2 <!-- Task description -->\n\n## 2. <!-- Task Group Name -->\n\n- [ ] 2.1 <!-- Task description -->\n- [ ] 2.2 <!-- Task description -->\n",
+  "dependencies": [
+    {
+      "id": "specs",
+      "done": true,
+      "path": "specs/**/*.md",
+      "description": "Detailed specifications for the change"
+    },
+    {
+      "id": "design",
+      "done": true,
+      "path": "design.md",
+      "description": "Technical design document with implementation details"
+    }
+  ],
+  "unlocks": [],
+  "root": {
+    "path": "<repo>",
+    "source": "nearest"
+  }
+}

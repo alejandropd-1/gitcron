@@ -74,10 +74,13 @@ export function PipelineDetails({
         aria-label={t('pipeline.openspec.artifacts.timelineSlot')}
       >
         <PipelineArtifactGraph
+          repoPath={_repoPath}
+          changeId={selectedChange.changeId}
           status={selectedChange.status}
           activeTab={activeTab}
           onSelectTab={setActiveTab}
         />
+
       </div>
 
       <div className="pipeline-details__body">

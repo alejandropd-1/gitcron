@@ -528,7 +528,26 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.releaseNotes.redactingWith',
   'pipeline.openspec.releaseNotes.loadingAndRedactingWith',
   'pipeline.openspec.releaseNotes.cancelDraft',
+  // Grafo de artefactos (Tanda 3)
+  'pipeline.openspec.graph.label',
+  'pipeline.openspec.graph.state.done',
+  'pipeline.openspec.graph.state.ready',
+  'pipeline.openspec.graph.state.blocked',
+  'pipeline.openspec.graph.state.skipped',
+  'pipeline.openspec.graph.state.unknown',
+  'pipeline.openspec.graph.missingDeps',
+  'pipeline.openspec.graph.artifact.proposal',
+  'pipeline.openspec.graph.artifact.design',
+  'pipeline.openspec.graph.artifact.specs',
+  'pipeline.openspec.graph.artifact.tasks',
+  'pipeline.openspec.graph.generateWithAgent',
+  'pipeline.openspec.graph.requires',
+  'pipeline.openspec.graph.confirmOverwrite',
+  'pipeline.openspec.graph.confirmAndLaunch',
+  'pipeline.openspec.graph.error',
+  'pipeline.openspec.graph.loading',
 ] as const;
+
 
 describe('Pipeline i18n', () => {
   it('covers the three shipped languages', () => {

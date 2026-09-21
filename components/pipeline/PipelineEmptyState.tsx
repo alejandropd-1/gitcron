@@ -22,7 +22,7 @@ export function PipelineEmptyState({
   state,
   onRetry,
   rightOpen = false,
-  rightWidth: _rightWidth,
+  rightWidth,
 }: PipelineEmptyStateProps) {
   const t = useT();
 
@@ -30,6 +30,9 @@ export function PipelineEmptyState({
     return (
       <div
         className={styles.skeletonRoot}
+        style={{
+          ['--right-panel-width' as string]: typeof rightWidth === 'number' ? `${rightWidth}px` : undefined,
+        } as React.CSSProperties}
         aria-busy="true"
         aria-label={t('pipeline.loading')}
         data-estado="loading"

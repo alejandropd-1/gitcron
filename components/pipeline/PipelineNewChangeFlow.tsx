@@ -34,16 +34,10 @@ export type PipelineNewChangeFlowProps = {
    * crea igual, como hasta ahora.
    */
   workingTreeClean?: boolean;
-  /**
-   * Relee la evidencia del repositorio.
-   *
-   * Crear la rama cambia en qué rama está parado el repositorio, y sin esto el
-   * panel seguía mostrando la anterior. Es el peor defecto posible acá: el
-   * trabajo de este formulario es declarar la rama, y justo después de que la
-   * aplicación la cambia declaraba la equivocada. Ale lo detectó mirando la
-   * franja de evidencia con la rama vieja.
-   */
+  /** Relee la evidencia del repositorio. */
   onRefresh?: () => void;
+  /** Abre el cambio recién creado y descarta el borrador. */
+  onOpenChange?: (changeId: string) => void;
 };
 
 const JOURNEY_STEPS: { id: NewChangeDraftStep; labelKey: string }[] = [
@@ -85,6 +79,7 @@ export function PipelineNewChangeFlow({
   divergence,
   workingTreeClean,
   onRefresh,
+  onOpenChange,
 }: PipelineNewChangeFlowProps) {
   const t = useT();
   const fieldId = useId();
@@ -210,6 +205,50 @@ export function PipelineNewChangeFlow({
   const objectiveRef = useRef<HTMLTextAreaElement>(null);
   const slugRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+
+  const exploreAnswerRef = useRef<HTMLDivElement | null>(null);
+  const explorePinnedRef = useRef(true);
+  const proposeAnswerRef = useRef<HTMLDivElement | null>(null);
+  const proposePinnedRef = useRef(true);
+
+  const handleExploreScroll = () => {
+    const el = exploreAnswerRef.current;
+    if (!el) return;
+    explorePinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 32;
+  };
+
+  const handleProposeScroll = () => {
+    const el = proposeAnswerRef.current;
+    if (!el) return;
+    proposePinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 32;
+  };
+
+  const isExploreRunning = exploreProj?.active || (exploreProj && exploreProj.outcome === null);
+  const exploreActivityLen = exploreProj?.activity?.length ?? 0;
+
+  useEffect(() => {
+    const el = exploreAnswerRef.current;
+    if (!el) return;
+    if (isExploreRunning && explorePinnedRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [isExploreRunning, exploreActivityLen]);
+
+  const isProposeRunning = proposeProj?.active || (proposeProj && proposeProj.outcome === null);
+  const proposeActivityLen = proposeProj?.activity?.length ?? 0;
+
+  useEffect(() => {
+    const el = proposeAnswerRef.current;
+    if (!el) return;
+    if (isProposeRunning && proposePinnedRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [isProposeRunning, proposeActivityLen]);
+
+  const isProposeSuccess =
+    proposeArtifactsLoaded &&
+    Boolean(draft.proposedChangeId) &&
+    (!proposeProj?.active && proposeProj?.outcome !== 'failed' && proposeProj?.outcome !== 'interrupted');
 
   /**
    * Valida y, si corresponde, deja el repositorio parado en la rama del cambio
@@ -401,7 +440,11 @@ export function PipelineNewChangeFlow({
           )}
 
           {draft.sessions.explore && (
-            <div className={styles.journeyAnswer}>
+            <div
+              ref={exploreAnswerRef}
+              className={styles.journeyAnswer}
+              onScroll={handleExploreScroll}
+            >
               {exploreProj ? (
                 <>
                   {exploreProj.activity && exploreProj.activity.length > 0 ? (
@@ -573,7 +616,11 @@ export function PipelineNewChangeFlow({
           )}
 
           {draft.sessions.propose && (
-            <div className={styles.journeyAnswer}>
+            <div
+              ref={proposeAnswerRef}
+              className={styles.journeyAnswer}
+              onScroll={handleProposeScroll}
+            >
               {proposeProj ? (
                 <>
                   {proposeProj.activity && proposeProj.activity.length > 0 ? (
@@ -603,11 +650,26 @@ export function PipelineNewChangeFlow({
             </p>
           )}
 
-          <div className={styles.journeyNext}>
-            <p className={styles.journeyNotice}>
-              {t('pipeline.journey.continuesInChange')}
-            </p>
-          </div>
+          {isProposeSuccess ? (
+            <div className={styles.journeyNext}>
+              <p className={styles.journeyNotice}>
+                {t('pipeline.journey.changeCreated', { change: draft.proposedChangeId! })}
+              </p>
+              <button
+                type="button"
+                className={styles.primaryAction}
+                onClick={() => onOpenChange?.(draft.proposedChangeId!)}
+              >
+                {t('pipeline.journey.viewChange')}
+              </button>
+            </div>
+          ) : (
+            <div className={styles.journeyNext}>
+              <p className={styles.journeyNotice}>
+                {t('pipeline.journey.continuesInChange')}
+              </p>
+            </div>
+          )}
         </div>
       )}
 

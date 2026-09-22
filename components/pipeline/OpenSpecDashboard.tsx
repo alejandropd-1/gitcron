@@ -1834,37 +1834,11 @@ export function OpenSpecDashboard({
     if (liveSessionId) setSelectedSessionId(liveSessionId);
   }
 
-  // Selección del change recién creado, sólo cuando puede identificarse de forma
-  // verificable: exactamente un identificador nuevo respecto de la lectura
-  // anterior. Con cero o con varios no se adivina.
-  const [appearance, setAppearance] = useState<{ id: string; seq: number } | null>(null);
-  const handledAppearanceSeq = useRef(0);
-  const [previousChangeIds, setPreviousChangeIds] = useState<string[] | null>(null);
-  const activeChangeIds = activeChanges.map((change) => change.changeId);
-  const changeIdsDiffer = previousChangeIds === null
-    || previousChangeIds.length !== activeChangeIds.length
-    || activeChangeIds.some((id, index) => previousChangeIds[index] !== id);
-  if (changeIdsDiffer) {
-    setPreviousChangeIds(activeChangeIds);
-    if (previousChangeIds !== null) {
-      const added = activeChangeIds.filter((id) => !previousChangeIds.includes(id));
-      // Exactamente uno: con cero o con varios no hay forma verificable de saber
-      // cual corresponde a la sesion que acaba de cerrar, y se deja la seleccion
-      // como estaba en vez de adivinar.
-      if (added.length === 1 && flowMode) {
-        setAppearance((prev) => ({ id: added[0], seq: (prev?.seq ?? 0) + 1 }));
-      }
-    }
-  }
-
-  useEffect(() => {
-    if (!appearance || handledAppearanceSeq.current === appearance.seq) return;
-    handledAppearanceSeq.current = appearance.seq;
-    setSelection(appearance.id);
+  const handleOpenChange = (changeId: string) => {
+    setSelection(changeId);
     clearDraft(repoPath);
     setLaunchTarget(null);
-  }, [appearance, repoPath, setSelection, clearDraft, setLaunchTarget]);
-
+  };
   const changeEnvironmentSlot = (() => {
     const mismatchNotice = selectedChange ? (
       <ChangeBranchNotice branch={currentBranch} changeId={selectedChange.changeId} />
@@ -2880,6 +2854,7 @@ export function OpenSpecDashboard({
                         divergence={snapshot.branchDivergence}
                         workingTreeClean={workingTreeClean}
                         onRefresh={onRefresh}
+                        onOpenChange={handleOpenChange}
                       />
                     </>
                   )}
@@ -3093,6 +3068,7 @@ export function OpenSpecDashboard({
                           divergence={snapshot.branchDivergence}
                           workingTreeClean={workingTreeClean}
                           onRefresh={onRefresh}
+                          onOpenChange={handleOpenChange}
                         />
                       </div>
                     </div>

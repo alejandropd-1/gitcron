@@ -147,6 +147,12 @@ describe('PipelineNewChangeFlow · Recorrido de apertura (Tanda 4a)', () => {
     expect(screen.getByText('Actividad de exploración completada')).toBeTruthy();
     const reasoningBtn = container.querySelector('button[data-channel="reasoning"]') as HTMLButtonElement;
     expect(reasoningBtn?.disabled).toBe(false);
+    expect(reasoningBtn?.getAttribute('role')).toBe('switch');
+    expect(reasoningBtn?.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(reasoningBtn);
+    expect(reasoningBtn?.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(reasoningBtn);
+    expect(reasoningBtn?.getAttribute('aria-checked')).toBe('true');
     const listItems = container.querySelectorAll('ol > li');
     expect(listItems[0].getAttribute('data-state')).toBe('done');
 

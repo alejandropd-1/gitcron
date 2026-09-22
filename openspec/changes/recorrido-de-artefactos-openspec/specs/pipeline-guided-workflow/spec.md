@@ -4,8 +4,8 @@
 El panel SHALL conservar el borrador del flujo de cambio nuevo —que esté abierto, el paso del
 recorrido, el objetivo, el slug, las restricciones, las casillas y las sesiones que cada paso
 arrancó— cuando se sale de Pipeline y se vuelve. El borrador SHALL tener alcance por repositorio, y
-SHALL descartarse al cerrar el flujo explícitamente y cuando el cambio propuesto aparece en el
-repositorio.
+SHALL descartarse al cerrar el flujo explícitamente y cuando la persona pasa al cambio recién
+creado desde el propio recorrido.
 
 El fundamento original sigue: se pierde entero no por decisión sino por cómo están montadas las
 solapas (`components/RepoMainView.tsx`: cada solapa es un `return` distinto, ir al grafo desmonta
@@ -14,8 +14,10 @@ arrancar la sesión, porque en ese instante lo escrito ya estaba en manos del ej
 recorrido de apertura (`change-opening-journey`) ese instante ya no es el final: el paso tiene que
 mostrar qué contestó el motor, y para eso el borrador guarda la sesión que arrancó. Descartarlo al
 arrancar dejaría al paso sin forma de encontrar su respuesta. El momento en que la persona terminó
-con el borrador pasa a ser cuando el cambio propuesto existe en el repositorio —que es cuando el
-tablero lo selecciona y cierra el flujo— o cuando cierra el flujo a mano. Una exploración sin
+con el borrador pasa a ser cuando ella misma pasa al cambio recién creado, o cuando cierra el flujo
+a mano. Que el tablero saltara solo apenas aparecía la carpeta fue rechazado por Alejandro el
+2026-09-22 mirando la pantalla: el salto ocurría con la bitácora todavía corriendo y sin decir que
+el trabajo había terminado. Una exploración sin
 propuesta se queda en el borrador hasta que se cierre: es la memoria del recorrido, no basura.
 
 Decisión medida el 2026-09-21 en la tanda 4a del change `recorrido-de-artefactos-openspec`: el
@@ -39,5 +41,9 @@ recorrido lo necesita, y se declara acá.
 - **THEN** el borrador guarda el identificador de esa sesión en el paso y no se descarta
 
 #### Scenario: El cambio propuesto aparece
-- **WHEN** el cambio propuesto aparece en el repositorio y el tablero lo selecciona
-- **THEN** el borrador se descarta, y abrir «Nuevo cambio» después empieza de cero
+- **WHEN** el cambio propuesto aparece en el repositorio y la sesión que lo creó terminó
+- **THEN** el recorrido lo declara y ofrece pasar al cambio, sin llevar a la persona por su cuenta
+
+#### Scenario: La persona pasa al cambio creado
+- **WHEN** la persona acepta pasar al cambio recién creado desde el recorrido
+- **THEN** el tablero lo selecciona, el borrador se descarta y abrir «Nuevo cambio» después empieza de cero

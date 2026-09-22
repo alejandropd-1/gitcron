@@ -3215,42 +3215,61 @@ summary.centerBlock {
   font-weight: 600;
 }
 
-/* Filtros de la bitácora (interruptores, 4.7b) */
-.activityFilters {
+/* Filtros de la bitácora (interruptores, 4.9a) */
+.activityBody {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-4);
+  width: 100%;
+  align-items: flex-start;
+  container-type: inline-size;
 }
 
-.activityFilterBtn {
+.activityContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.activityFilterColumn {
+  width: 11rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.activityFilterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.activityFilterLabel {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
-  font-family: var(--font-mono), ui-monospace, monospace;
+  color: var(--color-text-primary);
   cursor: pointer;
-  transition: all 120ms ease;
+  user-select: none;
 }
 
-.activityFilterBtn:hover:not(:disabled) {
-  color: var(--color-text-primary);
-}
-
-.activityFilterBtn[data-active='true'] {
-  background: color-mix(in srgb, var(--color-bg-overlay) 60%, transparent);
-  color: var(--color-text-primary);
-  border-color: var(--color-border-subtle);
-}
-
-.activityFilterBtn:disabled {
+.activityFilterLabel[data-disabled='true'] {
+  color: var(--color-text-secondary);
   opacity: 0.5;
-  cursor: default;
+  cursor: not-allowed;
+}
+
+@container (max-width: 680px) {
+  .activityBody {
+    flex-direction: column;
+  }
+
+  .activityFilterColumn {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
 }
 
 .addTaskToggleBtn {
@@ -4626,6 +4645,10 @@ summary.centerBlock {
   flex-direction: column;
   gap: var(--space-2);
   width: 100%;
+  max-height: 22rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-subtle) transparent;
 }
 
 .journeyNext {

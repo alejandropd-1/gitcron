@@ -222,7 +222,7 @@ describe('cuándo se descarta', () => {
     expect(saved.proposedChangeId).toBe('mi-cambio');
   });
 
-  it('con el flujo abierto y sessions.propose guardada, al releerse el snapshot con el cambio propuesto se descarta el borrador y el tablero selecciona el cambio', () => {
+  it('con el flujo abierto y sessions.propose guardada, al releerse el snapshot con el cambio propuesto el borrador NO se descarta y el cambio NO se selecciona solo', () => {
     const repoPath = 'C:/repo';
     const proposedChangeId = 'mi-nuevo-cambio';
 
@@ -261,8 +261,9 @@ describe('cuándo se descarta', () => {
       />,
     );
 
-    expect(useNewChangeDraftStore.getState().drafts[repoPath]).toBeUndefined();
-    expect(usePipelineStore.getState().selectedChangeId).toBe(proposedChangeId);
+    // Con la regla nueva (4.9c / delta spec), el dashboard NO auto-selecciona ni descarta el borrador
+    expect(useNewChangeDraftStore.getState().drafts[repoPath]).toBeDefined();
+    expect(usePipelineStore.getState().selectedChangeId).toBeNull();
   });
 
   it('no escribe en stores externos durante el render al aparecer el cambio', () => {
@@ -314,7 +315,8 @@ describe('cuándo se descarta', () => {
     const updatedSnapshot = makeSnapshot([change('otro-cambio'), change(proposedChangeId)]);
     rerender(<TestHost snap={updatedSnapshot} />);
 
-    expect(setSelectedChangeIdSpy).toHaveBeenCalledWith(proposedChangeId);
+    // Con la regla nueva, no se autoselecciona el cambio al aparecer en el snapshot
+    expect(setSelectedChangeIdSpy).not.toHaveBeenCalled();
 
     const crossComponentWarnings = consoleError.mock.calls
       .map((call) => call.join(' '))
@@ -325,86 +327,54 @@ describe('cuándo se descarta', () => {
     consoleError.mockRestore();
   });
 
-  it('el mismo id aparece dos veces y la selección se hace las dos veces', () => {
+  it('la persona pasa al cambio creado manualmente pulsando Ver el cambio: se selecciona, el borrador se descarta y el flujo se cierra', async () => {
     const repoPath = 'C:/repo';
-    const changeId = 'cambio-recreado';
+    const proposedChangeId = 'mi-nuevo-cambio';
 
     useNewChangeDraftStore.getState().patchDraft(repoPath, {
       open: true,
-      mode: 'propose',
       step: 'propose',
-      proposedChangeId: changeId,
-      sessions: { explore: null, propose: 'sess-1' },
+      proposedChangeId,
+      sessions: { explore: null, propose: 'sess-test' },
     });
 
-    const initialSnapshot = makeSnapshot([change('otro-cambio')]);
-    const { rerender } = renderDashboard(initialSnapshot, repoPath);
-
-    // Primera aparición
-    const firstAppearance = makeSnapshot([change('otro-cambio'), change(changeId)]);
-    rerender(
-      <OpenSpecDashboard
-        snapshot={firstAppearance}
-        repoPath={repoPath}
-        currentBranch="main"
-        workingTreeClean
-        leftOpen={false}
-        rightOpen={false}
-        leftWidth={320}
-        rightWidth={320}
-        onResizeLeft={() => undefined}
-        onResizeRight={() => undefined}
-        projection={null}
-        runtimeHistory={[]}
-        onRefresh={() => undefined}
-        onSelectChange={() => undefined}
-        onPauseAfterTask={() => undefined}
-        onRespondDecision={() => undefined}
-      />,
-    );
-
-    expect(usePipelineStore.getState().selectedChangeId).toBe(changeId);
-    expect(useNewChangeDraftStore.getState().drafts[repoPath]).toBeUndefined();
-
-    // Deseleccionar y hacer desaparecer el cambio del snapshot
-    usePipelineStore.getState().setSelectedChangeId(null);
-    const disappeared = makeSnapshot([change('otro-cambio')]);
-    rerender(
-      <OpenSpecDashboard
-        snapshot={disappeared}
-        repoPath={repoPath}
-        currentBranch="main"
-        workingTreeClean
-        leftOpen={false}
-        rightOpen={false}
-        leftWidth={320}
-        rightWidth={320}
-        onResizeLeft={() => undefined}
-        onResizeRight={() => undefined}
-        projection={null}
-        runtimeHistory={[]}
-        onRefresh={() => undefined}
-        onSelectChange={() => undefined}
-        onPauseAfterTask={() => undefined}
-        onRespondDecision={() => undefined}
-      />,
-    );
-    expect(usePipelineStore.getState().selectedChangeId).toBeNull();
-
-    // Vuelve a abrirse el flujo para el mismo cambio
-    useNewChangeDraftStore.getState().patchDraft(repoPath, {
-      open: true,
-      mode: 'propose',
-      step: 'propose',
-      proposedChangeId: changeId,
-      sessions: { explore: null, propose: 'sess-2' },
+    const getArtifactGraph = vi.fn().mockResolvedValue({
+      ok: true,
+      artifacts: [{ id: 'proposal', exists: true }],
+    });
+    Object.defineProperty(window, 'api', {
+      configurable: true,
+      value: {
+        gitCreateBranch,
+        pipelineOpenSpec: { getArtifactGraph },
+      },
     });
 
-    // Segunda aparición del mismo id
-    const secondAppearance = makeSnapshot([change('otro-cambio'), change(changeId)]);
-    rerender(
+    const snap = makeSnapshot([change('otro-cambio'), change(proposedChangeId)]);
+    const completedProjection = {
+      schemaVersion: '1.0',
+      repoId: 'repo-1',
+      sessionId: 'sess-test',
+      runtime: 'claude',
+      changeId: proposedChangeId,
+      taskId: null,
+      role: 'builder',
+      active: false,
+      outcome: 'completed',
+      startedAt: '2026-09-22T10:00:00Z',
+      endedAt: '2026-09-22T10:05:00Z',
+      agents: [],
+      activity: [],
+      reasoningVisibility: 'emitted',
+      telemetry: null,
+      controlCapabilities: [],
+      droppedActivity: 0,
+      diagnostics: [],
+    };
+
+    render(
       <OpenSpecDashboard
-        snapshot={secondAppearance}
+        snapshot={snap}
         repoPath={repoPath}
         currentBranch="main"
         workingTreeClean
@@ -414,16 +384,21 @@ describe('cuándo se descarta', () => {
         rightWidth={320}
         onResizeLeft={() => undefined}
         onResizeRight={() => undefined}
-        projection={null}
-        runtimeHistory={[]}
+        projection={completedProjection as any}
+        runtimeHistory={[completedProjection as any]}
         onRefresh={() => undefined}
-        onSelectChange={() => undefined}
+        onSelectChange={(id) => usePipelineStore.getState().setSelectedChangeId(id)}
         onPauseAfterTask={() => undefined}
         onRespondDecision={() => undefined}
       />,
     );
 
-    expect(usePipelineStore.getState().selectedChangeId).toBe(changeId);
+    const viewChangeBtn = await screen.findByRole('button', { name: 'pipeline.journey.viewChange' });
+    expect(viewChangeBtn).toBeTruthy();
+
+    fireEvent.click(viewChangeBtn);
+
+    expect(usePipelineStore.getState().selectedChangeId).toBe(proposedChangeId);
     expect(useNewChangeDraftStore.getState().drafts[repoPath]).toBeUndefined();
   });
 });

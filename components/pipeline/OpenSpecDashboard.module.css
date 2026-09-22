@@ -3215,6 +3215,44 @@ summary.centerBlock {
   font-weight: 600;
 }
 
+/* Filtros de la bitácora (interruptores, 4.7b) */
+.activityFilters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.activityFilterBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.activityFilterBtn:hover:not(:disabled) {
+  color: var(--color-text-primary);
+}
+
+.activityFilterBtn[data-active='true'] {
+  background: color-mix(in srgb, var(--color-bg-overlay) 60%, transparent);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-subtle);
+}
+
+.activityFilterBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .addTaskToggleBtn {
   display: inline-flex;
   align-items: center;

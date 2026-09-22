@@ -211,6 +211,7 @@ describe('OpenSpecDashboard (cuerpo SDD) · bordes de maqueta vs excepciones', (
       /\.timelineSkeletonCard/, // TARJETA: esqueleto de tarjeta de artefacto
       /\.viewModeToggle/, // CONTROL: selector de modo de vista
       /\.viewModeBtn/, // RESET: botón de modo de vista
+      /\.activityFilterBtn/, // CONTROL: filtro de bitácora
       /\.addTaskToggleBtn/, // CONTROL: botón desplegar alta de tarea
       /\.taskAddTaskBox/, // TARJETA: formulario de alta de tarea
       /\.taskInput/, // CONTROL / FOCO: input de tarea

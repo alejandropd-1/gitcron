@@ -18,7 +18,7 @@ describe('OpenSpecEngineCard (UI Audit Tests & Jerarquía)', () => {
 
   it('renderiza la insignia compacta cuando compact=true', () => {
     render(<OpenSpecEngineCard status={null} isLoading={true} compact={true} />);
-    expect(screen.getByText(/OpenSpec: Comprobando runtimes…/i)).toBeDefined();
+    expect(screen.getByText(new RegExp(translate('pipeline.launcher.discovering'), 'i'))).toBeDefined();
   });
 
   it('renderiza la vista primaria inicial comprensible y accionable', () => {

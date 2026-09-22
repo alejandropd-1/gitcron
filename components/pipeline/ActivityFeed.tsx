@@ -79,7 +79,7 @@ export function ActivityFeed({
       {/* Sin una sola entrada no hay nada que filtrar: la fila de controles
           sería ruido y, peor, sugeriría que algo quedó oculto por el filtro. */}
       {entries.length > 0 && (
-      <div className={styles.viewModeToggle} role="group" aria-label={t('pipeline.activity.filters')}>
+      <div className={styles.activityFilters} role="group" aria-label={t('pipeline.activity.filters')}>
         {CHANNELS.map((channel) => {
           const disabled = channel === 'reasoning' && reasoningAvailable !== true;
           const pressed = active.has(channel) && !disabled;
@@ -88,7 +88,7 @@ export function ActivityFeed({
             <button
               key={channel}
               type="button"
-              className={styles.viewModeBtn}
+              className={styles.activityFilterBtn}
               data-channel={channel}
               data-active={pressed ? 'true' : 'false'}
               aria-pressed={pressed}

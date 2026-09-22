@@ -1837,6 +1837,8 @@ export function OpenSpecDashboard({
   // Selección del change recién creado, sólo cuando puede identificarse de forma
   // verificable: exactamente un identificador nuevo respecto de la lectura
   // anterior. Con cero o con varios no se adivina.
+  const [appearance, setAppearance] = useState<{ id: string; seq: number } | null>(null);
+  const handledAppearanceSeq = useRef(0);
   const [previousChangeIds, setPreviousChangeIds] = useState<string[] | null>(null);
   const activeChangeIds = activeChanges.map((change) => change.changeId);
   const changeIdsDiffer = previousChangeIds === null
@@ -1850,12 +1852,18 @@ export function OpenSpecDashboard({
       // cual corresponde a la sesion que acaba de cerrar, y se deja la seleccion
       // como estaba en vez de adivinar.
       if (added.length === 1 && flowMode) {
-        setSelection(added[0]);
-        clearDraft(repoPath);
-        setLaunchTarget(null);
+        setAppearance((prev) => ({ id: added[0], seq: (prev?.seq ?? 0) + 1 }));
       }
     }
   }
+
+  useEffect(() => {
+    if (!appearance || handledAppearanceSeq.current === appearance.seq) return;
+    handledAppearanceSeq.current = appearance.seq;
+    setSelection(appearance.id);
+    clearDraft(repoPath);
+    setLaunchTarget(null);
+  }, [appearance, repoPath, setSelection, clearDraft, setLaunchTarget]);
 
   const changeEnvironmentSlot = (() => {
     const mismatchNotice = selectedChange ? (

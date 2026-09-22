@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useEffect, useState } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -262,5 +263,167 @@ describe('cuándo se descarta', () => {
 
     expect(useNewChangeDraftStore.getState().drafts[repoPath]).toBeUndefined();
     expect(usePipelineStore.getState().selectedChangeId).toBe(proposedChangeId);
+  });
+
+  it('no escribe en stores externos durante el render al aparecer el cambio', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const repoPath = 'C:/repo';
+    const proposedChangeId = 'mi-nuevo-cambio';
+
+    useNewChangeDraftStore.getState().patchDraft(repoPath, {
+      open: true,
+      step: 'propose',
+      proposedChangeId,
+      sessions: { explore: null, propose: 'sess-test' },
+    });
+
+    function TestHost({ snap }: { snap: PipelineSnapshot }) {
+      const [, setTick] = useState(0);
+      useEffect(() => {
+        return usePipelineStore.subscribe(() => {
+          setTick((t) => t + 1);
+        });
+      }, []);
+      return (
+        <OpenSpecDashboard
+          snapshot={snap}
+          repoPath={repoPath}
+          currentBranch="main"
+          workingTreeClean
+          leftOpen={false}
+          rightOpen={false}
+          leftWidth={320}
+          rightWidth={320}
+          onResizeLeft={() => undefined}
+          onResizeRight={() => undefined}
+          projection={null}
+          runtimeHistory={[]}
+          onRefresh={() => undefined}
+          onSelectChange={() => undefined}
+          onPauseAfterTask={() => undefined}
+          onRespondDecision={() => undefined}
+        />
+      );
+    }
+
+    const initialSnapshot = makeSnapshot([change('otro-cambio')]);
+    const { rerender } = render(<TestHost snap={initialSnapshot} />);
+
+    const setSelectedChangeIdSpy = vi.spyOn(usePipelineStore.getState(), 'setSelectedChangeId');
+
+    const updatedSnapshot = makeSnapshot([change('otro-cambio'), change(proposedChangeId)]);
+    rerender(<TestHost snap={updatedSnapshot} />);
+
+    expect(setSelectedChangeIdSpy).toHaveBeenCalledWith(proposedChangeId);
+
+    const crossComponentWarnings = consoleError.mock.calls
+      .map((call) => call.join(' '))
+      .filter((msg) => msg.includes('while rendering a different component'));
+    expect(crossComponentWarnings).toHaveLength(0);
+
+    setSelectedChangeIdSpy.mockRestore();
+    consoleError.mockRestore();
+  });
+
+  it('el mismo id aparece dos veces y la selección se hace las dos veces', () => {
+    const repoPath = 'C:/repo';
+    const changeId = 'cambio-recreado';
+
+    useNewChangeDraftStore.getState().patchDraft(repoPath, {
+      open: true,
+      mode: 'propose',
+      step: 'propose',
+      proposedChangeId: changeId,
+      sessions: { explore: null, propose: 'sess-1' },
+    });
+
+    const initialSnapshot = makeSnapshot([change('otro-cambio')]);
+    const { rerender } = renderDashboard(initialSnapshot, repoPath);
+
+    // Primera aparición
+    const firstAppearance = makeSnapshot([change('otro-cambio'), change(changeId)]);
+    rerender(
+      <OpenSpecDashboard
+        snapshot={firstAppearance}
+        repoPath={repoPath}
+        currentBranch="main"
+        workingTreeClean
+        leftOpen={false}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onSelectChange={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+
+    expect(usePipelineStore.getState().selectedChangeId).toBe(changeId);
+    expect(useNewChangeDraftStore.getState().drafts[repoPath]).toBeUndefined();
+
+    // Deseleccionar y hacer desaparecer el cambio del snapshot
+    usePipelineStore.getState().setSelectedChangeId(null);
+    const disappeared = makeSnapshot([change('otro-cambio')]);
+    rerender(
+      <OpenSpecDashboard
+        snapshot={disappeared}
+        repoPath={repoPath}
+        currentBranch="main"
+        workingTreeClean
+        leftOpen={false}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onSelectChange={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+    expect(usePipelineStore.getState().selectedChangeId).toBeNull();
+
+    // Vuelve a abrirse el flujo para el mismo cambio
+    useNewChangeDraftStore.getState().patchDraft(repoPath, {
+      open: true,
+      mode: 'propose',
+      step: 'propose',
+      proposedChangeId: changeId,
+      sessions: { explore: null, propose: 'sess-2' },
+    });
+
+    // Segunda aparición del mismo id
+    const secondAppearance = makeSnapshot([change('otro-cambio'), change(changeId)]);
+    rerender(
+      <OpenSpecDashboard
+        snapshot={secondAppearance}
+        repoPath={repoPath}
+        currentBranch="main"
+        workingTreeClean
+        leftOpen={false}
+        rightOpen={false}
+        leftWidth={320}
+        rightWidth={320}
+        onResizeLeft={() => undefined}
+        onResizeRight={() => undefined}
+        projection={null}
+        runtimeHistory={[]}
+        onRefresh={() => undefined}
+        onSelectChange={() => undefined}
+        onPauseAfterTask={() => undefined}
+        onRespondDecision={() => undefined}
+      />,
+    );
+
+    expect(usePipelineStore.getState().selectedChangeId).toBe(changeId);
+    expect(useNewChangeDraftStore.getState().drafts[repoPath]).toBeUndefined();
   });
 });

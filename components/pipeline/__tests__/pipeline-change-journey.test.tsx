@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNewChangeDraftStore } from '@/lib/new-change-draft-store';
 import type { RuntimeProjection } from '@/types/pipeline';
-import { PipelineNewChangeFlow } from '../PipelineNewChangeFlow';
+import { formatOpenSpecError, PipelineNewChangeFlow } from '../PipelineNewChangeFlow';
 
 vi.mock('@/hooks/use-translation', () => ({
   useT: () => (key: string, params?: Record<string, string | number>) =>
@@ -61,6 +61,30 @@ afterEach(() => {
   else Object.defineProperty(window, 'api', { configurable: true, value: ORIGINAL_API });
 });
 
+function makeProjection(overrides: Partial<RuntimeProjection> = {}): RuntimeProjection {
+  return {
+    schemaVersion: '1.0',
+    repoId: 'repo-1',
+    sessionId: 'sess-1',
+    runtime: 'claude',
+    changeId: null,
+    taskId: null,
+    role: 'builder',
+    active: false,
+    outcome: 'completed',
+    startedAt: '2026-09-21T10:00:00Z',
+    endedAt: '2026-09-21T10:05:00Z',
+    agents: [],
+    activity: [],
+    reasoningVisibility: 'emitted',
+    telemetry: null,
+    controlCapabilities: [],
+    droppedActivity: 0,
+    diagnostics: [],
+    ...overrides,
+  };
+}
+
 function renderFlow(projection: RuntimeProjection | null = null, repoPath = 'C:/repo') {
   return render(
     <PipelineNewChangeFlow
@@ -113,19 +137,8 @@ describe('PipelineNewChangeFlow · Recorrido de apertura (Tanda 4a)', () => {
       sessions: { explore: 'sess-exp-done', propose: null },
     });
 
-    const completedProjection: RuntimeProjection = {
-      schemaVersion: '1.0',
-      repoId: 'repo-1',
+    const completedProjection = makeProjection({
       sessionId: 'sess-exp-done',
-      runtime: 'claude',
-      changeId: null,
-      taskId: null,
-      role: 'builder',
-      active: false,
-      outcome: 'completed',
-      startedAt: '2026-09-21T10:00:00Z',
-      endedAt: '2026-09-21T10:05:00Z',
-      agents: [],
       activity: [
         {
           entryId: 'act-1',
@@ -135,12 +148,7 @@ describe('PipelineNewChangeFlow · Recorrido de apertura (Tanda 4a)', () => {
           agentId: null,
         },
       ],
-      reasoningVisibility: 'emitted',
-      telemetry: null,
-      controlCapabilities: [],
-      droppedActivity: 0,
-      diagnostics: [],
-    };
+    });
 
     const { unmount, container } = renderFlow(completedProjection);
 
@@ -171,16 +179,14 @@ describe('PipelineNewChangeFlow · Recorrido de apertura (Tanda 4a)', () => {
       sessions: { explore: 'sess-exp-fail', propose: null },
     });
 
-    const failedProjection: RuntimeProjection = {
-      ...completedProjection,
+    const failedProjection = makeProjection({
       sessionId: 'sess-exp-fail',
       outcome: 'failed',
-      activity: [],
-    };
+    });
 
     const { container: failContainer } = renderFlow(failedProjection);
     const alert = screen.getByRole('alert');
-    expect(alert.textContent).toBe('failed');
+    expect(alert.textContent).toBe('pipeline.journey.outcome.failed');
     expect(failContainer.querySelectorAll('ol > li')[0].getAttribute('data-state')).toBe('current');
     expect(screen.queryByRole('button', { name: 'pipeline.journey.explore.next' })).toBeNull();
   });
@@ -219,13 +225,34 @@ describe('PipelineNewChangeFlow · Recorrido de apertura (Tanda 4a)', () => {
       sessions: { explore: null, propose: 'sess-prop-err' },
     });
 
-    const { container: errContainer } = renderFlow();
+    const { unmount: unmountErr, container: errContainer } = renderFlow();
 
     await waitFor(() => {
       expect(screen.getByText('Error de prueba del motor OpenSpec')).toBeTruthy();
       const listItems = errContainer.querySelectorAll('ol > li');
       expect(listItems[1].getAttribute('data-state')).toBe('current');
     });
+
+    unmountErr();
+
+    // 3. Caso sesión fallida: no consulta getArtifactGraph y muestra error traducido sin JSON
+    mockGetArtifactGraph.mockClear();
+    useNewChangeDraftStore.getState().patchDraft('C:/repo', {
+      step: 'propose',
+      proposedChangeId: 'mi-cambio-fallido',
+      sessions: { explore: null, propose: 'sess-prop-failed' },
+    });
+
+    const failedProposeProj = makeProjection({
+      sessionId: 'sess-prop-failed',
+      outcome: 'failed',
+      active: false,
+    });
+
+    renderFlow(failedProposeProj);
+
+    expect(screen.getByText('pipeline.journey.outcome.failed')).toBeTruthy();
+    expect(mockGetArtifactGraph).not.toHaveBeenCalled();
   });
 
   it('(e) ninguna operación corre sin confirmar: pipelineRuntime.start no se llama al montar ni al cambiar de paso, sólo desde el botón del lanzador', async () => {
@@ -279,5 +306,23 @@ describe('PipelineNewChangeFlow · Recorrido de apertura (Tanda 4a)', () => {
     expect(archiveContainer.querySelectorAll('textarea, input').length).toBe(0);
     expect(archiveContainer.querySelectorAll('ol > li')[3].getAttribute('data-state')).toBe('declared');
     expect(archiveContainer.querySelectorAll('ol > li')[3].getAttribute('aria-current')).toBe('step');
+  });
+
+  it('(g) formatOpenSpecError extrae el mensaje de JSON devueltos por el CLI', () => {
+    const rawCliJson = JSON.stringify({
+      status: [
+        {
+          severity: 'error',
+          code: 'change_error',
+          message: "Change 'para-borrar-3' not found in OpenSpec changes directory.",
+        },
+      ],
+    });
+    expect(formatOpenSpecError(rawCliJson)).toBe(
+      "Change 'para-borrar-3' not found in OpenSpec changes directory.",
+    );
+
+    expect(formatOpenSpecError('Texto plano sin JSON')).toBe('Texto plano sin JSON');
+    expect(formatOpenSpecError(JSON.stringify({ message: 'Error simple' }))).toBe('Error simple');
   });
 });

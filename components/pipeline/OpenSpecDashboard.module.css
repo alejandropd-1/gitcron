@@ -3239,6 +3239,10 @@ summary.centerBlock {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  z-index: 2;
 }
 
 .activityFilterRow {
@@ -3265,19 +3269,11 @@ summary.centerBlock {
 
 @container (max-width: 680px) {
   .activityBody {
-    flex-direction: column;
     align-items: stretch;
   }
 
   .activityContent {
     width: 100%;
-  }
-
-  .activityFilterColumn {
-    width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: var(--space-2);
   }
 }
 

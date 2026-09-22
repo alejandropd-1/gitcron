@@ -47,6 +47,27 @@ const JOURNEY_STEPS: { id: NewChangeDraftStep; labelKey: string }[] = [
   { id: 'archive', labelKey: 'pipeline.journey.step.archive' },
 ];
 
+export function formatOpenSpecError(error: string): string {
+  try {
+    const parsed = JSON.parse(error) as {
+      status?: Array<{ message?: string }>;
+      message?: string;
+    };
+    if (parsed && Array.isArray(parsed.status) && parsed.status.length > 0) {
+      const messages = parsed.status
+        .map((s) => s?.message)
+        .filter((m): m is string => typeof m === 'string' && m.length > 0);
+      if (messages.length > 0) return messages.join(' · ');
+    }
+    if (parsed && typeof parsed.message === 'string' && parsed.message.length > 0) {
+      return parsed.message;
+    }
+  } catch {
+    // Not JSON
+  }
+  return error;
+}
+
 /**
  * Recorrido guiado para abrir un cambio nuevo.
  *
@@ -172,16 +193,27 @@ export function PipelineNewChangeFlow({
     error: string | null;
   }>({ changeId: null, loaded: false, error: null });
 
+  const isProposeFailed =
+    proposeProj?.outcome === 'failed' || proposeProj?.outcome === 'interrupted';
+
   const proposeArtifactsLoaded =
-    artifactState.changeId === draft.proposedChangeId && artifactState.loaded;
+    !isProposeFailed &&
+    artifactState.changeId === draft.proposedChangeId &&
+    artifactState.loaded;
+
   const proposeGraphError =
-    artifactState.changeId === draft.proposedChangeId ? artifactState.error : null;
+    isProposeFailed
+      ? null
+      : artifactState.changeId === draft.proposedChangeId
+        ? artifactState.error
+        : null;
 
   useEffect(() => {
     const changeId = draft.proposedChangeId;
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!changeId || !api?.pipelineOpenSpec?.getArtifactGraph) return;
     if (proposeProj?.active) return;
+    if (proposeProj?.outcome === 'failed' || proposeProj?.outcome === 'interrupted') return;
 
     let cancelled = false;
     void api.pipelineOpenSpec.getArtifactGraph({ repoPath, changeId }).then((result) => {
@@ -446,26 +478,25 @@ export function PipelineNewChangeFlow({
               onScroll={handleExploreScroll}
             >
               {exploreProj ? (
-                <>
-                  {exploreProj.activity && exploreProj.activity.length > 0 ? (
-                    <ActivityFeed
-                      entries={exploreProj.activity}
-                      reasoningAvailable={deriveReasoningAvailable(exploreProj)}
-                      runtimeAttached={exploreProj.active}
-                    />
-                  ) : (
-                    <p className={styles.flowHint}>{t('pipeline.journey.noAnswer')}</p>
-                  )}
-                  {(exploreProj.outcome === 'failed' || exploreProj.outcome === 'interrupted') && (
-                    <p className={styles.flowError} role="alert">
-                      {exploreProj.outcome}
-                    </p>
-                  )}
-                </>
+                exploreProj.activity && exploreProj.activity.length > 0 ? (
+                  <ActivityFeed
+                    entries={exploreProj.activity}
+                    reasoningAvailable={deriveReasoningAvailable(exploreProj)}
+                    runtimeAttached={exploreProj.active}
+                  />
+                ) : (
+                  <p className={styles.flowHint}>{t('pipeline.journey.noAnswer')}</p>
+                )
               ) : (
                 <p className={styles.flowHint}>{t('pipeline.journey.noAnswer')}</p>
               )}
             </div>
+          )}
+
+          {exploreProj && (exploreProj.outcome === 'failed' || exploreProj.outcome === 'interrupted') && (
+            <p className={styles.flowError} role="alert">
+              {t(`pipeline.journey.outcome.${exploreProj.outcome}`)}
+            </p>
           )}
 
           {isExploreDone && (
@@ -622,31 +653,30 @@ export function PipelineNewChangeFlow({
               onScroll={handleProposeScroll}
             >
               {proposeProj ? (
-                <>
-                  {proposeProj.activity && proposeProj.activity.length > 0 ? (
-                    <ActivityFeed
-                      entries={proposeProj.activity}
-                      reasoningAvailable={deriveReasoningAvailable(proposeProj)}
-                      runtimeAttached={proposeProj.active}
-                    />
-                  ) : (
-                    <p className={styles.flowHint}>{t('pipeline.journey.noAnswer')}</p>
-                  )}
-                  {(proposeProj.outcome === 'failed' || proposeProj.outcome === 'interrupted') && (
-                    <p className={styles.flowError} role="alert">
-                      {proposeProj.outcome}
-                    </p>
-                  )}
-                </>
+                proposeProj.activity && proposeProj.activity.length > 0 ? (
+                  <ActivityFeed
+                    entries={proposeProj.activity}
+                    reasoningAvailable={deriveReasoningAvailable(proposeProj)}
+                    runtimeAttached={proposeProj.active}
+                  />
+                ) : (
+                  <p className={styles.flowHint}>{t('pipeline.journey.noAnswer')}</p>
+                )
               ) : (
                 <p className={styles.flowHint}>{t('pipeline.journey.noAnswer')}</p>
               )}
             </div>
           )}
 
+          {proposeProj && (proposeProj.outcome === 'failed' || proposeProj.outcome === 'interrupted') && (
+            <p className={styles.flowError} role="alert">
+              {t(`pipeline.journey.outcome.${proposeProj.outcome}`)}
+            </p>
+          )}
+
           {proposeGraphError && (
             <p className={styles.flowError} role="alert">
-              {proposeGraphError}
+              {formatOpenSpecError(proposeGraphError)}
             </p>
           )}
 

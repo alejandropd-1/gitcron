@@ -126,7 +126,7 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8, 8.12)', () => {
           'demo-change',
           3,
           '1.1 Primera tarea',
-          'Primera tarea editada\ncon párrafos',
+          '1.1 Primera tarea editada\ncon párrafos',
           'persona',
         );
       });
@@ -151,7 +151,7 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8, 8.12)', () => {
           'demo-change',
           3,
           '1.1 Primera tarea',
-          'Texto modificado',
+          '1.1 Texto modificado',
           'persona',
         );
       });
@@ -164,6 +164,76 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8, 8.12)', () => {
       fireEvent.keyDown(textarea2, { key: 'Escape' });
 
       expect(screen.queryByDisplayValue('Primera tarea')).toBeNull();
+    });
+
+    it('muestra la columna vacía y no el ID interno cuando la tarea no tiene número (Tarea 4.11a)', () => {
+      const changeWithoutNum: OpenSpecChangeEvidence = {
+        ...mockChange,
+        tasks: [
+          { id: 'c4cd52fad0278bc8e894', text: 'Tarea sin número alguno', completed: false, line: 3, sourceRef: 'tasks.md' },
+        ],
+      };
+      renderView(changeWithoutNum);
+
+      // No debe mostrarse el ID interno bajo ningún concepto
+      expect(screen.queryByText('c4cd52fad0278bc8e894')).toBeNull();
+      // El texto de la tarea sí está presente
+      expect(screen.getByText('Tarea sin número alguno')).toBeTruthy();
+    });
+
+    it('agregar tarea precarga el número sugerido pero permite vaciarlo para guardar sin número (Tarea 4.11b)', async () => {
+      renderView();
+
+      fireEvent.click(screen.getByRole('button', { name: /Nueva tarea/i }));
+      const numberInput = screen.getByLabelText(/N°/i);
+      const textInput = screen.getByPlaceholderText(/Descripción de la nueva tarea/i);
+
+      // Precarga el siguiente sugerido (1.4 porque mockChange tiene 1.1, 1.2, 1.3)
+      expect((numberInput as HTMLInputElement).value).toBe('1.4');
+
+      // Vaciamos el campo de número
+      fireEvent.change(numberInput, { target: { value: '' } });
+      fireEvent.change(textInput, { target: { value: 'Tarea completamente sin número' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /^Agregar$/i }));
+
+      await waitFor(() => {
+        expect(pipelineAddTask).toHaveBeenCalledWith(
+          'C:/repo',
+          'demo-change',
+          'Tarea completamente sin número',
+          { position: 'end' },
+          'persona',
+        );
+      });
+    });
+
+    it('editar una tarea permite modificar su número en su propio campo (Tarea 4.11c)', async () => {
+      renderView();
+
+      const [editBtn] = screen.getAllByRole('button', { name: /^Editar tarea$/i });
+      fireEvent.click(editBtn);
+
+      const numberInput = screen.getByLabelText(/N°/i);
+      expect((numberInput as HTMLInputElement).value).toBe('1.1');
+
+      // Cambiar el número de 1.1 a 1.9
+      fireEvent.change(numberInput, { target: { value: '1.9' } });
+      const textarea = screen.getByDisplayValue('Primera tarea');
+      fireEvent.change(textarea, { target: { value: 'Primera tarea renumerada' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /Guardar/i }));
+
+      await waitFor(() => {
+        expect(pipelineEditTask).toHaveBeenCalledWith(
+          'C:/repo',
+          'demo-change',
+          3,
+          '1.1 Primera tarea',
+          '1.9 Primera tarea renumerada',
+          'persona',
+        );
+      });
     });
 
     it('eliminar una tarea exige confirmación y llama a pipelineRemoveTask tras confirmar', async () => {

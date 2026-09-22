@@ -29,6 +29,7 @@ import { TaskContextMenu } from '@/components/ContextMenus';
 import { useT } from '@/hooks/use-translation';
 import { findMalformedTaskLines, type MalformedTaskLine } from '@/lib/malformed-tasks';
 import { resolveTaskErrorMessage, type TaskErrorMessage } from '@/lib/task-errors';
+import { suggestNextTaskNumber } from '@/lib/task-numbering';
 import type { OpenSpecChangeEvidence, TaskEvidence } from '@/types/pipeline';
 import styles from './OpenSpecDashboard.module.css';
 import { MarkdownViewer } from './MarkdownViewer';
@@ -87,7 +88,7 @@ export function OpenSpecTasksView({
   const resolveLabel = (task: TaskEvidence): string => {
     if (customResolveLabel) return customResolveLabel(task);
     const match = task.text.match(/^(\d+[a-z]?(?:\.\d+[a-z]?)*\.?\s+)/i);
-    return match ? match[1].trim() : task.id;
+    return match ? match[1].trim() : '';
   };
 
   const resolveText = (task: TaskEvidence): string => {
@@ -119,12 +120,14 @@ export function OpenSpecTasksView({
   };
   const isAnyBusy = busyState !== null;
 
-  // Estados de adición
+  // Estados de adición (Tarea 4.11)
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const [newTaskNumber, setNewTaskNumber] = useState('');
   const [newTaskText, setNewTaskText] = useState('');
 
-  // Estados de edición inline con textarea auto-expandible (Bloque A)
+  // Estados de edición inline con textarea auto-expandible (Bloque A y Tarea 4.11)
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editNumber, setEditNumber] = useState('');
   const [editText, setEditText] = useState('');
   const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -270,11 +273,30 @@ export function OpenSpecTasksView({
     }
   };
 
-  /** Agregar tarea (Tarea 8.1 y Bloque B) */
+  const handleOpenAddTask = () => {
+    const suggested = suggestNextTaskNumber(tasks, { markdown: diskRawTasks });
+    setNewTaskNumber(suggested);
+    setNewTaskText('');
+    setIsAddingTask(true);
+  };
+
+  /** Agregar tarea (Tarea 8.1, Bloque B y Tarea 4.11) */
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     const clean = newTaskText.trim();
     if (!clean || isAnyBusy || fixtureActive) return;
+
+    const cleanNum = newTaskNumber.trim();
+    let fullText: string;
+    if (cleanNum) {
+      if (clean.startsWith(cleanNum)) {
+        fullText = clean;
+      } else {
+        fullText = `${cleanNum} ${clean}`;
+      }
+    } else {
+      fullText = clean;
+    }
 
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!api?.pipelineAddTask) return;
@@ -285,13 +307,14 @@ export function OpenSpecTasksView({
       const res = (await api.pipelineAddTask(
         repoPath,
         selectedChange.changeId,
-        clean,
+        fullText,
         { position: 'end' },
         'persona',
       )) as { success?: boolean; error?: string };
 
       if (res?.success) {
         setNewTaskText('');
+        setNewTaskNumber('');
         setIsAddingTask(false);
         setSuccess?.(t('pipeline.openspec.task.addSubmit'));
         onRefresh?.();
@@ -305,9 +328,10 @@ export function OpenSpecTasksView({
     }
   };
 
-  /** Editar texto de tarea (Tarea 8.1 y Bloques A y B) */
+  /** Editar texto de tarea (Tarea 8.1, Bloques A y B, y Tarea 4.11) */
   const handleStartEdit = (task: TaskEvidence) => {
     setEditingTaskId(task.id);
+    setEditNumber(resolveLabel(task));
     setEditText(resolveText(task));
     setTaskError(null);
   };
@@ -315,6 +339,18 @@ export function OpenSpecTasksView({
   const handleSaveEdit = async (task: TaskEvidence) => {
     const clean = editText.trim();
     if (!clean || isAnyBusy || fixtureActive) return;
+
+    const cleanNum = editNumber.trim();
+    let fullNewText: string;
+    if (cleanNum) {
+      if (clean.startsWith(cleanNum)) {
+        fullNewText = clean;
+      } else {
+        fullNewText = `${cleanNum} ${clean}`;
+      }
+    } else {
+      fullNewText = clean;
+    }
 
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!api?.pipelineEditTask) return;
@@ -327,12 +363,13 @@ export function OpenSpecTasksView({
         selectedChange.changeId,
         task.line,
         task.text,
-        clean,
+        fullNewText,
         'persona',
       )) as { success?: boolean; error?: string };
 
       if (res?.success) {
         setEditingTaskId(null);
+        setEditNumber('');
         setEditText('');
         onRefresh?.();
       } else {
@@ -564,7 +601,13 @@ export function OpenSpecTasksView({
             <button
               type="button"
               className={styles.addTaskToggleBtn}
-              onClick={() => setIsAddingTask((prev) => !prev)}
+              onClick={() => {
+                if (isAddingTask) {
+                  setIsAddingTask(false);
+                } else {
+                  handleOpenAddTask();
+                }
+              }}
               disabled={fixtureActive || isAnyBusy}
             >
               <Plus size={13} />
@@ -626,6 +669,15 @@ export function OpenSpecTasksView({
           {isAddingTask && (
             <form onSubmit={handleAddTask} className={styles.taskAddTaskBox}>
               <div className={styles.taskAddInputRow}>
+                <input
+                  type="text"
+                  value={newTaskNumber}
+                  onChange={(e) => setNewTaskNumber(e.target.value)}
+                  placeholder={t('pipeline.openspec.task.numberPlaceholder')}
+                  aria-label={t('pipeline.openspec.task.numberLabel')}
+                  className={`${styles.taskInput} ${styles.taskNumberInput}`}
+                  disabled={isTaskBusy('add')}
+                />
                 <input
                   type="text"
                   autoFocus
@@ -719,10 +771,33 @@ export function OpenSpecTasksView({
                     )}
                   </button>
 
-                  {/* Columna 2: Rótulo / identificador */}
-                  <strong>{resolveLabel(task)}</strong>
+                  {/* Columna 3: Rótulo / identificador */}
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editNumber}
+                      onChange={(e) => setEditNumber(e.target.value)}
+                      placeholder={t('pipeline.openspec.task.numberPlaceholder')}
+                      aria-label={t('pipeline.openspec.task.numberLabel')}
+                      className={`${styles.taskInput} ${styles.taskNumberInput}`}
+                      disabled={isTaskBusy('edit', task.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void handleSaveEdit(task);
+                        } else if (e.key === 'Escape') {
+                          e.preventDefault();
+                          setEditingTaskId(null);
+                          setEditNumber('');
+                          setEditText('');
+                        }
+                      }}
+                    />
+                  ) : (
+                    <strong>{resolveLabel(task)}</strong>
+                  )}
 
-                  {/* Columna 3: Contenido o edición inline con textarea (Bloque A) */}
+                  {/* Columna 4: Contenido o edición inline con textarea (Bloque A) */}
                   {isEditing ? (
                     <div className={styles.taskInlineEdit}>
                       <textarea
@@ -742,6 +817,8 @@ export function OpenSpecTasksView({
                           } else if (e.key === 'Escape') {
                             e.preventDefault();
                             setEditingTaskId(null);
+                            setEditNumber('');
+                            setEditText('');
                           }
                         }}
                         disabled={isTaskBusy('edit', task.id)}
@@ -764,7 +841,11 @@ export function OpenSpecTasksView({
                           <button
                             type="button"
                             className={styles.taskActionBtn}
-                            onClick={() => setEditingTaskId(null)}
+                            onClick={() => {
+                              setEditingTaskId(null);
+                              setEditNumber('');
+                              setEditText('');
+                            }}
                             disabled={isTaskBusy('edit', task.id)}
                             title={t('pipeline.openspec.task.editCancel')}
                             aria-label={t('pipeline.openspec.task.editCancel')}
@@ -961,7 +1042,7 @@ export function OpenSpecTasksView({
       {/* Toast de confirmación de desmarcado */}
       {pendingConfirm?.type === 'uncheck' && (
         <TaskConfirmToast
-          title={t('pipeline.openspec.task.uncheckTitle', { task: resolveLabel(pendingConfirm.task) })}
+          title={t('pipeline.openspec.task.uncheckTitle', { task: resolveLabel(pendingConfirm.task) || resolveText(pendingConfirm.task) })}
           description={t('pipeline.openspec.task.uncheckHelp')}
           confirmLabel={t('pipeline.openspec.task.uncheckConfirm')}
           cancelLabel={t('pipeline.openspec.archive.cancel')}
@@ -981,7 +1062,7 @@ export function OpenSpecTasksView({
       {/* Toast de confirmación de eliminación (Bloque B: concurrencia bloqueada) */}
       {pendingConfirm?.type === 'delete' && (
         <TaskConfirmToast
-          title={t('pipeline.openspec.task.deleteTitle', { task: resolveLabel(pendingConfirm.task) })}
+          title={t('pipeline.openspec.task.deleteTitle', { task: resolveLabel(pendingConfirm.task) || resolveText(pendingConfirm.task) })}
           description={t('pipeline.openspec.task.deleteHelp')}
           confirmLabel={t('pipeline.openspec.task.deleteConfirm')}
           cancelLabel={t('pipeline.openspec.archive.cancel')}

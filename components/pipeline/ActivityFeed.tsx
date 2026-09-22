@@ -71,7 +71,7 @@ export function ActivityFeed({
   );
 
   return (
-    <div className="pipeline-activity">
+    <div className={`pipeline-activity ${styles.activityContainer}`}>
       <div className={styles.activityBody}>
         <div className={styles.activityContent}>
           {/* El brief es explícito: un runtime sin reasoning lo dice, no muestra un

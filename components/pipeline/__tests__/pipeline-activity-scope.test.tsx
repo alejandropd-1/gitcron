@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
+import fs from 'node:fs';
+import path from 'node:path';
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RuntimeProjection } from '@/types/pipeline';
+import { ActivityFeed } from '../ActivityFeed';
 import { OpenSpecDashboard } from '../OpenSpecDashboard';
 import { OpenSpecInspector } from '../OpenSpecInspector';
 import { usePipelineStore } from '@/lib/pipeline-store';
@@ -211,5 +214,45 @@ describe('alcance de la columna de actividad', { timeout: 15_000 }, () => {
 
     expect(screen.getByLabelText(/openspec\.activity\.sessionPicker/)).toBeTruthy();
     expect(screen.getByText('actividad de s-otro')).toBeTruthy();
+  });
+
+  it('maqueta de la bitácora: container-type en el wrapper y no en activityBody, con stretch y 100% en angosto', () => {
+    const cssPath = path.resolve(__dirname, '../OpenSpecDashboard.module.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+
+    // 1. container-type está declarado sobre el wrapper (.activityContainer), NO sobre .activityBody
+    const containerMatch = css.match(/\.activityContainer\s*\{([^}]+)\}/);
+    expect(containerMatch).toBeTruthy();
+    expect(containerMatch![1]).toMatch(/container-type:\s*inline-size/);
+
+    const bodyMatch = css.match(/\.activityBody\s*\{([^}]+)\}/);
+    expect(bodyMatch).toBeTruthy();
+    expect(bodyMatch![1]).not.toMatch(/container-type/);
+
+    // 2. En el contenedor angosto, align-items: stretch y .activityContent { width: 100% }
+    const queryMatch = css.match(/@container\s*\(max-width:\s*680px\)\s*\{([\s\S]+?\n\})/);
+    expect(queryMatch).toBeTruthy();
+    const queryBody = queryMatch![1];
+    expect(queryBody).toMatch(/\.activityBody\s*\{[^}]*align-items:\s*stretch/);
+    expect(queryBody).toMatch(/\.activityContent\s*\{[^}]*width:\s*100%/);
+
+    // 3. Estructura del componente: ActivityFeed renderiza el wrapper exterior con activityContainer
+    const { container } = render(
+      <ActivityFeed
+        entries={[{
+          entryId: 'e-1',
+          at: '2026-09-22T12:00:00Z',
+          channel: 'narrative',
+          text: 'Entrada de prueba',
+          agentId: null,
+        }]}
+        reasoningAvailable={false}
+      />,
+    );
+    const outerWrapper = container.firstElementChild as HTMLElement;
+    expect(outerWrapper.className).toMatch(/activityContainer/);
+    const innerBody = outerWrapper.querySelector('[class*="activityBody"]');
+    expect(innerBody).toBeTruthy();
+    expect(innerBody!.parentElement).toBe(outerWrapper);
   });
 });

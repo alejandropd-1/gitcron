@@ -136,12 +136,25 @@ function trampas() {
       avisos.push(`${archivo}: rama de pruebas en código de producción (NODE_ENV / .mock / vi.fn)`);
     }
     if (/!important/.test(texto)) avisos.push(`${archivo}: !important agregado`);
+    // Silenciar una regla de lint es tapar un error, no arreglarlo. Medido en
+    // la tanda 4d: dos disables para esconder setState en efecto y deps faltantes.
+    if (/eslint-disable/.test(texto)) avisos.push(`${archivo}: eslint-disable agregado`);
   }
   for (const archivo of tocados.filter((f) => f.endsWith('.css'))) {
     const diff = git(`diff -U0 HEAD -- "${archivo}"`);
     const agregado = diff.split(/\r?\n/).filter((l) => l.startsWith('+') && !l.startsWith('+++')).join('\n');
     if (/!important/.test(agregado)) avisos.push(`${archivo}: !important agregado`);
     if (/max-width:\s*0\b/.test(agregado)) avisos.push(`${archivo}: max-width: 0 agregado`);
+    // Colores fuera de la paleta: literales hex, rgb() o nombres de color en
+    // una declaración de color. Todo color sale de un token `--color-*`.
+    // Medido en la tanda 4d: `color: white` en un hover.
+    const declaraciones = agregado.match(/(?:^|\s)(?:background|background-color|color|border-color|border|outline|fill|stroke)\s*:[^;]*;/gm) ?? [];
+    const NOMBRES = /\b(?:white|black|red|blue|green|gray|grey|yellow|orange|purple|pink|cyan|magenta|silver|navy|teal|olive|maroon|lime|aqua|fuchsia)\b/i;
+    for (const decl of declaraciones) {
+      if (/#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/.test(decl) || NOMBRES.test(decl)) {
+        avisos.push(`${archivo}: color literal fuera de la paleta → ${decl.trim()}`);
+      }
+    }
   }
 
   // Archivos reescritos enteros (más del 80 % de las líneas cambiadas): hay que
